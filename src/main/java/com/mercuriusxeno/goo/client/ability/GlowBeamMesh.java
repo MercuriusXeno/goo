@@ -11,7 +11,7 @@ import org.joml.Vector3f;
 import java.util.List;
 
 /**
- * Glow's beam of light, shared by Bulb's prism beacon and Sunbeam's ray: a
+ * Glow's beam of light, shared by Bulb's prism beacon, Reflector's rails and Sunbeam's ray: a
  * thin near-white core inside wider, fainter glow-yellow shells, each a
  * square tube blended additively so the layers stack into a bloom and stay
  * see-through.
@@ -19,12 +19,16 @@ import java.util.List;
  */
 public final class GlowBeamMesh {
 
-    /** The beam's layers from the core out, each wider and fainter than the last. */
+    /**
+     * The beam's layers from the core out, each wider and fainter than the
+     * last; slimmed and dimmed after UAT found them too bright and too thick
+     * (operator ruling 2026-10-09).
+     */
     public static final List<Layer> LAYERS = List.of(
-            new Layer(0.06f, ARGB.color(200, 0xFFF6C8)),
-            new Layer(0.13f, ARGB.color(110, 0xFFE628)),
-            new Layer(0.24f, ARGB.color(45, 0xFFD700)),
-            new Layer(0.40f, ARGB.color(18, 0xFFD700)));
+            new Layer(0.04f, ARGB.color(120, 0xFFF6C8)),
+            new Layer(0.09f, ARGB.color(66, 0xFFE628)),
+            new Layer(0.17f, ARGB.color(27, 0xFFD700)),
+            new Layer(0.28f, ARGB.color(11, 0xFFD700)));
     /** Blocks of beam one tile of the texture spans. */
     private static final float BLOCKS_PER_TILE = 1f;
     private static final Vector3f UP = new Vector3f(0f, 1f, 0f);
