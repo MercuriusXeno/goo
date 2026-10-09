@@ -199,8 +199,8 @@ public final class GloveThrowSender {
             return OptionalDouble.empty();
         }
         int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(selection.getGooType(), 0);
-        return OptionalDouble.of(DragSize.affordable(DragSize.dragged(pin.getLocation(), cursorPoint(player)),
-                ability.cost(), holdings));
+        return OptionalDouble.of(DragSize.affordable(DragSize.dragged(pin.getLocation(), player.getEyePosition(),
+                player.getViewVector(1f)), ability.cost(), holdings));
     }
 
     /**

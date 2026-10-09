@@ -16,9 +16,19 @@ class DragSizeTest {
     private static final int REFERENCE_COST = 1000;
 
     @Test
-    void theDragSetsTheDistanceFromThePinNeverUnderTheSmallest() {
-        assertEquals(5, DragSize.dragged(Vec3.ZERO, new Vec3(3, 4, 0)), DELTA);
-        assertEquals(DragSize.MIN_RADIUS, DragSize.dragged(Vec3.ZERO, new Vec3(0.2, 0, 0)), DELTA);
+    void theDragSetsHowFarTheLookSwingsOffThePinAtAnyRange() {
+        Vec3 eye = Vec3.ZERO;
+        Vec3 pin = new Vec3(0, 0, 40);
+        Vec3 swungAway = new Vec3(5, 0, 40).normalize();
+        double expected = pin.distanceTo(swungAway.scale(pin.dot(swungAway)));
+        assertEquals(expected, DragSize.dragged(pin, eye, swungAway), DELTA);
+        assertEquals(DragSize.MIN_RADIUS, DragSize.dragged(pin, eye, new Vec3(0, 0, 1)), DELTA);
+    }
+
+    @Test
+    void aLookTurnedAwayFromThePinMeasuresFromTheEye() {
+        Vec3 pin = new Vec3(0, 0, 10);
+        assertEquals(10, DragSize.dragged(pin, Vec3.ZERO, new Vec3(0, 0, -1)), DELTA);
     }
 
     @Test
