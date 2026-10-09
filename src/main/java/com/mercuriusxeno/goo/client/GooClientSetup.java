@@ -20,6 +20,8 @@ import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ability.ViewportRipples;
 import com.mercuriusxeno.goo.client.ability.VineTangleLayer;
 import com.mercuriusxeno.goo.client.ber.*;
+import com.mercuriusxeno.goo.client.ber.style.PrismComboStyles;
+import com.mercuriusxeno.goo.client.ber.style.VerdantPrismStyle;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -118,6 +120,8 @@ public final class GooClientSetup {
     public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
         registerMachineRenderers(event);
         registerEffectRenderers(event);
+        // verdant-prism-greens-blocks-slowly: a verdant prism draws its crystal leaf-green
+        PrismComboStyles.register(VerdantPrismStyle.COMBO, new VerdantPrismStyle());
     }
 
     /**

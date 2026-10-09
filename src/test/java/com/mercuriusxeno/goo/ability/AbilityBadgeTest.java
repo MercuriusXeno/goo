@@ -32,6 +32,9 @@ class AbilityBadgeTest {
     /** Blast, Crush and Colonize, the shipped free abilities (decision badge-vocabulary-gains-free-prism-tap-brew). */
     private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "rock_crush", "shroom_colonize",
             "leaf_reap");
+    /** Verdant, the shipped prism combo (decision verdant-prism-greens-blocks-slowly). */
+    private static final List<String> SHIPPED_PRISMS = List.of("leaf_verdant");
+    private static final int SHIPPED_PRISM_BADGES = 1;
     /** Self deliveries wearing the channeled badge (decision flatten-disc-cursor-breaks-above-the-plane). */
     private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten");
 
@@ -86,6 +89,9 @@ class AbilityBadgeTest {
         if (SHIPPED_FREE.contains(definition.id().getPath())) {
             return AbilityBadge.FREE;
         }
+        if (SHIPPED_PRISMS.contains(definition.id().getPath())) {
+            return AbilityBadge.PRISM;
+        }
         if (definition.hasTag(AbilityTags.TAP)) {
             return AbilityBadge.TAP;
         }
@@ -114,7 +120,7 @@ class AbilityBadgeTest {
         assertEquals(Map.of(AbilityBadge.MOB, (long) SHIPPED_MOB_BADGES, AbilityBadge.WORLD, (long) SHIPPED_WORLD_BADGES,
                         AbilityBadge.SELF, (long) SHIPPED_SELF_BADGES, AbilityBadge.BREW, (long) SHIPPED_BREW_BADGES,
                         AbilityBadge.CHANNELED, (long) SHIPPED_CHANNELED_BADGES, AbilityBadge.FREE, (long) SHIPPED_FREE_BADGES,
-                        AbilityBadge.TAP, (long) SHIPPED_TAP_BADGES),
+                        AbilityBadge.TAP, (long) SHIPPED_TAP_BADGES, AbilityBadge.PRISM, (long) SHIPPED_PRISM_BADGES),
                 shipped.values().stream().collect(Collectors.groupingBy(AbilityDefinition::badge, Collectors.counting())));
     }
 }
