@@ -431,6 +431,7 @@ public final class GooTestFunctions {
     private static final String DECAY_DEGRADES_ONCE = "decay_degrades_once_per_activation";
     private static final String STATUE_MINES = "statue_mines_for_cobblestone_and_experience";
     private static final String PETRIFY_TAP_CALCIFIES = "petrify_tap_calcifies";
+    private static final String DECAY_TAP_DEGRADES_BELOW = "decay_tap_degrades_below";
     private static final String PETRIFY_TAP_GROWS_DRIPSTONE = "petrify_tap_grows_dripstone";
     private static final String VITALITY_HEALS = "vitality_heals_cow_and_caster";
     private static final String MOB_CRYSTAL = "mob_crystal_flechettes";
@@ -896,6 +897,7 @@ public final class GooTestFunctions {
         reg(r, DECAY_DEGRADES_ONCE, DecayStreamTests::decayDegradesOncePerActivation);
         reg(r, STATUE_MINES, PetrifyStreamTests::statueMinesForCobblestoneAndExperience);
         reg(r, PETRIFY_TAP_CALCIFIES, PetrifyTapTests::petrifyTapCalcifies);
+        reg(r, DECAY_TAP_DEGRADES_BELOW, DecayTapTests::decayTapDegradesBelow);
         reg(r, PETRIFY_TAP_GROWS_DRIPSTONE, PetrifyTapTests::petrifyTapGrowsDripstone);
         reg(r, VITALITY_HEALS, StreamDeliveryTests::vitalityHealsCowAndCaster);
         reg(r, MOB_CRYSTAL, MobEffectTests::crystalFlechettes);

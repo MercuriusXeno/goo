@@ -62,11 +62,26 @@ public record PetrifyDripStep(Identifier map, int drips, TagKey<Block> grows) im
             }
             return true;
         }
+        stepBelow(host, below, map, drips);
+        return true;
+    }
+
+    /**
+     * Builds the block below the tap one drip's share toward its next block
+     * in a map, stepping it once the drips have landed; Petrify's tap and
+     * Decay's tap both drip this way
+     * (decisions petrify-drip-calcifies-and-grows-dripstone, decay-drip-degrades-the-block-below).
+     *
+     * @param host  the drip host
+     * @param below the block the drip landed on
+     * @param map   the id of the block map it steps along
+     * @param drips the drips that step it
+     */
+    static void stepBelow(DripHost host, BlockPos below, Identifier map, int drips) {
         BlockMaps.get(map).flatMap(steps -> steps.next(host.blockAt(below)))
                 .map(Block::defaultBlockState)
                 .filter(next -> host.exposeBlock(below, next, 1f / drips) >= 1f)
                 .ifPresent(next -> host.transformBlock(below, next));
-        return true;
     }
 
     @Override
