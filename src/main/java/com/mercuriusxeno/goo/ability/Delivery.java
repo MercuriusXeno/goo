@@ -173,6 +173,17 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     }
 
     /**
+     * Whether the throw's path is a straight line with no peak: a beam's, or
+     * a rolling goo's, which flies with no gravity, so its aim previews
+     * straight (decision orb-carries-a-swirling-nova).
+     *
+     * @return true for a beam or a rolling delivery
+     */
+    public boolean aimsStraight() {
+        return fliesStraight() || rolls();
+    }
+
+    /**
      * Whether the glove aims a line at a target, the arc or the beam; a
      * stream aims a cone and a self ability at nothing.
      *
@@ -221,7 +232,7 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
      * @return the peak height in blocks
      */
     public double peak(Vec3 start, Vec3 end, boolean grannyArc) {
-        if (fliesStraight()) {
+        if (aimsStraight()) {
             return 0;
         }
         return grannyArc && grannyAllowed ? ThrowArc.lobPeak(start, end) : ThrowArc.basePeak(start.distanceTo(end));
