@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:mob_aeon_ritual_counts",
+  "function": "goo:rewind_adult_to_baby",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 5,
+  "max_ticks": 160,
   "setup_ticks": 0,
   "required": true
 }

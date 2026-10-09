@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.petrify.Petrification;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
 import com.mercuriusxeno.goo.ability.program.Sight;
+import com.mercuriusxeno.goo.ability.rewind.Rewinding;
 import com.mercuriusxeno.goo.ability.spray.Spored;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
@@ -146,6 +147,16 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> Boolean.FALSE)
                             .serialize(Codec.BOOL.fieldOf("held"), Boolean::booleanValue)
                             .build());
+
+    /**
+     * A mob Rewind's stream holds: frozen until shortly after the stream lets
+     * go, or shrinking into its egg, saved with the mob so a reload mid-hold
+     * still frees it.
+     * rewind-fills-while-held
+     */
+    public static final Supplier<AttachmentType<Rewinding>> REWINDING =
+            ATTACHMENT_TYPES.register("rewinding",
+                    () -> AttachmentType.builder(() -> Rewinding.NONE).serialize(Rewinding.CODEC).build());
 
     private GooAttachments() {
     }

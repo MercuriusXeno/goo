@@ -1,0 +1,28 @@
+{
+  "gooType": "aeon",
+  "displayName": "goo.ability.aeon.rewind",
+  "badge": "channeled",
+  "order": 20,
+  "cost": 1000,
+  "requires": ["minecraft:clock"],
+  "delivery": { "kind": "stream", "range": 8, "cone": 10, "ticks_per_charge": 20 },
+  "behaviors": [
+    {
+      "type": "target",
+      "where": ["mob", "not_boss", "has_spawn_egg"],
+      "steps": [
+        { "type": "rewind_hold" },
+        { "type": "counter", "id": "goo:ritual", "add": "5 / pow(max_health, 0.6) * max_health / max(health, 1)" },
+        {
+          "type": "branch",
+          "when": "at_least(goo:ritual, 100)",
+          "then": [
+            { "type": "regress", "ticks": 20 },
+            { "type": "counter", "id": "goo:ritual", "set": 0 }
+          ]
+        }
+      ]
+    }
+  ],
+  "tags": ["stream"]
+}

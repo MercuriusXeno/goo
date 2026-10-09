@@ -15,6 +15,7 @@ import com.mercuriusxeno.goo.network.GooValueSyncPayload;
 import com.mercuriusxeno.goo.network.KnownItemLearnedPayload;
 import com.mercuriusxeno.goo.network.KnownItemsSyncPayload;
 import com.mercuriusxeno.goo.network.MobHitPayload;
+import com.mercuriusxeno.goo.network.ModelShrinkPayload;
 import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.network.TransformationPayload;
@@ -54,6 +55,7 @@ public final class GooClientNetworking {
         event.register(BlockExposurePayload.TYPE, BlockTransformHandler::handleExposure);
         event.register(AfterimagePayload.TYPE, AfterimageHandler::handle);
         event.register(TransformationPayload.TYPE, TransformationHandler::handle);
+        event.register(ModelShrinkPayload.TYPE, TransformationHandler::handleShrink);
         event.register(GhostTrailPayload.TYPE, GhostTrailHandler::handle);
         event.register(KnownItemsSyncPayload.TYPE, KnownItemsHandler::handleSync);
         event.register(KnownItemLearnedPayload.TYPE, KnownItemsHandler::handleLearned);

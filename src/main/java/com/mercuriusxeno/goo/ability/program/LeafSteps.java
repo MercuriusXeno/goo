@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.rewind.RewindEvents;
 import com.mercuriusxeno.goo.ability.stasis.StasisEvents;
 import com.mojang.datafixers.util.Unit;
 import com.mojang.serialization.Codec;
@@ -111,6 +112,20 @@ public final class LeafSteps {
         }
         return true;
     });
+
+    /**
+     * Freezes the host's target while Rewind's stream holds it, the freeze
+     * ending a few ticks after the stream lets go; a target that is not a
+     * mob is left alone.
+     * rewind-fills-while-held
+     */
+    public static final LeafStepType<Unit> REWIND_HOLD = StepType.of("rewind_hold", NO_PARAMS, TARGET,
+            (none, context) -> {
+                if (context.hostAs(TargetHost.class).target() instanceof Mob mob) {
+                    RewindEvents.hold(mob, mob.level().getGameTime());
+                }
+                return true;
+            });
 
     /**
      * Sets the host's target on fire for a number of seconds; blaze ignite
