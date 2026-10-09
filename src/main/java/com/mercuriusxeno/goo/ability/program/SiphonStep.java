@@ -15,7 +15,7 @@ import java.util.stream.Stream;
  * stands and holds up none of the others.
  * decision unmake-waves-dissolve-by-crucible-cost
  *
- * @param radius how far the cone's square reaches from its axis at mid range, 1 for a 3x3
+ * @param radius how far past half a block the cone reaches from its axis at mid range, 0 for one block wide
  * @param speed  how much faster than the crucible the drink goes, 1 at its pace
  */
 public record SiphonStep(Expr radius, Expr speed) implements Step {
@@ -25,10 +25,10 @@ public record SiphonStep(Expr radius, Expr speed) implements Step {
     private static final String FIELD_SPEED = "speed";
 
     /**
-     * Codec for the step's params; a siphon naming neither drinks a 3x3 cone at the crucible's pace.
+     * Codec for the step's params; a siphon naming neither drinks a cone one block wide at mid range at the crucible's pace.
      */
     public static final MapCodec<SiphonStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Expr.CODEC.optionalFieldOf(FIELD_RADIUS, Expr.literal(1)).forGetter(SiphonStep::radius),
+            Expr.CODEC.optionalFieldOf(FIELD_RADIUS, Expr.literal(0)).forGetter(SiphonStep::radius),
             Expr.CODEC.optionalFieldOf(FIELD_SPEED, Expr.literal(1)).forGetter(SiphonStep::speed)
     ).apply(inst, SiphonStep::new));
 
@@ -47,7 +47,7 @@ public record SiphonStep(Expr radius, Expr speed) implements Step {
         SiphonHost host = context.hostAs(SiphonHost.class);
         host.holdDrink();
         double speed = this.speed.evaluate(context);
-        for (BlockPos pos : host.siphonCone(Math.max(0, (int) Math.round(radius.evaluate(context))))) {
+        for (BlockPos pos : host.siphonCone(Math.max(0, radius.evaluate(context)))) {
             GooValue value = host.siphonValue(pos);
             if (value == null || value.isEmpty()) {
                 continue;

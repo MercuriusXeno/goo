@@ -11,13 +11,14 @@ import java.util.Map;
 /**
  * The tree an Unmake drink's streams union on this frame, built on the
  * drink's fixed layout: each block's path runs from its far side to its join
- * on its trunk, or to the glove, the ends following the hand. Past a join the
- * trunk carries every stream whose liquid is there, combined by the fourth
- * root of the sum of fourth powers so a trunk of many streams is fatter but
- * dampened, swelling into each over a short length so the two meet like
- * metaballs touching; a block's liquid flows at the one pace along its whole
- * route, its own path then each trunk's remainder, its goo mingling over the
- * whole of it.
+ * on its trunk, or to the glove, the ends following the hand and a tributary
+ * curving in to land along its trunk's flow. About a join the trunk carries
+ * every stream whose liquid is there, combined by the fourth root of the sum
+ * of fourth powers so a trunk of many streams is fatter but dampened,
+ * swelling into each over a short length either side of the join so the two
+ * meet like metaballs touching; a block's liquid flows at the one pace along
+ * its whole route, its own path then each trunk's remainder, its goo
+ * mingling over the whole of it.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 public final class DrinkTree {
@@ -162,7 +163,8 @@ public final class DrinkTree {
     private static Stream joining(Block block, DrinkLayout.Node node, Stream trunk, double now) {
         double join = Math.min(1, node.joinAt() / trunk.path().length());
         Vec3 at = DrinkStream.pointAt(trunk.path(), join, now);
-        return new Stream(block, new DrinkStream.Path(node.farSide(), at, block.seed()), trunk, join);
+        Vec3 arrival = DrinkStream.flowAt(trunk.path(), join, now);
+        return new Stream(block, new DrinkStream.Path(node.farSide(), at, block.seed(), arrival), trunk, join);
     }
 
     /**
@@ -200,7 +202,7 @@ public final class DrinkTree {
             powers += powersUnder(tributary, stream, share, now);
         }
         return DrinkStream.ring(stream.path(), share, now, Math.pow(powers, 1 / COMBINE),
-                DrinkStream.materialAt(distance, now), distance / stream.routeLength());
+                DrinkBody.roundnessAt(distance), DrinkStream.materialAt(distance, now), distance / stream.routeLength());
     }
 
     private static double powersUnder(Stream branch, Stream through, double share, double now) {
@@ -219,20 +221,20 @@ public final class DrinkTree {
      * Where a stream's liquid stands at a point of a trunk it flows through.
      *
      * @param distance the point's distance along the stream's own route, in blocks
-     * @param join     the share of the trunk the stream's branch joined it at
+     * @param pastJoin blocks past the stream's join along the trunk, below zero before it
      */
-    private record Entry(double distance, double join) {
+    private record Entry(double distance, double pastJoin) {
     }
 
     /**
      * @param stream  a stream
      * @param through its own path or a trunk it flows through
      * @param share   a share of that path
-     * @return where the stream's liquid stands there, or null where the stream has not yet joined
+     * @return where the stream's liquid stands there, or null where the stream is not yet near its join
      */
     private static @Nullable Entry entryOf(Stream stream, Stream through, double share) {
         if (stream == through) {
-            return new Entry(share * through.path().length(), 0);
+            return new Entry(share * through.path().length(), Double.MAX_VALUE);
         }
         double distance = stream.path().length();
         Stream branch = stream;
@@ -243,16 +245,19 @@ public final class DrinkTree {
             distance += (1 - branch.joinShare()) * next.path().length();
             branch = next;
         }
-        if (share < branch.joinShare()) {
+        double pastJoin = (share - branch.joinShare()) * through.path().length();
+        if (pastJoin < -MERGE) {
             return null;
         }
-        return new Entry(distance + (share - branch.joinShare()) * through.path().length(), branch.joinShare());
+        return new Entry(distance + Math.max(0, pastJoin), pastJoin);
     }
 
     /**
      * The radius one stream alone gives a point of a path it flows through:
-     * its own radius there, and on a trunk it joined, swelling in over
-     * {@link #MERGE} past the join.
+     * its matter's width there, the block's own at its entry narrowing down
+     * the funnel to the stream's, tapering at its ends; on a trunk it joins,
+     * swelling in symmetrically about the join over {@link #MERGE} each way,
+     * so the two meet like metaballs touching.
      *
      * @param stream  the stream
      * @param through its own path or a trunk it flows through
@@ -266,17 +271,18 @@ public final class DrinkTree {
             return 0;
         }
         Block block = stream.block();
-        double radius = DrinkStream.radiusAt(block.scale(), DrinkStream.materialAt(entry.distance(), now),
-                entry.distance(), DrinkStream.tailAt(block.end(), now), DrinkStream.headAt(block.start(), now),
-                block.seed());
-        return stream == through ? radius : radius * mergeRamp((share - entry.join()) * through.path().length());
+        double width = DrinkBody.widthAt(entry.distance(), block.scale()
+                * DrinkStream.widthAt(DrinkStream.materialAt(entry.distance(), now), block.seed()));
+        double radius = width * DrinkStream.taperAt(entry.distance(), DrinkStream.tailAt(block.end(), now),
+                DrinkStream.headAt(block.start(), now));
+        return stream == through ? radius : radius * mergeRamp(entry.pastJoin());
     }
 
     /**
-     * @param pastJoin blocks past a join along the trunk
-     * @return how far the trunk has swelled to carry the stream that joined, 0 at the join to 1 past {@link #MERGE}
+     * @param pastJoin blocks past a join along the trunk, below zero before it
+     * @return how far the trunk has swelled to carry the stream that joins, 0 a merge before the join to 1 a merge past
      */
     static double mergeRamp(double pastJoin) {
-        return DrinkStream.smoothRamp(0, MERGE, pastJoin);
+        return DrinkStream.smoothRamp(-MERGE, MERGE, pastJoin);
     }
 }

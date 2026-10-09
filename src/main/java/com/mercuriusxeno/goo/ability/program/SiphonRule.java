@@ -56,13 +56,14 @@ public final class SiphonRule {
 
     /**
      * The cone's apex angle, edge to edge: one block wide at the eye, and at
-     * {@link #MID_RANGE} as wide as the square the radius names, so a 3x3
-     * there and one block up close.
+     * {@link #MID_RANGE} half a block wider each side than the radius names,
+     * so a radius of 0 is one block wide there, penetrating deep but not
+     * wide, and 0.75 is two and a half.
      *
-     * @param radius how far the square reaches from the cone's axis at mid range, 1 for a 3x3
+     * @param radius how far past half a block the cone reaches from its axis at mid range, 0 for one block wide
      * @return the apex angle in degrees
      */
-    public static double coneDegrees(int radius) {
+    public static double coneDegrees(double radius) {
         return EDGE_TO_EDGE * Math.toDegrees(Math.atan((radius + HALF_BLOCK) / MID_RANGE));
     }
 }

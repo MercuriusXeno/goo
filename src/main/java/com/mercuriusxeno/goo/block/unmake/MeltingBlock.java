@@ -45,6 +45,15 @@ public class MeltingBlock extends BaseEntityBlock {
         return RenderShape.INVISIBLE;
     }
 
+    /**
+     * Passes all light, so the drink's drawing of the block is lit as the air
+     * about it is, not darkened by the stand-in.
+     */
+    @Override
+    protected boolean propagatesSkylightDown(@NonNull BlockState state) {
+        return true;
+    }
+
     @Override
     public BlockEntity newBlockEntity(@NonNull BlockPos pos, @NonNull BlockState state) {
         return new MeltingBlockEntity(pos, state);

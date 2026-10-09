@@ -6,10 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A block's lump flows into its stream from the first tick: its back stands
- * where the cube stood and advances as it empties, its front is the stream's
- * entry, and a point of the cube is carried between them, lofted from the
- * cube's shape to the stream's ring (decision unmake-waves-dissolve-by-crucible-cost).
+ * A block's lump flows into its stream like taffy from the first tick: its
+ * near face leaves the entry at the flow's pace, its back creeps to the entry
+ * over the drain, a point of the cube keeps the cube's cross-section and is
+ * carried along, and past the entry the matter narrows and rounds from the
+ * cube's width to the stream's over the funnel
+ * (decision unmake-waves-dissolve-by-crucible-cost).
  */
 class DrinkBodyTest {
 
@@ -17,14 +19,12 @@ class DrinkBodyTest {
     private static final Vec3 CENTER = new Vec3(7.5, 2.5, 3.5);
     private static final Vec3 GLOVE = new Vec3(1.5, 2.2, 3.1);
     private static final long SEED = 42;
-    private static final double NOW = 100;
-    private static final double RADIUS = 0.05;
     private static final DrinkStream.Path PATH = new DrinkStream.Path(DrinkLayout.farSideOf(CENTER, GLOVE), GLOVE,
             SEED);
-    private static final DrinkBody.RingAt RINGS = share -> DrinkStream.ring(PATH, share, NOW, RADIUS, 0, share);
-    private static final DrinkBody.RingAt NO_RINGS = share -> DrinkStream.ring(PATH, share, NOW, 0, 0, share);
     private static final Vec3 UP = new Vec3(0, 1, 0);
     private static final double HALFWAY = 0.5;
+    private static final double FLOWED = 1.3;
+    private static final double STREAM = 0.05;
 
     private static Vec3 along() {
         return GLOVE.subtract(PATH.from()).normalize();
@@ -40,60 +40,66 @@ class DrinkBodyTest {
     }
 
     @Test
-    void theLumpIsTheWholeCubeAtTheStartAndGoneAtTheEnd() {
-        DrinkBody.Lump whole = new DrinkBody.Lump(PATH, 0);
-        DrinkBody.Lump gone = new DrinkBody.Lump(PATH, 1);
+    void theNearFaceLeavesTheEntryAtOnceAndTheBackCreepsToItOverTheDrain() {
+        DrinkBody.Lump start = new DrinkBody.Lump(PATH, 0, 0);
+        DrinkBody.Lump later = new DrinkBody.Lump(PATH, HALFWAY, FLOWED);
+        DrinkBody.Lump drained = new DrinkBody.Lump(PATH, 1, 2 * FLOWED);
 
-        assertEquals(0, whole.back(), DELTA);
-        assertEquals(DrinkStream.BLOCK_SPAN, whole.length(), DELTA);
-        assertEquals(1, whole.size(), DELTA);
-        assertEquals(DrinkStream.BLOCK_SPAN, gone.back(), DELTA);
-        assertEquals(0, gone.length(), DELTA);
-        assertEquals(0, gone.size(), DELTA);
+        assertEquals(0, start.back(), DELTA);
+        assertEquals(DrinkStream.BLOCK_SPAN, start.front(), DELTA);
+        assertEquals(HALFWAY * DrinkStream.BLOCK_SPAN, later.back(), DELTA);
+        assertEquals(DrinkStream.BLOCK_SPAN + FLOWED, later.front(), DELTA);
+        assertEquals(DrinkStream.BLOCK_SPAN, drained.back(), DELTA);
     }
 
     @Test
-    void theBackAdvancesAndShrinksAsTheLumpEmpties() {
-        DrinkBody.Lump half = new DrinkBody.Lump(PATH, HALFWAY);
+    void theSlicesBetweenStretchEvenly() {
+        DrinkBody.Lump later = new DrinkBody.Lump(PATH, HALFWAY, FLOWED);
 
-        assertEquals(HALFWAY * DrinkStream.BLOCK_SPAN, half.back(), DELTA);
-        assertEquals(HALFWAY * DrinkStream.BLOCK_SPAN, half.length(), DELTA);
-        assertTrue(half.size() < 1 && half.size() > HALFWAY);
-        assertEquals(HALFWAY * DrinkStream.BLOCK_SPAN, half.distanceOf(PATH.from()), DELTA);
-        assertEquals(DrinkStream.BLOCK_SPAN, half.distanceOf(PATH.from().add(along())), DELTA);
+        assertEquals(later.back(), later.distanceOf(0), DELTA);
+        assertEquals((later.back() + later.front()) / 2, later.distanceOf(HALFWAY), DELTA);
+        assertEquals(later.front(), later.distanceOf(1), DELTA);
     }
 
     @Test
-    void aPointOfTheBackStandsWhereItStoodAtTheStart() {
+    void aPointOfTheBackStandsWhereItStoodAtTheStartAndKeepsItsCrossSection() {
         Vec3 point = ofTheBack();
-        DrinkBody.Lump whole = new DrinkBody.Lump(PATH, 0);
+        DrinkBody.Lump start = new DrinkBody.Lump(PATH, 0, 0);
+        DrinkBody.Lump later = new DrinkBody.Lump(PATH, HALFWAY, FLOWED);
 
-        DrinkBody.Place place = DrinkBody.placeOf(point, UP, whole, RINGS);
+        DrinkBody.Place stood = DrinkBody.placeOf(point, UP, start);
+        DrinkBody.Place moved = DrinkBody.placeOf(point, UP, later);
 
-        assertEquals(0, place.point().distanceTo(point), DELTA);
-        assertEquals(0, place.normal().distanceTo(UP), DELTA);
+        assertEquals(0, stood.point().distanceTo(point), DELTA);
+        assertEquals(UP, stood.normal());
+        assertEquals(HALFWAY * DrinkStream.BLOCK_SPAN, moved.point().distanceTo(point), DELTA);
+        assertEquals(point.distanceTo(PATH.from()), moved.point().distanceTo(PATH.spineAt(later.back()
+                / PATH.length())), DELTA);
     }
 
     @Test
-    void aPointOfTheFrontLiesOnTheStreamsRingAtTheEntry() {
+    void aSlicePastTheEntryStandsAtTheEntryForTheStreamToDraw() {
         Vec3 point = ofTheBack().add(along());
-        DrinkBody.Lump whole = new DrinkBody.Lump(PATH, 0);
-        DrinkStream.Ring entry = RINGS.at(DrinkStream.BLOCK_SPAN / PATH.length());
+        DrinkBody.Lump later = new DrinkBody.Lump(PATH, HALFWAY, FLOWED);
 
-        DrinkBody.Place place = DrinkBody.placeOf(point, UP, whole, RINGS);
+        DrinkBody.Place place = DrinkBody.placeOf(point, UP, later);
 
-        assertEquals(RADIUS, place.point().distanceTo(entry.center()), DELTA);
-        assertEquals(1, place.normal().length(), DELTA);
+        assertEquals(ofTheBack().distanceTo(PATH.from()), place.point().distanceTo(PATH.spineAt(
+                DrinkStream.BLOCK_SPAN / PATH.length())), DELTA);
     }
 
     @Test
-    void theWholeLumpHasFlowedIntoTheEntryAtTheEnd() {
-        Vec3 point = ofTheBack();
-        DrinkBody.Lump gone = new DrinkBody.Lump(PATH, 1);
-        DrinkStream.Ring entry = NO_RINGS.at(DrinkStream.BLOCK_SPAN / PATH.length());
+    void theMatterNarrowsAndRoundsFromTheCubesWidthToTheStreamsOverTheFunnel() {
+        double entry = DrinkStream.BLOCK_SPAN;
+        double past = entry + DrinkBody.FUNNEL;
 
-        DrinkBody.Place place = DrinkBody.placeOf(point, UP, gone, NO_RINGS);
-
-        assertEquals(0, place.point().distanceTo(entry.center()), DELTA);
+        assertEquals(DrinkBody.MOUTH, DrinkBody.widthAt(entry, STREAM), DELTA);
+        assertEquals(DrinkBody.MOUTH, DrinkBody.widthAt(0, STREAM), DELTA);
+        assertEquals(STREAM, DrinkBody.widthAt(past, STREAM), DELTA);
+        assertEquals(STREAM, DrinkBody.widthAt(past + 1, STREAM), DELTA);
+        double between = DrinkBody.widthAt(entry + DrinkBody.FUNNEL / 2, STREAM);
+        assertTrue(between < DrinkBody.MOUTH && between > STREAM);
+        assertEquals(0, DrinkBody.roundnessAt(entry), DELTA);
+        assertEquals(1, DrinkBody.roundnessAt(past), DELTA);
     }
 }
