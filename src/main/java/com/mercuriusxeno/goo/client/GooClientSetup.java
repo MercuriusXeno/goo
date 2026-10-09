@@ -16,6 +16,7 @@ import com.mercuriusxeno.goo.client.ability.MobAilments;
 import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
 import com.mercuriusxeno.goo.client.ability.MobCoats;
 import com.mercuriusxeno.goo.client.ability.MobShells;
+import com.mercuriusxeno.goo.client.ability.NovaRings;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ability.ViewportRipples;
@@ -55,6 +56,7 @@ import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsE
 import net.neoforged.neoforge.client.renderstate.RegisterRenderStateModifiersEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
+import java.util.function.BiConsumer;
 
 /**
  * Client-side setup: entity renderers and network event handling.
@@ -246,8 +248,10 @@ public final class GooClientSetup {
     }
 
     /**
-     * Registers a render state modifier that injects goo-colored outlineColor
-     * onto entities targeted by the glove, producing the spectral glow outline.
+     * Registers the render state modifiers that stamp each entity's goo state
+     * onto its render state: the glove's target outline, the goo coat, the
+     * ailments, the stone and frost encasements, the frozen pose and the
+     * transformation, in that order.
      *
      * @param event the event instance
      */
@@ -255,34 +259,18 @@ public final class GooClientSetup {
     @SubscribeEvent
     public static void registerRenderStateModifiers(
             RegisterRenderStateModifiersEvent event) {
-        event.registerEntityModifier(
-                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
-                },
-                AimTracker::modifyEntityRenderState);
-        event.registerEntityModifier(
-                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
-                },
-                MobCoatLayer::stampCoat);
-        event.registerEntityModifier(
-                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
-                },
-                AilmentOverlayLayer::stampAilments);
-        event.registerEntityModifier(
-                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
-                },
-                EncasementLayer::stampPetrify);
-        event.registerEntityModifier(
-                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
-                },
-                EncasementLayer::stampFrozen);
-        event.registerEntityModifier(
-                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
-                },
-                FrozenPoses::stampFrozenPose);
-        event.registerEntityModifier(
-                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
-                },
+        List<BiConsumer<Entity, EntityRenderState>> stamps = List.of(
+                AimTracker::modifyEntityRenderState,
+                MobCoatLayer::stampCoat,
+                AilmentOverlayLayer::stampAilments,
+                EncasementLayer::stampPetrify,
+                EncasementLayer::stampFrozen,
+                FrozenPoses::stampFrozenPose,
                 TransformationRenderer::stampTransformation);
+        for (BiConsumer<Entity, EntityRenderState> stamp : stamps) {
+            event.registerEntityModifier(new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
+            }, stamp);
+        }
     }
 
     /**
@@ -411,6 +399,7 @@ public final class GooClientSetup {
         MobCoats.CLIENT.clear();
         MobAilments.CLIENT.clear();
         FrozenPoses.CLIENT.clear();
+        NovaRings.CLIENT.clear();
         BlockTransforms.CLIENT.clear();
         Afterimages.CLIENT.clear();
         Transformations.CLIENT.clear();

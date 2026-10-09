@@ -154,8 +154,8 @@ public final class GloveUseTracker {
     private static GloveInputGate.PressActions pressActions(LocalPlayer player) {
         return new GloveInputGate.PressActions() {
             @Override
-            public boolean sendThrow() {
-                return GloveThrowSender.sendThrow(player);
+            public boolean sendThrow(int heldTicks) {
+                return GloveThrowSender.sendThrow(player, heldTicks);
             }
 
             @Override

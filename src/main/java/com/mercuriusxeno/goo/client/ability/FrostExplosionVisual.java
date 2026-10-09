@@ -80,14 +80,30 @@ public final class FrostExplosionVisual implements BurnoutVisual {
 
     @Override
     public void render(ChainBurnouts.Burnout burnout, BurnoutFrame frame) {
-        float progress = burnout.progress(frame.gameTime());
-        float radius = ZONE_REACH * spread(progress);
+        drawRing(frame, Vec3.atLowerCornerOf(burnout.pos()), burnout.placedFace(), RING_LIFT, ZONE_REACH,
+                burnout.progress(frame.gameTime()));
+    }
+
+    /**
+     * Draws the frost ring spread toward a reach, its block-local center a
+     * block's center shifted along the face by lift; Nova draws its ring
+     * this way at the caster's feet (decision nova-ring-grows-with-the-hold).
+     *
+     * @param frame    the frame being drawn
+     * @param corner   the world point the ring's block-local coordinates are measured from
+     * @param face     the face the ring lies square to
+     * @param lift     the shift from the block center along the face's step
+     * @param reach    the reach the ring spreads to, in blocks
+     * @param progress the ring's progress in [0, 1]
+     */
+    static void drawRing(BurnoutFrame frame, Vec3 corner, Direction face, float lift, float reach, float progress) {
+        float radius = reach * spread(progress);
         int progressByte = NetherDiscMesh.toByte(progress);
         int fog = NetherDiscMesh.toByte(fog(progress));
         int center = ARGB.color(fog, progressByte, NetherDiscMesh.toByte(SIGNED_TO_UNIT),
                 NetherDiscMesh.toByte(SIGNED_TO_UNIT));
-        BurnoutGeometry.drawAtMarker(frame, burnout.pos(), GooRenderTypes.FROST_EXPLOSION_TYPE, (pose, c) ->
-                BurnoutGeometry.emitAnnulus(pose, c, burnout.placedFace(), RING_LIFT, 0f, radius, RING_SEGMENTS,
+        BurnoutGeometry.drawAt(frame, corner, GooRenderTypes.FROST_EXPLOSION_TYPE, (pose, c) ->
+                BurnoutGeometry.emitAnnulus(pose, c, face, lift, 0f, radius, RING_SEGMENTS,
                         (angle, outer) -> outer ? edgeColor(fog, progressByte, angle) : center));
     }
 

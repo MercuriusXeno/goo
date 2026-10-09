@@ -31,10 +31,14 @@ import java.util.function.Consumer;
  * @param player        the invoking player
  * @param brewDuration  the drunk brew's duration in ticks, empty for a glove invocation
  * @param channelAim    the held channel's aim this tick, empty outside a channel
+ * @param charge        the share of a full charge a charged ability's hold reached, 0 outside a charge
  */
 public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt brewDuration,
-                         Optional<ChannelAim> channelAim)
+                         Optional<ChannelAim> channelAim, float charge)
         implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost {
+
+    /** The charge a host outside a charged release carries. */
+    private static final float NO_CHARGE = 0f;
 
     /** Blocks past the interaction range a channel still breaks at, vanilla's own slack for a block break. */
     private static final double REACH_SLACK = 1.0;
@@ -46,7 +50,7 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
      * @param player the invoking player
      */
     public PlayerHost(ServerLevel level, ServerPlayer player) {
-        this(level, player, OptionalInt.empty(), Optional.empty());
+        this(level, player, OptionalInt.empty(), Optional.empty(), NO_CHARGE);
     }
 
     /**
@@ -57,7 +61,7 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
      * @param brewDuration the brew's duration in ticks
      */
     public PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt brewDuration) {
-        this(level, player, brewDuration, Optional.empty());
+        this(level, player, brewDuration, Optional.empty(), NO_CHARGE);
     }
 
     /**
@@ -69,7 +73,20 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
      * @return the host carrying the aim
      */
     public static PlayerHost channeling(ServerLevel level, ServerPlayer player, ChannelAim aim) {
-        return new PlayerHost(level, player, OptionalInt.empty(), Optional.of(aim));
+        return new PlayerHost(level, player, OptionalInt.empty(), Optional.of(aim), NO_CHARGE);
+    }
+
+    /**
+     * The host of a charged ability's release, carrying the share of a full
+     * charge its hold reached (decision nova-ring-grows-with-the-hold).
+     *
+     * @param level  the server level
+     * @param player the releasing player
+     * @param charge the share of a full charge, 0 to 1
+     * @return the host carrying the charge
+     */
+    public static PlayerHost charged(ServerLevel level, ServerPlayer player, float charge) {
+        return new PlayerHost(level, player, OptionalInt.empty(), Optional.empty(), charge);
     }
 
     @Override
@@ -110,6 +127,9 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
 
     @Override
     public OptionalDouble read(String name) {
+        if (HostVariables.CHARGE.equals(name)) {
+            return OptionalDouble.of(charge);
+        }
         return asEntity().read(name);
     }
 

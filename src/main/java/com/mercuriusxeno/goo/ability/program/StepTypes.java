@@ -41,6 +41,7 @@ public final class StepTypes {
         register(TargetStep.TYPE);
         register(LeafSteps.SET_HEALTH.type());
         register(FreezeStep.TYPE);
+        register(NovaStep.TYPE);
         register(LeafSteps.SET_AI.type());
         register(LeafSteps.SET_INVULNERABLE.type());
         register(CloneEntityStep.TYPE);

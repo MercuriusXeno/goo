@@ -51,7 +51,7 @@ public enum HostKind {
      */
     PLAYER("player host", PlayerHost.class,
             Set.of(HostVariables.HEALTH, HostVariables.MAX_HEALTH, HostVariables.DISTANCE,
-                    HostVariables.UNDEAD, HostVariables.SPRINTING));
+                    HostVariables.UNDEAD, HostVariables.SPRINTING, HostVariables.CHARGE));
 
     private final String label;
     private final Set<HostCapability> capabilities;
