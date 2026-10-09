@@ -77,7 +77,7 @@ public record TickPlantsStep() implements Step {
      * @param pos    the cell
      * @param random the random source
      */
-    private static void tickPlant(ServerLevel level, BlockPos pos, RandomSource random) {
+    static void tickPlant(ServerLevel level, BlockPos pos, RandomSource random) {
         BlockState state = level.getBlockState(pos);
         if (!grows(state)) {
             return;
