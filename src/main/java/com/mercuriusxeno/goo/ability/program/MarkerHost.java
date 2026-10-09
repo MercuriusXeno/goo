@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.world.TimeVeil;
 import com.mercuriusxeno.goo.block.ability.MarkerAnchor;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
@@ -33,7 +34,7 @@ import java.util.function.Consumer;
  */
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
-        FieldEffectHost, PhasedHost, ConsumedGooHost, TickBankHost {
+        FieldEffectHost, PhasedHost, ConsumedGooHost, TickBankHost, TimeVeilHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -60,6 +61,11 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     @Override
     public void bankTicks(int perTick, int spending) {
         be.bankTicks(perTick, spending);
+    }
+
+    @Override
+    public void slowWithin(double radius, double slow) {
+        TimeVeil.slowWithin(level, Vec3.atCenterOf(pos), radius, slow);
     }
 
     /**

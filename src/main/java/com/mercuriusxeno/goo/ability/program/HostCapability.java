@@ -93,7 +93,12 @@ public enum HostCapability {
      * An anchor that banks ticks, the timekeeper prism
      * (decision timekeeper-prism-banks-ticks-forward-only).
      */
-    TICK_BANK(TickBankHost.class);
+    TICK_BANK(TickBankHost.class),
+    /**
+     * A sphere around the anchor to slow time in, the chronosphere's marker
+     * (decision chronosphere-hastes-players-slows-mobs).
+     */
+    TIME_VEIL(TimeVeilHost.class);
 
     private final Class<? extends StepHost> hostType;
 

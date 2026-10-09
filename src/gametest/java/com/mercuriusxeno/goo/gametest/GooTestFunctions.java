@@ -20,6 +20,7 @@ import com.mercuriusxeno.goo.network.BoreStreamTests;
 import com.mercuriusxeno.goo.network.CrushMobTests;
 import com.mercuriusxeno.goo.network.FlattenChannelTests;
 import com.mercuriusxeno.goo.network.PetrifyStreamTests;
+import com.mercuriusxeno.goo.network.ChronosphereTests;
 import com.mercuriusxeno.goo.network.RewindStreamTests;
 import com.mercuriusxeno.goo.network.StreamDeliveryTests;
 import com.mercuriusxeno.goo.network.TouchDeliveryTests;
@@ -450,6 +451,8 @@ public final class GooTestFunctions {
     private static final String TIMEKEEPER_TICK_MOVES_DAY_FORWARD = "timekeeper_tick_moves_day_forward";
     private static final String TIMEKEEPER_OFFSETS_REST_STAT = "timekeeper_offsets_rest_stat";
     private static final String TIMEKEEPER_REWIND_WITHDRAWS = "timekeeper_rewind_withdraws";
+    private static final String CHRONOSPHERE_SLOWS = "chronosphere_slows_mobs_and_projectiles";
+    private static final String CHRONOSPHERE_SPARES_PLAYERS = "chronosphere_spares_players";
     private static final String MOB_AEON_BABY_FORM_FILTER = "mob_aeon_baby_form_filter";
 
     // --- Lighting ---
@@ -915,6 +918,8 @@ public final class GooTestFunctions {
         reg(r, TIMEKEEPER_TICK_MOVES_DAY_FORWARD, TimekeeperTests::timekeeperTickMovesDayForward);
         reg(r, TIMEKEEPER_OFFSETS_REST_STAT, TimekeeperTests::timekeeperOffsetsRestStat);
         reg(r, TIMEKEEPER_REWIND_WITHDRAWS, TimekeeperTests::timekeeperRewindWithdraws);
+        reg(r, CHRONOSPHERE_SLOWS, ChronosphereTests::chronosphereSlowsMobsAndProjectiles);
+        reg(r, CHRONOSPHERE_SPARES_PLAYERS, ChronosphereTests::chronosphereSparesPlayers);
         reg(r, MOB_AEON_BABY_FORM_FILTER, MobEffectTests::aeonBabyFormFilter);
     }
 

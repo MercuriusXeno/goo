@@ -49,6 +49,9 @@ public class AbilityBlockRenderState extends BlockEntityRenderState {
     /** True when a crystal shard cloud behavior is active. */
     public boolean crystalActive;
 
+    /** The chronosphere veil's radius this frame, zero for a marker standing none. */
+    public float chronosphereRadius;
+
     /** Charge density [0-1] for crystal cloud visual scaling. */
     public float crystalDensity;
 
