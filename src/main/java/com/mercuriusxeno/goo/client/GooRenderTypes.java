@@ -133,19 +133,20 @@ public final class GooRenderTypes {
     public static final RenderType SPORE_SHELL_THROUGH_BLOCKS_TYPE = burnoutType(SPORE_SHELL_THROUGH_BLOCKS);
 
     /**
-     * Scry's sphere of light (decision scry-sphere-reveals-faces-and-glistens-mobs):
+     * Glow's shell of light, Scry's sphere and Radiant's wisps (decisions
+     * scry-sphere-reveals-faces-and-glistens-mobs, radiant-wisps-where-light-is-low):
      * plain colored quads added onto the world, depth tested with depth write
-     * off and both faces drawn, so the caster inside the sphere sees its shell.
+     * off and both faces drawn, so a caster inside the sphere sees its shell.
      */
-    public static final RenderPipeline SCRY_SPHERE = colorShellPipeline("scry_sphere",
+    public static final RenderPipeline GLOW_SHELL = colorShellPipeline("glow_shell",
             DepthStencilState.DEFAULT.depthTest(), BlendFunction.LIGHTNING);
 
     /** Scry's revealed faces: added onto the world through every depth test, so they show through walls. */
     public static final RenderPipeline SCRY_FACES = colorShellPipeline("scry_faces",
             CompareOp.ALWAYS_PASS, BlendFunction.LIGHTNING);
 
-    /** RenderType for Scry's sphere. */
-    public static final RenderType SCRY_SPHERE_TYPE = burnoutType(SCRY_SPHERE);
+    /** RenderType for glow's shell of light. */
+    public static final RenderType GLOW_SHELL_TYPE = burnoutType(GLOW_SHELL);
 
     /** RenderType for Scry's revealed faces. */
     public static final RenderType SCRY_FACES_TYPE = burnoutType(SCRY_FACES);
@@ -1035,7 +1036,7 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_RIPPLE_EDGE);
         event.registerPipeline(GOO_GHOST);
         event.registerPipeline(GLOW_BEAM);
-        event.registerPipeline(SCRY_SPHERE);
+        event.registerPipeline(GLOW_SHELL);
         event.registerPipeline(SCRY_FACES);
     }
 

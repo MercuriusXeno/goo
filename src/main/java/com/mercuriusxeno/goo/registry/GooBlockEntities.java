@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.registry;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
+import com.mercuriusxeno.goo.block.ability.WispBlockEntity;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlockEntity;
@@ -73,6 +74,11 @@ public class GooBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PrismBlockEntity>> PRISM =
             BLOCK_ENTITIES.register("prism",
                     () -> new BlockEntityType<>(PrismBlockEntity::new, GooBlocks.PRISM.get()));
+
+    /** The wisp's block entity, which its renderer draws (decision radiant-wisps-where-light-is-low). */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<WispBlockEntity>> WISP =
+            BLOCK_ENTITIES.register("wisp",
+                    () -> new BlockEntityType<>(WispBlockEntity::new, GooBlocks.WISP.get()));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ChoralGasketBlockEntity>> CHORAL_GASKET =
             BLOCK_ENTITIES.register("choral_gasket",

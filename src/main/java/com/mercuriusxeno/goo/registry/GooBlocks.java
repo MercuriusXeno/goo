@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
+import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlock;
@@ -69,6 +70,22 @@ public class GooBlocks {
     /**
      * Glow crystal: permanent light source a glow ability block places.
      */
+    /**
+     * A wisp of light Radiant leaves in dark air: lit, replaceable, without
+     * shape or collision, fading on its own (decision radiant-wisps-where-light-is-low).
+     */
+    public static final DeferredBlock<WispBlock> WISP = BLOCKS.registerBlock(
+            "wisp", WispBlock::new,
+            () -> BlockBehaviour.Properties.of()
+                    .noCollision()
+                    .noOcclusion()
+                    .noLootTable()
+                    .replaceable()
+                    .instabreak()
+                    .air()
+                    .sound(SoundType.AMETHYST_CLUSTER)
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)
+                    .lightLevel(WispBlock::lightLevel));
     public static final DeferredBlock<GlowCrystalBlock> GLOW_CRYSTAL = BLOCKS.registerBlock(
             "glow_crystal", GlowCrystalBlock::new,
             () -> BlockBehaviour.Properties.of()
