@@ -25,7 +25,8 @@ public abstract class LivingEntityUndeadMixin {
      */
     @Inject(method = "isInvertedHealAndHarm", at = @At("HEAD"), cancellable = true)
     private void goo$undeadPlayerInvertsHealAndHarm(CallbackInfoReturnable<Boolean> cir) {
-        if ((Object) this instanceof Player player && player.getData(GooAttachments.UNDEAD).stands()) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (self instanceof Player player && player.getData(GooAttachments.UNDEAD).stands()) {
             cir.setReturnValue(true);
         }
     }

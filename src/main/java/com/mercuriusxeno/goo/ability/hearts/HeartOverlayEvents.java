@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.hearts;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.nether.UndeadEvents;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -132,13 +133,27 @@ public final class HeartOverlayEvents {
         if (overlay.kind() == HeartKind.KINDLE && source.is(DamageTypeTags.IS_FIRE)) {
             return overlay.burn(damage, player.getHealth(), now);
         }
-        if (overlay.kind() == HeartKind.BARKSKIN && burnsBark(source)) {
+        if (aggravates(overlay.kind(), source)) {
             return overlay.aggravate(damage, now);
         }
         if (overlay.kind() == HeartKind.STONESKIN) {
             return overlay.drainScaled(damage, stoneShare(source, overlay.damageTaken()), now);
         }
         return overlay.drain(damage, now);
+    }
+
+    /**
+     * Answers whether a hit is one the kind's hearts are especially weak to:
+     * fire or an axe on bark, and sunlight on nether.
+     *
+     * @param kind   the overlay's kind
+     * @param source the damage source
+     * @return true when the hit is aggravated against the kind
+     */
+    private static boolean aggravates(HeartKind kind, DamageSource source) {
+        // undead-nether-hearts-burn-in-sunlight: sunlight is aggravated against nether hearts
+        return kind == HeartKind.BARKSKIN && burnsBark(source)
+                || kind == HeartKind.UNDEAD && source.is(UndeadEvents.SUNBURN);
     }
 
     /**
