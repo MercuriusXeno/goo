@@ -37,6 +37,9 @@ class DrinkTreeTest {
         return new DrinkTree.Block(pos, Vec3.atCenterOf(pos), scale, START, END);
     }
 
+    /** The trunk's arrival into the hand: flowing west, as a look east pulls it. */
+    private static final Vec3 PULL = new Vec3(-1, 0, 0);
+
     private static DrinkLayout layoutOf(DrinkTree.Block... blocks) {
         DrinkLayout layout = new DrinkLayout();
         layout.place(List.of(blocks).stream().map(DrinkTree.Block::pos).toList(), GLOVE);
@@ -44,7 +47,11 @@ class DrinkTreeTest {
     }
 
     private static List<DrinkTree.Stream> tree() {
-        return DrinkTree.build(List.of(FAR, NEAR), layoutOf(FAR, NEAR), GLOVE, NOW);
+        return DrinkTree.build(List.of(FAR, NEAR), layoutOf(FAR, NEAR), GLOVE, PULL, NOW);
+    }
+
+    private static DrinkTree.Stream lone() {
+        return DrinkTree.build(List.of(NEAR), layoutOf(NEAR), GLOVE, PULL, NOW).getFirst();
     }
 
     /**
@@ -60,15 +67,16 @@ class DrinkTreeTest {
     class Shape {
 
         @Test
-        void aLoneStreamRunsFromItsLayoutsFarSideToTheGlove() {
+        void aLoneStreamRunsFromItsLayoutsFarSideToTheGloveArrivingAlongThePull() {
             DrinkLayout layout = layoutOf(NEAR);
-            List<DrinkTree.Stream> streams = DrinkTree.build(List.of(NEAR), layout, GLOVE, NOW);
+            List<DrinkTree.Stream> streams = DrinkTree.build(List.of(NEAR), layout, GLOVE, PULL, NOW);
 
             assertEquals(1, streams.size());
             DrinkTree.Stream stream = streams.getFirst();
             assertNull(stream.trunk());
             assertEquals(GLOVE, stream.path().to());
             assertEquals(layout.node(NEAR.pos()).farSide(), stream.path().from());
+            assertEquals(PULL, stream.path().arrival());
         }
 
         @Test
@@ -146,12 +154,18 @@ class DrinkTreeTest {
         }
 
         @Test
-        void theBlockIsTheCubesWidthAndSquareWhereItStoodAtTheStart() {
-            DrinkTree.Stream stream = DrinkTree.build(List.of(NEAR), layoutOf(NEAR), GLOVE, NOW).getFirst();
+        void theBlockIsACubeOfLiquidWhereItStoodAtTheStartAndGoneWhenDrained() {
+            DrinkTree.Stream stream = lone();
             double middle = DrinkBody.CENTER / stream.path().length();
+            DrinkField.Skeleton starting = DrinkTree.skeleton(stream, START);
+            DrinkField.Skeleton drained = DrinkTree.skeleton(stream, END);
 
             assertEquals(DrinkBody.MOUTH, DrinkTree.ring(stream, middle, START).radius(), DELTA);
-            assertEquals(0, DrinkTree.ring(stream, middle, START).roundness(), DELTA);
+            assertEquals(NEAR.center(), starting.box().center());
+            assertEquals(DrinkBody.MOUTH, starting.box().half(), DELTA);
+            assertEquals(0, starting.box().rounding(), DELTA);
+            assertNull(drained.box());
+            assertEquals(DrinkTree.rings(stream, START).size(), starting.rings().size());
         }
 
         @Test
@@ -170,7 +184,7 @@ class DrinkTreeTest {
 
         @Test
         void aPathsRingsRunFromTheBlocksFarSideToItsEnd() {
-            DrinkTree.Stream stream = DrinkTree.build(List.of(NEAR), layoutOf(NEAR), GLOVE, NOW).getFirst();
+            DrinkTree.Stream stream = lone();
             List<DrinkStream.Ring> rings = DrinkTree.rings(stream, NOW);
             DrinkStream.Ring ring = DrinkTree.ring(stream, 0.5, NOW);
 

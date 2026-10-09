@@ -22,6 +22,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.data.AtlasIds;
 import net.minecraft.util.LightCoordsUtil;
+import net.minecraft.util.Util;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -34,32 +35,30 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * Draws every Unmake drink: each block's blob where it stood and its stream
- * as one skin, the drink's streams flowing down their fixed tree into the
- * drinker's glove, each path skinned solid in its block's own texture laid
- * at its own size and riding the flow, with the block's goo types roiling
- * over it through the vats' mingle shader in blotches that cover more of it
- * along the block's route but never all of it, the types sharing the
+ * Draws every Unmake drink as one surface: the field of its blocks' boxes
+ * and its streams' skeletons meshed each frame, so blocks, streams and their
+ * joins are one skin with no seam, blending like metaballs where they meet.
+ * Each piece of the skin wears its block's own texture laid over the world
+ * at its own size and slid with the flow, solid, with the block's goo types
+ * roiling over it through the vats' mingle shader in blotches that cover more
+ * of it along the block's route but never all of it, the types sharing the
  * blotches by volume.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class DrinkRenderer {
 
-    /** Sides about one ring of the stream's skin; a multiple of eight, so a square ring lands on the cube's corners. */
-    static final int SIDES = 16;
-    /** The shares of a path its light is read at: the block, just before it, the middle of the way and the hand. */
-    private static final double[] LIGHT_SHARES = {0.0, 0.25, 0.5, 1.0};
     /** How much further out each goo layer's skin stands than the one under it, so they never fight. */
     static final double LAYER_STEP = 0.008;
     /** The share of a stream's skin the goo covers by the hand, so the block's texture shows mingled the whole way. */
     static final float GOO_REACH = 0.45f;
     /** The most goo types layered over one stream; past three the blotches read as noise. */
     private static final int MAX_LAYERS = 3;
-    private static final float HALF = 0.5f;
-    private static final double TWO_PI = 2 * Math.PI;
+    /** The shares of a path its light is read at: the block, just before it, the middle of the way and the hand. */
+    private static final double[] LIGHT_SHARES = {0.0, 0.25, 0.5, 1.0};
     /** Where another player's glove hangs before their eyes, in blocks. */
     private static final double GLOVE_AHEAD = 0.5;
     /** How far right of another player's look their glove hangs, in blocks. */
@@ -67,6 +66,10 @@ public final class DrinkRenderer {
     /** How far below another player's eyes their glove hangs, in blocks. */
     private static final double GLOVE_BELOW = 0.45;
     private static final Vec3 UP = new Vec3(0, 1, 0);
+    /** Each drink's surface as last meshed, by its drinker. */
+    private static final Map<Integer, Surface> SURFACES = new HashMap<>();
+    /** Each drink's mesh in flight on a background thread, by its drinker. */
+    private static final Map<Integer, CompletableFuture<Surface>> MESHING = new HashMap<>();
 
     private DrinkRenderer() {
     }
@@ -86,33 +89,40 @@ public final class DrinkRenderer {
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         double ticks = level.getGameTime() + partialTick;
         Vec3 camera = event.getLevelRenderState().cameraRenderState.pos;
-        for (ClientDrinks.Drink drink : ClientDrinks.CLIENT.live(ticks)) {
+        List<ClientDrinks.Drink> drinks = ClientDrinks.CLIENT.live(ticks);
+        List<Integer> drinkers = drinks.stream().map(ClientDrinks.Drink::playerId).toList();
+        SURFACES.keySet().retainAll(drinkers);
+        MESHING.keySet().retainAll(drinkers);
+        for (ClientDrinks.Drink drink : drinks) {
             Entity drinker = level.getEntity(drink.playerId());
             if (drinker != null) {
-                submitDrink(event, level, drink, new Frame(gloveOf(mc, drinker, partialTick), camera, ticks));
+                Vec3 pull = drink.layout().pullToward(drinker.getViewVector(partialTick), ticks);
+                submitDrink(event, level, drink, new Frame(gloveOf(mc, drinker, partialTick), pull, camera, ticks));
             }
         }
     }
 
     /**
-     * What a frame draws every block of a drink against.
+     * What a frame draws a drink against.
      *
      * @param glove  the drinker's glove, in the world
+     * @param pull   the unit direction the trunk flows as it enters the hand
      * @param camera the camera's world position
      * @param ticks  the game time including the partial tick
      */
-    private record Frame(Vec3 glove, Vec3 camera, double ticks) {
+    private record Frame(Vec3 glove, Vec3 pull, Vec3 camera, double ticks) {
     }
 
     /**
-     * One path's skin to emit.
+     * What one block's piece of the skin is drawn with.
      *
-     * @param rings the path's rings, start to end
-     * @param light the light in front of the block
-     * @param frame the frame
-     * @param seed  the block's seed
+     * @param state the block
+     * @param goo   the goo it becomes
+     * @param tint  the block's tint
+     * @param sprite the block's sprite, its top
+     * @param light the light along its stream
      */
-    private record Skin(List<DrinkStream.Ring> rings, int light, Frame frame, long seed) {
+    private record Coat(BlockState state, MingledGoo goo, int tint, GooRenderUtil.UvRect sprite, int light) {
     }
 
     /**
@@ -137,8 +147,7 @@ public final class DrinkRenderer {
     }
 
     /**
-     * Submits one drink: its blocks' tree of streams, each stream's block
-     * flowing while it drains and its own path skinned.
+     * Submits one drink: its blocks' tree of streams meshed as one surface.
      *
      * @param event the custom geometry submit event
      * @param level the client level
@@ -160,29 +169,86 @@ public final class DrinkRenderer {
             }
         }
         drink.layout().place(states.keySet(), frame.glove());
-        for (DrinkTree.Stream stream : DrinkTree.build(blocks, drink.layout(), frame.glove(), frame.ticks())) {
-            submitStream(event, level, stream, states.get(stream.block().pos()), frame);
+        Surface surface = surfaceOf(level, drink, blocks, states, frame);
+        if (surface != null) {
+            submitSurface(event, surface, frame);
         }
     }
 
     /**
-     * Submits one stream: one skin from the block's far side to its path's
-     * end, the block's blob where it stood and its stream in front of it.
+     * A drink's surface as last meshed: once a tick, on a background thread,
+     * since meshing is the cost; between ticks the hand's end of it is
+     * carried with the glove.
      *
-     * @param event  the custom geometry submit event
-     * @param level  the client level
-     * @param stream the stream
-     * @param state  the block it is
-     * @param frame  the frame
+     * @param tick  the tick it was meshed for
+     * @param glove where the glove was then
+     * @param quads the surface
+     * @param coats what each stream's piece of the skin is drawn with
      */
-    private static void submitStream(SubmitCustomGeometryEvent event, ClientLevel level, DrinkTree.Stream stream,
-                                     BlockState state, Frame frame) {
-        DrinkTree.Block block = stream.block();
-        List<DrinkStream.Ring> rings = DrinkTree.rings(stream, frame.ticks());
-        if (rings.stream().anyMatch(ring -> ring.radius() > 0)) {
-            submitSkins(event, new Skin(rings, lightAlong(level, stream, frame.ticks()), frame, block.seed()), level,
-                    block.pos(), state, MeltMeshGoo.of(state));
+    private record Surface(long tick, Vec3 glove, List<DrinkMesher.Quad> quads, Map<DrinkTree.Stream, Coat> coats) {
+    }
+
+    /**
+     * The surface to draw a drink with this frame: the last one meshed, a
+     * finished background mesh taking its place, and a new mesh started on
+     * this tick's skeleton where none is in flight.
+     *
+     * @param level  the client level
+     * @param drink  the drink
+     * @param blocks its blocks
+     * @param states each block's state
+     * @param frame  the frame
+     * @return the surface, or null before the first mesh lands
+     */
+    private static @Nullable Surface surfaceOf(ClientLevel level, ClientDrinks.Drink drink,
+                                               List<DrinkTree.Block> blocks, Map<BlockPos, BlockState> states,
+                                               Frame frame) {
+        int id = drink.playerId();
+        landMesh(id);
+        Surface shown = SURFACES.get(id);
+        if (!MESHING.containsKey(id) && (shown == null || shown.tick() != level.getGameTime())) {
+            MESHING.put(id, meshAsync(level, drink, blocks, states, frame));
         }
+        return shown;
+    }
+
+    /**
+     * Takes a drink's finished background mesh as its surface to draw.
+     *
+     * @param id the drinker
+     */
+    private static void landMesh(int id) {
+        CompletableFuture<Surface> meshing = MESHING.get(id);
+        if (meshing == null || !meshing.isDone()) {
+            return;
+        }
+        MESHING.remove(id);
+        if (!meshing.isCompletedExceptionally()) {
+            SURFACES.put(id, meshing.join());
+        }
+    }
+
+    private static CompletableFuture<Surface> meshAsync(ClientLevel level, ClientDrinks.Drink drink,
+                                                        List<DrinkTree.Block> blocks, Map<BlockPos, BlockState> states,
+                                                        Frame frame) {
+        List<DrinkField.Skeleton> skeletons = new ArrayList<>();
+        Map<DrinkTree.Stream, Coat> coats = new HashMap<>();
+        for (DrinkTree.Stream stream : DrinkTree.build(blocks, drink.layout(), frame.glove(), frame.pull(),
+                frame.ticks())) {
+            skeletons.add(DrinkTree.skeleton(stream, frame.ticks()));
+            coats.put(stream, coatOf(level, stream, states.get(stream.block().pos()), frame.ticks()));
+        }
+        long tick = level.getGameTime();
+        Vec3 glove = frame.glove();
+        return CompletableFuture.supplyAsync(() -> new Surface(tick, glove, DrinkMesher.mesh(skeletons), coats),
+                Util.backgroundExecutor());
+    }
+
+    private static Coat coatOf(ClientLevel level, DrinkTree.Stream stream, BlockState state, double now) {
+        BakedQuad quad = faceQuad(level, stream.block().pos(), state);
+        GooRenderUtil.UvRect sprite = quad == null ? new GooRenderUtil.UvRect(0, 0, 0, 0) : MeltMesh.spriteOf(quad);
+        int tint = quad == null ? GooRenderUtil.OPAQUE_WHITE : MeltMesh.tintOf(state, level, stream.block().pos(), quad);
+        return new Coat(state, MeltMeshGoo.of(state), tint, sprite, lightAlong(level, stream, now));
     }
 
     /**
@@ -205,77 +271,73 @@ public final class DrinkRenderer {
     }
 
     /**
-     * Submits a path's skins: the block's own, then each goo type's over it.
+     * Submits the drink's surface: every quad in its block's texture, solid,
+     * then each goo type's blotches over it.
      *
-     * @param event the custom geometry submit event
-     * @param skin  the skin
-     * @param level the client level
-     * @param pos   the block
-     * @param state the block the stream is
-     * @param goo   the goo it becomes
+     * @param event   the custom geometry submit event
+     * @param surface the surface as last meshed
+     * @param frame   the frame
      */
-    private static void submitSkins(SubmitCustomGeometryEvent event, Skin skin, ClientLevel level, BlockPos pos,
-                                    BlockState state, MingledGoo goo) {
-        submitBlockSkin(event, skin, level, pos, state);
-        for (int layer = 0; layer < Math.min(goo.types().size(), MAX_LAYERS); layer++) {
-            submitGooSkin(event, skin, goo, layer);
+    private static void submitSurface(SubmitCustomGeometryEvent event, Surface surface, Frame frame) {
+        List<DrinkMesher.Quad> quads = surface.quads();
+        Map<DrinkTree.Stream, Coat> coats = surface.coats();
+        if (quads.isEmpty()) {
+            return;
+        }
+        Vec3 carried = frame.glove().subtract(surface.glove());
+        event.getSubmitNodeCollector().submitCustomGeometry(event.getPoseStack(), GooSubmitter.solidOnBlockAtlas(),
+                (pose, consumer) -> {
+                    for (DrinkMesher.Quad quad : quads) {
+                        Coat coat = coatOf(coats, quad);
+                        emitQuad(new RenderContext(pose, consumer, coat.light()), quad, coat.sprite(), coat.tint(), 0,
+                                frame, carried);
+                    }
+                });
+        for (int layer = 0; layer < MAX_LAYERS; layer++) {
+            submitGooLayer(event, quads, coats, layer, frame, carried);
         }
     }
 
+    private static Coat coatOf(Map<DrinkTree.Stream, Coat> coats, DrinkMesher.Quad quad) {
+        return coats.get(quad.vertices()[0].skeleton().stream());
+    }
+
     /**
-     * Submits the path's own skin, solid: the block's texture at its own
-     * size, riding the flow, warped molten.
+     * Submits one goo layer over the surface on the vats' mingle shader: each
+     * quad whose block has that many goo types, in that type's sprite, in
+     * roiling blotches whose share of the skin grows along the block's route.
      *
-     * @param event the custom geometry submit event
-     * @param skin  the skin
-     * @param level the client level
-     * @param pos   the block
-     * @param state the block the stream is
+     * @param event   the custom geometry submit event
+     * @param quads   the surface
+     * @param coats   what each stream's piece of the skin is drawn with
+     * @param layer   the goo type's index, largest first
+     * @param frame   the frame
+     * @param carried how far the glove has moved since the surface was meshed
      */
-    private static void submitBlockSkin(SubmitCustomGeometryEvent event, Skin skin, ClientLevel level, BlockPos pos,
-                                        BlockState state) {
-        BakedQuad quad = faceQuad(level, pos, state);
-        if (quad == null) {
-            return;
-        }
-        GooRenderUtil.UvRect sprite = MeltMesh.spriteOf(quad);
-        int tint = MeltMesh.tintOf(state, level, pos, quad);
-        event.getSubmitNodeCollector().submitCustomGeometry(event.getPoseStack(), GooSubmitter.solidOnBlockAtlas(),
+    private static void submitGooLayer(SubmitCustomGeometryEvent event, List<DrinkMesher.Quad> quads,
+                                       Map<DrinkTree.Stream, Coat> coats, int layer, Frame frame, Vec3 carried) {
+        event.getSubmitNodeCollector().submitCustomGeometry(event.getPoseStack(), GooRenderTypes.gooFluidSurface(
+                Minecraft.getInstance().getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location()),
                 (pose, consumer) -> {
-                    RenderContext ctx = new RenderContext(pose, consumer, skin.light());
-                    for (int index = 0; index + 1 < skin.rings().size(); index++) {
-                        emitBand(ctx, skin, index, sprite, 0, tint);
+                    for (DrinkMesher.Quad quad : quads) {
+                        MingledGoo goo = coatOf(coats, quad).goo();
+                        if (layer < goo.types().size()) {
+                            emitGooQuad(pose, consumer, quad, goo, layer, frame, carried);
+                        }
                     }
                 });
     }
 
-    /**
-     * Submits one goo type's skin over the path on the vats' mingle shader:
-     * its sprite in roiling blotches whose share of the skin grows along the
-     * block's route, each ring's band telling the shader how much.
-     *
-     * @param event the custom geometry submit event
-     * @param skin  the skin
-     * @param goo   the goo the block becomes
-     * @param layer the goo type's index, largest first
-     */
-    private static void submitGooSkin(SubmitCustomGeometryEvent event, Skin skin, MingledGoo goo, int layer) {
-        GooRenderUtil.UvRect sprite = GooSubmitter.spriteUv(GooRenderUtil.lookupFluidSprite(goo.types().get(layer)));
-        int tint = GooSubmitter.fluidTint(goo.types().get(layer));
-        double lift = LAYER_STEP * (layer + 1);
-        event.getSubmitNodeCollector().submitCustomGeometry(event.getPoseStack(), GooRenderTypes.gooFluidSurface(
-                Minecraft.getInstance().getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location()),
-                (pose, consumer) -> emitGooBands(pose, consumer, skin, goo, layer, sprite, lift, tint));
-    }
-
-    private static void emitGooBands(PoseStack.Pose pose, VertexConsumer consumer, Skin skin, MingledGoo goo,
-                                     int layer, GooRenderUtil.UvRect sprite, double lift, int tint) {
-        List<DrinkStream.Ring> rings = skin.rings();
-        for (int index = 0; index + 1 < rings.size(); index++) {
-            float reach = (float) (rings.get(index).share() + rings.get(index + 1).share()) * HALF * GOO_REACH;
-            RenderContext ctx = RenderContext.banded(pose, consumer, tint, bandOf(goo, layer, reach));
-            emitBand(ctx, skin, index, sprite, lift, tint);
+    private static void emitGooQuad(PoseStack.Pose pose, VertexConsumer consumer, DrinkMesher.Quad quad,
+                                    MingledGoo goo, int layer, Frame frame, Vec3 carried) {
+        float reach = 0f;
+        for (DrinkMesher.Vertex vertex : quad.vertices()) {
+            reach += (float) vertex.ring().share() / quad.vertices().length;
         }
+        int tint = GooSubmitter.fluidTint(goo.types().get(layer));
+        RenderContext ctx = RenderContext.banded(pose, consumer, tint, bandOf(goo, layer, reach * GOO_REACH));
+        emitQuad(ctx, quad, GooSubmitter.spriteUv(GooRenderUtil.lookupFluidSprite(goo.types().get(layer))), tint,
+                LAYER_STEP * (layer + 1), frame, carried);
     }
 
     /**
@@ -296,43 +358,48 @@ public final class DrinkRenderer {
     }
 
     /**
-     * Emits the band of skin between two rings: a quad for each side, wound
-     * to face outward, its texture at its own size riding the flow.
+     * Emits one quad of the surface: each vertex carried with the glove by
+     * how near the hand it is, lifted off the skin, its texture laid over the
+     * world at its own size on the two axes square to its normal and slid
+     * against the flow, so it rides the liquid unstretched.
      *
-     * @param ctx    the render context
-     * @param skin   the skin
-     * @param index  the near ring's index
-     * @param sprite the sprite laid on the skin
-     * @param lift   how far the skin stands off the stream's radius
-     * @param color  the colour of the band
+     * @param ctx     the render context
+     * @param quad    the quad
+     * @param sprite  the sprite
+     * @param color   the colour
+     * @param lift    how far off the skin the quad stands
+     * @param frame   the frame
+     * @param carried how far the glove has moved since the surface was meshed
      */
-    private static void emitBand(RenderContext ctx, Skin skin, int index, GooRenderUtil.UvRect sprite, double lift,
-                                 int color) {
-        DrinkStream.Ring near = skin.rings().get(index);
-        DrinkStream.Ring far = skin.rings().get(index + 1);
-        if (near.radius() <= 0 && far.radius() <= 0) {
-            return;
-        }
-        for (int side = 0; side < SIDES; side++) {
-            double angle0 = TWO_PI * side / SIDES;
-            double angle1 = TWO_PI * (side + 1) / SIDES;
-            emitPoint(ctx, skin, near, angle0, sprite, lift, color);
-            emitPoint(ctx, skin, near, angle1, sprite, lift, color);
-            emitPoint(ctx, skin, far, angle1, sprite, lift, color);
-            emitPoint(ctx, skin, far, angle0, sprite, lift, color);
+    private static void emitQuad(RenderContext ctx, DrinkMesher.Quad quad, GooRenderUtil.UvRect sprite, int color,
+                                 double lift, Frame frame, Vec3 carried) {
+        for (DrinkMesher.Vertex vertex : quad.vertices()) {
+            double share = vertex.ring().share();
+            Vec3 at = vertex.point().add(carried.scale(share * share * share));
+            Vec3 point = at.add(vertex.normal().scale(lift)).subtract(frame.camera());
+            Vec3 slid = vertex.point().subtract(vertex.ring().flow().scale(frame.ticks() * DrinkStream.FLOW));
+            Vec3 normal = vertex.normal();
+            Vec3 uv = textureAxes(normal, slid);
+            ctx.vertexColored(color, (float) point.x, (float) point.y, (float) point.z,
+                    sprite.u0() + (sprite.u1() - sprite.u0()) * DrinkStream.textureAt(uv.x),
+                    sprite.v0() + (sprite.v1() - sprite.v0()) * DrinkStream.textureAt(uv.y),
+                    (float) normal.x, (float) normal.y, (float) normal.z);
         }
     }
 
-    private static void emitPoint(RenderContext ctx, Skin skin, DrinkStream.Ring ring, double angle,
-                                  GooRenderUtil.UvRect sprite, double lift, int color) {
-        Vec3 out = ring.outAt(angle);
-        double reach = ring.radius() * ring.reachAt(angle);
-        Vec3 point = ring.center().add(out.scale(ring.radius() > 0 ? reach + lift : 0)).subtract(skin.frame().camera());
-        float u = DrinkStream.moltenU(ring.material(), angle, skin.frame().ticks(), skin.seed());
-        float v = DrinkStream.moltenV(ring.material(), angle, reach, skin.frame().ticks(), skin.seed());
-        ctx.vertexColored(color, (float) point.x, (float) point.y, (float) point.z,
-                sprite.u0() + (sprite.u1() - sprite.u0()) * u, sprite.v0() + (sprite.v1() - sprite.v0()) * v,
-                (float) out.x, (float) out.y, (float) out.z);
+    /**
+     * @param normal the surface's normal at a point
+     * @param slid   the point, slid with the flow
+     * @return the point's two coordinates on the world axes square to the axis its normal most faces, as x and y
+     */
+    static Vec3 textureAxes(Vec3 normal, Vec3 slid) {
+        double ax = Math.abs(normal.x);
+        double ay = Math.abs(normal.y);
+        double az = Math.abs(normal.z);
+        if (ay >= ax && ay >= az) {
+            return new Vec3(slid.x, slid.z, 0);
+        }
+        return ax >= az ? new Vec3(slid.z, slid.y, 0) : new Vec3(slid.x, slid.y, 0);
     }
 
     /**

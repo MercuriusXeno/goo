@@ -17,13 +17,16 @@ import java.util.Map;
  * along that stream it joins. The first block runs to the glove; each block
  * after it joins the standing stream whose line runs nearest it, a little
  * toward the hand from the nearest point so it arrives at a shallow angle.
- * Only the ends of the paths follow the hand.
+ * Only the ends of the paths follow the hand, and the trunk's arrival
+ * follows the look with a lag, so the hand pulls the stream.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 public final class DrinkLayout {
 
     /** Blocks toward the hand a join is pushed past the point of the trunk nearest the joining block. */
     static final double LEAD = 1.2;
+    /** Ticks the pull takes to close most of the way to a new look, so the stream sways rather than snaps. */
+    static final double PULL_LAG = 6;
     private static final double HALF = 0.5;
     private static final Vec3 UP = new Vec3(0, 1, 0);
 
@@ -70,12 +73,36 @@ public final class DrinkLayout {
     }
 
     private final Map<BlockPos, Node> nodes = new LinkedHashMap<>();
+    private @Nullable Vec3 pull;
+    private double pulledAt;
 
     /**
      * @return every node, the one entering the glove first and each after the stream it joins
      */
     public Collection<Node> nodes() {
         return nodes.values();
+    }
+
+    /**
+     * The direction the drink's trunk arrives into the hand along: against
+     * the look, followed with a short lag so a swing of the look drags the
+     * stream round rather than snapping it.
+     *
+     * @param look the drinker's unit look this frame
+     * @param now  the game time, with the partial tick
+     * @return the unit direction the trunk flows as it enters the hand
+     */
+    public Vec3 pullToward(Vec3 look, double now) {
+        Vec3 target = look.reverse();
+        if (pull == null) {
+            pull = target;
+        } else {
+            double share = 1 - Math.exp(-Math.max(0, now - pulledAt) / PULL_LAG);
+            Vec3 pulled = pull.lerp(target, share);
+            pull = pulled.lengthSqr() > 0 ? pulled.normalize() : target;
+        }
+        pulledAt = now;
+        return pull;
     }
 
     /**
