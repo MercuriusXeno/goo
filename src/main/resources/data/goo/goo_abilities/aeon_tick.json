@@ -1,0 +1,12 @@
+{
+  "gooType": "aeon",
+  "displayName": "goo.ability.aeon.tick",
+  "badge": "channeled",
+  "order": 30,
+  "cost": 1000,
+  "delivery": { "kind": "stream", "range": 5, "cone": 10, "ticks_per_charge": 20 },
+  "behaviors": [
+    { "type": "tick_block", "extra_ticks": 4 }
+  ],
+  "tags": ["stream"]
+}

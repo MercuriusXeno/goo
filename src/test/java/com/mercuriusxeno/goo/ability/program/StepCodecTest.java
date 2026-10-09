@@ -93,6 +93,7 @@ class StepCodecTest {
             Map.entry("stasis", LeafSteps.STASIS.step(Unit.INSTANCE)),
             Map.entry("rewind_hold", LeafSteps.REWIND_HOLD.step(Unit.INSTANCE)),
             Map.entry("regress", new RegressStep(20)),
+            Map.entry("tick_block", new TickBlockStep(4)),
             Map.entry("set_baby", LeafSteps.SET_BABY.step(true)),
             Map.entry("ailment_overlay", new AilmentOverlayStep(AilmentKind.HEX,
                     Expr.parse("20 * 60 / pow(health, 0.4)").getOrThrow())),

@@ -40,6 +40,7 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Server side of a stream delivery: each tick the glove's use stays down,
@@ -264,8 +265,21 @@ public final class GooStreamHandler {
      */
     static List<Step> channelSteps(List<Step> behaviors, boolean channel) {
         return behaviors.stream()
-                .filter(step -> step.requires().contains(HostCapability.CHANNEL) == channel)
+                .filter(step -> runsInBlockPass(step) == channel)
                 .toList();
+    }
+
+    /**
+     * Whether a stream step runs in the block pass: it needs the channel's
+     * aim, or it ticks the block the stream ends on
+     * (decision tick-channel-marches-squares-on-the-face).
+     *
+     * @param step a stream's top-level step
+     * @return true for a block pass step
+     */
+    private static boolean runsInBlockPass(Step step) {
+        Set<HostCapability> needs = step.requires();
+        return needs.contains(HostCapability.CHANNEL) || needs.contains(HostCapability.TICK_BLOCK);
     }
 
     /**

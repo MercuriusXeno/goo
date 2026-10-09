@@ -445,6 +445,7 @@ public final class GooTestFunctions {
     private static final String REWIND_ADULT_TO_BABY = "rewind_adult_to_baby";
     private static final String REWIND_BABY_TO_EGG = "rewind_baby_to_egg";
     private static final String REWIND_LEAVES_BLOCKS = "rewind_leaves_blocks";
+    private static final String TICK_HASTENS_THE_CRUCIBLE = "tick_hastens_the_crucible";
     private static final String MOB_AEON_BABY_FORM_FILTER = "mob_aeon_baby_form_filter";
 
     // --- Lighting ---
@@ -905,6 +906,7 @@ public final class GooTestFunctions {
         reg(r, REWIND_ADULT_TO_BABY, RewindStreamTests::rewindAdultToBaby);
         reg(r, REWIND_BABY_TO_EGG, RewindStreamTests::rewindBabyToEgg);
         reg(r, REWIND_LEAVES_BLOCKS, RewindStreamTests::rewindLeavesBlocks);
+        reg(r, TICK_HASTENS_THE_CRUCIBLE, TickStreamTests::tickHastensTheCrucible);
         reg(r, MOB_AEON_BABY_FORM_FILTER, MobEffectTests::aeonBabyFormFilter);
     }
 
