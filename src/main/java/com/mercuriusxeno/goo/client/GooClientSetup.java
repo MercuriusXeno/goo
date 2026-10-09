@@ -18,6 +18,7 @@ import com.mercuriusxeno.goo.client.ability.PetrifyStoneLayer;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ability.ViewportRipples;
+import com.mercuriusxeno.goo.client.ability.ZapBolts;
 import com.mercuriusxeno.goo.client.ber.*;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -398,6 +399,7 @@ public final class GooClientSetup {
     public static void onClientDisconnect(ClientPlayerNetworkEvent.LoggingOut event) {
         TunerAwaitState.clear();
         GooFlightManager.clear();
+        ZapBolts.clear();
         ChainBurnouts.CLIENT.clear();
         MobCoats.CLIENT.clear();
         MobAilments.CLIENT.clear();

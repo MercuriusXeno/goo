@@ -21,18 +21,14 @@ import java.util.SplittableRandom;
  * mote its own: a random place over the whole sphere, its own depth in a
  * fuzzy outer shell, its own slow wander and wobble, its own size and
  * twinkle, with rings born at the aim point travelling outward to the same
- * reach. Shroom's cloud is mauve spores about Spore's reach; Pulse's is red
- * sparks about Zap's stun reach, a placeholder until Zap's visual is designed.
+ * reach. Shroom's cloud is mauve spores about Spore's reach.
  * held-visual-ghosts-the-landing-in-two-passes
  * colonize-blob-grows-the-network
- * zap-ticks-the-device-and-stuns
  */
 public final class MoteCloudGhost implements HeldGhostVisual {
 
     /** Shroom's mauve spore cloud. */
     public static final MoteCloudGhost SHROOM = new MoteCloudGhost(GooTypes.SHROOM, 0xB57FC0);
-    /** Pulse's redstone-red spark cloud. */
-    public static final MoteCloudGhost PULSE = new MoteCloudGhost(GooTypes.PULSE, 0xE0301E);
 
     /** Motes in the cloud. */
     static final int MOTES = 600;

@@ -1,10 +1,13 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
@@ -14,9 +17,10 @@ import net.minecraft.world.level.block.LeverBlock;
 import net.minecraft.world.level.block.RedStoneWireBlock;
 
 /**
- * Gametests for Zap: a blob landing on a lever flips it, one landing beside
- * dust powers it for a moment, and every mob at the landing drops its target
- * and stands without AI until the stun wears off.
+ * Gametests for Zap: a strike on a lever flips it, one on dust powers it
+ * for a moment, and every mob at the strike drops its target and stands
+ * without AI until the stun wears off. Each strike arrives the way a beam
+ * delivery arrives, an arrival a beam and an arc share.
  * zap-ticks-the-device-and-stuns
  */
 public final class ZapTests {
@@ -36,6 +40,7 @@ public final class ZapTests {
     private static final String AI_BACK = "A zombie whose stun wore off should have its AI back";
     private static final String DUST_POWERED = "Dust beside a Zap landing should carry power";
     private static final String DUST_UNPOWERED = "Dust should lose its power once the pulse ends";
+    private static final String STRIKES_AS_A_BEAM = "pulse_zap should strike by beam delivery";
     private static final String HAD_TARGET = "The zombie should target the player before the Zap";
     /** Ticks the dust's pulse stands, and a tick past them for it to clear. */
     private static final int PAST_THE_PULSE = 4;
@@ -117,12 +122,19 @@ public final class ZapTests {
         return zombie;
     }
 
+    private static void assertStrikesAsABeam(GameTestHelper helper) {
+        AbilityDefinition zap = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(ZAP));
+        helper.assertTrue(zap != null && zap.delivery().fliesStraight(), STRIKES_AS_A_BEAM);
+    }
+
     private static void landOn(GameTestHelper helper, BlockPos block) {
+        assertStrikesAsABeam(helper);
         GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.PULSE,
                 NO_ENTITY, helper.absolutePos(block), Direction.UP, ZAP));
     }
 
     private static void strike(GameTestHelper helper, Mob mob) {
+        assertStrikesAsABeam(helper);
         GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.PULSE,
                 mob.getId(), mob.blockPosition(), Direction.UP, ZAP));
     }
