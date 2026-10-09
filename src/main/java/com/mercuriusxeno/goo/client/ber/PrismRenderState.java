@@ -1,22 +1,29 @@
 package com.mercuriusxeno.goo.client.ber;
 
-import net.minecraft.client.renderer.block.BlockModelRenderState;
+import com.mercuriusxeno.goo.client.CrystalClusterSubmitter;
+import com.mercuriusxeno.goo.client.PrismCrystal;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.core.Direction;
+import org.jspecify.annotations.Nullable;
 
 /**
- * Render state snapshot for the prism: its baked crystal model, the face it
- * grew from, the size the growing transformation gives it and the combo it holds.
+ * Render state snapshot for the prism: the look of its crystal, the face it
+ * grew from, the size the growing transformation gives it and the combo it
+ * holds. A combo style re-emits {@link PrismCrystal#PRISMS} in its own tint
+ * over {@link #look}'s sprite, turned by {@link PrismCrystal#standOnLandingFace}.
  */
 public class PrismRenderState extends BlockEntityRenderState {
 
-    /** The prism's baked model, resolved from its block state. */
-    public final BlockModelRenderState crystal = new BlockModelRenderState();
+    /** The plain crystal's sprite and tint, resolved from the block atlas. */
+    public CrystalClusterSubmitter.@Nullable Look look;
 
-    /** The face the prism grew from, the base it scales about. */
+    /** The landing blob's goo look while it morphs into the crystal, null once it has. */
+    public CrystalClusterSubmitter.@Nullable Look blobLook;
+
+    /** The prism's facing; the crystal grows from the opposite face, the base it scales about. */
     public Direction facing = Direction.UP;
 
-    /** The prism's size, 0 as its blob lands and 1 once grown. */
+    /** How far the landing blob has become the prism, 0 as it lands and 1 once grown. */
     public float scale = 1f;
 
     /** The id of the ability whose program is the prism's combo, empty for a plain prism. */
