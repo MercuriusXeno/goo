@@ -14,28 +14,28 @@ import org.jspecify.annotations.Nullable;
  * elongated bulbs and hourglass waists with gentle grades between them, the
  * bulb clamped at a few times the waist, scaled by the square root of its
  * block's goo volume since transmutation is compressive, the profile riding
- * the flow without jogging the centreline; its head runs out at the flow's
- * pace along its route, and once the block is drained its tail follows the
- * rest at the same pace, the stream tapering to a point at both ends.
+ * the flow without jogging the centreline; its head runs out along its route
+ * at the pace the tree's mass there sets, and once the block is drained its
+ * tail follows the rest, the stream tapering to a point at both ends.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 public final class DrinkStream {
 
-    /** Blocks the liquid flows a tick: four blocks a second. */
+    /** Blocks the liquid flows a tick where a lone block of goo flows: four blocks a second, and faster where more goo masses. */
     public static final double FLOW = 0.2;
     /** Blocks of the way the block's own matter spans, from its far side through its middle to its near face. */
     public static final double BLOCK_SPAN = 1;
     /** Blocks past the cone's reach a route to the glove can run, the glove hanging off the eye and a tributary going round. */
     static final double GLOVE_SLACK = 4;
-    /** The ticks the longest route's travel takes; a drink is kept this long past its last block's drain. */
+    /** The ticks the longest route's travel takes at the slowest pace; a drink is kept this long past its last block's drain. */
     public static final int LONGEST_TRAVEL_TICKS = (int) Math.ceil((SiphonRule.RANGE + GLOVE_SLACK) / FLOW);
     /** Rings along one block of stream in the field's skeleton: the capsules between them follow the snake's bends. */
     public static final int RINGS_PER_BLOCK = 5;
     /** The fewest rings a path has, its two ends. */
     public static final int FEWEST_RINGS = 2;
-    /** The radius at a waist of a stream of scale 1, in blocks; the surface's cells bound how thin it can read. */
-    static final double WAIST = 0.08;
-    /** The radius at a bulb of a stream of scale 1, in blocks, two and a half times the waist. */
+    /** The radius at a waist of a stream of scale 1, in blocks, over a cell of the surface's grid so it reads round. */
+    static final double WAIST = 0.1;
+    /** The radius at a bulb of a stream of scale 1, in blocks, twice the waist. */
     static final double BULB = 0.2;
     /** Blocks of liquid from one bulb or waist to the next, about, so the stream undulates along its length. */
     static final double FEATURE_SPACING = 1.2;
@@ -133,29 +133,14 @@ public final class DrinkStream {
      * @param center   the ring's middle
      * @param flow     the unit direction the liquid flows there
      * @param radius   the liquid's radius there, in blocks
-     * @param material how far along the path's own liquid the ring is, in blocks, flowing toward the glove
+     * @param material how far along the path's own liquid the ring is, in blocks of liquid at the slowest pace
      * @param share    the share of the path's owner's whole route to the glove the ring stands at
+     * @param speed    blocks a tick the liquid flows there
+     * @param carry    how much of the skin's shape there rides the liquid, 0 at the block's standing matter to 1 past
+     *                 its funnel, so the skin is carried between meshes where it flows and stands where it stands
      */
-    public record Ring(Vec3 center, Vec3 flow, double radius, double material, double share) {
-    }
-
-    /**
-     * @param start the game time a block started streaming
-     * @param now   the game time, with the partial tick
-     * @return how far along its route its head has flowed, in blocks: a tip's length out of the block's near face
-     *         the first tick, so the block itself never tapers
-     */
-    public static double headAt(long start, double now) {
-        return BLOCK_SPAN + TIP + (now - start) * FLOW;
-    }
-
-    /**
-     * @param end the game time a block is drained
-     * @param now the game time, with the partial tick
-     * @return how far along its route its tail has flowed, in blocks: it leaves the block's entry as the block is drained
-     */
-    public static double tailAt(long end, double now) {
-        return BLOCK_SPAN + (now - end) * FLOW;
+    public record Ring(Vec3 center, Vec3 flow, double radius, double material, double share, double speed,
+                       double carry) {
     }
 
     /**
@@ -176,10 +161,13 @@ public final class DrinkStream {
      * @param radius   the liquid's radius there, in blocks
      * @param material how far along the path's own liquid the ring is
      * @param route    the share of the path owner's whole route the ring stands at
+     * @param speed    blocks a tick the liquid flows there
+     * @param carry    how much of the skin's shape there rides the liquid
      * @return the ring
      */
-    public static Ring ring(Path path, double share, double now, double radius, double material, double route) {
-        return new Ring(pointAt(path, share, now), flowAt(path, share, now), radius, material, route);
+    public static Ring ring(Path path, double share, double now, double radius, double material, double route,
+                            double speed, double carry) {
+        return new Ring(pointAt(path, share, now), flowAt(path, share, now), radius, material, route, speed, carry);
     }
 
     /**
@@ -219,18 +207,6 @@ public final class DrinkStream {
         double bendAcross = MeltMeshNoise.smooth(bendAt, drift, BEND_SEED_Z, path.seed() + ACROSS_SALT) - HALF;
         double reach = TWO * SNAKE * Math.sin(Math.PI * share);
         return path.spineAt(share).add(side.scale(bendSide * reach)).add(across.scale(bendAcross * reach));
-    }
-
-    /**
-     * How far along the liquid a point of the stream is: the liquid flows
-     * toward the glove {@link #FLOW} blocks every tick.
-     *
-     * @param distance the point's distance along the route, in blocks
-     * @param now      the game time, with the partial tick
-     * @return the point's place along the liquid, in blocks, falling as the liquid flows on
-     */
-    public static double materialAt(double distance, double now) {
-        return distance - now * FLOW;
     }
 
     /**

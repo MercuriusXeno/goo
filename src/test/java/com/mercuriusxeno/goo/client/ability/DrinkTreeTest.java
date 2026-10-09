@@ -14,8 +14,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * A drink's streams union on the tree its layout fixes: the first runs to
  * the glove, a tributary's path ends on its trunk's centreline at its join,
  * its route runs its own path then the trunk's remainder, and the trunk
- * carries the owner alone before a join and the dampened combination after
- * it, swelling in over the merge length (decision unmake-waves-dissolve-by-crucible-cost).
+ * carries the owner alone before a join and the areas' sum after it,
+ * swelling in over the merge length and bulging into a node at the join; the
+ * liquid's pace is the base pace times the square root of the goo massing
+ * where it flows, so a trunk fed by two runs faster than either, and the
+ * head, tail and material follow that pace (decision unmake-waves-dissolve-by-crucible-cost).
  */
 class DrinkTreeTest {
 
@@ -25,6 +28,8 @@ class DrinkTreeTest {
     /** A drain long enough that no tail has left the block while the tests look. */
     private static final long END = 1000;
     private static final double NOW = 100;
+    /** A time every block's goo weighs wholly on the pace. */
+    private static final double RAMPED = START + DrinkTree.MASS_RAMP;
     private static final DrinkTree.Block NEAR = block(new BlockPos(7, 2, 3), 1);
     private static final DrinkTree.Block FAR = block(new BlockPos(7, 3, 4), 1);
     /** Blocks past the join and its merge at which both liquids are read on the trunk. */
@@ -32,6 +37,10 @@ class DrinkTreeTest {
     private static final long THOUSAND = 1000;
     private static final long QUARTER = 250;
     private static final long FOUR_THOUSAND = 4000;
+    private static final double TICKS_LATER = 25;
+    private static final double NINE = 9;
+    private static final double THREE = 3;
+    private static final double TWO = 2;
 
     private static DrinkTree.Block block(BlockPos pos, double scale) {
         return new DrinkTree.Block(pos, Vec3.atCenterOf(pos), scale, START, END);
@@ -46,12 +55,20 @@ class DrinkTreeTest {
         return layout;
     }
 
+    private static List<DrinkTree.Stream> treeAt(double now) {
+        return DrinkTree.build(List.of(FAR, NEAR), layoutOf(FAR, NEAR), GLOVE, PULL, now);
+    }
+
     private static List<DrinkTree.Stream> tree() {
-        return DrinkTree.build(List.of(FAR, NEAR), layoutOf(FAR, NEAR), GLOVE, PULL, NOW);
+        return treeAt(NOW);
+    }
+
+    private static DrinkTree.Stream loneAt(double now) {
+        return DrinkTree.build(List.of(NEAR), layoutOf(NEAR), GLOVE, PULL, now).getFirst();
     }
 
     private static DrinkTree.Stream lone() {
-        return DrinkTree.build(List.of(NEAR), layoutOf(NEAR), GLOVE, PULL, NOW).getFirst();
+        return loneAt(NOW);
     }
 
     /**
@@ -77,6 +94,7 @@ class DrinkTreeTest {
             assertEquals(GLOVE, stream.path().to());
             assertEquals(layout.node(NEAR.pos()).farSide(), stream.path().from());
             assertEquals(PULL, stream.path().arrival());
+            assertEquals(NOW, stream.now(), DELTA);
         }
 
         @Test
@@ -115,33 +133,101 @@ class DrinkTreeTest {
     }
 
     @Nested
-    class Width {
+    class Pace {
 
         @Test
-        void theTrunkCarriesTheOwnerAloneBeforeTheJoinAndTheDampenedSumAfterIt() {
-            List<DrinkTree.Stream> streams = tree();
+        void aBlocksGooWeighsInOverTheRampFromItsStartByItsArea() {
+            assertEquals(0, NEAR.massAt(START), DELTA);
+            assertEquals(0.5, NEAR.massAt(START + DrinkTree.MASS_RAMP / 2), DELTA);
+            assertEquals(1, NEAR.massAt(RAMPED), DELTA);
+            assertEquals(1, NEAR.massAt(RAMPED + TICKS_LATER), DELTA);
+            assertEquals(TWO * TWO, block(NEAR.pos(), TWO).massAt(RAMPED), DELTA);
+        }
+
+        @Test
+        void aLoneStreamRunsAtTheBasePaceAndATrunkFedByTwoFasterByTheRootOfTheirGoo() {
+            List<DrinkTree.Stream> streams = treeAt(RAMPED);
             DrinkTree.Stream trunk = streams.getFirst();
             DrinkTree.Stream tributary = streams.get(1);
             double before = pastJoin(trunk, -DrinkTree.MERGE - PAST_THE_MERGE);
             double after = pastJoin(trunk, DrinkTree.MERGE + PAST_THE_MERGE);
-            double later = NOW + tributary.routeLength() / DrinkStream.FLOW;
 
-            assertEquals(0, DrinkTree.contribution(tributary, trunk, before, later), DELTA);
-            assertEquals(DrinkTree.contribution(trunk, trunk, before, later), DrinkTree.ring(trunk, before, later)
-                    .radius(), DELTA);
-            double owner = DrinkTree.contribution(trunk, trunk, after, later);
-            double joined = DrinkTree.contribution(tributary, trunk, after, later);
-            assertTrue(joined > 0, "the tributary's liquid is on the trunk");
-            assertEquals(Math.pow(owner, DrinkTree.COMBINE) + Math.pow(joined, DrinkTree.COMBINE),
-                    Math.pow(DrinkTree.ring(trunk, after, later).radius(), DrinkTree.COMBINE), DELTA);
+            assertEquals(DrinkStream.FLOW, loneAt(START).speedAt(0.5), DELTA);
+            assertEquals(DrinkStream.FLOW, loneAt(RAMPED).speedAt(0.5), DELTA);
+            assertEquals(DrinkStream.FLOW, tributary.speedAt(0.5), DELTA);
+            assertEquals(1, trunk.massAt(before), DELTA);
+            assertEquals(TWO, trunk.massAt(after), DELTA);
+            assertEquals(1.5, trunk.massAt(tributary.joinShare()), DELTA);
+            assertEquals(DrinkStream.FLOW * Math.sqrt(TWO), trunk.speedAt(after), DELTA);
         }
 
         @Test
-        void manyEqualStreamsCombineDampened() {
-            double nine = Math.pow(9, 1 / DrinkTree.COMBINE);
+        void theTravelTimeSumsTheRouteOverItsPaceAndInvertsBackToTheDistance() {
+            DrinkTree.Stream alone = loneAt(RAMPED);
+            List<DrinkTree.Stream> streams = treeAt(RAMPED);
+            DrinkTree.Stream trunk = streams.getFirst();
+            DrinkTree.Stream tributary = streams.get(1);
+            double length = alone.path().length();
+            double joinDistance = tributary.joinShare() * trunk.path().length();
 
-            assertTrue(nine < 2, "nine streams make under twice one, made " + nine);
-            assertTrue(nine > 1.5);
+            assertEquals(length / DrinkStream.FLOW, alone.timeTo(length), 1e-6);
+            assertEquals(0.3, alone.distanceAt(alone.timeTo(0.3)), 1e-6);
+            assertEquals(length + 1, alone.distanceAt(alone.timeTo(length + 1)), 1e-6);
+            assertEquals(-1 / DrinkStream.FLOW, alone.timeTo(-1), DELTA);
+            assertEquals(tributary.timeTo(tributary.path().length()) + trunk.timeTo(trunk.path().length())
+                    - trunk.timeTo(joinDistance), tributary.timeTo(tributary.routeLength()), 1e-6);
+            assertTrue(tributary.timeTo(tributary.routeLength()) < tributary.routeLength() / DrinkStream.FLOW,
+                    "the trunk carries the tributary's liquid on faster than the base pace");
+            assertEquals(tributary.routeLength(), tributary.distanceAt(tributary.timeTo(tributary.routeLength())),
+                    1e-6);
+        }
+
+        @Test
+        void theHeadStartsATipOutOfTheBlockAndTheTailLeavesItsFaceAtThePace() {
+            double face = DrinkStream.BLOCK_SPAN;
+            double tip = face + DrinkStream.TIP;
+
+            assertEquals(tip, loneAt(START).headAt(), 1e-6);
+            assertEquals(tip + TICKS_LATER * DrinkStream.FLOW, loneAt(START + TICKS_LATER).headAt(), 1e-6);
+            assertTrue(loneAt(START).tailAt() < face, "the block still feeds the stream");
+            assertEquals(face, loneAt(END).tailAt(), 1e-6);
+            assertEquals(face + TICKS_LATER * DrinkStream.FLOW, loneAt(END + TICKS_LATER).tailAt(), 1e-6);
+        }
+
+        @Test
+        void theMaterialFallsAtTheBasePaceWhereTheLiquidFlowsAtIt() {
+            DrinkTree.Stream before = loneAt(RAMPED);
+            DrinkTree.Stream after = loneAt(RAMPED + 1);
+            double length = before.path().length();
+
+            assertEquals(-DrinkStream.FLOW, after.materialAt(0.5) - before.materialAt(0.5), DELTA);
+            assertEquals(length, before.materialAt(length) - before.materialAt(0), 1e-6);
+        }
+    }
+
+    @Nested
+    class Width {
+
+        @Test
+        void theTrunkCarriesTheOwnerAloneBeforeTheJoinAndTheSummedAreasAfterIt() {
+            List<DrinkTree.Stream> streams = treeAt(START + tree().get(1).routeLength() / DrinkStream.FLOW);
+            DrinkTree.Stream trunk = streams.getFirst();
+            DrinkTree.Stream tributary = streams.get(1);
+            double before = pastJoin(trunk, -DrinkTree.MERGE - PAST_THE_MERGE);
+            double after = pastJoin(trunk, DrinkTree.MERGE + PAST_THE_MERGE);
+
+            assertEquals(0, DrinkTree.contribution(tributary, trunk, before), DELTA);
+            assertEquals(DrinkTree.contribution(trunk, trunk, before), DrinkTree.ring(trunk, before).radius(), DELTA);
+            double owner = DrinkTree.contribution(trunk, trunk, after);
+            double joined = DrinkTree.contribution(tributary, trunk, after);
+            assertTrue(joined > 0, "the tributary's liquid is on the trunk");
+            assertEquals(owner * owner + joined * joined, Math.pow(DrinkTree.ring(trunk, after).radius(), TWO), DELTA);
+        }
+
+        @Test
+        void nineEqualStreamsMakeThreeTimesOneTheirAreasSumming() {
+            assertEquals(TWO, DrinkTree.COMBINE, DELTA);
+            assertEquals(THREE, Math.pow(NINE, 1 / DrinkTree.COMBINE), DELTA);
         }
 
         @Test
@@ -154,45 +240,69 @@ class DrinkTreeTest {
         }
 
         @Test
-        void theBlockIsACubeOfLiquidWhereItStoodAtTheStartAndGoneWhenDrained() {
-            DrinkTree.Stream stream = lone();
-            double middle = DrinkBody.CENTER / stream.path().length();
-            DrinkField.Skeleton starting = DrinkTree.skeleton(stream, START);
-            DrinkField.Skeleton drained = DrinkTree.skeleton(stream, END);
+        void aJoinBulgesIntoANodeAsBigAsTheStreamArrivingFadingOverTheMerge() {
+            List<DrinkTree.Stream> streams = treeAt(START + tree().get(1).routeLength() / DrinkStream.FLOW);
+            DrinkTree.Stream trunk = streams.getFirst();
+            DrinkTree.Stream tributary = streams.get(1);
+            double arriving = tributary.arrivingRadius();
+            double join = tributary.joinShare();
+            double owner = DrinkTree.contribution(trunk, trunk, join);
+            double joined = DrinkTree.contribution(tributary, trunk, join);
 
-            assertEquals(DrinkBody.MOUTH, DrinkTree.ring(stream, middle, START).radius(), DELTA);
-            assertEquals(NEAR.center(), starting.box().center());
-            assertEquals(DrinkBody.MOUTH, starting.box().half(), DELTA);
-            assertEquals(0, starting.box().rounding(), DELTA);
-            assertNull(drained.box());
-            assertEquals(DrinkTree.rings(stream, START).size(), starting.rings().size());
+            assertTrue(arriving > 0, "the tributary's liquid has arrived");
+            assertEquals(DrinkTree.radiusAt(tributary, 1), arriving, DELTA);
+            assertEquals(DrinkTree.NODE * arriving, DrinkTree.nodeOf(tributary, 0), DELTA);
+            assertEquals(DrinkTree.NODE * arriving * 0.75 * 0.75, DrinkTree.nodeOf(tributary, DrinkTree.MERGE / 2),
+                    DELTA);
+            assertEquals(0, DrinkTree.nodeOf(tributary, DrinkTree.MERGE), DELTA);
+            assertEquals(0, DrinkTree.nodeOf(tributary, -DrinkTree.MERGE), DELTA);
+            assertTrue(DrinkTree.ring(trunk, join).radius() > Math.sqrt(owner * owner + joined * joined),
+                    "the node fattens the trunk at the join beyond the areas' sum");
+        }
+
+        @Test
+        void theBlockIsACubeOfLiquidWhereItStoodAtTheStartAndGoneWhenDrained() {
+            DrinkTree.Stream starting = loneAt(START);
+            DrinkTree.Stream drained = loneAt(END);
+            double middle = DrinkBody.CENTER / starting.path().length();
+            DrinkField.Skeleton startingSkeleton = DrinkTree.skeleton(starting);
+
+            assertEquals(DrinkBody.MOUTH, DrinkTree.ring(starting, middle).radius(), DELTA);
+            assertEquals(NEAR.center(), startingSkeleton.box().center());
+            assertEquals(DrinkBody.MOUTH, startingSkeleton.box().half(), DELTA);
+            assertEquals(0, startingSkeleton.box().rounding(), DELTA);
+            assertNull(DrinkTree.skeleton(drained).box());
+            assertEquals(DrinkTree.rings(starting).size(), startingSkeleton.rings().size());
         }
 
         @Test
         void aTributarysLiquidReachesTheTrunkOnlyAfterFlowingItsOwnPath() {
-            List<DrinkTree.Stream> streams = tree();
-            DrinkTree.Stream trunk = streams.getFirst();
-            DrinkTree.Stream tributary = streams.get(1);
-            double share = pastJoin(trunk, DrinkTree.MERGE);
+            DrinkTree.Stream tributary = tree().get(1);
             double ownPath = tributary.path().length() - DrinkStream.BLOCK_SPAN - DrinkStream.TIP;
             double onTrunk = ownPath + DrinkTree.MERGE + DrinkStream.TIP + DrinkBody.FUNNEL;
+            List<DrinkTree.Stream> early = treeAt(START + ownPath / DrinkStream.FLOW);
+            List<DrinkTree.Stream> late = treeAt(START + onTrunk / DrinkStream.FLOW);
+            double share = pastJoin(early.getFirst(), DrinkTree.MERGE);
 
-            assertEquals(0, DrinkTree.contribution(tributary, trunk, share, START + ownPath / DrinkStream.FLOW),
-                    DELTA);
-            assertTrue(DrinkTree.contribution(tributary, trunk, share, START + onTrunk / DrinkStream.FLOW) > 0);
+            assertEquals(0, DrinkTree.contribution(early.get(1), early.getFirst(), share), DELTA);
+            assertTrue(DrinkTree.contribution(late.get(1), late.getFirst(), share) > 0);
         }
 
         @Test
-        void aPathsRingsRunFromTheBlocksFarSideToItsEnd() {
+        void aPathsRingsRunFromTheBlocksFarSideToItsEndAtThePaceCarriedPastTheFunnel() {
             DrinkTree.Stream stream = lone();
-            List<DrinkStream.Ring> rings = DrinkTree.rings(stream, NOW);
-            DrinkStream.Ring ring = DrinkTree.ring(stream, 0.5, NOW);
+            List<DrinkStream.Ring> rings = DrinkTree.rings(stream);
+            DrinkStream.Ring ring = DrinkTree.ring(stream, 0.5);
+            double distance = 0.5 * stream.path().length();
 
             assertEquals(0, rings.getFirst().share(), DELTA);
             assertEquals(1, rings.getLast().share(), DELTA);
             assertTrue(rings.size() > DrinkStream.RINGS_PER_BLOCK, "ten rings to the block");
             assertEquals(0.5, ring.share(), DELTA);
-            assertEquals(DrinkStream.materialAt(0.5 * stream.path().length(), NOW), ring.material(), DELTA);
+            assertEquals(stream.materialAt(distance), ring.material(), DELTA);
+            assertEquals(stream.speedAt(0.5), ring.speed(), DELTA);
+            assertEquals(DrinkBody.carryAt(distance), ring.carry(), DELTA);
+            assertEquals(0, rings.getFirst().carry(), DELTA);
         }
     }
 }

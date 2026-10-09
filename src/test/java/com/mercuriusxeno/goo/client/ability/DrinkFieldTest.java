@@ -28,7 +28,7 @@ class DrinkFieldTest {
             1, 0, 100);
 
     private static DrinkStream.Ring ring(Vec3 center) {
-        return new DrinkStream.Ring(center, EAST, RADIUS, 0, 0);
+        return new DrinkStream.Ring(center, EAST, RADIUS, 0, 0, DrinkStream.FLOW, 1);
     }
 
     private static DrinkTree.Stream stream() {
@@ -105,6 +105,19 @@ class DrinkFieldTest {
         assertEquals(whole.value(), DrinkField.valueAt(both, new int[]{DrinkField.candidate(0, 0)}, point.x, point.y,
                 point.z), DELTA);
         assertSame(both.getFirst(), some.skeleton());
+    }
+
+    @Test
+    void aSampleKnowsWhenItIsNearerTheStandingBlockThanTheStream() {
+        Vec3 boxCenter = UP.scale(3);
+        DrinkBody.Box box = new DrinkBody.Box(boxCenter, 0.5, 0);
+        DrinkField.Skeleton skeleton = new DrinkField.Skeleton(stream(), List.of(ring(Vec3.ZERO), ring(EAST)), box);
+        List<DrinkField.Skeleton> alone = List.of(skeleton);
+
+        assertTrue(DrinkField.sample(alone, boxCenter.add(0.5, 0.1, 0.2)).onBlock());
+        assertFalse(DrinkField.sample(alone, new Vec3(0.5, RADIUS, 0)).onBlock());
+        assertFalse(DrinkField.sample(List.of(capsule(Vec3.ZERO, EAST)), new Vec3(0.5, RADIUS, 0)).onBlock());
+        assertEquals(2, skeleton.bodies());
     }
 
     @Test

@@ -99,8 +99,10 @@ public final class DrinkField {
      * @param value    the field's value there
      * @param skeleton the skeleton nearest the point, or null where none reaches it
      * @param ring     the ring of that skeleton nearest the point
+     * @param onBlock  whether the point is nearer that skeleton's standing block than any of its stream
      */
-    public record Sample(double value, @Nullable Skeleton skeleton, DrinkStream.@Nullable Ring ring) {
+    public record Sample(double value, @Nullable Skeleton skeleton, DrinkStream.@Nullable Ring ring,
+                         boolean onBlock) {
 
         /**
          * @return whether the point is inside the surface
@@ -244,9 +246,20 @@ public final class DrinkField {
             }
         }
         if (nearest == NONE || least[nearest] >= REACH) {
-            return new Sample(value, null, null);
+            return new Sample(value, null, null, false);
         }
         Skeleton skeleton = skeletons.get(nearest);
-        return new Sample(value, skeleton, nearestRing(skeleton.rings(), point));
+        return new Sample(value, skeleton, nearestRing(skeleton.rings(), point), onBlock(skeleton, point,
+                least[nearest]));
+    }
+
+    /**
+     * @param skeleton the skeleton nearest a point
+     * @param point    the point
+     * @param least    the signed distance from the point to the skeleton's nearest body
+     * @return whether that nearest body is the skeleton's standing block
+     */
+    private static boolean onBlock(Skeleton skeleton, Vec3 point, double least) {
+        return skeleton.box() != null && skeleton.box().signedDistance(point) <= least;
     }
 }
