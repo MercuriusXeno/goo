@@ -38,9 +38,9 @@ class DrinkStreamTest {
     private static final double READ = 40;
     private static final double STEP = 0.05;
     /** The steepest a grade between bulb and waist may run, in blocks of radius a block of liquid. */
-    private static final double GENTLE = 0.5;
-    /** The least of the liquid that sits at the bulb or at the waist. */
-    private static final double MOSTLY = 0.25;
+    private static final double GENTLE = 0.3;
+    /** The fewest times the width crosses its middle over the read, so the stream undulates. */
+    private static final int UNDULATIONS = 20;
     private static final double LEAST_RATIO = 3;
     private static final double MOST_RATIO = 4;
     private static final double TWO_PI = 2 * Math.PI;
@@ -51,12 +51,14 @@ class DrinkStreamTest {
     class Timing {
 
         @Test
-        void theHeadAndTheTailFlowAtTheFlowsPaceAlongTheRoute() {
-            assertEquals(0, DrinkStream.headAt(START, START), DELTA);
-            assertEquals(TICKS_LATER * DrinkStream.FLOW, DrinkStream.headAt(START, START + TICKS_LATER), DELTA);
-            assertTrue(DrinkStream.tailAt(END, START) < 0, "the block still feeds the stream");
-            assertEquals(0, DrinkStream.tailAt(END, END), DELTA);
-            assertEquals(TICKS_LATER * DrinkStream.FLOW, DrinkStream.tailAt(END, END + TICKS_LATER), DELTA);
+        void theHeadAndTheTailLeaveTheBlocksEntryAndFlowAtTheFlowsPace() {
+            double entry = DrinkStream.BLOCK_SPAN;
+
+            assertEquals(entry, DrinkStream.headAt(START, START), DELTA);
+            assertEquals(entry + TICKS_LATER * DrinkStream.FLOW, DrinkStream.headAt(START, START + TICKS_LATER), DELTA);
+            assertTrue(DrinkStream.tailAt(END, START) < entry, "the block still feeds the stream");
+            assertEquals(entry, DrinkStream.tailAt(END, END), DELTA);
+            assertEquals(entry + TICKS_LATER * DrinkStream.FLOW, DrinkStream.tailAt(END, END + TICKS_LATER), DELTA);
         }
 
         @Test
@@ -169,18 +171,19 @@ class DrinkStreamTest {
         }
 
         @Test
-        void theWidthSitsMostlyAtTheBulbOrTheWaistWithGentleGradesBetween() {
-            int samples = 0;
-            int atAnEnd = 0;
+        void theWidthUndulatesAlongTheLiquidWithGentleGrades() {
+            double middle = (DrinkStream.WAIST + DrinkStream.BULB) / 2;
+            int crossings = 0;
             double steepest = 0;
+            boolean wide = DrinkStream.widthAt(-READ, SEED) > middle;
             for (double material = -READ; material <= READ; material += STEP) {
                 double width = DrinkStream.widthAt(material, SEED);
-                samples++;
-                atAnEnd += width <= DrinkStream.WAIST + DELTA || width >= DrinkStream.BULB - DELTA ? 1 : 0;
+                crossings += width > middle != wide ? 1 : 0;
+                wide = width > middle;
                 steepest = Math.max(steepest, Math.abs(DrinkStream.widthAt(material + STEP, SEED) - width) / STEP);
             }
 
-            assertTrue((double) atAnEnd / samples >= MOSTLY, "at an end for " + atAnEnd + " of " + samples);
+            assertTrue(crossings >= UNDULATIONS, "crossed the middle " + crossings + " times");
             assertTrue(steepest <= GENTLE, "steepest grade " + steepest);
         }
 

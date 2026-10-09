@@ -4,29 +4,30 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
- * The tree an Unmake drink's streams union on: the stream nearest the hand
- * runs into the glove, every other stream joins the nearest stream closer to
- * the hand, at the point of that trunk nearest its block pushed a little
- * toward the hand so it arrives at a shallow angle, and the joins cascade
- * until one trunk enters the glove. Past a join the trunk carries the area
- * sum of every stream whose liquid is there, swelling into it over a short
- * length so the two meet like metaballs touching; a block's liquid flows at
- * the one pace along its whole route, its own path then each trunk's
- * remainder, its goo mingling over the whole of it.
+ * The tree an Unmake drink's streams union on this frame, built on the
+ * drink's fixed layout: each block's path runs from its far side to its join
+ * on its trunk, or to the glove, the ends following the hand. Past a join the
+ * trunk carries every stream whose liquid is there, combined by the fourth
+ * root of the sum of fourth powers so a trunk of many streams is fatter but
+ * dampened, swelling into each over a short length so the two meet like
+ * metaballs touching; a block's liquid flows at the one pace along its whole
+ * route, its own path then each trunk's remainder, its goo mingling over the
+ * whole of it.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 public final class DrinkTree {
 
-    /** Blocks toward the hand a join is pushed past the point of the trunk nearest the joining block. */
-    static final double LEAD = 1.2;
     /** Blocks past a join over which the trunk swells to carry the stream joining it. */
     static final double MERGE = 0.6;
     /** The goo volume of a block whose stream has scale 1, in mB. */
     static final double BASE_VOLUME = 1000;
+    /** The power streams combine by: the trunk's radius is this root of the sum of this power of each. */
+    static final double COMBINE = 4;
 
     private DrinkTree() {
     }
@@ -130,68 +131,51 @@ public final class DrinkTree {
     }
 
     /**
-     * Builds the tree of a drink's blocks this frame.
+     * Builds the tree of a drink's blocks this frame on its layout.
      *
      * @param blocks the blocks streaming
+     * @param layout the drink's layout, every block laid
      * @param glove  the glove
      * @param now    the game time, with the partial tick
-     * @return every stream, the one entering the glove first
+     * @return every stream, the one entering the glove first and each after the stream it joins
      */
-    public static List<Stream> build(List<Block> blocks, Vec3 glove, double now) {
-        List<Block> nearestFirst = new ArrayList<>(blocks);
-        nearestFirst.sort(Comparator.comparingDouble(block -> block.center().distanceToSqr(glove)));
+    public static List<Stream> build(List<Block> blocks, DrinkLayout layout, Vec3 glove, double now) {
+        Map<BlockPos, Block> byPos = new HashMap<>();
+        blocks.forEach(block -> byPos.put(block.pos(), block));
+        Map<BlockPos, Stream> built = new HashMap<>();
         List<Stream> streams = new ArrayList<>();
-        for (Block block : nearestFirst) {
-            Stream trunk = nearestTrunk(streams, block.center());
-            if (trunk == null) {
-                streams.add(new Stream(block, DrinkMorph.pathOf(block.center(), glove, block.seed()), null, 0));
-            } else {
-                double join = joinShare(trunk, block.center());
-                Vec3 at = DrinkStream.pointAt(trunk.path(), join, now);
-                streams.add(new Stream(block, DrinkMorph.pathOf(block.center(), at, block.seed()), trunk, join));
+        for (DrinkLayout.Node node : layout.nodes()) {
+            Block block = byPos.get(node.pos());
+            Stream trunk = node.trunk() == null ? null : built.get(node.trunk());
+            if (block == null) {
+                continue;
             }
+            Stream stream = trunk == null
+                    ? new Stream(block, new DrinkStream.Path(node.farSide(), glove, block.seed()), null, 0)
+                    : joining(block, node, trunk, now);
+            built.put(block.pos(), stream);
+            streams.add(stream);
         }
         return streams;
     }
 
-    /**
-     * @param streams the streams standing, all closer to the hand
-     * @param center  a block's middle
-     * @return the stream whose straight line runs nearest the block, or null where none stands
-     */
-    static @Nullable Stream nearestTrunk(List<Stream> streams, Vec3 center) {
-        Stream nearest = null;
-        double least = Double.MAX_VALUE;
-        for (Stream stream : streams) {
-            double distance = stream.path().lineAt(stream.path().nearestShare(center)).distanceToSqr(center);
-            if (distance < least) {
-                least = distance;
-                nearest = stream;
-            }
-        }
-        return nearest;
+    private static Stream joining(Block block, DrinkLayout.Node node, Stream trunk, double now) {
+        double join = Math.min(1, node.joinAt() / trunk.path().length());
+        Vec3 at = DrinkStream.pointAt(trunk.path(), join, now);
+        return new Stream(block, new DrinkStream.Path(node.farSide(), at, block.seed()), trunk, join);
     }
 
     /**
-     * @param trunk  the stream a block joins
-     * @param center the block's middle
-     * @return the share of the trunk's path it joins at: the point nearest it, pushed {@link #LEAD} toward the hand
-     */
-    static double joinShare(Stream trunk, Vec3 center) {
-        return Math.min(1, trunk.path().nearestShare(center) + LEAD / trunk.path().length());
-    }
-
-    /**
-     * The rings of a stream's own path from a share to its end, each as wide
-     * as every stream flowing through it there makes it.
+     * The rings of a stream's own path from its block's entry to its end,
+     * each as wide as every stream flowing through it there makes it.
      *
      * @param stream the stream
-     * @param lowest the share of its path below which its block's own matter draws it, 0 for none
      * @param now    the game time, with the partial tick
      * @return the rings
      */
-    public static List<DrinkStream.Ring> rings(Stream stream, double lowest, double now) {
+    public static List<DrinkStream.Ring> rings(Stream stream, double now) {
         List<DrinkStream.Ring> rings = new ArrayList<>();
+        double lowest = Math.min(1, DrinkStream.BLOCK_SPAN / stream.path().length());
         int count = Math.max(DrinkStream.FEWEST_RINGS,
                 (int) Math.ceil(stream.path().length() * DrinkStream.RINGS_PER_BLOCK * (1 - lowest)) + 1);
         for (int index = 0; index < count; index++) {
@@ -201,9 +185,8 @@ public final class DrinkTree {
     }
 
     /**
-     * The ring of a stream's own path at a share: its radius the area sum of
-     * every stream flowing through it there, its texture and its goo the
-     * path owner's.
+     * The ring of a stream's own path at a share: its radius combining every
+     * stream flowing through it there, its texture and its goo the path owner's.
      *
      * @param stream the stream
      * @param share  the share of its path
@@ -212,24 +195,24 @@ public final class DrinkTree {
      */
     public static DrinkStream.Ring ring(Stream stream, double share, double now) {
         double distance = share * stream.path().length();
-        double squares = square(contribution(stream, stream, share, now));
+        double powers = power(contribution(stream, stream, share, now));
         for (Stream tributary : stream.tributaries()) {
-            squares += squaresUnder(tributary, stream, share, now);
+            powers += powersUnder(tributary, stream, share, now);
         }
-        return DrinkStream.ring(stream.path(), share, now, Math.sqrt(squares), DrinkStream.materialAt(distance, now),
-                distance / stream.routeLength());
+        return DrinkStream.ring(stream.path(), share, now, Math.pow(powers, 1 / COMBINE),
+                DrinkStream.materialAt(distance, now), distance / stream.routeLength());
     }
 
-    private static double squaresUnder(Stream branch, Stream through, double share, double now) {
-        double squares = square(contribution(branch, through, share, now));
+    private static double powersUnder(Stream branch, Stream through, double share, double now) {
+        double powers = power(contribution(branch, through, share, now));
         for (Stream tributary : branch.tributaries()) {
-            squares += squaresUnder(tributary, through, share, now);
+            powers += powersUnder(tributary, through, share, now);
         }
-        return squares;
+        return powers;
     }
 
-    private static double square(double value) {
-        return value * value;
+    private static double power(double radius) {
+        return Math.pow(radius, COMBINE);
     }
 
     /**

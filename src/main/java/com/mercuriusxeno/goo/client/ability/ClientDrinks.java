@@ -14,9 +14,9 @@ import java.util.Set;
 /**
  * The blocks streaming into Unmake drinks this client draws, each drink kept
  * from the server's first word of it until its every stream has wholly
- * entered the glove; and the block each one was, remembered from the first
- * frame the client saw it turning, so the stream's tail is drawn after the
- * block is gone.
+ * entered the glove, with the fixed layout of its tree; and the block each
+ * one was, remembered from the first frame the client saw it flowing, so the
+ * stream's tail is drawn after the block is gone.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 public final class ClientDrinks {
@@ -25,15 +25,17 @@ public final class ClientDrinks {
     public static final ClientDrinks CLIENT = new ClientDrinks();
 
     /**
-     * One player's drink: the blocks streaming into their glove.
+     * One player's drink: the blocks streaming into their glove, and the fixed layout of their tree.
      *
      * @param playerId  the player's entity id
      * @param streaming the blocks still streaming or whose stream is still in the air
+     * @param layout    the layout of the drink's tree, laid as each block first appeared
      */
-    public record Drink(int playerId, List<DrinkPayload.Streaming> streaming) {
+    public record Drink(int playerId, List<DrinkPayload.Streaming> streaming, DrinkLayout layout) {
     }
 
     private final Map<Integer, Map<BlockPos, DrinkPayload.Streaming>> drinks = new HashMap<>();
+    private final Map<Integer, DrinkLayout> layouts = new HashMap<>();
     private final Remembered<BlockPos, BlockState> blocks = new Remembered<>();
 
     /**
@@ -73,8 +75,10 @@ public final class ClientDrinks {
         Set<BlockPos> drawn = new HashSet<>();
         drinks.values().removeIf(shown -> shown.values().stream().allMatch(streaming -> DrinkStream.gone(streaming,
                 now)));
+        layouts.keySet().retainAll(drinks.keySet());
         drinks.forEach((playerId, shown) -> {
-            live.add(new Drink(playerId, List.copyOf(shown.values())));
+            live.add(new Drink(playerId, List.copyOf(shown.values()),
+                    layouts.computeIfAbsent(playerId, ignored -> new DrinkLayout())));
             drawn.addAll(shown.keySet());
         });
         blocks.keepOnly(drawn);

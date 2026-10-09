@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -37,6 +38,17 @@ class ClientDrinksTest {
         assertEquals(2, early.getFirst().streaming().size(), "the drained block's trunk stays for the other's stream");
         assertEquals(1, drinks.live(LATER_END + DrinkStream.LONGEST_TRAVEL_TICKS - 1).size());
         assertTrue(drinks.live(LATER_END + DrinkStream.LONGEST_TRAVEL_TICKS).isEmpty());
+    }
+
+    @Test
+    void aDrinkKeepsOneLayoutFromFrameToFrame() {
+        ClientDrinks drinks = new ClientDrinks();
+        drinks.show(drink(streaming(BlockPos.ZERO, END)));
+
+        DrinkLayout first = drinks.live(START).getFirst().layout();
+        DrinkLayout next = drinks.live(START + 1).getFirst().layout();
+
+        assertSame(first, next);
     }
 
     @Test

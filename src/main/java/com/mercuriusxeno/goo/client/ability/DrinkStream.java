@@ -6,8 +6,8 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * The shape of one stream of an Unmake drink along one path of its tree: a
- * goopy stream flowing languidly from a block's far side, through where the
- * block stood, to its join or the glove, snaking off the straight line as a
+ * goopy stream flowing languidly out of the block's lump at its entry, from
+ * its far side through where the block stood to its join or the glove, snaking off the straight line as a
  * smooth noise field bends it, the bends carried slowly downstream and
  * drifting with time so the snake never repeats; its width a slow profile of
  * elongated bulbs and hourglass waists with gentle grades between them, the
@@ -33,15 +33,15 @@ public final class DrinkStream {
     /** The fewest rings a path has, its two ends. */
     public static final int FEWEST_RINGS = 2;
     /** The radius at a waist of a stream of scale 1, in blocks. */
-    static final double WAIST = 0.03;
+    static final double WAIST = 0.02;
     /** The radius at a bulb of a stream of scale 1, in blocks, three to four times the waist. */
-    static final double BULB = 0.1;
-    /** Blocks of liquid from one bulb or waist to the next, about. */
-    static final double FEATURE_SPACING = 2.5;
+    static final double BULB = 0.07;
+    /** Blocks of liquid from one bulb or waist to the next, about, so the stream undulates along its length. */
+    static final double FEATURE_SPACING = 1.2;
     /** The share of the width profile's field under which the stream sits at its waist. */
-    static final double WAIST_EDGE = 0.34;
+    static final double WAIST_EDGE = 0.2;
     /** The share of the width profile's field over which the stream sits at its bulb. */
-    static final double BULB_EDGE = 0.66;
+    static final double BULB_EDGE = 0.8;
     /** How far the stream snakes off the straight line at most, in blocks. */
     static final double SNAKE = 0.45;
     /** Noise cells along one block of stream for its bends. */
@@ -137,19 +137,19 @@ public final class DrinkStream {
     /**
      * @param start the game time a block started streaming
      * @param now   the game time, with the partial tick
-     * @return how far along its route its head has flowed, in blocks
+     * @return how far along its route its head has flowed, in blocks: it leaves the block's entry the first tick
      */
     public static double headAt(long start, double now) {
-        return (now - start) * FLOW;
+        return BLOCK_SPAN + (now - start) * FLOW;
     }
 
     /**
      * @param end the game time a block is drained
      * @param now the game time, with the partial tick
-     * @return how far along its route its tail has flowed, in blocks, below zero while the block still feeds it
+     * @return how far along its route its tail has flowed, in blocks: it leaves the block's entry as the block is drained
      */
     public static double tailAt(long end, double now) {
-        return (now - end) * FLOW;
+        return BLOCK_SPAN + (now - end) * FLOW;
     }
 
     /**

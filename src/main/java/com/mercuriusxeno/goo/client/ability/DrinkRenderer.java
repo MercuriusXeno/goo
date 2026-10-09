@@ -35,12 +35,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Draws every Unmake drink: each block's own cube turning into its stream
- * where it stands, and the drink's streams flowing languidly down their tree
- * into the drinker's glove, each path skinned in its block's own texture
- * riding the flow and warped molten, tinting toward its goo's colour and
- * growing patches of its goo types by the mingle noise along the block's
- * whole route, mingled by their shares, until it is all goo as it enters.
+ * Draws every Unmake drink: each block's lump flowing into its stream, and
+ * the drink's streams flowing languidly down their fixed tree into the
+ * drinker's glove, each path skinned solid in its block's own texture riding
+ * the flow and warped molten, tinting toward its goo's colour and growing
+ * patches of its goo types by the mingle noise along the block's whole
+ * route, mingled by their shares, so it reads as mingled block the whole way.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -54,6 +54,8 @@ public final class DrinkRenderer {
     static final double LAYER_STEP = 0.008;
     /** How the liquid's place along the stream reads into the patches' field, in field blocks a block; slow, so they ride the flow. */
     static final float PATCH_ALONG = 0.2f;
+    /** How far along the mingle a stream gets by the hand, so the block's texture shows mingled the whole way. */
+    static final float GOO_REACH = 0.45f;
     /** The most goo types layered over one stream; past three the patches read as noise. */
     private static final int MAX_LAYERS = 3;
     private static final float HALF = 0.5f;
@@ -170,15 +172,16 @@ public final class DrinkRenderer {
                         DrinkTree.scaleOf(MeltMeshGoo.volumeOf(state)), streaming.start(), streaming.end()));
             }
         }
-        for (DrinkTree.Stream stream : DrinkTree.build(blocks, frame.glove(), frame.ticks())) {
+        drink.layout().place(states.keySet(), frame.glove());
+        for (DrinkTree.Stream stream : DrinkTree.build(blocks, drink.layout(), frame.glove(), frame.ticks())) {
             submitStream(event, level, stream, states.get(stream.block().pos()), frame);
         }
     }
 
     /**
-     * Submits one stream: while its block drains, the cube turning into the
-     * stream over its own span of the path, and the path from there on; once
-     * drained, the path alone, its tail following in.
+     * Submits one stream: while its block drains, its lump flowing into the
+     * stream's entry, and the path from the entry on; once drained, the path
+     * alone, its tail following in.
      *
      * @param event  the custom geometry submit event
      * @param level  the client level
@@ -190,13 +193,12 @@ public final class DrinkRenderer {
                                      BlockState state, Frame frame) {
         DrinkTree.Block block = stream.block();
         MingledGoo goo = MeltMeshGoo.of(state);
-        boolean turning = frame.ticks() < block.end();
-        if (turning) {
-            DrinkMorphRenderer.submit(event, level, state, goo, new DrinkMorphRenderer.Turning(stream,
-                    progressOf(block, frame.ticks()), frame.ticks(), frame.camera()));
+        if (frame.ticks() < block.end()) {
+            DrinkBody.Lump lump = new DrinkBody.Lump(stream.path(), progressOf(block, frame.ticks()));
+            DrinkBodyRenderer.submit(event, level, state, goo, new DrinkBodyRenderer.Flowing(stream, lump,
+                    frame.ticks(), frame.camera()));
         }
-        List<DrinkStream.Ring> rings = DrinkTree.rings(stream,
-                turning ? DrinkStream.BLOCK_SPAN / stream.path().length() : 0, frame.ticks());
+        List<DrinkStream.Ring> rings = DrinkTree.rings(stream, frame.ticks());
         if (rings.stream().anyMatch(ring -> ring.radius() > 0)) {
             submitSkins(event, new Skin(rings, LevelRenderer.getLightCoords(level, block.pos()), frame,
                     block.seed()), level, block.pos(), state, goo);
@@ -226,7 +228,7 @@ public final class DrinkRenderer {
     }
 
     /**
-     * Submits the path's own skin: the block's texture riding the flow,
+     * Submits the path's own skin, solid: the block's texture riding the flow,
      * warped molten, tinting toward the goo's colour where the mingle has formed.
      *
      * @param event the custom geometry submit event
@@ -247,9 +249,11 @@ public final class DrinkRenderer {
         MeltMesh.GooLayer base = goo.types().isEmpty() ? null
                 : new MeltMesh.GooLayer(goo.types().getFirst(), 0, goo.share(0));
         int gooColor = base == null ? tint : ARGB.opaque(ClientGooTypes.color(base.type()));
-        GooSubmitter.submitBody(event.getPoseStack(), event.getSubmitNodeCollector(), skin.light(),
-                ctx -> emitSkin(ctx, skin, sprite, 0, (ring, angle) -> base == null ? tint
-                        : ARGB.srgbLerp(DrinkMorphRenderer.TINT_BLEND * formed(base, ring, angle), tint, gooColor)));
+        Coloring coloring = (ring, angle) -> base == null ? tint
+                : ARGB.srgbLerp(DrinkBodyRenderer.TINT_BLEND * formed(base, ring, angle), tint, gooColor);
+        event.getSubmitNodeCollector().submitCustomGeometry(event.getPoseStack(), GooSubmitter.solidOnBlockAtlas(),
+                (pose, consumer) -> emitSkin(new RenderContext(pose, consumer, skin.light()), skin, sprite, 0,
+                        coloring));
     }
 
     /**
@@ -274,7 +278,8 @@ public final class DrinkRenderer {
     /**
      * How formed a goo layer is at a point of the stream: its patches form by
      * the share of the block's route the point stands at, in a field that
-     * rides the flow.
+     * rides the flow, reaching only {@link #GOO_REACH} of the way by the hand
+     * so the block's texture shows mingled the whole way.
      *
      * @param layer the goo layer
      * @param ring  the ring the point is on
@@ -284,7 +289,7 @@ public final class DrinkRenderer {
     private static float formed(MeltMesh.GooLayer layer, DrinkStream.Ring ring, double angle) {
         float around = (float) Math.cos(angle) * HALF + HALF;
         float over = (float) Math.sin(angle) * HALF + HALF;
-        return layer.opacityAt((float) ring.material() * PATCH_ALONG, around, over, (float) ring.share());
+        return layer.opacityAt((float) ring.material() * PATCH_ALONG, around, over, (float) ring.share() * GOO_REACH);
     }
 
     /**
