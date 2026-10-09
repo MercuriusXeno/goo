@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
  * AbilitySplat announces a landing's burnout before its program runs, so
@@ -24,11 +25,13 @@ class AbilitySplatTest {
      *
      * @param calls   the actions taken, in order
      * @param explodesLater whether the recorded program's standing block explodes later
+     * @param turnsIntoItsBlock whether the recorded blob turns into the block its program places
      */
-    private record RecordingSplat(List<String> calls, boolean explodesLater) implements AbilitySplat {
+    private record RecordingSplat(List<String> calls, boolean explodesLater, boolean turnsIntoItsBlock)
+            implements AbilitySplat {
 
         RecordingSplat(boolean explodesLater) {
-            this(new ArrayList<>(), explodesLater);
+            this(new ArrayList<>(), explodesLater, false);
         }
 
         @Override
@@ -66,6 +69,23 @@ class AbilitySplatTest {
         RecordingSplat splat = new RecordingSplat(AbilityImpact.explodesLater(AbilityJson.decode("unstable_proximity_mine")));
         AbilitySplat.resolve(splat);
         assertEquals(List.of(RUN), splat.calls());
+    }
+
+    /**
+     * Prism's blob morphs into the column it places, so no burst plays at its splat.
+     * decision prism-is-one-pointed-quartz-column
+     */
+    @Test
+    void aBlobTurningIntoThePrismRunsWithNoBurnoutAtTheSplat() {
+        RecordingSplat splat = new RecordingSplat(new ArrayList<>(), false,
+                AbilityImpact.turnsIntoAPrism(AbilityJson.decode("crystal_prism")));
+        AbilitySplat.resolve(splat);
+        assertEquals(List.of(RUN), splat.calls());
+    }
+
+    @Test
+    void anotherCrystalLandingStillTurnsIntoNoPrism() {
+        assertFalse(AbilityImpact.turnsIntoAPrism(AbilityJson.decode("crystal_cloud")));
     }
 
     @Test
