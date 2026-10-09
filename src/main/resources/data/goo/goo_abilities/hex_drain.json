@@ -1,0 +1,27 @@
+{
+  "gooType": "hex",
+  "displayName": "goo.ability.hex.drain",
+  "badge": "channeled",
+  "order": 20,
+  "cost": 1000,
+  "requires": ["minecraft:soul_sand"],
+  "delivery": { "kind": "stream", "range": 4, "cone": 70, "ticks_per_charge": 20 },
+  "area": { "shape": "cone", "size": 4.0, "angle": 70.0 },
+  "behaviors": [
+    {
+      "type": "target",
+      "where": ["vulnerable"],
+      "steps": [
+        {
+          "type": "leech",
+          "fraction": 0.5,
+          "strike": [
+            { "type": "damage", "amount": 2, "source": "attack", "knockback": false, "invulnerable_ticks": 10 }
+          ]
+        },
+        { "type": "ailment_overlay", "kind": "hex", "duration": 20 }
+      ]
+    }
+  ],
+  "tags": ["stream"]
+}

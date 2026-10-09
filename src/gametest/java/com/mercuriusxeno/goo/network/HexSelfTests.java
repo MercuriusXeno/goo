@@ -28,6 +28,7 @@ import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.EnchantmentInstance;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
+import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -70,7 +71,56 @@ public final class HexSelfTests {
     /** Hex goo the lifetapper carries, enough upkeep for the watch. */
     private static final int HELD_HEX = 2000;
 
+    private static final Identifier HEX_DRAIN = Identifier.parse("goo:hex_drain");
+    private static final String DRAIN_REQUIRED = "The hex drain ability should be loaded";
+    private static final String SHOULD_DRAIN_BOTH = "Both zombies in the cone should take damage, %.2f and %.2f of %.2f";
+    private static final String SHOULD_HEAL_CASTER = "The draining caster should heal past %.1f, stands at %.2f";
+    private static final BlockPos CASTER_POS = new BlockPos(1, 1, 3);
+    private static final BlockPos NEAR_ZOMBIE_POS = CASTER_POS.east(2);
+    private static final BlockPos SIDE_ZOMBIE_POS = NEAR_ZOMBIE_POS.south();
+    private static final float FACING_EAST = -90f;
+    private static final float LOOKING_DOWN_AT_ZOMBIES = 15f;
+    private static final int HOLD_TICKS = 20;
+
     private HexSelfTests() {
+    }
+
+    /**
+     * A hurt caster streams Drain over two zombies in its cone: both take
+     * damage and the caster heals (decision drain-field-heals-with-the-lifetap-visuals).
+     *
+     * @param helper the gametest helper
+     */
+    public static void drainHealsTheCaster(GameTestHelper helper) {
+        AbilityDefinition drain = AbilityRegistry.of(helper.getLevel()).getAbility(HEX_DRAIN);
+        helper.assertTrue(drain != null, DRAIN_REQUIRED);
+        Mob near = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, NEAR_ZOMBIE_POS);
+        Mob side = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SIDE_ZOMBIE_POS);
+        float full = near.getMaxHealth();
+        ServerPlayer player = SurvivalPlayers.placeIn(helper);
+        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(CASTER_POS));
+        player.setPos(stand.x, stand.y, stand.z);
+        player.setYRot(FACING_EAST);
+        player.setXRot(LOOKING_DOWN_AT_ZOMBIES);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.HEX, HELD_HEX));
+        KnownRecipes.teachRequires(player, drain);
+        player.setHealth(HURT_HEALTH);
+        player.getFoodData().setFoodLevel(0);
+        player.getFoodData().setSaturation(0);
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.HEX), HEX_DRAIN.toString(),
+                player.getEyePosition(), player.getEyePosition());
+        for (int held = 1; held <= HOLD_TICKS; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
+        }
+        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(near.getHealth() < full && side.getHealth() < full,
+                    String.format(SHOULD_DRAIN_BOTH, near.getHealth(), side.getHealth(), full));
+            helper.assertTrue(player.getHealth() > HURT_HEALTH,
+                    String.format(SHOULD_HEAL_CASTER, HURT_HEALTH, player.getHealth()));
+            helper.succeed();
+        });
     }
 
     /**

@@ -87,6 +87,7 @@ public final class StepTypes {
         register(SpawnRandomStep.TYPE);
         register(AgitateStep.TYPE);
         register(LifetapStep.TYPE);
+        register(LeechStep.TYPE);
     }
 
     private StepTypes() {

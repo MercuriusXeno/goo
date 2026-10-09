@@ -124,7 +124,9 @@ class StepCodecTest {
             Map.entry("spawn_random", new SpawnRandomStep(GooTypes.HEX, 20,
                     List.of(new AilmentOverlayStep(AilmentKind.HEX, Expr.literal(60))), Expr.literal(5))),
             Map.entry("agitate", new AgitateStep(8, 400, 0.75, 40)),
-            Map.entry("lifetap", new LifetapStep(Expr.literal(0.3)))
+            Map.entry("lifetap", new LifetapStep(Expr.literal(0.3))),
+            Map.entry("leech", new LeechStep(Expr.literal(0.5),
+                    List.of(new DamageStep(Expr.literal(2), DamageKind.ATTACK))))
     );
 
     private static Step roundTrip(Step step) {
