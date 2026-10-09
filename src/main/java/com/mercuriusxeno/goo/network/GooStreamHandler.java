@@ -34,11 +34,13 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -193,8 +195,7 @@ public final class GooStreamHandler {
         if (delivery.range() > 0) {
             // reserve-hearts-sit-behind-the-bar: a stream reaching nothing runs only on its caster
             sprayParticles(level, apex, axis, delivery);
-            runBlockPass(player, axis, ability);
-            for (LivingEntity living : livingInCone(level, player, apex, axis, delivery)) {
+            for (LivingEntity living : runPasses(player, apex, axis, ability)) {
                 HEALS.runNoting(living, healed, () -> runSteps(new EntityHost(level, living, player), HostKind.ENTITY,
                         entitySteps, ability));
             }
@@ -300,6 +301,43 @@ public final class GooStreamHandler {
         return level.getEntitiesOfClass(LivingEntity.class, reach, living -> living != player && living.isAlive()
                 && StreamCone.contains(apex, axis, delivery.range(), delivery.coneDegrees(),
                         living.getBoundingBox().getCenter()));
+    }
+
+    /**
+     * Runs the stream's block pass where it reaches blocks this tick and
+     * answers the living its entity pass strikes: every living thing in the
+     * cone, beside the block pass; or, for a mob-first stream, the nearest mob
+     * alone with no block pass, and the block pass alone when no mob stands
+     * in the cone.
+     *
+     * @param player  the streaming player
+     * @param apex    the cone's apex
+     * @param axis    the cone's axis
+     * @param ability the stream ability
+     * @return the living the entity pass strikes this tick
+     */
+    private static List<LivingEntity> runPasses(ServerPlayer player, Vec3 apex, Vec3 axis, AbilityDefinition ability) {
+        List<LivingEntity> inCone = livingInCone(player.level(), player, apex, axis, ability.delivery());
+        // decay-gnats-degrade-each-block-once: a mob in the cone takes the swarm, else the blocks do
+        List<LivingEntity> struck = ability.hasTag(AbilityTags.MOB_FIRST) ? nearestMob(inCone, apex) : inCone;
+        if (!ability.hasTag(AbilityTags.MOB_FIRST) || struck.isEmpty()) {
+            runBlockPass(player, axis, ability);
+        }
+        return struck;
+    }
+
+    /**
+     * The mob nearest the cone's apex among the living a stream reaches, the
+     * one a mob-first stream strikes (decision decay-gnats-degrade-each-block-once).
+     *
+     * @param living the living entities in the cone
+     * @param apex   the cone's apex
+     * @return the nearest mob alone, or none when no mob stands in the cone
+     */
+    static List<LivingEntity> nearestMob(List<LivingEntity> living, Vec3 apex) {
+        return living.stream().filter(Mob.class::isInstance)
+                .min(Comparator.comparingDouble(entity -> entity.distanceToSqr(apex)))
+                .map(List::of).orElse(List.of());
     }
 
     /**

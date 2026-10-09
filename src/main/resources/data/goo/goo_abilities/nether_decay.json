@@ -4,9 +4,12 @@
   "badge": "channeled",
   "order": 10,
   "cost": 20,
-  "delivery": { "kind": "stream", "range": 6, "cone": 15, "ticks_per_charge": 20, "particle": "goo:gnat" },
+  "delivery": { "kind": "stream", "range": 6, "cone": 15, "ticks_per_charge": 20, "particle": "goo:gnat",
+    "sound": { "id": "minecraft:entity.bee.loop", "every": 4, "volume": 0.3, "pitch": 1.8, "pitch_spread": 0.15 } },
   "behaviors": [
-    { "type": "degrade", "map": "goo:decay", "ticks": 15 }
+    { "type": "degrade", "map": "goo:decay", "ticks": 15 },
+    { "type": "damage", "amount": 0.5, "source": "magic", "knockback": false },
+    { "type": "particles", "id": "goo:gnat", "at": "target", "count": 3, "spread": 0.5, "speed": 0.05 }
   ],
-  "tags": ["stream"]
+  "tags": ["stream", "mob_first"]
 }

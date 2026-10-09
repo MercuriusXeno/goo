@@ -11,7 +11,11 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
@@ -46,6 +50,12 @@ public final class DecayStreamTests {
     private static final int FINISH_TICKS = STEP_TICKS + 10;
     private static final Identifier NETHER_DECAY = Identifier.parse("goo:nether_decay");
     private static final String ABILITY_REQUIRED = "Ability registry must hold nether_decay";
+    private static final String SHOULD_BITE = "Decay's swarm should bite the zombie in its cone";
+    /**
+     * Pitch down between the stone's center three blocks off and the middle
+     * of a zombie four off, so both stand inside the cone.
+     */
+    private static final float BETWEEN_STONE_AND_ZOMBIE = 15f;
 
     private DecayStreamTests() {
     }
@@ -99,6 +109,29 @@ public final class DecayStreamTests {
         });
         helper.runAfterDelay(PAST_HALF_TICKS + FINISH_TICKS, () -> {
             helper.assertBlockPresent(Blocks.COBBLESTONE, TARGET_POS);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A mock player holds decay on a zombie standing on stone: the swarm bites
+     * the zombie and paints no block, so the stone under it stands as stone
+     * though the hold runs past a block's step.
+     *
+     * @param helper the gametest helper
+     */
+    public static void decayBitesTheMobAndSparesTheBlocks(GameTestHelper helper) {
+        ServerPlayer player = decayerOverStone(helper);
+        BlockPos zombiePos = TARGET_POS.east();
+        helper.setBlock(zombiePos.below(), Blocks.BEDROCK);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, zombiePos);
+        zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+        player.setXRot(BETWEEN_STONE_AND_ZOMBIE);
+        hold(helper, player, 1, FINISH_TICKS);
+        helper.runAfterDelay(FINISH_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(zombie.getHealth() < zombie.getMaxHealth(), SHOULD_BITE);
+            helper.assertBlockPresent(Blocks.STONE, TARGET_POS);
             helper.succeed();
         });
     }

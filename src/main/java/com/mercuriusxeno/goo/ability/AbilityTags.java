@@ -32,6 +32,14 @@ public final class AbilityTags {
      */
     public static final String SELF = "self";
 
+    /**
+     * A stream that works on a mob or on blocks, never both at once: with a
+     * mob in its cone it strikes the nearest one alone and leaves the blocks,
+     * and with none it runs its block pass
+     * (decision decay-gnats-degrade-each-block-once).
+     */
+    public static final String MOB_FIRST = "mob_first";
+
     private AbilityTags() {
     }
 }

@@ -31,4 +31,13 @@ class StreamSoundTest {
         assertEquals(1f, BUBBLES.pitchFor(0.5f), EPSILON);
         assertEquals(1.2f, BUBBLES.pitchFor(1f), EPSILON);
     }
+
+    // decision decay-gnats-degrade-each-block-once: Decay's buzz plays a bee's loop pitched high
+    @Test
+    void aPitchedSoundStraysAroundItsOwnPitch() {
+        StreamSound buzz = new StreamSound(Identifier.withDefaultNamespace("entity.bee.loop"), 4, 0.3f, 0.15f, 1.8f);
+        assertEquals(1.65f, buzz.pitchFor(0f), EPSILON);
+        assertEquals(1.8f, buzz.pitchFor(0.5f), EPSILON);
+        assertEquals(1.95f, buzz.pitchFor(1f), EPSILON);
+    }
 }
