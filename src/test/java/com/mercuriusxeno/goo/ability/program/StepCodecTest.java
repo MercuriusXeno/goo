@@ -110,6 +110,7 @@ class StepCodecTest {
             Map.entry("petrify", new PetrifyStep(Expr.literal(2))),
             Map.entry("calcify", new CalcifyStep(Identifier.fromNamespaceAndPath("goo", "calcify"), 30)),
             Map.entry("degrade", new DegradeStep(Identifier.fromNamespaceAndPath("goo", "decay"), 20)),
+            Map.entry("degrade_drip", new DegradeDripStep(Identifier.fromNamespaceAndPath("goo", "decay"), 8)),
             Map.entry("petrify_drip", new PetrifyDripStep(Identifier.fromNamespaceAndPath("goo", "calcify"), 8,
                     TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath("goo", "grows_dripstone")))),
             Map.entry("heal", LeafSteps.HEAL.step(Expr.literal(0.1))),
