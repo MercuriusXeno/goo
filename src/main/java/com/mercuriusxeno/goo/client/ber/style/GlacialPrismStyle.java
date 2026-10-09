@@ -8,7 +8,7 @@ import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.util.ARGB;
 
 /**
- * A glacial prism's look: the quartz column tinted the pale blue of ice;
+ * A glacial prism's look: the quartz column tinted a deep glacier blue;
  * the frost rings it pulses out to its reach mark it as the one holding its
  * ground frozen (decision glacial-prism-holds-the-area-frozen).
  */
@@ -17,8 +17,8 @@ public final class GlacialPrismStyle implements PrismComboStyle {
     /** The combo id a glacial prism carries, frost's prism ability. */
     public static final String COMBO = "goo:frost_glacial";
 
-    /** The pale ice blue the column takes over its quartz. */
-    private static final int ICE_TINT = 0xC4ECFF;
+    /** The deep glacier blue the column takes over its quartz. */
+    static final int GLACIER_BLUE = 0x3F8FD8;
 
     @Override
     public void submit(PrismRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector) {
@@ -34,12 +34,12 @@ public final class GlacialPrismStyle implements PrismComboStyle {
     }
 
     /**
-     * The column's color tinted toward ice, keeping its alpha.
+     * The column's color tinted deep glacier blue, keeping its alpha.
      *
      * @param color the plain column's ARGB color
      * @return the iced ARGB color
      */
     static int iced(int color) {
-        return ARGB.multiply(color, ARGB.opaque(ICE_TINT));
+        return ARGB.multiply(color, ARGB.opaque(GLACIER_BLUE));
     }
 }
