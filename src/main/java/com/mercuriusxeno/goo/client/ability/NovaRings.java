@@ -5,6 +5,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -40,7 +42,13 @@ public final class NovaRings {
     private static final int SNOWFLAKES_PER_BLOCK = 12;
     private static final double TWO_PI = 2 * Math.PI;
     /** How much faster than frost's burnout the snowflakes burst, to ride the fast ring's edge. */
-    private static final float SNOWFLAKE_BURST = 2.5f;
+    static final float SNOWFLAKE_BURST = 1.6f;
+    /** The rush of air's volume: its floor, and how much each block of reach adds, up to its ceiling. */
+    static final float RUSH_FLOOR = 0.6f;
+    static final float RUSH_PER_BLOCK = 0.12f;
+    static final float RUSH_CEILING = 1.4f;
+    /** The rush's pitch: a little low, a deep whoosh. */
+    private static final float RUSH_PITCH = 0.85f;
     /** How far below the edge's speed a snowflake may launch, as a share of it. */
     private static final float SNOWFLAKE_SPEED_SPREAD = 0.5f;
 
@@ -82,6 +90,8 @@ public final class NovaRings {
      */
     public void pulse(ClientLevel level, Vec3 center, float reach) {
         live.add(new Ring(center, reach, level.getGameTime(), (float) (level.getRandom().nextDouble() * TWO_PI)));
+        level.playLocalSound(center.x, center.y, center.z, SoundEvents.WIND_CHARGE_BURST.value(), SoundSource.PLAYERS,
+                rushVolume(reach), RUSH_PITCH, false);
         int snowflakes = Math.max(1, Math.round(reach * SNOWFLAKES_PER_BLOCK));
         for (int i = 0; i < snowflakes; i++) {
             Vec3 velocity = FrostExplosionVisual.snowflakeVelocity(Direction.UP,
@@ -90,6 +100,17 @@ public final class NovaRings {
             level.addParticle(ParticleTypes.SNOWFLAKE, center.x, center.y + FEET_LIFT, center.z,
                     velocity.x, velocity.y, velocity.z);
         }
+    }
+
+    /**
+     * The rush of air's volume for a ring: louder the wider it reaches, from
+     * its floor up to its ceiling.
+     *
+     * @param reach the ring's reach in blocks
+     * @return the volume
+     */
+    static float rushVolume(float reach) {
+        return Math.min(RUSH_CEILING, RUSH_FLOOR + RUSH_PER_BLOCK * reach);
     }
 
     /**
