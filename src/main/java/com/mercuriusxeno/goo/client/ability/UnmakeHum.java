@@ -1,6 +1,11 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.program.SiphonStep;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.client.throwing.GloveAim;
+import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
@@ -63,7 +68,7 @@ public final class UnmakeHum extends AbstractTickableSoundInstance {
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
-        if (player == null || UnmakeWaves.heldUnmake(player) == null) {
+        if (player == null || heldUnmake(player) == null) {
             return;
         }
         UnmakeHum[] layers = PLAYING.get();
@@ -79,7 +84,7 @@ public final class UnmakeHum extends AbstractTickableSoundInstance {
 
     @Override
     public void tick() {
-        if (player.isRemoved() || UnmakeWaves.heldUnmake(player) == null) {
+        if (player.isRemoved() || heldUnmake(player) == null) {
             stop();
             return;
         }
@@ -98,6 +103,19 @@ public final class UnmakeHum extends AbstractTickableSoundInstance {
         float phase = (float) (age % SWEEP_TICKS) / SWEEP_TICKS;
         float rise = phase < HALF ? phase / HALF : (1f - phase) / HALF;
         return LOW_PITCH + (MID_PITCH - LOW_PITCH) * rise;
+    }
+
+    /**
+     * The Unmake the local player's glove holds while right click holds it.
+     *
+     * @param player the local player
+     * @return the ability, or null while no Unmake is held
+     */
+    static @Nullable ClientAbility heldUnmake(LocalPlayer player) {
+        String abilityId = GloveAim.selectedAbilityId(player);
+        ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
+        boolean unmakes = ability != null && ability.behaviors().stream().anyMatch(SiphonStep.class::isInstance);
+        return unmakes && GloveUseTracker.showsArea() ? ability : null;
     }
 
     private void follow() {

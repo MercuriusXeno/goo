@@ -12,10 +12,10 @@ import net.minecraft.world.level.block.state.BlockState;
 import org.jspecify.annotations.NonNull;
 
 /**
- * A block streaming into an Unmake soup, standing in for the block it was
- * while its goo streams off: it draws nothing itself, the soup's renderer
- * dissolving the block it stands in for. The soup removes it once its siphon
- * is done; one the soup lost, to a server stop, turns back into the block it
+ * A block liquifying into an Unmake drink, standing in for the block it was
+ * while it liquifies: it draws nothing itself, the drink's renderer drawing
+ * the block it stands in for receding. The drink removes it once its siphon
+ * is done; one the drink lost, to a server stop, turns back into the block it
  * was {@link #ORPHAN_TICKS} after its siphon was due
  * (decision unmake-waves-dissolve-by-crucible-cost).
  */
@@ -23,7 +23,7 @@ public class MeltingBlock extends BaseEntityBlock {
 
     /** The codec. */
     public static final MapCodec<MeltingBlock> CODEC = simpleCodec(MeltingBlock::new);
-    /** Ticks past its siphon's end a melting block no soup removed waits before it turns back. */
+    /** Ticks past its siphon's end a melting block no drink removed waits before it turns back. */
     public static final int ORPHAN_TICKS = 40;
 
     /**
@@ -51,7 +51,7 @@ public class MeltingBlock extends BaseEntityBlock {
     }
 
     /**
-     * Turns a melting block no soup removed back into the block it was.
+     * Turns a melting block no drink removed back into the block it was.
      */
     @Override
     protected void tick(@NonNull BlockState state, @NonNull ServerLevel level, @NonNull BlockPos pos,

@@ -151,6 +151,7 @@ public final class GooTestFunctions {
     private static final String UNMAKE_DRINKS_THE_FACE = "unmake_drinks_the_face";
     private static final String UNMAKE_FINISHES_WHAT_IT_STARTS = "unmake_finishes_what_it_starts";
     private static final String UNMAKE_LEAVES_MOBS_ALONE = "unmake_leaves_mobs_alone";
+    private static final String UNMAKE_OVERFLOW_DROPS_AT_FEET = "unmake_overflow_drops_at_feet";
     private static final String UNMAKE_TAP_DISSOLVES_BELOW = "unmake_tap_dissolves_below";
     private static final String CHARGED_LENGTHENS_THE_STREAM = "charged_lengthens_the_stream";
     private static final String UNSTABLE_BREW_CHARGES_FOR_AN_HOUR = "unstable_brew_charges_for_an_hour";
@@ -896,6 +897,7 @@ public final class GooTestFunctions {
         reg(r, UNMAKE_DRINKS_THE_FACE, UnmakeTests::unmakeDrinksTheFace);
         reg(r, UNMAKE_FINISHES_WHAT_IT_STARTS, UnmakeTests::unmakeFinishesWhatItStarts);
         reg(r, UNMAKE_LEAVES_MOBS_ALONE, UnmakeTests::unmakeLeavesMobsAlone);
+        reg(r, UNMAKE_OVERFLOW_DROPS_AT_FEET, UnmakeTests::unmakeOverflowDropsAtFeet);
         reg(r, UNMAKE_TAP_DISSOLVES_BELOW, UnmakeTapTests::unmakeTapDissolvesBelow);
         reg(r, CHARGED_LENGTHENS_THE_STREAM, ChargedTests::chargedLengthensTheStream);
         reg(r, UNSTABLE_BREW_CHARGES_FOR_AN_HOUR, BrewEffectTests::unstableBrewChargesForAnHour);

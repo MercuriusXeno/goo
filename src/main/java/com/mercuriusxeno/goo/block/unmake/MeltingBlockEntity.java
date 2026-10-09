@@ -11,8 +11,8 @@ import net.minecraft.world.level.storage.ValueOutput;
 import org.jspecify.annotations.NonNull;
 
 /**
- * A block streaming into an Unmake soup: the block it stands in for, saved
- * with it and synced to the clients that draw it dissolving, and the game time
+ * A block liquifying into an Unmake drink: the block it stands in for, saved
+ * with it and synced to the clients that draw it receding, and the game time
  * its siphon is done.
  * decision unmake-waves-dissolve-by-crucible-cost
  */

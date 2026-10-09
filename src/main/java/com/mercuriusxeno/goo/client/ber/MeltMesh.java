@@ -161,28 +161,29 @@ public final class MeltMesh {
     }
 
     /**
-     * One goo type's layer over the block: the largest type the base, laid
-     * everywhere the melt has reached; each other type in soft patches over
-     * it, covering about its share.
+     * One goo type's layer over melting matter: the largest type the base,
+     * laid everywhere the melt has reached; each other type in soft patches
+     * over it, covering about its share. A drink's stream wears the same
+     * layers, the melt there being how far along the stream a point is.
      *
      * @param type  the goo type
      * @param index its index, largest first
      * @param share its share of the whole
      */
-    private record GooLayer(ResourceKey<GooTypeDefinition> type, int index, float share) {
+    public record GooLayer(ResourceKey<GooTypeDefinition> type, int index, float share) {
 
         /**
-         * How opaque this layer is at a point of the block: formed once the
-         * melt reaches the point's own share of a smooth field, and, past the
-         * base, only inside its soft patches.
+         * How opaque this layer is at a point: formed once the melt reaches
+         * the point's own share of a smooth field, and, past the base, only
+         * inside its soft patches.
          *
-         * @param x    the point's x, block-local
-         * @param y    the point's y, block-local
-         * @param z    the point's z, block-local
-         * @param melt how far the block has melted
+         * @param x    the point's x, in blocks
+         * @param y    the point's y, in blocks
+         * @param z    the point's z, in blocks
+         * @param melt how far the matter there has melted, 0 to 1
          * @return the layer's opacity there, 0 to 1
          */
-        float opacityAt(float x, float y, float z, float melt) {
+        public float opacityAt(float x, float y, float z, float melt) {
             long seed = index * LAYER_SALT;
             float formed = patchFormed(melt, MeltMeshNoise.smooth(x * PATCH_SCALE, y * PATCH_SCALE, z * PATCH_SCALE,
                     seed));
@@ -322,6 +323,26 @@ public final class MeltMesh {
                 + around * RIPPLE_AROUND_FREQ);
         float spread = 1f + BULGE * melt * (1f - y) * (1f - y) - PINCH * melt * y * y + ripple;
         return new Vec3(HALF + dx * spread, Math.max(0f, height), HALF + dz * spread);
+    }
+
+    /**
+     * The sprite a block's quad is textured with, as the rectangle of the atlas it covers.
+     *
+     * @param quad the quad
+     * @return its sprite's atlas rectangle
+     */
+    public static GooRenderUtil.UvRect spriteOf(BakedQuad quad) {
+        float u0 = Float.MAX_VALUE;
+        float v0 = Float.MAX_VALUE;
+        float u1 = -Float.MAX_VALUE;
+        float v1 = -Float.MAX_VALUE;
+        for (QuadRectClipper.ClipVertex vertex : QuadRectClipper.verticesOf(quad)) {
+            u0 = Math.min(u0, vertex.u());
+            v0 = Math.min(v0, vertex.v());
+            u1 = Math.max(u1, vertex.u());
+            v1 = Math.max(v1, vertex.v());
+        }
+        return new GooRenderUtil.UvRect(u0, v0, u1, v1);
     }
 
     /**
