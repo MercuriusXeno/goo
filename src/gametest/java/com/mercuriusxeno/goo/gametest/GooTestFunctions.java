@@ -435,7 +435,7 @@ public final class GooTestFunctions {
     private static final String MOB_FROST = "mob_frost_snap";
     private static final String MOB_TYPHOON = "mob_typhoon_levitate";
     private static final String MOB_GLOW = "mob_glow_laser";
-    private static final String MOB_HEX = "mob_hex_charm";
+    private static final String CHARM_TURNS_ZOMBIE = "charm_turns_zombie_on_skeleton";
     private static final String MOB_PULSE = "mob_pulse_stun";
     private static final String MOB_NETHER = "mob_nether_wither";
     private static final String MOB_ENDER = "mob_ender_teleport";
@@ -897,7 +897,7 @@ public final class GooTestFunctions {
         reg(r, MOB_FROST, MobEffectTests::frostSnap);
         reg(r, MOB_TYPHOON, MobEffectTests::typhoonLevitate);
         reg(r, MOB_GLOW, MobEffectTests::glowLaser);
-        reg(r, MOB_HEX, MobEffectTests::hexCharm);
+        reg(r, CHARM_TURNS_ZOMBIE, MobEffectTests::charmTurnsZombieOnSkeleton);
         reg(r, MOB_PULSE, MobEffectTests::pulseStun);
         reg(r, MOB_NETHER, MobEffectTests::netherWither);
         reg(r, MOB_ENDER, MobEffectTests::enderTeleport);

@@ -5,8 +5,13 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.EntityFilter;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.EntityScan;
+import com.mercuriusxeno.goo.ability.hex.CharmEvents;
+import com.mercuriusxeno.goo.gametest.SurvivalPlayers;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerPlayer;
+import org.jspecify.annotations.Nullable;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
@@ -46,7 +51,10 @@ public final class MobEffectTests {
     private static final int SETTLE_TICKS = 1;
     private static final String SHOULD_HAVE_SLOWNESS = "Target should have slowness";
     private static final String SHOULD_HAVE_POISON = "Target should have poison";
-    private static final String SHOULD_HAVE_WEAKNESS = "Target should have weakness";
+    private static final String SKELETON_SHOULD_STAND_IDLE = "The skeleton should target no one before the charm";
+    private static final String ZOMBIE_SHOULD_TURN_ON_SKELETON = "The charmed zombie should target the skeleton";
+    private static final String ZOMBIE_SHOULD_SPARE_CHARMER = "The charmed zombie should turn from its charmer";
+    private static final String ZOMBIE_SHOULD_BE_CHARMED = "The zombie should hold the charm";
     private static final String SHOULD_HAVE_GLOWING = "Target should have glowing";
     private static final String SHOULD_NOT_GLOW = "Target should wear the ailment overlay, not vanilla glowing";
     private static final String SHOULD_HAVE_WITHER = "Target should have wither";
@@ -133,9 +141,21 @@ public final class MobEffectTests {
      * @param abilityId the ability the throw names
      */
     private static void strike(GameTestHelper helper, Mob mob, String abilityId) {
+        strike(helper, mob, abilityId, null);
+    }
+
+    /**
+     * Lands one goo of the named ability on the mob as a player's throw.
+     *
+     * @param helper    the gametest helper
+     * @param mob       the struck mob
+     * @param abilityId the ability the throw names
+     * @param thrower   the throwing player, or null for none
+     */
+    private static void strike(GameTestHelper helper, Mob mob, String abilityId, @Nullable ServerPlayer thrower) {
         AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(abilityId));
         helper.assertTrue(ability != null, ABILITIES_REQUIRED);
-        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, ability.gooType(),
+        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), thrower, ability.gooType(),
                 mob.getId(), mob.blockPosition(), Direction.UP, abilityId));
     }
 
@@ -281,20 +301,32 @@ public final class MobEffectTests {
     }
 
     /**
-     * Hex charm is a program: a mob target selection wrapping a weakness
-     * potion step and the hex ailment overlay, whose durations fall with the
-     * mob's health; the overlay replaces vanilla glowing
-     * (decision ailment-overlay-shader-per-ailment).
+     * Hex charm turns a zombie on a skeleton before the skeleton aggresses:
+     * once it looks for a foe, the zombie targets the idle skeleton, and a
+     * target of its survival charmer it would take turns to the skeleton
+     * too, and it wears no
+     * vanilla glowing (decisions charm-glisten-and-icon-over-the-head,
+     * ailment-overlay-shader-per-ailment). A zombie's max health of 20 makes
+     * hex_charm.json's charm chance whole.
      *
      * @param helper the gametest helper
      */
-    public static void hexCharm(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
+    public static void charmTurnsZombieOnSkeleton(GameTestHelper helper) {
+        ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
+        Mob skeleton = helper.spawnWithNoFreeWill(EntityType.SKELETON, BYSTANDER_POS);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_HEX_CHARM);
-            helper.assertTrue(mob.hasEffect(MobEffects.WEAKNESS), SHOULD_HAVE_WEAKNESS);
-            helper.assertFalse(mob.hasEffect(MobEffects.GLOWING), SHOULD_NOT_GLOW);
-            helper.succeed();
+            helper.assertTrue(skeleton.getTarget() == null, SKELETON_SHOULD_STAND_IDLE);
+            strike(helper, zombie, ABILITY_HEX_CHARM, charmer);
+            helper.assertTrue(zombie.hasData(GooAttachments.CHARMED), ZOMBIE_SHOULD_BE_CHARMED);
+            helper.runAfterDelay(CharmEvents.LOOK_INTERVAL_TICKS, () -> {
+                helper.assertTrue(zombie.getTarget() == skeleton, ZOMBIE_SHOULD_TURN_ON_SKELETON);
+                zombie.setTarget(charmer);
+                helper.assertTrue(zombie.getTarget() == skeleton, ZOMBIE_SHOULD_SPARE_CHARMER);
+                helper.assertFalse(zombie.hasEffect(MobEffects.GLOWING), SHOULD_NOT_GLOW);
+                helper.getLevel().getServer().getPlayerList().remove(charmer);
+                helper.succeed();
+            });
         });
     }
 
