@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.colonize.ShroomNetwork;
+import com.mercuriusxeno.goo.ability.gate.DragonGateOpening;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
@@ -45,7 +46,7 @@ import java.util.OptionalDouble;
 public record LandingHost(ServerLevel level, BlockPos cell, Direction face, boolean waterlogged,
                           ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 anchor)
         implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
-        ColonizeHost, FloorScanHost {
+        ColonizeHost, FloorScanHost, GateHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -72,6 +73,15 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     @Override
     public Direction placedFace() {
         return face;
+    }
+
+    /**
+     * Opens the gate over the block the blob struck, the one behind the cell.
+     * decision dragon-gate-banishes-blocks-and-opens-a-portal
+     */
+    @Override
+    public boolean openDragonGate(int lifetime) {
+        return DragonGateOpening.open(level, cell.relative(face.getOpposite()), face, lifetime);
     }
 
     /**

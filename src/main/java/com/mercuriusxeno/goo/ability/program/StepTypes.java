@@ -84,6 +84,7 @@ public final class StepTypes {
         register(BanishStep.TYPE);
         register(TeleportitisStep.TYPE);
         register(ConvokeStep.TYPE);
+        register(DragonGateStep.TYPE);
     }
 
     private StepTypes() {
