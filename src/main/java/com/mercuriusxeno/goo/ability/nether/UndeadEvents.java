@@ -5,9 +5,13 @@ import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.attribute.EnvironmentAttributes;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
@@ -30,6 +34,12 @@ public final class UndeadEvents {
     static final float SMITE_DAMAGE_PER_LEVEL = 2.5f;
     /** The sun burns once a second. */
     static final int SUN_BURN_PERIOD = 20;
+    /**
+     * The damage type the sun deals an undead player, aggravated against its
+     * nether hearts (decision undead-nether-hearts-burn-in-sunlight).
+     */
+    public static final ResourceKey<DamageType> SUNBURN =
+            ResourceKey.create(Registries.DAMAGE_TYPE, Identifier.fromNamespaceAndPath(Goo.MODID, "sunburn"));
 
     private UndeadEvents() {
     }
@@ -69,7 +79,9 @@ public final class UndeadEvents {
         Undead undead = player.getData(GooAttachments.UNDEAD);
         if (undead.stands() && inDirectDaylight(player)) {
             ServerLevel level = player.level();
-            player.hurtServer(level, player.damageSources().onFire(), undead.sunDamage());
+            DamageSource sunburn = new DamageSource(level.registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE)
+                    .getOrThrow(SUNBURN));
+            player.hurtServer(level, sunburn, undead.sunDamage());
         }
     }
 

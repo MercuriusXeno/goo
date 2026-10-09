@@ -400,6 +400,7 @@ public final class GooTestFunctions {
     private static final String BREW_NETHER_UNDEAD = "brew_nether_undead_for_an_hour";
     private static final String UNDEAD_BURNS_IN_SUN = "undead_burns_in_sun_not_under_roof";
     private static final String UNDEAD_HARMING_HEALS = "undead_harming_heals";
+    private static final String UNDEAD_SUNBURN_AGGRAVATED = "undead_sunburn_is_aggravated";
     private static final String UNDEAD_ENDS_WHEN_DRY = "undead_ends_when_nether_runs_dry";
     private static final String BREW_BLAZE_HOLDS_PREPAID = "brew_blaze_holds_kindle_prepaid";
     private static final String BREW_REPLACED_ENDS_EFFECT = "brew_replaced_ends_its_effect";
@@ -873,6 +874,7 @@ public final class GooTestFunctions {
         reg(r, BREW_NETHER_UNDEAD, BrewEffectTests::netherBrewUndeadForAnHour);
         reg(r, UNDEAD_BURNS_IN_SUN, UndeadTests::undeadBurnsInSunNotUnderRoof);
         reg(r, UNDEAD_HARMING_HEALS, UndeadTests::undeadHarmingHeals);
+        reg(r, UNDEAD_SUNBURN_AGGRAVATED, UndeadTests::undeadSunburnIsAggravated);
         reg(r, UNDEAD_ENDS_WHEN_DRY, UndeadTests::undeadEndsWhenNetherRunsDry);
         reg(r, BREW_BLAZE_HOLDS_PREPAID, BrewEffectTests::blazeBrewHoldsKindlePrepaid);
         reg(r, BREW_REPLACED_ENDS_EFFECT, BrewEffectTests::replacedBrewEndsItsEffect);
