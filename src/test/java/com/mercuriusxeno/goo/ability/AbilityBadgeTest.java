@@ -26,7 +26,7 @@ class AbilityBadgeTest {
     private static final int SHIPPED_CHANNELED_BADGES = 9;
     private static final int SHIPPED_FREE_BADGES = 4;
     private static final int SHIPPED_TAP_BADGES = 4;
-    private static final int SHIPPED_PRISM_BADGES = 1;
+    private static final int SHIPPED_PRISM_BADGES = 2;
     /** The self + brew abilities, which wear brew on their self delivery (decision self-brew-goos-eat-before-the-effect). */
     private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "leaf_barkskin", "rock_stoneskin",
             "vital_nourish", "shroom_sight");
@@ -36,7 +36,7 @@ class AbilityBadgeTest {
     /** Self deliveries wearing the channeled badge (decision flatten-disc-cursor-breaks-above-the-plane). */
     private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten");
     /** The prism combos (decision prism-hosts-the-combos). */
-    private static final List<String> SHIPPED_PRISMS = List.of("pulse_metronome");
+    private static final List<String> SHIPPED_PRISMS = List.of("pulse_metronome", "pulse_relay");
 
     @ParameterizedTest
     @CsvSource({"world, WORLD", "mob, MOB", "self, SELF", "channeled, CHANNELED", "brew, BREW",

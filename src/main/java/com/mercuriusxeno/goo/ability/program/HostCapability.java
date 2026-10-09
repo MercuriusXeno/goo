@@ -103,7 +103,12 @@ public enum HostCapability {
      * A host that hears the redstone signals reaching its block and keeps
      * their beat (decision metronome-prism-pulses-at-the-learned-rate).
      */
-    BEAT(BeatHost.class);
+    BEAT(BeatHost.class),
+    /**
+     * A host that carries redstone signals between relays linked through air
+     * (decision relay-prism-carries-the-signal-through-air).
+     */
+    RELAY(RelayHost.class);
 
     private final Class<? extends StepHost> hostType;
 

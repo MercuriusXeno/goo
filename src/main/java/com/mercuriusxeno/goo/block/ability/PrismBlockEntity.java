@@ -50,6 +50,11 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     private @Nullable ProgramBehavior behavior;
     /** The redstone beat the prism has heard (decision metronome-prism-pulses-at-the-learned-rate). */
     private RedstoneBeat beat = RedstoneBeat.SILENT;
+    /**
+     * Whether the prism's combo is a relay, set by the relay step's first tick
+     * after the prism loads (decision relay-prism-carries-the-signal-through-air).
+     */
+    private boolean relaying;
 
     /**
      * Creates the prism's block entity.
@@ -124,6 +129,18 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
             beat = after;
             setChanged();
         }
+    }
+
+    /** Marks the prism as a relay, so the other relays find it. */
+    public void markRelaying() {
+        relaying = true;
+    }
+
+    /**
+     * @return true when the prism carries signals as a relay
+     */
+    public boolean relays() {
+        return relaying && behavior != null;
     }
 
     /**

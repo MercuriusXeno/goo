@@ -118,6 +118,7 @@ class StepCodecTest {
             Map.entry("toggle_device", LeafSteps.TOGGLE_DEVICE.step(Unit.INSTANCE)),
             Map.entry("emit_power", new EmitPowerStep(Expr.literal(40), Expr.literal(400))),
             Map.entry("metronome", new MetronomeStep()),
+            Map.entry("relay", new RelayStep()),
             Map.entry("stun", LeafSteps.STUN.step(Expr.literal(60))),
             Map.entry("signal_wave", new SignalWaveStep(Expr.literal(0.5))),
             Map.entry("pulser_toggle", new PulserToggleStep(Expr.literal(4))),

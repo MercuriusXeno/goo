@@ -50,6 +50,14 @@ class PrismCombosTest {
     }
 
     @Test
+    void aPrismAbilityThrownAtAPrismIsItsOwnCombo() {
+        AbilityDefinition relay = ability("pulse_relay", AbilityBadge.PRISM, List.of());
+        AbilityDefinition metronome = ability("pulse_metronome", AbilityBadge.PRISM, List.of());
+
+        assertSame(relay, PrismCombos.comboSource(relay, metronome));
+    }
+
+    @Test
     void aTypeWithNeitherHasNoCombo() {
         assertNull(PrismCombos.comboSource(ability("glow_laser", AbilityBadge.WORLD, List.of()), null));
     }

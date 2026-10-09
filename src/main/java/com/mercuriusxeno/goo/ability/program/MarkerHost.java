@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.pulse.RedstoneBeat;
+import com.mercuriusxeno.goo.ability.pulse.RelayNetwork;
 import com.mercuriusxeno.goo.block.ability.MarkerAnchor;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -37,9 +38,11 @@ import java.util.function.Consumer;
  */
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
-        FieldEffectHost, PhasedHost, ConsumedGooHost, PowerEmitHost, BeatHost {
+        FieldEffectHost, PhasedHost, ConsumedGooHost, PowerEmitHost, BeatHost, RelayHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
+    /** The power a block gives at full strength. */
+    private static final int FULL_POWER = 15;
 
     @Override
     public HostKind kind() {
@@ -116,15 +119,41 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     }
 
     /**
-     * Sets the marker block's powered state where its block has one, so the
-     * blocks beside it read the power through its signal
-     * (decision thumper-blob-pulses-periodically-then-fades).
+     * Gives full power or none (decision thumper-blob-pulses-periodically-then-fades).
      */
     @Override
     public void emitPower(boolean on) {
+        setPowerLevel(on ? FULL_POWER : 0);
+    }
+
+    /**
+     * Sets the power the marker block gives, so the blocks beside it read it
+     * through its signal: an ability block's powered state, on for any power,
+     * or a prism's power level (decision relay-prism-carries-the-signal-through-air).
+     *
+     * @param power the power, 0 to 15
+     */
+    private void setPowerLevel(int power) {
         BlockState state = level.getBlockState(pos);
-        if (state.hasProperty(BlockStateProperties.POWERED) && state.getValue(BlockStateProperties.POWERED) != on) {
-            level.setBlock(pos, state.setValue(BlockStateProperties.POWERED, on), Block.UPDATE_ALL);
+        BlockState after = state;
+        if (state.hasProperty(BlockStateProperties.POWERED)) {
+            after = state.setValue(BlockStateProperties.POWERED, power > 0);
+        } else if (state.hasProperty(BlockStateProperties.POWER)) {
+            after = state.setValue(BlockStateProperties.POWER, power);
+        }
+        if (after != state) {
+            level.setBlock(pos, after, Block.UPDATE_ALL);
+        }
+    }
+
+    /**
+     * Gives the strongest signal reaching any relay the prism links to
+     * through air (decision relay-prism-carries-the-signal-through-air).
+     */
+    @Override
+    public void carrySignal() {
+        if (be instanceof PrismBlockEntity prism) {
+            setPowerLevel(RelayNetwork.carriedTo(level, pos, prism));
         }
     }
 

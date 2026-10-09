@@ -18,8 +18,8 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.redstone.Orientation;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -45,12 +45,12 @@ public class PrismBlock extends BaseEntityBlock {
     public static final EnumProperty<Direction> FACING = EnumProperty.create("facing", Direction.class);
 
     /**
-     * True for the tick a metronome prism pulses, when it gives full redstone
-     * power to the blocks beside it (decision metronome-prism-pulses-at-the-learned-rate).
+     * The redstone power the prism gives the blocks beside it: full for the
+     * tick a metronome pulses (decision metronome-prism-pulses-at-the-learned-rate),
+     * and a receiving relay's carried strength while its signal holds
+     * (decision relay-prism-carries-the-signal-through-air).
      */
-    public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
-    /** The redstone power a powered prism gives. */
-    private static final int FULL_POWER = 15;
+    public static final IntegerProperty POWER = BlockStateProperties.POWER;
 
     /** The prism's width on the face, in block fractions: half a block, centered. */
     private static final double WIDTH_MIN = 4.0 / 16;
@@ -71,7 +71,7 @@ public class PrismBlock extends BaseEntityBlock {
      */
     public PrismBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.UP).setValue(POWERED, false));
+        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.UP).setValue(POWER, 0));
     }
 
     private static Map<Direction, VoxelShape> buildShapes() {
@@ -89,7 +89,7 @@ public class PrismBlock extends BaseEntityBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, POWERED);
+        builder.add(FACING, POWER);
     }
 
     /**
@@ -164,7 +164,8 @@ public class PrismBlock extends BaseEntityBlock {
     }
 
     /**
-     * A prism gives redstone power, though only a pulsing metronome's does.
+     * A prism gives redstone power, though only a pulsing metronome or a
+     * receiving relay does.
      *
      * @param state the block state
      * @return true
@@ -175,18 +176,18 @@ public class PrismBlock extends BaseEntityBlock {
     }
 
     /**
-     * Full power to every side while powered, none otherwise.
+     * The prism's power to every side.
      *
      * @param state     the block state
      * @param level     the level
      * @param pos       the prism's position
      * @param direction the side asked
-     * @return 15 while powered, else 0
+     * @return the prism's power, 0 to 15
      */
     @Override
     protected int getSignal(@NonNull BlockState state, @NonNull BlockGetter level, @NonNull BlockPos pos,
                             @NonNull Direction direction) {
-        return state.getValue(POWERED) ? FULL_POWER : 0;
+        return state.getValue(POWER);
     }
 
     @Override
