@@ -68,7 +68,7 @@ public record LeechStep(Expr fraction, List<Step> strike) implements Step {
         float heal = healOf(before, Math.max(0f, target.getHealth()), fraction.evaluateFloat(context));
         if (heal > 0f && host.thrower() instanceof LivingEntity caster && caster != target) {
             caster.heal(heal);
-            EntityVisuals.sendToWatchers(target, new LeechPayload(target.getId(), caster.getId()));
+            EntityVisuals.sendToWatchers(target, new LeechPayload(target.getId(), caster.getId(), heal, false));
         }
         return true;
     }
