@@ -34,8 +34,17 @@ class WindLinesTest {
         @Test
         void theHeadRushesStraightAlongItsAxisFirst() {
             Vec3 head = WindLines.pathPoint(line(WindLines.Sway.NONE), WindLines.STRAIGHT_TICKS / 2);
-            assertEquals(STRAIGHT / 2, head.x, EPSILON);
+            assertEquals(STRAIGHT * WindLines.launched(0.5), head.x, EPSILON);
             assertEquals(0, Math.hypot(head.y, head.z), EPSILON);
+        }
+
+        // cold-wind-thickens-launches-faster-and-roars
+        @Test
+        void theHeadLaunchesFasterThanItsAveragePaceThenSlows() {
+            double step = 1e-6;
+            assertEquals(1 + WindLines.LAUNCH_SURGE, WindLines.launched(step) / step, 1e-4);
+            assertEquals(1, WindLines.launched(1), EPSILON);
+            assertTrue(WindLines.launched(1) - WindLines.launched(1 - step) < step, "it slows before it curls");
         }
 
         @Test
@@ -121,27 +130,21 @@ class WindLinesTest {
     @Nested
     class Pace {
 
-        /** The first pace: an 18-tick life rushing for six tenths of it. */
-        private static final double FIRST_STRAIGHT_TICKS = 18 * 0.6;
         /** The last spin: one turn over twelve ticks. */
         private static final double LAST_TURN_PER_TICK = 2 * Math.PI / 12;
 
         @Test
-        void aLineIsBlownEveryThirdHeldTick() {
-            assertTrue(WindLines.blowsOn(0) && WindLines.blowsOn(WindLines.BLOW_EVERY_TICKS));
-            assertTrue(!WindLines.blowsOn(1) && !WindLines.blowsOn(2));
+        void aboutFourInTenHeldTicksBlowALine() {
+            int blown = 0;
+            for (long tick = 1; tick <= 100; tick++) {
+                blown += WindLines.blowsOn(tick) ? 1 : 0;
+            }
+            assertEquals(45, blown);
         }
 
         @Test
         void aLineLivesFiftyTicks() {
             assertEquals(50, WindLines.LIFE_TICKS);
-        }
-
-        @Test
-        void theHeadRushesSlowerThanAtFirst() {
-            WindLines.Line line = line(WindLines.Sway.NONE);
-            double perTick = WindLines.pathPoint(line, 2).distanceTo(WindLines.pathPoint(line, 1));
-            assertTrue(perTick < STRAIGHT / FIRST_STRAIGHT_TICKS / 2, "the head travels under half the first pace");
         }
 
         @Test
