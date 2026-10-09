@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
-import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
@@ -21,11 +20,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
-import java.util.Optional;
 
 /**
  * Gametests for the oculus prism as a blink node: a player looking at an
- * oculus well past Blink's range blinks to stand in its cell, paying the
+ * oculus well past Blink's range blinks to stand beside it, paying the
  * trip's price into the oculus's charge, and a charged oculus makes the
  * blink to it free, spending its charge instead
  * (decision oculus-prism-becomes-a-hovering-eye).
@@ -42,21 +40,22 @@ public final class OculusTests {
     private static final int FULL_CHARGE = 100_000;
     private static final float LOOKING_STRAIGHT_UP = -90f;
     private static final int NO_ENTITY = -1;
-    private static final double LANDING_TOLERANCE = 0.05;
+    /** A landing beside the oculus stands one cell off its own, give or take. */
+    private static final double BESIDE = 1.05;
     private static final String ABILITY_REQUIRED = "%s must be loaded";
-    private static final String SHOULD_SNAP = "The blink should land in the oculus's cell %s, landed at %s";
-    private static final String SHOULD_PAY = "The blink should drain its price %d, drained %d";
-    private static final String SHOULD_CHARGE = "The oculus should hold the price %d as its charge, holds %d";
+    private static final String SHOULD_SNAP = "The blink should land beside the oculus at %s, landed at %s";
+    private static final String SHOULD_CHARGE = "The oculus should hold the %d drained as its charge, holds %d";
+    private static final String SHOULD_PRICE_THE_TRIP = "The trip up should cost more than the flat %d, cost %d";
     private static final String SHOULD_BE_FREE = "A blink the charge covers should drain nothing, drained %d";
-    private static final String SHOULD_SPEND = "The oculus should spend the price %d from its charge, holds %d";
+    private static final String SHOULD_SPEND = "The oculus should spend the trip's price, more than the flat %d, spent %d";
 
     private OculusTests() {
     }
 
     /**
      * A player looking straight up at an oculus twenty-four blocks over it
-     * blinks: it lands in the oculus's cell, drains the trip's price, and the
-     * oculus holds that price as its charge.
+     * blinks: it lands beside the oculus, drains the trip's price, more than
+     * Blink's flat cost, and the oculus holds what it drained as its charge.
      *
      * @param helper the gametest helper
      */
@@ -64,24 +63,24 @@ public final class OculusTests {
         ServerPlayer player = blinker(helper);
         PrismBlockEntity oculus = oculusAbove(helper, player);
         Vec3 cell = Vec3.atBottomCenterOf(oculus.getBlockPos());
-        int price = priceTo(helper, player, cell);
         int heldBefore = held(player);
 
         blink(player);
 
         Vec3 after = player.position();
         int drained = heldBefore - held(player);
+        int flat = ability(helper, ENDER_BLINK).cost();
         helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(after.distanceTo(cell) < LANDING_TOLERANCE, String.format(SHOULD_SNAP, cell, after));
-        helper.assertTrue(drained == price, String.format(SHOULD_PAY, price, drained));
-        helper.assertTrue(oculus.charge() == price, String.format(SHOULD_CHARGE, price, oculus.charge()));
+        helper.assertTrue(after.distanceTo(cell) < BESIDE, String.format(SHOULD_SNAP, cell, after));
+        helper.assertTrue(drained > flat, String.format(SHOULD_PRICE_THE_TRIP, flat, drained));
+        helper.assertTrue(oculus.charge() == drained, String.format(SHOULD_CHARGE, drained, oculus.charge()));
         helper.succeed();
     }
 
     /**
-     * A player blinks to an oculus whose charge covers the trip: it lands in
-     * the oculus's cell draining no goo, and the oculus's charge falls by the
-     * trip's price.
+     * A player blinks to an oculus whose charge covers the trip: it lands
+     * beside the oculus draining no goo, and the oculus's charge falls by the
+     * trip's price, more than Blink's flat cost.
      *
      * @param helper the gametest helper
      */
@@ -90,18 +89,18 @@ public final class OculusTests {
         PrismBlockEntity oculus = oculusAbove(helper, player);
         oculus.setCharge(FULL_CHARGE);
         Vec3 cell = Vec3.atBottomCenterOf(oculus.getBlockPos());
-        int price = priceTo(helper, player, cell);
         int heldBefore = held(player);
 
         blink(player);
 
         Vec3 after = player.position();
         int drained = heldBefore - held(player);
+        int spent = FULL_CHARGE - oculus.charge();
+        int flat = ability(helper, ENDER_BLINK).cost();
         helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(after.distanceTo(cell) < LANDING_TOLERANCE, String.format(SHOULD_SNAP, cell, after));
+        helper.assertTrue(after.distanceTo(cell) < BESIDE, String.format(SHOULD_SNAP, cell, after));
         helper.assertTrue(drained == 0, String.format(SHOULD_BE_FREE, drained));
-        helper.assertTrue(oculus.charge() == FULL_CHARGE - price,
-                String.format(SHOULD_SPEND, price, oculus.charge()));
+        helper.assertTrue(spent > flat, String.format(SHOULD_SPEND, flat, spent));
         helper.succeed();
     }
 
@@ -136,21 +135,6 @@ public final class OculusTests {
         helper.assertTrue(prism != null, "The prism should hold its block entity");
         prism.runCombo(GooTypes.ENDER, OculusNodes.OCULUS, ability(helper, ENDER_OCULUS).behaviors());
         return prism;
-    }
-
-    /**
-     * What Blink prices a trip to a spot at, through a wall as the hanging
-     * stone puts it.
-     *
-     * @param helper the gametest helper
-     * @param player the player
-     * @param spot   where the trip lands
-     * @return the price in mB
-     */
-    private static int priceTo(GameTestHelper helper, ServerPlayer player, Vec3 spot) {
-        AbilityDefinition blink = ability(helper, ENDER_BLINK);
-        return blink.distancePrice().priceOf(blink.cost(),
-                Optional.of(new BlinkLanding(spot, player.position().distanceTo(spot), true)));
     }
 
     /**

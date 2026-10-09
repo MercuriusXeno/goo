@@ -168,4 +168,30 @@ class BlinkResolverTest {
             assertEquals(Optional.of(new ChannelAim.FacePlane(new BlockPos(4, 65, 0), Direction.WEST)), pin);
         }
     }
+
+    /** A blink snapped to an oculus lands beside it (decision oculus-prism-becomes-a-hovering-eye). */
+    @Nested
+    class Node {
+
+        /** Forty blocks east, the oculus's collidable column filling its cell. */
+        private final BlockPos oculus = new BlockPos(40, 64, 0);
+
+        @Test
+        void landsInTheOpenCellBesideTheOculusNearestTheBlinker() {
+            CubeSpace space = new CubeSpace().fill(40, 64, 0, 40, 64, 0);
+
+            BlinkLanding landing = BlinkResolver.toNode(space, FEET, oculus, PLAYER).orElseThrow();
+
+            assertEquals(Vec3.atBottomCenterOf(oculus.west()), landing.feet());
+            assertEquals(Optional.of(oculus), landing.node());
+            assertEquals(FEET.distanceTo(landing.feet()), landing.distance(), NEAR);
+        }
+
+        @Test
+        void anOculusWalledInOnEverySideIsRefused() {
+            CubeSpace space = new CubeSpace().fill(39, 63, -1, 41, 66, 1);
+
+            assertTrue(BlinkResolver.toNode(space, FEET, oculus, PLAYER).isEmpty());
+        }
+    }
 }
