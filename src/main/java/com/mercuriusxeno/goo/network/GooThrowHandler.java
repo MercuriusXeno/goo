@@ -135,7 +135,7 @@ public final class GooThrowHandler {
     private static void deliver(ServerPlayer player, GooThrowPayload payload, ResourceKey<GooTypeDefinition> gooType,
             AbilityDefinition ability) {
         if (ability.delivery().kind() == DeliveryKind.SELF) {
-            GooSelfHandler.deliver(player, gooType, ability);
+            GooSelfHandler.deliver(player, gooType, ability, payload.pressedFace());
         } else if (touchesTarget(player, payload, ability)) {
             GooTouchHandler.touch(player, payload, gooType);
         } else if (ability.badge().aimsAPoint()) {
