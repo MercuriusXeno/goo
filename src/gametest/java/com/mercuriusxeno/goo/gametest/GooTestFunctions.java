@@ -19,6 +19,7 @@ import com.mercuriusxeno.goo.network.SelfDeliveryTests;
 import com.mercuriusxeno.goo.network.BoreStreamTests;
 import com.mercuriusxeno.goo.network.CrushMobTests;
 import com.mercuriusxeno.goo.network.FlattenChannelTests;
+import com.mercuriusxeno.goo.network.ScryChannelTests;
 import com.mercuriusxeno.goo.network.PetrifyStreamTests;
 import com.mercuriusxeno.goo.network.StreamDeliveryTests;
 import com.mercuriusxeno.goo.network.TouchDeliveryTests;
@@ -415,6 +416,7 @@ public final class GooTestFunctions {
     private static final String BREW_SHROOM_SIGHTS = "brew_shroom_sights_for_an_hour";
     private static final String FLATTEN_BREAKS_ABOVE_THE_PLANE = "flatten_breaks_above_the_plane";
     private static final String FLATTEN_SHAVES_A_WALL = "flatten_shaves_a_wall";
+    private static final String SCRY_GLISTENS_THE_HIDDEN_ZOMBIE = "scry_glistens_the_hidden_zombie";
     private static final String BORE_CUTS_A_TUNNEL = "bore_cuts_a_tunnel";
     private static final String STONESKIN_ROUTES_HITS = "stoneskin_routes_hits_by_source";
     private static final String STONESKIN_ENDS_KEEPING_HEALTH = "stoneskin_ends_leaving_health_as_it_stood";
@@ -879,6 +881,7 @@ public final class GooTestFunctions {
         reg(r, BREW_SHROOM_SIGHTS, BrewEffectTests::shroomBrewSightForAnHour);
         reg(r, FLATTEN_BREAKS_ABOVE_THE_PLANE, FlattenChannelTests::flattenBreaksAboveThePlane);
         reg(r, FLATTEN_SHAVES_A_WALL, FlattenChannelTests::flattenShavesAWall);
+        reg(r, SCRY_GLISTENS_THE_HIDDEN_ZOMBIE, ScryChannelTests::scryGlistensTheHiddenZombie);
         reg(r, BORE_CUTS_A_TUNNEL, BoreStreamTests::boreCutsATunnel);
         reg(r, STONESKIN_ROUTES_HITS, StoneskinRoutingTests::stoneskinRoutesHitsBySource);
         reg(r, STONESKIN_ENDS_KEEPING_HEALTH, StoneskinRoutingTests::stoneskinEndsLeavingHealthAsItStood);

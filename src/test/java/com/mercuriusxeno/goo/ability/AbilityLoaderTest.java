@@ -91,6 +91,7 @@ class AbilityLoaderTest {
             Map.entry("rock_bore", List.of("stone", "cobblestone")),
             Map.entry("rock_crush", List.of("gravel", "sand")),
             Map.entry("rock_flatten", List.of("dirt")),
+            Map.entry("glow_scry", List.of("spyglass")),
             Map.entry("rock_petrify", List.of("pointed_dripstone")),
             Map.entry("rock_stoneskin", List.of("deepslate")),
             Map.entry("pulse_short_circuit", List.of("redstone")),

@@ -26,6 +26,16 @@ public final class EntityVisuals {
      */
     public static void sendToWatchers(Entity entity, CustomPacketPayload payload) {
         sendToTrackers(entity, payload);
+        sendToSelf(entity, payload);
+    }
+
+    /**
+     * Sends a visual to a player's own client alone, when it holds the payload's channel.
+     *
+     * @param entity  the entity whose client draws the visual; any other than a player sees none
+     * @param payload the visual's payload
+     */
+    public static void sendToSelf(Entity entity, CustomPacketPayload payload) {
         if (entity instanceof ServerPlayer player && player.connection.hasChannel(payload)) {
             PacketDistributor.sendToPlayer(player, payload);
         }
