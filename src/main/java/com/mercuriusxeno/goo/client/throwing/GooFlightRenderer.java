@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.ability.ConeGeometry;
+import com.mercuriusxeno.goo.client.ability.OrbSwirl;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -201,6 +202,10 @@ public final class GooFlightRenderer {
             renderFlightLayers(ctx, flight.gooType, vel);
         }
         ctx.poseStack.popPose();
+        if (flight.swirl > 0f && Minecraft.getInstance().level != null) {
+            OrbSwirl.draw(Minecraft.getInstance().level, ctx.poseStack, ctx.buffers, ctx.camera.position(), pos,
+                    flight.swirl, ctx.gameTime);
+        }
 
         GooTrailParticles.spawnTrailParticles(pos, vel, flight.gooType, flight);
     }

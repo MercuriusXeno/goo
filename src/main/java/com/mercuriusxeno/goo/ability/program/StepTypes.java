@@ -46,6 +46,7 @@ public final class StepTypes {
         register(DripsStep.TYPE);
         register(WindStep.TYPE);
         register(BreakBlocksStep.TYPE);
+        register(TravelingStep.TYPE);
         register(LeafSteps.SET_AI.type());
         register(LeafSteps.SET_INVULNERABLE.type());
         register(CloneEntityStep.TYPE);

@@ -1,0 +1,34 @@
+{
+  "gooType": "frost",
+  "displayName": "goo.ability.frost.orb",
+  "badge": "free",
+  "order": 40,
+  "cost": 3000,
+  "requires": ["minecraft:blue_ice"],
+  "delivery": { "kind": "arc", "blocks_per_tick": 0.3 },
+  "behaviors": [
+    {
+      "type": "traveling",
+      "swirl": 3,
+      "steps": [
+        {
+          "type": "entities",
+          "radius": 3,
+          "steps": [
+            { "type": "freeze", "amount": 0.5, "hold": 300, "thaw": 0.005, "vulnerability": 0.5, "physical_bonus": 3 }
+          ]
+        },
+        { "type": "freeze_blocks", "radius": 2.5, "lasting": false }
+      ]
+    },
+    {
+      "type": "entities",
+      "radius": 1.2,
+      "steps": [
+        { "type": "freeze", "amount": "0.9 * max_health", "hold": 300, "thaw": 0.005, "vulnerability": 0.5, "physical_bonus": 3 }
+      ]
+    },
+    { "type": "sound", "id": "minecraft:block.glass.break", "at": "host", "source": "players", "volume": 1, "pitch": 0.8 }
+  ],
+  "tags": ["no_splat"]
+}
