@@ -108,7 +108,12 @@ public enum HostCapability {
      * A host that carries redstone signals between relays linked through air
      * (decision relay-prism-carries-the-signal-through-air).
      */
-    RELAY(RelayHost.class);
+    RELAY(RelayHost.class),
+    /**
+     * A host that can lengthen the timed effects standing on it (decision
+     * extender-multiplies-the-next-self-duration).
+     */
+    EXTEND_EFFECTS(EffectExtendHost.class);
 
     private final Class<? extends StepHost> hostType;
 

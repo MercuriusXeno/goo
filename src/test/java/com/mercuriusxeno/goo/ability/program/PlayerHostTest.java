@@ -154,9 +154,9 @@ class PlayerHostTest {
         }
 
         @Test
-        void playerHostProvidesTargetExplodeEntityScanChannelAndBlockBreaks() {
+        void playerHostProvidesTargetExplodeEntityScanChannelBlockBreaksAndEffectExtends() {
             assertEquals(Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
-                            HostCapability.CHANNEL, HostCapability.BREAK_BLOCKS),
+                            HostCapability.CHANNEL, HostCapability.BREAK_BLOCKS, HostCapability.EXTEND_EFFECTS),
                     HostKind.PLAYER.capabilities());
         }
     }

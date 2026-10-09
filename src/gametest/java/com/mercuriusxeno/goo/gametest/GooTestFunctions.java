@@ -16,6 +16,7 @@ import com.mercuriusxeno.goo.network.MycosisTests;
 import com.mercuriusxeno.goo.network.NourishTests;
 import com.mercuriusxeno.goo.network.ReserveTests;
 import com.mercuriusxeno.goo.network.SelfDeliveryTests;
+import com.mercuriusxeno.goo.network.ExtenderTests;
 import com.mercuriusxeno.goo.network.MetronomeTests;
 import com.mercuriusxeno.goo.network.PulserTapTests;
 import com.mercuriusxeno.goo.network.PulserTests;
@@ -415,6 +416,8 @@ public final class GooTestFunctions {
     private static final String THUMPER_PULSES_THEN_FADES = "thumper_pulses_then_fades";
     private static final String METRONOME_LEARNS_THE_INTERVAL = "metronome_learns_the_interval";
     private static final String RELAY_CARRIES_THROUGH_AIR = "relay_carries_through_air";
+    private static final String PULSE_BREW_EXTENDS_STANDING_EFFECTS = "pulse_brew_extends_standing_effects";
+    private static final String PULSE_BREW_EXTENDS_LATER_EFFECTS = "pulse_brew_extends_later_effects";
     private static final String COLONIZE_SPREADS_NYLIUM = "colonize_spreads_nylium";
     private static final String COLONIZE_BUDS_OFF_THE_NETWORK = "colonize_buds_off_the_network";
     private static final String SPORE_STRUCK_ON_A_MOB = "spore_struck_on_a_mob";
@@ -886,6 +889,8 @@ public final class GooTestFunctions {
         reg(r, THUMPER_PULSES_THEN_FADES, ThumperTests::thumperPulsesThenFades);
         reg(r, METRONOME_LEARNS_THE_INTERVAL, MetronomeTests::metronomeLearnsTheInterval);
         reg(r, RELAY_CARRIES_THROUGH_AIR, RelayTests::relayCarriesThroughAir);
+        reg(r, PULSE_BREW_EXTENDS_STANDING_EFFECTS, ExtenderTests::pulseBrewExtendsStandingEffects);
+        reg(r, PULSE_BREW_EXTENDS_LATER_EFFECTS, ExtenderTests::pulseBrewExtendsLaterEffects);
         reg(r, COLONIZE_SPREADS_NYLIUM, ColonizeTests::colonizeSpreadsNylium);
         reg(r, COLONIZE_BUDS_OFF_THE_NETWORK, ColonizeTests::colonizeBudsOffTheNetwork);
         reg(r, SPORE_STRUCK_ON_A_MOB, ColonizeTests::sporeStruckOnAMob);
