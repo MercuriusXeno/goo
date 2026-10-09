@@ -43,9 +43,10 @@ public class PrismBlock extends BaseEntityBlock {
 
     private static final Map<Direction, VoxelShape> SHAPES = buildShapes();
 
-    /** A combo's program ticks on the server alone. */
+    /** A combo's program ticks on the server; the client ticks what a combo shows around the prism. */
     private static final BlockEntityTicks<PrismBlockEntity> TICKS =
-            BlockEntityTicks.onServer(GooBlockEntities.PRISM, PrismBlockEntity::serverTick);
+            BlockEntityTicks.bothSides(GooBlockEntities.PRISM, PrismBlockEntity::serverTick,
+                    PrismBlockEntity::clientTick);
 
     /**
      * Creates the prism block.
