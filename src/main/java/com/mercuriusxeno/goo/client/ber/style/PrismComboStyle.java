@@ -15,7 +15,7 @@ public interface PrismComboStyle {
     /**
      * Draws the combined prism.
      *
-     * @param state         the prism's render state, its plain crystal model among it
+     * @param state         the prism's render state, the plain crystal's look and facing among it
      * @param poseStack     the pose at the prism's cell corner, scaled by the prism's growth
      * @param nodeCollector the submit collector
      */
