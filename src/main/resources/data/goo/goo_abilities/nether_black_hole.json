@@ -11,7 +11,7 @@
       "steps": [
         {
           "type": "phased",
-          "radius": 3,
+          "radius": "size",
           "phases": [
             {
               "name": "gather",
@@ -21,24 +21,24 @@
               "name": "expand",
               "ticks": 15,
               "enter": [
-                { "type": "entities", "radius": 3, "steps": [
+                { "type": "entities", "radius": "size", "steps": [
                   { "type": "potion", "effect": "minecraft:blindness", "duration": 70, "visible": false }
                 ] },
-                { "type": "entities", "radius": 9, "steps": [
+                { "type": "entities", "radius": "3 * size", "steps": [
                   { "type": "potion", "effect": "minecraft:darkness", "duration": 70, "amplifier": 1, "visible": false }
                 ] },
-                { "type": "entities", "radius": 3, "steps": [
+                { "type": "entities", "radius": "size", "steps": [
                   { "type": "potion", "effect": "minecraft:darkness", "duration": 70, "amplifier": 2, "visible": false }
                 ] },
                 { "type": "sound", "id": "goo:effects.black_hole", "source": "blocks", "volume": 6, "pitch": 1 }
               ],
               "tick": [
                 { "type": "particles", "id": "minecraft:soul", "count": 2, "spread": 1.8, "speed": 0.02 },
-                { "type": "pull", "radius": 9, "speed": 0.15, "items": true }
+                { "type": "pull", "radius": "3 * size", "speed": 0.15, "items": true }
               ],
               "leave": [
-                { "type": "consume_blocks", "radius": 3 },
-                { "type": "entities", "radius": 3, "where": ["not_boss"], "steps": [
+                { "type": "consume_blocks", "radius": "size" },
+                { "type": "entities", "radius": "size", "where": ["not_boss"], "steps": [
                   { "type": "damage", "amount": "max_health * 4", "source": "magic" }
                 ] }
               ]
@@ -48,7 +48,7 @@
               "ticks": 15,
               "tick": [
                 { "type": "particles", "id": "minecraft:soul", "count": 2, "spread": 1.8, "speed": 0.02 },
-                { "type": "pull", "radius": 9, "speed": 0.15, "items": true }
+                { "type": "pull", "radius": "3 * size", "speed": 0.15, "items": true }
               ]
             },
             {
@@ -69,5 +69,5 @@
       ]
     }
   ],
-  "tags": ["field_effect", "implosion"]
+  "tags": ["field_effect", "implosion", "drag_sized"]
 }

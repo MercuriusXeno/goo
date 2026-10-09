@@ -38,6 +38,8 @@ public final class GloveUseTracker {
      * (decision flatten-disc-cursor-breaks-above-the-plane).
      */
     private static ChannelAim.@Nullable FacePlane pressPlane;
+    /** The block face the live press began on, which a sized ability opens at. */
+    private static @Nullable BlockHitResult pressPin;
 
     /** How often (in ticks) to re-check whether the selected goo type is in inventory. */
     private static final int AVAILABILITY_CHECK_INTERVAL = 10;
@@ -100,10 +102,22 @@ public final class GloveUseTracker {
         if (!PRESS.isArmed()) {
             pressHand = hand;
             Minecraft mc = Minecraft.getInstance();
-            pressPlane = mc.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK
-                    ? new ChannelAim.FacePlane(hit.getBlockPos(), hit.getDirection()) : null;
+            pressPin = mc.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK ? hit : null;
+            pressPlane = pressPin == null ? null : new ChannelAim.FacePlane(pressPin.getBlockPos(),
+                    pressPin.getDirection());
         }
         PRESS.arm();
+    }
+
+    /**
+     * Where the live press pinned a world ability sized at will: the block
+     * face and point the cursor rested on at the press
+     * (decision black-hole-leaves-a-compression-sphere).
+     *
+     * @return the pin, or null when no press is live or it rested on no block
+     */
+    public static @Nullable BlockHitResult pressPin() {
+        return PRESS.isArmed() ? pressPin : null;
     }
 
     /**

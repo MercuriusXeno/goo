@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.item.GooGloveItem;
@@ -100,9 +101,22 @@ public final class GooThrowHandler {
             }
             return;
         }
-        if (holdsReagents(player, ability)) {
+        if (throwable(player, ability)) {
             deliver(player, payload, gooType, ability);
         }
+    }
+
+    /**
+     * Whether an ability may be thrown: never one sized at will, which opens
+     * by its drag (decision black-hole-leaves-a-compression-sphere), and only
+     * with every reagent it consumes held.
+     *
+     * @param player  the throwing player
+     * @param ability the thrown ability
+     * @return true when the throw goes ahead
+     */
+    private static boolean throwable(ServerPlayer player, AbilityDefinition ability) {
+        return !ability.hasTag(AbilityTags.DRAG_SIZED) && holdsReagents(player, ability);
     }
 
     /**
@@ -113,7 +127,7 @@ public final class GooThrowHandler {
      * @param ability the thrown ability
      * @return true when no reagent is missing
      */
-    private static boolean holdsReagents(ServerPlayer player, AbilityDefinition ability) {
+    static boolean holdsReagents(ServerPlayer player, AbilityDefinition ability) {
         if (ReagentScanner.holdsEvery(player, ability.consumes())) {
             return true;
         }

@@ -7,9 +7,14 @@ import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.entity.CompressedHoard;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.network.GooDragCastHandler;
+import com.mercuriusxeno.goo.network.GooDragCastPayload;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -19,6 +24,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MoverType;
@@ -105,6 +111,14 @@ public final class EffectExecutorTests {
     private static final double WALK_STEP = 0.2;
     private static final String CLOUD_HIT_STANDING = "The crystal cloud hurt the standing pig";
     private static final String ABILITY_NETHER_BLACK_HOLE = "goo:nether_black_hole";
+    /** The size a black hole is dragged to, the radius its JSON cost buys. */
+    private static final double HOLE_SIZE = 3;
+    /** Blocks south of the marker the caster stands, past the hole's pull of three times its size. */
+    private static final int CASTER_DISTANCE = 12;
+    /** The nether the caster holds, more than the reference cost. */
+    private static final int CASTER_GOO = 5000;
+    private static final double HALF_BLOCK = 0.5;
+    private static final String HOLE_CHARGED_WRONG = "The dragged hole should charge %d mB, charged %d";
     /** Ticks the black hole expands before it consumes its sphere. */
     private static final int BLACK_HOLE_EXPAND_TICKS = 15;
     /** The phase the black hole opens with. */
@@ -204,7 +218,8 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void netherImplodes(GameTestHelper helper) {
-        placeMarkerWithWall(helper, GooTypes.NETHER, ABILITY_NETHER_BLACK_HOLE);
+        fillWall(helper, Blocks.STONE);
+        placeMarkerWithAbility(helper, GooTypes.NETHER, ABILITY_NETHER_BLACK_HOLE, HOLE_SIZE);
         helper.runAfterDelay(NETHER_PROGRAM_TICKS, () -> {
             helper.assertTrue(helper.getBlockState(MARKER_POS.north()).isAir(), HOLE_LEFT_STONE);
             helper.assertBlockNotPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
@@ -220,7 +235,8 @@ public final class EffectExecutorTests {
      */
     public static void blackHoleHoldsItsPlace(GameTestHelper helper) {
         discardLeftoverEntities(helper);
-        placeMarkerWithWall(helper, GooTypes.NETHER, ABILITY_NETHER_BLACK_HOLE);
+        fillWall(helper, Blocks.STONE);
+        placeMarkerWithAbility(helper, GooTypes.NETHER, ABILITY_NETHER_BLACK_HOLE, HOLE_SIZE);
         helper.runAfterDelay(BLACK_HOLE_GATHER_TICKS + BLACK_HOLE_EXPAND_TICKS + SHORT_WAIT, () -> {
             helper.assertTrue(helper.getBlockState(MARKER_POS.north()).isAir(), HOLE_LEFT_STONE);
             helper.assertTrue(helper.getBlockState(MARKER_POS).is(GooBlocks.ABILITY_BLOCK.get()), HOLE_MOVED);
@@ -418,10 +434,26 @@ public final class EffectExecutorTests {
      * @param abilityId the ability identifier string
      */
     private static void placeMarkerWithAbility(GameTestHelper helper, ResourceKey<GooTypeDefinition> type, String abilityId) {
+        placeMarkerWithAbility(helper, type, abilityId, 0);
+    }
+
+    /**
+     * Places an ability block initialized through an ability at the size a
+     * drag would cast it at, facing north into the wall region
+     * (decision black-hole-leaves-a-compression-sphere).
+     *
+     * @param helper    the gametest helper
+     * @param type      the goo type
+     * @param abilityId the ability identifier string
+     * @param size      the cast's size in blocks
+     */
+    private static void placeMarkerWithAbility(GameTestHelper helper, ResourceKey<GooTypeDefinition> type,
+                                               String abilityId, double size) {
         helper.setBlock(MARKER_POS.north(), Blocks.STONE);
         AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(abilityId));
         helper.assertTrue(ability != null, ABILITIES_REQUIRED);
-        AbilityImpact.land(helper.getLevel(), helper.absolutePos(MARKER_POS.north()), type, Direction.SOUTH, ability);
+        AbilityImpact.land(helper.getLevel(), helper.absolutePos(MARKER_POS.north()), type, Direction.SOUTH, ability,
+                null, size);
     }
 
     // --- Step programs (decision ability-params-in-datapack) ---
@@ -537,7 +569,7 @@ public final class EffectExecutorTests {
         layBarrierFloor(helper);
         Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, MINE_TARGET_POS);
         helper.spawnItem(Items.DIAMOND, Vec3.atBottomCenterOf(STANDING_PIG_POS));
-        helper.runAfterDelay(SHORT_WAIT, () -> placeMarkerWithAbility(helper, GooTypes.NETHER, ABILITY_NETHER_BLACK_HOLE));
+        helper.runAfterDelay(SHORT_WAIT, () -> castDraggedHole(helper));
         helper.runAfterDelay(SHORT_WAIT + BLACK_HOLE_GATHER_TICKS + BLACK_HOLE_EXPAND_TICKS + SHORT_WAIT, () -> {
             helper.assertTrue(helper.getBlockState(MARKER_POS.north()).isAir(), HOLE_LEFT_STONE);
             helper.assertFalse(zombie.isAlive(), HOLE_SPARED_ZOMBIE);
@@ -553,6 +585,36 @@ public final class EffectExecutorTests {
             helper.assertTrue(itemsAroundMarker(helper).isEmpty(), HOLE_LEFT_LOOSE_ITEMS);
             helper.succeed();
         });
+    }
+
+    /**
+     * Casts the black hole the way a drag's release does: a survival player
+     * holding a glove and nether goo, standing well clear of the hole, pins
+     * the stone's south face and drags the hole to its reference size; the
+     * cast charges the reference cost and stands the hole in the cell the pin
+     * faces (decision black-hole-leaves-a-compression-sphere).
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    private static void castDraggedHole(GameTestHelper helper) {
+        helper.setBlock(MARKER_POS.north(), Blocks.STONE);
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        Vec3 stand = helper.absoluteVec(Vec3.atBottomCenterOf(MARKER_POS.south(CASTER_DISTANCE)));
+        player.setPos(stand.x, stand.y, stand.z);
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.NETHER, CASTER_GOO));
+        AbilityDefinition hole = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(ABILITY_NETHER_BLACK_HOLE));
+        helper.assertTrue(hole != null, ABILITIES_REQUIRED);
+        KnownRecipes.teachRequires(player, hole);
+        BlockPos pin = helper.absolutePos(MARKER_POS.north());
+        GooDragCastHandler.cast(player, new GooDragCastPayload(GooTypes.id(GooTypes.NETHER), ABILITY_NETHER_BLACK_HOLE,
+                pin, Direction.SOUTH.get3DDataValue(), Vec3.atCenterOf(pin).relative(Direction.SOUTH, HALF_BLOCK),
+                HOLE_SIZE));
+        int spent = CASTER_GOO - GooSourceScanner.aggregateAvailable(player).getOrDefault(GooTypes.NETHER, 0);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(spent == hole.cost(), String.format(HOLE_CHARGED_WRONG, hole.cost(), spent));
+        helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
     }
 
     /**

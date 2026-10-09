@@ -74,6 +74,24 @@ public final class AbilityImpact {
      */
     public static void land(ServerLevel level, BlockPos pos, ResourceKey<GooTypeDefinition> type,
                             Direction face, AbilityDefinition ability, @Nullable Vec3 point) {
+        land(level, pos, type, face, ability, point, 0);
+    }
+
+    /**
+     * Lands an ability on a block at the size its cast was dragged to, which
+     * its program reads; a throw names none, zero
+     * (decision black-hole-leaves-a-compression-sphere).
+     *
+     * @param level   the server level
+     * @param pos     the struck block
+     * @param type    the goo type thrown
+     * @param face    the struck face
+     * @param ability the ability the goo names
+     * @param point   the aimed point the ability resolves at, or null for the cell's center
+     * @param size    the cast's size in blocks, zero for a throw
+     */
+    public static void land(ServerLevel level, BlockPos pos, ResourceKey<GooTypeDefinition> type,
+                            Direction face, AbilityDefinition ability, @Nullable Vec3 point, double size) {
         if (level.getBlockEntity(pos) instanceof PrismBlockEntity prism) {
             landOnPrism(level, prism, type, ability);
             return;
@@ -85,7 +103,7 @@ public final class AbilityImpact {
         }
         BlockPos cell = spot.get().cell();
         LandingHost host = new LandingHost(level, cell, face, spot.get().waterlogged(), type,
-                ability.id().toString(), point == null ? Vec3.atCenterOf(cell) : point);
+                ability.id().toString(), point == null ? Vec3.atCenterOf(cell) : point, size);
         AbilitySplat.resolve(new Landing(host, ability));
     }
 
