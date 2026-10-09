@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.banish.Banished;
+import com.mercuriusxeno.goo.ability.banish.Teleportitis;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
@@ -145,6 +146,16 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("banished",
                     () -> AttachmentType.builder(() -> Banished.NONE)
                             .serialize(Banished.CODEC, Banished::stands)
+                            .build());
+
+    /**
+     * The teleportitis a player holds, saved with the player.
+     * teleportitis-blinks-along-the-cursor-on-hit
+     */
+    public static final Supplier<AttachmentType<Teleportitis>> TELEPORTITIS =
+            ATTACHMENT_TYPES.register("teleportitis",
+                    () -> AttachmentType.builder(() -> Teleportitis.NONE)
+                            .serialize(Teleportitis.CODEC)
                             .build());
 
     private GooAttachments() {

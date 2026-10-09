@@ -412,6 +412,9 @@ public final class GooTestFunctions {
     private static final String SIGHT_SHIFTS_THROUGH_A_WALL = "sight_shifts_through_a_wall";
     private static final String FUNGAL_SHIFT_SNAPS_TO_A_NEAR_MISS = "fungal_shift_snaps_to_a_near_miss";
     private static final String BREW_SHROOM_SIGHTS = "brew_shroom_sights_for_an_hour";
+    private static final String BREW_ENDER_TELEPORTITIS = "brew_ender_teleportitis_for_an_hour";
+    private static final String TELEPORTITIS_BLINKS = "teleportitis_blinks_instead_of_damage";
+    private static final String TELEPORTITIS_VOID = "teleportitis_void_returns_to_safe_ground";
     private static final String FLATTEN_BREAKS_ABOVE_THE_PLANE = "flatten_breaks_above_the_plane";
     private static final String FLATTEN_SHAVES_A_WALL = "flatten_shaves_a_wall";
     private static final String BORE_CUTS_A_TUNNEL = "bore_cuts_a_tunnel";
@@ -876,6 +879,9 @@ public final class GooTestFunctions {
         reg(r, SIGHT_SHIFTS_THROUGH_A_WALL, FungalShiftTests::sightShiftsThroughAWall);
         reg(r, FUNGAL_SHIFT_SNAPS_TO_A_NEAR_MISS, FungalShiftTests::fungalShiftSnapsToANearMiss);
         reg(r, BREW_SHROOM_SIGHTS, BrewEffectTests::shroomBrewSightForAnHour);
+        reg(r, BREW_ENDER_TELEPORTITIS, BrewEffectTests::enderBrewTeleportitisForAnHour);
+        reg(r, TELEPORTITIS_BLINKS, BrewEffectTests::teleportitisBlinksInsteadOfDamage);
+        reg(r, TELEPORTITIS_VOID, BrewEffectTests::teleportitisVoidReturnsToSafeGround);
         reg(r, FLATTEN_BREAKS_ABOVE_THE_PLANE, FlattenChannelTests::flattenBreaksAboveThePlane);
         reg(r, FLATTEN_SHAVES_A_WALL, FlattenChannelTests::flattenShavesAWall);
         reg(r, BORE_CUTS_A_TUNNEL, BoreStreamTests::boreCutsATunnel);
