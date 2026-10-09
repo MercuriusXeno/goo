@@ -22,15 +22,19 @@ public final class DragSize {
     }
 
     /**
-     * The radius a drag sets: the distance from the pin to where the look
-     * lands, never under the smallest radius.
+     * The radius a drag sets: how far the look has swung off the pin, the
+     * distance from the pin to the nearest point of the look's line ahead of
+     * the eye, never under the smallest radius; so dragging works at any
+     * range and across open sky.
      *
-     * @param pin    the pinned epicenter
-     * @param cursor where the look lands now
+     * @param pin  the pinned epicenter
+     * @param eye  the player's eye
+     * @param look the player's look, a unit vector
      * @return the radius in blocks
      */
-    public static double dragged(Vec3 pin, Vec3 cursor) {
-        return Math.max(MIN_RADIUS, pin.distanceTo(cursor));
+    public static double dragged(Vec3 pin, Vec3 eye, Vec3 look) {
+        double along = Math.max(0, pin.subtract(eye).dot(look));
+        return Math.max(MIN_RADIUS, pin.distanceTo(eye.add(look.scale(along))));
     }
 
     /**

@@ -6,14 +6,18 @@ import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -102,11 +106,28 @@ public final class GloveUseTracker {
         if (!PRESS.isArmed()) {
             pressHand = hand;
             Minecraft mc = Minecraft.getInstance();
-            pressPin = mc.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK ? hit : null;
-            pressPlane = pressPin == null ? null : new ChannelAim.FacePlane(pressPin.getBlockPos(),
-                    pressPin.getDirection());
+            pressPlane = mc.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK
+                    ? new ChannelAim.FacePlane(hit.getBlockPos(), hit.getDirection()) : null;
+            pressPin = mc.player == null ? null : farFace(mc.player);
         }
         PRESS.arm();
+    }
+
+    /**
+     * The block face the player's look meets within the throw range, farther
+     * than the block reach the crosshair's own hit stops at, so a sized
+     * ability pins an epicenter across the room as a throw aims there
+     * (decision black-hole-leaves-a-compression-sphere).
+     *
+     * @param player the local player
+     * @return the face, or null where the look meets none within range
+     */
+    private static @Nullable BlockHitResult farFace(Player player) {
+        Vec3 eye = player.getEyePosition();
+        Vec3 end = eye.add(player.getViewVector(1f).scale(GooThrowHandler.MAX_RANGE));
+        BlockHitResult hit = player.level().clip(new ClipContext(eye, end, ClipContext.Block.OUTLINE,
+                ClipContext.Fluid.NONE, player));
+        return hit.getType() == HitResult.Type.BLOCK ? hit : null;
     }
 
     /**
