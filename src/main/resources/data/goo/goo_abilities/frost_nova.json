@@ -5,7 +5,7 @@
   "order": 20,
   "cost": 1000,
   "requires": ["minecraft:packed_ice"],
-  "delivery": { "kind": "self", "charge": { "max_ticks": 60 } },
+  "delivery": { "kind": "self", "charge": { "max_ticks": 40 } },
   "behaviors": [
     {
       "type": "nova",

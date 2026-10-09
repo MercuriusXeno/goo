@@ -216,6 +216,16 @@ public final class GloveUseTracker {
     }
 
     /**
+     * The ticks the live press has held its preview, which a charged
+     * ability's ghost reads (decision nova-ring-grows-with-the-hold).
+     *
+     * @return the held ticks, 0 while no press previews
+     */
+    public static int heldTicks() {
+        return PRESS.heldTicks();
+    }
+
+    /**
      * Periodically re-checks whether the selected goo type is in inventory.
      * @param player the local player whose inventory is checked for goo availability
      */

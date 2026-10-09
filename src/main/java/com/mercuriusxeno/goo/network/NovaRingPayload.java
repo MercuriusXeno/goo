@@ -13,7 +13,7 @@ import org.jspecify.annotations.NonNull;
  * expanding to the reach the charge resolved, drawn by every client
  * watching (decision nova-ring-grows-with-the-hold).
  *
- * @param center the point the ring expands from, the caster's feet
+ * @param center the point the ring expands from, the caster's middle or a tap's landing
  * @param reach  the ring's reach in blocks
  */
 public record NovaRingPayload(Vec3 center, float reach) implements CustomPacketPayload {
