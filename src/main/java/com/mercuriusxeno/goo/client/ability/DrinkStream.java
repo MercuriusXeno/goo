@@ -22,7 +22,11 @@ import org.jspecify.annotations.Nullable;
 public final class DrinkStream {
 
     /** Blocks the liquid flows a tick where a lone block of goo flows: four blocks a second, and faster where more goo masses. */
-    public static final double FLOW = 0.2;
+    public static final double FLOW = SiphonRule.BASE_PACE;
+    /** The radius of the zoop of unstable goo that flies from the hand into a picked block, in blocks. */
+    public static final double ZOOP_RADIUS = 0.045;
+    /** Blocks of route the zoop spans from its head to its tail. */
+    public static final double ZOOP_LENGTH = 1.5;
     /** Blocks of the way the block's own matter spans, from its far side through its middle to its near face. */
     public static final double BLOCK_SPAN = 1;
     /** Blocks past the cone's reach a route to the glove can run, the glove hanging off the eye and a tributary going round. */
@@ -188,21 +192,39 @@ public final class DrinkStream {
      * @return the point of the stream's middle there
      */
     public static Vec3 pointAt(Path path, double share, double now) {
-        Vec3 line = path.to().subtract(path.from());
-        double length = line.length();
+        double length = path.length();
         if (length == 0) {
             return path.from();
         }
-        Vec3 along = line.normalize();
-        Vec3 side = along.cross(UP);
-        side = side.lengthSqr() > 0 ? side.normalize() : EAST;
-        Vec3 across = along.cross(side);
         double bendAt = (share * length - now * FLOW * BEND_CARRY) * SNAKE_SCALE;
         double drift = now * DRIFT;
         double bendSide = MeltMeshNoise.smooth(bendAt, drift, BEND_SEED_Y, path.seed()) - HALF;
         double bendAcross = MeltMeshNoise.smooth(bendAt, drift, BEND_SEED_Z, path.seed() + ACROSS_SALT) - HALF;
         double reach = TWO * SNAKE * Math.sin(Math.PI * share);
-        return path.spineAt(share).add(side.scale(bendSide * reach)).add(across.scale(bendAcross * reach));
+        return path.spineAt(share).add(sideOf(path).scale(bendSide * reach))
+                .add(acrossOf(path).scale(bendAcross * reach));
+    }
+
+    /**
+     * @param path a path
+     * @return the unit sideways direction of its frame, level and square to its straight line, the same along all of it
+     */
+    public static Vec3 sideOf(Path path) {
+        Vec3 line = path.to().subtract(path.from());
+        if (line.lengthSqr() == 0) {
+            return EAST;
+        }
+        Vec3 side = line.normalize().cross(UP);
+        return side.lengthSqr() > 0 ? side.normalize() : EAST;
+    }
+
+    /**
+     * @param path a path
+     * @return the unit direction of its frame square to both its straight line and its side
+     */
+    public static Vec3 acrossOf(Path path) {
+        Vec3 line = path.to().subtract(path.from());
+        return line.lengthSqr() == 0 ? UP : line.normalize().cross(sideOf(path));
     }
 
     /**
@@ -260,26 +282,13 @@ public final class DrinkStream {
     }
 
     /**
-     * Where along the texture a point of the liquid is: the texture is laid
-     * along the liquid and mirrored every block, so it rides the flow and
-     * has no seam.
+     * Where on the texture a point of the skin is along one of its two
+     * coordinates: the texture laid at its own size, a block of texture to a
+     * block of skin, mirrored every block so it tiles with no seam and wraps
+     * round a stream with none; it never stretches, however the surface bends.
      *
-     * @param material the point's place along the liquid, in blocks
-     * @return the texture's share, 0 to 1
-     */
-    public static float textureU(double material) {
-        return mirrored(material * TEXTURE_PER_BLOCK / TWO);
-    }
-
-    /**
-     * Where on the texture a point of the skin is along one world axis: the
-     * texture laid over the world at its own size, a block of texture to a
-     * block of skin, mirrored every block so it tiles with no seam, and slid
-     * against the flow so it rides the liquid; it never stretches, however
-     * the surface bends.
-     *
-     * @param along the point's coordinate along the axis, in blocks, already slid with the flow
-     * @return the texture's share along that axis, 0 to 1
+     * @param along the point's coordinate, in blocks: along the liquid, round the stream, or along a world axis
+     * @return the texture's share along that coordinate, 0 to 1
      */
     public static float textureAt(double along) {
         return mirrored(along * TEXTURE_PER_BLOCK / TWO);

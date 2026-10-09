@@ -16,17 +16,22 @@ import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
- * Every player's Unmake drink: the blocks streaming into the glove while
- * the channel is held. Each tick a block's siphon ends, the block goes and its
- * goo goes into the player's inventory, dropping at their feet only what has
- * no space.
+ * Every player's Unmake drink: the blocks picked into the glove while the
+ * channel is held, each through its choreography. A picked block is paid for
+ * at once and stands as itself while the zoop flies to it; when the zoop is
+ * in, the melting stand-in takes its place and it streams in; when it is
+ * drained the stand-in goes; and when its tail has had time to reach the
+ * hand its goo goes into the player's inventory, dropping at their feet only
+ * what has no space. Letting go of the use cuts none of it.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 public final class Drinks {
@@ -35,13 +40,15 @@ public final class Drinks {
     public static final int HOLD_GRACE_TICKS = 5;
 
     /**
-     * One block streaming into the glove.
+     * One block picked into the glove.
      *
-     * @param goo   the goo it gives
-     * @param start the game time it started
-     * @param end   the game time it is done
+     * @param goo    the goo it gives
+     * @param picked the game time it was picked, the zoop leaving the hand
+     * @param start  the game time the zoop is in and it starts to melt
+     * @param end    the game time it is drained and the stand-in goes
+     * @param payAt  the game time its tail has reached the hand and its goo is paid
      */
-    public record Siphon(GooContents goo, long start, long end) {
+    public record Siphon(GooContents goo, long picked, long start, long end, long payAt) {
     }
 
     /**
@@ -50,6 +57,8 @@ public final class Drinks {
     public static final class Drink {
         private final ServerLevel level;
         private final Map<BlockPos, Siphon> siphons = new LinkedHashMap<>();
+        private final Set<BlockPos> begun = new HashSet<>();
+        private final Set<BlockPos> drained = new HashSet<>();
         private long lastHeld;
 
         private Drink(ServerLevel level, long now) {
@@ -59,14 +68,14 @@ public final class Drinks {
 
         /**
          * @param pos a block
-         * @return whether it is already streaming into this drink
+         * @return whether it is already picked into this drink
          */
         public boolean siphoning(BlockPos pos) {
             return siphons.containsKey(pos);
         }
 
         /**
-         * Starts a block streaming.
+         * Picks a block into the drink.
          *
          * @param pos    the block
          * @param siphon its goo and its times
@@ -100,41 +109,77 @@ public final class Drinks {
         }
 
         /**
-         * Ends each siphon that is done, its block gone.
+         * Starts each block whose zoop is in melting: the stand-in takes its
+         * place. A block no longer standing when its zoop lands is dropped
+         * from the drink, nothing to melt.
          *
          * @param now the game time
-         * @return each finished block with the goo it gives
          */
-        Map<BlockPos, GooContents> finishDone(long now) {
-            Map<BlockPos, GooContents> finished = new LinkedHashMap<>();
-            Iterator<Map.Entry<BlockPos, Siphon>> done = siphons.entrySet().iterator();
-            while (done.hasNext()) {
-                Map.Entry<BlockPos, Siphon> siphon = done.next();
-                if (siphon.getValue().end() <= now) {
-                    done.remove();
-                    if (level.getBlockState(siphon.getKey()).is(GooBlocks.MELTING_BLOCK.get())) {
-                        level.removeBlock(siphon.getKey(), false);
-                    }
-                    finished.put(siphon.getKey(), siphon.getValue().goo());
+        void beginDue(long now) {
+            Iterator<Map.Entry<BlockPos, Siphon>> due = siphons.entrySet().iterator();
+            while (due.hasNext()) {
+                Map.Entry<BlockPos, Siphon> siphon = due.next();
+                BlockPos pos = siphon.getKey();
+                if (siphon.getValue().start() > now || !begun.add(pos)) {
+                    continue;
+                }
+                if (level.getBlockState(pos).isAir()) {
+                    due.remove();
+                } else {
+                    BlockMelts.siphon(level, pos, siphon.getValue().end());
                 }
             }
-            return finished;
         }
 
         /**
-         * @return whether a block is still streaming
+         * Takes the stand-in away from each block that is drained.
+         *
+         * @param now the game time
+         */
+        void drainDue(long now) {
+            siphons.forEach((pos, siphon) -> {
+                if (siphon.end() <= now && drained.add(pos)
+                        && level.getBlockState(pos).is(GooBlocks.MELTING_BLOCK.get())) {
+                    level.removeBlock(pos, false);
+                }
+            });
+        }
+
+        /**
+         * Ends each siphon whose goo has reached the hand.
+         *
+         * @param now the game time
+         * @return each such block with the goo it gives
+         */
+        Map<BlockPos, GooContents> payDue(long now) {
+            Map<BlockPos, GooContents> paid = new LinkedHashMap<>();
+            Iterator<Map.Entry<BlockPos, Siphon>> due = siphons.entrySet().iterator();
+            while (due.hasNext()) {
+                Map.Entry<BlockPos, Siphon> siphon = due.next();
+                if (siphon.getValue().payAt() <= now) {
+                    due.remove();
+                    begun.remove(siphon.getKey());
+                    drained.remove(siphon.getKey());
+                    paid.put(siphon.getKey(), siphon.getValue().goo());
+                }
+            }
+            return paid;
+        }
+
+        /**
+         * @return whether a block is still on its way
          */
         boolean streaming() {
             return !siphons.isEmpty();
         }
 
         /**
-         * @return the blocks streaming, as the payload shows them
+         * @return the blocks on their way, as the payload shows them
          */
         List<DrinkPayload.Streaming> shown() {
             List<DrinkPayload.Streaming> streaming = new ArrayList<>();
-            siphons.forEach((pos, siphon) -> streaming.add(new DrinkPayload.Streaming(pos, siphon.start(),
-                    siphon.end())));
+            siphons.forEach((pos, siphon) -> streaming.add(new DrinkPayload.Streaming(pos, siphon.picked(),
+                    siphon.start(), siphon.end())));
             return streaming;
         }
     }
@@ -164,9 +209,10 @@ public final class Drinks {
     }
 
     /**
-     * Ends each siphon that is done, paying its goo out, shows every open
-     * drink's streaming blocks to its viewers, and forgets each whose hold
-     * has ended with nothing left streaming.
+     * Moves every drink's blocks through their choreography this tick: zoops
+     * landing start melts, drained blocks lose their stand-ins, goo that has
+     * reached the hand is paid out; shows every open drink's blocks to its
+     * viewers, and forgets each whose hold has ended with nothing left on its way.
      *
      * @param server the server
      */
@@ -177,7 +223,9 @@ public final class Drinks {
             Drink drink = entry.getValue();
             long now = drink.level().getGameTime();
             ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
-            drink.finishDone(now).forEach((pos, goo) -> payOut(drink.level(), player, pos, goo));
+            drink.beginDue(now);
+            drink.drainDue(now);
+            drink.payDue(now).forEach((pos, goo) -> payOut(drink.level(), player, pos, goo));
             if (!drink.heldAt(now) && !drink.streaming()) {
                 entries.remove();
             } else if (player != null && drink.streaming()) {

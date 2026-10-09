@@ -1,11 +1,13 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.program.SiphonRule;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -42,8 +44,13 @@ class DrinkTreeTest {
     private static final double THREE = 3;
     private static final double TWO = 2;
 
+    /** The time the blocks were picked, the zoop leaving the hand. */
+    private static final long PICKED = START - SiphonRule.INJECT_TICKS;
+    private static final double HALF_WAY = 0.5;
+    private static final double JUST_OUTSIDE = 0.1;
+
     private static DrinkTree.Block block(BlockPos pos, double scale) {
-        return new DrinkTree.Block(pos, Vec3.atCenterOf(pos), scale, START, END);
+        return new DrinkTree.Block(pos, Vec3.atCenterOf(pos), scale, PICKED, START, END);
     }
 
     /** The trunk's arrival into the hand: flowing west, as a look east pulls it. */
@@ -129,6 +136,42 @@ class DrinkTreeTest {
             assertEquals(1, DrinkTree.scaleOf(THOUSAND), DELTA);
             assertEquals(0.5, DrinkTree.scaleOf(QUARTER), DELTA);
             assertEquals(2, DrinkTree.scaleOf(FOUR_THOUSAND), DELTA);
+        }
+    }
+
+    @Nested
+    class Zoop {
+
+        @Test
+        void theZoopGrowsOutOfTheHandAndIsWhollyInTheBlockAsItStarts() {
+            DrinkTree.Stream leaving = loneAt(PICKED);
+            DrinkTree.Stream landing = loneAt(START - DELTA);
+            double route = leaving.routeLength();
+
+            assertTrue(leaving.zooping());
+            assertFalse(loneAt(START).zooping());
+            assertEquals(route, leaving.zoopHeadAt(), DELTA);
+            assertEquals(route, leaving.zoopTailAt(), DELTA);
+            assertEquals(0, DrinkTree.contribution(leaving, leaving, 1), DELTA);
+            assertEquals(DrinkStream.BLOCK_SPAN - DrinkStream.ZOOP_LENGTH, landing.zoopHeadAt(), 1e-6);
+            assertEquals(DrinkStream.BLOCK_SPAN, landing.zoopTailAt(), 1e-6);
+        }
+
+        @Test
+        void halfWayTheZoopIsAThinStreamOfItsLengthAndTheBlockStandsAsItself() {
+            DrinkTree.Stream stream = loneAt(PICKED + SiphonRule.INJECT_TICKS * HALF_WAY);
+            double head = stream.zoopHeadAt();
+            double tail = stream.zoopTailAt();
+            double middle = (head + tail) / 2;
+
+            assertEquals(DrinkStream.ZOOP_LENGTH, tail - head, DELTA);
+            assertEquals(DrinkStream.ZOOP_RADIUS, DrinkTree.zoopRadius(stream, middle), DELTA);
+            assertEquals(0, DrinkTree.zoopRadius(stream, head - JUST_OUTSIDE), DELTA);
+            assertEquals(0, DrinkTree.zoopRadius(stream, tail + JUST_OUTSIDE), DELTA);
+            assertEquals(DrinkStream.ZOOP_RADIUS, DrinkTree.ring(stream, middle / stream.path().length()).radius(),
+                    DELTA);
+            assertNull(DrinkTree.skeleton(stream).box());
+            assertEquals(0, stream.block().massAt(stream.now()), DELTA);
         }
     }
 

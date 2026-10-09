@@ -25,7 +25,7 @@ class DrinkFieldTest {
     private static final Vec3 EAST = new Vec3(1, 0, 0);
     private static final Vec3 GLOVE = new Vec3(1.5, 2.2, 3.1);
     private static final DrinkTree.Block BLOCK = new DrinkTree.Block(new BlockPos(7, 2, 3), new Vec3(7.5, 2.5, 3.5),
-            1, 0, 100);
+            1, 0, 0, 100);
 
     private static DrinkStream.Ring ring(Vec3 center) {
         return new DrinkStream.Ring(center, EAST, RADIUS, 0, 0, DrinkStream.FLOW);

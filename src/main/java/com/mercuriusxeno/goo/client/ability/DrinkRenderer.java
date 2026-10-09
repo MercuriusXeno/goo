@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.client.ber.MeltMesh;
 import com.mercuriusxeno.goo.client.ber.MeltMeshGoo;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.network.DrinkPayload;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
@@ -46,11 +47,12 @@ import java.util.concurrent.CompletableFuture;
  * it was moving between meshes and after the drink ends, so blocks, streams and their
  * joins are one skin with no seam, blending like metaballs where they meet,
  * moving every frame and never standing or vanishing mid-air.
- * Each piece of the skin wears its block's own texture laid over the world
- * at its own size and slid with the flow, solid, with the block's goo types
- * roiling over it through the vats' mingle shader in blotches that cover more
- * of it along the block's route but never all of it, the types sharing the
- * blotches by volume.
+ * Each piece of the skin wears its block's own texture, laid along the liquid
+ * and round the stream so it rides the flow unstretched, and over the standing
+ * block where it stands, solid, with the block's goo types roiling over it
+ * through the vats' mingle shader in blotches that cover more of it along the
+ * block's route but never all of it, the types sharing the blotches by
+ * volume; a block's zoop wears unstable goo's own sprite.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -70,18 +72,20 @@ public final class DrinkRenderer {
     private static final double GLOVE_RIGHT = 0.35;
     /** How far below another player's eyes their glove hangs, in blocks. */
     private static final double GLOVE_BELOW = 0.45;
-    /** Milliseconds a mesh may take before the drink's grid coarsens, well under a tick so the skin keeps pace. */
+    /** Milliseconds a mesh may take, well under a tick so the skin keeps pace. */
     static final double MESH_BUDGET_MS = 35;
-    /** How much the grid's cell grows when a mesh overruns the budget, and shrinks back when one runs well under. */
-    static final double COARSEN = 1.25;
+    /** The share of the budget a mesh is aimed to take, so the next has room to grow. */
+    static final double HEADROOM = 0.7;
     /** The coarsest the grid's cell goes, as a multiple of the finest. */
     static final double COARSEST = 2.5;
-    /** Ticks a drink's last skin is drawn on after the drink ends, so a skin still in the air is not cut. */
-    static final int LINGER = 20;
+    /** The least a mesh's time must miss its aim, as a share of the cell, before the cell changes. */
+    static final double HOLD = 0.1;
     /** The most ticks a skin is carried on past its mesh at the pace it was moving, before it holds still. */
     static final double EXTRAPOLATE = 2;
     private static final Vec3 UP = new Vec3(0, 1, 0);
     private static final double MILLIS_PER_NANO = 1e-6;
+    private static final double THIRD = 1.0 / 3;
+    private static final String MESHED = "Unmake drink meshed in {} ms: cell 1/{}, {} quads, {} streams";
     /** Each drink's surface as last meshed, by its drinker. */
     private static final Map<Integer, Surface> SURFACES = new HashMap<>();
     /** Each drink's mesh in flight on a background thread, by its drinker. */
@@ -93,7 +97,8 @@ public final class DrinkRenderer {
     }
 
     /**
-     * Submits every drink this frame, and the lingering skin of every drink just ended.
+     * Submits every drink this frame: a drink is drawn until its skin meshes
+     * empty, so nothing still in the air is cut.
      *
      * @param event the custom geometry submit event
      */
@@ -107,12 +112,12 @@ public final class DrinkRenderer {
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         double ticks = level.getGameTime() + partialTick;
         Vec3 camera = event.getLevelRenderState().cameraRenderState.pos;
-        List<ClientDrinks.Drink> drinks = ClientDrinks.CLIENT.live(ticks);
+        List<ClientDrinks.Drink> drinks = ClientDrinks.CLIENT.live(ticks, DrinkRenderer::stillSeen);
         Set<Integer> drinkers = new HashSet<>();
         drinks.forEach(drink -> drinkers.add(drink.playerId()));
         MESHING.keySet().retainAll(drinkers);
         CELLS.keySet().retainAll(drinkers);
-        SURFACES.entrySet().removeIf(entry -> !drinkers.contains(entry.getKey()) && entry.getValue().spent(ticks));
+        SURFACES.keySet().retainAll(drinkers);
         for (ClientDrinks.Drink drink : drinks) {
             Entity drinker = level.getEntity(drink.playerId());
             if (drinker != null) {
@@ -120,29 +125,15 @@ public final class DrinkRenderer {
                 submitDrink(event, level, drink, new Frame(gloveOf(mc, drinker, partialTick), pull, camera, ticks));
             }
         }
-        submitLingering(event, level, drinkers, new Frame(Vec3.ZERO, Vec3.ZERO, camera, ticks), partialTick);
     }
 
     /**
-     * Draws on the last skin of every drink that has ended, so a skin still
-     * in the air when the drink's last tail is counted in runs on into the
-     * glove rather than vanishing.
-     *
-     * @param event       the custom geometry submit event
-     * @param level       the client level
-     * @param drinkers    the players drinking now
-     * @param frame       the frame, its glove and pull unset
-     * @param partialTick the partial tick
+     * @param id a drinker's entity id
+     * @return whether their drink's skin still shows anything, or a mesh of it is still in flight
      */
-    private static void submitLingering(SubmitCustomGeometryEvent event, ClientLevel level, Set<Integer> drinkers,
-                                        Frame frame, float partialTick) {
-        for (Map.Entry<Integer, Surface> entry : SURFACES.entrySet()) {
-            Entity drinker = drinkers.contains(entry.getKey()) ? null : level.getEntity(entry.getKey());
-            if (drinker != null) {
-                Vec3 glove = gloveOf(Minecraft.getInstance(), drinker, partialTick);
-                submitSurface(event, entry.getValue(), new Frame(glove, frame.pull(), frame.camera(), frame.ticks()));
-            }
-        }
+    private static boolean stillSeen(int id) {
+        Surface surface = SURFACES.get(id);
+        return MESHING.containsKey(id) || surface != null && !surface.quads().isEmpty();
     }
 
     /**
@@ -217,7 +208,8 @@ public final class DrinkRenderer {
             if (state != null) {
                 states.put(streaming.pos(), state);
                 blocks.add(new DrinkTree.Block(streaming.pos(), Vec3.atCenterOf(streaming.pos()),
-                        DrinkTree.scaleOf(MeltMeshGoo.volumeOf(state)), streaming.start(), streaming.end()));
+                        DrinkTree.scaleOf(MeltMeshGoo.volumeOf(state)), streaming.picked(), streaming.start(),
+                        streaming.end()));
             }
         }
         drink.layout().place(states.keySet(), frame.glove());
@@ -241,14 +233,6 @@ public final class DrinkRenderer {
      */
     private record Surface(long tick, double at, Vec3 glove, List<DrinkMesher.Quad> quads,
                            Map<DrinkTree.Stream, Coat> coats, double millis) {
-
-        /**
-         * @param now the game time, with the partial tick
-         * @return whether a skin left behind by an ended drink is done: empty, or drawn on past its linger
-         */
-        boolean spent(double now) {
-            return quads.isEmpty() || now - at > LINGER;
-        }
     }
 
     /**
@@ -288,28 +272,28 @@ public final class DrinkRenderer {
         MESHING.remove(id);
         if (!meshing.isCompletedExceptionally()) {
             Surface surface = meshing.join();
+            double cell = CELLS.getOrDefault(id, DrinkMesher.CELL);
             SURFACES.put(id, surface);
-            CELLS.put(id, cellAfter(CELLS.getOrDefault(id, DrinkMesher.CELL), surface.millis()));
+            CELLS.put(id, cellAfter(cell, surface.millis()));
+            Goo.LOGGER.debug(MESHED, Math.round(surface.millis()), Math.round(1 / cell), surface.quads().size(),
+                    surface.coats().size());
         }
     }
 
     /**
-     * The grid cell a drink meshes with next, after a mesh took its time:
-     * coarser by {@link #COARSEN} when it overran the budget, finer by the
-     * same when it ran under by enough that the finer mesh would fit too.
+     * The grid cell a drink meshes with next, after a mesh took its time: in
+     * one step to the cell that would have taken {@link #HEADROOM} of the
+     * budget, since a mesh's time goes as the cube of the cell's fineness,
+     * held where the step would be under {@link #HOLD} of the cell.
      *
      * @param cell   the cell the mesh used
      * @param millis how long it took
      * @return the cell for the next mesh, between the finest and {@link #COARSEST} of it
      */
     static double cellAfter(double cell, double millis) {
-        if (millis > MESH_BUDGET_MS) {
-            return Math.min(DrinkMesher.CELL * COARSEST, cell * COARSEN);
-        }
-        if (millis * COARSEN * COARSEN * COARSEN < MESH_BUDGET_MS) {
-            return Math.max(DrinkMesher.CELL, cell / COARSEN);
-        }
-        return cell;
+        double aimed = Math.clamp(cell * Math.pow(millis / (MESH_BUDGET_MS * HEADROOM), THIRD), DrinkMesher.CELL,
+                DrinkMesher.CELL * COARSEST);
+        return Math.abs(aimed - cell) < HOLD * cell ? cell : aimed;
     }
 
     private static CompletableFuture<Surface> meshAsync(ClientLevel level, ClientDrinks.Drink drink,
@@ -337,7 +321,23 @@ public final class DrinkRenderer {
         }, Util.backgroundExecutor());
     }
 
+    /**
+     * What a stream's piece of the skin is drawn with: unstable goo's own
+     * sprite and no blotches while its zoop flies, then its block's texture
+     * with the block's goo roiling over it.
+     *
+     * @param level  the client level
+     * @param stream the stream
+     * @param state  its block
+     * @param now    the game time, with the partial tick
+     * @return the coat
+     */
     private static Coat coatOf(ClientLevel level, DrinkTree.Stream stream, BlockState state, double now) {
+        if (stream.zooping()) {
+            return new Coat(state, MingledGoo.NONE, GooSubmitter.fluidTint(GooTypes.UNSTABLE),
+                    GooSubmitter.spriteUv(GooRenderUtil.lookupFluidSprite(GooTypes.UNSTABLE)),
+                    lightAlong(level, stream, now));
+        }
         BakedQuad quad = faceQuad(level, stream.block().pos(), state);
         GooRenderUtil.UvRect sprite = quad == null ? new GooRenderUtil.UvRect(0, 0, 0, 0) : MeltMesh.spriteOf(quad);
         int tint = quad == null ? GooRenderUtil.OPAQUE_WHITE : MeltMesh.tintOf(state, level, stream.block().pos(), quad);
@@ -454,9 +454,8 @@ public final class DrinkRenderer {
      * Emits one quad of the surface: each vertex carried on along its normal
      * at the pace the skin was moving there for the time since the mesh, and
      * with the glove by how near the hand it is; lifted off the skin; its
-     * texture laid over the world at its own size on the two axes square to
-     * its normal and slid against the flow since its block started, so it
-     * rides the liquid unstretched.
+     * texture read at the place the mesher gave it in the quad's one frame,
+     * mirrored so it tiles and wraps with no seam.
      *
      * @param ctx    the render context
      * @param quad   the quad
@@ -468,16 +467,14 @@ public final class DrinkRenderer {
      */
     private static void emitQuad(RenderContext ctx, DrinkMesher.Quad quad, GooRenderUtil.UvRect sprite, int color,
                                  double lift, Frame frame, Motion motion) {
-        for (DrinkMesher.Vertex vertex : quad.vertices()) {
+        for (int corner = 0; corner < quad.vertices().length; corner++) {
+            DrinkMesher.Vertex vertex = quad.vertices()[corner];
             Vec3 at = carriedOn(vertex, motion);
             Vec3 point = at.add(vertex.normal().scale(lift)).subtract(frame.camera());
-            double since = frame.ticks() - vertex.skeleton().stream().block().start();
-            Vec3 slid = vertex.point().subtract(vertex.ring().flow().scale(since * vertex.ring().speed()));
             Vec3 normal = vertex.normal();
-            Vec3 uv = textureAxes(normal, slid);
             ctx.vertexColored(color, (float) point.x, (float) point.y, (float) point.z,
-                    sprite.u0() + (sprite.u1() - sprite.u0()) * DrinkStream.textureAt(uv.x),
-                    sprite.v0() + (sprite.v1() - sprite.v0()) * DrinkStream.textureAt(uv.y),
+                    sprite.u0() + (sprite.u1() - sprite.u0()) * DrinkStream.textureAt(quad.along()[corner]),
+                    sprite.v0() + (sprite.v1() - sprite.v0()) * DrinkStream.textureAt(quad.around()[corner]),
                     (float) normal.x, (float) normal.y, (float) normal.z);
         }
     }
@@ -493,21 +490,6 @@ public final class DrinkRenderer {
         double since = Math.min(motion.since(), EXTRAPOLATE);
         return vertex.point().add(vertex.normal().scale(vertex.velocity() * since))
                 .add(motion.carried().scale(share * share * share));
-    }
-
-    /**
-     * @param normal the surface's normal at a point
-     * @param slid   the point, slid with the flow
-     * @return the point's two coordinates on the world axes square to the axis its normal most faces, as x and y
-     */
-    static Vec3 textureAxes(Vec3 normal, Vec3 slid) {
-        double ax = Math.abs(normal.x);
-        double ay = Math.abs(normal.y);
-        double az = Math.abs(normal.z);
-        if (ay >= ax && ay >= az) {
-            return new Vec3(slid.x, slid.z, 0);
-        }
-        return ax >= az ? new Vec3(slid.z, slid.y, 0) : new Vec3(slid.x, slid.y, 0);
     }
 
     /**

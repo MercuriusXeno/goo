@@ -22,7 +22,8 @@ class DrinkStreamTest {
     private static final double DELTA = 1e-9;
     private static final long START = 100;
     private static final long END = 134;
-    private static final DrinkPayload.Streaming BLOCK = new DrinkPayload.Streaming(BlockPos.ZERO, START, END);
+    private static final DrinkPayload.Streaming BLOCK = new DrinkPayload.Streaming(BlockPos.ZERO,
+            START - SiphonRule.INJECT_TICKS, START, END);
     private static final Vec3 FROM = new Vec3(7, 2.5, 3.5);
     private static final Vec3 TO = new Vec3(1.5, 2.2, 3.1);
     private static final long SEED = 42;
@@ -55,9 +56,10 @@ class DrinkStreamTest {
         }
 
         @Test
-        void theFlowIsFourBlocksASecondAndTheLongestRouteOutlastsTheCone() {
+        void theFlowIsFourBlocksASecondTheServersPaceAndTheLongestRouteOutlastsTheCone() {
             double longestRoute = SiphonRule.RANGE + DrinkStream.GLOVE_SLACK;
             assertEquals(FOUR_BLOCKS, DrinkStream.FLOW * TICKS_A_SECOND, DELTA);
+            assertEquals(SiphonRule.BASE_PACE, DrinkStream.FLOW, DELTA);
             assertTrue(DrinkStream.LONGEST_TRAVEL_TICKS * DrinkStream.FLOW >= longestRoute);
         }
     }
@@ -92,15 +94,22 @@ class DrinkStreamTest {
         }
 
         @Test
-        void theTextureMirrorsEveryBlockWithNoSeam() {
-            assertEquals(0, DrinkStream.textureU(0), DELTA);
-            assertEquals(1, DrinkStream.textureU(1), DELTA);
-            assertEquals(0, DrinkStream.textureU(2), DELTA);
-            assertEquals(DrinkStream.textureU(0.999), DrinkStream.textureU(1.001), 1e-2);
+        void aPathsFrameIsLevelSquareToItsLineAndTheSameAlongAllOfIt() {
+            Vec3 line = TO.subtract(FROM).normalize();
+            Vec3 side = DrinkStream.sideOf(PATH);
+            Vec3 across = DrinkStream.acrossOf(PATH);
+
+            assertEquals(0, side.y, DELTA, "the side is level");
+            assertEquals(0, side.dot(line), DELTA);
+            assertEquals(0, across.dot(line), DELTA);
+            assertEquals(0, across.dot(side), DELTA);
+            assertEquals(1, side.length(), DELTA);
+            assertEquals(1, across.length(), DELTA);
+            assertEquals(new Vec3(1, 0, 0), DrinkStream.sideOf(new DrinkStream.Path(FROM, FROM, SEED)));
         }
 
         @Test
-        void theTextureIsLaidOverTheWorldAtItsOwnSizeMirroredWithNoSeam() {
+        void theTextureIsLaidAtItsOwnSizeMirroredWithNoSeam() {
             assertEquals(0, DrinkStream.textureAt(0), DELTA);
             assertEquals(1, DrinkStream.textureAt(1), DELTA);
             assertEquals(0, DrinkStream.textureAt(2), DELTA);

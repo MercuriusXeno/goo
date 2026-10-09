@@ -24,9 +24,10 @@ import static org.mockito.Mockito.when;
 
 /**
  * Unmake drinks every block in the cone before the eye together, each over
- * the unstable crucible's own time for it and burning twice the crucible's
- * fuel, and one the player cannot pay for holds up none of the others
- * (decision unmake-waves-dissolve-by-crucible-cost).
+ * the unstable crucible's own time for it and burning the crucible's fuel
+ * plus its root, and one the player cannot pay for holds up none of the
+ * others; the server allows a drained block's goo the straight way back at
+ * the base pace (decision unmake-waves-dissolve-by-crucible-cost).
  */
 class SiphonStepTest {
 
@@ -34,6 +35,12 @@ class SiphonStepTest {
     private static final GooValue COBBLESTONE = new GooValue(Map.of(GooTypes.ROCK, 1152));
     /** The unstable crucible's ticks for cobblestone, ceil(sqrt(1152)). */
     private static final int COBBLESTONE_TICKS = 34;
+    /** Cobblestone's cost at one tick a mB: the 34 ticks' fuel plus ceil(sqrt(34)). */
+    private static final int COBBLESTONE_FUEL = 40;
+    /** Cobblestone's cost at two ticks a mB: 17 mB plus ceil(sqrt(17)). */
+    private static final int RICH_FUEL = 22;
+    private static final double SIX_BLOCKS = 6;
+    private static final int THIRTY_TICKS = 30;
     private static final double UNSTABLE_EXPONENT = 0.5;
     private static final double DELTA = 1e-6;
     private static final BlockPos AIMED = new BlockPos(4, 2, 3);
@@ -56,7 +63,7 @@ class SiphonStepTest {
     class Drinking {
 
         @Test
-        void everyBlockInTheConeStartsTogetherEachBurningTwiceTheCruciblesFuel() {
+        void everyBlockInTheConeStartsTogetherEachBurningTheCruciblesFuelPlusItsRoot() {
             SiphonHost host = facing(List.of(AIMED, BESIDE));
             when(host.siphonValue(any())).thenReturn(COBBLESTONE);
             when(host.burnUnstable(anyInt())).thenReturn(true);
@@ -66,7 +73,7 @@ class SiphonStepTest {
             verify(host).holdDrink();
             verify(host).siphon(AIMED, new GooContents(Map.of(GooTypes.ROCK, 1152)), COBBLESTONE_TICKS);
             verify(host).siphon(BESIDE, new GooContents(Map.of(GooTypes.ROCK, 1152)), COBBLESTONE_TICKS);
-            verify(host, times(2)).burnUnstable(2 * COBBLESTONE_TICKS);
+            verify(host, times(2)).burnUnstable(COBBLESTONE_FUEL);
         }
 
         @Test
@@ -118,13 +125,20 @@ class SiphonStepTest {
     class Rule {
 
         @Test
-        void aBlockCostsTwiceTheUnstableCruciblesFuel() {
-            assertEquals(2 * COBBLESTONE_TICKS, SiphonRule.fuelFor(1152, UNSTABLE_EXPONENT, 1));
+        void aBlockCostsTheUnstableCruciblesFuelPlusItsRoot() {
+            assertEquals(COBBLESTONE_FUEL, SiphonRule.fuelFor(1152, UNSTABLE_EXPONENT, 1));
         }
 
         @Test
         void richerFuelBuysMoreTicksPerMb() {
-            assertEquals(2 * (COBBLESTONE_TICKS / 2), SiphonRule.fuelFor(1152, UNSTABLE_EXPONENT, 2));
+            assertEquals(RICH_FUEL, SiphonRule.fuelFor(1152, UNSTABLE_EXPONENT, 2));
+        }
+
+        @Test
+        void theGooIsAllowedTheStraightWayBackAtTheBasePace() {
+            assertEquals(THIRTY_TICKS, SiphonRule.travelTicks(SIX_BLOCKS));
+            assertEquals(1, SiphonRule.travelTicks(0));
+            assertEquals(THIRTY_TICKS + 1, SiphonRule.travelTicks(SIX_BLOCKS + DELTA));
         }
 
         @Test

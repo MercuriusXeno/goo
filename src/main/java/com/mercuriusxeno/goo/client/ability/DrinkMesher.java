@@ -15,10 +15,11 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
  * the surface crosses gets one point at the mean of its edge crossings, each
  * grid edge the surface crosses gets one quad between the four cells about
  * it, every point is then relaxed toward its neighbours and set back onto
- * the surface along the field's gradient, which is its normal, and each
+ * the surface along the field's gradient, which is its normal, each
  * vertex reads how fast the skin there is moving along its normal from the
- * field a tick ahead, so the whole drink is one smooth skin with no
- * cragginess from the grid that keeps moving between meshes.
+ * field a tick ahead, and each quad places its vertices on the texture in
+ * one frame, so the whole drink is one smooth skin with no cragginess from
+ * the grid that keeps moving between meshes and wears its texture whole.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 public final class DrinkMesher {
@@ -28,7 +29,7 @@ public final class DrinkMesher {
     /** How far a point is moved toward the mean of its neighbours before it is set back onto the surface. */
     static final double RELAX = 0.5;
     /** The fastest the skin is read moving along its normal, in blocks a tick, so a flat field cannot fling it. */
-    static final double FASTEST = 0.5;
+    static final double FASTEST = 0.3;
     /** The step either side of a point the gradient is read over, as a share of the cell. */
     private static final double GRADIENT_STEP = 0.5;
     private static final double HALF = 0.5;
@@ -72,11 +73,15 @@ public final class DrinkMesher {
     }
 
     /**
-     * One quad of the surface, its four vertices wound counter-clockwise seen from outside.
+     * One quad of the surface, its four vertices wound counter-clockwise seen
+     * from outside, with each vertex's place on the texture read in the one
+     * frame the whole quad shares.
      *
      * @param vertices the four
+     * @param along    each vertex's blocks along the texture's first coordinate
+     * @param around   each vertex's blocks along its second
      */
-    public record Quad(Vertex[] vertices) {
+    public record Quad(Vertex[] vertices, double[] along, double[] around) {
     }
 
     /**
@@ -147,7 +152,7 @@ public final class DrinkMesher {
     public static List<Quad> mesh(List<DrinkField.Skeleton> skeletons, List<DrinkField.Skeleton> next, double cell) {
         Long2DoubleOpenHashMap corners = new Long2DoubleOpenHashMap();
         corners.defaultReturnValue(Double.NaN);
-        Grid grid = new Grid(skeletons, next, cell, cellsNear(skeletons, cell), corners,
+        Grid grid = new Grid(skeletons, next, cell, cellsNear(skeletons, next, cell), corners,
                 new Long2ObjectOpenHashMap<>(), new double[skeletons.size()]);
         grid.cells().long2ObjectEntrySet().fastForEach(entry -> {
             Vec3 point = pointOf(grid, entry.getLongKey(), entry.getValue());
@@ -166,25 +171,31 @@ public final class DrinkMesher {
     }
 
     /**
-     * Every cell within a body's reach and the margin of any body, with the bodies that reach it.
+     * Every cell the surface may cross, with the bodies that reach it now or
+     * a tick ahead: within a body's reach and a cell outside its surface, and
+     * no deeper than a cell inside it, since deeper the field is whole.
      *
      * @param skeletons the drink's skeletons
+     * @param next      the drink's skeletons a tick ahead
      * @param cell      the grid's cell, in blocks
      * @return the cells, keyed, each with its bodies packed
      */
-    static Long2ObjectOpenHashMap<int[]> cellsNear(List<DrinkField.Skeleton> skeletons, double cell) {
+    static Long2ObjectOpenHashMap<int[]> cellsNear(List<DrinkField.Skeleton> skeletons,
+                                                   List<DrinkField.Skeleton> next, double cell) {
         Long2ObjectOpenHashMap<int[]> cells = new Long2ObjectOpenHashMap<>();
-        for (int index = 0; index < skeletons.size(); index++) {
-            DrinkField.Skeleton skeleton = skeletons.get(index);
-            for (int body = 0; body < skeleton.bodies(); body++) {
-                markBody(cells, cell, skeleton, body, DrinkField.candidate(index, body));
+        for (List<DrinkField.Skeleton> tick : List.of(skeletons, next)) {
+            for (int index = 0; index < tick.size(); index++) {
+                DrinkField.Skeleton skeleton = tick.get(index);
+                for (int body = 0; body < skeleton.bodies(); body++) {
+                    markBody(cells, cell, skeleton, body, DrinkField.candidate(index, body));
+                }
             }
         }
         return cells;
     }
 
     /**
-     * Marks every cell whose middle lies within a body's reach and a cell of its surface.
+     * Marks every cell whose middle lies within a body's reach and a cell outside its surface, or a cell inside it.
      *
      * @param cells     the cells marked so far
      * @param cell      the grid's cell, in blocks
@@ -207,7 +218,7 @@ public final class DrinkMesher {
             for (int y = y0; y <= y1; y++) {
                 for (int z = z0; z <= z1; z++) {
                     double distance = skeleton.distanceTo(body, (x + HALF) * cell, (y + HALF) * cell, (z + HALF) * cell);
-                    if (Math.abs(distance) <= reach) {
+                    if (distance >= -cell && distance <= reach) {
                         cells.merge(key(x, y, z), new int[]{candidate}, DrinkMesher::joined);
                     }
                 }
@@ -445,10 +456,33 @@ public final class DrinkMesher {
                 whole &= ring[corner] != null;
             }
             if (whole) {
-                quads.add(new Quad(face.reversed() ? reversed(ring) : ring));
+                quads.add(quadOf(face.reversed() ? reversed(ring) : ring));
             }
         }
         return quads;
+    }
+
+    /**
+     * @param ring the quad's four vertices, wound for the outside
+     * @return the quad, each vertex placed on the texture in the frame of the first vertex's skeleton: the standing
+     *         block's world axes where the quad is on the block, else along and round the stream
+     */
+    private static Quad quadOf(Vertex[] ring) {
+        DrinkField.Skeleton skeleton = ring[0].skeleton();
+        Vec3 facing = Vec3.ZERO;
+        for (Vertex vertex : ring) {
+            facing = facing.add(vertex.normal());
+        }
+        boolean onBlock = DrinkTexture.onBlock(skeleton, ring[0].point());
+        double[] along = new double[QUAD];
+        double[] around = new double[QUAD];
+        for (int corner = 0; corner < QUAD; corner++) {
+            DrinkTexture.Place place = onBlock ? DrinkTexture.onBlock(ring[corner].point(), facing)
+                    : DrinkTexture.onStream(skeleton, ring[corner].point());
+            along[corner] = place.along();
+            around[corner] = place.around();
+        }
+        return new Quad(ring, along, around);
     }
 
     private static Vertex[] reversed(Vertex[] ring) {
