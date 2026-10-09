@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.spray.Spored;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
+import com.mojang.serialization.Codec;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.attachment.AttachmentType;
@@ -133,6 +134,17 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> Petrification.NONE)
                             .serialize(Petrification.CODEC, Petrification::started)
                             .sync(GooAttachments::syncsToWatcher, Petrification.STREAM_CODEC)
+                            .build());
+
+    /**
+     * Marks a mob held in stasis until it is struck, saved with the mob so
+     * the hold outlasts a reload; a freed mob drops the attachment.
+     * stasis-holds-mob-with-golden-shimmer
+     */
+    public static final Supplier<AttachmentType<Boolean>> STASIS =
+            ATTACHMENT_TYPES.register("stasis",
+                    () -> AttachmentType.builder(() -> Boolean.FALSE)
+                            .serialize(Codec.BOOL.fieldOf("held"), Boolean::booleanValue)
                             .build());
 
     private GooAttachments() {
