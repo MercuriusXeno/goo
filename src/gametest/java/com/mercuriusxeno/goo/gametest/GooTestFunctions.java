@@ -440,6 +440,7 @@ public final class GooTestFunctions {
     private static final String ENCHANT_GIVES_BOOK = "enchant_gives_one_level_one_book";
     private static final String FUSE_TWO_SHARPNESS_ONE = "fuse_two_sharpness_one";
     private static final String FUSE_WITHOUT_PAIR = "fuse_without_pair_costs_nothing";
+    private static final String SPAWN_BIRTHS_A_MOB = "spawn_births_a_natural_mob";
     private static final String MOB_PULSE = "mob_pulse_stun";
     private static final String MOB_NETHER = "mob_nether_wither";
     private static final String MOB_ENDER = "mob_ender_teleport";
@@ -905,6 +906,7 @@ public final class GooTestFunctions {
         reg(r, ENCHANT_GIVES_BOOK, HexSelfTests::enchantGivesOneLevelOneBook);
         reg(r, FUSE_TWO_SHARPNESS_ONE, HexSelfTests::fuseTwoSharpnessOne);
         reg(r, FUSE_WITHOUT_PAIR, HexSelfTests::fuseWithoutPairCostsNothing);
+        reg(r, SPAWN_BIRTHS_A_MOB, HexSpawnTests::spawnBirthsANaturalMob);
         reg(r, MOB_PULSE, MobEffectTests::pulseStun);
         reg(r, MOB_NETHER, MobEffectTests::netherWither);
         reg(r, MOB_ENDER, MobEffectTests::enderTeleport);

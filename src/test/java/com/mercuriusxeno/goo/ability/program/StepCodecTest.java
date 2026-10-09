@@ -120,7 +120,9 @@ class StepCodecTest {
             Map.entry("charm", new CharmStep(Expr.literal(6000))),
             Map.entry("enchant_book", LeafSteps.ENCHANT_BOOK.step(Unit.INSTANCE)),
             Map.entry("fuse_books", new FuseBooksStep(Optional.of(new SoundCue(
-                    Identifier.withDefaultNamespace("block.fire.extinguish"), SoundKind.PLAYERS, 0.4f, 1.6f))))
+                    Identifier.withDefaultNamespace("block.fire.extinguish"), SoundKind.PLAYERS, 0.4f, 1.6f)))),
+            Map.entry("spawn_random", new SpawnRandomStep(GooTypes.HEX, 20,
+                    List.of(new AilmentOverlayStep(AilmentKind.HEX, Expr.literal(60)))))
     );
 
     private static Step roundTrip(Step step) {

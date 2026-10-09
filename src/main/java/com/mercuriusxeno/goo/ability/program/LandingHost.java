@@ -45,7 +45,7 @@ import java.util.OptionalDouble;
 public record LandingHost(ServerLevel level, BlockPos cell, Direction face, boolean waterlogged,
                           ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 anchor)
         implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
-        ColonizeHost, FloorScanHost {
+        ColonizeHost, FloorScanHost, MobSpawnHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -57,6 +57,16 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     @Override
     public HostKind kind() {
         return HostKind.LANDING;
+    }
+
+    @Override
+    public BlockPos spawnCell() {
+        return cell;
+    }
+
+    @Override
+    public Vec3 morphFrom() {
+        return anchor;
     }
 
     @Override
