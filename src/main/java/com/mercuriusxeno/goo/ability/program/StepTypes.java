@@ -82,6 +82,7 @@ public final class StepTypes {
         register(NourishStep.TYPE);
         register(ReserveDrainStep.TYPE);
         register(CharmStep.TYPE);
+        register(LeafSteps.ENCHANT_BOOK.type());
     }
 
     private StepTypes() {
