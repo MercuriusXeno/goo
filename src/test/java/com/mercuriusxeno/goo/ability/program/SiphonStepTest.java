@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -37,11 +38,11 @@ class SiphonStepTest {
     private static final double DELTA = 1e-6;
     private static final BlockPos AIMED = new BlockPos(4, 2, 3);
     private static final BlockPos BESIDE = new BlockPos(4, 3, 3);
-    private static final SiphonStep SIPHON = new SiphonStep(Expr.literal(1), Expr.literal(1));
+    private static final SiphonStep SIPHON = new SiphonStep(Expr.literal(0), Expr.literal(1));
 
     private static SiphonHost facing(List<BlockPos> cone) {
         SiphonHost host = mock(SiphonHost.class);
-        when(host.siphonCone(anyInt())).thenReturn(cone);
+        when(host.siphonCone(anyDouble())).thenReturn(cone);
         when(host.meltExponent()).thenReturn(UNSTABLE_EXPONENT);
         when(host.ticksPerMb()).thenReturn(1);
         return host;
@@ -98,18 +99,18 @@ class SiphonStepTest {
             when(host.siphonValue(AIMED)).thenReturn(COBBLESTONE);
             when(host.burnUnstable(anyInt())).thenReturn(true);
 
-            new SiphonStep(Expr.literal(1), Expr.literal(2)).tick(new StepContext(host, 0, 0));
+            new SiphonStep(Expr.literal(0), Expr.literal(2)).tick(new StepContext(host, 0, 0));
 
             verify(host).siphon(eq(AIMED), any(), eq(COBBLESTONE_TICKS / 2));
         }
 
         @Test
-        void theRadiusNamesTheCone() {
+        void theRadiusNamesTheConeUnrounded() {
             SiphonHost host = facing(List.of());
 
-            new SiphonStep(Expr.literal(2), Expr.literal(1)).tick(new StepContext(host, 0, 0));
+            new SiphonStep(Expr.literal(0.75), Expr.literal(1)).tick(new StepContext(host, 0, 0));
 
-            verify(host).siphonCone(2);
+            verify(host).siphonCone(0.75);
         }
     }
 
@@ -138,12 +139,13 @@ class SiphonStepTest {
         }
 
         @Test
-        void theConeIsOneBlockWideUpCloseAndItsSquareWideAtMidRange() {
-            double halfAngle = Math.toRadians(SiphonRule.coneDegrees(1) / 2);
+        void theConeIsOneBlockWideAtMidRangeAndTwoAndAHalfCharged() {
+            double narrow = Math.toRadians(SiphonRule.coneDegrees(0) / 2);
+            double charged = Math.toRadians(SiphonRule.coneDegrees(0.75) / 2);
 
-            assertEquals(1.5, Math.tan(halfAngle) * SiphonRule.MID_RANGE, DELTA);
-            assertTrue(Math.tan(halfAngle) * 2 < 1, "two blocks out the cone is under a block wide");
-            assertTrue(SiphonRule.coneDegrees(2) > SiphonRule.coneDegrees(1));
+            assertEquals(0.5, Math.tan(narrow) * SiphonRule.MID_RANGE, DELTA);
+            assertEquals(1.25, Math.tan(charged) * SiphonRule.MID_RANGE, DELTA);
+            assertTrue(Math.tan(narrow) * SiphonRule.RANGE < 1, "the cone is under a block wide at its reach");
         }
     }
 

@@ -22,13 +22,13 @@ public interface SiphonHost extends StepHost {
 
     /**
      * The standing blocks inside the cone from the eye along the aim, one
-     * block wide at the eye and as wide as the square the radius names at
-     * mid range, nearest first.
+     * block wide at the eye and half a block wider each side than the radius
+     * names at mid range, nearest first.
      *
-     * @param radius how far the square reaches from the cone's axis at mid range, 1 for a 3x3
+     * @param radius how far past half a block the cone reaches from its axis at mid range, 0 for one block wide
      * @return the blocks in the cone; none outside a held channel
      */
-    List<BlockPos> siphonCone(int radius);
+    List<BlockPos> siphonCone(double radius);
 
     /**
      * @param pos a block in the cone

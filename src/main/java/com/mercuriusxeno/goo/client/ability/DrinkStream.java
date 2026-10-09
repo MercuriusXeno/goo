@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.program.SiphonRule;
 import com.mercuriusxeno.goo.network.DrinkPayload;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The shape of one stream of an Unmake drink along one path of its tree: a
@@ -52,8 +53,10 @@ public final class DrinkStream {
     static final double DRIFT = 0.01;
     /** Blocks over which an end of the stream tapers to its point. */
     static final double TIP = 0.6;
+    /** Blocks before its join over which a path curves to land along its trunk's flow. */
+    static final double ARRIVAL_REACH = 1;
     /** How far the molten texture is pulled about, as a share of the sprite. */
-    static final double TEXTURE_WARP = 0.18;
+    static final double TEXTURE_WARP = 0.08;
     /** Noise cells along one block of liquid for the texture's warp. */
     private static final double WARP_SCALE = 0.8;
     /** Noise cells around the stream for the texture's warp. */
@@ -65,7 +68,6 @@ public final class DrinkStream {
     private static final double TWO = 2;
     private static final double THREE = 3;
     private static final double HALF = 0.5;
-    private static final double TWO_PI = 2 * Math.PI;
     private static final double TANGENT_STEP = 1e-3;
     private static final double BEND_SEED_Y = 11.3;
     private static final double BEND_SEED_Z = 29.7;
@@ -82,14 +84,26 @@ public final class DrinkStream {
     /**
      * One path of a drink's tree.
      *
-     * @param from the block's far side, where the path starts
-     * @param to   where it ends: its join on the trunk it feeds, or the glove
-     * @param seed the block's seed, so its snake and its width are its own
+     * @param from    the block's far side, where the path starts
+     * @param to      where it ends: its join on the trunk it feeds, or the glove
+     * @param seed    the block's seed, so its snake and its width are its own
+     * @param arrival the unit direction the path arrives along, the trunk's flow at the join, or null to run straight
      */
-    public record Path(Vec3 from, Vec3 to, long seed) {
+    public record Path(Vec3 from, Vec3 to, long seed, @Nullable Vec3 arrival) {
 
         /**
-         * @return the length of the path, in blocks
+         * A straight path.
+         *
+         * @param from the block's far side
+         * @param to   the glove
+         * @param seed the block's seed
+         */
+        public Path(Vec3 from, Vec3 to, long seed) {
+            this(from, to, seed, null);
+        }
+
+        /**
+         * @return the length of the path, in blocks, as the crow flies
          */
         public double length() {
             return to.distanceTo(from);
@@ -97,10 +111,15 @@ public final class DrinkStream {
 
         /**
          * @param share the share of the path
-         * @return the point of the straight line from its start to its end there
+         * @return the point of its spine there: the straight line, or the curve that lands along its arrival
          */
-        Vec3 lineAt(double share) {
-            return from.add(to.subtract(from).scale(share));
+        Vec3 spineAt(double share) {
+            if (arrival == null) {
+                return from.add(to.subtract(from).scale(share));
+            }
+            Vec3 control = to.subtract(arrival.scale(Math.min(ARRIVAL_REACH, length() * HALF)));
+            double rest = 1 - share;
+            return from.scale(rest * rest).add(control.scale(TWO * rest * share)).add(to.scale(share * share));
         }
 
         /**
@@ -116,14 +135,16 @@ public final class DrinkStream {
     /**
      * One ring of a stream's skin.
      *
-     * @param center   the ring's middle
-     * @param side     a unit vector across the stream
-     * @param across   the unit vector across the stream square to {@code side}, with it right-handed about the flow
-     * @param radius   the ring's radius, in blocks
-     * @param material how far along the path's own liquid the ring is, in blocks, flowing toward the glove
-     * @param share    the share of the path's owner's whole route to the glove the ring stands at
+     * @param center    the ring's middle
+     * @param side      a unit vector across the stream
+     * @param across    the unit vector across the stream square to {@code side}, with it right-handed about the flow
+     * @param radius    the ring's radius, in blocks: its half width where it is square
+     * @param roundness how round the ring is, 0 the block's square to 1 a circle
+     * @param material  how far along the path's own liquid the ring is, in blocks, flowing toward the glove
+     * @param share     the share of the path's owner's whole route to the glove the ring stands at
      */
-    public record Ring(Vec3 center, Vec3 side, Vec3 across, double radius, double material, double share) {
+    public record Ring(Vec3 center, Vec3 side, Vec3 across, double radius, double roundness, double material,
+                       double share) {
 
         /**
          * @param angle an angle about the ring, in radians
@@ -131,6 +152,15 @@ public final class DrinkStream {
          */
         public Vec3 outAt(double angle) {
             return side.scale(Math.cos(angle)).add(across.scale(Math.sin(angle)));
+        }
+
+        /**
+         * @param angle an angle about the ring, in radians
+         * @return how far out the skin is there as a share of the radius, 1 on a circle, more toward a square's corners
+         */
+        public double reachAt(double angle) {
+            double square = 1 / Math.max(Math.abs(Math.cos(angle)), Math.abs(Math.sin(angle)));
+            return square + (1 - square) * roundness;
         }
     }
 
@@ -164,27 +194,40 @@ public final class DrinkStream {
     /**
      * The ring of a stream's skin at a share of a path.
      *
-     * @param path     the path
-     * @param share    the share of the path
-     * @param now      the game time, with the partial tick
-     * @param radius   the ring's radius, in blocks
-     * @param material how far along the path's own liquid the ring is
-     * @param route    the share of the path owner's whole route the ring stands at
+     * @param path      the path
+     * @param share     the share of the path
+     * @param now       the game time, with the partial tick
+     * @param radius    the ring's radius, in blocks
+     * @param roundness how round the ring is, 0 square to 1 a circle
+     * @param material  how far along the path's own liquid the ring is
+     * @param route     the share of the path owner's whole route the ring stands at
      * @return the ring
      */
-    public static Ring ring(Path path, double share, double now, double radius, double material, double route) {
+    public static Ring ring(Path path, double share, double now, double radius, double roundness, double material,
+                            double route) {
         Vec3 center = pointAt(path, share, now);
         Vec3 tangent = pointAt(path, share + TANGENT_STEP, now).subtract(pointAt(path, share - TANGENT_STEP, now));
         tangent = tangent.lengthSqr() > 0 ? tangent.normalize() : path.to().subtract(path.from()).normalize();
         Vec3 side = tangent.cross(UP);
         side = side.lengthSqr() > 0 ? side.normalize() : EAST;
-        return new Ring(center, side, tangent.cross(side), radius, material, route);
+        return new Ring(center, side, tangent.cross(side), radius, roundness, material, route);
     }
 
     /**
-     * Where the stream's middle runs: the straight line from the path's start
-     * to its end, bent sideways by a smooth noise field read along the stream,
-     * most in the middle and not at all at either end.
+     * @param path the path
+     * @param share the share of the path
+     * @param now  the game time, with the partial tick
+     * @return the unit direction the stream flows there
+     */
+    public static Vec3 flowAt(Path path, double share, double now) {
+        Vec3 tangent = pointAt(path, share + TANGENT_STEP, now).subtract(pointAt(path, share - TANGENT_STEP, now));
+        return tangent.lengthSqr() > 0 ? tangent.normalize() : path.to().subtract(path.from()).normalize();
+    }
+
+    /**
+     * Where the stream's middle runs: the path's spine, bent sideways by a
+     * smooth noise field read along the stream, most in the middle and not at
+     * all at either end.
      *
      * @param path  the path
      * @param share the share of the path
@@ -206,7 +249,7 @@ public final class DrinkStream {
         double bendSide = MeltMeshNoise.smooth(bendAt, drift, BEND_SEED_Y, path.seed()) - HALF;
         double bendAcross = MeltMeshNoise.smooth(bendAt, drift, BEND_SEED_Z, path.seed() + ACROSS_SALT) - HALF;
         double reach = TWO * SNAKE * Math.sin(Math.PI * share);
-        return path.lineAt(share).add(side.scale(bendSide * reach)).add(across.scale(bendAcross * reach));
+        return path.spineAt(share).add(side.scale(bendSide * reach)).add(across.scale(bendAcross * reach));
     }
 
     /**
@@ -235,9 +278,19 @@ public final class DrinkStream {
      * @return the radius there, in blocks
      */
     public static double radiusAt(double scale, double material, double distance, double tail, double head, long seed) {
+        return scale * widthAt(material, seed) * taperAt(distance, tail, head);
+    }
+
+    /**
+     * @param distance a point's distance along the route, in blocks
+     * @param tail     how far along the route the tail has flowed
+     * @param head     how far along the route the head has flowed
+     * @return how much of its width the stream has there, 1 between its ends, tapering to 0 at each over {@link #TIP}
+     */
+    public static double taperAt(double distance, double tail, double head) {
         double tailTaper = Math.clamp((distance - tail) / TIP, 0, 1);
         double headTaper = Math.clamp((head - distance) / TIP, 0, 1);
-        return scale * widthAt(material, seed) * Math.sqrt(tailTaper) * Math.sqrt(headTaper);
+        return Math.sqrt(tailTaper) * Math.sqrt(headTaper);
     }
 
     /**
@@ -295,19 +348,22 @@ public final class DrinkStream {
 
     /**
      * Where around the texture a point of the liquid is once the texture is
-     * pulled about like molten material: the texture laid once around and
-     * mirrored across the stream's back so the wrap leaves no seam, shifted
-     * by the same noise.
+     * pulled about like molten material: the texture laid around the stream
+     * at its own size, a block of texture to a block of skin, both ways from
+     * the stream's back and meeting at its front, so it never stretches and
+     * the wrap leaves no seam, shifted by the same noise.
      *
      * @param material the point's place along the liquid, in blocks
      * @param angle    the point's angle about the stream, in radians
+     * @param reach    how far out the skin is there, in blocks
      * @param now      the game time, with the partial tick
      * @param seed     the block's seed
      * @return the texture's share around, 0 to 1
      */
-    public static float moltenV(double material, double angle, double now, long seed) {
-        return mirrored(angle / TWO_PI + TEXTURE_WARP * (warpField(material, angle, now, seed + WARP_V_SALT)
-                - HALF));
+    public static float moltenV(double material, double angle, double reach, double now, long seed) {
+        double arc = Math.abs(angle - Math.PI) * reach;
+        return mirrored(arc * TEXTURE_PER_BLOCK / TWO + TEXTURE_WARP * (warpField(material, angle, now, seed
+                + WARP_V_SALT) - HALF));
     }
 
     private static double warpField(double material, double angle, double now, long seed) {

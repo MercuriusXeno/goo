@@ -148,7 +148,7 @@ public final class GooTestFunctions {
     private static final String BLAST_HIDDEN_UNTIL_GUNPOWDER = "blast_hidden_until_gunpowder";
     private static final String LURKER_PULSES_THEN_EXPLODES = "lurker_pulses_then_explodes";
     private static final String LURKER_ANSWERS_A_PLAYER = "lurker_answers_a_player";
-    private static final String UNMAKE_DRINKS_THE_FACE = "unmake_drinks_the_face";
+    private static final String UNMAKE_DRINKS_A_COLUMN_NOT_THE_WALL = "unmake_drinks_a_column_not_the_wall";
     private static final String UNMAKE_FINISHES_WHAT_IT_STARTS = "unmake_finishes_what_it_starts";
     private static final String UNMAKE_FINISHES_AFTER_RELEASE = "unmake_finishes_after_release";
     private static final String UNMAKE_LEAVES_MOBS_ALONE = "unmake_leaves_mobs_alone";
@@ -895,7 +895,7 @@ public final class GooTestFunctions {
         reg(r, BLAST_HIDDEN_UNTIL_GUNPOWDER, BlastGateTests::blastHiddenUntilGunpowder);
         reg(r, LURKER_PULSES_THEN_EXPLODES, LurkerTests::lurkerPulsesThenExplodes);
         reg(r, LURKER_ANSWERS_A_PLAYER, LurkerTests::lurkerAnswersAPlayer);
-        reg(r, UNMAKE_DRINKS_THE_FACE, UnmakeTests::unmakeDrinksTheFace);
+        reg(r, UNMAKE_DRINKS_A_COLUMN_NOT_THE_WALL, UnmakeTests::unmakeDrinksAColumnNotTheWall);
         reg(r, UNMAKE_FINISHES_WHAT_IT_STARTS, UnmakeTests::unmakeFinishesWhatItStarts);
         reg(r, UNMAKE_FINISHES_AFTER_RELEASE, UnmakeTests::unmakeFinishesAfterRelease);
         reg(r, UNMAKE_LEAVES_MOBS_ALONE, UnmakeTests::unmakeLeavesMobsAlone);

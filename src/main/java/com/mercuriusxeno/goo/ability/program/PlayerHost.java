@@ -190,7 +190,7 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
      * (decision unmake-waves-dissolve-by-crucible-cost).
      */
     @Override
-    public List<BlockPos> siphonCone(int radius) {
+    public List<BlockPos> siphonCone(double radius) {
         return channelAim().map(aim -> {
             Vec3 line = aim.aimPoint().subtract(eye());
             if (line.lengthSqr() == 0) {

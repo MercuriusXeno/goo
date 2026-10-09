@@ -84,6 +84,7 @@ class DrinkTreeTest {
             assertEquals(joinAt / trunk.path().length(), tributary.joinShare(), DELTA);
             assertEquals(0, tributary.path().to().distanceTo(DrinkStream.pointAt(trunk.path(), tributary.joinShare(),
                     NOW)), DELTA);
+            assertEquals(DrinkStream.flowAt(trunk.path(), tributary.joinShare(), NOW), tributary.path().arrival());
         }
 
         @Test
@@ -113,7 +114,7 @@ class DrinkTreeTest {
             List<DrinkTree.Stream> streams = tree();
             DrinkTree.Stream trunk = streams.getFirst();
             DrinkTree.Stream tributary = streams.get(1);
-            double before = tributary.joinShare() / 2;
+            double before = pastJoin(trunk, -DrinkTree.MERGE - PAST_THE_MERGE);
             double after = pastJoin(trunk, DrinkTree.MERGE + PAST_THE_MERGE);
             double later = NOW + tributary.routeLength() / DrinkStream.FLOW;
 
@@ -136,11 +137,22 @@ class DrinkTreeTest {
         }
 
         @Test
-        void theTrunkSwellsIntoAJoinOverTheMergeLength() {
-            assertEquals(0, DrinkTree.mergeRamp(0), DELTA);
-            assertEquals(0.5, DrinkTree.mergeRamp(DrinkTree.MERGE / 2), DELTA);
+        void theTrunkSwellsIntoAJoinSymmetricallyOverTheMergeLength() {
+            assertEquals(0, DrinkTree.mergeRamp(-DrinkTree.MERGE), DELTA);
+            assertEquals(0.5, DrinkTree.mergeRamp(0), DELTA);
             assertEquals(1, DrinkTree.mergeRamp(DrinkTree.MERGE), DELTA);
             assertEquals(1, DrinkTree.mergeRamp(DrinkTree.MERGE * 2), DELTA);
+            assertEquals(0, DrinkTree.mergeRamp(-DrinkTree.MERGE * 2), DELTA);
+        }
+
+        @Test
+        void theBlocksMatterIsTheCubesWidthAtItsEntry() {
+            DrinkTree.Stream stream = DrinkTree.build(List.of(NEAR), layoutOf(NEAR), GLOVE, NOW).getFirst();
+            double entry = DrinkStream.BLOCK_SPAN / stream.path().length();
+            double later = NOW + DrinkBody.FUNNEL / DrinkStream.FLOW;
+
+            assertEquals(DrinkBody.MOUTH, DrinkTree.ring(stream, entry, later).radius(), DELTA);
+            assertEquals(0, DrinkTree.ring(stream, entry, later).roundness(), DELTA);
         }
 
         @Test
@@ -150,7 +162,7 @@ class DrinkTreeTest {
             DrinkTree.Stream tributary = streams.get(1);
             double share = pastJoin(trunk, DrinkTree.MERGE);
             double ownPath = tributary.path().length() - DrinkStream.BLOCK_SPAN;
-            double onTrunk = ownPath + DrinkTree.MERGE + DrinkStream.TIP;
+            double onTrunk = ownPath + DrinkTree.MERGE + DrinkStream.TIP + DrinkBody.FUNNEL;
 
             assertEquals(0, DrinkTree.contribution(tributary, trunk, share, START + ownPath / DrinkStream.FLOW),
                     DELTA);

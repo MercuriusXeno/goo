@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.unmake.MeltingBlockEntity;
-import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
@@ -12,6 +11,8 @@ import com.mercuriusxeno.goo.client.ber.MeltMesh;
 import com.mercuriusxeno.goo.client.ber.MeltMeshGoo;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.network.DrinkPayload;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -20,7 +21,6 @@ import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.data.AtlasIds;
-import net.minecraft.util.ARGB;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -37,26 +37,23 @@ import java.util.Map;
 /**
  * Draws every Unmake drink: each block's lump flowing into its stream, and
  * the drink's streams flowing languidly down their fixed tree into the
- * drinker's glove, each path skinned solid in its block's own texture riding
- * the flow and warped molten, tinting toward its goo's colour and growing
- * patches of its goo types by the mingle noise along the block's whole
- * route, mingled by their shares, so it reads as mingled block the whole way.
+ * drinker's glove, each path skinned solid in its block's own texture laid
+ * at its own size and riding the flow, with the block's goo types roiling
+ * over it through the vats' mingle shader in blotches that cover more of it
+ * along the block's route but never all of it, the types sharing the
+ * blotches by volume.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class DrinkRenderer {
 
-    /** The goo's alpha where a patch has fully formed over the stream. */
-    static final int GOO_ALPHA = 0xEE;
     /** Sides about one ring of the stream's skin. */
     static final int SIDES = 10;
     /** How much further out each goo layer's skin stands than the one under it, so they never fight. */
     static final double LAYER_STEP = 0.008;
-    /** How the liquid's place along the stream reads into the patches' field, in field blocks a block; slow, so they ride the flow. */
-    static final float PATCH_ALONG = 0.2f;
-    /** How far along the mingle a stream gets by the hand, so the block's texture shows mingled the whole way. */
+    /** The share of a stream's skin the goo covers by the hand, so the block's texture shows mingled the whole way. */
     static final float GOO_REACH = 0.45f;
-    /** The most goo types layered over one stream; past three the patches read as noise. */
+    /** The most goo types layered over one stream; past three the blotches read as noise. */
     private static final int MAX_LAYERS = 3;
     private static final float HALF = 0.5f;
     private static final double TWO_PI = 2 * Math.PI;
@@ -108,24 +105,11 @@ public final class DrinkRenderer {
      * One path's skin to emit.
      *
      * @param rings the path's rings, start to end
-     * @param light the light where the block stands
+     * @param light the light in front of the block
      * @param frame the frame
      * @param seed  the block's seed
      */
     private record Skin(List<DrinkStream.Ring> rings, int light, Frame frame, long seed) {
-    }
-
-    /**
-     * The colour of a point of a skin.
-     */
-    @FunctionalInterface
-    private interface Coloring {
-        /**
-         * @param ring  the ring the point is on
-         * @param angle the point's angle about the ring
-         * @return the point's ARGB colour
-         */
-        int colorAt(DrinkStream.Ring ring, double angle);
     }
 
     /**
@@ -151,7 +135,7 @@ public final class DrinkRenderer {
 
     /**
      * Submits one drink: its blocks' tree of streams, each stream's block
-     * turning while it drains and its own path skinned.
+     * flowing while it drains and its own path skinned.
      *
      * @param event the custom geometry submit event
      * @param level the client level
@@ -193,15 +177,17 @@ public final class DrinkRenderer {
                                      BlockState state, Frame frame) {
         DrinkTree.Block block = stream.block();
         MingledGoo goo = MeltMeshGoo.of(state);
+        int light = LevelRenderer.getLightCoords(level, BlockPos.containing(DrinkStream.pointAt(stream.path(),
+                (DrinkStream.BLOCK_SPAN + HALF) / stream.path().length(), frame.ticks())));
         if (frame.ticks() < block.end()) {
-            DrinkBody.Lump lump = new DrinkBody.Lump(stream.path(), progressOf(block, frame.ticks()));
+            DrinkBody.Lump lump = new DrinkBody.Lump(stream.path(), progressOf(block, frame.ticks()),
+                    DrinkStream.headAt(block.start(), frame.ticks()) - DrinkStream.BLOCK_SPAN);
             DrinkBodyRenderer.submit(event, level, state, goo, new DrinkBodyRenderer.Flowing(stream, lump,
-                    frame.ticks(), frame.camera()));
+                    frame.ticks(), frame.camera(), light));
         }
         List<DrinkStream.Ring> rings = DrinkTree.rings(stream, frame.ticks());
         if (rings.stream().anyMatch(ring -> ring.radius() > 0)) {
-            submitSkins(event, new Skin(rings, LevelRenderer.getLightCoords(level, block.pos()), frame,
-                    block.seed()), level, block.pos(), state, goo);
+            submitSkins(event, new Skin(rings, light, frame, block.seed()), level, block.pos(), state, goo);
         }
     }
 
@@ -221,115 +207,121 @@ public final class DrinkRenderer {
      */
     private static void submitSkins(SubmitCustomGeometryEvent event, Skin skin, ClientLevel level, BlockPos pos,
                                     BlockState state, MingledGoo goo) {
-        submitBlockSkin(event, skin, level, pos, state, goo);
+        submitBlockSkin(event, skin, level, pos, state);
         for (int layer = 0; layer < Math.min(goo.types().size(), MAX_LAYERS); layer++) {
-            submitGooSkin(event, skin, new MeltMesh.GooLayer(goo.types().get(layer), layer, goo.share(layer)));
+            submitGooSkin(event, skin, goo, layer);
         }
     }
 
     /**
-     * Submits the path's own skin, solid: the block's texture riding the flow,
-     * warped molten, tinting toward the goo's colour where the mingle has formed.
+     * Submits the path's own skin, solid: the block's texture at its own
+     * size, riding the flow, warped molten.
      *
      * @param event the custom geometry submit event
      * @param skin  the skin
      * @param level the client level
      * @param pos   the block
      * @param state the block the stream is
-     * @param goo   the goo it becomes
      */
     private static void submitBlockSkin(SubmitCustomGeometryEvent event, Skin skin, ClientLevel level, BlockPos pos,
-                                        BlockState state, MingledGoo goo) {
+                                        BlockState state) {
         BakedQuad quad = faceQuad(level, pos, state);
         if (quad == null) {
             return;
         }
         GooRenderUtil.UvRect sprite = MeltMesh.spriteOf(quad);
         int tint = MeltMesh.tintOf(state, level, pos, quad);
-        MeltMesh.GooLayer base = goo.types().isEmpty() ? null
-                : new MeltMesh.GooLayer(goo.types().getFirst(), 0, goo.share(0));
-        int gooColor = base == null ? tint : ARGB.opaque(ClientGooTypes.color(base.type()));
-        Coloring coloring = (ring, angle) -> base == null ? tint
-                : ARGB.srgbLerp(DrinkBodyRenderer.TINT_BLEND * formed(base, ring, angle), tint, gooColor);
         event.getSubmitNodeCollector().submitCustomGeometry(event.getPoseStack(), GooSubmitter.solidOnBlockAtlas(),
-                (pose, consumer) -> emitSkin(new RenderContext(pose, consumer, skin.light()), skin, sprite, 0,
-                        coloring));
+                (pose, consumer) -> {
+                    RenderContext ctx = new RenderContext(pose, consumer, skin.light());
+                    for (int index = 0; index + 1 < skin.rings().size(); index++) {
+                        emitBand(ctx, skin, index, sprite, 0, tint);
+                    }
+                });
     }
 
     /**
-     * Submits one goo type's skin over the path: its sprite on the goo
-     * surface shader, in patches that form along the route.
+     * Submits one goo type's skin over the path on the vats' mingle shader:
+     * its sprite in roiling blotches whose share of the skin grows along the
+     * block's route, each ring's band telling the shader how much.
      *
      * @param event the custom geometry submit event
      * @param skin  the skin
-     * @param layer the goo layer
+     * @param goo   the goo the block becomes
+     * @param layer the goo type's index, largest first
      */
-    private static void submitGooSkin(SubmitCustomGeometryEvent event, Skin skin, MeltMesh.GooLayer layer) {
-        GooRenderUtil.UvRect sprite = GooSubmitter.spriteUv(GooRenderUtil.lookupFluidSprite(layer.type()));
-        int tint = GooSubmitter.fluidTint(layer.type());
-        TypeBand whole = new TypeBand(layer.type(), 0f, 1f, layer.index());
-        double lift = LAYER_STEP * (layer.index() + 1);
+    private static void submitGooSkin(SubmitCustomGeometryEvent event, Skin skin, MingledGoo goo, int layer) {
+        GooRenderUtil.UvRect sprite = GooSubmitter.spriteUv(GooRenderUtil.lookupFluidSprite(goo.types().get(layer)));
+        int tint = GooSubmitter.fluidTint(goo.types().get(layer));
+        double lift = LAYER_STEP * (layer + 1);
         event.getSubmitNodeCollector().submitCustomGeometry(event.getPoseStack(), GooRenderTypes.gooFluidSurface(
                 Minecraft.getInstance().getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location()),
-                (pose, consumer) -> emitSkin(RenderContext.banded(pose, consumer, tint, whole), skin, sprite, lift,
-                        (ring, angle) -> ARGB.color(Math.round(GOO_ALPHA * formed(layer, ring, angle)), tint)));
+                (pose, consumer) -> emitGooBands(pose, consumer, skin, goo, layer, sprite, lift, tint));
     }
 
-    /**
-     * How formed a goo layer is at a point of the stream: its patches form by
-     * the share of the block's route the point stands at, in a field that
-     * rides the flow, reaching only {@link #GOO_REACH} of the way by the hand
-     * so the block's texture shows mingled the whole way.
-     *
-     * @param layer the goo layer
-     * @param ring  the ring the point is on
-     * @param angle the point's angle about the ring
-     * @return how formed, 0 to 1
-     */
-    private static float formed(MeltMesh.GooLayer layer, DrinkStream.Ring ring, double angle) {
-        float around = (float) Math.cos(angle) * HALF + HALF;
-        float over = (float) Math.sin(angle) * HALF + HALF;
-        return layer.opacityAt((float) ring.material() * PATCH_ALONG, around, over, (float) ring.share() * GOO_REACH);
-    }
-
-    /**
-     * Emits a skin over the path's rings: a quad between each pair of rings
-     * for each side, wound to face outward, its texture riding the flow.
-     *
-     * @param ctx      the render context
-     * @param skin     the skin
-     * @param sprite   the sprite laid along the liquid
-     * @param lift     how far the skin stands off the stream's radius
-     * @param coloring the colour of each point
-     */
-    private static void emitSkin(RenderContext ctx, Skin skin, GooRenderUtil.UvRect sprite, double lift,
-                                 Coloring coloring) {
+    private static void emitGooBands(PoseStack.Pose pose, VertexConsumer consumer, Skin skin, MingledGoo goo,
+                                     int layer, GooRenderUtil.UvRect sprite, double lift, int tint) {
         List<DrinkStream.Ring> rings = skin.rings();
         for (int index = 0; index + 1 < rings.size(); index++) {
-            DrinkStream.Ring near = rings.get(index);
-            DrinkStream.Ring far = rings.get(index + 1);
-            if (near.radius() <= 0 && far.radius() <= 0) {
-                continue;
-            }
-            for (int side = 0; side < SIDES; side++) {
-                double angle0 = TWO_PI * side / SIDES;
-                double angle1 = TWO_PI * (side + 1) / SIDES;
-                emitPoint(ctx, skin, near, angle0, sprite, lift, coloring);
-                emitPoint(ctx, skin, near, angle1, sprite, lift, coloring);
-                emitPoint(ctx, skin, far, angle1, sprite, lift, coloring);
-                emitPoint(ctx, skin, far, angle0, sprite, lift, coloring);
-            }
+            float reach = (float) (rings.get(index).share() + rings.get(index + 1).share()) * HALF * GOO_REACH;
+            RenderContext ctx = RenderContext.banded(pose, consumer, tint, bandOf(goo, layer, reach));
+            emitBand(ctx, skin, index, sprite, lift, tint);
+        }
+    }
+
+    /**
+     * The band a goo type's layer draws with where the goo covers a share of
+     * the skin: the layers stack over the block's texture so that each type
+     * covers its volume ratio of that share.
+     *
+     * @param goo   the goo
+     * @param layer the type's index, largest first
+     * @param reach the share of the skin the goo covers there, 0 to 1
+     * @return the band
+     */
+    static TypeBand bandOf(MingledGoo goo, int layer, float reach) {
+        float before = layer == 0 ? 0f : goo.cumulative().get(layer - 1);
+        float lo = 1f - reach * (1f - before);
+        float hi = 1f - reach * (1f - goo.cumulative().get(layer));
+        return new TypeBand(goo.types().get(layer), lo, hi, layer);
+    }
+
+    /**
+     * Emits the band of skin between two rings: a quad for each side, wound
+     * to face outward, its texture at its own size riding the flow.
+     *
+     * @param ctx    the render context
+     * @param skin   the skin
+     * @param index  the near ring's index
+     * @param sprite the sprite laid on the skin
+     * @param lift   how far the skin stands off the stream's radius
+     * @param color  the colour of the band
+     */
+    private static void emitBand(RenderContext ctx, Skin skin, int index, GooRenderUtil.UvRect sprite, double lift,
+                                 int color) {
+        DrinkStream.Ring near = skin.rings().get(index);
+        DrinkStream.Ring far = skin.rings().get(index + 1);
+        if (near.radius() <= 0 && far.radius() <= 0) {
+            return;
+        }
+        for (int side = 0; side < SIDES; side++) {
+            double angle0 = TWO_PI * side / SIDES;
+            double angle1 = TWO_PI * (side + 1) / SIDES;
+            emitPoint(ctx, skin, near, angle0, sprite, lift, color);
+            emitPoint(ctx, skin, near, angle1, sprite, lift, color);
+            emitPoint(ctx, skin, far, angle1, sprite, lift, color);
+            emitPoint(ctx, skin, far, angle0, sprite, lift, color);
         }
     }
 
     private static void emitPoint(RenderContext ctx, Skin skin, DrinkStream.Ring ring, double angle,
-                                  GooRenderUtil.UvRect sprite, double lift, Coloring coloring) {
+                                  GooRenderUtil.UvRect sprite, double lift, int color) {
         Vec3 out = ring.outAt(angle);
-        double radius = ring.radius() > 0 ? ring.radius() + lift : 0;
-        Vec3 point = ring.center().add(out.scale(radius)).subtract(skin.frame().camera());
+        double reach = ring.radius() * ring.reachAt(angle);
+        Vec3 point = ring.center().add(out.scale(ring.radius() > 0 ? reach + lift : 0)).subtract(skin.frame().camera());
         float u = DrinkStream.moltenU(ring.material(), angle, skin.frame().ticks(), skin.seed());
-        float v = DrinkStream.moltenV(ring.material(), angle, skin.frame().ticks(), skin.seed());
-        ctx.vertexColored(coloring.colorAt(ring, angle), (float) point.x, (float) point.y, (float) point.z,
+        float v = DrinkStream.moltenV(ring.material(), angle, reach, skin.frame().ticks(), skin.seed());
+        ctx.vertexColored(color, (float) point.x, (float) point.y, (float) point.z,
                 sprite.u0() + (sprite.u1() - sprite.u0()) * u, sprite.v0() + (sprite.v1() - sprite.v0()) * v,
                 (float) out.x, (float) out.y, (float) out.z);
     }
