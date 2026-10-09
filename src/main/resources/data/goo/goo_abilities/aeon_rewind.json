@@ -7,6 +7,7 @@
   "requires": ["minecraft:clock"],
   "delivery": { "kind": "stream", "range": 8, "cone": 10, "ticks_per_charge": 20 },
   "behaviors": [
+    { "type": "withdraw_bank", "mb_per_tick": 50, "charge_per_mb": 20 },
     {
       "type": "target",
       "where": ["mob", "not_boss", "has_spawn_egg"],

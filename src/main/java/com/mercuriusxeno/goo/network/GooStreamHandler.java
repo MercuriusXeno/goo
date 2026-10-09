@@ -21,7 +21,9 @@ import com.mercuriusxeno.goo.ability.program.SoundKind;
 import com.mercuriusxeno.goo.ability.program.SoundPlays;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepHost;
+import com.mercuriusxeno.goo.ability.program.WithdrawBankStep;
 import com.mercuriusxeno.goo.ability.spray.SprayPrograms;
+import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.StreamCone;
@@ -167,12 +169,35 @@ public final class GooStreamHandler {
                                       AbilityDefinition ability) {
         MinecraftServer server = player.level().getServer();
         int held = GooServerState.of(server).streamHolds().advance(player.getUUID(), server.getTickCount());
-        int share = StreamHolds.shareAt(ability.cost(), ability.delivery().ticksPerCharge(), held);
+        // timekeeper-prism-banks-ticks-forward-only: withdrawing a timekeeper's bank costs nothing
+        int share = drawsFromABank(player, ability) ? 0
+                : StreamHolds.shareAt(ability.cost(), ability.delivery().ticksPerCharge(), held);
         if (!GooSourceScanner.hasEnough(player, gooType, share)) {
             return 0;
         }
         GooSourceScanner.deplete(player, gooType, share);
         return held;
+    }
+
+    /**
+     * Whether a stream draws from a banking prism this tick: its program
+     * withdraws a bank and its look ends on a prism that banks ticks, so
+     * Rewind on a timekeeper gains more aeon than it costs
+     * (decision timekeeper-prism-banks-ticks-forward-only).
+     *
+     * @param player  the streaming player
+     * @param ability the stream ability
+     * @return true when the stream's share this tick is free
+     */
+    private static boolean drawsFromABank(ServerPlayer player, AbilityDefinition ability) {
+        if (ability.behaviors().stream().noneMatch(WithdrawBankStep.class::isInstance)) {
+            return false;
+        }
+        ChannelAim aim = new ChannelAim(player.getEyePosition().add(player.getLookAngle().scale(ability.delivery().range())),
+                null, ability.delivery().coneDegrees());
+        return PlayerHost.channeling(player.level(), player, aim).tickedBlock()
+                .map(pos -> player.level().getBlockEntity(pos) instanceof PrismBlockEntity prism && prism.banksTicks())
+                .orElse(false);
     }
 
     /**

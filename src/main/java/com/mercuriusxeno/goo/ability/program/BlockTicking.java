@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -28,6 +29,24 @@ public final class BlockTicking {
      * @return the ticks run: none where no ticking block entity stands
      */
     public static int tickBlockEntity(Level level, BlockPos pos, int times) {
+        // timekeeper-prism-banks-ticks-forward-only: Tick on a banking prism spends its bank on the clock
+        if (level.getBlockEntity(pos) instanceof PrismBlockEntity prism && prism.banksTicks()) {
+            prism.spendOnTime();
+            return 0;
+        }
+        return runTickers(level, pos, times);
+    }
+
+    /**
+     * Runs the ticker of the block entity at a position until the times run
+     * out or no ticking block entity stands there.
+     *
+     * @param level the level
+     * @param pos   the block
+     * @param times how many ticks to run
+     * @return the ticks run
+     */
+    private static int runTickers(Level level, BlockPos pos, int times) {
         int ran = 0;
         for (int tick = 0; tick < times; tick++) {
             BlockEntity blockEntity = level.getBlockEntity(pos);

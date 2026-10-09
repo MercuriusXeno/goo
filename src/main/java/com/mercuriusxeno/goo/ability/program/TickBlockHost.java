@@ -25,4 +25,17 @@ public interface TickBlockHost extends StepHost {
      * @param times how many extra ticks it takes
      */
     void tickBlock(BlockPos pos, int times);
+
+    /**
+     * Withdraws a block's banked standing charge as goo into the holdings of
+     * the player the host acts for; a host acting for no player, or a block
+     * that banks nothing, withdraws nothing.
+     * timekeeper-prism-banks-ticks-forward-only
+     *
+     * @param pos         the block
+     * @param maxMb       the most mB withdrawn
+     * @param chargePerMb the standing charge one mB is worth
+     */
+    default void withdrawBank(BlockPos pos, int maxMb, int chargePerMb) {
+    }
 }

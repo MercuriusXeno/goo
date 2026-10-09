@@ -29,9 +29,13 @@ class RewindShareTest {
     private static final double SECONDS_TOLERANCE = 0.25;
     private static final double EPSILON = 1e-9;
 
+    private static TargetStep target() {
+        return AbilityJson.decode("aeon_rewind").behaviors().stream().filter(TargetStep.class::isInstance)
+                .map(TargetStep.class::cast).findFirst().orElseThrow();
+    }
+
     private static Expr share() {
-        TargetStep target = (TargetStep) AbilityJson.decode("aeon_rewind").behaviors().get(0);
-        return target.steps().stream().filter(CounterStep.class::isInstance).map(CounterStep.class::cast)
+        return target().steps().stream().filter(CounterStep.class::isInstance).map(CounterStep.class::cast)
                 .findFirst().orElseThrow().add().orElseThrow();
     }
 
@@ -60,8 +64,7 @@ class RewindShareTest {
 
     @Test
     void theRitualRegressesTheMobAtAHundred() {
-        TargetStep target = (TargetStep) AbilityJson.decode("aeon_rewind").behaviors().get(0);
-        Step branch = target.steps().stream().filter(BranchStep.class::isInstance).findFirst().orElseThrow();
+        Step branch = target().steps().stream().filter(BranchStep.class::isInstance).findFirst().orElseThrow();
 
         assertTrue(((BranchStep) branch).when().evaluate(name -> name.equals("goo:ritual")
                 ? OptionalDouble.of(RITUAL_FULL) : OptionalDouble.empty()) != 0);
