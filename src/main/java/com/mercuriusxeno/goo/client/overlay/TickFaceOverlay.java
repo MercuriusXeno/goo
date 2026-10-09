@@ -158,6 +158,21 @@ public final class TickFaceOverlay {
     }
 
     /**
+     * Emits the marching squares on one face of a shape in the pose's own
+     * space, as the timekeeper prism wears them on its shell
+     * (decision timekeeper-prism-banks-ticks-forward-only).
+     *
+     * @param quads      the quad context
+     * @param center     the face's center in the pose's space
+     * @param face       the face
+     * @param size       the face's width
+     * @param extraTicks the extra ticks whose pace the squares march at
+     */
+    public static void emitFaceQuad(FlatQuadContext quads, Vec3 center, Direction face, double size, int extraTicks) {
+        emitFace(quads, new FaceQuad(center, face, size, 1f), Vec3.ZERO, marchRate(extraTicks));
+    }
+
+    /**
      * One quad of the overlay on a face.
      *
      * @param center   the face's center in the world

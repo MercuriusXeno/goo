@@ -33,7 +33,7 @@ import java.util.function.Consumer;
  */
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
-        FieldEffectHost, PhasedHost, ConsumedGooHost {
+        FieldEffectHost, PhasedHost, ConsumedGooHost, TickBankHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -55,6 +55,11 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     @Override
     public Direction placedFace() {
         return be.getPlacedFace();
+    }
+
+    @Override
+    public void bankTicks(int perTick, int spending) {
+        be.bankTicks(perTick, spending);
     }
 
     /**

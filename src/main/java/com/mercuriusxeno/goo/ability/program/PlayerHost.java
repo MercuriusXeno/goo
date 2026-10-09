@@ -1,10 +1,13 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
+import com.mercuriusxeno.goo.item.GooDeposit;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
@@ -180,6 +183,23 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     @Override
     public void tickBlock(BlockPos pos, int times) {
         BlockTicking.tickBlockEntity(level, pos, times);
+    }
+
+    /**
+     * Withdraws a banking prism's standing charge as aeon goo into the
+     * player's holdings, putting back what found no home.
+     * timekeeper-prism-banks-ticks-forward-only
+     */
+    @Override
+    public void withdrawBank(BlockPos pos, int maxMb, int chargePerMb) {
+        if (!(level.getBlockEntity(pos) instanceof PrismBlockEntity prism) || !prism.banksTicks()) {
+            return;
+        }
+        int mb = prism.withdrawStanding(maxMb, chargePerMb);
+        int homeless = GooDeposit.intoInventory(player, ItemStack.EMPTY).deposit(prism.getGooType(), mb);
+        if (homeless > 0) {
+            prism.refundStanding(homeless, chargePerMb);
+        }
     }
 
     @Override

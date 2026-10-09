@@ -88,7 +88,12 @@ public enum HostCapability {
      * A block to tick faster, the aimed machine a held stream ends on
      * (decision tick-channel-marches-squares-on-the-face).
      */
-    TICK_BLOCK(TickBlockHost.class);
+    TICK_BLOCK(TickBlockHost.class),
+    /**
+     * An anchor that banks ticks, the timekeeper prism
+     * (decision timekeeper-prism-banks-ticks-forward-only).
+     */
+    TICK_BANK(TickBankHost.class);
 
     private final Class<? extends StepHost> hostType;
 

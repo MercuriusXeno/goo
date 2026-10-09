@@ -95,6 +95,8 @@ class StepCodecTest {
             Map.entry("regress", new RegressStep(20)),
             Map.entry("tick_block", new TickBlockStep(4)),
             Map.entry("drips", new DripsStep(4, List.of(new TickBlockStep(40)))),
+            Map.entry("bank_ticks", new BankTicksStep(1, 40)),
+            Map.entry("withdraw_bank", new WithdrawBankStep(50, 20)),
             Map.entry("set_baby", LeafSteps.SET_BABY.step(true)),
             Map.entry("ailment_overlay", new AilmentOverlayStep(AilmentKind.HEX,
                     Expr.parse("20 * 60 / pow(health, 0.4)").getOrThrow())),

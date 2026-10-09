@@ -19,6 +19,8 @@ import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ability.ViewportRipples;
 import com.mercuriusxeno.goo.client.ber.*;
+import com.mercuriusxeno.goo.client.ber.style.PrismComboStyles;
+import com.mercuriusxeno.goo.client.ber.style.TimekeeperPrismStyle;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -117,6 +119,8 @@ public final class GooClientSetup {
     public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
         registerMachineRenderers(event);
         registerEffectRenderers(event);
+        // timekeeper-prism-banks-ticks-forward-only
+        PrismComboStyles.register(TimekeeperPrismStyle.COMBO, new TimekeeperPrismStyle());
     }
 
     /**
