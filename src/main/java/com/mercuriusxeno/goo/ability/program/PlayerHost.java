@@ -35,7 +35,7 @@ import java.util.function.Consumer;
  */
 public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt brewDuration,
                          Optional<ChannelAim> channelAim, float charge)
-        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost {
+        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, FrostHost {
 
     /** The charge a host outside a charged release carries. */
     private static final float NO_CHARGE = 0f;
@@ -136,6 +136,11 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     @Override
     public BlockPos position() {
         return player.blockPosition();
+    }
+
+    @Override
+    public Vec3 frostCenter() {
+        return player.position();
     }
 
     @Override

@@ -113,6 +113,7 @@
 
   "block.goo.ability_block": "Ability Block",
   "block.goo.frost_field": "Frost Field",
+  "block.goo.magicked_ice": "Magicked Ice",
   "block.goo.prism": "Prism",
 
   "goo.ability.aeon.time_stop": "Stasis",
@@ -126,6 +127,7 @@
   "goo.ability.ender.teleport": "Warp",
   "goo.ability.frost.snap": "Snap",
   "goo.ability.frost.nova": "Nova",
+  "goo.ability.frost.nova_tap": "Nova",
   "goo.ability.glow.crystal": "Bulb",
   "goo.ability.glow.laser": "Beam",
   "goo.ability.hex.charm": "Charm",

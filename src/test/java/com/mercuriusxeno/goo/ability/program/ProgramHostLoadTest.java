@@ -212,7 +212,7 @@ class ProgramHostLoadTest {
     void eachKindProvidesTheCapabilityInterfacesItsHostImplements() {
         assertEquals(EnumSet.complementOf(EnumSet.of(HostCapability.TARGET, HostCapability.LINGER, HostCapability.CHANNEL,
                         HostCapability.BREAK_BLOCKS, HostCapability.DRIP, HostCapability.COLONIZE,
-                        HostCapability.FLOOR_SCAN)),
+                        HostCapability.FLOOR_SCAN, HostCapability.FROST)),
                 HostKind.MARKER.capabilities());
         assertEquals(Set.of(HostCapability.PLACED_FACE, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
                 HostCapability.PLACE_BLOCK, HostCapability.LINGER, HostCapability.BREAK_BLOCKS, HostCapability.COLONIZE,
@@ -220,7 +220,7 @@ class ProgramHostLoadTest {
         assertEquals(Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN),
                 HostKind.ENTITY.capabilities());
         assertEquals(Set.of(HostCapability.EXPLODE, HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK,
-                HostCapability.BREAK_BLOCKS, HostCapability.DRIP), HostKind.TAP.capabilities());
+                HostCapability.BREAK_BLOCKS, HostCapability.DRIP, HostCapability.FROST), HostKind.TAP.capabilities());
         assertEquals(Set.of(HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK),
                 HostKind.SURFACE.capabilities());
     }

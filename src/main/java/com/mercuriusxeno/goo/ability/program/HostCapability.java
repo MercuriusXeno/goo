@@ -83,7 +83,12 @@ public enum HostCapability {
      * A tap drip's landing: the drips its block has taken, and dripstone to
      * grow down from it (decision petrify-drip-calcifies-and-grows-dripstone).
      */
-    DRIP(DripHost.class);
+    DRIP(DripHost.class),
+    /**
+     * The level and the point frost spreads out of (decisions
+     * nova-ring-grows-with-the-hold, nova-drip-pulses-a-short-lasting-freeze).
+     */
+    FROST(FrostHost.class);
 
     private final Class<? extends StepHost> hostType;
 
