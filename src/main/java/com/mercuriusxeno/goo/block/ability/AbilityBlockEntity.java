@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.*;
 import com.mercuriusxeno.goo.ability.program.FieldEffectState;
 import com.mercuriusxeno.goo.ability.program.HostKind;
+import com.mercuriusxeno.goo.ability.program.MarkerHost;
 import com.mercuriusxeno.goo.ability.program.PhasedState;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -97,17 +98,23 @@ public class AbilityBlockEntity extends GooSyncedBlockEntity implements MarkerAn
      */
     public static void serverTick(Level level, BlockPos pos, BlockState state,
                                   AbilityBlockEntity be) {
-        if (be.behavior == null) {
-            level.removeBlock(pos, false);
-            return;
+        ServerLevel server = (ServerLevel) level;
+        if (be.running()) {
+            be.behavior.serverTick(server, pos, be);
         }
-        be.behavior.serverTick((ServerLevel) level, pos, be);
-        if (!be.behavior.isActive()) {
+        // black-hole-leaves-a-compression-sphere: a hole takes its sphere a budget a tick, core outward,
+        // and stands until the last block is in
+        new MarkerHost(server, pos, be).takeBlocks();
+        if (!be.running() && !be.programState.taking()) {
             level.removeBlock(pos, false);
             return;
         }
         be.setChanged();
         BlockEntitySync.markDirtyAndSync(be);
+    }
+
+    private boolean running() {
+        return behavior != null && behavior.isActive();
     }
 
     /**

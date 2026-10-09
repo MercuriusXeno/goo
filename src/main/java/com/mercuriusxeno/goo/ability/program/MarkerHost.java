@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.block.ability.MarkerAnchor;
+import com.mercuriusxeno.goo.block.ability.MarkerProgramState;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
@@ -36,6 +37,12 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         FieldEffectHost, PhasedHost, HoardHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
+    /**
+     * The blocks a black hole takes each tick, core outward: a radius 3 hole
+     * in one tick, a radius 20 hole in some 17, so a huge one never stalls
+     * the server in a single tick (decision black-hole-leaves-a-compression-sphere).
+     */
+    static final int BLOCKS_TAKEN_PER_TICK = 2048;
 
     @Override
     public HostKind kind() {
@@ -120,7 +127,20 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
 
     @Override
     public void hoardBlocks(int radius) {
-        HoardedBlocks.takeSphere(level, pos, radius, be.programState().hoard());
+        be.programState().beginTaking(radius);
+    }
+
+    @Override
+    public void takeBlocks() {
+        MarkerProgramState state = be.programState();
+        if (!state.taking()) {
+            return;
+        }
+        List<BlockPos> cells = state.takeCells(pos, HoardedBlocks::coreOutward);
+        int next = HoardedBlocks.takeSome(level, cells, state.taken(), BLOCKS_TAKEN_PER_TICK, state.hoard());
+        if (state.tookTo(next, cells.size())) {
+            CompressionSphere.leave(level, Vec3.atCenterOf(pos), state.hoard());
+        }
     }
 
     @Override
@@ -130,7 +150,9 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
 
     @Override
     public void dropSphere() {
-        CompressionSphere.leave(level, Vec3.atCenterOf(pos), be.programState().hoard());
+        if (!be.programState().putOffDrop()) {
+            CompressionSphere.leave(level, Vec3.atCenterOf(pos), be.programState().hoard());
+        }
     }
 
     @Override
