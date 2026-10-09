@@ -5,7 +5,7 @@
   "order": 20,
   "cost": 1000,
   "requires": ["minecraft:packed_ice"],
-  "delivery": { "kind": "self", "charge": { "max_ticks": 40 } },
+  "delivery": { "kind": "self", "charge": { "max_ticks": 30 } },
   "behaviors": [
     {
       "type": "nova",
@@ -16,7 +16,8 @@
       "hold": 300,
       "thaw": 0.005,
       "vulnerability": 0.5,
-      "physical_bonus": 3
+      "physical_bonus": 3,
+      "damage": "2 + 4 * charge"
     },
     { "type": "sound", "id": "minecraft:block.glass.break", "at": "target", "source": "players", "volume": 1, "pitch": 1.4 }
   ],

@@ -143,9 +143,26 @@ public final class FrostExplosionVisual implements BurnoutVisual, HeldGhostVisua
      * @param progress the ring's progress in [0, 1]
      */
     static void drawRing(BurnoutFrame frame, Vec3 corner, Direction face, float lift, float reach, float progress) {
-        float radius = reach * spread(progress);
+        drawDisc(frame, corner, face, lift, reach * spread(progress), progress, fog(progress));
+    }
+
+    /**
+     * Draws frost's fog disc at a radius and fog given outright, for a ring
+     * paced on its own clock, such as Nova's fast ring
+     * (decision nova-ring-grows-with-the-hold).
+     *
+     * @param frame    the frame being drawn
+     * @param corner   the world point the disc's block-local coordinates are measured from
+     * @param face     the face the disc lies square to
+     * @param lift     the shift from the block center along the face's step
+     * @param radius   the disc's radius in blocks
+     * @param progress the share of its life the disc has lived, which drifts its billows
+     * @param fogShare the fog's opacity, 0 to 1
+     */
+    static void drawDisc(BurnoutFrame frame, Vec3 corner, Direction face, float lift, float radius, float progress,
+                         float fogShare) {
         int progressByte = NetherDiscMesh.toByte(progress);
-        int fog = NetherDiscMesh.toByte(fog(progress));
+        int fog = NetherDiscMesh.toByte(fogShare);
         int center = ARGB.color(fog, progressByte, NetherDiscMesh.toByte(SIGNED_TO_UNIT),
                 NetherDiscMesh.toByte(SIGNED_TO_UNIT));
         BurnoutGeometry.drawAt(frame, corner, GooRenderTypes.FROST_EXPLOSION_TYPE, (pose, c) ->

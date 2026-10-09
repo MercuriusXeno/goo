@@ -29,14 +29,30 @@ import java.util.stream.Stream;
  * @param crowd  how much each further mob in the ring thins the freeze: the share is 1 / (1 + crowd * (n - 1))
  * @param push   the knockback away from the host each mob takes
  * @param curve  how the gauges hold, thaw and weaken the mobs
+ * @param damage the freeze damage the ring deals each living thing it crosses, evaluated on the host
  */
-public record NovaStep(Expr radius, Expr amount, float crowd, float push, FrostCurve curve) implements Step {
+public record NovaStep(Expr radius, Expr amount, float crowd, float push, FrostCurve curve, Expr damage)
+        implements Step {
+
+    /**
+     * A ring that deals no damage.
+     *
+     * @param radius the ring's reach in blocks
+     * @param amount how much the ring freezes each mob, in health points
+     * @param crowd  how much each further mob thins the freeze
+     * @param push   the knockback away from the host each mob takes
+     * @param curve  how the gauges hold, thaw and weaken the mobs
+     */
+    public NovaStep(Expr radius, Expr amount, float crowd, float push, FrostCurve curve) {
+        this(radius, amount, crowd, push, curve, Expr.literal(0));
+    }
 
     private static final String NAME = "nova";
     private static final String FIELD_RADIUS = "radius";
     private static final String FIELD_AMOUNT = "amount";
     private static final String FIELD_CROWD = "crowd";
     private static final String FIELD_PUSH = "push";
+    private static final String FIELD_DAMAGE = "damage";
     private static final Set<EntityFilter> AROUND_THE_HOST = Set.of(EntityFilter.LIVING, EntityFilter.NOT_TARGET);
 
     /**
@@ -47,7 +63,8 @@ public record NovaStep(Expr radius, Expr amount, float crowd, float push, FrostC
             Expr.CODEC.fieldOf(FIELD_AMOUNT).forGetter(NovaStep::amount),
             Codec.FLOAT.optionalFieldOf(FIELD_CROWD, 0f).forGetter(NovaStep::crowd),
             Codec.FLOAT.optionalFieldOf(FIELD_PUSH, 0f).forGetter(NovaStep::push),
-            FrostCurve.CODEC.forGetter(NovaStep::curve)
+            FrostCurve.CODEC.forGetter(NovaStep::curve),
+            Expr.CODEC.optionalFieldOf(FIELD_DAMAGE, Expr.literal(0)).forGetter(NovaStep::damage)
     ).apply(inst, NovaStep::new));
 
     /**
@@ -76,6 +93,7 @@ public record NovaStep(Expr radius, Expr amount, float crowd, float push, FrostC
     public boolean tick(StepContext context) {
         float reach = radius.evaluateFloat(context);
         float freeze = amount.evaluateFloat(context);
+        float hurt = damage.evaluateFloat(context);
         FrostHost host = context.hostAs(FrostHost.class);
         Vec3 center = host.frostCenter();
         List<LivingEntity> struck = new ArrayList<>();
@@ -85,6 +103,9 @@ public record NovaStep(Expr radius, Expr amount, float crowd, float push, FrostC
             if (living instanceof Mob mob) {
                 FrozenEvents.freeze(mob, each, curve);
             }
+            if (hurt > 0f) {
+                living.hurtServer(host.level(), host.level().damageSources().freeze(), hurt);
+            }
             living.knockback(push, center.x - living.getX(), center.z - living.getZ());
         }
         EntityVisuals.sendToWatchersOf(host.level(), center, new NovaRingPayload(center, reach));
@@ -93,7 +114,7 @@ public record NovaStep(Expr radius, Expr amount, float crowd, float push, FrostC
 
     @Override
     public Stream<Expr> expressions() {
-        return Stream.of(radius, amount);
+        return Stream.of(radius, amount, damage);
     }
 
     @Override

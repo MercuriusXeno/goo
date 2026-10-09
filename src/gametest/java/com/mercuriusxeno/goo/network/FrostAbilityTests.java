@@ -23,6 +23,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -43,7 +44,7 @@ public final class FrostAbilityTests {
     private static final BlockPos FAR_POS = new BlockPos(4, 1, 4);
     private static final Identifier FROST_NOVA = Identifier.parse("goo:frost_nova");
     /** frost_nova.json's charge max_ticks. */
-    private static final int FULL_HOLD_TICKS = 40;
+    private static final int FULL_HOLD_TICKS = 30;
     private static final int NO_HOLD_TICKS = 0;
     /**
      * A full hold freezes two zombies by 16 health each, thinned by the crowd
@@ -72,7 +73,7 @@ public final class FrostAbilityTests {
     /** Pitched down between the grass and the zombie's middle, so both stand in the cone. */
     private static final float BETWEEN_GRASS_AND_ZOMBIE = 14f;
     private static final int COLD_HOLD_TICKS = 10;
-    /** A full Nova's freeze on a zombie, 16 of its 20 health, spread over the 40 ticks it took to charge. */
+    /** A full Nova's freeze on a zombie, 16 of its 20 health, spread over the 30 ticks it took to charge. */
     private static final float NOVA_PER_HELD_TICK = 0.8f / FULL_HOLD_TICKS;
     private static final String SHOULD_KILL_GRASS = "Cold should break the grass in its cone";
     private static final String SHOULD_OUTFREEZE_NOVA = "Ten ticks of Cold should freeze past %s, Nova's ten held ticks; stands %s";
@@ -138,6 +139,7 @@ public final class FrostAbilityTests {
     private static final String ABILITY_REQUIRED = "Ability registry must hold frost_nova";
     private static final String SHOULD_FREEZE_HARD = "A full Nova should freeze the %s zombie past %s, stands %s";
     private static final String SHOULD_FREEZE_LIGHTLY = "An uncharged Nova should freeze the near zombie lightly, stands %s";
+    private static final String SHOULD_HURT = "Nova's ring should hurt the %s zombie it crosses";
     private static final String SHOULD_NOT_REACH = "An uncharged Nova should not reach the far zombie, stands %s";
 
     private FrostAbilityTests() {
@@ -155,6 +157,8 @@ public final class FrostAbilityTests {
         ServerPlayer caster = caster(helper);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             release(caster, FULL_HOLD_TICKS);
+            helper.assertTrue(near.getHealth() < near.getMaxHealth(), String.format(SHOULD_HURT, "near"));
+            helper.assertTrue(far.getHealth() < far.getMaxHealth(), String.format(SHOULD_HURT, "far"));
             float nearGauge = near.getData(GooAttachments.FROZEN).gauge();
             float farGauge = far.getData(GooAttachments.FROZEN).gauge();
             helper.getLevel().getServer().getPlayerList().remove(caster);
@@ -177,6 +181,7 @@ public final class FrostAbilityTests {
         ServerPlayer caster = caster(helper);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             release(caster, NO_HOLD_TICKS);
+            helper.assertTrue(near.getHealth() < near.getMaxHealth(), String.format(SHOULD_HURT, "near"));
             float nearGauge = near.getData(GooAttachments.FROZEN).gauge();
             float farGauge = far.getData(GooAttachments.FROZEN).gauge();
             helper.getLevel().getServer().getPlayerList().remove(caster);
@@ -360,8 +365,8 @@ public final class FrostAbilityTests {
      * @param helper the gametest helper
      */
     public static void icebornFreezesSurroundings(GameTestHelper helper) {
-        helper.setBlock(ICEBORN_LAVA_POS, Blocks.LAVA);
-        helper.setBlock(ICEBORN_WATER_POS, Blocks.WATER);
+        basin(helper, ICEBORN_LAVA_POS, Blocks.LAVA);
+        basin(helper, ICEBORN_WATER_POS, Blocks.WATER);
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ICEBORN_ZOMBIE_POS);
         zombie.igniteForSeconds(BURN_SECONDS);
         ServerPlayer player = iceborn(helper);
@@ -397,6 +402,22 @@ public final class FrostAbilityTests {
             helper.assertFalse(after.stands(), String.format(SHOULD_THAW_HEARTS, after));
             helper.succeed();
         });
+    }
+
+    /**
+     * Sets a still fluid in a one-block stone basin, so once it melts back it
+     * stays where it was rather than flowing off the bay's open floor.
+     *
+     * @param helper the gametest helper
+     * @param pos    where the fluid stands
+     * @param fluid  the fluid's block
+     */
+    private static void basin(GameTestHelper helper, BlockPos pos, Block fluid) {
+        helper.setBlock(pos.below(), Blocks.STONE);
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            helper.setBlock(pos.relative(side), Blocks.STONE);
+        }
+        helper.setBlock(pos, fluid);
     }
 
     private static ServerPlayer iceborn(GameTestHelper helper) {

@@ -25,6 +25,13 @@ public final class NovaRings {
     /** The client's novas. */
     public static final NovaRings CLIENT = new NovaRings();
 
+    /** Ticks a nova's ring takes to spread to its reach: fast, a burst rather than a drift. */
+    static final int SPREAD_TICKS = 6;
+    /** Ticks its fog takes to fade once it has spread. */
+    static final int FADE_TICKS = 10;
+    /** Ticks a nova plays. */
+    static final int DURATION_TICKS = SPREAD_TICKS + FADE_TICKS;
+
     /** How far above its center the ring lies, clear of a floor it pulses on. */
     private static final double FEET_LIFT = 0.1;
     /** The block-local offset from the ring's corner to its center. */
@@ -32,6 +39,8 @@ public final class NovaRings {
     /** Snowflakes per block of the ring's reach. */
     private static final int SNOWFLAKES_PER_BLOCK = 12;
     private static final double TWO_PI = 2 * Math.PI;
+    /** How much faster than frost's burnout the snowflakes burst, to ride the fast ring's edge. */
+    private static final float SNOWFLAKE_BURST = 2.5f;
     /** How far below the edge's speed a snowflake may launch, as a share of it. */
     private static final float SNOWFLAKE_SPEED_SPREAD = 0.5f;
 
@@ -45,11 +54,11 @@ public final class NovaRings {
     record Ring(Vec3 center, float reach, long startTick) {
 
         float progress(float gameTime) {
-            return Math.clamp((gameTime - startTick) / FrostExplosionVisual.DURATION_TICKS, 0f, 1f);
+            return Math.clamp((gameTime - startTick) / DURATION_TICKS, 0f, 1f);
         }
 
         boolean isOver(long now) {
-            return now - startTick >= FrostExplosionVisual.DURATION_TICKS;
+            return now - startTick >= DURATION_TICKS;
         }
 
         /** @return the point the ring's block-local coordinates measure from */
@@ -76,10 +85,30 @@ public final class NovaRings {
         for (int i = 0; i < snowflakes; i++) {
             Vec3 velocity = FrostExplosionVisual.snowflakeVelocity(Direction.UP,
                     TWO_PI * (i + level.getRandom().nextFloat()) / snowflakes,
-                    reach * FrostExplosionVisual.SNOWFLAKE_SPEED * (1f - SNOWFLAKE_SPEED_SPREAD * level.getRandom().nextFloat()));
+                    reach * FrostExplosionVisual.SNOWFLAKE_SPEED * SNOWFLAKE_BURST * (1f - SNOWFLAKE_SPEED_SPREAD * level.getRandom().nextFloat()));
             level.addParticle(ParticleTypes.SNOWFLAKE, center.x, center.y + FEET_LIFT, center.z,
                     velocity.x, velocity.y, velocity.z);
         }
+    }
+
+    /**
+     * How far a nova's ring has spread toward its reach: an ease-out over SPREAD_TICKS.
+     *
+     * @param progress the nova's progress in [0, 1]
+     * @return the spread in [0, 1]
+     */
+    static float spread(float progress) {
+        return BurnoutGeometry.easeOutCubic(Math.min(1f, progress * DURATION_TICKS / SPREAD_TICKS));
+    }
+
+    /**
+     * How much of a nova's fog is left: whole while the ring spreads, fading over FADE_TICKS.
+     *
+     * @param progress the nova's progress in [0, 1]
+     * @return the fog's opacity in [0, 1]
+     */
+    static float fog(float progress) {
+        return BurnoutGeometry.fadeAfter(progress, (float) SPREAD_TICKS / DURATION_TICKS);
     }
 
     /**
@@ -117,8 +146,9 @@ public final class NovaRings {
         BurnoutFrame frame = new BurnoutFrame(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera().position(), mc.level.getGameTime() + partialTick);
         for (Ring ring : rings) {
-            FrostExplosionVisual.drawRing(frame, ring.corner(), Direction.UP, 0f, ring.reach(),
-                    ring.progress(frame.gameTime()));
+            float progress = ring.progress(frame.gameTime());
+            FrostExplosionVisual.drawDisc(frame, ring.corner(), Direction.UP, 0f, ring.reach() * spread(progress),
+                    progress, fog(progress));
         }
     }
 }
