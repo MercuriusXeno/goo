@@ -21,4 +21,7 @@ public class PrismRenderState extends BlockEntityRenderState {
 
     /** The id of the ability whose program is the prism's combo, empty for a plain prism. */
     public String combo = "";
+
+    /** How strongly an agitator's beat shows this frame, 0 to 1; 0 for any other prism. */
+    public float beat;
 }

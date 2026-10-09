@@ -1,8 +1,10 @@
 package com.mercuriusxeno.goo.client.ber;
 
+import com.mercuriusxeno.goo.ability.program.AgitationState;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
+import com.mercuriusxeno.goo.client.ber.style.AgitatorPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyles;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -58,6 +60,11 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         state.facing = prism.getBlockState().getValue(PrismBlock.FACING);
         state.scale = TransformationRenderer.blockModelScale(prism.getBlockPos());
         state.combo = prism.getCombo();
+        // agitator-prism-quickens-until-a-spawn: the beat rides the synced countdown
+        AgitationState agitation = prism.programState().agitation();
+        state.beat = agitation.interval() > 0
+                ? AgitatorPrismStyle.beat(agitation.interval() - agitation.countdown() + partialTick)
+                : 0f;
     }
 
     @Override

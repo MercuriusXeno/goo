@@ -88,7 +88,12 @@ public enum HostCapability {
      * A cell a conjured mob stands in, and the point the goo morphs into it
      * from (decision spawn-goo-morphs-into-the-mob-it-births).
      */
-    SPAWN_MOB(MobSpawnHost.class);
+    SPAWN_MOB(MobSpawnHost.class),
+    /**
+     * An agitator's countdown kept across ticks (decision
+     * agitator-prism-quickens-until-a-spawn).
+     */
+    AGITATE(AgitateHost.class);
 
     private final Class<? extends StepHost> hostType;
 
