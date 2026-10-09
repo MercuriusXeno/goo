@@ -73,6 +73,40 @@ public final class GooThrowHandler {
     }
 
     /**
+     * Handles a charged ability's release on the server thread: a known
+     * ability of a known type, thrown from a held glove with every reagent
+     * it consumes, fires at the charge its hold reached.
+     * nova-ring-grows-with-the-hold
+     *
+     * @param payload the charge payload
+     * @param context the network context
+     */
+    public static void handleCharge(GooChargePayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (context.player() instanceof ServerPlayer player) {
+                releaseCharge(player, payload);
+            }
+        });
+    }
+
+    /**
+     * Fires a charged ability the player let go, when it may.
+     *
+     * @param player  the releasing player
+     * @param payload the charge payload
+     */
+    public static void releaseCharge(ServerPlayer player, GooChargePayload payload) {
+        ResourceKey<GooTypeDefinition> gooType = GooTypes.known(payload.gooTypeId());
+        if (!validateGlove(player) || gooType == null) {
+            return;
+        }
+        AbilityDefinition ability = usableAbility(player, payload.abilityId(), gooType);
+        if (ability != null && holdsReagents(player, ability)) {
+            GooSelfHandler.release(player, gooType, ability, payload.heldTicks());
+        }
+    }
+
+    /**
      * Validates and executes the throw: the glove, the type, the range and
      * the goo in the player's inventory are checked, the goo is depleted,
      * the flight is broadcast and the effect scheduled for arrival. A mob

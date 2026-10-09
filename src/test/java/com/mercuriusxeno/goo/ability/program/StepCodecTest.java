@@ -45,6 +45,8 @@ class StepCodecTest {
             Map.entry("set_health", LeafSteps.SET_HEALTH.step(Expr.parse("0.5 * health / max_health").getOrThrow())),
             Map.entry("freeze", new FreezeStep(Expr.parse("10 * stacks").getOrThrow(),
                     new FrostCurve(300, 0.005f, 0.5f))),
+            Map.entry("nova", new NovaStep(Expr.parse("2 + 6 * charge").getOrThrow(),
+                    Expr.parse("4 + 12 * charge").getOrThrow(), 0.05f, 0.4f, new FrostCurve(300, 0.005f, 0.5f, 3f))),
             Map.entry("set_ai", LeafSteps.SET_AI.step(false)),
             Map.entry("set_invulnerable", LeafSteps.SET_INVULNERABLE.step(true)),
             Map.entry("clone_entity", new CloneEntityStep(Expr.parse("100 / pow(max_health, 0.6)").getOrThrow(),

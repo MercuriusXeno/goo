@@ -28,9 +28,10 @@ public final class GloveInputGate {
         /**
          * Sends a throw payload for the glove's selection, or a stream's first tick.
          *
+         * @param heldTicks the ticks the use key was held before the throw, which a charged ability fires by
          * @return true when a payload was sent
          */
-        boolean sendThrow();
+        boolean sendThrow(int heldTicks);
 
         /** Swings the arm holding the glove. */
         void swing();
@@ -76,6 +77,8 @@ public final class GloveInputGate {
     private boolean streaming;
     private boolean previewing;
     private boolean eating;
+    /** Ticks the live press has previewed, which a charged ability's release fires by. */
+    private int heldTicks;
 
     /** Starts a press when the glove's use reaches the client; a live press ignores the repeat. */
     public void arm() {
@@ -84,6 +87,7 @@ public final class GloveInputGate {
             streaming = false;
             previewing = false;
             eating = false;
+            heldTicks = 0;
         }
     }
 
@@ -147,8 +151,9 @@ public final class GloveInputGate {
     private void tickThrow(boolean useKeyDown, PressActions actions) {
         if (useKeyDown) {
             previewing = true;
+            heldTicks++;
         } else {
-            throwAndSwing(actions);
+            throwAndSwing(actions, heldTicks);
             cancel();
         }
     }
@@ -156,7 +161,7 @@ public final class GloveInputGate {
     private void tickEat(boolean useKeyDown, PressActions actions) {
         if (!eating) {
             eating = true;
-            actions.sendThrow();
+            actions.sendThrow(0);
         }
         if (!useKeyDown) {
             cancel();
@@ -166,7 +171,7 @@ public final class GloveInputGate {
     private void tickStream(boolean useKeyDown, PressActions actions) {
         if (!streaming) {
             streaming = true;
-            throwAndSwing(actions);
+            throwAndSwing(actions, 0);
         } else if (useKeyDown) {
             actions.hold();
         }
@@ -175,8 +180,8 @@ public final class GloveInputGate {
         }
     }
 
-    private static void throwAndSwing(PressActions actions) {
-        if (actions.sendThrow()) {
+    private static void throwAndSwing(PressActions actions, int heldTicks) {
+        if (actions.sendThrow(heldTicks)) {
             actions.swing();
         }
     }

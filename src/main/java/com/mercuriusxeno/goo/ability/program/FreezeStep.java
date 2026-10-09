@@ -1,9 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.frost.FrostCurve;
-import com.mercuriusxeno.goo.ability.frost.Frozen;
 import com.mercuriusxeno.goo.ability.frost.FrozenEvents;
-import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.world.entity.LivingEntity;
@@ -49,9 +47,7 @@ public record FreezeStep(Expr amount, FrostCurve curve) implements Step {
     public boolean tick(StepContext context) {
         LivingEntity target = context.hostAs(TargetHost.class).target();
         if (target instanceof Mob mob) {
-            Frozen before = mob.getData(GooAttachments.FROZEN);
-            float share = Frozen.shareOf(amount.evaluateFloat(context), mob.getMaxHealth());
-            FrozenEvents.settle(mob, before, before.add(share, curve, mob.level().getGameTime()));
+            FrozenEvents.freeze(mob, amount.evaluateFloat(context), curve);
         }
         return true;
     }

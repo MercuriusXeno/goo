@@ -6,6 +6,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
 import java.util.function.BiConsumer;
 
@@ -59,10 +60,24 @@ final class BurnoutGeometry {
      */
     static void drawAtMarker(BurnoutFrame frame, BlockPos pos, RenderType type,
                              BiConsumer<PoseStack.Pose, VertexConsumer> draw) {
+        drawAt(frame, Vec3.atLowerCornerOf(pos), type, draw);
+    }
+
+    /**
+     * Draws into one render type with block-local coordinates measured from
+     * a world corner, camera relative, then flushes that type.
+     *
+     * @param frame  the frame being drawn
+     * @param corner the world point block-local coordinates are measured from
+     * @param type   the render type
+     * @param draw   emits the vertices in block-local coordinates
+     */
+    static void drawAt(BurnoutFrame frame, Vec3 corner, RenderType type,
+                       BiConsumer<PoseStack.Pose, VertexConsumer> draw) {
         PoseStack poseStack = frame.poseStack();
         poseStack.pushPose();
-        poseStack.translate(pos.getX() - frame.camera().x, pos.getY() - frame.camera().y,
-                pos.getZ() - frame.camera().z);
+        poseStack.translate(corner.x - frame.camera().x, corner.y - frame.camera().y,
+                corner.z - frame.camera().z);
         draw.accept(poseStack.last(), frame.buffers().getBuffer(type));
         poseStack.popPose();
         frame.buffers().endBatch(type);

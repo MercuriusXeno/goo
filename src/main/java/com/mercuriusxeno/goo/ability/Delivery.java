@@ -26,10 +26,31 @@ import java.util.Optional;
  * @param transformAt    the share of the flight by which the blob has taken its traveling form
  * @param sound          the sound a stream makes while held, empty for none; the server plays it, so the
  *                       network copy carries none
+ * @param chargeTicks    the ticks of hold a charged ability takes to charge fully, 0 for one that does not charge
  */
 public record Delivery(DeliveryKind kind, double blocksPerTick, double range, double coneDegrees,
                        int ticksPerCharge, boolean grannyAllowed, Optional<Identifier> particle, double transformAt,
-                       Optional<StreamSound> sound) {
+                       Optional<StreamSound> sound, int chargeTicks) {
+
+    /**
+     * A delivery that does not charge.
+     *
+     * @param kind           the delivery kind
+     * @param blocksPerTick  a beam's speed in blocks per tick
+     * @param range          a stream's reach in blocks
+     * @param coneDegrees    a stream's cone, apex to rim, in degrees
+     * @param ticksPerCharge a stream's ticks of hold one cost pays for
+     * @param grannyAllowed  whether an arc may lob onto a top face
+     * @param particle       the particle a stream sprays along its cone, empty for none
+     * @param transformAt    the share of the flight by which the blob has taken its traveling form
+     * @param sound          the sound a stream makes while held, empty for none
+     */
+    public Delivery(DeliveryKind kind, double blocksPerTick, double range, double coneDegrees, int ticksPerCharge,
+                    boolean grannyAllowed, Optional<Identifier> particle, double transformAt,
+                    Optional<StreamSound> sound) {
+        this(kind, blocksPerTick, range, coneDegrees, ticksPerCharge, grannyAllowed, particle, transformAt, sound,
+                NO_CHARGE);
+    }
 
     /**
      * A delivery making no stream sound.
@@ -48,6 +69,12 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
         this(kind, blocksPerTick, range, coneDegrees, ticksPerCharge, grannyAllowed, particle, transformAt,
                 Optional.empty());
     }
+
+    /** The charge ticks of a delivery that does not charge. */
+    public static final int NO_CHARGE = 0;
+
+    /** Codec for the charge block, {@code "charge": {"max_ticks": 60}}. */
+    private static final Codec<Integer> CHARGE_CODEC = Codec.INT.fieldOf("max_ticks").codec();
 
     /** A beam's speed where the JSON names none. */
     public static final double DEFAULT_BLOCKS_PER_TICK = 2.5;
@@ -81,7 +108,9 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
             Identifier.CODEC.optionalFieldOf("particle").forGetter(Delivery::particle),
             Codec.DOUBLE.optionalFieldOf("transform_at", DEFAULT_TRANSFORM_AT).forGetter(Delivery::transformAt),
             // mycosis-spore-stream-buds-and-poisons
-            StreamSound.CODEC.codec().optionalFieldOf("sound").forGetter(Delivery::sound)
+            StreamSound.CODEC.codec().optionalFieldOf("sound").forGetter(Delivery::sound),
+            // nova-ring-grows-with-the-hold
+            CHARGE_CODEC.optionalFieldOf("charge", NO_CHARGE).forGetter(Delivery::chargeTicks)
     ).apply(inst, Delivery::new));
 
     /**
@@ -98,7 +127,10 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
             ByteBufCodecs.BOOL, Delivery::grannyAllowed,
             ByteBufCodecs.optional(Identifier.STREAM_CODEC), Delivery::particle,
             ByteBufCodecs.DOUBLE, Delivery::transformAt,
-            Delivery::new);
+            ByteBufCodecs.VAR_INT, Delivery::chargeTicks,
+            (kind, blocksPerTick, range, cone, ticksPerCharge, granny, particle, transformAt, chargeTicks) ->
+                    new Delivery(kind, blocksPerTick, range, cone, ticksPerCharge, granny, particle, transformAt,
+                            Optional.empty(), chargeTicks));
 
     /**
      * A delivery of the kind with every param at its default.
@@ -109,6 +141,26 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     public static Delivery of(DeliveryKind kind) {
         return new Delivery(kind, DEFAULT_BLOCKS_PER_TICK, 0, DEFAULT_CONE_DEGREES, DEFAULT_TICKS_PER_CHARGE, true,
                 Optional.empty(), DEFAULT_TRANSFORM_AT);
+    }
+
+    /**
+     * Whether the ability charges while held and fires once on release, its
+     * strength the share of the charge the hold reached.
+     *
+     * @return true for a delivery naming a charge
+     */
+    public boolean charges() {
+        return chargeTicks > NO_CHARGE;
+    }
+
+    /**
+     * The share of a full charge a hold reached.
+     *
+     * @param heldTicks the ticks the use key was held
+     * @return 0 to 1; 1 for a delivery that does not charge
+     */
+    public float chargeShare(int heldTicks) {
+        return charges() ? Math.clamp((float) heldTicks / chargeTicks, 0f, 1f) : 1f;
     }
 
     /**

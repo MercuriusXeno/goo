@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.network.BarkskinTests;
 import com.mercuriusxeno.goo.network.BlockLandingTests;
 import com.mercuriusxeno.goo.network.BrewEffectTests;
 import com.mercuriusxeno.goo.network.ColonizeTests;
+import com.mercuriusxeno.goo.network.FrostAbilityTests;
 import com.mercuriusxeno.goo.network.FungalShiftTests;
 import com.mercuriusxeno.goo.network.GloveSelectTests;
 import com.mercuriusxeno.goo.network.HeartOverlayTests;
@@ -434,6 +435,8 @@ public final class GooTestFunctions {
     private static final String MOB_BLAZE = "mob_blaze_ignite";
     private static final String MOB_FROST = "mob_frost_snap";
     private static final String SNAP_ENCASES_THEN_THAWS = "snap_encases_then_thaws";
+    private static final String NOVA_HELD_REACHES_BOTH = "nova_held_reaches_both_zombies";
+    private static final String NOVA_TAPPED_REACHES_NEAR = "nova_tapped_reaches_only_the_near";
     private static final String MOB_TYPHOON = "mob_typhoon_levitate";
     private static final String MOB_GLOW = "mob_glow_laser";
     private static final String MOB_HEX = "mob_hex_charm";
@@ -897,6 +900,8 @@ public final class GooTestFunctions {
         reg(r, MOB_BLAZE, MobEffectTests::blazeIgnite);
         reg(r, MOB_FROST, MobEffectTests::frostSnap);
         reg(r, SNAP_ENCASES_THEN_THAWS, MobEffectTests::snapEncasesThenThaws);
+        reg(r, NOVA_HELD_REACHES_BOTH, FrostAbilityTests::novaHeldReachesBothZombies);
+        reg(r, NOVA_TAPPED_REACHES_NEAR, FrostAbilityTests::novaTappedReachesOnlyTheNear);
         reg(r, MOB_TYPHOON, MobEffectTests::typhoonLevitate);
         reg(r, MOB_GLOW, MobEffectTests::glowLaser);
         reg(r, MOB_HEX, MobEffectTests::hexCharm);

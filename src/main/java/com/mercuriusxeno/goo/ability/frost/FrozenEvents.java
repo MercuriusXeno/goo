@@ -13,6 +13,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 
@@ -66,6 +67,50 @@ public final class FrozenEvents {
             return;
         }
         event.setAmount(event.getAmount() * mob.getData(GooAttachments.FROZEN).physicalDamageMultiplier());
+    }
+
+    /**
+     * Adds the flat physical bonus to a hit on a frozen mob once its armor
+     * has taken its share: the bonus lands whole from the first frost, so a
+     * punch on a frozen mob compares with a weapon.
+     * nova-ring-grows-with-the-hold
+     *
+     * @param event the damage event, after armor
+     */
+    @SubscribeEvent
+    public static void onDamage(LivingDamageEvent.Pre event) {
+        if (event.getEntity() instanceof Mob mob && mob.hasData(GooAttachments.FROZEN)) {
+            event.setNewDamage(withPhysicalBonus(mob.getData(GooAttachments.FROZEN), event.getSource(),
+                    event.getNewDamage()));
+        }
+    }
+
+    /**
+     * A hit's damage after armor with the frozen mob's flat physical bonus
+     * added: whole while any frost stands, nothing on a thawed mob or a hit
+     * that is not physical.
+     *
+     * @param frozen the mob's gauge
+     * @param source the damage source
+     * @param damage the damage after armor
+     * @return the damage the mob takes
+     */
+    static float withPhysicalBonus(Frozen frozen, DamageSource source, float damage) {
+        return frozen.started() && isPhysical(source) ? damage + frozen.curve().physicalBonus() : damage;
+    }
+
+    /**
+     * Freezes a mob by a frost hit: its gauge rises by the amount over its
+     * max health, and its slow and stillness follow.
+     *
+     * @param mob    the struck mob
+     * @param amount the hit's amount, in health points
+     * @param curve  the hit's curve
+     */
+    public static void freeze(Mob mob, float amount, FrostCurve curve) {
+        Frozen before = mob.getData(GooAttachments.FROZEN);
+        float share = Frozen.shareOf(amount, mob.getMaxHealth());
+        settle(mob, before, before.add(share, curve, mob.level().getGameTime()));
     }
 
     /**
