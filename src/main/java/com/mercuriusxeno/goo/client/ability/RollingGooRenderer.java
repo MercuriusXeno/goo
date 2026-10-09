@@ -75,7 +75,8 @@ public final class RollingGooRenderer {
         poseStack.popPose();
         float swirl = swirlOf(goo.abilityId());
         if (swirl > 0f) {
-            OrbSwirl.draw(level, poseStack, buffers, camera, at, swirl, gameTime);
+            OrbSwirl.draw(level, poseStack, buffers, camera, at, swirl, gameTime,
+                    FrostExplosionVisual.seedOf(goo.getId()));
         }
     }
 }

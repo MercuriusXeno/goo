@@ -150,14 +150,35 @@ final class BurnoutGeometry {
      */
     static void emitAnnulus(PoseStack.Pose pose, VertexConsumer c, Direction face, float lift,
                             float inner, float outer, int segments, AnnulusColor color) {
+        emitAnnulus(pose, c, face, lift, inner, outer, segments, color,
+                new Vector3f(face.getStepX(), face.getStepY(), face.getStepZ()));
+    }
+
+    /**
+     * Emits an annulus whose vertices all carry a normal given outright, which
+     * a shader reading no lighting may take as a value of its own: frost's fog
+     * reads its seed there (decision nova-ring-grows-with-the-hold).
+     *
+     * @param pose     the pose entry
+     * @param c        the vertex consumer
+     * @param face     the placed face
+     * @param lift     the shift from the block center along the face's step, in blocks
+     * @param inner    the inner radius in blocks, 0 for a full disc
+     * @param outer    the outer radius in blocks
+     * @param segments how many quads run around the annulus
+     * @param color    colors each vertex from where it sits
+     * @param normal   the normal every vertex carries
+     */
+    static void emitAnnulus(PoseStack.Pose pose, VertexConsumer c, Direction face, float lift,
+                            float inner, float outer, int segments, AnnulusColor color, Vector3f normal) {
         FlatQuadContext ring = new FlatQuadContext(pose, c);
         for (int i = 0; i < segments; i++) {
             double a0 = TWO_PI * i / segments;
             double a1 = TWO_PI * (i + 1) / segments;
-            annulusVertex(ring, face, lift, a0, inner, color.at(a0, false));
-            annulusVertex(ring, face, lift, a0, outer, color.at(a0, true));
-            annulusVertex(ring, face, lift, a1, outer, color.at(a1, true));
-            annulusVertex(ring, face, lift, a1, inner, color.at(a1, false));
+            annulusVertex(ring, face, lift, a0, inner, color.at(a0, false), normal);
+            annulusVertex(ring, face, lift, a0, outer, color.at(a0, true), normal);
+            annulusVertex(ring, face, lift, a1, outer, color.at(a1, true), normal);
+            annulusVertex(ring, face, lift, a1, inner, color.at(a1, false), normal);
         }
     }
 
@@ -170,12 +191,13 @@ final class BurnoutGeometry {
      * @param angle  the angle about the face axis in radians
      * @param radius the distance from the center in blocks
      * @param color  the packed color
+     * @param normal the normal the vertex carries
      */
     private static void annulusVertex(FlatQuadContext ring, Direction face, float lift, double angle,
-                                      float radius, int color) {
+                                      float radius, int color, Vector3f normal) {
         Vector3f point = discPoint(face, angle, radius).add(BLOCK_CENTER + face.getStepX() * lift,
                 BLOCK_CENTER + face.getStepY() * lift, BLOCK_CENTER + face.getStepZ() * lift);
-        ring.vertex(point.x(), point.y(), point.z(), color, face.getStepX(), face.getStepY(), face.getStepZ());
+        ring.vertex(point.x(), point.y(), point.z(), color, normal.x(), normal.y(), normal.z());
     }
 
     /**

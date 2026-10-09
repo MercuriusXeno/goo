@@ -11,7 +11,9 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Vector3f;
 import java.util.List;
 
 /**
@@ -54,6 +56,10 @@ public final class FrostExplosionVisual implements BurnoutVisual, HeldGhostVisua
     /** Maps a disc-local coordinate in [-1, 1] onto [0, 1] for a color byte. */
     private static final float SIGNED_TO_UNIT = 0.5f;
     private static final double TWO_PI = 2 * Math.PI;
+    /** Mixes a ring's fixed value before hashing, so neighbouring rings seed far apart. */
+    private static final long SEED_MIX = 0x9E3779B97F4A7C15L;
+    /** Spreads a hashed value across the unit before it becomes an angle. */
+    private static final double SEED_SCALE = 1.0 / 4096;
 
     private FrostExplosionVisual() {
     }
@@ -127,7 +133,30 @@ public final class FrostExplosionVisual implements BurnoutVisual, HeldGhostVisua
     @Override
     public void render(ChainBurnouts.Burnout burnout, BurnoutFrame frame) {
         drawRing(frame, Vec3.atLowerCornerOf(burnout.pos()), burnout.placedFace(), RING_LIFT, ZONE_REACH,
-                burnout.progress(frame.gameTime()));
+                burnout.progress(frame.gameTime()), seedOf(burnout.pos().asLong() ^ burnout.startTick()));
+    }
+
+    /**
+     * A ring's seed from a value fixed for the ring's life, so its fog holds
+     * one look from frame to frame and differs from every other ring's.
+     *
+     * @param value the ring's fixed value, such as its position and start
+     * @return the seed, an angle in radians
+     */
+    static float seedOf(long value) {
+        return (float) (Mth.frac(Long.hashCode(value * SEED_MIX) * SEED_SCALE) * TWO_PI);
+    }
+
+    /**
+     * The normal that carries a ring's seed to the frost fog shader, which
+     * reads it back as the angle of the normal about the up axis.
+     * decision nova-ring-grows-with-the-hold
+     *
+     * @param seed the seed, an angle in radians
+     * @return the unit normal
+     */
+    static Vector3f seedNormal(float seed) {
+        return new Vector3f(Mth.cos(seed), 0f, Mth.sin(seed));
     }
 
     /**
@@ -141,9 +170,11 @@ public final class FrostExplosionVisual implements BurnoutVisual, HeldGhostVisua
      * @param lift     the shift from the block center along the face's step
      * @param reach    the reach the ring spreads to, in blocks
      * @param progress the ring's progress in [0, 1]
+     * @param seed     the ring's seed, which its fog billows from
      */
-    static void drawRing(BurnoutFrame frame, Vec3 corner, Direction face, float lift, float reach, float progress) {
-        drawDisc(frame, corner, face, lift, reach * spread(progress), progress, fog(progress));
+    static void drawRing(BurnoutFrame frame, Vec3 corner, Direction face, float lift, float reach, float progress,
+                         float seed) {
+        drawDisc(frame, corner, face, lift, reach * spread(progress), progress, fog(progress), seed);
     }
 
     /**
@@ -158,16 +189,17 @@ public final class FrostExplosionVisual implements BurnoutVisual, HeldGhostVisua
      * @param radius   the disc's radius in blocks
      * @param progress the share of its life the disc has lived, which drifts its billows
      * @param fogShare the fog's opacity, 0 to 1
+     * @param seed     the ring's seed, which its fog billows from
      */
     static void drawDisc(BurnoutFrame frame, Vec3 corner, Direction face, float lift, float radius, float progress,
-                         float fogShare) {
+                         float fogShare, float seed) {
         int progressByte = NetherDiscMesh.toByte(progress);
         int fog = NetherDiscMesh.toByte(fogShare);
         int center = ARGB.color(fog, progressByte, NetherDiscMesh.toByte(SIGNED_TO_UNIT),
                 NetherDiscMesh.toByte(SIGNED_TO_UNIT));
         BurnoutGeometry.drawAt(frame, corner, GooRenderTypes.FROST_EXPLOSION_TYPE, (pose, c) ->
                 BurnoutGeometry.emitAnnulus(pose, c, face, lift, 0f, radius, RING_SEGMENTS,
-                        (angle, outer) -> outer ? edgeColor(fog, progressByte, angle) : center));
+                        (angle, outer) -> outer ? edgeColor(fog, progressByte, angle) : center, seedNormal(seed)));
     }
 
     /**
