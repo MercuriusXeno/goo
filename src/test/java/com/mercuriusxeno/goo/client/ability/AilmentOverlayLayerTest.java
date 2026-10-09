@@ -110,10 +110,24 @@ class AilmentOverlayLayerTest {
         @ParameterizedTest
         @EnumSource(AilmentKind.class)
         void layerColorIsTheAilmentsRgbUnderItsStrength(AilmentKind kind) {
-            assertEquals(0xFF000000 | kind.rgb(), AilmentOverlayLayer.overlayColor(kind, 1f));
+            assertEquals(Math.round(kind.opacity() * 0xFF), AilmentOverlayLayer.overlayColor(kind, 1f) >>> 24);
             assertEquals(kind.rgb(), AilmentOverlayLayer.overlayColor(kind, 0f));
-            assertEquals(0x80, AilmentOverlayLayer.overlayColor(kind, 0.5f) >>> 24);
+            assertEquals(Math.round(kind.opacity() * 0x80), AilmentOverlayLayer.overlayColor(kind, 0.5f) >>> 24);
             assertEquals(kind.rgb(), AilmentOverlayLayer.overlayColor(kind, 0.5f) & RGB_MASK);
+        }
+
+        /** Hex's glisten draws lighter than the stasis shimmer at the same strength. */
+        @Test
+        void hexGlistenDrawsLighterThanFull() {
+            assertTrue(AilmentOverlayLayer.overlayColor(AilmentKind.HEX, 1f) >>> 24
+                    < AilmentOverlayLayer.overlayColor(AilmentKind.STASIS, 1f) >>> 24);
+        }
+
+        /** Scry's glisten draws lighter still, since it marks every mob in its sphere at once. */
+        @Test
+        void glowGlistenDrawsLighterThanHex() {
+            assertTrue(AilmentOverlayLayer.overlayColor(AilmentKind.GLOW, 1f) >>> 24
+                    < AilmentOverlayLayer.overlayColor(AilmentKind.HEX, 1f) >>> 24);
         }
     }
 

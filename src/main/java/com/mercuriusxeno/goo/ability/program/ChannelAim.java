@@ -18,8 +18,12 @@ import java.util.List;
  * @param aimPoint    the world point under the client's cursor, or a stream's reach along the look
  * @param plane       the face the hold began on, or null where it began on none or the hold is a stream
  * @param coneDegrees a stream's cone, apex to rim, in degrees; zero for a channel aiming one point
+ * @param heldTicks   the hold's age this tick, 1 on the tick it began
  */
-public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees) {
+public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees, int heldTicks) {
+
+    /** The age a hold reads when none was counted: its first tick. */
+    public static final int FIRST_TICK = 1;
 
     /** How far past the aim point, along the line from the eye, the aimed block is read. */
     private static final double INTO_THE_FACE = 0.01;
@@ -72,7 +76,18 @@ public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDe
      * @param plane    the face the hold began on, or null where it began on none
      */
     public ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane) {
-        this(aimPoint, plane, 0);
+        this(aimPoint, plane, 0, FIRST_TICK);
+    }
+
+    /**
+     * The aim of a stream's block pass, at the end of its reach.
+     *
+     * @param aimPoint    the end of the stream's reach along the look
+     * @param plane       null, a stream holding no face
+     * @param coneDegrees the stream's cone, apex to rim, in degrees
+     */
+    public ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees) {
+        this(aimPoint, plane, coneDegrees, FIRST_TICK);
     }
 
     /**

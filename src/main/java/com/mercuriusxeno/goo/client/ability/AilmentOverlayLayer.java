@@ -91,14 +91,14 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
 
     /**
      * The color the overlay's vertices carry: the ailment's color with its
-     * strength riding the alpha.
+     * strength, scaled by the ailment's opacity, riding the alpha.
      *
      * @param kind     the ailment
      * @param strength how strongly it draws, 0 to 1
      * @return the ARGB color
      */
     static int overlayColor(AilmentKind kind, float strength) {
-        return ARGB.color(Math.round(strength * MAX_CHANNEL), kind.rgb());
+        return ARGB.color(Math.round(strength * kind.opacity() * MAX_CHANNEL), kind.rgb());
     }
 
     /**

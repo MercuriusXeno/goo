@@ -119,18 +119,36 @@ public final class GooRenderTypes {
      * depth tested with depth write off, both faces drawn; its twin passes every
      * depth test so the shell shows through blocks.
      */
-    public static final RenderPipeline SPORE_SHELL = sporeShellPipeline("spore_shell",
-            DepthStencilState.DEFAULT.depthTest());
+    public static final RenderPipeline SPORE_SHELL = colorShellPipeline("spore_shell",
+            DepthStencilState.DEFAULT.depthTest(), BlendFunction.TRANSLUCENT);
 
     /** The spore shell's twin that ignores depth. */
-    public static final RenderPipeline SPORE_SHELL_THROUGH_BLOCKS = sporeShellPipeline(
-            "spore_shell" + THROUGH_BLOCKS_SUFFIX, CompareOp.ALWAYS_PASS);
+    public static final RenderPipeline SPORE_SHELL_THROUGH_BLOCKS = colorShellPipeline(
+            "spore_shell" + THROUGH_BLOCKS_SUFFIX, CompareOp.ALWAYS_PASS, BlendFunction.TRANSLUCENT);
 
     /** RenderType for shroom's held spore shell over blocks. */
     public static final RenderType SPORE_SHELL_TYPE = burnoutType(SPORE_SHELL);
 
     /** RenderType for shroom's held spore shell through blocks. */
     public static final RenderType SPORE_SHELL_THROUGH_BLOCKS_TYPE = burnoutType(SPORE_SHELL_THROUGH_BLOCKS);
+
+    /**
+     * Scry's sphere of light (decision scry-sphere-reveals-faces-and-glistens-mobs):
+     * plain colored quads added onto the world, depth tested with depth write
+     * off and both faces drawn, so the caster inside the sphere sees its shell.
+     */
+    public static final RenderPipeline SCRY_SPHERE = colorShellPipeline("scry_sphere",
+            DepthStencilState.DEFAULT.depthTest(), BlendFunction.LIGHTNING);
+
+    /** Scry's revealed faces: added onto the world through every depth test, so they show through walls. */
+    public static final RenderPipeline SCRY_FACES = colorShellPipeline("scry_faces",
+            CompareOp.ALWAYS_PASS, BlendFunction.LIGHTNING);
+
+    /** RenderType for Scry's sphere. */
+    public static final RenderType SCRY_SPHERE_TYPE = burnoutType(SCRY_SPHERE);
+
+    /** RenderType for Scry's revealed faces. */
+    public static final RenderType SCRY_FACES_TYPE = burnoutType(SCRY_FACES);
 
     /**
      * Nether black-hole pipeline: POSITION_COLOR billboard quad with a custom
@@ -910,17 +928,18 @@ public final class GooRenderTypes {
 
     /**
      * A plain colored quad pipeline through vanilla's position-color shader,
-     * translucent with depth write off, both faces drawn.
+     * blended with depth write off, both faces drawn.
      *
      * @param location  the pipeline's name
      * @param depthTest the depth comparison its fragments pass
+     * @param blend     how its fragments blend onto the world
      * @return the pipeline
      */
-    private static RenderPipeline sporeShellPipeline(String location, CompareOp depthTest) {
+    private static RenderPipeline colorShellPipeline(String location, CompareOp depthTest, BlendFunction blend) {
         return RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
                 .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + location))
                 .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
-                .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+                .withColorTargetState(new ColorTargetState(blend))
                 .withDepthStencilState(new DepthStencilState(depthTest, false))
                 .withCull(false)
                 .build();
@@ -1016,6 +1035,8 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_RIPPLE_EDGE);
         event.registerPipeline(GOO_GHOST);
         event.registerPipeline(GLOW_BEAM);
+        event.registerPipeline(SCRY_SPHERE);
+        event.registerPipeline(SCRY_FACES);
     }
 
     /**
