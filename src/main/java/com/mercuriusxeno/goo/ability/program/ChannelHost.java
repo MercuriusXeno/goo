@@ -48,4 +48,21 @@ public interface ChannelHost extends BlockBreakHost {
      * @param body    what to run on the host bound to each entity
      */
     void forEachLivingIn(List<BlockPos> cells, Set<EntityFilter> filters, Consumer<TargetHost> body);
+
+    /**
+     * Whether the channeling player's current hold has already stepped a
+     * block (decision decay-gnats-degrade-each-block-once).
+     *
+     * @param pos the block
+     * @return true once {@link #noteSteppedThisHold} named it in this hold
+     */
+    boolean steppedThisHold(BlockPos pos);
+
+    /**
+     * Notes that the channeling player's current hold stepped a block, so
+     * the hold steps it no further.
+     *
+     * @param pos the block
+     */
+    void noteSteppedThisHold(BlockPos pos);
 }
