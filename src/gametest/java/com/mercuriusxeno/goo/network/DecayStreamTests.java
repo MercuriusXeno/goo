@@ -52,10 +52,17 @@ public final class DecayStreamTests {
     private static final String ABILITY_REQUIRED = "Ability registry must hold nether_decay";
     private static final String SHOULD_BITE = "Decay's swarm should bite the zombie in its cone";
     /**
-     * Pitch down between the stone's center three blocks off and the middle
-     * of a zombie four off, so both stand inside the cone.
+     * Pitch down onto the middle of a zombie four blocks off; the stone five
+     * off, behind it, lies under three degrees from that line, inside the cone.
      */
-    private static final float BETWEEN_STONE_AND_ZOMBIE = 15f;
+    private static final float LOOKING_AT_ZOMBIE = 9.2f;
+    /**
+     * Pitch down onto the stone's top face a tenth of a block short of its far
+     * edge, ten degrees off the stone's center, outside the cone's five.
+     */
+    private static final float LOOKING_AT_FAR_EDGE = 10.3f;
+    /** The stone the swarm passes over for the zombie in front of it. */
+    private static final BlockPos BEHIND_ZOMBIE = TARGET_POS.east(2);
 
     private DecayStreamTests() {
     }
@@ -114,6 +121,24 @@ public final class DecayStreamTests {
     }
 
     /**
+     * A mock player holds decay with the crosshair near the far edge of the
+     * stone's top face, its center well outside the narrow cone: the stone
+     * under the crosshair steps to cobblestone all the same.
+     *
+     * @param helper the gametest helper
+     */
+    public static void decayPaintsTheCrosshairBlockOffCenter(GameTestHelper helper) {
+        ServerPlayer player = decayerOverStone(helper);
+        player.setXRot(LOOKING_AT_FAR_EDGE);
+        hold(helper, player, 1, FINISH_TICKS);
+        helper.runAfterDelay(FINISH_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertBlockPresent(Blocks.COBBLESTONE, TARGET_POS);
+            helper.succeed();
+        });
+    }
+
+    /**
      * A mock player holds decay on a zombie standing on stone: the swarm bites
      * the zombie and paints no block, so the stone under it stands as stone
      * though the hold runs past a block's step.
@@ -121,17 +146,19 @@ public final class DecayStreamTests {
      * @param helper the gametest helper
      */
     public static void decayBitesTheMobAndSparesTheBlocks(GameTestHelper helper) {
-        ServerPlayer player = decayerOverStone(helper);
         BlockPos zombiePos = TARGET_POS.east();
         helper.setBlock(zombiePos.below(), Blocks.BEDROCK);
+        helper.setBlock(BEHIND_ZOMBIE.below(), Blocks.BEDROCK);
+        helper.setBlock(BEHIND_ZOMBIE, Blocks.STONE);
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, zombiePos);
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
-        player.setXRot(BETWEEN_STONE_AND_ZOMBIE);
+        ServerPlayer player = decayer(helper);
+        player.setXRot(LOOKING_AT_ZOMBIE);
         hold(helper, player, 1, FINISH_TICKS);
         helper.runAfterDelay(FINISH_TICKS + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertTrue(zombie.getHealth() < zombie.getMaxHealth(), SHOULD_BITE);
-            helper.assertBlockPresent(Blocks.STONE, TARGET_POS);
+            helper.assertBlockPresent(Blocks.STONE, BEHIND_ZOMBIE);
             helper.succeed();
         });
     }

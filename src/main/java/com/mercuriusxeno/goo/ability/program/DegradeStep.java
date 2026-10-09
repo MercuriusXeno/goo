@@ -8,7 +8,13 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -74,11 +80,28 @@ public record DegradeStep(Identifier map, int ticks) implements Step {
      * @param marks the hold's marks
      */
     private static void paintCone(ChannelHost host, ChannelAim aim, BlockMap steps, HoldMarks marks) {
-        for (BlockPos pos : CalcifyStep.blocksInCone(host.eye(), aim.aimPoint(), aim.coneDegrees())) {
+        List<BlockPos> reached = new ArrayList<>(CalcifyStep.blocksInCone(host.eye(), aim.aimPoint(),
+                aim.coneDegrees()));
+        // the operator's ruling on Decay: the block under the crosshair is painted wherever on its face the aim rests
+        crosshairBlock(host, aim).ifPresent(reached::add);
+        for (BlockPos pos : reached) {
             if (!host.airAt(pos) && steps.next(host.blockAt(pos)).isPresent() && CalcifyStep.facesAir(host, pos)) {
                 marks.paint(pos, host.blockAt(pos));
             }
         }
+    }
+
+    /**
+     * The block the crosshair rests on within the stream's reach.
+     *
+     * @param host the channel host
+     * @param aim  the stream's aim, its reach along the look
+     * @return the block, or empty where the look meets none within reach
+     */
+    private static Optional<BlockPos> crosshairBlock(ChannelHost host, ChannelAim aim) {
+        BlockHitResult hit = host.level().clip(new ClipContext(host.eye(), aim.aimPoint(), ClipContext.Block.OUTLINE,
+                ClipContext.Fluid.NONE, CollisionContext.empty()));
+        return hit.getType() == HitResult.Type.BLOCK ? Optional.of(hit.getBlockPos()) : Optional.empty();
     }
 
     /**

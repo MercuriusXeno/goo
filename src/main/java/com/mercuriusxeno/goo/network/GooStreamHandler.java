@@ -35,7 +35,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
@@ -65,6 +68,8 @@ public final class GooStreamHandler {
      * each tick carries ten times its launch speed, so it reaches the cone's end.
      */
     private static final double LAUNCH_SPEED_PER_BLOCK = 0.1;
+    /** Below this squared gap the crosshair sits on the hand and the look aims instead. */
+    private static final double MIN_AIM_LENGTH_SQUARED = 1e-6;
     /** Rays the spray casts each tick to find the floors it lands on. */
     private static final int FLOOR_RAYS_PER_TICK = 12;
     /** A particle sent with a count of zero flies along the vector it is handed. */
@@ -190,11 +195,15 @@ public final class GooStreamHandler {
         Delivery delivery = ability.delivery();
         Vec3 apex = ThrowArc.clampToReach(player.getEyePosition(), origin, ThrowArc.HAND_REACH * player.getScale());
         Vec3 axis = player.getLookAngle();
+        // decay-gnats-degrade-each-block-once: what the stream strikes follows the look; only its motes
+        // fly from the hand onto the point the crosshair lands on
+        Vec3 target = crosshairTarget(player, delivery.range());
         List<Step> entitySteps = channelSteps(ability.behaviors(), false);
         List<Integer> healed = new ArrayList<>();
         if (delivery.range() > 0) {
             // reserve-hearts-sit-behind-the-bar: a stream reaching nothing runs only on its caster
-            sprayParticles(level, apex, axis, delivery);
+            sprayParticles(level, apex, aimFrom(apex, target, axis), delivery,
+                    Math.min(delivery.range(), apex.distanceTo(target)));
             for (LivingEntity living : runPasses(player, apex, axis, ability)) {
                 HEALS.runNoting(living, healed, () -> runSteps(new EntityHost(level, living, player), HostKind.ENTITY,
                         entitySteps, ability));
@@ -210,6 +219,37 @@ public final class GooStreamHandler {
             // vitality-waves-regenerate-and-court: the client homes goo to each healed thing and stars it
             EntityVisuals.sendToWatchers(player, new StreamHealedPayload(player.getId(), apex, healed));
         }
+    }
+
+    /**
+     * Where the crosshair lands within a stream's reach: the face of the first
+     * block the player's look meets, or the end of the reach along the look.
+     *
+     * @param player the streaming player
+     * @param range  the stream's reach in blocks
+     * @return the point
+     */
+    private static Vec3 crosshairTarget(ServerPlayer player, double range) {
+        Vec3 eye = player.getEyePosition();
+        Vec3 end = eye.add(player.getLookAngle().scale(range));
+        BlockHitResult hit = player.level().clip(new ClipContext(eye, end, ClipContext.Block.OUTLINE,
+                ClipContext.Fluid.NONE, player));
+        return hit.getType() == HitResult.Type.BLOCK ? hit.getLocation() : end;
+    }
+
+    /**
+     * The direction from the cone's apex to the crosshair's point, so a stream
+     * opening from the hand still meets the crosshair rather than running
+     * beside its line.
+     *
+     * @param apex     the cone's apex, the glove hand
+     * @param target   where the crosshair lands
+     * @param fallback the look, for a target on the apex itself
+     * @return the unit axis
+     */
+    static Vec3 aimFrom(Vec3 apex, Vec3 target, Vec3 fallback) {
+        Vec3 line = target.subtract(apex);
+        return line.lengthSqr() < MIN_AIM_LENGTH_SQUARED ? fallback : line.normalize();
     }
 
     /**
@@ -342,16 +382,19 @@ public final class GooStreamHandler {
 
     /**
      * Launches the delivery's particle from the glove, each mote flying out
-     * along its own heading inside the cone (decision mycosis-spore-stream-buds-and-poisons).
+     * along its own heading inside the cone and coming to rest as far off as
+     * the crosshair lands (decisions mycosis-spore-stream-buds-and-poisons,
+     * decay-gnats-degrade-each-block-once).
      *
      * @param level    the server level
      * @param apex     the cone's apex
      * @param axis     the cone's axis
      * @param delivery the stream delivery
+     * @param reach    how far the motes fly, in blocks
      */
-    private static void sprayParticles(ServerLevel level, Vec3 apex, Vec3 axis, Delivery delivery) {
+    private static void sprayParticles(ServerLevel level, Vec3 apex, Vec3 axis, Delivery delivery, double reach) {
         RandomSource random = level.getRandom();
-        double speed = delivery.range() * LAUNCH_SPEED_PER_BLOCK;
+        double speed = reach * LAUNCH_SPEED_PER_BLOCK;
         delivery.particle().flatMap(SimpleParticles::resolve).ifPresent(particle -> {
             for (int i = 0; i < PARTICLES_PER_TICK; i++) {
                 Vec3 heading = StreamCone.launchDirection(axis, delivery.coneDegrees(), random.nextDouble(),
