@@ -24,8 +24,9 @@ import java.util.stream.Stream;
 
 /**
  * Conjures a random mob the biome spawns naturally into the host's spawn
- * cell and finishes: the players watching see the goo morph from where it
- * landed into the mob, then the steps under it run on the new mob. Hex
+ * cell and finishes: the players watching see the goo morph into the mob
+ * right where it splatted, the mob growing out of the shrinking blob, then
+ * the steps under it run on the new mob. Hex
  * spawn is {@code spawn_random goo=hex morph_ticks=20 steps=[ailment_overlay,
  * afterimage]}; a cell nothing the biome spawns fits conjures nothing.
  * spawn-goo-morphs-into-the-mob-it-births
@@ -107,8 +108,9 @@ public record SpawnRandomStep(ResourceKey<GooTypeDefinition> goo, int morphTicks
             EventHooks.finalizeMobSpawn(mob, level, level.getCurrentDifficultyAt(cell), EntitySpawnReason.MOB_SUMMONED,
                     null);
         }
-        TransformationPayload morph = new TransformationPayload(goo, morphFrom,
-                entity.getBoundingBox().getCenter(), entity.getId(), morphTicks);
+        // spawn-goo-morphs-into-the-mob-it-births: the splat morphs in place, no hop
+        TransformationPayload morph = new TransformationPayload(goo, morphFrom, morphFrom, entity.getId(),
+                morphTicks);
         CloneEntityStep.spawnAnnounced(entity, () -> BlockVisuals.sendToWatchers(level, cell, morph),
                 level::addFreshEntity);
         if (entity instanceof LivingEntity living && !steps.isEmpty()) {
