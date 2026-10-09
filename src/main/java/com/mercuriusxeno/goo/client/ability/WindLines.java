@@ -12,6 +12,10 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
+import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
@@ -23,6 +27,7 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 /**
@@ -42,8 +47,18 @@ public final class WindLines {
     /** The client's wind. */
     public static final WindLines CLIENT = new WindLines();
 
-    /** Held ticks between one wind line and the next: a few lines at a time, not a blizzard. */
-    static final int BLOW_EVERY_TICKS = 3;
+    /** Wind lines a held tick blows on average: a few lines at a time, not a blizzard. */
+    static final double LINES_PER_TICK = 0.45;
+    /**
+     * How much faster than its average pace a line leaves the glove: it
+     * launches this share faster and slows over its straight run, covering
+     * the same ground before it curls.
+     */
+    static final double LAUNCH_SURGE = 0.35;
+    /** The stream's wind: its volume and pitch, and the held ticks it outlasts a let-go by. */
+    private static final float WIND_VOLUME = 0.7f;
+    private static final float WIND_PITCH = 1.0f;
+    private static final long WIND_LINGER_TICKS = 2;
     /** Ticks a line lives, from leaving the glove to fading out. */
     static final int LIFE_TICKS = 50;
     /** The share of a line's life it rushes straight before it curls. */
@@ -62,7 +77,7 @@ public final class WindLines {
     private static final int TAIL_SAMPLES = 32;
     private static final float LINE_WIDTH = 3.5f;
     /** Snowflakes a line drops along itself each tick it lives. */
-    private static final float SNOWFLAKES_PER_LINE_TICK = 0.15f;
+    private static final float SNOWFLAKES_PER_LINE_TICK = 0.2f;
     private static final int MAX_ALPHA = 200;
     private static final int WHITE = 0xF4F8FF;
     private static final int PALE_GRAY = 0xD6DDE8;
@@ -117,6 +132,10 @@ public final class WindLines {
     }
 
     private final List<Line> live = new ArrayList<>();
+    /** The stream's continuous wind while it plays. */
+    private final AtomicReference<StreamWind> wind = new AtomicReference<>();
+    /** The game time the stream was last held, which its wind outlasts by WIND_LINGER_TICKS. */
+    private long windHeldAt;
     /** The game time snowflakes last dropped, so a tick drawn over several frames drops them once. */
     private long snowflakesDroppedAt = -1;
 
@@ -141,7 +160,7 @@ public final class WindLines {
 
     private static Vec3 coursePoint(Line line, double age) {
         if (age <= STRAIGHT_TICKS) {
-            return line.origin().add(line.axis().scale(line.straight() * age / STRAIGHT_TICKS));
+            return line.origin().add(line.axis().scale(line.straight() * launched(age / STRAIGHT_TICKS)));
         }
         double curled = (age - STRAIGHT_TICKS) / (LIFE_TICKS - STRAIGHT_TICKS);
         // the head slows as it winds in: its turn eases out toward the center
@@ -216,8 +235,58 @@ public final class WindLines {
      * @param apex      the glove hand the stream leaves from
      */
     public static void blow(Player player, String abilityId, AbilityArea area, Vec3 apex) {
-        windOf(abilityId).ifPresent(wind -> CLIENT.add(player.level().getRandom(), apex, player.getLookAngle(),
-                area.size(), area.angle(), wind.snowflakes(), player.level().getGameTime()));
+        windOf(abilityId).ifPresent(wind -> {
+            CLIENT.add(player.level().getRandom(), apex, player.getLookAngle(), area.size(), area.angle(),
+                    wind.snowflakes(), player.level().getGameTime());
+            CLIENT.keepWindBlowing(player);
+        });
+    }
+
+    /**
+     * Keeps the stream's continuous wind playing while the stream is held,
+     * starting it the first held tick.
+     *
+     * @param player the streaming player
+     */
+    private void keepWindBlowing(Player player) {
+        windHeldAt = player.level().getGameTime();
+        StreamWind playing = wind.get();
+        if (playing == null || playing.isStopped()) {
+            playing = new StreamWind(player);
+            wind.set(playing);
+            Minecraft.getInstance().getSoundManager().play(playing);
+        }
+    }
+
+    /** The stream's continuous wind, following the player until the stream is let go. */
+    private final class StreamWind extends AbstractTickableSoundInstance {
+
+        private final Player player;
+
+        StreamWind(Player player) {
+            super(SoundEvents.ELYTRA_FLYING, SoundSource.PLAYERS, SoundInstance.createUnseededRandom());
+            this.player = player;
+            this.looping = true;
+            this.delay = 0;
+            this.volume = WIND_VOLUME;
+            this.pitch = WIND_PITCH;
+            follow();
+        }
+
+        @Override
+        public void tick() {
+            if (player.isRemoved() || player.level().getGameTime() - windHeldAt > WIND_LINGER_TICKS) {
+                stop();
+            } else {
+                follow();
+            }
+        }
+
+        private void follow() {
+            this.x = player.getX();
+            this.y = player.getY();
+            this.z = player.getZ();
+        }
     }
 
     private void add(RandomSource random, Vec3 apex, Vec3 look, double range, double coneDegrees, boolean snowflakes,
@@ -265,13 +334,26 @@ public final class WindLines {
     }
 
     /**
-     * Whether a held tick blows a wind line: one every BLOW_EVERY_TICKS.
+     * Whether a held tick blows a wind line: LINES_PER_TICK on average,
+     * spread evenly over the ticks.
      *
      * @param gameTime the game time
      * @return true on a blowing tick
      */
     static boolean blowsOn(long gameTime) {
-        return gameTime % BLOW_EVERY_TICKS == 0;
+        return Math.floor(gameTime * LINES_PER_TICK) > Math.floor((gameTime - 1) * LINES_PER_TICK);
+    }
+
+    /**
+     * The share of its straight run a line has covered at a share of its
+     * straight time: it launches LAUNCH_SURGE faster than its average pace
+     * and slows, covering the whole run as the time runs out.
+     *
+     * @param time the share of the straight run's ticks gone, 0 to 1
+     * @return the share of its length covered, 0 to 1
+     */
+    static double launched(double time) {
+        return time + LAUNCH_SURGE * time * (1 - time);
     }
 
     /**
