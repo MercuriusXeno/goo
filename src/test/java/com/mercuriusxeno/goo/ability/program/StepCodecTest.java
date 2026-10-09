@@ -117,6 +117,7 @@ class StepCodecTest {
             Map.entry("power_pulse", LeafSteps.POWER_PULSE.step(Unit.INSTANCE)),
             Map.entry("stun", LeafSteps.STUN.step(Expr.literal(60))),
             Map.entry("signal_wave", new SignalWaveStep(Expr.literal(0.5))),
+            Map.entry("pulser_toggle", new PulserToggleStep(Expr.literal(4))),
             Map.entry("nourish", new NourishStep(Expr.literal(80))),
             Map.entry("reserve_drain", new ReserveDrainStep(Expr.literal(0.05), Expr.literal(0.5), Expr.literal(10),
                     Expr.literal(0.5)))

@@ -16,6 +16,7 @@ import com.mercuriusxeno.goo.network.MycosisTests;
 import com.mercuriusxeno.goo.network.NourishTests;
 import com.mercuriusxeno.goo.network.ReserveTests;
 import com.mercuriusxeno.goo.network.SelfDeliveryTests;
+import com.mercuriusxeno.goo.network.PulserTests;
 import com.mercuriusxeno.goo.network.SignalTests;
 import com.mercuriusxeno.goo.network.BoreStreamTests;
 import com.mercuriusxeno.goo.network.CrushMobTests;
@@ -405,6 +406,7 @@ public final class GooTestFunctions {
     private static final String ZAP_STUN_WEARS_OFF = "zap_stun_wears_off";
     private static final String ZAP_PULSES_DUST = "zap_pulses_dust";
     private static final String SIGNAL_TOGGLES_EACH_ONCE = "signal_toggles_each_once";
+    private static final String PULSER_FLIPS_REPEATEDLY = "pulser_flips_repeatedly";
     private static final String COLONIZE_SPREADS_NYLIUM = "colonize_spreads_nylium";
     private static final String COLONIZE_BUDS_OFF_THE_NETWORK = "colonize_buds_off_the_network";
     private static final String SPORE_STRUCK_ON_A_MOB = "spore_struck_on_a_mob";
@@ -871,6 +873,7 @@ public final class GooTestFunctions {
         reg(r, ZAP_STUN_WEARS_OFF, ZapTests::zapStunWearsOff);
         reg(r, ZAP_PULSES_DUST, ZapTests::zapPulsesDust);
         reg(r, SIGNAL_TOGGLES_EACH_ONCE, SignalTests::signalTogglesEachOnce);
+        reg(r, PULSER_FLIPS_REPEATEDLY, PulserTests::pulserFlipsRepeatedly);
         reg(r, COLONIZE_SPREADS_NYLIUM, ColonizeTests::colonizeSpreadsNylium);
         reg(r, COLONIZE_BUDS_OFF_THE_NETWORK, ColonizeTests::colonizeBudsOffTheNetwork);
         reg(r, SPORE_STRUCK_ON_A_MOB, ColonizeTests::sporeStruckOnAMob);

@@ -23,7 +23,7 @@ class AbilityBadgeTest {
     private static final int SHIPPED_WORLD_BADGES = 7;
     private static final int SHIPPED_SELF_BADGES = 3;
     private static final int SHIPPED_BREW_BADGES = 5;
-    private static final int SHIPPED_CHANNELED_BADGES = 8;
+    private static final int SHIPPED_CHANNELED_BADGES = 9;
     private static final int SHIPPED_FREE_BADGES = 4;
     private static final int SHIPPED_TAP_BADGES = 3;
     /** The self + brew abilities, which wear brew on their self delivery (decision self-brew-goos-eat-before-the-effect). */
