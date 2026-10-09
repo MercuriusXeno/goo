@@ -116,6 +116,27 @@ public interface BlockBreakHost extends StepHost {
     }
 
     /**
+     * Leaves a block's built share to finish its step on its own
+     * (decision decay-gnats-degrade-each-block-once).
+     *
+     * @param pos  the block
+     * @param rate the share it builds each tick
+     */
+    default void finishBlockAlone(BlockPos pos, float rate) {
+        GooServerState.of(level().getServer()).blockExposures().finishAlone(level(), pos, rate);
+    }
+
+    /**
+     * Whether a block is finishing its step on its own.
+     *
+     * @param pos the block
+     * @return true from {@link #finishBlockAlone} until it steps
+     */
+    default boolean finishingAlone(BlockPos pos) {
+        return GooServerState.of(level().getServer()).blockExposures().finishingAt(level(), pos);
+    }
+
+    /**
      * Breaks a block, dropping its loot as a pickaxe harvests it and playing
      * its break particles.
      *

@@ -429,6 +429,8 @@ public final class GooTestFunctions {
     private static final String PETRIFY_GAUGE_DRAINS = "petrify_gauge_drains";
     private static final String PETRIFY_CALCIFIES_GRADUALLY = "petrify_calcifies_gradually";
     private static final String DECAY_DEGRADES_ONCE = "decay_degrades_once_per_activation";
+    private static final String DECAY_PAINTED_STEPS_UNAIMED = "decay_painted_block_steps_unaimed";
+    private static final String DECAY_PAST_HALF_FINISHES = "decay_past_half_finishes_after_release";
     private static final String STATUE_MINES = "statue_mines_for_cobblestone_and_experience";
     private static final String PETRIFY_TAP_CALCIFIES = "petrify_tap_calcifies";
     private static final String DECAY_TAP_DEGRADES_BELOW = "decay_tap_degrades_below";
@@ -895,6 +897,8 @@ public final class GooTestFunctions {
         reg(r, PETRIFY_GAUGE_DRAINS, PetrifyStreamTests::petrifyGaugeDrains);
         reg(r, PETRIFY_CALCIFIES_GRADUALLY, PetrifyStreamTests::petrifyCalcifiesGradually);
         reg(r, DECAY_DEGRADES_ONCE, DecayStreamTests::decayDegradesOncePerActivation);
+        reg(r, DECAY_PAINTED_STEPS_UNAIMED, DecayStreamTests::decayPaintedBlockStepsUnaimed);
+        reg(r, DECAY_PAST_HALF_FINISHES, DecayStreamTests::decayPastHalfFinishesAfterRelease);
         reg(r, STATUE_MINES, PetrifyStreamTests::statueMinesForCobblestoneAndExperience);
         reg(r, PETRIFY_TAP_CALCIFIES, PetrifyTapTests::petrifyTapCalcifies);
         reg(r, DECAY_TAP_DEGRADES_BELOW, DecayTapTests::decayTapDegradesBelow);

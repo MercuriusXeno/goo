@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.network.HoldMarks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
@@ -50,19 +51,10 @@ public interface ChannelHost extends BlockBreakHost {
     void forEachLivingIn(List<BlockPos> cells, Set<EntityFilter> filters, Consumer<TargetHost> body);
 
     /**
-     * Whether the channeling player's current hold has already stepped a
-     * block (decision decay-gnats-degrade-each-block-once).
+     * The marks the channeling player's current hold has left on the blocks
+     * it reached (decision decay-gnats-degrade-each-block-once).
      *
-     * @param pos the block
-     * @return true once {@link #noteSteppedThisHold} named it in this hold
+     * @return the hold's marks
      */
-    boolean steppedThisHold(BlockPos pos);
-
-    /**
-     * Notes that the channeling player's current hold stepped a block, so
-     * the hold steps it no further.
-     *
-     * @param pos the block
-     */
-    void noteSteppedThisHold(BlockPos pos);
+    HoldMarks holdMarks();
 }
