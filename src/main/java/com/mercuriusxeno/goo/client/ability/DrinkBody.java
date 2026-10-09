@@ -1,125 +1,130 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import net.minecraft.world.phys.Vec3;
-
 /**
- * How a block's cube flows into its stream under an Unmake drink, like
- * taffy: every slice of the cube moves toward the hand from the first tick,
- * the face toward the hand leaving the block's entry at the flow's pace as
- * the stream's head, the back creeping forward so it reaches the entry as the
- * drain ends, the slices between stretched evenly; the cube keeps its full
- * width to the entry, and past it the stream begins at the cube's own width
- * as a square and narrows and rounds into the stream over {@link #FUNNEL}
- * blocks, so block and stream are one pull with no step. Nothing shrinks in
- * place; the mesh is the block's own faces carried along.
+ * How a block becomes its stream under an Unmake drink, as the width of the
+ * stream's own skin through the block's span: the block is a cube of square
+ * rings where it stood, its hard edges softening into a rounded blob over
+ * the first part of the drain as it destabilises, shrinking smoothly about
+ * its middle as its matter leaves, its surface wobbling once liquid; from its
+ * middle a funnel narrows from the blob's width to the stream's over
+ * {@link #FUNNEL} blocks, so the stream is wide where it leaves the block and
+ * thins as the block empties, one skin with no seam, anchored where the block
+ * stood, liquid from the first frame.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 public final class DrinkBody {
 
-    /** Blocks of stream past the entry over which the block's matter narrows from the cube's width to the stream's. */
+    /** Blocks past the block's middle over which its matter narrows from the blob's width to the stream's. */
     public static final double FUNNEL = 2.5;
-    /** The cube's half width, the funnel's mouth, in blocks. */
+    /** The cube's half width, in blocks. */
     static final double MOUTH = 0.5;
+    /** The block's middle along its path, in blocks from its far side. */
+    static final double CENTER = DrinkStream.BLOCK_SPAN / 2;
+    /** The share of the drain over which the cube's edges soften into a liquid blob. */
+    static final double LIQUEFY = 0.35;
+    /** The blob's cap exponent while it is still the cube: near flat ends and sharp corners. */
+    static final double BOX = 10;
+    /** The blob's cap exponent once liquid: a sphere's. */
+    static final double ROUND = 2;
+    /** How far the liquid blob's surface wobbles, as a share of its width. */
+    static final double WOBBLE = 0.06;
+    /** Noise cells along a block of the blob for its wobble. */
+    private static final double WOBBLE_SCALE = 3;
+    /** How fast the wobble churns, in noise cells a tick. */
+    private static final double WOBBLE_RATE = 0.04;
     private static final double TWO = 2;
     private static final double THREE = 3;
-    private static final Vec3 UP = new Vec3(0, 1, 0);
-    private static final Vec3 EAST = new Vec3(1, 0, 0);
+    private static final long WOBBLE_SALT = 0x5A82_7999L;
 
     private DrinkBody() {
     }
 
     /**
-     * Where a point of the block stands and faces as it flows.
-     *
-     * @param point  the point, in the world
-     * @param normal the unit normal of the surface there
-     */
-    public record Place(Vec3 point, Vec3 normal) {
-    }
-
-    /**
-     * The block's lump at a moment of its drain.
-     *
-     * @param path     the block's path
      * @param progress how far the drain has gone, 0 to 1
-     * @param flowed   blocks the stream's head has flowed past the entry since the start
+     * @return how big the block's blob still is, 1 the whole cube to 0 gone, shrinking smoothly from the first frame
      */
-    public record Lump(DrinkStream.Path path, double progress, double flowed) {
-
-        /**
-         * @return blocks along the path of the lump's back, creeping from the far side to the entry over the drain
-         */
-        public double back() {
-            return progress * DrinkStream.BLOCK_SPAN;
-        }
-
-        /**
-         * @return blocks along the path of the lump's front, the stream's head
-         */
-        public double front() {
-            return DrinkStream.BLOCK_SPAN + flowed;
-        }
-
-        /**
-         * @param along a slice's share of the cube's span, 0 at the far side to 1 at the near face
-         * @return blocks along the path the slice stands at now, stretched evenly between the back and the front
-         */
-        public double distanceOf(double along) {
-            return back() + along * (front() - back());
-        }
+    public static double sizeAt(double progress) {
+        return 1 - ease(Math.clamp(progress, 0, 1));
     }
 
     /**
-     * @param point a point of the cube, in the world, where it stood
-     * @param path  the block's path
-     * @return the point's share of the cube's span along the path, 0 at the far side to 1 at the near face
+     * @param progress how far the drain has gone, 0 to 1
+     * @return how liquid the block has become, 0 the hard cube to 1 a blob, over the first {@link #LIQUEFY} of the drain
      */
-    static double alongOf(Vec3 point, DrinkStream.Path path) {
-        Vec3 along = path.to().subtract(path.from()).normalize();
-        return Math.clamp(point.subtract(path.from()).dot(along), 0, DrinkStream.BLOCK_SPAN) / DrinkStream.BLOCK_SPAN;
+    public static double liquidityAt(double progress) {
+        return ease(Math.clamp(progress / LIQUEFY, 0, 1));
     }
 
     /**
-     * The half width of a block's matter at a distance along its route: the
-     * cube's to the entry, narrowing to the stream's over the funnel.
+     * The blob's half width at a distance along the path: the cube, its ends
+     * flat and its corners sharp, rounding into a sphere as it liquefies, and
+     * shrinking about its middle.
      *
-     * @param distance the distance along the route, in blocks
+     * @param distance blocks from the block's far side
+     * @param progress how far the drain has gone, 0 to 1
+     * @return the half width there, 0 outside the blob
+     */
+    static double blobAt(double distance, double progress) {
+        double size = sizeAt(progress);
+        double half = CENTER * size;
+        if (half <= 0) {
+            return 0;
+        }
+        double t = Math.abs(distance - CENTER) / half;
+        if (t >= 1) {
+            return 0;
+        }
+        double exponent = BOX + (ROUND - BOX) * liquidityAt(progress);
+        return MOUTH * size * Math.pow(1 - Math.pow(t, exponent), 1 / exponent);
+    }
+
+    /**
+     * The funnel's half width at a distance along the path: from the blob's
+     * width at its middle down to the stream's over {@link #FUNNEL} blocks,
+     * nothing behind the middle.
+     *
+     * @param distance blocks from the block's far side
+     * @param progress how far the drain has gone, 0 to 1
      * @param stream   the stream's own radius there
+     * @return the half width there
+     */
+    static double funnelAt(double distance, double progress, double stream) {
+        if (distance < CENTER) {
+            return 0;
+        }
+        double mouth = MOUTH * sizeAt(progress);
+        return mouth + (stream - mouth) * ease(Math.clamp((distance - CENTER) / FUNNEL, 0, 1));
+    }
+
+    /**
+     * The half width of a block's matter at a distance along its path: the
+     * blob or the funnel, whichever is wider, wobbling once liquid, the wobble
+     * fading out along the funnel so the stream keeps its own undulation.
+     *
+     * @param distance blocks from the block's far side
+     * @param progress how far the drain has gone, 0 to 1
+     * @param stream   the stream's own radius there
+     * @param seed     the block's seed
+     * @param now      the game time, with the partial tick
      * @return the half width there, in blocks
      */
-    public static double widthAt(double distance, double stream) {
-        return MOUTH + (stream - MOUTH) * roundnessAt(distance);
+    public static double widthAt(double distance, double progress, double stream, long seed, double now) {
+        double width = Math.max(blobAt(distance, progress), funnelAt(distance, progress, stream));
+        double wobble = TWO * MeltMeshNoise.smooth(distance * WOBBLE_SCALE, now * WOBBLE_RATE, 0, seed + WOBBLE_SALT)
+                - 1;
+        double blobby = 1 - ease(Math.clamp((distance - CENTER) / FUNNEL, 0, 1));
+        return width * (1 + WOBBLE * liquidityAt(progress) * blobby * wobble);
     }
 
     /**
-     * @param distance a distance along the route, in blocks
-     * @return how round the block's matter is there, 0 the cube's square at the entry to 1 a circle past the funnel
+     * @param distance blocks from the block's far side
+     * @param progress how far the drain has gone, 0 to 1
+     * @return how round the matter is there, 0 the cube's square to 1 a circle: by how liquid the block is, and
+     *         along the funnel in any case
      */
-    public static double roundnessAt(double distance) {
-        return ease(Math.clamp((distance - DrinkStream.BLOCK_SPAN) / FUNNEL, 0, 1));
-    }
-
-    /**
-     * Where a point of the cube stands as the lump flows: its slice carried
-     * along the path, its cross-section the cube's own; a slice past the
-     * entry stands at the entry, the stream drawing it from there.
-     *
-     * @param point  the point, in the world, where it stood
-     * @param normal the unit normal of the cube's face there
-     * @param lump   the lump
-     * @return where it stands and faces
-     */
-    public static Place placeOf(Vec3 point, Vec3 normal, Lump lump) {
-        DrinkStream.Path path = lump.path();
-        Vec3 along = path.to().subtract(path.from()).normalize();
-        Vec3 side = along.cross(UP);
-        side = side.lengthSqr() > 0 ? side.normalize() : EAST;
-        Vec3 across = along.cross(side);
-        Vec3 offset = point.subtract(path.from());
-        Vec3 radial = offset.subtract(along.scale(offset.dot(along)));
-        double distance = Math.min(DrinkStream.BLOCK_SPAN, lump.distanceOf(alongOf(point, path)));
-        Vec3 spine = path.spineAt(distance / path.length());
-        return new Place(spine.add(side.scale(radial.dot(side))).add(across.scale(radial.dot(across))), normal);
+    public static double roundnessAt(double distance, double progress) {
+        double funnel = ease(Math.clamp((distance - CENTER) / FUNNEL, 0, 1));
+        return 1 - (1 - liquidityAt(progress)) * (1 - funnel);
     }
 
     private static double ease(double t) {

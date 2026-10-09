@@ -146,13 +146,12 @@ class DrinkTreeTest {
         }
 
         @Test
-        void theBlocksMatterIsTheCubesWidthAtItsEntry() {
+        void theBlockIsTheCubesWidthAndSquareWhereItStoodAtTheStart() {
             DrinkTree.Stream stream = DrinkTree.build(List.of(NEAR), layoutOf(NEAR), GLOVE, NOW).getFirst();
-            double entry = DrinkStream.BLOCK_SPAN / stream.path().length();
-            double later = NOW + DrinkBody.FUNNEL / DrinkStream.FLOW;
+            double middle = DrinkBody.CENTER / stream.path().length();
 
-            assertEquals(DrinkBody.MOUTH, DrinkTree.ring(stream, entry, later).radius(), DELTA);
-            assertEquals(0, DrinkTree.ring(stream, entry, later).roundness(), DELTA);
+            assertEquals(DrinkBody.MOUTH, DrinkTree.ring(stream, middle, START).radius(), DELTA);
+            assertEquals(0, DrinkTree.ring(stream, middle, START).roundness(), DELTA);
         }
 
         @Test
@@ -161,7 +160,7 @@ class DrinkTreeTest {
             DrinkTree.Stream trunk = streams.getFirst();
             DrinkTree.Stream tributary = streams.get(1);
             double share = pastJoin(trunk, DrinkTree.MERGE);
-            double ownPath = tributary.path().length() - DrinkStream.BLOCK_SPAN;
+            double ownPath = tributary.path().length() - DrinkStream.BLOCK_SPAN - DrinkStream.TIP;
             double onTrunk = ownPath + DrinkTree.MERGE + DrinkStream.TIP + DrinkBody.FUNNEL;
 
             assertEquals(0, DrinkTree.contribution(tributary, trunk, share, START + ownPath / DrinkStream.FLOW),
@@ -170,12 +169,12 @@ class DrinkTreeTest {
         }
 
         @Test
-        void aPathsRingsRunFromTheBlocksEntryToItsEnd() {
+        void aPathsRingsRunFromTheBlocksFarSideToItsEnd() {
             DrinkTree.Stream stream = DrinkTree.build(List.of(NEAR), layoutOf(NEAR), GLOVE, NOW).getFirst();
             List<DrinkStream.Ring> rings = DrinkTree.rings(stream, NOW);
             DrinkStream.Ring ring = DrinkTree.ring(stream, 0.5, NOW);
 
-            assertEquals(DrinkStream.BLOCK_SPAN / stream.path().length(), rings.getFirst().share(), DELTA);
+            assertEquals(0, rings.getFirst().share(), DELTA);
             assertEquals(1, rings.getLast().share(), DELTA);
             assertTrue(rings.size() > DrinkStream.RINGS_PER_BLOCK, "ten rings to the block");
             assertEquals(0.5, ring.share(), DELTA);

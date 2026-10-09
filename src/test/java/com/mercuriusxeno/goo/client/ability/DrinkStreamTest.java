@@ -32,7 +32,7 @@ class DrinkStreamTest {
     private static final double MIDDLE = 1.5;
     private static final double TICKS_LATER = 25;
     private static final int TICKS_A_SECOND = 20;
-    private static final double TWO_BLOCKS = 2;
+    private static final double FOUR_BLOCKS = 4;
     private static final double OFF_THE_LINE = 0.02;
     /** Blocks of liquid the width is read over, both ways from the start. */
     private static final double READ = 40;
@@ -51,14 +51,15 @@ class DrinkStreamTest {
     class Timing {
 
         @Test
-        void theHeadAndTheTailLeaveTheBlocksEntryAndFlowAtTheFlowsPace() {
-            double entry = DrinkStream.BLOCK_SPAN;
+        void theHeadStartsATipOutOfTheBlockAndTheTailLeavesItsFaceAtTheFlowsPace() {
+            double face = DrinkStream.BLOCK_SPAN;
+            double tip = face + DrinkStream.TIP;
 
-            assertEquals(entry, DrinkStream.headAt(START, START), DELTA);
-            assertEquals(entry + TICKS_LATER * DrinkStream.FLOW, DrinkStream.headAt(START, START + TICKS_LATER), DELTA);
-            assertTrue(DrinkStream.tailAt(END, START) < entry, "the block still feeds the stream");
-            assertEquals(entry, DrinkStream.tailAt(END, END), DELTA);
-            assertEquals(entry + TICKS_LATER * DrinkStream.FLOW, DrinkStream.tailAt(END, END + TICKS_LATER), DELTA);
+            assertEquals(tip, DrinkStream.headAt(START, START), DELTA);
+            assertEquals(tip + TICKS_LATER * DrinkStream.FLOW, DrinkStream.headAt(START, START + TICKS_LATER), DELTA);
+            assertTrue(DrinkStream.tailAt(END, START) < face, "the block still feeds the stream");
+            assertEquals(face, DrinkStream.tailAt(END, END), DELTA);
+            assertEquals(face + TICKS_LATER * DrinkStream.FLOW, DrinkStream.tailAt(END, END + TICKS_LATER), DELTA);
         }
 
         @Test
@@ -68,9 +69,9 @@ class DrinkStreamTest {
         }
 
         @Test
-        void theFlowIsTwoBlocksASecondAndTheLongestRouteOutlastsTheCone() {
+        void theFlowIsFourBlocksASecondAndTheLongestRouteOutlastsTheCone() {
             double longestRoute = SiphonRule.RANGE + DrinkStream.GLOVE_SLACK;
-            assertEquals(TWO_BLOCKS, DrinkStream.FLOW * TICKS_A_SECOND, DELTA);
+            assertEquals(FOUR_BLOCKS, DrinkStream.FLOW * TICKS_A_SECOND, DELTA);
             assertTrue(DrinkStream.LONGEST_TRAVEL_TICKS * DrinkStream.FLOW >= longestRoute);
         }
     }
