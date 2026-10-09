@@ -37,6 +37,9 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
                          Optional<ChannelAim> channelAim, float charge)
         implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, FrostHost {
 
+    /** The share of the player's height Nova emanates from. */
+    private static final double HALF_HEIGHT = 0.5;
+
     /** The charge a host outside a charged release carries. */
     private static final float NO_CHARGE = 0f;
 
@@ -138,9 +141,10 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
         return player.blockPosition();
     }
 
+    /** The player's middle, where Nova emanates from (decision nova-ring-grows-with-the-hold). */
     @Override
     public Vec3 frostCenter() {
-        return player.position();
+        return player.position().add(0, player.getBbHeight() * HALF_HEIGHT, 0);
     }
 
     @Override

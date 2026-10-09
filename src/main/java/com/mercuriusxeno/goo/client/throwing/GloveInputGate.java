@@ -110,6 +110,16 @@ public final class GloveInputGate {
         return previewing;
     }
 
+    /**
+     * Ticks the live press has held its preview, which a charged ability's
+     * charge reads (decision nova-ring-grows-with-the-hold).
+     *
+     * @return the held ticks, 0 while no press previews
+     */
+    public int heldTicks() {
+        return previewing ? heldTicks : 0;
+    }
+
     /** Drops the live press. */
     public void cancel() {
         armed = false;

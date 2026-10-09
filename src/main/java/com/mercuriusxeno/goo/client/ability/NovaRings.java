@@ -15,7 +15,7 @@ import java.util.List;
 
 /**
  * The frost novas playing on this client: each is frost's fog ring laid flat
- * at the caster's feet, spreading out to the reach its charge resolved with
+ * about the nova's center, the caster's middle or a tap's landing, spreading out to the reach its charge resolved with
  * a burst of snowflakes riding the edge, then fading.
  * nova-ring-grows-with-the-hold
  */
@@ -25,7 +25,7 @@ public final class NovaRings {
     /** The client's novas. */
     public static final NovaRings CLIENT = new NovaRings();
 
-    /** How far above the feet the ring lies, clear of the floor. */
+    /** How far above its center the ring lies, clear of a floor it pulses on. */
     private static final double FEET_LIFT = 0.1;
     /** The block-local offset from the ring's corner to its center. */
     private static final double HALF_BLOCK = 0.5;
@@ -38,7 +38,7 @@ public final class NovaRings {
     /**
      * One nova playing.
      *
-     * @param center    the caster's feet
+     * @param center    the nova's center
      * @param reach     the reach the ring spreads to
      * @param startTick the game time it began
      */
@@ -64,10 +64,10 @@ public final class NovaRings {
     }
 
     /**
-     * Starts a nova at the caster's feet and scatters its snowflakes.
+     * Starts a nova about its center and scatters its snowflakes.
      *
      * @param level  the client level
-     * @param center the caster's feet
+     * @param center the nova's center
      * @param reach  the reach the ring spreads to
      */
     public void pulse(ClientLevel level, Vec3 center, float reach) {

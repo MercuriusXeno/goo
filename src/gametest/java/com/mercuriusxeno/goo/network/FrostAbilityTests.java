@@ -41,7 +41,7 @@ public final class FrostAbilityTests {
     private static final BlockPos FAR_POS = new BlockPos(4, 1, 4);
     private static final Identifier FROST_NOVA = Identifier.parse("goo:frost_nova");
     /** frost_nova.json's charge max_ticks. */
-    private static final int FULL_HOLD_TICKS = 60;
+    private static final int FULL_HOLD_TICKS = 40;
     private static final int NO_HOLD_TICKS = 0;
     /**
      * A full hold freezes two zombies by 16 health each, thinned by the crowd
@@ -70,7 +70,7 @@ public final class FrostAbilityTests {
     /** Pitched down between the grass and the zombie's middle, so both stand in the cone. */
     private static final float BETWEEN_GRASS_AND_ZOMBIE = 14f;
     private static final int COLD_HOLD_TICKS = 10;
-    /** A full Nova's freeze on a zombie, 16 of its 20 health, spread over the 60 ticks it took to charge. */
+    /** A full Nova's freeze on a zombie, 16 of its 20 health, spread over the 40 ticks it took to charge. */
     private static final float NOVA_PER_HELD_TICK = 0.8f / FULL_HOLD_TICKS;
     private static final String SHOULD_KILL_GRASS = "Cold should break the grass in its cone";
     private static final String SHOULD_OUTFREEZE_NOVA = "Ten ticks of Cold should freeze past %s, Nova's ten held ticks; stands %s";
