@@ -42,8 +42,8 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Draws every Unmake drink as one surface: the field of its blocks' boxes
  * and its streams' skeletons meshed once a tick off the render thread on a
- * grid that coarsens while meshing overruns, the skin carried on along its
- * flow between meshes and after the drink ends, so blocks, streams and their
+ * grid that coarsens while meshing overruns, the skin carried on at the pace
+ * it was moving between meshes and after the drink ends, so blocks, streams and their
  * joins are one skin with no seam, blending like metaballs where they meet,
  * moving every frame and never standing or vanishing mid-air.
  * Each piece of the skin wears its block's own texture laid over the world
@@ -76,8 +76,10 @@ public final class DrinkRenderer {
     static final double COARSEN = 1.25;
     /** The coarsest the grid's cell goes, as a multiple of the finest. */
     static final double COARSEST = 2.5;
-    /** Ticks a drink's last skin is drawn on after the drink ends, carried on into the glove. */
+    /** Ticks a drink's last skin is drawn on after the drink ends, so a skin still in the air is not cut. */
     static final int LINGER = 20;
+    /** The most ticks a skin is carried on past its mesh at the pace it was moving, before it holds still. */
+    static final double EXTRAPOLATE = 2;
     private static final Vec3 UP = new Vec3(0, 1, 0);
     private static final double MILLIS_PER_NANO = 1e-6;
     /** Each drink's surface as last meshed, by its drinker. */
@@ -227,8 +229,8 @@ public final class DrinkRenderer {
 
     /**
      * A drink's surface as last meshed: once a tick, on a background thread,
-     * since meshing is the cost; between meshes the skin is carried on along
-     * its flow and the hand's end of it with the glove.
+     * since meshing is the cost; between meshes the skin is carried on at the
+     * pace it was moving and the hand's end of it with the glove.
      *
      * @param tick   the tick it was meshed for
      * @param at     the game time it was meshed for, with the partial tick
@@ -242,7 +244,7 @@ public final class DrinkRenderer {
 
         /**
          * @param now the game time, with the partial tick
-         * @return whether a skin left behind by an ended drink is done: empty, or carried on past its linger
+         * @return whether a skin left behind by an ended drink is done: empty, or drawn on past its linger
          */
         boolean spent(double now) {
             return quads.isEmpty() || now - at > LINGER;
@@ -320,11 +322,16 @@ public final class DrinkRenderer {
             skeletons.add(DrinkTree.skeleton(stream));
             coats.put(stream, coatOf(level, stream, states.get(stream.block().pos()), frame.ticks()));
         }
+        List<DrinkField.Skeleton> ahead = new ArrayList<>();
+        for (DrinkTree.Stream stream : DrinkTree.build(blocks, drink.layout(), frame.glove(), frame.pull(),
+                frame.ticks() + 1)) {
+            ahead.add(DrinkTree.skeleton(stream));
+        }
         long tick = level.getGameTime();
         double cell = CELLS.getOrDefault(drink.playerId(), DrinkMesher.CELL);
         return CompletableFuture.supplyAsync(() -> {
             long began = System.nanoTime();
-            List<DrinkMesher.Quad> quads = DrinkMesher.mesh(skeletons, cell);
+            List<DrinkMesher.Quad> quads = DrinkMesher.mesh(skeletons, ahead, cell);
             return new Surface(tick, frame.ticks(), frame.glove(), quads, coats,
                     (System.nanoTime() - began) * MILLIS_PER_NANO);
         }, Util.backgroundExecutor());
@@ -444,13 +451,12 @@ public final class DrinkRenderer {
     }
 
     /**
-     * Emits one quad of the surface: each vertex carried on along its flow at
-     * the liquid's pace there for the time since the mesh, as far as it rides
-     * the liquid and no further than the glove, and with the glove by how
-     * near the hand it is; lifted off the skin; its texture laid over the
-     * world at its own size on the two axes square to its normal and slid
-     * against the flow since its block started, so it rides the liquid
-     * unstretched.
+     * Emits one quad of the surface: each vertex carried on along its normal
+     * at the pace the skin was moving there for the time since the mesh, and
+     * with the glove by how near the hand it is; lifted off the skin; its
+     * texture laid over the world at its own size on the two axes square to
+     * its normal and slid against the flow since its block started, so it
+     * rides the liquid unstretched.
      *
      * @param ctx    the render context
      * @param quad   the quad
@@ -479,15 +485,14 @@ public final class DrinkRenderer {
     /**
      * @param vertex a vertex of the skin
      * @param motion how the skin has moved on since it was meshed
-     * @return where the vertex is now: along its flow at the liquid's pace for as much of it as rides the liquid,
-     *         no further than the glove, and with the glove by the cube of its nearness to the hand
+     * @return where the vertex is now: along its normal at the pace the skin was moving there, for the time since
+     *         the mesh up to {@link #EXTRAPOLATE}, and with the glove by the cube of its nearness to the hand
      */
     static Vec3 carriedOn(DrinkMesher.Vertex vertex, Motion motion) {
-        DrinkStream.Ring ring = vertex.ring();
-        double share = ring.share();
-        double remaining = (1 - share) * vertex.skeleton().stream().routeLength();
-        double advance = Math.min(ring.speed() * motion.since(), remaining) * vertex.carry();
-        return vertex.point().add(ring.flow().scale(advance)).add(motion.carried().scale(share * share * share));
+        double share = vertex.ring().share();
+        double since = Math.min(motion.since(), EXTRAPOLATE);
+        return vertex.point().add(vertex.normal().scale(vertex.velocity() * since))
+                .add(motion.carried().scale(share * share * share));
     }
 
     /**

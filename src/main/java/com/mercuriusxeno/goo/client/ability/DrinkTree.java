@@ -39,6 +39,8 @@ public final class DrinkTree {
     /** Stations along one block of path the liquid's travel time is summed at. */
     static final int STATIONS_PER_BLOCK = DrinkStream.RINGS_PER_BLOCK;
     private static final double HALF = 0.5;
+    /** The two stations a distance along a path is read between, so the last pair serves the path's very end. */
+    private static final int PAIR = 2;
 
     private DrinkTree() {
     }
@@ -286,7 +288,7 @@ public final class DrinkTree {
                 return table[table.length - 1] + (distance - length) / speedAt(1);
             }
             double step = length / (table.length - 1);
-            int index = (int) (distance / step);
+            int index = Math.min(table.length - PAIR, (int) (distance / step));
             return table[index] + (table[index + 1] - table[index]) * (distance - index * step) / step;
         }
 
@@ -390,8 +392,7 @@ public final class DrinkTree {
     public static DrinkStream.Ring ring(Stream stream, double share) {
         double distance = share * stream.path().length();
         return DrinkStream.ring(stream.path(), share, stream.now(), radiusAt(stream, share),
-                stream.materialAt(distance), distance / stream.routeLength(), stream.speedAt(share),
-                DrinkBody.carryAt(distance));
+                stream.materialAt(distance), distance / stream.routeLength(), stream.speedAt(share));
     }
 
     /**

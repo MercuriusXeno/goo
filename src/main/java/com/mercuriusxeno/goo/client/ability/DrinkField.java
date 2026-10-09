@@ -99,10 +99,8 @@ public final class DrinkField {
      * @param value    the field's value there
      * @param skeleton the skeleton nearest the point, or null where none reaches it
      * @param ring     the ring of that skeleton nearest the point
-     * @param onBlock  whether the point is nearer that skeleton's standing block than any of its stream
      */
-    public record Sample(double value, @Nullable Skeleton skeleton, DrinkStream.@Nullable Ring ring,
-                         boolean onBlock) {
+    public record Sample(double value, @Nullable Skeleton skeleton, DrinkStream.@Nullable Ring ring) {
 
         /**
          * @return whether the point is inside the surface
@@ -218,15 +216,36 @@ public final class DrinkField {
      * @return the field there
      */
     public static double valueAt(List<Skeleton> skeletons, int[] candidates, double x, double y, double z) {
+        return valueAt(skeletons, candidates, x, y, z, new double[skeletons.size()]);
+    }
+
+    /**
+     * The field's value alone at a point, only the bodies named read, with
+     * no allocation: the caller lends the scratch the distances are gathered in.
+     *
+     * @param skeletons  the drink's skeletons
+     * @param candidates the bodies to read, each packed by {@link #candidate}
+     * @param x          the point's x
+     * @param y          its y
+     * @param z          its z
+     * @param scratch    a scratch array as long as the skeletons, overwritten
+     * @return the field there
+     */
+    public static double valueAt(List<Skeleton> skeletons, int[] candidates, double x, double y, double z,
+                                 double[] scratch) {
         double value = 0;
-        for (double least : leastOf(skeletons, candidates, x, y, z)) {
+        for (double least : leastOf(skeletons, candidates, x, y, z, scratch)) {
             value += falloff(least);
         }
         return value;
     }
 
     private static double[] leastOf(List<Skeleton> skeletons, int[] candidates, double x, double y, double z) {
-        double[] least = new double[skeletons.size()];
+        return leastOf(skeletons, candidates, x, y, z, new double[skeletons.size()]);
+    }
+
+    private static double[] leastOf(List<Skeleton> skeletons, int[] candidates, double x, double y, double z,
+                                    double[] least) {
         Arrays.fill(least, REACH);
         for (int candidate : candidates) {
             int index = candidate >>> Short.SIZE;
@@ -246,20 +265,9 @@ public final class DrinkField {
             }
         }
         if (nearest == NONE || least[nearest] >= REACH) {
-            return new Sample(value, null, null, false);
+            return new Sample(value, null, null);
         }
         Skeleton skeleton = skeletons.get(nearest);
-        return new Sample(value, skeleton, nearestRing(skeleton.rings(), point), onBlock(skeleton, point,
-                least[nearest]));
-    }
-
-    /**
-     * @param skeleton the skeleton nearest a point
-     * @param point    the point
-     * @param least    the signed distance from the point to the skeleton's nearest body
-     * @return whether that nearest body is the skeleton's standing block
-     */
-    private static boolean onBlock(Skeleton skeleton, Vec3 point, double least) {
-        return skeleton.box() != null && skeleton.box().signedDistance(point) <= least;
+        return new Sample(value, skeleton, nearestRing(skeleton.rings(), point));
     }
 }

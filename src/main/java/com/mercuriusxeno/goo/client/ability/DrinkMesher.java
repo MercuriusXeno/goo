@@ -15,16 +15,20 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
  * the surface crosses gets one point at the mean of its edge crossings, each
  * grid edge the surface crosses gets one quad between the four cells about
  * it, every point is then relaxed toward its neighbours and set back onto
- * the surface along the field's gradient, which is its normal, so the whole
- * drink is one smooth skin with no cragginess from the grid.
+ * the surface along the field's gradient, which is its normal, and each
+ * vertex reads how fast the skin there is moving along its normal from the
+ * field a tick ahead, so the whole drink is one smooth skin with no
+ * cragginess from the grid that keeps moving between meshes.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 public final class DrinkMesher {
 
-    /** The grid's finest cell, in blocks; the surface reads no feature thinner than about two cells. */
-    public static final double CELL = 1.0 / 12;
+    /** The grid's finest cell, in blocks; a waist of radius 0.1 is ten vertices round at it. */
+    public static final double CELL = 1.0 / 16;
     /** How far a point is moved toward the mean of its neighbours before it is set back onto the surface. */
     static final double RELAX = 0.5;
+    /** The fastest the skin is read moving along its normal, in blocks a tick, so a flat field cannot fling it. */
+    static final double FASTEST = 0.5;
     /** The step either side of a point the gradient is read over, as a share of the cell. */
     private static final double GRADIENT_STEP = 0.5;
     private static final double HALF = 0.5;
@@ -61,9 +65,10 @@ public final class DrinkMesher {
      * @param normal   the unit normal of the surface there, outward
      * @param skeleton the skeleton nearest it, whose block gives it its texture and its goo
      * @param ring     the ring of that skeleton nearest it, which gives it its flow and its place on the route
-     * @param carry    how much of the skin there rides the liquid between meshes, 0 on the standing block
+     * @param velocity blocks a tick the skin there is moving along the normal, outward above zero
      */
-    public record Vertex(Vec3 point, Vec3 normal, DrinkField.Skeleton skeleton, DrinkStream.Ring ring, double carry) {
+    public record Vertex(Vec3 point, Vec3 normal, DrinkField.Skeleton skeleton, DrinkStream.Ring ring,
+                         double velocity) {
     }
 
     /**
@@ -88,13 +93,16 @@ public final class DrinkMesher {
      * the field at every corner read so far, and every cell's point.
      *
      * @param skeletons the drink's skeletons
+     * @param next      the drink's skeletons a tick ahead, in the same order with the same bodies
      * @param cell      the grid's cell, in blocks
      * @param cells     each marked cell's bodies, packed
      * @param corners   the field at each corner read
      * @param points    each cell's point, where the surface crosses it
+     * @param scratch   a scratch array as long as the skeletons the field is gathered in
      */
-    private record Grid(List<DrinkField.Skeleton> skeletons, double cell, Long2ObjectOpenHashMap<int[]> cells,
-                        Long2DoubleOpenHashMap corners, Long2ObjectOpenHashMap<Vec3> points) {
+    private record Grid(List<DrinkField.Skeleton> skeletons, List<DrinkField.Skeleton> next, double cell,
+                        Long2ObjectOpenHashMap<int[]> cells, Long2DoubleOpenHashMap corners,
+                        Long2ObjectOpenHashMap<Vec3> points, double[] scratch) {
 
         /**
          * @param x a corner's x index
@@ -115,19 +123,32 @@ public final class DrinkMesher {
             return new Vec3((xOf(key) + bitOf(corner, X)) * cell, (yOf(key) + bitOf(corner, Y)) * cell,
                     (zOf(key) + bitOf(corner, Z)) * cell);
         }
+
+        /**
+         * @param candidates the bodies that reach a point's cell
+         * @param x          the point's x
+         * @param y          its y
+         * @param z          its z
+         * @return the field there now
+         */
+        double valueAt(int[] candidates, double x, double y, double z) {
+            return DrinkField.valueAt(skeletons, candidates, x, y, z, scratch);
+        }
     }
 
     /**
      * Meshes a drink's surface.
      *
      * @param skeletons the drink's skeletons
+     * @param next      the drink's skeletons a tick ahead, built on the same tree, so the skin's motion is read
      * @param cell      the grid's cell, in blocks
      * @return the surface's quads
      */
-    public static List<Quad> mesh(List<DrinkField.Skeleton> skeletons, double cell) {
+    public static List<Quad> mesh(List<DrinkField.Skeleton> skeletons, List<DrinkField.Skeleton> next, double cell) {
         Long2DoubleOpenHashMap corners = new Long2DoubleOpenHashMap();
         corners.defaultReturnValue(Double.NaN);
-        Grid grid = new Grid(skeletons, cell, cellsNear(skeletons, cell), corners, new Long2ObjectOpenHashMap<>());
+        Grid grid = new Grid(skeletons, next, cell, cellsNear(skeletons, cell), corners,
+                new Long2ObjectOpenHashMap<>(), new double[skeletons.size()]);
         grid.cells().long2ObjectEntrySet().fastForEach(entry -> {
             Vec3 point = pointOf(grid, entry.getLongKey(), entry.getValue());
             if (point != null) {
@@ -248,7 +269,7 @@ public final class DrinkMesher {
         double known = grid.corners().get(cornerKey);
         if (Double.isNaN(known)) {
             Vec3 at = grid.cornerOf(key, corner);
-            known = DrinkField.valueAt(grid.skeletons(), candidates, at.x, at.y, at.z);
+            known = grid.valueAt(candidates, at.x, at.y, at.z);
             grid.corners().put(cornerKey, known);
         }
         return known;
@@ -364,7 +385,7 @@ public final class DrinkMesher {
      */
     private static @Nullable Vertex vertexAt(Grid grid, Vec3 relaxed, int[] candidates) {
         Vec3 gradient = gradientAt(grid, candidates, relaxed);
-        double value = DrinkField.valueAt(grid.skeletons(), candidates, relaxed.x, relaxed.y, relaxed.z);
+        double value = grid.valueAt(candidates, relaxed.x, relaxed.y, relaxed.z);
         double slope = gradient.lengthSqr();
         double step = slope == 0 ? 0 : Math.clamp((value - DrinkField.ISO) / slope, -grid.cell(), grid.cell());
         Vec3 point = relaxed.subtract(gradient.scale(step));
@@ -373,7 +394,28 @@ public final class DrinkMesher {
             return null;
         }
         Vec3 normal = slope > 0 ? gradient.reverse().normalize() : new Vec3(0, 1, 0);
-        return new Vertex(point, normal, sample.skeleton(), sample.ring(), sample.onBlock() ? 0 : sample.ring().carry());
+        return new Vertex(point, normal, sample.skeleton(), sample.ring(), velocityAt(grid, candidates, point,
+                Math.sqrt(slope)));
+    }
+
+    /**
+     * How fast the skin at a point is moving along its normal: the field's
+     * rise there over the next tick divided by how steeply the field falls
+     * off outward, since the surface stays where the field is the iso.
+     *
+     * @param grid       the grid
+     * @param candidates the bodies that reach the point's cell
+     * @param point      a point of the surface
+     * @param steepness  the field's gradient's length there
+     * @return blocks a tick the skin moves outward there, inward below zero, within {@link #FASTEST}
+     */
+    private static double velocityAt(Grid grid, int[] candidates, Vec3 point, double steepness) {
+        if (steepness == 0) {
+            return 0;
+        }
+        double now = grid.valueAt(candidates, point.x, point.y, point.z);
+        double ahead = DrinkField.valueAt(grid.next(), candidates, point.x, point.y, point.z, grid.scratch());
+        return Math.clamp((ahead - now) / steepness, -FASTEST, FASTEST);
     }
 
     /**
@@ -384,13 +426,12 @@ public final class DrinkMesher {
      */
     private static Vec3 gradientAt(Grid grid, int[] candidates, Vec3 point) {
         double step = grid.cell() * GRADIENT_STEP;
-        List<DrinkField.Skeleton> skeletons = grid.skeletons();
-        double dx = DrinkField.valueAt(skeletons, candidates, point.x + step, point.y, point.z)
-                - DrinkField.valueAt(skeletons, candidates, point.x - step, point.y, point.z);
-        double dy = DrinkField.valueAt(skeletons, candidates, point.x, point.y + step, point.z)
-                - DrinkField.valueAt(skeletons, candidates, point.x, point.y - step, point.z);
-        double dz = DrinkField.valueAt(skeletons, candidates, point.x, point.y, point.z + step)
-                - DrinkField.valueAt(skeletons, candidates, point.x, point.y, point.z - step);
+        double dx = grid.valueAt(candidates, point.x + step, point.y, point.z)
+                - grid.valueAt(candidates, point.x - step, point.y, point.z);
+        double dy = grid.valueAt(candidates, point.x, point.y + step, point.z)
+                - grid.valueAt(candidates, point.x, point.y - step, point.z);
+        double dz = grid.valueAt(candidates, point.x, point.y, point.z + step)
+                - grid.valueAt(candidates, point.x, point.y, point.z - step);
         return new Vec3(dx, dy, dz).scale(HALF / step);
     }
 

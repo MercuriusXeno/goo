@@ -289,7 +289,7 @@ class DrinkTreeTest {
         }
 
         @Test
-        void aPathsRingsRunFromTheBlocksFarSideToItsEndAtThePaceCarriedPastTheFunnel() {
+        void aPathsRingsRunFromTheBlocksFarSideToItsEndAtThePace() {
             DrinkTree.Stream stream = lone();
             List<DrinkStream.Ring> rings = DrinkTree.rings(stream);
             DrinkStream.Ring ring = DrinkTree.ring(stream, 0.5);
@@ -301,8 +301,16 @@ class DrinkTreeTest {
             assertEquals(0.5, ring.share(), DELTA);
             assertEquals(stream.materialAt(distance), ring.material(), DELTA);
             assertEquals(stream.speedAt(0.5), ring.speed(), DELTA);
-            assertEquals(DrinkBody.carryAt(distance), ring.carry(), DELTA);
-            assertEquals(0, rings.getFirst().carry(), DELTA);
+        }
+
+        @Test
+        void theTravelTimeReadsCleanlyAtAndJustShortOfThePathsEnd() {
+            DrinkTree.Stream stream = loneAt(RAMPED);
+            double length = stream.path().length();
+            double shy = Math.nextDown(length);
+
+            assertEquals(stream.timeTo(length), stream.timeTo(shy), 1e-9);
+            assertEquals(length / DrinkStream.FLOW, stream.timeTo(shy), 1e-6);
         }
     }
 }
