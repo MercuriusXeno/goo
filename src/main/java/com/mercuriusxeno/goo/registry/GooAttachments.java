@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.ability.hex.Charmed;
+import com.mercuriusxeno.goo.ability.hex.Lifetap;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.petrify.Petrification;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
@@ -147,6 +148,17 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> Charmed.NONE)
                             .serialize(Charmed.CODEC)
                             .sync(GooAttachments::syncsToWatcher, Charmed.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The lifetap a player holds, its leech fraction and when it fades,
+     * saved with the player while it stands.
+     * lifetap-trades-regen-for-leech
+     */
+    public static final Supplier<AttachmentType<Lifetap>> LIFETAP =
+            ATTACHMENT_TYPES.register("lifetap",
+                    () -> AttachmentType.builder(() -> Lifetap.NONE)
+                            .serialize(Lifetap.CODEC, lifetap -> lifetap.expiresAt() > 0L)
                             .build());
 
     private GooAttachments() {

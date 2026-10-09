@@ -133,6 +133,7 @@
   "goo.ability.hex.spawn": "Spawn",
   "goo.ability.hex.spawn_tap": "Spawn",
   "goo.ability.hex.agitator": "Agitator",
+  "goo.ability.hex.lifetap": "Lifetap",
   "goo.ability.leaf.barkskin": "Barkskin",
   "goo.ability.leaf.entangle": "Vines",
   "goo.ability.metal.javelin": "Dart",

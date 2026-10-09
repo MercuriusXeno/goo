@@ -86,6 +86,7 @@ public final class StepTypes {
         register(FuseBooksStep.TYPE);
         register(SpawnRandomStep.TYPE);
         register(AgitateStep.TYPE);
+        register(LifetapStep.TYPE);
     }
 
     private StepTypes() {
