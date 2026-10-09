@@ -84,9 +84,8 @@ public final class FrostExplosionVisual implements BurnoutVisual, HeldGhostVisua
 
     /**
      * Emits frost's fog disc fully spread and whole, square to a face: the
-     * Orb's held ghost lies this way on the struck face, and a glacial prism
-     * wears it as a collar about its base (decisions orb-carries-a-swirling-nova,
-     * glacial-prism-holds-the-area-frozen).
+     * Orb's held ghost lies this way on the struck face
+     * (decision orb-carries-a-swirling-nova).
      *
      * @param pose    the pose entry
      * @param c       the vertex consumer
@@ -95,7 +94,7 @@ public final class FrostExplosionVisual implements BurnoutVisual, HeldGhostVisua
      * @param reach   the disc's radius in blocks
      * @param opacity the share of the fog's opacity
      */
-    public static void emitWholeFog(PoseStack.Pose pose, VertexConsumer c, Direction face, float lift, float reach,
+    static void emitWholeFog(PoseStack.Pose pose, VertexConsumer c, Direction face, float lift, float reach,
                                     float opacity) {
         int progressByte = NetherDiscMesh.toByte(HELD_PROGRESS);
         int fog = NetherDiscMesh.toByte(opacity);
