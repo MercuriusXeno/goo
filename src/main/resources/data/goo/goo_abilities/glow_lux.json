@@ -1,0 +1,14 @@
+{
+  "gooType": "glow",
+  "displayName": "goo.ability.glow.lux",
+  "badge": "brew",
+  "order": 30,
+  "upkeep": 1,
+  "requires": ["minecraft:carrot"],
+  "delivery": { "kind": "self" },
+  "behaviors": [
+    { "type": "lux" },
+    { "type": "sound", "id": "minecraft:block.beacon.power_select", "at": "target", "source": "players", "volume": 0.8, "pitch": 1.4 }
+  ],
+  "tags": ["self"]
+}

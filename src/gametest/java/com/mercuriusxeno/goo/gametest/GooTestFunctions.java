@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.network.BlockLandingTests;
 import com.mercuriusxeno.goo.network.BrewEffectTests;
 import com.mercuriusxeno.goo.network.ColonizeTests;
 import com.mercuriusxeno.goo.network.FungalShiftTests;
+import com.mercuriusxeno.goo.network.LuxTests;
 import com.mercuriusxeno.goo.network.GloveSelectTests;
 import com.mercuriusxeno.goo.network.HeartOverlayTests;
 import com.mercuriusxeno.goo.network.MobEffectTests;
@@ -415,6 +416,8 @@ public final class GooTestFunctions {
     private static final String SIGHT_SHIFTS_THROUGH_A_WALL = "sight_shifts_through_a_wall";
     private static final String FUNGAL_SHIFT_SNAPS_TO_A_NEAR_MISS = "fungal_shift_snaps_to_a_near_miss";
     private static final String BREW_SHROOM_SIGHTS = "brew_shroom_sights_for_an_hour";
+    private static final String BREW_GLOW_LUX = "brew_glow_lux_for_an_hour";
+    private static final String LUX_SEES_IN_THE_DARK_UNTIL_ENDED = "lux_sees_in_the_dark_until_ended";
     private static final String FLATTEN_BREAKS_ABOVE_THE_PLANE = "flatten_breaks_above_the_plane";
     private static final String FLATTEN_SHAVES_A_WALL = "flatten_shaves_a_wall";
     private static final String SCRY_GLISTENS_THE_HIDDEN_ZOMBIE = "scry_glistens_the_hidden_zombie";
@@ -881,6 +884,8 @@ public final class GooTestFunctions {
         reg(r, SIGHT_SHIFTS_THROUGH_A_WALL, FungalShiftTests::sightShiftsThroughAWall);
         reg(r, FUNGAL_SHIFT_SNAPS_TO_A_NEAR_MISS, FungalShiftTests::fungalShiftSnapsToANearMiss);
         reg(r, BREW_SHROOM_SIGHTS, BrewEffectTests::shroomBrewSightForAnHour);
+        reg(r, BREW_GLOW_LUX, BrewEffectTests::glowBrewLuxForAnHour);
+        reg(r, LUX_SEES_IN_THE_DARK_UNTIL_ENDED, LuxTests::luxSeesInTheDarkUntilEnded);
         reg(r, FLATTEN_BREAKS_ABOVE_THE_PLANE, FlattenChannelTests::flattenBreaksAboveThePlane);
         reg(r, FLATTEN_SHAVES_A_WALL, FlattenChannelTests::flattenShavesAWall);
         reg(r, SCRY_GLISTENS_THE_HIDDEN_ZOMBIE, ScryChannelTests::scryGlistensTheHiddenZombie);
