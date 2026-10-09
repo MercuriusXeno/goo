@@ -442,6 +442,7 @@ public final class GooTestFunctions {
     private static final String ORB_FREEZES_PATH = "orb_freezes_path_and_pool";
     private static final String ORB_ENDS_ON_A_MOB = "orb_ends_on_a_mob";
     private static final String GLACIAL_HOLDS_THE_GAUGE = "glacial_holds_the_gauge";
+    private static final String GLACIAL_SURVIVES_A_RELOAD = "glacial_survives_a_reload";
     private static final String ICEBORN_FREEZES_SURROUNDINGS = "iceborn_freezes_surroundings";
     private static final String ICEBORN_THAWS_ON_FIRE = "iceborn_thaws_on_fire";
     private static final String BREW_FROST_ICEBORN = "brew_frost_iceborn_for_an_hour";
@@ -915,6 +916,7 @@ public final class GooTestFunctions {
         reg(r, ORB_FREEZES_PATH, FrostAbilityTests::orbFreezesPathAndPool);
         reg(r, ORB_ENDS_ON_A_MOB, FrostAbilityTests::orbEndsOnAMob);
         reg(r, GLACIAL_HOLDS_THE_GAUGE, FrostAbilityTests::glacialHoldsTheGauge);
+        reg(r, GLACIAL_SURVIVES_A_RELOAD, FrostAbilityTests::glacialSurvivesAReload);
         reg(r, ICEBORN_FREEZES_SURROUNDINGS, FrostAbilityTests::icebornFreezesSurroundings);
         reg(r, ICEBORN_THAWS_ON_FIRE, FrostAbilityTests::icebornThawsOnFire);
         reg(r, BREW_FROST_ICEBORN, BrewEffectTests::frostBrewIcebornForAnHour);

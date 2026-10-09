@@ -17,6 +17,7 @@ import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
@@ -25,6 +26,8 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -113,8 +116,12 @@ public final class FrostAbilityTests {
     private static final float HALF_A_ZOMBIE = 10f;
     private static final FrostCurve FAST_THAW = new FrostCurve(0, 0.01f, 0.5f);
     private static final int GLACIAL_HOLD_TICKS = 200;
+    /** Ticks past a reload, well past a lapsed field's two, by which a running prism has renewed it. */
+    private static final int RELOAD_SETTLE_TICKS = 10;
     private static final String SHOULD_BE_GLACIAL = "Frost landing on the prism should make it glacial, stands %s";
     private static final String SHOULD_HOLD_INSIDE = "The zombie inside the glacial field should hold its gauge, stands %s";
+    private static final String SHOULD_RUN_AFTER_RELOAD =
+            "A glacial prism loaded from its save should still run its combo, holds %s, program %s";
     private static final String SHOULD_ICE_INSIDE = "Water inside the glacial field should stand as magicked ice";
     private static final String SHOULD_THAW_OUTSIDE = "The zombie past the glacial field should thaw, stands %s";
     private static final BlockPos ICEBORN_POS = new BlockPos(1, 1, 1);
@@ -427,6 +434,41 @@ public final class FrostAbilityTests {
         player.setData(GooAttachments.HEART_OVERLAY, HeartOverlay.NONE.hold(HeartKind.ICEBORN, player.getHealth(),
                 player.getMaxHealth(), HeartOverlay.WHOLE_HIT, helper.getLevel().getGameTime()));
         return player;
+    }
+
+    /**
+     * A glacial prism saved and loaded back the way a chunk loads it, its
+     * block entity read before it has a level, keeps running its combo: its
+     * field still holds the ground frozen and its program still ticks.
+     *
+     * @param helper the gametest helper
+     */
+    public static void glacialSurvivesAReload(GameTestHelper helper) {
+        helper.setBlock(GLACIAL_PRISM_POS.below(), Blocks.STONE);
+        helper.setBlock(GLACIAL_PRISM_POS, GooBlocks.PRISM.get());
+        BlockPos prismAt = helper.absolutePos(GLACIAL_PRISM_POS);
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            GooEffectScheduler arrivals = GooServerState.of(helper.getLevel().getServer()).gooEffects();
+            int now = helper.getLevel().getServer().getTickCount();
+            arrivals.enqueue(new GooEffectScheduler.PendingEffect(now, helper.getLevel(), null, GooTypes.FROST, -1,
+                    prismAt, Direction.UP, FROST_SNAP_ID));
+            arrivals.drainArrivedEffects(now);
+            PrismBlockEntity before = helper.getBlockEntity(GLACIAL_PRISM_POS, PrismBlockEntity.class);
+            CompoundTag saved = before.saveWithFullMetadata(helper.getLevel().registryAccess());
+            BlockState state = helper.getLevel().getBlockState(prismAt);
+            BlockEntity reloaded = BlockEntity.loadStatic(prismAt, state, saved, helper.getLevel().registryAccess());
+            helper.assertTrue(reloaded != null, "the prism should load back from its save");
+            helper.getLevel().setBlockEntity(reloaded);
+        });
+        helper.runAfterDelay(SETTLE_TICKS + RELOAD_SETTLE_TICKS, () -> {
+            PrismBlockEntity after = helper.getBlockEntity(GLACIAL_PRISM_POS, PrismBlockEntity.class);
+            boolean holds = GooServerState.of(helper.getLevel().getServer()).glacialFields().holds(
+                    helper.getLevel().dimension(), Vec3.atCenterOf(helper.absolutePos(GLACIAL_INSIDE_POS)),
+                    helper.getLevel().getGameTime());
+            helper.assertTrue(holds && after.getBehavior() != null,
+                    String.format(SHOULD_RUN_AFTER_RELOAD, holds, after.getBehavior()));
+            helper.succeed();
+        });
     }
 
     private static void drip(GameTestHelper helper, int drips) {
