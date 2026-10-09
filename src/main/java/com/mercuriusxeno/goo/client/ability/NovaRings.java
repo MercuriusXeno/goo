@@ -50,8 +50,9 @@ public final class NovaRings {
      * @param center    the nova's center
      * @param reach     the reach the ring spreads to
      * @param startTick the game time it began
+     * @param seed      the seed its fog billows from, fresh each pulse
      */
-    record Ring(Vec3 center, float reach, long startTick) {
+    record Ring(Vec3 center, float reach, long startTick, float seed) {
 
         float progress(float gameTime) {
             return Math.clamp((gameTime - startTick) / DURATION_TICKS, 0f, 1f);
@@ -80,7 +81,7 @@ public final class NovaRings {
      * @param reach  the reach the ring spreads to
      */
     public void pulse(ClientLevel level, Vec3 center, float reach) {
-        live.add(new Ring(center, reach, level.getGameTime()));
+        live.add(new Ring(center, reach, level.getGameTime(), (float) (level.getRandom().nextDouble() * TWO_PI)));
         int snowflakes = Math.max(1, Math.round(reach * SNOWFLAKES_PER_BLOCK));
         for (int i = 0; i < snowflakes; i++) {
             Vec3 velocity = FrostExplosionVisual.snowflakeVelocity(Direction.UP,
@@ -148,7 +149,7 @@ public final class NovaRings {
         for (Ring ring : rings) {
             float progress = ring.progress(frame.gameTime());
             FrostExplosionVisual.drawDisc(frame, ring.corner(), Direction.UP, 0f, ring.reach() * spread(progress),
-                    progress, fog(progress));
+                    progress, fog(progress), ring.seed());
         }
     }
 }

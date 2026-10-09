@@ -76,11 +76,12 @@ public final class OrbSwirl {
      * @param center    the ball
      * @param reach     the swirl's reach in blocks
      * @param time      the game time including the partial tick
+     * @param seed      the seed the swirl's fog billows from, fixed for the ball
      */
     public static void draw(ClientLevel level, PoseStack poseStack, MultiBufferSource.BufferSource buffers,
-                            Vec3 camera, Vec3 center, float reach, float time) {
+                            Vec3 camera, Vec3 center, float reach, float time, float seed) {
         FrostExplosionVisual.drawRing(new BurnoutFrame(poseStack, buffers, camera, time),
-                center.subtract(HALF_BLOCK, HALF_BLOCK, HALF_BLOCK), Direction.UP, 0f, reach, FOG_SPREAD_WHOLE);
+                center.subtract(HALF_BLOCK, HALF_BLOCK, HALF_BLOCK), Direction.UP, 0f, reach, FOG_SPREAD_WHOLE, seed);
         RenderType type = RenderTypes.linesTranslucent();
         LineContext lines = new LineContext(poseStack.last(), buffers.getBuffer(type));
         RandomSource random = level.getRandom();
