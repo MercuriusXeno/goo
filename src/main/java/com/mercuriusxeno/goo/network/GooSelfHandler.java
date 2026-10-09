@@ -7,11 +7,13 @@ import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.ability.held.HeldEffectsEvents;
+import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.StepContext;
+import com.mercuriusxeno.goo.ability.program.TeleportStep;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
@@ -20,6 +22,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
+import java.util.Optional;
 import java.util.OptionalInt;
 
 /**
@@ -52,8 +55,10 @@ public final class GooSelfHandler {
      * @param player  the invoking player
      * @param gooType the ability's goo type
      * @param ability the self ability
+     * @param pin     the face plane the press pinned, which a blink slides on; empty for free aim
      */
-    static void deliver(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability) {
+    static void deliver(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability,
+            Optional<ChannelAim.FacePlane> pin) {
         if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge())) {
             return;
         }
@@ -62,7 +67,7 @@ public final class GooSelfHandler {
             HeldEffectsEvents.end(player, ability.id());
         } else if (SelfEatRoute.eats(ability.delivery(), ability.badge())) {
             beginEating(player, gooType, ability);
-        } else if (invoke(player, gooType, ability)) {
+        } else if (invoke(player, gooType, ability, pin)) {
             GooEffectScheduler.playThrowSound(player, ability.delivery());
         }
     }
@@ -126,20 +131,25 @@ public final class GooSelfHandler {
 
     /**
      * Drains a self ability's cost and runs its programs on the player, when
-     * the player holds its cost.
+     * the player holds its cost. A blink's cost is priced from the trip it
+     * is about to make, before it runs.
+     * decision blink-lands-safely-costed-by-distance
      *
      * @param player  the invoking player
      * @param gooType the ability's goo type
      * @param ability the self ability
+     * @param pin     the face plane the press pinned, empty for free aim
      * @return true when the cost drained and the programs ran
      */
     private static boolean invoke(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
-            AbilityDefinition ability) {
-        PlayerHost host = new PlayerHost(player.level(), player);
-        if (!affords(player, gooType, ability) || !admits(host, ability)) {
+            AbilityDefinition ability, Optional<ChannelAim.FacePlane> pin) {
+        PlayerHost host = PlayerHost.blinking(player.level(), player, pin);
+        int cost = ability.distancePrice().priceOf(ability.cost(),
+                TeleportStep.tripOf(ability.behaviors(), player, player.position(), player.getLookAngle(), pin));
+        if (!affords(player, gooType, ability, cost) || !admits(host, ability)) {
             return false;
         }
-        GooSourceScanner.deplete(player, gooType, ability.cost());
+        GooSourceScanner.deplete(player, gooType, cost);
         ReagentScanner.consumeOneOfEach(player, ability.consumes());
         runOn(host, ability);
         return true;
@@ -203,8 +213,23 @@ public final class GooSelfHandler {
      */
     private static boolean affords(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
             AbilityDefinition ability) {
+        return affords(player, gooType, ability, ability.cost());
+    }
+
+    /**
+     * Whether the player holds a priced cost, or a tick's upkeep for a held
+     * effect, logging the refusal.
+     *
+     * @param player  the invoking player
+     * @param gooType the ability's goo type
+     * @param ability the self ability
+     * @param cost    the cost this invocation drains
+     * @return true when the inventory covers the cost
+     */
+    private static boolean affords(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
+            AbilityDefinition ability, int cost) {
         // ability-json-names-its-reagent
-        if (GooSourceScanner.hasEnough(player, gooType, Math.max(ability.cost(), ability.upkeep()))
+        if (GooSourceScanner.hasEnough(player, gooType, Math.max(cost, ability.upkeep()))
                 && ReagentScanner.holdsEvery(player, ability.consumes())) {
             return true;
         }
