@@ -79,6 +79,8 @@ public final class StepTypes {
         register(PetrifyDripStep.TYPE);
         register(LeafSteps.HEAL.type());
         register(LeafSteps.COURT.type());
+        register(LeafSteps.POWER_PULSE.type());
+        register(LeafSteps.STUN.type());
         register(NourishStep.TYPE);
         register(ReserveDrainStep.TYPE);
     }

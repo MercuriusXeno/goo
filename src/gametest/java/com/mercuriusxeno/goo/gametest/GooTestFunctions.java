@@ -22,6 +22,7 @@ import com.mercuriusxeno.goo.network.FlattenChannelTests;
 import com.mercuriusxeno.goo.network.PetrifyStreamTests;
 import com.mercuriusxeno.goo.network.StreamDeliveryTests;
 import com.mercuriusxeno.goo.network.TouchDeliveryTests;
+import com.mercuriusxeno.goo.network.ZapTests;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
@@ -398,6 +399,10 @@ public final class GooTestFunctions {
     private static final String MYCOSIS_PLACES_BUDS = "mycosis_places_buds";
     private static final String MYCOSIS_BUDS_AT_THE_FEET = "mycosis_buds_at_the_feet";
     private static final String MYCOSIS_TAP_POISONS_BELOW = "mycosis_tap_poisons_below";
+    private static final String ZAP_FLIPS_A_LEVER = "zap_flips_a_lever";
+    private static final String ZAP_STUNS_A_ZOMBIE = "zap_stuns_a_zombie";
+    private static final String ZAP_STUN_WEARS_OFF = "zap_stun_wears_off";
+    private static final String ZAP_PULSES_DUST = "zap_pulses_dust";
     private static final String COLONIZE_SPREADS_NYLIUM = "colonize_spreads_nylium";
     private static final String COLONIZE_BUDS_OFF_THE_NETWORK = "colonize_buds_off_the_network";
     private static final String SPORE_STRUCK_ON_A_MOB = "spore_struck_on_a_mob";
@@ -436,7 +441,6 @@ public final class GooTestFunctions {
     private static final String MOB_TYPHOON = "mob_typhoon_levitate";
     private static final String MOB_GLOW = "mob_glow_laser";
     private static final String MOB_HEX = "mob_hex_charm";
-    private static final String MOB_PULSE = "mob_pulse_stun";
     private static final String MOB_NETHER = "mob_nether_wither";
     private static final String MOB_ENDER = "mob_ender_teleport";
     private static final String MOB_UNSTABLE = "mob_unstable_explode";
@@ -860,6 +864,10 @@ public final class GooTestFunctions {
         reg(r, MYCOSIS_PLACES_BUDS, MycosisTests::mycosisPlacesBuds);
         reg(r, MYCOSIS_BUDS_AT_THE_FEET, MycosisTests::mycosisBudsAtTheFeet);
         reg(r, MYCOSIS_TAP_POISONS_BELOW, MycosisTests::mycosisTapPoisonsBelow);
+        reg(r, ZAP_FLIPS_A_LEVER, ZapTests::zapFlipsALever);
+        reg(r, ZAP_STUNS_A_ZOMBIE, ZapTests::zapStunsAZombie);
+        reg(r, ZAP_STUN_WEARS_OFF, ZapTests::zapStunWearsOff);
+        reg(r, ZAP_PULSES_DUST, ZapTests::zapPulsesDust);
         reg(r, COLONIZE_SPREADS_NYLIUM, ColonizeTests::colonizeSpreadsNylium);
         reg(r, COLONIZE_BUDS_OFF_THE_NETWORK, ColonizeTests::colonizeBudsOffTheNetwork);
         reg(r, SPORE_STRUCK_ON_A_MOB, ColonizeTests::sporeStruckOnAMob);
@@ -898,7 +906,6 @@ public final class GooTestFunctions {
         reg(r, MOB_TYPHOON, MobEffectTests::typhoonLevitate);
         reg(r, MOB_GLOW, MobEffectTests::glowLaser);
         reg(r, MOB_HEX, MobEffectTests::hexCharm);
-        reg(r, MOB_PULSE, MobEffectTests::pulseStun);
         reg(r, MOB_NETHER, MobEffectTests::netherWither);
         reg(r, MOB_ENDER, MobEffectTests::enderTeleport);
         reg(r, MOB_UNSTABLE, MobEffectTests::unstableExplode);

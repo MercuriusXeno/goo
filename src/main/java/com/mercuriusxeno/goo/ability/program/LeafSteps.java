@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.pulse.StunEvents;
 import com.mojang.datafixers.util.Unit;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
@@ -64,7 +65,7 @@ public final class LeafSteps {
 
     /**
      * Toggles the host's target's AI; a target that is not a mob has no AI
-     * to toggle and is left alone, so pulse short circuit wraps
+     * to toggle and is left alone, so aeon time stop wraps
      * {@code set_ai enabled=false} in {@code target where=[mob]}.
      */
     public static final LeafStepType<Boolean> SET_AI = StepType.of("set_ai", ENABLED, TARGET, (enabled, context) -> {
@@ -143,6 +144,26 @@ public final class LeafSteps {
         }
         return true;
     });
+
+    /**
+     * Ticks the redstone device the host's blob landed on, as one pulse of
+     * power would: Zap is {@code power_pulse}.
+     * zap-ticks-the-device-and-stuns
+     */
+    public static final LeafStepType<Unit> POWER_PULSE = StepType.of("power_pulse", NO_PARAMS,
+            Set.of(HostCapability.POWER_PULSE), (none, context) -> {
+                context.hostAs(PowerPulseHost.class).powerPulse();
+                return true;
+            });
+
+    /**
+     * Stuns the host's target for a number of ticks: it drops its target and
+     * what it was doing, and its AI stands off until the stun ends. Zap
+     * stuns what stands at its landing with {@code stun ticks=60}.
+     * zap-ticks-the-device-and-stuns
+     */
+    public static final LeafStepType<Expr> STUN = TargetEffectStep.of("stun", "ticks",
+            (target, ticks, context) -> StunEvents.stun(target, ticks.evaluateInt(context)));
 
     private LeafSteps() {
     }
