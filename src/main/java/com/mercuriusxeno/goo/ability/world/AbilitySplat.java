@@ -8,7 +8,9 @@ package com.mercuriusxeno.goo.ability.world;
  * splat-runs-the-program-no-fuse). A program whose standing block explodes
  * later fires no burnout at the splat: the block plays it as it explodes, so
  * the explosion's visual lands with the explosion. A program that lingers
- * without exploding, Razor's cloud, plays it at the splat.
+ * without exploding, Razor's cloud, plays it at the splat. A blob that
+ * turns into its own block, Prism's, fires none: its morph into the block
+ * is its landing (decision prism-is-one-pointed-quartz-column).
  */
 interface AbilitySplat {
 
@@ -26,13 +28,23 @@ interface AbilitySplat {
     boolean explodesLater();
 
     /**
+     * Whether the blob turns into the block its program places, so the morph
+     * plays in place of a burnout.
+     *
+     * @return true for a program whose blob becomes its block
+     */
+    default boolean turnsIntoItsBlock() {
+        return false;
+    }
+
+    /**
      * Resolves a landing: announces the burnout unless the program explodes
-     * later, then runs the program.
+     * later or the blob turns into its block, then runs the program.
      *
      * @param splat the landing's world actions
      */
     static void resolve(AbilitySplat splat) {
-        if (!splat.explodesLater()) {
+        if (!splat.explodesLater() && !splat.turnsIntoItsBlock()) {
             splat.announceBurnout();
         }
         splat.runProgram();

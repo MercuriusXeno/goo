@@ -14,6 +14,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
@@ -57,6 +58,18 @@ public final class TransformationRenderer {
      */
     public static float blockModelScale(BlockPos pos) {
         return Transformations.CLIENT.modelScaleAt(pos, gameTime(Minecraft.getInstance()));
+    }
+
+    /**
+     * The transformation playing into a block, for the block's renderer to morph
+     * the blob into its model.
+     * decision prism-is-one-pointed-quartz-column
+     *
+     * @param pos the block's position
+     * @return the transformation, or null where none plays
+     */
+    public static Transformations.@Nullable Transformation transformationInto(BlockPos pos) {
+        return Transformations.CLIENT.intoBlockAt(pos, gameTime(Minecraft.getInstance()));
     }
 
     /**
