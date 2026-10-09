@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -13,9 +12,8 @@ import net.minecraft.util.ARGB;
  * elemental-explosion-per-type): an aurora bloom over the crystal the
  * marker just placed, drawn from the burnout alone since the marker is gone
  * the tick it fires. A soft dome of light rises out of the placed face over
- * 20 ticks on an ease-out, to about 1.25 blocks over the large crystal and
- * less over each smaller one, in step with the crystal's lateral extent
- * (decision glow-dome-scales-with-the-crystal). Its fragment shader
+ * 20 ticks on an ease-out, to about 1.25 blocks over Bulb's one crystal
+ * (decision bulb-one-model-max-light-beacon-combo). Its fragment shader
  * ({@code glow_explosion.fsh}) draws vertical aurora bands, FFFF28 at the
  * base shading to FFD700 and a pale white crown, sliding slowly around the
  * dome like the fade walls' curtains, and discards the half of the sphere
@@ -31,8 +29,8 @@ public final class GlowExplosionVisual implements BurnoutVisual {
 
     /** Ticks the explosion plays. */
     static final int DURATION_TICKS = 20;
-    /** The dome's full radius in blocks over the large crystal, four stacks. */
-    static final float LARGE_DOME_REACH = 1.25f;
+    /** The dome's full radius in blocks over Bulb's one crystal. */
+    static final float DOME_REACH = 1.25f;
     /** The share of the explosion at which the bloom breathes brightest. */
     static final float BREATH_PEAK = 0.3f;
     /** How far the dome's center sits from the block center along the face's step: on the face plane. */
@@ -62,22 +60,6 @@ public final class GlowExplosionVisual implements BurnoutVisual {
     }
 
     /**
-     * The dome's full reach: the large crystal's reach scaled by the one
-     * crystal size's lateral extent over the large one's. Decision
-     * glow-dome-scales-with-the-crystal.
-     *
-     * @return the dome's full reach in blocks
-     */
-    static float domeReach() {
-        return LARGE_DOME_REACH * lateralExtent(GlowCrystalBlock.CrystalSize.TINY)
-                / lateralExtent(GlowCrystalBlock.CrystalSize.LARGE);
-    }
-
-    private static float lateralExtent(GlowCrystalBlock.CrystalSize size) {
-        return (float) (size.max - size.min);
-    }
-
-    /**
      * Packs the dome's vertex color: opacity in alpha, which the shader
      * multiplies into its output alpha, progress in red, the placed face's
      * ordinal in green and the bloom's brightness in blue.
@@ -99,7 +81,7 @@ public final class GlowExplosionVisual implements BurnoutVisual {
      * @return the dome's radius in blocks
      */
     static float domeRadius(float progress) {
-        return domeReach() * BurnoutGeometry.easeOutCubic(progress);
+        return DOME_REACH * BurnoutGeometry.easeOutCubic(progress);
     }
 
     /**

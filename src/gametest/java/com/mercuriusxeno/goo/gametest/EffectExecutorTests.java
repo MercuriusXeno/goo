@@ -254,7 +254,7 @@ public final class EffectExecutorTests {
 
     /**
      * Asserts the glow crystal replaced the marker with facing from the
-     * placed face, shape bump (no flat goo) and size tiny (one stack).
+     * placed face, its one property.
      *
      * @param helper the gametest helper
      * @param facing the placed face the crystal must face
@@ -262,8 +262,6 @@ public final class EffectExecutorTests {
     private static void assertGlowCrystal(GameTestHelper helper, Direction facing) {
         helper.assertBlockPresent(GooBlocks.GLOW_CRYSTAL.get(), MARKER_POS);
         helper.assertBlockProperty(MARKER_POS, GlowCrystalBlock.FACING, facing);
-        helper.assertBlockProperty(MARKER_POS, GlowCrystalBlock.SHAPE, GlowCrystalBlock.CrystalShape.BUMP);
-        helper.assertBlockProperty(MARKER_POS, GlowCrystalBlock.SIZE, GlowCrystalBlock.CrystalSize.TINY);
     }
 
     /**
@@ -340,37 +338,35 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * Stands a glow crystal of the given size on stone, facing up, and
-     * lands one goo of the named ability on it.
+     * Stands a glow crystal on stone, facing up, and lands one goo of the
+     * named ability on it.
      *
      * @param helper    the gametest helper
-     * @param size      the crystal's size before the goo lands
      * @param type      the goo type thrown
      * @param abilityId the ability the goo names
      */
-    private static void landOnCrystal(GameTestHelper helper, GlowCrystalBlock.CrystalSize size,
-                                      ResourceKey<GooTypeDefinition> type, String abilityId) {
+    private static void landOnCrystal(GameTestHelper helper, ResourceKey<GooTypeDefinition> type, String abilityId) {
         helper.setBlock(CRYSTAL_POS.below(), Blocks.STONE);
         helper.setBlock(CRYSTAL_POS, GooBlocks.GLOW_CRYSTAL.get().defaultBlockState()
-                .setValue(GlowCrystalBlock.FACING, Direction.UP)
-                .setValue(GlowCrystalBlock.SIZE, size));
+                .setValue(GlowCrystalBlock.FACING, Direction.UP));
         AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(abilityId));
         helper.assertTrue(ability != null, ABILITIES_REQUIRED);
         AbilityImpact.land(helper.getLevel(), helper.absolutePos(CRYSTAL_POS), type, Direction.UP, ability);
     }
 
     /**
-     * Two glow_crystal goo landing on a tiny glow crystal leave it tiny:
-     * a crystal lands at its one size and never grows on a later hit
-     * (decision place-block-ability-grows-block).
+     * A second glow_crystal goo landing on a glow crystal leaves it as it
+     * stood: a crystal lands at its one size and never grows on a later hit
+     * (decisions place-block-ability-grows-block, bulb-one-model-max-light-beacon-combo).
      *
      * @param helper the gametest helper
      */
     public static void crystalNeverGrowsOnALaterHit(GameTestHelper helper) {
-        landOnCrystal(helper, GlowCrystalBlock.CrystalSize.TINY, GooTypes.GLOW, ABILITY_GLOW_CRYSTAL);
+        landOnCrystal(helper, GooTypes.GLOW, ABILITY_GLOW_CRYSTAL);
         AbilityDefinition glow = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(ABILITY_GLOW_CRYSTAL));
         AbilityImpact.land(helper.getLevel(), helper.absolutePos(CRYSTAL_POS), GooTypes.GLOW, Direction.UP, glow);
-        helper.assertBlockProperty(CRYSTAL_POS, GlowCrystalBlock.SIZE, GlowCrystalBlock.CrystalSize.TINY);
+        helper.assertBlockPresent(GooBlocks.GLOW_CRYSTAL.get(), CRYSTAL_POS);
+        helper.assertBlockProperty(CRYSTAL_POS, GlowCrystalBlock.FACING, Direction.UP);
         helper.succeed();
     }
 
@@ -381,8 +377,8 @@ public final class EffectExecutorTests {
      * @param helper the gametest helper
      */
     public static void otherAbilityMarksCrystal(GameTestHelper helper) {
-        landOnCrystal(helper, GlowCrystalBlock.CrystalSize.TINY, GooTypes.METAL, ABILITY_METAL_SPIKES);
-        helper.assertBlockProperty(CRYSTAL_POS, GlowCrystalBlock.SIZE, GlowCrystalBlock.CrystalSize.TINY);
+        landOnCrystal(helper, GooTypes.METAL, ABILITY_METAL_SPIKES);
+        helper.assertBlockPresent(GooBlocks.GLOW_CRYSTAL.get(), CRYSTAL_POS);
         helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), CRYSTAL_POS.above());
         helper.succeed();
     }

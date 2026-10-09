@@ -178,8 +178,7 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
      * @return the crystal-matched voxel shape
      */
     private static VoxelShape computeGlowShape(Direction face) {
-        GlowCrystalBlock.CrystalSize cs = GlowCrystalBlock.CrystalSize.TINY;
-        return GlowCrystalBlock.shapeFor(face, cs.min, cs.max, GlowCrystalBlock.BUMP_DEPTH);
+        return GlowCrystalBlock.shapeOn(face);
     }
 
     /**

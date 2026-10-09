@@ -52,6 +52,7 @@ public final class StepTypes {
         register(TeleportStep.TYPE);
         register(PushStep.TYPE);
         register(PlaceBlockStep.TYPE);
+        register(SetStateStep.TYPE);
         register(FieldEffectStep.TYPE);
         register(LingerStep.TYPE);
         register(PhasedStep.TYPE);

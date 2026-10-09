@@ -10,13 +10,17 @@ import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyles;
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.SectionPos;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
@@ -26,14 +30,20 @@ import java.util.List;
  * the face it grew from. While the landing blob transforms into it, the blob's
  * cube morphs into the column, its goo look fading into the quartz. A prism
  * holding a combo draws by the style its combo registered in
- * {@link PrismComboStyles}, scaled about the landing face's center as it grows.
+ * {@link PrismComboStyles}, scaled about the landing face's center as it grows,
+ * and keeps drawing a combo's beam from as far as the render distance reaches.
  * decision prism-blob-becomes-a-milky-quartz-crystal
  * decision prism-is-one-pointed-quartz-column
  * decision prism-hosts-the-combos
+ * decision bulb-one-model-max-light-beacon-combo
  */
 public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, PrismRenderState> {
 
     private static final float HALF = 0.5f;
+    /** Ticks in vanilla's beacon beam scroll cycle. */
+    private static final int BEAM_CYCLE_TICKS = 40;
+    /** The camera distance past which a beam widens, in blocks, vanilla's beacon threshold. */
+    static final float BEAM_WIDEN_DISTANCE = 96f;
 
     /**
      * Creates the prism renderer.
@@ -60,6 +70,52 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         state.blobLook = blob == null ? null : CrystalClusterSubmitter.lookOf(blob.gooType(),
                 ClientGooTypes.color(blob.gooType()));
         state.combo = prism.getCombo();
+        // bulb-one-model-max-light-beacon-combo: a beam scrolls and widens as vanilla's beacon beam does
+        long gameTime = prism.getLevel() == null ? 0L : prism.getLevel().getGameTime();
+        state.animationTime = Math.floorMod(gameTime, BEAM_CYCLE_TICKS) + partialTick;
+        state.beamRadiusScale = beamRadiusScale((float) cameraPos.subtract(state.blockPos.getCenter()).horizontalDistance());
+    }
+
+    /**
+     * How much a beam widens at a camera distance: not at all within 96
+     * blocks, then in step with the distance, as vanilla's beacon beam widens.
+     *
+     * @param horizontalDistance the camera's horizontal distance from the prism, in blocks
+     * @return the factor the beam's radii take
+     */
+    static float beamRadiusScale(float horizontalDistance) {
+        return Math.max(1f, horizontalDistance / BEAM_WIDEN_DISTANCE);
+    }
+
+    /**
+     * The box a prism draws within: its cell, stretched along the face it
+     * grew from by its combo's reach, so a beam draws while its prism is off screen.
+     *
+     * @param pos    the prism's position
+     * @param facing the face the prism grew from
+     * @param reach  how far its combo draws out of the cell, in blocks
+     * @return the render bounding box
+     */
+    static AABB drawnBounds(BlockPos pos, Direction facing, int reach) {
+        return new AABB(pos).expandTowards(facing.getStepX() * reach, facing.getStepY() * reach,
+                facing.getStepZ() * reach);
+    }
+
+    @Override
+    public AABB getRenderBoundingBox(PrismBlockEntity prism) {
+        PrismComboStyle style = PrismComboStyles.forCombo(prism.getCombo());
+        int reach = style == null ? 0 : style.beamReach();
+        return drawnBounds(prism.getBlockPos(), prism.getBlockState().getValue(PrismBlock.FACING), reach);
+    }
+
+    @Override
+    public boolean shouldRenderOffScreen() {
+        return true;
+    }
+
+    @Override
+    public int getViewDistance() {
+        return Minecraft.getInstance().options.getEffectiveRenderDistance() * SectionPos.SECTION_SIZE;
     }
 
     @Override
