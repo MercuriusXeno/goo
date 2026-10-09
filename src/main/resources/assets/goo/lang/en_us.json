@@ -131,6 +131,7 @@
   "goo.ability.hex.enchant": "Enchant",
   "goo.ability.hex.fuse": "Fuse",
   "goo.ability.hex.spawn": "Spawn",
+  "goo.ability.hex.spawn_tap": "Spawn",
   "goo.ability.leaf.barkskin": "Barkskin",
   "goo.ability.leaf.entangle": "Vines",
   "goo.ability.metal.javelin": "Dart",

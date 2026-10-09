@@ -3,6 +3,11 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.program.Expr;
+import com.mercuriusxeno.goo.ability.program.HostKind;
+import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
+import com.mercuriusxeno.goo.ability.program.SpawnRandomStep;
+import com.mercuriusxeno.goo.ability.program.TapHost;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -42,7 +47,50 @@ public final class HexSpawnTests {
     private static final String EGG_TAKEN = "The throw should take the one egg, %d remain";
     private static final String NO_NATURAL_MOB = "A mob the landing biome spawns naturally should stand at the landing";
 
+    private static final int MORPH_TICKS = 20;
+    private static final float ALWAYS = 100f;
+    private static final float NEVER = 0f;
+    /** Ticks after the drip to look for a conjured mob, the morph and then some. */
+    private static final int AFTER_THE_DRIP = MORPH_TICKS + 5;
+    private static final String NO_TAP_MOB = "A drip at chance 100 should conjure a mob below the tap";
+    private static final String TAP_MOB_AT_ZERO = "A drip at chance 0 should conjure nothing, found %s";
+
     private HexSpawnTests() {
+    }
+
+    /**
+     * A hex drip landing on a stone floor at chance 0 conjures nothing, and
+     * one at chance 100 then conjures a mob into the cell below the tap; each
+     * runs Spawn's step on the tap host the drip scheduler builds
+     * (decision spawn-drip-rolls-a-fresh-spawn).
+     *
+     * @param helper the gametest helper
+     */
+    public static void spawnTapAtFullChance(GameTestHelper helper) {
+        helper.setBlock(FLOOR_POS, Blocks.STONE);
+        BlockPos landing = helper.absolutePos(FLOOR_POS);
+        drip(helper, landing, NEVER);
+        helper.runAfterDelay(AFTER_THE_DRIP, () -> {
+            List<LivingEntity> atZero = mobsAbove(helper, landing);
+            helper.assertTrue(atZero.isEmpty(), String.format(TAP_MOB_AT_ZERO, atZero));
+            drip(helper, landing, ALWAYS);
+            helper.runAfterDelay(AFTER_THE_DRIP, () -> {
+                helper.assertFalse(mobsAbove(helper, landing).isEmpty(), NO_TAP_MOB);
+                helper.succeed();
+            });
+        });
+    }
+
+    private static void drip(GameTestHelper helper, BlockPos landing, float chancePercent) {
+        SpawnRandomStep spawn = new SpawnRandomStep(GooTypes.HEX, MORPH_TICKS, List.of(),
+                Expr.literal(chancePercent));
+        ProgramBehavior.forHost(List.of(spawn), HostKind.TAP)
+                .tick(new TapHost(helper.getLevel(), landing, Direction.UP));
+    }
+
+    private static List<LivingEntity> mobsAbove(GameTestHelper helper, BlockPos landing) {
+        return helper.getLevel().getEntitiesOfClass(LivingEntity.class, new AABB(landing.above()).inflate(0.5),
+                living -> !(living instanceof Player));
     }
 
     /**
