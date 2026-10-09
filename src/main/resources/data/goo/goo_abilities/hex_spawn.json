@@ -13,6 +13,8 @@
       "goo": "hex",
       "morph_ticks": 20,
       "steps": [
+        { "type": "sound", "id": "minecraft:entity.slime.squish", "source": "players", "volume": 0.9, "pitch": 0.7 },
+        { "type": "sound", "id": "minecraft:entity.evoker.prepare_summon", "source": "players", "volume": 0.8, "pitch": 1.2 },
         { "type": "ailment_overlay", "kind": "hex", "duration": 60 },
         { "type": "afterimage", "goo": "hex" }
       ]
