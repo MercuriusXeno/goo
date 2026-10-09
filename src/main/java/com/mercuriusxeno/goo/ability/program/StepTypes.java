@@ -75,6 +75,7 @@ public final class StepTypes {
         register(CrushStep.TYPE);
         register(PetrifyStep.TYPE);
         register(CalcifyStep.TYPE);
+        register(DegradeStep.TYPE);
         register(PetrifyDripStep.TYPE);
         register(LeafSteps.HEAL.type());
         register(LeafSteps.COURT.type());

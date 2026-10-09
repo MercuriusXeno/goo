@@ -19,6 +19,7 @@ import com.mercuriusxeno.goo.network.SelfDeliveryTests;
 import com.mercuriusxeno.goo.network.BoreStreamTests;
 import com.mercuriusxeno.goo.network.CrushMobTests;
 import com.mercuriusxeno.goo.network.FlattenChannelTests;
+import com.mercuriusxeno.goo.network.DecayStreamTests;
 import com.mercuriusxeno.goo.network.PetrifyStreamTests;
 import com.mercuriusxeno.goo.network.StreamDeliveryTests;
 import com.mercuriusxeno.goo.network.TouchDeliveryTests;
@@ -427,6 +428,7 @@ public final class GooTestFunctions {
     private static final String PETRIFY_SLOWS_THEN_STATUES = "petrify_slows_then_statues";
     private static final String PETRIFY_GAUGE_DRAINS = "petrify_gauge_drains";
     private static final String PETRIFY_CALCIFIES_GRADUALLY = "petrify_calcifies_gradually";
+    private static final String DECAY_DEGRADES_ONCE = "decay_degrades_once_per_activation";
     private static final String STATUE_MINES = "statue_mines_for_cobblestone_and_experience";
     private static final String PETRIFY_TAP_CALCIFIES = "petrify_tap_calcifies";
     private static final String PETRIFY_TAP_GROWS_DRIPSTONE = "petrify_tap_grows_dripstone";
@@ -891,6 +893,7 @@ public final class GooTestFunctions {
         reg(r, PETRIFY_SLOWS_THEN_STATUES, PetrifyStreamTests::petrifySlowsThenStatues);
         reg(r, PETRIFY_GAUGE_DRAINS, PetrifyStreamTests::petrifyGaugeDrains);
         reg(r, PETRIFY_CALCIFIES_GRADUALLY, PetrifyStreamTests::petrifyCalcifiesGradually);
+        reg(r, DECAY_DEGRADES_ONCE, DecayStreamTests::decayDegradesOncePerActivation);
         reg(r, STATUE_MINES, PetrifyStreamTests::statueMinesForCobblestoneAndExperience);
         reg(r, PETRIFY_TAP_CALCIFIES, PetrifyTapTests::petrifyTapCalcifies);
         reg(r, PETRIFY_TAP_GROWS_DRIPSTONE, PetrifyTapTests::petrifyTapGrowsDripstone);

@@ -31,6 +31,13 @@ public class GooParticles {
         PARTICLE_TYPES.register("spore", () -> new SimpleParticleType(false));
 
     /**
+     * A maroon gnat darting in Decay's swarm, the particle its stream sprays
+     * along the cone (decision decay-gnats-degrade-each-block-once).
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> GNAT =
+        PARTICLE_TYPES.register("gnat", () -> new SimpleParticleType(false));
+
+    /**
      * The particle a ability block's explosion names in place of vanilla's
      * explosion particles; its client provider spawns nothing, so the goo
      * type's own burnout explosion is the one seen (decision

@@ -1,10 +1,13 @@
 package com.mercuriusxeno.goo.network;
 
+import net.minecraft.core.BlockPos;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.UUID;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A stream hold counts consecutive server ticks per player, and its ticks
@@ -51,6 +54,41 @@ class StreamHoldsTest {
             holds.advance(PLAYER, 100);
             holds.clear();
             assertEquals(1, holds.advance(PLAYER, 101));
+        }
+    }
+
+    /** A hold steps each block position once (decision decay-gnats-degrade-each-block-once). */
+    @Nested
+    class SteppedOncePerHold {
+
+        private static final BlockPos BLOCK = new BlockPos(4, 64, -2);
+
+        @Test
+        void aNotedPositionReadsSteppedForTheRestOfTheHold() {
+            StreamHolds holds = new StreamHolds();
+            holds.advance(PLAYER, 100);
+            holds.noteStepped(PLAYER, BLOCK);
+            holds.advance(PLAYER, 101);
+            assertTrue(holds.stepped(PLAYER, BLOCK));
+            assertFalse(holds.stepped(PLAYER, BLOCK.above()));
+        }
+
+        @Test
+        void aNewHoldForgetsTheLastHoldsSteps() {
+            StreamHolds holds = new StreamHolds();
+            holds.advance(PLAYER, 100);
+            holds.noteStepped(PLAYER, BLOCK);
+            holds.advance(PLAYER, 102);
+            assertFalse(holds.stepped(PLAYER, BLOCK));
+        }
+
+        @Test
+        void eachPlayersStepsAreItsOwn() {
+            StreamHolds holds = new StreamHolds();
+            holds.advance(PLAYER, 100);
+            holds.advance(OTHER, 100);
+            holds.noteStepped(PLAYER, BLOCK);
+            assertFalse(holds.stepped(OTHER, BLOCK));
         }
     }
 
