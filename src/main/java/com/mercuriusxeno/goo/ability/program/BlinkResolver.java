@@ -4,7 +4,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import java.util.Comparator;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
  * Resolves where a blink lands. Free aim sits a fixed range along the look:
@@ -60,22 +62,24 @@ public final class BlinkResolver {
     }
 
     /**
-     * Where a blink snapped to an oculus lands: standing in the oculus's cell
-     * where the body fits there.
+     * Where a blink snapped to an oculus lands: beside the oculus, in the
+     * cell next to it nearest the blinker that the body fits in, the cells
+     * around it and the one above it all tried.
      * Decision oculus-prism-becomes-a-hovering-eye.
      *
      * @param space the world as the blink reads it
      * @param feet  where the blinker's feet stand
      * @param node  the oculus's cell
      * @param body  the blinker's size
-     * @return the landing, empty where the body does not fit in the cell
+     * @return the landing, empty where the body fits beside the oculus nowhere
      */
     public static Optional<BlinkLanding> toNode(BlinkSpace space, Vec3 feet, BlockPos node, BlinkBody body) {
-        Vec3 spot = Vec3.atBottomCenterOf(node);
-        return space.fits(body.boxAt(spot))
-                ? Optional.of(new BlinkLanding(spot, feet.distanceTo(spot),
-                        crossesSolid(space, body.centerAt(feet), body.centerAt(spot)), Optional.of(node)))
-                : Optional.empty();
+        return Stream.of(node.north(), node.south(), node.east(), node.west(), node.above())
+                .map(Vec3::atBottomCenterOf)
+                .filter(spot -> space.fits(body.boxAt(spot)))
+                .min(Comparator.comparingDouble(feet::distanceTo))
+                .map(spot -> new BlinkLanding(spot, feet.distanceTo(spot),
+                        crossesSolid(space, body.centerAt(feet), body.centerAt(spot)), Optional.of(node)));
     }
 
     /**

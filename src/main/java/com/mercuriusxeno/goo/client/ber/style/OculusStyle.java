@@ -1,12 +1,13 @@
 package com.mercuriusxeno.goo.client.ber.style;
 
+import com.mercuriusxeno.goo.client.CrystalClusterSubmitter;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.PrismCrystal;
 import com.mercuriusxeno.goo.client.ber.PrismRenderState;
 import com.mercuriusxeno.goo.client.model.OculusModels;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.Direction;
 
 /**
@@ -41,16 +42,17 @@ public final class OculusStyle implements PrismComboStyle {
     private static final float SMOOTHSTEP_SQUARE = 3f;
     private static final float SMOOTHSTEP_CUBE = 2f;
     private static final double TWO_PI = 2 * Math.PI;
-    private static final int NO_OUTLINE = 0;
 
     @Override
     public void submit(PrismRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector) {
         float share = transformationShare(state.gameTime, state.comboSince);
         float crystalScale = 1f - smoothstep(Math.min(1f, HALVES * share));
-        if (crystalScale > 0f) {
+        CrystalClusterSubmitter.Look look = state.look;
+        if (crystalScale > 0f && look != null) {
             poseStack.pushPose();
             scaleAboutBase(poseStack, state.facing, crystalScale);
-            state.crystal.submit(poseStack, nodeCollector, state.lightCoords, OverlayTexture.NO_OVERLAY, NO_OUTLINE);
+            PrismCrystal.standOnLandingFace(poseStack, state.facing);
+            CrystalClusterSubmitter.submit(poseStack, nodeCollector, PrismCrystal.PRISMS, look, state.lightCoords);
             poseStack.popPose();
         }
         float eyeScale = share < HALF ? 0f : smoothstep(HALVES * share - 1f);
