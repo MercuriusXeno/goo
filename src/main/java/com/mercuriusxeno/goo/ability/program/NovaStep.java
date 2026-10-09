@@ -7,16 +7,16 @@ import com.mercuriusxeno.goo.network.NovaRingPayload;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Pulses a ring of frost out from the host: every mob within the radius
+ * Pulses a ring of frost out from the host's frost center: every mob within the radius
  * has its frozen gauge filled by the amount, shared only slightly among a
  * crowd, and is knocked slightly away; every client watching sees the ring
  * expand to the radius. Both the radius and the amount are evaluated on the
@@ -76,18 +76,18 @@ public record NovaStep(Expr radius, Expr amount, float crowd, float push, FrostC
     public boolean tick(StepContext context) {
         float reach = radius.evaluateFloat(context);
         float freeze = amount.evaluateFloat(context);
-        Entity center = context.hostAs(TargetHost.class).target();
+        FrostHost host = context.hostAs(FrostHost.class);
+        Vec3 center = host.frostCenter();
         List<LivingEntity> struck = new ArrayList<>();
-        context.hostAs(EntityScanHost.class).forEachEntityWithin(SelectionShape.SPHERE, reach, AROUND_THE_HOST,
-                selected -> struck.add(selected.target()));
+        host.forEachEntityWithin(SelectionShape.SPHERE, reach, AROUND_THE_HOST, selected -> struck.add(selected.target()));
         float each = freeze * crowdShare(crowd, struck.size());
         for (LivingEntity living : struck) {
             if (living instanceof Mob mob) {
                 FrozenEvents.freeze(mob, each, curve);
             }
-            living.knockback(push, center.getX() - living.getX(), center.getZ() - living.getZ());
+            living.knockback(push, center.x - living.getX(), center.z - living.getZ());
         }
-        EntityVisuals.sendToWatchers(center, new NovaRingPayload(center.position(), reach));
+        EntityVisuals.sendToWatchersOf(host.level(), center, new NovaRingPayload(center, reach));
         return true;
     }
 
@@ -98,6 +98,6 @@ public record NovaStep(Expr radius, Expr amount, float crowd, float push, FrostC
 
     @Override
     public Set<HostCapability> requires() {
-        return Set.of(HostCapability.TARGET, HostCapability.ENTITY_SCAN);
+        return Set.of(HostCapability.FROST);
     }
 }
