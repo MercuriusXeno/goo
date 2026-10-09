@@ -106,13 +106,6 @@ public final class LeafSteps {
             (target, seconds, context) -> target.igniteForSeconds(seconds.evaluateInt(context)));
 
     /**
-     * Sets the host's target to a fraction of its current health, bypassing
-     * damage; nether wither is {@code set_health fraction=0.5}.
-     */
-    public static final LeafStepType<Expr> SET_HEALTH = TargetEffectStep.of("set_health", "fraction",
-            (target, fraction, context) -> target.setHealth(target.getHealth() * fraction.evaluateFloat(context)));
-
-    /**
      * Adds to the host's target's frozen ticks; a full freeze stands at
      * 140, so frost snap is {@code freeze_ticks add=140}.
      */

@@ -39,7 +39,6 @@ public final class StepTypes {
         register(DamageStep.TYPE);
         register(PotionStep.TYPE);
         register(TargetStep.TYPE);
-        register(LeafSteps.SET_HEALTH.type());
         register(LeafSteps.FREEZE_TICKS.type());
         register(LeafSteps.SET_AI.type());
         register(LeafSteps.SET_INVULNERABLE.type());

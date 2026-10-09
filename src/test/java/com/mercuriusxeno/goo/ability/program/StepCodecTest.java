@@ -41,7 +41,6 @@ class StepCodecTest {
                     Expr.parse("1 + stacks").getOrThrow(), false)),
             Map.entry("target", new TargetStep(List.of(EntityFilter.NOT_BOSS),
                     List.of(new DamageStep(Expr.literal(4), DamageKind.FREEZE)))),
-            Map.entry("set_health", LeafSteps.SET_HEALTH.step(Expr.parse("0.5 * health / max_health").getOrThrow())),
             Map.entry("freeze_ticks",
                     LeafSteps.FREEZE_TICKS.step(Expr.parse("140 * 25 / pow(health, 0.2) / 100").getOrThrow())),
             Map.entry("set_ai", LeafSteps.SET_AI.step(false)),
