@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.network.SunbeamPayload;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -10,6 +11,8 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BeaconRenderer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -34,10 +37,15 @@ public final class SunbeamVisual {
 
     /** Ticks a ray keeps showing after the last one arrived. */
     static final int LINGER_TICKS = 2;
-    /** The ray's layers draw at this share of the beacon's width. */
-    static final float RAY_WIDTH = 0.5f;
-    /** How far below the eye the ray leaves the caster, near the glove hand. */
-    private static final double BELOW_THE_EYE = 0.3;
+    /** The ray's layers draw at this share of the beacon's width, slimmed after UAT (operator ruling 2026-10-09). */
+    static final float RAY_WIDTH = 0.35f;
+    /** Where another player's glove hand sits, from the eye: below it, out to the side and ahead. */
+    private static final double HAND_BELOW_EYE = 0.45;
+    private static final double HAND_TO_THE_SIDE = 0.35;
+    private static final double HAND_AHEAD = 0.4;
+    /** Which way from the look the main hand sits: to the right, or mirrored for a left-handed player. */
+    private static final double RIGHT_HANDED = 1;
+    private static final double LEFT_HANDED = -1;
     private static final float SCROLL_PER_TICK = 0.2f;
     private static final double SHORTEST_SEGMENT = 1.0e-3;
 
@@ -56,7 +64,12 @@ public final class SunbeamVisual {
         context.enqueueWork(() -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level != null) {
+                boolean starting = !RAYS.containsKey(payload.casterId());
                 RAYS.put(payload.casterId(), new Ray(payload.end(), payload.refracted(), mc.level.getGameTime()));
+                Entity caster = mc.level.getEntity(payload.casterId());
+                if (starting && caster != null) {
+                    mc.getSoundManager().play(new SunbeamHum(caster));
+                }
             }
         });
     }
@@ -86,11 +99,44 @@ public final class SunbeamVisual {
             if (caster == null || now - entry.getValue().arrivedAt() > LINGER_TICKS) {
                 rays.remove();
             } else {
-                Vec3 from = caster.getEyePosition(partialTick).subtract(0, BELOW_THE_EYE, 0);
+                Vec3 from = handOf(mc, caster, partialTick);
                 drawRay(event.getPoseStack(), consumer, from.subtract(camera), entry.getValue(), camera, scroll);
             }
         }
         buffers.endBatch(GooRenderTypes.glowBeam(BeaconRenderer.BEAM_LOCATION));
+    }
+
+    /**
+     * Whether a caster's ray still shows: one arrived within the linger.
+     *
+     * @param casterId the caster's entity id
+     * @return true while it shows
+     */
+    static boolean isShowing(int casterId) {
+        Minecraft mc = Minecraft.getInstance();
+        Ray ray = RAYS.get(casterId);
+        return ray != null && mc.level != null && mc.level.getGameTime() - ray.arrivedAt() <= LINGER_TICKS;
+    }
+
+    /**
+     * Where the ray leaves a caster: the goo in the local player's glove in
+     * first person, else the caster's main hand, out from the eye by its look.
+     *
+     * @param mc          the client
+     * @param caster      the casting player
+     * @param partialTick the frame's partial tick
+     * @return the world point
+     */
+    private static Vec3 handOf(Minecraft mc, Entity caster, float partialTick) {
+        if (caster == mc.player && mc.options.getCameraType().isFirstPerson()) {
+            return GloveAim.handPosition(mc.gameRenderer.getMainCamera());
+        }
+        Vec3 look = caster.getViewVector(partialTick);
+        Vec3 side = look.cross(new Vec3(0, 1, 0)).normalize();
+        double handedness = caster instanceof Player player && player.getMainArm() == HumanoidArm.LEFT
+                ? LEFT_HANDED : RIGHT_HANDED;
+        return caster.getEyePosition(partialTick).subtract(0, HAND_BELOW_EYE, 0)
+                .add(side.scale(HAND_TO_THE_SIDE * handedness)).add(look.scale(HAND_AHEAD));
     }
 
     /**
