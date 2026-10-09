@@ -453,6 +453,8 @@ public final class GooTestFunctions {
     private static final String TIMEKEEPER_REWIND_WITHDRAWS = "timekeeper_rewind_withdraws";
     private static final String CHRONOSPHERE_SLOWS = "chronosphere_slows_mobs_and_projectiles";
     private static final String CHRONOSPHERE_SPARES_PLAYERS = "chronosphere_spares_players";
+    private static final String HASTE_HOLDS_WITHOUT_PARTICLES = "haste_holds_without_particles";
+    private static final String AEON_BREW_HASTES = "aeon_brew_hastes_for_an_hour";
     private static final String MOB_AEON_BABY_FORM_FILTER = "mob_aeon_baby_form_filter";
 
     // --- Lighting ---
@@ -920,6 +922,8 @@ public final class GooTestFunctions {
         reg(r, TIMEKEEPER_REWIND_WITHDRAWS, TimekeeperTests::timekeeperRewindWithdraws);
         reg(r, CHRONOSPHERE_SLOWS, ChronosphereTests::chronosphereSlowsMobsAndProjectiles);
         reg(r, CHRONOSPHERE_SPARES_PLAYERS, ChronosphereTests::chronosphereSparesPlayers);
+        reg(r, HASTE_HOLDS_WITHOUT_PARTICLES, SelfDeliveryTests::hasteHoldsWithoutParticles);
+        reg(r, AEON_BREW_HASTES, BrewEffectTests::aeonBrewHastesForAnHour);
         reg(r, MOB_AEON_BABY_FORM_FILTER, MobEffectTests::aeonBabyFormFilter);
     }
 

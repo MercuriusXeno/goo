@@ -20,6 +20,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.level.GameType;
 import java.util.List;
 
@@ -46,6 +47,7 @@ public final class BrewEffectTests {
     private static final float SIGHT_FACTOR = 3f;
     private static final String SHOULD_SEE = "The shroom brew should grant sight at %.1f until %d, granted %.1f until %d";
     private static final String SHOULD_SHOW_NO_PARTICLES = "A brew should show its icon and no particles, stands %s";
+    private static final String SHOULD_HASTE = "The aeon brew should haste for %d ticks with no particles, stands %s";
     private static final String SHOULD_NOURISH = "The vital brew should nourish until %d, nourishes until %d";
     private static final String SHOULD_RUN_NOTHING = "A brew of a type with no brew ability should lay nothing, laid %s";
     private static final String SHOULD_HOLD_PREPAID = "The blaze brew should hold Kindle prepaid until %d, held %s";
@@ -162,6 +164,31 @@ public final class BrewEffectTests {
         long expected = now + GooPotions.BREW_DURATION;
         helper.assertTrue(sight.factor() == SIGHT_FACTOR && sight.expiresAt() == expected,
                 String.format(SHOULD_SEE, SIGHT_FACTOR, expected, sight.factor(), sight.expiresAt()));
+        helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
+        helper.succeed();
+    }
+
+    /**
+     * Drinking the aeon brew hastes the player for an hour: speed and haste
+     * standing the brew's duration with their particles off, draining no goo
+     * (decision haste-stacks-speed-under-the-golden-overlay).
+     *
+     * @param helper the gametest helper
+     */
+    public static void aeonBrewHastesForAnHour(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.AEON);
+        int heldBefore = held(player, GooTypes.AEON);
+
+        drink(player, GooTypes.AEON);
+
+        MobEffectInstance speed = player.getEffect(MobEffects.SPEED);
+        MobEffectInstance haste = player.getEffect(MobEffects.HASTE);
+        int drained = heldBefore - held(player, GooTypes.AEON);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        for (MobEffectInstance effect : new MobEffectInstance[] {speed, haste}) {
+            helper.assertTrue(effect != null && effect.getDuration() == GooPotions.BREW_DURATION && !effect.isVisible(),
+                    String.format(SHOULD_HASTE, GooPotions.BREW_DURATION, effect));
+        }
         helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
         helper.succeed();
     }

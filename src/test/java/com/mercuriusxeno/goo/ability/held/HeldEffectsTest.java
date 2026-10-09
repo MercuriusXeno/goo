@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.held;
 
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.program.Expr;
+import com.mercuriusxeno.goo.ability.program.HasteStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
 import com.mercuriusxeno.goo.ability.program.NourishStep;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
@@ -205,6 +206,8 @@ class HeldEffectsTest {
     void laidStateIsReadFromTheProgram() {
         assertEquals(Set.of(LaidState.HEART_OVERLAY), LaidState.laidBy(List.of(new HeartOverlayStep(HeartKind.KINDLE))));
         assertEquals(Set.of(LaidState.NOURISH), LaidState.laidBy(List.of(new NourishStep(Expr.literal(80)))));
+        // haste-stacks-speed-under-the-golden-overlay
+        assertEquals(Set.of(LaidState.HASTE), LaidState.laidBy(List.of(new HasteStep(1, 1))));
         assertEquals(Set.of(), LaidState.laidBy(List.of()));
     }
 }
