@@ -51,6 +51,9 @@ public final class MycosisFungiTests {
     private static final String ABILITY_REQUIRED = "Ability registry must hold %s";
     private static final String SHOULD_REPLANT = "Reaped wart should stand replanted at age 0 beside dropped wart, stands %s";
     private static final String SHOULD_MUSHROOM = "A bud under the stream should grow into a mushroom, stands %s";
+    /** The held ticks a bud aged on every tick takes to become a mushroom: its four ages. */
+    private static final int INSTANT_RIPENING_TICKS = 4;
+    private static final String SHOULD_STAY_BUD = "A bud held four ticks should still be a bud at wart's pace, stands %s";
     private static final String GROWTH_SPARES_WART = "Growth's breeze should leave nether wart at age 0, stands at age %d";
 
     private MycosisFungiTests() {
@@ -89,6 +92,26 @@ public final class MycosisFungiTests {
             BlockState grown = helper.getBlockState(FUNGUS_POS);
             helper.assertTrue(grown.is(Blocks.BROWN_MUSHROOM) || grown.is(Blocks.RED_MUSHROOM),
                     String.format(SHOULD_MUSHROOM, grown));
+        });
+    }
+
+    /**
+     * A mock player holds Mycosis on a fresh fungal bud for four ticks, the
+     * hold that ripened a bud ticked every held tick, and the bud still stands:
+     * at wart's pace of one tick in ten, all four aging is a one in ten
+     * thousand chance.
+     *
+     * @param helper the gametest helper
+     */
+    public static void mycosisBudsRipenAtWartsPace(GameTestHelper helper) {
+        helper.setBlock(FUNGUS_POS.below(), Blocks.STONE);
+        helper.setBlock(FUNGUS_POS, GooBlocks.FUNGAL_BUD.get().defaultBlockState().setValue(FungalBudBlock.AGE, 0));
+        ServerPlayer player = hold(helper, GooTypes.SHROOM, SHROOM_MYCOSIS, INSTANT_RIPENING_TICKS);
+        helper.runAfterDelay(INSTANT_RIPENING_TICKS + 1, () -> {
+            BlockState bud = helper.getBlockState(FUNGUS_POS);
+            helper.assertTrue(bud.is(GooBlocks.FUNGAL_BUD.get()), String.format(SHOULD_STAY_BUD, bud));
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.succeed();
         });
     }
 
