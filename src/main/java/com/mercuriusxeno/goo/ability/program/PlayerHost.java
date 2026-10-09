@@ -234,8 +234,10 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
             return;
         }
         long now = level.getGameTime();
-        BlockMelts.siphon(level, pos, now + ticks);
-        drink.start(pos, new Drinks.Siphon(goo, now, now + ticks));
+        long start = now + SiphonRule.INJECT_TICKS;
+        long end = start + ticks;
+        long payAt = end + SiphonRule.travelTicks(Vec3.atCenterOf(pos).distanceTo(player.getEyePosition()));
+        drink.start(pos, new Drinks.Siphon(goo, now, start, end, payAt));
     }
 
     private Drinks drinks() {

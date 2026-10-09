@@ -10,11 +10,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.IntPredicate;
 
 /**
  * The blocks streaming into Unmake drinks this client draws, each drink kept
  * from the server's first word of it until its every stream has wholly
- * entered the glove, with the fixed layout of its tree; and the block each
+ * entered the glove and its skin shows nothing more, with the fixed layout of its tree; and the block each
  * one was, remembered from the first frame the client saw it flowing, so the
  * stream's tail is drawn after the block is gone.
  * decision unmake-waves-dissolve-by-crucible-cost
@@ -63,18 +64,21 @@ public final class ClientDrinks {
     }
 
     /**
-     * The drinks to draw, forgetting each drink whose every stream has wholly
-     * entered the glove; a drink's blocks are kept together until then, since
-     * a stream still in the air runs down the trunks of blocks drained before it.
+     * The drinks to draw, forgetting each drink whose every stream has had
+     * its travel and whose skin has nothing left to show; a drink's blocks
+     * are kept together until then, since a stream still in the air runs
+     * down the trunks of blocks drained before it, and the skin is what says
+     * when the last of it is in the glove.
      *
-     * @param now the game time, with the partial tick
+     * @param now       the game time, with the partial tick
+     * @param stillSeen whether a player's drink still has skin to show, by the player's entity id
      * @return the drinks with a block left to draw
      */
-    public List<Drink> live(double now) {
+    public List<Drink> live(double now, IntPredicate stillSeen) {
         List<Drink> live = new ArrayList<>();
         Set<BlockPos> drawn = new HashSet<>();
-        drinks.values().removeIf(shown -> shown.values().stream().allMatch(streaming -> DrinkStream.gone(streaming,
-                now)));
+        drinks.entrySet().removeIf(drink -> drink.getValue().values().stream()
+                .allMatch(streaming -> DrinkStream.gone(streaming, now)) && !stillSeen.test(drink.getKey()));
         layouts.keySet().retainAll(drinks.keySet());
         drinks.forEach((playerId, shown) -> {
             live.add(new Drink(playerId, List.copyOf(shown.values()),

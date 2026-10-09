@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -36,12 +37,13 @@ import java.util.Map;
 /**
  * Gametests for Unmake's drink: a hold down a cobblestone column at mid
  * range drinks the column the narrow cone covers, deep but not wide, all
- * together over the unstable crucible's own time for a cobblestone, burning
- * twice the crucible's fuel for each block, the wall about it standing, and
- * the blocks' full goo goes into the player's inventory; a player with no
- * space gets it at their feet;
- * a block that started streaming goes until it is done though the cursor
- * leaves it or the use is let go, while one outside the cone stands; and a
+ * together over the unstable crucible's own time for a cobblestone after the
+ * zoop's flight, burning the crucible's fuel plus its root for each block,
+ * the wall about it standing, and the blocks' full goo goes into the
+ * player's inventory once its travel back is done, not at the drain; a
+ * player with no space gets it at their feet; a block that started goes
+ * until it is done though the cursor leaves it or the use is let go, standing
+ * as itself until the zoop is in, while one outside the cone stands; and a
  * mob at the cursor is left alone.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
@@ -67,7 +69,10 @@ public final class UnmakeTests {
     private static final double AT_THE_FEET = 0.5;
     private static final String ABILITY_REQUIRED = "Ability registry must hold unstable_unmake";
     private static final String STANDS = "The wall's block at %s should be drunk within %d ticks";
-    private static final String UNPAID = "The hold should burn exactly twice the unstable crucible's fuel per block";
+    private static final String UNPAID = "The hold should burn exactly the unstable crucible's fuel plus its root per block";
+    private static final String PAID_EARLY = "The goo should not be in hand before its travel back, held %s";
+    private static final String ZOOP_EARLY = "A picked block should stand as itself while the zoop flies";
+    private static final String ZOOP_LATE = "A picked block should be the melting stand-in once the zoop is in";
     private static final String WALL_GONE = "The wall's block at %s, off the aim, should stand";
     private static final String WRONG_YIELD = "The inventory should hold %s, held %s";
     private static final String DROPPED = "With space in the inventory nothing should drop, dropped %s";
@@ -104,6 +109,7 @@ public final class UnmakeTests {
         ServerPlayer player = channeler(helper, COLUMN_BLOCKS * fuel);
         KnownRecipes.teachRequires(player, unmake);
         int drinkTicks = drinkTicks(helper);
+        int travel = travelTicks(helper, player, column);
         GooStreamPayload tick = aimedAt(player, westFace(helper, AIMED_POS));
         for (int held = 1; held <= drinkTicks; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
@@ -116,8 +122,10 @@ public final class UnmakeTests {
                 helper.assertTrue(helper.getBlockState(pos).is(Blocks.COBBLESTONE), String.format(WALL_GONE, pos));
             }
             helper.assertFalse(GooSourceScanner.hasEnough(player, GooTypes.UNSTABLE, 1), UNPAID);
+            Map<ResourceKey<GooTypeDefinition>, Integer> held = heldGoo(player.getInventory());
+            helper.assertTrue(held.isEmpty(), String.format(PAID_EARLY, held));
         });
-        helper.runAfterDelay(drinkTicks + 2L, () -> {
+        helper.runAfterDelay(drinkTicks + travel + 2L, () -> {
             Map<ResourceKey<GooTypeDefinition>, Integer> expected = new HashMap<>();
             cobblestone.getAll().forEach((type, amount) -> expected.put(type, amount * COLUMN_BLOCKS));
             Map<ResourceKey<GooTypeDefinition>, Integer> held = heldGoo(player.getInventory());
@@ -146,11 +154,12 @@ public final class UnmakeTests {
         KnownRecipes.teachRequires(player, unmake);
         fillTheInventory(player.getInventory());
         int drinkTicks = drinkTicks(helper);
+        int travel = travelTicks(helper, player, List.of(AIMED_POS));
         GooStreamPayload tick = aimedAt(player, westFace(helper, AIMED_POS));
         for (int held = 1; held <= drinkTicks; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
         }
-        helper.runAfterDelay(drinkTicks + 2L, () -> {
+        helper.runAfterDelay(drinkTicks + travel + 2L, () -> {
             Map<ResourceKey<GooTypeDefinition>, Integer> dropped = droppedGoo(helper, STAND_POS, AT_THE_FEET + 1);
             Map<ResourceKey<GooTypeDefinition>, Integer> held = heldGoo(player.getInventory());
             boolean creative = player.hasInfiniteMaterials();
@@ -195,7 +204,8 @@ public final class UnmakeTests {
 
     /**
      * A mock player holds Unmake at a cobblestone for one tick and lets go,
-     * no tick following: the block that started is drunk anyway.
+     * no tick following: the block stands as itself while the zoop flies, is
+     * the melting stand-in once the zoop is in, and is drunk anyway.
      *
      * @param helper the gametest helper
      */
@@ -208,6 +218,10 @@ public final class UnmakeTests {
         int drinkTicks = drinkTicks(helper);
         GooStreamPayload aimed = aimedAt(player, westFace(helper, AIMED_POS));
         helper.runAfterDelay(1, () -> GooStreamHandler.streamTick(player, aimed));
+        helper.runAfterDelay(SiphonRule.INJECT_TICKS, () -> helper.assertTrue(helper.getBlockState(AIMED_POS)
+                .is(Blocks.COBBLESTONE), ZOOP_EARLY));
+        helper.runAfterDelay(SiphonRule.INJECT_TICKS + 2L, () -> helper.assertTrue(helper.getBlockState(AIMED_POS)
+                .is(GooBlocks.MELTING_BLOCK.get()), ZOOP_LATE));
         helper.runAfterDelay(drinkTicks + 1L, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertTrue(helper.getBlockState(AIMED_POS).isAir(), RELEASED);
@@ -241,15 +255,31 @@ public final class UnmakeTests {
     }
 
     /**
-     * A hold long enough to drink a cobblestone: the unstable crucible's own
-     * time for it, with slack.
+     * A hold long enough to drink a cobblestone: the zoop's flight, then the
+     * unstable crucible's own time for it, with slack.
      *
      * @param helper the gametest helper
      * @return the ticks to hold
      */
     private static int drinkTicks(GameTestHelper helper) {
         GooValue cobblestone = GooValues.of(helper.getLevel()).lookup(new ItemStack(Blocks.COBBLESTONE));
-        return SiphonRule.siphonTicks(cobblestone.totalGoo(), GooConfig.UNSTABLE_MELT_EXPONENT.get(), 1) + SLACK_TICKS;
+        return SiphonRule.INJECT_TICKS + SiphonRule.siphonTicks(cobblestone.totalGoo(),
+                GooConfig.UNSTABLE_MELT_EXPONENT.get(), 1) + SLACK_TICKS;
+    }
+
+    /**
+     * @param helper the gametest helper
+     * @param player the drinking player
+     * @param blocks the blocks drunk
+     * @return the longest travel the server allows any of their goo back to the hand
+     */
+    private static int travelTicks(GameTestHelper helper, ServerPlayer player, List<BlockPos> blocks) {
+        int longest = 0;
+        for (BlockPos pos : blocks) {
+            longest = Math.max(longest, SiphonRule.travelTicks(Vec3.atCenterOf(helper.absolutePos(pos))
+                    .distanceTo(player.getEyePosition())));
+        }
+        return longest;
     }
 
     /**
