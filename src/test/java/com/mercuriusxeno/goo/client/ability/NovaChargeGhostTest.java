@@ -43,4 +43,13 @@ class NovaChargeGhostTest {
         assertTrue(highest <= NovaChargeGhost.PULSE_CEILING + 1e-6f && lowest >= NovaChargeGhost.PULSE_FLOOR - 1e-6f);
         assertTrue(highest - lowest > (NovaChargeGhost.PULSE_CEILING - NovaChargeGhost.PULSE_FLOOR) / 2, "it pulses");
     }
+
+    // nova-ghost-is-faint-frost-and-charges-audibly
+    @Test
+    void theRushRisesWithTheChargeAndHoldsAtFull() {
+        assertEquals(NovaChargeGhost.PITCH_LOW, NovaChargeGhost.chargePitch(0f), 1e-6);
+        assertTrue(NovaChargeGhost.chargePitch(0.5f) > NovaChargeGhost.chargePitch(0.25f));
+        assertEquals(NovaChargeGhost.PITCH_HIGH, NovaChargeGhost.chargePitch(1f), 1e-6);
+        assertEquals(NovaChargeGhost.PITCH_HIGH, NovaChargeGhost.chargePitch(1.5f), 1e-6);
+    }
 }
