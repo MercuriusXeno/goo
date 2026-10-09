@@ -167,7 +167,7 @@ class RadialWheelRendererTest {
                 Map.entry("metal_javelin", "Dart"), Map.entry("nether_black_hole", "Anti"),
                 Map.entry("nether_wither", "Wither"), Map.entry("pulse_short_circuit", "Zap"),
                 Map.entry("rock_bore", "Bore"), Map.entry("rock_crush", "Crush"), Map.entry("rock_flatten", "Flatten"),
-                Map.entry("glow_scry", "Scry"),
+                Map.entry("glow_scry", "Scry"), Map.entry("glow_lux", "Lux"),
                 Map.entry("rock_petrify", "Petrify"),
                 Map.entry("rock_stoneskin", "Stoneskin"),
                 Map.entry("shroom_mycosis", "Mycosis"), Map.entry("shroom_colonize", "Spore"),
