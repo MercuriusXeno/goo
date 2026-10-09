@@ -41,9 +41,9 @@ public final class GooFlightRenderer {
      */
     private static final float CORE_HW = 0.08f;
     /**
-     * Half-width of the shell cuboid (~5 pixels).
+     * Half-width of the shell cuboid (~5 pixels), the blob's size a morph starts from.
      */
-    private static final float SHELL_HW = 0.15f;
+    public static final float SHELL_HW = 0.15f;
     /**
      * Shell alpha (translucent).
      */
