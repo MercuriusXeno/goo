@@ -14,12 +14,15 @@ import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
 /**
- * The world side of {@link HoardHost}: walks a sphere of blocks, taking each
- * breakable one into the hoard as a netherite pickaxe with silk touch would
- * drop it, and draws item entities in until they reach the anchor
- * (decision black-hole-leaves-a-compression-sphere).
+ * The world side of {@link HoardHost}: walks a sphere of blocks core outward,
+ * a budget of them a tick, taking each breakable one into the hoard as a
+ * netherite pickaxe with silk touch would drop it, and draws item entities
+ * in until they reach the anchor (decision black-hole-leaves-a-compression-sphere).
  */
 final class HoardedBlocks {
 
@@ -30,21 +33,44 @@ final class HoardedBlocks {
     }
 
     /**
-     * Takes the breakable blocks within a sphere, leaving its center, the
-     * anchor's own cell. Air, a fluid and an unbreakable block stand.
+     * The cells of a sphere a black hole takes, its center, the anchor's own
+     * cell, left out, nearest the center first, so the hole decays away its
+     * core outward (decision black-hole-leaves-a-compression-sphere).
      *
-     * @param level  the level to take from
-     * @param center the sphere center, which the walk skips
+     * @param center the sphere center
      * @param radius the sphere radius in whole blocks
-     * @param hoard  the hoard each block's drops join
+     * @return the cells, nearest first
      */
-    static void takeSphere(ServerLevel level, BlockPos center, int radius, CompressedHoard hoard) {
-        ItemStack silkPick = silkPick(level);
-        AbilityMath.forEachInSphere(center, radius, target -> {
-            if (!target.equals(center)) {
-                takeIfBreakable(level, target, silkPick, hoard);
+    static List<BlockPos> coreOutward(BlockPos center, int radius) {
+        List<BlockPos> cells = new ArrayList<>();
+        AbilityMath.forEachInSphere(center, radius, cell -> {
+            if (!cell.equals(center)) {
+                cells.add(cell.immutable());
             }
         });
+        cells.sort(Comparator.comparingDouble(cell -> cell.distSqr(center)));
+        return cells;
+    }
+
+    /**
+     * Takes the next cells of a sphere into the hoard, up to a budget, each
+     * breakable block as its silk-touched drops; air, a fluid and an
+     * unbreakable block stand.
+     *
+     * @param level  the level to take from
+     * @param cells  the sphere's cells, nearest the center first
+     * @param from   the index of the first cell not yet taken
+     * @param budget the most cells this call takes
+     * @param hoard  the hoard each block's drops join
+     * @return the index of the first cell still to take, the cell count once every cell is taken
+     */
+    static int takeSome(ServerLevel level, List<BlockPos> cells, int from, int budget, CompressedHoard hoard) {
+        ItemStack silkPick = silkPick(level);
+        int to = Math.min(cells.size(), from + budget);
+        for (int index = from; index < to; index++) {
+            takeIfBreakable(level, cells.get(index), silkPick, hoard);
+        }
+        return to;
     }
 
     private static ItemStack silkPick(ServerLevel level) {
