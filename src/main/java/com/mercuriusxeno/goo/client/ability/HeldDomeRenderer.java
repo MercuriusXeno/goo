@@ -53,7 +53,6 @@ public final class HeldDomeRenderer {
             GooTypes.METAL, MetalExplosionVisual.INSTANCE,
             GooTypes.NETHER, NetherHeldGhost.INSTANCE,
             GooTypes.SHROOM, MoteCloudGhost.SHROOM,
-            GooTypes.PULSE, MoteCloudGhost.PULSE,
             GooTypes.ROCK, RockExplosionVisual.INSTANCE,
             GooTypes.UNSTABLE, UnstableExplosionVisual.INSTANCE);
 
