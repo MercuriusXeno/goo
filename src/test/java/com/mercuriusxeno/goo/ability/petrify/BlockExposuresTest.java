@@ -27,6 +27,15 @@ class BlockExposuresTest {
         assertEquals(0.5f - BlockExposures.DECAY_PER_TICK, decayed.share(), DELTA);
     }
 
+    // decision decay-gnats-degrade-each-block-once
+    @Test
+    void aShareLeftToFinishGrowsByItsRateWithNothingReachingIt() {
+        float rate = 0.1f;
+        BlockExposures.Exposure finishing = new BlockExposures.Exposure(null, 0.6f, NOW, rate);
+        BlockExposures.Exposure grown = BlockExposures.decayed(finishing, NOW + BlockExposures.DECAY_DELAY_TICKS * 10);
+        assertEquals(0.6f + rate, grown.share(), DELTA);
+    }
+
     @Test
     void aShareDecayedToItsFloorClears() {
         BlockExposures.Exposure nearly = new BlockExposures.Exposure(null, BlockExposures.DECAY_PER_TICK / 2, NOW);

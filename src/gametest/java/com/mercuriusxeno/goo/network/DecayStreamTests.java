@@ -16,9 +16,10 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Gametests for nether decay: a held stream of gnats steps the stone it
- * reaches to cobblestone and, within the same hold, no further, though the
- * hold runs long enough for a second step
+ * Gametests for nether decay: a held stream of gnats paints the stone it
+ * reaches, which keeps stepping toward cobblestone while the hold lasts
+ * though the aim has left it, finishes alone once past half its step even
+ * after release, and within one hold steps no further than cobblestone
  * (decision decay-gnats-degrade-each-block-once).
  */
 public final class DecayStreamTests {
@@ -30,11 +31,19 @@ public final class DecayStreamTests {
     private static final float FACING_EAST = -90f;
     /** Pitch down from the eye toward the block's center three blocks off. */
     private static final float LOOKING_AT_BLOCK = 20.5f;
+    /** Pitch up into open air, the cone well clear of the stone. */
+    private static final float LOOKING_AT_SKY = -80f;
     private static final int HELD_GOO = 6;
-    /** nether_decay.json's degrade ticks: thirty ticks of swarm step a block. */
-    private static final int STEP_TICKS = 30;
+    /** nether_decay.json's degrade ticks: fifteen ticks of swarm step a block. */
+    private static final int STEP_TICKS = 15;
     /** Past two steps' worth of swarm, so a second step would have landed without the once rule. */
-    private static final int HOLD_TICKS = 2 * STEP_TICKS + 10;
+    private static final int TWO_STEPS_AND_MORE = 2 * STEP_TICKS + 10;
+    /** A brush across the stone short of half its step. */
+    private static final int BRUSH_TICKS = 3;
+    /** Aim on the stone past half its step. */
+    private static final int PAST_HALF_TICKS = 10;
+    /** Room for a block to finish its step, and then some. */
+    private static final int FINISH_TICKS = STEP_TICKS + 10;
     private static final Identifier NETHER_DECAY = Identifier.parse("goo:nether_decay");
     private static final String ABILITY_REQUIRED = "Ability registry must hold nether_decay";
 
@@ -48,19 +57,78 @@ public final class DecayStreamTests {
      * @param helper the gametest helper
      */
     public static void decayDegradesOncePerActivation(GameTestHelper helper) {
-        helper.setBlock(TARGET_POS.below(), Blocks.BEDROCK);
-        helper.setBlock(TARGET_POS, Blocks.STONE);
-        ServerPlayer player = decayer(helper);
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.NETHER), NETHER_DECAY.toString(),
-                player.getEyePosition(), player.getEyePosition());
-        for (int held = 0; held < HOLD_TICKS; held++) {
-            helper.runAfterDelay(1 + held, () -> GooStreamHandler.streamTick(player, tick));
-        }
-        helper.runAfterDelay(HOLD_TICKS + 1, () -> {
+        ServerPlayer player = decayerOverStone(helper);
+        hold(helper, player, 1, TWO_STEPS_AND_MORE);
+        helper.runAfterDelay(TWO_STEPS_AND_MORE + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertBlockPresent(Blocks.COBBLESTONE, TARGET_POS);
             helper.succeed();
         });
+    }
+
+    /**
+     * A mock player brushes decay across stone for a few ticks, then turns
+     * its aim to the sky and keeps holding: the painted stone steps to
+     * cobblestone with the aim off it.
+     *
+     * @param helper the gametest helper
+     */
+    public static void decayPaintedBlockStepsUnaimed(GameTestHelper helper) {
+        ServerPlayer player = decayerOverStone(helper);
+        hold(helper, player, 1, BRUSH_TICKS + FINISH_TICKS);
+        helper.runAfterDelay(BRUSH_TICKS + 1, () -> player.setXRot(LOOKING_AT_SKY));
+        helper.runAfterDelay(BRUSH_TICKS + FINISH_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertBlockPresent(Blocks.COBBLESTONE, TARGET_POS);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A mock player holds decay on stone past half its step and lets go:
+     * the stone finishes its step to cobblestone on its own.
+     *
+     * @param helper the gametest helper
+     */
+    public static void decayPastHalfFinishesAfterRelease(GameTestHelper helper) {
+        ServerPlayer player = decayerOverStone(helper);
+        hold(helper, player, 1, PAST_HALF_TICKS);
+        helper.runAfterDelay(PAST_HALF_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertBlockPresent(Blocks.STONE, TARGET_POS);
+        });
+        helper.runAfterDelay(PAST_HALF_TICKS + FINISH_TICKS, () -> {
+            helper.assertBlockPresent(Blocks.COBBLESTONE, TARGET_POS);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Lays stone on bedrock at the target and stands a decaying player aimed at it.
+     *
+     * @param helper the gametest helper
+     * @return the player
+     */
+    private static ServerPlayer decayerOverStone(GameTestHelper helper) {
+        helper.setBlock(TARGET_POS.below(), Blocks.BEDROCK);
+        helper.setBlock(TARGET_POS, Blocks.STONE);
+        return decayer(helper);
+    }
+
+    /**
+     * Streams decay every tick of a hold, aimed wherever the player looks that tick.
+     *
+     * @param helper the gametest helper
+     * @param player the streaming player
+     * @param from   the first tick of the hold
+     * @param ticks  how many ticks it lasts
+     */
+    private static void hold(GameTestHelper helper, ServerPlayer player, int from, int ticks) {
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.NETHER), NETHER_DECAY.toString(),
+                player.getEyePosition(), player.getEyePosition());
+        for (int held = 0; held < ticks; held++) {
+            helper.runAfterDelay(from + held, () -> GooStreamHandler.streamTick(player, tick));
+        }
     }
 
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement

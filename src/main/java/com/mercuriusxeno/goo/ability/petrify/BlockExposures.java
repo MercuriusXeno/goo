@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.petrify;
 
+import com.mercuriusxeno.goo.ability.program.BlockBreakHost;
 import com.mercuriusxeno.goo.network.BlockExposurePayload;
 import com.mercuriusxeno.goo.network.ChunkWatchers;
 import net.minecraft.core.BlockPos;
@@ -48,8 +49,24 @@ public final class BlockExposures {
      * @param toward      the state the block becomes at a full share
      * @param share       the share built, 0 to 1
      * @param lastExposed the game time something last built it
+     * @param finishRate  the share it builds each tick on its own once left to finish, 0 while it decays instead
      */
-    record Exposure(BlockState toward, float share, long lastExposed) {
+    record Exposure(BlockState toward, float share, long lastExposed, float finishRate) {
+
+        /**
+         * An exposure that decays once nothing reaches it.
+         *
+         * @param toward      the state the block becomes at a full share
+         * @param share       the share built
+         * @param lastExposed the game time something last built it
+         */
+        Exposure(BlockState toward, float share, long lastExposed) {
+            this(toward, share, lastExposed, 0f);
+        }
+
+        boolean finishing() {
+            return finishRate > 0f;
+        }
     }
 
     /**
@@ -74,6 +91,32 @@ public final class BlockExposures {
         exposures.put(key, new Exposure(toward, share, level.getGameTime()));
         send(level, pos, toward, share);
         return share;
+    }
+
+    /**
+     * Leaves a block's built share to finish on its own: from now it builds
+     * the rate each tick, whatever reaches it, and steps once full
+     * (decision decay-gnats-degrade-each-block-once).
+     *
+     * @param level the server level
+     * @param pos   the block
+     * @param rate  the share it builds each tick
+     */
+    public void finishAlone(ServerLevel level, BlockPos pos, float rate) {
+        exposures.computeIfPresent(new Exposed(level.dimension(), pos.immutable()),
+                (key, exposure) -> new Exposure(exposure.toward(), exposure.share(), exposure.lastExposed(), rate));
+    }
+
+    /**
+     * Whether a block is finishing its step on its own.
+     *
+     * @param level the server level
+     * @param pos   the block
+     * @return true once {@link #finishAlone} left it to finish and until it steps
+     */
+    public boolean finishingAt(ServerLevel level, BlockPos pos) {
+        Exposure exposure = exposures.get(new Exposed(level.dimension(), pos));
+        return exposure != null && exposure.finishing();
     }
 
     /**
@@ -107,7 +150,13 @@ public final class BlockExposures {
             if (after == exposure) {
                 continue;
             }
-            send(level, entry.getKey().pos(), exposure.toward(), after == null ? 0f : after.share());
+            BlockPos pos = entry.getKey().pos();
+            if (after != null && after.share() >= 1f) {
+                each.remove();
+                finish(level, pos, after.toward());
+                continue;
+            }
+            send(level, pos, exposure.toward(), after == null ? 0f : after.share());
             if (after == null) {
                 each.remove();
             } else {
@@ -117,13 +166,32 @@ public final class BlockExposures {
     }
 
     /**
-     * One tick of decay on a share.
+     * Steps a block left to finish on its own, unless something has since
+     * cleared it to air.
+     *
+     * @param level  the server level
+     * @param pos    the block
+     * @param toward the state it becomes
+     */
+    private static void finish(ServerLevel level, BlockPos pos, BlockState toward) {
+        if (!level.getBlockState(pos).isAir()) {
+            BlockBreakHost.transform(level, pos, toward);
+        }
+    }
+
+    /**
+     * One tick of decay on a share, or of growth on a share left to finish.
      *
      * @param exposure the share standing
      * @param now      the game time
-     * @return the same share while something reached it lately, null once it falls to its floor
+     * @return the same share while something reached it lately, the grown share while it finishes alone,
+     *         null once it falls to its floor
      */
     static Exposure decayed(Exposure exposure, long now) {
+        if (exposure.finishing()) {
+            return new Exposure(exposure.toward(), Math.min(1f, exposure.share() + exposure.finishRate()),
+                    exposure.lastExposed(), exposure.finishRate());
+        }
         if (now - exposure.lastExposed() <= DECAY_DELAY_TICKS) {
             return exposure;
         }

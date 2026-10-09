@@ -12,7 +12,7 @@ import org.jspecify.annotations.Nullable;
  * A gnat in Decay's swarm: it flies out with the speed the server sprayed
  * it with, then darts in a new direction every tick as it slows, so the
  * cone fills with a buzzing maroon cloud rather than a jet; it hangs
- * weightless and fades out over a second or so
+ * weightless and fades out over two seconds or so
  * (decision decay-gnats-degrade-each-block-once).
  */
 public final class GnatParticle extends SingleQuadParticle {
@@ -20,17 +20,17 @@ public final class GnatParticle extends SingleQuadParticle {
     private static final float SWARM_FRICTION = 0.85f;
     /** The widest a gnat's velocity swerves each tick on each axis, half of it either way. */
     private static final double DART_SPAN = 0.08;
-    private static final int BASE_LIFETIME = 20;
-    private static final int LIFETIME_VARIANCE = 15;
-    private static final float BASE_QUAD_SIZE = 0.025f;
-    private static final float QUAD_SIZE_VARIANCE = 0.015f;
+    private static final int BASE_LIFETIME = 30;
+    private static final int LIFETIME_VARIANCE = 20;
+    private static final float BASE_QUAD_SIZE = 0.06f;
+    private static final float QUAD_SIZE_VARIANCE = 0.04f;
     private static final float START_ALPHA = 0.95f;
-    private static final float MAROON_RED = 0.5f;
-    private static final float MAROON_GREEN = 0.08f;
-    private static final float MAROON_BLUE = 0.13f;
-    private static final float DARK_RED = 0.28f;
-    private static final float DARK_GREEN = 0.04f;
-    private static final float DARK_BLUE = 0.07f;
+    private static final float MAROON_RED = 0.75f;
+    private static final float MAROON_GREEN = 0.12f;
+    private static final float MAROON_BLUE = 0.2f;
+    private static final float DARK_RED = 0.5f;
+    private static final float DARK_GREEN = 0.06f;
+    private static final float DARK_BLUE = 0.11f;
     private static final double HALF = 0.5;
 
     private GnatParticle(ClientLevel level, double x, double y, double z, double vx, double vy, double vz,

@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.network.HoldMarks;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -187,12 +188,7 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     }
 
     @Override
-    public boolean steppedThisHold(BlockPos pos) {
-        return GooServerState.of(level.getServer()).streamHolds().stepped(player.getUUID(), pos);
-    }
-
-    @Override
-    public void noteSteppedThisHold(BlockPos pos) {
-        GooServerState.of(level.getServer()).streamHolds().noteStepped(player.getUUID(), pos);
+    public HoldMarks holdMarks() {
+        return GooServerState.of(level.getServer()).streamHolds().marks(player.getUUID());
     }
 }

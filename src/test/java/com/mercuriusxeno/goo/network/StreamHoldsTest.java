@@ -57,38 +57,38 @@ class StreamHoldsTest {
         }
     }
 
-    /** A hold steps each block position once (decision decay-gnats-degrade-each-block-once). */
+    /** A hold keeps its marks while it lasts and a new hold starts fresh (decision decay-gnats-degrade-each-block-once). */
     @Nested
-    class SteppedOncePerHold {
+    class MarksLastTheHold {
 
         private static final BlockPos BLOCK = new BlockPos(4, 64, -2);
 
         @Test
-        void aNotedPositionReadsSteppedForTheRestOfTheHold() {
+        void aSteppedPositionReadsSteppedForTheRestOfTheHold() {
             StreamHolds holds = new StreamHolds();
             holds.advance(PLAYER, 100);
-            holds.noteStepped(PLAYER, BLOCK);
+            holds.marks(PLAYER).noteStepped(BLOCK);
             holds.advance(PLAYER, 101);
-            assertTrue(holds.stepped(PLAYER, BLOCK));
-            assertFalse(holds.stepped(PLAYER, BLOCK.above()));
+            assertTrue(holds.marks(PLAYER).stepped(BLOCK));
+            assertFalse(holds.marks(PLAYER).stepped(BLOCK.above()));
         }
 
         @Test
-        void aNewHoldForgetsTheLastHoldsSteps() {
+        void aNewHoldForgetsTheLastHoldsMarks() {
             StreamHolds holds = new StreamHolds();
             holds.advance(PLAYER, 100);
-            holds.noteStepped(PLAYER, BLOCK);
+            holds.marks(PLAYER).noteStepped(BLOCK);
             holds.advance(PLAYER, 102);
-            assertFalse(holds.stepped(PLAYER, BLOCK));
+            assertFalse(holds.marks(PLAYER).stepped(BLOCK));
         }
 
         @Test
-        void eachPlayersStepsAreItsOwn() {
+        void eachPlayersMarksAreItsOwn() {
             StreamHolds holds = new StreamHolds();
             holds.advance(PLAYER, 100);
             holds.advance(OTHER, 100);
-            holds.noteStepped(PLAYER, BLOCK);
-            assertFalse(holds.stepped(OTHER, BLOCK));
+            holds.marks(PLAYER).noteStepped(BLOCK);
+            assertFalse(holds.marks(OTHER).stepped(BLOCK));
         }
     }
 

@@ -3,10 +3,10 @@
   "displayName": "goo.ability.nether.decay",
   "badge": "channeled",
   "order": 10,
-  "cost": 1000,
-  "delivery": { "kind": "stream", "range": 6, "cone": 30, "ticks_per_charge": 20, "particle": "goo:gnat" },
+  "cost": 20,
+  "delivery": { "kind": "stream", "range": 6, "cone": 15, "ticks_per_charge": 20, "particle": "goo:gnat" },
   "behaviors": [
-    { "type": "degrade", "map": "goo:decay", "ticks": 30 }
+    { "type": "degrade", "map": "goo:decay", "ticks": 15 }
   ],
   "tags": ["stream"]
 }
