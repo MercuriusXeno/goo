@@ -23,8 +23,10 @@ public final class DrinkStream {
 
     /** Blocks the liquid flows a tick where a lone block of goo flows: four blocks a second, and faster where more goo masses. */
     public static final double FLOW = SiphonRule.BASE_PACE;
-    /** The radius of the zoop of unstable goo that flies from the hand into a picked block, in blocks. */
-    public static final double ZOOP_RADIUS = 0.045;
+    /** The radius at a waist of a stream of scale 1, in blocks, over a cell of the surface's grid so it reads round. */
+    static final double WAIST = 0.1;
+    /** The radius of the zoop of unstable goo that flies from the hand into a picked block: as thin as a waist. */
+    public static final double ZOOP_RADIUS = WAIST;
     /** Blocks of route the zoop spans from its head to its tail. */
     public static final double ZOOP_LENGTH = 1.5;
     /** Blocks of the way the block's own matter spans, from its far side through its middle to its near face. */
@@ -37,8 +39,6 @@ public final class DrinkStream {
     public static final int RINGS_PER_BLOCK = 5;
     /** The fewest rings a path has, its two ends. */
     public static final int FEWEST_RINGS = 2;
-    /** The radius at a waist of a stream of scale 1, in blocks, over a cell of the surface's grid so it reads round. */
-    static final double WAIST = 0.1;
     /** The radius at a bulb of a stream of scale 1, in blocks, twice the waist. */
     static final double BULB = 0.2;
     /** Blocks of liquid from one bulb or waist to the next, about, so the stream undulates along its length. */

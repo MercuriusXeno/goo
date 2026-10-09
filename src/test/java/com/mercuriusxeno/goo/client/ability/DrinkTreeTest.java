@@ -238,6 +238,21 @@ class DrinkTreeTest {
         }
 
         @Test
+        void aStreamFlowsAtADistanceUntilItsTailPassesAndIsSpentOnceAllOfItIsPast() {
+            DrinkTree.Stream draining = loneAt(END);
+            DrinkTree.Stream zooping = loneAt(PICKED + 1);
+            DrinkTree.Stream longGone = loneAt(END + THOUSAND);
+
+            assertTrue(draining.flowingAt(DrinkStream.BLOCK_SPAN + 1), "the liquid is still coming past the face");
+            assertFalse(draining.flowingAt(DrinkStream.BLOCK_SPAN / 2), "the far half of the block has drained");
+            assertTrue(zooping.flowingAt(0) && zooping.flowingAt(zooping.routeLength()));
+            assertFalse(draining.spent());
+            assertTrue(longGone.spent());
+            assertTrue(treeAt(END + THOUSAND).getFirst().spent(), "a trunk is spent once its tributaries are too");
+            assertFalse(treeAt(END).getFirst().spent());
+        }
+
+        @Test
         void theMaterialFallsAtTheBasePaceWhereTheLiquidFlowsAtIt() {
             DrinkTree.Stream before = loneAt(RAMPED);
             DrinkTree.Stream after = loneAt(RAMPED + 1);

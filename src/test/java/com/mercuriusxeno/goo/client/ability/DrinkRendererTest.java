@@ -8,12 +8,10 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * The renderer keeps a drink's skin moving between meshes and meshing
- * within its budget: a vertex is carried on along its normal at the pace the
- * skin was moving there for the time since the mesh, no longer than the
- * extrapolation, and with the glove by the cube of its nearness to the hand;
- * the grid's cell steps in one go to the cell that would take the budget's
- * headroom, between the finest and the coarsest, and holds for a small miss
+ * The renderer keeps a drink's skin moving between meshes: a vertex is
+ * carried on along its normal at the pace the skin was moving there for the
+ * time since the mesh, no longer than the extrapolation, and with the glove
+ * by the cube of its nearness to the hand
  * (decision unmake-waves-dissolve-by-crucible-cost).
  */
 class DrinkRendererTest {
@@ -28,11 +26,6 @@ class DrinkRendererTest {
     private static final double OUTWARD = 0.05;
     private static final double HALF_TICK = 0.5;
     private static final double LONG = 1000;
-    private static final double OVERRUN_MS = 40;
-    private static final double HUGE_MS = 4000;
-    private static final double QUICK_MS = 10;
-    private static final double NEAR_AIM_MS = 24;
-    private static final double A_QUARTER_COARSER = 1.25;
 
     private static DrinkTree.Stream stream() {
         DrinkLayout layout = new DrinkLayout();
@@ -75,29 +68,6 @@ class DrinkRendererTest {
             Vec3 carried = DrinkRenderer.carriedOn(vertex(0), new DrinkRenderer.Motion(EAST, 0));
 
             assertEquals(0, carried.distanceTo(CENTER.add(EAST.scale(0.125))), DELTA);
-        }
-    }
-
-    @Nested
-    class Cell {
-
-        @Test
-        void anOverrunCoarsensTheCellInOneStepToTheBudgetsHeadroomUpToTheCoarsest() {
-            double aimed = DrinkMesher.CELL * Math.cbrt(OVERRUN_MS / (DrinkRenderer.MESH_BUDGET_MS
-                    * DrinkRenderer.HEADROOM));
-
-            assertEquals(aimed, DrinkRenderer.cellAfter(DrinkMesher.CELL, OVERRUN_MS), DELTA);
-            assertEquals(DrinkMesher.CELL * DrinkRenderer.COARSEST, DrinkRenderer.cellAfter(DrinkMesher.CELL, HUGE_MS),
-                    DELTA);
-        }
-
-        @Test
-        void aQuickMeshRefinesTheCellDownToTheFinestAndOneNearItsAimHolds() {
-            double coarse = DrinkMesher.CELL * A_QUARTER_COARSER;
-
-            assertEquals(DrinkMesher.CELL, DrinkRenderer.cellAfter(coarse, QUICK_MS), DELTA);
-            assertEquals(DrinkMesher.CELL, DrinkRenderer.cellAfter(DrinkMesher.CELL, QUICK_MS), DELTA);
-            assertEquals(coarse, DrinkRenderer.cellAfter(coarse, NEAR_AIM_MS), DELTA);
         }
     }
 }

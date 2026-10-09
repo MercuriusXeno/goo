@@ -94,6 +94,28 @@ class DrinkFieldTest {
     }
 
     @Test
+    void aBodyOfNoRadiusRadiatesNothingAndAThinOneReachesInProportion() {
+        DrinkStream.Ring none = new DrinkStream.Ring(Vec3.ZERO, EAST, 0, 0, 0, DrinkStream.FLOW);
+        DrinkStream.Ring noneEast = new DrinkStream.Ring(EAST, EAST, 0, 0, 0, DrinkStream.FLOW);
+        Vec3 beside = UP.scale(DrinkField.REACH / 2);
+        List<DrinkField.Skeleton> empty = List.of(new DrinkField.Skeleton(stream(), List.of(none, noneEast), null),
+                new DrinkField.Skeleton(stream(), List.of(new DrinkStream.Ring(beside, EAST, 0, 0, 0, DrinkStream.FLOW),
+                        new DrinkStream.Ring(beside.add(EAST), EAST, 0, 0, 0, DrinkStream.FLOW)), null));
+        double thin = DrinkField.FULL_RADIUS / 2;
+        DrinkStream.Ring thinRing = new DrinkStream.Ring(Vec3.ZERO, EAST, thin, 0, 0, DrinkStream.FLOW);
+        List<DrinkField.Skeleton> slender = List.of(new DrinkField.Skeleton(stream(), List.of(thinRing,
+                new DrinkStream.Ring(EAST, EAST, thin, 0, 0, DrinkStream.FLOW)), null));
+
+        assertEquals(0, DrinkField.sample(empty, new Vec3(0.5, 0.01, 0)).value(), DELTA);
+        assertFalse(DrinkField.sample(empty, beside.scale(0.5).add(0.5, 0, 0)).inside(),
+                "two empty lines close together leave no blob between them");
+        assertEquals(DrinkField.ISO, DrinkField.sample(slender, new Vec3(0.5, thin, 0)).value(), DELTA);
+        assertTrue(DrinkField.sample(slender, new Vec3(0.5, thin + DrinkField.REACH / 4, 0)).value() > 0);
+        assertEquals(0, DrinkField.sample(slender, new Vec3(0.5, thin + DrinkField.REACH / 2 + 0.01, 0)).value(),
+                DELTA, "a body half a waist thick reaches half as far");
+    }
+
+    @Test
     void readingOnlyTheBodiesThatReachACellGivesTheSameField() {
         List<DrinkField.Skeleton> both = List.of(capsule(Vec3.ZERO, EAST), capsule(UP.scale(3), UP.scale(3).add(EAST)));
         Vec3 point = new Vec3(0.5, RADIUS / 2, 0);
