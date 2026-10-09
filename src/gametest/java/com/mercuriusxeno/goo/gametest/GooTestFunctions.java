@@ -440,6 +440,7 @@ public final class GooTestFunctions {
     private static final String REAP_SETTLES_SEEDS = "reap_settles_seeds_against_the_replant";
     private static final String MYCOSIS_REAPS_WART = "mycosis_grows_and_reaps_nether_wart";
     private static final String MYCOSIS_GROWS_BUDS = "mycosis_grows_fungal_buds";
+    private static final String MYCOSIS_BUD_PACE = "mycosis_buds_ripen_at_warts_pace";
     private static final String GROWTH_SPARES_WART = "growth_leaves_nether_wart_alone";
     private static final String VINES_BURN_AND_BREAK = "vines_burn_and_break";
     private static final String VINES_TRAP_ON_THE_GROUND = "vines_trap_on_the_ground";
@@ -912,6 +913,7 @@ public final class GooTestFunctions {
         reg(r, REAP_SETTLES_SEEDS, ReapTests::reapSettlesSeedsAgainstTheReplant);
         reg(r, MYCOSIS_REAPS_WART, MycosisFungiTests::mycosisGrowsAndReapsNetherWart);
         reg(r, MYCOSIS_GROWS_BUDS, MycosisFungiTests::mycosisGrowsFungalBuds);
+        reg(r, MYCOSIS_BUD_PACE, MycosisFungiTests::mycosisBudsRipenAtWartsPace);
         reg(r, GROWTH_SPARES_WART, MycosisFungiTests::growthLeavesNetherWartAlone);
         reg(r, VINES_BURN_AND_BREAK, VinesTests::vinesBurnAndBreak);
         reg(r, VINES_TRAP_ON_THE_GROUND, VinesTests::vinesTrapOnTheGround);

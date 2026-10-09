@@ -12,9 +12,9 @@ import java.util.stream.Stream;
 
 /**
  * Mycosis's block step, run each held tick of the stream: Growth's tick for
- * fungi. Every nether wart and every fungal bud in the cone takes a random
- * tick so it grows, a bud ripening through its ages into its mushroom on its
- * own rule, and each wart standing at its full age is reaped, dropping its
+ * fungi. Every nether wart in the cone takes a random tick so it grows, and
+ * every fungal bud ages at wart's pace, one held tick in ten, ripening
+ * through its ages into its mushroom on its own rule; each wart standing at its full age is reaped, dropping its
  * loot settled against the wart it is replanted from and standing again at
  * age 0.
  * mycosis-grows-and-reaps-nether-wart
@@ -22,6 +22,12 @@ import java.util.stream.Stream;
 public record TendFungiStep() implements Step {
 
     private static final String NAME = "tend_fungi";
+    /**
+     * A held bud ages on one tick in this many, nether wart's own pace, so a
+     * bud the spray places ripens over a couple of seconds rather than at once.
+     * mycosis-grows-and-reaps-nether-wart
+     */
+    static final int BUD_ODDS = 10;
 
     /**
      * Codec for the step, which takes no params.
@@ -64,9 +70,19 @@ public record TendFungiStep() implements Step {
             } else {
                 state.randomTick(level, pos, level.getRandom());
             }
-        } else if (state.getBlock() instanceof FungalBudBlock) {
+        } else if (state.getBlock() instanceof FungalBudBlock && budAges(level.getRandom().nextInt(BUD_ODDS))) {
             state.randomTick(level, pos, level.getRandom());
         }
+    }
+
+    /**
+     * Whether a bud ages this held tick, on the roll of one in {@link #BUD_ODDS}.
+     *
+     * @param roll a roll from zero below the odds
+     * @return true on the one roll in the odds that ages the bud
+     */
+    static boolean budAges(int roll) {
+        return roll == 0;
     }
 
     /**
