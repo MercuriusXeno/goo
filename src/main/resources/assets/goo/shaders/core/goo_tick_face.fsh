@@ -11,6 +11,7 @@
 
 in vec2 facePos;
 in float rate;
+in float strength;
 
 out vec4 fragColor;
 
@@ -47,7 +48,7 @@ void main() {
     float square = smoothstep(0.06, 0.14, edge);
     // Fade at the face's border, so the overlay sits inside the highlight.
     float border = 1.0 - smoothstep(0.85, 1.0, max(abs(facePos.x), abs(facePos.y)));
-    float alpha = lit * square * border * PEAK_ALPHA;
+    float alpha = lit * square * border * PEAK_ALPHA * strength;
     if (alpha <= 0.002) {
         discard;
     }

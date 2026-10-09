@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.AbilityTags;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.TickBlockStep;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
@@ -8,14 +10,15 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -25,7 +28,9 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
  * Tick's channel overlay: while right click holds a stream that ticks the
@@ -70,44 +75,120 @@ public final class TickFaceOverlay {
     @SubscribeEvent
     public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
         Minecraft mc = Minecraft.getInstance();
-        LocalPlayer player = mc.player;
-        ClientAbility ability = player == null || mc.level == null ? null : runningTick(player);
-        Optional<TickBlockStep> tick = ability == null ? Optional.empty() : tickStepOf(ability);
-        BlockHitResult block = tick.isEmpty() ? null : aimedBlock(mc, player, ability);
-        if (block == null) {
+        if (mc.level == null) {
             return;
         }
         Camera camera = mc.gameRenderer.getMainCamera();
         PoseStack poseStack = event.getPoseStack();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        drawChannel(mc, poseStack, buffers, camera);
+        drawSplashes(mc, poseStack, buffers, camera);
+    }
+
+    /**
+     * Highlights the block a running tick stream ends on and draws the
+     * squares over its aimed face.
+     *
+     * @param mc        the client
+     * @param poseStack the pose stack
+     * @param buffers   the buffer source
+     * @param camera    the render camera
+     */
+    private static void drawChannel(Minecraft mc, PoseStack poseStack, MultiBufferSource.BufferSource buffers,
+            Camera camera) {
+        LocalPlayer player = mc.player;
+        ClientAbility ability = player == null ? null : runningTick(player);
+        Optional<TickBlockStep> tick = ability == null ? Optional.empty() : tickStepOf(ability.behaviors());
+        BlockHitResult block = tick.isEmpty() ? null : aimedBlock(mc, player, ability);
+        if (block == null) {
+            return;
+        }
         VoxelHighlightRenderer.renderBlockShape(poseStack, buffers, camera, block.getBlockPos(), GooTypes.AEON);
+        Direction face = block.getDirection();
+        Vec3 faceCenter = Vec3.atCenterOf(block.getBlockPos()).add(face.getUnitVec3().scale(HALF));
         FlatQuadContext quads = new FlatQuadContext(poseStack.last(), buffers.getBuffer(GooRenderTypes.TICK_FACE_TYPE));
-        emitFace(quads, block.getBlockPos(), block.getDirection(), camera.position(),
-                marchRate(tick.get().extraTicks()));
+        emitFace(quads, new FaceQuad(faceCenter, face, 1.0, 1f), camera.position(), marchRate(tick.get().extraTicks()));
         buffers.endBatch(GooRenderTypes.TICK_FACE_TYPE);
     }
 
     /**
-     * Emits the face quad, each corner's color carrying its place on the face
-     * and the march rate for the shader.
+     * Draws each drip's splash: the squares small on the face the drip
+     * struck, fading out (decision tick-drip-splashes-a-small-tick-effect).
+     *
+     * @param mc        the client
+     * @param poseStack the pose stack
+     * @param buffers   the buffer source
+     * @param camera    the render camera
+     */
+    private static void drawSplashes(Minecraft mc, PoseStack poseStack, MultiBufferSource.BufferSource buffers,
+            Camera camera) {
+        List<TickSplashes.Splash> live = TickSplashes.CLIENT.live(mc.level.getGameTime());
+        if (live.isEmpty()) {
+            return;
+        }
+        float gameTime = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        FlatQuadContext quads = new FlatQuadContext(poseStack.last(), buffers.getBuffer(GooRenderTypes.TICK_FACE_TYPE));
+        for (TickSplashes.Splash splash : live) {
+            emitFace(quads, new FaceQuad(splash.at(), Direction.UP, TickSplashes.SPLASH_SIZE,
+                    splash.strength(gameTime)), camera.position(), marchRate(splash.extraTicks()));
+        }
+        buffers.endBatch(GooRenderTypes.TICK_FACE_TYPE);
+    }
+
+    /**
+     * Starts a drip's splash where it lands, when its goo type's tap ability
+     * ticks the block below; the drip's landing particle calls it.
+     * tick-drip-splashes-a-small-tick-effect
+     *
+     * @param gooType the drip's goo type
+     * @param at      the world point the drip lands on
+     */
+    public static void splashOnLanding(ResourceKey<GooTypeDefinition> gooType, Vec3 at) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) {
+            return;
+        }
+        long now = mc.level.getGameTime();
+        AbilitySyncHandler.getAbilitiesForType(gooType).stream()
+                .filter(ability -> ability.tags().contains(AbilityTags.TAP))
+                .map(ability -> tickStepOf(ability.behaviors()))
+                .flatMap(Optional::stream)
+                .findFirst()
+                .ifPresent(tick -> TickSplashes.CLIENT.splash(at, tick.extraTicks(), now));
+    }
+
+    /**
+     * One quad of the overlay on a face.
+     *
+     * @param center   the face's center in the world
+     * @param face     the face
+     * @param size     the quad's width in blocks
+     * @param strength how strongly it draws, 0 to 1
+     */
+    private record FaceQuad(Vec3 center, Direction face, double size, float strength) {
+    }
+
+    /**
+     * Emits a face quad, each corner's color carrying its place on the face,
+     * the march rate and the quad's strength for the shader.
      *
      * @param quads  the quad context
-     * @param pos    the aimed block
-     * @param face   the aimed face
+     * @param quad   the quad
      * @param camera the camera's position
      * @param rate   the march rate, rings a tick
      */
-    private static void emitFace(FlatQuadContext quads, BlockPos pos, Direction face, Vec3 camera, float rate) {
-        Vec3 normal = face.getUnitVec3();
-        Vec3 center = Vec3.atCenterOf(pos).add(normal.scale(HALF + FACE_NUDGE)).subtract(camera);
-        Direction.Axis axis = face.getAxis();
-        Vec3 across = axis == Direction.Axis.X ? new Vec3(0, 0, 1) : new Vec3(1, 0, 0);
-        Vec3 along = axis == Direction.Axis.Y ? new Vec3(0, 0, 1) : new Vec3(0, 1, 0);
+    private static void emitFace(FlatQuadContext quads, FaceQuad quad, Vec3 camera, float rate) {
+        Vec3 normal = quad.face().getUnitVec3();
+        Vec3 center = quad.center().add(normal.scale(FACE_NUDGE)).subtract(camera);
+        Direction.Axis axis = quad.face().getAxis();
+        Vec3 across = axis == Direction.Axis.X ? new Vec3(0, 0, quad.size()) : new Vec3(quad.size(), 0, 0);
+        Vec3 along = axis == Direction.Axis.Y ? new Vec3(0, 0, quad.size()) : new Vec3(0, quad.size(), 0);
         int rateChannel = Math.round(rate / MAX_RINGS_PER_TICK * OPAQUE);
+        int alpha = Math.round(quad.strength() * OPAQUE);
         int[][] corners = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
         for (int[] corner : corners) {
             Vec3 point = center.add(across.scale(corner[0] - HALF)).add(along.scale(corner[1] - HALF));
-            int color = ARGB.color(OPAQUE, corner[0] * OPAQUE, corner[1] * OPAQUE, rateChannel);
+            int color = ARGB.color(alpha, corner[0] * OPAQUE, corner[1] * OPAQUE, rateChannel);
             quads.vertex((float) point.x, (float) point.y, (float) point.z, color,
                     (float) normal.x, (float) normal.y, (float) normal.z);
         }
@@ -141,8 +222,19 @@ public final class TickFaceOverlay {
         return abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
     }
 
-    private static Optional<TickBlockStep> tickStepOf(ClientAbility ability) {
-        return ability.behaviors().stream().filter(TickBlockStep.class::isInstance).map(TickBlockStep.class::cast)
-                .findFirst();
+    /**
+     * The tick_block step in a program, at its top or under another step,
+     * as Tick's tap holds it under its drip count.
+     *
+     * @param behaviors the program
+     * @return the first tick_block step, empty where the program ticks no block
+     */
+    static Optional<TickBlockStep> tickStepOf(List<Step> behaviors) {
+        return behaviors.stream().flatMap(TickFaceOverlay::withDescendants).filter(TickBlockStep.class::isInstance)
+                .map(TickBlockStep.class::cast).findFirst();
+    }
+
+    private static Stream<Step> withDescendants(Step step) {
+        return Stream.concat(Stream.of(step), step.children().flatMap(TickFaceOverlay::withDescendants));
     }
 }
