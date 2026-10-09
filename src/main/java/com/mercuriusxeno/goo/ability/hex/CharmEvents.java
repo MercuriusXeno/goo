@@ -10,6 +10,7 @@ import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingChangeTargetEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;
@@ -19,7 +20,7 @@ import java.util.Optional;
  * nearest mob targeting the charmer, else the nearest monster hostile to
  * players before that monster aggresses; any target it would take that is a
  * player turns to that foe, or to none; with no foe in reach it follows the
- * charmer.
+ * charmer, and no hit of its lands on a player.
  * charm-glisten-and-icon-over-the-head
  */
 @EventBusSubscriber(modid = Goo.MODID)
@@ -74,6 +75,20 @@ public final class CharmEvents {
      * @param mob the mob
      * @return the standing charm, or empty for none
      */
+    /**
+     * Holds a charmed mob's hits off every player: a slime's touch, which
+     * hurts whatever player it bumps whatever it targets, among them.
+     *
+     * @param event the incoming damage event, before the damage lands
+     */
+    @SubscribeEvent
+    public static void onIncomingDamage(LivingIncomingDamageEvent event) {
+        if (event.getEntity() instanceof Player && event.getSource().getEntity() instanceof Mob mob
+                && standingCharm(mob).isPresent()) {
+            event.setCanceled(true);
+        }
+    }
+
     private static Optional<Charmed> standingCharm(Mob mob) {
         if (mob.level().isClientSide() || !mob.hasData(GooAttachments.CHARMED)) {
             return Optional.empty();

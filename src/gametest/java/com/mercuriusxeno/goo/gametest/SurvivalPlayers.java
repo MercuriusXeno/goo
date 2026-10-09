@@ -18,7 +18,8 @@ import java.util.UUID;
  * mock server player is: vanilla's stands in creative, which no mob takes as
  * a target, so a test of a mob targeting a player needs this one. Joining
  * the creative test level leaves it creative's invulnerable abilities, so
- * it is set to survival once placed.
+ * it is set to survival once placed, and its client is marked loaded, since
+ * a player whose client has not loaded takes no damage.
  */
 public final class SurvivalPlayers {
 
@@ -50,6 +51,7 @@ public final class SurvivalPlayers {
         new EmbeddedChannel(connection);
         level.getServer().getPlayerList().placeNewPlayer(connection, player, cookie);
         player.setGameMode(GameType.SURVIVAL);
+        player.connection.markClientLoaded();
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STAND_POS));
         player.setPos(stand.x, stand.y, stand.z);
         return player;
