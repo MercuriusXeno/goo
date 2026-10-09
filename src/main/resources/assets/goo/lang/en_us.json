@@ -114,6 +114,7 @@
   "block.goo.ability_block": "Ability Block",
   "block.goo.frost_field": "Frost Field",
   "block.goo.magicked_ice": "Magicked Ice",
+  "block.goo.iceborn_ice": "Iceborn Ice",
   "block.goo.prism": "Prism",
 
   "goo.ability.aeon.time_stop": "Stasis",
@@ -131,6 +132,7 @@
   "goo.ability.frost.cold": "Cold",
   "goo.ability.frost.orb": "Orb",
   "goo.ability.frost.glacial": "Glacial",
+  "goo.ability.frost.iceborn": "Iceborn",
   "goo.ability.glow.crystal": "Bulb",
   "goo.ability.glow.laser": "Beam",
   "goo.ability.hex.charm": "Charm",

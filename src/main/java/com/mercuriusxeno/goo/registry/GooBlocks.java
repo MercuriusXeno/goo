@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
+import com.mercuriusxeno.goo.block.ability.IcebornIceBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
@@ -129,6 +130,15 @@ public class GooBlocks {
      */
     public static final DeferredBlock<MagickedIceBlock> MAGICKED_ICE = BLOCKS.registerBlock(
             "magicked_ice", MagickedIceBlock::new,
+            () -> BlockBehaviour.Properties.ofFullCopy(Blocks.ICE)
+                    .overrideLootTable(Blocks.ICE.getLootTable()));
+    /**
+     * Iceborn's ice: magicked ice an Iceborn player leaves on water, which
+     * thaws back to water once no Iceborn player stands near
+     * (decision iceborn-frozen-hearts-thaw-on-fire).
+     */
+    public static final DeferredBlock<IcebornIceBlock> ICEBORN_ICE = BLOCKS.registerBlock(
+            "iceborn_ice", IcebornIceBlock::new,
             () -> BlockBehaviour.Properties.ofFullCopy(Blocks.ICE)
                     .overrideLootTable(Blocks.ICE.getLootTable()));
     /**
