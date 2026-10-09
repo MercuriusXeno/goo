@@ -12,7 +12,6 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.ARGB;
-import net.minecraft.util.Mth;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -43,8 +42,6 @@ public final class ScrySweep {
     /** How much brighter a face shows the tick the front crosses it, as a share of its settled alpha. */
     private static final float FLASH_GAIN = 3f;
     private static final int OPAQUE = 255;
-    private static final int STACKS = 24;
-    private static final int SLICES = 48;
     /** How far a face quad stands off its block, so it never sinks into the face it marks. */
     private static final float FACE_LIFT = 0.002f;
     private static final double HALF_HEIGHT = 0.5;
@@ -113,10 +110,10 @@ public final class ScrySweep {
         PoseStack.Pose pose = event.getPoseStack().last();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        emitSphere(pose, buffers.getBuffer(GooRenderTypes.SCRY_SPHERE_TYPE),
+        ColorSphere.emit(pose, buffers.getBuffer(GooRenderTypes.GLOW_SHELL_TYPE),
                 center(player, partialTick).subtract(camera), radius,
                 ARGB.color(Math.round(SPHERE_ALPHA * strength), GLOW_RGB));
-        buffers.endBatch(GooRenderTypes.SCRY_SPHERE_TYPE);
+        buffers.endBatch(GooRenderTypes.GLOW_SHELL_TYPE);
         drawRevealed(pose, buffers, camera, now, strength);
     }
 
@@ -138,37 +135,6 @@ public final class ScrySweep {
 
     private static Vec3 center(LocalPlayer player, float partialTick) {
         return player.getPosition(partialTick).add(0, player.getBbHeight() * HALF_HEIGHT, 0);
-    }
-
-    /**
-     * Emits a latitude-longitude sphere of quads about a camera-relative center.
-     *
-     * @param pose     the pose
-     * @param consumer the vertex consumer
-     * @param center   the sphere's center, camera-relative
-     * @param r        the radius in blocks
-     * @param color    the packed ARGB color
-     */
-    static void emitSphere(PoseStack.Pose pose, VertexConsumer consumer, Vec3 center, float r, int color) {
-        for (int stack = 0; stack < STACKS; stack++) {
-            float lat0 = Mth.PI * stack / STACKS;
-            float lat1 = Mth.PI * (stack + 1) / STACKS;
-            for (int slice = 0; slice < SLICES; slice++) {
-                float lon0 = Mth.TWO_PI * slice / SLICES;
-                float lon1 = Mth.TWO_PI * (slice + 1) / SLICES;
-                spherePoint(pose, consumer, center, r, lat0, lon0, color);
-                spherePoint(pose, consumer, center, r, lat1, lon0, color);
-                spherePoint(pose, consumer, center, r, lat1, lon1, color);
-                spherePoint(pose, consumer, center, r, lat0, lon1, color);
-            }
-        }
-    }
-
-    private static void spherePoint(PoseStack.Pose pose, VertexConsumer consumer, Vec3 center, float r,
-                                    float lat, float lon, int color) {
-        float ring = Mth.sin(lat) * r;
-        consumer.addVertex(pose, (float) center.x + ring * Mth.cos(lon), (float) center.y + Mth.cos(lat) * r,
-                (float) center.z + ring * Mth.sin(lon)).setColor(color);
     }
 
     /**

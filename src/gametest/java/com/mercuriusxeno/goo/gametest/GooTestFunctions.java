@@ -22,6 +22,7 @@ import com.mercuriusxeno.goo.network.CrushMobTests;
 import com.mercuriusxeno.goo.network.FlattenChannelTests;
 import com.mercuriusxeno.goo.network.ScryChannelTests;
 import com.mercuriusxeno.goo.network.PetrifyStreamTests;
+import com.mercuriusxeno.goo.network.RadiantChannelTests;
 import com.mercuriusxeno.goo.network.StreamDeliveryTests;
 import com.mercuriusxeno.goo.network.SunbeamChannelTests;
 import com.mercuriusxeno.goo.network.TouchDeliveryTests;
@@ -443,6 +444,8 @@ public final class GooTestFunctions {
     private static final String MOB_FROST = "mob_frost_snap";
     private static final String MOB_TYPHOON = "mob_typhoon_levitate";
     private static final String SUNBEAM_REFRACTS_TO_THREE = "sunbeam_refracts_to_three";
+    private static final String RADIANT_LIGHTS_A_DARK_ROOM = "radiant_lights_a_dark_room";
+    private static final String RADIANT_SKIPS_A_LIT_ROOM = "radiant_skips_a_lit_room";
     private static final String SUNBEAM_BURNS_THE_UNDEAD_IT_STRIKES = "sunbeam_burns_the_undead_it_strikes";
     private static final String MOB_HEX = "mob_hex_charm";
     private static final String MOB_PULSE = "mob_pulse_stun";
@@ -911,6 +914,8 @@ public final class GooTestFunctions {
         reg(r, MOB_FROST, MobEffectTests::frostSnap);
         reg(r, MOB_TYPHOON, MobEffectTests::typhoonLevitate);
         reg(r, SUNBEAM_REFRACTS_TO_THREE, SunbeamChannelTests::sunbeamRefractsToThree);
+        reg(r, RADIANT_LIGHTS_A_DARK_ROOM, RadiantChannelTests::radiantLightsADarkRoom);
+        reg(r, RADIANT_SKIPS_A_LIT_ROOM, RadiantChannelTests::radiantSkipsALitRoom);
         reg(r, SUNBEAM_BURNS_THE_UNDEAD_IT_STRIKES, SunbeamChannelTests::sunbeamBurnsTheUndeadItStrikes);
         reg(r, MOB_HEX, MobEffectTests::hexCharm);
         reg(r, MOB_PULSE, MobEffectTests::pulseStun);

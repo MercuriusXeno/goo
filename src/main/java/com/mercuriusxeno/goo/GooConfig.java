@@ -18,6 +18,10 @@ public class GooConfig {
     public static final ModConfigSpec.DoubleValue UNSTABLE_MELT_EXPONENT;
     public static final int DEFAULT_COMBO_DRAIN_PER_TICK = 2;
     public static final ModConfigSpec.IntValue COMBO_DRAIN_PER_TICK;
+    /** The light level under which Radiant leaves a wisp (decision radiant-wisps-where-light-is-low). */
+    public static final int DEFAULT_RADIANT_LIGHT_THRESHOLD = 8;
+    public static final ModConfigSpec.IntValue RADIANT_LIGHT_THRESHOLD;
+    private static final int MAX_LIGHT = 15;
     /** The largest melt exponent the config accepts. */
     private static final double MAX_MELT_EXPONENT = 2.0;
 
@@ -66,6 +70,25 @@ public class GooConfig {
 
         builder.pop();
 
+        builder.comment("Ability Settings");
+        builder.push("abilities");
+
+        RADIANT_LIGHT_THRESHOLD = builder
+            .comment("Radiant leaves a wisp of light only in air whose light level is under this.")
+            .defineInRange("radiantLightThreshold", DEFAULT_RADIANT_LIGHT_THRESHOLD, 0, MAX_LIGHT + 1);
+
+        builder.pop();
+
         SPEC = builder.build();
+    }
+
+    /**
+     * The light level under which Radiant leaves a wisp: the configured one,
+     * or the default before the config loads.
+     *
+     * @return the threshold
+     */
+    public static int radiantLightThreshold() {
+        return SPEC.isLoaded() ? RADIANT_LIGHT_THRESHOLD.get() : DEFAULT_RADIANT_LIGHT_THRESHOLD;
     }
 }
