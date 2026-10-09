@@ -93,7 +93,12 @@ public enum HostCapability {
      * A host that can toggle the redstone device where it acts, as a hand
      * would (decision pulser-drip-toggles-the-block-below).
      */
-    TOGGLE_DEVICE(DeviceToggleHost.class);
+    TOGGLE_DEVICE(DeviceToggleHost.class),
+    /**
+     * A host whose own block can give redstone power to its neighbors
+     * (decision thumper-blob-pulses-periodically-then-fades).
+     */
+    EMIT_POWER(PowerEmitHost.class);
 
     private final Class<? extends StepHost> hostType;
 
