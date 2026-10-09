@@ -185,6 +185,16 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
                 .ifPresent(device -> ZapDevice.toggleByHand(level, device));
     }
 
+    /**
+     * Toggles each device standing in the cells once, a door's two halves
+     * counting as one device (decision pulser-toggles-rapidly-while-held).
+     */
+    @Override
+    public void toggleEachDevice(List<BlockPos> cells) {
+        cells.stream().map(pos -> ZapDevice.handDevice(level, pos)).flatMap(Optional::stream).distinct()
+                .forEach(device -> ZapDevice.toggleByHand(level, device));
+    }
+
     @Override
     public void forEachLivingIn(List<BlockPos> cells, Set<EntityFilter> filters, Consumer<TargetHost> body) {
         if (cells.isEmpty()) {

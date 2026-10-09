@@ -58,4 +58,14 @@ public interface ChannelHost extends BlockBreakHost {
      * @param pos the block
      */
     void toggleOnceThisHold(BlockPos pos);
+
+    /**
+     * Toggles every lever, button, door, trapdoor or fence gate standing in
+     * the cells as a hand would, each once however many of its cells the
+     * list holds, with no memory of earlier toggles
+     * (decision pulser-toggles-rapidly-while-held).
+     *
+     * @param cells the blocks to toggle the devices of
+     */
+    void toggleEachDevice(List<BlockPos> cells);
 }
