@@ -11,6 +11,8 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
@@ -33,7 +35,7 @@ import java.util.function.Consumer;
  */
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
-        FieldEffectHost, PhasedHost, ConsumedGooHost {
+        FieldEffectHost, PhasedHost, ConsumedGooHost, PowerEmitHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -109,6 +111,19 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     @Override
     public PhasedState phased() {
         return be.programState().phased();
+    }
+
+    /**
+     * Sets the marker block's powered state where its block has one, so the
+     * blocks beside it read the power through its signal
+     * (decision thumper-blob-pulses-periodically-then-fades).
+     */
+    @Override
+    public void emitPower(boolean on) {
+        BlockState state = level.getBlockState(pos);
+        if (state.hasProperty(BlockStateProperties.POWERED) && state.getValue(BlockStateProperties.POWERED) != on) {
+            level.setBlock(pos, state.setValue(BlockStateProperties.POWERED, on), Block.UPDATE_ALL);
+        }
     }
 
     @Override
