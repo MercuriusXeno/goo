@@ -101,6 +101,7 @@ class StepCodecTest {
             Map.entry("floors", new FloorsStep(Expr.literal(2), List.of())),
             Map.entry("shift", new ShiftStep(Expr.literal(16))),
             Map.entry("sight", new SightStep(Expr.literal(3))),
+            Map.entry("undead", new UndeadStep(Expr.literal(1))),
             Map.entry("flatten", new FlattenStep(TagKey.create(Registries.BLOCK,
                     Identifier.fromNamespaceAndPath("goo", "flatten_breakable")))),
             Map.entry("bore", new BoreStep(TagKey.create(Registries.BLOCK,

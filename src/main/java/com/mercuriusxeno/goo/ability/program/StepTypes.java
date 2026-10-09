@@ -70,6 +70,7 @@ public final class StepTypes {
         register(FloorsStep.TYPE);
         register(ShiftStep.TYPE);
         register(SightStep.TYPE);
+        register(UndeadStep.TYPE);
         register(FlattenStep.TYPE);
         register(BoreStep.TYPE);
         register(CrushStep.TYPE);

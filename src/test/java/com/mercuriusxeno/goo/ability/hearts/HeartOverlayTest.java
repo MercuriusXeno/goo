@@ -604,4 +604,58 @@ class HeartOverlayTest {
             assertSame(stone, stone.apply(HeartKind.STONESKIN, DURATION, HALF_HEALTH, FULL_HEALTH, DAMAGE_TAKEN, NOW));
         }
     }
+
+    /**
+     * Undead: nether over the leftmost missing heart first, crawling into each
+     * further missing heart fast, taking hits before real health, and leaving
+     * healing to vanilla (decision undead-nether-hearts-burn-in-sunlight).
+     */
+    @Nested
+    class Undead {
+
+        private static final float SIX_HEALTH = 6f;
+        /** The first slot six health leaves missing. */
+        private static final int FIRST_MISSING_AT_SIX = 3;
+        private static final int MISSING_HALVES_AT_SIX = 14;
+
+        private HeartOverlay heldAtSix() {
+            return HeartOverlay.NONE.hold(HeartKind.UNDEAD, SIX_HEALTH, FULL_HEALTH, HeartOverlay.WHOLE_HIT, NOW);
+        }
+
+        @Test
+        void netherStartsOnTheLeftmostMissingHeart() {
+            HeartOverlay overlay = heldAtSix();
+            assertEquals(HeartOverlay.FULL_SHIELD, overlay.shieldHalves());
+            assertEquals(HeartOverlay.FULL_SHIELD, overlay.shieldAt(FIRST_MISSING_AT_SIX));
+            assertFalse(overlay.blocksHealing());
+        }
+
+        @Test
+        void netherCrawlsIntoEachFurtherMissingHeartAndAWoundOpenedLater() {
+            long interval = HeartKind.UNDEAD.regrowInterval(0);
+            HeartOverlay whole = tickedThrough(heldAtSix(), SIX_HEALTH, NOW + MISSING_HALVES_AT_SIX * interval);
+            assertEquals(MISSING_HALVES_AT_SIX, whole.shieldHalves());
+            assertEquals(0, whole.shieldAt(FIRST_MISSING_AT_SIX - 1));
+            float wounded = 4f;
+            HeartOverlay overlay = whole;
+            long from = NOW + MISSING_HALVES_AT_SIX * interval;
+            for (long tick = from + 1; tick <= from + 2 * interval; tick++) {
+                overlay = overlay.tick(wounded, false, tick);
+            }
+            assertEquals(HeartOverlay.FULL_SHIELD, overlay.shieldAt(FIRST_MISSING_AT_SIX - 1));
+        }
+
+        @Test
+        void netherRegrowsFasterThanStone() {
+            assertTrue(HeartKind.UNDEAD.regrowInterval(0) < HeartKind.STONESKIN.regrowInterval(0));
+        }
+
+        @Test
+        void aHitStripsNetherBeforeRealHealth() {
+            HeartOverlay.Drained drained = heldAtSix().drain(2f, NOW);
+            assertEquals(0, drained.overlay().shieldHalves());
+            assertEquals(0f, drained.remainder(), DELTA);
+            assertTrue(drained.overlay().stands());
+        }
+    }
 }

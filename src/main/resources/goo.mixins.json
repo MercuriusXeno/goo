@@ -5,6 +5,7 @@
   "mixins": [
     "ContainerShiftClickMergeMixin",
     "InventoryPickupMergeMixin",
+    "LivingEntityUndeadMixin",
     "MinecraftServerGooStateMixin",
     "GooQuickCraftMixin",
     "ReloadableServerResourcesGooMixin"

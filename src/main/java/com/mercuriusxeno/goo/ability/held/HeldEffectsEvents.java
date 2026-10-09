@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.held;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
+import com.mercuriusxeno.goo.ability.nether.Undead;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.Sight;
@@ -231,6 +232,10 @@ public final class HeldEffectsEvents {
             if (effect.lays().contains(LaidState.SIGHT)) {
                 // sight-lengthens-shift-and-outlines-fungus: the sight ends with its held effect
                 player.setData(GooAttachments.SIGHT, Sight.NONE);
+            }
+            if (effect.lays().contains(LaidState.UNDEAD)) {
+                // undead-nether-hearts-burn-in-sunlight: the player counts as undead no longer
+                player.setData(GooAttachments.UNDEAD, Undead.NONE);
             }
             // brew-runs-the-crawl-prepaid-on-a-shown-clock: the effect list's entry ends with the effect
             player.removeEffect(GooMobEffects.BREW_EFFECTS.get(effect.gooType()));
