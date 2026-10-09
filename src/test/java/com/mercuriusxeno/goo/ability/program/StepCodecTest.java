@@ -116,7 +116,8 @@ class StepCodecTest {
             Map.entry("court", LeafSteps.COURT.step(Expr.literal(0.25))),
             Map.entry("nourish", new NourishStep(Expr.literal(80))),
             Map.entry("reserve_drain", new ReserveDrainStep(Expr.literal(0.05), Expr.literal(0.5), Expr.literal(10),
-                    Expr.literal(0.5)))
+                    Expr.literal(0.5))),
+            Map.entry("banish", new BanishStep(Expr.literal(6), Expr.literal(32), Expr.literal(3)))
     );
 
     private static Step roundTrip(Step step) {
