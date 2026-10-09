@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.EntityFilter;
+import com.mercuriusxeno.goo.ability.stasis.StasisEvents;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.EntityScan;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
@@ -64,6 +65,15 @@ public final class MobEffectTests {
     private static final String ABILITY_FROST_SNAP = "goo:frost_snap";
     private static final String ABILITY_PULSE_SHORT_CIRCUIT = "goo:pulse_short_circuit";
     private static final String ABILITY_AEON_TIME_STOP = "goo:aeon_time_stop";
+    private static final String ABILITY_AEON_STASIS = "goo:aeon_stasis";
+    /** The ticks a stasis is watched before the hits land. */
+    private static final int STASIS_HOLD_TICKS = 100;
+    private static final float STASIS_HIT_DAMAGE = 4.0f;
+    private static final String SHOULD_STAY_IN_STASIS = "The zombie should stay in stasis until an attacker strikes it";
+    private static final String SHOULD_STAND_STILL = "The zombie in stasis should not have moved";
+    private static final String SHOULD_TAKE_NO_DAMAGE = "The zombie in stasis should take no damage";
+    private static final String SHOULD_BE_FREED = "An attacker's strike should free the zombie";
+    private static final String SHOULD_HAVE_AI_AGAIN = "The freed zombie should have its AI back";
     private static final String ABILITY_UNSTABLE_EXPLODE = "goo:unstable_explode";
     private static final String ABILITY_HEX_CHARM = "goo:hex_charm";
     private static final String ABILITY_VITAL_CLONE = "goo:vital_clone";
@@ -386,6 +396,38 @@ public final class MobEffectTests {
             helper.assertFalse(mob.hasEffect(MobEffects.GLOWING), SHOULD_NOT_GLOW);
             helper.runAfterDelay(SETTLE_TICKS, () -> {
                 helper.assertTrue(itemsNear(helper, mob.position()).isEmpty(), SHOULD_DROP_NOTHING);
+                helper.succeed();
+            });
+        });
+    }
+
+    /**
+     * Aeon stasis freezes a zombie with its AI on: across a hundred ticks and
+     * a hit with no attacker it stays in stasis, AI-less, unmoved and
+     * unharmed; a strike from another zombie frees it, its AI back and its
+     * health untouched.
+     * stasis-holds-mob-with-golden-shimmer
+     *
+     * @param helper the gametest helper
+     */
+    public static void stasisHoldsUntilStruck(GameTestHelper helper) {
+        Mob mob = helper.spawn(EntityType.ZOMBIE, SPAWN_POS);
+        Mob attacker = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, BYSTANDER_POS);
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, mob, ABILITY_AEON_STASIS);
+            Vec3 frozenAt = mob.position();
+            float health = mob.getHealth();
+            helper.runAfterDelay(STASIS_HOLD_TICKS, () -> {
+                mob.hurtServer(helper.getLevel(), helper.getLevel().damageSources().generic(), STASIS_HIT_DAMAGE);
+                helper.assertTrue(StasisEvents.held(mob), SHOULD_STAY_IN_STASIS);
+                helper.assertTrue(mob.isNoAi(), SHOULD_HAVE_NO_AI);
+                helper.assertTrue(mob.position().distanceTo(frozenAt) < TELEPORT_MIN_MOVE, SHOULD_STAND_STILL);
+                helper.assertTrue(mob.getHealth() == health, SHOULD_TAKE_NO_DAMAGE);
+                mob.hurtServer(helper.getLevel(), helper.getLevel().damageSources().mobAttack(attacker),
+                        STASIS_HIT_DAMAGE);
+                helper.assertFalse(StasisEvents.held(mob), SHOULD_BE_FREED);
+                helper.assertFalse(mob.isNoAi(), SHOULD_HAVE_AI_AGAIN);
+                helper.assertTrue(mob.getHealth() == health, SHOULD_TAKE_NO_DAMAGE);
                 helper.succeed();
             });
         });

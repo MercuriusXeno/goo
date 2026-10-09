@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.stasis.StasisEvents;
 import com.mojang.datafixers.util.Unit;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
@@ -97,6 +98,19 @@ public final class LeafSteps {
                 context.hostAs(TargetHost.class).target().setInvulnerable(enabled);
                 return true;
             });
+
+    /**
+     * Holds the host's target in stasis until it is struck; a target that is
+     * not a mob is left alone. Aeon stasis is {@code stasis} under
+     * {@code target where=[mob, not_boss]}.
+     * stasis-holds-mob-with-golden-shimmer
+     */
+    public static final LeafStepType<Unit> STASIS = StepType.of("stasis", NO_PARAMS, TARGET, (none, context) -> {
+        if (context.hostAs(TargetHost.class).target() instanceof Mob mob) {
+            StasisEvents.hold(mob);
+        }
+        return true;
+    });
 
     /**
      * Sets the host's target on fire for a number of seconds; blaze ignite

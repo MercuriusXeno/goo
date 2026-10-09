@@ -1,0 +1,19 @@
+{
+  "gooType": "aeon",
+  "displayName": "goo.ability.aeon.stasis",
+  "badge": "mob",
+  "order": 10,
+  "cost": 1000,
+  "requires": ["minecraft:netherite_scrap"],
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    {
+      "type": "target",
+      "where": ["mob", "not_boss"],
+      "steps": [
+        { "type": "stasis" }
+      ]
+    }
+  ],
+  "tags": ["entity"]
+}

@@ -43,6 +43,7 @@ public final class StepTypes {
         register(LeafSteps.FREEZE_TICKS.type());
         register(LeafSteps.SET_AI.type());
         register(LeafSteps.SET_INVULNERABLE.type());
+        register(LeafSteps.STASIS.type());
         register(CloneEntityStep.TYPE);
         register(DropItemStep.TYPE);
         register(LeafSteps.IGNITE.type());
