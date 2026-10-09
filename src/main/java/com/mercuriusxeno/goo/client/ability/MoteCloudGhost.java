@@ -17,18 +17,22 @@ import java.util.List;
 import java.util.SplittableRandom;
 
 /**
- * Shroom's held ghost: a noisy cloud of mauve spore motes about Spore's
- * reach, each mote its own: a random place over the whole sphere, its own
- * depth in a fuzzy outer shell, its own slow wander and wobble, its own size
- * and twinkle, with rings born at the aim point travelling outward to the
- * same reach.
+ * A held ghost drawn as a noisy cloud of motes about the throw's reach, each
+ * mote its own: a random place over the whole sphere, its own depth in a
+ * fuzzy outer shell, its own slow wander and wobble, its own size and
+ * twinkle, with rings born at the aim point travelling outward to the same
+ * reach. Shroom's cloud is mauve spores about Spore's reach; Pulse's is red
+ * sparks about Zap's stun reach, a placeholder until Zap's visual is designed.
  * held-visual-ghosts-the-landing-in-two-passes
  * colonize-blob-grows-the-network
+ * zap-ticks-the-device-and-stuns
  */
-public final class ShroomHeldGhost implements HeldGhostVisual {
+public final class MoteCloudGhost implements HeldGhostVisual {
 
-    /** The one instance the held dome renderer holds. */
-    public static final ShroomHeldGhost INSTANCE = new ShroomHeldGhost();
+    /** Shroom's mauve spore cloud. */
+    public static final MoteCloudGhost SHROOM = new MoteCloudGhost(GooTypes.SHROOM, 0xB57FC0);
+    /** Pulse's redstone-red spark cloud. */
+    public static final MoteCloudGhost PULSE = new MoteCloudGhost(GooTypes.PULSE, 0xE0301E);
 
     /** Motes in the cloud. */
     static final int MOTES = 600;
@@ -56,8 +60,6 @@ public final class ShroomHeldGhost implements HeldGhostVisual {
     private static final long SCATTER_SEED = 0x5B0BEL;
     /** A mote's half width, in blocks. */
     private static final float MOTE_HALF = 0.035f;
-    /** The cloud's mauve. */
-    private static final int MOTE_RGB = 0xB57FC0;
     /** A mote's alpha at full held opacity. */
     private static final float MOTE_ALPHA = 0.75f;
     private static final double FULL_TURN = Math.PI * 2;
@@ -90,7 +92,12 @@ public final class ShroomHeldGhost implements HeldGhostVisual {
                         double wobblePhase, double size, double twinkleSpeed, double twinklePhase) {
     }
 
-    private ShroomHeldGhost() {
+    private final ResourceKey<GooTypeDefinition> gooType;
+    private final int moteRgb;
+
+    private MoteCloudGhost(ResourceKey<GooTypeDefinition> gooType, int moteRgb) {
+        this.gooType = gooType;
+        this.moteRgb = moteRgb;
     }
 
     private static Mote[] scatter(SplittableRandom random) {
@@ -115,12 +122,13 @@ public final class ShroomHeldGhost implements HeldGhostVisual {
 
     @Override
     public ResourceKey<GooTypeDefinition> gooType() {
-        return GooTypes.SHROOM;
+        return gooType;
     }
 
     /**
      * The dome and the outward rings at the colonize step's radius, falling
-     * back to the area's size where the program holds none.
+     * back to the area's size, the reach the program's own steps give, where
+     * the program holds none.
      *
      * @param area      the ability's synced area
      * @param behaviors the ability's synced program
@@ -137,7 +145,7 @@ public final class ShroomHeldGhost implements HeldGhostVisual {
     @Override
     public List<HeldLayer> heldLayers() {
         return List.of(new HeldLayer(GooRenderTypes.SPORE_SHELL_TYPE, GooRenderTypes.SPORE_SHELL_THROUGH_BLOCKS_TYPE,
-                ShroomHeldGhost::emitMotes));
+                this::emitMotes));
     }
 
     /**
@@ -188,13 +196,13 @@ public final class ShroomHeldGhost implements HeldGhostVisual {
         return out;
     }
 
-    private static void emitMotes(PoseStack.Pose pose, VertexConsumer c, HeldGhost ghost, Direction face,
-                                  float opacity, double nowSeconds) {
+    private void emitMotes(PoseStack.Pose pose, VertexConsumer c, HeldGhost ghost, Direction face,
+                           float opacity, double nowSeconds) {
         float radius = ghost.domeRadius();
         for (int i = 0; i < MOTES; i++) {
             double[] at = moteAt(i, nowSeconds);
             float alpha = MOTE_ALPHA * opacity * twinkleAt(i, nowSeconds);
-            int color = ARGB.color(Math.round(Mth.clamp(alpha, 0f, 1f) * OPAQUE), MOTE_RGB);
+            int color = ARGB.color(Math.round(Mth.clamp(alpha, 0f, 1f) * OPAQUE), moteRgb);
             SporeMotes.emit(pose, c, (float) (at[X] * radius), (float) (at[Y] * radius), (float) (at[Z] * radius),
                     (float) (MOTE_HALF * CLOUD[i].size()), color);
         }

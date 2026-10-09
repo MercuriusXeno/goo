@@ -1,0 +1,23 @@
+{
+  "gooType": "pulse",
+  "displayName": "goo.ability.pulse.zap",
+  "badge": "free",
+  "order": 0,
+  "cost": 1000,
+  "requires": ["minecraft:redstone"],
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "power_pulse" },
+    {
+      "type": "entities",
+      "radius": 2,
+      "where": ["mob"],
+      "steps": [
+        { "type": "stun", "ticks": 60 }
+      ]
+    },
+    { "type": "particles", "id": "minecraft:electric_spark", "at": "host", "count": 24, "spread": 0.5, "lift": 0.2, "speed": 0.4 },
+    { "type": "sound", "id": "minecraft:block.lever.click", "at": "host", "source": "players", "volume": 1, "pitch": 1.6 }
+  ],
+  "tags": []
+}

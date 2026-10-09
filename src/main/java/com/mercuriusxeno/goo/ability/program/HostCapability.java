@@ -83,7 +83,12 @@ public enum HostCapability {
      * A tap drip's landing: the drips its block has taken, and dripstone to
      * grow down from it (decision petrify-drip-calcifies-and-grows-dripstone).
      */
-    DRIP(DripHost.class);
+    DRIP(DripHost.class),
+    /**
+     * A landing that can tick the redstone device it landed on (decision
+     * zap-ticks-the-device-and-stuns).
+     */
+    POWER_PULSE(PowerPulseHost.class);
 
     private final Class<? extends StepHost> hostType;
 

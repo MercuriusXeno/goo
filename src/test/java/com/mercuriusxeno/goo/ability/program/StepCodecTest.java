@@ -114,6 +114,8 @@ class StepCodecTest {
                     TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath("goo", "grows_dripstone")))),
             Map.entry("heal", LeafSteps.HEAL.step(Expr.literal(0.1))),
             Map.entry("court", LeafSteps.COURT.step(Expr.literal(0.25))),
+            Map.entry("power_pulse", LeafSteps.POWER_PULSE.step(Unit.INSTANCE)),
+            Map.entry("stun", LeafSteps.STUN.step(Expr.literal(60))),
             Map.entry("nourish", new NourishStep(Expr.literal(80))),
             Map.entry("reserve_drain", new ReserveDrainStep(Expr.literal(0.05), Expr.literal(0.5), Expr.literal(10),
                     Expr.literal(0.5)))

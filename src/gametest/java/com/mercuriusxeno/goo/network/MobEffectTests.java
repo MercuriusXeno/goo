@@ -62,7 +62,6 @@ public final class MobEffectTests {
     private static final String ABILITY_TYPHOON_LEVITATE = "goo:typhoon_levitate";
     private static final String ABILITY_NETHER_WITHER = "goo:nether_wither";
     private static final String ABILITY_FROST_SNAP = "goo:frost_snap";
-    private static final String ABILITY_PULSE_SHORT_CIRCUIT = "goo:pulse_short_circuit";
     private static final String ABILITY_AEON_TIME_STOP = "goo:aeon_time_stop";
     private static final String ABILITY_UNSTABLE_EXPLODE = "goo:unstable_explode";
     private static final String ABILITY_HEX_CHARM = "goo:hex_charm";
@@ -294,22 +293,6 @@ public final class MobEffectTests {
             strike(helper, mob, ABILITY_HEX_CHARM);
             helper.assertTrue(mob.hasEffect(MobEffects.WEAKNESS), SHOULD_HAVE_WEAKNESS);
             helper.assertFalse(mob.hasEffect(MobEffects.GLOWING), SHOULD_NOT_GLOW);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Pulse short circuit is a program: a mob target selection wrapping a
-     * set_ai step off and a max slowness potion step.
-     *
-     * @param helper the gametest helper
-     */
-    public static void pulseStun(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_PULSE_SHORT_CIRCUIT);
-            helper.assertTrue(mob.isNoAi(), SHOULD_HAVE_NO_AI);
-            helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
             helper.succeed();
         });
     }
