@@ -28,9 +28,12 @@ import java.util.stream.Stream;
 /**
  * Line-drawn wind for a held stream that names it: each held tick a few
  * thick lines, white and very light gray tinted slightly blue, rush straight
- * out of the glove along the cone, then spiral up, down or out and fade into
- * nothing, and where the stream asks, snowflakes flit weightlessly along
- * them. Typhoon's streams reuse the lines without the snowflakes.
+ * out of the glove along the cone, then at their end curl up, down or out in
+ * a tight spiral, the head slowing as it winds inward to a center point while
+ * the tail draws in quickly behind it, so the line ends at that point as it
+ * fades; drawn as smooth curves, and where the stream asks, snowflakes flit
+ * weightlessly along them. Typhoon's streams reuse the lines without the
+ * snowflakes.
  * cold-streams-wind-lines-and-snowflakes
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -43,21 +46,20 @@ public final class WindLines {
     static final int LINES_PER_TICK = 2;
     /** Ticks a line lives, from leaving the glove to fading out. */
     static final int LIFE_TICKS = 18;
-    /** Blocks a line's head travels each tick. */
-    static final double SPEED = 0.7;
-    /** The share of the cone's length a line rushes straight before it spirals. */
-    static final double STRAIGHT_SHARE = 0.45;
-    /** Radians a spiralling line turns per block it travels past its straight run. */
-    static final double TWIST_PER_BLOCK = 1.6;
-    /** Blocks a spiral widens per block it travels. */
-    static final double SPIRAL_WIDENING = 0.3;
-    /** Blocks a spiral drifts up, down or out per block it travels. */
-    static final double DRIFT_PER_BLOCK = 0.35;
-    /** How far forward the head keeps going once it spirals, as a share of its speed. */
-    static final double SPIRAL_FORWARD = 0.5;
-    /** Ticks of the path the trailing line spans behind its head. */
-    private static final double TAIL_TICKS = 5;
-    private static final int TAIL_SAMPLES = 8;
+    /** The share of a line's life it rushes straight before it curls. */
+    static final double CURL_STARTS = 0.6;
+    /** The ticks a line rushes straight before it curls. */
+    static final double STRAIGHT_TICKS = LIFE_TICKS * CURL_STARTS;
+    /** The share of the cone's length a line rushes straight before it curls. */
+    static final double STRAIGHT_SHARE = 0.6;
+    /** The curl's starting radius in blocks, which it winds inward from to nothing. */
+    static final double CURL_RADIUS = 0.35;
+    /** Turns the curl winds through before it reaches its center. */
+    static final double CURL_TURNS = 1.5;
+    /** Ticks of the path the trailing line spans behind its head while it rushes straight. */
+    static final double TAIL_TICKS = 5;
+    /** Points the line draws through, enough that its curve reads smooth. */
+    private static final int TAIL_SAMPLES = 32;
     private static final float LINE_WIDTH = 3.5f;
     /** Snowflakes a line drops along itself each tick it lives. */
     private static final float SNOWFLAKES_PER_LINE_TICK = 0.35f;
@@ -100,29 +102,68 @@ public final class WindLines {
 
     /**
      * Where a line's head stands a number of ticks after it left the glove:
-     * along its axis for its straight run, then turning about the axis on a
-     * widening spiral that drifts up, down or out while it keeps creeping forward.
+     * along its axis for its straight run, then winding inward on a tight
+     * curl that turns up, down or out, slowing as it closes on the curl's
+     * center, which it reaches the tick the line ends.
      *
      * @param line the line
      * @param age  ticks since it left the glove
      * @return the head's world position
      */
     static Vec3 pathPoint(Line line, double age) {
-        double travelled = Math.max(0, age) * SPEED;
-        if (travelled <= line.straight()) {
-            return line.origin().add(line.axis().scale(travelled));
+        double clamped = Math.clamp(age, 0, LIFE_TICKS);
+        if (clamped <= STRAIGHT_TICKS) {
+            return line.origin().add(line.axis().scale(line.straight() * clamped / STRAIGHT_TICKS));
         }
-        double past = travelled - line.straight();
-        double angle = line.phase() + past * TWIST_PER_BLOCK;
-        double radius = past * SPIRAL_WIDENING;
-        Vec3 drift = switch (line.drift()) {
+        double curled = (clamped - STRAIGHT_TICKS) / (LIFE_TICKS - STRAIGHT_TICKS);
+        // the head slows as it winds in: its turn eases out toward the center
+        double eased = 1 - (1 - curled) * (1 - curled);
+        double angle = eased * CURL_TURNS * TWO_PI;
+        double radius = CURL_RADIUS * (1 - eased);
+        Vec3 outward = curlDirection(line);
+        Vec3 center = curlCenter(line);
+        return center.add(outward.scale(-radius * Math.cos(angle))).add(line.axis().scale(radius * Math.sin(angle)));
+    }
+
+    /**
+     * The point a line's curl winds in to: a curl's radius past the end of its
+     * straight run, toward the way it curls.
+     *
+     * @param line the line
+     * @return the curl's center
+     */
+    static Vec3 curlCenter(Line line) {
+        return line.origin().add(line.axis().scale(line.straight())).add(curlDirection(line).scale(CURL_RADIUS));
+    }
+
+    /**
+     * The way a line curls: up, down, or out from the stream's middle.
+     *
+     * @param line the line
+     * @return the unit direction square to its axis
+     */
+    private static Vec3 curlDirection(Line line) {
+        return switch (line.drift()) {
             case UP -> line.up();
             case DOWN -> line.up().reverse();
             case OUT -> line.side().scale(Math.cos(line.phase())).add(line.up().scale(Math.sin(line.phase())));
         };
-        return line.origin().add(line.axis().scale(line.straight() + past * SPIRAL_FORWARD))
-                .add(line.side().scale(radius * Math.cos(angle))).add(line.up().scale(radius * Math.sin(angle)))
-                .add(drift.scale(past * DRIFT_PER_BLOCK));
+    }
+
+    /**
+     * How far behind its head a line's tail trails: the full tail while the
+     * line rushes straight, drawing in to nothing over its curl, so the tail
+     * meets the head at the curl's center as the line ends.
+     *
+     * @param age ticks since the line left the glove
+     * @return the tail's lag behind the head, in ticks of the path
+     */
+    static double tailLag(double age) {
+        if (age <= STRAIGHT_TICKS) {
+            return TAIL_TICKS;
+        }
+        double curled = Math.min(1, (age - STRAIGHT_TICKS) / (LIFE_TICKS - STRAIGHT_TICKS));
+        return TAIL_TICKS * (1 - curled);
     }
 
     /**
@@ -234,10 +275,11 @@ public final class WindLines {
 
     private static void drawLine(LineContext lines, Vec3 camera, Line line, double age) {
         float life = (float) (age / LIFE_TICKS);
+        double lag = tailLag(age);
         Vec3 previous = pathPoint(line, age);
         for (int sample = 1; sample <= TAIL_SAMPLES; sample++) {
             float tail = (float) sample / TAIL_SAMPLES;
-            Vec3 next = pathPoint(line, age - tail * TAIL_TICKS);
+            Vec3 next = pathPoint(line, age - tail * lag);
             lines.emitPolyline(camera, new Vec3[] {previous, next}, trailColor(line, life, tail), LINE_WIDTH);
             previous = next;
         }
