@@ -19,6 +19,8 @@ import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ability.ViewportRipples;
 import com.mercuriusxeno.goo.client.ber.*;
+import com.mercuriusxeno.goo.client.ber.style.AgitatorPrismStyle;
+import com.mercuriusxeno.goo.client.ber.style.PrismComboStyles;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -116,6 +118,8 @@ public final class GooClientSetup {
     public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
         registerMachineRenderers(event);
         registerEffectRenderers(event);
+        // agitator-prism-quickens-until-a-spawn
+        PrismComboStyles.register(AgitatorPrismStyle.COMBO, new AgitatorPrismStyle());
     }
 
     /**
