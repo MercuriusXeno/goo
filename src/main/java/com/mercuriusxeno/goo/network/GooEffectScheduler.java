@@ -10,10 +10,8 @@ import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.Step;
-import com.mercuriusxeno.goo.ability.program.TravelingStep;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.registry.GooSounds;
-import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -137,9 +135,6 @@ public final class GooEffectScheduler {
      */
     private final List<PendingEffect> pendingEffects = new ArrayList<>();
 
-    /** The blobs whose ability acts while they fly (decision orb-carries-a-swirling-nova). */
-    private final TravelingFlights travelingFlights = new TravelingFlights();
-
     /**
      * Plays the throw sound and queues a pending effect for goo arrival.
      *
@@ -153,50 +148,6 @@ public final class GooEffectScheduler {
                                ResourceKey<GooTypeDefinition> gooType, Delivery delivery, int travelTicks) {
         playThrowSound(player, delivery);
         enqueueArrival(player, payload, gooType, travelTicks);
-        trackTraveling(player, payload, gooType, delivery, travelTicks);
-    }
-
-    /**
-     * Starts running a thrown ability's traveling steps along its flight,
-     * where its program holds any, on the arc the clients draw from the hand
-     * to the target (decision orb-carries-a-swirling-nova).
-     *
-     * @param player      the throwing player
-     * @param payload     the throw payload data
-     * @param gooType     the goo type thrown
-     * @param delivery    the delivery the throw flies by
-     * @param travelTicks the number of ticks until arrival
-     */
-    private void trackTraveling(ServerPlayer player, GooThrowPayload payload, ResourceKey<GooTypeDefinition> gooType,
-                                Delivery delivery, int travelTicks) {
-        ServerLevel level = player.level();
-        AbilityDefinition ability = GooThrowHandler.thrownAbility(level, payload.abilityId(), gooType);
-        if (ability == null) {
-            return;
-        }
-        TravelingStep.of(ability.behaviors()).ifPresent(traveling -> {
-            Vec3 hand = ThrowArc.clampToReach(player.getEyePosition(), payload.origin(),
-                    ThrowArc.HAND_REACH * player.getScale());
-            Vec3 end = flightEnd(level, payload);
-            travelingFlights.track(new TravelingFlights.Flight(level, payload.abilityId(), hand, end,
-                    delivery.peak(hand, end, payload.grannyArc()), level.getServer().getTickCount(), travelTicks,
-                    traveling));
-        });
-    }
-
-    /**
-     * Where a flight lands: the struck entity's middle, or the aimed point.
-     *
-     * @param level   the server level
-     * @param payload the throw payload data
-     * @return the flight's end
-     */
-    private static Vec3 flightEnd(ServerLevel level, GooThrowPayload payload) {
-        Entity struck = payload.targetEntityId() >= 0 ? level.getEntity(payload.targetEntityId()) : null;
-        if (struck != null) {
-            return struck.getBoundingBox().getCenter();
-        }
-        return payload.targetPoint();
     }
 
     /**
@@ -297,7 +248,6 @@ public final class GooEffectScheduler {
      */
     public void clear() {
         pendingEffects.clear();
-        travelingFlights.clear();
     }
 
     /**
@@ -317,7 +267,6 @@ public final class GooEffectScheduler {
      * @param landing     what a mob landing does to the world
      */
     void drainArrivedEffects(int currentTick, MobLanding landing) {
-        travelingFlights.tick(currentTick);
         List<PendingEffect> ready = new ArrayList<>();
         Iterator<PendingEffect> it = pendingEffects.iterator();
         while (it.hasNext()) {
@@ -338,6 +287,16 @@ public final class GooEffectScheduler {
      * @param pe the pending effect to apply
      */
     static void applyEffect(PendingEffect pe) {
+        applyEffect(pe, LIVE_LANDING);
+    }
+
+    /**
+     * Lands an effect at once, as a rolling goo ends where it struck or
+     * where its range ran out (decision orb-carries-a-swirling-nova).
+     *
+     * @param pe the effect to land now
+     */
+    public static void landNow(PendingEffect pe) {
         applyEffect(pe, LIVE_LANDING);
     }
 

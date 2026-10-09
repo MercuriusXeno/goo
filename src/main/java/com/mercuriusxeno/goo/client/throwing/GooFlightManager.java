@@ -1,8 +1,6 @@
 package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.ability.Delivery;
-import com.mercuriusxeno.goo.ability.program.TravelingStep;
-import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.network.GooFlightPayload;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -62,23 +60,8 @@ public final class GooFlightManager {
         boolean grannyArc = payload.grannyArc();
         int id = nextId;
         nextId++;
-        GooFlight flight = new GooFlight(start, throwEnd, targetEntityId,
-                payload.targetPos(), type, payload.delivery(), travelTicks, grannyArc);
-        flight.swirl = swirlOf(payload.abilityId());
-        FLIGHTS.put(id, flight);
-    }
-
-    /**
-     * The reach of the swirling nova a thrown ability carries in flight, read
-     * off its traveling step (decision orb-carries-a-swirling-nova).
-     *
-     * @param abilityId the thrown ability
-     * @return the swirl's reach, 0 where it carries none
-     */
-    private static float swirlOf(String abilityId) {
-        AbilitySyncHandler.ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
-        return ability == null ? 0f
-                : TravelingStep.of(ability.behaviors()).map(TravelingStep::swirl).orElse(0f);
+        FLIGHTS.put(id, new GooFlight(start, throwEnd, targetEntityId,
+                payload.targetPos(), type, payload.delivery(), travelTicks, grannyArc));
     }
 
     /**
@@ -193,8 +176,6 @@ public final class GooFlightManager {
          */
         private final double peak;
         public int ticksElapsed;
-        /** The reach of the swirling nova drawn about the blob, 0 for none (decision orb-carries-a-swirling-nova). */
-        public float swirl;
 
         public GooFlight(Vec3 start, Vec3 throwEnd, int targetEntityId,
                           BlockPos targetBlockPos, ResourceKey<GooTypeDefinition> gooType,

@@ -43,6 +43,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.renderer.block.FluidModel;
 import net.minecraft.client.renderer.entity.EntityRenderer;
+import net.minecraft.client.renderer.entity.NoopRenderer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.resources.Identifier;
@@ -177,6 +178,8 @@ public final class GooClientSetup {
         event.registerBlockEntityRenderer(GooBlockEntities.PRISM.get(), PrismRenderer::new);
         PrismComboStyles.register(GlacialPrismStyle.COMBO, new GlacialPrismStyle());
         event.registerBlockEntityRenderer(GooBlockEntities.STATUE.get(), StatueRenderer::new);
+        // orb-carries-a-swirling-nova: RollingGooRenderer draws the ball and its swirl from the level stage
+        event.registerEntityRenderer(GooEntities.ROLLING_GOO.get(), NoopRenderer::new);
     }
 
     /**
