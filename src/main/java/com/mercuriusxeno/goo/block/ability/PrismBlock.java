@@ -52,12 +52,6 @@ public class PrismBlock extends BaseEntityBlock {
      */
     public static final IntegerProperty POWER = BlockStateProperties.POWER;
 
-    /** The prism's width on the face, in block fractions: half a block, centered. */
-    private static final double WIDTH_MIN = 4.0 / 16;
-    private static final double WIDTH_MAX = 12.0 / 16;
-    /** How far the prism stands out of its face, in block fractions, the model's tip included. */
-    private static final double HEIGHT = 15.0 / 16;
-
     private static final Map<Direction, VoxelShape> SHAPES = buildShapes();
 
     /** A combo's program ticks on the server alone. */
@@ -77,7 +71,8 @@ public class PrismBlock extends BaseEntityBlock {
     private static Map<Direction, VoxelShape> buildShapes() {
         Map<Direction, VoxelShape> shapes = new EnumMap<>(Direction.class);
         for (Direction facing : Direction.values()) {
-            shapes.put(facing, GlowCrystalBlock.shapeFor(facing, WIDTH_MIN, WIDTH_MAX, HEIGHT));
+            // prism-is-one-pointed-quartz-column: the shape follows the column the prism draws
+            shapes.put(facing, PrismColumn.shapeFor(facing));
         }
         return shapes;
     }
