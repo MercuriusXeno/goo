@@ -117,7 +117,7 @@ public final class FrostAbilityTests {
     private static final String SHOULD_ICE_INSIDE = "Water inside the glacial field should stand as magicked ice";
     private static final String SHOULD_THAW_OUTSIDE = "The zombie past the glacial field should thaw, stands %s";
     private static final BlockPos ICEBORN_POS = new BlockPos(1, 1, 1);
-    /** Still lava and water in the floor and a burning zombie, all within Iceborn's reach of 4. */
+    /** Still lava and water in the floor and a burning zombie, all within Iceborn's reach of 3. */
     private static final BlockPos ICEBORN_LAVA_POS = new BlockPos(3, 0, 1);
     private static final BlockPos ICEBORN_WATER_POS = new BlockPos(1, 0, 3);
     private static final BlockPos ICEBORN_ZOMBIE_POS = new BlockPos(3, 1, 3);
@@ -131,6 +131,7 @@ public final class FrostAbilityTests {
     private static final String SHOULD_RIME = "Water near an Iceborn player should freeze to Iceborn ice";
     private static final String SHOULD_PUT_OUT = "A burning zombie near an Iceborn player should stop burning";
     private static final String SHOULD_THAW_ICE = "Iceborn ice should thaw back to water once the player has gone";
+    private static final String SHOULD_MELT_OBSIDIAN = "Iceborn obsidian should melt back to lava once the player has gone";
     private static final String SHOULD_THAW_HEARTS = "Fire should thaw every frozen heart and end Iceborn, stands %s";
     private static final String SHOULD_NOT_PULSE_YET = "Drips short of the count should freeze nothing, stands %s";
     private static final String SHOULD_FREEZE_ZOMBIE = "The tap's nova should raise the zombie's gauge";
@@ -353,7 +354,8 @@ public final class FrostAbilityTests {
     /**
      * An Iceborn player leeches heat: still lava beside them freezes to
      * obsidian, still water to Iceborn ice, a burning zombie stops burning,
-     * and once they have gone the ice thaws back to water.
+     * and once they have gone the level's record sends the ice back to water
+     * and the obsidian back to lava.
      *
      * @param helper the gametest helper
      */
@@ -374,6 +376,7 @@ public final class FrostAbilityTests {
         });
         helper.runAfterDelay(LEECH_TICKS + 1 + THAW_AFTER_LEAVING_TICKS, () -> {
             helper.assertTrue(helper.getBlockState(ICEBORN_WATER_POS).is(Blocks.WATER), SHOULD_THAW_ICE);
+            helper.assertTrue(helper.getBlockState(ICEBORN_LAVA_POS).is(Blocks.LAVA), SHOULD_MELT_OBSIDIAN);
             helper.succeed();
         });
     }

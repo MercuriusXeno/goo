@@ -27,14 +27,15 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.ProjectileImpactEvent;
+import net.neoforged.neoforge.event.tick.LevelTickEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import java.util.Optional;
 
 /**
  * Iceborn's heat leech: while a player wears Iceborn's frozen hearts, fire
  * near them goes out, fireballs near them fizzle, burning things stop
- * burning, lava freezes to obsidian and water to ice that thaws once they
- * leave; their snowballs strike with ice, doubly against the fire immune;
+ * burning, and lava freezes to obsidian and water to ice, each block kept in
+ * the level's record and sent back once they leave its range; their snowballs strike with ice, doubly against the fire immune;
  * and any fire that reaches them thaws every frozen heart at once and ends
  * the effect (decision iceborn-frozen-hearts-thaw-on-fire).
  */
@@ -44,9 +45,9 @@ public final class IcebornEvents {
     /** The Iceborn ability, ended when fire thaws its hearts. */
     public static final Identifier ICEBORN = Identifier.fromNamespaceAndPath(Goo.MODID, "frost_iceborn");
     /** Blocks around the player the leech reaches. */
-    static final int LEECH_RADIUS = 4;
-    /** Blocks within which an Iceborn player holds the ice it left. */
-    static final double HOLDS_ICE_WITHIN = 6;
+    static final int LEECH_RADIUS = 3;
+    /** Ticks between the passes that send frozen blocks back once their player has left. */
+    static final int REVERT_EVERY_TICKS = 20;
     /** Ticks between the leech's passes over the blocks around the player. */
     static final int LEECH_EVERY_TICKS = 5;
     /** The ice damage a snowball deals, and its multiplier against a fire-immune mob. */
@@ -68,15 +69,24 @@ public final class IcebornEvents {
     }
 
     /**
-     * Whether an Iceborn player stands near a block, which holds the ice it left.
+     * The ice Iceborn leaves on water.
      *
-     * @param level the level
-     * @param pos   the block
-     * @return true with an Iceborn player within HOLDS_ICE_WITHIN
+     * @return the Iceborn ice block
      */
-    public static boolean icebornPlayerNear(ServerLevel level, BlockPos pos) {
-        return level.players().stream().anyMatch(player -> isIceborn(player)
-                && player.position().closerThan(pos.getCenter(), HOLDS_ICE_WITHIN));
+    static Block icebornIce() {
+        return GooBlocks.ICEBORN_ICE.get();
+    }
+
+    /**
+     * Sends back, every second, each block Iceborn froze whose player has left its range.
+     *
+     * @param event the level tick event
+     */
+    @SubscribeEvent
+    public static void onLevelTick(LevelTickEvent.Post event) {
+        if (event.getLevel() instanceof ServerLevel level && level.getGameTime() % REVERT_EVERY_TICKS == 0) {
+            IcebornFrozenBlocks.of(level).revertUnheld(level);
+        }
     }
 
     /**
@@ -94,9 +104,16 @@ public final class IcebornEvents {
 
     private static void leech(ServerLevel level, ServerPlayer player) {
         BlockPos center = player.blockPosition();
+        IcebornFrozenBlocks frozen = IcebornFrozenBlocks.of(level);
         for (BlockPos pos : BlockPos.betweenClosed(center.offset(-LEECH_RADIUS, -LEECH_RADIUS, -LEECH_RADIUS),
                 center.offset(LEECH_RADIUS, LEECH_RADIUS, LEECH_RADIUS))) {
-            leechedForm(level.getBlockState(pos)).ifPresent(cold -> level.setBlock(pos, cold, Block.UPDATE_ALL));
+            BlockState warm = level.getBlockState(pos);
+            leechedForm(warm).ifPresent(cold -> {
+                level.setBlock(pos, cold, Block.UPDATE_ALL);
+                if (warm.getFluidState().isSource()) {
+                    frozen.record(pos, warm.is(Blocks.LAVA), player.getUUID());
+                }
+            });
         }
         AABB around = player.getBoundingBox().inflate(LEECH_RADIUS);
         for (Entity entity : level.getEntities(player, around)) {
@@ -110,8 +127,8 @@ public final class IcebornEvents {
 
     /**
      * What a block becomes once Iceborn has leeched its heat: fire goes out,
-     * still lava becomes obsidian, still water becomes ice that thaws once
-     * no Iceborn player stands near, anything else stays.
+     * still lava becomes obsidian, still water becomes Iceborn ice, anything
+     * else stays.
      *
      * @param state the block
      * @return its leeched form, or empty where it keeps its heat
