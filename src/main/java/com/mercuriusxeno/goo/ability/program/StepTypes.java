@@ -44,6 +44,8 @@ public final class StepTypes {
         register(LeafSteps.SET_AI.type());
         register(LeafSteps.SET_INVULNERABLE.type());
         register(LeafSteps.STASIS.type());
+        register(LeafSteps.REWIND_HOLD.type());
+        register(RegressStep.TYPE);
         register(CloneEntityStep.TYPE);
         register(DropItemStep.TYPE);
         register(LeafSteps.IGNITE.type());

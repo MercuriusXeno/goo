@@ -62,6 +62,12 @@ public enum EntityFilter {
      */
     NOT_BABY,
     /**
+     * Keeps mobs whose type has a spawn egg; Rewind leaves any other mob
+     * alone, since it cannot become an egg.
+     * rewind-shrinks-adult-to-baby-to-egg
+     */
+    HAS_SPAWN_EGG,
+    /**
      * Keeps a living entity its last hit no longer holds immune; a step run
      * every tick spaces its hits by the immunity each hit leaves, as Bore's
      * tunnel strike does (decision bore-vortex-with-a-worldspace-shake).

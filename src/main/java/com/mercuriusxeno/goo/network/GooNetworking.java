@@ -49,6 +49,7 @@ public final class GooNetworking {
         r.playToClient(BlockExposurePayload.TYPE, BlockExposurePayload.STREAM_CODEC);
         r.playToClient(AfterimagePayload.TYPE, AfterimagePayload.STREAM_CODEC);
         r.playToClient(TransformationPayload.TYPE, TransformationPayload.STREAM_CODEC);
+        r.playToClient(ModelShrinkPayload.TYPE, ModelShrinkPayload.STREAM_CODEC);
         r.playToClient(GhostTrailPayload.TYPE, GhostTrailPayload.STREAM_CODEC);
         r.playToClient(KnownItemsSyncPayload.TYPE, KnownItemsSyncPayload.STREAM_CODEC);
         r.playToClient(KnownItemLearnedPayload.TYPE, KnownItemLearnedPayload.STREAM_CODEC);

@@ -20,6 +20,7 @@ import com.mercuriusxeno.goo.network.BoreStreamTests;
 import com.mercuriusxeno.goo.network.CrushMobTests;
 import com.mercuriusxeno.goo.network.FlattenChannelTests;
 import com.mercuriusxeno.goo.network.PetrifyStreamTests;
+import com.mercuriusxeno.goo.network.RewindStreamTests;
 import com.mercuriusxeno.goo.network.StreamDeliveryTests;
 import com.mercuriusxeno.goo.network.TouchDeliveryTests;
 import net.minecraft.core.registries.Registries;
@@ -440,13 +441,10 @@ public final class GooTestFunctions {
     private static final String MOB_NETHER = "mob_nether_wither";
     private static final String MOB_ENDER = "mob_ender_teleport";
     private static final String MOB_UNSTABLE = "mob_unstable_explode";
-    private static final String MOB_AEON = "mob_aeon_time_stop";
     private static final String STASIS_HOLDS_UNTIL_STRUCK = "stasis_holds_until_struck";
-    private static final String MOB_AEON_RITUAL_COUNTS = "mob_aeon_ritual_counts";
-    private static final String MOB_AEON_RITUAL_EGG = "mob_aeon_ritual_egg";
-    private static final String MOB_AEON_RITUAL_BABY = "mob_aeon_ritual_baby";
-    private static final String MOB_AEON_RITUAL_BABY_EGG = "mob_aeon_ritual_baby_egg";
-    private static final String MOB_AEON_RITUAL_NO_BABY_FORM = "mob_aeon_ritual_no_baby_form";
+    private static final String REWIND_ADULT_TO_BABY = "rewind_adult_to_baby";
+    private static final String REWIND_BABY_TO_EGG = "rewind_baby_to_egg";
+    private static final String REWIND_LEAVES_BLOCKS = "rewind_leaves_blocks";
     private static final String MOB_AEON_BABY_FORM_FILTER = "mob_aeon_baby_form_filter";
 
     // --- Lighting ---
@@ -903,13 +901,10 @@ public final class GooTestFunctions {
         reg(r, MOB_NETHER, MobEffectTests::netherWither);
         reg(r, MOB_ENDER, MobEffectTests::enderTeleport);
         reg(r, MOB_UNSTABLE, MobEffectTests::unstableExplode);
-        reg(r, MOB_AEON, MobEffectTests::aeonTimeStop);
         reg(r, STASIS_HOLDS_UNTIL_STRUCK, MobEffectTests::stasisHoldsUntilStruck);
-        reg(r, MOB_AEON_RITUAL_COUNTS, MobEffectTests::aeonRitualCounts);
-        reg(r, MOB_AEON_RITUAL_EGG, MobEffectTests::aeonRitualEgg);
-        reg(r, MOB_AEON_RITUAL_BABY, MobEffectTests::aeonRitualBaby);
-        reg(r, MOB_AEON_RITUAL_BABY_EGG, MobEffectTests::aeonRitualBabyEgg);
-        reg(r, MOB_AEON_RITUAL_NO_BABY_FORM, MobEffectTests::aeonRitualNoBabyForm);
+        reg(r, REWIND_ADULT_TO_BABY, RewindStreamTests::rewindAdultToBaby);
+        reg(r, REWIND_BABY_TO_EGG, RewindStreamTests::rewindBabyToEgg);
+        reg(r, REWIND_LEAVES_BLOCKS, RewindStreamTests::rewindLeavesBlocks);
         reg(r, MOB_AEON_BABY_FORM_FILTER, MobEffectTests::aeonBabyFormFilter);
     }
 
