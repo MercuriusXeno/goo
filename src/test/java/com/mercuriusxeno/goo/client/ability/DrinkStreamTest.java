@@ -164,7 +164,7 @@ class DrinkStreamTest {
 
         @Test
         void aRingFlowsAlongThePathWithItsRadiusAtItsPace() {
-            DrinkStream.Ring ring = DrinkStream.ring(PATH, 0.5, START, RADIUS, 0, 0.5, 2 * DrinkStream.FLOW, 0.5);
+            DrinkStream.Ring ring = DrinkStream.ring(PATH, 0.5, START, RADIUS, 0, 0.5, 2 * DrinkStream.FLOW);
             Vec3 flow = DrinkStream.pointAt(PATH, 0.5 + NUDGE, START).subtract(DrinkStream.pointAt(PATH, 0.5 - NUDGE,
                     START));
 
@@ -172,7 +172,6 @@ class DrinkStreamTest {
             assertEquals(1, ring.flow().length(), 1e-6);
             assertEquals(RADIUS, ring.radius(), DELTA);
             assertEquals(2 * DrinkStream.FLOW, ring.speed(), DELTA);
-            assertEquals(0.5, ring.carry(), DELTA);
             assertEquals(0, ring.center().distanceTo(DrinkStream.pointAt(PATH, 0.5, START)), DELTA);
         }
 

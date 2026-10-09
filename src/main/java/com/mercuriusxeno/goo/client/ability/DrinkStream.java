@@ -136,11 +136,8 @@ public final class DrinkStream {
      * @param material how far along the path's own liquid the ring is, in blocks of liquid at the slowest pace
      * @param share    the share of the path's owner's whole route to the glove the ring stands at
      * @param speed    blocks a tick the liquid flows there
-     * @param carry    how much of the skin's shape there rides the liquid, 0 at the block's standing matter to 1 past
-     *                 its funnel, so the skin is carried between meshes where it flows and stands where it stands
      */
-    public record Ring(Vec3 center, Vec3 flow, double radius, double material, double share, double speed,
-                       double carry) {
+    public record Ring(Vec3 center, Vec3 flow, double radius, double material, double share, double speed) {
     }
 
     /**
@@ -162,12 +159,11 @@ public final class DrinkStream {
      * @param material how far along the path's own liquid the ring is
      * @param route    the share of the path owner's whole route the ring stands at
      * @param speed    blocks a tick the liquid flows there
-     * @param carry    how much of the skin's shape there rides the liquid
      * @return the ring
      */
     public static Ring ring(Path path, double share, double now, double radius, double material, double route,
-                            double speed, double carry) {
-        return new Ring(pointAt(path, share, now), flowAt(path, share, now), radius, material, route, speed, carry);
+                            double speed) {
+        return new Ring(pointAt(path, share, now), flowAt(path, share, now), radius, material, route, speed);
     }
 
     /**
