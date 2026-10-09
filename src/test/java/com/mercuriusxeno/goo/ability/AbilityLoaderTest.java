@@ -4,7 +4,11 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.AfterimageStep;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
 import com.mercuriusxeno.goo.ability.program.AilmentOverlayStep;
+import com.mercuriusxeno.goo.ability.program.BranchStep;
+import com.mercuriusxeno.goo.ability.program.CharmStep;
+import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.GhostTrailStep;
+import com.mercuriusxeno.goo.ability.program.HostVariables;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.PotionStep;
@@ -32,8 +36,10 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -54,6 +60,10 @@ class AbilityLoaderTest {
 
     private static final String DIRECTORY = "goo_abilities";
     private static final Identifier GLOWING = Identifier.parse("minecraft:glowing");
+    private static final int CHARM_ROLLS = 1000;
+    private static final int RARE_CHARMS = 50;
+    private static final double ZOMBIE_MAX_HEALTH = 20;
+    private static final double TOP_MAX_HEALTH = 1024;
     /** The abilities whose whole design was a per-stack shape. */
     /** The world abilities that stay after their blob lands. */
     private static final List<String> LINGERING_ABILITIES = List.of("crystal_cloud", "metal_spikes",
@@ -244,6 +254,41 @@ class AbilityLoaderTest {
                 .map(step -> ((AilmentOverlayStep) step).kind()).toList(), name);
         assertTrue(steps.stream().filter(PotionStep.class::isInstance)
                 .noneMatch(step -> GLOWING.equals(((PotionStep) step).effect())), name + " still applies glowing");
+    }
+
+    /**
+     * Hex charm charms the struck mob in place of weakening it
+     * (decision charm-glisten-and-icon-over-the-head).
+     */
+    @Test
+    void hexCharmCharmsInPlaceOfWeakness() {
+        List<Step> steps = AbilityJson.decode("hex_charm").behaviors().stream()
+                .flatMap(AbilityLoaderTest::stepTree).toList();
+
+        assertTrue(steps.stream().anyMatch(CharmStep.class::isInstance), "no charm step");
+        assertTrue(steps.stream().noneMatch(PotionStep.class::isInstance), "still applies a potion");
+    }
+
+    /**
+     * Hex charm lands on every zombie, max health 20, and on few mobs at
+     * vanilla's top max health, 1024: of a thousand rolls at 1024, where
+     * pow(20 / max_health, 1.5) expects under three, fewer than fifty land
+     * (decision charm-glisten-and-icon-over-the-head).
+     */
+    @Test
+    void hexCharmIsResistedByHighHealth() {
+        Expr chance = AbilityJson.decode("hex_charm").behaviors().stream()
+                .flatMap(AbilityLoaderTest::stepTree).filter(BranchStep.class::isInstance)
+                .map(step -> ((BranchStep) step).when()).findFirst().orElseThrow();
+
+        assertEquals(CHARM_ROLLS, landedCharms(chance, ZOMBIE_MAX_HEALTH));
+        assertTrue(landedCharms(chance, TOP_MAX_HEALTH) < RARE_CHARMS, "high health should rarely be charmed");
+    }
+
+    private static long landedCharms(Expr chance, double maxHealth) {
+        Variables mob = name -> HostVariables.MAX_HEALTH.equals(name) ? OptionalDouble.of(maxHealth)
+                : OptionalDouble.empty();
+        return IntStream.range(0, CHARM_ROLLS).filter(roll -> chance.evaluate(mob) != 0).count();
     }
 
     /**
