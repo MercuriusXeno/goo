@@ -86,6 +86,7 @@ class AbilityLoaderTest {
             Map.entry("leaf_barkskin", List.of("oak_log")),
             Map.entry("aeon_rewind", List.of("clock")),
             Map.entry("aeon_stasis", List.of("netherite_scrap")),
+            Map.entry("aeon_haste", List.of("sugar")),
             Map.entry("leaf_entangle", List.of("vine")),
             Map.entry("typhoon_levitate", List.of("shulker_shell")),
             Map.entry("typhoon_propel", List.of("phantom_membrane")),

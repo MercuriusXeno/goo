@@ -29,6 +29,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
@@ -67,6 +68,9 @@ public final class SelfDeliveryTests {
     private static final float BUILT_UP_FALL = 10f;
     private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
     private static final Identifier SHROOM_SIGHT = Identifier.parse("goo:shroom_sight");
+    private static final Identifier AEON_HASTE = Identifier.parse("goo:aeon_haste");
+    private static final String SHOULD_HASTE_HELD = "Held Haste should stand endless with no particles, stands %s";
+    private static final String SHOULD_END_HASTE = "Invoking Haste again should end it and its speed and haste";
     private static final String SHOULD_SEE = "Once the eat finishes the player should hold fungal sight";
     private static final String SHOULD_SEE_PAID = "Sight should stand through tick %d, which the shroom pays for";
     private static final String SHOULD_END_SIGHT_DRY = "Sight should end and clear once shroom runs dry";
@@ -480,6 +484,32 @@ public final class SelfDeliveryTests {
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
         player.getInventory().add(GooStacks.createForOutput(gooType, HELD_GOO * GooStacks.THOUSAND));
         return player;
+    }
+
+    /**
+     * A survival player eats Haste from the glove: speed and haste stand with
+     * their particles off for as long as it is held; invoking it again ends
+     * it and both go (decisions self-effects-trickle-until-ended and
+     * haste-stacks-speed-under-the-golden-overlay).
+     *
+     * @param helper the gametest helper
+     */
+    public static void hasteHoldsWithoutParticles(GameTestHelper helper) {
+        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.AEON, AEON_HASTE);
+        boolean held = player.getData(GooAttachments.HELD_EFFECTS).holds(AEON_HASTE);
+        MobEffectInstance speed = player.getEffect(MobEffects.SPEED);
+        MobEffectInstance haste = player.getEffect(MobEffects.HASTE);
+        invoke(player, GooTypes.AEON, AEON_HASTE);
+        boolean heldAfter = player.getData(GooAttachments.HELD_EFFECTS).holds(AEON_HASTE);
+        boolean hastedAfter = player.hasEffect(MobEffects.SPEED) || player.hasEffect(MobEffects.HASTE);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(held, SHOULD_BE_HELD);
+        for (MobEffectInstance effect : new MobEffectInstance[] {speed, haste}) {
+            helper.assertTrue(effect != null && effect.isInfiniteDuration() && !effect.isVisible(),
+                    String.format(SHOULD_HASTE_HELD, effect));
+        }
+        helper.assertFalse(heldAfter || hastedAfter, SHOULD_END_HASTE);
+        helper.succeed();
     }
 
     /**

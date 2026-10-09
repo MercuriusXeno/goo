@@ -232,6 +232,10 @@ public final class HeldEffectsEvents {
                 // sight-lengthens-shift-and-outlines-fungus: the sight ends with its held effect
                 player.setData(GooAttachments.SIGHT, Sight.NONE);
             }
+            if (effect.lays().contains(LaidState.HASTE)) {
+                // haste-stacks-speed-under-the-golden-overlay: speed, haste and the overlay end with the held effect
+                Haste.clear(player);
+            }
             // brew-runs-the-crawl-prepaid-on-a-shown-clock: the effect list's entry ends with the effect
             player.removeEffect(GooMobEffects.BREW_EFFECTS.get(effect.gooType()));
         }
