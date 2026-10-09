@@ -7,7 +7,8 @@
   "requires": ["minecraft:bookshelf", "minecraft:lapis_lazuli"],
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "fuse_books", "refused": { "id": "minecraft:block.fire.extinguish", "volume": 0.4, "pitch": 1.6 } }
+    { "type": "fuse_books", "refused": { "id": "minecraft:block.fire.extinguish", "volume": 0.4, "pitch": 1.6 } },
+    { "type": "tome", "kind": "fuse" }
   ],
   "tags": ["self"]
 }

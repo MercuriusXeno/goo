@@ -17,6 +17,8 @@ import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.SoundStep;
 import com.mercuriusxeno.goo.ability.program.SpawnRandomStep;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
+import com.mercuriusxeno.goo.ability.program.TomeKind;
+import com.mercuriusxeno.goo.ability.program.TomeStep;
 import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.data.IdentifiedJsonScan;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -298,6 +300,17 @@ class AbilityLoaderTest {
                 .filter(SpawnRandomStep.class::isInstance).map(SpawnRandomStep.class::cast).findFirst().orElseThrow();
 
         assertEquals(TAP_SPAWN_CHANCE, spawn.chance().evaluate(Variables.NONE));
+    }
+
+    /**
+     * Enchant and Fuse each play their tome once their own step has acted
+     * (decisions enchant-book-with-a-purple-afterimage, fuse-two-books-for-hex-goo).
+     */
+    @ParameterizedTest
+    @CsvSource({"hex_enchant, ENCHANT", "hex_fuse, FUSE"})
+    void bookAbilitiesPlayTheirTome(String name, TomeKind kind) {
+        assertEquals(List.of(kind), AbilityJson.decode(name).behaviors().stream()
+                .filter(TomeStep.class::isInstance).map(step -> ((TomeStep) step).kind()).toList(), name);
     }
 
     /**
