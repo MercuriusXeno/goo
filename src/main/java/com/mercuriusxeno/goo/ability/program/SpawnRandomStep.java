@@ -30,17 +30,24 @@ import java.util.stream.Stream;
  * afterimage]}; a cell nothing the biome spawns fits conjures nothing.
  * spawn-goo-morphs-into-the-mob-it-births
  *
+ * <p>A tap rolls for each drip: {@code chance=5} conjures on one drip in
+ * twenty (decision spawn-drip-rolls-a-fresh-spawn).
+ *
  * @param goo        the goo type that morphs into the mob
  * @param morphTicks the game ticks the morph takes
  * @param steps      the steps run on the conjured mob, instant ones
+ * @param chance     the percent chance a mob is conjured, evaluated when the step runs
  */
-public record SpawnRandomStep(ResourceKey<GooTypeDefinition> goo, int morphTicks, List<Step> steps)
+public record SpawnRandomStep(ResourceKey<GooTypeDefinition> goo, int morphTicks, List<Step> steps, Expr chance)
         implements Step {
 
     private static final String NAME = "spawn_random";
     private static final String FIELD_GOO = "goo";
     private static final String FIELD_MORPH_TICKS = "morph_ticks";
     private static final String FIELD_STEPS = "steps";
+    private static final String FIELD_CHANCE = "chance";
+    /** A whole chance, in percent: the throw always conjures. */
+    private static final float PERCENT = 100;
     /** The morph's length where the JSON names none, the clone's hop. */
     private static final int DEFAULT_MORPH_TICKS = 16;
     /** A whole turn, in degrees, over which the conjured mob's facing is drawn. */
@@ -54,7 +61,8 @@ public record SpawnRandomStep(ResourceKey<GooTypeDefinition> goo, int morphTicks
             GooTypes.ID_CODEC.fieldOf(FIELD_GOO).forGetter(SpawnRandomStep::goo),
             Codec.INT.optionalFieldOf(FIELD_MORPH_TICKS, DEFAULT_MORPH_TICKS).forGetter(SpawnRandomStep::morphTicks),
             Codec.lazyInitialized(() -> StepTypes.LIST_CODEC).optionalFieldOf(FIELD_STEPS, List.of())
-                    .forGetter(SpawnRandomStep::steps)
+                    .forGetter(SpawnRandomStep::steps),
+            Expr.CODEC.optionalFieldOf(FIELD_CHANCE, Expr.literal(PERCENT)).forGetter(SpawnRandomStep::chance)
     ).apply(inst, SpawnRandomStep::new));
 
     /**
@@ -71,6 +79,9 @@ public record SpawnRandomStep(ResourceKey<GooTypeDefinition> goo, int morphTicks
     public boolean tick(StepContext context) {
         MobSpawnHost host = context.hostAs(MobSpawnHost.class);
         ServerLevel level = host.level();
+        if (!rolls(chance.evaluateFloat(context), level.getRandom().nextFloat())) {
+            return true;
+        }
         NaturalSpawns.drawAt(level, host.spawnCell(), level.getRandom())
                 .ifPresent(type -> conjure(level, type, host.spawnCell(), host.morphFrom()));
         return true;
@@ -105,6 +116,17 @@ public record SpawnRandomStep(ResourceKey<GooTypeDefinition> goo, int morphTicks
         }
     }
 
+    /**
+     * Whether a conjure roll lands: a roll in [0, 1) lands under a percent chance.
+     *
+     * @param chancePercent the percent chance the step names
+     * @param roll          the uniform roll in [0, 1)
+     * @return true when the roll lands
+     */
+    static boolean rolls(float chancePercent, float roll) {
+        return roll * PERCENT < chancePercent;
+    }
+
     @Override
     public Stream<Step> children() {
         return steps.stream();
@@ -117,7 +139,7 @@ public record SpawnRandomStep(ResourceKey<GooTypeDefinition> goo, int morphTicks
 
     @Override
     public Stream<Expr> expressions() {
-        return Stream.empty();
+        return Stream.of(chance);
     }
 
     @Override

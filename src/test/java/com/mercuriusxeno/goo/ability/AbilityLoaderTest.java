@@ -15,6 +15,7 @@ import com.mercuriusxeno.goo.ability.program.PotionStep;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.SoundStep;
+import com.mercuriusxeno.goo.ability.program.SpawnRandomStep;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
 import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.data.IdentifiedJsonScan;
@@ -64,6 +65,7 @@ class AbilityLoaderTest {
     private static final int RARE_CHARMS = 50;
     private static final double ZOMBIE_MAX_HEALTH = 20;
     private static final double TOP_MAX_HEALTH = 1024;
+    private static final double TAP_SPAWN_CHANCE = 5;
     /** The abilities whose whole design was a per-stack shape. */
     /** The world abilities that stay after their blob lands. */
     private static final List<String> LINGERING_ABILITIES = List.of("crystal_cloud", "metal_spikes",
@@ -282,6 +284,18 @@ class AbilityLoaderTest {
 
         assertEquals(List.of(Identifier.withDefaultNamespace("book")), enchant.consumes());
         assertEquals(List.of(GooTypes.HEX), afterimageTypes(enchant.behaviors()));
+    }
+
+    /**
+     * Hex's tap conjures on one drip in twenty, its chance in its JSON
+     * (decision spawn-drip-rolls-a-fresh-spawn).
+     */
+    @Test
+    void hexSpawnTapRollsFivePercent() {
+        SpawnRandomStep spawn = AbilityJson.decode("hex_spawn_tap").behaviors().stream()
+                .filter(SpawnRandomStep.class::isInstance).map(SpawnRandomStep.class::cast).findFirst().orElseThrow();
+
+        assertEquals(TAP_SPAWN_CHANCE, spawn.chance().evaluate(Variables.NONE));
     }
 
     /**
