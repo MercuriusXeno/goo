@@ -27,6 +27,12 @@ public final class HostVariables {
      * One when the target is a sprinting player, zero otherwise.
      */
     public static final String SPRINTING = "sprinting";
+    /**
+     * The share of a hit the struck entity takes: one for a direct hit, and a
+     * refracted Sunbeam's split for each mob a prism's beams reach
+     * (decision sunbeam-splits-at-the-prism-with-a-glisten).
+     */
+    public static final String SHARE = "share";
 
     /**
      * The separator of a namespaced id, which marks a variable name as a

@@ -22,6 +22,7 @@ import com.mercuriusxeno.goo.network.FlattenChannelTests;
 import com.mercuriusxeno.goo.network.ScryChannelTests;
 import com.mercuriusxeno.goo.network.PetrifyStreamTests;
 import com.mercuriusxeno.goo.network.StreamDeliveryTests;
+import com.mercuriusxeno.goo.network.SunbeamChannelTests;
 import com.mercuriusxeno.goo.network.TouchDeliveryTests;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -438,7 +439,8 @@ public final class GooTestFunctions {
     private static final String MOB_BLAZE = "mob_blaze_ignite";
     private static final String MOB_FROST = "mob_frost_snap";
     private static final String MOB_TYPHOON = "mob_typhoon_levitate";
-    private static final String MOB_GLOW = "mob_glow_laser";
+    private static final String SUNBEAM_REFRACTS_TO_THREE = "sunbeam_refracts_to_three";
+    private static final String SUNBEAM_BURNS_THE_UNDEAD_IT_STRIKES = "sunbeam_burns_the_undead_it_strikes";
     private static final String MOB_HEX = "mob_hex_charm";
     private static final String MOB_PULSE = "mob_pulse_stun";
     private static final String MOB_NETHER = "mob_nether_wither";
@@ -903,7 +905,8 @@ public final class GooTestFunctions {
         reg(r, MOB_BLAZE, MobEffectTests::blazeIgnite);
         reg(r, MOB_FROST, MobEffectTests::frostSnap);
         reg(r, MOB_TYPHOON, MobEffectTests::typhoonLevitate);
-        reg(r, MOB_GLOW, MobEffectTests::glowLaser);
+        reg(r, SUNBEAM_REFRACTS_TO_THREE, SunbeamChannelTests::sunbeamRefractsToThree);
+        reg(r, SUNBEAM_BURNS_THE_UNDEAD_IT_STRIKES, SunbeamChannelTests::sunbeamBurnsTheUndeadItStrikes);
         reg(r, MOB_HEX, MobEffectTests::hexCharm);
         reg(r, MOB_PULSE, MobEffectTests::pulseStun);
         reg(r, MOB_NETHER, MobEffectTests::netherWither);
