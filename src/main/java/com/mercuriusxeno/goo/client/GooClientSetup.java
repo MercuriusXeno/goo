@@ -293,15 +293,15 @@ public final class GooClientSetup {
             EntityRenderer<?, ?> renderer = event.getRenderer(type);
             if (renderer != null) {
                 MobCoatLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
-                AilmentOverlayLayer.addTo(renderer);
+                AilmentOverlayLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
                 PetrifyStoneLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
             }
         }
         for (PlayerModelType skin : event.getSkins()) {
             MobCoatLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
             MobCoatLayer.addTo(event.getMannequinRenderer(skin), MobShells.NONE);
-            AilmentOverlayLayer.addTo(event.getPlayerRenderer(skin));
-            AilmentOverlayLayer.addTo(event.getMannequinRenderer(skin));
+            AilmentOverlayLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
+            AilmentOverlayLayer.addTo(event.getMannequinRenderer(skin), MobShells.NONE);
             PetrifyStoneLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
         }
     }

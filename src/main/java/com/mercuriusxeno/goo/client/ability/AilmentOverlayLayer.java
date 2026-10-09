@@ -23,7 +23,9 @@ import java.util.List;
 /**
  * A status ailment as a render layer: one layer on every living entity
  * renderer draws the model again through the ailment overlay pipeline once
- * per ailment the entity wears, under that ailment's color and pattern.
+ * per ailment the entity wears, under that ailment's color and pattern, and
+ * again over the outer shell it shows, such as a slime's gel or a sheep's
+ * wool, so the shell never buries the overlay.
  * Decision ailment-overlay-shader-per-ailment.
  *
  * @param <S> the renderer's state
@@ -45,11 +47,16 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
     /** No outline: the overlay is the ailment's whole look. */
     private static final int NO_OUTLINE = 0;
 
+    /** The outer shell the mob shows over its body, which the overlay covers too while it shows. */
+    private final MobShells.Shell shell;
+
     /**
      * @param parent the living entity renderer the layer draws over
+     * @param shell  the outer shell its mob wears, or MobShells.NONE
      */
-    public AilmentOverlayLayer(RenderLayerParent<S, M> parent) {
+    public AilmentOverlayLayer(RenderLayerParent<S, M> parent, MobShells.Shell shell) {
         super(parent);
+        this.shell = shell;
     }
 
     /**
@@ -57,11 +64,12 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
      * entity; any other renderer is left as it is.
      *
      * @param renderer the renderer
+     * @param shell    the outer shell its mob wears, or MobShells.NONE
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public static void addTo(EntityRenderer<?, ?> renderer) {
+    public static void addTo(EntityRenderer<?, ?> renderer, MobShells.Shell shell) {
         if (renderer instanceof LivingEntityRenderer living) {
-            living.addLayer(new AilmentOverlayLayer<>(living));
+            living.addLayer(new AilmentOverlayLayer<>(living, shell));
         }
     }
 
@@ -118,10 +126,25 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
         if (state.isInvisible) {
             return;
         }
+        EntityModel<?> shown = shell.shown(state);
         for (StampedAilment ailment : state.getRenderDataOrDefault(AILMENTS, List.<StampedAilment>of())) {
-            submitNodeCollector.order(OVERLAY_ORDER).submitModel(getParentModel(), state, poseStack,
-                    GooRenderTypes.GOO_AILMENT_OVERLAY_TYPE, lightCoords, patternCoords(ailment.kind()),
-                    overlayColor(ailment.kind(), ailment.strength()), null, NO_OUTLINE, null);
+            submitOverlay(submitNodeCollector, getParentModel(), state, poseStack, lightCoords, ailment);
+            if (shown != null) {
+                submitShellOverlay(submitNodeCollector, shown, state, poseStack, lightCoords, ailment);
+            }
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void submitShellOverlay(SubmitNodeCollector collector, EntityModel<?> shown, S state,
+                                    PoseStack poseStack, int lightCoords, StampedAilment ailment) {
+        submitOverlay(collector, (EntityModel<? super S>) shown, state, poseStack, lightCoords, ailment);
+    }
+
+    private void submitOverlay(SubmitNodeCollector collector, EntityModel<? super S> model, S state,
+                               PoseStack poseStack, int lightCoords, StampedAilment ailment) {
+        collector.order(OVERLAY_ORDER).submitModel(model, state, poseStack, GooRenderTypes.GOO_AILMENT_OVERLAY_TYPE,
+                lightCoords, patternCoords(ailment.kind()), overlayColor(ailment.kind(), ailment.strength()), null,
+                NO_OUTLINE, null);
     }
 }

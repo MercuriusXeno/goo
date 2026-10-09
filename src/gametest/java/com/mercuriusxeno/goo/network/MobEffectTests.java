@@ -18,6 +18,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -55,6 +56,9 @@ public final class MobEffectTests {
     private static final String ZOMBIE_SHOULD_TURN_ON_SKELETON = "The charmed zombie should target the skeleton";
     private static final String ZOMBIE_SHOULD_SPARE_CHARMER = "The charmed zombie should turn from its charmer";
     private static final String ZOMBIE_SHOULD_BE_CHARMED = "The zombie should hold the charm";
+    private static final String CHARMED_SLIME_SHOULD_SPARE = "A charmed slime's hit should land nothing on its charmer";
+    private static final String WILD_SLIME_SHOULD_HURT = "An uncharmed slime's hit should hurt the player";
+    private static final float SLIME_HIT = 4f;
     private static final String SHOULD_HAVE_GLOWING = "Target should have glowing";
     private static final String SHOULD_NOT_GLOW = "Target should wear the ailment overlay, not vanilla glowing";
     private static final String SHOULD_HAVE_WITHER = "Target should have wither";
@@ -327,6 +331,30 @@ public final class MobEffectTests {
                 helper.getLevel().getServer().getPlayerList().remove(charmer);
                 helper.succeed();
             });
+        });
+    }
+
+    /**
+     * A charmed slime's touch, which hurts any player it bumps whatever it
+     * targets, lands nothing on its charmer, while an uncharmed slime's
+     * lands in full (decision charm-glisten-and-icon-over-the-head).
+     *
+     * @param helper the gametest helper
+     */
+    public static void charmedSlimeSparesItsCharmer(GameTestHelper helper) {
+        ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
+        Slime charmed = helper.spawnWithNoFreeWill(EntityType.SLIME, SPAWN_POS);
+        Slime wild = helper.spawnWithNoFreeWill(EntityType.SLIME, BYSTANDER_POS);
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, charmed, ABILITY_HEX_CHARM, charmer);
+            float before = charmer.getHealth();
+            charmer.hurtServer(helper.getLevel(), charmer.damageSources().mobAttack(charmed), SLIME_HIT);
+            helper.assertTrue(charmer.getHealth() == before, CHARMED_SLIME_SHOULD_SPARE);
+            charmer.invulnerableTime = 0;
+            charmer.hurtServer(helper.getLevel(), charmer.damageSources().mobAttack(wild), SLIME_HIT);
+            helper.assertTrue(charmer.getHealth() < before, WILD_SLIME_SHOULD_HURT);
+            helper.getLevel().getServer().getPlayerList().remove(charmer);
+            helper.succeed();
         });
     }
 
