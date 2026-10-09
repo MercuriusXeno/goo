@@ -5,7 +5,7 @@
   "order": 40,
   "cost": 3000,
   "requires": ["minecraft:blue_ice"],
-  "delivery": { "kind": "arc", "blocks_per_tick": 0.3, "range": 40 },
+  "delivery": { "kind": "arc", "blocks_per_tick": 0.3, "range": 16 },
   "behaviors": [
     {
       "type": "traveling",
