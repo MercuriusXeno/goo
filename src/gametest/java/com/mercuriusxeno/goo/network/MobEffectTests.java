@@ -49,7 +49,6 @@ public final class MobEffectTests {
     private static final String SHOULD_HAVE_WEAKNESS = "Target should have weakness";
     private static final String SHOULD_HAVE_GLOWING = "Target should have glowing";
     private static final String SHOULD_NOT_GLOW = "Target should wear the ailment overlay, not vanilla glowing";
-    private static final String SHOULD_HAVE_WITHER = "Target should have wither";
     private static final String SHOULD_TAKE_DAMAGE = "Target should have taken damage";
     private static final String SHOULD_BE_ON_FIRE = "Target should be on fire";
     private static final String SHOULD_HAVE_NO_AI = "Target should have AI disabled";
@@ -60,7 +59,6 @@ public final class MobEffectTests {
     private static final String ABILITY_METAL_JAVELIN = "goo:metal_javelin";
     private static final String ABILITY_LEAF_ENTANGLE = "goo:leaf_entangle";
     private static final String ABILITY_TYPHOON_LEVITATE = "goo:typhoon_levitate";
-    private static final String ABILITY_NETHER_WITHER = "goo:nether_wither";
     private static final String ABILITY_FROST_SNAP = "goo:frost_snap";
     private static final String ABILITY_PULSE_SHORT_CIRCUIT = "goo:pulse_short_circuit";
     private static final String ABILITY_AEON_TIME_STOP = "goo:aeon_time_stop";
@@ -310,23 +308,6 @@ public final class MobEffectTests {
             strike(helper, mob, ABILITY_PULSE_SHORT_CIRCUIT);
             helper.assertTrue(mob.isNoAi(), SHOULD_HAVE_NO_AI);
             helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Nether wither is a program: a not_boss target selection wrapping a
-     * set_health step at half and a wither potion step.
-     *
-     * @param helper the gametest helper
-     */
-    public static void netherWither(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        float before = mob.getHealth();
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_NETHER_WITHER);
-            helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
-            helper.assertTrue(mob.hasEffect(MobEffects.WITHER), SHOULD_HAVE_WITHER);
             helper.succeed();
         });
     }

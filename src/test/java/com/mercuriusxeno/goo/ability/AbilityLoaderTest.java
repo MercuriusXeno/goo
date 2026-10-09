@@ -124,6 +124,16 @@ class AbilityLoaderTest {
         }
     }
 
+    // decision wither-ability-deleted
+    @Test
+    void netherHoldsNoWitherAbility() {
+        Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
+
+        assertTrue(scanned.values().stream().anyMatch(def -> def.gooType() == GooTypes.NETHER), "No nether ability scanned");
+        assertTrue(scanned.values().stream().filter(def -> def.gooType() == GooTypes.NETHER)
+                .noneMatch(def -> def.id().getPath().contains("wither")), "a nether wither ability still loads");
+    }
+
     // decision splat-runs-the-program-no-fuse
     @Test
     void noShippedProgramReadsAStackCount() {

@@ -437,7 +437,6 @@ public final class GooTestFunctions {
     private static final String MOB_GLOW = "mob_glow_laser";
     private static final String MOB_HEX = "mob_hex_charm";
     private static final String MOB_PULSE = "mob_pulse_stun";
-    private static final String MOB_NETHER = "mob_nether_wither";
     private static final String MOB_ENDER = "mob_ender_teleport";
     private static final String MOB_UNSTABLE = "mob_unstable_explode";
     private static final String MOB_AEON = "mob_aeon_time_stop";
@@ -899,7 +898,6 @@ public final class GooTestFunctions {
         reg(r, MOB_GLOW, MobEffectTests::glowLaser);
         reg(r, MOB_HEX, MobEffectTests::hexCharm);
         reg(r, MOB_PULSE, MobEffectTests::pulseStun);
-        reg(r, MOB_NETHER, MobEffectTests::netherWither);
         reg(r, MOB_ENDER, MobEffectTests::enderTeleport);
         reg(r, MOB_UNSTABLE, MobEffectTests::unstableExplode);
         reg(r, MOB_AEON, MobEffectTests::aeonTimeStop);
