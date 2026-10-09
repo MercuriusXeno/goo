@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.unmake.MeltingBlockEntity;
+import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
@@ -11,19 +12,15 @@ import com.mercuriusxeno.goo.client.ber.MeltMesh;
 import com.mercuriusxeno.goo.client.ber.MeltMeshGoo;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.network.DrinkPayload;
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.color.block.BlockTintSource;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.data.AtlasIds;
 import net.minecraft.util.ARGB;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -32,14 +29,15 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
 import org.jspecify.annotations.Nullable;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Draws every Unmake drink: each block melting like wax where it stands, and
- * its stream snaking from its face into the drinker's glove, skinned in the
- * block's own texture with patches of its goo types spreading over it as it
- * nears the glove, mingled by their shares, until it is all goo as it enters.
+ * Draws every Unmake drink: each block's own cube turning into its stream
+ * where it stands, and the stream flowing languidly from there into the
+ * drinker's glove, skinned in the block's own texture riding the flow and
+ * warped molten, tinting toward its goo's colour and growing patches of its
+ * goo types by the mingle noise along its length, mingled by their shares,
+ * until it is all goo as it enters.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -51,11 +49,10 @@ public final class DrinkRenderer {
     static final int SIDES = 10;
     /** How much further out each goo layer's skin stands than the one under it, so they never fight. */
     static final double LAYER_STEP = 0.008;
-    /** How the liquid's place along the stream reads into the patches' field, in field blocks a block. */
-    static final float PATCH_ALONG = 0.5f;
+    /** How the liquid's place along the stream reads into the patches' field, in field blocks a block; slow, so they ride the flow. */
+    static final float PATCH_ALONG = 0.2f;
     /** The most goo types layered over one stream; past three the patches read as noise. */
     private static final int MAX_LAYERS = 3;
-    private static final long MODEL_SEED = 42L;
     private static final float HALF = 0.5f;
     private static final double TWO_PI = 2 * Math.PI;
     /** Where another player's glove hangs before their eyes, in blocks. */
@@ -109,11 +106,12 @@ public final class DrinkRenderer {
     /**
      * One stream's skin to emit.
      *
-     * @param rings  the stream's rings, tail to head
-     * @param light  the light where the block stands
-     * @param camera the camera's world position
+     * @param rings the stream's rings, tail to head
+     * @param light the light where the block stands
+     * @param frame the frame
+     * @param seed  the block's seed
      */
-    private record Skin(List<DrinkStream.Ring> rings, int light, Vec3 camera) {
+    private record Skin(List<DrinkStream.Ring> rings, int light, Frame frame, long seed) {
     }
 
     /**
@@ -150,6 +148,16 @@ public final class DrinkRenderer {
                 .subtract(0, GLOVE_BELOW, 0);
     }
 
+    /**
+     * Submits one block of a drink: while it drains, its cube turning into
+     * the stream over its own span of the way, and the stream from there on;
+     * once drained, the stream alone, its tail following in.
+     *
+     * @param event the custom geometry submit event
+     * @param level the client level
+     * @param block the block
+     * @param frame the frame
+     */
     private static void submitBlock(SubmitCustomGeometryEvent event, ClientLevel level, DrinkPayload.Streaming block,
                                     Frame frame) {
         BlockState seen = level.getBlockEntity(block.pos()) instanceof MeltingBlockEntity melting
@@ -159,19 +167,23 @@ public final class DrinkRenderer {
             return;
         }
         MingledGoo goo = MeltMeshGoo.of(state);
-        DrinkStream.Span span = DrinkStream.span(block, frame.ticks());
-        float progress = (float) Math.clamp((frame.ticks() - block.start()) / Math.max(1, block.end() - block.start()),
-                0, 1);
-        if (seen != null) {
-            submitMelt(event, level, block.pos(), new MeltMesh.Melt(state, level, block.pos(), goo, progress,
-                    (float) frame.ticks(), true), (float) span.tail(), frame.camera());
+        DrinkStream.Path path = DrinkMorph.pathOf(Vec3.atCenterOf(block.pos()), frame.glove(), block.pos().asLong());
+        DrinkStream.Span span = DrinkStream.span(block, frame.ticks(), path.length());
+        boolean turning = frame.ticks() < block.end();
+        if (turning) {
+            DrinkMorphRenderer.submit(event, level, state, goo, new DrinkMorphRenderer.Turning(block.pos(), path, span,
+                    progressOf(block, frame.ticks()), frame.ticks(), frame.camera()));
         }
-        List<DrinkStream.Ring> rings = DrinkStream.rings(faceToward(block.pos(), frame.glove()), frame.glove(), span,
-                frame.ticks(), block.pos().asLong());
+        List<DrinkStream.Ring> rings = DrinkStream.rings(path, span,
+                turning ? DrinkStream.BLOCK_SPAN / path.length() : 0, frame.ticks());
         if (rings.size() >= DrinkStream.FEWEST_RINGS) {
-            submitSkins(event, new Skin(rings, LevelRenderer.getLightCoords(level, block.pos()), frame.camera()),
-                    level, block.pos(), state, goo);
+            submitSkins(event, new Skin(rings, LevelRenderer.getLightCoords(level, block.pos()), frame,
+                    block.pos().asLong()), level, block.pos(), state, goo);
         }
+    }
+
+    private static double progressOf(DrinkPayload.Streaming block, double ticks) {
+        return Math.clamp((ticks - block.start()) / Math.max(1, block.end() - block.start()), 0, 1);
     }
 
     /**
@@ -186,71 +198,37 @@ public final class DrinkRenderer {
      */
     private static void submitSkins(SubmitCustomGeometryEvent event, Skin skin, ClientLevel level, BlockPos pos,
                                     BlockState state, MingledGoo goo) {
-        submitBlockSkin(event, skin, level, pos, state);
+        submitBlockSkin(event, skin, level, pos, state, goo);
         for (int layer = 0; layer < Math.min(goo.types().size(), MAX_LAYERS); layer++) {
             submitGooSkin(event, skin, new MeltMesh.GooLayer(goo.types().get(layer), layer, goo.share(layer)));
         }
     }
 
     /**
-     * The point on a block's face the stream leaves: the middle of the face
-     * toward the glove.
-     *
-     * @param pos   the block
-     * @param glove the glove
-     * @return the point
-     */
-    static Vec3 faceToward(BlockPos pos, Vec3 glove) {
-        Vec3 center = Vec3.atCenterOf(pos);
-        Vec3 toGlove = glove.subtract(center);
-        Direction face = Direction.getApproximateNearest(toGlove.x, toGlove.y, toGlove.z);
-        return center.add(Vec3.atLowerCornerOf(face.getUnitVec3i()).scale(HALF));
-    }
-
-    /**
-     * Submits the block melting like wax where it stands, and, once its
-     * stream's tail has left it, what is left of it dwindling after the tail.
-     *
-     * @param event  the custom geometry submit event
-     * @param level  the client level
-     * @param pos    the block
-     * @param melt   the melt
-     * @param tail   the share of the way the stream's tail has gone, 0 while the block feeds it
-     * @param camera the camera's world position
-     */
-    private static void submitMelt(SubmitCustomGeometryEvent event, ClientLevel level, BlockPos pos,
-                                   MeltMesh.Melt melt, float tail, Vec3 camera) {
-        Vec3 corner = Vec3.atLowerCornerOf(pos).subtract(camera);
-        float left = 1f - tail;
-        PoseStack poseStack = event.getPoseStack();
-        poseStack.pushPose();
-        poseStack.translate(corner.x + HALF, corner.y, corner.z + HALF);
-        poseStack.scale(left, left, left);
-        poseStack.translate(-HALF, 0f, -HALF);
-        GooSubmitter.submitBody(poseStack, event.getSubmitNodeCollector(), LevelRenderer.getLightCoords(level, pos),
-                ctx -> MeltMesh.emit(ctx, melt));
-        poseStack.popPose();
-    }
-
-    /**
-     * Submits the stream's own skin: the block's texture, laid along the liquid.
+     * Submits the stream's own skin: the block's texture riding the flow,
+     * warped molten, tinting toward the goo's colour where the mingle has formed.
      *
      * @param event the custom geometry submit event
      * @param skin  the skin
      * @param level the client level
      * @param pos   the block
      * @param state the block the stream is
+     * @param goo   the goo it becomes
      */
     private static void submitBlockSkin(SubmitCustomGeometryEvent event, Skin skin, ClientLevel level, BlockPos pos,
-                                        BlockState state) {
+                                        BlockState state, MingledGoo goo) {
         BakedQuad quad = faceQuad(level, pos, state);
         if (quad == null) {
             return;
         }
         GooRenderUtil.UvRect sprite = MeltMesh.spriteOf(quad);
-        int tint = tintOf(level, pos, state, quad);
+        int tint = MeltMesh.tintOf(state, level, pos, quad);
+        MeltMesh.GooLayer base = goo.types().isEmpty() ? null
+                : new MeltMesh.GooLayer(goo.types().getFirst(), 0, goo.share(0));
+        int gooColor = base == null ? tint : ARGB.opaque(ClientGooTypes.color(base.type()));
         GooSubmitter.submitBody(event.getPoseStack(), event.getSubmitNodeCollector(), skin.light(),
-                ctx -> emitSkin(ctx, skin, sprite, 0, (ring, angle) -> tint));
+                ctx -> emitSkin(ctx, skin, sprite, 0, (ring, angle) -> base == null ? tint
+                        : ARGB.srgbLerp(DrinkMorphRenderer.TINT_BLEND * formed(base, ring, angle), tint, gooColor)));
     }
 
     /**
@@ -269,29 +247,27 @@ public final class DrinkRenderer {
         event.getSubmitNodeCollector().submitCustomGeometry(event.getPoseStack(), GooRenderTypes.gooFluidSurface(
                 Minecraft.getInstance().getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location()),
                 (pose, consumer) -> emitSkin(RenderContext.banded(pose, consumer, tint, whole), skin, sprite, lift,
-                        (ring, angle) -> ARGB.color(gooAlpha(layer, ring, angle), tint)));
+                        (ring, angle) -> ARGB.color(Math.round(GOO_ALPHA * formed(layer, ring, angle)), tint)));
     }
 
     /**
-     * How opaque a goo layer is at a point of the stream: its patches form by
-     * the share of the way the point stands at, in a field that slides with
-     * the liquid.
+     * How formed a goo layer is at a point of the stream: its patches form by
+     * the share of the way the point stands at, in a field that rides the flow.
      *
      * @param layer the goo layer
      * @param ring  the ring the point is on
      * @param angle the point's angle about the ring
-     * @return the alpha
+     * @return how formed, 0 to 1
      */
-    private static int gooAlpha(MeltMesh.GooLayer layer, DrinkStream.Ring ring, double angle) {
+    private static float formed(MeltMesh.GooLayer layer, DrinkStream.Ring ring, double angle) {
         float around = (float) Math.cos(angle) * HALF + HALF;
         float over = (float) Math.sin(angle) * HALF + HALF;
-        return Math.round(GOO_ALPHA * layer.opacityAt((float) ring.material() * PATCH_ALONG, around, over,
-                (float) ring.share()));
+        return layer.opacityAt((float) ring.material() * PATCH_ALONG, around, over, (float) ring.share());
     }
 
     /**
      * Emits a skin over the stream's rings: a quad between each pair of rings
-     * for each side, wound to face outward, its texture sliding with the liquid.
+     * for each side, wound to face outward, its texture riding the flow.
      *
      * @param ctx      the render context
      * @param skin     the skin
@@ -308,21 +284,20 @@ public final class DrinkRenderer {
             for (int side = 0; side < SIDES; side++) {
                 double angle0 = TWO_PI * side / SIDES;
                 double angle1 = TWO_PI * (side + 1) / SIDES;
-                float v0 = (float) side / SIDES;
-                float v1 = (float) (side + 1) / SIDES;
-                emitPoint(ctx, skin, near, angle0, sprite, v0, lift, coloring);
-                emitPoint(ctx, skin, near, angle1, sprite, v1, lift, coloring);
-                emitPoint(ctx, skin, far, angle1, sprite, v1, lift, coloring);
-                emitPoint(ctx, skin, far, angle0, sprite, v0, lift, coloring);
+                emitPoint(ctx, skin, near, angle0, sprite, lift, coloring);
+                emitPoint(ctx, skin, near, angle1, sprite, lift, coloring);
+                emitPoint(ctx, skin, far, angle1, sprite, lift, coloring);
+                emitPoint(ctx, skin, far, angle0, sprite, lift, coloring);
             }
         }
     }
 
     private static void emitPoint(RenderContext ctx, Skin skin, DrinkStream.Ring ring, double angle,
-                                  GooRenderUtil.UvRect sprite, float v, double lift, Coloring coloring) {
+                                  GooRenderUtil.UvRect sprite, double lift, Coloring coloring) {
         Vec3 out = ring.outAt(angle);
-        Vec3 point = ring.center().add(out.scale(ring.radius() + lift)).subtract(skin.camera());
-        float u = DrinkStream.textureU(ring.material());
+        Vec3 point = ring.center().add(out.scale(ring.radius() + lift)).subtract(skin.frame().camera());
+        float u = DrinkStream.moltenU(ring.material(), angle, skin.frame().ticks(), skin.seed());
+        float v = DrinkStream.moltenV(ring.material(), angle, skin.frame().ticks(), skin.seed());
         ctx.vertexColored(coloring.colorAt(ring, angle), (float) point.x, (float) point.y, (float) point.z,
                 sprite.u0() + (sprite.u1() - sprite.u0()) * u, sprite.v0() + (sprite.v1() - sprite.v0()) * v,
                 (float) out.x, (float) out.y, (float) out.z);
@@ -338,29 +313,12 @@ public final class DrinkRenderer {
      * @return the quad, or null for a block with no model
      */
     private static @Nullable BakedQuad faceQuad(ClientLevel level, BlockPos pos, BlockState state) {
-        List<BlockStateModelPart> parts = new ArrayList<>();
-        Minecraft.getInstance().getModelManager().getBlockStateModelSet().get(state)
-                .collectParts(level, pos, state, RandomSource.create(MODEL_SEED), parts);
-        BakedQuad any = null;
-        for (BlockStateModelPart part : parts) {
-            List<BakedQuad> top = part.getQuads(Direction.UP);
-            if (!top.isEmpty()) {
-                return top.getFirst();
-            }
-            for (Direction side : Direction.values()) {
-                List<BakedQuad> quads = part.getQuads(side);
-                any = any == null && !quads.isEmpty() ? quads.getFirst() : any;
+        List<BakedQuad> quads = MeltMesh.quadsOf(state, level, pos);
+        for (BakedQuad quad : quads) {
+            if (quad.direction() == Direction.UP) {
+                return quad;
             }
         }
-        return any;
-    }
-
-    private static int tintOf(ClientLevel level, BlockPos pos, BlockState state, BakedQuad quad) {
-        int index = quad.materialInfo().tintIndex();
-        if (index < 0) {
-            return GooRenderUtil.OPAQUE_WHITE;
-        }
-        @Nullable BlockTintSource source = Minecraft.getInstance().getBlockColors().getTintSource(state, index);
-        return source == null ? GooRenderUtil.OPAQUE_WHITE : ARGB.opaque(source.colorInWorld(state, level, pos));
+        return quads.isEmpty() ? null : quads.getFirst();
     }
 }

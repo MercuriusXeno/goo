@@ -40,8 +40,8 @@ import java.util.Map;
  * for each block, and the nine blocks' full goo goes into the player's
  * inventory; a player with no space gets it at their feet;
  * a block that started streaming goes until it is done though the cursor
- * leaves it, while one outside the cone stands; and a mob at the cursor is
- * left alone.
+ * leaves it or the use is let go, while one outside the cone stands; and a
+ * mob at the cursor is left alone.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 public final class UnmakeTests {
@@ -74,6 +74,7 @@ public final class UnmakeTests {
     private static final String STILL_CREATIVE = "The channeler should be a survival player, whose inventory fills";
     private static final String UNFINISHED = "A block that started streaming should go though the cursor leaves it";
     private static final String OUTSIDE_GONE = "A block outside the cone should stand";
+    private static final String RELEASED = "A block that started streaming should go though the use is let go";
     private static final String MOB_GONE = "A mob at the cursor should be left alone";
 
     private UnmakeTests() {
@@ -180,6 +181,28 @@ public final class UnmakeTests {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertTrue(helper.getBlockState(AIMED_POS).isAir(), UNFINISHED);
             helper.assertTrue(helper.getBlockState(outside).is(Blocks.COBBLESTONE), OUTSIDE_GONE);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A mock player holds Unmake at a cobblestone for one tick and lets go,
+     * no tick following: the block that started is drunk anyway.
+     *
+     * @param helper the gametest helper
+     */
+    public static void unmakeFinishesAfterRelease(GameTestHelper helper) {
+        AbilityDefinition unmake = AbilityRegistry.of(helper.getLevel()).getAbility(UNMAKE);
+        helper.assertTrue(unmake != null, ABILITY_REQUIRED);
+        helper.setBlock(AIMED_POS, Blocks.COBBLESTONE);
+        ServerPlayer player = channeler(helper, GooStacks.THOUSAND);
+        KnownRecipes.teachRequires(player, unmake);
+        int drinkTicks = drinkTicks(helper);
+        GooStreamPayload aimed = aimedAt(player, westFace(helper, AIMED_POS));
+        helper.runAfterDelay(1, () -> GooStreamHandler.streamTick(player, aimed));
+        helper.runAfterDelay(drinkTicks + 1L, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(helper.getBlockState(AIMED_POS).isAir(), RELEASED);
             helper.succeed();
         });
     }

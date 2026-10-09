@@ -9,8 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The client keeps every block the server shows streaming until its stream
- * has wholly entered the glove, whether or not the server is still talking
+ * The client keeps every block the server shows streaming until the longest
+ * way's travel has passed its drain, whether or not the server is still talking
  * (decision unmake-waves-dissolve-by-crucible-cost).
  */
 class ClientDrinksTest {
@@ -26,12 +26,12 @@ class ClientDrinksTest {
     }
 
     @Test
-    void aShownBlockIsDrawnUntilItsStreamHasEnteredTheGlove() {
+    void aShownBlockIsDrawnUntilTheLongestWaysTravelHasPassedItsDrain() {
         ClientDrinks drinks = new ClientDrinks();
         drinks.show(drink(BlockPos.ZERO));
 
-        assertEquals(1, drinks.live(END + DrinkStream.TRAVEL_TICKS - 1).size());
-        assertTrue(drinks.live(END + DrinkStream.TRAVEL_TICKS).isEmpty());
+        assertEquals(1, drinks.live(END + DrinkStream.LONGEST_TRAVEL_TICKS - 1).size());
+        assertTrue(drinks.live(END + DrinkStream.LONGEST_TRAVEL_TICKS).isEmpty());
     }
 
     @Test

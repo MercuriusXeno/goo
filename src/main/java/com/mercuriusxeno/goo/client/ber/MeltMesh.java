@@ -104,20 +104,67 @@ public final class MeltMesh {
      * @param melt the melt
      */
     public static void emit(RenderContext ctx, Melt melt) {
-        List<BlockStateModelPart> parts = new ArrayList<>();
-        Minecraft.getInstance().getModelManager().getBlockStateModelSet().get(melt.state())
-                .collectParts(melt.level(), melt.pos(), melt.state(), RandomSource.create(MODEL_SEED), parts);
         int quadIndex = 0;
+        for (BakedQuad quad : quadsOf(melt.state(), melt.level(), melt.pos())) {
+            emitQuad(ctx, melt, quad, quadIndex++);
+        }
+    }
+
+    /**
+     * Every quad of a block's model where it stands, each face's then the free ones.
+     *
+     * @param state the block
+     * @param level the level it stands in
+     * @param pos   where it stands
+     * @return its quads
+     */
+    public static List<BakedQuad> quadsOf(BlockState state, BlockAndTintGetter level, BlockPos pos) {
+        List<BlockStateModelPart> parts = new ArrayList<>();
+        Minecraft.getInstance().getModelManager().getBlockStateModelSet().get(state)
+                .collectParts(level, pos, state, RandomSource.create(MODEL_SEED), parts);
+        List<BakedQuad> quads = new ArrayList<>();
         for (BlockStateModelPart part : parts) {
             for (Direction side : Direction.values()) {
-                for (BakedQuad quad : part.getQuads(side)) {
-                    emitQuad(ctx, melt, quad, quadIndex++);
-                }
+                quads.addAll(part.getQuads(side));
             }
-            for (BakedQuad quad : part.getQuads(null)) {
-                emitQuad(ctx, melt, quad, quadIndex++);
-            }
+            quads.addAll(part.getQuads(null));
         }
+        return quads;
+    }
+
+    /**
+     * One point of a block's face, with the texture and the baked colour its quad gives it there.
+     *
+     * @param x     the point's x, block-local
+     * @param y     the point's y, block-local
+     * @param z     the point's z, block-local
+     * @param u     its texture u on the atlas
+     * @param v     its texture v on the atlas
+     * @param color its baked ARGB colour
+     */
+    public record FacePoint(float x, float y, float z, float u, float v, int color) {
+    }
+
+    /**
+     * A quad split into its fine grid: the four corners of every cell, in
+     * the quad's winding, so a mesh bending the block keeps its textures.
+     *
+     * @param quad the quad
+     * @return each cell's corners
+     */
+    public static List<FacePoint[]> cellsOf(BakedQuad quad) {
+        List<QuadRectClipper.ClipVertex> corners = QuadRectClipper.verticesOf(quad);
+        List<FacePoint[]> cells = new ArrayList<>(GRID * GRID);
+        for (int index = 0; index < GRID * GRID; index++) {
+            Cell cell = new Cell(corners, index / GRID, index % GRID);
+            FacePoint[] points = new FacePoint[CELL_CORNERS.length];
+            for (int corner = 0; corner < CELL_CORNERS.length; corner++) {
+                QuadRectClipper.ClipVertex point = cell.at(CELL_CORNERS[corner][0], CELL_CORNERS[corner][1]);
+                points[corner] = new FacePoint(point.x(), point.y(), point.z(), point.u(), point.v(), point.color());
+            }
+            cells.add(points);
+        }
+        return cells;
     }
 
     /**
@@ -345,21 +392,26 @@ public final class MeltMesh {
         return new GooRenderUtil.UvRect(u0, v0, u1, v1);
     }
 
+    private static int tintOf(Melt melt, BakedQuad quad) {
+        return tintOf(melt.state(), melt.level(), melt.pos(), quad);
+    }
+
     /**
-     * The colour a quad is tinted, as grass and leaves are, or white for an untinted quad.
+     * The colour a block's quad is tinted where it stands, as grass and leaves are, or white for an untinted quad.
      *
-     * @param melt the melt
-     * @param quad the quad
+     * @param state the block
+     * @param level the level it stands in
+     * @param pos   where it stands
+     * @param quad  the quad
      * @return the tint
      */
-    private static int tintOf(Melt melt, BakedQuad quad) {
+    public static int tintOf(BlockState state, BlockAndTintGetter level, BlockPos pos, BakedQuad quad) {
         int index = quad.materialInfo().tintIndex();
         if (index < 0) {
             return GooRenderUtil.OPAQUE_WHITE;
         }
-        @Nullable BlockTintSource source = Minecraft.getInstance().getBlockColors().getTintSource(melt.state(), index);
-        return source == null ? GooRenderUtil.OPAQUE_WHITE
-                : ARGB.opaque(source.colorInWorld(melt.state(), melt.level(), melt.pos()));
+        @Nullable BlockTintSource source = Minecraft.getInstance().getBlockColors().getTintSource(state, index);
+        return source == null ? GooRenderUtil.OPAQUE_WHITE : ARGB.opaque(source.colorInWorld(state, level, pos));
     }
 
 }
