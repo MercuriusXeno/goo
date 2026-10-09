@@ -66,7 +66,13 @@ public final class BlinkCursor {
         ClientAbility ability = selectedAbility(player);
         ResourceKey<GooTypeDefinition> type = GloveAim.selectedGooType(player);
         if (type != null && ability != null && showsCursor(ability, GloveUseTracker.showsArea())) {
-            AfterimageRenderer.drawRipples(event, ripplesAtDestination(mc, player, ability, type));
+            float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+            Optional<BlinkLanding> trip = BlinkAim.trip(player, ability, partialTick);
+            AfterimageRenderer.drawRipples(event, ripplesAt(mc, player, trip, type, partialTick));
+            // oculus-prism-becomes-a-hovering-eye: the oculus the blink snaps to shows through walls
+            trip.flatMap(BlinkLanding::node).ifPresent(node -> VoxelHighlightRenderer.renderCubeThroughWalls(
+                    event.getPoseStack(), mc.renderBuffers().bufferSource(), mc.gameRenderer.getMainCamera(),
+                    node, type));
         }
     }
 
@@ -85,16 +91,15 @@ public final class BlinkCursor {
      * The cursor's ripples this frame: the player's pose standing where blink
      * would land them, one ripple per start still standing.
      *
-     * @param mc      the client, its level loaded
-     * @param player  the local player
-     * @param ability the selected ability, blinking along the look
-     * @param type    the selected goo type, whose color the ripple wears
+     * @param mc          the client, its level loaded
+     * @param player      the local player
+     * @param trip        the trip the blink would make this frame, empty where it lands nowhere
+     * @param type        the selected goo type, whose color the ripple wears
+     * @param partialTick the frame's partial tick
      * @return the ripples to draw
      */
-    private static List<Afterimages.Afterimage<EntityRenderState>> ripplesAtDestination(Minecraft mc,
-            LocalPlayer player, ClientAbility ability, ResourceKey<GooTypeDefinition> type) {
-        float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        Optional<BlinkLanding> trip = BlinkAim.trip(player, ability, partialTick);
+    private static List<Afterimages.Afterimage<EntityRenderState>> ripplesAt(Minecraft mc, LocalPlayer player,
+            Optional<BlinkLanding> trip, ResourceKey<GooTypeDefinition> type, float partialTick) {
         if (trip.isEmpty()) {
             return List.of();
         }

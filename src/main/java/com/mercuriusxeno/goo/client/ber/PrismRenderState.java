@@ -21,4 +21,16 @@ public class PrismRenderState extends BlockEntityRenderState {
 
     /** The id of the ability whose program is the prism's combo, empty for a plain prism. */
     public String combo = "";
+
+    /** The game time with the partial tick, which a combo's animation reads. */
+    public float gameTime;
+
+    /** The game time the prism's combo took, which its transformation plays from. */
+    public long comboSince;
+
+    /**
+     * The yaw, in degrees, that turns a combo's model from the prism's cell
+     * toward the camera (decision oculus-prism-becomes-a-hovering-eye).
+     */
+    public float yawToCamera;
 }

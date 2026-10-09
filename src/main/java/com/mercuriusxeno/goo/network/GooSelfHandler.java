@@ -7,6 +7,8 @@ import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.ability.held.HeldEffectsEvents;
+import com.mercuriusxeno.goo.ability.oculus.OculusCharge;
+import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
@@ -144,14 +146,18 @@ public final class GooSelfHandler {
     private static boolean invoke(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
             AbilityDefinition ability, Optional<ChannelAim.FacePlane> pin) {
         PlayerHost host = PlayerHost.blinking(player.level(), player, pin);
-        int cost = ability.distancePrice().priceOf(ability.cost(),
-                TeleportStep.tripOf(ability.behaviors(), player, player.position(), player.getLookAngle(), pin));
+        Optional<BlinkLanding> trip = TeleportStep.tripOf(ability.behaviors(), player, player.position(),
+                player.getLookAngle(), pin);
+        int price = ability.distancePrice().priceOf(ability.cost(), trip);
+        // oculus-prism-becomes-a-hovering-eye: a charged oculus pays for the blink to it
+        int cost = OculusCharge.costAt(player.level(), price, trip);
         if (!affords(player, gooType, ability, cost) || !admits(host, ability)) {
             return false;
         }
         GooSourceScanner.deplete(player, gooType, cost);
         ReagentScanner.consumeOneOfEach(player, ability.consumes());
         runOn(host, ability);
+        OculusCharge.settle(player.level(), price, trip);
         return true;
     }
 

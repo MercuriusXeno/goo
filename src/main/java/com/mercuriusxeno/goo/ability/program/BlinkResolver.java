@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -56,6 +57,25 @@ public final class BlinkResolver {
         Vec3 aimed = pin.map(plane -> onPinnedPlane(eye, look, range, plane, body))
                 .orElseGet(() -> freeAim(space, feet, eye, look, range, body));
         return settle(space, feet, aimed, body);
+    }
+
+    /**
+     * Where a blink snapped to an oculus lands: standing in the oculus's cell
+     * where the body fits there.
+     * Decision oculus-prism-becomes-a-hovering-eye.
+     *
+     * @param space the world as the blink reads it
+     * @param feet  where the blinker's feet stand
+     * @param node  the oculus's cell
+     * @param body  the blinker's size
+     * @return the landing, empty where the body does not fit in the cell
+     */
+    public static Optional<BlinkLanding> toNode(BlinkSpace space, Vec3 feet, BlockPos node, BlinkBody body) {
+        Vec3 spot = Vec3.atBottomCenterOf(node);
+        return space.fits(body.boxAt(spot))
+                ? Optional.of(new BlinkLanding(spot, feet.distanceTo(spot),
+                        crossesSolid(space, body.centerAt(feet), body.centerAt(spot)), Optional.of(node)))
+                : Optional.empty();
     }
 
     /**

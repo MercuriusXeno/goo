@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -19,14 +20,19 @@ import java.util.stream.Stream;
  * {@code teleport mode=random_offset range=32}: a random horizontal jump
  * of up to sixteen blocks either way.
  *
- * @param mode  how the destination is picked
- * @param range the mode's range in blocks, evaluated when the step runs
+ * @param mode      how the destination is picked
+ * @param range     the mode's range in blocks, evaluated when the step runs
+ * @param nodeRange how far off a look blink may snap to an oculus, zero for none
+ * @param nodeCone  how far off the look, in degrees, an oculus it snaps to may stand
  */
-public record TeleportStep(TeleportMode mode, Expr range) implements Step {
+public record TeleportStep(TeleportMode mode, Expr range, Expr nodeRange, Expr nodeCone) implements Step {
 
     private static final String NAME = "teleport";
     private static final String FIELD_MODE = "mode";
     private static final String FIELD_RANGE = "range";
+    private static final String FIELD_NODE_RANGE = "node_range";
+    private static final String FIELD_NODE_CONE = "node_cone";
+    private static final Expr NO_NODES = Expr.literal(0);
     private static final double HALF = 0.5;
 
     /**
@@ -34,8 +40,20 @@ public record TeleportStep(TeleportMode mode, Expr range) implements Step {
      */
     public static final MapCodec<TeleportStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             TeleportMode.CODEC.fieldOf(FIELD_MODE).forGetter(TeleportStep::mode),
-            Expr.CODEC.fieldOf(FIELD_RANGE).forGetter(TeleportStep::range)
+            Expr.CODEC.fieldOf(FIELD_RANGE).forGetter(TeleportStep::range),
+            Expr.CODEC.optionalFieldOf(FIELD_NODE_RANGE, NO_NODES).forGetter(TeleportStep::nodeRange),
+            Expr.CODEC.optionalFieldOf(FIELD_NODE_CONE, NO_NODES).forGetter(TeleportStep::nodeCone)
     ).apply(inst, TeleportStep::new));
+
+    /**
+     * A teleport that snaps to no oculus.
+     *
+     * @param mode  how the destination is picked
+     * @param range the mode's range in blocks, evaluated when the step runs
+     */
+    public TeleportStep(TeleportMode mode, Expr range) {
+        this(mode, range, NO_NODES, NO_NODES);
+    }
 
     /**
      * The registered type.
@@ -107,11 +125,33 @@ public record TeleportStep(TeleportMode mode, Expr range) implements Step {
      * @param range the blink's range
      * @return the landing, empty with no thrower or no spot the target fits
      */
-    private static Optional<BlinkLanding> blinkAlongLook(TargetHost host, double range) {
+    private Optional<BlinkLanding> blinkAlongLook(TargetHost host, double range) {
         Entity thrower = host.thrower();
         return thrower == null ? Optional.empty()
-                : landingAlongLook(host.target(), host.target().position(), thrower.getLookAngle(), range,
-                        host.blinkPin());
+                : landing(host.target(), host.target().position(), thrower.getLookAngle(), range, host.blinkPin());
+    }
+
+    /**
+     * Where this step's blink puts an entity: beside the oculus the look
+     * snaps to where a free-aim blink finds one, else where the blink lands.
+     * Decision oculus-prism-becomes-a-hovering-eye.
+     *
+     * @param blinker the entity blinking
+     * @param feet    where the entity's feet stand
+     * @param look    the unit look vector
+     * @param reach   the blink's range in blocks
+     * @param pin     the face plane the press pinned, empty for free aim
+     * @return the landing, empty when no spot the entity fits lies on the way
+     */
+    public Optional<BlinkLanding> landing(Entity blinker, Vec3 feet, Vec3 look, double reach,
+            Optional<ChannelAim.FacePlane> pin) {
+        double snapRange = nodeRange.evaluate(Variables.NONE);
+        Optional<BlinkLanding> snapped = pin.isPresent() || snapRange <= 0 ? Optional.empty()
+                : OculusNodes.onLook(blinker.level(), feet.add(0, blinker.getEyeHeight(), 0), look, snapRange,
+                        nodeCone.evaluate(Variables.NONE))
+                        .flatMap(node -> BlinkResolver.toNode(new LevelBlinkSpace(blinker.level(), blinker), feet,
+                                node, BlinkBody.of(blinker)));
+        return snapped.isPresent() ? snapped : landingAlongLook(blinker, feet, look, reach, pin);
     }
 
     /**
@@ -148,9 +188,8 @@ public record TeleportStep(TeleportMode mode, Expr range) implements Step {
      */
     public static Optional<BlinkLanding> tripOf(List<Step> behaviors, Entity blinker, Vec3 feet, Vec3 look,
             Optional<ChannelAim.FacePlane> pin) {
-        OptionalDouble range = lookRange(behaviors);
-        return range.isPresent() ? landingAlongLook(blinker, feet, look, range.getAsDouble(), pin)
-                : Optional.empty();
+        return lookStep(behaviors).flatMap(step ->
+                step.landing(blinker, feet, look, step.range().evaluate(Variables.NONE), pin));
     }
 
     /**
@@ -174,18 +213,27 @@ public record TeleportStep(TeleportMode mode, Expr range) implements Step {
      * @return the range, empty where no look teleport with a literal range stands
      */
     public static OptionalDouble lookRange(List<Step> behaviors) {
-        for (Step step : behaviors) {
-            if (step instanceof TeleportStep teleport && teleport.mode() == TeleportMode.THROWER_LOOK
-                    && teleport.range().variables().isEmpty()) {
-                return OptionalDouble.of(teleport.range().evaluate(Variables.NONE));
-            }
-        }
-        return OptionalDouble.empty();
+        return lookStep(behaviors).map(step -> OptionalDouble.of(step.range().evaluate(Variables.NONE)))
+                .orElse(OptionalDouble.empty());
+    }
+
+    /**
+     * The first look-following teleport with a literal range among the steps.
+     *
+     * @param behaviors an ability's top-level steps
+     * @return the step, empty where none stands
+     */
+    private static Optional<TeleportStep> lookStep(List<Step> behaviors) {
+        return behaviors.stream()
+                .filter(TeleportStep.class::isInstance).map(TeleportStep.class::cast)
+                .filter(teleport -> teleport.mode() == TeleportMode.THROWER_LOOK
+                        && teleport.range().variables().isEmpty())
+                .findFirst();
     }
 
     @Override
     public Stream<Expr> expressions() {
-        return Stream.of(range);
+        return Stream.of(range, nodeRange, nodeCone);
     }
 
     @Override

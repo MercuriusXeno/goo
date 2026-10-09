@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:oculus_charge_makes_blink_free",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 20,
+  "setup_ticks": 0,
+  "required": true
+}

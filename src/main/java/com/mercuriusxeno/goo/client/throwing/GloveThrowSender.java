@@ -288,7 +288,7 @@ public final class GloveThrowSender {
      */
     static int throwCostOf(@Nullable ClientAbility ability, Optional<BlinkLanding> trip) {
         return ability == null ? GooThrowHandler.THROW_COST
-                : ability.distancePrice().priceOf(ability.cost(), trip);
+                : BlinkAim.tripCost(ability.distancePrice(), ability.cost(), trip);
     }
 
     /**
