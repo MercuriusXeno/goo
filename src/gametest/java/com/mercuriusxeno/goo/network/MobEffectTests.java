@@ -41,13 +41,11 @@ public final class MobEffectTests {
      */
     private static final BlockPos SPAWN_POS = new BlockPos(3, 1, 3);
     /** One block beside the spawn, where the glow laser test stands its zombie. */
-    private static final BlockPos BYSTANDER_POS = SPAWN_POS.east();
     /** The tick after spawning, once the level's entity index holds the spawned mobs. */
     private static final int SETTLE_TICKS = 1;
     private static final String SHOULD_HAVE_SLOWNESS = "Target should have slowness";
     private static final String SHOULD_HAVE_POISON = "Target should have poison";
     private static final String SHOULD_HAVE_WEAKNESS = "Target should have weakness";
-    private static final String SHOULD_HAVE_GLOWING = "Target should have glowing";
     private static final String SHOULD_NOT_GLOW = "Target should wear the ailment overlay, not vanilla glowing";
     private static final String SHOULD_HAVE_WITHER = "Target should have wither";
     private static final String SHOULD_TAKE_DAMAGE = "Target should have taken damage";
@@ -68,7 +66,6 @@ public final class MobEffectTests {
     private static final String ABILITY_HEX_CHARM = "goo:hex_charm";
     private static final String ABILITY_VITAL_CLONE = "goo:vital_clone";
     private static final String ABILITY_BLAZE_IGNITE = "goo:blaze_ignite";
-    private static final String ABILITY_GLOW_LASER = "goo:glow_laser";
     private static final String ABILITY_CRYSTAL_FLECHETTES = "goo:crystal_flechettes";
     private static final String ABILITY_ENDER_TELEPORT = "goo:ender_teleport";
     private static final String SHOULD_HAVE_MOVED = "Target should stand somewhere else";
@@ -89,8 +86,6 @@ public final class MobEffectTests {
     private static final BlockPos BLAST_DIRT_POS = SPAWN_POS.south();
     /** The damage crystal_flechettes.json's first damage step names. */
     private static final float FLECHETTE_DAMAGE = 4.0f;
-    private static final String LIVING_SHOULD_NOT_BURN = "A cow is not undead and should not burn";
-    private static final String UNDEAD_SHOULD_BURN = "A zombie is undead and should burn";
     private static final String SHOULD_BE_FROZEN = "Target should hold frost_snap.json's full freeze";
     /** The frozen ticks frost_snap.json's freeze_ticks step adds. */
     private static final int FULL_FREEZE_TICKS = 140;
@@ -254,28 +249,6 @@ public final class MobEffectTests {
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, mob, ABILITY_TYPHOON_LEVITATE);
             helper.assertTrue(mob.hasEffect(MobEffects.LEVITATION), SHOULD_HAVE_LEVITATION);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Glow laser is a program: magic damage doubled by the undead variable,
-     * crit particles, an ignite step under an undead target selection and
-     * glowing under an alive one, so a zombie burns and a cow does not.
-     *
-     * @param helper the gametest helper
-     */
-    public static void glowLaser(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, BYSTANDER_POS);
-        float before = mob.getHealth();
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_GLOW_LASER);
-            strike(helper, zombie, ABILITY_GLOW_LASER);
-            helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
-            helper.assertTrue(mob.hasEffect(MobEffects.GLOWING), SHOULD_HAVE_GLOWING);
-            helper.assertFalse(mob.isOnFire(), LIVING_SHOULD_NOT_BURN);
-            helper.assertTrue(zombie.isOnFire(), UNDEAD_SHOULD_BURN);
             helper.succeed();
         });
     }

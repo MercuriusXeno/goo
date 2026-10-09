@@ -1,0 +1,25 @@
+{
+  "gooType": "glow",
+  "displayName": "goo.ability.glow.sunbeam",
+  "badge": "channeled",
+  "order": 10,
+  "cost": 200,
+  "requires": ["minecraft:spectral_arrow"],
+  "delivery": { "kind": "self", "ticks_per_charge": 20 },
+  "behaviors": [
+    {
+      "type": "ray",
+      "range": 32,
+      "every": 10,
+      "where": ["living"],
+      "refract": { "radius": 16, "factor": 1.5, "exponent": 0.85 },
+      "steps": [
+        { "type": "damage", "amount": "(4 + 4 * undead) * share", "source": "magic" },
+        { "type": "particles", "id": "minecraft:crit", "at": "target", "count": 10, "spread": 0.5, "speed": 0.1 },
+        { "type": "target", "where": ["undead"], "steps": [ { "type": "ignite", "seconds": 1 } ] },
+        { "type": "ailment_overlay", "kind": "glow", "duration": 200 }
+      ]
+    }
+  ],
+  "tags": ["self"]
+}

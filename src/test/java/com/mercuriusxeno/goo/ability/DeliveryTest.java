@@ -158,9 +158,9 @@ class DeliveryTest {
         }
 
         @Test
-        void glowAbilitiesBeam() {
+        void bulbBeamsAndSunbeamChannelsOnSelf() {
             assertEquals(DeliveryKind.BEAM, AbilityJson.decode("glow_crystal").delivery().kind());
-            assertEquals(DeliveryKind.BEAM, AbilityJson.decode("glow_laser").delivery().kind());
+            assertEquals(DeliveryKind.SELF, AbilityJson.decode("glow_sunbeam").delivery().kind());
         }
     }
 

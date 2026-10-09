@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.client.ber.style;
+package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -9,19 +9,20 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * GlowBeaconStyle's beam: each layer is a tube reaching the beacon's full
- * length, and the layers widen and fade from the core out so they bloom.
- * decision bulb-one-model-max-light-beacon-combo
+ * GlowBeamMesh: each layer is a tube reaching the length it is given, and
+ * the layers widen and fade from the core out so they bloom.
+ * decisions bulb-one-model-max-light-beacon-combo, sunbeam-splits-at-the-prism-with-a-glisten
  */
-class GlowBeaconStyleTest {
+class GlowBeamMeshTest {
 
     private static final float RADIUS = 0.25f;
     private static final int COLOR = 0x80FFE628;
     private static final float TOLERANCE = 1e-5f;
     private static final int VERTICES_PER_TUBE = 16;
+    private static final float LENGTH = 37.5f;
 
     @Test
-    void layerIsATubeFromTheBaseToTheBeaconsReach() {
+    void layerIsATubeFromTheOriginToItsLength() {
         List<RecordingVertexConsumer.Vertex> vertices = emit();
 
         assertEquals(VERTICES_PER_TUBE, vertices.size());
@@ -34,15 +35,15 @@ class GlowBeaconStyleTest {
             highest = Math.max(highest, v.y());
         }
         assertEquals(0f, lowest, TOLERANCE);
-        assertEquals(GlowBeaconStyle.BEAM_REACH, highest, TOLERANCE);
+        assertEquals(LENGTH, highest, TOLERANCE);
     }
 
     @Test
     void layersWidenAndFadeFromTheCoreOut() {
-        List<GlowBeaconStyle.Layer> layers = GlowBeaconStyle.LAYERS;
+        List<GlowBeamMesh.Layer> layers = GlowBeamMesh.LAYERS;
         for (int i = 1; i < layers.size(); i++) {
-            GlowBeaconStyle.Layer inner = layers.get(i - 1);
-            GlowBeaconStyle.Layer outer = layers.get(i);
+            GlowBeamMesh.Layer inner = layers.get(i - 1);
+            GlowBeamMesh.Layer outer = layers.get(i);
             assertTrue(outer.radius() > inner.radius(), "layer " + i + " should be wider than the one inside it");
             assertTrue(ARGB.alpha(outer.color()) < ARGB.alpha(inner.color()),
                     "layer " + i + " should be fainter than the one inside it");
@@ -51,7 +52,7 @@ class GlowBeaconStyleTest {
 
     private static List<RecordingVertexConsumer.Vertex> emit() {
         RecordingVertexConsumer consumer = new RecordingVertexConsumer();
-        GlowBeaconStyle.emitLayer(new PoseStack().last(), consumer, RADIUS, COLOR, 0f);
+        GlowBeamMesh.emitLayer(new PoseStack().last(), consumer, RADIUS, COLOR, 0f, LENGTH);
         return consumer.vertices();
     }
 }
