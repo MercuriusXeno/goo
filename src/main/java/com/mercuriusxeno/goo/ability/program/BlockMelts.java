@@ -9,7 +9,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
- * Swaps a block streaming into an Unmake soup for a {@link MeltingBlock}
+ * Swaps a block liquifying into an Unmake drink for a {@link MeltingBlock}
  * standing in for it, and reads the block a melting block stands in for. A
  * block holding contents gives them up into its goo: its block entity goes
  * before the swap, so nothing spills.
@@ -22,7 +22,7 @@ public final class BlockMelts {
 
     /**
      * Swaps a block for a melting block standing in for it while it streams
-     * into a soup, until its siphon is done.
+     * into a drink, until its siphon is done.
      *
      * @param level the server level
      * @param pos   the block

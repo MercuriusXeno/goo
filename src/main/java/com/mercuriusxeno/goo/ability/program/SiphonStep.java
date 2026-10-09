@@ -8,15 +8,15 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Unmake's channel: each held tick keeps the soup held before the player and,
- * when it is ready, starts the next block on the face under the cursor
- * siphoning into it, the outer ring first and the aimed block last. A block burns its fuel as it
- * starts and goes until it is done; one with no goo value, or one the player
- * cannot pay for, stands.
+ * Unmake's channel: each held tick keeps the drink held and starts every
+ * block in the cone before the eye streaming into it, all together. A block
+ * burns its fuel as it starts and streams in over the unstable crucible's
+ * own time for it; one with no goo value, or one the player cannot pay for,
+ * stands and holds up none of the others.
  * decision unmake-waves-dissolve-by-crucible-cost
  *
- * @param radius how far the face's square reaches from the aimed block, 1 for a 3x3
- * @param speed  how much faster than its pace the soup drinks, 1 at its pace
+ * @param radius how far the cone's square reaches from its axis at mid range, 1 for a 3x3
+ * @param speed  how much faster than the crucible the drink goes, 1 at its pace
  */
 public record SiphonStep(Expr radius, Expr speed) implements Step {
 
@@ -25,7 +25,7 @@ public record SiphonStep(Expr radius, Expr speed) implements Step {
     private static final String FIELD_SPEED = "speed";
 
     /**
-     * Codec for the step's params; a siphon naming neither drinks a 3x3 at its pace.
+     * Codec for the step's params; a siphon naming neither drinks a 3x3 cone at the crucible's pace.
      */
     public static final MapCodec<SiphonStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             Expr.CODEC.optionalFieldOf(FIELD_RADIUS, Expr.literal(1)).forGetter(SiphonStep::radius),
@@ -45,20 +45,17 @@ public record SiphonStep(Expr radius, Expr speed) implements Step {
     @Override
     public boolean tick(StepContext context) {
         SiphonHost host = context.hostAs(SiphonHost.class);
-        host.holdSoup();
-        if (!host.readyToSiphon()) {
-            return true;
-        }
-        double pace = speed.evaluate(context);
-        for (BlockPos pos : host.siphonFace(Math.max(0, (int) Math.round(radius.evaluate(context))))) {
+        host.holdDrink();
+        double speed = this.speed.evaluate(context);
+        for (BlockPos pos : host.siphonCone(Math.max(0, (int) Math.round(radius.evaluate(context))))) {
             GooValue value = host.siphonValue(pos);
             if (value == null || value.isEmpty()) {
                 continue;
             }
             if (host.burnUnstable(SiphonRule.fuelFor(value.totalGoo(), host.meltExponent(), host.ticksPerMb()))) {
-                host.siphon(pos, value.toGooContents(), SiphonRule.siphonTicks(pace), SiphonRule.startInterval(pace));
+                host.siphon(pos, value.toGooContents(),
+                        SiphonRule.siphonTicks(value.totalGoo(), host.meltExponent(), speed));
             }
-            return true;
         }
         return true;
     }

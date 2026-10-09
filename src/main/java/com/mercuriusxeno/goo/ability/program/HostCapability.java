@@ -70,7 +70,7 @@ public enum HostCapability {
      */
     UNMAKE(UnmakeHost.class),
     /**
-     * A held channel that drinks the face under its cursor into a soup
+     * A held channel that drinks the face under its cursor into the glove
      * (decision unmake-waves-dissolve-by-crucible-cost).
      */
     SIPHON(SiphonHost.class),

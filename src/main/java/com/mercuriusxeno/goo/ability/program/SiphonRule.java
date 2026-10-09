@@ -3,21 +3,24 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.block.crucible.CrucibleMath;
 
 /**
- * Unmake's soup rules: how fast it drinks a block and what a block costs.
- * It is faster than the crucible on purpose; it gives back what the crucible
- * would, at twice the unstable fuel an unstable crucible burns melting the
- * same block, the price of doing it at will.
+ * Unmake's drink rules: the cone it drinks, how long a block takes to stream
+ * in and what a block costs. A block streams in over the time the unstable
+ * crucible would take to melt it; it gives back what the crucible would, at
+ * twice the unstable fuel an unstable crucible burns melting the same block,
+ * the price of doing it at will.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 public final class SiphonRule {
 
-    /** Ticks one block takes to stream into the soup, a quarter second. */
-    public static final int SIPHON_TICKS = 5;
-    /** Ticks between one block starting and the next, so a 3x3 drinks in about a second. */
-    public static final int START_INTERVAL_TICKS = 2;
+    /** How far from the eye the cone reaches, in blocks. */
+    public static final double RANGE = 7;
+    /** The distance the cone is as wide as its square, the middle of its far half. */
+    public static final double MID_RANGE = 5.5;
     /** The fuel a block costs, as a multiple of the unstable crucible's. */
     public static final int FUEL_FACTOR = 2;
     private static final double SLOWEST_SPEED = 0.01;
+    private static final double HALF_BLOCK = 0.5;
+    private static final double EDGE_TO_EDGE = 2;
 
     private SiphonRule() {
     }
@@ -38,18 +41,28 @@ public final class SiphonRule {
     }
 
     /**
-     * @param speed how much faster than its pace the soup drinks, 1 at its pace
-     * @return the ticks one block takes to stream in, at least 1
+     * The ticks a block takes to stream into the glove: the unstable
+     * crucible's own time melting it, divided by the drink's speed.
+     *
+     * @param totalGoo the mB of goo the block holds
+     * @param exponent the unstable crucible's melt exponent
+     * @param speed    how much faster than the crucible the drink goes, 1 at its pace
+     * @return the ticks, at least 1
      */
-    public static int siphonTicks(double speed) {
-        return Math.max(1, (int) Math.round(SIPHON_TICKS / Math.max(SLOWEST_SPEED, speed)));
+    public static int siphonTicks(long totalGoo, double exponent, double speed) {
+        long ticks = CrucibleMath.meltTicks(totalGoo, exponent);
+        return (int) Math.max(1, Math.round(ticks / Math.max(SLOWEST_SPEED, speed)));
     }
 
     /**
-     * @param speed how much faster than its pace the soup drinks, 1 at its pace
-     * @return the ticks between one block starting and the next, at least 1
+     * The cone's apex angle, edge to edge: one block wide at the eye, and at
+     * {@link #MID_RANGE} as wide as the square the radius names, so a 3x3
+     * there and one block up close.
+     *
+     * @param radius how far the square reaches from the cone's axis at mid range, 1 for a 3x3
+     * @return the apex angle in degrees
      */
-    public static int startInterval(double speed) {
-        return Math.max(1, (int) Math.round(START_INTERVAL_TICKS / Math.max(SLOWEST_SPEED, speed)));
+    public static double coneDegrees(int radius) {
+        return EDGE_TO_EDGE * Math.toDegrees(Math.atan((radius + HALF_BLOCK) / MID_RANGE));
     }
 }

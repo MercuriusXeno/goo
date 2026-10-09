@@ -28,7 +28,7 @@ import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
  * Draws what Unmake leaves on screen outside the melting block's own
  * renderer: the goo spreading over a block that melts without the sag, a
  * block holding contents or one under a tap; and the remains of anything
- * unmade and of a released soup, a blob of the goo they hold, drawn as the
+ * unmade, a blob of the goo they hold, drawn as the
  * crucible draws its goo, shrinking and rounding into the goo item where the
  * item then drops.
  * decision unmake-waves-dissolve-by-crucible-cost
@@ -40,6 +40,8 @@ public final class MeltingBlockRenderer {
     static final int GOO_ALPHA = 0xEE;
     /** How big the remains end, in blocks, the size of the goo item on the ground. */
     static final float ITEM_SIZE = 0.25f;
+    /** How squat a melted block's remains start on the ground: their height as a share of their width. */
+    static final float REMAINS_SQUAT = 0.35f;
     /** Where in the morph the goo item starts to show through the remains. */
     static final float ITEM_SHOWS = 0.4f;
     /** How far the item entity lifts its model off its feet at rest. */
@@ -101,8 +103,7 @@ public final class MeltingBlockRenderer {
     }
 
     /**
-     * Submits one morph: the remains, a blob of goo standing on the ground or
-     * hanging where the soup hung, shrink and round toward the goo item's size and fade as the
+     * Submits one morph: the remains, a blob of goo standing on the ground, shrink and round toward the goo item's size and fade as the
      * goo item grows in where the item entity will stand.
      *
      * @param event the custom geometry submit event
@@ -112,7 +113,7 @@ public final class MeltingBlockRenderer {
     private static void submitMorph(SubmitCustomGeometryEvent event, ClientLevel level, MorphingRemains.Morph morph) {
         float progress = morph.progress();
         float width = morph.size() + (ITEM_SIZE - morph.size()) * progress;
-        float height = width * (morph.squat() + (WHOLE - morph.squat()) * progress);
+        float height = width * (REMAINS_SQUAT + (WHOLE - REMAINS_SQUAT) * progress);
         int alpha = Math.round(GOO_ALPHA * (WHOLE - smoothstep(ITEM_SHOWS, WHOLE, progress)));
         Vec3 center = morph.at().add(0, height * HALF, 0).subtract(event.getLevelRenderState().cameraRenderState.pos);
         PoseStack poseStack = event.getPoseStack();

@@ -7,7 +7,6 @@ import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -181,47 +180,39 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     }
 
     @Override
-    public void holdSoup() {
-        soups().hold(player);
-    }
-
-    @Override
-    public boolean readyToSiphon() {
-        Soups.Soup soup = soups().of(player);
-        return soup != null && soup.ready(level.getGameTime());
+    public void holdDrink() {
+        drinks().hold(player);
     }
 
     /**
-     * The square on the face under the cursor, its standing blocks in the
-     * player's reach; none outside a held channel or off a face
+     * The standing blocks in the cone from the eye toward the cursor, nearest
+     * first; none outside a held channel
      * (decision unmake-waves-dissolve-by-crucible-cost).
      */
     @Override
-    public List<BlockPos> siphonFace(int radius) {
+    public List<BlockPos> siphonCone(int radius) {
         return channelAim().map(aim -> {
-            BlockPos aimed = aim.aimedBlock(eye());
-            if (level.getBlockState(aimed).isAir()) {
+            Vec3 line = aim.aimPoint().subtract(eye());
+            if (line.lengthSqr() == 0) {
                 return List.<BlockPos>of();
             }
-            Direction face = SiphonFace.faceOf(aim.aimPoint(), aimed);
-            double reach = player.blockInteractionRange() + REACH_SLACK;
-            return SiphonFace.square(aimed, face.getAxis(), radius).stream()
-                    .filter(pos -> !level.getBlockState(pos).isAir()
-                            && Vec3.atCenterOf(pos).distanceToSqr(eye()) <= reach * reach)
+            Vec3 reach = eye().add(line.normalize().scale(SiphonRule.RANGE));
+            return CalcifyStep.blocksInCone(eye(), reach, SiphonRule.coneDegrees(radius)).stream()
+                    .filter(pos -> !level.getBlockState(pos).isAir())
                     .toList();
         }).orElse(List.of());
     }
 
     /**
-     * The goo a block holds, for one the soup can drink: not one already
-     * streaming in, and not one no hand can break.
+     * The goo a block holds, for one the drink can take: not one already
+     * liquifying, and not one no hand can break.
      */
     @Override
     public @Nullable GooValue siphonValue(BlockPos pos) {
         BlockState state = level.getBlockState(pos);
-        Soups.Soup soup = soups().of(player);
+        Drinks.Drink drink = drinks().of(player);
         if (state.is(GooBlocks.MELTING_BLOCK.get()) || state.getDestroySpeed(level, pos) < 0
-                || soup != null && soup.siphoning(pos)) {
+                || drink != null && drink.siphoning(pos)) {
             return null;
         }
         return ValuedBlocks.valueAt(level, pos);
@@ -237,18 +228,18 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     }
 
     @Override
-    public void siphon(BlockPos pos, GooContents goo, int ticks, int nextStart) {
-        Soups.Soup soup = soups().of(player);
-        if (soup == null) {
+    public void siphon(BlockPos pos, GooContents goo, int ticks) {
+        Drinks.Drink drink = drinks().of(player);
+        if (drink == null) {
             return;
         }
         long now = level.getGameTime();
         BlockMelts.siphon(level, pos, now + ticks);
-        soup.start(pos, new Soups.Siphon(goo, now, now + ticks), now + nextStart);
+        drink.start(pos, new Drinks.Siphon(goo, now, now + ticks));
     }
 
-    private Soups soups() {
-        return GooServerState.of(level.getServer()).soups();
+    private Drinks drinks() {
+        return GooServerState.of(level.getServer()).drinks();
     }
 
     @Override

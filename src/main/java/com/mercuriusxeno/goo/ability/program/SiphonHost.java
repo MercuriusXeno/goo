@@ -8,36 +8,31 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * A host whose held channel drinks blocks into a soup (capability
- * {@link HostCapability#SIPHON}): the face under its cursor, the goo each
- * block holds, the unstable goo it burns, and the soup the blocks stream into.
+ * A host whose held channel drinks blocks into the glove (capability
+ * {@link HostCapability#SIPHON}): the cone before its eye, the goo each
+ * block holds, the unstable goo it burns, and the drink the blocks stream into.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 public interface SiphonHost extends StepHost {
 
     /**
-     * Marks the soup held this tick, starting it on the hold's first tick and
-     * moving its ball before the player.
+     * Marks the drink held this tick, starting it on the hold's first tick.
      */
-    void holdSoup();
+    void holdDrink();
 
     /**
-     * @return whether the soup may start siphoning another block this tick
-     */
-    boolean readyToSiphon();
-
-    /**
-     * The blocks on the face under the cursor, a square about the aimed block
-     * one deep, the outer ring first and the aimed block last.
+     * The standing blocks inside the cone from the eye along the aim, one
+     * block wide at the eye and as wide as the square the radius names at
+     * mid range, nearest first.
      *
-     * @param radius how far the square reaches from the aimed block, 1 for a 3x3
-     * @return the standing blocks in reach, in siphoning order; none off a face
+     * @param radius how far the square reaches from the cone's axis at mid range, 1 for a 3x3
+     * @return the blocks in the cone; none outside a held channel
      */
-    List<BlockPos> siphonFace(int radius);
+    List<BlockPos> siphonCone(int radius);
 
     /**
-     * @param pos a block on the face
-     * @return the goo the block holds, or null for one the soup cannot drink
+     * @param pos a block in the cone
+     * @return the goo the block holds, or null for one the drink cannot take
      */
     @Nullable GooValue siphonValue(BlockPos pos);
 
@@ -50,14 +45,13 @@ public interface SiphonHost extends StepHost {
     boolean burnUnstable(int amount);
 
     /**
-     * Starts a block siphoning into the soup: it goes until it is done.
+     * Starts a block streaming into the glove: it goes until it is done.
      *
-     * @param pos       the block
-     * @param goo       the goo it streams into the soup
-     * @param ticks     the ticks it takes
-     * @param nextStart the ticks before the soup may start another
+     * @param pos   the block
+     * @param goo   the goo it gives
+     * @param ticks the ticks it takes, the unstable crucible's time for it over the drink's speed
      */
-    void siphon(BlockPos pos, GooContents goo, int ticks, int nextStart);
+    void siphon(BlockPos pos, GooContents goo, int ticks);
 
     /**
      * @return the unstable crucible's melt exponent, the clock the fuel cost is read on

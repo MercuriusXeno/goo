@@ -1,10 +1,10 @@
 package com.mercuriusxeno.goo.client.network;
 
-import com.mercuriusxeno.goo.client.ability.ClientSoups;
+import com.mercuriusxeno.goo.client.ability.ClientDrinks;
 import com.mercuriusxeno.goo.client.ability.MeltingBlocks;
 import com.mercuriusxeno.goo.client.ability.MorphingRemains;
 import com.mercuriusxeno.goo.item.GooContents;
-import com.mercuriusxeno.goo.network.SoupPayload;
+import com.mercuriusxeno.goo.network.DrinkPayload;
 import com.mercuriusxeno.goo.network.UnmadePayload;
 import com.mercuriusxeno.goo.network.UnmakePayload;
 import net.minecraft.client.Minecraft;
@@ -49,22 +49,22 @@ public final class UnmakeHandler {
                 return;
             }
             MorphingRemains.CLIENT.begin(payload.at(), new GooContents(payload.goo()), payload.size(),
-                    payload.squat(), mc.level.getGameTime());
+                    mc.level.getGameTime());
         });
     }
 
     /**
-     * Keeps a player's Unmake soup as the server shows it
+     * Keeps a player's Unmake drink as the server shows it
      * (decision unmake-waves-dissolve-by-crucible-cost).
      *
-     * @param payload the soup payload
+     * @param payload the drink payload
      * @param context the network context
      */
-    public static void handleSoup(SoupPayload payload, IPayloadContext context) {
+    public static void handleDrink(DrinkPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level != null) {
-                ClientSoups.CLIENT.show(payload, mc.level.getGameTime());
+                ClientDrinks.CLIENT.show(payload);
             }
         });
     }

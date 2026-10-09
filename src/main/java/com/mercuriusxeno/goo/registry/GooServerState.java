@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
-import com.mercuriusxeno.goo.ability.program.Soups;
+import com.mercuriusxeno.goo.ability.program.Drinks;
 import com.mercuriusxeno.goo.ability.program.UnmakeDrops;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
 import com.mercuriusxeno.goo.block.tap.TapDripCounts;
@@ -24,7 +24,7 @@ public final class GooServerState {
     private final TapDripScheduler tapDrips = new TapDripScheduler();
     private final TapDripCounts tapDripCounts = new TapDripCounts();
     private final UnmakeDrops unmakeDrops = new UnmakeDrops();
-    private final Soups soups = new Soups();
+    private final Drinks drinks = new Drinks();
     private final BlockExposures blockExposures = new BlockExposures();
     private final AbilityBlockFallScheduler markerFalls = new AbilityBlockFallScheduler();
     private final StreamHolds streamHolds = new StreamHolds();
@@ -75,12 +75,12 @@ public final class GooServerState {
     }
 
     /**
-     * Returns every player's Unmake soup (decision unmake-waves-dissolve-by-crucible-cost).
+     * Returns every player's Unmake drink (decision unmake-waves-dissolve-by-crucible-cost).
      *
-     * @return the soups
+     * @return the drinks
      */
-    public Soups soups() {
-        return soups;
+    public Drinks drinks() {
+        return drinks;
     }
 
     /**
@@ -131,7 +131,7 @@ public final class GooServerState {
             markerFalls.drainArrivedFalls(currentTick);
         }
         tapDrips.drainArrived(server);
-        soups.tick(server, unmakeDrops);
+        drinks.tick(server);
         unmakeDrops.dropArrived(currentTick);
         blockExposures.decay(server);
     }
@@ -147,6 +147,6 @@ public final class GooServerState {
         markerFalls.clear();
         streamHolds.clear();
         unmakeDrops.clear();
-        soups.clear();
+        drinks.clear();
     }
 }
