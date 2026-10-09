@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.particle;
 
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.overlay.TickFaceOverlay;
 import com.mercuriusxeno.goo.registry.GooDripParticleOptions;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import com.mercuriusxeno.goo.throwing.DripFall;
@@ -11,6 +12,7 @@ import net.minecraft.client.particle.SingleQuadParticle;
 import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -137,6 +139,21 @@ public final class TapDripParticle {
         @Override
         protected float quadHalfSize(float rolledHalfSize) {
             return rolledHalfSize * SPLAT_QUAD_SHARE;
+        }
+
+        /**
+         * Lands the splat, and plays Tick's splash where it lands when the
+         * drip's goo type's tap ability ticks the block below
+         * (decision tick-drip-splashes-a-small-tick-effect).
+         */
+        @Override
+        public @Nullable Particle createParticle(
+                GooDripParticleOptions options, ClientLevel level,
+                double x, double y, double z,
+                double xSpeed, double ySpeed, double zSpeed,
+                RandomSource random) {
+            TickFaceOverlay.splashOnLanding(options.gooType(), new Vec3(x, y, z));
+            return super.createParticle(options, level, x, y, z, xSpeed, ySpeed, zSpeed, random);
         }
     }
 }

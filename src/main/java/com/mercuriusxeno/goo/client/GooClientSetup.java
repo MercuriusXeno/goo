@@ -23,6 +23,7 @@ import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
+import com.mercuriusxeno.goo.client.overlay.TickSplashes;
 import com.mercuriusxeno.goo.client.particle.*;
 import com.mercuriusxeno.goo.client.radial.CutItemRenderer;
 import com.mercuriusxeno.goo.client.throwing.GooFlightManager;
@@ -404,6 +405,7 @@ public final class GooClientSetup {
         BlockTransforms.CLIENT.clear();
         Afterimages.CLIENT.clear();
         Transformations.CLIENT.clear();
+        TickSplashes.CLIENT.clear();
         GhostTrails.CLIENT.clear();
         ViewportRipples.CLIENT.clear();
         ThrowFreezeState.clear();
