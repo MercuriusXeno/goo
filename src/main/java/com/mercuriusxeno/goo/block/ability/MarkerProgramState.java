@@ -2,22 +2,22 @@ package com.mercuriusxeno.goo.block.ability;
 
 import com.mercuriusxeno.goo.ability.program.FieldEffectState;
 import com.mercuriusxeno.goo.ability.program.PhasedState;
-import com.mercuriusxeno.goo.item.GooContents;
+import com.mercuriusxeno.goo.entity.CompressedHoard;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 
 /**
  * The state a program running on a marker host keeps between ticks, held by
  * every block entity a marker host stands at: the field effect's strikes,
- * the phased step's cursor and the goo a black hole consumed.
+ * the phased step's cursor and the hoard a black hole pulled in.
  */
 public final class MarkerProgramState {
 
-    private static final String TAG_CONSUMED_GOO = "ConsumedGoo";
+    private static final String TAG_HOARD = "Hoard";
 
     private final FieldEffectState fieldEffect = new FieldEffectState();
     private final PhasedState phased = new PhasedState();
-    private GooContents consumedGoo = GooContents.EMPTY;
+    private CompressedHoard hoard = new CompressedHoard();
 
     /**
      * @return the live field-effect state a field-effect step mutates
@@ -34,30 +34,10 @@ public final class MarkerProgramState {
     }
 
     /**
-     * @return the goo consumed so far and not yet dropped
+     * @return the live hoard of stacks pulled in and not yet left as a sphere
      */
-    public GooContents consumedGoo() {
-        return consumedGoo;
-    }
-
-    /**
-     * Adds goo consumed from the blocks around the host to its total.
-     *
-     * @param consumed the goo just consumed
-     */
-    public void addConsumedGoo(GooContents consumed) {
-        consumedGoo = consumedGoo.mergeWith(consumed);
-    }
-
-    /**
-     * Empties the consumed goo total, handing back what it held.
-     *
-     * @return the goo consumed so far
-     */
-    public GooContents takeConsumedGoo() {
-        GooContents taken = consumedGoo;
-        consumedGoo = GooContents.EMPTY;
-        return taken;
+    public CompressedHoard hoard() {
+        return hoard;
     }
 
     /**
@@ -68,7 +48,7 @@ public final class MarkerProgramState {
     public void load(ValueInput input) {
         fieldEffect.load(input);
         phased.load(input);
-        consumedGoo = input.read(TAG_CONSUMED_GOO, GooContents.CODEC).orElse(GooContents.EMPTY);
+        hoard = input.read(TAG_HOARD, CompressedHoard.CODEC).orElseGet(CompressedHoard::new);
     }
 
     /**
@@ -79,8 +59,8 @@ public final class MarkerProgramState {
     public void save(ValueOutput output) {
         fieldEffect.save(output);
         phased.save(output);
-        if (!consumedGoo.isEmpty()) {
-            output.store(TAG_CONSUMED_GOO, GooContents.CODEC, consumedGoo);
+        if (!hoard.isEmpty()) {
+            output.store(TAG_HOARD, CompressedHoard.CODEC, hoard);
         }
     }
 }

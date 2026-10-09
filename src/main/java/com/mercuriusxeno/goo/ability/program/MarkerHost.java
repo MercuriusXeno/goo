@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.block.ability.MarkerAnchor;
-import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.entity.CompressionSphere;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -33,7 +33,7 @@ import java.util.function.Consumer;
  */
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
-        FieldEffectHost, PhasedHost, ConsumedGooHost {
+        FieldEffectHost, PhasedHost, HoardHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -117,13 +117,18 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     }
 
     @Override
-    public void consumeValuedBlocks(int radius) {
-        be.programState().addConsumedGoo(ValuedBlocks.consumeSphere(level, pos, radius));
+    public void hoardBlocks(int radius) {
+        HoardedBlocks.takeSphere(level, pos, radius, be.programState().hoard());
     }
 
     @Override
-    public void dropConsumedGoo() {
-        GooStacks.dropAll(be.programState().takeConsumedGoo(), level, pos);
+    public void pullItemsIntoHoard(double radius, double speed) {
+        HoardedBlocks.pullItems(level, Vec3.atCenterOf(pos), radius, speed, be.programState().hoard());
+    }
+
+    @Override
+    public void dropSphere() {
+        CompressionSphere.leave(level, Vec3.atCenterOf(pos), be.programState().hoard());
     }
 
     @Override

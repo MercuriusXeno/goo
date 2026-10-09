@@ -34,12 +34,12 @@
               ],
               "tick": [
                 { "type": "particles", "id": "minecraft:soul", "count": 2, "spread": 1.8, "speed": 0.02 },
-                { "type": "pull", "radius": 9, "speed": 0.15 }
+                { "type": "pull", "radius": 9, "speed": 0.15, "items": true }
               ],
               "leave": [
                 { "type": "consume_blocks", "radius": 3 },
-                { "type": "entities", "radius": 3, "steps": [
-                  { "type": "damage", "amount": "health * 0.5", "source": "magic" }
+                { "type": "entities", "radius": 3, "where": ["not_boss"], "steps": [
+                  { "type": "damage", "amount": "max_health * 4", "source": "magic" }
                 ] }
               ]
             },
@@ -48,7 +48,7 @@
               "ticks": 15,
               "tick": [
                 { "type": "particles", "id": "minecraft:soul", "count": 2, "spread": 1.8, "speed": 0.02 },
-                { "type": "pull", "radius": 9, "speed": 0.15 }
+                { "type": "pull", "radius": 9, "speed": 0.15, "items": true }
               ]
             },
             {
@@ -61,7 +61,7 @@
             {
               "name": "popping",
               "enter": [
-                { "type": "drop_consumed" }
+                { "type": "drop_sphere" }
               ]
             }
           ]
