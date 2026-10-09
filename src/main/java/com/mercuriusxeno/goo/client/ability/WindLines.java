@@ -45,7 +45,7 @@ public final class WindLines {
     /** Lines a held tick blows. */
     static final int LINES_PER_TICK = 2;
     /** Ticks a line lives, from leaving the glove to fading out. */
-    static final int LIFE_TICKS = 18;
+    static final int LIFE_TICKS = 30;
     /** The share of a line's life it rushes straight before it curls. */
     static final double CURL_STARTS = 0.6;
     /** The ticks a line rushes straight before it curls. */
@@ -55,9 +55,9 @@ public final class WindLines {
     /** The curl's starting radius in blocks, which it winds inward from to nothing. */
     static final double CURL_RADIUS = 0.35;
     /** Turns the curl winds through before it reaches its center. */
-    static final double CURL_TURNS = 1.5;
+    static final double CURL_TURNS = 1.0;
     /** Ticks of the path the trailing line spans behind its head while it rushes straight. */
-    static final double TAIL_TICKS = 5;
+    static final double TAIL_TICKS = 8;
     /** Points the line draws through, enough that its curve reads smooth. */
     private static final int TAIL_SAMPLES = 32;
     private static final float LINE_WIDTH = 3.5f;
