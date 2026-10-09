@@ -417,6 +417,7 @@ public final class GooTestFunctions {
     private static final String TELEPORTITIS_VOID = "teleportitis_void_returns_to_safe_ground";
     private static final String CONVOKE_PULLS = "convoke_pulls_a_chunk_mob";
     private static final String CONVOKE_LINGERS = "convoke_lingers_without_a_mob";
+    private static final String CONVOKE_TAP = "convoke_tap_at_full_chance";
     private static final String FLATTEN_BREAKS_ABOVE_THE_PLANE = "flatten_breaks_above_the_plane";
     private static final String FLATTEN_SHAVES_A_WALL = "flatten_shaves_a_wall";
     private static final String BORE_CUTS_A_TUNNEL = "bore_cuts_a_tunnel";
@@ -886,6 +887,7 @@ public final class GooTestFunctions {
         reg(r, TELEPORTITIS_VOID, BrewEffectTests::teleportitisVoidReturnsToSafeGround);
         reg(r, CONVOKE_PULLS, ConvokeTests::convokePullsAChunkMob);
         reg(r, CONVOKE_LINGERS, ConvokeTests::convokeLingersWithoutAMob);
+        reg(r, CONVOKE_TAP, ConvokeTests::convokeTapAtFullChance);
         reg(r, FLATTEN_BREAKS_ABOVE_THE_PLANE, FlattenChannelTests::flattenBreaksAboveThePlane);
         reg(r, FLATTEN_SHAVES_A_WALL, FlattenChannelTests::flattenShavesAWall);
         reg(r, BORE_CUTS_A_TUNNEL, BoreStreamTests::boreCutsATunnel);
