@@ -280,6 +280,8 @@ public final class GooTestFunctions {
     private static final String PRISM_REFUSED_WITHOUT_QUARTZ = "prism_refused_without_quartz";
     private static final String PRISM_COMBO_RUNS_THE_TYPE_PRISM_ABILITY = "prism_combo_runs_the_type_prism_ability";
     private static final String PRISM_COMBO_RUNS_ON_PRISM_BEHAVIORS = "prism_combo_runs_on_prism_behaviors";
+    private static final String BULB_IS_ONE_SIZE_LIGHT_15 = "bulb_is_one_size_light_15";
+    private static final String BULB_ON_PRISM_BEACONS = "bulb_on_prism_beacons";
     private static final String PRISM_WITHOUT_COMBO_STAYS = "prism_without_combo_stays";
     private static final String COMBINED_PRISM_REFUSES_SECOND = "combined_prism_refuses_second";
 
@@ -689,6 +691,8 @@ public final class GooTestFunctions {
         reg(r, PRISM_REFUSED_WITHOUT_QUARTZ, PrismTests::prismRefusedWithoutQuartz);
         reg(r, PRISM_COMBO_RUNS_THE_TYPE_PRISM_ABILITY, PrismComboTests::comboRunsTheTypePrismAbility);
         reg(r, PRISM_COMBO_RUNS_ON_PRISM_BEHAVIORS, PrismComboTests::comboRunsOnPrismBehaviors);
+        reg(r, BULB_IS_ONE_SIZE_LIGHT_15, GlowBulbTests::bulbIsOneSizeLight15);
+        reg(r, BULB_ON_PRISM_BEACONS, GlowBulbTests::bulbOnPrismBeacons);
         reg(r, PRISM_WITHOUT_COMBO_STAYS, PrismComboTests::prismWithoutComboStays);
         reg(r, COMBINED_PRISM_REFUSES_SECOND, PrismComboTests::combinedPrismRefusesSecond);
         reg(r, FX_ABILITY_LANDS_MARKER, BlockLandingTests::abilityLandsItsMarker);

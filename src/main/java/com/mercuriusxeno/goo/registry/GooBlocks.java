@@ -79,7 +79,7 @@ public class GooBlocks {
                     .noOcclusion()
                     .sound(SoundType.GLASS)
                     .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)
-                    .lightLevel(GlowCrystalBlock::lightLevel));
+                    .lightLevel(state -> GlowCrystalBlock.LIGHT_LEVEL));
     /**
      * Fungal bud: the colony bud Mycosis leaves on a sprayed floor, ripening
      * on random ticks into a mushroom (decision mycosis-spore-stream-buds-and-poisons).
@@ -119,7 +119,8 @@ public class GooBlocks {
                     .noLootTable()
                     .noOcclusion()
                     .sound(SoundType.AMETHYST_CLUSTER)
-                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)
+                    .lightLevel(PrismBlock::lightLevel));
     /**
      * Magicked ice: a non-melting mod variant of vanilla ice, placed
      * permanently by the frost cold snap. Visually, audibly, and

@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
@@ -24,34 +23,26 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Permanent glow crystal a glow ability block places as its program runs.
- * No collision, variable light level by size, breaks like a torch and
- * drops a glow goo. Attaches to any surface (floor, wall, ceiling).
+ * Permanent glow crystal Bulb places as its program runs: one model at one
+ * size emitting the max light. No collision, breaks like a torch and drops
+ * the glow goo Bulb cost. Attaches to any surface (floor, wall, ceiling).
+ * decision bulb-one-model-max-light-beacon-combo
  *
- * <p>Blockstate properties: FACING (6 dirs), SHAPE (bump/flat),
- * SIZE (tiny/small/medium/large).</p>
+ * <p>Blockstate properties: FACING (6 dirs).</p>
  */
 public class GlowCrystalBlock extends Block {
 
-    public static final EnumProperty<CrystalShape> SHAPE =
-            EnumProperty.create("shape", CrystalShape.class);
-    public static final EnumProperty<CrystalSize> SIZE =
-            EnumProperty.create("size", CrystalSize.class);
     public static final EnumProperty<Direction> FACING =
             EnumProperty.create("facing", Direction.class);
-    /**
-     * Bump depth in block fractions (2/16).
-     */
-    public static final double BUMP_DEPTH = 2.0 / 16;
-    /**
-     * Flat depth in block fractions (matches 0.01 model).
-     */
-    public static final double FLAT_DEPTH = 0.01;
-    /**
-     * Precomputed voxel shapes keyed by [facing][shape][size].
-     */
-    private static final Map<Direction, Map<CrystalShape, Map<CrystalSize, VoxelShape>>> SHAPES =
-            buildShapeTable();
+    /** The light every crystal emits: the max. */
+    public static final int LIGHT_LEVEL = 15;
+    /** The model's min coordinate on the lateral axes, in block fractions. */
+    public static final double LATERAL_MIN = 2.0 / 16;
+    /** The model's max coordinate on the lateral axes, in block fractions. */
+    public static final double LATERAL_MAX = 14.0 / 16;
+    /** The model's depth out of its face, in block fractions. */
+    public static final double DEPTH = 2.0 / 16;
+    private static final Map<Direction, VoxelShape> SHAPES = buildShapeTable();
 
     /**
      * Creates a glow crystal block.
@@ -60,40 +51,32 @@ public class GlowCrystalBlock extends Block {
      */
     public GlowCrystalBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any()
-                .setValue(FACING, Direction.UP)
-                .setValue(SHAPE, CrystalShape.BUMP)
-                .setValue(SIZE, CrystalSize.TINY));
+        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.UP));
     }
 
     /**
-     * Returns the light level for a given blockstate.
+     * The crystal's lateral extent across its face.
      *
-     * @param state the block state
-     * @return the light emission level (0-15)
+     * @return the width in block fractions
      */
-    public static int lightLevel(BlockState state) {
-        return state.getValue(SIZE).lightLevel;
+    public static double lateralExtent() {
+        return LATERAL_MAX - LATERAL_MIN;
     }
 
     /**
-     * Builds the full facing x shape x size to VoxelShape lookup table.
+     * The crystal's voxel shape on a face.
      *
-     * @return the precomputed shape table
+     * @param facing the surface direction
+     * @return the voxel shape
      */
-    private static Map<Direction, Map<CrystalShape, Map<CrystalSize, VoxelShape>>> buildShapeTable() {
-        Map<Direction, Map<CrystalShape, Map<CrystalSize, VoxelShape>>> table = new EnumMap<>(Direction.class);
+    public static VoxelShape shapeOn(Direction facing) {
+        return SHAPES.get(facing);
+    }
+
+    private static Map<Direction, VoxelShape> buildShapeTable() {
+        Map<Direction, VoxelShape> table = new EnumMap<>(Direction.class);
         for (Direction facing : Direction.values()) {
-            Map<CrystalShape, Map<CrystalSize, VoxelShape>> byShape = new EnumMap<>(CrystalShape.class);
-            for (CrystalShape shape : CrystalShape.values()) {
-                Map<CrystalSize, VoxelShape> bySize = new EnumMap<>(CrystalSize.class);
-                for (CrystalSize size : CrystalSize.values()) {
-                    double depth = shape == CrystalShape.BUMP ? BUMP_DEPTH : FLAT_DEPTH;
-                    bySize.put(size, shapeFor(facing, size.min, size.max, depth));
-                }
-                byShape.put(shape, bySize);
-            }
-            table.put(facing, byShape);
+            table.put(facing, shapeFor(facing, LATERAL_MIN, LATERAL_MAX, DEPTH));
         }
         return table;
     }
@@ -162,17 +145,14 @@ public class GlowCrystalBlock extends Block {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, SHAPE, SIZE);
+        builder.add(FACING);
     }
 
     @Override
     protected @NonNull VoxelShape getShape(@NonNull BlockState state,
                                            @NonNull BlockGetter level, @NonNull BlockPos pos,
                                            @NonNull CollisionContext ctx) {
-        return SHAPES
-                .get(state.getValue(FACING))
-                .get(state.getValue(SHAPE))
-                .get(state.getValue(SIZE));
+        return SHAPES.get(state.getValue(FACING));
     }
 
     @Override
@@ -209,61 +189,6 @@ public class GlowCrystalBlock extends Block {
     @Override
     protected @NonNull List<ItemStack> getDrops(@NonNull BlockState state,
                                                 LootParams.@NonNull Builder builder) {
-        int count = state.getValue(SIZE).ordinal() + 1;
-        return List.of(GooStacks.createForOutput(GooTypes.GLOW, count * GooStacks.THOUSAND));
-    }
-
-    /**
-     * Crystal shape: bump has 2px depth, flat has none.
-     */
-    public enum CrystalShape implements StringRepresentable {
-        BUMP("bump"), FLAT("flat");
-
-        private final String name;
-
-        CrystalShape(String name) {
-            this.name = name;
-        }
-
-        @Override
-        public @NonNull String getSerializedName() {
-            return name;
-        }
-    }
-
-    /**
-     * Crystal size determines light level and lateral extent.
-     */
-    public enum CrystalSize implements StringRepresentable {
-        TINY("tiny", 6, 5.0 / 16, 11.0 / 16),
-        SMALL("small", 9, 4.0 / 16, 12.0 / 16),
-        MEDIUM("medium", 12, 3.0 / 16, 13.0 / 16),
-        LARGE("large", 15, 2.0 / 16, 14.0 / 16);
-
-        /**
-         * Light emission level.
-         */
-        public final int lightLevel;
-        /**
-         * Model min coordinate on the lateral axes (block fraction).
-         */
-        public final double min;
-        /**
-         * Model max coordinate on the lateral axes (block fraction).
-         */
-        public final double max;
-        private final String name;
-
-        CrystalSize(String name, int lightLevel, double min, double max) {
-            this.name = name;
-            this.lightLevel = lightLevel;
-            this.min = min;
-            this.max = max;
-        }
-
-        @Override
-        public @NonNull String getSerializedName() {
-            return name;
-        }
+        return List.of(GooStacks.createForOutput(GooTypes.GLOW, GooStacks.THOUSAND));
     }
 }

@@ -83,7 +83,12 @@ public enum HostCapability {
      * A tap drip's landing: the drips its block has taken, and dripstone to
      * grow down from it (decision petrify-drip-calcifies-and-grows-dripstone).
      */
-    DRIP(DripHost.class);
+    DRIP(DripHost.class),
+    /**
+     * The host's own block, whose properties can change in place (decision
+     * bulb-one-model-max-light-beacon-combo).
+     */
+    STATE_WRITE(StateWriteHost.class);
 
     private final Class<? extends StepHost> hostType;
 

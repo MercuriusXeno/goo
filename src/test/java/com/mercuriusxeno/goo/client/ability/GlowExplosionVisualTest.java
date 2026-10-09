@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -17,8 +16,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * GlowExplosionVisual's timing, its reach for the one crystal size a throw
- * lands, on screen, and the shader pair its pipeline names.
+ * GlowExplosionVisual's timing, its reach over Bulb's one crystal, on screen, and the shader pair its pipeline names.
  */
 class GlowExplosionVisualTest {
 
@@ -37,11 +35,10 @@ class GlowExplosionVisualTest {
         assertTrue(early > late, "the dome does not ease out");
     }
 
-    // decision place-block-ability-grows-block
+    // decision bulb-one-model-max-light-beacon-combo
     @Test
-    void domeReachesTheOneCrystalsShareOfTheLargeCrystalsReach() {
-        float share = extent(GlowCrystalBlock.CrystalSize.TINY) / extent(GlowCrystalBlock.CrystalSize.LARGE);
-        assertEquals(1.25f * share, GlowExplosionVisual.domeRadius(1f), TOLERANCE);
+    void domeReachesItsFullReachOverTheOneCrystal() {
+        assertEquals(1.25f, GlowExplosionVisual.domeRadius(1f), TOLERANCE);
     }
 
     @Test
@@ -64,7 +61,7 @@ class GlowExplosionVisualTest {
         GlowExplosionVisual.INSTANCE.render(burnout(),
                 new BurnoutFrame(new PoseStack(), buffers, Vec3.ZERO, gameTime));
 
-        assertEquals(GlowExplosionVisual.domeReach(), farthestFromDomeCenter(consumer.vertices()), TOLERANCE);
+        assertEquals(GlowExplosionVisual.DOME_REACH, farthestFromDomeCenter(consumer.vertices()), TOLERANCE);
     }
 
     @Test
@@ -87,9 +84,5 @@ class GlowExplosionVisualTest {
                     + (v.z() - cz) * (v.z() - cz)));
         }
         return (float) farthest;
-    }
-
-    private static float extent(GlowCrystalBlock.CrystalSize size) {
-        return (float) (size.max - size.min);
     }
 }

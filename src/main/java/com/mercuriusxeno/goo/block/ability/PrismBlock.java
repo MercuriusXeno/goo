@@ -17,6 +17,8 @@ import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -41,6 +43,12 @@ public class PrismBlock extends BaseEntityBlock {
     /** The face the prism grew from, its base against the block behind it. */
     public static final EnumProperty<Direction> FACING = EnumProperty.create("facing", Direction.class);
 
+    /** Whether a combo lit the prism; Bulb's beacon lights it (decision bulb-one-model-max-light-beacon-combo). */
+    public static final BooleanProperty LIT = BlockStateProperties.LIT;
+
+    /** The light a lit prism emits: the max. */
+    public static final int LIT_LIGHT = 15;
+
     private static final Map<Direction, VoxelShape> SHAPES = buildShapes();
 
     /** A combo's program ticks on the server alone. */
@@ -54,7 +62,7 @@ public class PrismBlock extends BaseEntityBlock {
      */
     public PrismBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.UP));
+        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.UP).setValue(LIT, false));
     }
 
     private static Map<Direction, VoxelShape> buildShapes() {
@@ -73,7 +81,17 @@ public class PrismBlock extends BaseEntityBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING);
+        builder.add(FACING, LIT);
+    }
+
+    /**
+     * The light a prism emits: the max once a combo lit it, none otherwise.
+     *
+     * @param state the block state
+     * @return the light emission level (0-15)
+     */
+    public static int lightLevel(BlockState state) {
+        return state.getValue(LIT) ? LIT_LIGHT : 0;
     }
 
     /**

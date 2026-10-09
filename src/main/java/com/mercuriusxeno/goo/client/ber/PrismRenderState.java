@@ -28,4 +28,10 @@ public class PrismRenderState extends BlockEntityRenderState {
 
     /** The id of the ability whose program is the prism's combo, empty for a plain prism. */
     public String combo = "";
+
+    /** The beam's scroll clock: the game time within vanilla's 40-tick beacon cycle plus the partial tick. */
+    public float animationTime;
+
+    /** How much a beam widens with the camera's horizontal distance, as vanilla's beacon widens. */
+    public float beamRadiusScale = 1f;
 }

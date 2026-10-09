@@ -337,6 +337,38 @@ public final class GooRenderTypes {
     public static final RenderType GLOW_EXPLOSION_TYPE = burnoutType(GLOW_EXPLOSION);
 
     /**
+     * Bulb's prism beacon (decision bulb-one-model-max-light-beacon-combo):
+     * vanilla's beacon beam shader blended additively, depth tested with depth
+     * write off and both faces drawn, so its layers stack into a bloom.
+     */
+    public static final RenderPipeline GLOW_BEAM = RenderPipeline.builder(RenderPipelines.BEACON_BEAM_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "glow_beam"))
+            .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
+            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+            .withCull(false)
+            .build();
+
+    /** Per-texture memoized render types on the glow beam pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> GLOW_BEAM_FACTORY =
+            net.minecraft.util.Util.memoize(texture -> RenderType.create(
+                    "goo_glow_beam",
+                    RenderSetup.builder(GLOW_BEAM)
+                            .withTexture("Sampler0", texture)
+                            .sortOnUpload()
+                            .createRenderSetup()
+            ));
+
+    /**
+     * The glow beam render type over a beam texture.
+     *
+     * @param texture the beam texture
+     * @return the render type
+     */
+    public static RenderType glowBeam(Identifier texture) {
+        return GLOW_BEAM_FACTORY.apply(texture);
+    }
+
+    /**
      * Nether black-hole accretion-disk pipeline: third render pass that
      * emits a flat annular ring in the world XZ plane around the sphere,
      * inner radius pinned to the main sphere radius and outer radius at
@@ -970,9 +1002,20 @@ public final class GooRenderTypes {
         event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(BORE_VORTEX);
         event.registerPipeline(GOO_AILMENT_OVERLAY);
+        registerOverlayPipelines(event);
+    }
+
+    /**
+     * Registers the overlay pipelines: the goo ripple masks and edge, the
+     * ghost, and Bulb's glow beam.
+     *
+     * @param event the event instance
+     */
+    private static void registerOverlayPipelines(RegisterRenderPipelinesEvent event) {
         GOO_RIPPLE_MASKS.forEach(event::registerPipeline);
         event.registerPipeline(GOO_RIPPLE_EDGE);
         event.registerPipeline(GOO_GHOST);
+        event.registerPipeline(GLOW_BEAM);
     }
 
     /**

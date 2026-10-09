@@ -11,6 +11,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
@@ -33,7 +34,7 @@ import java.util.function.Consumer;
  */
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
-        FieldEffectHost, PhasedHost, ConsumedGooHost {
+        FieldEffectHost, PhasedHost, ConsumedGooHost, StateWriteHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -142,5 +143,13 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
                 .orElseThrow(() -> new IllegalArgumentException(ERR_UNKNOWN_BLOCK + block));
         List<Property.Value<?>> values = StatePropertyWriter.resolve(found.getStateDefinition(), state, block);
         level.setBlock(pos, StatePropertyWriter.write(found.defaultBlockState(), values), Block.UPDATE_ALL);
+    }
+
+    @Override
+    public void writeOwnState(Map<String, String> state) {
+        BlockState standing = level.getBlockState(pos);
+        List<Property.Value<?>> values = StatePropertyWriter.resolve(standing.getBlock().getStateDefinition(), state,
+                BuiltInRegistries.BLOCK.getKey(standing.getBlock()));
+        level.setBlock(pos, StatePropertyWriter.write(standing, values), Block.UPDATE_ALL);
     }
 }
