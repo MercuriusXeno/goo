@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client;
 import com.google.common.reflect.TypeToken;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ISidedProxy;
+import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.ability.Afterimages;
@@ -19,6 +20,8 @@ import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ability.ViewportRipples;
 import com.mercuriusxeno.goo.client.ber.*;
+import com.mercuriusxeno.goo.client.ber.style.OculusStyle;
+import com.mercuriusxeno.goo.client.ber.style.PrismComboStyles;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -170,6 +173,8 @@ public final class GooClientSetup {
                 AbilityBlockRenderer::new);
         event.registerBlockEntityRenderer(GooBlockEntities.PRISM.get(), PrismRenderer::new);
         event.registerBlockEntityRenderer(GooBlockEntities.DRAGON_GATE.get(), DragonGateRenderer::new);
+        // oculus-prism-becomes-a-hovering-eye: an oculus prism draws as the hovering eye
+        PrismComboStyles.register(OculusNodes.OCULUS, new OculusStyle());
         event.registerBlockEntityRenderer(GooBlockEntities.STATUE.get(), StatueRenderer::new);
     }
 
@@ -334,6 +339,7 @@ public final class GooClientSetup {
         CanisterBodyModels.register(event);
         VatBodyModels.register(event);
         GloveBodyModels.register(event);
+        OculusModels.register(event);
     }
 
     /**

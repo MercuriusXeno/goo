@@ -1,0 +1,20 @@
+{
+  "textures": {
+    "particle": "minecraft:block/purpur_block",
+    "eye": "minecraft:block/purpur_block"
+  },
+  "elements": [
+    {
+      "from": [5, 5, 5],
+      "to": [11, 11, 11],
+      "faces": {
+        "north": { "uv": [5, 5, 11, 11], "texture": "#eye" },
+        "south": { "uv": [5, 5, 11, 11], "texture": "#eye" },
+        "east": { "uv": [5, 5, 11, 11], "texture": "#eye" },
+        "west": { "uv": [5, 5, 11, 11], "texture": "#eye" },
+        "up": { "uv": [5, 5, 11, 11], "texture": "#eye" },
+        "down": { "uv": [5, 5, 11, 11], "texture": "#eye" }
+      }
+    }
+  ]
+}

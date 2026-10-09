@@ -75,6 +75,7 @@ class AbilityLoaderTest {
             Map.entry("ender_teleportitis", List.of("chorus_fruit")),
             Map.entry("ender_convoke", List.of("sculk_shrieker")),
             Map.entry("ender_dragon_gate", List.of("dragon_breath")),
+            Map.entry("ender_oculus", List.of("ender_eye")),
             Map.entry("hex_charm", List.of("honey_bottle", "cake", "cookie")),
             Map.entry("unstable_explode", List.of("gunpowder")),
             Map.entry("unstable_proximity_mine", List.of("tnt")),

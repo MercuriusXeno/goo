@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.overlay;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
+import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.LineContext;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -90,6 +91,29 @@ final class VoxelHighlightRenderer {
         LineContext lineCtx = new LineContext(poseStack.last(),
                 bufferSource.getBuffer(RenderTypes.lines()));
         lineCtx.emitWireframe(unitCubeAt(offset), wireColor, lineWidth);
+        bufferSource.endLastBatch();
+    }
+
+    /**
+     * Outlines a cell's cube through walls in the goo type's edge color: the
+     * oculus a held Blink snaps to.
+     * Decision oculus-prism-becomes-a-hovering-eye.
+     *
+     * @param poseStack    the pose stack for rendering
+     * @param bufferSource the buffer source for rendering
+     * @param camera       the render camera
+     * @param pos          the cell
+     * @param type         the goo type
+     */
+    static void renderCubeThroughWalls(
+            PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
+            Camera camera, BlockPos pos, ResourceKey<GooTypeDefinition> type) {
+        Minecraft mc = Minecraft.getInstance();
+        int wireColor = ARGB.color(WIRE_ALPHA, ClientGooTypes.edge(type));
+        LineContext lineCtx = new LineContext(poseStack.last(),
+                bufferSource.getBuffer(GooRenderTypes.LINES_SEE_THROUGH_TYPE));
+        lineCtx.emitWireframe(unitCubeAt(cameraOffset(pos, camera)), wireColor,
+                mc.getWindow().getAppropriateLineWidth());
         bufferSource.endLastBatch();
     }
 

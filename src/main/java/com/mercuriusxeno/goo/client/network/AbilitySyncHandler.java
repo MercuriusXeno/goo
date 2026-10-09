@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.client.throwing.BlinkAim;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
@@ -270,7 +271,7 @@ public final class AbilitySyncHandler {
          */
         public String costLabel(Optional<BlinkLanding> trip) {
             return upkeep > 0 ? GooFormat.formatAmount(upkeepPerSecond()) + PER_SECOND
-                    : GooFormat.formatAmount(distancePrice.priceOf(cost, trip));
+                    : GooFormat.formatAmount(BlinkAim.tripCost(distancePrice, cost, trip));
         }
 
         /**

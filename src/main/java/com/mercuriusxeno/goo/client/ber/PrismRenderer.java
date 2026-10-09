@@ -58,6 +58,21 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         state.facing = prism.getBlockState().getValue(PrismBlock.FACING);
         state.scale = TransformationRenderer.blockModelScale(prism.getBlockPos());
         state.combo = prism.getCombo();
+        state.comboSince = prism.comboSince();
+        state.gameTime = prism.getLevel() == null ? 0f : prism.getLevel().getGameTime() + partialTick;
+        state.yawToCamera = yawToward(prism.getBlockPos().getCenter(), cameraPos);
+    }
+
+    /**
+     * The yaw that turns a model at a point toward the camera, about the
+     * vertical: 0 faces south, as a model's front does.
+     *
+     * @param from      the model's centre
+     * @param cameraPos the camera
+     * @return the yaw in degrees
+     */
+    static float yawToward(Vec3 from, Vec3 cameraPos) {
+        return (float) Math.toDegrees(Math.atan2(cameraPos.x - from.x, cameraPos.z - from.z));
     }
 
     @Override
