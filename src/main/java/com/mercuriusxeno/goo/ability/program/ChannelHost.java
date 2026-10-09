@@ -48,4 +48,14 @@ public interface ChannelHost extends BlockBreakHost {
      * @param body    what to run on the host bound to each entity
      */
     void forEachLivingIn(List<BlockPos> cells, Set<EntityFilter> filters, Consumer<TargetHost> body);
+
+    /**
+     * Toggles the lever, button, door, trapdoor or fence gate at a block as a
+     * hand would, the first time the hold reaches it; a later reach in the
+     * same hold, or a block holding no such device, toggles nothing
+     * (decision signal-wave-toggles-each-device-once).
+     *
+     * @param pos the block
+     */
+    void toggleOnceThisHold(BlockPos pos);
 }

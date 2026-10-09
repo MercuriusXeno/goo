@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
+import com.mercuriusxeno.goo.registry.GooServerState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -169,6 +171,18 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     @Override
     public Entity breaker() {
         return player;
+    }
+
+    /**
+     * Toggles the device once in the player's stream hold, its door read by
+     * its lower half so both halves count as one
+     * (decision signal-wave-toggles-each-device-once).
+     */
+    @Override
+    public void toggleOnceThisHold(BlockPos pos) {
+        ZapDevice.handDevice(level, pos)
+                .filter(device -> GooServerState.of(level.getServer()).streamHolds().touchOnce(player.getUUID(), device))
+                .ifPresent(device -> ZapDevice.toggleByHand(level, device));
     }
 
     @Override

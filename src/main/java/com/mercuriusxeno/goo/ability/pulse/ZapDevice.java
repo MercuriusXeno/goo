@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.pulse;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.ButtonBlock;
 import net.minecraft.world.level.block.DoorBlock;
@@ -12,8 +13,10 @@ import net.minecraft.world.level.block.RepeaterBlock;
 import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.gameevent.GameEvent;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * How Zap ticks the block its blob landed on, one row per kind of device:
@@ -126,6 +129,51 @@ public enum ZapDevice {
     public static void pulse(ServerLevel level, BlockPos device, BlockPos cell) {
         BlockState state = level.getBlockState(device);
         of(state.getBlock().getClass()).tick(level, device, state, cell);
+    }
+
+    /**
+     * The device a hand could toggle standing at a block, named by the block
+     * that toggles it: a door's lower half for either half, so a wave
+     * crossing both halves toggles the door once. Signal's wave toggles these
+     * and nothing else (decision signal-wave-toggles-each-device-once).
+     *
+     * @param level the level
+     * @param pos   the block
+     * @return the device's block, or empty where no lever, button, door,
+     *         trapdoor or fence gate stands
+     */
+    public static Optional<BlockPos> handDevice(BlockGetter level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        ZapDevice row = of(state.getBlock().getClass());
+        if (!row.byHand()) {
+            return Optional.empty();
+        }
+        boolean upperDoor = row == DOOR && state.getValue(DoorBlock.HALF) == DoubleBlockHalf.UPPER;
+        return Optional.of(upperDoor ? pos.below() : pos.immutable());
+    }
+
+    /**
+     * Toggles the hand device at a block as a hand would.
+     *
+     * @param level the server level
+     * @param pos   the device's block, as {@link #handDevice} names it
+     */
+    public static void toggleByHand(ServerLevel level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        ZapDevice row = of(state.getBlock().getClass());
+        if (row.byHand()) {
+            row.tick(level, pos, state, pos);
+        }
+    }
+
+    /**
+     * Whether a hand toggles the row's devices: every row but the repeater's
+     * pulse and the power source.
+     *
+     * @return true for a lever, button, door, trapdoor or fence gate
+     */
+    boolean byHand() {
+        return this != REPEATER && this != POWER_SOURCE;
     }
 
     /**

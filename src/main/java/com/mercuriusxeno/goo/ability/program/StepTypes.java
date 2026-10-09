@@ -81,6 +81,7 @@ public final class StepTypes {
         register(LeafSteps.COURT.type());
         register(LeafSteps.POWER_PULSE.type());
         register(LeafSteps.STUN.type());
+        register(SignalWaveStep.TYPE);
         register(NourishStep.TYPE);
         register(ReserveDrainStep.TYPE);
     }

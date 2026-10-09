@@ -1,10 +1,13 @@
 package com.mercuriusxeno.goo.network;
 
+import net.minecraft.core.BlockPos;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.UUID;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A stream hold counts consecutive server ticks per player, and its ticks
@@ -51,6 +54,36 @@ class StreamHoldsTest {
             holds.advance(PLAYER, 100);
             holds.clear();
             assertEquals(1, holds.advance(PLAYER, 101));
+        }
+    }
+
+    /** A hold touches each block once, and a new hold forgets what the last one touched (decision signal-wave-toggles-each-device-once). */
+    @Nested
+    class TouchOnce {
+
+        private static final BlockPos LEVER = new BlockPos(4, 64, 2);
+
+        @Test
+        void aHoldTouchesEachBlockOnce() {
+            StreamHolds holds = new StreamHolds();
+            holds.advance(PLAYER, 100);
+            assertTrue(holds.touchOnce(PLAYER, LEVER));
+            holds.advance(PLAYER, 101);
+            assertFalse(holds.touchOnce(PLAYER, LEVER));
+        }
+
+        @Test
+        void aNewHoldTouchesTheBlockAgain() {
+            StreamHolds holds = new StreamHolds();
+            holds.advance(PLAYER, 100);
+            holds.touchOnce(PLAYER, LEVER);
+            holds.advance(PLAYER, 102);
+            assertTrue(holds.touchOnce(PLAYER, LEVER));
+        }
+
+        @Test
+        void noHoldTouchesNothing() {
+            assertFalse(new StreamHolds().touchOnce(PLAYER, LEVER));
         }
     }
 
