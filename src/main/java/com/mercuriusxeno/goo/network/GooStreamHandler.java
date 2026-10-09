@@ -109,7 +109,7 @@ public final class GooStreamHandler {
         if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge())) {
             channelOnPlayer(player, new ChannelAim(payload.aimPoint(), payload.plane()), ability);
         } else {
-            strikeCone(player, payload.origin(), ability);
+            strikeCone(player, payload.origin(), ability, held);
         }
         // mycosis-spore-stream-buds-and-poisons
         ability.delivery().sound().filter(sound -> sound.playsOn(held))
@@ -182,8 +182,9 @@ public final class GooStreamHandler {
      * @param player  the streaming player
      * @param origin  the glove hand the client sent
      * @param ability the stream ability
+     * @param held    the hold's tick count, 1 on its first tick
      */
-    private static void strikeCone(ServerPlayer player, Vec3 origin, AbilityDefinition ability) {
+    private static void strikeCone(ServerPlayer player, Vec3 origin, AbilityDefinition ability, int held) {
         ServerLevel level = player.level();
         Delivery delivery = ability.delivery();
         Vec3 apex = ThrowArc.clampToReach(player.getEyePosition(), origin, ThrowArc.HAND_REACH * player.getScale());
@@ -193,7 +194,7 @@ public final class GooStreamHandler {
         if (delivery.range() > 0) {
             // reserve-hearts-sit-behind-the-bar: a stream reaching nothing runs only on its caster
             sprayParticles(level, apex, axis, delivery);
-            runBlockPass(player, axis, ability);
+            runBlockPass(player, axis, ability, held);
             for (LivingEntity living : livingInCone(level, player, apex, axis, delivery)) {
                 HEALS.runNoting(living, healed, () -> runSteps(new EntityHost(level, living, player), HostKind.ENTITY,
                         entitySteps, ability));
@@ -239,15 +240,16 @@ public final class GooStreamHandler {
      * @param player  the streaming player
      * @param axis    the look
      * @param ability the stream ability
+     * @param held    the hold's tick count, which a wave front grows by
      */
-    private static void runBlockPass(ServerPlayer player, Vec3 axis, AbilityDefinition ability) {
+    private static void runBlockPass(ServerPlayer player, Vec3 axis, AbilityDefinition ability, int held) {
         List<Step> blockSteps = channelSteps(ability.behaviors(), true);
         if (blockSteps.isEmpty()) {
             return;
         }
         Delivery delivery = ability.delivery();
         ChannelAim aim = new ChannelAim(player.getEyePosition().add(axis.scale(delivery.range())), null,
-                delivery.coneDegrees());
+                delivery.coneDegrees(), held);
         runSteps(PlayerHost.channeling(player.level(), player, aim), HostKind.PLAYER, blockSteps, ability);
     }
 
