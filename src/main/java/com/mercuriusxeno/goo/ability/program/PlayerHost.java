@@ -5,7 +5,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
 import java.util.Optional;
@@ -34,7 +37,7 @@ import java.util.function.Consumer;
  */
 public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt brewDuration,
                          Optional<ChannelAim> channelAim)
-        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost {
+        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, TickBlockHost {
 
     /** Blocks past the interaction range a channel still breaks at, vanilla's own slack for a block break. */
     private static final double REACH_SLACK = 1.0;
@@ -160,6 +163,24 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     }
 
 
+
+    /**
+     * The block a held stream ends on: the first block along the look from
+     * the eye to the end of the stream's reach.
+     * tick-channel-marches-squares-on-the-face
+     */
+    @Override
+    public Optional<BlockPos> tickedBlock() {
+        return channelAim.map(aim -> level.clip(new ClipContext(eye(), aim.aimPoint(), ClipContext.Block.OUTLINE,
+                        ClipContext.Fluid.NONE, player)))
+                .filter(hit -> hit.getType() == HitResult.Type.BLOCK)
+                .map(BlockHitResult::getBlockPos);
+    }
+
+    @Override
+    public void tickBlock(BlockPos pos, int times) {
+        BlockTicking.tickBlockEntity(level, pos, times);
+    }
 
     @Override
     public boolean reaches(BlockPos pos) {

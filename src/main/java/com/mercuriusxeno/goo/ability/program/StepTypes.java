@@ -46,6 +46,7 @@ public final class StepTypes {
         register(LeafSteps.STASIS.type());
         register(LeafSteps.REWIND_HOLD.type());
         register(RegressStep.TYPE);
+        register(TickBlockStep.TYPE);
         register(CloneEntityStep.TYPE);
         register(DropItemStep.TYPE);
         register(LeafSteps.IGNITE.type());

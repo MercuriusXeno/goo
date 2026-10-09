@@ -83,7 +83,12 @@ public enum HostCapability {
      * A tap drip's landing: the drips its block has taken, and dripstone to
      * grow down from it (decision petrify-drip-calcifies-and-grows-dripstone).
      */
-    DRIP(DripHost.class);
+    DRIP(DripHost.class),
+    /**
+     * A block to tick faster, the aimed machine a held stream ends on
+     * (decision tick-channel-marches-squares-on-the-face).
+     */
+    TICK_BLOCK(TickBlockHost.class);
 
     private final Class<? extends StepHost> hostType;
 
