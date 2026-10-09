@@ -5,6 +5,9 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.util.ARGB;
+import net.minecraft.world.phys.Vec3;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import java.util.List;
 
 /**
@@ -24,6 +27,7 @@ public final class GlowBeamMesh {
             new Layer(0.40f, ARGB.color(18, 0xFFD700)));
     /** Blocks of beam one tile of the texture spans. */
     private static final float BLOCKS_PER_TILE = 1f;
+    private static final Vector3f UP = new Vector3f(0f, 1f, 0f);
 
     private GlowBeamMesh() {
     }
@@ -57,6 +61,17 @@ public final class GlowBeamMesh {
                                float u, float v) {
         buffer.addVertex(pose, x, y, z).setColor(color).setUv(u, v).setOverlay(OverlayTexture.NO_OVERLAY)
                 .setLight(GooSubmitter.fullbrightLight()).setNormal(pose, 0f, 1f, 0f);
+    }
+
+    /**
+     * The turn that lays the mesh's +y axis along a direction.
+     *
+     * @param along the direction, any length
+     * @return the rotation
+     */
+    public static Quaternionf alongBeam(Vec3 along) {
+        Vector3f direction = new Vector3f((float) along.x, (float) along.y, (float) along.z).normalize();
+        return new Quaternionf().rotationTo(UP, direction);
     }
 
     /**

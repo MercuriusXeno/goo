@@ -132,6 +132,8 @@
   "goo.ability.glow.radiant": "Radiant",
   "goo.ability.glow.radiant_tap": "Radiant",
   "block.goo.wisp": "Wisp",
+  "block.goo.light_rail": "Light Rail",
+  "goo.ability.glow.reflector": "Reflector",
   "goo.ability.hex.charm": "Charm",
   "goo.ability.leaf.barkskin": "Barkskin",
   "goo.ability.leaf.entangle": "Vines",

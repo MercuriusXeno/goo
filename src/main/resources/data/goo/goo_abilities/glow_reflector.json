@@ -1,0 +1,12 @@
+{
+  "gooType": "glow",
+  "displayName": "goo.ability.glow.reflector",
+  "badge": "prism",
+  "order": 70,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "sound", "id": "minecraft:block.beacon.power_select", "at": "host", "source": "blocks", "volume": 1, "pitch": 1.6 },
+    { "type": "reflector", "every": 20 }
+  ]
+}

@@ -16,8 +16,6 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
-import org.joml.Quaternionf;
-import org.joml.Vector3f;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -42,7 +40,6 @@ public final class SunbeamVisual {
     private static final double BELOW_THE_EYE = 0.3;
     private static final float SCROLL_PER_TICK = 0.2f;
     private static final double SHORTEST_SEGMENT = 1.0e-3;
-    private static final Vector3f UP = new Vector3f(0f, 1f, 0f);
 
     private static final Map<Integer, Ray> RAYS = new HashMap<>();
 
@@ -133,23 +130,12 @@ public final class SunbeamVisual {
         }
         poseStack.pushPose();
         poseStack.translate(from.x, from.y, from.z);
-        poseStack.mulPose(alongBeam(along));
+        poseStack.mulPose(GlowBeamMesh.alongBeam(along));
         for (GlowBeamMesh.Layer layer : GlowBeamMesh.LAYERS) {
             GlowBeamMesh.emitLayer(poseStack.last(), consumer, layer.radius() * RAY_WIDTH, layer.color(), scroll,
                     (float) length);
         }
         poseStack.popPose();
-    }
-
-    /**
-     * The turn that lays the mesh's +y axis along a direction.
-     *
-     * @param along the direction, any length
-     * @return the rotation
-     */
-    static Quaternionf alongBeam(Vec3 along) {
-        Vector3f direction = new Vector3f((float) along.x, (float) along.y, (float) along.z).normalize();
-        return new Quaternionf().rotationTo(UP, direction);
     }
 
     /**

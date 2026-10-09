@@ -88,7 +88,12 @@ public enum HostCapability {
      * The host's own block, whose properties can change in place (decision
      * bulb-one-model-max-light-beacon-combo).
      */
-    STATE_WRITE(StateWriteHost.class);
+    STATE_WRITE(StateWriteHost.class),
+    /**
+     * The server level the host stands in, read and written around its
+     * position (decision reflector-rails-carry-the-brightest-light).
+     */
+    LEVEL(LevelHost.class);
 
     private final Class<? extends StepHost> hostType;
 

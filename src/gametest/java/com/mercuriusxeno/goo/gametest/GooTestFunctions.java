@@ -437,6 +437,7 @@ public final class GooTestFunctions {
     private static final String PETRIFY_TAP_CALCIFIES = "petrify_tap_calcifies";
     private static final String PETRIFY_TAP_GROWS_DRIPSTONE = "petrify_tap_grows_dripstone";
     private static final String RADIANT_TAP_WISPS_IN_THE_DARK = "radiant_tap_wisps_in_the_dark";
+    private static final String REFLECTORS_LINK_LIGHT_AND_BURN = "reflectors_link_light_and_burn";
     private static final String RADIANT_TAP_SKIPS_A_LIT_ROOM = "radiant_tap_skips_a_lit_room";
     private static final String VITALITY_HEALS = "vitality_heals_cow_and_caster";
     private static final String MOB_CRYSTAL = "mob_crystal_flechettes";
@@ -909,6 +910,7 @@ public final class GooTestFunctions {
         reg(r, PETRIFY_TAP_CALCIFIES, PetrifyTapTests::petrifyTapCalcifies);
         reg(r, PETRIFY_TAP_GROWS_DRIPSTONE, PetrifyTapTests::petrifyTapGrowsDripstone);
         reg(r, RADIANT_TAP_WISPS_IN_THE_DARK, RadiantTapTests::radiantTapWispsInTheDark);
+        reg(r, REFLECTORS_LINK_LIGHT_AND_BURN, ReflectorTests::reflectorsLinkLightAndBurn);
         reg(r, RADIANT_TAP_SKIPS_A_LIT_ROOM, RadiantTapTests::radiantTapSkipsALitRoom);
         reg(r, VITALITY_HEALS, StreamDeliveryTests::vitalityHealsCowAndCaster);
         reg(r, MOB_CRYSTAL, MobEffectTests::crystalFlechettes);
