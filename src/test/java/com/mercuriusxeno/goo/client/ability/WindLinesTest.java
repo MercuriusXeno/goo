@@ -117,30 +117,39 @@ class WindLinesTest {
         assertEquals(1, tilted.length(), EPSILON);
     }
 
-    // cold-wind-slows-down: the head travels and its curl turns under the earlier pace
+    // cold-wind-thins-slows-and-coils: few lines, a slow head, a tight coil at no faster a spin
     @Nested
     class Pace {
 
-        /** The earlier pace: an 18-tick life rushing for six tenths of it, then a turn and a half of curl. */
-        private static final double EARLIER_STRAIGHT_TICKS = 18 * 0.6;
-        private static final double EARLIER_TURN_PER_TICK = 1.5 * 2 * Math.PI / (18 * 0.4);
+        /** The first pace: an 18-tick life rushing for six tenths of it. */
+        private static final double FIRST_STRAIGHT_TICKS = 18 * 0.6;
+        /** The last spin: one turn over twelve ticks. */
+        private static final double LAST_TURN_PER_TICK = 2 * Math.PI / 12;
 
         @Test
-        void aLineLivesThirtyTicks() {
-            assertEquals(30, WindLines.LIFE_TICKS);
+        void aLineIsBlownEveryThirdHeldTick() {
+            assertTrue(WindLines.blowsOn(0) && WindLines.blowsOn(WindLines.BLOW_EVERY_TICKS));
+            assertTrue(!WindLines.blowsOn(1) && !WindLines.blowsOn(2));
         }
 
         @Test
-        void theHeadRushesSlowerThanBefore() {
+        void aLineLivesFiftyTicks() {
+            assertEquals(50, WindLines.LIFE_TICKS);
+        }
+
+        @Test
+        void theHeadRushesSlowerThanAtFirst() {
             WindLines.Line line = line(WindLines.Sway.NONE);
             double perTick = WindLines.pathPoint(line, 2).distanceTo(WindLines.pathPoint(line, 1));
-            assertTrue(perTick < STRAIGHT / EARLIER_STRAIGHT_TICKS * 0.7, "the head travels well under the old pace");
+            assertTrue(perTick < STRAIGHT / FIRST_STRAIGHT_TICKS / 2, "the head travels under half the first pace");
         }
 
         @Test
-        void theCurlTurnsSlowerThanBefore() {
-            double turnPerTick = WindLines.CURL_TURNS * 2 * Math.PI / (WindLines.LIFE_TICKS - WindLines.STRAIGHT_TICKS);
-            assertTrue(turnPerTick < EARLIER_TURN_PER_TICK / 2, "the curl winds at under half the old spin");
+        void theCurlCoilsTighterAndLongerWithoutSpinningFaster() {
+            double curlTicks = WindLines.LIFE_TICKS - WindLines.STRAIGHT_TICKS;
+            assertEquals(WindLines.LIFE_TICKS / 2.0, curlTicks, EPSILON);
+            assertTrue(WindLines.CURL_TURNS >= 2 && WindLines.CURL_RADIUS < 0.3);
+            assertTrue(WindLines.CURL_TURNS * 2 * Math.PI / curlTicks <= LAST_TURN_PER_TICK, "no faster a spin");
         }
     }
 }

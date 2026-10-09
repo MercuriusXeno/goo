@@ -10,7 +10,6 @@
     "range": 10,
     "cone": 16,
     "ticks_per_charge": 20,
-    "particle": "goo:snowflake",
     "sound": { "id": "minecraft:block.powder_snow.break", "every": 4, "volume": 0.4, "pitch_spread": 0.2 }
   },
   "area": { "shape": "cone", "size": 10.0, "angle": 16.0 },
