@@ -24,4 +24,17 @@ class NovaRingsTest {
         assertEquals(1f, NovaRings.fog(SPREAD_DONE), EPSILON);
         assertEquals(0f, NovaRings.fog(1f), EPSILON);
     }
+
+    // novas-rush-with-air
+    @Test
+    void theRushGrowsLouderWithTheRingsReachWithinItsBounds() {
+        assertEquals(NovaRings.RUSH_FLOOR, NovaRings.rushVolume(0f), EPSILON);
+        assertTrue(NovaRings.rushVolume(6f) > NovaRings.rushVolume(2f));
+        assertEquals(NovaRings.RUSH_CEILING, NovaRings.rushVolume(40f), EPSILON);
+    }
+
+    @Test
+    void theSnowflakesBurstSlowerThanTheyDid() {
+        assertEquals(1.6f, NovaRings.SNOWFLAKE_BURST, EPSILON);
+    }
 }
