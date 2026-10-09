@@ -257,6 +257,15 @@ class HeldEffectsTest {
         }
 
         @Test
+        void aGloveExtenderDoublesEachOtherEffectsTimeLeftUntilItEnds() {
+            HeldEffects held = holding(gloveExtender(), hearts(KINDLE, GooTypes.BLAZE));
+            assertEquals(2 * PLENTY / UPKEEP, held.ticksLeft(type -> PLENTY).get(GooTypes.BLAZE));
+            assertEquals(PLENTY / UPKEEP, held.ticksLeft(type -> PLENTY).get(GooTypes.PULSE));
+            HeldEffects ended = held.end(EXTENDER).after();
+            assertEquals(PLENTY / UPKEEP, ended.ticksLeft(type -> PLENTY).get(GooTypes.BLAZE));
+        }
+
+        @Test
         void aGloveExtenderLengthensNothingApplied() {
             assertEquals(0, holding(gloveExtender()).extensionTicks());
         }

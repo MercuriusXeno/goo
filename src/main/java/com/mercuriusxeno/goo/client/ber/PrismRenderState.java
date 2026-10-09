@@ -28,4 +28,17 @@ public class PrismRenderState extends BlockEntityRenderState {
 
     /** The id of the ability whose program is the prism's combo, empty for a plain prism. */
     public String combo = "";
+
+    /**
+     * The redstone power the prism gives, a metronome's beat or a relay's
+     * carried signal (decisions metronome-prism-pulses-at-the-learned-rate,
+     * relay-prism-carries-the-signal-through-air).
+     */
+    public int power;
+
+    /** Whether a redstone signal reaches the prism now (decision metronome-prism-pulses-at-the-learned-rate). */
+    public boolean signalHeard;
+
+    /** Seconds since the prism last gave a pulse of power, for a metronome's strobe. */
+    public double sinceBeat = Double.MAX_VALUE;
 }

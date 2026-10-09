@@ -60,6 +60,10 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         state.blobLook = blob == null ? null : CrystalClusterSubmitter.lookOf(blob.gooType(),
                 ClientGooTypes.color(blob.gooType()));
         state.combo = prism.getCombo();
+        // metronome-prism-pulses-at-the-learned-rate, relay-prism-carries-the-signal-through-air
+        state.power = prism.getBlockState().getValue(PrismBlock.POWER);
+        state.signalHeard = prism.beat().heard();
+        state.sinceBeat = PrismBeats.secondsSinceBeat(prism.getBlockPos(), state.power > 0);
     }
 
     @Override

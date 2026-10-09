@@ -29,8 +29,8 @@ public final class ThumpRings {
     static final double LIFETIME_SECONDS = 0.5;
     /** A ring's radius as it leaves the blob, in blocks. */
     static final double START_RADIUS = 0.2;
-    /** A ring's radius as it fades out, in blocks. */
-    static final double END_RADIUS = 1.8;
+    /** A ring's radius as it fades out, in blocks: the reach of the blob's power to the blocks beside it. */
+    static final double END_RADIUS = 1.0;
     /** The second ring trails the first by this share of the lifetime. */
     private static final double TRAIL_SHARE = 0.3;
     private static final int SEGMENTS = 32;
