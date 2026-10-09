@@ -9,7 +9,9 @@
 // vanilla's stone texture laid over the model's skin coordinates, in noise patches
 // that cover the share of the model the vertex alpha carries, so the patches
 // spread and grow together as the petrify gauge fills, whole at a statue. A thin
-// dark seam rings each patch, the crack where stone meets flesh.
+// dark seam rings each patch, the crack where stone meets flesh. Frost draws through
+// this same shader with packed ice in place of stone, its share the frozen gauge
+// (decision frozen-gauge-per-mob-encases-when-full).
 
 uniform sampler2D Sampler0;
 
