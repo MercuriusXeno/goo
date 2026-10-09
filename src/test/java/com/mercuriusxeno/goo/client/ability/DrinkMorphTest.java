@@ -18,8 +18,9 @@ class DrinkMorphTest {
     private static final Vec3 GLOVE = new Vec3(1.5, 2.2, 3.1);
     private static final long SEED = 42;
     private static final double NOW = 100;
+    private static final double RADIUS = 0.1;
     private static final DrinkStream.Path PATH = DrinkMorph.pathOf(CENTER, GLOVE, SEED);
-    private static final DrinkStream.Span DRAINING = new DrinkStream.Span(0, 1);
+    private static final DrinkMorph.RingAt RINGS = share -> DrinkStream.ring(PATH, share, NOW, RADIUS, 0, share);
     private static final Vec3 UP = new Vec3(0, 1, 0);
     /** A point of the block's top face, block-local. */
     private static final Vec3 ON_TOP = new Vec3(0.3, 1, 0.8);
@@ -27,7 +28,7 @@ class DrinkMorphTest {
     private static final double STEP = 0.05;
 
     @Test
-    void theWayStartsHalfASpanBehindTheMiddleAwayFromTheGlove() {
+    void thePathStartsHalfASpanBehindTheMiddleAwayFromItsEnd() {
         Vec3 toGlove = GLOVE.subtract(CENTER);
 
         assertEquals(DrinkStream.BLOCK_SPAN / 2, PATH.from().distanceTo(CENTER), DELTA);
@@ -42,6 +43,7 @@ class DrinkMorphTest {
         assertEquals(0, DrinkMorph.depthOf(CENTER.add(along.scale(DrinkStream.BLOCK_SPAN / 2)), PATH), DELTA);
         assertEquals(HALFWAY, DrinkMorph.depthOf(CENTER, PATH), DELTA);
         assertEquals(1, DrinkMorph.depthOf(PATH.from(), PATH), DELTA);
+        assertEquals(DrinkStream.BLOCK_SPAN / 2, DrinkMorph.distanceAlong(CENTER, PATH), DELTA);
     }
 
     @Test
@@ -49,7 +51,7 @@ class DrinkMorphTest {
         Vec3 point = CENTER.add(ON_TOP).subtract(HALFWAY, HALFWAY, HALFWAY);
 
         assertEquals(0, DrinkMorph.turned(ON_TOP, 1, 0, SEED), DELTA);
-        DrinkMorph.Place place = DrinkMorph.placeOf(point, UP, PATH, DRAINING, 0, NOW);
+        DrinkMorph.Place place = DrinkMorph.placeOf(point, UP, PATH, RINGS, 0);
         assertEquals(0, place.point().distanceTo(point), DELTA);
         assertEquals(0, place.normal().distanceTo(UP), DELTA);
     }
@@ -57,14 +59,11 @@ class DrinkMorphTest {
     @Test
     void aPointLiesOnTheStreamsSkinOnceTurned() {
         Vec3 point = CENTER.add(ON_TOP).subtract(HALFWAY, HALFWAY, HALFWAY);
-        Vec3 along = GLOVE.subtract(PATH.from()).normalize();
-        double distance = point.subtract(PATH.from()).dot(along);
-        DrinkStream.Ring ring = DrinkStream.ring(PATH, Math.clamp(distance, 0, DrinkStream.BLOCK_SPAN)
-                / PATH.length(), DRAINING, NOW);
+        DrinkStream.Ring ring = RINGS.at(DrinkMorph.distanceAlong(point, PATH) / PATH.length());
 
-        DrinkMorph.Place place = DrinkMorph.placeOf(point, UP, PATH, DRAINING, 1, NOW);
+        DrinkMorph.Place place = DrinkMorph.placeOf(point, UP, PATH, RINGS, 1);
 
-        assertEquals(ring.radius(), place.point().distanceTo(ring.center()), DELTA);
+        assertEquals(RADIUS, place.point().distanceTo(ring.center()), DELTA);
         assertEquals(1, place.normal().length(), DELTA);
     }
 

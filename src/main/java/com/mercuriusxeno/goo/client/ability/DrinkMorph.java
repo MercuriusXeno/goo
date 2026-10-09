@@ -5,7 +5,7 @@ import net.minecraft.world.phys.Vec3;
 /**
  * How a block's own cube turns into its stream under an Unmake drink: over
  * the drain every point of the cube moves from where it stands to its place
- * in the stream's body over the block's own span of the way, the face toward
+ * in the stream's body over the block's own span of the path, the face toward
  * the glove first and the far side last, the order jittered by a smooth
  * noise so the turn is gloopy, until nothing cube-shaped is left and what
  * stood there is the stream's tail. Nothing is cut away; the mesh is the
@@ -39,30 +39,53 @@ public final class DrinkMorph {
     }
 
     /**
-     * The way a block's stream runs: from the block's far side, half its span
-     * behind its middle away from the glove, through its middle to the glove.
-     *
-     * @param center the block's middle
-     * @param glove  the glove
-     * @param seed   the block's seed
-     * @return the way
+     * The ring of the stream at a share of the block's path.
      */
-    public static DrinkStream.Path pathOf(Vec3 center, Vec3 glove, long seed) {
-        Vec3 along = glove.subtract(center);
-        along = along.lengthSqr() > 0 ? along.normalize() : UP;
-        return new DrinkStream.Path(center.subtract(along.scale(DrinkStream.BLOCK_SPAN * HALF)), glove, seed);
+    @FunctionalInterface
+    public interface RingAt {
+        /**
+         * @param share the share of the path
+         * @return the ring there
+         */
+        DrinkStream.Ring at(double share);
     }
 
     /**
-     * How deep behind the face toward the glove a point of the block lies.
+     * A block's path: from its far side, half its span behind its middle
+     * away from where the path ends, through its middle to the end.
+     *
+     * @param center the block's middle
+     * @param to     where the path ends, the glove or a join
+     * @param seed   the block's seed
+     * @return the path
+     */
+    public static DrinkStream.Path pathOf(Vec3 center, Vec3 to, long seed) {
+        Vec3 along = to.subtract(center);
+        along = along.lengthSqr() > 0 ? along.normalize() : UP;
+        return new DrinkStream.Path(center.subtract(along.scale(DrinkStream.BLOCK_SPAN * HALF)), to, seed);
+    }
+
+    /**
+     * How far along the block's path a point of the block lies, within the block's own span.
      *
      * @param point the point, in the world
-     * @param path  the block's way
+     * @param path  the block's path
+     * @return its distance along the path, 0 at the far side to {@link DrinkStream#BLOCK_SPAN} at the near face
+     */
+    public static double distanceAlong(Vec3 point, DrinkStream.Path path) {
+        double along = point.subtract(path.from()).dot(path.to().subtract(path.from()).normalize());
+        return Math.clamp(along, 0, DrinkStream.BLOCK_SPAN);
+    }
+
+    /**
+     * How deep behind the face toward the path's end a point of the block lies.
+     *
+     * @param point the point, in the world
+     * @param path  the block's path
      * @return 0 at the near face, 1 at the far side
      */
     public static double depthOf(Vec3 point, DrinkStream.Path path) {
-        double along = point.subtract(path.from()).dot(path.to().subtract(path.from()).normalize());
-        return 1 - Math.clamp(along, 0, DrinkStream.BLOCK_SPAN) / DrinkStream.BLOCK_SPAN;
+        return 1 - distanceAlong(point, path) / DrinkStream.BLOCK_SPAN;
     }
 
     /**
@@ -87,24 +110,20 @@ public final class DrinkMorph {
     /**
      * Where a point of the block stands as it turns: on the way from where it
      * stood to its place on the stream's skin at the same distance along the
-     * way and the same angle about it.
+     * path and the same angle about it.
      *
      * @param point  the point, in the world
      * @param normal the unit normal of the block's face there
-     * @param path   the block's way
-     * @param span   how much of the way the stream covers
+     * @param path   the block's path
+     * @param rings  the stream's rings along the path
      * @param turned how far the point has turned, 0 to 1
-     * @param now    the game time, with the partial tick
      * @return where it stands and faces
      */
-    public static Place placeOf(Vec3 point, Vec3 normal, DrinkStream.Path path, DrinkStream.Span span, double turned,
-                                double now) {
+    public static Place placeOf(Vec3 point, Vec3 normal, DrinkStream.Path path, RingAt rings, double turned) {
         Vec3 along = path.to().subtract(path.from()).normalize();
         Vec3 offset = point.subtract(path.from());
-        double distance = offset.dot(along);
-        double share = Math.clamp(distance, 0, DrinkStream.BLOCK_SPAN) / path.length();
-        DrinkStream.Ring ring = DrinkStream.ring(path, share, span, now);
-        Vec3 radial = offset.subtract(along.scale(distance));
+        DrinkStream.Ring ring = rings.at(distanceAlong(point, path) / path.length());
+        Vec3 radial = offset.subtract(along.scale(offset.dot(along)));
         double angle = radial.lengthSqr() > 0 ? Math.atan2(radial.dot(ring.across()), radial.dot(ring.side())) : 0;
         Vec3 out = ring.outAt(angle);
         Vec3 target = ring.center().add(out.scale(ring.radius()));

@@ -12,10 +12,11 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The blocks streaming into Unmake drinks this client draws, each kept from
- * the server's first word of it until its stream has wholly entered the
- * glove; and the block each one was, remembered from the first frame the
- * client saw it melting, so the stream's tail is drawn after the block is gone.
+ * The blocks streaming into Unmake drinks this client draws, each drink kept
+ * from the server's first word of it until its every stream has wholly
+ * entered the glove; and the block each one was, remembered from the first
+ * frame the client saw it turning, so the stream's tail is drawn after the
+ * block is gone.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 public final class ClientDrinks {
@@ -60,7 +61,9 @@ public final class ClientDrinks {
     }
 
     /**
-     * The drinks to draw, forgetting each block whose stream has wholly entered the glove.
+     * The drinks to draw, forgetting each drink whose every stream has wholly
+     * entered the glove; a drink's blocks are kept together until then, since
+     * a stream still in the air runs down the trunks of blocks drained before it.
      *
      * @param now the game time, with the partial tick
      * @return the drinks with a block left to draw
@@ -68,8 +71,8 @@ public final class ClientDrinks {
     public List<Drink> live(double now) {
         List<Drink> live = new ArrayList<>();
         Set<BlockPos> drawn = new HashSet<>();
-        drinks.values().forEach(shown -> shown.values().removeIf(streaming -> DrinkStream.gone(streaming, now)));
-        drinks.values().removeIf(Map::isEmpty);
+        drinks.values().removeIf(shown -> shown.values().stream().allMatch(streaming -> DrinkStream.gone(streaming,
+                now)));
         drinks.forEach((playerId, shown) -> {
             live.add(new Drink(playerId, List.copyOf(shown.values())));
             drawn.addAll(shown.keySet());

@@ -3,20 +3,19 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.program.SiphonRule;
 import com.mercuriusxeno.goo.network.DrinkPayload;
 import net.minecraft.world.phys.Vec3;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
- * The shape of one block's stream into an Unmake drink: one thick goopy
- * stream flowing languidly from the block's far side, through where the
- * block stood, to the glove, snaking off the straight line as a smooth noise
- * field bends it, the bends carried slowly downstream and drifting with time
- * so the snake never repeats; its width a slow profile of elongated bulbs
- * and hourglass waists with gentle grades between them, the bulb clamped at
- * a few times the waist, the profile riding the flow without jogging the
- * centreline; its head runs out at the flow's pace until it enters the
- * glove, and once the block is drained its tail follows the rest in at the
- * same pace, the stream tapering to a point at both ends.
+ * The shape of one stream of an Unmake drink along one path of its tree: a
+ * goopy stream flowing languidly from a block's far side, through where the
+ * block stood, to its join or the glove, snaking off the straight line as a
+ * smooth noise field bends it, the bends carried slowly downstream and
+ * drifting with time so the snake never repeats; its width a slow profile of
+ * elongated bulbs and hourglass waists with gentle grades between them, the
+ * bulb clamped at a few times the waist, scaled by the square root of its
+ * block's goo volume since transmutation is compressive, the profile riding
+ * the flow without jogging the centreline; its head runs out at the flow's
+ * pace along its route, and once the block is drained its tail follows the
+ * rest at the same pace, the stream tapering to a point at both ends.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 public final class DrinkStream {
@@ -25,18 +24,18 @@ public final class DrinkStream {
     public static final double FLOW = 0.1;
     /** Blocks of the way the block's own matter spans, from its far side through its middle to its near face. */
     public static final double BLOCK_SPAN = 1;
-    /** Blocks past the cone's reach the way to the glove can run, the glove hanging off the eye. */
-    static final double GLOVE_SLACK = 2;
-    /** The ticks the longest way's travel takes; a stream is kept this long past its block's drain. */
+    /** Blocks past the cone's reach a route to the glove can run, the glove hanging off the eye and a tributary going round. */
+    static final double GLOVE_SLACK = 4;
+    /** The ticks the longest route's travel takes; a drink is kept this long past its last block's drain. */
     public static final int LONGEST_TRAVEL_TICKS = (int) Math.ceil((SiphonRule.RANGE + GLOVE_SLACK) / FLOW);
     /** Rings along one block of stream; enough that the snake reads as one smooth body. */
     public static final int RINGS_PER_BLOCK = 10;
-    /** The fewest rings a stream with anything in the air has, its tail and its head. */
+    /** The fewest rings a path has, its two ends. */
     public static final int FEWEST_RINGS = 2;
-    /** The stream's radius at a waist, in blocks. */
-    static final double WAIST = 0.06;
-    /** The stream's radius at a bulb, in blocks, three to four times the waist. */
-    static final double BULB = 0.21;
+    /** The radius at a waist of a stream of scale 1, in blocks. */
+    static final double WAIST = 0.03;
+    /** The radius at a bulb of a stream of scale 1, in blocks, three to four times the waist. */
+    static final double BULB = 0.1;
     /** Blocks of liquid from one bulb or waist to the next, about. */
     static final double FEATURE_SPACING = 2.5;
     /** The share of the width profile's field under which the stream sits at its waist. */
@@ -81,55 +80,48 @@ public final class DrinkStream {
     }
 
     /**
-     * The way a stream runs.
+     * One path of a drink's tree.
      *
-     * @param from the block's far side, where the way starts
-     * @param to   the glove
+     * @param from the block's far side, where the path starts
+     * @param to   where it ends: its join on the trunk it feeds, or the glove
      * @param seed the block's seed, so its snake and its width are its own
      */
     public record Path(Vec3 from, Vec3 to, long seed) {
 
         /**
-         * @return the length of the way, in blocks
+         * @return the length of the path, in blocks
          */
         public double length() {
             return to.distanceTo(from);
         }
 
         /**
-         * @param share the share of the way
-         * @return the point of the straight line from the far side to the glove there
+         * @param share the share of the path
+         * @return the point of the straight line from its start to its end there
          */
         Vec3 lineAt(double share) {
             return from.add(to.subtract(from).scale(share));
         }
-    }
-
-    /**
-     * How much of the way to the glove the stream covers now.
-     *
-     * @param tail the share of the way its tail has reached, 0 while the block still feeds it
-     * @param head the share of the way its head has reached, 1 once it enters the glove
-     */
-    public record Span(double tail, double head) {
 
         /**
-         * @return whether nothing of the stream is in the air
+         * @param point a point
+         * @return the share of the straight line nearest the point, 0 to 1
          */
-        public boolean isEmpty() {
-            return head <= tail;
+        public double nearestShare(Vec3 point) {
+            Vec3 line = to.subtract(from);
+            return line.lengthSqr() == 0 ? 0 : Math.clamp(point.subtract(from).dot(line) / line.lengthSqr(), 0, 1);
         }
     }
 
     /**
-     * One ring of the stream's skin.
+     * One ring of a stream's skin.
      *
      * @param center   the ring's middle
      * @param side     a unit vector across the stream
      * @param across   the unit vector across the stream square to {@code side}, with it right-handed about the flow
      * @param radius   the ring's radius, in blocks
-     * @param material how far along the liquid the ring is, in blocks, flowing toward the glove
-     * @param share    the share of the way to the glove the ring stands at
+     * @param material how far along the path's own liquid the ring is, in blocks, flowing toward the glove
+     * @param share    the share of the path's owner's whole route to the glove the ring stands at
      */
     public record Ring(Vec3 center, Vec3 side, Vec3 across, double radius, double material, double share) {
 
@@ -143,82 +135,63 @@ public final class DrinkStream {
     }
 
     /**
-     * @param streaming the block
-     * @param now       the game time, with the partial tick
-     * @param length    the length of its way, in blocks
-     * @return how much of the way its stream covers now, each end moving at the flow's pace
+     * @param start the game time a block started streaming
+     * @param now   the game time, with the partial tick
+     * @return how far along its route its head has flowed, in blocks
      */
-    public static Span span(DrinkPayload.Streaming streaming, double now, double length) {
-        double head = Math.clamp((now - streaming.start()) * FLOW / length, 0, 1);
-        double tail = Math.clamp((now - streaming.end()) * FLOW / length, 0, 1);
-        return new Span(tail, head);
+    public static double headAt(long start, double now) {
+        return (now - start) * FLOW;
+    }
+
+    /**
+     * @param end the game time a block is drained
+     * @param now the game time, with the partial tick
+     * @return how far along its route its tail has flowed, in blocks, below zero while the block still feeds it
+     */
+    public static double tailAt(long end, double now) {
+        return (now - end) * FLOW;
     }
 
     /**
      * @param streaming the block
      * @param now       the game time, with the partial tick
-     * @return whether its stream has had the longest way's travel since its drain, so none of it can be in the air
+     * @return whether its stream has had the longest route's travel since its drain, so none of it can be in the air
      */
     public static boolean gone(DrinkPayload.Streaming streaming, double now) {
         return now >= streaming.end() + LONGEST_TRAVEL_TICKS;
     }
 
     /**
-     * The rings of a stream's skin, evenly along the way from the lower of
-     * its tail and a given share up to its head.
+     * The ring of a stream's skin at a share of a path.
      *
-     * @param path   the way
-     * @param span   how much of the way the stream covers
-     * @param lowest the share of the way below which the block's own matter draws the stream, 0 for none
-     * @param now    the game time, with the partial tick
-     * @return the rings, none for an empty span
-     */
-    public static List<Ring> rings(Path path, Span span, double lowest, double now) {
-        List<Ring> rings = new ArrayList<>();
-        double low = Math.max(span.tail(), lowest);
-        if (span.head() <= low || path.length() == 0) {
-            return rings;
-        }
-        int count = Math.max(FEWEST_RINGS,
-                (int) Math.ceil(path.length() * RINGS_PER_BLOCK * (span.head() - low)) + 1);
-        for (int index = 0; index < count; index++) {
-            rings.add(ring(path, low + (span.head() - low) * index / (count - 1), span, now));
-        }
-        return rings;
-    }
-
-    /**
-     * The ring of the stream's skin at a share of the way.
-     *
-     * @param path  the way
-     * @param share the share of the way
-     * @param span  how much of the way the stream covers, for the taper at its ends
-     * @param now   the game time, with the partial tick
+     * @param path     the path
+     * @param share    the share of the path
+     * @param now      the game time, with the partial tick
+     * @param radius   the ring's radius, in blocks
+     * @param material how far along the path's own liquid the ring is
+     * @param route    the share of the path owner's whole route the ring stands at
      * @return the ring
      */
-    public static Ring ring(Path path, double share, Span span, double now) {
+    public static Ring ring(Path path, double share, double now, double radius, double material, double route) {
         Vec3 center = pointAt(path, share, now);
         Vec3 tangent = pointAt(path, share + TANGENT_STEP, now).subtract(pointAt(path, share - TANGENT_STEP, now));
         tangent = tangent.lengthSqr() > 0 ? tangent.normalize() : path.to().subtract(path.from()).normalize();
         Vec3 side = tangent.cross(UP);
         side = side.lengthSqr() > 0 ? side.normalize() : EAST;
-        Vec3 across = tangent.cross(side);
-        double material = materialAt(share, path.length(), now);
-        return new Ring(center, side, across, radiusAt(share, span, material, path.length(), path.seed()), material,
-                share);
+        return new Ring(center, side, tangent.cross(side), radius, material, route);
     }
 
     /**
-     * Where the stream's middle runs: the straight line from the far side to
-     * the glove, bent sideways by a smooth noise field read along the stream,
+     * Where the stream's middle runs: the straight line from the path's start
+     * to its end, bent sideways by a smooth noise field read along the stream,
      * most in the middle and not at all at either end.
      *
-     * @param path  the way
-     * @param share the share of the way to the glove
+     * @param path  the path
+     * @param share the share of the path
      * @param now   the game time, with the partial tick
      * @return the point of the stream's middle there
      */
-    static Vec3 pointAt(Path path, double share, double now) {
+    public static Vec3 pointAt(Path path, double share, double now) {
         Vec3 line = path.to().subtract(path.from());
         double length = line.length();
         if (length == 0) {
@@ -240,36 +213,37 @@ public final class DrinkStream {
      * How far along the liquid a point of the stream is: the liquid flows
      * toward the glove {@link #FLOW} blocks every tick.
      *
-     * @param share  the share of the way to the glove
-     * @param length the length of the way, in blocks
-     * @param now    the game time, with the partial tick
+     * @param distance the point's distance along the route, in blocks
+     * @param now      the game time, with the partial tick
      * @return the point's place along the liquid, in blocks, falling as the liquid flows on
      */
-    static double materialAt(double share, double length, double now) {
-        return share * length - now * FLOW;
+    public static double materialAt(double distance, double now) {
+        return distance - now * FLOW;
     }
 
     /**
-     * The stream's radius at a point: a slow profile along the liquid that
-     * sits at the bulb or at the waist most of its length, with gentle
-     * grades between, tapering to a point at the stream's tail and its head.
+     * The radius one stream alone has at a point of its route: its width
+     * profile along its liquid, scaled, tapering to a point at its tail and
+     * its head, nothing where its liquid is not.
      *
-     * @param share    the share of the way to the glove
-     * @param span     how much of the way the stream covers
+     * @param scale    the stream's scale, 1 for a block of 1000 mB
      * @param material the point's place along the liquid
-     * @param length   the length of the way, in blocks
+     * @param distance the point's distance along the route, in blocks
+     * @param tail     how far along the route the tail has flowed
+     * @param head     how far along the route the head has flowed
      * @param seed     the block's seed
      * @return the radius there, in blocks
      */
-    static double radiusAt(double share, Span span, double material, double length, long seed) {
-        double tailTaper = Math.clamp((share - span.tail()) * length / TIP, 0, 1);
-        double headTaper = Math.clamp((span.head() - share) * length / TIP, 0, 1);
-        return widthAt(material, seed) * taper(tailTaper) * taper(headTaper);
+    public static double radiusAt(double scale, double material, double distance, double tail, double head, long seed) {
+        double tailTaper = Math.clamp((distance - tail) / TIP, 0, 1);
+        double headTaper = Math.clamp((head - distance) / TIP, 0, 1);
+        return scale * widthAt(material, seed) * Math.sqrt(tailTaper) * Math.sqrt(headTaper);
     }
 
     /**
-     * The stream's radius along the liquid before any taper: the waist, the
-     * bulb, or a gentle grade between them where the slow field crosses over.
+     * The radius along the liquid of a stream of scale 1 before any taper:
+     * the waist, the bulb, or a gentle grade between them where the slow
+     * field crosses over.
      *
      * @param material the point's place along the liquid
      * @param seed     the block's seed
@@ -280,13 +254,15 @@ public final class DrinkStream {
         return WAIST + (BULB - WAIST) * smoothRamp(WAIST_EDGE, BULB_EDGE, field);
     }
 
-    private static double smoothRamp(double edge0, double edge1, double x) {
+    /**
+     * @param edge0 where the ramp starts
+     * @param edge1 where it ends
+     * @param x     the input
+     * @return the smooth ramp from 0 at edge0 to 1 at edge1, flat at both
+     */
+    static double smoothRamp(double edge0, double edge1, double x) {
         double t = Math.clamp((x - edge0) / (edge1 - edge0), 0, 1);
         return t * t * (THREE - TWO * t);
-    }
-
-    private static double taper(double t) {
-        return Math.sqrt(t);
     }
 
     /**
