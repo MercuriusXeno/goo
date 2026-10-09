@@ -84,6 +84,7 @@ class AbilityLoaderTest {
             Map.entry("ender_teleport", List.of("popped_chorus_fruit")),
             Map.entry("hex_charm", List.of("honey_bottle", "cake", "cookie")),
             Map.entry("hex_enchant", List.of("book", "lapis_lazuli")),
+            Map.entry("hex_fuse", List.of("bookshelf", "lapis_lazuli")),
             Map.entry("unstable_explode", List.of("gunpowder")),
             Map.entry("unstable_proximity_mine", List.of("tnt")),
             Map.entry("glow_laser", List.of("spectral_arrow")),
