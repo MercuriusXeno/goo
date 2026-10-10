@@ -33,7 +33,6 @@ public final class RadiantChannelTests {
     private static final int ROOM_EDGE = 6;
     private static final int ROOM_TOP = 4;
     private static final BlockPos STAND_POS = new BlockPos(3, 1, 3);
-    private static final BlockPos LAMP_POS = new BlockPos(3, 3, 3);
     /** Two tries a tick for 100 ticks: most of the ball lies outside the room, so this many tries find its air. */
     private static final int HOLD_TICKS = 100;
     private static final int HELD_GOO = 3;
@@ -66,17 +65,27 @@ public final class RadiantChannelTests {
     }
 
     /**
-     * Holding Radiant in a sealed room lit past the threshold leaves no wisp.
+     * Holding Radiant in a sealed room lit past the threshold, its top layer
+     * all light blocks, leaves no wisp.
      *
      * @param helper the gametest helper
      */
     public static void radiantSkipsALitRoom(GameTestHelper helper) {
         sealRoom(helper);
-        helper.setBlock(LAMP_POS, Blocks.LIGHT.defaultBlockState());
+        lightTheTopLayer(helper);
         holdRadiant(helper, () -> {
             int wisps = wispsInTheRoom(helper).size();
             helper.assertTrue(wisps == 0, String.format(WISP_IN_THE_LIGHT, wisps));
         });
+    }
+
+    /** Fills the room's top air layer with light blocks, so every air cell below reads past the threshold. */
+    private static void lightTheTopLayer(GameTestHelper helper) {
+        for (int x = 1; x < ROOM_EDGE; x++) {
+            for (int z = 1; z < ROOM_EDGE; z++) {
+                helper.setBlock(new BlockPos(x, ROOM_TOP - 1, z), Blocks.LIGHT.defaultBlockState());
+            }
+        }
     }
 
     private static void sealRoom(GameTestHelper helper) {

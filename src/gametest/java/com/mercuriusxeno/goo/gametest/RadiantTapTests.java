@@ -19,7 +19,6 @@ public final class RadiantTapTests {
     /** The room's walls, floor and roof span 0 to 4 across and 0 to 4 up; its air is inside. */
     private static final int ROOM_EDGE = 4;
     private static final BlockPos LANDING = new BlockPos(2, 0, 2);
-    private static final BlockPos LAMP_POS = new BlockPos(1, 3, 1);
     /** Ticks for the light engine to settle the sealed room before the drip lands. */
     private static final int SETTLE_TICKS = 5;
     private static final String NO_WISP = "A glow drip in the dark should leave a wisp above where it lands";
@@ -49,7 +48,11 @@ public final class RadiantTapTests {
      */
     public static void radiantTapSkipsALitRoom(GameTestHelper helper) {
         sealRoom(helper);
-        helper.setBlock(LAMP_POS, Blocks.LIGHT.defaultBlockState());
+        for (int x = 1; x < ROOM_EDGE; x++) {
+            for (int z = 1; z < ROOM_EDGE; z++) {
+                helper.setBlock(new BlockPos(x, ROOM_EDGE - 1, z), Blocks.LIGHT.defaultBlockState());
+            }
+        }
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             drip(helper);
             helper.assertTrue(helper.getBlockState(LANDING.above()).isAir(), WISP_IN_THE_LIGHT);

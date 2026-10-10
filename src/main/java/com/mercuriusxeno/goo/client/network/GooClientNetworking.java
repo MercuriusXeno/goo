@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.client.ability.RadiantAura;
 import com.mercuriusxeno.goo.client.ability.ScrySweep;
 import com.mercuriusxeno.goo.client.ability.SunbeamVisual;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
@@ -18,6 +19,7 @@ import com.mercuriusxeno.goo.network.KnownItemLearnedPayload;
 import com.mercuriusxeno.goo.network.KnownItemsSyncPayload;
 import com.mercuriusxeno.goo.network.MobHitPayload;
 import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
+import com.mercuriusxeno.goo.network.RadiantAuraPayload;
 import com.mercuriusxeno.goo.network.ScryPayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.network.SunbeamPayload;
@@ -56,6 +58,7 @@ public final class GooClientNetworking {
         event.register(AilmentPayload.TYPE, AilmentHandler::handle);
         event.register(ScryPayload.TYPE, ScrySweep::onPayload);
         event.register(SunbeamPayload.TYPE, SunbeamVisual::onPayload);
+        event.register(RadiantAuraPayload.TYPE, RadiantAura::onPayload);
         event.register(BlockTransformPayload.TYPE, BlockTransformHandler::handle);
         event.register(BlockExposurePayload.TYPE, BlockTransformHandler::handleExposure);
         event.register(AfterimagePayload.TYPE, AfterimageHandler::handle);

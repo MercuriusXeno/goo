@@ -76,7 +76,7 @@ public final class ScrySweep {
     private static void advance(ClientLevel level, ScryPayload ping, long now) {
         Vec3 center = ping.origin().add(0, BODY_CENTER, 0);
         float next = ping.radius();
-        if (now - lastRadiusAt > ScryReveal.RELEASE_GRACE_TICKS || next < radius || !center.equals(origin)) {
+        if (startsOver(now, next, center)) {
             revealed.clear();
             radius = 0f;
         }
@@ -92,6 +92,19 @@ public final class ScrySweep {
         }
         radius = next;
         lastRadiusAt = now;
+    }
+
+    /**
+     * Whether a radius starts the sweep over: the hold was let go, or a new
+     * ping began, its radius back down or its origin moved.
+     *
+     * @param now    the game time
+     * @param next   the radius that arrived
+     * @param center the ping's center
+     * @return true when the revealed faces clear for a fresh ping
+     */
+    private static boolean startsOver(long now, float next, Vec3 center) {
+        return now - lastRadiusAt > ScryReveal.RELEASE_GRACE_TICKS || next < radius || !center.equals(origin);
     }
 
     /**
