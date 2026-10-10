@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
@@ -11,6 +12,7 @@ import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepContext;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -54,7 +56,7 @@ public final class GooSelfHandler {
      * @param ability the self ability
      */
     static void deliver(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability) {
-        if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge())) {
+        if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge()) || ability.delivery().charges()) {
             return;
         }
         boolean held = HeldEffectsEvents.holds(player, ability.id());
@@ -62,7 +64,28 @@ public final class GooSelfHandler {
             HeldEffectsEvents.end(player, ability.id());
         } else if (SelfEatRoute.eats(ability.delivery(), ability.badge())) {
             beginEating(player, gooType, ability);
-        } else if (invoke(player, gooType, ability)) {
+        } else if (invoke(new PlayerHost(player.level(), player), gooType, ability)) {
+            GooEffectScheduler.playThrowSound(player, ability.delivery());
+        }
+    }
+
+    /**
+     * Fires a charged self ability let go after a hold: its programs run on
+     * the player carrying the share of a full charge the hold reached.
+     * nova-ring-grows-with-the-hold
+     *
+     * @param player    the releasing player
+     * @param gooType   the ability's goo type
+     * @param ability   the charged ability
+     * @param heldTicks the ticks the use key was held
+     */
+    static void release(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability,
+            int heldTicks) {
+        if (ability.delivery().kind() != DeliveryKind.SELF || !ability.delivery().charges()) {
+            return;
+        }
+        PlayerHost host = PlayerHost.charged(player.level(), player, ability.delivery().chargeShare(heldTicks));
+        if (invoke(host, gooType, ability)) {
             GooEffectScheduler.playThrowSound(player, ability.delivery());
         }
     }
@@ -128,15 +151,19 @@ public final class GooSelfHandler {
      * Drains a self ability's cost and runs its programs on the player, when
      * the player holds its cost.
      *
-     * @param player  the invoking player
+     * @param host    the host over the invoking player
      * @param gooType the ability's goo type
      * @param ability the self ability
      * @return true when the cost drained and the programs ran
      */
-    private static boolean invoke(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
+    private static boolean invoke(PlayerHost host, ResourceKey<GooTypeDefinition> gooType,
             AbilityDefinition ability) {
-        PlayerHost host = new PlayerHost(player.level(), player);
-        if (!affords(player, gooType, ability) || !admits(host, ability)) {
+        ServerPlayer player = host.player();
+        if (!affords(player, gooType, ability)) {
+            return false;
+        }
+        if (!admits(host, ability)) {
+            playRefusal(host, ability);
             return false;
         }
         GooSourceScanner.deplete(player, gooType, ability.cost());
@@ -157,6 +184,19 @@ public final class GooSelfHandler {
     private static boolean admits(PlayerHost host, AbilityDefinition ability) {
         StepContext context = new StepContext(host, 0, 0);
         return ability.behaviors().stream().allMatch(step -> step.admits(context));
+    }
+
+    /**
+     * Plays the refusal sound the first refusing step names, if it names
+     * one; Fuse with no pair fizzles (decision fuse-two-books-for-hex-goo).
+     *
+     * @param host    the player host
+     * @param ability the refused self ability
+     */
+    private static void playRefusal(PlayerHost host, AbilityDefinition ability) {
+        StepContext context = new StepContext(host, 0, 0);
+        ability.behaviors().stream().filter(step -> !step.admits(context)).findFirst()
+                .flatMap(Step::refusal).ifPresent(host::playSound);
     }
 
     /**

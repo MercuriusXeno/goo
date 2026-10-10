@@ -154,8 +154,8 @@ public final class GloveUseTracker {
     private static GloveInputGate.PressActions pressActions(LocalPlayer player) {
         return new GloveInputGate.PressActions() {
             @Override
-            public boolean sendThrow() {
-                return GloveThrowSender.sendThrow(player);
+            public boolean sendThrow(int heldTicks) {
+                return GloveThrowSender.sendThrow(player, heldTicks);
             }
 
             @Override
@@ -236,6 +236,16 @@ public final class GloveUseTracker {
      */
     static boolean heldVisualRuns(boolean armed, boolean gooLeft) {
         return armed && gooLeft;
+    }
+
+    /**
+     * The ticks the live press has held its preview, which a charged
+     * ability's ghost reads (decision nova-ring-grows-with-the-hold).
+     *
+     * @return the held ticks, 0 while no press previews
+     */
+    public static int heldTicks() {
+        return PRESS.heldTicks();
     }
 
     /**

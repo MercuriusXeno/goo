@@ -29,7 +29,8 @@ import java.util.function.Consumer;
  * @param face    the landing block's face the drip struck
  */
 public record TapHost(ServerLevel level, BlockPos landing, Direction face)
-        implements ExplodeHost, AnchoredWorldHost, PlaceBlockHost, EntityScanHost, DripHost {
+        implements ExplodeHost, AnchoredWorldHost, PlaceBlockHost, EntityScanHost, DripHost, MobSpawnHost,
+        FrostHost {
 
     private static final double HALF = 0.5;
 
@@ -47,6 +48,27 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
     @Override
     public Vec3 anchor() {
         return faceCenter(landing, face);
+    }
+
+    /**
+     * The cell beyond the struck face, where a drip conjures its mob.
+     * spawn-drip-rolls-a-fresh-spawn
+     *
+     * @return the cell
+     */
+    @Override
+    public BlockPos spawnCell() {
+        return landing.relative(face);
+    }
+
+    @Override
+    public Vec3 morphFrom() {
+        return anchor();
+    }
+
+    @Override
+    public Vec3 frostCenter() {
+        return anchor();
     }
 
     @Override

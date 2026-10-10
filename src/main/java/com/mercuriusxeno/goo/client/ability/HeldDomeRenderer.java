@@ -51,6 +51,7 @@ public final class HeldDomeRenderer {
     private static final Map<ResourceKey<GooTypeDefinition>, HeldGhostVisual> GHOSTS = Map.of(
             GooTypes.CRYSTAL, CrystalExplosionVisual.INSTANCE,
             GooTypes.LEAF, LeafHeldGhost.INSTANCE,
+            GooTypes.FROST, FrostExplosionVisual.INSTANCE,
             GooTypes.METAL, MetalExplosionVisual.INSTANCE,
             GooTypes.NETHER, NetherHeldGhost.INSTANCE,
             GooTypes.SHROOM, ShroomHeldGhost.INSTANCE,

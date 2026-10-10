@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
+import com.mercuriusxeno.goo.ability.hex.Lifetap;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -44,6 +45,9 @@ public final class BrewEffectTests {
     private static final String SHOULD_DRAIN_NOTHING = "A brew should drain no goo, drained %d";
     /** shroom_sight.json's factor. */
     private static final float SIGHT_FACTOR = 3f;
+    /** hex_lifetap.json's fraction. */
+    private static final float LIFETAP_FRACTION = 0.3f;
+    private static final String SHOULD_LIFETAP = "The hex brew should lifetap at %.2f until %d, granted %.2f until %d";
     private static final String SHOULD_SEE = "The shroom brew should grant sight at %.1f until %d, granted %.1f until %d";
     private static final String SHOULD_SHOW_NO_PARTICLES = "A brew should show its icon and no particles, stands %s";
     private static final String SHOULD_NOURISH = "The vital brew should nourish until %d, nourishes until %d";
@@ -167,6 +171,29 @@ public final class BrewEffectTests {
     }
 
     /**
+     * Drinking the hex brew grants a lifetap at Lifetap's fraction for an
+     * hour, draining no goo (decision lifetap-trades-regen-for-leech).
+     *
+     * @param helper the gametest helper
+     */
+    public static void hexBrewLifetapsForAnHour(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.HEX);
+        int heldBefore = held(player, GooTypes.HEX);
+        long now = player.level().getGameTime();
+
+        drink(player, GooTypes.HEX);
+
+        Lifetap lifetap = player.getData(GooAttachments.LIFETAP);
+        int drained = heldBefore - held(player, GooTypes.HEX);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        long expected = now + GooPotions.BREW_DURATION;
+        helper.assertTrue(lifetap.fraction() == LIFETAP_FRACTION && lifetap.expiresAt() == expected,
+                String.format(SHOULD_LIFETAP, LIFETAP_FRACTION, expected, lifetap.fraction(), lifetap.expiresAt()));
+        helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
+        helper.succeed();
+    }
+
+    /**
      * Drinks the type's potion, as a test player outside this class does.
      *
      * @param player  the drinking player
@@ -177,21 +204,31 @@ public final class BrewEffectTests {
     }
 
     /**
-     * Drinking the frost brew, a type with no brew ability yet, holds the
+     * Drinking the typhoon brew, a type with no brew ability yet, holds the
      * effect and lays no hearts.
      *
      * @param helper the gametest helper
      */
     public static void brewWithoutAnAbilityRunsNothing(GameTestHelper helper) {
-        ServerPlayer player = drinker(helper, GooTypes.FROST);
-        drink(player, GooTypes.FROST);
+        ServerPlayer player = drinker(helper, GooTypes.TYPHOON);
+        drink(player, GooTypes.TYPHOON);
         HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
-        MobEffectInstance standing = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.FROST));
+        MobEffectInstance standing = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.TYPHOON));
         helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(standing != null, String.format(SHOULD_HOLD_EFFECT, GooTypes.FROST.identifier(),
+        helper.assertTrue(standing != null, String.format(SHOULD_HOLD_EFFECT, GooTypes.TYPHOON.identifier(),
                 GooPotions.BREW_DURATION, standing));
         helper.assertFalse(overlay.stands(), String.format(SHOULD_RUN_NOTHING, overlay));
         helper.succeed();
+    }
+
+    /**
+     * A frost brew lays Iceborn's frozen hearts for the brew's hour
+     * (decision iceborn-frozen-hearts-thaw-on-fire).
+     *
+     * @param helper the gametest helper
+     */
+    public static void frostBrewIcebornForAnHour(GameTestHelper helper) {
+        brewLaysForAnHour(helper, GooTypes.FROST, HeartKind.ICEBORN);
     }
 
     private static void brewLaysForAnHour(GameTestHelper helper, ResourceKey<GooTypeDefinition> gooType,

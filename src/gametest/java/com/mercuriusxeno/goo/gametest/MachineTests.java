@@ -56,15 +56,15 @@ public final class MachineTests {
     private static final String STONE_HAS_VALUE = "Stone should hold a goo value, so the plexer's refusal is the missing goo";
     private static final String PLEXER_MADE_FROM_NOTHING = "A plexer without a canister above should reconstitute nothing";
     private static final String OUTPUT_HANDLER_EXISTS = "Output handler should exist";
-    private static final String OUTPUT_SHOULD_BE_BLAZE = "Output should be blaze goo";
+    private static final String OUTPUT_IS_REACTION_PRODUCT = "Output should be the reaction's product goo";
     private static final String OUTPUT_AMOUNT_POSITIVE = "Output amount should be positive";
     private static final String REDSTONE_HALTS_OUTPUT = "Output should be empty when redstone halts reactor";
-    private static final String INPUT_BLAZE_DRAINED = "Reactor should drain the blaze input canister";
-    private static final String INPUT_LEAF_DRAINED = "Reactor should drain the leaf input canister";
-    private static final String INPUT_BLAZE_STACK_DRAINED =
-            "Blaze input ItemStack should reflect drain (HUD reads from stack)";
-    private static final String INPUT_LEAF_STACK_DRAINED =
-            "Leaf input ItemStack should reflect drain (HUD reads from stack)";
+    private static final String FIRST_INPUT_DRAINED = "Reactor should drain the first input canister";
+    private static final String SECOND_INPUT_DRAINED = "Reactor should drain the second input canister";
+    private static final String FIRST_INPUT_STACK_DRAINED =
+            "First input ItemStack should reflect drain (HUD reads from stack)";
+    private static final String SECOND_INPUT_STACK_DRAINED =
+            "Second input ItemStack should reflect drain (HUD reads from stack)";
     private static final String OUTPUT_STACK_FLUID_PRESENT =
             "Output ItemStack should hold the produced fluid (BER reads from stack)";
     private static final String OUTPUT_STACK_AMOUNT_POSITIVE =
@@ -219,9 +219,36 @@ public final class MachineTests {
      * @param helper the gametest helper
      */
     public static void reactorProcessesReaction(GameTestHelper helper) {
-        ReactorBlockEntity reactor = placeFedReactor(helper);
+        assertReactorMakes(helper, GooFluids.resource(GooTypes.BLAZE),
+                GooFluids.resource(GooTypes.LEAF), GooFluids.resource(GooTypes.BLAZE));
+    }
+
+    /**
+     * A reactor fed nether and glow makes pulse.
+     * Uses the pulse_from_nether_glow reaction: 1 nether + 1 glow -> 2 pulse.
+     * Decision: nether-plus-glow-gives-two-pulse
+     *
+     * @param helper the gametest helper
+     */
+    public static void reactorMakesPulseFromNetherGlow(GameTestHelper helper) {
+        assertReactorMakes(helper, GooFluids.resource(GooTypes.NETHER),
+                GooFluids.resource(GooTypes.GLOW), GooFluids.resource(GooTypes.PULSE));
+    }
+
+    /**
+     * Feeds a reactor two inputs and, after the reaction window, asserts the
+     * output canister holds the expected goo and both inputs drained.
+     *
+     * @param helper      the gametest helper
+     * @param firstInput  the goo in the first input canister
+     * @param secondInput the goo in the second input canister
+     * @param output      the goo the reaction should produce
+     */
+    private static void assertReactorMakes(GameTestHelper helper,
+            FluidResource firstInput, FluidResource secondInput, FluidResource output) {
+        ReactorBlockEntity reactor = placeFedReactor(helper, firstInput, secondInput);
         helper.runAfterDelay(REACTION_TICKS, () -> assertReactionConsumed(helper, reactor,
-                helper.getBlockEntity(INPUT_POS, CanisterBlockEntity.class), GooFluids.resource(GooTypes.BLAZE)));
+                helper.getBlockEntity(INPUT_POS, CanisterBlockEntity.class), output));
     }
 
     /**
@@ -232,12 +259,26 @@ public final class MachineTests {
      * @return the reactor block entity
      */
     private static ReactorBlockEntity placeFedReactor(GameTestHelper helper) {
+        return placeFedReactor(helper, GooFluids.resource(GooTypes.BLAZE), GooFluids.resource(GooTypes.LEAF));
+    }
+
+    /**
+     * Places a reactor with an empty output canister under a canister block
+     * holding the two inputs.
+     *
+     * @param helper      the gametest helper
+     * @param firstInput  the goo filling the first input canister
+     * @param secondInput the goo filling the second input canister
+     * @return the reactor block entity
+     */
+    private static ReactorBlockEntity placeFedReactor(GameTestHelper helper,
+            FluidResource firstInput, FluidResource secondInput) {
         helper.setBlock(BE_POS, GooBlocks.REACTOR.get());
         ReactorBlockEntity reactor = helper.getBlockEntity(BE_POS, ReactorBlockEntity.class);
         helper.setBlock(INPUT_POS, GooBlocks.CANISTER.get());
         CanisterBlockEntity inputBe = helper.getBlockEntity(INPUT_POS, CanisterBlockEntity.class);
-        insertFilledCanister(inputBe, 0, GooFluids.resource(GooTypes.BLAZE), INPUT_AMOUNT);
-        insertFilledCanister(inputBe, CORNER_SLOT_2, GooFluids.resource(GooTypes.LEAF), INPUT_AMOUNT);
+        insertFilledCanister(inputBe, 0, firstInput, INPUT_AMOUNT);
+        insertFilledCanister(inputBe, CORNER_SLOT_2, secondInput, INPUT_AMOUNT);
         reactor.insertOutputCanister(new ItemStack(GooItems.CANISTER.get()));
         return reactor;
     }
@@ -247,30 +288,30 @@ public final class MachineTests {
      * input ItemStacks reflect the drain (the HUD/billboard reads stack
      * NBT, not the handler).
      *
-     * @param helper     the gametest helper
-     * @param reactor    the reactor block entity
-     * @param inputBe    the input canister block entity above
-     * @param blazeFluid the expected output fluid
+     * @param helper  the gametest helper
+     * @param reactor the reactor block entity
+     * @param inputBe the input canister block entity above
+     * @param output  the expected output fluid
      */
     private static void assertReactionConsumed(GameTestHelper helper,
-            ReactorBlockEntity reactor, CanisterBlockEntity inputBe, FluidResource blazeFluid) {
-        assertOutputHandler(helper, reactor, blazeFluid);
+            ReactorBlockEntity reactor, CanisterBlockEntity inputBe, FluidResource output) {
+        assertOutputHandler(helper, reactor, output);
         assertInputsDrained(helper, inputBe);
-        assertOutputStackHasFluid(helper, reactor, blazeFluid);
+        assertOutputStackHasFluid(helper, reactor, output);
         helper.succeed();
     }
 
     /**
-     * @param helper     the gametest helper
-     * @param reactor    the reactor block entity
-     * @param blazeFluid the expected fluid
+     * @param helper  the gametest helper
+     * @param reactor the reactor block entity
+     * @param output  the expected fluid
      */
     private static void assertOutputHandler(GameTestHelper helper,
-            ReactorBlockEntity reactor, FluidResource blazeFluid) {
+            ReactorBlockEntity reactor, FluidResource output) {
         var handler = reactor.containerState().getSlotFluidHandler(
                 ReactorBlockEntity.OUTPUT_SLOT);
         helper.assertTrue(handler != null, OUTPUT_HANDLER_EXISTS);
-        helper.assertTrue(handler.getFluidResource().equals(blazeFluid), OUTPUT_SHOULD_BE_BLAZE);
+        helper.assertTrue(handler.getFluidResource().equals(output), OUTPUT_IS_REACTION_PRODUCT);
         helper.assertTrue(handler.getAmount() > 0, OUTPUT_AMOUNT_POSITIVE);
     }
 
@@ -280,32 +321,32 @@ public final class MachineTests {
      */
     private static void assertInputsDrained(GameTestHelper helper,
             CanisterBlockEntity inputBe) {
-        var inBlaze = inputBe.containerState().getSlotFluidHandler(0);
-        var inLeaf = inputBe.containerState().getSlotFluidHandler(CORNER_SLOT_2);
-        helper.assertTrue(inBlaze != null && inBlaze.getAmount() < INPUT_AMOUNT,
-                INPUT_BLAZE_DRAINED);
-        helper.assertTrue(inLeaf != null && inLeaf.getAmount() < INPUT_AMOUNT,
-                INPUT_LEAF_DRAINED);
-        CanisterFluidContent blazeStackContent = CanisterItem.getFluidContent(
+        var firstHandler = inputBe.containerState().getSlotFluidHandler(0);
+        var secondHandler = inputBe.containerState().getSlotFluidHandler(CORNER_SLOT_2);
+        helper.assertTrue(firstHandler != null && firstHandler.getAmount() < INPUT_AMOUNT,
+                FIRST_INPUT_DRAINED);
+        helper.assertTrue(secondHandler != null && secondHandler.getAmount() < INPUT_AMOUNT,
+                SECOND_INPUT_DRAINED);
+        CanisterFluidContent firstStackContent = CanisterItem.getFluidContent(
                 inputBe.containerState().getCanister(0));
-        CanisterFluidContent leafStackContent = CanisterItem.getFluidContent(
+        CanisterFluidContent secondStackContent = CanisterItem.getFluidContent(
                 inputBe.containerState().getCanister(CORNER_SLOT_2));
-        helper.assertTrue(blazeStackContent.amount() < INPUT_AMOUNT,
-                INPUT_BLAZE_STACK_DRAINED);
-        helper.assertTrue(leafStackContent.amount() < INPUT_AMOUNT,
-                INPUT_LEAF_STACK_DRAINED);
+        helper.assertTrue(firstStackContent.amount() < INPUT_AMOUNT,
+                FIRST_INPUT_STACK_DRAINED);
+        helper.assertTrue(secondStackContent.amount() < INPUT_AMOUNT,
+                SECOND_INPUT_STACK_DRAINED);
     }
 
     /**
-     * @param helper     the gametest helper
-     * @param reactor    the reactor block entity
-     * @param blazeFluid the expected fluid in the output stack
+     * @param helper  the gametest helper
+     * @param reactor the reactor block entity
+     * @param output  the expected fluid in the output stack
      */
     private static void assertOutputStackHasFluid(GameTestHelper helper,
-            ReactorBlockEntity reactor, FluidResource blazeFluid) {
+            ReactorBlockEntity reactor, FluidResource output) {
         CanisterFluidContent outputStackContent = CanisterItem.getFluidContent(
                 reactor.getOutputCanister());
-        helper.assertTrue(outputStackContent.resource().equals(blazeFluid),
+        helper.assertTrue(outputStackContent.resource().equals(output),
                 OUTPUT_STACK_FLUID_PRESENT);
         helper.assertTrue(outputStackContent.amount() > 0,
                 OUTPUT_STACK_AMOUNT_POSITIVE);

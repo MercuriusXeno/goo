@@ -40,7 +40,14 @@ public final class StepTypes {
         register(PotionStep.TYPE);
         register(TargetStep.TYPE);
         register(LeafSteps.SET_HEALTH.type());
-        register(LeafSteps.FREEZE_TICKS.type());
+        register(FreezeStep.TYPE);
+        register(NovaStep.TYPE);
+        register(FreezeBlocksStep.TYPE);
+        register(DripsStep.TYPE);
+        register(WindStep.TYPE);
+        register(BreakBlocksStep.TYPE);
+        register(TravelingStep.TYPE);
+        register(GlacialStep.TYPE);
         register(LeafSteps.SET_AI.type());
         register(LeafSteps.SET_INVULNERABLE.type());
         register(CloneEntityStep.TYPE);
@@ -91,6 +98,14 @@ public final class StepTypes {
         register(VerdantStep.TYPE);
         register(HastenRegrowStep.TYPE);
         register(ReapStep.TYPE);
+        register(CharmStep.TYPE);
+        register(LeafSteps.ENCHANT_BOOK.type());
+        register(FuseBooksStep.TYPE);
+        register(SpawnRandomStep.TYPE);
+        register(AgitateStep.TYPE);
+        register(LifetapStep.TYPE);
+        register(LeechStep.TYPE);
+        register(TomeStep.TYPE);
     }
 
     private StepTypes() {
