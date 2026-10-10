@@ -160,7 +160,7 @@ class RadialWheelRendererTest {
                 Map.entry("aeon_time_stop", "Stasis"), Map.entry("blaze_ignite", "Scorch"),
                 Map.entry("crystal_cloud", "Razor"), Map.entry("crystal_flechettes", "Shards"),
                 Map.entry("crystal_prism", "Prism"),
-                Map.entry("ender_banish", "Banish"), Map.entry("ender_teleportitis", "Teleportitis"), Map.entry("ender_convoke", "Convoke"), Map.entry("ender_dragon_gate", "Dragon Gate"), Map.entry("ender_oculus", "Oculus"),
+                Map.entry("ender_banish", "Banish"), Map.entry("ender_teleportitis", "Teleportitis"), Map.entry("ender_convoke", "Convoke"), Map.entry("ender_dragon_gate", "End"), Map.entry("ender_oculus", "Oculus"),
                 Map.entry("frost_snap", "Snap"), Map.entry("frost_nova", "Nova"), Map.entry("frost_cold", "Cold"), Map.entry("frost_orb", "Orb"), Map.entry("frost_glacial", "Glacial"), Map.entry("frost_iceborn", "Iceborn"), Map.entry("glow_crystal", "Bulb"),
                 Map.entry("glow_laser", "Beam"), Map.entry("hex_charm", "Charm"), Map.entry("hex_enchant", "Enchant"), Map.entry("hex_fuse", "Fuse"), Map.entry("hex_spawn", "Spawn"), Map.entry("hex_agitator", "Agitator"), Map.entry("hex_lifetap", "Lifetap"), Map.entry("hex_drain", "Drain"),
                 Map.entry("leaf_entangle", "Vines"), Map.entry("leaf_barkskin", "Barkskin"), Map.entry("metal_spikes", "Urchin"),

@@ -95,18 +95,6 @@ public final class OculusNodes {
     }
 
     /**
-     * The charge an oculus holds.
-     *
-     * @param level the level
-     * @param cell  the oculus's cell
-     * @return its charge in mB, zero where no oculus stands
-     */
-    public static int chargeAt(Level level, BlockPos cell) {
-        return level.getBlockEntity(cell) instanceof PrismBlockEntity prism && OCULUS.equals(prism.getCombo())
-                ? prism.charge() : 0;
-    }
-
-    /**
      * The centre of an oculus's cell, where its eye hovers.
      *
      * @param cell the oculus's cell

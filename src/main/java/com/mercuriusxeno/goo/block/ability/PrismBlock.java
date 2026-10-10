@@ -45,6 +45,13 @@ public class PrismBlock extends BaseEntityBlock {
     public static final EnumProperty<Direction> FACING = EnumProperty.create("facing", Direction.class);
 
     private static final Map<Direction, VoxelShape> SHAPES = buildShapes();
+    /** Half a block, in pixels. */
+    private static final double HALF_PIXELS = 8;
+    /** How far the oculus's eye hovers off its face, middle to face, in pixels. */
+    private static final double EYE_LIFT_PIXELS = 4;
+    /** Half the oculus's eye, in pixels. */
+    private static final double EYE_HALF_PIXELS = 3.5;
+    private static final Map<Direction, VoxelShape> EYE_SHAPES = buildEyeShapes();
 
     /** The ability whose combo makes a prism an oculus (decision oculus-prism-becomes-a-hovering-eye). */
     private static final String OCULUS = "goo:ender_oculus";
@@ -117,7 +124,31 @@ public class PrismBlock extends BaseEntityBlock {
     @Override
     protected @NonNull VoxelShape getShape(@NonNull BlockState state, @NonNull BlockGetter level,
                                            @NonNull BlockPos pos, @NonNull CollisionContext context) {
-        return SHAPES.get(state.getValue(FACING));
+        // oculus-prism-becomes-a-hovering-eye: an oculus is its eye, not the column it grew from
+        return level.getBlockEntity(pos) instanceof PrismBlockEntity prism && OCULUS.equals(prism.getCombo())
+                ? EYE_SHAPES.get(state.getValue(FACING)) : SHAPES.get(state.getValue(FACING));
+    }
+
+    /**
+     * The eye's box for each facing: seven pixels a side, its middle four
+     * pixels off the face the prism grew from, where the oculus draws it.
+     *
+     * @return the box per facing
+     */
+    private static Map<Direction, VoxelShape> buildEyeShapes() {
+        Map<Direction, VoxelShape> shapes = new EnumMap<>(Direction.class);
+        for (Direction facing : Direction.values()) {
+            double[] middle = {HALF_PIXELS, HALF_PIXELS, HALF_PIXELS};
+            int axis = facing.getAxis().ordinal();
+            int step = facing.getAxisDirection().getStep();
+            middle[axis] = HALF_PIXELS - step * HALF_PIXELS + step * EYE_LIFT_PIXELS;
+            double x = middle[Direction.Axis.X.ordinal()];
+            double y = middle[Direction.Axis.Y.ordinal()];
+            double z = middle[Direction.Axis.Z.ordinal()];
+            shapes.put(facing, Block.box(x - EYE_HALF_PIXELS, y - EYE_HALF_PIXELS, z - EYE_HALF_PIXELS,
+                    x + EYE_HALF_PIXELS, y + EYE_HALF_PIXELS, z + EYE_HALF_PIXELS));
+        }
+        return shapes;
     }
 
     @Override

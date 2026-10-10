@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import java.util.Optional;
@@ -10,7 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /**
  * Covers a blink's cost sum: the flat cost, plus the per-block amount for
  * the blocks travelled rounded up, plus the wall surcharge when the trip
- * passed through a solid block (decision blink-lands-safely-costed-by-distance).
+ * passed through a solid block, a trip to an oculus paying only its share
+ * (decisions blink-lands-safely-costed-by-distance, oculus-prism-becomes-a-hovering-eye).
  */
 class DistancePriceTest {
 
@@ -40,5 +42,21 @@ class DistancePriceTest {
     void noTripPaysTheFlatCost() {
         assertEquals(BASE, BLINK.priceOf(BASE, Optional.empty()));
         assertEquals(BASE, DistancePrice.NONE.priceOf(BASE, trip(8, true)));
+    }
+
+    @Test
+    void aTripToAnOculusPaysItsShareRoundedUp() {
+        DistancePrice withOculus = new DistancePrice(100, 400, 10);
+        Optional<BlinkLanding> toOculus = Optional.of(new BlinkLanding(Vec3.ZERO, 8, true,
+                Optional.of(BlockPos.ZERO)));
+        assertEquals(140, withOculus.priceOf(BASE, toOculus));
+        assertEquals(BASE + 800 + 400, withOculus.priceOf(BASE, trip(8, true)));
+    }
+
+    @Test
+    void aPriceNamingNoShareChargesAnOculusTripWhole() {
+        Optional<BlinkLanding> toOculus = Optional.of(new BlinkLanding(Vec3.ZERO, 8, false,
+                Optional.of(BlockPos.ZERO)));
+        assertEquals(BASE + 800, BLINK.priceOf(BASE, toOculus));
     }
 }

@@ -40,14 +40,11 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     private static final String TAG_COMBO = "Combo";
     private static final String TAG_GOO_TYPE = "goo_type";
     private static final String TAG_RUNNING = "ComboRunning";
-    private static final String TAG_CHARGE = "Charge";
     private static final String TAG_COMBO_SINCE = "ComboSince";
 
     private final MarkerProgramState programState = new MarkerProgramState();
     private ResourceKey<GooTypeDefinition> gooType = GooTypes.CRYSTAL;
     private String combo = NO_COMBO;
-    /** The goo an oculus holds, which pays for blinks to it (decision oculus-prism-becomes-a-hovering-eye). */
-    private int charge;
     /** The game time the combo took, which its transformation plays from. */
     private long comboSince;
     /** The combo's program while it runs; null once it ends or before any combo. */
@@ -140,25 +137,6 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     }
 
     /**
-     * @return the goo the prism's combo holds as its charge, in mB
-     */
-    public int charge() {
-        return charge;
-    }
-
-    /**
-     * Sets the goo the prism's combo holds as its charge, then saves and syncs.
-     * decision oculus-prism-becomes-a-hovering-eye
-     *
-     * @param mb the charge in mB
-     */
-    public void setCharge(int mb) {
-        charge = mb;
-        setChanged();
-        BlockEntitySync.markDirtyAndSync(this);
-    }
-
-    /**
      * @return the game time the prism's combo took
      */
     public long comboSince() {
@@ -241,7 +219,6 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         ResourceKey<GooTypeDefinition> loaded = GooTypes.byId(input.getStringOr(TAG_GOO_TYPE, GooTypes.id(gooType)));
         gooType = loaded != null ? loaded : GooTypes.CRYSTAL;
         combo = input.getStringOr(TAG_COMBO, NO_COMBO);
-        charge = input.getIntOr(TAG_CHARGE, 0);
         comboSince = input.getLongOr(TAG_COMBO_SINCE, 0L);
         listOculus();
         programState.load(input);
@@ -274,7 +251,6 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         super.saveAdditional(output);
         output.putString(TAG_GOO_TYPE, GooTypes.id(gooType));
         output.putString(TAG_COMBO, combo);
-        output.putInt(TAG_CHARGE, charge);
         output.putLong(TAG_COMBO_SINCE, comboSince);
         programState.save(output);
         output.putBoolean(TAG_RUNNING, behavior != null || resumesCombo);

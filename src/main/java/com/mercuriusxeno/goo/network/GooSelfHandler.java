@@ -8,7 +8,6 @@ import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.ability.held.HeldEffectsEvents;
-import com.mercuriusxeno.goo.ability.oculus.OculusCharge;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.HostKind;
@@ -170,9 +169,7 @@ public final class GooSelfHandler {
         ServerPlayer player = host.player();
         Optional<BlinkLanding> trip = TeleportStep.tripOf(ability.behaviors(), player, player.position(),
                 player.getLookAngle(), host.blinkPin());
-        int price = ability.distancePrice().priceOf(ability.cost(), trip);
-        // oculus-prism-becomes-a-hovering-eye: a charged oculus pays for the blink to it
-        int cost = OculusCharge.costAt(player.level(), price, trip);
+        int cost = ability.distancePrice().priceOf(ability.cost(), trip);
         if (!affords(player, gooType, ability, cost)) {
             return false;
         }
@@ -183,7 +180,6 @@ public final class GooSelfHandler {
         GooSourceScanner.deplete(player, gooType, cost);
         ReagentScanner.consumeOneOfEach(player, ability.consumes());
         runOn(host, ability);
-        OculusCharge.settle(player.level(), price, trip);
         return true;
     }
 

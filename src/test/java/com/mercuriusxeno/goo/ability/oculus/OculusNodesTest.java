@@ -9,8 +9,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Which oculus a blink snaps to, and what the blink to it costs and leaves
- * in its charge (decision oculus-prism-becomes-a-hovering-eye).
+ * Which oculus a blink snaps to (decision oculus-prism-becomes-a-hovering-eye).
  */
 class OculusNodesTest {
 
@@ -48,24 +47,6 @@ class OculusNodesTest {
         @Test
         void anOculusPastTheRangeIsNot() {
             assertEquals(Optional.empty(), OculusNodes.pick(List.of(TOO_FAR), EYE, LOOK_SOUTH, RANGE, CONE));
-        }
-    }
-
-    @Nested
-    class Charge {
-
-        private static final int PRICE = 2500;
-
-        @Test
-        void aChargeCoveringThePriceMakesTheBlinkFree() {
-            assertEquals(0, OculusCharge.costOf(PRICE, PRICE));
-            assertEquals(0, OculusCharge.chargeAfter(PRICE, PRICE));
-        }
-
-        @Test
-        void aShortChargeLeavesThePriceToPayAndTakesItIn() {
-            assertEquals(PRICE, OculusCharge.costOf(PRICE, PRICE - 1));
-            assertEquals(2 * PRICE - 1, OculusCharge.chargeAfter(PRICE, PRICE - 1));
         }
     }
 }

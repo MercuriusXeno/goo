@@ -1,14 +1,12 @@
 package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.ability.DistancePrice;
-import com.mercuriusxeno.goo.ability.oculus.OculusCharge;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.BlinkResolver;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.LevelBlinkSpace;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
-import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;
@@ -62,7 +60,7 @@ public final class BlinkAim {
 
     /**
      * What a trip costs on this client, as the server will drain it: its
-     * price, or nothing where it snaps to an oculus whose charge covers it.
+     * price, a share of it where it snaps to an oculus.
      * Decision oculus-prism-becomes-a-hovering-eye.
      *
      * @param distancePrice the ability's per-block and wall prices
@@ -71,9 +69,7 @@ public final class BlinkAim {
      * @return the cost in mB
      */
     public static int tripCost(DistancePrice distancePrice, int base, Optional<BlinkLanding> trip) {
-        int price = distancePrice.priceOf(base, trip);
-        Minecraft mc = trip.flatMap(BlinkLanding::node).isPresent() ? Minecraft.getInstance() : null;
-        return OculusCharge.costAt(mc == null ? null : mc.level, price, trip);
+        return distancePrice.priceOf(base, trip);
     }
 
     /**
