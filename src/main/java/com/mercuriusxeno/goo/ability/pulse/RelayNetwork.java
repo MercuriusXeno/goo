@@ -74,12 +74,10 @@ public final class RelayNetwork {
         toWalk.add(start);
         while (!toWalk.isEmpty() && network.size() < MAX_NETWORK) {
             BlockPos current = toWalk.poll();
-            for (BlockPos other : relaysNear(level, current)) {
-                if (!network.contains(other) && linksThroughAir(level, current, other)) {
-                    network.add(other);
-                    toWalk.add(other);
-                }
-            }
+            relaysNear(level, current).stream()
+                    .filter(other -> !network.contains(other) && linksThroughAir(level, current, other))
+                    .filter(network::add)
+                    .forEach(toWalk::add);
         }
         return network;
     }

@@ -26,6 +26,8 @@ public final class MetronomeTests {
     /** Marks a pending effect aimed at a block rather than an entity. */
     private static final int NO_ENTITY = -1;
     private static final String METRONOME = "goo:pulse_metronome";
+    private static final String ZAP = "goo:pulse_zap";
+    private static final String STILL_A_METRONOME = "A Zap should leave the prism's metronome combo standing";
     private static final BlockPos PRISM = new BlockPos(2, 1, 2);
     private static final BlockPos LEVER = PRISM.west();
     private static final BlockPos LAMP = PRISM.east();
@@ -74,6 +76,34 @@ public final class MetronomeTests {
         helper.runAfterDelay(SECOND_WATCH_END + 1, () -> {
             assertBeats(helper, firstBeats, FIRST_INTERVAL);
             assertBeats(helper, secondBeats, SECOND_INTERVAL);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A metronome prism struck by two Zaps 20 ticks apart lights its lamp
+     * every 20 ticks after: a Zap's pulse beside the prism is a signal it hears.
+     * zap-ticks-the-device-and-stuns
+     *
+     * @param helper the gametest helper
+     */
+    public static void metronomeLearnsFromZaps(GameTestHelper helper) {
+        helper.setBlock(PRISM.below(), Blocks.STONE);
+        helper.setBlock(LAMP.below(), Blocks.STONE);
+        helper.setBlock(PRISM, GooBlocks.PRISM.get().defaultBlockState().setValue(PrismBlock.FACING, Direction.UP));
+        helper.setBlock(LAMP, Blocks.REDSTONE_LAMP);
+        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.PULSE,
+                NO_ENTITY, helper.absolutePos(PRISM), Direction.UP, METRONOME));
+        helper.assertTrue(helper.getBlockEntity(PRISM, PrismBlockEntity.class).hasCombo(), COMBO_TOOK);
+        for (int zap : new int[] {FIRST_ON, SECOND_ON}) {
+            helper.runAfterDelay(zap, () -> GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(),
+                    null, GooTypes.PULSE, NO_ENTITY, helper.absolutePos(PRISM), Direction.UP, ZAP)));
+        }
+        List<Integer> beats = watchLamp(helper, SECOND_ON + 1, FIRST_WATCH_END);
+        helper.runAfterDelay(FIRST_WATCH_END + 1, () -> {
+            helper.assertTrue(helper.getBlockEntity(PRISM, PrismBlockEntity.class).getCombo().equals(METRONOME),
+                    STILL_A_METRONOME);
+            assertBeats(helper, beats, FIRST_INTERVAL);
             helper.succeed();
         });
     }

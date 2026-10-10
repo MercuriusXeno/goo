@@ -412,6 +412,7 @@ public final class GooTestFunctions {
     private static final String ZAP_STUNS_A_ZOMBIE = "zap_stuns_a_zombie";
     private static final String ZAP_STUN_WEARS_OFF = "zap_stun_wears_off";
     private static final String ZAP_PULSES_DUST = "zap_pulses_dust";
+    private static final String METRONOME_LEARNS_FROM_ZAPS = "metronome_learns_from_zaps";
     private static final String SIGNAL_TOGGLES_EACH_ONCE = "signal_toggles_each_once";
     private static final String PULSER_FLIPS_REPEATEDLY = "pulser_flips_repeatedly";
     private static final String PULSER_FLIPS_UNDER_JITTER = "pulser_flips_under_jitter";
@@ -902,6 +903,7 @@ public final class GooTestFunctions {
         reg(r, ZAP_STUNS_A_ZOMBIE, ZapTests::zapStunsAZombie);
         reg(r, ZAP_STUN_WEARS_OFF, ZapTests::zapStunWearsOff);
         reg(r, ZAP_PULSES_DUST, ZapTests::zapPulsesDust);
+        reg(r, METRONOME_LEARNS_FROM_ZAPS, MetronomeTests::metronomeLearnsFromZaps);
         reg(r, SIGNAL_TOGGLES_EACH_ONCE, SignalTests::signalTogglesEachOnce);
         reg(r, PULSER_FLIPS_REPEATEDLY, PulserTests::pulserFlipsRepeatedly);
         reg(r, PULSER_FLIPS_UNDER_JITTER, PulserTests::pulserFlipsUnderJitter);
