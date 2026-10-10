@@ -10,6 +10,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -131,6 +132,23 @@ class DrinkUploadTest {
             assertEquals(1 - CAMERA.x, floatAt(regionAt(blocks, 2, 0, 0).bytes(), DrinkUpload.RINGS_AT), DELTA,
                     "the copied span starts at the segment's first ring");
             assertEquals(0, dropped(blocks));
+        }
+
+        @Test
+        void aRegionReadsWhetherItComesWithinReachOfTheGlove() {
+            DrinkField.Skeleton lone = chain(streams(1).getFirst(), MIDDLE, 3, RADIUS);
+            List<DrinkUpload.Block> blocks = DrinkUpload.of(List.of(lone), coats(1), CAMERA, false);
+            DrinkUpload.Block region = regionAt(blocks, 0, 0, 0);
+
+            assertTrue(region.within(MIDDLE.subtract(CAMERA), 0), "a point inside the region's box");
+            assertTrue(region.within(new Vec3(2.4, 0.5, 0.5).subtract(CAMERA), DrinkRenderer.HAND_REACH),
+                    "a point 1.4 blocks past its face, within the hand's reach of 1.5");
+            assertTrue(region.within(new Vec3(2, 2, 0.5).subtract(CAMERA), DrinkRenderer.HAND_REACH),
+                    "a point root two off its edge");
+            assertFalse(region.within(new Vec3(2.6, 0.5, 0.5).subtract(CAMERA), DrinkRenderer.HAND_REACH),
+                    "a point 1.6 blocks past its face is beyond the reach");
+            assertFalse(region.within(new Vec3(2.1, 2.1, 0.5).subtract(CAMERA), DrinkRenderer.HAND_REACH),
+                    "the reach is measured to the box's nearest point, not along one axis");
         }
 
         @Test
