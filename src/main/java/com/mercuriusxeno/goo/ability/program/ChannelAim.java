@@ -81,6 +81,17 @@ public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDe
     }
 
     /**
+     * The aim of an uncounted hold through a cone, as Bore's block pass reads it.
+     *
+     * @param aimPoint    the stream's reach along the look
+     * @param plane       the face the hold began on, or null
+     * @param coneDegrees the cone, apex to rim, in degrees
+     */
+    public ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees) {
+        this(aimPoint, plane, coneDegrees, 0);
+    }
+
+    /**
      * The block under the cursor: the aim point lies on a face, so the block
      * is read a hair past it along the line from the eye.
      *
