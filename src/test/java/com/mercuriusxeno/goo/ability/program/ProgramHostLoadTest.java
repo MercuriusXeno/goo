@@ -212,16 +212,18 @@ class ProgramHostLoadTest {
     void eachKindProvidesTheCapabilityInterfacesItsHostImplements() {
         assertEquals(EnumSet.complementOf(EnumSet.of(HostCapability.TARGET, HostCapability.LINGER, HostCapability.CHANNEL,
                         HostCapability.BREAK_BLOCKS, HostCapability.DRIP, HostCapability.COLONIZE,
-                        HostCapability.FLOOR_SCAN, HostCapability.SPAWN_MOB)),
+                        HostCapability.FLOOR_SCAN, HostCapability.POWER_PULSE, HostCapability.TOGGLE_DEVICE,
+                        HostCapability.EXTEND_EFFECTS, HostCapability.SPAWN_MOB)),
                 HostKind.MARKER.capabilities());
         assertEquals(Set.of(HostCapability.PLACED_FACE, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
                 HostCapability.PLACE_BLOCK, HostCapability.LINGER, HostCapability.BREAK_BLOCKS, HostCapability.COLONIZE,
-                HostCapability.FLOOR_SCAN, HostCapability.SPAWN_MOB, HostCapability.FROST),
+                HostCapability.FLOOR_SCAN, HostCapability.POWER_PULSE, HostCapability.SPAWN_MOB, HostCapability.FROST),
                 HostKind.LANDING.capabilities());
         assertEquals(Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN),
                 HostKind.ENTITY.capabilities());
         assertEquals(Set.of(HostCapability.EXPLODE, HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK,
-                HostCapability.BREAK_BLOCKS, HostCapability.DRIP, HostCapability.SPAWN_MOB, HostCapability.FROST),
+                HostCapability.BREAK_BLOCKS, HostCapability.DRIP, HostCapability.TOGGLE_DEVICE, HostCapability.SPAWN_MOB,
+                HostCapability.FROST),
                 HostKind.TAP.capabilities());
         assertEquals(Set.of(HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK),
                 HostKind.SURFACE.capabilities());

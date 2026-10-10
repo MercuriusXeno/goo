@@ -17,6 +17,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -43,6 +44,8 @@ public record HeldEffects(List<Held> held) {
     public static final HeldEffects NONE = new HeldEffects(List.of());
     /** The expiry of a glove effect, which only its upkeep or the player ends. */
     public static final long NEVER_EXPIRES = Long.MAX_VALUE;
+    /** An extender covers the other effects' upkeep on one tick of every this many. */
+    private static final int COVERED_EVERY = 2;
 
     private static final String FIELD_HELD = "held";
 
@@ -168,6 +171,17 @@ public record HeldEffects(List<Held> held) {
             return lays.contains(LaidState.HEART_OVERLAY);
         }
 
+        /**
+         * Answers whether the effect is the glove's Extender, whose paid upkeep
+         * covers alternate ticks of every other glove effect's
+         * (decision extender-multiplies-the-next-self-duration).
+         *
+         * @return true for a glove-held extender
+         */
+        public boolean extendsOthers() {
+            return lays.contains(LaidState.EXTENDER) && !prepaid();
+        }
+
         private static Set<LaidState> laidSet(Collection<LaidState> laid) {
             return laid.isEmpty() ? Set.of() : Collections.unmodifiableSet(EnumSet.copyOf(laid));
         }
@@ -257,7 +271,10 @@ public record HeldEffects(List<Held> held) {
      * Advances the effects one tick: a prepaid effect pays nothing and ends
      * at its expiry; each glove effect started before now pays its upkeep
      * from what its goo type holds, effects sharing a type drawing in the
-     * order they started, and an effect the inventory cannot pay ends.
+     * order they started, and an effect the inventory cannot pay ends. A
+     * glove extender pays first, and on the ticks its payment covers, every
+     * other glove effect stands without paying
+     * (decision extender-multiplies-the-next-self-duration).
      *
      * @param available the mB the inventory holds of a goo type
      * @param now       the game time
@@ -268,13 +285,97 @@ public record HeldEffects(List<Held> held) {
             return new Ticked(this, List.of(), Map.of());
         }
         Map<ResourceKey<GooTypeDefinition>, Integer> drawn = new HashMap<>();
+        Set<Held> paidExtenders = payExtenders(available, drawn, now);
+        boolean covered = paidExtenders.stream().anyMatch(extender -> creditsThisTick(extender, now));
         List<Held> kept = new ArrayList<>();
         List<Held> ended = new ArrayList<>();
         for (Held standing : held) {
-            (stands(standing, available, drawn, now) ? kept : ended).add(standing);
+            boolean stood = standing.extendsOthers() ? paidExtenders.contains(standing)
+                    : standsBeside(standing, covered, available, drawn, now);
+            (stood ? kept : ended).add(standing);
         }
         HeldEffects after = ended.isEmpty() ? this : new HeldEffects(kept);
         return new Ticked(after, List.copyOf(ended), Map.copyOf(drawn));
+    }
+
+    /**
+     * Lengthens every prepaid brew standing, the extender's own aside, by a
+     * flat count of ticks, as drinking the pulse brew does
+     * (decision extender-multiplies-the-next-self-duration).
+     *
+     * @param extra the ticks each brew's expiry moves out
+     * @return the effects after
+     */
+    public HeldEffects extendPrepaid(long extra) {
+        return new HeldEffects(held.stream().map(standing -> standing.prepaid()
+                && !standing.lays().contains(LaidState.EXTENDER)
+                ? new Held(standing.ability(), standing.gooType(), standing.upkeep(), standing.lays(),
+                        standing.startedAt(), standing.expiresAt() + extra, standing.downSound())
+                : standing).toList());
+    }
+
+    /**
+     * The ticks a drunk pulse brew adds to each timed effect applied while it
+     * stands: its own duration, or none while no pulse brew stands
+     * (decision extender-multiplies-the-next-self-duration).
+     *
+     * @return the ticks added, 0 while no drunk extender stands
+     */
+    public long extensionTicks() {
+        return held.stream().filter(standing -> standing.prepaid() && standing.lays().contains(LaidState.EXTENDER))
+                .mapToLong(standing -> standing.expiresAt() - standing.startedAt()).max().orElse(0);
+    }
+
+    /**
+     * Answers whether an effect other than an extender stands through a
+     * tick: a glove effect stands unpaid on a tick an extender covers, and
+     * pays as usual otherwise.
+     *
+     * @param standing  the effect
+     * @param covered   whether an extender's payment covers this tick
+     * @param available the mB the inventory holds of a goo type
+     * @param drawn     per goo type, the upkeep the tick has drawn so far
+     * @param now       the game time
+     * @return true when the effect stands after the tick
+     */
+    private static boolean standsBeside(Held standing, boolean covered,
+                                        ToIntFunction<ResourceKey<GooTypeDefinition>> available,
+                                        Map<ResourceKey<GooTypeDefinition>, Integer> drawn, long now) {
+        return covered && !standing.prepaid() || stands(standing, available, drawn, now);
+    }
+
+    /**
+     * Draws each glove extender's upkeep ahead of the other effects'.
+     *
+     * @param available the mB the inventory holds of a goo type
+     * @param drawn     per goo type, the upkeep the tick has drawn so far
+     * @param now       the game time
+     * @return the extenders standing through the tick
+     */
+    private Set<Held> payExtenders(ToIntFunction<ResourceKey<GooTypeDefinition>> available,
+                                   Map<ResourceKey<GooTypeDefinition>, Integer> drawn, long now) {
+        Set<Held> paid = new HashSet<>();
+        for (Held standing : held) {
+            if (standing.extendsOthers() && stands(standing, available, drawn, now)) {
+                paid.add(standing);
+            }
+        }
+        return paid;
+    }
+
+    /**
+     * Answers whether a standing extender's payment this tick covers the
+     * other glove effects' upkeep: every second tick it pays, so each other
+     * effect pays its own goo on alternate ticks
+     * (decision extender-multiplies-the-next-self-duration).
+     *
+     * @param extender the extender, standing through the tick
+     * @param now      the game time
+     * @return true on a tick the extender's payment covers
+     */
+    static boolean creditsThisTick(Held extender, long now) {
+        long since = now - extender.startedAt();
+        return since > 0 && since % COVERED_EVERY == 0;
     }
 
     /**
@@ -308,7 +409,10 @@ public record HeldEffects(List<Held> held) {
      * How long each goo type's holdings keep its glove effects paid: the mB
      * the inventory holds of the type over the upkeep its glove effects draw a
      * tick, which the effect list shows as the time left. A prepaid brew has
-     * a clock of its own and counts no upkeep here.
+     * a clock of its own and counts no upkeep here. While a glove extender
+     * stands, every other glove effect pays on alternate ticks alone, so its
+     * upkeep counts half and its time shows doubled
+     * (decision extender-multiplies-the-next-self-duration).
      * brew-runs-the-crawl-prepaid-on-a-shown-clock
      *
      * @param available the mB the inventory holds of a goo type
@@ -316,14 +420,17 @@ public record HeldEffects(List<Held> held) {
      */
     public Map<ResourceKey<GooTypeDefinition>, Integer> ticksLeft(
             ToIntFunction<ResourceKey<GooTypeDefinition>> available) {
-        Map<ResourceKey<GooTypeDefinition>, Integer> upkeep = new HashMap<>();
+        boolean extended = held.stream().anyMatch(Held::extendsOthers);
+        Map<ResourceKey<GooTypeDefinition>, Double> upkeep = new HashMap<>();
         for (Held standing : held) {
             if (!standing.prepaid() && standing.upkeep() > 0) {
-                upkeep.merge(standing.gooType(), standing.upkeep(), Integer::sum);
+                double paid = extended && !standing.extendsOthers()
+                        ? (double) standing.upkeep() / COVERED_EVERY : standing.upkeep();
+                upkeep.merge(standing.gooType(), paid, Double::sum);
             }
         }
         Map<ResourceKey<GooTypeDefinition>, Integer> left = new HashMap<>();
-        upkeep.forEach((type, perTick) -> left.put(type, available.applyAsInt(type) / perTick));
+        upkeep.forEach((type, perTick) -> left.put(type, (int) (available.applyAsInt(type) / perTick)));
         return Map.copyOf(left);
     }
 
