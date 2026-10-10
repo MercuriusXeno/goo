@@ -42,4 +42,13 @@ class HeldRouteTest {
     void noSelectionRunsNothing() {
         assertFalse(HeldRoute.runsWhileHeld(null, null));
     }
+
+    // nova-ring-grows-with-the-hold
+    @Test
+    void chargedChannelFiresOnReleaseRatherThanWhileHeld() {
+        Delivery charged = new Delivery(DeliveryKind.SELF, Delivery.DEFAULT_BLOCKS_PER_TICK, 0,
+                Delivery.DEFAULT_CONE_DEGREES, Delivery.DEFAULT_TICKS_PER_CHARGE, true, java.util.Optional.empty(),
+                Delivery.DEFAULT_TRANSFORM_AT, java.util.Optional.empty(), 60);
+        assertFalse(HeldRoute.runsWhileHeld(charged, AbilityBadge.CHANNELED));
+    }
 }

@@ -145,6 +145,15 @@ public class GooBlocks {
             () -> BlockBehaviour.Properties.ofFullCopy(Blocks.ICE)
                     .overrideLootTable(Blocks.ICE.getLootTable()));
     /**
+     * Iceborn's ice: magicked ice an Iceborn player leaves on water, its own
+     * block so the level's record knows it still stands frozen when it sends
+     * it back to water (decision iceborn-frozen-hearts-thaw-on-fire).
+     */
+    public static final DeferredBlock<MagickedIceBlock> ICEBORN_ICE = BLOCKS.registerBlock(
+            "iceborn_ice", MagickedIceBlock::new,
+            () -> BlockBehaviour.Properties.ofFullCopy(Blocks.ICE)
+                    .overrideLootTable(Blocks.ICE.getLootTable()));
+    /**
      * Indestructible strength value for fluid blocks (matches bedrock).
      */
     private static final float INDESTRUCTIBLE = -1.0F;

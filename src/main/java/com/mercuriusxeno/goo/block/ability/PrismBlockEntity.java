@@ -55,6 +55,12 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
      * after the prism loads (decision relay-prism-carries-the-signal-through-air).
      */
     private boolean relaying;
+    /**
+     * Whether a combo that was running when the prism saved waits to rebuild
+     * its program: a chunk loads the prism before it has a level, when no
+     * ability can be read, so the program comes back on its first server tick.
+     */
+    private boolean resumesCombo;
 
     /**
      * Creates the prism's block entity.
@@ -76,6 +82,10 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
      * @param prism the prism's block entity
      */
     public static void serverTick(Level level, BlockPos pos, BlockState state, PrismBlockEntity prism) {
+        if (prism.resumesCombo) {
+            prism.resumesCombo = false;
+            prism.behavior = prism.comboProgram();
+        }
         if (prism.behavior == null) {
             return;
         }
@@ -201,10 +211,13 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         programState.load(input);
         beat = new RedstoneBeat(input.getLongOr(TAG_PREVIOUS_EDGE, RedstoneBeat.NEVER),
                 input.getLongOr(TAG_LAST_EDGE, RedstoneBeat.NEVER), input.getBooleanOr(TAG_HEARD, false));
-        behavior = input.getBooleanOr(TAG_RUNNING, false) ? comboProgram() : null;
+        boolean running = input.getBooleanOr(TAG_RUNNING, false);
+        behavior = running ? comboProgram() : null;
         if (behavior != null) {
             behavior.loadAdditional(input);
         }
+        // a chunk reads the prism before its level is set: the running combo comes back on the first server tick
+        resumesCombo = running && behavior == null && level == null;
     }
 
     /**
@@ -231,7 +244,7 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         output.putLong(TAG_PREVIOUS_EDGE, beat.previousEdge());
         output.putLong(TAG_LAST_EDGE, beat.lastEdge());
         output.putBoolean(TAG_HEARD, beat.heard());
-        output.putBoolean(TAG_RUNNING, behavior != null);
+        output.putBoolean(TAG_RUNNING, behavior != null || resumesCombo);
         if (behavior != null) {
             behavior.saveAdditional(output);
         }
