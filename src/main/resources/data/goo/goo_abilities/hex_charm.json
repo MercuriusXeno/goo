@@ -9,10 +9,16 @@
   "behaviors": [
     {
       "type": "target",
-      "where": ["mob"],
+      "where": ["mob", "not_boss"],
       "steps": [
-        { "type": "potion", "effect": "minecraft:weakness", "duration": "20 * 60 / pow(health, 0.4)", "amplifier": 4 },
-        { "type": "ailment_overlay", "kind": "hex", "duration": "20 * 60 / pow(health, 0.4)" }
+        {
+          "type": "branch",
+          "when": "chance(pow(20 / max_health, 1.5))",
+          "then": [
+            { "type": "charm", "duration": "6000 * pow(20 / health, 0.4)" },
+            { "type": "ailment_overlay", "kind": "hex", "duration": "6000 * pow(20 / health, 0.4)" }
+          ]
+        }
       ]
     }
   ],
