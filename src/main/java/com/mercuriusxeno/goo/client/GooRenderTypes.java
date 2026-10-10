@@ -6,6 +6,7 @@ import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.CompareOp;
+import com.mojang.blaze3d.shaders.UniformType;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -796,6 +797,30 @@ public final class GooRenderTypes {
                 .build();
     }
 
+    /** The uniform block the drink field pipeline reads one stream's bodies, proxies and coat from. */
+    public static final String DRINK_STREAM_BLOCK = "DrinkStream";
+
+    /**
+     * The Unmake drink's field pipeline (decision
+     * unmake-waves-dissolve-by-crucible-cost): proxy boxes whose fragments
+     * march the drink's metaball field and write the hit's depth, opaque,
+     * lit by the cardinal lights and the lightmap, textured off the block
+     * atlas, with the stream's bodies in a uniform block of their own.
+     */
+    public static final RenderPipeline DRINK_FIELD = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_FOG_LIGHT_DIR_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "drink_field"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "drink_field"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "drink_field"))
+            .withSampler("Sampler0")
+            .withSampler("Sampler2")
+            .withUniform(DRINK_STREAM_BLOCK, UniformType.UNIFORM_BUFFER)
+            .withVertexFormat(DefaultVertexFormat.ENTITY, VertexFormat.Mode.QUADS)
+            .withDepthStencilState(DepthStencilState.DEFAULT)
+            .withCull(true)
+            .build();
+
     /**
      * The render type that draws a burnout explosion pipeline to the main target.
      *
@@ -834,9 +859,19 @@ public final class GooRenderTypes {
         event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(BORE_VORTEX);
         event.registerPipeline(GOO_AILMENT_OVERLAY);
+        registerAbilityPipelines(event);
+    }
+
+    /**
+     * Registers the ability effects' pipelines: the afterimage ripples, the ghost and the drink field.
+     *
+     * @param event the event instance
+     */
+    private static void registerAbilityPipelines(RegisterRenderPipelinesEvent event) {
         GOO_RIPPLE_MASKS.forEach(event::registerPipeline);
         event.registerPipeline(GOO_RIPPLE_EDGE);
         event.registerPipeline(GOO_GHOST);
+        event.registerPipeline(DRINK_FIELD);
     }
 
     /**
