@@ -76,6 +76,41 @@ class StreamHoldsTest {
         }
     }
 
+    /** A hold keeps its marks while it lasts and a new hold starts fresh (decision decay-gnats-degrade-each-block-once). */
+    @Nested
+    class MarksLastTheHold {
+
+        private static final BlockPos BLOCK = new BlockPos(4, 64, -2);
+
+        @Test
+        void aSteppedPositionReadsSteppedForTheRestOfTheHold() {
+            StreamHolds holds = new StreamHolds();
+            holds.advance(PLAYER, 100);
+            holds.marks(PLAYER).noteStepped(BLOCK);
+            holds.advance(PLAYER, 101);
+            assertTrue(holds.marks(PLAYER).stepped(BLOCK));
+            assertFalse(holds.marks(PLAYER).stepped(BLOCK.above()));
+        }
+
+        @Test
+        void aNewHoldForgetsTheLastHoldsMarks() {
+            StreamHolds holds = new StreamHolds();
+            holds.advance(PLAYER, 100);
+            holds.marks(PLAYER).noteStepped(BLOCK);
+            holds.advance(PLAYER, 103);
+            assertFalse(holds.marks(PLAYER).stepped(BLOCK));
+        }
+
+        @Test
+        void eachPlayersMarksAreItsOwn() {
+            StreamHolds holds = new StreamHolds();
+            holds.advance(PLAYER, 100);
+            holds.advance(OTHER, 100);
+            holds.marks(PLAYER).noteStepped(BLOCK);
+            assertFalse(holds.marks(OTHER).stepped(BLOCK));
+        }
+    }
+
     /** A hold touches each block once, and a new hold forgets what the last one touched (decision signal-wave-toggles-each-device-once). */
     @Nested
     class TouchOnce {

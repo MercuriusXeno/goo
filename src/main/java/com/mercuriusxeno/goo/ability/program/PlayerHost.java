@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.pulse.ExtenderEvents;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
+import com.mercuriusxeno.goo.network.HoldMarks;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -268,5 +269,10 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
                 && EntityScan.passes(living, filters, player))) {
             body.accept(new EntityHost(level, living, player));
         }
+    }
+
+    @Override
+    public HoldMarks holdMarks() {
+        return GooServerState.of(level.getServer()).streamHolds().marks(player.getUUID());
     }
 }

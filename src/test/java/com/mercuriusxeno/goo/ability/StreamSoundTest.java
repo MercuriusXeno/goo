@@ -31,4 +31,23 @@ class StreamSoundTest {
         assertEquals(1f, BUBBLES.pitchFor(0.5f), EPSILON);
         assertEquals(1.2f, BUBBLES.pitchFor(1f), EPSILON);
     }
+
+    // decision decay-gnats-degrade-each-block-once: the holder's client reads the loop off the ability sync
+    @Test
+    void aLoopedSoundCrossesTheNetworkWhole() {
+        StreamSound buzz = new StreamSound(Identifier.withDefaultNamespace("entity.bee.loop"), 30, 0.12f, 0.05f,
+                1.95f, true);
+        io.netty.buffer.ByteBuf buf = io.netty.buffer.Unpooled.buffer();
+        StreamSound.STREAM_CODEC.encode(buf, buzz);
+        assertEquals(buzz, StreamSound.STREAM_CODEC.decode(buf));
+    }
+
+    // decision decay-gnats-degrade-each-block-once: Decay's buzz plays a bee's loop pitched high
+    @Test
+    void aPitchedSoundStraysAroundItsOwnPitch() {
+        StreamSound buzz = new StreamSound(Identifier.withDefaultNamespace("entity.bee.loop"), 30, 0.12f, 0.05f, 1.95f);
+        assertEquals(1.9f, buzz.pitchFor(0f), EPSILON);
+        assertEquals(1.95f, buzz.pitchFor(0.5f), EPSILON);
+        assertEquals(2f, buzz.pitchFor(1f), EPSILON);
+    }
 }

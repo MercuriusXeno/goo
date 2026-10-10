@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.banish.Teleportitis;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.hex.Lifetap;
+import com.mercuriusxeno.goo.ability.nether.Undead;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.Sight;
@@ -225,25 +226,41 @@ public final class HeldEffectsEvents {
 
     private static void clearLaid(ServerPlayer player, List<HeldEffects.Held> ended) {
         for (HeldEffects.Held effect : ended) {
-            clearState(player, effect.lays());
+            clearBodyStates(player, effect.lays());
+            clearMindStates(player, effect.lays());
             // brew-runs-the-crawl-prepaid-on-a-shown-clock: the effect list's entry ends with the effect
             player.removeEffect(GooMobEffects.BREW_EFFECTS.get(effect.gooType()));
         }
     }
 
     /**
-     * Clears the player state one ended effect laid.
+     * Clears the states an ended effect laid on the player's body: its heart
+     * overlay, its nourishment and its counting as undead.
      *
      * @param player the player
-     * @param lays   the state the effect laid
+     * @param lays   the states the ended effect laid
      */
-    private static void clearState(ServerPlayer player, Set<LaidState> lays) {
+    private static void clearBodyStates(ServerPlayer player, Set<LaidState> lays) {
         if (lays.contains(LaidState.HEART_OVERLAY)) {
             player.setData(GooAttachments.HEART_OVERLAY, HeartOverlay.NONE);
         }
         if (lays.contains(LaidState.NOURISH)) {
             player.setData(GooAttachments.NOURISH, Nourish.NONE);
         }
+        if (lays.contains(LaidState.UNDEAD)) {
+            // undead-nether-hearts-burn-in-sunlight: the player counts as undead no longer
+            player.setData(GooAttachments.UNDEAD, Undead.NONE);
+        }
+    }
+
+    /**
+     * Clears the states an ended effect laid on the player's senses and
+     * draws: its sight, its teleportitis and its lifetap.
+     *
+     * @param player the player
+     * @param lays   the states the ended effect laid
+     */
+    private static void clearMindStates(ServerPlayer player, Set<LaidState> lays) {
         if (lays.contains(LaidState.SIGHT)) {
             // sight-lengthens-shift-and-outlines-fungus: the sight ends with its held effect
             player.setData(GooAttachments.SIGHT, Sight.NONE);

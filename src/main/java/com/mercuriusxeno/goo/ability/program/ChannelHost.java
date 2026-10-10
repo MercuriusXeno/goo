@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.network.HoldMarks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
@@ -65,6 +66,14 @@ public interface ChannelHost extends BlockBreakHost {
      * @param body    what to run on the host bound to each entity
      */
     void forEachLivingIn(List<BlockPos> cells, Set<EntityFilter> filters, Consumer<TargetHost> body);
+
+    /**
+     * The marks the channeling player's current hold has left on the blocks
+     * it reached (decision decay-gnats-degrade-each-block-once).
+     *
+     * @return the hold's marks
+     */
+    HoldMarks holdMarks();
 
     /**
      * Toggles the lever, button, door, trapdoor or fence gate at a block as a

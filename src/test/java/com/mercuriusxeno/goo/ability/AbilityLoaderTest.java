@@ -126,7 +126,8 @@ class AbilityLoaderTest {
             Map.entry("shroom_mycosis", List.of("nether_wart")),
             Map.entry("shroom_colonize", List.of("brown_mushroom", "red_mushroom")),
             Map.entry("shroom_fungal_shift", List.of("sculk")),
-            Map.entry("shroom_sight", List.of("sculk_sensor")));
+            Map.entry("shroom_sight", List.of("sculk_sensor")),
+            Map.entry("nether_undead", List.of("rotten_flesh")));
 
     @Test
     void everyScannedAbilityCarriesItsFileId() {
@@ -151,6 +152,16 @@ class AbilityLoaderTest {
         for (String name : STACK_SHAPE_ABILITIES) {
             assertFalse(scanned.containsKey(Identifier.fromNamespaceAndPath(Goo.MODID, name)), name + " still loads");
         }
+    }
+
+    // decision wither-ability-deleted
+    @Test
+    void netherHoldsNoWitherAbility() {
+        Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
+
+        assertTrue(scanned.values().stream().anyMatch(def -> def.gooType() == GooTypes.NETHER), "No nether ability scanned");
+        assertTrue(scanned.values().stream().filter(def -> def.gooType() == GooTypes.NETHER)
+                .noneMatch(def -> def.id().getPath().contains("wither")), "a nether wither ability still loads");
     }
 
     // decision splat-runs-the-program-no-fuse

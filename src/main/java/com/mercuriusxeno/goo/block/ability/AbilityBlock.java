@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.block.ability;
 
 import com.mercuriusxeno.goo.block.BlockEntityTicks;
 import com.mercuriusxeno.goo.block.Waterlogging;
-import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.entity.CompressionSphere;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -32,6 +32,7 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.redstone.Orientation;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
@@ -258,9 +259,9 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
     }
 
     /**
-     * Drops the goo a mid-implosion ability block consumed at {@code pos}
-     * when it is broken. No-op on the client, for a marker that consumed
-     * nothing, or if the block entity is missing.
+     * Leaves what a mid-implosion ability block pulled in as a compression
+     * sphere at {@code pos} when it is broken. No-op on the client, for a
+     * marker that pulled in nothing, or if the block entity is missing.
      *
      * @param level the current level
      * @param pos   the marker position
@@ -272,7 +273,7 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
         if (!(server.getBlockEntity(pos) instanceof AbilityBlockEntity be)) {
             return;
         }
-        GooStacks.dropAll(be.takeConsumedGoo(), server, pos);
+        CompressionSphere.leave(server, Vec3.atCenterOf(pos), be.programState().hoard());
     }
 
     /**

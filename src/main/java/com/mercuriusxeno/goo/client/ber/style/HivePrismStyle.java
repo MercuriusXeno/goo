@@ -1,0 +1,43 @@
+package com.mercuriusxeno.goo.client.ber.style;
+
+import com.mercuriusxeno.goo.ability.nether.HiveSwarm;
+import com.mercuriusxeno.goo.client.CrystalClusterSubmitter;
+import com.mercuriusxeno.goo.client.PrismCrystal;
+import com.mercuriusxeno.goo.client.ber.PrismRenderState;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.util.ARGB;
+
+/**
+ * Nether's hive combo: the prism's quartz column, tinted the maroon of the
+ * decaying swarm that crystallized into it; the swarm around it is
+ * {@link HiveSwarm}'s (decision hive-prism-pillar-eats-the-living).
+ */
+public final class HivePrismStyle implements PrismComboStyle {
+
+    /** The combo the style draws, nether's hive ability. */
+    public static final String COMBO = HiveSwarm.COMBO;
+    /** The swarm's maroon, the column's tint. */
+    static final int MAROON = 0x7A1A2A;
+
+    @Override
+    public void submit(PrismRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector) {
+        CrystalClusterSubmitter.Look quartz = state.look;
+        if (quartz == null) {
+            return;
+        }
+        PrismCrystal.standOnLandingFace(poseStack, state.facing);
+        CrystalClusterSubmitter.Look hive = new CrystalClusterSubmitter.Look(quartz.uv(), columnColor(quartz.color()));
+        CrystalClusterSubmitter.submit(poseStack, nodeCollector, PrismCrystal.PRISMS, hive, state.lightCoords);
+    }
+
+    /**
+     * The hive column's color: the quartz's alpha, in the swarm's maroon.
+     *
+     * @param quartzColor the plain prism's ARGB
+     * @return the column's ARGB
+     */
+    static int columnColor(int quartzColor) {
+        return ARGB.color(ARGB.alpha(quartzColor), MAROON);
+    }
+}

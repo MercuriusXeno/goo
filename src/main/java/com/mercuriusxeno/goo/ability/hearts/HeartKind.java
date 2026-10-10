@@ -65,7 +65,26 @@ public enum HeartKind {
         }
 
         @Override
-        boolean fillsMissing() {
+        public boolean fillsMissing() {
+            return true;
+        }
+    },
+    /**
+     * Nether Undead: nether over the hearts the player is missing, crawling
+     * into each further missing heart fast, a nether heart a second, taking
+     * hits before real health and standing with no nether left until ended;
+     * appended last, so the synced ordinals of the kinds before it stand
+     * (decisions undead-nether-hearts-burn-in-sunlight and heart-effects-crawl-while-held).
+     */
+    UNDEAD(1.0f, false, false, true) {
+        @Override
+        long regrowInterval(int shieldHalves) {
+            // undead-nether-hearts-burn-in-sunlight: nether hearts regenerate rapidly
+            return UNDEAD_REGROW_TICKS_PER_HALF;
+        }
+
+        @Override
+        public boolean fillsMissing() {
             return true;
         }
     },
@@ -95,6 +114,8 @@ public enum HeartKind {
     /** Every eight ember halves standing slow the next half by a second: n / 2 seconds a heart is n / 8 a half. */
     private static final int EMBER_HALVES_PER_EXTRA_SECOND = 8;
     private static final int BARK_REGROW_SECONDS = 5;
+    /** Half a second a half, a nether heart a second. */
+    private static final long UNDEAD_REGROW_TICKS_PER_HALF = 10L;
 
     private final float bareCostMultiplier;
     private final boolean endsWhenBare;
@@ -131,7 +152,7 @@ public enum HeartKind {
      *
      * @return true for a kind filling the missing hearts
      */
-    boolean fillsMissing() {
+    public boolean fillsMissing() {
         return false;
     }
 

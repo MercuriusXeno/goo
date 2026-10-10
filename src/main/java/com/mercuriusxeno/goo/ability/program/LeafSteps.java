@@ -21,7 +21,7 @@ public final class LeafSteps {
     private static final MapCodec<Boolean> ENABLED = Codec.BOOL.fieldOf(FIELD_ENABLED);
     private static final MapCodec<Unit> NO_PARAMS = MapCodec.unit(Unit.INSTANCE);
     private static final Set<HostCapability> TARGET = Set.of(HostCapability.TARGET);
-    private static final Set<HostCapability> CONSUMED_GOO = Set.of(HostCapability.CONSUMED_GOO);
+    private static final Set<HostCapability> HOARD = Set.of(HostCapability.HOARD);
     private static final float PERCENT = 100;
 
     /**
@@ -32,25 +32,25 @@ public final class LeafSteps {
             Set.of(HostCapability.TICKING), (ticks, context) -> context.stepTicks() >= ticks.evaluateInt(context));
 
     /**
-     * Removes every block with a goo value within a sphere around the host
-     * anchor, adding each block's goo to the total the host keeps; the
+     * Takes every breakable block within a sphere around the host anchor
+     * into the hoard the host keeps, each as its silk-touched drops; the
      * nether black hole consumes its blast sphere as it leaves its expand
      * phase: {@code consume_blocks radius=3}.
      */
-    public static final LeafStepType<Expr> CONSUME_BLOCKS = StepType.of("consume_blocks", "radius", CONSUMED_GOO,
+    public static final LeafStepType<Expr> CONSUME_BLOCKS = StepType.of("consume_blocks", "radius", HOARD,
             (radius, context) -> {
-                context.hostAs(ConsumedGooHost.class).consumeValuedBlocks(radius.evaluateInt(context));
+                context.hostAs(HoardHost.class).hoardBlocks(radius.evaluateInt(context));
                 return true;
             });
 
     /**
-     * Drops the goo total the host consumed as goo items at the anchor,
-     * emptying the total; the nether black hole pops what it consumed once
-     * it has contracted: {@code drop_consumed}.
+     * Leaves the host's hoard as one compression sphere at the anchor,
+     * emptying it; the nether black hole drops what it pulled in once it
+     * has contracted: {@code drop_sphere}.
      */
-    public static final LeafStepType<Unit> DROP_CONSUMED = StepType.of("drop_consumed", NO_PARAMS, CONSUMED_GOO,
+    public static final LeafStepType<Unit> DROP_SPHERE = StepType.of("drop_sphere", NO_PARAMS, HOARD,
             (none, context) -> {
-                context.hostAs(ConsumedGooHost.class).dropConsumedGoo();
+                context.hostAs(HoardHost.class).dropSphere();
                 return true;
             });
 
@@ -106,13 +106,6 @@ public final class LeafSteps {
      */
     public static final LeafStepType<Expr> IGNITE = TargetEffectStep.of("ignite", "seconds",
             (target, seconds, context) -> target.igniteForSeconds(seconds.evaluateInt(context)));
-
-    /**
-     * Sets the host's target to a fraction of its current health, bypassing
-     * damage; nether wither is {@code set_health fraction=0.5}.
-     */
-    public static final LeafStepType<Expr> SET_HEALTH = TargetEffectStep.of("set_health", "fraction",
-            (target, fraction, context) -> target.setHealth(target.getHealth() * fraction.evaluateFloat(context)));
 
     /**
      * Heals the host's target by an amount of health points; vitality
