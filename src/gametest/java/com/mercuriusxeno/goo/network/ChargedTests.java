@@ -115,6 +115,8 @@ public final class ChargedTests {
         ServerPlayer player = streamer(helper);
         player.getInventory().add(GooStacks.createForOutput(GooTypes.UNSTABLE, DRY_UNSTABLE));
         KnownRecipes.teachRequires(player, spitfire);
+        // a mock player has no connection to tick it, so the test ticks it as the server would a real one
+        helper.onEachTick(player::doTick);
         HeldEffectsEvents.start(player, GooTypes.UNSTABLE, charged);
         ProgramBehavior.forHost(charged.behaviors(), HostKind.PLAYER).tick(new PlayerHost(helper.getLevel(), player));
         helper.assertTrue(ChargedStep.isCharged(player) && HeldEffectsEvents.holds(player, UNSTABLE_CHARGED),
