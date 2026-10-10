@@ -28,6 +28,9 @@ public final class NetherHeldGhost implements HeldGhostVisual {
     /** The one instance the held dome renderer holds. */
     public static final NetherHeldGhost INSTANCE = new NetherHeldGhost();
 
+    /** A sized black hole pulls from three times its radius, nether_black_hole.json's {@code 3 * size}. */
+    static final float PULL_REACH_PER_RADIUS = 3f;
+
     private NetherHeldGhost() {
     }
 
@@ -50,6 +53,19 @@ public final class NetherHeldGhost implements HeldGhostVisual {
         float dome = literalRadius(SyncedSteps.first(behaviors, PhasedStep.class).map(PhasedStep::radius), fallback);
         float pull = literalRadius(SyncedSteps.first(behaviors, PullStep.class).map(PullStep::radius), fallback);
         return new HeldGhost(dome, HeldGhost.RingDirection.INWARD, pull);
+    }
+
+    /**
+     * A sized black hole's ghost: its dome at the radius dragged and its rings
+     * closing in from the reach it pulls from, three times that
+     * (decision black-hole-leaves-a-compression-sphere).
+     *
+     * @param radius the radius dragged, in blocks
+     * @return the ghost
+     */
+    @Override
+    public HeldGhost sizedGhost(float radius) {
+        return new HeldGhost(radius, HeldGhost.RingDirection.INWARD, radius * PULL_REACH_PER_RADIUS);
     }
 
     @Override

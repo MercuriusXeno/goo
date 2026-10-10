@@ -26,7 +26,6 @@ import static org.mockito.Mockito.when;
  */
 class MobProgramTest {
 
-    private static final float MOB_BLAST_POWER = 3;
     private static final double FLECHETTE_SPLASH_RADIUS = 3;
     private static final double IGNITE_SPLASH_RADIUS = 2.5;
 
@@ -37,22 +36,9 @@ class MobProgramTest {
     @ParameterizedTest
     @ValueSource(strings = {"metal_javelin", "crystal_flechettes", "leaf_vines", "vital_clone",
         "blaze_ignite", "frost_snap", "typhoon_levitate", "glow_laser", "hex_charm",
-        "ender_banish", "unstable_explode", "aeon_time_stop"})
+        "ender_banish", "aeon_time_stop"})
     void everyMobAbilityIsAProgramThatLoadsForTheStruckEntityHost(String name) {
         assertDoesNotThrow(() -> ProgramBehavior.forHost(ability(name).behaviors(), HostKind.ENTITY), name);
-    }
-
-    @Test
-    void unstableExplodeDetonatesTntAtTheTarget() {
-        EntityHost host = mock(EntityHost.class);
-        when(host.kind()).thenReturn(HostKind.ENTITY);
-
-        ProgramBehavior program = ProgramBehavior.forHost(ability("unstable_explode").behaviors(), HostKind.ENTITY);
-        program.tick(host);
-        assertFalse(program.isActive());
-
-        verify(host).explode(MOB_BLAST_POWER, ExplosionMode.TNT);
-        verifyNoMoreInteractions(host);
     }
 
     @Test

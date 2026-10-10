@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mojang.blaze3d.platform.CompareOp;
 import net.minecraft.util.ARGB;
@@ -62,6 +64,20 @@ class UnstableExplosionVisualTest {
         assertEquals(0, ARGB.green(UnstableExplosionVisual.heldSphereColor(0x66)));
         assertEquals(0x66, ARGB.alpha(UnstableExplosionVisual.heldSphereColor(0x66)));
         assertEquals(0, ARGB.blue(UnstableExplosionVisual.sphereColor(0.5f, 0xFF)));
+    }
+
+    /**
+     * A burnout carries the size its cast was dragged to, and the burst fills
+     * that sphere rather than a resting power's
+     * (decision blast-is-drag-sized-like-the-black-hole).
+     */
+    @Test
+    void burstReachFollowsTheCastsSize() {
+        ExplodeStep blast = AbilityJson.decode("unstable_explode").behaviors().stream()
+                .filter(ExplodeStep.class::isInstance).map(ExplodeStep.class::cast).findFirst().orElseThrow();
+
+        assertEquals(6f, UnstableExplosionVisual.blastReach(blast, 6), TOLERANCE);
+        assertEquals(3f, UnstableExplosionVisual.blastReach(blast, 3), TOLERANCE);
     }
 
     @Test

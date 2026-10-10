@@ -73,7 +73,8 @@ public final class EffectExecutorTests {
     private static final int WALL_Y_MAX = 3;
     private static final int WALL_Z_MAX = 2;
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
-    private static final String ABILITY_BLAST = "goo:unstable_explode";
+    /** The gametests' own thrown blast, today's Blast before it was drag-sized, for the landing machinery. */
+    private static final String ABILITY_BLAST = "goo:test_blast";
     private static final String ABILITY_TIMED_BOMB = "goo:unstable_timed_bomb";
     /** Countdown's fuse, five seconds (decision countdown-fuses-five-seconds). */
     private static final int COUNTDOWN_FUSE_TICKS = 100;

@@ -73,7 +73,7 @@ class GlowExplosionVisualTest {
     }
 
     private static ChainBurnouts.Burnout burnout() {
-        return new ChainBurnouts.Burnout(BlockPos.ZERO, FACE, "goo:glow_test", START,
+        return new ChainBurnouts.Burnout(BlockPos.ZERO, FACE, "goo:glow_test", 0, START,
                 GlowExplosionVisual.INSTANCE);
     }
 

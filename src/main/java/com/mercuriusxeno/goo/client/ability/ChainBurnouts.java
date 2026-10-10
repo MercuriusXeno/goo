@@ -23,10 +23,12 @@ public final class ChainBurnouts {
      * @param pos        the marker's block position
      * @param placedFace the face the marker was placed on
      * @param abilityId  the id of the ability the marker ran
+     * @param size       the size the cast was dragged to, in blocks, zero for a throw
+     *                   (decision blast-is-drag-sized-like-the-black-hole)
      * @param startTick  the game time the explosion began
      * @param visual     the explosion its goo type draws
      */
-    public record Burnout(BlockPos pos, Direction placedFace, String abilityId,
+    public record Burnout(BlockPos pos, Direction placedFace, String abilityId, double size,
                           long startTick, BurnoutVisual visual) {
 
         /**
@@ -59,12 +61,13 @@ public final class ChainBurnouts {
      * @param placedFace the face the marker was placed on
      * @param gooType    the marker's goo type
      * @param abilityId  the id of the ability the marker ran
+     * @param size       the size the cast was dragged to, zero for a throw
      * @param now        the game time the burnout arrived
      * @return the burnout added
      */
     public Burnout add(BlockPos pos, Direction placedFace, ResourceKey<GooTypeDefinition> gooType,
-                       String abilityId, long now) {
-        Burnout burnout = new Burnout(pos, placedFace, abilityId, now,
+                       String abilityId, double size, long now) {
+        Burnout burnout = new Burnout(pos, placedFace, abilityId, size, now,
                 BurnoutVisuals.forType(gooType));
         live.add(burnout);
         return burnout;

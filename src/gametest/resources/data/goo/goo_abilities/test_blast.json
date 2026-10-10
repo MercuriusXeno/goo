@@ -1,0 +1,13 @@
+{
+  "gooType": "unstable",
+  "displayName": "goo.ability.unstable.test_blast",
+  "badge": "free",
+  "order": 90,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "area": { "shape": "sphere" },
+  "behaviors": [
+    { "type": "explode", "power": 3.0, "interaction": "tnt" }
+  ],
+  "tags": ["entity"]
+}

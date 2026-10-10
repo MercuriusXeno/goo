@@ -421,7 +421,7 @@ public final class GloveThrowSender {
         OptionalDouble dragged = dragRadius(player);
         if (ability != null && dragged.isPresent()) {
             // black-hole-leaves-a-compression-sphere: a sized cast reads the price of the radius dragged
-            return Optional.of(GooFormat.formatAmount(DragSize.costAt(ability.cost(), dragged.getAsDouble())));
+            return Optional.of(DragSize.priceLabel(ability.cost(), dragged.getAsDouble()));
         }
         float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
         return Optional.of(ability == null ? GooFormat.formatAmount(throwCostOf(null, Optional.empty()))

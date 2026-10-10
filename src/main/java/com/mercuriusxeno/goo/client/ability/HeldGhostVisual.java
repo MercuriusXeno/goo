@@ -32,6 +32,18 @@ public interface HeldGhostVisual {
     }
 
     /**
+     * The ghost a sized ability of this type holds at the radius its drag
+     * sets. By default the dome is that radius and the rings travel outward to
+     * it, as Blast's do (decision blast-is-drag-sized-like-the-black-hole).
+     *
+     * @param radius the radius dragged, in blocks
+     * @return the ghost
+     */
+    default HeldGhost sizedGhost(float radius) {
+        return HeldGhost.outwardTo(radius);
+    }
+
+    /**
      * @return the layers the ghost draws, in order, each in both passes
      */
     List<HeldLayer> heldLayers();

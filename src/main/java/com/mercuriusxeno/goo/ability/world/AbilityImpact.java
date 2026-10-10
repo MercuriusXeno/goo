@@ -195,7 +195,7 @@ public final class AbilityImpact {
         @Override
         public void announceBurnout() {
             new ChainBurnoutPayload(host.cell(), host.face().ordinal(), GooTypes.id(host.gooType()),
-                    host.abilityId()).sendToTracking(host.level());
+                    host.abilityId(), host.size()).sendToTracking(host.level());
         }
 
         @Override

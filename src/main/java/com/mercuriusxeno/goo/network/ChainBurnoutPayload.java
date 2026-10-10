@@ -13,15 +13,18 @@ import org.jspecify.annotations.NonNull;
  * Server-to-client payload: a ability block burned out, sent to the players
  * tracking its chunk before the marker can be removed, so each goo type's
  * burnout explosion plays even for a program that finishes the tick it
- * fires (decision elemental-explosion-per-type).
+ * fires (decision elemental-explosion-per-type), carrying the size the cast
+ * was dragged to so a sized burst fills the sphere it cut
+ * (decision blast-is-drag-sized-like-the-black-hole).
  *
  * @param pos        the marker's block position
  * @param placedFace the ordinal of the face the marker was placed on
  * @param gooTypeId  the goo type's short id
  * @param abilityId  the id of the ability the marker ran
+ * @param size       the size the cast was dragged to, in blocks, zero for a throw
  */
 public record ChainBurnoutPayload(BlockPos pos, int placedFace, String gooTypeId,
-                                  String abilityId) implements CustomPacketPayload {
+                                  String abilityId, double size) implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
     public static final Type<ChainBurnoutPayload> TYPE =
@@ -57,6 +60,7 @@ public record ChainBurnoutPayload(BlockPos pos, int placedFace, String gooTypeId
         buf.writeVarInt(payload.placedFace);
         buf.writeUtf(payload.gooTypeId);
         buf.writeUtf(payload.abilityId);
+        buf.writeDouble(payload.size);
     }
 
     /**
@@ -67,6 +71,6 @@ public record ChainBurnoutPayload(BlockPos pos, int placedFace, String gooTypeId
      */
     private static ChainBurnoutPayload decode(FriendlyByteBuf buf) {
         return new ChainBurnoutPayload(buf.readBlockPos(), buf.readVarInt(), buf.readUtf(),
-                buf.readUtf());
+                buf.readUtf(), buf.readDouble());
     }
 }
