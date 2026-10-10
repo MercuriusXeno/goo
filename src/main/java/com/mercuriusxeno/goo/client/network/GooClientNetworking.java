@@ -58,6 +58,17 @@ public final class GooClientNetworking {
         event.register(TunerFeedbackPayload.TYPE, TunerFeedbackHandler::handle);
         event.register(GooFlightPayload.TYPE, GooFlightHandler::handle);
         event.register(AbilitySyncPayload.TYPE, AbilitySyncHandler::handle);
+        event.register(KnownItemsSyncPayload.TYPE, KnownItemsHandler::handleSync);
+        event.register(KnownItemLearnedPayload.TYPE, KnownItemsHandler::handleLearned);
+        registerAbilityVisualHandlers(event);
+    }
+
+    /**
+     * Registers the handlers of the payloads that draw an ability's visuals.
+     *
+     * @param event the client payload handler registration event
+     */
+    private static void registerAbilityVisualHandlers(RegisterClientPayloadHandlersEvent event) {
         event.register(ChainBurnoutPayload.TYPE, ChainBurnoutHandler::handle);
         event.register(MobHitPayload.TYPE, MobHitHandler::handle);
         event.register(AilmentPayload.TYPE, AilmentHandler::handle);
@@ -70,8 +81,6 @@ public final class GooClientNetworking {
         event.register(TransformationPayload.TYPE, TransformationHandler::handle);
         event.register(ModelShrinkPayload.TYPE, TransformationHandler::handleShrink);
         event.register(GhostTrailPayload.TYPE, GhostTrailHandler::handle);
-        event.register(KnownItemsSyncPayload.TYPE, KnownItemsHandler::handleSync);
-        event.register(KnownItemLearnedPayload.TYPE, KnownItemsHandler::handleLearned);
         event.register(StreamHealedPayload.TYPE, VitalityVisual::handleHealed);
         event.register(DripHealedPayload.TYPE, VitalityVisual::handleDripHealed);
         event.register(BlockAfterimagePayload.TYPE, AfterimageHandler::handleBlock);
