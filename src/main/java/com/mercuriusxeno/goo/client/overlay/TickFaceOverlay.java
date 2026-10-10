@@ -222,9 +222,9 @@ public final class TickFaceOverlay {
     private static @Nullable BlockHitResult aimedBlock(Minecraft mc, LocalPlayer player, ClientAbility ability) {
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         HitResult hit = player.pick(ability.delivery().range(), partialTick, false);
-        // tick-channel-marches-squares-on-the-face: only a block entity can tick, so a plain block gets no overlay
+        // tick-channel-marches-squares-on-the-face: only a block the server hastens gets the overlay
         return hit instanceof BlockHitResult block && hit.getType() == HitResult.Type.BLOCK
-                && mc.level.getBlockEntity(block.getBlockPos()) != null ? block : null;
+                && TickAim.CLIENT.drawsOn(block.getBlockPos(), mc.level.getGameTime()) ? block : null;
     }
 
     /**

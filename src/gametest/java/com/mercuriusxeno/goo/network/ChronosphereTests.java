@@ -13,8 +13,10 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
@@ -23,6 +25,8 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.projectile.arrow.Arrow;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -31,7 +35,8 @@ import net.minecraft.world.phys.Vec3;
  * a cow walking inside covers a fraction of the ground it covered free and
  * an arrow inside barely moves, while a player inside wears no slowness and
  * keeps its speed; the veil reaches the radius dragged and no further, and
- * the cast pays that radius's price.
+ * the cast pays that radius's price; a veiled mob saved on a tick its AI is
+ * paced off loads back with its AI on.
  * chronosphere-hastes-players-slows-mobs
  */
 public final class ChronosphereTests {
@@ -80,6 +85,11 @@ public final class ChronosphereTests {
     private static final String COW_SHOULD_SLOW = "A cow in the veil should wear slowness";
     private static final String PLAYER_UNSLOWED = "A player in the veil should wear no slowness";
     private static final String PLAYER_FULL_SPEED = "A player in the veil should keep its speed, %.3f against %.3f";
+    /** A whole AI period at the veil's slow of 0.1, so one tick in it finds the zombie's AI paced off. */
+    private static final int AI_PERIOD_TICKS = 10;
+    private static final BlockPos ZOMBIE_POS = new BlockPos(3, 1, 2);
+    private static final String RELOADED_LOST = "The saved zombie should load back";
+    private static final String RELOADED_WITHOUT_AI = "A zombie saved mid-veil should load back with its AI on";
 
     private ChronosphereTests() {
     }
@@ -163,6 +173,47 @@ public final class ChronosphereTests {
             helper.assertFalse(far.hasEffect(MobEffects.SLOWNESS), FAR_UNSLOWED);
             helper.succeed();
         });
+    }
+
+    /**
+     * A zombie the veil holds, saved on a tick its AI is paced off and loaded
+     * back, comes back with its AI on.
+     *
+     * @param helper the gametest helper
+     */
+    public static void veiledMobReloadsWithItsAi(GameTestHelper helper) {
+        Mob zombie = helper.spawn(EntityType.ZOMBIE, ZOMBIE_POS);
+        landVeil(helper);
+        boolean[] reloaded = new boolean[1];
+        for (int tick = 0; tick < AI_PERIOD_TICKS; tick++) {
+            helper.runAfterDelay(EXPAND_TICKS + SETTLE_TICKS + tick, () -> {
+                if (!reloaded[0] && zombie.isNoAi()) {
+                    reloaded[0] = true;
+                    assertReloadsWithAi(helper, zombie);
+                }
+            });
+        }
+    }
+
+    /**
+     * Saves a zombie the way a chunk unload saves it, discards it, loads the
+     * save back into the level and asserts the loaded zombie thinks.
+     *
+     * @param helper the gametest helper
+     * @param zombie the veiled zombie, its AI paced off this tick
+     */
+    private static void assertReloadsWithAi(GameTestHelper helper, Mob zombie) {
+        TagValueOutput saved = TagValueOutput.createWithContext(ProblemReporter.DISCARDING,
+                helper.getLevel().registryAccess());
+        zombie.save(saved);
+        zombie.discard();
+        Entity loaded = EntityType.loadEntityRecursive(TagValueInput.create(ProblemReporter.DISCARDING,
+                helper.getLevel().registryAccess(), saved.buildResult()), helper.getLevel(), EntitySpawnReason.LOAD,
+                entity -> entity);
+        helper.assertTrue(loaded instanceof Mob, RELOADED_LOST);
+        helper.getLevel().addFreshEntity(loaded);
+        helper.assertFalse(((Mob) loaded).isNoAi(), RELOADED_WITHOUT_AI);
+        helper.succeed();
     }
 
     private static void landVeil(GameTestHelper helper) {

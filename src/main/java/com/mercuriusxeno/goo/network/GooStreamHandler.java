@@ -45,6 +45,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
@@ -209,23 +210,35 @@ public final class GooStreamHandler {
      */
     private static int heldShare(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
                                  AbilityDefinition ability) {
-        return ticksNothing(player, ability) ? 0 : drainShare(player, gooType, ability);
+        if (ticksBlocks(ability)) {
+            Optional<BlockPos> ticked = tickAim(player, ability);
+            // tick-channel-marches-squares-on-the-face: the client highlights only the block the server ticks
+            TickAimPayload aim = new TickAimPayload(ticked);
+            if (player.connection.hasChannel(aim)) {
+                PacketDistributor.sendToPlayer(player, aim);
+            }
+            if (ticked.isEmpty()) {
+                return 0;
+            }
+        }
+        return drainShare(player, gooType, ability);
+    }
+
+    private static boolean ticksBlocks(AbilityDefinition ability) {
+        return ability.behaviors().stream().anyMatch(TickBlockStep.class::isInstance);
     }
 
     /**
-     * Whether a tick stream's look ends on no block Tick can hasten this
-     * tick, so the stream charges nothing and runs nothing
+     * The block a tick stream's look ends on this tick, where Tick can hasten
+     * it; a stream aimed at nothing it ticks charges nothing and runs nothing
      * (decision tick-channel-marches-squares-on-the-face).
      *
      * @param player  the streaming player
-     * @param ability the stream ability
-     * @return true for a tick stream aimed at nothing it ticks
+     * @param ability the tick stream
+     * @return the block Tick hastens, empty where the look ends on none it can
      */
-    static boolean ticksNothing(ServerPlayer player, AbilityDefinition ability) {
-        if (ability.behaviors().stream().noneMatch(TickBlockStep.class::isInstance)) {
-            return false;
-        }
-        return aimedBlock(player, ability).map(pos -> !BlockTicking.canTick(player.level(), pos)).orElse(true);
+    public static Optional<BlockPos> tickAim(ServerPlayer player, AbilityDefinition ability) {
+        return aimedBlock(player, ability).filter(pos -> BlockTicking.canTick(player.level(), pos));
     }
 
     private static Optional<BlockPos> aimedBlock(ServerPlayer player,

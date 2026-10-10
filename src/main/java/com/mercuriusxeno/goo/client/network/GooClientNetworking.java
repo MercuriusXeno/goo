@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.client.ability.LeechWisps;
 import com.mercuriusxeno.goo.client.ability.ReapSwells;
 import com.mercuriusxeno.goo.client.ability.Tomes;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
+import com.mercuriusxeno.goo.client.overlay.TickAim;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.AfterimagePayload;
 import com.mercuriusxeno.goo.network.AilmentPayload;
@@ -25,6 +26,7 @@ import com.mercuriusxeno.goo.network.NovaRingPayload;
 import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
 import com.mercuriusxeno.goo.network.ReapSwellPayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
+import com.mercuriusxeno.goo.network.TickAimPayload;
 import com.mercuriusxeno.goo.network.TomePayload;
 import com.mercuriusxeno.goo.network.TransformationPayload;
 import com.mercuriusxeno.goo.network.TunerFeedbackPayload;
@@ -74,5 +76,6 @@ public final class GooClientNetworking {
         event.register(DripHealedPayload.TYPE, VitalityVisual::handleDripHealed);
         event.register(BlockAfterimagePayload.TYPE, AfterimageHandler::handleBlock);
         event.register(ReapSwellPayload.TYPE, ReapSwells::handle);
+        event.register(TickAimPayload.TYPE, TickAim::handle);
     }
 }
