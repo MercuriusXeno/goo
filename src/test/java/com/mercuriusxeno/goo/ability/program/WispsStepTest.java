@@ -21,7 +21,7 @@ class WispsStepTest {
     private static final BlockPos EYES = new BlockPos(10, 64, -5);
     private static final int THRESHOLD = 8;
     private static final int LATER_TICK = 40;
-    private static final WispsStep RADIANT = new WispsStep(64, 4000, 1200, 0, true, true, 0.8);
+    private static final WispsStep RADIANT = new WispsStep(64, 4000, 1200, 0, true, 0.8);
     private static final int TICK_BUDGET = 4000;
     private static final int TICKS_BEFORE_THE_MOVE = 10;
     private static final int STEPS_WALKED = WispsStep.RESTART_STEPS + 1;

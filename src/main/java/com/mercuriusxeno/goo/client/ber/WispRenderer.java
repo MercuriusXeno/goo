@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlockEntity;
-import com.mercuriusxeno.goo.client.ability.WispFlights;
 import com.mercuriusxeno.goo.client.ability.WispGlow;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -22,9 +21,8 @@ import org.jspecify.annotations.Nullable;
  * glow-yellow halo cube, both added onto the world, bobbing and turning
  * slowly in place, each wisp at its own phase and pace so no two move in
  * step, and shrinking and dimming through the wisp's fade stages (operator
- * rulings 2026-10-09). A fresh wisp grows in from nothing, flying from the
- * caster's glove when {@link WispFlights} holds its flight. The wisp queues
- * to {@link WispGlow}, which draws it after the translucent blocks so water
+ * rulings 2026-10-09). A fresh wisp grows in from nothing where it stands.
+ * The wisp queues to {@link WispGlow}, which draws it after the translucent blocks so water
  * shows behind it, not over it.
  * decision radiant-wisps-where-light-is-low
  * operator ruling 2026-10-10: a wisp fades in rather than popping in
@@ -40,8 +38,8 @@ public class WispRenderer implements BlockEntityRenderer<WispBlockEntity, WispRe
     private static final int CORE_RGB = 0xFFF6C8;
     private static final int HALO_RGB = 0xFFE628;
     private static final float BOB_HEIGHT = 0.06f;
-    /** Ticks a fresh wisp takes to fade in from nothing: as long as its flight from the glove. */
-    static final int FADE_IN_TICKS = WispFlights.FLIGHT_TICKS;
+    /** Ticks a fresh wisp takes to fade in from nothing, half a second. */
+    static final int FADE_IN_TICKS = 10;
     /** Smoothstep's terms, 3s² - 2s³, so the fade-in starts and ends gently. */
     private static final float SMOOTHSTEP_RISE = 3f;
     private static final float SMOOTHSTEP_EASE = 2f;
@@ -110,7 +108,7 @@ public class WispRenderer implements BlockEntityRenderer<WispBlockEntity, WispRe
     public void submit(WispRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector,
                        CameraRenderState cameraState) {
         float strength = strength(state.fade) * fadeIn(state.age);
-        Vec3 center = WispFlights.centerOf(state.blockPos, state.time).add(0, bob(state.seed, state.time), 0);
+        Vec3 center = Vec3.atCenterOf(state.blockPos).add(0, bob(state.seed, state.time), 0);
         // operator UAT 2026-10-10: water drew over the wisps, so they draw after the translucent blocks
         WispGlow.queue(new WispGlow.Sprite(center, state.time * turn(state.seed), (pose, consumer) -> {
             emitCube(pose, consumer, HALO_HALF * strength, ARGB.color(Math.round(HALO_ALPHA * strength), HALO_RGB));
@@ -185,7 +183,7 @@ public class WispRenderer implements BlockEntityRenderer<WispBlockEntity, WispRe
      * @param half     the cube's half-size
      * @param color    the packed ARGB color
      */
-    static void emitCube(PoseStack.Pose pose, VertexConsumer consumer, float half, int color) {
+    public static void emitCube(PoseStack.Pose pose, VertexConsumer consumer, float half, int color) {
         for (float[] face : CUBE_FACES) {
             for (int corner = 0; corner < face.length; corner += AXES) {
                 consumer.addVertex(pose, face[corner + X] * half, face[corner + Y] * half, face[corner + Z] * half)
