@@ -31,8 +31,12 @@ public class WispBlock extends BaseEntityBlock {
     /** How far the wisp has faded: 0 bright, LAST_FADE about to go out. */
     public static final int LAST_FADE = 3;
     public static final IntegerProperty FADE = IntegerProperty.create("fade", 0, LAST_FADE);
-    /** The light a fresh wisp gives. */
-    public static final int LIGHT = 12;
+    /**
+     * The light a fresh wisp gives: full, so the cells around it read past
+     * Radiant's threshold and the next wisp lands further out.
+     * operator ruling 2026-10-09: wisps give light 15
+     */
+    public static final int LIGHT = 15;
     /** The light each fade stage takes away. */
     private static final int LIGHT_PER_FADE = 3;
     /** Ticks each fade stage lasts at the end of a wisp's life. */
