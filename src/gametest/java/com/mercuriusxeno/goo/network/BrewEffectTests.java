@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.banish.Teleportitis;
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.program.Sight;
@@ -14,6 +15,7 @@ import com.mercuriusxeno.goo.registry.GooMobEffects;
 import com.mercuriusxeno.goo.registry.GooPotions;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
@@ -22,6 +24,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.Vec3;
 import java.util.List;
 
 /**
@@ -58,6 +62,16 @@ public final class BrewEffectTests {
     private static final String SHOULD_END_BREW_EFFECT = "Barkskin replacing a drunk Kindle should end the blaze brew effect, stands %s";
     private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
     private static final Identifier LEAF_BARKSKIN = Identifier.parse("goo:leaf_barkskin");
+    /** ender_teleportitis.json's blink distance. */
+    private static final float TELEPORTITIS_DISTANCE = 8f;
+    /** A hit of two hearts. */
+    private static final float HIT = 4f;
+    /** Where the void test lifts the player before the fall, well off the floor it stood on. */
+    private static final double FALLING_ABOVE = 30.0;
+    private static final String SHOULD_TELEPORTITIS = "The ender brew should grant teleportitis at %.1f until %d, granted %s";
+    private static final String SHOULD_TAKE_NO_DAMAGE = "A player under teleportitis should keep %.1f health, has %.1f";
+    private static final String SHOULD_BLINK = "A hit should blink the player along their look from %s, stands at %s";
+    private static final String SHOULD_RETURN_TO_GROUND = "A fall out of the world should return the player to %s, stands at %s";
     /** The ticks a prepaid brew is watched paying nothing. */
     private static final int WATCHED_TICKS = 20;
 
@@ -194,6 +208,30 @@ public final class BrewEffectTests {
     }
 
     /**
+     * Drinking the ender brew grants teleportitis at ender_teleportitis.json's
+     * distance for an hour, draining no goo
+     * (decision teleportitis-blinks-along-the-cursor-on-hit).
+     *
+     * @param helper the gametest helper
+     */
+    public static void enderBrewTeleportitisForAnHour(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.ENDER);
+        int heldBefore = held(player, GooTypes.ENDER);
+        long now = player.level().getGameTime();
+
+        drink(player, GooTypes.ENDER);
+
+        Teleportitis teleportitis = player.getData(GooAttachments.TELEPORTITIS);
+        int drained = heldBefore - held(player, GooTypes.ENDER);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        long expected = now + GooPotions.BREW_DURATION;
+        helper.assertTrue(teleportitis.distance() == TELEPORTITIS_DISTANCE && teleportitis.expiresAt() == expected,
+                String.format(SHOULD_TELEPORTITIS, TELEPORTITIS_DISTANCE, expected, teleportitis));
+        helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
+        helper.succeed();
+    }
+
+    /**
      * Drinking the hex brew grants a lifetap at Lifetap's fraction for an
      * hour, draining no goo (decision lifetap-trades-regen-for-leech).
      *
@@ -214,6 +252,66 @@ public final class BrewEffectTests {
                 String.format(SHOULD_LIFETAP, LIFETAP_FRACTION, expected, lifetap.fraction(), lifetap.expiresAt()));
         helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
         helper.succeed();
+    }
+
+    /**
+     * A player under the ender brew takes a hit: the hit lands no damage and
+     * the player stands somewhere else along their look.
+     *
+     * @param helper the gametest helper
+     */
+    public static void teleportitisBlinksInsteadOfDamage(GameTestHelper helper) {
+        ServerPlayer player = hittableDrinker(helper);
+        Vec3 stood = player.position();
+        float health = player.getHealth();
+
+        HeartOverlayTests.hurt(helper, player, player.damageSources().generic(), HIT);
+
+        Vec3 after = player.position();
+        float healthAfter = player.getHealth();
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(healthAfter == health, String.format(SHOULD_TAKE_NO_DAMAGE, health, healthAfter));
+        helper.assertTrue(after.distanceTo(stood) > 0, String.format(SHOULD_BLINK, stood, after));
+        helper.succeed();
+    }
+
+    /**
+     * A player under the ender brew who stood on a stone block falls out of
+     * the world: the hit lands no damage and the player stands on that stone
+     * again.
+     *
+     * @param helper the gametest helper
+     */
+    public static void teleportitisVoidReturnsToSafeGround(GameTestHelper helper) {
+        ServerPlayer player = hittableDrinker(helper);
+        Vec3 ground = player.position();
+        helper.getLevel().setBlockAndUpdate(BlockPos.containing(ground).below(), Blocks.STONE.defaultBlockState());
+        player.doTick();
+        player.setPos(ground.add(0, FALLING_ABOVE, 0));
+        float health = player.getHealth();
+
+        HeartOverlayTests.hurt(helper, player, player.damageSources().fellOutOfWorld(), HIT);
+
+        Vec3 after = player.position();
+        float healthAfter = player.getHealth();
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(healthAfter == health, String.format(SHOULD_TAKE_NO_DAMAGE, health, healthAfter));
+        helper.assertTrue(after.equals(ground), String.format(SHOULD_RETURN_TO_GROUND, ground, after));
+        helper.succeed();
+    }
+
+    /**
+     * A survival mock player under the ender brew whom a hit reaches.
+     *
+     * @param helper the gametest helper
+     * @return the player
+     */
+    private static ServerPlayer hittableDrinker(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.ENDER);
+        // a player whose client has not reported loaded is invulnerable, and no mock client reports
+        player.connection.markClientLoaded();
+        drink(player, GooTypes.ENDER);
+        return player;
     }
 
     /**

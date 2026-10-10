@@ -60,6 +60,8 @@ import java.util.stream.Stream;
  *                    (decision self-effects-trickle-until-ended)
  * @param downSound   the cue a held effect plays when it ends, empty for the shared ability-down cue
  *                    (decision held-effects-sound-up-and-down)
+ * @param distancePrice what a blink adds to the cost for the trip it makes, none for every other ability
+ *                    (decision blink-lands-safely-costed-by-distance)
  */
 public record AbilityDefinition(
         Identifier id,
@@ -79,7 +81,8 @@ public record AbilityDefinition(
         List<Step> onPrism,
         List<Step> onBlocks,
         int upkeep,
-        Optional<SoundCue> downSound
+        Optional<SoundCue> downSound,
+        DistancePrice distancePrice
 ) {
 
     /**
@@ -90,6 +93,37 @@ public record AbilityDefinition(
      */
     public AbilityDefinition {
         area = heldArea(area, delivery, badge, behaviors);
+    }
+
+    /**
+     * An ability whose cost reads no trip, every ability but a blink.
+     *
+     * @param id          the datapack resource identifier
+     * @param gooType     the goo type this ability belongs to
+     * @param displayName the translation key for the ability name
+     * @param icon        the texture path for the radial menu icon
+     * @param order       sort order within the type's ability list
+     * @param cost        the mB a throw costs
+     * @param delivery    how the ability leaves the glove
+     * @param behaviors   the step trees the ability runs
+     * @param tags        categorical tags
+     * @param badge       the target kind the radial marks on the icon
+     * @param requires    the items a player must know before the ability is theirs
+     * @param area        the area the glove draws while right click is held
+     * @param indicator   when the ability's indicator shows
+     * @param consumes    the items a throw takes, one of each
+     * @param onPrism     the steps a landing on a prism runs, empty for none
+     * @param onBlocks    the steps a stream or a spore burst runs on each floor it reaches
+     * @param upkeep      the mB a held self + brew effect pays each tick it stands
+     * @param downSound   the cue a held effect plays when it ends, empty for the shared cue
+     */
+    public AbilityDefinition(Identifier id, ResourceKey<GooTypeDefinition> gooType, String displayName, String icon,
+                             int order, int cost, Delivery delivery, List<Step> behaviors, List<String> tags,
+                             AbilityBadge badge, List<Identifier> requires, AbilityArea area,
+                             IndicatorShowing indicator, List<Identifier> consumes, List<Step> onPrism,
+                             List<Step> onBlocks, int upkeep, Optional<SoundCue> downSound) {
+        this(id, gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires, area,
+                indicator, consumes, onPrism, onBlocks, upkeep, downSound, DistancePrice.NONE);
     }
 
     /**
@@ -316,6 +350,22 @@ public record AbilityDefinition(
             StepTypes.LIST_CODEC.optionalFieldOf(FIELD_ON_BLOCKS, List.of()).forGetter(Reactions::onBlocks)
     ).apply(inst, Reactions::new));
 
+    /**
+     * What a throw costs, read as one slot so the definition codec stays within
+     * its field limit: the flat cost, which a held effect leaves at zero and
+     * names an upkeep in its place, and what a blink adds for its trip.
+     *
+     * @param cost          the flat mB a throw costs
+     * @param distancePrice what a blink adds for its trip
+     */
+    private record Price(int cost, DistancePrice distancePrice) {
+    }
+
+    private static final MapCodec<Price> PRICE_CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
+            FLAT_COST_CODEC.optionalFieldOf(FIELD_COST, NO_COST).forGetter(Price::cost),
+            DistancePrice.MAP_CODEC.forGetter(Price::distancePrice)
+    ).apply(inst, Price::new));
+
     private static final MapCodec<HeldTraits> HELD_TRAITS_CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             FLAT_COST_CODEC.optionalFieldOf(FIELD_UPKEEP, NO_UPKEEP).forGetter(HeldTraits::upkeep),
             SoundCue.CODEC.optionalFieldOf(FIELD_DOWN_SOUND).forGetter(HeldTraits::downSound)
@@ -335,8 +385,8 @@ public record AbilityDefinition(
                 Codec.STRING.fieldOf(FIELD_DISPLAY_NAME).forGetter(AbilityDefinition::displayName),
                 Codec.STRING.optionalFieldOf(FIELD_ICON, NO_ICON).forGetter(AbilityDefinition::icon),
                 Codec.INT.optionalFieldOf(FIELD_ORDER, 0).forGetter(AbilityDefinition::order),
-                // self-effects-trickle-until-ended: a held effect names an upkeep in place of a cost
-                FLAT_COST_CODEC.optionalFieldOf(FIELD_COST, NO_COST).forGetter(AbilityDefinition::cost),
+                // self-effects-trickle-until-ended, blink-lands-safely-costed-by-distance
+                PRICE_CODEC.forGetter(def -> new Price(def.cost(), def.distancePrice())),
                 Delivery.CODEC.fieldOf(FIELD_DELIVERY).forGetter(AbilityDefinition::delivery),
                 StepTypes.LIST_CODEC.fieldOf(FIELD_BEHAVIORS).forGetter(AbilityDefinition::behaviors),
                 Codec.STRING.listOf().optionalFieldOf(FIELD_TAGS, List.of()).forGetter(AbilityDefinition::tags),
@@ -357,10 +407,10 @@ public record AbilityDefinition(
                 REACTIONS_CODEC.forGetter(def -> new Reactions(def.onPrism(), def.onBlocks())),
                 // self-effects-trickle-until-ended, held-effects-sound-up-and-down
                 HELD_TRAITS_CODEC.forGetter(def -> new HeldTraits(def.upkeep(), def.downSound()))
-        ).apply(inst, (gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires, area,
-                       indicator, consumes, reactions, held) -> new AbilityDefinition(id, gooType, displayName,
-                        icon, order, cost, delivery, behaviors, tags, badge, requires, area, indicator, consumes,
-                        reactions.onPrism(), reactions.onBlocks(), held.upkeep(), held.downSound())));
+        ).apply(inst, (type, name, icon, order, price, delivery, steps, tags, badge, requires, area, shows,
+                       consumes, reactions, held) -> new AbilityDefinition(id, type, name, icon, order, price.cost(),
+                        delivery, steps, tags, badge, requires, area, shows, consumes, reactions.onPrism(),
+                        reactions.onBlocks(), held.upkeep(), held.downSound(), price.distancePrice())));
     }
 
     /**

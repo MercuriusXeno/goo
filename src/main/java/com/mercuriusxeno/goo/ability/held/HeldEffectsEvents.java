@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.held;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.banish.Teleportitis;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.hex.Lifetap;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
@@ -23,6 +24,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Holds a player's self + brew effects on the server: starts one when the
@@ -223,34 +225,48 @@ public final class HeldEffectsEvents {
 
     private static void clearLaid(ServerPlayer player, List<HeldEffects.Held> ended) {
         for (HeldEffects.Held effect : ended) {
-            if (effect.lays().contains(LaidState.HEART_OVERLAY)) {
-                player.setData(GooAttachments.HEART_OVERLAY, HeartOverlay.NONE);
-            }
-            if (effect.lays().contains(LaidState.NOURISH)) {
-                player.setData(GooAttachments.NOURISH, Nourish.NONE);
-            }
-            clearAbilityLaid(player, effect);
+            clearState(player, effect.lays());
             // brew-runs-the-crawl-prepaid-on-a-shown-clock: the effect list's entry ends with the effect
             player.removeEffect(GooMobEffects.BREW_EFFECTS.get(effect.gooType()));
         }
     }
 
     /**
-     * Clears the state an ability's own step laid: sight, Lux, a lifetap.
+     * Clears the player state one ended effect laid.
      *
-     * @param player the player whose held effect ended
-     * @param effect the ended held effect
+     * @param player the player
+     * @param lays   the state the effect laid
      */
-    private static void clearAbilityLaid(ServerPlayer player, HeldEffects.Held effect) {
-        if (effect.lays().contains(LaidState.SIGHT)) {
+    private static void clearState(ServerPlayer player, Set<LaidState> lays) {
+        if (lays.contains(LaidState.HEART_OVERLAY)) {
+            player.setData(GooAttachments.HEART_OVERLAY, HeartOverlay.NONE);
+        }
+        if (lays.contains(LaidState.NOURISH)) {
+            player.setData(GooAttachments.NOURISH, Nourish.NONE);
+        }
+        if (lays.contains(LaidState.SIGHT)) {
             // sight-lengthens-shift-and-outlines-fungus: the sight ends with its held effect
             player.setData(GooAttachments.SIGHT, Sight.NONE);
         }
-        if (effect.lays().contains(LaidState.LUX)) {
+        clearAbilityState(player, lays);
+    }
+
+    /**
+     * Clears the player state an ability's own step laid: teleportitis, Lux, a lifetap.
+     *
+     * @param player the player
+     * @param lays   the state the effect laid
+     */
+    private static void clearAbilityState(ServerPlayer player, Set<LaidState> lays) {
+        if (lays.contains(LaidState.TELEPORTITIS)) {
+            // teleportitis-blinks-along-the-cursor-on-hit: the teleportitis ends with its held effect
+            player.setData(GooAttachments.TELEPORTITIS, Teleportitis.NONE);
+        }
+        if (lays.contains(LaidState.LUX)) {
             // lux-night-vision-without-particles: Lux and the night vision it kept up end with its held effect
             LuxEvents.end(player);
         }
-        if (effect.lays().contains(LaidState.LIFETAP)) {
+        if (lays.contains(LaidState.LIFETAP)) {
             // lifetap-trades-regen-for-leech: the leech ends with its held effect
             player.setData(GooAttachments.LIFETAP, Lifetap.NONE);
         }

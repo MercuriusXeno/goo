@@ -1,0 +1,12 @@
+{
+  "gooType": "ender",
+  "displayName": "goo.ability.ender.convoke_tap",
+  "badge": "tap",
+  "order": 40,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "branch", "when": "chance(0.05)", "then": [{ "type": "convoke" }] }
+  ],
+  "tags": ["tap"]
+}

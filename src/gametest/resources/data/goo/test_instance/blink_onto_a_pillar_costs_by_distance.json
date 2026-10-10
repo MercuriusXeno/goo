@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:mob_ender_teleport",
+  "function": "goo:blink_onto_a_pillar_costs_by_distance",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 5,
+  "max_ticks": 20,
   "setup_ticks": 0,
   "required": true
 }

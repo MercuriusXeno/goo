@@ -1,0 +1,18 @@
+{
+  "gooType": "ender",
+  "displayName": "goo.ability.ender.convoke",
+  "badge": "world",
+  "order": 30,
+  "cost": 1000,
+  "requires": ["minecraft:sculk_shrieker"],
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    {
+      "type": "linger",
+      "steps": [
+        { "type": "convoke", "every": 20 }
+      ]
+    }
+  ],
+  "tags": ["trap"]
+}

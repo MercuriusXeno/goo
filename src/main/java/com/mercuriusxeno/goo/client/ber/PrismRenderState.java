@@ -43,6 +43,24 @@ public class PrismRenderState extends BlockEntityRenderState {
     /** The light the linked network's rails carry, 0 to 15. */
     public int linkLight;
 
+    /** The game time with the partial tick, which a combo's animation reads. */
+    public float gameTime;
+
+    /** The game time the prism's combo took, which its transformation plays from. */
+    public long comboSince;
+
+    /**
+     * The yaw, in degrees, that turns a combo's model from the prism's cell
+     * toward the camera (decision oculus-prism-becomes-a-hovering-eye).
+     */
+    public float yawToCamera;
+
+    /**
+     * How shut an oculus's lids stand this frame for this viewer, 0 open to 1
+     * shut (decision oculus-prism-becomes-a-hovering-eye).
+     */
+    public float lidClosure = 1f;
+
     /**
      * The redstone power the prism gives, a metronome's beat or a relay's
      * carried signal (decisions metronome-prism-pulses-at-the-learned-rate,
