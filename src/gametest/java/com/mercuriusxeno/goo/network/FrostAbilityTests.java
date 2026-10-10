@@ -33,6 +33,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Gametests for the frost abilities: each lands a frost ability the way the
@@ -97,8 +98,6 @@ public final class FrostAbilityTests {
     private static final double SELF_FREE_AIM_REACH = 4;
     /** The bay's far corner, six blocks out on each axis. */
     private static final BlockPos BAY_FAR_CORNER = new BlockPos(6, 6, 6);
-    /** Blocks about its start the range test searches for its Orb: its whole roll, short of the bays below. */
-    private static final double SKY_SEARCH = 18;
     /** frost_orb.json rolls 0.3 blocks a tick; the bay's six blocks take twenty ticks, this is past its end. */
     private static final int ORB_ENDED_TICKS = 40;
     /** The end nova's freeze, 14 of a zombie's 20 health, less the thaw of the ticks since, well past the swirl's. */
@@ -324,20 +323,17 @@ public final class FrostAbilityTests {
         ServerPlayer thrower = orbThrower(helper);
         AbilityDefinition orb = AbilityRegistry.of(helper.getLevel()).getAbility(FROST_ORB);
         Vec3 sky = Vec3.atCenterOf(helper.absolutePos(STREAMER_POS.above(OPEN_SKY)));
-        helper.runAfterDelay(SETTLE_TICKS, () -> RollingGoo.roll(helper.getLevel(), thrower, orb, sky,
-                new Vec3(1, 0, 0)));
-        helper.runAfterDelay(STILL_ROLLING_TICKS, () -> helper.assertFalse(noRollingGooNear(helper, sky),
+        // the orb this test rolled, so a neighboring test's orb rolling past never stands in for it
+        AtomicReference<RollingGoo> rolled = new AtomicReference<>();
+        helper.runAfterDelay(SETTLE_TICKS, () -> rolled.set(RollingGoo.roll(helper.getLevel(), thrower, orb, sky,
+                new Vec3(1, 0, 0))));
+        helper.runAfterDelay(STILL_ROLLING_TICKS, () -> helper.assertFalse(rolled.get().isRemoved(),
                 SHOULD_STILL_ROLL));
         helper.runAfterDelay(RANGE_SPENT_TICKS, () -> {
             helper.getLevel().getServer().getPlayerList().remove(thrower);
-            helper.assertTrue(noRollingGooNear(helper, sky), SHOULD_END_AT_RANGE);
+            helper.assertTrue(rolled.get().isRemoved(), SHOULD_END_AT_RANGE);
             helper.succeed();
         });
-    }
-
-    private static boolean noRollingGooNear(GameTestHelper helper, Vec3 point) {
-        return helper.getLevel().getEntitiesOfClass(RollingGoo.class, new AABB(point, point).inflate(SKY_SEARCH))
-                .isEmpty();
     }
 
     private static ServerPlayer orbThrower(GameTestHelper helper) {
