@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.program.AilmentOverlayStep;
 import com.mercuriusxeno.goo.ability.program.BranchStep;
 import com.mercuriusxeno.goo.ability.program.CharmStep;
 import com.mercuriusxeno.goo.ability.program.Expr;
+import com.mercuriusxeno.goo.ability.program.FloatStep;
 import com.mercuriusxeno.goo.ability.program.GhostTrailStep;
 import com.mercuriusxeno.goo.ability.program.HostVariables;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
@@ -115,7 +116,7 @@ class AbilityLoaderTest {
             Map.entry("leaf_growth", List.of("bone_meal")),
             Map.entry("leaf_reap", List.of("wheat", "wheat_seeds")),
             Map.entry("leaf_bio", List.of("poisonous_potato")),
-            Map.entry("typhoon_levitate", List.of("shulker_shell")),
+            Map.entry("typhoon_float", List.of("shulker_shell")),
             Map.entry("typhoon_propel", List.of("phantom_membrane")),
             Map.entry("rock_bore", List.of("stone", "cobblestone")),
             Map.entry("rock_crush", List.of("gravel", "sand")),
@@ -162,6 +163,18 @@ class AbilityLoaderTest {
         assertTrue(scanned.values().stream().anyMatch(def -> def.gooType() == GooTypes.NETHER), "No nether ability scanned");
         assertTrue(scanned.values().stream().filter(def -> def.gooType() == GooTypes.NETHER)
                 .noneMatch(def -> def.id().getPath().contains("wither")), "a nether wither ability still loads");
+    }
+
+    // decision float-blob-levitates-the-mob
+    @Test
+    void typhoonFloatReplacesLevitateWithAFloatStep() {
+        Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
+        AbilityDefinition floatAbility = scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, "typhoon_float"));
+
+        assertFalse(scanned.containsKey(Identifier.fromNamespaceAndPath(Goo.MODID, "typhoon_levitate")),
+                "typhoon_levitate still loads");
+        assertEquals("goo.ability.typhoon.float", floatAbility.displayName());
+        assertTrue(floatAbility.behaviors().stream().anyMatch(FloatStep.class::isInstance), "no float step");
     }
 
     // decision splat-runs-the-program-no-fuse

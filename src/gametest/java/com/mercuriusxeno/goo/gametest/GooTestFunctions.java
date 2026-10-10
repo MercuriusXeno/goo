@@ -522,7 +522,7 @@ public final class GooTestFunctions {
     private static final String ICEBORN_FREEZES_SURROUNDINGS = "iceborn_freezes_surroundings";
     private static final String ICEBORN_THAWS_ON_FIRE = "iceborn_thaws_on_fire";
     private static final String BREW_FROST_ICEBORN = "brew_frost_iceborn_for_an_hour";
-    private static final String MOB_TYPHOON = "mob_typhoon_levitate";
+    private static final String FLOAT_LEVITATES_A_ZOMBIE = "float_levitates_a_zombie";
     private static final String MOB_GLOW = "mob_glow_laser";
     private static final String CHARM_TURNS_ZOMBIE = "charm_turns_zombie_on_skeleton";
     private static final String CHARMED_SLIME_SPARES = "charmed_slime_spares_its_charmer";
@@ -1065,7 +1065,7 @@ public final class GooTestFunctions {
         reg(r, ICEBORN_FREEZES_SURROUNDINGS, FrostAbilityTests::icebornFreezesSurroundings);
         reg(r, ICEBORN_THAWS_ON_FIRE, FrostAbilityTests::icebornThawsOnFire);
         reg(r, BREW_FROST_ICEBORN, BrewEffectTests::frostBrewIcebornForAnHour);
-        reg(r, MOB_TYPHOON, MobEffectTests::typhoonLevitate);
+        reg(r, FLOAT_LEVITATES_A_ZOMBIE, MobEffectTests::floatLevitatesAZombie);
         reg(r, MOB_GLOW, MobEffectTests::glowLaser);
         reg(r, CHARM_TURNS_ZOMBIE, MobEffectTests::charmTurnsZombieOnSkeleton);
         reg(r, CHARMED_SLIME_SPARES, MobEffectTests::charmedSlimeSparesItsCharmer);

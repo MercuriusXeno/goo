@@ -176,7 +176,7 @@ class RadialWheelRendererTest {
                 Map.entry("rock_stoneskin", "Stoneskin"),
                 Map.entry("shroom_mycosis", "Mycosis"), Map.entry("shroom_colonize", "Spore"),
                 Map.entry("shroom_fungal_shift", "Fungal Shift"), Map.entry("shroom_sight", "Sight"),
-                Map.entry("typhoon_levitate", "Float"), Map.entry("unstable_timed_bomb", "Countdown"),
+                Map.entry("typhoon_float", "Float"), Map.entry("unstable_timed_bomb", "Countdown"),
                 Map.entry("unstable_proximity_mine", "Claymore"),
                 Map.entry("blaze_spitfire", "Spitfire"), Map.entry("blaze_kindle", "Kindle"),
                 Map.entry("ender_blink", "Blink"), Map.entry("typhoon_propel", "Propel"),

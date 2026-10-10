@@ -121,6 +121,7 @@ public final class StepTypes {
         register(LifetapStep.TYPE);
         register(LeechStep.TYPE);
         register(TomeStep.TYPE);
+        register(FloatStep.TYPE);
     }
 
     private StepTypes() {
