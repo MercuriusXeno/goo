@@ -17,6 +17,23 @@ import java.util.function.Consumer;
 public interface ChannelHost extends BlockBreakHost {
 
     /**
+     * A sprayed program's top-level steps split by the pass they run in:
+     * those needing the channel run once a tick over the cone's blocks, and
+     * the rest run on each living thing the spray reaches, a stream's cone
+     * and a spored corpse's burst alike.
+     * mycosis-grows-and-reaps-nether-wart
+     *
+     * @param behaviors the program's top-level steps
+     * @param blockPass true for the block pass's steps, false for the entity pass's
+     * @return the steps of that pass, in program order
+     */
+    static List<Step> passSteps(List<Step> behaviors, boolean blockPass) {
+        return behaviors.stream()
+                .filter(step -> step.requires().contains(HostCapability.CHANNEL) == blockPass)
+                .toList();
+    }
+
+    /**
      * The hold's aim this tick.
      *
      * @return the aim, empty when the host runs outside a held channel

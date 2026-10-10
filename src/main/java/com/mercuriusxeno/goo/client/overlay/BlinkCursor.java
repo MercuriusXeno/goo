@@ -1,11 +1,13 @@
 package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
 import com.mercuriusxeno.goo.client.ability.AfterimageRenderer;
 import com.mercuriusxeno.goo.client.ability.Afterimages;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.client.throwing.BlinkAim;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.type.GooColors;
@@ -22,13 +24,16 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalDouble;
 
 /**
  * The blink cursor: the player's silhouette ripple standing where blink
- * would land them. Each frame it resolves the destination from the local
- * player's look and the ability's range through the function the server's
- * teleport calls, captures the player's pose, and draws a ripple there that
+ * would land them. Each frame it resolves the landing from the local
+ * player's look, the ability's range and the face the press pinned through
+ * the resolver the server's teleport calls
+ * (decision blink-lands-safely-costed-by-distance), shows nothing where
+ * the blink would land nowhere, captures the player's pose, and draws a ripple there that
  * restarts every pulse period, so the silhouettes keep leaving while the
  * cursor shows. The ability's JSON names when it shows: while right click
  * is held, or whenever the ability is selected.
@@ -61,7 +66,9 @@ public final class BlinkCursor {
         ClientAbility ability = selectedAbility(player);
         ResourceKey<GooTypeDefinition> type = GloveAim.selectedGooType(player);
         if (type != null && ability != null && showsCursor(ability, GloveUseTracker.showsArea())) {
-            AfterimageRenderer.drawRipples(event, ripplesAtDestination(mc, player, ability, type));
+            float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+            Optional<BlinkLanding> trip = BlinkAim.trip(player, ability, partialTick);
+            AfterimageRenderer.drawRipples(event, ripplesAt(mc, player, trip, type, partialTick));
         }
     }
 
@@ -80,18 +87,19 @@ public final class BlinkCursor {
      * The cursor's ripples this frame: the player's pose standing where blink
      * would land them, one ripple per start still standing.
      *
-     * @param mc      the client, its level loaded
-     * @param player  the local player
-     * @param ability the selected ability, blinking along the look
-     * @param type    the selected goo type, whose color the ripple wears
+     * @param mc          the client, its level loaded
+     * @param player      the local player
+     * @param trip        the trip the blink would make this frame, empty where it lands nowhere
+     * @param type        the selected goo type, whose color the ripple wears
+     * @param partialTick the frame's partial tick
      * @return the ripples to draw
      */
-    private static List<Afterimages.Afterimage<EntityRenderState>> ripplesAtDestination(Minecraft mc,
-            LocalPlayer player, ClientAbility ability, ResourceKey<GooTypeDefinition> type) {
-        double range = TeleportStep.lookRange(ability.behaviors()).orElseThrow();
-        float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        Vec3 destination = TeleportStep.lookDestination(player.getPosition(partialTick),
-                player.getViewVector(partialTick), range);
+    private static List<Afterimages.Afterimage<EntityRenderState>> ripplesAt(Minecraft mc, LocalPlayer player,
+            Optional<BlinkLanding> trip, ResourceKey<GooTypeDefinition> type, float partialTick) {
+        if (trip.isEmpty()) {
+            return List.of();
+        }
+        Vec3 destination = trip.get().feet();
         EntityRenderState pose = mc.getEntityRenderDispatcher().extractEntity(player, partialTick);
         int rgb = GooColors.get(player.level().registryAccess(), type);
         List<Afterimages.Afterimage<EntityRenderState>> ripples = new ArrayList<>();

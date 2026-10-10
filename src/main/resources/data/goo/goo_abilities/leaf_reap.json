@@ -1,0 +1,13 @@
+{
+  "gooType": "leaf",
+  "displayName": "goo.ability.leaf.reap",
+  "badge": "free",
+  "order": 3,
+  "cost": 1000,
+  "requires": ["minecraft:wheat", "minecraft:wheat_seeds"],
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "reap", "radius": 4, "swell_ticks": 10 }
+  ],
+  "tags": ["place_block"]
+}

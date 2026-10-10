@@ -1,0 +1,12 @@
+{
+  "gooType": "leaf",
+  "displayName": "goo.ability.leaf.bloom",
+  "badge": "world",
+  "order": 1,
+  "cost": 4000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "bloom", "radius": 4, "plants": 8, "tries": 64 }
+  ],
+  "tags": ["place_block"]
+}

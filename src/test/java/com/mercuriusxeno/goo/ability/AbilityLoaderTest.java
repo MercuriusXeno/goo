@@ -85,7 +85,11 @@ class AbilityLoaderTest {
     /** The items each gated ability requires, as the task's how maps the operator's lists. */
     private static final Map<String, List<String>> GATES = Map.ofEntries(
             Map.entry("ender_blink", List.of("ender_pearl")),
-            Map.entry("ender_teleport", List.of("popped_chorus_fruit")),
+            Map.entry("ender_banish", List.of("popped_chorus_fruit")),
+            Map.entry("ender_teleportitis", List.of("chorus_fruit")),
+            Map.entry("ender_convoke", List.of("sculk_shrieker")),
+            Map.entry("ender_dragon_gate", List.of("dragon_breath")),
+            Map.entry("ender_oculus", List.of("ender_eye")),
             Map.entry("hex_charm", List.of("honey_bottle", "cake", "cookie")),
             Map.entry("hex_enchant", List.of("book", "lapis_lazuli")),
             Map.entry("hex_fuse", List.of("bookshelf", "lapis_lazuli")),
@@ -107,7 +111,10 @@ class AbilityLoaderTest {
             Map.entry("blaze_kindle", List.of("magma_cream")),
             Map.entry("leaf_barkskin", List.of("oak_log")),
             Map.entry("aeon_time_stop", List.of("clock")),
-            Map.entry("leaf_entangle", List.of("vine")),
+            Map.entry("leaf_vines", List.of("vine")),
+            Map.entry("leaf_growth", List.of("bone_meal")),
+            Map.entry("leaf_reap", List.of("wheat", "wheat_seeds")),
+            Map.entry("leaf_bio", List.of("poisonous_potato")),
             Map.entry("typhoon_levitate", List.of("shulker_shell")),
             Map.entry("typhoon_propel", List.of("phantom_membrane")),
             Map.entry("rock_bore", List.of("stone", "cobblestone")),
@@ -423,7 +430,7 @@ class AbilityLoaderTest {
         @Test
         void enderBlinkPreviewReadsTheRangeItsTeleportJumps() {
             List<Step> steps = AbilityJson.decode("ender_blink").behaviors();
-            assertEquals(8.0, TeleportStep.lookRange(steps).orElseThrow());
+            assertEquals(32.0, TeleportStep.lookRange(steps).orElseThrow());
         }
     }
 

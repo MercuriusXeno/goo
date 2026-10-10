@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.held;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.banish.Teleportitis;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.hex.Lifetap;
 import com.mercuriusxeno.goo.ability.nether.Undead;
@@ -254,7 +255,7 @@ public final class HeldEffectsEvents {
 
     /**
      * Clears the states an ended effect laid on the player's senses and
-     * draws: its sight and its lifetap.
+     * draws: its sight, its teleportitis and its lifetap.
      *
      * @param player the player
      * @param lays   the states the ended effect laid
@@ -263,6 +264,10 @@ public final class HeldEffectsEvents {
         if (lays.contains(LaidState.SIGHT)) {
             // sight-lengthens-shift-and-outlines-fungus: the sight ends with its held effect
             player.setData(GooAttachments.SIGHT, Sight.NONE);
+        }
+        if (lays.contains(LaidState.TELEPORTITIS)) {
+            // teleportitis-blinks-along-the-cursor-on-hit: the teleportitis ends with its held effect
+            player.setData(GooAttachments.TELEPORTITIS, Teleportitis.NONE);
         }
         if (lays.contains(LaidState.LIFETAP)) {
             // lifetap-trades-regen-for-leech: the leech ends with its held effect

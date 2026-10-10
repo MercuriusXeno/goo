@@ -1,0 +1,14 @@
+{
+  "gooType": "ender",
+  "displayName": "goo.ability.ender.oculus",
+  "badge": "prism",
+  "order": 60,
+  "cost": 1000,
+  "requires": ["minecraft:ender_eye"],
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "particles", "id": "minecraft:portal", "at": "host", "count": 48, "spread": 0.4, "lift": 0.5, "speed": 0.4 },
+    { "type": "sound", "id": "minecraft:block.end_portal_frame.fill", "at": "host", "source": "blocks", "volume": 1, "pitch": 1 }
+  ],
+  "tags": []
+}

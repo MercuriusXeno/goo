@@ -30,9 +30,8 @@ import java.util.function.Consumer;
  * @param face    the landing block's face the drip struck
  */
 public record TapHost(ServerLevel level, BlockPos landing, Direction face)
-        implements ExplodeHost, AnchoredWorldHost, PlaceBlockHost, EntityScanHost, DripHost, DeviceToggleHost,
-        MobSpawnHost,
-        FrostHost {
+        implements ExplodeHost, AnchoredWorldHost, PlaceBlockHost, EntityScanHost, DripHost, ConvokeHost,
+        DeviceToggleHost, MobSpawnHost, FrostHost {
 
     private static final double HALF = 0.5;
 
@@ -131,6 +130,21 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
         ZapDevice.handDevice(level, landing)
                 .or(() -> ZapDevice.handDevice(level, landing.relative(face)))
                 .ifPresent(device -> ZapDevice.toggleByHand(level, device));
+    }
+
+    @Override
+    public long gameTime() {
+        return level.getGameTime();
+    }
+
+    /**
+     * Pulls a mob from the landing's chunk to stand in the cell beyond the
+     * struck face, under the tap.
+     * decision convoke-drip-rolls-a-small-chance
+     */
+    @Override
+    public boolean convokeFromChunk() {
+        return ChunkConvoke.convoke(level, Vec3.atBottomCenterOf(landing.relative(face)));
     }
 
     @Override

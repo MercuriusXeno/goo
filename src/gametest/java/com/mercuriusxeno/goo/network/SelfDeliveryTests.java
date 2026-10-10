@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.ShiftStep;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.GloveSelection;
@@ -19,6 +20,7 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.authlib.GameProfile;
 import io.netty.channel.embedded.EmbeddedChannel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.PacketFlow;
@@ -31,7 +33,9 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -53,12 +57,24 @@ public final class SelfDeliveryTests {
     private static final int NO_ENTITY = -1;
     /** Two thousand mB, two casts' worth. */
     private static final int HELD_GOO = 2;
+    /** Enough ender goo for a full-range blink through a wall, past what the player holds. */
+    private static final int LONG_TRIP_GOO = 4 * GooStacks.THOUSAND;
     /** The yaw a player faces east, toward +x, at. */
     private static final float FACING_EAST = -90f;
     private static final Identifier ENDER_BLINK = Identifier.parse("goo:ender_blink");
     /** The range ender_blink.json's teleport step names. */
-    private static final double BLINK_RANGE = 8;
+    /** ender_blink.json's range. */
+    private static final double BLINK_RANGE = 32;
+    /** The range Blink had before the operator lengthened it, which every blink east now passes. */
+    private static final double OLD_BLINK_RANGE = 8;
     private static final double MOVE_TOLERANCE = 1e-6;
+    /** The pillar's two stones, east of where the player stands. */
+    private static final BlockPos PILLAR_BASE = new BlockPos(5, 1, 3);
+    private static final BlockPos PILLAR_TOP = new BlockPos(5, 2, 3);
+    private static final double HALF_BLOCK = 0.5;
+    private static final double LANDING_TOLERANCE = 0.05;
+    private static final String SHOULD_LAND_ON_TOP = "The blink should land on the pillar's top at %s, landed at %s";
+    private static final String SHOULD_PRICE_THE_TRIP = "The trip should cost %d mB, more than the flat %d";
     private static final Identifier TYPHOON_PROPEL = Identifier.parse("goo:typhoon_propel");
     /** The strength typhoon_propel.json's push step names. */
     private static final double PROPEL_STRENGTH = 1.5;
@@ -89,7 +105,7 @@ public final class SelfDeliveryTests {
     private static final String SHOULD_BE_SURVIVAL = "The eating player should read survival, not creative";
     private static final String ABILITY_REQUIRED = "Ability registry must hold %s";
     private static final String SHOULD_RUN_ON_COMMAND = "A self-badged ability should run on command, not eat";
-    private static final String SHOULD_BLINK_EAST = "The player should move %.1f east the tick it blinks, moved %.3f";
+    private static final String SHOULD_BLINK_EAST = "The player should move past %.1f and no farther than %.1f east the tick it blinks, moved %.3f";
     private static final String SHOULD_DRAIN_COST = "The cast should drain the stack-zero cost of %d mB, drained %d";
     private static final String SHOULD_PROPEL = "The player's motion should read %s, read %s";
     private static final String SHOULD_CLEAR_FALL = "Propulsion should clear the fall, read %.1f";
@@ -120,14 +136,17 @@ public final class SelfDeliveryTests {
 
     /**
      * A mock player facing east invokes ender blink and moves the blink's
-     * range east in that tick, with the goo drained by its cost and no eat
-     * started.
+     * range east in that tick, through the bay's east wall into the free air
+     * past it, with no eat started; the goo drained is the flat cost, the
+     * per-block amount for the range and the wall surcharge
+     * (decision blink-lands-safely-costed-by-distance).
      *
      * @param helper the gametest helper
      */
     public static void enderBlink(GameTestHelper helper) {
         AbilityDefinition blink = requireAbility(helper, ENDER_BLINK);
         ServerPlayer player = invoker(helper, GooTypes.ENDER, ENDER_BLINK);
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.ENDER, LONG_TRIP_GOO));
         KnownRecipes.teachRequires(player, blink);
         player.setYRot(FACING_EAST);
         player.setXRot(0);
@@ -141,9 +160,51 @@ public final class SelfDeliveryTests {
         int drained = heldBefore - held(player, GooTypes.ENDER);
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.assertFalse(using, SHOULD_RUN_ON_COMMAND);
-        helper.assertTrue(Math.abs(moved - BLINK_RANGE) < MOVE_TOLERANCE,
-                String.format(SHOULD_BLINK_EAST, BLINK_RANGE, moved));
-        helper.assertTrue(drained == blink.cost(), String.format(SHOULD_DRAIN_COST, blink.cost(), drained));
+        helper.assertTrue(moved > OLD_BLINK_RANGE && moved < BLINK_RANGE + MOVE_TOLERANCE,
+                String.format(SHOULD_BLINK_EAST, OLD_BLINK_RANGE, BLINK_RANGE, moved));
+        int pricedClear = blink.distancePrice().priceOf(blink.cost(),
+                Optional.of(new BlinkLanding(Vec3.ZERO, moved, false)));
+        int pricedThroughWall = blink.distancePrice().priceOf(blink.cost(),
+                Optional.of(new BlinkLanding(Vec3.ZERO, moved, true)));
+        helper.assertTrue(drained == pricedClear || drained == pricedThroughWall,
+                String.format(SHOULD_DRAIN_COST, pricedClear, drained));
+        helper.succeed();
+    }
+
+    /**
+     * A mock player facing a stone pillar presses on the pillar's top face,
+     * pinning it, and blinks: it lands standing on the pillar's top, and the
+     * goo drained is the flat cost plus the per-block amount for the blocks
+     * travelled (decision blink-lands-safely-costed-by-distance).
+     *
+     * @param helper the gametest helper
+     */
+    public static void blinkOntoAPillarCostsByDistance(GameTestHelper helper) {
+        AbilityDefinition blink = requireAbility(helper, ENDER_BLINK);
+        ServerPlayer player = invoker(helper, GooTypes.ENDER, ENDER_BLINK);
+        KnownRecipes.teachRequires(player, blink);
+        helper.setBlock(PILLAR_BASE, Blocks.STONE);
+        helper.setBlock(PILLAR_TOP, Blocks.STONE);
+        Vec3 top = Vec3.atCenterOf(helper.absolutePos(PILLAR_TOP)).add(0, HALF_BLOCK, 0);
+        Vec3 line = top.subtract(player.getEyePosition());
+        player.setYRot(FACING_EAST);
+        player.setXRot((float) -Math.toDegrees(Math.atan2(line.y(), Math.hypot(line.x(), line.z()))));
+        Vec3 before = player.position();
+        int heldBefore = held(player, GooTypes.ENDER);
+
+        GooGloveItem.setSelection(player.getMainHandItem(), GloveSelection.ofAbility(GooTypes.ENDER, ENDER_BLINK));
+        GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.ENDER), NO_ENTITY,
+                helper.absolutePos(PILLAR_TOP), Direction.UP.get3DDataValue(), false, ENDER_BLINK.toString(),
+                player.getEyePosition()));
+
+        Vec3 after = player.position();
+        int drained = heldBefore - held(player, GooTypes.ENDER);
+        int priced = blink.distancePrice().priceOf(blink.cost(),
+                Optional.of(new BlinkLanding(after, before.distanceTo(after), false)));
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(after.distanceTo(top) < LANDING_TOLERANCE, String.format(SHOULD_LAND_ON_TOP, top, after));
+        helper.assertTrue(drained == priced, String.format(SHOULD_DRAIN_COST, priced, drained));
+        helper.assertTrue(priced > blink.cost(), String.format(SHOULD_PRICE_THE_TRIP, priced, blink.cost()));
         helper.succeed();
     }
 
