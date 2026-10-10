@@ -8,6 +8,7 @@
 
 in float progress;
 in vec2 discPos;
+in float opacity;
 
 out vec4 fragColor;
 
@@ -65,5 +66,5 @@ void main() {
     color = mix(color, SONIC_COLOR, band);
     alpha = max(alpha, band);
 
-    fragColor = vec4(color, clamp(alpha, 0.0, 1.0));
+    fragColor = vec4(color, clamp(alpha, 0.0, 1.0) * opacity);
 }

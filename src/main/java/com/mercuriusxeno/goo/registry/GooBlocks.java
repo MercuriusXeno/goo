@@ -2,13 +2,16 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
+import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
+import com.mercuriusxeno.goo.block.ability.ZapPulseBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlock;
 import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlock;
+import com.mercuriusxeno.goo.block.gate.DragonGateBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
@@ -81,6 +84,34 @@ public class GooBlocks {
                     .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)
                     .lightLevel(GlowCrystalBlock::lightLevel));
     /**
+     * Fungal bud: the colony bud Mycosis leaves on a sprayed floor, ripening
+     * on random ticks into a mushroom (decision mycosis-spore-stream-buds-and-poisons).
+     */
+    public static final DeferredBlock<FungalBudBlock> FUNGAL_BUD = BLOCKS.registerBlock(
+            "fungal_bud", FungalBudBlock::new,
+            () -> BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_BROWN)
+                    .noCollision()
+                    .instabreak()
+                    .randomTicks()
+                    .noLootTable()
+                    .noOcclusion()
+                    .sound(SoundType.FUNGUS)
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
+    /**
+     * Zap pulse: the moment of full power Zap stands beside a block with no
+     * toggle of its own (decision zap-ticks-the-device-and-stuns).
+     */
+    public static final DeferredBlock<ZapPulseBlock> ZAP_PULSE = BLOCKS.registerBlock(
+            "zap_pulse", ZapPulseBlock::new,
+            () -> BlockBehaviour.Properties.of()
+                    .noCollision()
+                    .instabreak()
+                    .noLootTable()
+                    .noOcclusion()
+                    .replaceable()
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
+    /**
      * Prism: the milky quartz crystal Crystal's Prism grows, the host every
      * prism combo grows on (decision prism-blob-becomes-a-milky-quartz-crystal).
      */
@@ -112,12 +143,19 @@ public class GooBlocks {
             "prism", PrismBlock::new,
             () -> BlockBehaviour.Properties.of()
                     .mapColor(MapColor.QUARTZ)
-                    .noCollision()
                     .strength(PRISM_HARDNESS)
                     .noLootTable()
                     .noOcclusion()
                     .sound(SoundType.AMETHYST_CLUSTER)
                     .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
+    /**
+     * Dragon Gate: an end portal laid over a block for a while, carrying what
+     * steps in to its partner gate; unbreakable, uncollidable and dropping
+     * nothing (decision dragon-gate-banishes-blocks-and-opens-a-portal).
+     */
+    public static final DeferredBlock<DragonGateBlock> DRAGON_GATE = BLOCKS.registerBlock(
+            "dragon_gate", DragonGateBlock::new,
+            () -> BlockBehaviour.Properties.ofFullCopy(Blocks.END_PORTAL).noLootTable());
     /**
      * Magicked ice: a non-melting mod variant of vanilla ice, placed
      * permanently by the frost cold snap. Visually, audibly, and
@@ -126,6 +164,15 @@ public class GooBlocks {
      */
     public static final DeferredBlock<MagickedIceBlock> MAGICKED_ICE = BLOCKS.registerBlock(
             "magicked_ice", MagickedIceBlock::new,
+            () -> BlockBehaviour.Properties.ofFullCopy(Blocks.ICE)
+                    .overrideLootTable(Blocks.ICE.getLootTable()));
+    /**
+     * Iceborn's ice: magicked ice an Iceborn player leaves on water, its own
+     * block so the level's record knows it still stands frozen when it sends
+     * it back to water (decision iceborn-frozen-hearts-thaw-on-fire).
+     */
+    public static final DeferredBlock<MagickedIceBlock> ICEBORN_ICE = BLOCKS.registerBlock(
+            "iceborn_ice", MagickedIceBlock::new,
             () -> BlockBehaviour.Properties.ofFullCopy(Blocks.ICE)
                     .overrideLootTable(Blocks.ICE.getLootTable()));
     /**

@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.ability.hearts;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.frost.IcebornEvents;
+import com.mercuriusxeno.goo.ability.nether.UndeadEvents;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -16,6 +18,7 @@ import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingHealEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import java.util.Optional;
 
 /**
  * Runs a player's heart overlay against the world: hits drain it before real
@@ -32,6 +35,8 @@ public final class HeartOverlayEvents {
     private static final int RETALIATION_BURN_SECONDS = 3;
     /** A stone heart is worth half a heart against an explosion or a pickaxe: each hit counts double. */
     static final float STONE_BRITTLE_SHARE = 2f;
+    /** A physical hit finds a frozen heart worth half a heart (decision iceborn-frozen-hearts-thaw-on-fire). */
+    static final float ICE_BRITTLE_SHARE = 2f;
 
     private HeartOverlayEvents() {
     }
@@ -115,6 +120,11 @@ public final class HeartOverlayEvents {
             return;
         }
         HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
+        if (thawsIceborn(overlay, event.getSource())) {
+            // iceborn-frozen-hearts-thaw-on-fire: fire thaws every frozen heart at once and ends the effect
+            IcebornEvents.thaw(player);
+            return;
+        }
         HeartOverlay.Drained drained = strike(overlay, event.getSource(), event.getNewDamage(), player);
         if (drained.overlay().fireReadyAt() != overlay.fireReadyAt()) {
             // the fire that paid for a relight goes out, so its ticks cannot pay again
@@ -132,13 +142,45 @@ public final class HeartOverlayEvents {
         if (overlay.kind() == HeartKind.KINDLE && source.is(DamageTypeTags.IS_FIRE)) {
             return overlay.burn(damage, player.getHealth(), now);
         }
-        if (overlay.kind() == HeartKind.BARKSKIN && burnsBark(source)) {
+        if (aggravates(overlay.kind(), source)) {
             return overlay.aggravate(damage, now);
         }
+        return brittleStrike(overlay, source, damage, now).orElseGet(() -> overlay.drain(damage, now));
+    }
+
+    /**
+     * Runs a hit through hearts that a hit can find worth less than a heart:
+     * stone against explosions and pickaxes, frozen hearts against a physical hit.
+     *
+     * @param overlay the player's overlay
+     * @param source  the damage source
+     * @param damage  the hit's damage
+     * @param now     the game time
+     * @return the overlay after the hit, or empty for a kind no hit finds brittle
+     */
+    private static Optional<HeartOverlay.Drained> brittleStrike(HeartOverlay overlay, DamageSource source,
+                                                                float damage, long now) {
         if (overlay.kind() == HeartKind.STONESKIN) {
-            return overlay.drainScaled(damage, stoneShare(source, overlay.damageTaken()), now);
+            return Optional.of(overlay.drainScaled(damage, stoneShare(source, overlay.damageTaken()), now));
         }
-        return overlay.drain(damage, now);
+        if (overlay.kind() == HeartKind.ICEBORN) {
+            return Optional.of(overlay.drainScaled(damage, iceShare(source), now));
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Answers whether a hit is one the kind's hearts are especially weak to:
+     * fire or an axe on bark, and sunlight on nether.
+     *
+     * @param kind   the overlay's kind
+     * @param source the damage source
+     * @return true when the hit is aggravated against the kind
+     */
+    private static boolean aggravates(HeartKind kind, DamageSource source) {
+        // undead-nether-hearts-burn-in-sunlight: sunlight is aggravated against nether hearts
+        return kind == HeartKind.BARKSKIN && burnsBark(source)
+                || kind == HeartKind.UNDEAD && source.is(UndeadEvents.SUNBURN);
     }
 
     /**
@@ -157,6 +199,30 @@ public final class HeartOverlayEvents {
             return STONE_BRITTLE_SHARE;
         }
         return source.is(DamageTypeTags.BYPASSES_ARMOR) ? HeartOverlay.WHOLE_HIT : damageTaken;
+    }
+
+    /**
+     * Whether a hit is fire reaching a standing Iceborn overlay, which thaws it whole.
+     * iceborn-frozen-hearts-thaw-on-fire
+     *
+     * @param overlay the player's overlay
+     * @param source  the damage source
+     * @return true for fire on frozen hearts
+     */
+    static boolean thawsIceborn(HeartOverlay overlay, DamageSource source) {
+        return overlay.kind() == HeartKind.ICEBORN && overlay.stands() && source.is(DamageTypeTags.IS_FIRE);
+    }
+
+    /**
+     * The share of a hit frozen hearts take: a physical hit, one armor checks,
+     * finds a frozen heart worth only half a heart, and any other hit lands whole.
+     * iceborn-frozen-hearts-thaw-on-fire
+     *
+     * @param source the damage source
+     * @return the share of the hit the frozen hearts take
+     */
+    static float iceShare(DamageSource source) {
+        return source.is(DamageTypeTags.BYPASSES_ARMOR) ? HeartOverlay.WHOLE_HIT : ICE_BRITTLE_SHARE;
     }
 
     /**

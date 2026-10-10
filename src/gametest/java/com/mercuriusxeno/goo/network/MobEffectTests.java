@@ -2,21 +2,31 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.banish.BanishEvents;
 import com.mercuriusxeno.goo.ability.program.EntityFilter;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.EntityScan;
+import com.mercuriusxeno.goo.ability.hex.CharmEvents;
+import com.mercuriusxeno.goo.gametest.SurvivalPlayers;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerPlayer;
+import org.jspecify.annotations.Nullable;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
@@ -46,10 +56,15 @@ public final class MobEffectTests {
     private static final int SETTLE_TICKS = 1;
     private static final String SHOULD_HAVE_SLOWNESS = "Target should have slowness";
     private static final String SHOULD_HAVE_POISON = "Target should have poison";
-    private static final String SHOULD_HAVE_WEAKNESS = "Target should have weakness";
+    private static final String SKELETON_SHOULD_STAND_IDLE = "The skeleton should target no one before the charm";
+    private static final String ZOMBIE_SHOULD_TURN_ON_SKELETON = "The charmed zombie should target the skeleton";
+    private static final String ZOMBIE_SHOULD_SPARE_CHARMER = "The charmed zombie should turn from its charmer";
+    private static final String ZOMBIE_SHOULD_BE_CHARMED = "The zombie should hold the charm";
+    private static final String CHARMED_SLIME_SHOULD_SPARE = "A charmed slime's hit should land nothing on its charmer";
+    private static final String WILD_SLIME_SHOULD_HURT = "An uncharmed slime's hit should hurt the player";
+    private static final float SLIME_HIT = 4f;
     private static final String SHOULD_HAVE_GLOWING = "Target should have glowing";
     private static final String SHOULD_NOT_GLOW = "Target should wear the ailment overlay, not vanilla glowing";
-    private static final String SHOULD_HAVE_WITHER = "Target should have wither";
     private static final String SHOULD_TAKE_DAMAGE = "Target should have taken damage";
     private static final String SHOULD_BE_ON_FIRE = "Target should be on fire";
     private static final String SHOULD_HAVE_NO_AI = "Target should have AI disabled";
@@ -58,12 +73,8 @@ public final class MobEffectTests {
     private static final String SHOULD_TAKE_JAVELIN_DAMAGE = "Target should have taken the javelin's damage";
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
     private static final String ABILITY_METAL_JAVELIN = "goo:metal_javelin";
-    private static final String ABILITY_LEAF_ENTANGLE = "goo:leaf_entangle";
     private static final String ABILITY_TYPHOON_LEVITATE = "goo:typhoon_levitate";
-    private static final String ABILITY_SHROOM_DEBUFF = "goo:shroom_debuff";
-    private static final String ABILITY_NETHER_WITHER = "goo:nether_wither";
     private static final String ABILITY_FROST_SNAP = "goo:frost_snap";
-    private static final String ABILITY_PULSE_SHORT_CIRCUIT = "goo:pulse_short_circuit";
     private static final String ABILITY_AEON_TIME_STOP = "goo:aeon_time_stop";
     private static final String ABILITY_UNSTABLE_EXPLODE = "goo:unstable_explode";
     private static final String ABILITY_HEX_CHARM = "goo:hex_charm";
@@ -71,14 +82,15 @@ public final class MobEffectTests {
     private static final String ABILITY_BLAZE_IGNITE = "goo:blaze_ignite";
     private static final String ABILITY_GLOW_LASER = "goo:glow_laser";
     private static final String ABILITY_CRYSTAL_FLECHETTES = "goo:crystal_flechettes";
-    private static final String ABILITY_ENDER_TELEPORT = "goo:ender_teleport";
-    private static final String SHOULD_HAVE_MOVED = "Target should stand somewhere else";
-    private static final String SHOULD_STAY_IN_RANGE = "Target should land within sixteen blocks on each axis";
-    private static final String SHOULD_KEEP_HEIGHT = "Target should keep its height";
-    /** A jump the random offset misses with vanishing odds. */
-    private static final double TELEPORT_MIN_MOVE = 0.01;
-    /** Half of ender_teleport.json's range of 32. */
-    private static final double TELEPORT_MAX_AXIS_MOVE = 16.0;
+    private static final String ABILITY_ENDER_BANISH = "goo:ender_banish";
+    /** Above ender_banish.json's radius of six, so the player sets nothing off until the test walks it in. */
+    private static final double PLAYER_OUT_OF_REACH_ABOVE = 20.0;
+    /** Over ender_banish.json's resist cap of a hundred max health. */
+    private static final double RESISTING_MAX_HEALTH = 200.0;
+    private static final String SHOULD_BE_CURSED = "The zombie should carry the curse after the first Banish";
+    private static final String SHOULD_WARP = "The cursed zombie should warp away from the player standing on it";
+    private static final String SHOULD_BE_EXILED = "A second Banish should exile the cursed zombie";
+    private static final String SHOULD_RESIST = "A mob over the max health cap should resist the curse";
     private static final String CHICKEN_HAS_MAX_HEALTH = "A chicken carries a max health attribute";
     private static final String SHOULD_HAVE_A_CLONE = "A second chicken should stand beside the target";
     /** A max health of one makes vital_clone.json's chance 100 / pow(1, 0.6), every roll. */
@@ -92,9 +104,18 @@ public final class MobEffectTests {
     private static final float FLECHETTE_DAMAGE = 4.0f;
     private static final String LIVING_SHOULD_NOT_BURN = "A cow is not undead and should not burn";
     private static final String UNDEAD_SHOULD_BURN = "A zombie is undead and should burn";
-    private static final String SHOULD_BE_FROZEN = "Target should hold frost_snap.json's full freeze";
-    /** The frozen ticks frost_snap.json's freeze_ticks step adds. */
-    private static final int FULL_FREEZE_TICKS = 140;
+    private static final String SHOULD_BE_HALF_FROZEN = "One snap should fill half a zombie's frozen gauge, stands %s";
+    private static final String SHOULD_BE_ENCASED = "Two snaps should fill a zombie's frozen gauge";
+    private static final String SHOULD_STAND_STILL = "An encased zombie should have no speed";
+    private static final String SHOULD_HOLD_FULL = "A full gauge should hold through frost_snap.json's hold";
+    private static final String SHOULD_THAW = "A full gauge should thaw below full once its hold runs out";
+    private static final String SHOULD_HAVE_AI_BACK = "A thawed zombie should have its AI back";
+    /** frost_snap.json's amount of ten over a zombie's twenty health. */
+    private static final float HALF_FROZEN = 0.5f;
+    /** frost_snap.json's hold. */
+    private static final int SNAP_HOLD_TICKS = 300;
+    /** Ticks past the hold by which the thaw has taken the gauge below full. */
+    private static final int THAW_CHECK_TICKS = 3;
     /** The damage metal_javelin.json's damage step names. */
     private static final float JAVELIN_DAMAGE = 8.0f;
 
@@ -134,9 +155,21 @@ public final class MobEffectTests {
      * @param abilityId the ability the throw names
      */
     private static void strike(GameTestHelper helper, Mob mob, String abilityId) {
+        strike(helper, mob, abilityId, null);
+    }
+
+    /**
+     * Lands one goo of the named ability on the mob as a player's throw.
+     *
+     * @param helper    the gametest helper
+     * @param mob       the struck mob
+     * @param abilityId the ability the throw names
+     * @param thrower   the throwing player, or null for none
+     */
+    private static void strike(GameTestHelper helper, Mob mob, String abilityId, @Nullable ServerPlayer thrower) {
         AbilityDefinition ability = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(abilityId));
         helper.assertTrue(ability != null, ABILITIES_REQUIRED);
-        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, ability.gooType(),
+        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), thrower, ability.gooType(),
                 mob.getId(), mob.blockPosition(), Direction.UP, abilityId));
     }
 
@@ -173,21 +206,6 @@ public final class MobEffectTests {
     }
 
     /**
-     * Leaf entangle is a program of two potion steps: slowness and poison.
-     *
-     * @param helper the gametest helper
-     */
-    public static void leafEntangle(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_LEAF_ENTANGLE);
-            helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
-            helper.assertTrue(mob.hasEffect(MobEffects.POISON), SHOULD_HAVE_POISON);
-            helper.succeed();
-        });
-    }
-
-    /**
      * Vital clone is a program: a mob target selection wrapping a
      * clone_entity step whose chance is 100 / pow(max_health, 0.6), so a
      * chicken whose max health is one is cloned on every roll and a second
@@ -213,23 +231,6 @@ public final class MobEffectTests {
     }
 
     /**
-     * Shroom debuff is a program: a not_boss target selection wrapping
-     * slowness, weakness and poison potion steps.
-     *
-     * @param helper the gametest helper
-     */
-    public static void shroomDebuff(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_SHROOM_DEBUFF);
-            helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
-            helper.assertTrue(mob.hasEffect(MobEffects.WEAKNESS), SHOULD_HAVE_WEAKNESS);
-            helper.assertTrue(mob.hasEffect(MobEffects.POISON), SHOULD_HAVE_POISON);
-            helper.succeed();
-        });
-    }
-
-    /**
      * Blaze ignite sets the struck mob on fire; the splash selection it
      * asks of the host is graded in MobProgramTest.
      *
@@ -246,18 +247,48 @@ public final class MobEffectTests {
 
     /**
      * Frost snap is a program: a not_boss target selection wrapping freeze
-     * damage, a freeze_ticks step and a slowness potion step.
+     * damage, a freeze step and a slowness potion step; one snap on a zombie
+     * fills half its frozen gauge, ten of its twenty health.
      *
      * @param helper the gametest helper
      */
     public static void frostSnap(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
+        Mob mob = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
         float before = mob.getHealth();
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, mob, ABILITY_FROST_SNAP);
+            float gauge = mob.getData(GooAttachments.FROZEN).gauge();
             helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
-            helper.assertTrue(mob.getTicksFrozen() >= FULL_FREEZE_TICKS, SHOULD_BE_FROZEN);
+            helper.assertTrue(gauge == HALF_FROZEN, String.format(SHOULD_BE_HALF_FROZEN, gauge));
             helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Two snaps fill a helmeted zombie's frozen gauge: it stands encased
+     * with no AI and no speed, and once frost_snap.json's hold runs out it
+     * thaws below full with its AI back.
+     *
+     * @param helper the gametest helper
+     */
+    public static void snapEncasesThenThaws(GameTestHelper helper) {
+        Mob zombie = helper.spawn(EntityType.ZOMBIE, SPAWN_POS);
+        zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, zombie, ABILITY_FROST_SNAP);
+            strike(helper, zombie, ABILITY_FROST_SNAP);
+            helper.assertTrue(zombie.getData(GooAttachments.FROZEN).full(), SHOULD_BE_ENCASED);
+            helper.assertTrue(zombie.isNoAi(), SHOULD_HAVE_NO_AI);
+            helper.assertTrue(zombie.getAttributeValue(Attributes.MOVEMENT_SPEED) == 0, SHOULD_STAND_STILL);
+        });
+        helper.runAfterDelay(SETTLE_TICKS + SNAP_HOLD_TICKS - 1, () -> {
+            helper.assertTrue(zombie.getData(GooAttachments.FROZEN).full(), SHOULD_HOLD_FULL);
+            helper.assertTrue(zombie.isNoAi(), SHOULD_HAVE_NO_AI);
+        });
+        helper.runAfterDelay(SETTLE_TICKS + SNAP_HOLD_TICKS + THAW_CHECK_TICKS, () -> {
+            helper.assertFalse(zombie.getData(GooAttachments.FROZEN).full(), SHOULD_THAW);
+            helper.assertFalse(zombie.isNoAi(), SHOULD_HAVE_AI_BACK);
             helper.succeed();
         });
     }
@@ -299,73 +330,106 @@ public final class MobEffectTests {
     }
 
     /**
-     * Hex charm is a program: a mob target selection wrapping a weakness
-     * potion step and the hex ailment overlay, whose durations fall with the
-     * mob's health; the overlay replaces vanilla glowing
-     * (decision ailment-overlay-shader-per-ailment).
+     * Hex charm turns a zombie on a skeleton before the skeleton aggresses:
+     * once it looks for a foe, the zombie targets the idle skeleton, and a
+     * target of its survival charmer it would take turns to the skeleton
+     * too, and it wears no
+     * vanilla glowing (decisions charm-glisten-and-icon-over-the-head,
+     * ailment-overlay-shader-per-ailment). A zombie's max health of 20 makes
+     * hex_charm.json's charm chance whole.
      *
      * @param helper the gametest helper
      */
-    public static void hexCharm(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
+    public static void charmTurnsZombieOnSkeleton(GameTestHelper helper) {
+        ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
+        Mob skeleton = helper.spawnWithNoFreeWill(EntityType.SKELETON, BYSTANDER_POS);
+        // spawnWithNoFreeWill leaves the target goals, which can lock the skeleton onto the survival
+        // charmer on its first tick; the test stands a skeleton that has not aggressed
+        skeleton.targetSelector.removeAllGoals(goal -> true);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_HEX_CHARM);
-            helper.assertTrue(mob.hasEffect(MobEffects.WEAKNESS), SHOULD_HAVE_WEAKNESS);
-            helper.assertFalse(mob.hasEffect(MobEffects.GLOWING), SHOULD_NOT_GLOW);
+            helper.assertTrue(skeleton.getTarget() == null, SKELETON_SHOULD_STAND_IDLE);
+            strike(helper, zombie, ABILITY_HEX_CHARM, charmer);
+            helper.assertTrue(zombie.hasData(GooAttachments.CHARMED), ZOMBIE_SHOULD_BE_CHARMED);
+            helper.runAfterDelay(CharmEvents.LOOK_INTERVAL_TICKS, () -> {
+                helper.assertTrue(zombie.getTarget() == skeleton, ZOMBIE_SHOULD_TURN_ON_SKELETON);
+                zombie.setTarget(charmer);
+                helper.assertTrue(zombie.getTarget() == skeleton, ZOMBIE_SHOULD_SPARE_CHARMER);
+                helper.assertFalse(zombie.hasEffect(MobEffects.GLOWING), SHOULD_NOT_GLOW);
+                helper.getLevel().getServer().getPlayerList().remove(charmer);
+                helper.succeed();
+            });
+        });
+    }
+
+    /**
+     * A charmed slime's touch, which hurts any player it bumps whatever it
+     * targets, lands nothing on its charmer, while an uncharmed slime's
+     * lands in full (decision charm-glisten-and-icon-over-the-head).
+     *
+     * @param helper the gametest helper
+     */
+    public static void charmedSlimeSparesItsCharmer(GameTestHelper helper) {
+        ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
+        Slime charmed = helper.spawnWithNoFreeWill(EntityType.SLIME, SPAWN_POS);
+        Slime wild = helper.spawnWithNoFreeWill(EntityType.SLIME, BYSTANDER_POS);
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, charmed, ABILITY_HEX_CHARM, charmer);
+            float before = charmer.getHealth();
+            charmer.hurtServer(helper.getLevel(), charmer.damageSources().mobAttack(charmed), SLIME_HIT);
+            helper.assertTrue(charmer.getHealth() == before, CHARMED_SLIME_SHOULD_SPARE);
+            charmer.invulnerableTime = 0;
+            charmer.hurtServer(helper.getLevel(), charmer.damageSources().mobAttack(wild), SLIME_HIT);
+            helper.assertTrue(charmer.getHealth() < before, WILD_SLIME_SHOULD_HURT);
+            helper.getLevel().getServer().getPlayerList().remove(charmer);
             helper.succeed();
         });
     }
 
     /**
-     * Pulse short circuit is a program: a mob target selection wrapping a
-     * set_ai step off and a max slowness potion step.
+    /**
+     * Banish's first hit curses a zombie: a player walked onto it sets off a
+     * warp away, and a second Banish hit exiles it from existence
+     * (decision banish-curses-with-ender-shimmer).
      *
      * @param helper the gametest helper
      */
-    public static void pulseStun(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    public static void banishWarpsThenExiles(GameTestHelper helper) {
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.setPos(zombie.getX(), zombie.getY() + PLAYER_OUT_OF_REACH_ABOVE, zombie.getZ());
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_PULSE_SHORT_CIRCUIT);
-            helper.assertTrue(mob.isNoAi(), SHOULD_HAVE_NO_AI);
-            helper.assertTrue(mob.hasEffect(MobEffects.SLOWNESS), SHOULD_HAVE_SLOWNESS);
-            helper.succeed();
+            strike(helper, zombie, ABILITY_ENDER_BANISH);
+            helper.assertTrue(BanishEvents.curseOf(zombie) != null, SHOULD_BE_CURSED);
+            Vec3 home = zombie.position();
+            player.setPos(home);
+            // The assertion runs each tick until the warp lands, then brings the zombie home, where the
+            // test's chunks keep it ticking, and lands the second Banish on it.
+            helper.succeedWhen(() -> {
+                helper.assertFalse(zombie.position().equals(home), SHOULD_WARP);
+                player.setPos(home.add(0, PLAYER_OUT_OF_REACH_ABOVE, 0));
+                zombie.teleportTo(home.x, home.y, home.z);
+                strike(helper, zombie, ABILITY_ENDER_BANISH);
+                helper.assertTrue(zombie.isRemoved(), SHOULD_BE_EXILED);
+            });
         });
     }
 
     /**
-     * Nether wither is a program: a not_boss target selection wrapping a
-     * set_health step at half and a wither potion step.
+     * A zombie whose max health stands over ender_banish.json's cap of a
+     * hundred resists the curse.
      *
      * @param helper the gametest helper
      */
-    public static void netherWither(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        float before = mob.getHealth();
+    public static void banishResistedByHighHealth(GameTestHelper helper) {
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
+        AttributeInstance maxHealth = zombie.getAttribute(Attributes.MAX_HEALTH);
+        helper.assertTrue(maxHealth != null, MOB_HAS_MAX_HEALTH);
+        maxHealth.setBaseValue(RESISTING_MAX_HEALTH);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_NETHER_WITHER);
-            helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
-            helper.assertTrue(mob.hasEffect(MobEffects.WITHER), SHOULD_HAVE_WITHER);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Ender teleport is a program: a random_offset teleport of range 32
-     * and the enderman teleport sound, so the cow stands somewhere else
-     * within sixteen blocks on each horizontal axis at the same height.
-     *
-     * @param helper the gametest helper
-     */
-    public static void enderTeleport(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        Vec3 before = mob.position();
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_ENDER_TELEPORT);
-            Vec3 after = mob.position();
-            helper.assertTrue(after.distanceTo(before) > TELEPORT_MIN_MOVE, SHOULD_HAVE_MOVED);
-            helper.assertTrue(Math.abs(after.x - before.x) <= TELEPORT_MAX_AXIS_MOVE, SHOULD_STAY_IN_RANGE);
-            helper.assertTrue(Math.abs(after.z - before.z) <= TELEPORT_MAX_AXIS_MOVE, SHOULD_STAY_IN_RANGE);
-            helper.assertTrue(after.y == before.y, SHOULD_KEEP_HEIGHT);
+            strike(helper, zombie, ABILITY_ENDER_BANISH);
+            helper.assertTrue(BanishEvents.curseOf(zombie) == null, SHOULD_RESIST);
             helper.succeed();
         });
     }

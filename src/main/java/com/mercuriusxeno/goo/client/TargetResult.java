@@ -154,9 +154,14 @@ public sealed interface TargetResult {
      * @param point     the point the ray met the face at, the top face's center for a lob
      */
     record BlockTarget(BlockPos pos, Direction face, boolean grannyArc, Vec3 point) implements TargetResult {
+        /**
+         * The center of the struck face of the block's own outline shape, so a
+         * partial block's face is named where it stands, not a cube's face above it.
+         */
         @Override
         public Vec3 resolveEndpoint() {
-            return faceCenter(pos, face);
+            return ShapeFace.at(Minecraft.getInstance() == null ? null : Minecraft.getInstance().level, pos, face)
+                    .center();
         }
     }
 

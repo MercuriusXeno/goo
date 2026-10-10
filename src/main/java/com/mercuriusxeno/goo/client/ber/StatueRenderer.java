@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.block.statue.StatueBlockEntity;
-import com.mercuriusxeno.goo.client.ability.PetrifyStoneLayer;
+import com.mercuriusxeno.goo.client.ability.EncasementLayer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -75,7 +75,7 @@ public class StatueRenderer implements BlockEntityRenderer<StatueBlockEntity, St
         mob.yBodyRotO = statue.yaw();
         mob.yHeadRotO = statue.yaw();
         EntityRenderState posed = Minecraft.getInstance().getEntityRenderDispatcher().extractEntity(mob, 0f);
-        posed.setRenderData(PetrifyStoneLayer.PETRIFIED, PetrifyStoneLayer.WHOLE);
+        posed.setRenderData(EncasementLayer.PETRIFIED, EncasementLayer.WHOLE);
         state.mob = posed;
     }
 

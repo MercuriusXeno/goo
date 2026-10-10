@@ -1,0 +1,23 @@
+{
+  "gooType": "frost",
+  "displayName": "goo.ability.frost.cold",
+  "badge": "channeled",
+  "order": 30,
+  "cost": 1000,
+  "requires": ["minecraft:snowball"],
+  "delivery": {
+    "kind": "stream",
+    "range": 10,
+    "cone": 16,
+    "ticks_per_charge": 20
+  },
+  "area": { "shape": "cone", "size": 10.0, "angle": 16.0 },
+  "behaviors": [
+    { "type": "wind", "snowflakes": true },
+    { "type": "break_blocks", "tag": "goo:foliage" },
+    { "type": "freeze", "amount": 0.8, "hold": 300, "thaw": 0.005, "vulnerability": 0.5, "physical_bonus": 3 },
+    { "type": "damage", "amount": 1, "source": "freeze", "knockback": false, "invulnerable_ticks": 10 },
+    { "type": "push", "strength": 0.15 }
+  ],
+  "tags": ["stream"]
+}

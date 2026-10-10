@@ -6,6 +6,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -29,6 +30,10 @@ public final class ProgramBehavior {
     private static final String ERR_VARIABLE = "Step '%s' reads '%s', which the %s host does not bind";
 
     private final List<Step> steps;
+    /** The sounds a framed sound step holds until their tick. ability-json-names-its-choreography */
+    private final HeldCues heldCues;
+    /** Whether this program counts its held sounds down, false for a body whose enclosing program does. */
+    private final boolean countsHeldCues;
     private int stepIndex;
     private int stepTicks;
     private int programTicks;
@@ -41,6 +46,23 @@ public final class ProgramBehavior {
      */
     public ProgramBehavior(List<Step> steps) {
         this.steps = List.copyOf(steps);
+        this.heldCues = new HeldCues();
+        this.countsHeldCues = true;
+    }
+
+    /**
+     * Creates the runtime over a step list whose framed sounds an enclosing
+     * program holds, as a trap's strike body does, so a sound framed after
+     * this body's one tick still plays.
+     * urchin-spikes-shink-out-and-shink-back
+     *
+     * @param steps    the program body in order
+     * @param heldCues the enclosing program's held sounds
+     */
+    public ProgramBehavior(List<Step> steps, HeldCues heldCues) {
+        this.steps = List.copyOf(steps);
+        this.heldCues = heldCues;
+        this.countsHeldCues = false;
     }
 
     /**
@@ -54,47 +76,74 @@ public final class ProgramBehavior {
      *                              step needs a capability or a variable the host lacks
      */
     public static ProgramBehavior forHost(List<Step> steps, HostKind kind) {
-        steps.forEach(step -> refuseUnservedStep(step, kind));
+        refusal(steps, kind).ifPresent(message -> {
+            throw new ProgramLoadException(message);
+        });
         return new ProgramBehavior(steps);
     }
 
     /**
-     * Refuses a step, or any step beneath it, whose needs the host kind
-     * does not meet.
+     * Whether a host kind serves every step of a program, the check
+     * {@link #forHost} refuses on.
+     *
+     * @param steps the program body
+     * @param kind  the host kind
+     * @return true when the program loads on the host
+     */
+    public static boolean serves(List<Step> steps, HostKind kind) {
+        return refusal(steps, kind).isEmpty();
+    }
+
+    /**
+     * Why a host kind cannot serve a program: the first step, or step beneath
+     * one, whose needs the host does not meet.
+     *
+     * @param steps the program body
+     * @param kind  the host kind
+     * @return the refusal naming the step and the host, or empty when the host serves every step
+     */
+    private static Optional<String> refusal(List<Step> steps, HostKind kind) {
+        return steps.stream().map(step -> unserved(step, kind)).flatMap(Optional::stream).findFirst();
+    }
+
+    /**
+     * Why a step, or any step beneath it, goes unserved by the host kind.
      *
      * @param step the step whose tree to check
      * @param kind the host kind
+     * @return the refusal, or empty when the host serves the tree
      */
-    private static void refuseUnservedStep(Step step, HostKind kind) {
-        refuseMissingCapabilities(step, kind);
-        refuseUnboundVariables(step, kind);
-        step.hostedChildren(kind).forEach(child -> refuseUnservedStep(child.step(), child.host()));
+    private static Optional<String> unserved(Step step, HostKind kind) {
+        Optional<String> own = missingCapability(step, kind).or(() -> unboundVariable(step, kind));
+        if (own.isPresent()) {
+            return own;
+        }
+        return step.hostedChildren(kind).map(child -> unserved(child.step(), child.host()))
+                .flatMap(Optional::stream).findFirst();
     }
 
     /**
-     * Refuses a step needing a capability the host kind lacks.
+     * The refusal of a step needing a capability the host kind lacks.
      *
      * @param step the step to check
      * @param kind the host kind
+     * @return the refusal, or empty when the host provides every capability
      */
-    private static void refuseMissingCapabilities(Step step, HostKind kind) {
-        for (HostCapability needed : step.requires()) {
-            if (!kind.capabilities().contains(needed)) {
-                throw new ProgramLoadException(
-                        String.format(ERR_CAPABILITY, step.type().name(), needed.key(), kind.label()));
-            }
-        }
+    private static Optional<String> missingCapability(Step step, HostKind kind) {
+        return step.requires().stream().filter(needed -> !kind.capabilities().contains(needed)).findFirst()
+                .map(needed -> String.format(ERR_CAPABILITY, step.type().name(), needed.key(), kind.label()));
     }
 
     /**
-     * Refuses a step reading a variable neither the host kind nor the
+     * The refusal of a step reading a variable neither the host kind nor the
      * runtime binds.
      *
      * @param step the step to check
      * @param kind the host kind
+     * @return the refusal, or empty when every variable is bound
      */
-    private static void refuseUnboundVariables(Step step, HostKind kind) {
-        step.hostedExpressions(kind).forEach(hosted -> {
+    private static Optional<String> unboundVariable(Step step, HostKind kind) {
+        return step.hostedExpressions(kind).map(hosted -> {
             Set<String> names = new TreeSet<>(hosted.expr().variables());
             names.remove(StepContext.VAR_TICK);
             names.removeIf(ChargedMultipliers::isChargedVariable);
@@ -102,17 +151,15 @@ public final class ProgramBehavior {
             if (hosted.host().capabilities().contains(HostCapability.TARGET)) {
                 names.removeIf(HostVariables::isCounter);
             }
-            if (!names.isEmpty()) {
-                throw new ProgramLoadException(String.format(ERR_VARIABLE, step.type().name(),
-                        names.iterator().next(), hosted.host().label()));
-            }
-        });
+            return names.isEmpty() ? Optional.<String>empty() : Optional.of(String.format(ERR_VARIABLE,
+                    step.type().name(), names.iterator().next(), hosted.host().label()));
+        }).flatMap(Optional::stream).findFirst();
     }
 
     /**
-     * Runs one tick: the current step ticks, and each step that finishes
-     * hands the same tick to the next until a step stays running or the
-     * body ends.
+     * Runs one tick: the sounds held until this tick play, then the current
+     * step ticks, and each step that finishes hands the same tick to the
+     * next until a step stays running or the body ends.
      *
      * @param host the host seam for this tick
      */
@@ -128,9 +175,12 @@ public final class ProgramBehavior {
      * @param charged the cast's Charged multipliers
      */
     public void tick(StepHost host, ChargedMultipliers charged) {
+        if (countsHeldCues) {
+            heldCues.playDue();
+        }
         while (isActive()) {
             Step current = steps.get(stepIndex);
-            boolean finished = current.tick(new StepContext(host, stepTicks, programTicks, charged));
+            boolean finished = current.tick(new StepContext(host, stepTicks, programTicks, charged, heldCues));
             if (!finished) {
                 stepTicks++;
                 break;

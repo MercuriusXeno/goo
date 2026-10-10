@@ -7,7 +7,9 @@ import com.mercuriusxeno.goo.ability.PrismCombos;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.LandingHost;
+import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
+import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -17,6 +19,7 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
@@ -38,6 +41,7 @@ public final class AbilityImpact {
 
     private static final String LOG_PROGRAM_REFUSED = "Ability {} program refused for the landing host: {}";
     private static final String LOG_COMBO_REFUSED = "Prism combo {} program refused for the marker host: {}";
+    private static final Identifier PRISM = Identifier.fromNamespaceAndPath(Goo.MODID, "prism");
 
     private AbilityImpact() {
     }
@@ -71,7 +75,25 @@ public final class AbilityImpact {
      */
     public static void land(ServerLevel level, BlockPos pos, ResourceKey<GooTypeDefinition> type,
                             Direction face, AbilityDefinition ability, @Nullable Vec3 point) {
-        if (level.getBlockEntity(pos) instanceof PrismBlockEntity prism) {
+        land(level, pos, type, face, ability, point, 0);
+    }
+
+    /**
+     * Lands an ability on a block at the size its cast was dragged to, which
+     * its program reads; a throw names none, zero
+     * (decision black-hole-leaves-a-compression-sphere).
+     *
+     * @param level   the server level
+     * @param pos     the struck block
+     * @param type    the goo type thrown
+     * @param face    the struck face
+     * @param ability the ability the goo names
+     * @param point   the aimed point the ability resolves at, or null for the cell's center
+     * @param size    the cast's size in blocks, zero for a throw
+     */
+    public static void land(ServerLevel level, BlockPos pos, ResourceKey<GooTypeDefinition> type,
+                            Direction face, AbilityDefinition ability, @Nullable Vec3 point, double size) {
+        if (level.getBlockEntity(pos) instanceof PrismBlockEntity prism && !ticksAComboPrism(prism, ability)) {
             landOnPrism(level, prism, type, ability);
             return;
         }
@@ -82,8 +104,25 @@ public final class AbilityImpact {
         }
         BlockPos cell = spot.get().cell();
         LandingHost host = new LandingHost(level, cell, face, spot.get().waterlogged(), type,
-                ability.id().toString(), point == null ? Vec3.atCenterOf(cell) : point);
+                ability.id().toString(), point == null ? Vec3.atCenterOf(cell) : point, size);
         AbilitySplat.resolve(new Landing(host, ability));
+    }
+
+    /**
+     * Whether a landing ticks a prism already holding a combo as it would any
+     * block, rather than landing in it: Zap's pulse stands beside the prism
+     * as a moment of power, which a Metronome hears as a signal, so two Zaps
+     * set its timer.
+     * zap-ticks-the-device-and-stuns
+     * metronome-prism-pulses-at-the-learned-rate
+     *
+     * @param prism   the struck prism
+     * @param ability the landing ability
+     * @return true when the prism holds a combo and the ability ticks redstone devices
+     */
+    static boolean ticksAComboPrism(PrismBlockEntity prism, AbilityDefinition ability) {
+        return prism.hasCombo() && ability.behaviors().stream()
+                .anyMatch(step -> step.type() == LeafSteps.POWER_PULSE.type());
     }
 
     /**
@@ -128,6 +167,19 @@ public final class AbilityImpact {
                 .anyMatch(ExplodeStep.class::isInstance);
     }
 
+    /**
+     * Whether an ability's blob turns into the prism its program places, the
+     * morph into the column standing in for a burnout.
+     * decision prism-is-one-pointed-quartz-column
+     *
+     * @param ability the landing ability
+     * @return true when a top-level step places the prism
+     */
+    static boolean turnsIntoAPrism(AbilityDefinition ability) {
+        return ability.behaviors().stream().anyMatch(step -> step instanceof PlaceBlockStep place
+                && PRISM.equals(place.block()));
+    }
+
     private static Stream<Step> withDescendants(Step step) {
         return Stream.concat(Stream.of(step), step.children().flatMap(AbilityImpact::withDescendants));
     }
@@ -149,6 +201,11 @@ public final class AbilityImpact {
         @Override
         public boolean explodesLater() {
             return AbilityImpact.explodesLater(ability);
+        }
+
+        @Override
+        public boolean turnsIntoItsBlock() {
+            return AbilityImpact.turnsIntoAPrism(ability);
         }
 
         @Override

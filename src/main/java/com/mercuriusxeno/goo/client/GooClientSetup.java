@@ -3,28 +3,46 @@ package com.mercuriusxeno.goo.client;
 import com.google.common.reflect.TypeToken;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ISidedProxy;
+import com.mercuriusxeno.goo.ability.nether.HiveSwarm;
+import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.ability.Afterimages;
 import com.mercuriusxeno.goo.client.ability.AilmentOverlayLayer;
 import com.mercuriusxeno.goo.client.ability.BlockTransforms;
 import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
+import com.mercuriusxeno.goo.client.ability.EncasementLayer;
+import com.mercuriusxeno.goo.client.ability.FrozenPoses;
 import com.mercuriusxeno.goo.client.ability.GhostTrails;
 import com.mercuriusxeno.goo.client.ability.MobAilments;
 import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
 import com.mercuriusxeno.goo.client.ability.MobCoats;
 import com.mercuriusxeno.goo.client.ability.MobShells;
-import com.mercuriusxeno.goo.client.ability.PetrifyStoneLayer;
+import com.mercuriusxeno.goo.client.ability.NovaRings;
+import com.mercuriusxeno.goo.client.ability.RelayLasers;
+import com.mercuriusxeno.goo.client.ability.ThumpRings;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ability.ViewportRipples;
+import com.mercuriusxeno.goo.client.ability.VineTangleLayer;
+import com.mercuriusxeno.goo.client.ability.WindLines;
+import com.mercuriusxeno.goo.client.ability.ZapBolts;
 import com.mercuriusxeno.goo.client.ber.*;
+import com.mercuriusxeno.goo.client.ber.style.AgitatorPrismStyle;
+import com.mercuriusxeno.goo.client.ber.style.GlacialPrismStyle;
+import com.mercuriusxeno.goo.client.ber.style.HivePrismStyle;
+import com.mercuriusxeno.goo.client.ber.style.OculusStyle;
+import com.mercuriusxeno.goo.client.ber.style.PrismComboStyles;
+import com.mercuriusxeno.goo.client.ber.style.PulsePrismStyle;
+import com.mercuriusxeno.goo.client.ber.style.VerdantPrismStyle;
+import com.mercuriusxeno.goo.client.entity.CompressionSphereRenderer;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.client.particle.*;
 import com.mercuriusxeno.goo.client.radial.CutItemRenderer;
+import com.mercuriusxeno.goo.client.sound.FadingLoops;
 import com.mercuriusxeno.goo.client.throwing.GooFlightManager;
 import com.mercuriusxeno.goo.client.throwing.GooSizeProperty;
 import com.mercuriusxeno.goo.client.throwing.GooVolumeDecorator;
@@ -38,6 +56,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.renderer.block.FluidModel;
 import net.minecraft.client.renderer.entity.EntityRenderer;
+import net.minecraft.client.renderer.entity.NoopRenderer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.resources.Identifier;
@@ -54,6 +73,7 @@ import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsE
 import net.neoforged.neoforge.client.renderstate.RegisterRenderStateModifiersEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
+import java.util.function.BiConsumer;
 
 /**
  * Client-side setup: entity renderers and network event handling.
@@ -90,6 +110,7 @@ public final class GooClientSetup {
         ISidedProxy.INSTANCE[0] = new ClientProxy();
         AbilityBlockEntity.installClientSteps(GooClientSetup::syncedSteps);
         GooTypes.readConnectionOrderFrom(GooClientSetup::connectionTypeOrder);
+        HiveSwarm.installBuzzLoops(FadingLoops::keepAlive);
     }
 
     /**
@@ -116,6 +137,10 @@ public final class GooClientSetup {
     public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
         registerMachineRenderers(event);
         registerEffectRenderers(event);
+        // verdant-prism-greens-blocks-slowly: a verdant prism draws its crystal leaf-green
+        PrismComboStyles.register(VerdantPrismStyle.COMBO, new VerdantPrismStyle());
+        // agitator-prism-quickens-until-a-spawn
+        PrismComboStyles.register(AgitatorPrismStyle.COMBO, new AgitatorPrismStyle());
     }
 
     /**
@@ -169,7 +194,18 @@ public final class GooClientSetup {
         event.registerBlockEntityRenderer(GooBlockEntities.ABILITY_BLOCK.get(),
                 AbilityBlockRenderer::new);
         event.registerBlockEntityRenderer(GooBlockEntities.PRISM.get(), PrismRenderer::new);
+        PrismComboStyles.register(HivePrismStyle.COMBO, new HivePrismStyle());
+        event.registerBlockEntityRenderer(GooBlockEntities.DRAGON_GATE.get(), DragonGateRenderer::new);
+        // oculus-prism-becomes-a-hovering-eye: an oculus prism draws as the hovering eye
+        PrismComboStyles.register(OculusNodes.OCULUS, new OculusStyle());
+        // metronome-prism-pulses-at-the-learned-rate, relay-prism-carries-the-signal-through-air
+        PrismComboStyles.register(PulsePrismStyle.METRONOME_COMBO, PulsePrismStyle.METRONOME);
+        PrismComboStyles.register(PulsePrismStyle.RELAY_COMBO, PulsePrismStyle.RELAY);
+        PrismComboStyles.register(GlacialPrismStyle.COMBO, new GlacialPrismStyle());
         event.registerBlockEntityRenderer(GooBlockEntities.STATUE.get(), StatueRenderer::new);
+        event.registerEntityRenderer(GooEntities.COMPRESSION_SPHERE.get(), CompressionSphereRenderer::new);
+        // orb-carries-a-swirling-nova: RollingGooRenderer draws the ball and its swirl from the level stage
+        event.registerEntityRenderer(GooEntities.ROLLING_GOO.get(), NoopRenderer::new);
     }
 
     /**
@@ -235,8 +271,13 @@ public final class GooClientSetup {
         event.registerSpriteSet(GooParticles.TAP_DRIP.get(), TapDripParticle.Provider::new);
         event.registerSpriteSet(GooParticles.TAP_DRIP_LAND.get(), TapDripParticle.LandProvider::new);
         event.registerSpriteSet(GooParticles.GOO_FOG.get(), GooFogParticle.Provider::new);
+        event.registerSpriteSet(GooParticles.SPORE.get(), SporeParticle.Provider::new);
+        event.registerSpriteSet(GooParticles.GNAT.get(), GnatParticle.Provider::new);
+        event.registerSpriteSet(GooParticles.SNOWFLAKE.get(), SnowflakeParticle.Provider::new);
         event.registerSpriteSet(GooParticles.RESTORE_MOTE.get(), RestoreMoteParticle.Provider::new);
         event.registerSpriteSet(GooParticles.VITAL_MOTE.get(), VitalMoteParticle.Provider::new);
+        event.registerSpriteSet(GooParticles.HEX_WISP.get(), HexWispParticle.Provider::new);
+        event.registerSpriteSet(GooParticles.HEX_GLYPH.get(), HexGlyphParticle.Provider::new);
         event.registerSpriteSet(GooParticles.VITAL_FOG.get(), VitalFogParticle.Provider::new);
         event.registerSpriteSet(GooParticles.VITAL_STAR.get(), VitalStarParticle.Provider::new);
         event.registerSpecial(GooParticles.SILENT_BLAST.get(),
@@ -244,8 +285,10 @@ public final class GooClientSetup {
     }
 
     /**
-     * Registers a render state modifier that injects goo-colored outlineColor
-     * onto entities targeted by the glove, producing the spectral glow outline.
+     * Registers the render state modifiers that stamp each entity's goo state
+     * onto its render state: the glove's target outline, the goo coat, the
+     * ailments, the stone and frost encasements, the frozen pose and the
+     * transformation, in that order.
      *
      * @param event the event instance
      */
@@ -253,26 +296,19 @@ public final class GooClientSetup {
     @SubscribeEvent
     public static void registerRenderStateModifiers(
             RegisterRenderStateModifiersEvent event) {
-        event.registerEntityModifier(
-                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
-                },
-                AimTracker::modifyEntityRenderState);
-        event.registerEntityModifier(
-                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
-                },
-                MobCoatLayer::stampCoat);
-        event.registerEntityModifier(
-                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
-                },
-                AilmentOverlayLayer::stampAilments);
-        event.registerEntityModifier(
-                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
-                },
-                PetrifyStoneLayer::stampPetrify);
-        event.registerEntityModifier(
-                new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
-                },
+        List<BiConsumer<Entity, EntityRenderState>> stamps = List.of(
+                AimTracker::modifyEntityRenderState,
+                MobCoatLayer::stampCoat,
+                AilmentOverlayLayer::stampAilments,
+                EncasementLayer::stampPetrify,
+                EncasementLayer::stampFrozen,
+                FrozenPoses::stampFrozenPose,
+                VineTangleLayer::stampTangle,
                 TransformationRenderer::stampTransformation);
+        for (BiConsumer<Entity, EntityRenderState> stamp : stamps) {
+            event.registerEntityModifier(new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
+            }, stamp);
+        }
     }
 
     /**
@@ -288,16 +324,18 @@ public final class GooClientSetup {
             EntityRenderer<?, ?> renderer = event.getRenderer(type);
             if (renderer != null) {
                 MobCoatLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
-                AilmentOverlayLayer.addTo(renderer);
-                PetrifyStoneLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
+                AilmentOverlayLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
+                EncasementLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
+                VineTangleLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
             }
         }
         for (PlayerModelType skin : event.getSkins()) {
             MobCoatLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
             MobCoatLayer.addTo(event.getMannequinRenderer(skin), MobShells.NONE);
-            AilmentOverlayLayer.addTo(event.getPlayerRenderer(skin));
-            AilmentOverlayLayer.addTo(event.getMannequinRenderer(skin));
-            PetrifyStoneLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
+            AilmentOverlayLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
+            AilmentOverlayLayer.addTo(event.getMannequinRenderer(skin), MobShells.NONE);
+            EncasementLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
+            VineTangleLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
         }
     }
 
@@ -332,6 +370,7 @@ public final class GooClientSetup {
         CanisterBodyModels.register(event);
         VatBodyModels.register(event);
         GloveBodyModels.register(event);
+        OculusModels.register(event);
     }
 
     /**
@@ -397,9 +436,16 @@ public final class GooClientSetup {
     public static void onClientDisconnect(ClientPlayerNetworkEvent.LoggingOut event) {
         TunerAwaitState.clear();
         GooFlightManager.clear();
+        ZapBolts.clear();
+        ThumpRings.clear();
+        RelayLasers.clear();
+        PrismBeats.clear();
         ChainBurnouts.CLIENT.clear();
         MobCoats.CLIENT.clear();
         MobAilments.CLIENT.clear();
+        FrozenPoses.CLIENT.clear();
+        NovaRings.CLIENT.clear();
+        WindLines.CLIENT.clear();
         BlockTransforms.CLIENT.clear();
         Afterimages.CLIENT.clear();
         Transformations.CLIENT.clear();

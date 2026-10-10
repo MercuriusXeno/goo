@@ -3,7 +3,7 @@
   "displayName": "goo.ability.unstable.charged",
   "badge": "brew",
   "order": 40,
-  "cost": 1000,
+  "upkeep": 1,
   "requires": ["minecraft:fire_charge"],
   "delivery": { "kind": "self" },
   "behaviors": [

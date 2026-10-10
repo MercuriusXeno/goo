@@ -1,21 +1,31 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.banish.Teleportitis;
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
+import com.mercuriusxeno.goo.ability.program.Sight;
+import com.mercuriusxeno.goo.ability.held.HeldEffects;
+import com.mercuriusxeno.goo.ability.hex.Lifetap;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
+import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooMobEffects;
 import com.mercuriusxeno.goo.registry.GooPotions;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.Vec3;
 import java.util.List;
 
 /**
@@ -27,18 +37,45 @@ import java.util.List;
  */
 public final class BrewEffectTests {
 
-    private static final int FULL_HALVES = 20;
+    /** One heart of shield, which a brew primes before its crawl reaches the rest. */
+    private static final int PRIMED_HALVES = HeartOverlay.FULL_SHIELD;
     /** Half of a twenty-point bar: five hearts held, five missing. */
     private static final float HALF_HEALTH = 10f;
-    /** The halves of stone over the five missing hearts. */
-    private static final int MISSING_HALVES = 10;
+    /** The first missing heart at half health, which the stone primes. */
+    private static final int FIRST_MISSING = 5;
     private static final String SHOULD_CARRY = "The %s potion should carry its brew effect alone for %d ticks, carries %s";
     private static final String SHOULD_LAY = "The %s brew should lay %d %s halves expiring at %d, laid %s %d expiring at %d";
     private static final String SHOULD_HOLD_EFFECT = "The %s brew effect should stand for %d ticks, stands %s";
     private static final String SHOULD_DRAIN_NOTHING = "A brew should drain no goo, drained %d";
     private static final String SHOULD_CHARGE = "The unstable brew should charge until %d, charges until %d";
+    /** shroom_sight.json's factor. */
+    private static final float SIGHT_FACTOR = 3f;
+    /** hex_lifetap.json's fraction. */
+    private static final float LIFETAP_FRACTION = 0.3f;
+    private static final String SHOULD_LIFETAP = "The hex brew should lifetap at %.2f until %d, granted %.2f until %d";
+    private static final String SHOULD_SEE = "The shroom brew should grant sight at %.1f until %d, granted %.1f until %d";
+    private static final String SHOULD_SHOW_NO_PARTICLES = "A brew should show its icon and no particles, stands %s";
     private static final String SHOULD_NOURISH = "The vital brew should nourish until %d, nourishes until %d";
     private static final String SHOULD_RUN_NOTHING = "A brew of a type with no brew ability should lay nothing, laid %s";
+    private static final String SHOULD_HOLD_PREPAID = "The blaze brew should hold Kindle prepaid until %d, held %s";
+    private static final String SHOULD_DRAIN_NOTHING_HELD = "A prepaid brew should drain no goo over %d ticks, drained %d";
+    private static final String SHOULD_END_BREW_EFFECT = "Barkskin replacing a drunk Kindle should end the blaze brew effect, stands %s";
+    private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
+    private static final Identifier LEAF_BARKSKIN = Identifier.parse("goo:leaf_barkskin");
+    private static final Identifier NETHER_UNDEAD = Identifier.parse("goo:nether_undead");
+    private static final String SHOULD_BE_UNDEAD_PREPAID = "The nether brew should make the player undead, held prepaid";
+    /** ender_teleportitis.json's blink distance. */
+    private static final float TELEPORTITIS_DISTANCE = 8f;
+    /** A hit of two hearts. */
+    private static final float HIT = 4f;
+    /** Where the void test lifts the player before the fall, well off the floor it stood on. */
+    private static final double FALLING_ABOVE = 30.0;
+    private static final String SHOULD_TELEPORTITIS = "The ender brew should grant teleportitis at %.1f until %d, granted %s";
+    private static final String SHOULD_TAKE_NO_DAMAGE = "A player under teleportitis should keep %.1f health, has %.1f";
+    private static final String SHOULD_BLINK = "A hit should blink the player along their look from %s, stands at %s";
+    private static final String SHOULD_RETURN_TO_GROUND = "A fall out of the world should return the player to %s, stands at %s";
+    /** The ticks a prepaid brew is watched paying nothing. */
+    private static final int WATCHED_TICKS = 20;
 
     private BrewEffectTests() {
     }
@@ -97,8 +134,9 @@ public final class BrewEffectTests {
     }
 
     /**
-     * Drinking the rock brew while missing five hearts lays stone over those
-     * five for an hour (decision stoneskin-stone-hearts-block-regeneration).
+     * Drinking the rock brew while missing five hearts primes stone over the
+     * first of those five for an hour (decisions
+     * stoneskin-stone-hearts-block-regeneration and heart-effects-crawl-while-held).
      *
      * @param helper the gametest helper
      */
@@ -112,10 +150,40 @@ public final class BrewEffectTests {
         HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
         helper.getLevel().getServer().getPlayerList().remove(player);
         long expected = now + GooPotions.BREW_DURATION;
-        helper.assertTrue(overlay.kind() == HeartKind.STONESKIN && overlay.shieldHalves() == MISSING_HALVES
-                        && overlay.shieldAt(0) == 0 && overlay.expiresAt() == expected,
-                String.format(SHOULD_LAY, GooTypes.ROCK.identifier(), MISSING_HALVES, HeartKind.STONESKIN,
+        helper.assertTrue(overlay.kind() == HeartKind.STONESKIN && overlay.shieldHalves() == PRIMED_HALVES
+                        && overlay.shieldAt(FIRST_MISSING) == PRIMED_HALVES && overlay.expiresAt() == expected,
+                String.format(SHOULD_LAY, GooTypes.ROCK.identifier(), PRIMED_HALVES, HeartKind.STONESKIN,
                         expected, overlay.kind(), overlay.shieldHalves(), overlay.expiresAt()));
+        helper.succeed();
+    }
+
+    /**
+     * Drinking the nether brew while missing five hearts primes nether over
+     * the first of those five for an hour and makes the player undead, its
+     * held effect prepaid to the brew's expiry
+     * (decision undead-nether-hearts-burn-in-sunlight).
+     *
+     * @param helper the gametest helper
+     */
+    public static void netherBrewUndeadForAnHour(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.NETHER);
+        player.setHealth(HALF_HEALTH);
+        long now = player.level().getGameTime();
+
+        drink(player, GooTypes.NETHER);
+
+        HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
+        boolean undead = player.getData(GooAttachments.UNDEAD).stands();
+        boolean prepaid = player.getData(GooAttachments.HELD_EFFECTS).held().stream()
+                .anyMatch(effect -> effect.ability().equals(NETHER_UNDEAD)
+                        && effect.expiresAt() == now + GooPotions.BREW_DURATION);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        long expected = now + GooPotions.BREW_DURATION;
+        helper.assertTrue(overlay.kind() == HeartKind.UNDEAD && overlay.shieldHalves() == PRIMED_HALVES
+                        && overlay.shieldAt(FIRST_MISSING) == PRIMED_HALVES && overlay.expiresAt() == expected,
+                String.format(SHOULD_LAY, GooTypes.NETHER.identifier(), PRIMED_HALVES, HeartKind.UNDEAD,
+                        expected, overlay.kind(), overlay.shieldHalves(), overlay.expiresAt()));
+        helper.assertTrue(undead && prepaid, SHOULD_BE_UNDEAD_PREPAID);
         helper.succeed();
     }
 
@@ -146,21 +214,171 @@ public final class BrewEffectTests {
     }
 
     /**
-     * Drinking the frost brew, a type with no brew ability yet, holds the
+     * Drinking the shroom brew grants fungal sight at Sight's factor for an
+     * hour, draining no goo (decision sight-lengthens-shift-and-outlines-fungus).
+     *
+     * @param helper the gametest helper
+     */
+    public static void shroomBrewSightForAnHour(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.SHROOM);
+        int heldBefore = held(player, GooTypes.SHROOM);
+        long now = player.level().getGameTime();
+
+        drink(player, GooTypes.SHROOM);
+
+        Sight sight = player.getData(GooAttachments.SIGHT);
+        int drained = heldBefore - held(player, GooTypes.SHROOM);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        long expected = now + GooPotions.BREW_DURATION;
+        helper.assertTrue(sight.factor() == SIGHT_FACTOR && sight.expiresAt() == expected,
+                String.format(SHOULD_SEE, SIGHT_FACTOR, expected, sight.factor(), sight.expiresAt()));
+        helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
+        helper.succeed();
+    }
+
+    /**
+     * Drinking the ender brew grants teleportitis at ender_teleportitis.json's
+     * distance for an hour, draining no goo
+     * (decision teleportitis-blinks-along-the-cursor-on-hit).
+     *
+     * @param helper the gametest helper
+     */
+    public static void enderBrewTeleportitisForAnHour(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.ENDER);
+        int heldBefore = held(player, GooTypes.ENDER);
+        long now = player.level().getGameTime();
+
+        drink(player, GooTypes.ENDER);
+
+        Teleportitis teleportitis = player.getData(GooAttachments.TELEPORTITIS);
+        int drained = heldBefore - held(player, GooTypes.ENDER);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        long expected = now + GooPotions.BREW_DURATION;
+        helper.assertTrue(teleportitis.distance() == TELEPORTITIS_DISTANCE && teleportitis.expiresAt() == expected,
+                String.format(SHOULD_TELEPORTITIS, TELEPORTITIS_DISTANCE, expected, teleportitis));
+        helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
+        helper.succeed();
+    }
+
+    /**
+     * Drinking the hex brew grants a lifetap at Lifetap's fraction for an
+     * hour, draining no goo (decision lifetap-trades-regen-for-leech).
+     *
+     * @param helper the gametest helper
+     */
+    public static void hexBrewLifetapsForAnHour(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.HEX);
+        int heldBefore = held(player, GooTypes.HEX);
+        long now = player.level().getGameTime();
+
+        drink(player, GooTypes.HEX);
+
+        Lifetap lifetap = player.getData(GooAttachments.LIFETAP);
+        int drained = heldBefore - held(player, GooTypes.HEX);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        long expected = now + GooPotions.BREW_DURATION;
+        helper.assertTrue(lifetap.fraction() == LIFETAP_FRACTION && lifetap.expiresAt() == expected,
+                String.format(SHOULD_LIFETAP, LIFETAP_FRACTION, expected, lifetap.fraction(), lifetap.expiresAt()));
+        helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
+        helper.succeed();
+    }
+
+    /**
+     * A player under the ender brew takes a hit: the hit lands no damage and
+     * the player stands somewhere else along their look.
+     *
+     * @param helper the gametest helper
+     */
+    public static void teleportitisBlinksInsteadOfDamage(GameTestHelper helper) {
+        ServerPlayer player = hittableDrinker(helper);
+        Vec3 stood = player.position();
+        float health = player.getHealth();
+
+        HeartOverlayTests.hurt(helper, player, player.damageSources().generic(), HIT);
+
+        Vec3 after = player.position();
+        float healthAfter = player.getHealth();
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(healthAfter == health, String.format(SHOULD_TAKE_NO_DAMAGE, health, healthAfter));
+        helper.assertTrue(after.distanceTo(stood) > 0, String.format(SHOULD_BLINK, stood, after));
+        helper.succeed();
+    }
+
+    /**
+     * A player under the ender brew who stood on a stone block falls out of
+     * the world: the hit lands no damage and the player stands on that stone
+     * again.
+     *
+     * @param helper the gametest helper
+     */
+    public static void teleportitisVoidReturnsToSafeGround(GameTestHelper helper) {
+        ServerPlayer player = hittableDrinker(helper);
+        Vec3 ground = player.position();
+        helper.getLevel().setBlockAndUpdate(BlockPos.containing(ground).below(), Blocks.STONE.defaultBlockState());
+        player.doTick();
+        player.setPos(ground.add(0, FALLING_ABOVE, 0));
+        float health = player.getHealth();
+
+        HeartOverlayTests.hurt(helper, player, player.damageSources().fellOutOfWorld(), HIT);
+
+        Vec3 after = player.position();
+        float healthAfter = player.getHealth();
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(healthAfter == health, String.format(SHOULD_TAKE_NO_DAMAGE, health, healthAfter));
+        helper.assertTrue(after.equals(ground), String.format(SHOULD_RETURN_TO_GROUND, ground, after));
+        helper.succeed();
+    }
+
+    /**
+     * A survival mock player under the ender brew whom a hit reaches.
+     *
+     * @param helper the gametest helper
+     * @return the player
+     */
+    private static ServerPlayer hittableDrinker(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.ENDER);
+        // a player whose client has not reported loaded is invulnerable, and no mock client reports
+        player.connection.markClientLoaded();
+        drink(player, GooTypes.ENDER);
+        return player;
+    }
+
+    /**
+     * Drinks the type's potion, as a test player outside this class does.
+     *
+     * @param player  the drinking player
+     * @param gooType the potion's type
+     */
+    static void drinkBrew(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType) {
+        drink(player, gooType);
+    }
+
+    /**
+     * Drinking the typhoon brew, a type with no brew ability yet, holds the
      * effect and lays no hearts.
      *
      * @param helper the gametest helper
      */
     public static void brewWithoutAnAbilityRunsNothing(GameTestHelper helper) {
-        ServerPlayer player = drinker(helper, GooTypes.FROST);
-        drink(player, GooTypes.FROST);
+        ServerPlayer player = drinker(helper, GooTypes.TYPHOON);
+        drink(player, GooTypes.TYPHOON);
         HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
-        MobEffectInstance standing = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.FROST));
+        MobEffectInstance standing = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.TYPHOON));
         helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(standing != null, String.format(SHOULD_HOLD_EFFECT, GooTypes.FROST.identifier(),
+        helper.assertTrue(standing != null, String.format(SHOULD_HOLD_EFFECT, GooTypes.TYPHOON.identifier(),
                 GooPotions.BREW_DURATION, standing));
         helper.assertFalse(overlay.stands(), String.format(SHOULD_RUN_NOTHING, overlay));
         helper.succeed();
+    }
+
+    /**
+     * A frost brew lays Iceborn's frozen hearts for the brew's hour
+     * (decision iceborn-frozen-hearts-thaw-on-fire).
+     *
+     * @param helper the gametest helper
+     */
+    public static void frostBrewIcebornForAnHour(GameTestHelper helper) {
+        brewLaysForAnHour(helper, GooTypes.FROST, HeartKind.ICEBORN);
     }
 
     private static void brewLaysForAnHour(GameTestHelper helper, ResourceKey<GooTypeDefinition> gooType,
@@ -176,13 +394,70 @@ public final class BrewEffectTests {
         int drained = heldBefore - held(player, gooType);
         helper.getLevel().getServer().getPlayerList().remove(player);
         long expected = now + GooPotions.BREW_DURATION;
-        helper.assertTrue(overlay.kind() == kind && overlay.shieldHalves() == FULL_HALVES
-                        && overlay.expiresAt() == expected,
-                String.format(SHOULD_LAY, gooType.identifier(), FULL_HALVES, kind, expected,
+        helper.assertTrue(overlay.kind() == kind && overlay.shieldHalves() == PRIMED_HALVES
+                        && overlay.shieldAt(0) == PRIMED_HALVES && overlay.expiresAt() == expected,
+                String.format(SHOULD_LAY, gooType.identifier(), PRIMED_HALVES, kind, expected,
                         overlay.kind(), overlay.shieldHalves(), overlay.expiresAt()));
         helper.assertTrue(standing != null && standing.getDuration() == GooPotions.BREW_DURATION,
                 String.format(SHOULD_HOLD_EFFECT, gooType.identifier(), GooPotions.BREW_DURATION, standing));
         helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
+        // brew-runs-the-crawl-prepaid-on-a-shown-clock: the icon and its time show, particles never
+        helper.assertTrue(standing.showIcon() && !standing.isVisible(), String.format(SHOULD_SHOW_NO_PARTICLES, standing));
+        helper.succeed();
+    }
+
+    /**
+     * Drinking the blaze brew holds Kindle prepaid until the brew's end, its
+     * first ember laid, and twenty ticks on no blaze goo has drained.
+     * brew-runs-the-crawl-prepaid-on-a-shown-clock
+     *
+     * @param helper the gametest helper
+     */
+    public static void blazeBrewHoldsKindlePrepaid(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.BLAZE);
+        int heldBefore = held(player, GooTypes.BLAZE);
+        long expected = player.level().getGameTime() + GooPotions.BREW_DURATION;
+
+        drink(player, GooTypes.BLAZE);
+
+        HeldEffects heldEffects = player.getData(GooAttachments.HELD_EFFECTS);
+        boolean prepaid = heldEffects.held().stream().anyMatch(effect -> effect.ability().equals(BLAZE_KINDLE)
+                && effect.prepaid() && effect.expiresAt() == expected);
+        helper.assertTrue(prepaid, String.format(SHOULD_HOLD_PREPAID, expected, heldEffects));
+        HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
+        helper.assertTrue(overlay.shieldHalves() == PRIMED_HALVES && overlay.shieldAt(0) == PRIMED_HALVES,
+                String.format(SHOULD_LAY, GooTypes.BLAZE.identifier(), PRIMED_HALVES, HeartKind.KINDLE, expected,
+                        overlay.kind(), overlay.shieldHalves(), overlay.expiresAt()));
+        SelfDeliveryTests.tickFor(helper, player, WATCHED_TICKS);
+        helper.runAfterDelay(WATCHED_TICKS + 1, () -> {
+            int drained = heldBefore - held(player, GooTypes.BLAZE);
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING_HELD, WATCHED_TICKS, drained));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Eating Barkskin over a drunk Kindle ends Kindle and the blaze brew's
+     * effect with it.
+     * brew-runs-the-crawl-prepaid-on-a-shown-clock
+     *
+     * @param helper the gametest helper
+     */
+    public static void replacedBrewEndsItsEffect(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.LEAF);
+        drink(player, GooTypes.BLAZE);
+        KnownRecipes.teachRequires(player, AbilityRegistry.of(player.level()).getAbility(LEAF_BARKSKIN));
+
+        SelfDeliveryTests.invoke(player, GooTypes.LEAF, LEAF_BARKSKIN);
+        SelfDeliveryTests.eatThrough(player);
+
+        MobEffectInstance standing = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.BLAZE));
+        HeldEffects heldEffects = player.getData(GooAttachments.HELD_EFFECTS);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(standing == null, String.format(SHOULD_END_BREW_EFFECT, standing));
+        helper.assertTrue(heldEffects.holds(LEAF_BARKSKIN) && !heldEffects.holds(BLAZE_KINDLE),
+                String.format(SHOULD_END_BREW_EFFECT, heldEffects));
         helper.succeed();
     }
 

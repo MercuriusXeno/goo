@@ -24,6 +24,27 @@ public class GooParticles {
         PARTICLE_TYPES.register("goo_spark", () -> new SimpleParticleType(false));
 
     /**
+     * A drifting mote of spores, the particle Mycosis sprays along its cone
+     * and bursts from a spored corpse (decision mycosis-spore-stream-buds-and-poisons).
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SPORE =
+        PARTICLE_TYPES.register("spore", () -> new SimpleParticleType(false));
+
+    /**
+     * A maroon gnat darting in Decay's swarm, the particle its stream sprays
+     * along the cone (decision decay-gnats-degrade-each-block-once).
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> GNAT =
+        PARTICLE_TYPES.register("gnat", () -> new SimpleParticleType(false));
+
+    /**
+     * A snowflake crystal flitting weightlessly along Cold's wind (decision
+     * cold-streams-wind-lines-and-snowflakes).
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> SNOWFLAKE =
+        PARTICLE_TYPES.register("snowflake", () -> new SimpleParticleType(false));
+
+    /**
      * The particle a ability block's explosion names in place of vanilla's
      * explosion particles; its client provider spawns nothing, so the goo
      * type's own burnout explosion is the one seen (decision
@@ -79,6 +100,23 @@ public class GooParticles {
      */
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> VITAL_MOTE =
         PARTICLE_TYPES.register("vital_mote", () -> new SimpleParticleType(false));
+
+    /**
+     * The hex wisp: a wisp of drawn life in hex purple, scattering off a
+     * victim then curling home to whoever it heals: Lifetap's splashes and
+     * Drain's trickle.
+     * lifetap-trades-regen-for-leech
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> HEX_WISP =
+        PARTICLE_TYPES.register("hex_wisp", () -> new SimpleParticleType(false));
+
+    /**
+     * The hex glyph: an enchanting glyph in hex purple flying into Enchant's
+     * and Fuse's tomes.
+     * enchant-book-with-a-purple-afterimage
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> HEX_GLYPH =
+        PARTICLE_TYPES.register("hex_glyph", () -> new SimpleParticleType(false));
 
     /**
      * The vital fog: a faint pink puff, many of which fill Vitality's cone

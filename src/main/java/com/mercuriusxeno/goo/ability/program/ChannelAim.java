@@ -18,13 +18,33 @@ import java.util.List;
  * @param aimPoint    the world point under the client's cursor, or a stream's reach along the look
  * @param plane       the face the hold began on, or null where it began on none or the hold is a stream
  * @param coneDegrees a stream's cone, apex to rim, in degrees; zero for a channel aiming one point
+ * @param held        the hold's tick count, 1 on its first tick; zero where the hold is uncounted
+ * @param reaching    whether the swarm reaches new blocks this tick; false while a mob-first stream bites a mob,
+ *                    when blocks already reached keep working but none is reached anew
  */
-public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees) {
+public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees, int held,
+                         boolean reaching) {
+
+    /**
+     * The aim of a counted hold through a cone, reaching the blocks in it.
+     *
+     * @param aimPoint    the stream's reach along the look
+     * @param plane       the face the hold began on, or null
+     * @param coneDegrees the cone, apex to rim, in degrees
+     * @param held        the hold's tick count, 1 on its first tick
+     */
+    public ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees, int held) {
+        this(aimPoint, plane, coneDegrees, held, true);
+    }
 
     /** How far past the aim point, along the line from the eye, the aimed block is read. */
     private static final double INTO_THE_FACE = 0.01;
     /** How many blocks out from the face the swath reaches. */
     private static final int SWATH_DEPTH = 3;
+    /** A slice's ring, in turn around the middle, then the middle: ring in. */
+    private static final int[][] RING_IN = {
+        {-1, -1}, {0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {0, 0}
+    };
 
     /**
      * The face a hold began on: a block and the side of it the cursor rested
@@ -72,7 +92,18 @@ public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDe
      * @param plane    the face the hold began on, or null where it began on none
      */
     public ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane) {
-        this(aimPoint, plane, 0);
+        this(aimPoint, plane, 0, 0, true);
+    }
+
+    /**
+     * The aim of an uncounted hold through a cone, as Bore's block pass reads it.
+     *
+     * @param aimPoint    the stream's reach along the look
+     * @param plane       the face the hold began on, or null
+     * @param coneDegrees the cone, apex to rim, in degrees
+     */
+    public ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees) {
+        this(aimPoint, plane, coneDegrees, 0, true);
     }
 
     /**
@@ -103,8 +134,29 @@ public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDe
             return swath;
         }
         for (int out = SWATH_DEPTH; out >= 1; out--) {
-            swath.addAll(BoreStep.sliceRingIn(plane.layer(aimed, out), plane.face().getAxis()));
+            swath.addAll(sliceRingIn(plane.layer(aimed, out), plane.face().getAxis()));
         }
         return swath;
+    }
+
+    /**
+     * A 3x3 slice square to an axis, ring in: the eight around the middle in
+     * turn, then the middle; Flatten lays each layer of its swath with it
+     * (decision flatten-disc-cursor-breaks-above-the-plane).
+     *
+     * @param middle the slice's middle
+     * @param main   the axis the slice stands square to
+     * @return the nine blocks in breaking order
+     */
+    static List<BlockPos> sliceRingIn(BlockPos middle, Direction.Axis main) {
+        List<BlockPos> slice = new ArrayList<>();
+        for (int[] at : RING_IN) {
+            slice.add(switch (main) {
+                case X -> middle.offset(0, at[1], at[0]);
+                case Y -> middle.offset(at[0], 0, at[1]);
+                case Z -> middle.offset(at[0], at[1], 0);
+            });
+        }
+        return slice;
     }
 }

@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.network.ChunkWatchers;
@@ -7,13 +8,11 @@ import com.mercuriusxeno.goo.network.UnmakePayload;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.PointedDripstoneBlock;
-import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
@@ -37,9 +36,9 @@ import java.util.function.Consumer;
  * @param face    the landing block's face the drip struck
  */
 public record TapHost(ServerLevel level, BlockPos landing, Direction face)
-        implements ExplodeHost, AnchoredWorldHost, PlaceBlockHost, EntityScanHost, DripHost, UnmakeHost {
+        implements ExplodeHost, AnchoredWorldHost, PlaceBlockHost, EntityScanHost, DripHost, UnmakeHost, ConvokeHost,
+        DeviceToggleHost, MobSpawnHost, FrostHost {
 
-    private static final String ERR_UNKNOWN_BLOCK = "Place step names block which no registry holds: ";
     private static final double HALF = 0.5;
 
     /**
@@ -56,6 +55,27 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
     @Override
     public Vec3 anchor() {
         return faceCenter(landing, face);
+    }
+
+    /**
+     * The cell beyond the struck face, where a drip conjures its mob.
+     * spawn-drip-rolls-a-fresh-spawn
+     *
+     * @return the cell
+     */
+    @Override
+    public BlockPos spawnCell() {
+        return landing.relative(face);
+    }
+
+    @Override
+    public Vec3 morphFrom() {
+        return anchor();
+    }
+
+    @Override
+    public Vec3 frostCenter() {
+        return anchor();
     }
 
     @Override
@@ -106,6 +126,34 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
         }
     }
 
+    /**
+     * Toggles the device below the tap: the landing block when it is one, a
+     * closed trapdoor or door the drip struck, else the device standing on
+     * the struck face, a lever or button the drip fell through
+     * (decision pulser-drip-toggles-the-block-below).
+     */
+    @Override
+    public void toggleDevice() {
+        ZapDevice.handDevice(level, landing)
+                .or(() -> ZapDevice.handDevice(level, landing.relative(face)))
+                .ifPresent(device -> ZapDevice.toggleByHand(level, device));
+    }
+
+    @Override
+    public long gameTime() {
+        return level.getGameTime();
+    }
+
+    /**
+     * Pulls a mob from the landing's chunk to stand in the cell beyond the
+     * struck face, under the tap.
+     * decision convoke-drip-rolls-a-small-chance
+     */
+    @Override
+    public boolean convokeFromChunk() {
+        return ChunkConvoke.convoke(level, Vec3.atBottomCenterOf(landing.relative(face)));
+    }
+
     @Override
     public void explode(float power, ExplosionMode mode) {
         GooExplosion.detonate(level, anchor(), power, mode, GooExplosion.Look.vanilla());
@@ -139,14 +187,7 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
      */
     @Override
     public void placeBlock(Identifier block, Map<String, String> state) {
-        BlockPos cell = landing.relative(face);
-        if (!level.getBlockState(cell).canBeReplaced()) {
-            return;
-        }
-        Block found = BuiltInRegistries.BLOCK.getOptional(block)
-                .orElseThrow(() -> new IllegalArgumentException(ERR_UNKNOWN_BLOCK + block));
-        List<Property.Value<?>> values = StatePropertyWriter.resolve(found.getStateDefinition(), state, block);
-        level.setBlock(cell, StatePropertyWriter.write(found.defaultBlockState(), values), Block.UPDATE_ALL);
+        BlockAnchoredActions.placeBeyondFace(level, landing, face, block, state);
     }
 
     /**

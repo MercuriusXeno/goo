@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.LineContext;
+import com.mercuriusxeno.goo.client.ShapeFace;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
@@ -15,7 +16,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * Draws concentric rings on the face of a block target the goo will strike,
  * where the aim arc ends, so the mark names the face as the outline names the
- * block (decision aim-arc-ends-in-face-bullseye).
+ * block: on the struck face of the block's own shape, scaled down to a
+ * smaller face (decision aim-arc-ends-in-face-bullseye).
  */
 public final class FaceBullseyeRenderer {
     /** How far the rings sit off the face along its normal, clear of the outline's fill. */
@@ -77,11 +79,12 @@ public final class FaceBullseyeRenderer {
      */
     static void render(PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
             Camera camera, TargetResult target, int rgb, double nowSeconds) {
-        Direction face = bullseyeFace(target);
-        if (face == null) {
+        if (!(target instanceof TargetResult.BlockTarget block)) {
             return;
         }
-        Vec3 faceCenter = target.resolveEndpoint();
+        Direction face = block.face();
+        ShapeFace shapeFace = ShapeFace.at(Minecraft.getInstance().level, block.pos(), face);
+        Vec3 faceCenter = shapeFace.center();
         Vec3 cam = camera.position();
         float width = Minecraft.getInstance().getWindow().getAppropriateLineWidth();
         LineContext ctx = new LineContext(poseStack.last(), bufferSource.getBuffer(GooRenderTypes.LINES_GLOW));
@@ -89,7 +92,8 @@ public final class FaceBullseyeRenderer {
             int alpha = (int) (RING_PEAK_ALPHA * RippleRings.ringOpacity(phase));
             if (RippleRings.isAlive(phase) && alpha > 0) {
                 int color = ARGB.color(alpha, ARGB.red(rgb), ARGB.green(rgb), ARGB.blue(rgb));
-                Vec3[] ring = ringPoints(faceCenter, face, RippleRings.ringRadius(phase), RING_SEGMENTS);
+                Vec3[] ring = ringPoints(faceCenter, face, RippleRings.ringRadius(phase) * shapeFace.scale(),
+                        RING_SEGMENTS);
                 ctx.emitPolyline(cam, ring, color, width);
             }
         }

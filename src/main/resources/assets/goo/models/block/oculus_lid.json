@@ -1,0 +1,40 @@
+{
+  "textures": {
+    "particle": "goo:block/oculus_lid",
+    "lid": "goo:block/oculus_lid"
+  },
+  "elements": [
+    {
+      "from": [
+        4.5,
+        0,
+        11.51
+      ],
+      "to": [
+        11.5,
+        1,
+        11.53
+      ],
+      "faces": {
+        "south": {
+          "uv": [
+            4,
+            0,
+            11,
+            1
+          ],
+          "texture": "#lid"
+        },
+        "north": {
+          "uv": [
+            4,
+            0,
+            11,
+            1
+          ],
+          "texture": "#lid"
+        }
+      }
+    }
+  ]
+}

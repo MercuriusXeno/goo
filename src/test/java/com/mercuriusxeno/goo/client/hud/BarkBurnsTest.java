@@ -43,7 +43,7 @@ class BarkBurnsTest {
     @Test
     void barkskinBurningOutPlaysItsBurnsThenClears() {
         BarkBurns tracker = new BarkBurns();
-        HeartOverlay barked = HeartOverlay.NONE.apply(HeartKind.BARKSKIN, 1_200, 4f, 0L);
+        HeartOverlay barked = new HeartOverlay(HeartKind.BARKSKIN, List.of(2, 2), 1_200L, 0L, 0L);
         tracker.update(barked, true, NOW);
         List<BarkBurns.Burn> burning = tracker.update(HeartOverlay.NONE, true, NOW + 1);
         assertEquals(4, burning.size());

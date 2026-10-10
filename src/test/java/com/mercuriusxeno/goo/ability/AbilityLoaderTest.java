@@ -4,13 +4,22 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.AfterimageStep;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
 import com.mercuriusxeno.goo.ability.program.AilmentOverlayStep;
+import com.mercuriusxeno.goo.ability.program.BranchStep;
+import com.mercuriusxeno.goo.ability.program.CharmStep;
+import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.GhostTrailStep;
+import com.mercuriusxeno.goo.ability.program.HostVariables;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.PotionStep;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.SoundStep;
+import com.mercuriusxeno.goo.ability.program.SpawnRandomStep;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
+import com.mercuriusxeno.goo.ability.program.TomeKind;
+import com.mercuriusxeno.goo.ability.program.TomeStep;
+import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.data.IdentifiedJsonScan;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -30,11 +39,14 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -51,6 +63,11 @@ class AbilityLoaderTest {
 
     private static final String DIRECTORY = "goo_abilities";
     private static final Identifier GLOWING = Identifier.parse("minecraft:glowing");
+    private static final int CHARM_ROLLS = 1000;
+    private static final int RARE_CHARMS = 50;
+    private static final double ZOMBIE_MAX_HEALTH = 20;
+    private static final double TOP_MAX_HEALTH = 1024;
+    private static final double TAP_SPAWN_CHANCE = 5;
     /** The abilities whose whole design was a per-stack shape. */
     /** The world abilities that stay after their blob lands. */
     private static final List<String> LINGERING_ABILITIES = List.of("crystal_cloud", "metal_spikes",
@@ -68,8 +85,17 @@ class AbilityLoaderTest {
     /** The items each gated ability requires, as the task's how maps the operator's lists. */
     private static final Map<String, List<String>> GATES = Map.ofEntries(
             Map.entry("ender_blink", List.of("ender_pearl")),
-            Map.entry("ender_teleport", List.of("popped_chorus_fruit")),
+            Map.entry("ender_banish", List.of("popped_chorus_fruit")),
+            Map.entry("ender_teleportitis", List.of("chorus_fruit")),
+            Map.entry("ender_convoke", List.of("sculk_shrieker")),
+            Map.entry("ender_dragon_gate", List.of("dragon_breath")),
+            Map.entry("ender_oculus", List.of("ender_eye")),
             Map.entry("hex_charm", List.of("honey_bottle", "cake", "cookie")),
+            Map.entry("hex_enchant", List.of("book", "lapis_lazuli")),
+            Map.entry("hex_fuse", List.of("bookshelf", "lapis_lazuli")),
+            Map.entry("hex_spawn", List.of("sculk")),
+            Map.entry("hex_lifetap", List.of("soul_sand")),
+            Map.entry("hex_drain", List.of("soul_sand")),
             Map.entry("unstable_explode", List.of("gunpowder")),
             Map.entry("unstable_lurker", List.of("tnt")),
             Map.entry("unstable_unmake", List.of("dragon_breath")),
@@ -80,11 +106,17 @@ class AbilityLoaderTest {
             Map.entry("crystal_flechettes", List.of("amethyst_shard")),
             Map.entry("crystal_prism", List.of("quartz")),
             Map.entry("blaze_spitfire", List.of("torchflower")),
+            Map.entry("frost_nova", List.of("packed_ice")),
+            Map.entry("frost_cold", List.of("snowball")),
+            Map.entry("frost_orb", List.of("blue_ice")),
             Map.entry("blaze_ignite", List.of("flint")),
             Map.entry("blaze_kindle", List.of("magma_cream")),
             Map.entry("leaf_barkskin", List.of("oak_log")),
             Map.entry("aeon_time_stop", List.of("clock")),
-            Map.entry("leaf_entangle", List.of("vine")),
+            Map.entry("leaf_vines", List.of("vine")),
+            Map.entry("leaf_growth", List.of("bone_meal")),
+            Map.entry("leaf_reap", List.of("wheat", "wheat_seeds")),
+            Map.entry("leaf_bio", List.of("poisonous_potato")),
             Map.entry("typhoon_levitate", List.of("shulker_shell")),
             Map.entry("typhoon_propel", List.of("phantom_membrane")),
             Map.entry("rock_bore", List.of("stone", "cobblestone")),
@@ -92,7 +124,12 @@ class AbilityLoaderTest {
             Map.entry("rock_flatten", List.of("dirt")),
             Map.entry("rock_petrify", List.of("pointed_dripstone")),
             Map.entry("rock_stoneskin", List.of("deepslate")),
-            Map.entry("pulse_short_circuit", List.of("redstone")));
+            Map.entry("pulse_zap", List.of("redstone")),
+            Map.entry("shroom_mycosis", List.of("nether_wart")),
+            Map.entry("shroom_colonize", List.of("brown_mushroom", "red_mushroom")),
+            Map.entry("shroom_fungal_shift", List.of("sculk")),
+            Map.entry("shroom_sight", List.of("sculk_sensor")),
+            Map.entry("nether_undead", List.of("rotten_flesh")));
 
     @Test
     void everyScannedAbilityCarriesItsFileId() {
@@ -117,6 +154,16 @@ class AbilityLoaderTest {
         for (String name : STACK_SHAPE_ABILITIES) {
             assertFalse(scanned.containsKey(Identifier.fromNamespaceAndPath(Goo.MODID, name)), name + " still loads");
         }
+    }
+
+    // decision wither-ability-deleted
+    @Test
+    void netherHoldsNoWitherAbility() {
+        Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
+
+        assertTrue(scanned.values().stream().anyMatch(def -> def.gooType() == GooTypes.NETHER), "No nether ability scanned");
+        assertTrue(scanned.values().stream().filter(def -> def.gooType() == GooTypes.NETHER)
+                .noneMatch(def -> def.id().getPath().contains("wither")), "a nether wither ability still loads");
     }
 
     // decision splat-runs-the-program-no-fuse
@@ -187,6 +234,44 @@ class AbilityLoaderTest {
     }
 
     /**
+     * Every shipped self + brew ability names an upkeep in place of a one-shot
+     * cost, and every other ability names no upkeep
+     * (decision self-effects-trickle-until-ended).
+     */
+    @Test
+    void selfBrewAbilitiesNameAnUpkeepInPlaceOfACost() {
+        Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
+
+        for (AbilityDefinition ability : scanned.values()) {
+            if (SelfEatRoute.eats(ability.delivery(), ability.badge())) {
+                assertEquals(0, ability.cost(), ability.id().toString());
+                assertEquals(1, ability.upkeep(), ability.id().toString());
+            } else {
+                assertEquals(AbilityDefinition.NO_UPKEEP, ability.upkeep(), ability.id().toString());
+            }
+        }
+    }
+
+    /**
+     * Stoneskin's up sound is the petrify sound Statues plays, at another
+     * pitch, and Nourish's is a healing cue of its own
+     * (decision held-effects-sound-up-and-down).
+     */
+    @Test
+    void heldEffectsSoundTheirOwnUpCue() {
+        SoundStep stoneskinUp = firstSound("rock_stoneskin");
+        assertEquals(Identifier.withDefaultNamespace("block.deepslate.place"), stoneskinUp.sound());
+        assertNotEquals(1.0, stoneskinUp.pitch().evaluate(Variables.NONE), 1e-6);
+        assertNotEquals(0.8, stoneskinUp.pitch().evaluate(Variables.NONE), 1e-6);
+        assertTrue(AbilityJson.decode("vital_nourish").behaviors().stream().anyMatch(SoundStep.class::isInstance));
+    }
+
+    private static SoundStep firstSound(String name) {
+        return AbilityJson.decode(name).behaviors().stream().filter(SoundStep.class::isInstance)
+                .map(SoundStep.class::cast).findFirst().orElseThrow();
+    }
+
+    /**
      * Hex charm and aeon's stasis show their ailment through the overlay
      * step, and neither applies vanilla glowing any more
      * (decision ailment-overlay-shader-per-ailment).
@@ -201,6 +286,86 @@ class AbilityLoaderTest {
                 .map(step -> ((AilmentOverlayStep) step).kind()).toList(), name);
         assertTrue(steps.stream().filter(PotionStep.class::isInstance)
                 .noneMatch(step -> GLOWING.equals(((PotionStep) step).effect())), name + " still applies glowing");
+    }
+
+    /**
+     * Hex charm charms the struck mob in place of weakening it
+     * (decision charm-glisten-and-icon-over-the-head).
+     */
+    @Test
+    void hexCharmCharmsInPlaceOfWeakness() {
+        List<Step> steps = AbilityJson.decode("hex_charm").behaviors().stream()
+                .flatMap(AbilityLoaderTest::stepTree).toList();
+
+        assertTrue(steps.stream().anyMatch(CharmStep.class::isInstance), "no charm step");
+        assertTrue(steps.stream().noneMatch(PotionStep.class::isInstance), "still applies a potion");
+    }
+
+    /**
+     * Hex enchant consumes one book and plays a hex afterimage on the player
+     * (decision enchant-book-with-a-purple-afterimage).
+     */
+    @Test
+    void hexEnchantTakesABookUnderAHexAfterimage() {
+        AbilityDefinition enchant = AbilityJson.decode("hex_enchant");
+
+        assertEquals(List.of(Identifier.withDefaultNamespace("book")), enchant.consumes());
+        assertEquals(List.of(GooTypes.HEX), afterimageTypes(enchant.behaviors()));
+    }
+
+    /**
+     * Hex's tap conjures on one drip in twenty, its chance in its JSON
+     * (decision spawn-drip-rolls-a-fresh-spawn).
+     */
+    @Test
+    void hexSpawnTapRollsFivePercent() {
+        SpawnRandomStep spawn = AbilityJson.decode("hex_spawn_tap").behaviors().stream()
+                .filter(SpawnRandomStep.class::isInstance).map(SpawnRandomStep.class::cast).findFirst().orElseThrow();
+
+        assertEquals(TAP_SPAWN_CHANCE, spawn.chance().evaluate(Variables.NONE));
+    }
+
+    /**
+     * Enchant and Fuse each play their tome once their own step has acted
+     * (decisions enchant-book-with-a-purple-afterimage, fuse-two-books-for-hex-goo).
+     */
+    @ParameterizedTest
+    @CsvSource({"hex_enchant, ENCHANT", "hex_fuse, FUSE"})
+    void bookAbilitiesPlayTheirTome(String name, TomeKind kind) {
+        assertEquals(List.of(kind), AbilityJson.decode(name).behaviors().stream()
+                .filter(TomeStep.class::isInstance).map(step -> ((TomeStep) step).kind()).toList(), name);
+    }
+
+    /**
+     * Every brew sounds as its effect starts, as every held effect sounds as
+     * it ends (decision held-effects-sound-up-and-down).
+     */
+    @ParameterizedTest
+    @CsvSource({"blaze_kindle", "leaf_barkskin", "rock_stoneskin", "vital_nourish", "shroom_sight", "hex_lifetap"})
+    void everyBrewSoundsAsItStarts(String name) {
+        assertTrue(AbilityJson.decode(name).behaviors().stream().anyMatch(SoundStep.class::isInstance), name);
+    }
+
+    /**
+     * Hex charm lands on every zombie, max health 20, and on few mobs at
+     * vanilla's top max health, 1024: of a thousand rolls at 1024, where
+     * pow(20 / max_health, 1.5) expects under three, fewer than fifty land
+     * (decision charm-glisten-and-icon-over-the-head).
+     */
+    @Test
+    void hexCharmIsResistedByHighHealth() {
+        Expr chance = AbilityJson.decode("hex_charm").behaviors().stream()
+                .flatMap(AbilityLoaderTest::stepTree).filter(BranchStep.class::isInstance)
+                .map(step -> ((BranchStep) step).when()).findFirst().orElseThrow();
+
+        assertEquals(CHARM_ROLLS, landedCharms(chance, ZOMBIE_MAX_HEALTH));
+        assertTrue(landedCharms(chance, TOP_MAX_HEALTH) < RARE_CHARMS, "high health should rarely be charmed");
+    }
+
+    private static long landedCharms(Expr chance, double maxHealth) {
+        Variables mob = name -> HostVariables.MAX_HEALTH.equals(name) ? OptionalDouble.of(maxHealth)
+                : OptionalDouble.empty();
+        return IntStream.range(0, CHARM_ROLLS).filter(roll -> chance.evaluate(mob) != 0).count();
     }
 
     /**
@@ -267,7 +432,7 @@ class AbilityLoaderTest {
         @Test
         void enderBlinkPreviewReadsTheRangeItsTeleportJumps() {
             List<Step> steps = AbilityJson.decode("ender_blink").behaviors();
-            assertEquals(8.0, TeleportStep.lookRange(steps).orElseThrow());
+            assertEquals(32.0, TeleportStep.lookRange(steps).orElseThrow());
         }
     }
 

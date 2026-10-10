@@ -3,13 +3,20 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
+import com.mercuriusxeno.goo.ability.held.HeldEffectsEvents;
+import com.mercuriusxeno.goo.ability.program.BlinkLanding;
+import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
+import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.StepContext;
+import com.mercuriusxeno.goo.ability.program.TeleportStep;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
@@ -18,6 +25,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
+import java.util.Optional;
 import java.util.OptionalInt;
 
 /**
@@ -25,11 +33,13 @@ import java.util.OptionalInt;
  * wearing the self badge runs on command: its cost at stack zero drains and
  * its programs run on the invoking player the tick it is invoked. A self +
  * brew ability, one wearing the brew badge, starts the player eating the
- * glove instead, and drains and runs when the eat finishes; an eat let go or
- * interrupted before then runs nothing and drains nothing, and the eat
- * replaces the throw sound on that route.
+ * glove instead, and when the eat finishes its programs run and the effect is
+ * held, paying its upkeep each tick after; an eat let go or interrupted
+ * before then runs nothing and drains nothing, and the eat replaces the throw
+ * sound on that route. Invoking a held effect again ends it.
  * decision self-delivery-runs-on-player
  * decision self-brew-goos-eat-before-the-effect
+ * decision self-effects-trickle-until-ended
  */
 public final class GooSelfHandler {
 
@@ -48,21 +58,47 @@ public final class GooSelfHandler {
      * @param player  the invoking player
      * @param gooType the ability's goo type
      * @param ability the self ability
+     * @param pin     the face plane the press pinned, which a blink slides on; empty for free aim
      */
-    static void deliver(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability) {
-        if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge())) {
+    static void deliver(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability,
+            Optional<ChannelAim.FacePlane> pin) {
+        if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge()) || ability.delivery().charges()) {
             return;
         }
-        if (SelfEatRoute.eats(ability.delivery(), ability.badge())) {
+        boolean held = HeldEffectsEvents.holds(player, ability.id());
+        if (SelfEatRoute.endsHeld(ability.delivery(), ability.badge(), held)) {
+            HeldEffectsEvents.end(player, ability.id());
+        } else if (SelfEatRoute.eats(ability.delivery(), ability.badge())) {
             beginEating(player, gooType, ability);
-        } else if (invoke(player, gooType, ability)) {
+        } else if (invoke(PlayerHost.blinking(player.level(), player, pin), gooType, ability)) {
+            GooEffectScheduler.playThrowSound(player, ability.delivery());
+        }
+    }
+
+    /**
+     * Fires a charged self ability let go after a hold: its programs run on
+     * the player carrying the share of a full charge the hold reached.
+     * nova-ring-grows-with-the-hold
+     *
+     * @param player    the releasing player
+     * @param gooType   the ability's goo type
+     * @param ability   the charged ability
+     * @param heldTicks the ticks the use key was held
+     */
+    static void release(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability,
+            int heldTicks) {
+        if (ability.delivery().kind() != DeliveryKind.SELF || !ability.delivery().charges()) {
+            return;
+        }
+        PlayerHost host = PlayerHost.charged(player.level(), player, ability.delivery().chargeShare(heldTicks));
+        if (invoke(host, gooType, ability)) {
             GooEffectScheduler.playThrowSound(player, ability.delivery());
         }
     }
 
     /**
      * Starts the eat for a self + brew ability the player can afford, in the
-     * hand holding the glove; a player short of the cost starts no eat.
+     * hand holding the glove; a player short of a tick's upkeep starts no eat.
      *
      * @param player  the invoking player
      * @param gooType the ability's goo type
@@ -78,7 +114,7 @@ public final class GooSelfHandler {
     /**
      * Finishes an eat of the glove on the server: the glove's selection is
      * resolved again, and an ability the player may still use that takes the
-     * eat route drains and runs.
+     * eat route is held and runs.
      *
      * @param player the eating player
      * @param glove  the glove eaten
@@ -93,34 +129,93 @@ public final class GooSelfHandler {
         if (ability == null) {
             return;
         }
-        SelfEatRoute.finish(ability.delivery(), ability.badge(), () -> invoke(player, gooType, ability));
+        SelfEatRoute.finish(ability.delivery(), ability.badge(), () -> hold(player, gooType, ability));
+    }
+
+    /**
+     * Starts a held self + brew effect with no one-shot drain and runs its
+     * programs on the player, when the player holds a tick's upkeep. The
+     * effect is held before the programs run, so a heart-changing effect it
+     * replaces clears before its own hearts lay.
+     * self-effects-trickle-until-ended
+     *
+     * @param player  the eating player
+     * @param gooType the ability's goo type
+     * @param ability the self + brew ability
+     */
+    private static void hold(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
+            AbilityDefinition ability) {
+        if (!affords(player, gooType, ability)) {
+            return;
+        }
+        ReagentScanner.consumeOneOfEach(player, ability.consumes());
+        HeldEffectsEvents.start(player, gooType, ability);
+        runOn(new PlayerHost(player.level(), player), ability);
     }
 
     /**
      * Drains a self ability's cost and runs its programs on the player, when
-     * the player holds its cost.
+     * the player holds its cost. A blink's cost is priced from the trip it
+     * is about to make, before it runs.
+     * decision blink-lands-safely-costed-by-distance
      *
-     * @param player  the invoking player
+     * @param host    the host over the invoking player
      * @param gooType the ability's goo type
      * @param ability the self ability
      * @return true when the cost drained and the programs ran
      */
-    private static boolean invoke(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
+    private static boolean invoke(PlayerHost host, ResourceKey<GooTypeDefinition> gooType,
             AbilityDefinition ability) {
-        if (!affords(player, gooType, ability)) {
+        ServerPlayer player = host.player();
+        Optional<BlinkLanding> trip = TeleportStep.tripOf(ability.behaviors(), player, player.position(),
+                player.getLookAngle(), host.blinkPin());
+        int cost = ability.distancePrice().priceOf(ability.cost(), trip);
+        if (!affords(player, gooType, ability, cost)) {
             return false;
         }
-        GooSourceScanner.deplete(player, gooType, ability.cost());
+        if (!admits(host, ability)) {
+            playRefusal(host, ability);
+            return false;
+        }
+        GooSourceScanner.deplete(player, gooType, cost);
         ReagentScanner.consumeOneOfEach(player, ability.consumes());
-        runOn(new PlayerHost(player.level(), player), ability);
+        runOn(host, ability);
         return true;
     }
 
     /**
-     * Runs a drunk brew: the type's brew ability runs on the player for the
-     * brew's duration, the same program the glove runs, with no goo drained.
-     * A type with no brew ability yet runs nothing.
+     * Whether every step of the ability can act on the player now; Fungal
+     * Shift aimed at no fungus cannot, and so neither runs nor drains
+     * (decision fungal-shift-blinks-to-the-aimed-fungus).
+     *
+     * @param host    the player host
+     * @param ability the self ability
+     * @return true when every step admits
+     */
+    private static boolean admits(PlayerHost host, AbilityDefinition ability) {
+        StepContext context = new StepContext(host, 0, 0);
+        return ability.behaviors().stream().allMatch(step -> step.admits(context));
+    }
+
+    /**
+     * Plays the refusal sound the first refusing step names, if it names
+     * one; Fuse with no pair fizzles (decision fuse-two-books-for-hex-goo).
+     *
+     * @param host    the player host
+     * @param ability the refused self ability
+     */
+    private static void playRefusal(PlayerHost host, AbilityDefinition ability) {
+        StepContext context = new StepContext(host, 0, 0);
+        ability.behaviors().stream().filter(step -> !step.admits(context)).findFirst()
+                .flatMap(Step::refusal).ifPresent(host::playSound);
+    }
+
+    /**
+     * Runs a drunk brew: the type's brew ability starts prepaid, the same
+     * held effect and program the glove runs, for the brew's duration with no
+     * goo drained. A type with no brew ability yet runs nothing.
      * decision brew-grants-the-self-ability-for-an-hour
+     * decision brew-runs-the-crawl-prepaid-on-a-shown-clock
      *
      * @param player   the drinking player
      * @param gooType  the brew's goo type
@@ -129,6 +224,7 @@ public final class GooSelfHandler {
     public static void drinkBrew(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, int duration) {
         AbilityDefinition ability = AbilityRegistry.of(player.level()).brewAbilityFor(gooType);
         if (ability != null) {
+            HeldEffectsEvents.startPrepaid(player, gooType, ability, duration);
             runOn(new PlayerHost(player.level(), player, OptionalInt.of(duration)), ability);
         }
     }
@@ -148,7 +244,8 @@ public final class GooSelfHandler {
     }
 
     /**
-     * Whether the player holds the ability's cost, logging the refusal.
+     * Whether the player holds the ability's cost, or a tick's upkeep for a
+     * held effect, logging the refusal.
      *
      * @param player  the invoking player
      * @param gooType the ability's goo type
@@ -157,8 +254,23 @@ public final class GooSelfHandler {
      */
     private static boolean affords(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
             AbilityDefinition ability) {
+        return affords(player, gooType, ability, ability.cost());
+    }
+
+    /**
+     * Whether the player holds a priced cost, or a tick's upkeep for a held
+     * effect, logging the refusal.
+     *
+     * @param player  the invoking player
+     * @param gooType the ability's goo type
+     * @param ability the self ability
+     * @param cost    the cost this invocation drains
+     * @return true when the inventory covers the cost
+     */
+    private static boolean affords(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
+            AbilityDefinition ability, int cost) {
         // ability-json-names-its-reagent
-        if (GooSourceScanner.hasEnough(player, gooType, ability.cost())
+        if (GooSourceScanner.hasEnough(player, gooType, Math.max(cost, ability.upkeep()))
                 && ReagentScanner.holdsEvery(player, ability.consumes())) {
             return true;
         }

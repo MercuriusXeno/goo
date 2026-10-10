@@ -133,7 +133,10 @@ public class GooGloveItem extends Item {
     }
 
     /**
-     * Gives the marker's one goo back to the player and removes the block.
+     * Gives the player goo worth the charges the marker's trap still holds,
+     * nothing for a spent trap and a whole throw's worth for a marker with no
+     * trap, and removes the block.
+     * recollect-returns-charges-left
      * @param level the world the marker exists in
      * @param pos the marker block position
      * @param be the ability block block entity holding goo data
@@ -142,7 +145,10 @@ public class GooGloveItem extends Item {
     private static void recollectGoo(Level level, BlockPos pos,
             AbilityBlockEntity be, Player player) {
         ResourceKey<GooTypeDefinition> type = be.getGooType();
-        PlayerUtils.addOrDrop(player, GooStacks.createForOutput(type, GooStacks.THOUSAND));
+        int worth = be.getFieldEffect().worthLeft(GooStacks.THOUSAND);
+        if (worth > 0) {
+            PlayerUtils.addOrDrop(player, GooStacks.createForOutput(type, worth));
+        }
         level.removeBlock(pos, false);
         level.playSound(null, pos, SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS,
                 PICKUP_VOLUME, PICKUP_PITCH);

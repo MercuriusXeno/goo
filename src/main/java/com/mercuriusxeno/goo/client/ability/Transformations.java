@@ -13,7 +13,12 @@ import java.util.List;
  * its origin to an entity or a block over the first HOP_SHARE of the
  * transformation, then shrinks to nothing as the target's model grows from
  * nothing to full size on a smoothstep, so the target is never whole while
- * the blob stands.
+ * the blob stands. A blob already standing where its entity forms, as a
+ * conjured spawn's splat does, makes no hop either: it morphs in place for
+ * the whole transformation (decision spawn-goo-morphs-into-the-mob-it-births).
+ * A blob turning into a block makes no hop: the block's
+ * renderer morphs it out of the struck face from the tick it lands
+ * (decision prism-is-one-pointed-quartz-column).
  * Decision model-transformation-is-one-animation.
  * Decision prism-blob-becomes-a-milky-quartz-crystal.
  */
@@ -27,6 +32,9 @@ public final class Transformations {
 
     /** Blocks the blob's hop arcs above the straight line at its peak. */
     static final float HOP_HEIGHT = 0.6f;
+
+    /** How close the blob's origin stands to its entity, in blocks, for the blob to morph in place. */
+    static final double IN_PLACE_REACH = 0.05;
 
     /** A model at full size. */
     private static final float FULL = 1f;
@@ -85,21 +93,34 @@ public final class Transformations {
         }
 
         /**
-         * How far the blob has become the model: nothing through the hop,
-         * then a smoothstep to whole at the end.
+         * @return true when the blob hops to its entity before it morphs: an
+         *         entity target standing off from where the blob leaves
+         */
+        boolean hops() {
+            return targetBlock == null && from.distanceToSqr(to) > IN_PLACE_REACH * IN_PLACE_REACH;
+        }
+
+        /**
+         * How far the blob has become the model: nothing through an entity's hop,
+         * then a smoothstep to whole at the end; a block's morph takes the whole time.
          *
          * @param gameTime the game time including the partial tick
          * @return 0 to 1
          */
         public float morph(float gameTime) {
-            return smoothstep(Math.clamp((progress(gameTime) - HOP_SHARE) / (FULL - HOP_SHARE), 0f, 1f));
+            float hop = hops() ? HOP_SHARE : 0f;
+            return smoothstep(Math.clamp((progress(gameTime) - hop) / (FULL - hop), 0f, 1f));
         }
 
         /**
          * @param gameTime the game time including the partial tick
-         * @return the blob's size, whole through the hop and shrinking to nothing as the model grows
+         * @return the blob's size, whole through the hop, then shrinking to nothing as an entity's
+         *         model grows; none for a block, whose renderer morphs the blob itself
          */
         public float blobScale(float gameTime) {
+            if (targetBlock != null) {
+                return 0f;
+            }
             return FULL - morph(gameTime);
         }
 
@@ -119,6 +140,9 @@ public final class Transformations {
          * @return the blob's world point
          */
         public Vec3 blobPosition(float gameTime) {
+            if (!hops()) {
+                return from;
+            }
             float hop = Math.min(FULL, progress(gameTime) / HOP_SHARE);
             float along = smoothstep(hop);
             return from.lerp(to, along).add(0, HOP_HEIGHT * Math.sin(Math.PI * hop), 0);
@@ -210,6 +234,22 @@ public final class Transformations {
             }
         }
         return scale;
+    }
+
+    /**
+     * The transformation playing into a block, for its renderer to morph the blob.
+     *
+     * @param pos      the block's position
+     * @param gameTime the game time including the partial tick
+     * @return the transformation, or null where none plays
+     */
+    public @Nullable Transformation intoBlockAt(BlockPos pos, float gameTime) {
+        for (Transformation transformation : live) {
+            if (pos.equals(transformation.targetBlock()) && !transformation.isOver((long) Math.floor(gameTime))) {
+                return transformation;
+            }
+        }
+        return null;
     }
 
     /** Drops every transformation, as the client leaves a level. */
