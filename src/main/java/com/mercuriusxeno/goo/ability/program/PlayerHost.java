@@ -185,22 +185,15 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     }
 
     /**
-     * The standing blocks in the cone from the eye toward the cursor, nearest
-     * first; none outside a held channel
-     * (decision unmake-waves-dissolve-by-crucible-cost).
+     * The standing blocks the drink picks from the eye toward the cursor,
+     * nearest first: the cone's and the aim line's own; none outside a held
+     * channel (decision unmake-waves-dissolve-by-crucible-cost).
      */
     @Override
     public List<BlockPos> siphonCone(double radius) {
-        return channelAim().map(aim -> {
-            Vec3 line = aim.aimPoint().subtract(eye());
-            if (line.lengthSqr() == 0) {
-                return List.<BlockPos>of();
-            }
-            Vec3 reach = eye().add(line.normalize().scale(SiphonRule.RANGE));
-            return CalcifyStep.blocksInCone(eye(), reach, SiphonRule.coneDegrees(radius)).stream()
-                    .filter(pos -> !level.getBlockState(pos).isAir())
-                    .toList();
-        }).orElse(List.of());
+        return channelAim().map(aim -> SiphonRule.blocksToDrink(eye(), aim.aimPoint(), radius).stream()
+                .filter(pos -> !level.getBlockState(pos).isAir())
+                .toList()).orElse(List.of());
     }
 
     /**
