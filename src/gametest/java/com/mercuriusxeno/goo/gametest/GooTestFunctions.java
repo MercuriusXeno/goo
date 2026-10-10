@@ -77,6 +77,7 @@ public final class GooTestFunctions {
     private static final String VALUES_FRESH_AFTER_STOP = "values_fresh_after_stop";
     private static final String GLOVE_TYPE_ONLY_REFUSED = "glove_type_only_refused";
     private static final String GLOVE_GATED_SELECTION_REFUSED = "glove_gated_selection_refused";
+    private static final String RAZOR_HIDDEN_UNTIL_GLASS_AND_SAND = "razor_hidden_until_glass_and_sand";
     private static final String GLOVE_SHIFT_RECOLLECTS_MARKER = "glove_shift_recollects_marker";
     private static final String GLOVE_RECOLLECT_PAYS_CHARGES_LEFT = "glove_recollect_pays_charges_left";
     private static final String GLOVE_RECOLLECT_OF_SPENT_TRAP_PAYS_NOTHING = "glove_recollect_of_spent_trap_pays_nothing";
@@ -697,6 +698,7 @@ public final class GooTestFunctions {
         reg(r, TYPES_MARKER_RELOADS, GooTypeRegistryTests::abilityBlockReloadsType);
         reg(r, GLOVE_TYPE_ONLY_REFUSED, GloveSelectTests::typeOnlySelectionRefused);
         reg(r, GLOVE_GATED_SELECTION_REFUSED, GloveSelectTests::gatedSelectionRefusedWithoutTheRecipe);
+        reg(r, RAZOR_HIDDEN_UNTIL_GLASS_AND_SAND, GloveSelectTests::razorHiddenUntilGlassAndSand);
         reg(r, GLOVE_SHIFT_RECOLLECTS_MARKER, GloveRecollectTests::shiftClickRecollectsMarker);
         reg(r, GLOVE_RECOLLECT_PAYS_CHARGES_LEFT, GloveRecollectTests::recollectPaysTheChargesLeft);
         reg(r, GLOVE_RECOLLECT_OF_SPENT_TRAP_PAYS_NOTHING, GloveRecollectTests::recollectOfASpentTrapPaysNothing);
