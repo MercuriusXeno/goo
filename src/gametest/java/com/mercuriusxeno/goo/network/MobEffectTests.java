@@ -319,6 +319,9 @@ public final class MobEffectTests {
         ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
         Mob skeleton = helper.spawnWithNoFreeWill(EntityType.SKELETON, BYSTANDER_POS);
+        // spawnWithNoFreeWill leaves the target goals, which can lock the skeleton onto the survival
+        // charmer on its first tick; the test stands a skeleton that has not aggressed
+        skeleton.targetSelector.removeAllGoals(goal -> true);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             helper.assertTrue(skeleton.getTarget() == null, SKELETON_SHOULD_STAND_IDLE);
             strike(helper, zombie, ABILITY_HEX_CHARM, charmer);
