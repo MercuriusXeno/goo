@@ -4,7 +4,9 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "ContainerShiftClickMergeMixin",
+    "FoodDataLifetapMixin",
     "InventoryPickupMergeMixin",
+    "LivingEntityUndeadMixin",
     "MinecraftServerGooStateMixin",
     "GooQuickCraftMixin",
     "ReloadableServerResourcesGooMixin"

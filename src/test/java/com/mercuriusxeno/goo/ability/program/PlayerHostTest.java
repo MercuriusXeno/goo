@@ -1,9 +1,15 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import net.minecraft.SharedConstants;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.fml.loading.FMLLoader;
 import net.neoforged.neoforge.attachment.AttachmentHolder;
@@ -12,11 +18,13 @@ import org.junit.jupiter.api.Nested;
 import org.mockito.MockedStatic;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -56,7 +64,13 @@ class PlayerHostTest {
 
     private static ServerPlayer playerLooking(Vec3 look) {
         ServerPlayer player = mock(ServerPlayer.class);
+        ServerLevel openAir = mock(ServerLevel.class);
+        when(openAir.noCollision(any(Entity.class), any(AABB.class))).thenReturn(true);
+        when(openAir.clip(any(ClipContext.class))).thenReturn(BlockHitResult.miss(Vec3.ZERO, Direction.UP,
+                BlockPos.ZERO));
+        when(player.level()).thenReturn(openAir);
         when(player.getLookAngle()).thenReturn(look);
+        when(player.position()).thenReturn(new Vec3(X, Y, Z));
         when(player.getX()).thenReturn(X);
         when(player.getY()).thenReturn(Y);
         when(player.getZ()).thenReturn(Z);
@@ -91,7 +105,7 @@ class PlayerHostTest {
         /**
          * The server's teleport lands on the point the client's blink cursor
          * resolves for the same look and range, through the one shared function
-         * (decision ripple-outline-is-the-blink-cursor).
+         * (decisions ripple-outline-is-the-blink-cursor, blink-lands-safely-costed-by-distance).
          */
         @Test
         void teleportLandsWhereTheBlinkCursorResolves() {
@@ -100,7 +114,8 @@ class PlayerHostTest {
 
             run(List.of(new TeleportStep(TeleportMode.THROWER_LOOK, Expr.literal(BLINK))), player);
 
-            Vec3 cursor = TeleportStep.lookDestination(new Vec3(X, Y, Z), look, BLINK);
+            Vec3 cursor = TeleportStep.landingAlongLook(player, new Vec3(X, Y, Z), look, BLINK, Optional.empty())
+                    .orElseThrow().feet();
             verify(player).teleportTo(cursor.x(), cursor.y(), cursor.z());
         }
     }
@@ -154,9 +169,10 @@ class PlayerHostTest {
         }
 
         @Test
-        void playerHostProvidesTargetExplodeEntityScanChannelBlockBreaksAndBlockTicks() {
+        void playerHostProvidesTargetExplodeEntityScanChannelBlockBreaksEffectExtendsFrostAndBlockTicks() {
             assertEquals(Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
-                            HostCapability.CHANNEL, HostCapability.BREAK_BLOCKS, HostCapability.TICK_BLOCK),
+                            HostCapability.CHANNEL, HostCapability.BREAK_BLOCKS, HostCapability.EXTEND_EFFECTS,
+                            HostCapability.FROST, HostCapability.TICK_BLOCK),
                     HostKind.PLAYER.capabilities());
         }
     }

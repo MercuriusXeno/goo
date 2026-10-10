@@ -18,6 +18,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -26,6 +27,7 @@ import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import org.jspecify.annotations.Nullable;
+import java.util.OptionalDouble;
 
 /**
  * Draws the glove's aim each frame from the frame's {@link AimTracker}: a
@@ -123,6 +125,10 @@ public final class GooTargetHighlighter {
      * @param frame     what the frame draws with
      */
     private static void renderHeldDome(TargetResult target, @Nullable String abilityId, HighlightFrame frame) {
+        if (GloveThrowSender.selectedDragSized(abilityId)) {
+            renderSizedDome(frame);
+            return;
+        }
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
         if (ability == null || !HeldDomeRenderer.showsDome(ability.delivery(), ability.badge(), ability.area(),
                 GloveUseTracker.showsArea())) {
@@ -130,6 +136,23 @@ public final class GooTargetHighlighter {
         }
         HeldDomeRenderer.render(frame.ps(), frame.buf(), frame.camera().position(), target, ability,
                 frame.selectedType(), ClientGooTypes.highlight(frame.selectedType()), realTimeSeconds());
+    }
+
+    /**
+     * Draws a sized ability's ghost at its pin while right click drags its
+     * radius (decision black-hole-leaves-a-compression-sphere).
+     *
+     * @param frame what the frame draws with
+     */
+    private static void renderSizedDome(HighlightFrame frame) {
+        BlockHitResult pin = GloveUseTracker.pressPin();
+        OptionalDouble radius = GloveThrowSender.dragRadius(frame.mc().player);
+        if (pin == null || radius.isEmpty()) {
+            return;
+        }
+        HeldDomeRenderer.renderSized(frame.ps(), frame.buf(), frame.camera().position(), pin,
+                (float) radius.getAsDouble(), frame.selectedType(), ClientGooTypes.highlight(frame.selectedType()),
+                realTimeSeconds());
     }
 
     /**
@@ -287,7 +310,7 @@ public final class GooTargetHighlighter {
         Minecraft mc = Minecraft.getInstance();
         ArcRenderer.renderTargetArc(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), end, ClientGooTypes.highlight(type),
-                partialTick, grannyWeight(target, delivery), delivery.fliesStraight());
+                partialTick, grannyWeight(target, delivery), delivery.aimsStraight());
     }
 
     /**

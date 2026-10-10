@@ -2,7 +2,10 @@ package com.mercuriusxeno.goo.ability.held;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.banish.Teleportitis;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
+import com.mercuriusxeno.goo.ability.hex.Lifetap;
+import com.mercuriusxeno.goo.ability.nether.Undead;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.Sight;
@@ -22,6 +25,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Holds a player's self + brew effects on the server: starts one when the
@@ -222,22 +226,56 @@ public final class HeldEffectsEvents {
 
     private static void clearLaid(ServerPlayer player, List<HeldEffects.Held> ended) {
         for (HeldEffects.Held effect : ended) {
-            if (effect.lays().contains(LaidState.HEART_OVERLAY)) {
-                player.setData(GooAttachments.HEART_OVERLAY, HeartOverlay.NONE);
-            }
-            if (effect.lays().contains(LaidState.NOURISH)) {
-                player.setData(GooAttachments.NOURISH, Nourish.NONE);
-            }
-            if (effect.lays().contains(LaidState.SIGHT)) {
-                // sight-lengthens-shift-and-outlines-fungus: the sight ends with its held effect
-                player.setData(GooAttachments.SIGHT, Sight.NONE);
-            }
-            if (effect.lays().contains(LaidState.HASTE)) {
-                // haste-stacks-speed-under-the-golden-overlay: speed, haste and the overlay end with the held effect
-                Haste.clear(player);
-            }
+            clearBodyStates(player, effect.lays());
+            clearMindStates(player, effect.lays());
             // brew-runs-the-crawl-prepaid-on-a-shown-clock: the effect list's entry ends with the effect
             player.removeEffect(GooMobEffects.BREW_EFFECTS.get(effect.gooType()));
+        }
+    }
+
+    /**
+     * Clears the states an ended effect laid on the player's body: its heart
+     * overlay, its nourishment, its counting as undead and its haste overlay.
+     *
+     * @param player the player
+     * @param lays   the states the ended effect laid
+     */
+    private static void clearBodyStates(ServerPlayer player, Set<LaidState> lays) {
+        if (lays.contains(LaidState.HEART_OVERLAY)) {
+            player.setData(GooAttachments.HEART_OVERLAY, HeartOverlay.NONE);
+        }
+        if (lays.contains(LaidState.NOURISH)) {
+            player.setData(GooAttachments.NOURISH, Nourish.NONE);
+        }
+        if (lays.contains(LaidState.UNDEAD)) {
+            // undead-nether-hearts-burn-in-sunlight: the player counts as undead no longer
+            player.setData(GooAttachments.UNDEAD, Undead.NONE);
+        }
+        if (lays.contains(LaidState.HASTE)) {
+            // haste-stacks-speed-under-the-golden-overlay: the golden overlay ends with the held effect
+            Haste.clear(player);
+        }
+    }
+
+    /**
+     * Clears the states an ended effect laid on the player's senses and
+     * draws: its sight, its teleportitis and its lifetap.
+     *
+     * @param player the player
+     * @param lays   the states the ended effect laid
+     */
+    private static void clearMindStates(ServerPlayer player, Set<LaidState> lays) {
+        if (lays.contains(LaidState.SIGHT)) {
+            // sight-lengthens-shift-and-outlines-fungus: the sight ends with its held effect
+            player.setData(GooAttachments.SIGHT, Sight.NONE);
+        }
+        if (lays.contains(LaidState.TELEPORTITIS)) {
+            // teleportitis-blinks-along-the-cursor-on-hit: the teleportitis ends with its held effect
+            player.setData(GooAttachments.TELEPORTITIS, Teleportitis.NONE);
+        }
+        if (lays.contains(LaidState.LIFETAP)) {
+            // lifetap-trades-regen-for-leech: the leech ends with its held effect
+            player.setData(GooAttachments.LIFETAP, Lifetap.NONE);
         }
     }
 }

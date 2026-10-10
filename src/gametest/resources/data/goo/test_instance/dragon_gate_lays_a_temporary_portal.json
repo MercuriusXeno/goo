@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:dragon_gate_lays_a_temporary_portal",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 20,
+  "setup_ticks": 0,
+  "required": true
+}

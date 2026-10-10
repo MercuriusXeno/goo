@@ -12,6 +12,7 @@ import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -46,6 +47,14 @@ public final class VitalityVisual {
     static final int MOTES_PER_HEAL = 1;
     /** Stars per healed tick on each healed thing. */
     static final int STARS_PER_HEAL = 1;
+    /** How far before a first-person caster their own stars rise, in blocks, clear of the near clip. */
+    static final double STAR_REACH_MIN = 0.7;
+    static final double STAR_REACH_MAX = 1.2;
+    /** Half the arc before a first-person caster their stars spread over, in radians. */
+    static final double STAR_ARC_HALF = Math.toRadians(60);
+    /** The heights a first-person caster's stars rise between, as shares of their height: waist to over the head. */
+    static final double STAR_LOW_SHARE = 0.5;
+    static final double STAR_HIGH_SHARE = 1.15;
     /** Blocks a homing mote bows out from its straight line. */
     private static final double MOTE_BOW = 0.5;
     private static final double TWO_PI = 2 * Math.PI;
@@ -169,10 +178,33 @@ public final class VitalityVisual {
     }
 
     private static void raiseStars(ClientLevel level, LivingEntity healed) {
+        Minecraft mc = Minecraft.getInstance();
+        // vitality-waves-regenerate-and-court: a star inside the first-person camera's own body is never seen
+        boolean seenFromWithin = healed == mc.getCameraEntity() && mc.options.getCameraType().isFirstPerson();
         for (int star = 0; star < STARS_PER_HEAL; star++) {
-            Vec3 at = pointIn(healed.getBoundingBox(), level.getRandom());
+            Vec3 at = seenFromWithin
+                    ? starBeforeTheEyes(healed.position(), healed.getBbHeight(), healed.getYRot(), level.getRandom())
+                    : pointIn(healed.getBoundingBox(), level.getRandom());
             level.addParticle(GooParticles.VITAL_STAR.get(), at.x, at.y, at.z, 0, 0, 0);
         }
+    }
+
+    /**
+     * Where a healing star rises on a player healed in first person: in an arc
+     * before them, out past the camera's near clip, from the waist to just over
+     * the head, so it shows in their view as it would on anything else healed.
+     *
+     * @param feet   the player's feet
+     * @param height the player's height
+     * @param yaw    the way the player faces, in degrees
+     * @param random the random source
+     * @return the star's point
+     */
+    static Vec3 starBeforeTheEyes(Vec3 feet, double height, float yaw, RandomSource random) {
+        double angle = Math.toRadians(yaw) + Mth.nextDouble(random, -STAR_ARC_HALF, STAR_ARC_HALF);
+        double out = STAR_REACH_MIN + random.nextDouble() * (STAR_REACH_MAX - STAR_REACH_MIN);
+        double up = height * (STAR_LOW_SHARE + random.nextDouble() * (STAR_HIGH_SHARE - STAR_LOW_SHARE));
+        return feet.add(-Math.sin(angle) * out, up, Math.cos(angle) * out);
     }
 
     private static void homeMotes(Minecraft mc, Supplier<Vec3> glove, LivingEntity healed, RandomSource random) {

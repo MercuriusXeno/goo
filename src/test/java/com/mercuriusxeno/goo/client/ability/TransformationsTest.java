@@ -216,4 +216,27 @@ class TransformationsTest {
             assertEquals(1f, transformations.modelScaleOf(CLONE + 1, false, at(0.5f)), EPSILON);
         }
     }
+
+    /**
+     * A conjured spawn's splat stands where its mob forms: it makes no hop,
+     * staying where it splatted, and starts morphing from its first tick
+     * (decision spawn-goo-morphs-into-the-mob-it-births).
+     */
+    @Nested
+    class InPlace {
+
+        private Transformations.Transformation splat() {
+            return new Transformations.Transformation(GooTypes.HEX, STRUCK, STRUCK, CLONE, START, TICKS);
+        }
+
+        @Test
+        void theSplatNeverLeavesWhereItLanded() {
+            assertEquals(STRUCK, splat().blobPosition(START + TICKS * HOP_SHARE / 2));
+        }
+
+        @Test
+        void theMobGrowsFromTheFirstTick() {
+            assertTrue(splat().modelScale(START + TICKS * HOP_SHARE / 2) > 0f);
+        }
+    }
 }

@@ -2,21 +2,29 @@ package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
+import com.mercuriusxeno.goo.ability.DragSize;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
+import com.mercuriusxeno.goo.ability.StreamSound;
+import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.ReserveVisual;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
+import com.mercuriusxeno.goo.client.ability.WindLines;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
+import com.mercuriusxeno.goo.client.sound.FadingLoops;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
+import com.mercuriusxeno.goo.network.GooChargePayload;
+import com.mercuriusxeno.goo.network.GooDragCastPayload;
 import com.mercuriusxeno.goo.network.GooStreamPayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
@@ -26,8 +34,10 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.BlockHitResult;
@@ -36,6 +46,7 @@ import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.function.IntPredicate;
 import java.util.function.Predicate;
 
@@ -57,16 +68,17 @@ public final class GloveThrowSender {
      * Resolves the current aim target and sends the throw packet for the
      * held glove's selection.
      *
-     * @param player the local player
+     * @param player    the local player
+     * @param heldTicks the ticks the use key was held, which a charged ability fires by
      * @return true when a payload was sent, the one press the arm swings for
      */
-    public static boolean sendThrow(Player player) {
+    public static boolean sendThrow(Player player, int heldTicks) {
         GloveSelection selection = heldSelection(player);
         ResourceKey<GooTypeDefinition> gooType = selection == null ? null : selection.getGooType();
         if (gooType == null || ThrowFreezeState.isThrowBlocked()) {
             return false;
         }
-        return sendFor(player, gooType, selection.abilityId());
+        return sendFor(player, gooType, selection.abilityId(), heldTicks);
     }
 
     /**
@@ -76,12 +88,20 @@ public final class GloveThrowSender {
      * @param player    the local player
      * @param gooType   the selected goo type
      * @param abilityId the selected ability id string
+     * @param heldTicks the ticks the use key was held
      * @return true when a payload was sent
      */
-    private static boolean sendFor(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId) {
+    private static boolean sendFor(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId,
+                                   int heldTicks) {
+        if (selectedDragSized(abilityId)) {
+            return sendDragCast(player, gooType, abilityId);
+        }
         Delivery delivery = selectedDelivery(abilityId);
         if (HeldRoute.runsWhileHeld(delivery, selectedBadge(abilityId))) {
             return sendStreamTick(player, gooType, abilityId);
+        }
+        if (delivery.kind() == DeliveryKind.SELF && delivery.charges()) {
+            return sendCharge(player, gooType, abilityId, heldTicks);
         }
         return delivery.kind() == DeliveryKind.SELF
                 ? sendSelf(player, gooType, abilityId)
@@ -127,8 +147,23 @@ public final class GloveThrowSender {
                     held(GooTypes.id(gooType), abilityId, origin, cursorPoint(player))));
         }
         VitalityVisual.drawFog(player, abilityId, selectedArea(abilityId), origin);
+        WindLines.blow(player, abilityId, selectedArea(abilityId), origin);
         ReserveVisual.drawDrain(player, abilityId);
+        loopStreamSound(player, abilityId);
         return true;
+    }
+
+    /**
+     * Keeps a held stream's looped sound sounding for its holder one more
+     * tick, fading out once the hold ends (decision decay-gnats-degrade-each-block-once).
+     *
+     * @param player    the local player
+     * @param abilityId the selected ability id string
+     */
+    private static void loopStreamSound(Player player, String abilityId) {
+        selectedDelivery(abilityId).sound().filter(StreamSound::loop).ifPresent(sound ->
+                FadingLoops.keepAlive(abilityId, sound.sound(), SoundSource.PLAYERS, sound.volume(),
+                        sound.pitchFor(player.getRandom().nextFloat()), player.getEyePosition()));
     }
 
     /**
@@ -163,8 +198,88 @@ public final class GloveThrowSender {
     }
 
     /**
+     * Whether the selected ability is sized at will, pinned on the press and
+     * opened on release at the radius dragged
+     * (decision black-hole-leaves-a-compression-sphere).
+     *
+     * @param abilityId the selected ability id string
+     * @return true for a drag-sized selection
+     */
+    public static boolean selectedDragSized(@Nullable String abilityId) {
+        ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
+        return ability != null && ability.tags().contains(AbilityTags.DRAG_SIZED);
+    }
+
+    /**
+     * The radius the live drag of the held glove's sized ability sets: the
+     * distance from the pin to the cursor, cut back to what the player's goo
+     * pays for.
+     *
+     * @param player the local player
+     * @return the radius, or empty when no drag of a sized ability is live
+     */
+    public static OptionalDouble dragRadius(Player player) {
+        GloveSelection selection = heldSelection(player);
+        BlockHitResult pin = GloveUseTracker.pressPin();
+        ClientAbility ability = selection == null ? null : AbilitySyncHandler.findAbility(selection.abilityId());
+        if (pin == null || ability == null || selection.getGooType() == null
+                || !ability.tags().contains(AbilityTags.DRAG_SIZED)) {
+            return OptionalDouble.empty();
+        }
+        int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(selection.getGooType(), 0);
+        return OptionalDouble.of(DragSize.affordable(DragSize.dragged(pin.getLocation(), player.getEyePosition(),
+                player.getViewVector(1f)), ability.cost(), holdings));
+    }
+
+    /**
+     * Sends the release of a sized ability's drag at the pinned epicenter and
+     * the radius dragged, when the player's goo pays for it.
+     *
+     * @param player    the local player
+     * @param gooType   the selected goo type
+     * @param abilityId the selected ability id string
+     * @return true when the payload was sent
+     */
+    private static boolean sendDragCast(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId) {
+        BlockHitResult pin = GloveUseTracker.pressPin();
+        ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
+        OptionalDouble radius = dragRadius(player);
+        if (pin == null || ability == null || radius.isEmpty()
+                || !GooSourceScanner.hasEnough(player, gooType, DragSize.costAt(ability.cost(), radius.getAsDouble()))) {
+            return false;
+        }
+        sendPayload(new GooDragCastPayload(GooTypes.id(gooType), abilityId, pin.getBlockPos(),
+                pin.getDirection().get3DDataValue(), pin.getLocation(), radius.getAsDouble()));
+        return true;
+    }
+
+    /**
+     * Sends a charged self ability's release with the ticks it was held,
+     * when the player can afford it (decision nova-ring-grows-with-the-hold).
+     *
+     * @param player    the local player
+     * @param gooType   the selected goo type
+     * @param abilityId the selected ability id string
+     * @param heldTicks the ticks the use key was held
+     * @return true when the payload was sent
+     */
+    private static boolean sendCharge(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId,
+                                      int heldTicks) {
+        if (!affordsThrow(AbilitySyncHandler.findAbility(abilityId),
+                amount -> GooSourceScanner.hasEnough(player, gooType, amount),
+                reagent -> ReagentScanner.holds(player, reagent))) {
+            return false;
+        }
+        sendPayload(new GooChargePayload(GooTypes.id(gooType), abilityId, heldTicks));
+        return true;
+    }
+
+    /**
      * Sends a self ability's payload, naming no target, when the player can
-     * afford its cost (decision self-delivery-runs-on-player).
+     * afford its cost (decision self-delivery-runs-on-player). A blink is
+     * priced from the trip it would make and carries the face its press
+     * pinned in the payload's target block and face
+     * (decision blink-lands-safely-costed-by-distance).
      *
      * @param player    the local player
      * @param gooType   the selected goo type
@@ -172,12 +287,16 @@ public final class GloveThrowSender {
      * @return true when the payload was sent
      */
     private static boolean sendSelf(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId) {
-        if (!affordsThrow(AbilitySyncHandler.findAbility(abilityId),
+        ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
+        if (!affordsThrow(ability, BlinkAim.trip(player, ability, 1f),
                 amount -> GooSourceScanner.hasEnough(player, gooType, amount),
                 reagent -> ReagentScanner.holds(player, reagent))) {
             return false;
         }
-        sendPayload(new GooThrowPayload(GooTypes.id(gooType), NO_ENTITY, player.blockPosition(), NO_ENTITY,
+        Optional<ChannelAim.FacePlane> pin = BlinkAim.livePin();
+        sendPayload(new GooThrowPayload(GooTypes.id(gooType), NO_ENTITY,
+                pin.map(ChannelAim.FacePlane::block).orElse(player.blockPosition()),
+                pin.map(plane -> plane.face().get3DDataValue()).orElse(NO_ENTITY),
                 false, abilityId, lineOrigin(), player.position()));
         return true;
     }
@@ -248,25 +367,47 @@ public final class GloveThrowSender {
      */
     static boolean affordsThrow(@Nullable ClientAbility ability, IntPredicate holdsAtLeast,
             Predicate<Identifier> holdsItem) {
-        return holdsAtLeast.test(throwCostOf(ability))
+        return affordsThrow(ability, Optional.empty(), holdsAtLeast, holdsItem);
+    }
+
+    /**
+     * Whether the player can afford a throw priced from the trip it makes,
+     * and holds one of every item the ability consumes.
+     * decision blink-lands-safely-costed-by-distance
+     *
+     * @param ability      the selected ability's synced copy, or null when none synced
+     * @param trip         the blink's trip, empty for an ability making none
+     * @param holdsAtLeast whether the player holds at least an mB amount of the type
+     * @param holdsItem    whether the player holds one of an item
+     * @return true when the holdings cover the cost and every reagent
+     */
+    static boolean affordsThrow(@Nullable ClientAbility ability, Optional<BlinkLanding> trip,
+            IntPredicate holdsAtLeast, Predicate<Identifier> holdsItem) {
+        return holdsAtLeast.test(throwCostOf(ability, trip))
                 && (ability == null || ReagentScanner.holdsEvery(ability.consumes(), holdsItem));
     }
 
     /**
-     * Prices a throw the way the server does, falling back to its flat cost
-     * for an ability the client holds no synced copy of.
+     * Prices a throw the way the server does: the flat cost plus what a
+     * blink's trip adds, falling back to the server's flat cost for an
+     * ability the client holds no synced copy of.
+     * decision blink-lands-safely-costed-by-distance
      *
      * @param ability the selected ability's synced copy, or null when none synced
+     * @param trip    the blink's trip, empty for an ability making none
      * @return the cost in mB
      */
-    static int throwCostOf(@Nullable ClientAbility ability) {
-        return ability == null ? GooThrowHandler.THROW_COST : ability.cost();
+    static int throwCostOf(@Nullable ClientAbility ability, Optional<BlinkLanding> trip) {
+        return ability == null ? GooThrowHandler.THROW_COST
+                : BlinkAim.tripCost(ability.distancePrice(), ability.cost(), trip);
     }
 
     /**
      * The cost of the held glove's throw as the crosshair panel reads it: a
-     * held effect's upkeep a second, as "20/s", any other its one-shot cost.
+     * held effect's upkeep a second, as "20/s", a blink the cost of the trip
+     * it would make this frame, any other its one-shot cost.
      * self-effects-trickle-until-ended
+     * blink-lands-safely-costed-by-distance
      *
      * @param player the local player
      * @return the formatted cost, or empty when the glove holds no selection
@@ -277,7 +418,14 @@ public final class GloveThrowSender {
             return Optional.empty();
         }
         ClientAbility ability = AbilitySyncHandler.findAbility(selection.abilityId());
-        return Optional.of(ability == null ? GooFormat.formatAmount(throwCostOf(null)) : ability.costLabel());
+        OptionalDouble dragged = dragRadius(player);
+        if (ability != null && dragged.isPresent()) {
+            // black-hole-leaves-a-compression-sphere: a sized cast reads the price of the radius dragged
+            return Optional.of(GooFormat.formatAmount(DragSize.costAt(ability.cost(), dragged.getAsDouble())));
+        }
+        float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        return Optional.of(ability == null ? GooFormat.formatAmount(throwCostOf(null, Optional.empty()))
+                : ability.costLabel(BlinkAim.trip(player, ability, partialTick)));
     }
 
     /**
@@ -431,7 +579,7 @@ public final class GloveThrowSender {
      *
      * @param payload the payload to send
      */
-    private static void sendPayload(GooThrowPayload payload) {
+    private static void sendPayload(CustomPacketPayload payload) {
         var connection = Minecraft.getInstance().getConnection();
         if (connection != null) {
             connection.send(new ServerboundCustomPayloadPacket(payload));

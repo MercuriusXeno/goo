@@ -51,6 +51,10 @@ public final class HeartOverlayHud {
     private static final Identifier BARK_HALF = sprite("bark_half");
     private static final Identifier STONE_FULL = sprite("stone_full");
     private static final Identifier STONE_HALF = sprite("stone_half");
+    private static final Identifier NETHER_FULL = sprite("nether_full");
+    private static final Identifier NETHER_HALF = sprite("nether_half");
+    private static final Identifier ICE_FULL = sprite("ice_full");
+    private static final Identifier ICE_HALF = sprite("ice_half");
     private static final Identifier RESERVE_FULL = sprite("reserve_full");
     private static final Identifier RESERVE_HALF = sprite("reserve_half");
     /** Vanilla's red half heart, the health a travelling half leaves the bar as. */
@@ -237,9 +241,10 @@ public final class HeartOverlayHud {
     static List<Identifier> heartSprites(HeartKind kind, int shieldHalves, int realHalves) {
         int shown = Math.min(shieldHalves, realHalves);
         List<Identifier> sprites = new ArrayList<>();
-        if (kind == HeartKind.STONESKIN) {
+        if (kind.fillsMissing()) {
             // stoneskin-stone-hearts-block-regeneration: stone hearts stand in the missing hearts' containers
-            addHalves(sprites, shieldHalves, STONE_HALF, STONE_FULL);
+            // undead-nether-hearts-burn-in-sunlight: nether hearts stand there as stone does
+            addHalves(sprites, shieldHalves, missingHalf(kind), missingFull(kind));
             return sprites;
         }
         if (kind == HeartKind.RESERVE) {
@@ -251,9 +256,35 @@ public final class HeartOverlayHud {
             addHalves(sprites, shown, BARK_HALF, BARK_FULL);
             return sprites;
         }
+        if (kind == HeartKind.ICEBORN) {
+            // iceborn-frozen-hearts-thaw-on-fire: frozen hearts lie over present hearts only
+            addHalves(sprites, shown, ICE_HALF, ICE_FULL);
+            return sprites;
+        }
         addHalves(sprites, realHalves, ASH_HALF, ASH_FULL);
         addHalves(sprites, shown, EMBER_HALF, EMBER_FULL);
         return sprites;
+    }
+
+    /**
+     * The whole sprite a kind filling the missing hearts lays: Undead's
+     * nether, and Stoneskin's stone.
+     *
+     * @param kind the overlay's kind, one filling the missing hearts
+     * @return the whole heart's sprite
+     */
+    static Identifier missingFull(HeartKind kind) {
+        return kind == HeartKind.UNDEAD ? NETHER_FULL : STONE_FULL;
+    }
+
+    /**
+     * The half sprite a kind filling the missing hearts lays.
+     *
+     * @param kind the overlay's kind, one filling the missing hearts
+     * @return the half heart's sprite
+     */
+    static Identifier missingHalf(HeartKind kind) {
+        return kind == HeartKind.UNDEAD ? NETHER_HALF : STONE_HALF;
     }
 
     /**
@@ -267,7 +298,7 @@ public final class HeartOverlayHud {
      * @return true for stone beside a half heart
      */
     static boolean stoneBesideHalfHeart(HeartKind kind, int shieldHalves, int realHalves) {
-        return kind == HeartKind.STONESKIN && realHalves == 1 && shieldHalves > 0;
+        return kind.fillsMissing() && realHalves == 1 && shieldHalves > 0;
     }
 
     /**
@@ -374,7 +405,7 @@ public final class HeartOverlayHud {
             return 0;
         }
         int filled = HeartOverlay.filledSlots(health);
-        return overlay.kind() == HeartKind.STONESKIN ? Math.max(filled, overlay.shields().size()) : filled;
+        return overlay.kind().fillsMissing() ? Math.max(filled, overlay.shields().size()) : filled;
     }
 
     /**
@@ -460,7 +491,7 @@ public final class HeartOverlayHud {
         void paint(int slot, int x, int y, int realHalves) {
             if (stoneBesideHalfHeart(overlay.kind(), overlay.shieldAt(slot), realHalves)) {
                 // heart-effects-crawl-while-held: stone fills the empty half beside a half heart
-                blitColumns(graphics, STONE_FULL, x, y, x + halfStart(1), x + halfEnd(1),
+                blitColumns(graphics, missingFull(overlay.kind()), x, y, x + halfStart(1), x + halfEnd(1),
                         Math.round(alpha * OPAQUE_ALPHA) << ALPHA_SHIFT | WHITE_RGB);
             } else {
                 for (Identifier sprite : heartSprites(overlay.kind(), overlay.shieldAt(slot), realHalves)) {
@@ -470,7 +501,7 @@ public final class HeartOverlayHud {
             // wood-crawls-across-regrowing-heart: the same crawl, bark creeping evenly over a bare half
             // heart-effects-crawl-while-held: stone crawls into a missing heart, where no real half stands
             crawl.filter(regrowing -> regrowing.slot() == slot
-                            && (overlay.kind() == HeartKind.STONESKIN || regrowing.fromHalf() < realHalves))
+                            && (overlay.kind().fillsMissing() || regrowing.fromHalf() < realHalves))
                     .ifPresent(regrowing -> paintCrawl(graphics, overlay.kind(), regrowing, guiTicks, x, y));
             if (overlay.kind() == HeartKind.KINDLE) {
                 paintSparks(graphics, EmberSparks.sparks(slot, Math.min(overlay.shieldAt(slot), realHalves),
@@ -495,7 +526,7 @@ public final class HeartOverlayHud {
     private static void paintCrawl(GuiGraphicsExtractor graphics, HeartKind kind, RegrowCrawl.Crawl crawl, int guiTicks,
                                    int x, int y) {
         boolean smolder = kind == HeartKind.KINDLE;
-        Identifier sprite = smolder ? EMBER_FULL : kind == HeartKind.STONESKIN ? STONE_FULL : BARK_FULL;
+        Identifier sprite = smolder ? EMBER_FULL : crawlSprite(kind);
         float alpha = smolder ? SMOLDER_ALPHA + SMOLDER_PULSE * Mth.sin(guiTicks * SMOLDER_PULSE_RATE) : 1f;
         int left = x + halfStart(crawl.fromHalf());
         int right = x + halfEnd(crawl.fromHalf());
@@ -508,6 +539,21 @@ public final class HeartOverlayHud {
             }
         }
     }
+    /**
+     * The sprite a crawl paints over a heart: stone for Stoneskin, nether for
+     * Undead, frost for Iceborn, bark otherwise (decision heart-effects-crawl-while-held).
+     *
+     * @param kind the overlay's kind
+     * @return the sprite
+     */
+    static Identifier crawlSprite(HeartKind kind) {
+        return switch (kind) {
+            case STONESKIN, UNDEAD -> missingFull(kind);
+            case ICEBORN -> ICE_FULL;
+            default -> BARK_FULL;
+        };
+    }
+
     /**
      * The first sprite column of a heart's half, split where vanilla's half
      * heart ends: the left half takes columns 0 to 4, its tip in the center

@@ -34,4 +34,36 @@ public class PrismRenderState extends BlockEntityRenderState {
 
     /** True while Tick spends the bank, its charge falling within the last moments. */
     public boolean bankSpending;
+    /** The game time with the partial tick, which a combo's animation reads. */
+    public float gameTime;
+
+    /** The game time the prism's combo took, which its transformation plays from. */
+    public long comboSince;
+
+    /**
+     * The yaw, in degrees, that turns a combo's model from the prism's cell
+     * toward the camera (decision oculus-prism-becomes-a-hovering-eye).
+     */
+    public float yawToCamera;
+
+    /**
+     * How shut an oculus's lids stand this frame for this viewer, 0 open to 1
+     * shut (decision oculus-prism-becomes-a-hovering-eye).
+     */
+    public float lidClosure = 1f;
+
+    /**
+     * The redstone power the prism gives, a metronome's beat or a relay's
+     * carried signal (decisions metronome-prism-pulses-at-the-learned-rate,
+     * relay-prism-carries-the-signal-through-air).
+     */
+    public int power;
+
+    /** Whether a redstone signal reaches the prism now (decision metronome-prism-pulses-at-the-learned-rate). */
+    public boolean signalHeard;
+
+    /** Seconds since the prism last gave a pulse of power, for a metronome's strobe. */
+    public double sinceBeat = Double.MAX_VALUE;
+    /** How strongly an agitator's beat shows this frame, 0 to 1; 0 for any other prism. */
+    public float beat;
 }

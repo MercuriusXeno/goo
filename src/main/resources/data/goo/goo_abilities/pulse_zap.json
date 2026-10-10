@@ -1,0 +1,21 @@
+{
+  "gooType": "pulse",
+  "displayName": "goo.ability.pulse.zap",
+  "badge": "free",
+  "order": 0,
+  "cost": 1000,
+  "requires": ["minecraft:redstone"],
+  "delivery": { "kind": "beam", "blocks_per_tick": 64 },
+  "behaviors": [
+    { "type": "power_pulse" },
+    {
+      "type": "entities",
+      "radius": 2,
+      "where": ["mob"],
+      "steps": [
+        { "type": "stun", "ticks": 60 }
+      ]
+    }
+  ],
+  "tags": []
+}

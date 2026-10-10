@@ -19,6 +19,7 @@ import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.util.ARGB;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -31,6 +32,7 @@ import org.joml.Vector4f;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.OptionalInt;
+import java.util.function.Consumer;
 
 /**
  * Draws every live afterimage as the perimeter of its silhouettes. For each
@@ -80,6 +82,7 @@ public final class AfterimageRenderer {
             return;
         }
         drawRipples(event, Afterimages.CLIENT.live(mc.level.getGameTime()));
+        drawBlockRipples(event, Afterimages.BLOCKS.live(mc.level.getGameTime()));
     }
 
     /**
@@ -97,22 +100,100 @@ public final class AfterimageRenderer {
         if (mc.level == null || afterimages.isEmpty()) {
             return;
         }
+        inRippleFrame(event, frame -> {
+            for (Afterimages.Afterimage<EntityRenderState> afterimage : afterimages) {
+                drawRipple(mc, new PoseStack(), frame.camera(), afterimage, frame.gameTime(), frame.main(),
+                        frame.ripple());
+            }
+        });
+    }
+
+    /**
+     * Draws blocks' afterimages over the level: each reaped plant's shape
+     * boxes, grown by each silhouette's growth, rippling out of where it stood.
+     * reap-breeze-harvests-and-replants
+     *
+     * @param event       the level render stage event
+     * @param afterimages the blocks' afterimages to draw
+     */
+    public static void drawBlockRipples(RenderLevelStageEvent.AfterLevel event,
+            List<Afterimages.Afterimage<List<AABB>>> afterimages) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || afterimages.isEmpty()) {
+            return;
+        }
+        inRippleFrame(event, frame -> {
+            for (Afterimages.Afterimage<List<AABB>> afterimage : afterimages) {
+                List<Afterimages.Pulse> pulses = afterimage.pulses(frame.gameTime());
+                if (pulses.isEmpty()) {
+                    continue;
+                }
+                Vec3 corner = afterimage.position().subtract(frame.camera().pos);
+                Matrix4f boxToView = new Matrix4f().translation((float) corner.x, (float) corner.y, (float) corner.z);
+                RenderSystem.getDevice().createCommandEncoder().clearColorTexture(frame.ripple().getColorTexture(), 0);
+                fillBoxMasks(mc.renderBuffers().bufferSource(), boxToView, afterimage.snapshot(), pulses);
+                paintPerimeter(frame.main(), frame.ripple(), afterimage.rgb());
+            }
+        });
+    }
+
+    /**
+     * What one frame's ripples draw against.
+     *
+     * @param camera   the frame's camera
+     * @param gameTime the game time including the partial tick
+     * @param main     the main render target
+     * @param ripple   the ripple buffer, holding a copy of the world's depth
+     */
+    private record RippleFrame(CameraRenderState camera, float gameTime, RenderTarget main, RenderTarget ripple) {
+    }
+
+    /**
+     * Readies the ripple buffer and the view a frame's ripples draw in, and draws them.
+     *
+     * @param event  the level render stage event
+     * @param drawer draws the frame's ripples
+     */
+    private static void inRippleFrame(RenderLevelStageEvent.AfterLevel event, Consumer<RippleFrame> drawer) {
+        Minecraft mc = Minecraft.getInstance();
         float gameTime = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         RenderTarget main = mc.getMainRenderTarget();
         RenderTarget ripple = RippleTarget.sizedTo(main);
         ripple.copyDepthFrom(main);
-        CameraRenderState camera = event.getLevelRenderState().cameraRenderState;
         // AfterLevel fires once the level has popped its view rotation off the model view stack,
         // so the masks, laid in camera-relative world space, take the event's view matrix back.
         Matrix4fStack modelView = RenderSystem.getModelViewStack();
         modelView.pushMatrix();
         modelView.mul(event.getModelViewMatrix());
         try {
-            for (Afterimages.Afterimage<EntityRenderState> afterimage : afterimages) {
-                drawRipple(mc, new PoseStack(), camera, afterimage, gameTime, main, ripple);
-            }
+            drawer.accept(new RippleFrame(event.getLevelRenderState().cameraRenderState, gameTime, main, ripple));
         } finally {
             modelView.popMatrix();
+        }
+    }
+
+    /**
+     * Fills each standing silhouette's channel with a block's shape boxes
+     * grown by its growth, the channel's value its fade.
+     *
+     * @param buffers   the buffer source the masks fill through
+     * @param boxToView the transform from the block's cell into camera space
+     * @param boxes     the block's shape boxes, about its cell's low corner
+     * @param pulses    the ripple's standing silhouettes
+     */
+    private static void fillBoxMasks(MultiBufferSource.BufferSource buffers, Matrix4f boxToView, List<AABB> boxes,
+            List<Afterimages.Pulse> pulses) {
+        for (int channel = 0; channel < Math.min(CHANNELS, pulses.size()); channel++) {
+            Afterimages.Pulse pulse = pulses.get(channel);
+            RenderType mask = GooRenderTypes.GOO_RIPPLE_MASK_TYPES.get(channel);
+            VertexConsumer buffer = buffers.getBuffer(mask);
+            int fade = ARGB.color(pulse.alpha(), MASK_RGB);
+            for (AABB box : boxes) {
+                RippleMasks.fillGrownCube(buffer, boxToView,
+                        new Vector3f((float) box.minX, (float) box.minY, (float) box.minZ),
+                        new Vector3f((float) box.maxX, (float) box.maxY, (float) box.maxZ), pulse.growth(), fade);
+            }
+            buffers.endBatch(mask);
         }
     }
 

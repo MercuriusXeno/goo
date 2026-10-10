@@ -21,7 +21,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * Bore's vortex: while right click holds a bore stream, a spiralling dust
  * vortex runs down the tunnel from the glove to the bore's reach, stacked
- * sections the width of the 3x3 bore filled by {@code bore_vortex.fsh}.
+ * sections as wide as the bore's cone, filled by {@code bore_vortex.fsh}.
  * decision bore-vortex-with-a-worldspace-shake
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -29,10 +29,22 @@ public final class BoreVortex {
 
     /** Sections stacked down the tunnel. */
     static final int SECTIONS = 10;
-    /** The vortex's radius in blocks, out to the corners of the 3x3 bore. */
-    static final double TUNNEL_RADIUS = 1.5;
+    private static final double HALF = 0.5;
 
     private BoreVortex() {
+    }
+
+    /**
+     * The vortex's radius a distance down the tunnel: the cone's own radius
+     * there, so the vortex draws the tunnel the bore cuts.
+     * decision bore-breaks-a-15-degree-cone
+     *
+     * @param distance    the distance from the eye in blocks
+     * @param coneDegrees the bore's cone, apex angle edge to edge, in degrees
+     * @return the radius in blocks
+     */
+    static double radiusAt(double distance, double coneDegrees) {
+        return distance * Math.tan(Math.toRadians(coneDegrees * HALF));
     }
 
     /**
@@ -55,8 +67,8 @@ public final class BoreVortex {
         FlatQuadContext quads = new FlatQuadContext(event.getPoseStack().last(),
                 buffers.getBuffer(GooRenderTypes.BORE_VORTEX_TYPE));
         ConeSections.emit(quads, new ConeSections.Volume(player.getEyePosition(partialTick).subtract(camera),
-                player.getViewVector(partialTick), ConeSections.NEAR, bore.delivery().range(), SECTIONS,
-                distance -> TUNNEL_RADIUS));
+                player.getViewVector(partialTick), player.getViewYRot(partialTick), ConeSections.NEAR,
+                bore.delivery().range(), SECTIONS, distance -> radiusAt(distance, bore.delivery().coneDegrees())));
         buffers.endBatch(GooRenderTypes.BORE_VORTEX_TYPE);
     }
 
@@ -69,7 +81,7 @@ public final class BoreVortex {
     static @Nullable ClientAbility runningBore(LocalPlayer player) {
         String abilityId = GloveAim.selectedAbilityId(player);
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
-        return bores(ability, GloveUseTracker.showsArea()) ? ability : null;
+        return bores(ability, GloveUseTracker.runsHeld(player)) ? ability : null;
     }
 
     /**
