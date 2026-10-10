@@ -314,7 +314,7 @@ class AbilityLoaderTest {
         @Test
         void enderBlinkPreviewReadsTheRangeItsTeleportJumps() {
             List<Step> steps = AbilityJson.decode("ender_blink").behaviors();
-            assertEquals(8.0, TeleportStep.lookRange(steps).orElseThrow());
+            assertEquals(32.0, TeleportStep.lookRange(steps).orElseThrow());
         }
     }
 

@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
-import com.mercuriusxeno.goo.client.ability.ConvokeThrob;
 import com.mercuriusxeno.goo.client.ability.CrystalCloudVisual;
 import com.mercuriusxeno.goo.client.ability.MarkerOrbVisual;
 import com.mercuriusxeno.goo.client.ability.MetalSpikeVisual;
@@ -111,7 +110,6 @@ public class AbilityBlockRenderer
         extractCoreFields(be, state, partialTick);
         extractTargetAndFace(be, state);
         state.abilityId = be.getAbilityId();
-        state.convokePeriod = state.behaviorActive ? ConvokeThrob.periodOf(be) : 0;
         MetalSpikeVisual.extract(be, state);
         CrystalCloudVisual.extract(be, state);
         NetherHoleStyles.active().extract(be, state);

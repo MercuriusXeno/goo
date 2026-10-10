@@ -24,8 +24,8 @@ import org.jspecify.annotations.Nullable;
  * Runs the teleportitis Banish leaves on a mob: each tick a player stands
  * within the curse's radius, the mob warps to a random spot the way chorus
  * fruit throws its eater, an afterimage left where it stood and where it
- * lands; once its warps run out, the next approach exiles it from existence.
- * The cursed mob wears the banish shimmer, refreshed while the curse stands.
+ * lands. A second Banish exiles the cursed mob from existence. The cursed
+ * mob wears the banish shimmer, refreshed while the curse stands.
  * Decision banish-curses-with-ender-shimmer.
  */
 @EventBusSubscriber(modid = Goo.MODID)
@@ -78,8 +78,7 @@ public final class BanishEvents {
     }
 
     /**
-     * Sends a cursed mob away from the player it neared: exiled when its
-     * warps are spent, warped otherwise.
+     * Warps a cursed mob away from the player it neared.
      *
      * @param level  the mob's level
      * @param mob    the cursed mob
@@ -88,16 +87,22 @@ public final class BanishEvents {
      */
     static void repel(ServerLevel level, LivingEntity mob, Banished curse, Player player) {
         Vec3 stood = mob.position();
-        if (curse.exilesNext()) {
-            leaveAfterimage(level, mob, stood);
-            mob.discard();
-            return;
-        }
         if (warpAway(level, mob, curse, player)) {
-            mob.setData(GooAttachments.BANISHED, curse.afterWarp());
             leaveAfterimage(level, mob, stood);
             leaveAfterimage(level, mob, mob.position());
         }
+    }
+
+    /**
+     * Exiles a cursed mob from existence: its afterimage stays where it stood
+     * and the mob is gone.
+     *
+     * @param level the mob's level
+     * @param mob   the cursed mob
+     */
+    public static void exile(ServerLevel level, LivingEntity mob) {
+        leaveAfterimage(level, mob, mob.position());
+        mob.discard();
     }
 
     /**

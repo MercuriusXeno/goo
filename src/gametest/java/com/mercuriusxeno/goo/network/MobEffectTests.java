@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.banish.BanishEvents;
-import com.mercuriusxeno.goo.ability.banish.Banished;
 import com.mercuriusxeno.goo.ability.program.EntityFilter;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.EntityScan;
@@ -24,7 +23,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -75,15 +73,13 @@ public final class MobEffectTests {
     private static final String ABILITY_GLOW_LASER = "goo:glow_laser";
     private static final String ABILITY_CRYSTAL_FLECHETTES = "goo:crystal_flechettes";
     private static final String ABILITY_ENDER_BANISH = "goo:ender_banish";
-    /** The warps ender_banish.json grants before the next approach exiles. */
-    private static final int BANISH_WARPS = 3;
     /** Above ender_banish.json's radius of six, so the player sets nothing off until the test walks it in. */
     private static final double PLAYER_OUT_OF_REACH_ABOVE = 20.0;
     /** Over ender_banish.json's resist cap of a hundred max health. */
     private static final double RESISTING_MAX_HEALTH = 200.0;
-    private static final String SHOULD_BE_CURSED = "The zombie should carry the curse with three warps";
-    private static final String SHOULD_BE_EXILED = "The zombie should be exiled once its warps are spent; warped %d, curse %s";
-    private static final String SHOULD_WARP_EACH_TIME = "The zombie should warp %d times before its exile, warped %d";
+    private static final String SHOULD_BE_CURSED = "The zombie should carry the curse after the first Banish";
+    private static final String SHOULD_WARP = "The cursed zombie should warp away from the player standing on it";
+    private static final String SHOULD_BE_EXILED = "A second Banish should exile the cursed zombie";
     private static final String SHOULD_RESIST = "A mob over the max health cap should resist the curse";
     private static final String CHICKEN_HAS_MAX_HEALTH = "A chicken carries a max health attribute";
     private static final String SHOULD_HAVE_A_CLONE = "A second chicken should stand beside the target";
@@ -339,9 +335,8 @@ public final class MobEffectTests {
     }
 
     /**
-     * Banish curses a zombie with ender_banish.json's three warps: a player
-     * kept standing on it each tick drives it to warp away three times, and
-     * the approach after the third exiles it from existence
+     * Banish's first hit curses a zombie: a player walked onto it sets off a
+     * warp away, and a second Banish hit exiles it from existence
      * (decision banish-curses-with-ender-shimmer).
      *
      * @param helper the gametest helper
@@ -353,25 +348,17 @@ public final class MobEffectTests {
         player.setPos(zombie.getX(), zombie.getY() + PLAYER_OUT_OF_REACH_ABOVE, zombie.getZ());
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, zombie, ABILITY_ENDER_BANISH);
-            Banished curse = BanishEvents.curseOf(zombie);
-            helper.assertTrue(curse != null && curse.warpsLeft() == BANISH_WARPS, SHOULD_BE_CURSED);
+            helper.assertTrue(BanishEvents.curseOf(zombie) != null, SHOULD_BE_CURSED);
             Vec3 home = zombie.position();
-            List<Vec3> spots = new ArrayList<>(List.of(home));
-            // The assertion runs each tick until it holds, so it also records each warp, brings the zombie
-            // home, where the test's chunks keep it ticking, and stands the player on it, the approach that
-            // sets off the next warp.
+            player.setPos(home);
+            // The assertion runs each tick until the warp lands, then brings the zombie home, where the
+            // test's chunks keep it ticking, and lands the second Banish on it.
             helper.succeedWhen(() -> {
-                if (!zombie.isRemoved()) {
-                    if (!zombie.position().equals(home)) {
-                        spots.add(zombie.position());
-                        zombie.teleportTo(home.x, home.y, home.z);
-                    }
-                    player.setPos(home);
-                }
-                helper.assertTrue(zombie.isRemoved(), String.format(SHOULD_BE_EXILED, spots.size() - 1,
-                        BanishEvents.curseOf(zombie)));
-                helper.assertTrue(spots.size() == BANISH_WARPS + 1,
-                        String.format(SHOULD_WARP_EACH_TIME, BANISH_WARPS, spots.size() - 1));
+                helper.assertFalse(zombie.position().equals(home), SHOULD_WARP);
+                player.setPos(home.add(0, PLAYER_OUT_OF_REACH_ABOVE, 0));
+                zombie.teleportTo(home.x, home.y, home.z);
+                strike(helper, zombie, ABILITY_ENDER_BANISH);
+                helper.assertTrue(zombie.isRemoved(), SHOULD_BE_EXILED);
             });
         });
     }

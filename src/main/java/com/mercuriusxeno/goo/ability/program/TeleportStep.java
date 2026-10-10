@@ -133,7 +133,8 @@ public record TeleportStep(TeleportMode mode, Expr range, Expr nodeRange, Expr n
 
     /**
      * Where this step's blink puts an entity: beside the oculus the look
-     * snaps to where a free-aim blink finds one, else where the blink lands.
+     * snaps to where it finds one, a pinned face or not, else where the
+     * blink lands.
      * Decision oculus-prism-becomes-a-hovering-eye.
      *
      * @param blinker the entity blinking
@@ -146,7 +147,8 @@ public record TeleportStep(TeleportMode mode, Expr range, Expr nodeRange, Expr n
     public Optional<BlinkLanding> landing(Entity blinker, Vec3 feet, Vec3 look, double reach,
             Optional<ChannelAim.FacePlane> pin) {
         double snapRange = nodeRange.evaluate(Variables.NONE);
-        Optional<BlinkLanding> snapped = pin.isPresent() || snapRange <= 0 ? Optional.empty()
+        // The oculus wins over a pressed face: a press on any face in range pins it, which would never snap.
+        Optional<BlinkLanding> snapped = snapRange <= 0 ? Optional.empty()
                 : OculusNodes.onLook(blinker.level(), feet.add(0, blinker.getEyeHeight(), 0), look, snapRange,
                         nodeCone.evaluate(Variables.NONE))
                         .flatMap(node -> BlinkResolver.toNode(new LevelBlinkSpace(blinker.level(), blinker), feet,
@@ -215,6 +217,19 @@ public record TeleportStep(TeleportMode mode, Expr range, Expr nodeRange, Expr n
     public static OptionalDouble lookRange(List<Step> behaviors) {
         return lookStep(behaviors).map(step -> OptionalDouble.of(step.range().evaluate(Variables.NONE)))
                 .orElse(OptionalDouble.empty());
+    }
+
+    /**
+     * How far off the look-following teleport among the steps snaps to an
+     * oculus, for a client that shows the oculi it can reach.
+     * Decision oculus-prism-becomes-a-hovering-eye.
+     *
+     * @param behaviors an ability's top-level steps
+     * @return the snap range, empty where no look teleport snaps to oculi
+     */
+    public static OptionalDouble snapRange(List<Step> behaviors) {
+        return lookStep(behaviors).map(step -> step.nodeRange().evaluate(Variables.NONE))
+                .filter(range -> range > 0).map(OptionalDouble::of).orElse(OptionalDouble.empty());
     }
 
     /**

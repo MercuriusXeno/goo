@@ -18,8 +18,8 @@ import java.util.List;
  * Convokes a mob from a chunk: picks a random living mob standing anywhere
  * in the chunk, the full height of the level, and teleports it to a spot
  * with an afterimage where it stood and where it lands (decision
- * afterimage-is-one-shared-effect); where the chunk holds none, it pulses
- * the blink's portal particles at the spot instead.
+ * afterimage-is-one-shared-effect) and a burst of the blink's portal
+ * particles at the spot; where the chunk holds none, it does nothing at all.
  * Decisions convoke-blob-throbs-until-a-mob-arrives and convoke-drip-rolls-a-small-chance.
  */
 public final class ChunkConvoke {
@@ -28,17 +28,15 @@ public final class ChunkConvoke {
     static final int AFTERIMAGE_LIFE_TICKS = 12;
     /** A mob already this near the spot has arrived and is not convoked again. */
     static final double ARRIVED_WITHIN = 1.0;
-    private static final int PULSE_PARTICLES = 24;
-    private static final double PULSE_SPREAD = 0.4;
-    private static final double PULSE_SPEED = 0.4;
-    private static final float PULSE_VOLUME = 0.4f;
-    private static final float PULSE_PITCH = 1.6f;
+    private static final int BURST_PARTICLES = 48;
+    private static final double BURST_SPREAD = 0.5;
+    private static final double BURST_SPEED = 0.5;
 
     private ChunkConvoke() {
     }
 
     /**
-     * Pulls a random mob from the spot's chunk to the spot, or pulses there.
+     * Pulls a random mob from the spot's chunk to the spot, or does nothing where none stands there.
      *
      * @param level the level
      * @param spot  where the mob's feet land
@@ -47,7 +45,6 @@ public final class ChunkConvoke {
     public static boolean convoke(ServerLevel level, Vec3 spot) {
         List<Mob> mobs = mobsInChunk(level, spot);
         if (mobs.isEmpty()) {
-            pulse(level, spot);
             return false;
         }
         Mob mob = mobs.get(level.getRandom().nextInt(mobs.size()));
@@ -59,6 +56,7 @@ public final class ChunkConvoke {
                     AFTERIMAGE_LIFE_TICKS));
             level.playSound(null, end.x, end.y, end.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.HOSTILE, 1f, 1f);
         }
+        burst(level, spot);
         return true;
     }
 
@@ -79,16 +77,13 @@ public final class ChunkConvoke {
     }
 
     /**
-     * Pulses the blink's portal particles and a faint chime at the spot while
-     * no mob comes.
+     * Bursts the blink's portal particles at the spot as a mob arrives.
      *
      * @param level the level
      * @param spot  the convoke spot
      */
-    private static void pulse(ServerLevel level, Vec3 spot) {
-        level.sendParticles(ParticleTypes.PORTAL, spot.x, spot.y, spot.z, PULSE_PARTICLES, PULSE_SPREAD,
-                PULSE_SPREAD, PULSE_SPREAD, PULSE_SPEED);
-        level.playSound(null, spot.x, spot.y, spot.z, SoundEvents.ENDERMAN_AMBIENT, SoundSource.BLOCKS,
-                PULSE_VOLUME, PULSE_PITCH);
+    private static void burst(ServerLevel level, Vec3 spot) {
+        level.sendParticles(ParticleTypes.PORTAL, spot.x, spot.y, spot.z, BURST_PARTICLES, BURST_SPREAD,
+                BURST_SPREAD, BURST_SPREAD, BURST_SPEED);
     }
 }

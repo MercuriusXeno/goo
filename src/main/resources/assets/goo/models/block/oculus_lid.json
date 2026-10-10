@@ -1,19 +1,19 @@
 {
   "textures": {
-    "particle": "minecraft:block/obsidian",
-    "lid": "minecraft:block/obsidian"
+    "particle": "goo:block/oculus_lid",
+    "lid": "goo:block/oculus_lid"
   },
   "elements": [
     {
-      "from": [4.5, 0, 4.5],
-      "to": [11.5, 3.5, 11.5],
+      "from": [5, 0, 10.6],
+      "to": [11, 1, 11.1],
       "faces": {
-        "north": { "uv": [4.5, 0, 11.5, 3.5], "texture": "#lid" },
-        "south": { "uv": [4.5, 0, 11.5, 3.5], "texture": "#lid" },
-        "east": { "uv": [4.5, 0, 11.5, 3.5], "texture": "#lid" },
-        "west": { "uv": [4.5, 0, 11.5, 3.5], "texture": "#lid" },
-        "up": { "uv": [4.5, 4.5, 11.5, 11.5], "texture": "#lid" },
-        "down": { "uv": [4.5, 4.5, 11.5, 11.5], "texture": "#lid" }
+        "north": { "uv": [0, 0, 16, 16], "texture": "#lid" },
+        "south": { "uv": [0, 0, 16, 16], "texture": "#lid" },
+        "east": { "uv": [0, 0, 2, 16], "texture": "#lid" },
+        "west": { "uv": [0, 0, 2, 16], "texture": "#lid" },
+        "up": { "uv": [0, 0, 16, 2], "texture": "#lid" },
+        "down": { "uv": [0, 0, 16, 2], "texture": "#lid" }
       }
     }
   ]

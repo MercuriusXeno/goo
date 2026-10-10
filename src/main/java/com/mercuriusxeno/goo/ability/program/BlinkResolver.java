@@ -58,7 +58,22 @@ public final class BlinkResolver {
         Vec3 eye = feet.add(0, body.eyeHeight(), 0);
         Vec3 aimed = pin.map(plane -> onPinnedPlane(eye, look, range, plane, body))
                 .orElseGet(() -> freeAim(space, feet, eye, look, range, body));
-        return settle(space, feet, aimed, body);
+        return settle(space, feet, withinRange(feet, aimed, range), body);
+    }
+
+    /**
+     * Pulls an aimed spot back toward the blinker to the range, so a plane
+     * pinned at the press and walked away from never carries a blink past it.
+     *
+     * @param feet  where the blinker's feet stand
+     * @param aimed the feet of the aimed spot
+     * @param range the blink's range in blocks
+     * @return the aimed spot, or the point the range along the line to it
+     */
+    static Vec3 withinRange(Vec3 feet, Vec3 aimed, double range) {
+        Vec3 trip = aimed.subtract(feet);
+        double length = trip.length();
+        return length <= range ? aimed : feet.add(trip.scale(range / length));
     }
 
     /**

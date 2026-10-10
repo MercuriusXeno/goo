@@ -54,8 +54,10 @@ public final class OculusTests {
 
     /**
      * A player looking straight up at an oculus twenty-four blocks over it
-     * blinks: it lands beside the oculus, drains the trip's price, more than
-     * Blink's flat cost, and the oculus holds what it drained as its charge.
+     * presses on the face of the stone it stands on, pinning that face, and
+     * blinks: the oculus wins over the pin, so it lands beside the oculus,
+     * drains the trip's price, more than Blink's flat cost, and the oculus
+     * holds what it drained as its charge.
      *
      * @param helper the gametest helper
      */
@@ -65,7 +67,7 @@ public final class OculusTests {
         Vec3 cell = Vec3.atBottomCenterOf(oculus.getBlockPos());
         int heldBefore = held(player);
 
-        blink(player);
+        blinkPinned(player, oculus.getBlockPos().below());
 
         Vec3 after = player.position();
         int drained = heldBefore - held(player);
@@ -146,6 +148,19 @@ public final class OculusTests {
         GooGloveItem.setSelection(player.getMainHandItem(), GloveSelection.ofAbility(GooTypes.ENDER, ENDER_BLINK));
         GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.ENDER), NO_ENTITY,
                 player.blockPosition(), NO_ENTITY, false, ENDER_BLINK.toString(), player.getEyePosition()));
+    }
+
+    /**
+     * Throws Blink from the glove with the bottom face of a block pinned, as a
+     * press begun on that face sends it.
+     *
+     * @param player the player
+     * @param pinned the block whose bottom face the press pinned
+     */
+    private static void blinkPinned(ServerPlayer player, BlockPos pinned) {
+        GooGloveItem.setSelection(player.getMainHandItem(), GloveSelection.ofAbility(GooTypes.ENDER, ENDER_BLINK));
+        GooThrowHandler.execute(player, new GooThrowPayload(GooTypes.id(GooTypes.ENDER), NO_ENTITY, pinned,
+                Direction.DOWN.get3DDataValue(), false, ENDER_BLINK.toString(), player.getEyePosition()));
     }
 
     private static AbilityDefinition ability(GameTestHelper helper, Identifier id) {

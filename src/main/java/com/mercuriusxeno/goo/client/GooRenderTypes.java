@@ -62,26 +62,6 @@ public final class GooRenderTypes {
     );
 
     /**
-     * Lines that pass every depth test and write no depth, so an outline shows
-     * through walls: the oculus a held Blink snaps to (decision
-     * oculus-prism-becomes-a-hovering-eye).
-     */
-    public static final RenderPipeline LINES_SEE_THROUGH = RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/lines_see_through"))
-            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
-            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
-            .build();
-
-    /** RenderType that draws lines through walls. */
-    public static final RenderType LINES_SEE_THROUGH_TYPE = RenderType.create(
-            "goo_lines_see_through",
-            RenderSetup.builder(LINES_SEE_THROUGH)
-                    .setLayeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING)
-                    .setOutputTarget(OutputTarget.ITEM_ENTITY_TARGET)
-                    .createRenderSetup()
-    );
-
-    /**
      * Sight's fungus x-ray (decision sight-lengthens-shift-and-outlines-fungus):
      * a block's own baked quads through vanilla's translucent entity shader,
      * passing every depth test and writing no depth, so fungus shows through walls.
@@ -958,7 +938,6 @@ public final class GooRenderTypes {
      */
     private static void registerLinePipelines(RegisterRenderPipelinesEvent event) {
         event.registerPipeline(LINES_ADDITIVE_GLOW);
-        event.registerPipeline(LINES_SEE_THROUGH);
         event.registerPipeline(FUNGUS_XRAY);
         event.registerPipeline(FUNGUS_GLOW);
         event.registerPipeline(SPORE_SHELL);

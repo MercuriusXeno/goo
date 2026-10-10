@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.gate;
 
+import com.mercuriusxeno.goo.block.gate.DragonGateBlock;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -21,16 +22,19 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Opens and closes Dragon Gate pairs: lays the gate over the struck surface
- * and its mirror over the End platform's floor, each covering block kept,
- * and on the pair's clock puts every covered block back. A burst of the
- * End's particles and the portal's sounds mark each opening and closing.
+ * Opens and closes Dragon Gate pairs: lays the gate's thin layer in the open
+ * cells in front of the struck face and its mirror on the End platform's
+ * floor, changing no block the gate lies against, and on the pair's clock
+ * clears both layers. A burst of the End's particles and the portal's sounds
+ * mark each opening and closing.
  * Decision dragon-gate-banishes-blocks-and-opens-a-portal.
  */
 public final class DragonGateOpening {
 
     /** The End platform's floor centre, under the spot the End's portal sets players down. */
     static final BlockPos PLATFORM_FLOOR = ServerLevel.END_SPAWN_POINT.below(2);
+    /** From the struck block's centre to its face, where the gate's square lies. */
+    private static final double SURFACE = 0.5;
     private static final int BURST_PARTICLES = 96;
     private static final double BURST_SPREAD = 1.2;
     private static final double BURST_SPEED = 0.6;
@@ -39,9 +43,9 @@ public final class DragonGateOpening {
     }
 
     /**
-     * Opens a pair over a struck surface. A cast inside the End, onto a
-     * surface holding a block entity or an unbreakable block, or while the
-     * End's mirror spot is taken lays nothing.
+     * Opens a pair on a struck face. A cast inside the End, against a face
+     * with no open cell in front of the struck block, or while the End's
+     * mirror spot is taken lays nothing.
      *
      * @param level    the level the blob landed in
      * @param surface  the struck block
@@ -79,7 +83,7 @@ public final class DragonGateOpening {
     private static @Nullable ServerLevel mirrorLevel(ServerLevel level) {
         ServerLevel end = level.getServer().getLevel(Level.END);
         boolean free = end != null && level.dimension() != Level.END
-                && !end.getBlockState(PLATFORM_FLOOR).is(GooBlocks.DRAGON_GATE.get());
+                && !end.getBlockState(PLATFORM_FLOOR.above()).is(GooBlocks.DRAGON_GATE.get());
         return free ? end : null;
     }
 
@@ -98,42 +102,45 @@ public final class DragonGateOpening {
     }
 
     /**
-     * Lays gate blocks over a patch, keeping what each cell held.
+     * Lays the gate's layer in the open cells in front of a face, keeping
+     * what each cell held; a cell holding anything but air is left as it is.
      *
      * @param level   the level
-     * @param surface the patch's centre
+     * @param surface the struck block the gate centres on
      * @param face    the face the gate looks out of
-     * @return the patch laid, empty where a cell refuses the gate
+     * @return the gate laid, empty where the cell in front of the struck block is not open
      */
     private static Optional<GatePatch> cover(ServerLevel level, BlockPos surface, Direction face) {
-        List<BlockPos> cells = GateFootprint.patch(surface, face);
-        if (!cells.stream().allMatch(cell -> coverable(level, cell))) {
+        List<GateSquare.Cell> cells = GateSquare.cells(surface, face);
+        if (!level.getBlockState(cells.getFirst().pos()).isAir()) {
             return Optional.empty();
         }
         List<GatePatch.Covered> covered = new ArrayList<>();
-        for (BlockPos cell : cells) {
-            covered.add(new GatePatch.Covered(cell, level.getBlockState(cell)));
-            level.setBlock(cell, GooBlocks.DRAGON_GATE.get().defaultBlockState(), Block.UPDATE_ALL);
+        for (GateSquare.Cell cell : cells) {
+            BlockState held = level.getBlockState(cell.pos());
+            if (held.isAir()) {
+                covered.add(new GatePatch.Covered(cell.pos(), held));
+                level.setBlock(cell.pos(), gateCell(face, cell), Block.UPDATE_ALL);
+            }
         }
         return Optional.of(new GatePatch(level.dimension(), surface, face, covered));
     }
 
     /**
-     * Whether a gate may cover a cell: one holding no block entity, no
-     * unbreakable block and no gate already.
+     * The gate block for one cell of the layer.
      *
-     * @param level the level
-     * @param cell  the cell
-     * @return true for a cell the gate covers
+     * @param face the face the gate looks out of
+     * @param cell the cell and its place across the square
+     * @return the block state
      */
-    static boolean coverable(ServerLevel level, BlockPos cell) {
-        BlockState state = level.getBlockState(cell);
-        return level.getBlockEntity(cell) == null && state.getDestroySpeed(level, cell) >= 0
-                && !state.is(GooBlocks.DRAGON_GATE.get());
+    private static BlockState gateCell(Direction face, GateSquare.Cell cell) {
+        return GooBlocks.DRAGON_GATE.get().defaultBlockState().setValue(DragonGateBlock.FACING, face)
+                .setValue(DragonGateBlock.ACROSS, cell.across()).setValue(DragonGateBlock.ALONG, cell.along());
     }
 
     /**
-     * Puts back the blocks a gate covered.
+     * Clears a gate's layer, putting back what each cell held where the gate
+     * still holds it.
      *
      * @param server the server
      * @param patch  the gate
@@ -144,7 +151,9 @@ public final class DragonGateOpening {
             return;
         }
         for (GatePatch.Covered cell : patch.covered()) {
-            level.setBlock(cell.pos(), cell.state(), Block.UPDATE_ALL);
+            if (level.getBlockState(cell.pos()).is(GooBlocks.DRAGON_GATE.get())) {
+                level.setBlock(cell.pos(), cell.state(), Block.UPDATE_ALL);
+            }
         }
         mark(level, patch, ParticleTypes.PORTAL, SoundEvents.ENDERMAN_TELEPORT);
     }
@@ -159,7 +168,8 @@ public final class DragonGateOpening {
      * @param sound    the sound
      */
     private static void mark(ServerLevel level, GatePatch patch, ParticleOptions particle, SoundEvent sound) {
-        Vec3 at = Vec3.atCenterOf(patch.center().relative(patch.face()));
+        Vec3 at = Vec3.atCenterOf(patch.center()).add(Vec3.atLowerCornerOf(patch.face().getUnitVec3i())
+                .scale(SURFACE));
         level.sendParticles(particle, at.x, at.y, at.z, BURST_PARTICLES, BURST_SPREAD, BURST_SPREAD, BURST_SPREAD,
                 BURST_SPEED);
         level.playSound(null, at.x, at.y, at.z, sound, SoundSource.BLOCKS, 1f, 1f);

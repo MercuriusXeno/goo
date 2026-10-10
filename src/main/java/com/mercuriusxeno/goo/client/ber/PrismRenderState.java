@@ -40,4 +40,10 @@ public class PrismRenderState extends BlockEntityRenderState {
      * toward the camera (decision oculus-prism-becomes-a-hovering-eye).
      */
     public float yawToCamera;
+
+    /**
+     * How shut an oculus's lids stand this frame for this viewer, 0 open to 1
+     * shut (decision oculus-prism-becomes-a-hovering-eye).
+     */
+    public float lidClosure = 1f;
 }
