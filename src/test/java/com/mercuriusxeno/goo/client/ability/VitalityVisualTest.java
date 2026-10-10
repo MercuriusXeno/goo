@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 
@@ -53,5 +54,24 @@ class VitalityVisualTest {
     void anAimStraightUpStillOpensACone() {
         Vec3 at = VitalityVisual.fogPoint(APEX, new Vec3(0, 1, 0), RANGE, CONE, 1, 1, 0, 0);
         assertTrue(at.subtract(APEX.add(0, RANGE, 0)).length() > 0);
+    }
+
+    /** A first-person caster's own stars rise before them, clear of the camera, waist to over the head. */
+    @Test
+    void aFirstPersonCastersStarsRiseInFrontOfTheirEyesWhereTheyCanSeeThem() {
+        Vec3 feet = new Vec3(10, 64, 10);
+        double height = 1.8;
+        float yaw = 30f;
+        Vec3 facing = Vec3.directionFromRotation(0f, yaw);
+        RandomSource random = RandomSource.create(7L);
+        for (int star = 0; star < 200; star++) {
+            Vec3 at = VitalityVisual.starBeforeTheEyes(feet, height, yaw, random);
+            Vec3 flat = new Vec3(at.x - feet.x, 0, at.z - feet.z);
+            assertTrue(flat.length() >= VitalityVisual.STAR_REACH_MIN - DELTA, "a star sits inside the near clip");
+            assertTrue(flat.normalize().dot(facing) > Math.cos(VitalityVisual.STAR_ARC_HALF) - 1e-6,
+                    "a star sits outside the arc before the eyes");
+            assertTrue(at.y >= feet.y + height * VitalityVisual.STAR_LOW_SHARE - DELTA
+                    && at.y <= feet.y + height * VitalityVisual.STAR_HIGH_SHARE + DELTA, "a star sits off the band");
+        }
     }
 }

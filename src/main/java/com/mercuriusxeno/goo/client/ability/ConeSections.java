@@ -22,8 +22,6 @@ final class ConeSections {
     private static final float SIGNED_TO_UNIT = 0.5f;
     private static final double TWO_PI = 2 * Math.PI;
     private static final double HALF = 0.5;
-    /** A look this close to straight up or down crosses x rather than up to find its sides. */
-    private static final double NEAR_VERTICAL = 0.99;
 
     private ConeSections() {
     }
@@ -33,12 +31,14 @@ final class ConeSections {
      *
      * @param apex     where the volume starts, camera relative
      * @param axis     the look's unit vector
+     * @param yaw      the look's yaw in degrees, which turns the sections' frame
      * @param near     where the first section stands past the apex
      * @param range    how far the volume reaches past the apex
      * @param sections how many sections stack along it
      * @param radiusAt each section's radius by its distance past the apex
      */
-    record Volume(Vec3 apex, Vec3 axis, double near, double range, int sections, DoubleUnaryOperator radiusAt) {
+    record Volume(Vec3 apex, Vec3 axis, float yaw, double near, double range, int sections,
+                  DoubleUnaryOperator radiusAt) {
     }
 
     /**
@@ -50,7 +50,7 @@ final class ConeSections {
     static void emit(FlatQuadContext quads, Volume volume) {
         for (int section = 0; section < volume.sections(); section++) {
             double distance = sectionDistance(section, volume.near(), volume.range(), volume.sections());
-            emitSection(quads, volume.apex().add(volume.axis().scale(distance)), volume.axis(),
+            emitSection(quads, volume.apex().add(volume.axis().scale(distance)), volume,
                     volume.radiusAt().applyAsDouble(distance), (float) (distance / volume.range()));
         }
     }
@@ -74,12 +74,13 @@ final class ConeSections {
      *
      * @param quads  the quad emitter
      * @param center the section's center, camera relative
-     * @param axis   the look's unit vector
+     * @param volume the volume, its look and yaw
      * @param radius the section's radius
      * @param along  how far along the volume the section stands, 0 to 1
      */
-    private static void emitSection(FlatQuadContext quads, Vec3 center, Vec3 axis, double radius, float along) {
-        Vec3 side = axis.cross(Math.abs(axis.y) < NEAR_VERTICAL ? new Vec3(0, 1, 0) : new Vec3(1, 0, 0)).normalize();
+    private static void emitSection(FlatQuadContext quads, Vec3 center, Volume volume, double radius, float along) {
+        Vec3 axis = volume.axis();
+        Vec3 side = sectionSide(axis, volume.yaw());
         Vec3 up = side.cross(axis);
         int middle = sectionColor(along, 0, 0);
         for (int segment = 0; segment < SEGMENTS; segment++) {
@@ -90,6 +91,21 @@ final class ConeSections {
             rim(quads, new Frame(center, side, up, axis), radius, a1, along);
             vertex(quads, center, axis, middle);
         }
+    }
+
+    /**
+     * The unit direction across a section to its side: level, square to the
+     * way the look's yaw faces, so it holds steady however the look pitches,
+     * straight up and straight down among them, where the look's own cross
+     * with up vanishes.
+     *
+     * @param axis the look's unit vector, which lies in the yaw's upright plane
+     * @param yaw  the look's yaw in degrees
+     * @return the side direction
+     */
+    static Vec3 sectionSide(Vec3 axis, float yaw) {
+        Vec3 facing = Vec3.directionFromRotation(0f, yaw);
+        return new Vec3(-facing.z, 0, facing.x).normalize();
     }
 
     /**

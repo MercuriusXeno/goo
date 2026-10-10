@@ -67,8 +67,8 @@ public final class BoreVortex {
         FlatQuadContext quads = new FlatQuadContext(event.getPoseStack().last(),
                 buffers.getBuffer(GooRenderTypes.BORE_VORTEX_TYPE));
         ConeSections.emit(quads, new ConeSections.Volume(player.getEyePosition(partialTick).subtract(camera),
-                player.getViewVector(partialTick), ConeSections.NEAR, bore.delivery().range(), SECTIONS,
-                distance -> radiusAt(distance, bore.delivery().coneDegrees())));
+                player.getViewVector(partialTick), player.getViewYRot(partialTick), ConeSections.NEAR,
+                bore.delivery().range(), SECTIONS, distance -> radiusAt(distance, bore.delivery().coneDegrees())));
         buffers.endBatch(GooRenderTypes.BORE_VORTEX_TYPE);
     }
 
@@ -81,7 +81,7 @@ public final class BoreVortex {
     static @Nullable ClientAbility runningBore(LocalPlayer player) {
         String abilityId = GloveAim.selectedAbilityId(player);
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
-        return bores(ability, GloveUseTracker.showsArea()) ? ability : null;
+        return bores(ability, GloveUseTracker.runsHeld(player)) ? ability : null;
     }
 
     /**
