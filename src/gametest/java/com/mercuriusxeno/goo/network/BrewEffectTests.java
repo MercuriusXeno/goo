@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
+import com.mercuriusxeno.goo.ability.hex.Lifetap;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -45,6 +46,9 @@ public final class BrewEffectTests {
     /** shroom_sight.json's factor. */
     private static final float SIGHT_FACTOR = 3f;
     private static final String SHOULD_LUX = "The glow brew should grant Lux until %d, granted until %d";
+    /** hex_lifetap.json's fraction. */
+    private static final float LIFETAP_FRACTION = 0.3f;
+    private static final String SHOULD_LIFETAP = "The hex brew should lifetap at %.2f until %d, granted %.2f until %d";
     private static final String SHOULD_SEE = "The shroom brew should grant sight at %.1f until %d, granted %.1f until %d";
     private static final String SHOULD_SHOW_NO_PARTICLES = "A brew should show its icon and no particles, stands %s";
     private static final String SHOULD_NOURISH = "The vital brew should nourish until %d, nourishes until %d";
@@ -185,6 +189,29 @@ public final class BrewEffectTests {
         helper.getLevel().getServer().getPlayerList().remove(player);
         long expected = now + GooPotions.BREW_DURATION;
         helper.assertTrue(expiresAt == expected, String.format(SHOULD_LUX, expected, expiresAt));
+        helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
+        helper.succeed();
+    }
+
+    /**
+     * Drinking the hex brew grants a lifetap at Lifetap's fraction for an
+     * hour, draining no goo (decision lifetap-trades-regen-for-leech).
+     *
+     * @param helper the gametest helper
+     */
+    public static void hexBrewLifetapsForAnHour(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.HEX);
+        int heldBefore = held(player, GooTypes.HEX);
+        long now = player.level().getGameTime();
+
+        drink(player, GooTypes.HEX);
+
+        Lifetap lifetap = player.getData(GooAttachments.LIFETAP);
+        int drained = heldBefore - held(player, GooTypes.HEX);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        long expected = now + GooPotions.BREW_DURATION;
+        helper.assertTrue(lifetap.fraction() == LIFETAP_FRACTION && lifetap.expiresAt() == expected,
+                String.format(SHOULD_LIFETAP, LIFETAP_FRACTION, expected, lifetap.fraction(), lifetap.expiresAt()));
         helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
         helper.succeed();
     }

@@ -29,6 +29,10 @@ public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDe
     private static final double INTO_THE_FACE = 0.01;
     /** How many blocks out from the face the swath reaches. */
     private static final int SWATH_DEPTH = 3;
+    /** A slice's ring, in turn around the middle, then the middle: ring in. */
+    private static final int[][] RING_IN = {
+        {-1, -1}, {0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {0, 0}
+    };
 
     /**
      * The face a hold began on: a block and the side of it the cursor rested
@@ -118,8 +122,29 @@ public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDe
             return swath;
         }
         for (int out = SWATH_DEPTH; out >= 1; out--) {
-            swath.addAll(BoreStep.sliceRingIn(plane.layer(aimed, out), plane.face().getAxis()));
+            swath.addAll(sliceRingIn(plane.layer(aimed, out), plane.face().getAxis()));
         }
         return swath;
+    }
+
+    /**
+     * A 3x3 slice square to an axis, ring in: the eight around the middle in
+     * turn, then the middle; Flatten lays each layer of its swath with it
+     * (decision flatten-disc-cursor-breaks-above-the-plane).
+     *
+     * @param middle the slice's middle
+     * @param main   the axis the slice stands square to
+     * @return the nine blocks in breaking order
+     */
+    static List<BlockPos> sliceRingIn(BlockPos middle, Direction.Axis main) {
+        List<BlockPos> slice = new ArrayList<>();
+        for (int[] at : RING_IN) {
+            slice.add(switch (main) {
+                case X -> middle.offset(0, at[1], at[0]);
+                case Y -> middle.offset(at[0], 0, at[1]);
+                case Z -> middle.offset(at[0], at[1], 0);
+            });
+        }
+        return slice;
     }
 }

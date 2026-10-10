@@ -42,4 +42,6 @@ public class PrismRenderState extends BlockEntityRenderState {
 
     /** The light the linked network's rails carry, 0 to 15. */
     public int linkLight;
+    /** How strongly an agitator's beat shows this frame, 0 to 1; 0 for any other prism. */
+    public float beat;
 }
