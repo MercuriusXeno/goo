@@ -4,6 +4,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.Optional;
 import java.util.OptionalInt;
 
 /**
@@ -37,6 +38,17 @@ public interface TargetHost extends StepHost {
      */
     default OptionalInt brewDuration() {
         return OptionalInt.empty();
+    }
+
+    /**
+     * The face plane a blink's press pinned, which the landing slides on;
+     * empty for free aim and for every host no press drives.
+     * decision blink-lands-safely-costed-by-distance
+     *
+     * @return the pinned face plane, or empty
+     */
+    default Optional<ChannelAim.FacePlane> blinkPin() {
+        return Optional.empty();
     }
 
     /**

@@ -26,9 +26,10 @@ public enum HeartKind {
     },
     /**
      * Leaf Barkskin: bark shields over normal hearts, one bark back every five
-     * seconds, gone with its last bark (decision barkskin-bark-hearts-thorn-and-burn).
+     * seconds, standing with no bark left and regrowing it until ended
+     * (decisions barkskin-bark-hearts-thorn-and-burn and heart-effects-crawl-while-held).
      */
-    BARKSKIN(1.0f, true, false, true) {
+    BARKSKIN(1.0f, false, false, true) {
         @Override
         long regrowInterval(int shieldHalves) {
             // barkskin-bark-hearts-thorn-and-burn: a bark heart every 5 seconds, a half every 2.5
@@ -49,21 +50,56 @@ public enum HeartKind {
         }
     },
     /**
-     * Rock Stoneskin: stone over the hearts the player was missing, never
-     * regrowing, gone with its last stone, and holding the player's health
-     * from regenerating while any stands; appended after Reserve, so the
-     * synced ordinals of the kinds before it stand
-     * (decision stoneskin-stone-hearts-block-regeneration).
+     * Rock Stoneskin: stone over the hearts the player is missing, crawling
+     * into each further missing heart a stone every five seconds, standing
+     * with no stone left and crawling it back until ended, and holding the
+     * player's health from regenerating while it stands; appended after Reserve, so the synced ordinals of the kinds
+     * before it stand (decisions stoneskin-stone-hearts-block-regeneration
+     * and heart-effects-crawl-while-held).
      */
-    STONESKIN(1.0f, true, false, false) {
+    STONESKIN(1.0f, false, false, true) {
         @Override
         long regrowInterval(int shieldHalves) {
-            return 0L;
+            // heart-effects-crawl-while-held: stone crawls at bark's pace, a stone heart every 5 seconds
+            return (long) BARK_REGROW_SECONDS * TICKS_PER_SECOND / HALVES_PER_HEART;
         }
 
         @Override
-        boolean fillsMissing() {
+        public boolean fillsMissing() {
             return true;
+        }
+    },
+    /**
+     * Nether Undead: nether over the hearts the player is missing, crawling
+     * into each further missing heart fast, a nether heart a second, taking
+     * hits before real health and standing with no nether left until ended;
+     * appended last, so the synced ordinals of the kinds before it stand
+     * (decisions undead-nether-hearts-burn-in-sunlight and heart-effects-crawl-while-held).
+     */
+    UNDEAD(1.0f, false, false, true) {
+        @Override
+        long regrowInterval(int shieldHalves) {
+            // undead-nether-hearts-burn-in-sunlight: nether hearts regenerate rapidly
+            return UNDEAD_REGROW_TICKS_PER_HALF;
+        }
+
+        @Override
+        public boolean fillsMissing() {
+            return true;
+        }
+    },
+    /**
+     * Iceborn's frozen hearts: over present hearts, worth half a heart against
+     * a physical hit, crawling over each further present heart at bark's pace
+     * while held, and thawed all at once by fire, which ends the effect.
+     * Appended last, since ordinals are synced.
+     * iceborn-frozen-hearts-thaw-on-fire
+     */
+    ICEBORN(1.0f, false, false, true) {
+        @Override
+        long regrowInterval(int shieldHalves) {
+            // heart-effects-crawl-while-held: frost crawls at bark's pace, a frozen heart every 5 seconds
+            return (long) BARK_REGROW_SECONDS * TICKS_PER_SECOND / HALVES_PER_HEART;
         }
     };
 
@@ -78,6 +114,8 @@ public enum HeartKind {
     /** Every eight ember halves standing slow the next half by a second: n / 2 seconds a heart is n / 8 a half. */
     private static final int EMBER_HALVES_PER_EXTRA_SECOND = 8;
     private static final int BARK_REGROW_SECONDS = 5;
+    /** Half a second a half, a nether heart a second. */
+    private static final long UNDEAD_REGROW_TICKS_PER_HALF = 10L;
 
     private final float bareCostMultiplier;
     private final boolean endsWhenBare;
@@ -114,7 +152,7 @@ public enum HeartKind {
      *
      * @return true for a kind filling the missing hearts
      */
-    boolean fillsMissing() {
+    public boolean fillsMissing() {
         return false;
     }
 

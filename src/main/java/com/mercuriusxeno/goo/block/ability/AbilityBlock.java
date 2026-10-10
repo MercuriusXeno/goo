@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.block.ability;
 
 import com.mercuriusxeno.goo.block.BlockEntityTicks;
 import com.mercuriusxeno.goo.block.Waterlogging;
-import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.entity.CompressionSphere;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -32,6 +32,7 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.redstone.Orientation;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.NonNull;
@@ -67,6 +68,14 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
      * Waterlogged state property: true when this marker co-occupies a water block.
      */
     public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
+    /**
+     * Powered state property: true for the tick a Thumper pulses, when the
+     * block gives full redstone power to the blocks beside it
+     * (decision thumper-blob-pulses-periodically-then-fades).
+     */
+    public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
+    /** The redstone power a powered ability block gives. */
+    private static final int FULL_POWER = 15;
     public static final MapCodec<AbilityBlock> CODEC = simpleCodec(AbilityBlock::new);
     /**
      * Ambient particle spread radius.
@@ -139,7 +148,7 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
      */
     public AbilityBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(WATERLOGGED, false));
+        registerDefaultState(stateDefinition.any().setValue(WATERLOGGED, false).setValue(POWERED, false));
     }
 
     /**
@@ -250,9 +259,9 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
     }
 
     /**
-     * Drops the goo a mid-implosion ability block consumed at {@code pos}
-     * when it is broken. No-op on the client, for a marker that consumed
-     * nothing, or if the block entity is missing.
+     * Leaves what a mid-implosion ability block pulled in as a compression
+     * sphere at {@code pos} when it is broken. No-op on the client, for a
+     * marker that pulled in nothing, or if the block entity is missing.
      *
      * @param level the current level
      * @param pos   the marker position
@@ -264,7 +273,7 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
         if (!(server.getBlockEntity(pos) instanceof AbilityBlockEntity be)) {
             return;
         }
-        GooStacks.dropAll(be.takeConsumedGoo(), server, pos);
+        CompressionSphere.leave(server, Vec3.atCenterOf(pos), be.programState().hoard());
     }
 
     /**
@@ -407,13 +416,40 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
     }
 
     /**
-     * Registers the WATERLOGGED property in the state definition.
+     * Registers the WATERLOGGED property and the POWERED property in the state definition.
      *
      * @param builder the state definition builder
      */
     @Override
     protected void createBlockStateDefinition(StateDefinition.@NonNull Builder<Block, BlockState> builder) {
-        builder.add(WATERLOGGED);
+        builder.add(WATERLOGGED, POWERED);
+    }
+
+    /**
+     * An ability block gives redstone power, though only a pulsing Thumper's does
+     * (decision thumper-blob-pulses-periodically-then-fades).
+     *
+     * @param state the block state
+     * @return true
+     */
+    @Override
+    protected boolean isSignalSource(@NonNull BlockState state) {
+        return true;
+    }
+
+    /**
+     * Full power to every side while powered, none otherwise.
+     *
+     * @param state     the block state
+     * @param level     the level
+     * @param pos       the block position
+     * @param direction the side asked
+     * @return 15 while powered, else 0
+     */
+    @Override
+    protected int getSignal(@NonNull BlockState state, @NonNull BlockGetter level, @NonNull BlockPos pos,
+                            @NonNull Direction direction) {
+        return state.getValue(POWERED) ? FULL_POWER : 0;
     }
 
     /**

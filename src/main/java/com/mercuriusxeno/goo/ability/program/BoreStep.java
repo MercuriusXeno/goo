@@ -4,25 +4,24 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Rock bore's step, run each held tick of the stream: it cuts a 3x3 tunnel
- * along the look out to the stream's reach. At each block the eye line
- * crosses past the eye's own, a 3x3 slice stands square to the look's main
- * axis; within a slice the ring of eight breaks in turn and the middle last,
- * the nearest slice first, the JSON's count of breaks a tick, which keeps
+ * Rock bore's step, run each held tick of the stream: it cuts a tunnel along
+ * the look inside the stream's cone out to its reach, about one block wide,
+ * the nearest block first, the JSON's count of breaks a tick, which keeps
  * pace with walking. A solid block outside the tag on the eye line stops the
- * bore there. Each tick the strike steps run on every living entity whose
+ * bore there (decision bore-breaks-a-15-degree-cone). Each tick the strike
+ * steps run on every living entity whose
  * body overlaps the tunnel's cells and that every where filter keeps, so a
  * mob in the tunnel takes Bore's damage and one behind the stopping block
  * takes none (decision bore-vortex-with-a-worldspace-shake).
@@ -42,10 +41,6 @@ public record BoreStep(TagKey<Block> breaks, int count, List<EntityFilter> where
     private static final String FIELD_STRIKE = "strike";
     /** The distance between samples along the look, fine enough to visit every block it crosses. */
     private static final double SAMPLE_STEP = 0.05;
-    /** A slice's ring, in turn around the middle, then the middle: ring in. */
-    private static final int[][] RING_IN = {
-        {-1, -1}, {0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {0, 0}
-    };
 
     /**
      * Codec for the step's params. The strike list codec is read lazily
@@ -83,7 +78,7 @@ public record BoreStep(TagKey<Block> breaks, int count, List<EntityFilter> where
     public boolean tick(StepContext context) {
         ChannelHost host = context.hostAs(ChannelHost.class);
         host.channelAim().ifPresent(aim -> {
-            List<BlockPos> tunnel = tunnelOrder(host, host.eye(), aim.aimPoint());
+            List<BlockPos> tunnel = tunnelOrder(host, host.eye(), aim);
             boreAlong(host, tunnel);
             strikeIn(host, tunnel);
         });
@@ -123,47 +118,49 @@ public record BoreStep(TagKey<Block> breaks, int count, List<EntityFilter> where
     }
 
     /**
-     * The tunnel's blocks in the order they break: each slice ring in, the
-     * nearest slice first, ending at the first solid block outside the tag
-     * on the eye line.
+     * The tunnel's blocks in the order they break, nearest the eye first: the
+     * blocks whose centers stand inside the stream's cone, and every block
+     * the eye line crosses so the block under the crosshair always breaks,
+     * past the eye's own block and short of the first solid block outside
+     * the tag on the eye line.
+     * decision bore-breaks-a-15-degree-cone
      *
      * @param host the channel host
      * @param eye  the eye the tunnel runs from
-     * @param end  the end of the reach along the look
+     * @param aim  the stream's aim: its reach along the look and its cone
      * @return the blocks, each once
      */
-    private List<BlockPos> tunnelOrder(ChannelHost host, Vec3 eye, Vec3 end) {
-        Direction.Axis main = Direction.getApproximateNearest(end.subtract(eye)).getAxis();
-        Set<BlockPos> order = new LinkedHashSet<>();
-        List<BlockPos> line = blocksAlong(eye, end);
-        for (BlockPos middle : line.subList(1, line.size())) {
-            if (!host.airAt(middle) && !host.blockIn(middle, breaks)) {
-                break;
+    private List<BlockPos> tunnelOrder(ChannelHost host, Vec3 eye, ChannelAim aim) {
+        List<BlockPos> line = blocksAlong(eye, aim.aimPoint());
+        int stop = stoppingIndex(host, line);
+        double stopDistance = stop < line.size()
+                ? Vec3.atCenterOf(line.get(stop)).distanceTo(eye) : Double.POSITIVE_INFINITY;
+        Set<BlockPos> tunnel = new LinkedHashSet<>(line.subList(1, stop));
+        for (BlockPos cell : CalcifyStep.blocksInCone(eye, aim.aimPoint(), aim.coneDegrees())) {
+            if (!cell.equals(line.getFirst()) && Vec3.atCenterOf(cell).distanceTo(eye) < stopDistance) {
+                tunnel.add(cell);
             }
-            order.addAll(sliceRingIn(middle, main));
         }
-        return List.copyOf(order);
+        List<BlockPos> order = new ArrayList<>(tunnel);
+        order.sort(Comparator.comparingDouble(cell -> Vec3.atCenterOf(cell).distanceToSqr(eye)));
+        return order;
     }
 
     /**
-     * A 3x3 slice square to an axis, ring in: the eight around the middle in
-     * turn, then the middle. Flatten lays its layers with the same slice
-     * (decision flatten-disc-cursor-breaks-above-the-plane).
+     * Where the eye line meets the first solid block outside the tag, past
+     * the eye's own block.
      *
-     * @param middle the slice's middle
-     * @param main   the axis the slice stands square to
-     * @return the nine blocks in breaking order
+     * @param host the channel host
+     * @param line the blocks the eye line crosses, the eye's own first
+     * @return the stopping block's index on the line, or the line's length where none stands
      */
-    static List<BlockPos> sliceRingIn(BlockPos middle, Direction.Axis main) {
-        List<BlockPos> slice = new ArrayList<>();
-        for (int[] at : RING_IN) {
-            slice.add(switch (main) {
-                case X -> middle.offset(0, at[1], at[0]);
-                case Y -> middle.offset(at[0], 0, at[1]);
-                case Z -> middle.offset(at[0], at[1], 0);
-            });
+    private int stoppingIndex(ChannelHost host, List<BlockPos> line) {
+        for (int i = 1; i < line.size(); i++) {
+            if (!host.airAt(line.get(i)) && !host.blockIn(line.get(i), breaks)) {
+                return i;
+            }
         }
-        return slice;
+        return line.size();
     }
 
     /**

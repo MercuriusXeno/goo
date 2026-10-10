@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:blink_snaps_to_oculus",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 20,
+  "setup_ticks": 0,
+  "required": true
+}

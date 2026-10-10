@@ -95,4 +95,10 @@ public class AbilityBlockRenderState extends BlockEntityRenderState {
 
     /** Cycling animation phase in [0, 1] used by the shader's swirl. */
     public float animationTime;
+
+    /** True when the marker is a Vines trap waiting on the ground (decision vines-unpack-root-and-thorn). */
+    public boolean vinesTrap;
+
+    /** How far the trap's blob has unpacked into its knot and tendrils, 0 to 1. */
+    public float vinesUnpacked;
 }

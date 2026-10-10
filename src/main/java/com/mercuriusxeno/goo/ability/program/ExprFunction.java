@@ -40,6 +40,12 @@ public enum ExprFunction {
      */
     RANDOM(1, args -> args[0] < 1 ? 0 : ThreadLocalRandom.current().nextInt((int) args[0])),
     /**
+     * {@code chance(p)}: one with probability p, zero otherwise, so a
+     * branch fires by chance; mycosis buds a sprayed floor cell on
+     * {@code chance(0.004)} (decision mycosis-spore-stream-buds-and-poisons).
+     */
+    CHANCE(1, args -> ThreadLocalRandom.current().nextDouble() < args[0] ? 1 : 0),
+    /**
      * {@code at_least(a, b)}: one when a is b or more, zero otherwise, so a
      * branch tests a threshold (decision aeon-mob-ritual-drops-spawn-egg).
      */

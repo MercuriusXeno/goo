@@ -1,7 +1,11 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.pulse.RedstoneBeat;
+import com.mercuriusxeno.goo.ability.pulse.RelayNetwork;
 import com.mercuriusxeno.goo.block.ability.MarkerAnchor;
-import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.block.ability.MarkerProgramState;
+import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
+import com.mercuriusxeno.goo.entity.CompressionSphere;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.network.LurkerPulsePayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
@@ -12,6 +16,8 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
@@ -34,9 +40,19 @@ import java.util.function.Consumer;
  */
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
-        FieldEffectHost, PhasedHost, ConsumedGooHost, WatchHost {
+        FieldEffectHost, PhasedHost, WatchHost, HoardHost, ConvokeHost, PowerEmitHost, BeatHost, RelayHost,
+        AgitateHost, FrostHost, GreeningHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
+    /** The power a block gives at full strength. */
+    private static final int FULL_POWER = 15;
+    /**
+     * The work a black hole's take spends each tick, a cell or a column of
+     * its shell walk each a unit: a radius 3 hole in one tick, a bigger one
+     * over more, so no size stalls the server in a single tick
+     * (decision black-hole-leaves-a-compression-sphere).
+     */
+    static final int BLOCKS_TAKEN_PER_TICK = 2048;
 
     @Override
     public HostKind kind() {
@@ -45,12 +61,28 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
 
     @Override
     public OptionalDouble read(String name) {
-        return OptionalDouble.empty();
+        // black-hole-leaves-a-compression-sphere: a sized cast's program reads the size it was dragged to
+        return HostVariables.SIZE.equals(name) ? OptionalDouble.of(be.programState().castSize())
+                : OptionalDouble.empty();
     }
 
     @Override
     public BlockPos position() {
         return pos;
+    }
+
+    /**
+     * The marker cell's center, where a verdant prism's greening reaches out from.
+     * verdant-prism-greens-blocks-slowly
+     */
+    @Override
+    public Vec3 center() {
+        return Vec3.atCenterOf(pos);
+    }
+
+    @Override
+    public AgitationState agitation() {
+        return be.programState().agitation();
     }
 
     @Override
@@ -113,8 +145,66 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     }
 
     @Override
+    public double rollFraction() {
+        return level.getRandom().nextDouble();
+    }
+
+    @Override
     public PhasedState phased() {
         return be.programState().phased();
+    }
+
+    /**
+     * Gives full power or none (decision thumper-blob-pulses-periodically-then-fades).
+     */
+    @Override
+    public void emitPower(boolean on) {
+        setPowerLevel(on ? FULL_POWER : 0);
+    }
+
+    /**
+     * Sets the power the marker block gives, so the blocks beside it read it
+     * through its signal: an ability block's powered state, on for any power,
+     * or a prism's power level (decision relay-prism-carries-the-signal-through-air).
+     *
+     * @param power the power, 0 to 15
+     */
+    private void setPowerLevel(int power) {
+        BlockState state = level.getBlockState(pos);
+        BlockState after = state;
+        if (state.hasProperty(BlockStateProperties.POWERED)) {
+            after = state.setValue(BlockStateProperties.POWERED, power > 0);
+        } else if (state.hasProperty(BlockStateProperties.POWER)) {
+            after = state.setValue(BlockStateProperties.POWER, power);
+        }
+        if (after != state) {
+            level.setBlock(pos, after, Block.UPDATE_ALL);
+        }
+    }
+
+    /**
+     * Gives the strongest signal reaching any relay the prism links to
+     * through air (decision relay-prism-carries-the-signal-through-air).
+     */
+    @Override
+    public void carrySignal() {
+        if (be instanceof PrismBlockEntity prism) {
+            setPowerLevel(RelayNetwork.carriedTo(level, pos, prism));
+        }
+    }
+
+    /**
+     * The beat a prism has heard; an ability block hears none
+     * (decision metronome-prism-pulses-at-the-learned-rate).
+     */
+    @Override
+    public RedstoneBeat beat() {
+        return be instanceof PrismBlockEntity prism ? prism.beat() : RedstoneBeat.SILENT;
+    }
+
+    @Override
+    public long gameTime() {
+        return level.getGameTime();
     }
 
     @Override
@@ -123,13 +213,33 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     }
 
     @Override
-    public void consumeValuedBlocks(int radius) {
-        be.programState().addConsumedGoo(ValuedBlocks.consumeSphere(level, pos, radius));
+    public void hoardBlocks(int radius) {
+        be.programState().beginTaking(radius);
     }
 
     @Override
-    public void dropConsumedGoo() {
-        GooStacks.dropAll(be.programState().takeConsumedGoo(), level, pos);
+    public void takeBlocks() {
+        MarkerProgramState state = be.programState();
+        if (!state.taking()) {
+            return;
+        }
+        ShellWalk.Cursor next = HoardedBlocks.takeSome(level, pos, state.takeRadius(), state.takeCursor(),
+                BLOCKS_TAKEN_PER_TICK, state.hoard());
+        if (state.tookTo(next)) {
+            CompressionSphere.leave(level, Vec3.atCenterOf(pos), state.hoard());
+        }
+    }
+
+    @Override
+    public void pullItemsIntoHoard(double radius, double speed) {
+        HoardedBlocks.pullItems(level, Vec3.atCenterOf(pos), radius, speed, be.programState().hoard());
+    }
+
+    @Override
+    public void dropSphere() {
+        if (!be.programState().putOffDrop()) {
+            CompressionSphere.leave(level, Vec3.atCenterOf(pos), be.programState().hoard());
+        }
     }
 
     @Override
@@ -142,11 +252,26 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         SoundPlays.play(level, Vec3.atCenterOf(pos), cue);
     }
 
+    /**
+     * Pulls a mob from the marker's chunk to stand in the marker's cell.
+     * decision convoke-blob-throbs-until-a-mob-arrives
+     */
+    @Override
+    public boolean convokeFromChunk() {
+        return ChunkConvoke.convoke(level, Vec3.atBottomCenterOf(pos));
+    }
+
     @Override
     public void placeBlock(Identifier block, Map<String, String> state) {
         Block found = BuiltInRegistries.BLOCK.getOptional(block)
                 .orElseThrow(() -> new IllegalArgumentException(ERR_UNKNOWN_BLOCK + block));
         List<Property.Value<?>> values = StatePropertyWriter.resolve(found.getStateDefinition(), state, block);
         level.setBlock(pos, StatePropertyWriter.write(found.defaultBlockState(), values), Block.UPDATE_ALL);
+    }
+
+    /** The prism or marker's center, which a glacial prism holds frozen around (decision glacial-prism-holds-the-area-frozen). */
+    @Override
+    public Vec3 frostCenter() {
+        return Vec3.atCenterOf(pos);
     }
 }

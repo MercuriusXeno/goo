@@ -40,12 +40,13 @@ class HeldGhostTest {
         assertEquals(3.75f, ghost.ringRadius(), TOLERANCE);
     }
 
+    // decision black-hole-leaves-a-compression-sphere: the dome follows the drag, the rings its pull
     @Test
-    void blackHoleRingsInwardFromItsPullToItsPhasedDome() {
-        HeldGhost ghost = ghostOf(NetherHeldGhost.INSTANCE, "nether_black_hole");
-        assertEquals(3f, ghost.domeRadius(), TOLERANCE);
+    void aSizedBlackHoleRingsInwardFromItsPullToItsDraggedDome() {
+        HeldGhost ghost = HeldDomeRenderer.sizedGhost(5f);
+        assertEquals(5f, ghost.domeRadius(), TOLERANCE);
         assertEquals(HeldGhost.RingDirection.INWARD, ghost.rings());
-        assertEquals(9f, ghost.ringRadius(), TOLERANCE);
+        assertEquals(15f, ghost.ringRadius(), TOLERANCE);
     }
 
     @ParameterizedTest

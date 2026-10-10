@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.colonize.ShroomNetwork;
+import com.mercuriusxeno.goo.ability.gate.DragonGateOpening;
+import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
@@ -19,6 +22,7 @@ import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalDouble;
 
 /**
@@ -39,10 +43,13 @@ import java.util.OptionalDouble;
  * @param abilityId   the ability the blob names
  * @param anchor      where world actions anchor: the aimed point for an ability
  *                    aiming one, the cell's center otherwise (decision aim-point-follows-the-cursor)
+ * @param size        the size the cast was dragged to, zero for one naming none
+ *                    (decision black-hole-leaves-a-compression-sphere)
  */
 public record LandingHost(ServerLevel level, BlockPos cell, Direction face, boolean waterlogged,
-                          ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 anchor)
-        implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost {
+                          ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 anchor, double size)
+        implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
+        ColonizeHost, FloorScanHost, GateHost, PowerPulseHost, MobSpawnHost, FrostHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -56,9 +63,25 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
         return HostKind.LANDING;
     }
 
+    /** The point the throw landed at, where a landing nova spreads from (decision orb-carries-a-swirling-nova). */
+    @Override
+    public Vec3 frostCenter() {
+        return anchor;
+    }
+
+    @Override
+    public BlockPos spawnCell() {
+        return cell;
+    }
+
+    @Override
+    public Vec3 morphFrom() {
+        return anchor;
+    }
+
     @Override
     public OptionalDouble read(String name) {
-        return OptionalDouble.empty();
+        return HostVariables.SIZE.equals(name) ? OptionalDouble.of(size) : OptionalDouble.empty();
     }
 
     @Override
@@ -69,6 +92,15 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     @Override
     public Direction placedFace() {
         return face;
+    }
+
+    /**
+     * Opens the gate over the block the blob struck, the one behind the cell.
+     * decision dragon-gate-banishes-blocks-and-opens-a-portal
+     */
+    @Override
+    public boolean openDragonGate(int lifetime) {
+        return DragonGateOpening.open(level, cell.relative(face.getOpposite()), face, lifetime);
     }
 
     /**
@@ -101,7 +133,32 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
         level.setBlock(cell, GooBlocks.ABILITY_BLOCK.get().defaultBlockState()
                 .setValue(AbilityBlock.WATERLOGGED, waterlogged), Block.UPDATE_ALL);
         if (level.getBlockEntity(cell) instanceof AbilityBlockEntity be) {
-            be.stand(gooType, face, abilityId, steps);
+            be.stand(gooType, face, abilityId, steps, size);
         }
+    }
+
+    /**
+     * Grows from the block the blob struck: the struck block's network
+     * spreads, and a block on no network grows nothing
+     * (decision colonize-blob-grows-the-network).
+     */
+    @Override
+    public boolean colonize(int radius) {
+        BlockPos struck = cell.relative(face.getOpposite());
+        BlockPos landedOn = level.getBlockState(cell).isAir() ? struck : cell;
+        Optional<ShroomNetwork> network = ShroomNetwork.of(level.getBlockState(landedOn));
+        network.ifPresent(grows -> grows.spread(level, struck, radius));
+        return network.isPresent();
+    }
+
+    /**
+     * Ticks the block the blob landed on: the struck block where the blob
+     * landed beside it, the landing cell's own block where the blob landed
+     * in place (decision zap-ticks-the-device-and-stuns).
+     */
+    @Override
+    public void powerPulse() {
+        BlockPos landedOn = level.getBlockState(cell).isAir() ? cell.relative(face.getOpposite()) : cell;
+        ZapDevice.pulse(level, landedOn, cell);
     }
 }

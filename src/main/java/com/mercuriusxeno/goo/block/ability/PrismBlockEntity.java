@@ -3,9 +3,13 @@ package com.mercuriusxeno.goo.block.ability;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.PrismCombos;
+import com.mercuriusxeno.goo.ability.nether.HiveSwarm;
+import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
+import com.mercuriusxeno.goo.ability.oculus.OculusRegistry;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.pulse.RedstoneBeat;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooSyncedBlockEntity;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
@@ -38,12 +42,31 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     private static final String TAG_COMBO = "Combo";
     private static final String TAG_GOO_TYPE = "goo_type";
     private static final String TAG_RUNNING = "ComboRunning";
+    private static final String TAG_COMBO_SINCE = "ComboSince";
+    private static final String TAG_PREVIOUS_EDGE = "BeatPreviousEdge";
+    private static final String TAG_LAST_EDGE = "BeatLastEdge";
+    private static final String TAG_HEARD = "BeatHeard";
 
     private final MarkerProgramState programState = new MarkerProgramState();
     private ResourceKey<GooTypeDefinition> gooType = GooTypes.CRYSTAL;
     private String combo = NO_COMBO;
+    /** The game time the combo took, which its transformation plays from. */
+    private long comboSince;
     /** The combo's program while it runs; null once it ends or before any combo. */
     private @Nullable ProgramBehavior behavior;
+    /** The redstone beat the prism has heard (decision metronome-prism-pulses-at-the-learned-rate). */
+    private RedstoneBeat beat = RedstoneBeat.SILENT;
+    /**
+     * Whether the prism's combo is a relay, set by the relay step's first tick
+     * after the prism loads (decision relay-prism-carries-the-signal-through-air).
+     */
+    private boolean relaying;
+    /**
+     * Whether a combo that was running when the prism saved waits to rebuild
+     * its program: a chunk loads the prism before it has a level, when no
+     * ability can be read, so the program comes back on its first server tick.
+     */
+    private boolean resumesCombo;
 
     /**
      * Creates the prism's block entity.
@@ -65,11 +88,30 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
      * @param prism the prism's block entity
      */
     public static void serverTick(Level level, BlockPos pos, BlockState state, PrismBlockEntity prism) {
+        if (prism.resumesCombo) {
+            prism.resumesCombo = false;
+            prism.behavior = prism.comboProgram();
+        }
         if (prism.behavior == null) {
             return;
         }
         prism.behavior.serverTick((ServerLevel) level, pos, prism);
         prism.settle();
+    }
+
+    /**
+     * Client tick: a hive prism keeps its swarm around it
+     * (decision hive-prism-pillar-eats-the-living).
+     *
+     * @param level the current level
+     * @param pos   the prism's position
+     * @param state the prism's block state
+     * @param prism the prism's block entity
+     */
+    public static void clientTick(Level level, BlockPos pos, BlockState state, PrismBlockEntity prism) {
+        if (HiveSwarm.COMBO.equals(prism.combo)) {
+            HiveSwarm.tick(level, pos);
+        }
     }
 
     /**
@@ -88,6 +130,8 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         }
         gooType = type;
         combo = comboId;
+        comboSince = server.getGameTime();
+        listOculus();
         behavior = ProgramBehavior.forHost(steps, HostKind.MARKER);
         behavior.onSplat(server, worldPosition, this);
         settle();
@@ -106,6 +150,41 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     }
 
     /**
+     * Reads the prism's redstone input as a neighbor changes, moving its beat
+     * on when a signal starts.
+     *
+     * @param powered whether a signal reaches the prism now
+     * @param now     the game time
+     */
+    public void hearSignal(boolean powered, long now) {
+        RedstoneBeat after = beat.hear(powered, now);
+        if (after != beat) {
+            beat = after;
+            // metronome-prism-pulses-at-the-learned-rate: the client glows while a signal reaches the prism
+            BlockEntitySync.markDirtyAndSync(this);
+        }
+    }
+
+    /** Marks the prism as a relay, so the other relays find it. */
+    public void markRelaying() {
+        relaying = true;
+    }
+
+    /**
+     * @return true when the prism carries signals as a relay
+     */
+    public boolean relays() {
+        return relaying && behavior != null;
+    }
+
+    /**
+     * @return the redstone beat the prism has heard
+     */
+    public RedstoneBeat beat() {
+        return beat;
+    }
+
+    /**
      * @return true when the prism holds a combo
      */
     public boolean hasCombo() {
@@ -117,6 +196,13 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
      */
     public String getCombo() {
         return combo;
+    }
+
+    /**
+     * @return the game time the prism's combo took
+     */
+    public long comboSince() {
+        return comboSince;
     }
 
     /**
@@ -147,16 +233,66 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     }
 
     @Override
+    public void onLoad() {
+        super.onLoad();
+        listOculus();
+    }
+
+    @Override
+    public void setRemoved() {
+        super.setRemoved();
+        unlistOculus();
+    }
+
+    @Override
+    public void onChunkUnloaded() {
+        super.onChunkUnloaded();
+        unlistOculus();
+    }
+
+    /**
+     * Keeps the level's list of oculi in step with this prism: listed while
+     * it holds the oculus combo, so Blink finds it from any distance.
+     * decision oculus-prism-becomes-a-hovering-eye
+     */
+    private void listOculus() {
+        if (level == null) {
+            return;
+        }
+        if (OculusNodes.OCULUS.equals(combo)) {
+            OculusRegistry.add(level, worldPosition);
+        } else {
+            OculusRegistry.remove(level, worldPosition);
+        }
+    }
+
+    /**
+     * Takes this prism off the level's list of oculi as it goes.
+     */
+    private void unlistOculus() {
+        if (level != null) {
+            OculusRegistry.remove(level, worldPosition);
+        }
+    }
+
+    @Override
     protected void loadAdditional(@NonNull ValueInput input) {
         super.loadAdditional(input);
         ResourceKey<GooTypeDefinition> loaded = GooTypes.byId(input.getStringOr(TAG_GOO_TYPE, GooTypes.id(gooType)));
         gooType = loaded != null ? loaded : GooTypes.CRYSTAL;
         combo = input.getStringOr(TAG_COMBO, NO_COMBO);
+        comboSince = input.getLongOr(TAG_COMBO_SINCE, 0L);
+        listOculus();
         programState.load(input);
-        behavior = input.getBooleanOr(TAG_RUNNING, false) ? comboProgram() : null;
+        beat = new RedstoneBeat(input.getLongOr(TAG_PREVIOUS_EDGE, RedstoneBeat.NEVER),
+                input.getLongOr(TAG_LAST_EDGE, RedstoneBeat.NEVER), input.getBooleanOr(TAG_HEARD, false));
+        boolean running = input.getBooleanOr(TAG_RUNNING, false);
+        behavior = running ? comboProgram() : null;
         if (behavior != null) {
             behavior.loadAdditional(input);
         }
+        // a chunk reads the prism before its level is set: the running combo comes back on the first server tick
+        resumesCombo = running && behavior == null && level == null;
     }
 
     /**
@@ -179,8 +315,12 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         super.saveAdditional(output);
         output.putString(TAG_GOO_TYPE, GooTypes.id(gooType));
         output.putString(TAG_COMBO, combo);
+        output.putLong(TAG_COMBO_SINCE, comboSince);
         programState.save(output);
-        output.putBoolean(TAG_RUNNING, behavior != null);
+        output.putLong(TAG_PREVIOUS_EDGE, beat.previousEdge());
+        output.putLong(TAG_LAST_EDGE, beat.lastEdge());
+        output.putBoolean(TAG_HEARD, beat.heard());
+        output.putBoolean(TAG_RUNNING, behavior != null || resumesCombo);
         if (behavior != null) {
             behavior.saveAdditional(output);
         }

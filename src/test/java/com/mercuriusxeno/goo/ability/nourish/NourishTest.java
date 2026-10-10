@@ -51,6 +51,21 @@ class NourishTest {
             assertEquals(NOW + INTERVAL, stacked.nextAt());
             assertEquals(NOW + 2L * DURATION, stacked.expiresAt());
         }
+
+        @Test
+        void aHeldStartNeverExpiresAndFeedsEveryInterval() {
+            // self-effects-trickle-until-ended
+            Nourish held = Nourish.NONE.hold(INTERVAL, NOW);
+            assertEquals(Nourish.NEVER_EXPIRES, held.expiresAt());
+            assertEquals(NOW + INTERVAL, held.nextAt());
+            assertEquals(10, pointsThrough(held, NOW + 10L * INTERVAL));
+        }
+
+        @Test
+        void aBrewOverAHeldNourishmentKeepsItHeld() {
+            Nourish held = Nourish.NONE.hold(INTERVAL, NOW);
+            assertEquals(Nourish.NEVER_EXPIRES, held.apply(INTERVAL, DURATION, NOW + 1).expiresAt());
+        }
     }
 
     @Nested

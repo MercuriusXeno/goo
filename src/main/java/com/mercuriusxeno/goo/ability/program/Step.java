@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -90,6 +91,28 @@ public interface Step {
      */
     default boolean standsAgainstBreaking() {
         return false;
+    }
+
+    /**
+     * Answers whether the step can act on its host now; a self ability runs
+     * and drains only when every step admits, so Fungal Shift aimed at no
+     * fungus costs nothing (decision fungal-shift-blinks-to-the-aimed-fungus).
+     *
+     * @param context the host and variable scope the step would run in
+     * @return true when the step can act
+     */
+    default boolean admits(StepContext context) {
+        return true;
+    }
+
+    /**
+     * The sound a self ability plays when this step refuses it; Fuse with
+     * no pair to fuse fizzles (decision fuse-two-books-for-hex-goo).
+     *
+     * @return the refusal sound, or empty for a silent refusal
+     */
+    default Optional<SoundCue> refusal() {
+        return Optional.empty();
     }
 
     /**

@@ -1,10 +1,21 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.banish.Banished;
+import com.mercuriusxeno.goo.ability.banish.Teleportitis;
+import com.mercuriusxeno.goo.ability.frost.Frozen;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
+import com.mercuriusxeno.goo.ability.held.HeldEffects;
+import com.mercuriusxeno.goo.ability.hex.Charmed;
+import com.mercuriusxeno.goo.ability.hex.Lifetap;
+import com.mercuriusxeno.goo.ability.nether.Undead;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.petrify.Petrification;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
+import com.mercuriusxeno.goo.ability.program.Sight;
+import com.mercuriusxeno.goo.ability.pulse.Stunned;
+import com.mercuriusxeno.goo.ability.root.Rooted;
+import com.mercuriusxeno.goo.ability.spray.Spored;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
 import com.mojang.serialization.Codec;
@@ -69,6 +80,19 @@ public final class GooAttachments {
                             .build());
 
     /**
+     * The self + brew effects a player holds on the glove, each paying its
+     * upkeep every tick until ended, saved with the player while any stands
+     * and synced to the owning client.
+     * self-effects-trickle-until-ended
+     */
+    public static final Supplier<AttachmentType<HeldEffects>> HELD_EFFECTS =
+            ATTACHMENT_TYPES.register("held_effects",
+                    () -> AttachmentType.builder(() -> HeldEffects.NONE)
+                            .serialize(HeldEffects.CODEC, held -> !held.isEmpty())
+                            .sync(GooAttachments::syncsToOwner, HeldEffects.STREAM_CODEC)
+                            .build());
+
+    /**
      * The items a player knows, saved with the player and kept through death
      * (decision knowledge-capability-remembers-destroyed-items).
      */
@@ -97,6 +121,46 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> 0L).serialize(Codec.LONG.fieldOf("until")).build());
 
     /**
+     * The spores a mob carries, bursting another spray from its corpse when
+     * it dies before they fade, saved with the mob (decision
+     * mycosis-spore-stream-buds-and-poisons).
+     */
+    public static final Supplier<AttachmentType<Spored>> SPORED =
+            ATTACHMENT_TYPES.register("spored",
+                    () -> AttachmentType.builder(() -> Spored.NONE).serialize(Spored.CODEC).build());
+
+    /**
+     * Whether a player counts as undead and what the sun deals it, laid by
+     * Undead and cleared when its held effect ends
+     * (decision undead-nether-hearts-burn-in-sunlight).
+     */
+    public static final Supplier<AttachmentType<Undead>> UNDEAD =
+            ATTACHMENT_TYPES.register("undead",
+                    () -> AttachmentType.builder(() -> Undead.NONE)
+                            .serialize(Undead.CODEC, Undead::stands)
+                            .build());
+
+    /**
+     * A Zap stun's wake, saved with the mob so the stun ends after an unload
+     * (decision zap-ticks-the-device-and-stuns).
+     */
+    public static final Supplier<AttachmentType<Stunned>> STUNNED =
+            ATTACHMENT_TYPES.register("stunned",
+                    () -> AttachmentType.builder(() -> Stunned.NONE).serialize(Stunned.CODEC).build());
+
+    /**
+     * The fungal sight a player holds, lengthening Fungal Shift and synced to
+     * the owning client, which outlines fungus through walls while it stands
+     * (decision sight-lengthens-shift-and-outlines-fungus).
+     */
+    public static final Supplier<AttachmentType<Sight>> SIGHT =
+            ATTACHMENT_TYPES.register("sight",
+                    () -> AttachmentType.builder(() -> Sight.NONE)
+                            .serialize(Sight.CODEC)
+                            .sync(GooAttachments::syncsToOwner, Sight.STREAM_CODEC)
+                            .build());
+
+    /**
      * A mob's petrify gauge and whether it stands a statue, saved with the mob
      * and synced to every client drawing it, which freezes a statue's pose
      * (decision petrify-stone-encasement-and-calcify-map).
@@ -106,6 +170,76 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> Petrification.NONE)
                             .serialize(Petrification.CODEC, Petrification::started)
                             .sync(GooAttachments::syncsToWatcher, Petrification.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The teleportitis curse Banish leaves on a mob, saved with the mob while
+     * it stands.
+     * banish-curses-with-ender-shimmer
+     */
+    public static final Supplier<AttachmentType<Banished>> BANISHED =
+            ATTACHMENT_TYPES.register("banished",
+                    () -> AttachmentType.builder(() -> Banished.NONE)
+                            .serialize(Banished.CODEC, Banished::stands)
+                            .build());
+
+    /**
+     * The teleportitis a player holds, saved with the player.
+     * teleportitis-blinks-along-the-cursor-on-hit
+     */
+    public static final Supplier<AttachmentType<Teleportitis>> TELEPORTITIS =
+            ATTACHMENT_TYPES.register("teleportitis",
+                    () -> AttachmentType.builder(() -> Teleportitis.NONE)
+                            .serialize(Teleportitis.CODEC)
+                            .build());
+
+    /**
+     * The vines rooting a mob, saved with it while they stand and synced to
+     * every client drawing it, which draws the tangle over its model and the
+     * tendrils down to the root.
+     * vines-unpack-root-and-thorn
+     */
+    public static final Supplier<AttachmentType<Rooted>> ROOTED =
+            ATTACHMENT_TYPES.register("rooted",
+                    () -> AttachmentType.builder(() -> Rooted.NONE)
+                            .serialize(Rooted.CODEC, Rooted::stands)
+                            .sync(GooAttachments::syncsToWatcher, Rooted.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The charm a mob holds, the player it fights for and when it fades,
+     * saved with the mob and synced to every client drawing it, which floats
+     * the charmed heart over its head.
+     * charm-glisten-and-icon-over-the-head
+     */
+    public static final Supplier<AttachmentType<Charmed>> CHARMED =
+            ATTACHMENT_TYPES.register("charmed",
+                    () -> AttachmentType.builder(() -> Charmed.NONE)
+                            .serialize(Charmed.CODEC)
+                            .sync(GooAttachments::syncsToWatcher, Charmed.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The lifetap a player holds, its leech fraction and when it fades,
+     * saved with the player while it stands.
+     * lifetap-trades-regen-for-leech
+     */
+    public static final Supplier<AttachmentType<Lifetap>> LIFETAP =
+            ATTACHMENT_TYPES.register("lifetap",
+                    () -> AttachmentType.builder(() -> Lifetap.NONE)
+                            .serialize(Lifetap.CODEC, lifetap -> lifetap.expiresAt() > 0L)
+                            .build());
+
+    /**
+     * A mob's frozen gauge, saved with the mob and synced to every client
+     * drawing it, which spreads frost over it and holds its pose at full
+     * (decision frozen-gauge-per-mob-encases-when-full).
+     */
+    public static final Supplier<AttachmentType<Frozen>> FROZEN =
+            ATTACHMENT_TYPES.register("frozen",
+                    () -> AttachmentType.builder(() -> Frozen.NONE)
+                            .serialize(Frozen.CODEC, Frozen::started)
+                            .sync(GooAttachments::syncsToWatcher, Frozen.STREAM_CODEC)
                             .build());
 
     private GooAttachments() {

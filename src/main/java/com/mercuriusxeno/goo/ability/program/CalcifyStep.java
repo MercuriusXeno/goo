@@ -86,7 +86,7 @@ public record CalcifyStep(Identifier map, int ticks) implements Step {
      * @param pos  the block
      * @return true where a neighbor is air
      */
-    private static boolean facesAir(ChannelHost host, BlockPos pos) {
+    static boolean facesAir(ChannelHost host, BlockPos pos) {
         for (Direction side : Direction.values()) {
             if (host.airAt(pos.relative(side))) {
                 return true;

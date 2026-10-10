@@ -50,10 +50,10 @@ public enum HostCapability {
      */
     PHASED(PhasedHost.class),
     /**
-     * A goo total the host fills by consuming the valued blocks around its
-     * anchor and drops as goo.
+     * A hoard of stacks the host fills from the blocks and items around its
+     * anchor and leaves as a compression sphere.
      */
-    CONSUMED_GOO(ConsumedGooHost.class),
+    HOARD(HoardHost.class),
     /**
      * A landing where the ability can stand its own block, which runs the
      * steps handed to it (decision lingering-abilities-place-their-own-thing).
@@ -75,6 +75,16 @@ public enum HostCapability {
      */
     SIPHON(SiphonHost.class),
     /**
+     * A landing where a blob can grow a shroom network
+     * (decision colonize-blob-grows-the-network).
+     */
+    COLONIZE(ColonizeHost.class),
+    /**
+     * A one-tick host anchored at a point, which can run steps on each open
+     * floor around it (decision colonize-blob-grows-the-network).
+     */
+    FLOOR_SCAN(FloorScanHost.class),
+    /**
      * A held channel's aim this tick and the player's hand to break blocks
      * with (decision flatten-disc-cursor-breaks-above-the-plane).
      */
@@ -88,7 +98,67 @@ public enum HostCapability {
      * A tap drip's landing: the drips its block has taken, and dripstone to
      * grow down from it (decision petrify-drip-calcifies-and-grows-dripstone).
      */
-    DRIP(DripHost.class);
+    DRIP(DripHost.class),
+    /**
+     * A spot a mob from the host's chunk can be pulled to (decision
+     * convoke-blob-throbs-until-a-mob-arrives).
+     */
+    CONVOKE(ConvokeHost.class),
+    /**
+     * A struck surface a Dragon Gate can open over (decision
+     * dragon-gate-banishes-blocks-and-opens-a-portal).
+     */
+    DRAGON_GATE(GateHost.class),
+    /**
+     * The world around a lasting host to green tick after tick (decision
+     * verdant-prism-greens-blocks-slowly).
+     */
+    GREENING(GreeningHost.class),
+    /**
+     * A landing that can tick the redstone device it landed on (decision
+     * zap-ticks-the-device-and-stuns).
+     */
+    POWER_PULSE(PowerPulseHost.class),
+    /**
+     * A host that can toggle the redstone device where it acts, as a hand
+     * would (decision pulser-drip-toggles-the-block-below).
+     */
+    TOGGLE_DEVICE(DeviceToggleHost.class),
+    /**
+     * A host whose own block can give redstone power to its neighbors
+     * (decision thumper-blob-pulses-periodically-then-fades).
+     */
+    EMIT_POWER(PowerEmitHost.class),
+    /**
+     * A host that hears the redstone signals reaching its block and keeps
+     * their beat (decision metronome-prism-pulses-at-the-learned-rate).
+     */
+    BEAT(BeatHost.class),
+    /**
+     * A host that carries redstone signals between relays linked through air
+     * (decision relay-prism-carries-the-signal-through-air).
+     */
+    RELAY(RelayHost.class),
+    /**
+     * A host that can lengthen the timed effects standing on it (decision
+     * extender-multiplies-the-next-self-duration).
+     */
+    EXTEND_EFFECTS(EffectExtendHost.class),
+    /**
+     * A cell a conjured mob stands in, and the point the goo morphs into it
+     * from (decision spawn-goo-morphs-into-the-mob-it-births).
+     */
+    SPAWN_MOB(MobSpawnHost.class),
+    /**
+     * An agitator's countdown kept across ticks (decision
+     * agitator-prism-quickens-until-a-spawn).
+     */
+    AGITATE(AgitateHost.class),
+    /**
+     * The level and the point frost spreads out of (decisions
+     * nova-ring-grows-with-the-hold, nova-drip-pulses-a-short-lasting-freeze).
+     */
+    FROST(FrostHost.class);
 
     private final Class<? extends StepHost> hostType;
 

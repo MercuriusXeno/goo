@@ -128,8 +128,9 @@ final class AimTargets {
     }
 
     /**
-     * Resolves the aim the hint asks for: an entity favors the aim assist and
-     * falls back to the block so the aim never reads NONE, a block favors the
+     * Resolves the aim the hint asks for: an entity takes the mob the aim
+     * assist finds and nothing where none is near, so a mob ability is never
+     * thrown at the world, a block favors the
      * block face, a point locks onto a mob near the ray and aims the ray's
      * point where none is near, and NONE aims nothing.
      * target-kind-configured-per-ability
@@ -143,14 +144,14 @@ final class AimTargets {
             case NONE -> AimState.Resolution.NOTHING;
             case BLOCK -> new AimState.Resolution(sources.blockTarget(), null);
             case POINT -> lockOnOr(sources, sources::pointTarget);
-            case ENTITY -> lockOnOr(sources, sources::blockTarget);
+            case ENTITY -> lockOnOr(sources, () -> TargetResult.NONE);
         };
     }
 
     /**
      * Locks onto the mob the aim assist finds near the ray, aimed at the point
      * the ray meets it, or falls back where no mob is near: a mob ability to
-     * the block, a free aim to the ray's point, so free aim keeps its mob lock-on.
+     * nothing, a free aim to the ray's point, so free aim keeps its mob lock-on.
      * target-kind-configured-per-ability
      * aim-point-follows-the-cursor
      *

@@ -3,10 +3,11 @@
   "displayName": "goo.ability.vital.nourish",
   "badge": "brew",
   "order": 30,
-  "cost": 1000,
+  "upkeep": 1,
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "nourish", "interval": 80, "duration": 400 }
+    { "type": "nourish", "interval": 80 },
+    { "type": "sound", "id": "minecraft:block.amethyst_block.chime", "at": "target", "source": "players", "volume": 0.8, "pitch": 1.3 }
   ],
   "tags": ["self"]
 }

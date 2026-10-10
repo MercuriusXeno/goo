@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.hud;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
@@ -38,6 +39,23 @@ class HeartOverlayHudTest {
     void stoneskinLaysStoneOverAMissingHeart() {
         assertEquals(List.of("goo:hud/heart/stone_full"), sprites(HeartKind.STONESKIN, 2, 0));
         assertEquals(List.of("goo:hud/heart/stone_half"), sprites(HeartKind.STONESKIN, 1, 0));
+    }
+
+    /** Vanilla's half heart covers sprite columns 0 to 4, tip included, so the right half starts at column 5. */
+    @Test
+    void heartHalvesSplitWhereVanillasHalfHeartEnds() {
+        assertEquals(0, HeartOverlayHud.halfStart(0));
+        assertEquals(5, HeartOverlayHud.halfEnd(0));
+        assertEquals(5, HeartOverlayHud.halfStart(1));
+        assertEquals(9, HeartOverlayHud.halfEnd(1));
+    }
+
+    @Test
+    void stoneBesideAHalfHeartDrawsInTheRightHalf() {
+        assertTrue(HeartOverlayHud.stoneBesideHalfHeart(HeartKind.STONESKIN, 1, 1));
+        assertFalse(HeartOverlayHud.stoneBesideHalfHeart(HeartKind.STONESKIN, 0, 1));
+        assertFalse(HeartOverlayHud.stoneBesideHalfHeart(HeartKind.STONESKIN, 2, 0));
+        assertFalse(HeartOverlayHud.stoneBesideHalfHeart(HeartKind.BARKSKIN, 1, 1));
     }
 
     @Test
@@ -84,6 +102,19 @@ class HeartOverlayHudTest {
     @Test
     void aReserveHeartSitsRaisedAboveTheHeartInFront() {
         assertEquals(198, HeartOverlayHud.reserveY(200));
+    }
+
+    // iceborn-frozen-hearts-thaw-on-fire: frozen hearts lie over present hearts only
+    @Test
+    void icebornLaysFrostOverPresentHalvesOnly() {
+        assertEquals(List.of("goo:hud/heart/ice_full"), sprites(HeartKind.ICEBORN, 2, 2));
+        assertEquals(List.of("goo:hud/heart/ice_half"), sprites(HeartKind.ICEBORN, 2, 1));
+    }
+
+    @Test
+    void icebornsCrawlPaintsFrost() {
+        assertEquals("goo:hud/heart/ice_full", HeartOverlayHud.crawlSprite(HeartKind.ICEBORN).toString());
+        assertEquals("goo:hud/heart/stone_full", HeartOverlayHud.crawlSprite(HeartKind.STONESKIN).toString());
     }
 
     private static List<String> sprites(HeartKind kind, int shieldHalves, int realHalves) {

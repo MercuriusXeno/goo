@@ -2,10 +2,13 @@ package com.mercuriusxeno.goo.client.radial;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.IndicatorShowing;
+import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.OfferedAbility;
 import net.minecraft.world.item.ItemStack;
@@ -36,6 +39,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -156,16 +160,22 @@ class RadialWheelRendererTest {
                 Map.entry("aeon_time_stop", "Stasis"), Map.entry("blaze_ignite", "Scorch"),
                 Map.entry("crystal_cloud", "Razor"), Map.entry("crystal_flechettes", "Shards"),
                 Map.entry("crystal_prism", "Prism"),
-                Map.entry("ender_teleport", "Warp"),
-                Map.entry("frost_snap", "Snap"), Map.entry("glow_crystal", "Bulb"),
-                Map.entry("glow_laser", "Beam"), Map.entry("hex_charm", "Charm"),
-                Map.entry("leaf_entangle", "Vines"), Map.entry("leaf_barkskin", "Barkskin"), Map.entry("metal_spikes", "Urchin"),
+                Map.entry("ender_banish", "Banish"), Map.entry("ender_teleportitis", "Teleportitis"), Map.entry("ender_convoke", "Convoke"), Map.entry("ender_dragon_gate", "End"), Map.entry("ender_oculus", "Oculus"),
+                Map.entry("frost_snap", "Snap"), Map.entry("frost_nova", "Nova"), Map.entry("frost_cold", "Cold"), Map.entry("frost_orb", "Orb"), Map.entry("frost_glacial", "Glacial"), Map.entry("frost_iceborn", "Iceborn"), Map.entry("glow_crystal", "Bulb"),
+                Map.entry("glow_laser", "Beam"), Map.entry("hex_charm", "Charm"), Map.entry("hex_enchant", "Enchant"), Map.entry("hex_fuse", "Fuse"), Map.entry("hex_spawn", "Spawn"), Map.entry("hex_agitator", "Agitator"), Map.entry("hex_lifetap", "Lifetap"), Map.entry("hex_drain", "Drain"),
+                Map.entry("leaf_vines", "Vines"), Map.entry("leaf_bloom", "Bloom"), Map.entry("leaf_growth", "Growth"), Map.entry("leaf_reap", "Reap"), Map.entry("leaf_bio", "Bio"), Map.entry("leaf_verdant", "Verdant"),
+                Map.entry("leaf_barkskin", "Barkskin"), Map.entry("metal_spikes", "Urchin"),
                 Map.entry("metal_javelin", "Dart"), Map.entry("nether_black_hole", "Anti"),
-                Map.entry("nether_wither", "Wither"), Map.entry("pulse_short_circuit", "Zap"),
+                Map.entry("nether_decay", "Decay"), Map.entry("nether_hive", "Hive"), Map.entry("nether_undead", "Undead"),
+                Map.entry("pulse_zap", "Zap"), Map.entry("pulse_signal", "Signal"),
+                Map.entry("pulse_pulser", "Pulser"), Map.entry("pulse_thumper", "Thumper"),
+                Map.entry("pulse_metronome", "Metronome"), Map.entry("pulse_relay", "Relay"),
+                Map.entry("pulse_extender", "Extender"),
                 Map.entry("rock_bore", "Bore"), Map.entry("rock_crush", "Crush"), Map.entry("rock_flatten", "Flatten"),
                 Map.entry("rock_petrify", "Petrify"),
                 Map.entry("rock_stoneskin", "Stoneskin"),
-                Map.entry("shroom_debuff", "Spore"),
+                Map.entry("shroom_mycosis", "Mycosis"), Map.entry("shroom_colonize", "Spore"),
+                Map.entry("shroom_fungal_shift", "Fungal Shift"), Map.entry("shroom_sight", "Sight"),
                 Map.entry("typhoon_levitate", "Float"), Map.entry("unstable_timed_bomb", "Countdown"),
                 Map.entry("unstable_unmake", "Unmake"), Map.entry("unstable_charged", "Charged"),
                 Map.entry("unstable_lurker", "Lurker"),
@@ -244,6 +254,17 @@ class RadialWheelRendererTest {
         @Test
         void wedgeCostingExactlyTheHoldingsReadsBright() {
             assertFalse(RadialWheelRenderer.fanSlot(costing(HOLDINGS), HOLDINGS).dimmed());
+        }
+
+        /** A held effect reads its upkeep a second, dimmed short of a second's worth (decision self-effects-trickle-until-ended). */
+        @Test
+        void heldWedgeReadsItsUpkeepPerSecond() {
+            ClientAbility held = new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "held"), "ability.goo.held",
+                    "", 0, List.of(), List.of(), 0, Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW, List.of(),
+                    AbilityArea.NONE, IndicatorShowing.HELD, List.of(), 1);
+            assertEquals("20/s", RadialWheelRenderer.fanSlot(held, HOLDINGS).costLabel());
+            assertFalse(RadialWheelRenderer.fanSlot(held, 20).dimmed());
+            assertTrue(RadialWheelRenderer.fanSlot(held, 19).dimmed());
         }
     }
 
@@ -977,6 +998,38 @@ class RadialWheelRendererTest {
         void emptyIconFallsBackToTheConventionPath() {
             assertEquals(Identifier.fromNamespaceAndPath(Goo.MODID, TEXTURE_PATH),
                     RadialWheelRenderer.resolveAbilityIcon(abilityWithIcon("")));
+        }
+    }
+
+    /** A type petal holding a held ability pulses while the type is not expanded (decision wheel-pulses-the-active-effect). */
+    @Nested
+    class TypePetalPulse {
+
+        private static final Identifier BLAZE_KINDLE = Identifier.fromNamespaceAndPath(Goo.MODID, "blaze_kindle");
+        private static final int BLAZE = 0;
+        private static final float QUARTER_PERIOD = PetalPulse.PERIOD_TICKS / 4f;
+
+        private RadialWheelRenderer.Frame frame(Set<Identifier> active) {
+            List<ResourceKey<GooTypeDefinition>> types = List.of(GooTypes.BLAZE, GooTypes.LEAF);
+            List<List<OfferedAbility>> abilities = List.of(
+                    List.of(new OfferedAbility(new ClientAbility(BLAZE_KINDLE, "ability.goo.kindle", "", 0, List.of(),
+                            List.of(), 0, Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW, List.of()), List.of())),
+                    List.of());
+            return new RadialWheelRenderer.Frame(new RadialWheel(types.size(), type -> 1), types, abilities,
+                    Map.of(GooTypes.BLAZE, 1000, GooTypes.LEAF, 1000), 0, 0, 100, null, 0f, active, QUARTER_PERIOD);
+        }
+
+        @Test
+        void anUnexpandedTypeHoldingAnActiveAbilityPulses() {
+            int pulsing = RadialWheelRenderer.typePetalTint(frame(Set.of(BLAZE_KINDLE)), BLAZE);
+            assertEquals(RadialWheelRenderer.HOVER_ALPHA, ARGB.alpha(pulsing));
+            assertTrue(ARGB.red(pulsing) > ARGB.red(RadialWheelRenderer.computeOverlayTint(false, false)));
+        }
+
+        @Test
+        void aTypeHoldingNothingRests() {
+            assertEquals(RadialWheelRenderer.computeOverlayTint(false, false),
+                    RadialWheelRenderer.typePetalTint(frame(Set.of()), BLAZE));
         }
     }
 

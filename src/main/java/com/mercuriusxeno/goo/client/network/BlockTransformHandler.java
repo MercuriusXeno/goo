@@ -43,7 +43,7 @@ public final class BlockTransformHandler {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level != null) {
                 BlockTransforms.CLIENT.expose(payload.pos(), Block.stateById(payload.toward()), payload.share(),
-                        mc.level.getGameTime());
+                        mc.level.getGameTime(), payload.tint());
             }
         });
     }

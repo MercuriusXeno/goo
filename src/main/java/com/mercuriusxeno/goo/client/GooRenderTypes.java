@@ -36,6 +36,8 @@ public final class GooRenderTypes {
     /** Name prefix of a goo render type. */
     private static final String TYPE_NAME_PREFIX = "goo_";
     /** Name suffix of a burnout pipeline's twin that draws through blocks. */
+    /** Fragments fainter than this are cut, as vanilla's translucent entity cuts them. */
+    private static final float ALPHA_CUTOUT = 0.1f;
     private static final String THROUGH_BLOCKS_SUFFIX = "_through_blocks";
 
     /**
@@ -59,6 +61,77 @@ public final class GooRenderTypes {
                     .setOutputTarget(OutputTarget.ITEM_ENTITY_TARGET)
                     .createRenderSetup()
     );
+
+    /**
+     * Sight's fungus x-ray (decision sight-lengthens-shift-and-outlines-fungus):
+     * a block's own baked quads through vanilla's translucent entity shader,
+     * passing every depth test and writing no depth, so fungus shows through walls.
+     */
+    public static final RenderPipeline FUNGUS_XRAY = RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "fungus_xray"))
+            .withShaderDefine("ALPHA_CUTOUT", ALPHA_CUTOUT)
+            .withShaderDefine("PER_FACE_LIGHTING")
+            .withSampler("Sampler1")
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+            .withCull(false)
+            .build();
+
+    /**
+     * Sight's fungus glow (decision sight-lengthens-shift-and-outlines-fungus):
+     * the x-ray's quads blended additively, so a swollen copy of each fungus
+     * glows like a lamp behind the wall.
+     */
+    public static final RenderPipeline FUNGUS_GLOW = RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "fungus_glow"))
+            .withShaderDefine("ALPHA_CUTOUT", ALPHA_CUTOUT)
+            .withSampler("Sampler1")
+            .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+            .withCull(false)
+            .build();
+
+    /** Per-atlas memoized render types on the fungus glow pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> FUNGUS_GLOW_FACTORY =
+            net.minecraft.util.Util.memoize(atlas -> RenderType.create(
+                    "goo_fungus_glow",
+                    RenderSetup.builder(FUNGUS_GLOW)
+                            .withTexture("Sampler0", atlas)
+                            .useLightmap()
+                            .useOverlay()
+                            .createRenderSetup()
+            ));
+
+    /** Per-atlas memoized render types on the fungus x-ray pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> FUNGUS_XRAY_FACTORY =
+            net.minecraft.util.Util.memoize(atlas -> RenderType.create(
+                    "goo_fungus_xray",
+                    RenderSetup.builder(FUNGUS_XRAY)
+                            .withTexture("Sampler0", atlas)
+                            .useLightmap()
+                            .useOverlay()
+                            .sortOnUpload()
+                            .createRenderSetup()
+            ));
+
+    /**
+     * Shroom's held spore shell (decision held-visual-ghosts-the-landing-in-two-passes):
+     * plain colored quads through vanilla's position-color shader, translucent,
+     * depth tested with depth write off, both faces drawn; its twin passes every
+     * depth test so the shell shows through blocks.
+     */
+    public static final RenderPipeline SPORE_SHELL = sporeShellPipeline("spore_shell",
+            DepthStencilState.DEFAULT.depthTest());
+
+    /** The spore shell's twin that ignores depth. */
+    public static final RenderPipeline SPORE_SHELL_THROUGH_BLOCKS = sporeShellPipeline(
+            "spore_shell" + THROUGH_BLOCKS_SUFFIX, CompareOp.ALWAYS_PASS);
+
+    /** RenderType for shroom's held spore shell over blocks. */
+    public static final RenderType SPORE_SHELL_TYPE = burnoutType(SPORE_SHELL);
+
+    /** RenderType for shroom's held spore shell through blocks. */
+    public static final RenderType SPORE_SHELL_THROUGH_BLOCKS_TYPE = burnoutType(SPORE_SHELL_THROUGH_BLOCKS);
 
     /**
      * Nether black-hole pipeline: POSITION_COLOR billboard quad with a custom
@@ -177,6 +250,17 @@ public final class GooRenderTypes {
     public static final RenderType ROCK_EXPLOSION_TYPE = burnoutType(ROCK_EXPLOSION);
 
     /**
+     * Rock's held ghost through blocks: the rock dust shader with no depth
+     * test, so the part of Crush's dome inside blocks shows through them.
+     * held-visual-ghosts-the-landing-in-two-passes
+     */
+    public static final RenderPipeline ROCK_EXPLOSION_THROUGH_BLOCKS = throughBlocksPipeline("rock_explosion",
+            BlendFunction.TRANSLUCENT);
+
+    /** RenderType for rock's held ghost through blocks. */
+    public static final RenderType ROCK_EXPLOSION_THROUGH_BLOCKS_TYPE = burnoutType(ROCK_EXPLOSION_THROUGH_BLOCKS);
+
+    /**
      * Blaze goo's burnout explosion pipeline: the flame bloom, additive so
      * it lights what it covers, through {@code blaze_explosion.vsh / .fsh}.
      */
@@ -193,6 +277,17 @@ public final class GooRenderTypes {
 
     /** RenderType that draws frost goo's burnout explosion. */
     public static final RenderType FROST_EXPLOSION_TYPE = burnoutType(FROST_EXPLOSION);
+
+    /**
+     * Frost's held ghost through blocks: the frost fog shader with no depth
+     * test, so the part of the Orb's landing ring inside blocks shows through
+     * them (decision orb-carries-a-swirling-nova).
+     */
+    public static final RenderPipeline FROST_EXPLOSION_THROUGH_BLOCKS = throughBlocksPipeline("frost_explosion",
+            BlendFunction.TRANSLUCENT);
+
+    /** RenderType for frost's held ghost through blocks. */
+    public static final RenderType FROST_EXPLOSION_THROUGH_BLOCKS_TYPE = burnoutType(FROST_EXPLOSION_THROUGH_BLOCKS);
 
     /**
      * Nether goo's burnout explosion pipeline: the inward rush, additive,
@@ -514,6 +609,26 @@ public final class GooRenderTypes {
             ));
 
     /**
+     * Returns Sight's fungus glow render type for the atlas the block's sprites sit on.
+     *
+     * @param atlas the texture atlas identifier
+     * @return memoized RenderType
+     */
+    public static RenderType fungusGlow(Identifier atlas) {
+        return FUNGUS_GLOW_FACTORY.apply(atlas);
+    }
+
+    /**
+     * Returns Sight's fungus x-ray render type for the atlas the block's sprites sit on.
+     *
+     * @param atlas the texture atlas identifier
+     * @return memoized RenderType
+     */
+    public static RenderType fungusXray(Identifier atlas) {
+        return FUNGUS_XRAY_FACTORY.apply(atlas);
+    }
+
+    /**
      * Returns the block transform render type for the atlas the block's sprites sit on.
      *
      * @param atlas the texture atlas identifier
@@ -606,6 +721,45 @@ public final class GooRenderTypes {
                     .createRenderSetup());
 
     /**
+     * Vines' tangle pipeline: a rooted mob's model drawn again through
+     * {@code vine_tangle.vsh / .fsh}, flush at the model's own depth, the vine
+     * texture laid over the skin coordinates in noise patches covering the
+     * share of the model the vertex alpha carries.
+     * vines-unpack-root-and-thorn
+     */
+    public static final RenderPipeline VINE_TANGLE = RenderPipeline.builder(
+                    RenderPipelines.ENTITY_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "vine_tangle"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "vine_tangle"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "vine_tangle"))
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
+            .build();
+
+    /** The vine tangle render type, sampling vanilla's vine texture. */
+    public static final RenderType VINE_TANGLE_TYPE = RenderType.create(
+            "goo_vine_tangle",
+            RenderSetup.builder(VINE_TANGLE)
+                    .withTexture("Sampler0", Identifier.withDefaultNamespace("textures/block/vine.png"))
+                    .useLightmap()
+                    .sortOnUpload()
+                    .createRenderSetup());
+
+    /**
+     * Frost's ice over a frozen mob (decision frozen-gauge-per-mob-encases-when-full):
+     * Petrify's stone pipeline sampling vanilla's packed ice, so frost spreads
+     * over the mob the way stone does, whole at a full gauge.
+     */
+    public static final RenderType FROST_ICE_TYPE = RenderType.create(
+            "goo_frost_ice",
+            RenderSetup.builder(PETRIFY_STONE)
+                    .withTexture("Sampler0", Identifier.withDefaultNamespace("textures/block/packed_ice.png"))
+                    .useLightmap()
+                    .sortOnUpload()
+                    .createRenderSetup());
+
+    /**
      * Petrify's fog pipeline (decision petrify-stone-encasement-and-calcify-map):
      * cross-sections of the cone drawn through {@code petrify_fog.vsh / .fsh},
      * undulating dust-fog waves washing forward through them.
@@ -614,6 +768,44 @@ public final class GooRenderTypes {
 
     /** The petrify fog render type. */
     public static final RenderType PETRIFY_FOG_TYPE = burnoutType(PETRIFY_FOG);
+
+    /**
+     * Growth's breeze pipeline: cross-sections of the cone drawn through
+     * {@code growth_breeze.vsh / .fsh}, glowing green wisps drifting outward
+     * with pulses running out from the glove.
+     * growth-breeze-ticks-plants
+     */
+    public static final RenderPipeline GROWTH_BREEZE = burnoutPipeline("growth_breeze", BlendFunction.LIGHTNING);
+
+    /** The growth breeze render type. */
+    public static final RenderType GROWTH_BREEZE_TYPE = burnoutType(GROWTH_BREEZE);
+
+    /**
+     * Leaf's held ghost, Bloom's pollen haze dome, drawn through
+     * {@code leaf_ghost.vsh / .fsh}.
+     * bloom-places-buds-by-biome-and-surface
+     */
+    public static final RenderPipeline LEAF_GHOST = burnoutPipeline("leaf_ghost", BlendFunction.LIGHTNING);
+
+    /** The leaf ghost render type. */
+    public static final RenderType LEAF_GHOST_TYPE = burnoutType(LEAF_GHOST);
+
+    /** Leaf's held ghost through blocks, so the haze shows where blocks stand between. */
+    public static final RenderPipeline LEAF_GHOST_THROUGH_BLOCKS = throughBlocksPipeline("leaf_ghost",
+            BlendFunction.LIGHTNING);
+
+    /**
+     * Reap's swell, a whole sphere of Growth's breeze swelling out to Reap's
+     * radius, drawn through {@code reap_swell.vsh / .fsh}.
+     * reap-breeze-harvests-and-replants
+     */
+    public static final RenderPipeline REAP_SWELL = burnoutPipeline("reap_swell", BlendFunction.LIGHTNING);
+
+    /** The reap swell render type. */
+    public static final RenderType REAP_SWELL_TYPE = burnoutType(REAP_SWELL);
+
+    /** The leaf ghost's through-blocks render type. */
+    public static final RenderType LEAF_GHOST_THROUGH_BLOCKS_TYPE = burnoutType(LEAF_GHOST_THROUGH_BLOCKS);
 
     /**
      * Bore's vortex pipeline (decision bore-vortex-with-a-worldspace-shake):
@@ -774,6 +966,24 @@ public final class GooRenderTypes {
     }
 
     /**
+     * A plain colored quad pipeline through vanilla's position-color shader,
+     * translucent with depth write off, both faces drawn.
+     *
+     * @param location  the pipeline's name
+     * @param depthTest the depth comparison its fragments pass
+     * @return the pipeline
+     */
+    private static RenderPipeline sporeShellPipeline(String location, CompareOp depthTest) {
+        return RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+                .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + location))
+                .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+                .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+                .withDepthStencilState(new DepthStencilState(depthTest, false))
+                .withCull(false)
+                .build();
+    }
+
+    /**
      * A quad pipeline over a shader pair under {@code core/<shader>}, depth write
      * off, both faces drawn.
      *
@@ -834,13 +1044,29 @@ public final class GooRenderTypes {
     }
 
     /**
+     * Registers the plain pipelines: the additive glow lines, Sight's fungus
+     * x-ray, and shroom's spore shell in both passes.
+     *
+     * @param event the pipeline registration event
+     */
+    private static void registerLinePipelines(RegisterRenderPipelinesEvent event) {
+        event.registerPipeline(LINES_ADDITIVE_GLOW);
+        event.registerPipeline(FUNGUS_XRAY);
+        event.registerPipeline(FUNGUS_GLOW);
+        event.registerPipeline(SPORE_SHELL);
+        event.registerPipeline(SPORE_SHELL_THROUGH_BLOCKS);
+    }
+
+    /**
      * Registers custom pipelines with the NeoForge pipeline registry.
      *
      * @param event the event instance
      */
     public static void registerPipelines(RegisterRenderPipelinesEvent event) {
         registerBurnoutPipelines(event);
-        event.registerPipeline(LINES_ADDITIVE_GLOW);
+        registerMobLayerPipelines(event);
+        registerLeafPipelines(event);
+        registerLinePipelines(event);
         event.registerPipeline(NETHER_BLACKHOLE);
         event.registerPipeline(NETHER_CORONA);
         event.registerPipeline(NETHER_BLACKHOLE_HELD);
@@ -853,12 +1079,9 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_FLUID);
         event.registerPipeline(GOO_FLUID_SURFACE);
         event.registerPipeline(CRUCIBLE_DISSOLVE);
-        event.registerPipeline(GOO_MOB_COAT);
         event.registerPipeline(BLOCK_MINGLE);
-        event.registerPipeline(PETRIFY_STONE);
         event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(BORE_VORTEX);
-        event.registerPipeline(GOO_AILMENT_OVERLAY);
         registerAbilityPipelines(event);
     }
 
@@ -875,6 +1098,31 @@ public final class GooRenderTypes {
     }
 
     /**
+     * Registers the pipelines that draw a mob's model again over itself: the
+     * goo coat, Petrify's stone, Vines' tangle and the ailment overlays.
+     *
+     * @param event the event instance
+     */
+    private static void registerMobLayerPipelines(RegisterRenderPipelinesEvent event) {
+        event.registerPipeline(GOO_MOB_COAT);
+        event.registerPipeline(PETRIFY_STONE);
+        event.registerPipeline(VINE_TANGLE);
+        event.registerPipeline(GOO_AILMENT_OVERLAY);
+    }
+
+    /**
+     * Registers Leaf's pipelines: Growth's breeze, Bloom's haze ghost and Reap's swell.
+     *
+     * @param event the event instance
+     */
+    private static void registerLeafPipelines(RegisterRenderPipelinesEvent event) {
+        event.registerPipeline(GROWTH_BREEZE);
+        event.registerPipeline(LEAF_GHOST);
+        event.registerPipeline(LEAF_GHOST_THROUGH_BLOCKS);
+        event.registerPipeline(REAP_SWELL);
+    }
+
+    /**
      * Registers the burnout explosion pipelines (decision
      * elemental-explosion-per-type).
      *
@@ -884,8 +1132,10 @@ public final class GooRenderTypes {
         event.registerPipeline(UNSTABLE_EXPLOSION);
         event.registerPipeline(UNSTABLE_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(ROCK_EXPLOSION);
+        event.registerPipeline(ROCK_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(BLAZE_EXPLOSION);
         event.registerPipeline(FROST_EXPLOSION);
+        event.registerPipeline(FROST_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(NETHER_EXPLOSION);
         event.registerPipeline(METAL_EXPLOSION);
         event.registerPipeline(METAL_EXPLOSION_THROUGH_BLOCKS);

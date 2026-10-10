@@ -1,0 +1,25 @@
+{
+  "gooType": "frost",
+  "displayName": "goo.ability.frost.nova",
+  "badge": "channeled",
+  "order": 20,
+  "cost": 1000,
+  "requires": ["minecraft:packed_ice"],
+  "delivery": { "kind": "self", "charge": { "max_ticks": 30 } },
+  "behaviors": [
+    {
+      "type": "nova",
+      "radius": "2 + 6 * charge",
+      "amount": "4 + 12 * charge",
+      "crowd": 0.05,
+      "push": 0.4,
+      "hold": 300,
+      "thaw": 0.005,
+      "vulnerability": 0.5,
+      "physical_bonus": 3,
+      "damage": "2 + 4 * charge"
+    },
+    { "type": "sound", "id": "minecraft:block.glass.break", "at": "target", "source": "players", "volume": 1, "pitch": 1.4 }
+  ],
+  "tags": ["self"]
+}
