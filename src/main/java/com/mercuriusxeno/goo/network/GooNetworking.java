@@ -42,6 +42,17 @@ public final class GooNetworking {
         r.playToClient(TunerFeedbackPayload.TYPE, TunerFeedbackPayload.STREAM_CODEC);
         r.playToClient(GooFlightPayload.TYPE, GooFlightPayload.STREAM_CODEC);
         r.playToClient(AbilitySyncPayload.TYPE, AbilitySyncPayload.STREAM_CODEC);
+        r.playToClient(KnownItemsSyncPayload.TYPE, KnownItemsSyncPayload.STREAM_CODEC);
+        r.playToClient(KnownItemLearnedPayload.TYPE, KnownItemLearnedPayload.STREAM_CODEC);
+        registerAbilityVisualPayloads(r);
+    }
+
+    /**
+     * Registers the client-bound payloads that draw an ability's visuals.
+     *
+     * @param r the payload registrar
+     */
+    private static void registerAbilityVisualPayloads(PayloadRegistrar r) {
         r.playToClient(ChainBurnoutPayload.TYPE, ChainBurnoutPayload.STREAM_CODEC);
         r.playToClient(MobHitPayload.TYPE, MobHitPayload.STREAM_CODEC);
         r.playToClient(AilmentPayload.TYPE, AilmentPayload.STREAM_CODEC);
@@ -54,8 +65,6 @@ public final class GooNetworking {
         r.playToClient(TransformationPayload.TYPE, TransformationPayload.STREAM_CODEC);
         r.playToClient(ModelShrinkPayload.TYPE, ModelShrinkPayload.STREAM_CODEC);
         r.playToClient(GhostTrailPayload.TYPE, GhostTrailPayload.STREAM_CODEC);
-        r.playToClient(KnownItemsSyncPayload.TYPE, KnownItemsSyncPayload.STREAM_CODEC);
-        r.playToClient(KnownItemLearnedPayload.TYPE, KnownItemLearnedPayload.STREAM_CODEC);
         r.playToClient(StreamHealedPayload.TYPE, StreamHealedPayload.STREAM_CODEC);
         r.playToClient(DripHealedPayload.TYPE, DripHealedPayload.STREAM_CODEC);
         r.playToClient(BlockAfterimagePayload.TYPE, BlockAfterimagePayload.STREAM_CODEC);
