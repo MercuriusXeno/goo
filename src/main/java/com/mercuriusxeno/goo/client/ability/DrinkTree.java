@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * The tree an Unmake drink's streams union on this frame, built on the
@@ -366,6 +367,22 @@ public final class DrinkTree {
      */
     public static double scaleOf(long volume) {
         return Math.sqrt(volume / BASE_VOLUME);
+    }
+
+    /**
+     * Whether a laid stream's liquid still flows at a distance along its path:
+     * where its stream was last built, where that stream flows; a block
+     * streaming this frame but not yet built flows everywhere, its liquid all
+     * still to come, so the blocks of a drink's first frame join one trunk
+     * rather than each running to the glove for good; a block no longer
+     * streaming flows nowhere, so its tributaries re-root.
+     *
+     * @param last      each block's stream as last built
+     * @param streaming the blocks streaming this frame
+     * @return the test the layout lays and re-roots by
+     */
+    public static DrinkLayout.Flowing flowingOf(Map<BlockPos, Stream> last, Set<BlockPos> streaming) {
+        return (pos, distance) -> last.containsKey(pos) ? last.get(pos).flowingAt(distance) : streaming.contains(pos);
     }
 
     /**
