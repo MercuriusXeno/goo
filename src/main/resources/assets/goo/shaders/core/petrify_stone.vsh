@@ -8,7 +8,7 @@
 // the vanilla entity vertex transform with no lift, so the stone lies flush on
 // every face of the model and its layers, drawn at the model's own depth the way
 // the enchantment glint is, with no floating and no gap at a cube's edges.
-// PetrifyStoneLayer hands the share turned to stone in Color's alpha.
+// EncasementLayer hands the share turned to stone, or frozen, in Color's alpha.
 
 in vec3 Position;
 in vec4 Color;

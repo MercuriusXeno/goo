@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
@@ -54,7 +55,7 @@ public final class GooSelfHandler {
      * @param ability the self ability
      */
     static void deliver(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability) {
-        if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge())) {
+        if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge()) || ability.delivery().charges()) {
             return;
         }
         boolean held = HeldEffectsEvents.holds(player, ability.id());
@@ -62,7 +63,28 @@ public final class GooSelfHandler {
             HeldEffectsEvents.end(player, ability.id());
         } else if (SelfEatRoute.eats(ability.delivery(), ability.badge())) {
             beginEating(player, gooType, ability);
-        } else if (invoke(player, gooType, ability)) {
+        } else if (invoke(new PlayerHost(player.level(), player), gooType, ability)) {
+            GooEffectScheduler.playThrowSound(player, ability.delivery());
+        }
+    }
+
+    /**
+     * Fires a charged self ability let go after a hold: its programs run on
+     * the player carrying the share of a full charge the hold reached.
+     * nova-ring-grows-with-the-hold
+     *
+     * @param player    the releasing player
+     * @param gooType   the ability's goo type
+     * @param ability   the charged ability
+     * @param heldTicks the ticks the use key was held
+     */
+    static void release(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability,
+            int heldTicks) {
+        if (ability.delivery().kind() != DeliveryKind.SELF || !ability.delivery().charges()) {
+            return;
+        }
+        PlayerHost host = PlayerHost.charged(player.level(), player, ability.delivery().chargeShare(heldTicks));
+        if (invoke(host, gooType, ability)) {
             GooEffectScheduler.playThrowSound(player, ability.delivery());
         }
     }
@@ -128,14 +150,14 @@ public final class GooSelfHandler {
      * Drains a self ability's cost and runs its programs on the player, when
      * the player holds its cost.
      *
-     * @param player  the invoking player
+     * @param host    the host over the invoking player
      * @param gooType the ability's goo type
      * @param ability the self ability
      * @return true when the cost drained and the programs ran
      */
-    private static boolean invoke(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
+    private static boolean invoke(PlayerHost host, ResourceKey<GooTypeDefinition> gooType,
             AbilityDefinition ability) {
-        PlayerHost host = new PlayerHost(player.level(), player);
+        ServerPlayer player = host.player();
         if (!affords(player, gooType, ability) || !admits(host, ability)) {
             return false;
         }
