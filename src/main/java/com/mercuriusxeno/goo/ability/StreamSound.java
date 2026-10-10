@@ -3,6 +3,9 @@ package com.mercuriusxeno.goo.ability;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import io.netty.buffer.ByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.resources.Identifier;
 
 /**
@@ -18,8 +21,11 @@ import net.minecraft.resources.Identifier;
  * @param volume      each play's volume
  * @param pitchSpread how far each play's pitch strays from the pitch, either way
  * @param pitch       the pitch each play strays around
+ * @param loop        whether the holder hears the sound as one loop fading in and out rather than as plays;
+ *                    the server's plays then reach everyone near but the holder
  */
-public record StreamSound(Identifier sound, int every, float volume, float pitchSpread, float pitch) {
+public record StreamSound(Identifier sound, int every, float volume, float pitchSpread, float pitch,
+                          boolean loop) {
 
     private static final int DEFAULT_EVERY = 2;
     private static final float DEFAULT_VOLUME = 0.4f;
@@ -35,8 +41,32 @@ public record StreamSound(Identifier sound, int every, float volume, float pitch
             Codec.INT.optionalFieldOf("every", DEFAULT_EVERY).forGetter(StreamSound::every),
             Codec.FLOAT.optionalFieldOf("volume", DEFAULT_VOLUME).forGetter(StreamSound::volume),
             Codec.FLOAT.optionalFieldOf("pitch_spread", DEFAULT_PITCH_SPREAD).forGetter(StreamSound::pitchSpread),
-            Codec.FLOAT.optionalFieldOf("pitch", DEFAULT_PITCH).forGetter(StreamSound::pitch)
+            Codec.FLOAT.optionalFieldOf("pitch", DEFAULT_PITCH).forGetter(StreamSound::pitch),
+            Codec.BOOL.optionalFieldOf("loop", false).forGetter(StreamSound::loop)
     ).apply(inst, StreamSound::new));
+
+    /** Stream codec carrying the sound on the ability sync, so the holder's client can loop it. */
+    public static final StreamCodec<ByteBuf, StreamSound> STREAM_CODEC = StreamCodec.composite(
+            Identifier.STREAM_CODEC, StreamSound::sound,
+            ByteBufCodecs.VAR_INT, StreamSound::every,
+            ByteBufCodecs.FLOAT, StreamSound::volume,
+            ByteBufCodecs.FLOAT, StreamSound::pitchSpread,
+            ByteBufCodecs.FLOAT, StreamSound::pitch,
+            ByteBufCodecs.BOOL, StreamSound::loop,
+            StreamSound::new);
+
+    /**
+     * A sound played, not looped, around a pitch.
+     *
+     * @param sound       the sound's id
+     * @param every       the ticks of hold between plays
+     * @param volume      each play's volume
+     * @param pitchSpread how far each play's pitch strays from the pitch, either way
+     * @param pitch       the pitch each play strays around
+     */
+    public StreamSound(Identifier sound, int every, float volume, float pitchSpread, float pitch) {
+        this(sound, every, volume, pitchSpread, pitch, false);
+    }
 
     /**
      * A sound playing around a pitch of one.

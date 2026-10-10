@@ -5,7 +5,7 @@
   "order": 10,
   "cost": 20,
   "delivery": { "kind": "stream", "range": 6, "cone": 10, "ticks_per_charge": 20, "particle": "goo:gnat",
-    "sound": { "id": "minecraft:entity.bee.loop", "every": 4, "volume": 0.3, "pitch": 1.8, "pitch_spread": 0.15 } },
+    "sound": { "id": "minecraft:entity.bee.loop", "every": 30, "volume": 0.12, "pitch": 1.95, "pitch_spread": 0.05, "loop": true } },
   "behaviors": [
     { "type": "degrade", "map": "goo:decay", "ticks": 15 },
     { "type": "damage", "amount": 0.5, "source": "magic", "knockback": false },
