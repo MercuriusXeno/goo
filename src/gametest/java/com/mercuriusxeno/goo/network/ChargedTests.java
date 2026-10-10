@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.held.HeldEffectsEvents;
+import com.mercuriusxeno.goo.ability.program.ChargedStep;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
@@ -22,9 +24,11 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Gametest for Charged: blaze spitfire held at a zombie beyond its six-block
+ * Gametests for Charged: blaze spitfire held at a zombie beyond its six-block
  * reach leaves it unburnt, and once the player casts Charged, the same hold
- * reaches it through the stream's charged area and sets it alight
+ * reaches it through the stream's charged area and sets it alight; Charged
+ * held on the glove's unstable trickle ends when the unstable runs dry, the
+ * charge clearing and the stream's cone back at its base reach
  * (decision charged-scales-channel-params-by-json).
  */
 public final class ChargedTests {
@@ -43,6 +47,13 @@ public final class ChargedTests {
     private static final String ABILITY_REQUIRED = "Ability registry must hold %s";
     private static final String BURNT_UNCHARGED = "An uncharged stream should not reach the zombie eight blocks off";
     private static final String UNBURNT_CHARGED = "A charged stream should reach and ignite the zombie eight blocks off";
+    /** The unstable the glove's Charged holds: three ticks of upkeep. */
+    private static final int DRY_UNSTABLE = 3;
+    /** Ticks after the start by which three mB of upkeep have run dry and the effect ended. */
+    private static final int DRY_BY = DRY_UNSTABLE + 2;
+    private static final String NOT_CHARGED = "Charged held on the glove should stand and charge the player";
+    private static final String STILL_CHARGED = "Charged should end and clear once the unstable runs dry";
+    private static final String BURNT_DRY = "A stream after Charged ran dry should not reach the zombie eight blocks off";
 
     private ChargedTests() {
     }
@@ -79,6 +90,45 @@ public final class ChargedTests {
         helper.runAfterDelay(2L * HOLD_TICKS + 2, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertTrue(zombie.isOnFire(), UNBURNT_CHARGED);
+            zombie.discard();
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Holds Charged on the glove with three mB of unstable, lets the upkeep
+     * run it dry, then holds spitfire at the far zombie: the charge has
+     * cleared with its held effect, so the stream's cone is back at its base
+     * reach and the zombie stands unburnt.
+     *
+     * @param helper the gametest helper
+     */
+    public static void chargedEndsWhenUnstableRunsDry(GameTestHelper helper) {
+        AbilityRegistry abilities = AbilityRegistry.of(helper.getLevel());
+        AbilityDefinition spitfire = abilities.getAbility(BLAZE_SPITFIRE);
+        AbilityDefinition charged = abilities.getAbility(UNSTABLE_CHARGED);
+        helper.assertTrue(spitfire != null, String.format(ABILITY_REQUIRED, BLAZE_SPITFIRE));
+        helper.assertTrue(charged != null, String.format(ABILITY_REQUIRED, UNSTABLE_CHARGED));
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        zombie.setNoGravity(true);
+        zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+        ServerPlayer player = streamer(helper);
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.UNSTABLE, DRY_UNSTABLE));
+        KnownRecipes.teachRequires(player, spitfire);
+        HeldEffectsEvents.start(player, GooTypes.UNSTABLE, charged);
+        ProgramBehavior.forHost(charged.behaviors(), HostKind.PLAYER).tick(new PlayerHost(helper.getLevel(), player));
+        helper.assertTrue(ChargedStep.isCharged(player) && HeldEffectsEvents.holds(player, UNSTABLE_CHARGED),
+                NOT_CHARGED);
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.BLAZE), BLAZE_SPITFIRE.toString(),
+                player.getEyePosition(), player.getEyePosition());
+        helper.runAfterDelay(DRY_BY, () -> helper.assertTrue(!ChargedStep.isCharged(player)
+                && !HeldEffectsEvents.holds(player, UNSTABLE_CHARGED), STILL_CHARGED));
+        for (int held = 1; held <= HOLD_TICKS; held++) {
+            helper.runAfterDelay(DRY_BY + held, () -> GooStreamHandler.streamTick(player, tick));
+        }
+        helper.runAfterDelay(DRY_BY + HOLD_TICKS + 1L, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertFalse(zombie.isOnFire(), BURNT_DRY);
             zombie.discard();
             helper.succeed();
         });

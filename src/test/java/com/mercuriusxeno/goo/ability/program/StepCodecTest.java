@@ -39,7 +39,7 @@ class StepCodecTest {
                     List.of(EntityFilter.LIVING, EntityFilter.MOB))),
             Map.entry("unmake", new UnmakeStep(Expr.literal(2))),
             Map.entry("siphon", new SiphonStep(Expr.literal(2), Expr.literal(2))),
-            Map.entry("charged", new ChargedStep(Expr.literal(400))),
+            Map.entry("charged", new ChargedStep()),
             Map.entry("explode", new ExplodeStep(Expr.parse("2.5 + 1.0 * (stacks - 1)").getOrThrow(),
                     ExplosionMode.NONE)),
             Map.entry("damage", new DamageStep(Expr.parse("health / 2").getOrThrow(), DamageKind.CACTUS)),

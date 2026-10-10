@@ -177,6 +177,7 @@ public final class GooTestFunctions {
     private static final String UNMAKE_OVERFLOW_DROPS_AT_FEET = "unmake_overflow_drops_at_feet";
     private static final String UNMAKE_TAP_DISSOLVES_BELOW = "unmake_tap_dissolves_below";
     private static final String CHARGED_LENGTHENS_THE_STREAM = "charged_lengthens_the_stream";
+    private static final String CHARGED_ENDS_WHEN_UNSTABLE_RUNS_DRY = "charged_ends_when_unstable_runs_dry";
     private static final String UNSTABLE_BREW_CHARGES_FOR_AN_HOUR = "unstable_brew_charges_for_an_hour";
 
     // --- GasketPusher ---
@@ -1134,6 +1135,7 @@ public final class GooTestFunctions {
         reg(r, UNMAKE_OVERFLOW_DROPS_AT_FEET, UnmakeTests::unmakeOverflowDropsAtFeet);
         reg(r, UNMAKE_TAP_DISSOLVES_BELOW, UnmakeTapTests::unmakeTapDissolvesBelow);
         reg(r, CHARGED_LENGTHENS_THE_STREAM, ChargedTests::chargedLengthensTheStream);
+        reg(r, CHARGED_ENDS_WHEN_UNSTABLE_RUNS_DRY, ChargedTests::chargedEndsWhenUnstableRunsDry);
         reg(r, UNSTABLE_BREW_CHARGES_FOR_AN_HOUR, BrewEffectTests::unstableBrewChargesForAnHour);
     }
 
