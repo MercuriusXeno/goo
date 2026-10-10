@@ -98,7 +98,7 @@ class StepCodecTest {
             Map.entry("bank_ticks", new BankTicksStep(1, 40)),
             Map.entry("withdraw_bank", new WithdrawBankStep(50, 20)),
             Map.entry("slow_time", new SlowTimeStep(5, 10, 200, 0.1)),
-            Map.entry("haste", new HasteStep(1, 1)),
+            Map.entry("haste", new HasteStep()),
             Map.entry("set_baby", LeafSteps.SET_BABY.step(true)),
             Map.entry("ailment_overlay", new AilmentOverlayStep(AilmentKind.HEX,
                     Expr.parse("20 * 60 / pow(health, 0.4)").getOrThrow())),

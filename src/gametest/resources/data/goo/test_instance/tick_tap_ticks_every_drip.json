@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:tick_tap_counts_drips",
+  "function": "goo:tick_tap_ticks_every_drip",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
   "max_ticks": 40,

@@ -69,10 +69,25 @@ public final class RewindEvents {
      * @param ticks the game ticks the shrink takes
      */
     public static void shrinkIntoBaby(Mob mob, int ticks) {
-        float adultScale = mob.getScale();
+        float adultHeight = mob.getBbHeight();
         mob.setBaby(true);
+        mob.refreshDimensions();
         EntityVisuals.sendToWatchers(mob,
-                new ModelShrinkPayload(mob.getId(), adultScale / mob.getScale(), WHOLE, true, ticks));
+                new ModelShrinkPayload(mob.getId(), adultOverBaby(adultHeight, mob.getBbHeight()), WHOLE, true, ticks));
+    }
+
+    /**
+     * The baby model's size that matches the adult it was, as a multiple of
+     * the baby's own: the baby's model draws at its own size from the tick it
+     * becomes one, so the shrink starts it at the adult's height.
+     * rewind-shrinks-adult-to-baby-to-egg
+     *
+     * @param adultHeight the adult's height
+     * @param babyHeight  the baby's height
+     * @return the multiple, whole where either height is unknown
+     */
+    static float adultOverBaby(float adultHeight, float babyHeight) {
+        return adultHeight > 0f && babyHeight > 0f ? adultHeight / babyHeight : WHOLE;
     }
 
     /**

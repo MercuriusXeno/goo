@@ -11,7 +11,11 @@ import net.minecraft.world.entity.Mob;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.MobDespawnEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
+import org.jspecify.annotations.Nullable;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 /**
  * Holds a mob in stasis until it is struck: the mob stands still with no AI,
@@ -31,6 +35,13 @@ public final class StasisEvents {
     static final int SHIMMER_DURATION_TICKS = SHIMMER_REFRESH_TICKS * 3;
     /** A landing of no duration, which ends the shimmer on every client. */
     private static final int SHIMMER_CLEARED = 0;
+    /**
+     * Ticks after a stasis lands during which a strike frees nothing: the
+     * glove's punch that lands the blob arrives on the same tick as the stasis.
+     */
+    static final int LANDING_GRACE_TICKS = 5;
+    /** The game time each mob's stasis landed, for the landing's grace; lost on a restart, as the grace is long past. */
+    private static final Map<Mob, Long> LANDED_AT = new WeakHashMap<>();
 
     private StasisEvents() {
     }
@@ -42,6 +53,7 @@ public final class StasisEvents {
      */
     public static void hold(Mob mob) {
         mob.setData(GooAttachments.STASIS, true);
+        LANDED_AT.put(mob, mob.level().getGameTime());
         mob.setNoAi(true);
         sendShimmer(mob, SHIMMER_DURATION_TICKS);
     }
@@ -52,7 +64,7 @@ public final class StasisEvents {
      * @param entity the entity
      * @return true while a stasis holds it
      */
-    public static boolean held(Entity entity) {
+    public static boolean held(@Nullable Entity entity) {
         return entity instanceof Mob && entity.hasData(GooAttachments.STASIS);
     }
 
@@ -90,8 +102,51 @@ public final class StasisEvents {
             return;
         }
         event.setCanceled(true);
-        if (struckByAttacker(event.getSource())) {
-            release((Mob) entity);
+        Mob mob = (Mob) entity;
+        if (struckByAttacker(event.getSource()) && pastLandingGrace(LANDED_AT.get(mob), mob.level().getGameTime())) {
+            release(mob);
+        }
+    }
+
+    /**
+     * Answers whether a strike comes late enough after the stasis landed to
+     * free the mob; the punch that lands the blob does not.
+     *
+     * @param landedAt the game time the stasis landed, null when unknown
+     * @param now      the game time of the strike
+     * @return true when the strike frees the mob
+     */
+    static boolean pastLandingGrace(@Nullable Long landedAt, long now) {
+        return landedAt == null || now - landedAt > LANDING_GRACE_TICKS;
+    }
+
+    /**
+     * A mob in stasis deals no damage: a frozen slime's touch and any other
+     * harm it would cause are cancelled.
+     *
+     * @param event the incoming damage event on the harmed entity
+     */
+    @SubscribeEvent
+    public static void onDamageByFrozen(LivingIncomingDamageEvent event) {
+        if (!event.getEntity().level().isClientSide() && dealtByFrozen(event.getSource())) {
+            event.setCanceled(true);
+        }
+    }
+
+    private static boolean dealtByFrozen(DamageSource source) {
+        return held(source.getEntity()) || held(source.getDirectEntity());
+    }
+
+    /**
+     * Keeps a mob in stasis from despawning, so a frozen hostile stands until
+     * it is struck, however far its freezer walks.
+     *
+     * @param event the despawn check
+     */
+    @SubscribeEvent
+    public static void onDespawnCheck(MobDespawnEvent event) {
+        if (held(event.getEntity())) {
+            event.setResult(MobDespawnEvent.Result.DENY);
         }
     }
 
@@ -108,6 +163,7 @@ public final class StasisEvents {
 
     private static void release(Mob mob) {
         mob.removeData(GooAttachments.STASIS);
+        LANDED_AT.remove(mob);
         mob.setNoAi(false);
         sendShimmer(mob, SHIMMER_CLEARED);
     }

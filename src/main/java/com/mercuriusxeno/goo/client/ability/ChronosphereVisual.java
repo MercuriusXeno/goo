@@ -16,7 +16,9 @@ import java.util.Optional;
 /**
  * Aeon's chronosphere: a translucent golden veil, a sphere centered on the
  * marker the blob stood where it landed, growing from the impact point to
- * the veil's radius as the slow_time step does.
+ * the veil's radius as the slow_time step does. The veil draws through
+ * {@code goo_chronosphere.fsh}: a glowing rim that reads from inside as well
+ * as out, falling bands of light and clock-hour meridians.
  * chronosphere-hastes-players-slows-mobs
  */
 public final class ChronosphereVisual {
@@ -24,9 +26,11 @@ public final class ChronosphereVisual {
     /** The veil's color: the stasis gold, faint enough to see the slowed mobs through. */
     static final int VEIL_COLOR = ARGB.color(46, 0xFF, 0xD4, 0x47);
     /** Bands from pole to pole, and segments around each band. */
-    static final int BANDS = 16;
-    static final int SEGMENTS = 32;
+    static final int BANDS = 24;
+    static final int SEGMENTS = 48;
     private static final float CENTER = 0.5f;
+    private static final int OPAQUE = 255;
+    private static final float HALF_CHANNEL_SPAN = 0.5f;
 
     /** The game time each veil this client draws first stood, by marker. */
     private static final Map<BlockPos, Long> STOOD_AT = new HashMap<>();
@@ -67,8 +71,48 @@ public final class ChronosphereVisual {
         if (radius <= 0f) {
             return;
         }
-        nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.SPORE_SHELL_TYPE,
-                (pose, consumer) -> emitSphere(new FlatQuadContext(pose, consumer), radius, VEIL_COLOR));
+        nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.CHRONOSPHERE_TYPE,
+                (pose, consumer) -> emitVeil(new FlatQuadContext(pose, consumer), radius));
+    }
+
+    /**
+     * Emits the veil for its shader: each vertex carries its normal, and its
+     * direction from the center packed into its color.
+     *
+     * @param quads  the quad context
+     * @param radius the veil's radius
+     */
+    static void emitVeil(FlatQuadContext quads, float radius) {
+        for (int band = 0; band < BANDS; band++) {
+            double lowPolar = Math.PI * band / BANDS;
+            double highPolar = Math.PI * (band + 1) / BANDS;
+            for (int segment = 0; segment < SEGMENTS; segment++) {
+                double from = Math.TAU * segment / SEGMENTS;
+                double to = Math.TAU * (segment + 1) / SEGMENTS;
+                veilVertex(quads, radius, lowPolar, from);
+                veilVertex(quads, radius, highPolar, from);
+                veilVertex(quads, radius, highPolar, to);
+                veilVertex(quads, radius, lowPolar, to);
+            }
+        }
+    }
+
+    private static void veilVertex(FlatQuadContext quads, float radius, double polar, double azimuth) {
+        float x = (float) (Math.sin(polar) * Math.cos(azimuth));
+        float y = (float) Math.cos(polar);
+        float z = (float) (Math.sin(polar) * Math.sin(azimuth));
+        int color = ARGB.color(OPAQUE, packed(x), packed(y), packed(z));
+        quads.vertex(CENTER + radius * x, CENTER + radius * y, CENTER + radius * z, color, x, y, z);
+    }
+
+    /**
+     * A direction component of [-1, 1] as a color channel of [0, 255].
+     *
+     * @param component the component
+     * @return the channel
+     */
+    static int packed(float component) {
+        return Math.round((component * HALF_CHANNEL_SPAN + HALF_CHANNEL_SPAN) * OPAQUE);
     }
 
     /**

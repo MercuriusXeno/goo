@@ -29,7 +29,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
@@ -69,8 +68,8 @@ public final class SelfDeliveryTests {
     private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
     private static final Identifier SHROOM_SIGHT = Identifier.parse("goo:shroom_sight");
     private static final Identifier AEON_HASTE = Identifier.parse("goo:aeon_haste");
-    private static final String SHOULD_HASTE_HELD = "Held Haste should stand endless with no particles, stands %s";
-    private static final String SHOULD_END_HASTE = "Invoking Haste again should end it and its speed and haste";
+    private static final String SHOULD_HASTE_HELD = "Held Haste should raise the player's speed and mining speed";
+    private static final String SHOULD_END_HASTE = "Invoking Haste again should end it, its effect and both speeds";
     private static final String SHOULD_SEE = "Once the eat finishes the player should hold fungal sight";
     private static final String SHOULD_SEE_PAID = "Sight should stand through tick %d, which the shroom pays for";
     private static final String SHOULD_END_SIGHT_DRY = "Sight should end and clear once shroom runs dry";
@@ -487,9 +486,11 @@ public final class SelfDeliveryTests {
     }
 
     /**
-     * A survival player eats Haste from the glove: speed and haste stand with
-     * their particles off for as long as it is held; invoking it again ends
-     * it and both go (decisions self-effects-trickle-until-ended and
+     * A survival player eats Haste from the glove: the aeon brew is the one
+     * effect it wears, iconed and without particles, and it moves and mines
+     * faster for as long as Haste is held; invoking it again ends it, the
+     * effect goes and both speeds fall back (decisions
+     * self-effects-trickle-until-ended and
      * haste-stacks-speed-under-the-golden-overlay).
      *
      * @param helper the gametest helper
@@ -497,17 +498,15 @@ public final class SelfDeliveryTests {
     public static void hasteHoldsWithoutParticles(GameTestHelper helper) {
         ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.AEON, AEON_HASTE);
         boolean held = player.getData(GooAttachments.HELD_EFFECTS).holds(AEON_HASTE);
-        MobEffectInstance speed = player.getEffect(MobEffects.SPEED);
-        MobEffectInstance haste = player.getEffect(MobEffects.HASTE);
+        String wrongEffects = HasteChecks.onlyTheAeonBrew(player);
+        boolean hasted = HasteChecks.hasted(player);
         invoke(player, GooTypes.AEON, AEON_HASTE);
         boolean heldAfter = player.getData(GooAttachments.HELD_EFFECTS).holds(AEON_HASTE);
-        boolean hastedAfter = player.hasEffect(MobEffects.SPEED) || player.hasEffect(MobEffects.HASTE);
+        boolean hastedAfter = HasteChecks.hasted(player) || !player.getActiveEffects().isEmpty();
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.assertTrue(held, SHOULD_BE_HELD);
-        for (MobEffectInstance effect : new MobEffectInstance[] {speed, haste}) {
-            helper.assertTrue(effect != null && effect.isInfiniteDuration() && !effect.isVisible(),
-                    String.format(SHOULD_HASTE_HELD, effect));
-        }
+        helper.assertTrue(wrongEffects.isEmpty(), wrongEffects);
+        helper.assertTrue(hasted, SHOULD_HASTE_HELD);
         helper.assertFalse(heldAfter || hastedAfter, SHOULD_END_HASTE);
         helper.succeed();
     }

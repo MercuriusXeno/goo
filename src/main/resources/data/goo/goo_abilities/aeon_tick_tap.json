@@ -6,7 +6,7 @@
   "cost": 1000,
   "delivery": { "kind": "arc" },
   "behaviors": [
-    { "type": "drips", "drips": 4, "then": [{ "type": "tick_block", "extra_ticks": 40 }] }
+    { "type": "tick_block", "extra_ticks": 16 }
   ],
   "tags": ["tap"]
 }

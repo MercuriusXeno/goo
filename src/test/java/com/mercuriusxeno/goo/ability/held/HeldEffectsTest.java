@@ -207,7 +207,7 @@ class HeldEffectsTest {
         assertEquals(Set.of(LaidState.HEART_OVERLAY), LaidState.laidBy(List.of(new HeartOverlayStep(HeartKind.KINDLE))));
         assertEquals(Set.of(LaidState.NOURISH), LaidState.laidBy(List.of(new NourishStep(Expr.literal(80)))));
         // haste-stacks-speed-under-the-golden-overlay
-        assertEquals(Set.of(LaidState.HASTE), LaidState.laidBy(List.of(new HasteStep(1, 1))));
+        assertEquals(Set.of(LaidState.HASTE), LaidState.laidBy(List.of(new HasteStep())));
         assertEquals(Set.of(), LaidState.laidBy(List.of()));
     }
 }

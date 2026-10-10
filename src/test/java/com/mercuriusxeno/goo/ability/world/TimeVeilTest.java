@@ -6,6 +6,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.arrow.Arrow;
 import net.minecraft.world.entity.item.ItemEntity;
 import org.junit.jupiter.api.Test;
+import java.util.stream.LongStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -41,5 +42,19 @@ class TimeVeilTest {
         assertEquals(0, veil.radiusAt(0), EPSILON);
         assertEquals(2.5, veil.radiusAt(5), EPSILON);
         assertEquals(5, veil.radiusAt(40), EPSILON);
+    }
+
+    @Test
+    void aVeiledMobThinksAtTheVeilsPace() {
+        int period = TimeVeil.aiPeriod(0.1);
+        long thinking = LongStream.range(0, 100).filter(tick -> TimeVeil.thinksAt(tick, period)).count();
+
+        assertEquals(10, period);
+        assertEquals(10, thinking);
+    }
+
+    @Test
+    void anUnslowedMobThinksEveryTick() {
+        assertEquals(1, TimeVeil.aiPeriod(1.0));
     }
 }
