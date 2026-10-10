@@ -93,7 +93,12 @@ public enum HostCapability {
      * An agitator's countdown kept across ticks (decision
      * agitator-prism-quickens-until-a-spawn).
      */
-    AGITATE(AgitateHost.class);
+    AGITATE(AgitateHost.class),
+    /**
+     * The level and the point frost spreads out of (decisions
+     * nova-ring-grows-with-the-hold, nova-drip-pulses-a-short-lasting-freeze).
+     */
+    FROST(FrostHost.class);
 
     private final Class<? extends StepHost> hostType;
 

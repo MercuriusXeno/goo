@@ -22,20 +22,24 @@ class AbilityBadgeTest {
     private static final int SHIPPED_MOB_BADGES = 13;
     private static final int SHIPPED_WORLD_BADGES = 7;
     private static final int SHIPPED_SELF_BADGES = 5;
-    private static final int SHIPPED_BREW_BADGES = 6;
-    private static final int SHIPPED_CHANNELED_BADGES = 9;
-    private static final int SHIPPED_FREE_BADGES = 3;
-    private static final int SHIPPED_TAP_BADGES = 4;
-    private static final int SHIPPED_PRISM_BADGES = 1;
+    private static final int SHIPPED_BREW_BADGES = 7;
+    private static final int SHIPPED_CHANNELED_BADGES = 11;
+    private static final int SHIPPED_FREE_BADGES = 4;
+    private static final int SHIPPED_TAP_BADGES = 5;
+    private static final int SHIPPED_PRISM_BADGES = 2;
+    /**
+     * The shipped prism abilities: Glacial (decision glacial-prism-holds-the-area-frozen)
+     * and Agitator (decision agitator-prism-quickens-until-a-spawn).
+     */
+    private static final List<String> SHIPPED_PRISMS = List.of("frost_glacial", "hex_agitator");
     /** The self + brew abilities, which wear brew on their self delivery (decision self-brew-goos-eat-before-the-effect). */
     private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "leaf_barkskin", "rock_stoneskin",
-            "vital_nourish", "shroom_sight", "hex_lifetap");
+            "vital_nourish", "shroom_sight", "frost_iceborn", "hex_lifetap");
     /** Blast, Crush and Colonize, the shipped free abilities (decision badge-vocabulary-gains-free-prism-tap-brew). */
-    private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "rock_crush", "shroom_colonize");
+    private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "rock_crush", "shroom_colonize",
+            "frost_orb");
     /** Self deliveries wearing the channeled badge (decision flatten-disc-cursor-breaks-above-the-plane). */
-    private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten");
-    /** The prism combos (decision agitator-prism-quickens-until-a-spawn). */
-    private static final List<String> SHIPPED_PRISMS = List.of("hex_agitator");
+    private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten", "frost_nova");
     /** Thrown deliveries wearing the channeled badge (decision spawn-goo-morphs-into-the-mob-it-births). */
     private static final List<String> SHIPPED_THROWN_CHANNELS = List.of("hex_spawn");
 
@@ -91,11 +95,11 @@ class AbilityBadgeTest {
         if (SHIPPED_FREE.contains(definition.id().getPath())) {
             return AbilityBadge.FREE;
         }
-        if (definition.hasTag(AbilityTags.TAP)) {
-            return AbilityBadge.TAP;
-        }
         if (SHIPPED_PRISMS.contains(definition.id().getPath())) {
             return AbilityBadge.PRISM;
+        }
+        if (definition.hasTag(AbilityTags.TAP)) {
+            return AbilityBadge.TAP;
         }
         if (SHIPPED_THROWN_CHANNELS.contains(definition.id().getPath())) {
             return AbilityBadge.CHANNELED;

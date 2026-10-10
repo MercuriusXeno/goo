@@ -18,6 +18,7 @@ import com.mercuriusxeno.goo.network.KnownItemLearnedPayload;
 import com.mercuriusxeno.goo.network.KnownItemsSyncPayload;
 import com.mercuriusxeno.goo.network.LeechPayload;
 import com.mercuriusxeno.goo.network.MobHitPayload;
+import com.mercuriusxeno.goo.network.NovaRingPayload;
 import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.network.TomePayload;
@@ -56,6 +57,7 @@ public final class GooClientNetworking {
         event.register(AilmentPayload.TYPE, AilmentHandler::handle);
         event.register(LeechPayload.TYPE, LeechWisps::handle);
         event.register(TomePayload.TYPE, Tomes::handle);
+        event.register(NovaRingPayload.TYPE, NovaRingHandler::handle);
         event.register(BlockTransformPayload.TYPE, BlockTransformHandler::handle);
         event.register(BlockExposurePayload.TYPE, BlockTransformHandler::handleExposure);
         event.register(AfterimagePayload.TYPE, AfterimageHandler::handle);
