@@ -71,13 +71,27 @@ class SignalRingsTest {
         @Test
         void aRingIsClosedAndSquareToTheAim() {
             Vec3 center = new Vec3(3, 1, 0);
-            Vec3[] ring = SignalRings.ringPoints(center, EAST, 0.5, 12);
+            Vec3[] ring = SignalRings.ringPoints(center, EAST, 0.5, 12, 0);
             assertEquals(ring[0].x, ring[ring.length - 1].x, EPSILON);
             assertEquals(ring[0].y, ring[ring.length - 1].y, EPSILON);
             assertEquals(ring[0].z, ring[ring.length - 1].z, EPSILON);
             for (Vec3 point : ring) {
                 assertEquals(center.x, point.x, EPSILON);
                 assertEquals(0.5, point.distanceTo(center), EPSILON);
+            }
+        }
+
+        /** Pulser's rings are squares whose sides stand at the cone's radius, upright to the aim. */
+        @Test
+        void aSquareRingsSidesStandAtTheRadiusUpright() {
+            Vec3 center = new Vec3(3, 1, 0);
+            Vec3[] square = SignalRings.RingShape.SQUARE.points(center, EAST, 0.5);
+            assertEquals(5, square.length);
+            for (int corner = 0; corner < 4; corner++) {
+                Vec3 midSide = square[corner].add(square[corner + 1]).scale(0.5);
+                assertEquals(0.5, midSide.distanceTo(center), EPSILON);
+                Vec3 side = square[corner + 1].subtract(square[corner]);
+                assertTrue(Math.abs(side.y) < EPSILON || Math.abs(side.z) < EPSILON, "upright side " + side);
             }
         }
     }
