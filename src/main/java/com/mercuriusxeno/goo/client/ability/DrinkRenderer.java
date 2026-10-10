@@ -19,13 +19,16 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.LightCoordsUtil;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.RenderHandEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import org.joml.Matrix4f;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -46,7 +49,10 @@ import java.util.Set;
  * the standing block where it stands, solid, crossfading into the block's
  * goo types, mingled among themselves by volume, by its share of the route:
  * none of the goo at the block and all of it at the hand, a blend the whole
- * way with no band and no boundary.
+ * way with no band and no boundary. The drink is drawn after the level
+ * against its depth, but the player's own stretch by the glove is drawn in
+ * the hand's pass, so it shows over the hand and ends in the palm rather than
+ * disappearing behind the knuckles.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -72,7 +78,15 @@ public final class DrinkRenderer {
     private static final Set<Integer> SHOWING = new HashSet<>();
     /** Each streaming block's skin, by its drinker then block, read once from its model. */
     private static final Map<Integer, Map<BlockPos, Skin>> SKINS = new HashMap<>();
+    /** Blocks from the local glove within which a region of the player's own drink is drawn in the hand's pass. */
+    static final double HAND_REACH = 1.5;
     private static long loggedTick = Long.MIN_VALUE;
+    /** The regions by the local glove this frame, waiting for the hand's pass. */
+    private static List<DrinkUpload.Block> inHand = List.of();
+    /** The level's view matrix this frame, which the hand's pass bobs as the hand is. */
+    private static @Nullable Matrix4f levelView;
+    /** Whether the hand's pass drew since the level's last, so the next frame may leave it the stretch by the glove. */
+    private static boolean handDrew;
 
     private DrinkRenderer() {
     }
@@ -116,16 +130,64 @@ public final class DrinkRenderer {
         Vec3 camera = event.getLevelRenderState().cameraRenderState.pos;
         List<ClientDrinks.Drink> drinks = ClientDrinks.CLIENT.live(ticks, SHOWING::contains);
         forgetAllBut(drinks);
-        List<DrinkUpload.Block> blocks = new ArrayList<>();
+        Passes passes = passesOf(mc, level, drinks, camera, ticks);
+        DrinkPass.draw(passes.level, event.getModelViewMatrix());
+        inHand = passes.hand;
+        levelView = new Matrix4f(event.getModelViewMatrix());
+        handDrew = false;
+        logOnce(level.getGameTime(), began, passes);
+    }
+
+    private static Passes passesOf(Minecraft mc, ClientLevel level, List<ClientDrinks.Drink> drinks, Vec3 camera,
+                                   double ticks) {
+        float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        Passes passes = new Passes();
         for (ClientDrinks.Drink drink : drinks) {
             Entity drinker = level.getEntity(drink.playerId());
             if (drinker != null) {
                 Vec3 pull = drink.layout().pullToward(drinker.getViewVector(partialTick), ticks);
-                blocks.addAll(uploadsOf(level, drink, new Frame(gloveOf(mc, drinker, partialTick), pull, camera, ticks)));
+                Frame frame = new Frame(gloveOf(mc, drinker, partialTick), pull, camera, ticks);
+                passes.add(uploadsOf(level, drink, frame), inHand(mc, drinker) ? frame.glove().subtract(camera) : null);
             }
         }
-        DrinkPass.draw(blocks, event.getModelViewMatrix());
-        logOnce(level.getGameTime(), began, blocks);
+        return passes;
+    }
+
+    /**
+     * Whether a drinker's stretch of drink by the glove is drawn in the hand's
+     * pass: the local player's, seen in first person, while the hand is being
+     * drawn at all; with the hand hidden the whole drink stays in the level's.
+     *
+     * @param mc      the client
+     * @param drinker the drinker
+     * @return whether to draw the stretch over the hand
+     */
+    private static boolean inHand(Minecraft mc, Entity drinker) {
+        return drinker == mc.player && mc.options.getCameraType().isFirstPerson() && handDrew;
+    }
+
+    /**
+     * Draws the local drink's stretch by the glove in the hand's pass, where
+     * the level's depth is cleared and the hand is yet to be drawn, so the
+     * stream's last stretch shows over the hand and the hand drawn after it is
+     * hidden only where the stream is in front; drawn in the hand's own
+     * projection with the view bobbed as the hand is, so it lines up with the
+     * glove.
+     *
+     * @param event the hand event, the main hand's starting the pass
+     */
+    @SubscribeEvent
+    public static void onRenderHand(RenderHandEvent event) {
+        if (event.getHand() != InteractionHand.MAIN_HAND) {
+            return;
+        }
+        handDrew = true;
+        if (inHand.isEmpty() || levelView == null) {
+            return;
+        }
+        Matrix4f bob = new Matrix4f(levelView).mul(event.getPoseStack().last().pose());
+        DrinkPass.draw(inHand, bob.mul(levelView));
+        inHand = List.of();
     }
 
     private static void forgetAllBut(List<ClientDrinks.Drink> drinks) {
@@ -136,16 +198,49 @@ public final class DrinkRenderer {
         SHOWING.retainAll(drinkers);
     }
 
-    private static void logOnce(long tick, long began, List<DrinkUpload.Block> blocks) {
-        if (blocks.isEmpty() || tick == loggedTick) {
+    private static void logOnce(long tick, long began, Passes passes) {
+        if (passes.regions() == 0 || tick == loggedTick) {
             return;
         }
         loggedTick = tick;
-        int dropped = 0;
-        for (DrinkUpload.Block block : blocks) {
-            dropped += block.dropped();
+        Goo.LOGGER.debug(UPLOADED, Math.round((System.nanoTime() - began) * MILLIS_PER_NANO), passes.regions(),
+                passes.dropped());
+    }
+
+    /**
+     * This frame's uploads by the pass that draws them: the level's for the
+     * drink at large, the hand's for the regions within {@link #HAND_REACH}
+     * of the local glove.
+     */
+    private static final class Passes {
+
+        private final List<DrinkUpload.Block> level = new ArrayList<>();
+        private final List<DrinkUpload.Block> hand = new ArrayList<>();
+
+        /**
+         * @param uploads a drink's uploads
+         * @param glove   the drinker's glove, camera-relative, or null to draw the whole drink in the level's pass
+         */
+        void add(List<DrinkUpload.Block> uploads, @Nullable Vec3 glove) {
+            for (DrinkUpload.Block block : uploads) {
+                (glove != null && block.within(glove, HAND_REACH) ? hand : level).add(block);
+            }
         }
-        Goo.LOGGER.debug(UPLOADED, Math.round((System.nanoTime() - began) * MILLIS_PER_NANO), blocks.size(), dropped);
+
+        int regions() {
+            return level.size() + hand.size();
+        }
+
+        int dropped() {
+            int dropped = 0;
+            for (DrinkUpload.Block block : level) {
+                dropped += block.dropped();
+            }
+            for (DrinkUpload.Block block : hand) {
+                dropped += block.dropped();
+            }
+            return dropped;
+        }
     }
 
     /**

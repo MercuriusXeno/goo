@@ -120,6 +120,19 @@ public final class DrinkUpload {
      * @param dropped how many bodies and table entries the caps left out, 0 for a whole upload
      */
     public record Block(ByteBuffer bytes, List<Proxy> proxies, int dropped) {
+
+        /**
+         * @param point a camera-relative point
+         * @param reach blocks
+         * @return whether the region's box comes within the reach of the point
+         */
+        public boolean within(Vec3 point, double reach) {
+            Proxy box = proxies.getFirst();
+            double x = Math.max(Math.max(box.low().x - point.x, point.x - box.high().x), 0);
+            double y = Math.max(Math.max(box.low().y - point.y, point.y - box.high().y), 0);
+            double z = Math.max(Math.max(box.low().z - point.z, point.z - box.high().z), 0);
+            return x * x + y * y + z * z <= reach * reach;
+        }
     }
 
     /**
