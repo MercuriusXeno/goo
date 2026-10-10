@@ -22,6 +22,7 @@ import com.mercuriusxeno.goo.client.ability.ThumpRings;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ability.ViewportRipples;
+import com.mercuriusxeno.goo.client.ability.VineTangleLayer;
 import com.mercuriusxeno.goo.client.ability.WindLines;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
 import com.mercuriusxeno.goo.client.ber.*;
@@ -29,6 +30,7 @@ import com.mercuriusxeno.goo.client.ber.style.AgitatorPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlacialPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyles;
 import com.mercuriusxeno.goo.client.ber.style.PulsePrismStyle;
+import com.mercuriusxeno.goo.client.ber.style.VerdantPrismStyle;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -128,6 +130,8 @@ public final class GooClientSetup {
     public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
         registerMachineRenderers(event);
         registerEffectRenderers(event);
+        // verdant-prism-greens-blocks-slowly: a verdant prism draws its crystal leaf-green
+        PrismComboStyles.register(VerdantPrismStyle.COMBO, new VerdantPrismStyle());
         // agitator-prism-quickens-until-a-spawn
         PrismComboStyles.register(AgitatorPrismStyle.COMBO, new AgitatorPrismStyle());
     }
@@ -286,6 +290,7 @@ public final class GooClientSetup {
                 EncasementLayer::stampPetrify,
                 EncasementLayer::stampFrozen,
                 FrozenPoses::stampFrozenPose,
+                VineTangleLayer::stampTangle,
                 TransformationRenderer::stampTransformation);
         for (BiConsumer<Entity, EntityRenderState> stamp : stamps) {
             event.registerEntityModifier(new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
@@ -308,6 +313,7 @@ public final class GooClientSetup {
                 MobCoatLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
                 AilmentOverlayLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
                 EncasementLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
+                VineTangleLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
             }
         }
         for (PlayerModelType skin : event.getSkins()) {
@@ -316,6 +322,7 @@ public final class GooClientSetup {
             AilmentOverlayLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
             AilmentOverlayLayer.addTo(event.getMannequinRenderer(skin), MobShells.NONE);
             EncasementLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
+            VineTangleLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
         }
     }
 

@@ -85,6 +85,11 @@ public enum HostCapability {
      */
     DRIP(DripHost.class),
     /**
+     * The world around a lasting host to green tick after tick (decision
+     * verdant-prism-greens-blocks-slowly).
+     */
+    GREENING(GreeningHost.class),
+    /**
      * A landing that can tick the redstone device it landed on (decision
      * zap-ticks-the-device-and-stuns).
      */
