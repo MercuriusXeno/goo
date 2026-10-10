@@ -16,7 +16,7 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
  * number of blocks each tick it walks, and each tick walks up to a budget
  * of cells within the edge, so the light spreads out from the holder at a
  * steady pace while the channel holds, up to its range or the bounds of
- * its visited cells.
+ * its visited cells. A holder walking on carries the flood with them.
  * decision radiant-wisps-where-light-is-low
  * operator rulings 2026-10-10: wisps flood out from the eyes nearest first to 64 blocks, the edge at 16 blocks a second
  */
@@ -69,6 +69,27 @@ public final class WispFlood {
         this.litSteps = litSteps;
         frontier.add(this.origin);
         visited.add(this.origin.asLong());
+    }
+
+    /**
+     * The flood from where the holder's eyes moved to: walked afresh from
+     * the new cell, nearest first, but reaching as far as this one had
+     * grown and reckoning the wisps this one placed, so a holder walking
+     * keeps lighting the dark air around them rather than waiting on a
+     * fresh edge to grow past the cells already lit.
+     * operator UAT 2026-10-10: Radiant placed nothing while the holder walked, and caught up only once they stopped
+     *
+     * @param eyes the holder's eye cell now
+     * @return the flood from there
+     */
+    public WispFlood movedTo(BlockPos eyes) {
+        WispFlood moved = new WispFlood(eyes, range, growth, litSteps);
+        moved.edge = edge;
+        // a wisp left past the new flood's reach lights none of its cells, so the walk forgets it
+        double kept = range + litSteps;
+        placed.stream().filter(wisp -> wisp.distSqr(eyes) <= kept * kept).forEach(moved.placed::add);
+        moved.lastWalked = lastWalked;
+        return moved;
     }
 
     /**

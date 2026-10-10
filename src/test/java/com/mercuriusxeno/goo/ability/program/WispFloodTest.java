@@ -113,6 +113,16 @@ class WispFloodTest {
         assertEquals(litSteps + 1, closest);
     }
 
+    @Test
+    void aMovedFloodForgetsTheWispsPastItsReach() {
+        double shortRange = 8;
+        WispFlood flood = new WispFlood(EYES, shortRange, 0);
+        flood.walk(TICK_BUDGET, new Grid(WispFloodTest::inTheRoom, cell -> true));
+        assertFalse(flood.placed().isEmpty());
+        assertEquals(flood.placed(), flood.movedTo(EYES.east(2)).placed());
+        assertTrue(flood.movedTo(EYES.east(100)).placed().isEmpty());
+    }
+
     private static boolean inTheRoom(BlockPos cell) {
         return Math.abs(cell.getX()) <= ROOM_HALF && Math.abs(cell.getY()) <= ROOM_HALF
                 && Math.abs(cell.getZ()) <= ROOM_HALF;
