@@ -17,6 +17,18 @@
       }
     ]
   },
+  "effects.gnat_buzz": {
+    "category": "players",
+    "subtitle": "subtitles.entity.bee.loop",
+    "sounds": [
+      {
+        "name": "minecraft:mob/bee/loop1",
+        "volume": 0.6,
+        "attenuation_distance": 8,
+        "stream": false
+      }
+    ]
+  },
   "effects.ability_down": {
     "category": "players",
     "sounds": [

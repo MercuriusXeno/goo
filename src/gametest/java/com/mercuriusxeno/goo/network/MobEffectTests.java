@@ -64,7 +64,6 @@ public final class MobEffectTests {
     private static final String WILD_SLIME_SHOULD_HURT = "An uncharmed slime's hit should hurt the player";
     private static final float SLIME_HIT = 4f;
     private static final String SHOULD_NOT_GLOW = "Target should wear the ailment overlay, not vanilla glowing";
-    private static final String SHOULD_HAVE_WITHER = "Target should have wither";
     private static final String SHOULD_TAKE_DAMAGE = "Target should have taken damage";
     private static final String SHOULD_BE_ON_FIRE = "Target should be on fire";
     private static final String SHOULD_HAVE_NO_AI = "Target should have AI disabled";
@@ -74,7 +73,6 @@ public final class MobEffectTests {
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
     private static final String ABILITY_METAL_JAVELIN = "goo:metal_javelin";
     private static final String ABILITY_TYPHOON_LEVITATE = "goo:typhoon_levitate";
-    private static final String ABILITY_NETHER_WITHER = "goo:nether_wither";
     private static final String ABILITY_FROST_SNAP = "goo:frost_snap";
     private static final String ABILITY_AEON_TIME_STOP = "goo:aeon_time_stop";
     private static final String ABILITY_UNSTABLE_EXPLODE = "goo:unstable_explode";
@@ -365,22 +363,6 @@ public final class MobEffectTests {
     }
 
     /**
-     * Nether wither is a program: a not_boss target selection wrapping a
-     * set_health step at half and a wither potion step.
-     *
-     * @param helper the gametest helper
-     */
-    public static void netherWither(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        float before = mob.getHealth();
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_NETHER_WITHER);
-            helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
-            helper.assertTrue(mob.hasEffect(MobEffects.WITHER), SHOULD_HAVE_WITHER);
-            helper.succeed();
-        });
-    }
-
     /**
      * Banish's first hit curses a zombie: a player walked onto it sets off a
      * warp away, and a second Banish hit exiles it from existence

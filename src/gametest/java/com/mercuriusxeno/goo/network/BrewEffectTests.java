@@ -62,6 +62,8 @@ public final class BrewEffectTests {
     private static final String SHOULD_END_BREW_EFFECT = "Barkskin replacing a drunk Kindle should end the blaze brew effect, stands %s";
     private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
     private static final Identifier LEAF_BARKSKIN = Identifier.parse("goo:leaf_barkskin");
+    private static final Identifier NETHER_UNDEAD = Identifier.parse("goo:nether_undead");
+    private static final String SHOULD_BE_UNDEAD_PREPAID = "The nether brew should make the player undead, held prepaid";
     /** ender_teleportitis.json's blink distance. */
     private static final float TELEPORTITIS_DISTANCE = 8f;
     /** A hit of two hearts. */
@@ -133,6 +135,36 @@ public final class BrewEffectTests {
                         && overlay.shieldAt(FIRST_MISSING) == PRIMED_HALVES && overlay.expiresAt() == expected,
                 String.format(SHOULD_LAY, GooTypes.ROCK.identifier(), PRIMED_HALVES, HeartKind.STONESKIN,
                         expected, overlay.kind(), overlay.shieldHalves(), overlay.expiresAt()));
+        helper.succeed();
+    }
+
+    /**
+     * Drinking the nether brew while missing five hearts primes nether over
+     * the first of those five for an hour and makes the player undead, its
+     * held effect prepaid to the brew's expiry
+     * (decision undead-nether-hearts-burn-in-sunlight).
+     *
+     * @param helper the gametest helper
+     */
+    public static void netherBrewUndeadForAnHour(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.NETHER);
+        player.setHealth(HALF_HEALTH);
+        long now = player.level().getGameTime();
+
+        drink(player, GooTypes.NETHER);
+
+        HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
+        boolean undead = player.getData(GooAttachments.UNDEAD).stands();
+        boolean prepaid = player.getData(GooAttachments.HELD_EFFECTS).held().stream()
+                .anyMatch(effect -> effect.ability().equals(NETHER_UNDEAD)
+                        && effect.expiresAt() == now + GooPotions.BREW_DURATION);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        long expected = now + GooPotions.BREW_DURATION;
+        helper.assertTrue(overlay.kind() == HeartKind.UNDEAD && overlay.shieldHalves() == PRIMED_HALVES
+                        && overlay.shieldAt(FIRST_MISSING) == PRIMED_HALVES && overlay.expiresAt() == expected,
+                String.format(SHOULD_LAY, GooTypes.NETHER.identifier(), PRIMED_HALVES, HeartKind.UNDEAD,
+                        expected, overlay.kind(), overlay.shieldHalves(), overlay.expiresAt()));
+        helper.assertTrue(undead && prepaid, SHOULD_BE_UNDEAD_PREPAID);
         helper.succeed();
     }
 

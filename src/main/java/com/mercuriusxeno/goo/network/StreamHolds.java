@@ -11,9 +11,12 @@ import java.util.UUID;
  * How long each player has held a stream, counted in server ticks: a
  * stream tick arriving within two ticks of the last continues the hold, a
  * second one in the same server tick runs nothing, and a longer gap starts a
- * new one (decision stream-delivery-held-cone). Each hold
- * also remembers the blocks it has touched, so a step acting once per
- * activation acts on each block once (decision signal-wave-toggles-each-device-once).
+ * new one (decision stream-delivery-held-cone). Each hold also remembers the
+ * blocks it has touched, so a step acting once per activation acts on each
+ * block once (decision signal-wave-toggles-each-device-once), and keeps the
+ * marks it left on the blocks it reached, so a stream painting blocks keeps
+ * them transitioning and steps each position at most once per hold
+ * (decision decay-gnats-degrade-each-block-once).
  */
 public final class StreamHolds {
 
@@ -27,7 +30,7 @@ public final class StreamHolds {
     private final Map<UUID, Hold> holds = new HashMap<>();
 
     /**
-     * Counts one stream tick for the player.
+     * Counts one stream tick for the player; a new hold starts with fresh marks.
      *
      * @param player the streaming player
      * @param tick   the server tick the stream tick arrived on
@@ -40,9 +43,21 @@ public final class StreamHolds {
             return 0;
         }
         boolean continues = last != null && tick - last.tick() <= LATEST_CONTINUING_GAP;
-        int held = continues ? last.held() + 1 : 1;
-        holds.put(player, new Hold(tick, held, continues ? last.touched() : new HashSet<>()));
-        return held;
+        Hold next = continues ? new Hold(tick, last.held() + 1, last.touched(), last.marks())
+                : new Hold(tick, 1, new HashSet<>(), new HoldMarks());
+        holds.put(player, next);
+        return next.held();
+    }
+
+    /**
+     * The marks the player's current hold has left.
+     *
+     * @param player the streaming player
+     * @return the hold's marks, fresh ones for a player holding nothing
+     */
+    public HoldMarks marks(UUID player) {
+        Hold hold = holds.get(player);
+        return hold != null ? hold.marks() : new HoldMarks();
     }
 
     /**
@@ -78,6 +93,6 @@ public final class StreamHolds {
         return (int) (total - before);
     }
 
-    private record Hold(int tick, int held, Set<BlockPos> touched) {
+    private record Hold(int tick, int held, Set<BlockPos> touched, HoldMarks marks) {
     }
 }

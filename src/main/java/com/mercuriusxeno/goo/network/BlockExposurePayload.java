@@ -16,8 +16,12 @@ import org.jspecify.annotations.NonNull;
  * @param pos     the block
  * @param toward  the state it calcifies into, by its block state id
  * @param share   the share built, 0 to 1
+ * @param tint    the RGB the client tints the mingled block by, {@link #UNTINTED} for none
  */
-public record BlockExposurePayload(BlockPos pos, int toward, float share) implements CustomPacketPayload {
+public record BlockExposurePayload(BlockPos pos, int toward, float share, int tint) implements CustomPacketPayload {
+
+    /** The tint of a mingled block drawn in its own colors. */
+    public static final int UNTINTED = -1;
 
     /** Payload type ID for registration. */
     public static final Type<BlockExposurePayload> TYPE =
@@ -36,9 +40,10 @@ public record BlockExposurePayload(BlockPos pos, int toward, float share) implem
         buf.writeBlockPos(payload.pos);
         buf.writeVarInt(payload.toward);
         buf.writeFloat(payload.share);
+        buf.writeInt(payload.tint);
     }
 
     private static BlockExposurePayload decode(FriendlyByteBuf buf) {
-        return new BlockExposurePayload(buf.readBlockPos(), buf.readVarInt(), buf.readFloat());
+        return new BlockExposurePayload(buf.readBlockPos(), buf.readVarInt(), buf.readFloat(), buf.readInt());
     }
 }

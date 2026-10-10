@@ -3,8 +3,9 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.ability.pulse.RedstoneBeat;
 import com.mercuriusxeno.goo.ability.pulse.RelayNetwork;
 import com.mercuriusxeno.goo.block.ability.MarkerAnchor;
+import com.mercuriusxeno.goo.block.ability.MarkerProgramState;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
-import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.entity.CompressionSphere;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -38,12 +39,19 @@ import java.util.function.Consumer;
  */
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
-        FieldEffectHost, PhasedHost, ConsumedGooHost, StateWriteHost, LevelHost, ConvokeHost, PowerEmitHost,
+        FieldEffectHost, PhasedHost, HoardHost, StateWriteHost, LevelHost, ConvokeHost, PowerEmitHost,
         BeatHost, RelayHost, AgitateHost, FrostHost, GreeningHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
     /** The power a block gives at full strength. */
     private static final int FULL_POWER = 15;
+    /**
+     * The work a black hole's take spends each tick, a cell or a column of
+     * its shell walk each a unit: a radius 3 hole in one tick, a bigger one
+     * over more, so no size stalls the server in a single tick
+     * (decision black-hole-leaves-a-compression-sphere).
+     */
+    static final int BLOCKS_TAKEN_PER_TICK = 2048;
 
     @Override
     public HostKind kind() {
@@ -52,7 +60,9 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
 
     @Override
     public OptionalDouble read(String name) {
-        return OptionalDouble.empty();
+        // black-hole-leaves-a-compression-sphere: a sized cast's program reads the size it was dragged to
+        return HostVariables.SIZE.equals(name) ? OptionalDouble.of(be.programState().castSize())
+                : OptionalDouble.empty();
     }
 
     @Override
@@ -192,13 +202,33 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     }
 
     @Override
-    public void consumeValuedBlocks(int radius) {
-        be.programState().addConsumedGoo(ValuedBlocks.consumeSphere(level, pos, radius));
+    public void hoardBlocks(int radius) {
+        be.programState().beginTaking(radius);
     }
 
     @Override
-    public void dropConsumedGoo() {
-        GooStacks.dropAll(be.programState().takeConsumedGoo(), level, pos);
+    public void takeBlocks() {
+        MarkerProgramState state = be.programState();
+        if (!state.taking()) {
+            return;
+        }
+        ShellWalk.Cursor next = HoardedBlocks.takeSome(level, pos, state.takeRadius(), state.takeCursor(),
+                BLOCKS_TAKEN_PER_TICK, state.hoard());
+        if (state.tookTo(next)) {
+            CompressionSphere.leave(level, Vec3.atCenterOf(pos), state.hoard());
+        }
+    }
+
+    @Override
+    public void pullItemsIntoHoard(double radius, double speed) {
+        HoardedBlocks.pullItems(level, Vec3.atCenterOf(pos), radius, speed, be.programState().hoard());
+    }
+
+    @Override
+    public void dropSphere() {
+        if (!be.programState().putOffDrop()) {
+            CompressionSphere.leave(level, Vec3.atCenterOf(pos), be.programState().hoard());
+        }
     }
 
     @Override

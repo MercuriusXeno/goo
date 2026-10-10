@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.ability.program.NourishStep;
 import com.mercuriusxeno.goo.ability.program.SightStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.TeleportitisStep;
+import com.mercuriusxeno.goo.ability.program.UndeadStep;
 import com.mojang.serialization.Codec;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -32,6 +33,8 @@ public enum LaidState {
     SIGHT,
     /** Lux's night vision and gaze glisten (decision lux-night-vision-without-particles). */
     LUX,
+    /** Counting as undead (decision undead-nether-hearts-burn-in-sunlight). */
+    UNDEAD,
     /** Teleportitis (decision teleportitis-blinks-along-the-cursor-on-hit). */
     TELEPORTITIS,
     /** The Extender's mark, laid by an extender step (decision extender-multiplies-the-next-self-duration). */
@@ -69,6 +72,7 @@ public enum LaidState {
             NourishStep.class, NOURISH,
             SightStep.class, SIGHT,
             LuxStep.class, LUX,
+            UndeadStep.class, UNDEAD,
             TeleportitisStep.class, TELEPORTITIS,
             ExtenderStep.class, EXTENDER,
             LifetapStep.class, LIFETAP);

@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:undead_sunburn_is_aggravated",
+  "environment": "goo:clear_noon",
+  "structure": "goo:test_bay",
+  "max_ticks": 40,
+  "setup_ticks": 0,
+  "required": true
+}

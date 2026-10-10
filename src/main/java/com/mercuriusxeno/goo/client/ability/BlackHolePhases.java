@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.program.HostVariables;
 import com.mercuriusxeno.goo.ability.program.PhasedState;
 import com.mercuriusxeno.goo.ability.program.PhasedStep;
-import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.ber.AbilityBlockRenderState;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -109,7 +109,8 @@ public final class BlackHolePhases {
         state.visibleScale = visibleScale(phase);
         state.diskExpansionScale = diskExpansionScale(phase);
         state.implodeRadius = SyncedSteps.first(be, PhasedStep.class)
-                .map(step -> step.radius().evaluateFloat(Variables.NONE)).orElse(0f);
+                .map(step -> step.radius().evaluateFloat(HostVariables.sized(be.programState().castSize())))
+                .orElse(0f);
         state.animationTime = NetherDiscMesh.animationTime(be);
         return state.visibleScale > 0f;
     }

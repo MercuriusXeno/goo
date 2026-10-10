@@ -43,9 +43,11 @@ import java.util.OptionalDouble;
  * @param abilityId   the ability the blob names
  * @param anchor      where world actions anchor: the aimed point for an ability
  *                    aiming one, the cell's center otherwise (decision aim-point-follows-the-cursor)
+ * @param size        the size the cast was dragged to, zero for one naming none
+ *                    (decision black-hole-leaves-a-compression-sphere)
  */
 public record LandingHost(ServerLevel level, BlockPos cell, Direction face, boolean waterlogged,
-                          ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 anchor)
+                          ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 anchor, double size)
         implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
         ColonizeHost, FloorScanHost, GateHost, PowerPulseHost, MobSpawnHost, FrostHost {
 
@@ -79,7 +81,7 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
 
     @Override
     public OptionalDouble read(String name) {
-        return OptionalDouble.empty();
+        return HostVariables.SIZE.equals(name) ? OptionalDouble.of(size) : OptionalDouble.empty();
     }
 
     @Override
@@ -131,7 +133,7 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
         level.setBlock(cell, GooBlocks.ABILITY_BLOCK.get().defaultBlockState()
                 .setValue(AbilityBlock.WATERLOGGED, waterlogged), Block.UPDATE_ALL);
         if (level.getBlockEntity(cell) instanceof AbilityBlockEntity be) {
-            be.stand(gooType, face, abilityId, steps);
+            be.stand(gooType, face, abilityId, steps, size);
         }
     }
 

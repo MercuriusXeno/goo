@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:black_hole_leaves_a_sphere",
+  "environment": "goo:phased_nether",
+  "structure": "goo:test_bay",
+  "max_ticks": 160,
+  "setup_ticks": 0,
+  "required": true
+}

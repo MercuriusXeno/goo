@@ -116,6 +116,41 @@ public interface BlockBreakHost extends StepHost {
     }
 
     /**
+     * Builds a block's exposure toward a state, the clients tinting the
+     * mingled block (decision decay-gnats-degrade-each-block-once).
+     *
+     * @param pos    the block
+     * @param toward the state it becomes at a full share
+     * @param amount the share this exposure adds
+     * @param tint   the RGB the clients tint the mingled block by
+     * @return the share after it, 1 the tick the block steps
+     */
+    default float exposeBlock(BlockPos pos, BlockState toward, float amount, int tint) {
+        return GooServerState.of(level().getServer()).blockExposures().expose(level(), pos, toward, amount, tint);
+    }
+
+    /**
+     * Leaves a block's built share to finish its step on its own
+     * (decision decay-gnats-degrade-each-block-once).
+     *
+     * @param pos  the block
+     * @param rate the share it builds each tick
+     */
+    default void finishBlockAlone(BlockPos pos, float rate) {
+        GooServerState.of(level().getServer()).blockExposures().finishAlone(level(), pos, rate);
+    }
+
+    /**
+     * Whether a block is finishing its step on its own.
+     *
+     * @param pos the block
+     * @return true from {@link #finishBlockAlone} until it steps
+     */
+    default boolean finishingAlone(BlockPos pos) {
+        return GooServerState.of(level().getServer()).blockExposures().finishingAt(level(), pos);
+    }
+
+    /**
      * Breaks a block, dropping its loot as a pickaxe harvests it and playing
      * its break particles.
      *
