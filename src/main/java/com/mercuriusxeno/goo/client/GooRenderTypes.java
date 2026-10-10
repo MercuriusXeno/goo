@@ -771,6 +771,32 @@ public final class GooRenderTypes {
                     .createRenderSetup());
 
     /**
+     * Vines' tangle pipeline: a rooted mob's model drawn again through
+     * {@code vine_tangle.vsh / .fsh}, flush at the model's own depth, the vine
+     * texture laid over the skin coordinates in noise patches covering the
+     * share of the model the vertex alpha carries.
+     * vines-unpack-root-and-thorn
+     */
+    public static final RenderPipeline VINE_TANGLE = RenderPipeline.builder(
+                    RenderPipelines.ENTITY_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "vine_tangle"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "vine_tangle"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "vine_tangle"))
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(new DepthStencilState(DepthStencilState.DEFAULT.depthTest(), false))
+            .build();
+
+    /** The vine tangle render type, sampling vanilla's vine texture. */
+    public static final RenderType VINE_TANGLE_TYPE = RenderType.create(
+            "goo_vine_tangle",
+            RenderSetup.builder(VINE_TANGLE)
+                    .withTexture("Sampler0", Identifier.withDefaultNamespace("textures/block/vine.png"))
+                    .useLightmap()
+                    .sortOnUpload()
+                    .createRenderSetup());
+
+    /**
      * Frost's ice over a frozen mob (decision frozen-gauge-per-mob-encases-when-full):
      * Petrify's stone pipeline sampling vanilla's packed ice, so frost spreads
      * over the mob the way stone does, whole at a full gauge.
@@ -792,6 +818,44 @@ public final class GooRenderTypes {
 
     /** The petrify fog render type. */
     public static final RenderType PETRIFY_FOG_TYPE = burnoutType(PETRIFY_FOG);
+
+    /**
+     * Growth's breeze pipeline: cross-sections of the cone drawn through
+     * {@code growth_breeze.vsh / .fsh}, glowing green wisps drifting outward
+     * with pulses running out from the glove.
+     * growth-breeze-ticks-plants
+     */
+    public static final RenderPipeline GROWTH_BREEZE = burnoutPipeline("growth_breeze", BlendFunction.LIGHTNING);
+
+    /** The growth breeze render type. */
+    public static final RenderType GROWTH_BREEZE_TYPE = burnoutType(GROWTH_BREEZE);
+
+    /**
+     * Leaf's held ghost, Bloom's pollen haze dome, drawn through
+     * {@code leaf_ghost.vsh / .fsh}.
+     * bloom-places-buds-by-biome-and-surface
+     */
+    public static final RenderPipeline LEAF_GHOST = burnoutPipeline("leaf_ghost", BlendFunction.LIGHTNING);
+
+    /** The leaf ghost render type. */
+    public static final RenderType LEAF_GHOST_TYPE = burnoutType(LEAF_GHOST);
+
+    /** Leaf's held ghost through blocks, so the haze shows where blocks stand between. */
+    public static final RenderPipeline LEAF_GHOST_THROUGH_BLOCKS = throughBlocksPipeline("leaf_ghost",
+            BlendFunction.LIGHTNING);
+
+    /**
+     * Reap's swell, a whole sphere of Growth's breeze swelling out to Reap's
+     * radius, drawn through {@code reap_swell.vsh / .fsh}.
+     * reap-breeze-harvests-and-replants
+     */
+    public static final RenderPipeline REAP_SWELL = burnoutPipeline("reap_swell", BlendFunction.LIGHTNING);
+
+    /** The reap swell render type. */
+    public static final RenderType REAP_SWELL_TYPE = burnoutType(REAP_SWELL);
+
+    /** The leaf ghost's through-blocks render type. */
+    public static final RenderType LEAF_GHOST_THROUGH_BLOCKS_TYPE = burnoutType(LEAF_GHOST_THROUGH_BLOCKS);
 
     /**
      * Bore's vortex pipeline (decision bore-vortex-with-a-worldspace-shake):
@@ -1027,6 +1091,8 @@ public final class GooRenderTypes {
      */
     public static void registerPipelines(RegisterRenderPipelinesEvent event) {
         registerBurnoutPipelines(event);
+        registerMobLayerPipelines(event);
+        registerLeafPipelines(event);
         registerLinePipelines(event);
         event.registerPipeline(NETHER_BLACKHOLE);
         event.registerPipeline(NETHER_CORONA);
@@ -1040,12 +1106,9 @@ public final class GooRenderTypes {
         event.registerPipeline(GOO_FLUID);
         event.registerPipeline(GOO_FLUID_SURFACE);
         event.registerPipeline(CRUCIBLE_DISSOLVE);
-        event.registerPipeline(GOO_MOB_COAT);
         event.registerPipeline(BLOCK_MINGLE);
-        event.registerPipeline(PETRIFY_STONE);
         event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(BORE_VORTEX);
-        event.registerPipeline(GOO_AILMENT_OVERLAY);
         registerOverlayPipelines(event);
     }
 
@@ -1062,6 +1125,31 @@ public final class GooRenderTypes {
         event.registerPipeline(GLOW_BEAM);
         event.registerPipeline(GLOW_SHELL);
         event.registerPipeline(SCRY_FACES);
+    }
+
+    /**
+     * Registers the pipelines that draw a mob's model again over itself: the
+     * goo coat, Petrify's stone, Vines' tangle and the ailment overlays.
+     *
+     * @param event the event instance
+     */
+    private static void registerMobLayerPipelines(RegisterRenderPipelinesEvent event) {
+        event.registerPipeline(GOO_MOB_COAT);
+        event.registerPipeline(PETRIFY_STONE);
+        event.registerPipeline(VINE_TANGLE);
+        event.registerPipeline(GOO_AILMENT_OVERLAY);
+    }
+
+    /**
+     * Registers Leaf's pipelines: Growth's breeze, Bloom's haze ghost and Reap's swell.
+     *
+     * @param event the event instance
+     */
+    private static void registerLeafPipelines(RegisterRenderPipelinesEvent event) {
+        event.registerPipeline(GROWTH_BREEZE);
+        event.registerPipeline(LEAF_GHOST);
+        event.registerPipeline(LEAF_GHOST_THROUGH_BLOCKS);
+        event.registerPipeline(REAP_SWELL);
     }
 
     /**

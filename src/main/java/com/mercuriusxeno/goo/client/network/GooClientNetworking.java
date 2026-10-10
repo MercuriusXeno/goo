@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.ability.LeechWisps;
 import com.mercuriusxeno.goo.client.ability.RadiantAura;
+import com.mercuriusxeno.goo.client.ability.ReapSwells;
 import com.mercuriusxeno.goo.client.ability.ScrySweep;
 import com.mercuriusxeno.goo.client.ability.SunbeamVisual;
 import com.mercuriusxeno.goo.client.ability.Tomes;
@@ -10,6 +11,7 @@ import com.mercuriusxeno.goo.client.ability.VitalityVisual;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.AfterimagePayload;
 import com.mercuriusxeno.goo.network.AilmentPayload;
+import com.mercuriusxeno.goo.network.BlockAfterimagePayload;
 import com.mercuriusxeno.goo.network.BlockExposurePayload;
 import com.mercuriusxeno.goo.network.BlockTransformPayload;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
@@ -24,6 +26,7 @@ import com.mercuriusxeno.goo.network.MobHitPayload;
 import com.mercuriusxeno.goo.network.NovaRingPayload;
 import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
 import com.mercuriusxeno.goo.network.RadiantAuraPayload;
+import com.mercuriusxeno.goo.network.ReapSwellPayload;
 import com.mercuriusxeno.goo.network.ScryPayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.network.SunbeamPayload;
@@ -61,12 +64,7 @@ public final class GooClientNetworking {
         event.register(ChainBurnoutPayload.TYPE, ChainBurnoutHandler::handle);
         event.register(MobHitPayload.TYPE, MobHitHandler::handle);
         event.register(AilmentPayload.TYPE, AilmentHandler::handle);
-        event.register(ScryPayload.TYPE, ScrySweep::onPayload);
-        event.register(SunbeamPayload.TYPE, SunbeamVisual::onPayload);
-        event.register(RadiantAuraPayload.TYPE, RadiantAura::onPayload);
-        event.register(LeechPayload.TYPE, LeechWisps::handle);
-        event.register(TomePayload.TYPE, Tomes::handle);
-        event.register(NovaRingPayload.TYPE, NovaRingHandler::handle);
+        registerAbilityVisualHandlers(event);
         event.register(BlockTransformPayload.TYPE, BlockTransformHandler::handle);
         event.register(BlockExposurePayload.TYPE, BlockTransformHandler::handleExposure);
         event.register(AfterimagePayload.TYPE, AfterimageHandler::handle);
@@ -76,5 +74,23 @@ public final class GooClientNetworking {
         event.register(KnownItemLearnedPayload.TYPE, KnownItemsHandler::handleLearned);
         event.register(StreamHealedPayload.TYPE, VitalityVisual::handleHealed);
         event.register(DripHealedPayload.TYPE, VitalityVisual::handleDripHealed);
+        event.register(BlockAfterimagePayload.TYPE, AfterimageHandler::handleBlock);
+    }
+
+    /**
+     * Registers the handlers for the abilities' own visuals: glow's Scry,
+     * Sunbeam and Radiant, hex's leech and tomes, frost's Nova rings and
+     * leaf's Reap swells.
+     *
+     * @param event the client payload handler registration event
+     */
+    private static void registerAbilityVisualHandlers(RegisterClientPayloadHandlersEvent event) {
+        event.register(ScryPayload.TYPE, ScrySweep::onPayload);
+        event.register(SunbeamPayload.TYPE, SunbeamVisual::onPayload);
+        event.register(RadiantAuraPayload.TYPE, RadiantAura::onPayload);
+        event.register(LeechPayload.TYPE, LeechWisps::handle);
+        event.register(TomePayload.TYPE, Tomes::handle);
+        event.register(NovaRingPayload.TYPE, NovaRingHandler::handle);
+        event.register(ReapSwellPayload.TYPE, ReapSwells::handle);
     }
 }
