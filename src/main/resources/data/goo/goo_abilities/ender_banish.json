@@ -15,7 +15,7 @@
           "type": "branch",
           "when": "at_least(100, max_health)",
           "then": [
-            { "type": "banish", "radius": 6, "range": 32, "warps": 3 },
+            { "type": "banish", "radius": 6, "range": 32 },
             { "type": "ailment_overlay", "kind": "banish", "duration": 40 },
             { "type": "afterimage", "goo": "ender" },
             { "type": "sound", "id": "minecraft:entity.enderman.teleport", "at": "target", "source": "hostile", "volume": 1, "pitch": 1.4 }

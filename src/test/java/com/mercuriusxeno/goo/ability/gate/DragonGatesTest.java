@@ -8,6 +8,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.fml.loading.FMLLoader;
 import org.junit.jupiter.api.BeforeAll;
@@ -19,7 +20,6 @@ import org.mockito.MockedStatic;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -27,7 +27,7 @@ import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mockStatic;
 
 /**
- * Where a Dragon Gate lies, where it sets travellers down, and how a
+ * Where a Dragon Gate's square lies, where it sets travellers down, and how a
  * server's open pairs are kept and closed on their clocks
  * (decision dragon-gate-banishes-blocks-and-opens-a-portal).
  */
@@ -35,6 +35,9 @@ class DragonGatesTest {
 
     private static final BlockPos CENTER = new BlockPos(10, 64, -5);
     private static final int CELLS = 9;
+    /** The square's area, two by two blocks. */
+    private static final double SQUARE_AREA = 4;
+    private static final double EPSILON = 1e-9;
     private static final long CLOSES_AT = 1200L;
 
     @BeforeAll
@@ -46,29 +49,44 @@ class DragonGatesTest {
     }
 
     private static GatePatch patchAt(ResourceKey<Level> level, BlockPos center) {
-        List<GatePatch.Covered> covered = GateFootprint.patch(center, Direction.UP).stream()
-                .map(cell -> new GatePatch.Covered(cell, Blocks.STONE.defaultBlockState())).toList();
+        List<GatePatch.Covered> covered = GateSquare.cells(center, Direction.UP).stream()
+                .map(cell -> new GatePatch.Covered(cell.pos(), Blocks.AIR.defaultBlockState())).toList();
         return new GatePatch(level, center, Direction.UP, covered);
     }
 
     @Nested
-    class Footprint {
+    class Square {
 
         @ParameterizedTest
         @EnumSource(Direction.class)
-        void coversNineCellsInTheStruckFacesPlane(Direction face) {
-            List<BlockPos> cells = GateFootprint.patch(CENTER, face);
-            assertEquals(CELLS, new HashSet<>(cells).size());
-            assertTrue(cells.stream().allMatch(cell -> cell.get(face.getAxis()) == CENTER.get(face.getAxis())));
-            assertTrue(cells.contains(CENTER));
+        void liesInNineOpenCellsInFrontOfTheStruckFace(Direction face) {
+            List<GateSquare.Cell> cells = GateSquare.cells(CENTER, face);
+            assertEquals(CELLS, new HashSet<>(cells.stream().map(GateSquare.Cell::pos).toList()).size());
+            assertTrue(cells.stream().allMatch(cell -> cell.pos().get(face.getAxis())
+                    == CENTER.relative(face).get(face.getAxis())));
+            assertEquals(CENTER.relative(face), cells.getFirst().pos());
         }
 
         @ParameterizedTest
         @EnumSource(Direction.class)
-        void setsTravellersDownOutsideThePatchOnItsOpenSide(Direction face) {
-            Vec3 feet = GateFootprint.arrival(CENTER, face);
-            Set<BlockPos> cells = Set.copyOf(GateFootprint.patch(CENTER, face));
-            assertFalse(cells.contains(BlockPos.containing(feet)));
+        void spansTwoByTwoCentredOnTheStruckBlock(Direction face) {
+            double area = GateSquare.cells(CENTER, face).stream()
+                    .map(cell -> GateSquare.cellLayer(face, cell.across(), cell.along()))
+                    .mapToDouble(layer -> layer.getXsize() * layer.getYsize() * layer.getZsize() / GateSquare.DEPTH)
+                    .sum();
+            assertEquals(SQUARE_AREA, area, EPSILON);
+        }
+
+        @Test
+        void aCornerCellHoldsTheQuarterNearestTheMiddleAgainstTheFace() {
+            AABB corner = GateSquare.cellLayer(Direction.UP, 0, 2);
+            assertEquals(new AABB(0.5, 0, 0, 1, GateSquare.DEPTH, 0.5), corner);
+        }
+
+        @ParameterizedTest
+        @EnumSource(Direction.class)
+        void setsTravellersDownOffTheSquareOnItsOpenSide(Direction face) {
+            Vec3 feet = GateSquare.arrival(CENTER, face);
             double side = (feet.get(face.getAxis()) - (CENTER.get(face.getAxis()) + 0.5)) * face.getAxisDirection().getStep();
             assertTrue(side > 0, face + " sets travellers down behind its own surface");
         }
@@ -83,8 +101,8 @@ class DragonGatesTest {
             GatePatch near = patchAt(Level.OVERWORLD, CENTER);
             GatePatch far = patchAt(Level.END, new BlockPos(100, 48, 0));
             gates.open(new DragonGates.Pair(near, far, CLOSES_AT));
-            assertEquals(Optional.of(far), gates.partnerOf(Level.OVERWORLD, CENTER.east()));
-            assertEquals(Optional.of(near), gates.partnerOf(Level.END, new BlockPos(100, 48, 1)));
+            assertEquals(Optional.of(far), gates.partnerOf(Level.OVERWORLD, CENTER.above().east()));
+            assertEquals(Optional.of(near), gates.partnerOf(Level.END, new BlockPos(100, 49, 1)));
             assertEquals(Optional.empty(), gates.partnerOf(Level.END, CENTER));
         }
 

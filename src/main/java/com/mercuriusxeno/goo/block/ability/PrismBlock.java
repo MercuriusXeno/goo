@@ -5,6 +5,9 @@ import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -43,6 +46,15 @@ public class PrismBlock extends BaseEntityBlock {
 
     private static final Map<Direction, VoxelShape> SHAPES = buildShapes();
 
+    /** The ability whose combo makes a prism an oculus (decision oculus-prism-becomes-a-hovering-eye). */
+    private static final String OCULUS = "goo:ender_oculus";
+    /** One display tick in this many an oculus murmurs, about once every ten seconds. */
+    private static final int OCULUS_MURMUR_ODDS = 200;
+    private static final float OCULUS_MURMUR_VOLUME = 0.5f;
+    /** The murmur's pitch, well above the enderman's own, and how far it varies up from there. */
+    private static final float OCULUS_MURMUR_PITCH = 1.6f;
+    private static final float OCULUS_MURMUR_PITCH_SPREAD = 0.4f;
+
     /** A combo's program ticks on the server alone. */
     private static final BlockEntityTicks<PrismBlockEntity> TICKS =
             BlockEntityTicks.onServer(GooBlockEntities.PRISM, PrismBlockEntity::serverTick);
@@ -55,6 +67,20 @@ public class PrismBlock extends BaseEntityBlock {
     public PrismBlock(Properties properties) {
         super(properties);
         registerDefaultState(stateDefinition.any().setValue(FACING, Direction.UP));
+    }
+
+    /**
+     * Now and then an oculus murmurs a high-pitched enderman's sound, heard by
+     * the client drawing it.
+     * decision oculus-prism-becomes-a-hovering-eye
+     */
+    @Override
+    public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
+        if (random.nextInt(OCULUS_MURMUR_ODDS) == 0 && level.getBlockEntity(pos) instanceof PrismBlockEntity prism
+                && OCULUS.equals(prism.getCombo())) {
+            level.playLocalSound(pos, SoundEvents.ENDERMAN_AMBIENT, SoundSource.BLOCKS, OCULUS_MURMUR_VOLUME,
+                    OCULUS_MURMUR_PITCH + random.nextFloat() * OCULUS_MURMUR_PITCH_SPREAD, false);
+        }
     }
 
     private static Map<Direction, VoxelShape> buildShapes() {

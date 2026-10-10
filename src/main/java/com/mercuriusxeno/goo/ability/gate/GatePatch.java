@@ -11,14 +11,15 @@ import net.minecraft.world.phys.Vec3;
 import java.util.List;
 
 /**
- * One gate of a Dragon Gate pair: where it lies, the face it looks out of,
- * and the blocks it covers, kept to put back when it closes.
+ * One gate of a Dragon Gate pair: the struck block it is centred on, the
+ * face it looks out of, and the open cells its layer took, kept to clear
+ * when it closes.
  * Decision dragon-gate-banishes-blocks-and-opens-a-portal.
  *
  * @param dimension the level the gate lies in
- * @param center    the gate's centre cell
+ * @param center    the struck block the gate is centred on
  * @param face      the face the gate looks out of
- * @param covered   each covered cell and the block it held
+ * @param covered   each cell the gate's layer took and the block it held
  */
 public record GatePatch(ResourceKey<Level> dimension, BlockPos center, Direction face, List<Covered> covered) {
 
@@ -68,6 +69,6 @@ public record GatePatch(ResourceKey<Level> dimension, BlockPos center, Direction
      * @return the feet
      */
     public Vec3 arrival() {
-        return GateFootprint.arrival(center, face);
+        return GateSquare.arrival(center, face);
     }
 }

@@ -57,11 +57,16 @@ public final class SelfDeliveryTests {
     private static final int NO_ENTITY = -1;
     /** Two thousand mB, two casts' worth. */
     private static final int HELD_GOO = 2;
+    /** Enough ender goo for a full-range blink through a wall, past what the player holds. */
+    private static final int LONG_TRIP_GOO = 4 * GooStacks.THOUSAND;
     /** The yaw a player faces east, toward +x, at. */
     private static final float FACING_EAST = -90f;
     private static final Identifier ENDER_BLINK = Identifier.parse("goo:ender_blink");
     /** The range ender_blink.json's teleport step names. */
-    private static final double BLINK_RANGE = 8;
+    /** ender_blink.json's range. */
+    private static final double BLINK_RANGE = 32;
+    /** The range Blink had before the operator lengthened it, which every blink east now passes. */
+    private static final double OLD_BLINK_RANGE = 8;
     private static final double MOVE_TOLERANCE = 1e-6;
     /** The pillar's two stones, east of where the player stands. */
     private static final BlockPos PILLAR_BASE = new BlockPos(5, 1, 3);
@@ -100,7 +105,7 @@ public final class SelfDeliveryTests {
     private static final String SHOULD_BE_SURVIVAL = "The eating player should read survival, not creative";
     private static final String ABILITY_REQUIRED = "Ability registry must hold %s";
     private static final String SHOULD_RUN_ON_COMMAND = "A self-badged ability should run on command, not eat";
-    private static final String SHOULD_BLINK_EAST = "The player should move %.1f east the tick it blinks, moved %.3f";
+    private static final String SHOULD_BLINK_EAST = "The player should move past %.1f and no farther than %.1f east the tick it blinks, moved %.3f";
     private static final String SHOULD_DRAIN_COST = "The cast should drain the stack-zero cost of %d mB, drained %d";
     private static final String SHOULD_PROPEL = "The player's motion should read %s, read %s";
     private static final String SHOULD_CLEAR_FALL = "Propulsion should clear the fall, read %.1f";
@@ -141,6 +146,7 @@ public final class SelfDeliveryTests {
     public static void enderBlink(GameTestHelper helper) {
         AbilityDefinition blink = requireAbility(helper, ENDER_BLINK);
         ServerPlayer player = invoker(helper, GooTypes.ENDER, ENDER_BLINK);
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.ENDER, LONG_TRIP_GOO));
         KnownRecipes.teachRequires(player, blink);
         player.setYRot(FACING_EAST);
         player.setXRot(0);
@@ -154,11 +160,14 @@ public final class SelfDeliveryTests {
         int drained = heldBefore - held(player, GooTypes.ENDER);
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.assertFalse(using, SHOULD_RUN_ON_COMMAND);
-        helper.assertTrue(Math.abs(moved - BLINK_RANGE) < MOVE_TOLERANCE,
-                String.format(SHOULD_BLINK_EAST, BLINK_RANGE, moved));
-        int priced = blink.distancePrice().priceOf(blink.cost(),
-                Optional.of(new BlinkLanding(Vec3.ZERO, BLINK_RANGE, true)));
-        helper.assertTrue(drained == priced, String.format(SHOULD_DRAIN_COST, priced, drained));
+        helper.assertTrue(moved > OLD_BLINK_RANGE && moved < BLINK_RANGE + MOVE_TOLERANCE,
+                String.format(SHOULD_BLINK_EAST, OLD_BLINK_RANGE, BLINK_RANGE, moved));
+        int pricedClear = blink.distancePrice().priceOf(blink.cost(),
+                Optional.of(new BlinkLanding(Vec3.ZERO, moved, false)));
+        int pricedThroughWall = blink.distancePrice().priceOf(blink.cost(),
+                Optional.of(new BlinkLanding(Vec3.ZERO, moved, true)));
+        helper.assertTrue(drained == pricedClear || drained == pricedThroughWall,
+                String.format(SHOULD_DRAIN_COST, pricedClear, drained));
         helper.succeed();
     }
 

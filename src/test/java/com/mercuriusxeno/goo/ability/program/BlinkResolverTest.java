@@ -159,6 +159,17 @@ class BlinkResolverTest {
         }
 
         @Test
+        void aPlaneWalkedAwayFromNeverCarriesTheBlinkPastItsRange() {
+            CubeSpace space = new CubeSpace().fill(30, 60, -5, 30, 70, 5);
+            ChannelAim.FacePlane farWall = new ChannelAim.FacePlane(new BlockPos(30, 65, 0), Direction.WEST);
+
+            BlinkLanding landing = BlinkResolver.resolve(space, FEET, EAST, RANGE, PLAYER,
+                    Optional.of(farWall)).orElseThrow();
+
+            assertTrue(landing.distance() <= RANGE + NEAR, "landed " + landing.distance() + " away");
+        }
+
+        @Test
         void aPressPinsTheFirstFaceTheLookCrossesInRange() {
             CubeSpace space = new CubeSpace().fill(4, 60, -2, 4, 70, 2);
 

@@ -6,6 +6,7 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -76,14 +77,14 @@ public final class OculusNodes {
     }
 
     /**
-     * The oculus prisms in the loaded chunks the range reaches.
+     * The oculus prisms within the range of an eye, in the loaded chunks.
      *
      * @param level the level
      * @param eye   the blinker's eye
      * @param range the reach
      * @return the oculus cells
      */
-    private static List<BlockPos> oculiNear(Level level, Vec3 eye, double range) {
+    public static List<BlockPos> oculiNear(Level level, Vec3 eye, double range) {
         List<BlockPos> cells = new ArrayList<>();
         int minX = SectionPos.blockToSectionCoord(eye.x - range);
         int maxX = SectionPos.blockToSectionCoord(eye.x + range);
@@ -91,9 +92,9 @@ public final class OculusNodes {
         int maxZ = SectionPos.blockToSectionCoord(eye.z + range);
         for (int chunkX = minX; chunkX <= maxX; chunkX++) {
             for (int chunkZ = minZ; chunkZ <= maxZ; chunkZ++) {
-                LevelChunk chunk = level.getChunkSource().getChunkNow(chunkX, chunkZ);
-                if (chunk != null) {
+                if (level.getChunk(chunkX, chunkZ, ChunkStatus.FULL, false) instanceof LevelChunk chunk) {
                     chunk.getBlockEntities().values().stream().filter(OculusNodes::isOculus)
+                            .filter(oculus -> eyeOf(oculus.getBlockPos()).distanceTo(eye) <= range)
                             .forEach(oculus -> cells.add(oculus.getBlockPos()));
                 }
             }

@@ -69,10 +69,6 @@ public final class BlinkCursor {
             float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
             Optional<BlinkLanding> trip = BlinkAim.trip(player, ability, partialTick);
             AfterimageRenderer.drawRipples(event, ripplesAt(mc, player, trip, type, partialTick));
-            // oculus-prism-becomes-a-hovering-eye: the oculus the blink snaps to shows through walls
-            trip.flatMap(BlinkLanding::node).ifPresent(node -> VoxelHighlightRenderer.renderCubeThroughWalls(
-                    event.getPoseStack(), mc.renderBuffers().bufferSource(), mc.gameRenderer.getMainCamera(),
-                    node, type));
         }
     }
 

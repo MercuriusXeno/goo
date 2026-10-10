@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ber;
 
+import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
@@ -7,9 +8,12 @@ import com.mercuriusxeno.goo.client.CrystalClusterSubmitter;
 import com.mercuriusxeno.goo.client.PrismCrystal;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
+import com.mercuriusxeno.goo.client.ber.style.OculusLids;
+import com.mercuriusxeno.goo.client.ber.style.OculusStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyles;
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
@@ -63,6 +67,23 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         state.comboSince = prism.comboSince();
         state.gameTime = prism.getLevel() == null ? 0f : prism.getLevel().getGameTime() + partialTick;
         state.yawToCamera = yawToward(prism.getBlockPos().getCenter(), cameraPos);
+        state.lidClosure = OculusNodes.OCULUS.equals(state.combo) ? lidClosureFor(prism, state, cameraPos) : 1f;
+    }
+
+    /**
+     * How shut an oculus's lids stand for this viewer: open while the
+     * camera's look rests on the eye.
+     * decision oculus-prism-becomes-a-hovering-eye
+     *
+     * @param prism     the oculus prism
+     * @param state     its render state, its facing and time already read
+     * @param cameraPos the camera
+     * @return 0 open to 1 shut
+     */
+    private static float lidClosureFor(PrismBlockEntity prism, PrismRenderState state, Vec3 cameraPos) {
+        Vec3 eye = Vec3.atLowerCornerOf(prism.getBlockPos()).add(OculusStyle.eyeInCell(state.facing));
+        Vec3 forward = new Vec3(Minecraft.getInstance().gameRenderer.getMainCamera().forwardVector());
+        return OculusLids.closure(prism.getBlockPos(), OculusLids.lookedAt(cameraPos, forward, eye), state.gameTime);
     }
 
     /**

@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The teleportitis curse Banish leaves (decision banish-curses-with-ender-shimmer):
- * which mobs resist it, and how its warps run out into exile.
+ * which mobs resist it, and whether it stands.
  */
 class BanishedTest {
 
@@ -55,24 +55,9 @@ class BanishedTest {
         }
     }
 
-    @Nested
-    class Warps {
-
-        @Test
-        void eachWarpSpendsOne() {
-            assertEquals(2, new Banished(6, 32, 3).afterWarp().warpsLeft());
-        }
-
-        @Test
-        void theApproachAfterTheLastWarpExiles() {
-            Banished spent = new Banished(6, 32, 1).afterWarp();
-            assertTrue(spent.exilesNext());
-            assertTrue(spent.stands());
-        }
-
-        @Test
-        void noCurseStandsOnAnUncursedMob() {
-            assertFalse(Banished.NONE.stands());
-        }
+    @Test
+    void noCurseStandsOnAnUncursedMob() {
+        assertFalse(Banished.NONE.stands());
+        assertTrue(new Banished(6, 32).stands());
     }
 }

@@ -7,8 +7,8 @@ import java.util.stream.Stream;
 
 /**
  * Convokes a mob from the host's chunk to its spot, trying once every
- * period: finishes the try a mob arrives, and pulses the blink effect on
- * each try none does. The convoke blob lingers on
+ * period: finishes the try a mob arrives, and stays inert on each try none
+ * does. The convoke blob lingers on
  * {@code convoke every=20} until a mob comes; a tap's single drip tries once.
  * Decisions convoke-blob-throbs-until-a-mob-arrives and convoke-drip-rolls-a-small-chance.
  *

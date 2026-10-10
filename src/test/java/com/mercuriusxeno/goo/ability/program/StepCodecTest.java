@@ -117,7 +117,7 @@ class StepCodecTest {
             Map.entry("nourish", new NourishStep(Expr.literal(80))),
             Map.entry("reserve_drain", new ReserveDrainStep(Expr.literal(0.05), Expr.literal(0.5), Expr.literal(10),
                     Expr.literal(0.5))),
-            Map.entry("banish", new BanishStep(Expr.literal(6), Expr.literal(32), Expr.literal(3))),
+            Map.entry("banish", new BanishStep(Expr.literal(6), Expr.literal(32))),
             Map.entry("teleportitis", new TeleportitisStep(Expr.literal(8))),
             Map.entry("convoke", new ConvokeStep(Expr.literal(20))),
             Map.entry("dragon_gate", new DragonGateStep(Expr.literal(1200)))
