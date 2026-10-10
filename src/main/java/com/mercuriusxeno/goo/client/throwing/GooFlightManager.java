@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.client.ability.ZapBolts;
 import com.mercuriusxeno.goo.network.GooFlightPayload;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -55,6 +56,11 @@ public final class GooFlightManager {
         int targetEntityId = payload.targetEntityId();
         Vec3 throwEnd = targetEntityId < 0
                 ? payload.targetPoint() : resolveEntityEndAtThrow(targetEntityId, start);
+        if (ZapBolts.strikesAsLightning(type, payload.delivery())) {
+            // zap-ticks-the-device-and-stuns
+            ZapBolts.strike(start, throwEnd);
+            return;
+        }
         int travelTicks = payload.travelTicks();
 
         boolean grannyArc = payload.grannyArc();

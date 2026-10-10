@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.colonize.ShroomNetwork;
+import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
@@ -47,7 +48,7 @@ import java.util.OptionalDouble;
 public record LandingHost(ServerLevel level, BlockPos cell, Direction face, boolean waterlogged,
                           ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 anchor, double size)
         implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
-        ColonizeHost, FloorScanHost, MobSpawnHost, FrostHost {
+        ColonizeHost, FloorScanHost, PowerPulseHost, MobSpawnHost, FrostHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -138,5 +139,16 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
         Optional<ShroomNetwork> network = ShroomNetwork.of(level.getBlockState(landedOn));
         network.ifPresent(grows -> grows.spread(level, struck, radius));
         return network.isPresent();
+    }
+
+    /**
+     * Ticks the block the blob landed on: the struck block where the blob
+     * landed beside it, the landing cell's own block where the blob landed
+     * in place (decision zap-ticks-the-device-and-stuns).
+     */
+    @Override
+    public void powerPulse() {
+        BlockPos landedOn = level.getBlockState(cell).isAir() ? cell.relative(face.getOpposite()) : cell;
+        ZapDevice.pulse(level, landedOn, cell);
     }
 }

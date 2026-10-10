@@ -68,6 +68,14 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
      * Waterlogged state property: true when this marker co-occupies a water block.
      */
     public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
+    /**
+     * Powered state property: true for the tick a Thumper pulses, when the
+     * block gives full redstone power to the blocks beside it
+     * (decision thumper-blob-pulses-periodically-then-fades).
+     */
+    public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
+    /** The redstone power a powered ability block gives. */
+    private static final int FULL_POWER = 15;
     public static final MapCodec<AbilityBlock> CODEC = simpleCodec(AbilityBlock::new);
     /**
      * Ambient particle spread radius.
@@ -140,7 +148,7 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
      */
     public AbilityBlock(Properties properties) {
         super(properties);
-        registerDefaultState(stateDefinition.any().setValue(WATERLOGGED, false));
+        registerDefaultState(stateDefinition.any().setValue(WATERLOGGED, false).setValue(POWERED, false));
     }
 
     /**
@@ -408,13 +416,40 @@ public class AbilityBlock extends AbstractEffectBlock implements SimpleWaterlogg
     }
 
     /**
-     * Registers the WATERLOGGED property in the state definition.
+     * Registers the WATERLOGGED property and the POWERED property in the state definition.
      *
      * @param builder the state definition builder
      */
     @Override
     protected void createBlockStateDefinition(StateDefinition.@NonNull Builder<Block, BlockState> builder) {
-        builder.add(WATERLOGGED);
+        builder.add(WATERLOGGED, POWERED);
+    }
+
+    /**
+     * An ability block gives redstone power, though only a pulsing Thumper's does
+     * (decision thumper-blob-pulses-periodically-then-fades).
+     *
+     * @param state the block state
+     * @return true
+     */
+    @Override
+    protected boolean isSignalSource(@NonNull BlockState state) {
+        return true;
+    }
+
+    /**
+     * Full power to every side while powered, none otherwise.
+     *
+     * @param state     the block state
+     * @param level     the level
+     * @param pos       the block position
+     * @param direction the side asked
+     * @return 15 while powered, else 0
+     */
+    @Override
+    protected int getSignal(@NonNull BlockState state, @NonNull BlockGetter level, @NonNull BlockPos pos,
+                            @NonNull Direction direction) {
+        return state.getValue(POWERED) ? FULL_POWER : 0;
     }
 
     /**

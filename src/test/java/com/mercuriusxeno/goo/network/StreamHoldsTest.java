@@ -33,11 +33,30 @@ class StreamHoldsTest {
         }
 
         @Test
-        void aGapStartsANewHold() {
+        void aGapOfMoreThanOneTickStartsANewHold() {
             StreamHolds holds = new StreamHolds();
             holds.advance(PLAYER, 100);
             holds.advance(PLAYER, 101);
-            assertEquals(1, holds.advance(PLAYER, 103));
+            assertEquals(1, holds.advance(PLAYER, 104));
+        }
+
+        /** A client's stream ticks jitter against the server's: one can land a tick late. */
+        @Test
+        void oneLateTickContinuesTheHold() {
+            StreamHolds holds = new StreamHolds();
+            holds.advance(PLAYER, 100);
+            holds.advance(PLAYER, 101);
+            assertEquals(3, holds.advance(PLAYER, 103));
+        }
+
+        /** Two stream ticks landing in one server tick run the hold once, the second running nothing. */
+        @Test
+        void aSecondStreamTickInOneServerTickRunsNothing() {
+            StreamHolds holds = new StreamHolds();
+            holds.advance(PLAYER, 100);
+            assertEquals(2, holds.advance(PLAYER, 101));
+            assertEquals(0, holds.advance(PLAYER, 101));
+            assertEquals(3, holds.advance(PLAYER, 102));
         }
 
         @Test
@@ -78,7 +97,7 @@ class StreamHoldsTest {
             StreamHolds holds = new StreamHolds();
             holds.advance(PLAYER, 100);
             holds.marks(PLAYER).noteStepped(BLOCK);
-            holds.advance(PLAYER, 102);
+            holds.advance(PLAYER, 103);
             assertFalse(holds.marks(PLAYER).stepped(BLOCK));
         }
 
@@ -89,6 +108,36 @@ class StreamHoldsTest {
             holds.advance(OTHER, 100);
             holds.marks(PLAYER).noteStepped(BLOCK);
             assertFalse(holds.marks(OTHER).stepped(BLOCK));
+        }
+    }
+
+    /** A hold touches each block once, and a new hold forgets what the last one touched (decision signal-wave-toggles-each-device-once). */
+    @Nested
+    class TouchOnce {
+
+        private static final BlockPos LEVER = new BlockPos(4, 64, 2);
+
+        @Test
+        void aHoldTouchesEachBlockOnce() {
+            StreamHolds holds = new StreamHolds();
+            holds.advance(PLAYER, 100);
+            assertTrue(holds.touchOnce(PLAYER, LEVER));
+            holds.advance(PLAYER, 101);
+            assertFalse(holds.touchOnce(PLAYER, LEVER));
+        }
+
+        @Test
+        void aNewHoldTouchesTheBlockAgain() {
+            StreamHolds holds = new StreamHolds();
+            holds.advance(PLAYER, 100);
+            holds.touchOnce(PLAYER, LEVER);
+            holds.advance(PLAYER, 103);
+            assertTrue(holds.touchOnce(PLAYER, LEVER));
+        }
+
+        @Test
+        void noHoldTouchesNothing() {
+            assertFalse(new StreamHolds().touchOnce(PLAYER, LEVER));
         }
     }
 
