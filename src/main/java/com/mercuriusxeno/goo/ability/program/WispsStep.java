@@ -101,10 +101,14 @@ public record WispsStep(double radius, int count, int life, int above, boolean a
                 placeWisp(level, cell);
             }
         }
+        showAura(context);
+        return true;
+    }
+
+    private void showAura(StepContext context) {
         if (aura && context.host() instanceof TargetHost holder) {
             EntityVisuals.sendToWatchers(holder.target(), new RadiantAuraPayload(holder.target().getId()));
         }
-        return true;
     }
 
     private @Nullable LivingEntity viewerOf(StepContext context) {

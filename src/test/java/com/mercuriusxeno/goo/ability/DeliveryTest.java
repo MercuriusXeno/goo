@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -82,10 +83,91 @@ class DeliveryTest {
                     delivery);
         }
 
+        // nova-ring-grows-with-the-hold
+        @Test
+        void chargeReadsItsMaxTicks() {
+            Delivery delivery = deliveryOf("\"delivery\": { \"kind\": \"self\", \"charge\": { \"max_ticks\": 60 } },");
+            assertTrue(delivery.charges());
+            assertEquals(60, delivery.chargeTicks());
+        }
+
+        @Test
+        void aDeliveryNamingNoChargeDoesNotCharge() {
+            assertFalse(deliveryOf("\"delivery\": { \"kind\": \"self\" },").charges());
+        }
+
         @Test
         void grannyReadsTheJson() {
             assertEquals(false, deliveryOf("\"delivery\": { \"kind\": \"arc\", \"granny\": false },")
                     .grannyAllowed());
+        }
+    }
+
+    // nova-ring-grows-with-the-hold
+    @Nested
+    class Charge {
+
+        private final Delivery nova = new Delivery(DeliveryKind.SELF, Delivery.DEFAULT_BLOCKS_PER_TICK, 0,
+                Delivery.DEFAULT_CONE_DEGREES, Delivery.DEFAULT_TICKS_PER_CHARGE, true, java.util.Optional.empty(),
+                Delivery.DEFAULT_TRANSFORM_AT, java.util.Optional.empty(), 60);
+
+        @Test
+        void aHoldChargesInProportionToItsTicks() {
+            assertEquals(0.5f, nova.chargeShare(30));
+            assertEquals(0f, nova.chargeShare(0));
+        }
+
+        @Test
+        void aHoldPastTheMaxStaysFull() {
+            assertEquals(1f, nova.chargeShare(600));
+        }
+
+        @Test
+        void aDeliveryThatDoesNotChargeFiresWhole() {
+            assertEquals(1f, Delivery.of(DeliveryKind.SELF).chargeShare(0));
+        }
+    }
+
+    // orb-carries-a-swirling-nova
+    @Nested
+    class Rolls {
+
+        private static final double SLOW = 0.3;
+        private static final double RANGE = 40;
+
+        private Delivery arc(double blocksPerTick, double range) {
+            return new Delivery(DeliveryKind.ARC, blocksPerTick, range, Delivery.DEFAULT_CONE_DEGREES,
+                    Delivery.DEFAULT_TICKS_PER_CHARGE, true, java.util.Optional.empty(), Delivery.DEFAULT_TRANSFORM_AT);
+        }
+
+        @Test
+        void aSlowArcNamingARangeRolls() {
+            assertTrue(arc(SLOW, RANGE).rolls());
+        }
+
+        @Test
+        void aSlowArcNamingNoRangeDoesNotRoll() {
+            assertFalse(arc(SLOW, 0).rolls());
+        }
+
+        // orb-aims-a-straight-line: a rolling goo previews a straight line with no peak
+        @Test
+        void aRollingDeliveryAimsStraightWithNoPeak() {
+            Delivery orb = arc(SLOW, RANGE);
+            assertTrue(orb.aimsStraight());
+            assertEquals(0.0, orb.peak(START, TEN_AWAY, false), TOLERANCE);
+            assertEquals(0.0, orb.peak(START, TEN_AWAY, true), TOLERANCE);
+        }
+
+        @Test
+        void aPlainArcStillAimsAnArc() {
+            assertFalse(Delivery.ARC.aimsStraight());
+        }
+
+        @Test
+        void anArcAtTheDefaultSpeedDoesNotRoll() {
+            assertFalse(arc(Delivery.DEFAULT_BLOCKS_PER_TICK, RANGE).rolls());
+            assertFalse(Delivery.ARC.rolls());
         }
     }
 

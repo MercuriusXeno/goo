@@ -93,7 +93,12 @@ public enum HostCapability {
      * The server level the host stands in, read and written around its
      * position (decision reflector-rails-carry-the-brightest-light).
      */
-    LEVEL(LevelHost.class);
+    LEVEL(LevelHost.class),
+    /**
+     * The level and the point frost spreads out of (decisions
+     * nova-ring-grows-with-the-hold, nova-drip-pulses-a-short-lasting-freeze).
+     */
+    FROST(FrostHost.class);
 
     private final Class<? extends StepHost> hostType;
 

@@ -297,6 +297,17 @@ public final class GooRenderTypes {
     public static final RenderType FROST_EXPLOSION_TYPE = burnoutType(FROST_EXPLOSION);
 
     /**
+     * Frost's held ghost through blocks: the frost fog shader with no depth
+     * test, so the part of the Orb's landing ring inside blocks shows through
+     * them (decision orb-carries-a-swirling-nova).
+     */
+    public static final RenderPipeline FROST_EXPLOSION_THROUGH_BLOCKS = throughBlocksPipeline("frost_explosion",
+            BlendFunction.TRANSLUCENT);
+
+    /** RenderType for frost's held ghost through blocks. */
+    public static final RenderType FROST_EXPLOSION_THROUGH_BLOCKS_TYPE = burnoutType(FROST_EXPLOSION_THROUGH_BLOCKS);
+
+    /**
      * Nether goo's burnout explosion pipeline: the inward rush, additive,
      * through {@code nether_explosion.vsh / .fsh}.
      */
@@ -760,6 +771,19 @@ public final class GooRenderTypes {
                     .createRenderSetup());
 
     /**
+     * Frost's ice over a frozen mob (decision frozen-gauge-per-mob-encases-when-full):
+     * Petrify's stone pipeline sampling vanilla's packed ice, so frost spreads
+     * over the mob the way stone does, whole at a full gauge.
+     */
+    public static final RenderType FROST_ICE_TYPE = RenderType.create(
+            "goo_frost_ice",
+            RenderSetup.builder(PETRIFY_STONE)
+                    .withTexture("Sampler0", Identifier.withDefaultNamespace("textures/block/packed_ice.png"))
+                    .useLightmap()
+                    .sortOnUpload()
+                    .createRenderSetup());
+
+    /**
      * Petrify's fog pipeline (decision petrify-stone-encasement-and-calcify-map):
      * cross-sections of the cone drawn through {@code petrify_fog.vsh / .fsh},
      * undulating dust-fog waves washing forward through them.
@@ -1053,6 +1077,7 @@ public final class GooRenderTypes {
         event.registerPipeline(ROCK_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(BLAZE_EXPLOSION);
         event.registerPipeline(FROST_EXPLOSION);
+        event.registerPipeline(FROST_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(NETHER_EXPLOSION);
         event.registerPipeline(METAL_EXPLOSION);
         event.registerPipeline(METAL_EXPLOSION_THROUGH_BLOCKS);

@@ -48,6 +48,7 @@ public final class GooNetworking {
         r.playToClient(ScryPayload.TYPE, ScryPayload.STREAM_CODEC);
         r.playToClient(SunbeamPayload.TYPE, SunbeamPayload.STREAM_CODEC);
         r.playToClient(RadiantAuraPayload.TYPE, RadiantAuraPayload.STREAM_CODEC);
+        r.playToClient(NovaRingPayload.TYPE, NovaRingPayload.STREAM_CODEC);
         r.playToClient(BlockTransformPayload.TYPE, BlockTransformPayload.STREAM_CODEC);
         r.playToClient(BlockExposurePayload.TYPE, BlockExposurePayload.STREAM_CODEC);
         r.playToClient(AfterimagePayload.TYPE, AfterimagePayload.STREAM_CODEC);
@@ -68,6 +69,7 @@ public final class GooNetworking {
         r.playToServer(GooStreamPayload.TYPE, GooStreamPayload.STREAM_CODEC, GooStreamHandler::handle);
         r.playToServer(CanisterUnlinkPayload.TYPE, CanisterUnlinkPayload.STREAM_CODEC, CanisterUnlinkHandler::handle);
         r.playToServer(GooThrowPayload.TYPE, GooThrowPayload.STREAM_CODEC, GooThrowHandler::handle);
+        r.playToServer(GooChargePayload.TYPE, GooChargePayload.STREAM_CODEC, GooThrowHandler::handleCharge);
         r.playToServer(GloveSelectPayload.TYPE, GloveSelectPayload.STREAM_CODEC, GloveSelectHandler::handle);
     }
 }
