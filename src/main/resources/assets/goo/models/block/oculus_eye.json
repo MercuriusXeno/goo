@@ -1,0 +1,77 @@
+{
+  "textures": {
+    "particle": "goo:block/oculus_eye",
+    "eye": "goo:block/oculus_eye",
+    "side": "goo:block/oculus_eye_side"
+  },
+  "elements": [
+    {
+      "from": [
+        4.5,
+        4.5,
+        4.5
+      ],
+      "to": [
+        11.5,
+        11.5,
+        11.5
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            4,
+            4,
+            11,
+            11
+          ],
+          "texture": "#side"
+        },
+        "east": {
+          "uv": [
+            4,
+            4,
+            11,
+            11
+          ],
+          "texture": "#side"
+        },
+        "west": {
+          "uv": [
+            4,
+            4,
+            11,
+            11
+          ],
+          "texture": "#side"
+        },
+        "up": {
+          "uv": [
+            4,
+            4,
+            11,
+            11
+          ],
+          "texture": "#side"
+        },
+        "down": {
+          "uv": [
+            4,
+            4,
+            11,
+            11
+          ],
+          "texture": "#side"
+        },
+        "south": {
+          "uv": [
+            4,
+            4,
+            11,
+            11
+          ],
+          "texture": "#eye"
+        }
+      }
+    }
+  ]
+}

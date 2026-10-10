@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ber;
 
+import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
 import com.mercuriusxeno.goo.ability.program.AgitationState;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
@@ -11,6 +12,8 @@ import com.mercuriusxeno.goo.client.ability.ThumpRings;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ber.style.AgitatorPrismStyle;
+import com.mercuriusxeno.goo.client.ber.style.OculusLids;
+import com.mercuriusxeno.goo.client.ber.style.OculusStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyles;
 import com.mercuriusxeno.goo.client.ber.style.PulsePrismStyle;
@@ -78,6 +81,7 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         extractGlow(prism, state, partialTick, cameraPos);
         extractPulse(prism, state);
         extractAgitation(prism, state, partialTick);
+        extractOculus(prism, state, partialTick, cameraPos);
     }
 
     /**
@@ -117,13 +121,13 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
 
     /**
      * Reads an agitator's beat off its synced countdown.
+     * agitator-prism-quickens-until-a-spawn
      *
      * @param prism       the prism
-     * @param state       the render state
-     * @param partialTick the partial tick
+     * @param state       its render state
+     * @param partialTick the frame's partial tick
      */
     private static void extractAgitation(PrismBlockEntity prism, PrismRenderState state, float partialTick) {
-        // agitator-prism-quickens-until-a-spawn: the beat rides the synced countdown
         AgitationState agitation = prism.programState().agitation();
         state.beat = agitation.interval() > 0
                 ? AgitatorPrismStyle.beat(agitation.interval() - agitation.countdown() + partialTick)
@@ -178,6 +182,52 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
     @Override
     public int getViewDistance() {
         return Minecraft.getInstance().options.getEffectiveRenderDistance() * SectionPos.SECTION_SIZE;
+    }
+
+    /**
+     * Reads what an oculus draws by: its combo's start, the time, the turn
+     * toward the camera and how shut its lids stand for this viewer.
+     * oculus-prism-becomes-a-hovering-eye
+     *
+     * @param prism       the prism
+     * @param state       its render state, its facing and combo already read
+     * @param partialTick the frame's partial tick
+     * @param cameraPos   the camera
+     */
+    private static void extractOculus(PrismBlockEntity prism, PrismRenderState state, float partialTick,
+                                      Vec3 cameraPos) {
+        state.comboSince = prism.comboSince();
+        state.gameTime = prism.getLevel() == null ? 0f : prism.getLevel().getGameTime() + partialTick;
+        state.yawToCamera = yawToward(prism.getBlockPos().getCenter(), cameraPos);
+        state.lidClosure = OculusNodes.OCULUS.equals(state.combo) ? lidClosureFor(prism, state, cameraPos) : 1f;
+    }
+
+    /**
+     * How shut an oculus's lids stand for this viewer: open while the
+     * camera's look rests on the eye.
+     * decision oculus-prism-becomes-a-hovering-eye
+     *
+     * @param prism     the oculus prism
+     * @param state     its render state, its facing and time already read
+     * @param cameraPos the camera
+     * @return 0 open to 1 shut
+     */
+    private static float lidClosureFor(PrismBlockEntity prism, PrismRenderState state, Vec3 cameraPos) {
+        Vec3 eye = Vec3.atLowerCornerOf(prism.getBlockPos()).add(OculusStyle.eyeInCell(state.facing));
+        Vec3 forward = new Vec3(Minecraft.getInstance().gameRenderer.getMainCamera().forwardVector());
+        return OculusLids.closure(prism.getBlockPos(), OculusLids.lookedAt(cameraPos, forward, eye), state.gameTime);
+    }
+
+    /**
+     * The yaw that turns a model at a point toward the camera, about the
+     * vertical: 0 faces south, as a model's front does.
+     *
+     * @param from      the model's centre
+     * @param cameraPos the camera
+     * @return the yaw in degrees
+     */
+    static float yawToward(Vec3 from, Vec3 cameraPos) {
+        return (float) Math.toDegrees(Math.atan2(cameraPos.x - from.x, cameraPos.z - from.z));
     }
 
     @Override

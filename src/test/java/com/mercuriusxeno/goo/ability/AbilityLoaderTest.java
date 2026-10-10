@@ -85,7 +85,11 @@ class AbilityLoaderTest {
     /** The items each gated ability requires, as the task's how maps the operator's lists. */
     private static final Map<String, List<String>> GATES = Map.ofEntries(
             Map.entry("ender_blink", List.of("ender_pearl")),
-            Map.entry("ender_teleport", List.of("popped_chorus_fruit")),
+            Map.entry("ender_banish", List.of("popped_chorus_fruit")),
+            Map.entry("ender_teleportitis", List.of("chorus_fruit")),
+            Map.entry("ender_convoke", List.of("sculk_shrieker")),
+            Map.entry("ender_dragon_gate", List.of("dragon_breath")),
+            Map.entry("ender_oculus", List.of("ender_eye")),
             Map.entry("hex_charm", List.of("honey_bottle", "cake", "cookie")),
             Map.entry("hex_enchant", List.of("book", "lapis_lazuli")),
             Map.entry("hex_fuse", List.of("bookshelf", "lapis_lazuli")),
@@ -417,7 +421,7 @@ class AbilityLoaderTest {
         @Test
         void enderBlinkPreviewReadsTheRangeItsTeleportJumps() {
             List<Step> steps = AbilityJson.decode("ender_blink").behaviors();
-            assertEquals(8.0, TeleportStep.lookRange(steps).orElseThrow());
+            assertEquals(32.0, TeleportStep.lookRange(steps).orElseThrow());
         }
     }
 

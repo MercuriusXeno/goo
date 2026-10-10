@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client;
 import com.google.common.reflect.TypeToken;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ISidedProxy;
+import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.ability.Afterimages;
@@ -30,6 +31,7 @@ import com.mercuriusxeno.goo.client.ber.style.AgitatorPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlacialPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlowBeaconStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlowReflectorStyle;
+import com.mercuriusxeno.goo.client.ber.style.OculusStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyles;
 import com.mercuriusxeno.goo.client.ber.style.PulsePrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.VerdantPrismStyle;
@@ -192,6 +194,9 @@ public final class GooClientSetup {
         event.registerBlockEntityRenderer(GooBlockEntities.WISP.get(), WispRenderer::new);
         PrismComboStyles.register(GlowBeaconStyle.COMBO, new GlowBeaconStyle());
         PrismComboStyles.register(GlowReflectorStyle.COMBO, new GlowReflectorStyle());
+        event.registerBlockEntityRenderer(GooBlockEntities.DRAGON_GATE.get(), DragonGateRenderer::new);
+        // oculus-prism-becomes-a-hovering-eye: an oculus prism draws as the hovering eye
+        PrismComboStyles.register(OculusNodes.OCULUS, new OculusStyle());
         // metronome-prism-pulses-at-the-learned-rate, relay-prism-carries-the-signal-through-air
         PrismComboStyles.register(PulsePrismStyle.METRONOME_COMBO, PulsePrismStyle.METRONOME);
         PrismComboStyles.register(PulsePrismStyle.RELAY_COMBO, PulsePrismStyle.RELAY);
@@ -362,6 +367,7 @@ public final class GooClientSetup {
         CanisterBodyModels.register(event);
         VatBodyModels.register(event);
         GloveBodyModels.register(event);
+        OculusModels.register(event);
     }
 
     /**

@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.banish.BanishEvents;
 import com.mercuriusxeno.goo.ability.program.EntityFilter;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.EntityScan;
@@ -15,6 +16,7 @@ import org.jspecify.annotations.Nullable;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -80,14 +82,15 @@ public final class MobEffectTests {
     private static final String ABILITY_VITAL_CLONE = "goo:vital_clone";
     private static final String ABILITY_BLAZE_IGNITE = "goo:blaze_ignite";
     private static final String ABILITY_CRYSTAL_FLECHETTES = "goo:crystal_flechettes";
-    private static final String ABILITY_ENDER_TELEPORT = "goo:ender_teleport";
-    private static final String SHOULD_HAVE_MOVED = "Target should stand somewhere else";
-    private static final String SHOULD_STAY_IN_RANGE = "Target should land within sixteen blocks on each axis";
-    private static final String SHOULD_KEEP_HEIGHT = "Target should keep its height";
-    /** A jump the random offset misses with vanishing odds. */
-    private static final double TELEPORT_MIN_MOVE = 0.01;
-    /** Half of ender_teleport.json's range of 32. */
-    private static final double TELEPORT_MAX_AXIS_MOVE = 16.0;
+    private static final String ABILITY_ENDER_BANISH = "goo:ender_banish";
+    /** Above ender_banish.json's radius of six, so the player sets nothing off until the test walks it in. */
+    private static final double PLAYER_OUT_OF_REACH_ABOVE = 20.0;
+    /** Over ender_banish.json's resist cap of a hundred max health. */
+    private static final double RESISTING_MAX_HEALTH = 200.0;
+    private static final String SHOULD_BE_CURSED = "The zombie should carry the curse after the first Banish";
+    private static final String SHOULD_WARP = "The cursed zombie should warp away from the player standing on it";
+    private static final String SHOULD_BE_EXILED = "A second Banish should exile the cursed zombie";
+    private static final String SHOULD_RESIST = "A mob over the max health cap should resist the curse";
     private static final String CHICKEN_HAS_MAX_HEALTH = "A chicken carries a max health attribute";
     private static final String SHOULD_HAVE_A_CLONE = "A second chicken should stand beside the target";
     /** A max health of one makes vital_clone.json's chance 100 / pow(1, 0.6), every roll. */
@@ -379,22 +382,48 @@ public final class MobEffectTests {
     }
 
     /**
-     * Ender teleport is a program: a random_offset teleport of range 32
-     * and the enderman teleport sound, so the cow stands somewhere else
-     * within sixteen blocks on each horizontal axis at the same height.
+     * Banish's first hit curses a zombie: a player walked onto it sets off a
+     * warp away, and a second Banish hit exiles it from existence
+     * (decision banish-curses-with-ender-shimmer).
      *
      * @param helper the gametest helper
      */
-    public static void enderTeleport(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        Vec3 before = mob.position();
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    public static void banishWarpsThenExiles(GameTestHelper helper) {
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.setPos(zombie.getX(), zombie.getY() + PLAYER_OUT_OF_REACH_ABOVE, zombie.getZ());
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_ENDER_TELEPORT);
-            Vec3 after = mob.position();
-            helper.assertTrue(after.distanceTo(before) > TELEPORT_MIN_MOVE, SHOULD_HAVE_MOVED);
-            helper.assertTrue(Math.abs(after.x - before.x) <= TELEPORT_MAX_AXIS_MOVE, SHOULD_STAY_IN_RANGE);
-            helper.assertTrue(Math.abs(after.z - before.z) <= TELEPORT_MAX_AXIS_MOVE, SHOULD_STAY_IN_RANGE);
-            helper.assertTrue(after.y == before.y, SHOULD_KEEP_HEIGHT);
+            strike(helper, zombie, ABILITY_ENDER_BANISH);
+            helper.assertTrue(BanishEvents.curseOf(zombie) != null, SHOULD_BE_CURSED);
+            Vec3 home = zombie.position();
+            player.setPos(home);
+            // The assertion runs each tick until the warp lands, then brings the zombie home, where the
+            // test's chunks keep it ticking, and lands the second Banish on it.
+            helper.succeedWhen(() -> {
+                helper.assertFalse(zombie.position().equals(home), SHOULD_WARP);
+                player.setPos(home.add(0, PLAYER_OUT_OF_REACH_ABOVE, 0));
+                zombie.teleportTo(home.x, home.y, home.z);
+                strike(helper, zombie, ABILITY_ENDER_BANISH);
+                helper.assertTrue(zombie.isRemoved(), SHOULD_BE_EXILED);
+            });
+        });
+    }
+
+    /**
+     * A zombie whose max health stands over ender_banish.json's cap of a
+     * hundred resists the curse.
+     *
+     * @param helper the gametest helper
+     */
+    public static void banishResistedByHighHealth(GameTestHelper helper) {
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
+        AttributeInstance maxHealth = zombie.getAttribute(Attributes.MAX_HEALTH);
+        helper.assertTrue(maxHealth != null, MOB_HAS_MAX_HEALTH);
+        maxHealth.setBaseValue(RESISTING_MAX_HEALTH);
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, zombie, ABILITY_ENDER_BANISH);
+            helper.assertTrue(BanishEvents.curseOf(zombie) == null, SHOULD_RESIST);
             helper.succeed();
         });
     }

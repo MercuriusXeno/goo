@@ -13,6 +13,7 @@ import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlock;
 import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlock;
+import com.mercuriusxeno.goo.block.gate.DragonGateBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
@@ -167,6 +168,14 @@ public class GooBlocks {
                     .sound(SoundType.AMETHYST_CLUSTER)
                     .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)
                     .lightLevel(PrismBlock::lightLevel));
+    /**
+     * Dragon Gate: an end portal laid over a block for a while, carrying what
+     * steps in to its partner gate; unbreakable, uncollidable and dropping
+     * nothing (decision dragon-gate-banishes-blocks-and-opens-a-portal).
+     */
+    public static final DeferredBlock<DragonGateBlock> DRAGON_GATE = BLOCKS.registerBlock(
+            "dragon_gate", DragonGateBlock::new,
+            () -> BlockBehaviour.Properties.ofFullCopy(Blocks.END_PORTAL).noLootTable());
     /**
      * Magicked ice: a non-melting mod variant of vanilla ice, placed
      * permanently by the frost cold snap. Visually, audibly, and

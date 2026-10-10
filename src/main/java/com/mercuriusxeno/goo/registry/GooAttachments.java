@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.banish.Banished;
+import com.mercuriusxeno.goo.ability.banish.Teleportitis;
 import com.mercuriusxeno.goo.ability.frost.Frozen;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
@@ -155,6 +157,27 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> Petrification.NONE)
                             .serialize(Petrification.CODEC, Petrification::started)
                             .sync(GooAttachments::syncsToWatcher, Petrification.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The teleportitis curse Banish leaves on a mob, saved with the mob while
+     * it stands.
+     * banish-curses-with-ender-shimmer
+     */
+    public static final Supplier<AttachmentType<Banished>> BANISHED =
+            ATTACHMENT_TYPES.register("banished",
+                    () -> AttachmentType.builder(() -> Banished.NONE)
+                            .serialize(Banished.CODEC, Banished::stands)
+                            .build());
+
+    /**
+     * The teleportitis a player holds, saved with the player.
+     * teleportitis-blinks-along-the-cursor-on-hit
+     */
+    public static final Supplier<AttachmentType<Teleportitis>> TELEPORTITIS =
+            ATTACHMENT_TYPES.register("teleportitis",
+                    () -> AttachmentType.builder(() -> Teleportitis.NONE)
+                            .serialize(Teleportitis.CODEC)
                             .build());
 
     /**

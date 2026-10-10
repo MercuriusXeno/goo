@@ -20,23 +20,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AbilityBadgeTest {
 
     private static final int SHIPPED_MOB_BADGES = 12;
-    private static final int SHIPPED_WORLD_BADGES = 9;
+    private static final int SHIPPED_WORLD_BADGES = 11;
     private static final int SHIPPED_SELF_BADGES = 5;
-    private static final int SHIPPED_BREW_BADGES = 9;
+    private static final int SHIPPED_BREW_BADGES = 10;
     private static final int SHIPPED_CHANNELED_BADGES = 17;
     private static final int SHIPPED_FREE_BADGES = 6;
-    private static final int SHIPPED_TAP_BADGES = 8;
-    private static final int SHIPPED_PRISM_BADGES = 6;
+    private static final int SHIPPED_TAP_BADGES = 9;
+    private static final int SHIPPED_PRISM_BADGES = 7;
     /**
      * The prism combos (decisions prism-hosts-the-combos, glacial-prism-holds-the-area-frozen,
      * agitator-prism-quickens-until-a-spawn, verdant-prism-greens-blocks-slowly,
-     * reflector-rails-carry-the-brightest-light).
+     * oculus-prism-becomes-a-hovering-eye, reflector-rails-carry-the-brightest-light).
      */
     private static final List<String> SHIPPED_PRISMS = List.of("pulse_metronome", "pulse_relay", "frost_glacial",
-            "hex_agitator", "leaf_verdant", "glow_reflector");
+            "hex_agitator", "leaf_verdant", "ender_oculus",
+            "glow_reflector");
     /** The self + brew abilities, which wear brew on their self delivery (decision self-brew-goos-eat-before-the-effect). */
-    private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "leaf_barkskin", "rock_stoneskin",
-            "vital_nourish", "shroom_sight", "pulse_extender", "frost_iceborn", "hex_lifetap",
+    private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "ender_teleportitis", "leaf_barkskin",
+            "rock_stoneskin", "vital_nourish", "shroom_sight", "pulse_extender", "frost_iceborn", "hex_lifetap",
             "glow_lux");
     /** The shipped free abilities (decisions badge-vocabulary-gains-free-prism-tap-brew, zap-ticks-the-device-and-stuns). */
     private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "rock_crush", "shroom_colonize",
