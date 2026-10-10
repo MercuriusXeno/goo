@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.program.PulserToggleStep;
 import com.mercuriusxeno.goo.ability.program.SignalWaveStep;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.LineContext;
@@ -21,11 +22,13 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Signal's ray: while right click holds a signal stream, concentric red
- * rings facing the aim leave the glove hand one after another and travel
- * out to the stream's range, each expanding as it flies and fading as it
- * expands, like a cartoon space ray.
+ * Signal's and Pulser's ray: while right click holds either stream,
+ * concentric red rings facing the aim leave the glove hand one after another
+ * and travel out to the stream's range, each expanding as it flies and
+ * fading as it expands, like a cartoon space ray: round for Signal, square
+ * for Pulser, each sized to its stream's cone.
  * signal-wave-toggles-each-device-once
+ * pulser-toggles-rapidly-while-held
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class SignalRings {
@@ -40,7 +43,6 @@ public final class SignalRings {
     static final double FADE_IN_SHARE = 0.08;
     /** How many times the window's line width a ring draws at, thick enough to read as a beam. */
     static final float WIDTH_SCALE = 3f;
-    private static final int SEGMENTS = 24;
     private static final int RING_RGB = 0xFF3A2A;
     private static final float PEAK_ALPHA = 230f;
     /** A cone's half angle against its apex angle. */
@@ -66,7 +68,7 @@ public final class SignalRings {
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Ray ray = new Ray(GloveAim.handPosition(mc.gameRenderer.getMainCamera()), player.getViewVector(partialTick),
-                signal.delivery().range(), signal.delivery().coneDegrees());
+                signal.delivery().range(), signal.delivery().coneDegrees(), shapeOf(signal));
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         LineContext lines = new LineContext(event.getPoseStack().last(), buffers.getBuffer(GooRenderTypes.LINES_GLOW));
         float width = mc.getWindow().getAppropriateLineWidth() * WIDTH_SCALE;
@@ -82,8 +84,9 @@ public final class SignalRings {
      * @param axis      the aim, unit length
      * @param range       the stream's range in blocks
      * @param coneDegrees the stream's cone, apex to rim, which the rings trace
+     * @param shape       the rings' shape, the stream's own
      */
-    private record Ray(Vec3 hand, Vec3 axis, double range, double coneDegrees) {
+    private record Ray(Vec3 hand, Vec3 axis, double range, double coneDegrees, RingShape shape) {
     }
 
     private static void drawRings(LineContext lines, Ray ray, Vec3 camera, float width, double seconds) {
@@ -94,7 +97,7 @@ public final class SignalRings {
                 double distance = share * ray.range();
                 Vec3 center = ray.hand().add(ray.axis().scale(distance));
                 double radius = radiusAt(share, ray.range(), ray.coneDegrees());
-                lines.emitPolyline(camera, ringPoints(center, ray.axis(), radius, SEGMENTS),
+                lines.emitPolyline(camera, ray.shape().points(center, ray.axis(), radius),
                         ARGB.color(alpha, RING_RGB), width);
             }
         }
@@ -145,24 +148,25 @@ public final class SignalRings {
      * @param axis     the axis the ring faces along, any length
      * @param radius   the ring's radius
      * @param segments the line segments the ring is drawn with
+     * @param phase    the turn the first point stands at, as a share of a full turn
      * @return the points, the first repeated last to close the ring
      */
-    static Vec3[] ringPoints(Vec3 center, Vec3 axis, double radius, int segments) {
+    static Vec3[] ringPoints(Vec3 center, Vec3 axis, double radius, int segments, double phase) {
         Vec3 side = StreamCone.side(axis);
         Vec3 lift = side.cross(axis.normalize());
         Vec3[] points = new Vec3[segments + 1];
         for (int i = 0; i <= segments; i++) {
-            double turn = FULL_TURN * i / segments;
+            double turn = FULL_TURN * ((double) i / segments + phase);
             points[i] = center.add(side.scale(Math.cos(turn) * radius)).add(lift.scale(Math.sin(turn) * radius));
         }
         return points;
     }
 
     /**
-     * The signal the local player's glove runs now.
+     * The pulse stream the local player's glove runs now.
      *
      * @param player the local player
-     * @return the selected ability while right click holds it and it signals, otherwise null
+     * @return the selected ability while right click holds it and it is Signal or Pulser, otherwise null
      */
     static @Nullable ClientAbility runningSignal(LocalPlayer player) {
         String abilityId = GloveAim.selectedAbilityId(player);
@@ -171,13 +175,61 @@ public final class SignalRings {
     }
 
     /**
-     * Whether a signal runs: the selected ability sends a signal wave and right click holds it.
+     * Whether a pulse stream runs: the selected ability sends a signal wave
+     * or pulses, and right click holds it.
      *
      * @param ability the selected ability's synced copy, or null when none
      * @param useHeld whether right click holds a live press
-     * @return true while the signal runs
+     * @return true while the stream runs
      */
     static boolean signals(@Nullable ClientAbility ability, boolean useHeld) {
-        return useHeld && ability != null && ability.behaviors().stream().anyMatch(SignalWaveStep.class::isInstance);
+        return useHeld && ability != null && shapeOf(ability) != null;
+    }
+
+    /**
+     * The shape a pulse stream's rings draw in: Signal's circles, Pulser's
+     * squares, as their icons draw them (decision pulser-toggles-rapidly-while-held).
+     *
+     * @param ability the selected ability's synced copy
+     * @return the shape, or null for an ability that draws no rings
+     */
+    static @Nullable RingShape shapeOf(ClientAbility ability) {
+        if (ability.behaviors().stream().anyMatch(SignalWaveStep.class::isInstance)) {
+            return RingShape.CIRCLE;
+        }
+        return ability.behaviors().stream().anyMatch(PulserToggleStep.class::isInstance) ? RingShape.SQUARE : null;
+    }
+
+    /**
+     * A ring's outline. A square's sides stand at the ring's radius, so it
+     * holds the cone's circle at its distance.
+     */
+    enum RingShape {
+        /** Signal's round rings. */
+        CIRCLE(24, 1, 0),
+        /** Pulser's square rings, upright to the aim. */
+        SQUARE(4, Math.sqrt(2), 0.125);
+
+        private final int segments;
+        private final double cornerReach;
+        private final double phase;
+
+        RingShape(int segments, double cornerReach, double phase) {
+            this.segments = segments;
+            this.cornerReach = cornerReach;
+            this.phase = phase;
+        }
+
+        /**
+         * The outline's points around a center, facing along an axis.
+         *
+         * @param center the ring's center
+         * @param axis   the axis the ring faces along
+         * @param radius the ring's radius, a square's side standing at it
+         * @return the points, the first repeated last to close the outline
+         */
+        Vec3[] points(Vec3 center, Vec3 axis, double radius) {
+            return ringPoints(center, axis, radius * cornerReach, segments, phase);
+        }
     }
 }

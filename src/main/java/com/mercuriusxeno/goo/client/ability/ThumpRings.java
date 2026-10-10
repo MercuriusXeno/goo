@@ -125,7 +125,7 @@ public final class ThumpRings {
         }
         Vec3 normal = face.getUnitVec3();
         Vec3 center = Vec3.atCenterOf(pos).subtract(normal.scale(BLOCK_CENTER - FACE_LIFT));
-        lines.emitPolyline(camera, SignalRings.ringPoints(center, normal, radiusAt(share), SEGMENTS),
+        lines.emitPolyline(camera, SignalRings.ringPoints(center, normal, radiusAt(share), SEGMENTS, 0),
                 ARGB.color(alpha, RING_RGB), width);
     }
 
