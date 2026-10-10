@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:teleportitis_blinks_instead_of_damage",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 40,
+  "setup_ticks": 0,
+  "required": true
+}

@@ -38,8 +38,8 @@ import java.util.function.Consumer;
  */
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
-        FieldEffectHost, PhasedHost, ConsumedGooHost, PowerEmitHost, BeatHost, RelayHost, AgitateHost,
-        FrostHost, GreeningHost {
+        FieldEffectHost, PhasedHost, ConsumedGooHost, ConvokeHost, PowerEmitHost, BeatHost, RelayHost,
+        AgitateHost, FrostHost, GreeningHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
     /** The power a block gives at full strength. */
@@ -209,6 +209,15 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     @Override
     public void playSound(SoundCue cue) {
         SoundPlays.play(level, Vec3.atCenterOf(pos), cue);
+    }
+
+    /**
+     * Pulls a mob from the marker's chunk to stand in the marker's cell.
+     * decision convoke-blob-throbs-until-a-mob-arrives
+     */
+    @Override
+    public boolean convokeFromChunk() {
+        return ChunkConvoke.convoke(level, Vec3.atBottomCenterOf(pos));
     }
 
     @Override
