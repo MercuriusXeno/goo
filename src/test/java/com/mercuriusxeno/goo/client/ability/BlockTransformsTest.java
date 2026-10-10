@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.program.DegradeStep;
 import net.minecraft.core.BlockPos;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -15,7 +16,7 @@ class BlockTransformsTest {
     private static final BlockPos GRAVEL = new BlockPos(3, 64, 2);
     private static final long START = 100L;
     private static final float DELTA = 1e-6f;
-    private static final int MAROON = 0xC03434;
+    private static final int MAROON = DegradeStep.NETHER_MAROON;
 
     @Test
     void progressRunsOverTheDuration() {

@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A world ability sized at will takes the radius its drag sets, never under
@@ -46,9 +47,17 @@ class DragSizeTest {
     }
 
     @Test
-    void anAffordableRadiusCostsNoMoreThanTheHoldings() {
+    void anAffordableRadiusIsTheLargestWholeOneTheHoldingsPayFor() {
         int holdings = 2_345;
         double radius = DragSize.affordable(50, REFERENCE_COST, holdings);
-        assertEquals(holdings, DragSize.costAt(REFERENCE_COST, radius), 1);
+        assertEquals(Math.floor(radius), radius, DELTA);
+        assertTrue(DragSize.costAt(REFERENCE_COST, radius) <= holdings);
+        assertTrue(DragSize.costAt(REFERENCE_COST, radius + 1) > holdings);
+    }
+
+    // black-hole-leaves-a-compression-sphere: the hole takes whole blocks, so it is charged for a whole radius
+    @Test
+    void aDragBetweenWholeRadiiOpensAtTheWholeRadiusUnderIt() {
+        assertEquals(3, DragSize.affordable(3.9, REFERENCE_COST, 100 * REFERENCE_COST), DELTA);
     }
 }

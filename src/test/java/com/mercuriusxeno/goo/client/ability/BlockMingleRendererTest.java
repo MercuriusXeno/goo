@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.program.DegradeStep;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -17,6 +18,7 @@ class BlockMingleRendererTest {
 
     @Test
     void aTintedExposureDrawsInItsTintOpaque() {
-        assertEquals(0xFFC03434, BlockMingleRenderer.mingleColor(0xC03434));
+        assertEquals(0xFF000000 | DegradeStep.NETHER_MAROON,
+                BlockMingleRenderer.mingleColor(DegradeStep.NETHER_MAROON));
     }
 }

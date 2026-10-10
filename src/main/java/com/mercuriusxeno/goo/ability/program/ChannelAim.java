@@ -18,8 +18,21 @@ import java.util.List;
  * @param aimPoint    the world point under the client's cursor, or a stream's reach along the look
  * @param plane       the face the hold began on, or null where it began on none or the hold is a stream
  * @param coneDegrees a stream's cone, apex to rim, in degrees; zero for a channel aiming one point
+ * @param reaching    whether the swarm reaches new blocks this tick; false while a mob-first stream bites a mob,
+ *                    when blocks already reached keep working but none is reached anew
  */
-public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees) {
+public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees, boolean reaching) {
+
+    /**
+     * The aim of a stream reaching the blocks in its cone.
+     *
+     * @param aimPoint    the stream's reach along the look
+     * @param plane       the face the hold began on, or null
+     * @param coneDegrees the stream's cone, apex to rim, in degrees
+     */
+    public ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees) {
+        this(aimPoint, plane, coneDegrees, true);
+    }
 
     /** How far past the aim point, along the line from the eye, the aimed block is read. */
     private static final double INTO_THE_FACE = 0.01;

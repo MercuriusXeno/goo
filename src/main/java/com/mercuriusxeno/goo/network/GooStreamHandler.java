@@ -278,18 +278,19 @@ public final class GooStreamHandler {
      * needing the channel
      * (decisions bore-vortex-with-a-worldspace-shake, petrify-stone-encasement-and-calcify-map).
      *
-     * @param player  the streaming player
-     * @param axis    the look
-     * @param ability the stream ability
+     * @param player   the streaming player
+     * @param axis     the look
+     * @param ability  the stream ability
+     * @param reaching whether the pass reaches new blocks, false while a mob-first stream bites
      */
-    private static void runBlockPass(ServerPlayer player, Vec3 axis, AbilityDefinition ability) {
+    private static void runBlockPass(ServerPlayer player, Vec3 axis, AbilityDefinition ability, boolean reaching) {
         List<Step> blockSteps = channelSteps(ability.behaviors(), true);
         if (blockSteps.isEmpty()) {
             return;
         }
         Delivery delivery = ability.delivery();
         ChannelAim aim = new ChannelAim(player.getEyePosition().add(axis.scale(delivery.range())), null,
-                delivery.coneDegrees());
+                delivery.coneDegrees(), reaching);
         runSteps(PlayerHost.channeling(player.level(), player, aim), HostKind.PLAYER, blockSteps, ability);
     }
 
@@ -345,11 +346,11 @@ public final class GooStreamHandler {
     }
 
     /**
-     * Runs the stream's block pass where it reaches blocks this tick and
-     * answers the living its entity pass strikes: every living thing in the
-     * cone, beside the block pass; or, for a mob-first stream, the nearest mob
-     * alone with no block pass, and the block pass alone when no mob stands
-     * in the cone.
+     * Runs the stream's block pass this tick and answers the living its
+     * entity pass strikes: every living thing in the cone, beside the block
+     * pass; or, for a mob-first stream, the nearest mob, while the block pass
+     * reaches no new block but keeps working the ones already reached, and
+     * the block pass alone when no mob stands in the cone.
      *
      * @param player  the streaming player
      * @param apex    the cone's apex
@@ -359,11 +360,11 @@ public final class GooStreamHandler {
      */
     private static List<LivingEntity> runPasses(ServerPlayer player, Vec3 apex, Vec3 axis, AbilityDefinition ability) {
         List<LivingEntity> inCone = livingInCone(player.level(), player, apex, axis, ability.delivery());
-        // decay-gnats-degrade-each-block-once: a mob in the cone takes the swarm, else the blocks do
-        List<LivingEntity> struck = ability.hasTag(AbilityTags.MOB_FIRST) ? nearestMob(inCone, apex) : inCone;
-        if (!ability.hasTag(AbilityTags.MOB_FIRST) || struck.isEmpty()) {
-            runBlockPass(player, axis, ability);
-        }
+        // decay-gnats-degrade-each-block-once: a mob in the cone takes the swarm, else the blocks do;
+        // the operator's ruling: blocks already painted keep stepping while the swarm bites
+        boolean mobFirst = ability.hasTag(AbilityTags.MOB_FIRST);
+        List<LivingEntity> struck = mobFirst ? nearestMob(inCone, apex) : inCone;
+        runBlockPass(player, axis, ability, !mobFirst || struck.isEmpty());
         return struck;
     }
 
