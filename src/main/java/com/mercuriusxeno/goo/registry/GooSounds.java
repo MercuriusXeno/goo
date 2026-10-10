@@ -37,5 +37,9 @@ public final class GooSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> ABILITY_DOWN =
         SOUND_EVENTS.register("effects.ability_down", () -> SoundEvent.createVariableRangeEvent(GooSoundIds.ABILITY_DOWN));
 
+    /** Decay's and Hive's gnat buzz (decision decay-gnats-degrade-each-block-once). */
+    public static final DeferredHolder<SoundEvent, SoundEvent> GNAT_BUZZ =
+        SOUND_EVENTS.register("effects.gnat_buzz", () -> SoundEvent.createVariableRangeEvent(GooSoundIds.GNAT_BUZZ));
+
     private GooSounds() {}
 }
