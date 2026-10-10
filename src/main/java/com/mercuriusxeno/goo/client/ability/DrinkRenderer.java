@@ -66,7 +66,7 @@ public final class DrinkRenderer {
     private static final int SKY_SHIFT = 16;
     private static final Vec3 UP = new Vec3(0, 1, 0);
     private static final double MILLIS_PER_NANO = 1e-6;
-    private static final String UPLOADED = "Unmake drink uploaded in {} ms: {} streams, {} proxies";
+    private static final String UPLOADED = "Unmake drink uploaded in {} ms: {} streams, {} proxies, {} entries dropped";
     private static final GooRenderUtil.UvRect NO_SPRITE = new GooRenderUtil.UvRect(0, 0, 0, 0);
     /** Each drink's streams as last built, by its drinker then block, which say where liquid still flows. */
     private static final Map<Integer, Map<BlockPos, DrinkTree.Stream>> LAST = new HashMap<>();
@@ -144,10 +144,13 @@ public final class DrinkRenderer {
         }
         loggedTick = tick;
         int proxies = 0;
+        int dropped = 0;
         for (DrinkUpload.Block block : blocks) {
             proxies += block.proxies().size();
+            dropped += block.dropped();
         }
-        Goo.LOGGER.debug(UPLOADED, Math.round((System.nanoTime() - began) * MILLIS_PER_NANO), blocks.size(), proxies);
+        Goo.LOGGER.debug(UPLOADED, Math.round((System.nanoTime() - began) * MILLIS_PER_NANO), blocks.size(), proxies,
+                dropped);
     }
 
     /**

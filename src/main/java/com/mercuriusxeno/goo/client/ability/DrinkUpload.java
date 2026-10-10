@@ -30,8 +30,12 @@ public final class DrinkUpload {
     static final int MOST_BOXES = 8;
     /** The most proxies a stream draws. */
     static final int MOST_PROXIES = 64;
-    /** The most table entries a stream's proxies list. */
-    static final int MOST_ENTRIES = 512;
+    /**
+     * The most table entries a stream's proxies list: the longest stream's sixty proxies each list the nine
+     * segments within reach of them and the bodies of every neighbour at a join, and the block stays under
+     * the 16 KB every device grants a uniform block.
+     */
+    static final int MOST_ENTRIES = 1536;
     /** The most paths whose frames a block carries, the stream's own and its neighbours'. */
     static final int MOST_FRAMES = 8;
     /** The most goo types mingled over one stream. */
@@ -106,8 +110,9 @@ public final class DrinkUpload {
      *
      * @param bytes   the uniform block, {@link #BYTES} long
      * @param proxies the proxy boxes to draw, in the block's order
+     * @param dropped how many table entries the cap left out, 0 for a whole upload
      */
-    public record Block(ByteBuffer bytes, List<Proxy> proxies) {
+    public record Block(ByteBuffer bytes, List<Proxy> proxies, int dropped) {
     }
 
     private final List<DrinkField.Skeleton> skeletons;
@@ -123,6 +128,7 @@ public final class DrinkUpload {
     private final List<DrinkBody.Box> boxes = new ArrayList<>();
     private final List<Integer> table = new ArrayList<>();
     private final List<int[]> ranges = new ArrayList<>();
+    private int dropped;
 
     private DrinkUpload(List<DrinkField.Skeleton> skeletons, Vec3 camera) {
         this.skeletons = skeletons;
@@ -144,7 +150,7 @@ public final class DrinkUpload {
         upload.copy(own);
         upload.copyNeighbours(own);
         upload.tabulate();
-        return new Block(upload.write(coat), List.copyOf(upload.proxies));
+        return new Block(upload.write(coat), List.copyOf(upload.proxies), upload.dropped);
     }
 
     /**
@@ -325,7 +331,12 @@ public final class DrinkUpload {
         boolean starting = true;
         for (int body : bodies) {
             int entry = entryOf(index, body);
-            if (entry >= 0 && table.size() < MOST_ENTRIES) {
+            if (entry < 0) {
+                continue;
+            }
+            if (table.size() >= MOST_ENTRIES) {
+                dropped++;
+            } else {
                 table.add(starting ? entry | RUN_START : entry);
                 starting = false;
             }

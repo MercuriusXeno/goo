@@ -34,7 +34,7 @@ layout(std140) uniform DrinkStream {
     vec4 Frames[16];
     vec4 ProxyLow[64];
     vec4 ProxyHigh[64];
-    ivec4 Table[128];
+    ivec4 Table[384];
     vec4 Boxes[16];
     vec4 Rings[384];
 };
