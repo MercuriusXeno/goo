@@ -93,7 +93,12 @@ public enum HostCapability {
      * A struck surface a Dragon Gate can open over (decision
      * dragon-gate-banishes-blocks-and-opens-a-portal).
      */
-    DRAGON_GATE(GateHost.class);
+    DRAGON_GATE(GateHost.class),
+    /**
+     * The level and the point frost spreads out of (decisions
+     * nova-ring-grows-with-the-hold, nova-drip-pulses-a-short-lasting-freeze).
+     */
+    FROST(FrostHost.class);
 
     private final Class<? extends StepHost> hostType;
 
