@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +19,13 @@ public final class Afterimages<S> {
 
     /** The list the client's afterimage handler and renderer share. */
     public static final Afterimages<EntityRenderState> CLIENT = new Afterimages<>();
+
+    /**
+     * The blocks' afterimages the client plays: each a reaped plant's shape
+     * boxes as it stood, in block units about its cell's low corner.
+     * reap-breeze-harvests-and-replants
+     */
+    public static final Afterimages<List<AABB>> BLOCKS = new Afterimages<>();
 
     /** Silhouettes one ripple sends out. */
     public static final int PULSES = 4;
