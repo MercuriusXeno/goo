@@ -290,5 +290,7 @@ class DrinkUploadTest {
                 "the ring names its stream");
         assertEquals(0.12f, floatAt(bytes, DrinkUpload.RINGS_AT + DrinkUpload.VEC4 + Float.BYTES), DELTA,
                 "and its share of the route, which the skin's crossfade reads");
+        assertEquals(1, floatAt(bytes, DrinkUpload.RINGS_AT + DrinkUpload.VEC4 + (PAIR + 1) * Float.BYTES), DELTA,
+                "and its pace over the base pace, which the sprites to a block of material follow");
     }
 }

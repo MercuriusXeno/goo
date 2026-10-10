@@ -55,8 +55,13 @@ public final class DrinkStream {
     static final double TIP = 0.6;
     /** Blocks before its end over which a path curves to land along its arrival: its trunk's flow, or the look. */
     static final double ARRIVAL_REACH = 1.5;
-    /** Blocks of texture laid along one block of skin, mirrored each block so it has no seam. */
-    private static final double TEXTURE_PER_BLOCK = 1;
+    /**
+     * The largest a sprite is laid on the skin, in blocks, both along and round: the sprite's cell is half the
+     * skin's circumference up to this, so two sprites wrap a thin stream with no seam and its texels stay square.
+     */
+    static final double CELL = 1;
+    /** Sprites the texture repeats over, one mirrored against the next so it tiles with no seam. */
+    static final double TEXTURE_PERIOD = 2;
     /** The thinnest a stream reads its texture round, in blocks, so the arc coordinate never collapses. */
     static final double THINNEST = 0.02;
     private static final double TWO = 2;
@@ -280,16 +285,17 @@ public final class DrinkStream {
     }
 
     /**
-     * Where on the texture a point of the skin is along one of its two
-     * coordinates: the texture laid at its own size, a block of texture to a
-     * block of skin, mirrored every block so it tiles with no seam and wraps
-     * round a stream with none; it never stretches, however the surface bends.
+     * Where on the sprite a point of the skin is along one of its two
+     * coordinates, the point's place measured in sprites: one sprite mirrored
+     * against the next so it tiles with no seam along the liquid and wraps
+     * round a stream with none, the sprite's cell the skin's girth sets, so it
+     * never stretches however the surface bends or thins.
      *
-     * @param along the point's coordinate, in blocks: along the liquid, round the stream, or along a world axis
-     * @return the texture's share along that coordinate, 0 to 1
+     * @param sprites the point's coordinate, in sprites: along the liquid, round the stream, or along a world axis
+     * @return the sprite's share along that coordinate, 0 to 1
      */
-    public static float textureAt(double along) {
-        return mirrored(along * TEXTURE_PER_BLOCK / TWO);
+    public static float textureAt(double sprites) {
+        return mirrored(sprites / TEXTURE_PERIOD);
     }
 
     /**

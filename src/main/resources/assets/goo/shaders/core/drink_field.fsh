@@ -18,7 +18,10 @@
 // the hit is refined by bisection, shaded from the gradient of the nearest
 // stream's own field, lit by the lightmap and the cardinal lights, textured
 // along the liquid and round the nearest segment or over the block's world
-// axes in its own stream's coat: the block's own texture crossfading into
+// axes in its own stream's coat, the sprite sized to the skin's girth, half
+// its circumference and a block at most, both along and round, and laid
+// along at the liquid's pace, so its texels stay square on a thread, a fast
+// trunk and a fat one alike: the block's own texture crossfading into
 // the block's goo types, mingled among themselves, by the point's share of
 // the route, none at the block and all at the hand; its depth is written so
 // the world occludes it. The constants mirror DrinkField, DrinkStream and
@@ -44,6 +47,9 @@ const float DEPTH = 0.05;
 const float REACH = 0.24;
 const float FULL_RADIUS = 0.1;
 const float THINNEST = 0.02;
+const float CELL = 1.0;
+const float TEXTURE_PERIOD = 2.0;
+const float PI = 3.14159265;
 const float REGION_SPAN = 1.0;
 const int STREAM_VEC4S = 16;
 const int COAT_SLOT = 0;
@@ -192,8 +198,10 @@ bool slab(vec3 lo, vec3 hi, vec3 rd, out float tEnter, out float tExit) {
     return tExit > max(tEnter, 0.0);
 }
 
-float textureAt(float along) {
-    float laid = along * 0.5;
+// The sprite's share at a place measured in sprites, one sprite mirrored
+// every other so it tiles with no seam.
+float textureAt(float sprites) {
+    float laid = sprites / TEXTURE_PERIOD;
     float wrapped = laid - floor(laid);
     return 1.0 - abs(2.0 * wrapped - 1.0);
 }
@@ -202,10 +210,28 @@ vec2 uvOf(vec4 sprite, vec2 place) {
     return sprite.xy + (sprite.zw - sprite.xy) * vec2(textureAt(place.x), textureAt(place.y));
 }
 
+// The sprite at a place: its x the liquid's material in blocks, its y the way
+// round in sprites, laid along at density sprites to a block of material,
+// which is the pace over the cell; the sprite is laid at the whole densities
+// either side and mixed, since a whole count of sprites to the material's
+// period keeps the sprite riding the liquid with no seam while the count
+// changes smoothly down the stream.
+vec4 skinAt(vec4 sprite, vec2 place, float density) {
+    float coarse = floor(density);
+    vec4 wide = texture(Sampler0, uvOf(sprite, vec2(place.x * coarse, place.y)));
+    vec4 fine = texture(Sampler0, uvOf(sprite, vec2(place.x * (coarse + 1.0), place.y)));
+    return mix(wide, fine, density - coarse);
+}
+
 // A point's place on a stream's texture: along the liquid at its foot on the
-// segment, and round the spine by arc length in the stream's own frame;
-// route is the foot's share of the block's route, 0 at the block and 1 at the hand.
-vec2 placeOnSegment(int segment, int stream, vec3 p, out float route) {
+// segment, in blocks of material, and round the spine in sprites, the
+// sprite's cell half the skin's own circumference there and a block at most,
+// so two sprites wrap a thin stream seamlessly and the texels stay square;
+// density is the sprites to a block of material that keep them square along,
+// the liquid's pace over the base pace over the cell, so a fast trunk is not
+// stretched either; route is the foot's share of the block's route, 0 at the
+// block and 1 at the hand.
+vec2 placeOnSegment(int segment, int stream, vec3 p, out float route, out float density) {
     vec4 a = Rings[2 * segment];
     vec4 b = Rings[2 * segment + 2];
     vec4 ma = Rings[2 * segment + 1];
@@ -215,9 +241,11 @@ vec2 placeOnSegment(int segment, int stream, vec3 p, out float route) {
     float t = len2 == 0.0 ? 0.0 : clamp(dot(p - a.xyz, line) / len2, 0.0, 1.0);
     vec3 offset = p - (a.xyz + line * t);
     float angle = atan(dot(offset, streamSlot(stream, ACROSS_SLOT).xyz), dot(offset, streamSlot(stream, SIDE_SLOT).xyz));
-    float radius = max(THINNEST, mix(a.w, b.w, t));
+    float surface = max(THINNEST, length(offset));
+    float cell = min(CELL, PI * surface);
     route = mix(ma.y, mb.y, t);
-    return vec2(mix(ma.x, mb.x, t), angle * radius);
+    density = mix(ma.w, mb.w, t) / cell;
+    return vec2(mix(ma.x, mb.x, t), angle * surface / cell);
 }
 
 vec2 placeOnBlock(vec3 world, vec3 n) {
@@ -231,13 +259,13 @@ vec2 placeOnBlock(vec3 world, vec3 n) {
 // The block's goo types mingled among themselves: each type's blotches cover
 // its share of what the types before it left, so together they cover the
 // skin whole; a block with no goo type keeps the color handed in.
-vec4 mingled(vec4 color, int stream, vec3 world, vec2 place) {
+vec4 mingled(vec4 color, int stream, vec3 world, vec2 place, float density) {
     int layers = int(streamSlot(stream, COAT_SLOT).z);
     for (int l = 0; l < layers; l++) {
         vec4 share = streamSlot(stream, LAYER_SHARE_SLOT + l);
         float conditional = share.y > 0.0 ? (share.y - share.x) / share.y : 0.0;
         float opacity = mingleOpacity(world, GameTime, conditional, share.z);
-        vec4 goo = texture(Sampler0, uvOf(streamSlot(stream, LAYER_SPRITE_SLOT + l), place))
+        vec4 goo = skinAt(streamSlot(stream, LAYER_SPRITE_SLOT + l), place, density)
             * vec4(streamSlot(stream, LAYER_TINT_SLOT + l).rgb, 1.0);
         color.rgb = mix(color.rgb, goo.rgb, opacity * goo.a);
     }
@@ -295,13 +323,14 @@ void main() {
     vec3 n = normalAt(p, stream);
     vec3 world = p + vec3(CameraBlockPos) - CameraOffset;
     float route = 0.0;
-    vec2 place = onBlock ? placeOnBlock(world, n) : placeOnSegment(body, stream, p, route);
+    float density = 1.0;
+    vec2 place = onBlock ? placeOnBlock(world, n) : placeOnSegment(body, stream, p, route, density);
     vec4 coat = streamSlot(stream, COAT_SLOT);
-    vec4 color = texture(Sampler0, uvOf(streamSlot(stream, SPRITE_SLOT), place))
+    vec4 color = skinAt(streamSlot(stream, SPRITE_SLOT), place, density)
         * vec4(streamSlot(stream, TINT_SLOT).rgb, 1.0);
     // The block's texture crossfades into its goo along the whole route: none at the block, all at the hand.
     if (!onBlock) {
-        color = mix(color, mingled(color, stream, world, place), route);
+        color = mix(color, mingled(color, stream, world, place, density), route);
     }
     color = minecraft_mix_light(Light0_Direction, Light1_Direction, normalize(mat3(ModelViewMat) * n), color);
     color *= sample_lightmap(Sampler2, ivec2(int(coat.x), int(coat.y)));
