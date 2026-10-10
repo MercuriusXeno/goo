@@ -71,6 +71,17 @@ class DrinkShaderTest {
     }
 
     @Test
+    void theMarchSamplesTheRegionsExitAndTakesAnEntryInsideTheFieldAsTheHit() throws IOException {
+        String fragment = source(FRAGMENT);
+
+        assertTrue(fragment.contains("t = min(t + step, tExit);"),
+                "the last step lands on the exit plane rather than past it, so no crossing before it is skipped");
+        assertTrue(fragment.contains("if (f >= iso && tEnter <= 0.0) {"),
+                "only a camera inside the goo discards an entry inside the field");
+        assertTrue(fragment.contains("bool hit = f >= iso;"), "an entry inside the field from another region is the hit");
+    }
+
+    @Test
     void theVertexShaderHandsTheFragmentTheRayToMarch() throws IOException {
         String vertex = source(VERTEX);
 
