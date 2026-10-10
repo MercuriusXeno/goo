@@ -21,25 +21,28 @@ class AbilityBadgeTest {
 
     private static final int SHIPPED_MOB_BADGES = 12;
     private static final int SHIPPED_WORLD_BADGES = 7;
-    private static final int SHIPPED_SELF_BADGES = 3;
-    private static final int SHIPPED_BREW_BADGES = 7;
-    private static final int SHIPPED_CHANNELED_BADGES = 10;
+    private static final int SHIPPED_SELF_BADGES = 5;
+    private static final int SHIPPED_BREW_BADGES = 8;
+    private static final int SHIPPED_CHANNELED_BADGES = 12;
     private static final int SHIPPED_FREE_BADGES = 4;
-    private static final int SHIPPED_TAP_BADGES = 5;
-    private static final int SHIPPED_PRISM_BADGES = 2;
+    private static final int SHIPPED_TAP_BADGES = 6;
+    private static final int SHIPPED_PRISM_BADGES = 3;
     /**
-     * Hive and Glacial, the shipped prism abilities (decisions
-     * hive-prism-pillar-eats-the-living, glacial-prism-holds-the-area-frozen).
+     * The shipped prism abilities: Hive (decision hive-prism-pillar-eats-the-living),
+     * Glacial (decision glacial-prism-holds-the-area-frozen) and Agitator
+     * (decision agitator-prism-quickens-until-a-spawn).
      */
-    private static final List<String> SHIPPED_PRISMS = List.of("nether_hive", "frost_glacial");
+    private static final List<String> SHIPPED_PRISMS = List.of("nether_hive", "frost_glacial", "hex_agitator");
     /** The self + brew abilities, which wear brew on their self delivery (decision self-brew-goos-eat-before-the-effect). */
     private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "leaf_barkskin", "rock_stoneskin",
-            "vital_nourish", "shroom_sight", "nether_undead", "frost_iceborn");
+            "vital_nourish", "shroom_sight", "nether_undead", "frost_iceborn", "hex_lifetap");
     /** Blast, Crush and Colonize, the shipped free abilities (decision badge-vocabulary-gains-free-prism-tap-brew). */
     private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "rock_crush", "shroom_colonize",
             "frost_orb");
     /** Self deliveries wearing the channeled badge (decision flatten-disc-cursor-breaks-above-the-plane). */
     private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten", "frost_nova");
+    /** Thrown deliveries wearing the channeled badge (decision spawn-goo-morphs-into-the-mob-it-births). */
+    private static final List<String> SHIPPED_THROWN_CHANNELS = List.of("hex_spawn");
 
     @ParameterizedTest
     @CsvSource({"world, WORLD", "mob, MOB", "self, SELF", "channeled, CHANNELED", "brew, BREW",
@@ -82,7 +85,8 @@ class AbilityBadgeTest {
     /**
      * The badge a shipped ability wears: its delivery's own badge for a self
      * or a stream (decision one-proving-ability-per-kind), brew for a self +
-     * brew ability, free for Blast, prism for Hive, tap for a tap's drip ability, and for any
+     * brew ability, free for Blast, tap for a tap's drip ability, prism for
+     * a prism combo such as Hive, channeled for a thrown channel such as Spawn, and for any
      * other thrown ability, mob where it targets entities and world elsewhere.
      *
      * @param definition the shipped ability
@@ -97,6 +101,9 @@ class AbilityBadgeTest {
         }
         if (definition.hasTag(AbilityTags.TAP)) {
             return AbilityBadge.TAP;
+        }
+        if (SHIPPED_THROWN_CHANNELS.contains(definition.id().getPath())) {
+            return AbilityBadge.CHANNELED;
         }
         return switch (definition.delivery().kind()) {
             case SELF -> selfBadge(definition.id().getPath());
