@@ -2,12 +2,12 @@ package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.ability.LeechWisps;
-import com.mercuriusxeno.goo.client.ability.RadiantAura;
 import com.mercuriusxeno.goo.client.ability.ReapSwells;
 import com.mercuriusxeno.goo.client.ability.ScrySweep;
 import com.mercuriusxeno.goo.client.ability.SunbeamVisual;
 import com.mercuriusxeno.goo.client.ability.Tomes;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
+import com.mercuriusxeno.goo.client.ability.WispFlights;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.AfterimagePayload;
 import com.mercuriusxeno.goo.network.AilmentPayload;
@@ -25,7 +25,6 @@ import com.mercuriusxeno.goo.network.LeechPayload;
 import com.mercuriusxeno.goo.network.MobHitPayload;
 import com.mercuriusxeno.goo.network.NovaRingPayload;
 import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
-import com.mercuriusxeno.goo.network.RadiantAuraPayload;
 import com.mercuriusxeno.goo.network.ReapSwellPayload;
 import com.mercuriusxeno.goo.network.ScryPayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
@@ -33,6 +32,7 @@ import com.mercuriusxeno.goo.network.SunbeamPayload;
 import com.mercuriusxeno.goo.network.TomePayload;
 import com.mercuriusxeno.goo.network.TransformationPayload;
 import com.mercuriusxeno.goo.network.TunerFeedbackPayload;
+import com.mercuriusxeno.goo.network.WispFlightPayload;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -87,7 +87,7 @@ public final class GooClientNetworking {
     private static void registerAbilityVisualHandlers(RegisterClientPayloadHandlersEvent event) {
         event.register(ScryPayload.TYPE, ScrySweep::onPayload);
         event.register(SunbeamPayload.TYPE, SunbeamVisual::onPayload);
-        event.register(RadiantAuraPayload.TYPE, RadiantAura::onPayload);
+        event.register(WispFlightPayload.TYPE, WispFlights::onPayload);
         event.register(LeechPayload.TYPE, LeechWisps::handle);
         event.register(TomePayload.TYPE, Tomes::handle);
         event.register(NovaRingPayload.TYPE, NovaRingHandler::handle);

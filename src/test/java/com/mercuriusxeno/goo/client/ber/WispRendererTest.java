@@ -56,6 +56,20 @@ class WispRendererTest {
     }
 
     @Test
+    void aFreshWispFadesInFromNothingOverTheFadeIn() {
+        assertEquals(0f, WispRenderer.fadeIn(0f), TOLERANCE);
+        assertEquals(1f, WispRenderer.fadeIn(WispRenderer.FADE_IN_TICKS), TOLERANCE);
+        assertEquals(1f, WispRenderer.fadeIn(WispRenderer.FADE_IN_TICKS * 3f), TOLERANCE);
+        float before = 0f;
+        for (int tick = 1; tick <= WispRenderer.FADE_IN_TICKS; tick++) {
+            float share = WispRenderer.fadeIn(tick);
+            assertTrue(share > before, "The fade-in should rise every tick, not on tick " + tick);
+            before = share;
+        }
+        assertEquals(0.5f, WispRenderer.fadeIn(WispRenderer.FADE_IN_TICKS / 2f), TOLERANCE);
+    }
+
+    @Test
     void twoNeighborsFloatOutOfStep() {
         long first = WispRenderer.seedOf(PACKED);
         long second = WispRenderer.seedOf(PACKED + 1);

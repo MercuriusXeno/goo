@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlockEntity;
+import com.mercuriusxeno.goo.client.ability.WispFlights;
 import com.mercuriusxeno.goo.client.ability.WispGlow;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -21,9 +22,12 @@ import org.jspecify.annotations.Nullable;
  * glow-yellow halo cube, both added onto the world, bobbing and turning
  * slowly in place, each wisp at its own phase and pace so no two move in
  * step, and shrinking and dimming through the wisp's fade stages (operator
- * rulings 2026-10-09). The wisp queues to {@link WispGlow}, which draws it
- * after the translucent blocks so water shows behind it, not over it.
+ * rulings 2026-10-09). A fresh wisp grows in from nothing, flying from the
+ * caster's glove when {@link WispFlights} holds its flight. The wisp queues
+ * to {@link WispGlow}, which draws it after the translucent blocks so water
+ * shows behind it, not over it.
  * decision radiant-wisps-where-light-is-low
+ * operator ruling 2026-10-10: a wisp fades in rather than popping in
  */
 public class WispRenderer implements BlockEntityRenderer<WispBlockEntity, WispRenderer.WispRenderState> {
 
@@ -36,6 +40,11 @@ public class WispRenderer implements BlockEntityRenderer<WispBlockEntity, WispRe
     private static final int CORE_RGB = 0xFFF6C8;
     private static final int HALO_RGB = 0xFFE628;
     private static final float BOB_HEIGHT = 0.06f;
+    /** Ticks a fresh wisp takes to fade in from nothing: as long as its flight from the glove. */
+    static final int FADE_IN_TICKS = WispFlights.FLIGHT_TICKS;
+    /** Smoothstep's terms, 3s² - 2s³, so the fade-in starts and ends gently. */
+    private static final float SMOOTHSTEP_RISE = 3f;
+    private static final float SMOOTHSTEP_EASE = 2f;
     /** The slowest a wisp bobs, in radians a tick, and how much faster one may go. */
     static final float SLOWEST_BOB = 0.05f;
     static final float BOB_SPREAD = 0.05f;
@@ -94,13 +103,14 @@ public class WispRenderer implements BlockEntityRenderer<WispBlockEntity, WispRe
         long gameTime = wisp.getLevel() == null ? 0L : wisp.getLevel().getGameTime();
         state.time = gameTime + partialTick;
         state.seed = seedOf(wisp.getBlockPos().asLong());
+        state.age = wisp.appearedAt() == WispBlockEntity.NOT_YET ? FADE_IN_TICKS : state.time - wisp.appearedAt();
     }
 
     @Override
     public void submit(WispRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector,
                        CameraRenderState cameraState) {
-        float strength = strength(state.fade);
-        Vec3 center = Vec3.atCenterOf(state.blockPos).add(0, bob(state.seed, state.time), 0);
+        float strength = strength(state.fade) * fadeIn(state.age);
+        Vec3 center = WispFlights.centerOf(state.blockPos, state.time).add(0, bob(state.seed, state.time), 0);
         // operator UAT 2026-10-10: water drew over the wisps, so they draw after the translucent blocks
         WispGlow.queue(new WispGlow.Sprite(center, state.time * turn(state.seed), (pose, consumer) -> {
             emitCube(pose, consumer, HALO_HALF * strength, ARGB.color(Math.round(HALO_ALPHA * strength), HALO_RGB));
@@ -194,8 +204,22 @@ public class WispRenderer implements BlockEntityRenderer<WispBlockEntity, WispRe
         return 1f - (float) fade / (WispBlock.LAST_FADE + 1);
     }
 
-    /** Render state snapshot for a wisp: its fade stage and its bob clock. */
+    /**
+     * How much of the mote shows as it fades in: nothing as it appears,
+     * rising smoothly to all of it over the fade-in.
+     *
+     * @param age ticks since the wisp appeared on this client
+     * @return the share, zero to one
+     */
+    static float fadeIn(float age) {
+        float share = Mth.clamp(age / FADE_IN_TICKS, 0f, 1f);
+        return share * share * (SMOOTHSTEP_RISE - SMOOTHSTEP_EASE * share);
+    }
+
+    /** Render state snapshot for a wisp: its fade stage, its age and its bob clock. */
     public static class WispRenderState extends BlockEntityRenderState {
+        /** Ticks since the wisp appeared on this client. */
+        public float age;
         /** The wisp's fade stage. */
         public int fade;
         /** The game clock in ticks. */
