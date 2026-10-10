@@ -357,6 +357,7 @@ public final class GooTestFunctions {
     private static final String MACHINE_REACTOR_WITHOUT_INPUTS = "machine_reactor_without_inputs";
     private static final String MACHINE_REACTOR_BREAK_RELEASES_GASKET = "machine_reactor_break_releases_gasket";
     private static final String MACHINE_REACTOR_REACTION = "machine_reactor_reaction";
+    private static final String MACHINE_REACTOR_PULSE_FROM_NETHER_GLOW = "machine_reactor_pulse_from_nether_glow";
     private static final String MACHINE_REACTOR_REDSTONE = "machine_reactor_redstone";
     private static final String MACHINE_PLEXER_WITHOUT_GOO = "machine_plexer_without_goo";
 
@@ -831,6 +832,7 @@ public final class GooTestFunctions {
         reg(r, MACHINE_REACTOR_WITHOUT_INPUTS, MachineTests::reactorWithoutInputsMakesNothing);
         reg(r, MACHINE_REACTOR_BREAK_RELEASES_GASKET, MachineTests::reactorBreakReleasesOutputGasket);
         reg(r, MACHINE_REACTOR_REACTION, MachineTests::reactorProcessesReaction);
+        reg(r, MACHINE_REACTOR_PULSE_FROM_NETHER_GLOW, MachineTests::reactorMakesPulseFromNetherGlow);
         reg(r, MACHINE_REACTOR_REDSTONE, MachineTests::reactorRedstoneHalts);
         reg(r, MACHINE_PLEXER_WITHOUT_GOO, MachineTests::plexerWithoutGooMakesNothing);
     }
