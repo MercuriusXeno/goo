@@ -1,0 +1,12 @@
+{
+  "gooType": "pulse",
+  "displayName": "goo.ability.pulse.extender",
+  "badge": "brew",
+  "order": 70,
+  "upkeep": 1,
+  "delivery": { "kind": "self" },
+  "behaviors": [
+    { "type": "extender" }
+  ],
+  "tags": ["self"]
+}

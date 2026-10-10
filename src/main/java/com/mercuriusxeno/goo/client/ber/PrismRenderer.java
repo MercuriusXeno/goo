@@ -7,11 +7,13 @@ import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CrystalClusterSubmitter;
 import com.mercuriusxeno.goo.client.PrismCrystal;
 import com.mercuriusxeno.goo.client.ability.AgitatorWisps;
+import com.mercuriusxeno.goo.client.ability.ThumpRings;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ber.style.AgitatorPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyles;
+import com.mercuriusxeno.goo.client.ber.style.PulsePrismStyle;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
@@ -63,6 +65,14 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         state.blobLook = blob == null ? null : CrystalClusterSubmitter.lookOf(blob.gooType(),
                 ClientGooTypes.color(blob.gooType()));
         state.combo = prism.getCombo();
+        // metronome-prism-pulses-at-the-learned-rate, relay-prism-carries-the-signal-through-air
+        state.power = prism.getBlockState().getValue(PrismBlock.POWER);
+        state.signalHeard = prism.beat().heard();
+        state.sinceBeat = PrismBeats.secondsSinceBeat(prism.getBlockPos(), state.power > 0);
+        if (PulsePrismStyle.METRONOME_COMBO.equals(state.combo)) {
+            // metronome-prism-pulses-at-the-learned-rate: each beat sends a red ring out from the prism's base
+            ThumpRings.see(prism.getBlockPos(), state.facing, state.power > 0);
+        }
         // agitator-prism-quickens-until-a-spawn: the beat rides the synced countdown
         AgitationState agitation = prism.programState().agitation();
         state.beat = agitation.interval() > 0
