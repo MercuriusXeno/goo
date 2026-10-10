@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.nether;
 
 import com.mercuriusxeno.goo.registry.GooParticles;
+import com.mercuriusxeno.goo.registry.GooSoundIds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundSource;
@@ -38,7 +39,7 @@ public final class HiveSwarm {
     static final double GNAT_FRICTION = 0.9;
     private static final double HALF = 0.5;
     /** Decay's buzz: a bee's loop, soft and pitched high (nether_decay.json's sound). */
-    private static final Identifier BUZZ = Identifier.withDefaultNamespace("entity.bee.loop");
+    private static final Identifier BUZZ = GooSoundIds.GNAT_BUZZ;
     private static final float BUZZ_VOLUME = 0.12f;
     private static final float BUZZ_PITCH = 1.95f;
     private static final float BUZZ_PITCH_SPREAD = 0.1f;
