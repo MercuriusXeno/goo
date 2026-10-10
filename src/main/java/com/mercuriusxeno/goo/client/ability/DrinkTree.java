@@ -120,6 +120,8 @@ public final class DrinkTree {
         private double @Nullable [] times;
         private double head = Double.NaN;
         private double tail = Double.NaN;
+        private double route = Double.NaN;
+        private double mass = Double.NaN;
 
         private Stream(Block block, DrinkStream.Path path, @Nullable Stream trunk, double joinShare, double now) {
             this.block = block;
@@ -183,19 +185,26 @@ public final class DrinkTree {
         }
 
         /**
-         * @return the blocks of the block's whole route to the glove
+         * @return the blocks of the block's whole route to the glove, read once since every ring asks
          */
         public double routeLength() {
-            return remainingFrom(0);
+            if (Double.isNaN(route)) {
+                route = remainingFrom(0);
+            }
+            return route;
         }
 
         /**
-         * @return the blocks of goo this stream and every stream feeding it weigh now
+         * @return the blocks of goo this stream and every stream feeding it weigh now, read once the tree is built
+         *         since every ring's pace asks
          */
         double subtreeMass() {
-            double mass = block.massAt(now);
-            for (Stream tributary : tributaries) {
-                mass += tributary.subtreeMass();
+            if (Double.isNaN(mass)) {
+                double sum = block.massAt(now);
+                for (Stream tributary : tributaries) {
+                    sum += tributary.subtreeMass();
+                }
+                mass = sum;
             }
             return mass;
         }
@@ -473,7 +482,7 @@ public final class DrinkTree {
      * @return the radius there, 0 where nothing flows
      */
     static double radiusAt(Stream stream, double share) {
-        Flow sum = flowUnder(stream, stream, share);
+        Flow sum = flowUnder(stream, share);
         if (sum.presence() <= 0) {
             return 0;
         }
@@ -527,17 +536,67 @@ public final class DrinkTree {
     }
 
     /**
-     * @param branch  a stream, and every tributary under it
-     * @param through its own path or a trunk it flows through
-     * @param share   a share of that path
-     * @return the liquid of the branch and all under it at the point, summed
+     * The liquid of a stream and of every stream under it at a share of its
+     * path, summed: its own, and each tributary's whole branch swelling in
+     * over the merge about its join, a branch yet to join skipped whole, and
+     * the walk down each branch carrying where its liquid stands so no chain
+     * is walked twice; a drink of many blocks builds its rings in time.
+     *
+     * @param through the stream
+     * @param share   a share of its path
+     * @return the liquid there
      */
-    private static Flow flowUnder(Stream branch, Stream through, double share) {
-        Flow sum = flowOf(branch, through, share);
-        for (Stream tributary : branch.tributaries()) {
-            sum = sum.plus(flowUnder(tributary, through, share));
+    private static Flow flowUnder(Stream through, double share) {
+        double length = through.path().length();
+        double distance = share * length;
+        double[] sum = new double[PAIR];
+        gather(through, distance, 1, sum);
+        for (Stream tributary : through.tributaries()) {
+            double pastJoin = distance - tributary.joinShare() * length;
+            if (pastJoin >= -MERGE) {
+                gatherUnder(tributary, tributary.path().length() + Math.max(0, pastJoin), mergeRamp(pastJoin), sum);
+            }
         }
-        return sum;
+        return new Flow(sum[0], sum[1]);
+    }
+
+    /**
+     * Adds a stream's liquid at a point of its route, and every stream's under
+     * it where that stream's liquid stands there: its own path's length past
+     * its join, all swelling in as the branch does.
+     *
+     * @param stream   the stream
+     * @param distance blocks along the stream's route the point is
+     * @param swell    how far the branch has swelled into the trunk the point is on, 0 to 1
+     * @param sum      the radius then the presence, added to
+     */
+    private static void gatherUnder(Stream stream, double distance, double swell, double[] sum) {
+        gather(stream, distance, swell, sum);
+        double length = stream.path().length();
+        for (Stream tributary : stream.tributaries()) {
+            gatherUnder(tributary, tributary.path().length() + distance - tributary.joinShare() * length, swell, sum);
+        }
+    }
+
+    /**
+     * Adds one stream's own liquid at a point of its route: its width there
+     * times how much of it is there, the taper at its ends and the swell;
+     * nothing while its square is still flying to the block.
+     *
+     * @param stream   the stream
+     * @param distance blocks along the stream's route the point is
+     * @param swell    how far the point has swelled into the stream's liquid, 1 on its own path
+     * @param sum      the radius then the presence, added to
+     */
+    private static void gather(Stream stream, double distance, double swell, double[] sum) {
+        if (stream.awaiting()) {
+            return;
+        }
+        double presence = DrinkStream.taperAt(distance, stream.tailAt(), stream.headAt()) * swell;
+        if (presence > 0) {
+            sum[0] += liquidWidth(stream, distance) * presence;
+            sum[1] += presence;
+        }
     }
 
     /**
@@ -592,10 +651,8 @@ public final class DrinkTree {
     }
 
     /**
-     * The liquid one stream alone gives a point of a path it flows through:
-     * its width there times how much of it is there, the taper at its ends
-     * and, on a trunk it joins, the swell in about the join; nothing at all
-     * while its square is still flying to the block.
+     * The liquid one stream alone gives a point of a path it flows through,
+     * where it stands there and swollen in about its join on a trunk.
      *
      * @param stream  the stream
      * @param through its own path or a trunk it flows through
@@ -604,14 +661,12 @@ public final class DrinkTree {
      */
     static Flow flowOf(Stream stream, Stream through, double share) {
         Entry entry = entryOf(stream, through, share);
-        if (entry == null || stream.awaiting()) {
+        if (entry == null) {
             return new Flow(0, 0);
         }
-        double distance = entry.distance();
-        double width = liquidWidth(stream, distance);
-        double taper = DrinkStream.taperAt(distance, stream.tailAt(), stream.headAt());
-        double presence = stream == through ? taper : taper * mergeRamp(entry.pastJoin());
-        return new Flow(width * presence, presence);
+        double[] sum = new double[PAIR];
+        gather(stream, entry.distance(), stream == through ? 1 : mergeRamp(entry.pastJoin()), sum);
+        return new Flow(sum[0], sum[1]);
     }
 
     /**
