@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.pulse.RedstoneBeat;
+import com.mercuriusxeno.goo.ability.world.TimeSkip;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooSyncedBlockEntity;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
@@ -45,6 +46,9 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     private static final String TAG_REFLECTOR = "Reflector";
     private static final String TAG_LINKS = "Links";
     private static final String TAG_LINK_LIGHT = "LinkLight";
+    private static final String TAG_BANK_FED = "BankFed";
+    private static final String TAG_BANK_STANDING = "BankStanding";
+    private static final String TAG_BANK_SPEND = "BankSpend";
     private static final String TAG_COMBO_SINCE = "ComboSince";
     private static final String TAG_PREVIOUS_EDGE = "BeatPreviousEdge";
     private static final String TAG_LAST_EDGE = "BeatLastEdge";
@@ -53,6 +57,7 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     private final MarkerProgramState programState = new MarkerProgramState();
     private ResourceKey<GooTypeDefinition> gooType = GooTypes.CRYSTAL;
     private String combo = NO_COMBO;
+    private TickBank bank = TickBank.NONE;
     /** The game time the combo took, which its transformation plays from. */
     private long comboSince;
     /** The combo's program while it runs; null once it ends or before any combo. */
@@ -162,6 +167,93 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         }
         setChanged();
         BlockEntitySync.markDirtyAndSync(this);
+    }
+
+    /**
+     * Banks one tick of standing, as the timekeeper combo's bank_ticks step
+     * runs each tick.
+     * timekeeper-prism-banks-ticks-forward-only
+     */
+    @Override
+    public void bankTicks(int perTick, int spending) {
+        bank = bank.stood(perTick, spending);
+        setChanged();
+    }
+
+    /**
+     * @return true when the prism's combo banks ticks
+     */
+    public boolean banksTicks() {
+        return bank.banking();
+    }
+
+    /**
+     * @return the ticks the prism has banked
+     */
+    public TickBank bank() {
+        return bank;
+    }
+
+    /**
+     * Banks the charge a goo of the combo's own type feeds the prism as it
+     * lands; a prism that banks no ticks, or another type, feeds nothing.
+     * timekeeper-prism-banks-ticks-forward-only
+     *
+     * @param type   the goo type that landed
+     * @param charge the charge it feeds, its mB
+     * @return true when the landing fed the bank
+     */
+    public boolean feed(ResourceKey<GooTypeDefinition> type, long charge) {
+        if (!banksTicks() || type != gooType) {
+            return false;
+        }
+        bank = bank.fedWith(charge);
+        setChanged();
+        return true;
+    }
+
+    /**
+     * Spends one held tick of Tick's worth of charge moving the level's day
+     * time forward by the charge spent.
+     * timekeeper-prism-banks-ticks-forward-only
+     *
+     * @return the ticks the clock moved
+     */
+    public long spendOnTime() {
+        long spent = bank.spendable();
+        if (spent > 0 && level instanceof ServerLevel server && TimeSkip.skip(server, spent)) {
+            bank = bank.afterSpending(spent);
+            setChanged();
+            return spent;
+        }
+        return 0L;
+    }
+
+    /**
+     * Withdraws standing charge, whole multiples of the charge one mB of goo
+     * is worth, for Rewind to pour into the player's holdings.
+     * timekeeper-prism-banks-ticks-forward-only
+     *
+     * @param maxMb       the most mB withdrawn
+     * @param chargePerMb the standing charge one mB is worth
+     * @return the mB withdrawn
+     */
+    public int withdrawStanding(int maxMb, int chargePerMb) {
+        int mb = (int) Math.min(maxMb, bank.standing() / chargePerMb);
+        bank = bank.afterWithdrawing((long) mb * chargePerMb);
+        setChanged();
+        return mb;
+    }
+
+    /**
+     * Puts back standing charge Rewind withdrew but found no home for.
+     *
+     * @param mb          the mB that found no home
+     * @param chargePerMb the standing charge one mB is worth
+     */
+    public void refundStanding(int mb, int chargePerMb) {
+        bank = new TickBank(bank.fed(), bank.standing() + (long) mb * chargePerMb, bank.spendPerTick());
+        setChanged();
     }
 
     /**
@@ -347,6 +439,8 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         reflector = input.getBooleanOr(TAG_REFLECTOR, false);
         links = input.read(TAG_LINKS, BlockPos.CODEC.listOf()).orElse(List.of());
         linkLight = input.getIntOr(TAG_LINK_LIGHT, 0);
+        bank = new TickBank(input.getLongOr(TAG_BANK_FED, 0L), input.getLongOr(TAG_BANK_STANDING, 0L),
+                input.getIntOr(TAG_BANK_SPEND, 0));
         comboSince = input.getLongOr(TAG_COMBO_SINCE, 0L);
         listOculus();
         programState.load(input);
@@ -384,6 +478,9 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         output.putBoolean(TAG_REFLECTOR, reflector);
         output.store(TAG_LINKS, BlockPos.CODEC.listOf(), links);
         output.putInt(TAG_LINK_LIGHT, linkLight);
+        output.putLong(TAG_BANK_FED, bank.fed());
+        output.putLong(TAG_BANK_STANDING, bank.standing());
+        output.putInt(TAG_BANK_SPEND, bank.spendPerTick());
         output.putLong(TAG_COMBO_SINCE, comboSince);
         programState.save(output);
         output.putLong(TAG_PREVIOUS_EDGE, beat.previousEdge());

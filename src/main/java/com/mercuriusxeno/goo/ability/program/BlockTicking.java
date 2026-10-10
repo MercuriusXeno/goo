@@ -1,0 +1,94 @@
+package com.mercuriusxeno.goo.ability.program;
+
+import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+
+/**
+ * Runs a block entity's own ticker outside the level's tick, as Tick hastens
+ * a machine: every ticking block entity counts, goo's and vanilla's alike.
+ * tick-channel-marches-squares-on-the-face
+ */
+public final class BlockTicking {
+
+    private BlockTicking() {
+    }
+
+    /**
+     * Runs the server ticker of the block entity at a position a number of
+     * times, reading the block state afresh each time, since a tick may
+     * change it (a furnace lighting).
+     *
+     * @param level the level
+     * @param pos   the block
+     * @param times how many ticks to run
+     * @return the ticks run: none where no ticking block entity stands
+     */
+    public static int tickBlockEntity(Level level, BlockPos pos, int times) {
+        // timekeeper-prism-banks-ticks-forward-only: Tick on a banking prism spends its bank on the clock
+        if (level.getBlockEntity(pos) instanceof PrismBlockEntity prism && prism.banksTicks()) {
+            prism.spendOnTime();
+            return 0;
+        }
+        return runTickers(level, pos, times);
+    }
+
+    /**
+     * Whether Tick can hasten the block at a position: a ticking block
+     * entity stands there, or a prism that banks ticks.
+     * tick-channel-marches-squares-on-the-face
+     *
+     * @param level the level
+     * @param pos   the block
+     * @return true where a held Tick does something
+     */
+    public static boolean canTick(Level level, BlockPos pos) {
+        BlockEntity blockEntity = level.getBlockEntity(pos);
+        if (blockEntity instanceof PrismBlockEntity prism) {
+            return prism.banksTicks();
+        }
+        return blockEntity != null && !blockEntity.isRemoved() && hasTicker(level, pos, blockEntity);
+    }
+
+    @SuppressWarnings("unchecked") // a block entity's type is the type of its own class
+    private static <T extends BlockEntity> boolean hasTicker(Level level, BlockPos pos, T blockEntity) {
+        return level.getBlockState(pos).getTicker(level, (BlockEntityType<T>) blockEntity.getType()) != null;
+    }
+
+    /**
+     * Runs the ticker of the block entity at a position until the times run
+     * out or no ticking block entity stands there.
+     *
+     * @param level the level
+     * @param pos   the block
+     * @param times how many ticks to run
+     * @return the ticks run
+     */
+    private static int runTickers(Level level, BlockPos pos, int times) {
+        int ran = 0;
+        for (int tick = 0; tick < times; tick++) {
+            BlockEntity blockEntity = level.getBlockEntity(pos);
+            if (blockEntity == null || blockEntity.isRemoved() || !runTicker(level, pos, blockEntity)) {
+                break;
+            }
+            ran++;
+        }
+        return ran;
+    }
+
+    @SuppressWarnings("unchecked") // a block entity's type is the type of its own class
+    private static <T extends BlockEntity> boolean runTicker(Level level, BlockPos pos, T blockEntity) {
+        BlockState state = level.getBlockState(pos);
+        BlockEntityType<T> type = (BlockEntityType<T>) blockEntity.getType();
+        BlockEntityTicker<T> ticker = state.getTicker(level, type);
+        if (ticker == null) {
+            return false;
+        }
+        ticker.tick(level, pos, state, blockEntity);
+        return true;
+    }
+}

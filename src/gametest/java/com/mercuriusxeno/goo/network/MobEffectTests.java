@@ -4,8 +4,8 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.banish.BanishEvents;
 import com.mercuriusxeno.goo.ability.program.EntityFilter;
-import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.EntityScan;
+import com.mercuriusxeno.goo.ability.stasis.StasisEvents;
 import com.mercuriusxeno.goo.ability.hex.CharmEvents;
 import com.mercuriusxeno.goo.gametest.SurvivalPlayers;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
@@ -29,7 +29,6 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
 import java.util.Set;
@@ -67,14 +66,27 @@ public final class MobEffectTests {
     private static final String SHOULD_TAKE_DAMAGE = "Target should have taken damage";
     private static final String SHOULD_BE_ON_FIRE = "Target should be on fire";
     private static final String SHOULD_HAVE_NO_AI = "Target should have AI disabled";
-    private static final String SHOULD_BE_INVULNERABLE = "Target should be invulnerable";
     private static final String SHOULD_HAVE_LEVITATION = "Target should have levitation";
     private static final String SHOULD_TAKE_JAVELIN_DAMAGE = "Target should have taken the javelin's damage";
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
     private static final String ABILITY_METAL_JAVELIN = "goo:metal_javelin";
     private static final String ABILITY_TYPHOON_LEVITATE = "goo:typhoon_levitate";
     private static final String ABILITY_FROST_SNAP = "goo:frost_snap";
-    private static final String ABILITY_AEON_TIME_STOP = "goo:aeon_time_stop";
+    private static final String ABILITY_PULSE_SHORT_CIRCUIT = "goo:pulse_short_circuit";
+    private static final String ABILITY_AEON_STASIS = "goo:aeon_stasis";
+    /** The ticks a stasis is watched before the hits land. */
+    private static final int STASIS_HOLD_TICKS = 100;
+    private static final float STASIS_HIT_DAMAGE = 4.0f;
+    private static final String SHOULD_STAY_IN_STASIS = "The zombie should stay in stasis until an attacker strikes it";
+    private static final String SHOULD_STAY_PUT = "The zombie in stasis should not have moved";
+    private static final String SHOULD_TAKE_NO_DAMAGE = "The zombie in stasis should take no damage";
+    private static final String SHOULD_SURVIVE_LANDING_PUNCH = "The punch landing the stasis should not free the mob";
+    private static final String SHOULD_DEAL_NOTHING_FROZEN = "A mob in stasis should deal no damage";
+    private static final String SHOULD_BE_FREED = "An attacker's strike should free the zombie";
+    private static final String SHOULD_HAVE_AI_AGAIN = "The freed zombie should have its AI back";
+    /** The farthest a mob in stasis may drift and still count as standing put. */
+    private static final double STASIS_MOST_DRIFT = 0.01;
+    private static final String MOB_HAS_MAX_HEALTH = "The mob carries a max health attribute";
     private static final String ABILITY_UNSTABLE_EXPLODE = "goo:unstable_explode";
     private static final String ABILITY_HEX_CHARM = "goo:hex_charm";
     private static final String ABILITY_VITAL_CLONE = "goo:vital_clone";
@@ -117,25 +129,6 @@ public final class MobEffectTests {
     /** The damage metal_javelin.json's damage step names. */
     private static final float JAVELIN_DAMAGE = 8.0f;
 
-    /** The counter aeon_time_stop.json's ritual adds to. */
-    private static final Identifier RITUAL_COUNTER = Identifier.parse("goo:ritual");
-    /** The percent numerator and health exponent of aeon_time_stop.json's ritual share. */
-    private static final double RITUAL_PERCENT = 100;
-    private static final double RITUAL_HEALTH_EXPONENT = 0.6;
-    private static final int RITUAL_THROWS = 2;
-    private static final double RITUAL_TOLERANCE = 0.01;
-    private static final String SHOULD_COUNT_RITUAL = "Ritual counter should read %.2f after two throws, read %.2f";
-
-    /** The reach within which the ritual's egg drop, or its absence, is read. */
-    private static final double ITEM_SEARCH_RADIUS = 2.0;
-    private static final String SHOULD_DROP_NOTHING = "No item should drop beside a mob short of the ritual";
-    private static final String SHOULD_DROP_ONLY_EGG = "Exactly one spawn egg of the mob, and no loot, should drop; found %s";
-    private static final String SHOULD_VANISH = "The mob should be gone once its ritual completes";
-    private static final String MOB_HAS_MAX_HEALTH = "The mob carries a max health attribute";
-    /** A max health of one makes aeon_time_stop.json's ritual share 100 / pow(1, 0.6), the full hundred. */
-    private static final double ONE_HIT_RITUAL_MAX_HEALTH = 1.0;
-    private static final String SHOULD_BE_BABY = "An adult with a baby form should stand as a baby";
-    private static final String SHOULD_RESTART_RITUAL = "The ritual counter should restart at zero, read %.2f";
     private static final String SHOULD_HAVE_BABY_FORM = "%s should have a baby form";
     private static final String SHOULD_LACK_BABY_FORM = "%s should have no baby form";
 
@@ -429,81 +422,41 @@ public final class MobEffectTests {
     }
 
     /**
-     * Aeon time stop is a program: a mob target selection wrapping set_ai
-     * off, set_invulnerable on and the stasis ailment overlay in place of
-     * vanilla glowing (decision ailment-overlay-shader-per-ailment).
+     * Aeon stasis freezes a zombie with its AI on: across a hundred ticks and
+     * a hit with no attacker it stays in stasis, AI-less, unmoved and
+     * unharmed; a strike from another zombie frees it, its AI back and its
+     * health untouched.
+     * stasis-holds-mob-with-golden-shimmer
      *
      * @param helper the gametest helper
      */
-    public static void aeonTimeStop(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
+    public static void stasisHoldsUntilStruck(GameTestHelper helper) {
+        Mob mob = helper.spawn(EntityType.ZOMBIE, SPAWN_POS);
+        Mob attacker = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, BYSTANDER_POS);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_AEON_TIME_STOP);
-            helper.assertTrue(mob.isNoAi(), SHOULD_HAVE_NO_AI);
-            helper.assertTrue(mob.isInvulnerable(), SHOULD_BE_INVULNERABLE);
-            helper.assertFalse(mob.hasEffect(MobEffects.GLOWING), SHOULD_NOT_GLOW);
-            helper.runAfterDelay(SETTLE_TICKS, () -> {
-                helper.assertTrue(itemsNear(helper, mob.position()).isEmpty(), SHOULD_DROP_NOTHING);
+            strike(helper, mob, ABILITY_AEON_STASIS);
+            Vec3 frozenAt = mob.position();
+            float health = mob.getHealth();
+            // stasis-holds-mob-with-golden-shimmer: the punch that lands the blob arrives the same tick and frees nothing
+            mob.hurtServer(helper.getLevel(), helper.getLevel().damageSources().mobAttack(attacker), STASIS_HIT_DAMAGE);
+            helper.assertTrue(StasisEvents.held(mob), SHOULD_SURVIVE_LANDING_PUNCH);
+            float attackerHealth = attacker.getHealth();
+            attacker.hurtServer(helper.getLevel(), helper.getLevel().damageSources().mobAttack(mob), STASIS_HIT_DAMAGE);
+            helper.assertTrue(attacker.getHealth() == attackerHealth, SHOULD_DEAL_NOTHING_FROZEN);
+            helper.runAfterDelay(STASIS_HOLD_TICKS, () -> {
+                mob.hurtServer(helper.getLevel(), helper.getLevel().damageSources().generic(), STASIS_HIT_DAMAGE);
+                helper.assertTrue(StasisEvents.held(mob), SHOULD_STAY_IN_STASIS);
+                helper.assertTrue(mob.isNoAi(), SHOULD_HAVE_NO_AI);
+                helper.assertTrue(mob.position().distanceTo(frozenAt) < STASIS_MOST_DRIFT, SHOULD_STAY_PUT);
+                helper.assertTrue(mob.getHealth() == health, SHOULD_TAKE_NO_DAMAGE);
+                mob.hurtServer(helper.getLevel(), helper.getLevel().damageSources().mobAttack(attacker),
+                        STASIS_HIT_DAMAGE);
+                helper.assertFalse(StasisEvents.held(mob), SHOULD_BE_FREED);
+                helper.assertFalse(mob.isNoAi(), SHOULD_HAVE_AI_AGAIN);
+                helper.assertTrue(mob.getHealth() == health, SHOULD_TAKE_NO_DAMAGE);
                 helper.succeed();
             });
         });
-    }
-
-    /**
-     * Aeon's ritual completes on a baby chicken: one whose max health is one
-     * takes 100 / pow(1, 0.6), the full hundred, on its first throw, so it
-     * drops its own spawn egg and vanishes without dying or dropping loot
-     * (decision aeon-mob-ritual-drops-spawn-egg).
-     *
-     * @param helper the gametest helper
-     */
-    public static void aeonRitualEgg(GameTestHelper helper) {
-        Mob mob = spawnOneHitRitual(helper, EntityType.CHICKEN);
-        mob.setBaby(true);
-        assertRitualLeavesEgg(helper, mob, Items.CHICKEN_SPAWN_EGG);
-    }
-
-    /**
-     * An adult cow with max health one completes the ritual on its first
-     * throw and, having a baby form, becomes a baby that keeps standing
-     * with its ritual restarted and no egg dropped.
-     *
-     * @param helper the gametest helper
-     */
-    public static void aeonRitualBaby(GameTestHelper helper) {
-        Mob mob = spawnOneHitRitual(helper, EntityType.COW);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_AEON_TIME_STOP);
-            double ritual = new EntityHost(helper.getLevel(), mob, null).counters().read(RITUAL_COUNTER);
-            helper.assertTrue(mob.isAlive() && mob.isBaby(), SHOULD_BE_BABY);
-            helper.assertTrue(ritual == 0, String.format(SHOULD_RESTART_RITUAL, ritual));
-            helper.runAfterDelay(SETTLE_TICKS, () -> {
-                helper.assertTrue(itemsNear(helper, mob.position()).isEmpty(), SHOULD_DROP_NOTHING);
-                helper.succeed();
-            });
-        });
-    }
-
-    /**
-     * A baby cow with max health one completes the ritual on its first
-     * throw and drops its own spawn egg.
-     *
-     * @param helper the gametest helper
-     */
-    public static void aeonRitualBabyEgg(GameTestHelper helper) {
-        Mob mob = spawnOneHitRitual(helper, EntityType.COW);
-        mob.setBaby(true);
-        assertRitualLeavesEgg(helper, mob, Items.COW_SPAWN_EGG);
-    }
-
-    /**
-     * A creeper has no baby form, so completing the ritual drops its egg
-     * straight away.
-     *
-     * @param helper the gametest helper
-     */
-    public static void aeonRitualNoBabyForm(GameTestHelper helper) {
-        assertRitualLeavesEgg(helper, spawnOneHitRitual(helper, EntityType.CREEPER), Items.CREEPER_SPAWN_EGG);
     }
 
     /**
@@ -525,93 +478,5 @@ public final class MobEffectTests {
             helper.assertFalse(EntityScan.passes(mob, hasBabyForm, mob), String.format(SHOULD_LACK_BABY_FORM, type));
         }
         helper.succeed();
-    }
-
-    /**
-     * Spawns a mob whose max health is one, so one aeon throw adds the full
-     * hundred to its ritual.
-     *
-     * @param helper the gametest helper
-     * @param type   the mob type
-     * @return the mob
-     */
-    private static Mob spawnOneHitRitual(GameTestHelper helper, EntityType<? extends Mob> type) {
-        Mob mob = helper.spawnWithNoFreeWill(type, SPAWN_POS);
-        AttributeInstance maxHealth = mob.getAttribute(Attributes.MAX_HEALTH);
-        helper.assertTrue(maxHealth != null, MOB_HAS_MAX_HEALTH);
-        maxHealth.setBaseValue(ONE_HIT_RITUAL_MAX_HEALTH);
-        return mob;
-    }
-
-    /**
-     * Runs one aeon throw on the mob, then reads one spawn egg of its type
-     * and no other item beside where it stood, and the mob gone. The read
-     * retries each tick: at the far test positions a chunk's entities can
-     * reach the level's entity scan some ticks after they are added.
-     *
-     * @param helper the gametest helper
-     * @param mob    the struck mob
-     * @param egg    the mob's spawn egg
-     */
-    private static void assertRitualLeavesEgg(GameTestHelper helper, Mob mob, Item egg) {
-        Vec3 stood = mob.position();
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_AEON_TIME_STOP);
-            helper.assertTrue(mob.isRemoved(), SHOULD_VANISH);
-            helper.succeedWhen(() -> {
-                List<ItemEntity> items = itemsNear(helper, stood);
-                helper.assertTrue(items.size() == 1 && items.get(0).getItem().is(egg)
-                        && items.get(0).getItem().getCount() == 1,
-                        String.format(SHOULD_DROP_ONLY_EGG, items.stream().map(ItemEntity::getItem).toList()));
-                helper.assertTrue(mobsNear(helper, stood, mob.getType()).isEmpty(), SHOULD_VANISH);
-            });
-        });
-    }
-
-    /**
-     * Collects the mobs of one type within two blocks of a point; a wider
-     * reach catches the mobs of the tests beside this one.
-     *
-     * @param helper the gametest helper
-     * @param center the point
-     * @param type   the mob type
-     * @return the mobs
-     */
-    private static List<Mob> mobsNear(GameTestHelper helper, Vec3 center, EntityType<?> type) {
-        return helper.getLevel().getEntitiesOfClass(Mob.class, new AABB(center, center).inflate(ITEM_SEARCH_RADIUS),
-                found -> found.getType() == type);
-    }
-
-    /**
-     * Collects the item entities within two blocks of a point.
-     *
-     * @param helper the gametest helper
-     * @param center the point
-     * @return the item entities
-     */
-    private static List<ItemEntity> itemsNear(GameTestHelper helper, Vec3 center) {
-        return helper.getLevel().getEntitiesOfClass(ItemEntity.class,
-                new AABB(center, center).inflate(ITEM_SEARCH_RADIUS));
-    }
-
-    /**
-     * Aeon's ritual counter persists on the struck mob: each throw adds
-     * 100 / pow(max_health, 0.6) to the cow's goo:ritual counter, so two
-     * throws on a cow of max health ten read twice that (decision
-     * aeon-mob-ritual-drops-spawn-egg).
-     *
-     * @param helper the gametest helper
-     */
-    public static void aeonRitualCounts(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_AEON_TIME_STOP);
-            strike(helper, mob, ABILITY_AEON_TIME_STOP);
-            double expected = RITUAL_THROWS * RITUAL_PERCENT / Math.pow(mob.getMaxHealth(), RITUAL_HEALTH_EXPONENT);
-            double ritual = new EntityHost(helper.getLevel(), mob, null).counters().read(RITUAL_COUNTER);
-            helper.assertTrue(Math.abs(ritual - expected) < RITUAL_TOLERANCE,
-                    String.format(SHOULD_COUNT_RITUAL, expected, ritual));
-            helper.succeed();
-        });
     }
 }

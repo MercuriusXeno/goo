@@ -20,25 +20,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AbilityBadgeTest {
 
     private static final int SHIPPED_MOB_BADGES = 11;
-    private static final int SHIPPED_WORLD_BADGES = 11;
+    private static final int SHIPPED_WORLD_BADGES = 12;
     private static final int SHIPPED_SELF_BADGES = 5;
-    private static final int SHIPPED_BREW_BADGES = 11;
-    private static final int SHIPPED_CHANNELED_BADGES = 18;
+    private static final int SHIPPED_BREW_BADGES = 12;
+    private static final int SHIPPED_CHANNELED_BADGES = 20;
     private static final int SHIPPED_FREE_BADGES = 6;
-    private static final int SHIPPED_TAP_BADGES = 10;
-    private static final int SHIPPED_PRISM_BADGES = 8;
+    private static final int SHIPPED_TAP_BADGES = 11;
+    private static final int SHIPPED_PRISM_BADGES = 9;
     /**
      * The prism combos (decisions prism-hosts-the-combos, hive-prism-pillar-eats-the-living,
      * glacial-prism-holds-the-area-frozen, agitator-prism-quickens-until-a-spawn,
      * verdant-prism-greens-blocks-slowly, oculus-prism-becomes-a-hovering-eye,
-     * reflector-rails-carry-the-brightest-light).
+     * reflector-rails-carry-the-brightest-light, timekeeper-prism-banks-ticks-forward-only).
      */
     private static final List<String> SHIPPED_PRISMS = List.of("nether_hive", "pulse_metronome", "pulse_relay",
-            "frost_glacial", "hex_agitator", "leaf_verdant", "ender_oculus", "glow_reflector");
+            "frost_glacial", "hex_agitator", "leaf_verdant", "ender_oculus", "glow_reflector", "aeon_timekeeper");
     /** The self + brew abilities, which wear brew on their self delivery (decision self-brew-goos-eat-before-the-effect). */
     private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "ender_teleportitis", "leaf_barkskin",
             "rock_stoneskin", "vital_nourish", "shroom_sight", "nether_undead", "pulse_extender", "frost_iceborn",
-            "hex_lifetap", "glow_lux");
+            "hex_lifetap", "glow_lux", "aeon_haste");
     /** The shipped free abilities (decisions badge-vocabulary-gains-free-prism-tap-brew, zap-ticks-the-device-and-stuns). */
     private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "rock_crush", "shroom_colonize",
             "pulse_zap", "frost_orb", "leaf_reap");

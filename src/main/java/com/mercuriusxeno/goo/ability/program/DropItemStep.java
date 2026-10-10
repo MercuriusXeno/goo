@@ -81,7 +81,7 @@ public record DropItemStep(Identifier item, Expr count) implements Step {
      * @param target    the entity whose egg drops
      * @param stackSize the stack size
      */
-    private static void dropOwnSpawnEgg(LivingEntity target, int stackSize) {
+    public static void dropOwnSpawnEgg(LivingEntity target, int stackSize) {
         EntityType<?> type = target.getType();
         Optional<Holder<Item>> egg = SpawnEggItem.byId(type);
         if (egg.isEmpty()) {

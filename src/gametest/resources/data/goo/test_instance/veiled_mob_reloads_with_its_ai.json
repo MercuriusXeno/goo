@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:mob_aeon_ritual_baby",
+  "function": "goo:veiled_mob_reloads_with_its_ai",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 5,
+  "max_ticks": 100,
   "setup_ticks": 0,
   "required": true
 }

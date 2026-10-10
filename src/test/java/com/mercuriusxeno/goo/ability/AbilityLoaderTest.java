@@ -110,7 +110,9 @@ class AbilityLoaderTest {
             Map.entry("blaze_ignite", List.of("flint")),
             Map.entry("blaze_kindle", List.of("magma_cream")),
             Map.entry("leaf_barkskin", List.of("oak_log")),
-            Map.entry("aeon_time_stop", List.of("clock")),
+            Map.entry("aeon_rewind", List.of("clock")),
+            Map.entry("aeon_stasis", List.of("netherite_scrap")),
+            Map.entry("aeon_haste", List.of("sugar")),
             Map.entry("leaf_vines", List.of("vine")),
             Map.entry("leaf_growth", List.of("bone_meal")),
             Map.entry("leaf_reap", List.of("wheat", "wheat_seeds")),
@@ -272,12 +274,12 @@ class AbilityLoaderTest {
     }
 
     /**
-     * Hex charm and aeon's stasis show their ailment through the overlay
-     * step, and neither applies vanilla glowing any more
+     * Hex charm shows its ailment through the overlay step and applies no
+     * vanilla glowing; stasis keeps its shimmer through StasisEvents
      * (decision ailment-overlay-shader-per-ailment).
      */
     @ParameterizedTest
-    @CsvSource({"hex_charm, HEX", "aeon_time_stop, STASIS"})
+    @CsvSource({"hex_charm, HEX"})
     void ailmentAbilitiesWearTheOverlayInPlaceOfGlowing(String name, AilmentKind kind) {
         List<Step> steps = AbilityJson.decode(name).behaviors().stream()
                 .flatMap(AbilityLoaderTest::stepTree).toList();

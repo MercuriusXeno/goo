@@ -43,7 +43,49 @@ public final class Transformations {
     private static final float SMOOTHSTEP_SQUARE = 3f;
     private static final float SMOOTHSTEP_CUBE = 2f;
 
+    /**
+     * Game ticks a finished shrink keeps its last size, so a model shrunk to
+     * nothing stays hidden until the server's removal of its entity arrives.
+     */
+    static final int SHRINK_HOLD_TICKS = 10;
+
     private final List<Transformation> live = new ArrayList<>();
+    private final List<Shrink> shrinks = new ArrayList<>();
+
+    /**
+     * One model shrink playing: Rewind's adult shrinking into its baby, or a
+     * mob shrinking into its egg.
+     * rewind-shrinks-adult-to-baby-to-egg
+     *
+     * @param entityId  the shrinking entity's id
+     * @param fromScale the model's size as it begins, as a multiple of its drawn size
+     * @param toScale   the model's size as it ends
+     * @param babyModel true when it draws on the baby model, so it holds off until the entity reads as a baby
+     * @param startTick the game time it began
+     * @param ticks     the game ticks it takes
+     */
+    public record Shrink(int entityId, float fromScale, float toScale, boolean babyModel, long startTick, int ticks) {
+
+        /**
+         * The model's size at a game time, eased by the smoothstep; on the
+         * baby model, full until the entity reads as a baby.
+         *
+         * @param gameTime the game time including the partial tick
+         * @param baby     whether the entity reads as a baby
+         * @return the size, as a multiple of the drawn size
+         */
+        public float scale(float gameTime, boolean baby) {
+            if (babyModel && !baby) {
+                return FULL;
+            }
+            float share = smoothstep(Math.clamp((gameTime - startTick) / ticks, 0f, 1f));
+            return fromScale + (toScale - fromScale) * share;
+        }
+
+        boolean isOver(long now) {
+            return now - startTick >= ticks + SHRINK_HOLD_TICKS;
+        }
+    }
 
     /**
      * The smoothstep ease: still at both ends, fastest at the middle.
@@ -189,6 +231,21 @@ public final class Transformations {
     }
 
     /**
+     * Starts a model shrink.
+     *
+     * @param entityId  the shrinking entity's id
+     * @param fromScale the model's size as it begins
+     * @param toScale   the model's size as it ends
+     * @param babyModel true when it draws on the baby model
+     * @param now       the game time it begins
+     * @param ticks     the game ticks it takes
+     */
+    public void shrink(int entityId, float fromScale, float toScale, boolean babyModel, long now, int ticks) {
+        shrinks.removeIf(shrink -> shrink.isOver(now));
+        shrinks.add(new Shrink(entityId, fromScale, toScale, babyModel, now, Math.max(1, ticks)));
+    }
+
+    /**
      * Drops every transformation that has finished and answers the rest.
      *
      * @param now the game time
@@ -201,14 +258,15 @@ public final class Transformations {
 
     /**
      * The size an entity's model draws at: the smallest a transformation
-     * into it gives, or full where none plays.
+     * into it gives, times the latest shrink on it, or full where none plays.
      *
      * @param entityId the entity's id
+     * @param baby     whether the entity reads as a baby
      * @param gameTime the game time including the partial tick
-     * @return 0 to 1
+     * @return the size, as a multiple of the drawn size
      */
-    public float modelScaleOf(int entityId, float gameTime) {
-        float scale = FULL;
+    public float modelScaleOf(int entityId, boolean baby, float gameTime) {
+        float scale = shrinkScaleOf(entityId, baby, gameTime);
         for (Transformation transformation : live) {
             if (transformation.targetBlock() == null && transformation.targetEntityId() == entityId
                     && !transformation.isOver((long) Math.floor(gameTime))) {
@@ -216,6 +274,27 @@ public final class Transformations {
             }
         }
         return scale;
+    }
+
+    /**
+     * The size the latest shrink on an entity gives its model, or full where
+     * none plays.
+     * rewind-shrinks-adult-to-baby-to-egg
+     *
+     * @param entityId the entity's id
+     * @param baby     whether the entity reads as a baby
+     * @param gameTime the game time including the partial tick
+     * @return the size, as a multiple of the drawn size
+     */
+    private float shrinkScaleOf(int entityId, boolean baby, float gameTime) {
+        long now = (long) Math.floor(gameTime);
+        for (int index = shrinks.size() - 1; index >= 0; index--) {
+            Shrink shrink = shrinks.get(index);
+            if (shrink.entityId() == entityId && !shrink.isOver(now)) {
+                return shrink.scale(gameTime, baby);
+            }
+        }
+        return FULL;
     }
 
     /**
@@ -255,5 +334,6 @@ public final class Transformations {
     /** Drops every transformation, as the client leaves a level. */
     public void clear() {
         live.clear();
+        shrinks.clear();
     }
 }

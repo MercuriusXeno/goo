@@ -52,6 +52,18 @@ public final class NetherHeldGhost implements HeldGhostVisual {
         return new HeldGhost(dome, HeldGhost.RingDirection.INWARD, pull);
     }
 
+    /**
+     * A sized black hole's ghost, its rings closing in from the reach it pulls from.
+     * black-hole-rings-pulse-inward-to-the-pull-radius
+     *
+     * @param radius the radius the drag sets, in blocks
+     * @return the ghost
+     */
+    @Override
+    public HeldGhost sizedGhost(float radius) {
+        return HeldDomeRenderer.sizedGhost(radius);
+    }
+
     @Override
     public List<HeldLayer> heldLayers() {
         return List.of(
