@@ -19,11 +19,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AbilityBadgeTest {
 
-    private static final int SHIPPED_MOB_BADGES = 11;
+    private static final int SHIPPED_MOB_BADGES = 10;
     private static final int SHIPPED_WORLD_BADGES = 12;
     private static final int SHIPPED_SELF_BADGES = 5;
     private static final int SHIPPED_BREW_BADGES = 12;
-    private static final int SHIPPED_CHANNELED_BADGES = 20;
+    private static final int SHIPPED_CHANNELED_BADGES = 21;
     private static final int SHIPPED_FREE_BADGES = 6;
     private static final int SHIPPED_TAP_BADGES = 11;
     private static final int SHIPPED_PRISM_BADGES = 9;
@@ -44,8 +44,11 @@ class AbilityBadgeTest {
             "pulse_zap", "frost_orb", "leaf_reap");
     /** Self deliveries wearing the channeled badge (decision flatten-disc-cursor-breaks-above-the-plane). */
     private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten", "frost_nova", "glow_scry", "glow_sunbeam", "glow_radiant");
-    /** Thrown deliveries wearing the channeled badge (decision spawn-goo-morphs-into-the-mob-it-births). */
-    private static final List<String> SHIPPED_THROWN_CHANNELS = List.of("hex_spawn");
+    /**
+     * Thrown deliveries wearing the channeled badge (decisions spawn-goo-morphs-into-the-mob-it-births,
+     * shards-sling-then-morph-to-flechettes).
+     */
+    private static final List<String> SHIPPED_THROWN_CHANNELS = List.of("hex_spawn", "crystal_shards");
 
     @ParameterizedTest
     @CsvSource({"world, WORLD", "mob, MOB", "self, SELF", "channeled, CHANNELED", "brew, BREW",

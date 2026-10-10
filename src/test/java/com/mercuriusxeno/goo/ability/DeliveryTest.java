@@ -91,6 +91,22 @@ class DeliveryTest {
             assertEquals(60, delivery.chargeTicks());
         }
 
+        // shards-sling-then-morph-to-flechettes
+        @Test
+        void crystalShardsChargesASlingOfFlechettes() {
+            Delivery shards = AbilityJson.decode("crystal_shards").delivery();
+            assertEquals(new com.mercuriusxeno.goo.ability.Charge(30, 12, 60, 4), shards.charge());
+            assertEquals(TravelForm.FLECHETTE, shards.form());
+            assertEquals(0.25, shards.transformAt(), TOLERANCE);
+        }
+
+        // shards-sling-then-morph-to-flechettes
+        @Test
+        void javelinMorphsToADartAndAPlainArcStaysABlob() {
+            assertEquals(TravelForm.DART, AbilityJson.decode("metal_javelin").delivery().form());
+            assertEquals(TravelForm.BLOB, deliveryOf("\"delivery\": { \"kind\": \"arc\" },").form());
+        }
+
         @Test
         void aDeliveryNamingNoChargeDoesNotCharge() {
             assertFalse(deliveryOf("\"delivery\": { \"kind\": \"self\" },").charges());

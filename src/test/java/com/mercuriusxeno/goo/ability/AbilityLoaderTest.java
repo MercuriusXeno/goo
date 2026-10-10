@@ -101,7 +101,7 @@ class AbilityLoaderTest {
             Map.entry("glow_sunbeam", List.of("spectral_arrow")),
             Map.entry("glow_crystal", List.of("glowstone")),
             Map.entry("crystal_cloud", List.of("glass", "sand")),
-            Map.entry("crystal_flechettes", List.of("amethyst_shard")),
+            Map.entry("crystal_shards", List.of("amethyst_shard")),
             Map.entry("crystal_prism", List.of("quartz")),
             Map.entry("blaze_spitfire", List.of("torchflower")),
             Map.entry("frost_nova", List.of("packed_ice")),

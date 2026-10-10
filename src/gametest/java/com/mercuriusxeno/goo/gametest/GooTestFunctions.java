@@ -24,6 +24,7 @@ import com.mercuriusxeno.goo.network.OculusTests;
 import com.mercuriusxeno.goo.network.NourishTests;
 import com.mercuriusxeno.goo.network.ReserveTests;
 import com.mercuriusxeno.goo.network.SelfDeliveryTests;
+import com.mercuriusxeno.goo.network.ShardsSlingTests;
 import com.mercuriusxeno.goo.network.ExtenderTests;
 import com.mercuriusxeno.goo.network.MetronomeTests;
 import com.mercuriusxeno.goo.network.PulserTapTests;
@@ -78,6 +79,7 @@ public final class GooTestFunctions {
     private static final String GLOVE_TYPE_ONLY_REFUSED = "glove_type_only_refused";
     private static final String GLOVE_GATED_SELECTION_REFUSED = "glove_gated_selection_refused";
     private static final String RAZOR_HIDDEN_UNTIL_GLASS_AND_SAND = "razor_hidden_until_glass_and_sand";
+    private static final String SHARDS_RELEASE_HITS_A_ROW = "shards_release_hits_a_row";
     private static final String GLOVE_SHIFT_RECOLLECTS_MARKER = "glove_shift_recollects_marker";
     private static final String GLOVE_RECOLLECT_PAYS_CHARGES_LEFT = "glove_recollect_pays_charges_left";
     private static final String GLOVE_RECOLLECT_OF_SPENT_TRAP_PAYS_NOTHING = "glove_recollect_of_spent_trap_pays_nothing";
@@ -505,7 +507,6 @@ public final class GooTestFunctions {
     private static final String REFLECTORS_LINK_LIGHT_AND_BURN = "reflectors_link_light_and_burn";
     private static final String RADIANT_TAP_SKIPS_A_LIT_ROOM = "radiant_tap_skips_a_lit_room";
     private static final String VITALITY_HEALS = "vitality_heals_cow_and_caster";
-    private static final String MOB_CRYSTAL = "mob_crystal_flechettes";
     private static final String VINES_ROOT_AND_THORN = "vines_root_and_thorn";
     private static final String BLOOM_PLANTS = "bloom_plants_water_wall_and_ground";
     private static final String GROWTH_MATURES_WHEAT = "growth_matures_wheat";
@@ -699,6 +700,7 @@ public final class GooTestFunctions {
         reg(r, GLOVE_TYPE_ONLY_REFUSED, GloveSelectTests::typeOnlySelectionRefused);
         reg(r, GLOVE_GATED_SELECTION_REFUSED, GloveSelectTests::gatedSelectionRefusedWithoutTheRecipe);
         reg(r, RAZOR_HIDDEN_UNTIL_GLASS_AND_SAND, GloveSelectTests::razorHiddenUntilGlassAndSand);
+        reg(r, SHARDS_RELEASE_HITS_A_ROW, ShardsSlingTests::releaseHitsARow);
         reg(r, GLOVE_SHIFT_RECOLLECTS_MARKER, GloveRecollectTests::shiftClickRecollectsMarker);
         reg(r, GLOVE_RECOLLECT_PAYS_CHARGES_LEFT, GloveRecollectTests::recollectPaysTheChargesLeft);
         reg(r, GLOVE_RECOLLECT_OF_SPENT_TRAP_PAYS_NOTHING, GloveRecollectTests::recollectOfASpentTrapPaysNothing);
@@ -1072,7 +1074,6 @@ public final class GooTestFunctions {
         reg(r, REFLECTORS_LINK_LIGHT_AND_BURN, ReflectorTests::reflectorsLinkLightAndBurn);
         reg(r, RADIANT_TAP_SKIPS_A_LIT_ROOM, RadiantTapTests::radiantTapSkipsALitRoom);
         reg(r, VITALITY_HEALS, StreamDeliveryTests::vitalityHealsCowAndCaster);
-        reg(r, MOB_CRYSTAL, MobEffectTests::crystalFlechettes);
         reg(r, VINES_ROOT_AND_THORN, VinesTests::vinesRootAndThorn);
         reg(r, BLOOM_PLANTS, BloomTests::bloomPlantsWaterWallAndGround);
         reg(r, GROWTH_MATURES_WHEAT, GrowthStreamTests::growthMaturesWheat);

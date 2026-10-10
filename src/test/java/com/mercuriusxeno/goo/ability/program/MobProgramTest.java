@@ -27,7 +27,6 @@ import static org.mockito.Mockito.when;
 class MobProgramTest {
 
     private static final float MOB_BLAST_POWER = 3;
-    private static final double FLECHETTE_SPLASH_RADIUS = 3;
     private static final double IGNITE_SPLASH_RADIUS = 2.5;
 
     private static AbilityDefinition ability(String name) {
@@ -35,7 +34,7 @@ class MobProgramTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"metal_javelin", "crystal_flechettes", "leaf_vines", "vital_clone",
+    @ValueSource(strings = {"metal_javelin", "crystal_shards", "leaf_vines", "vital_clone",
         "blaze_ignite", "frost_snap", "typhoon_levitate", "hex_charm",
         "ender_banish", "unstable_explode", "aeon_stasis"})
     void everyMobAbilityIsAProgramThatLoadsForTheStruckEntityHost(String name) {
@@ -53,12 +52,6 @@ class MobProgramTest {
 
         verify(host).explode(MOB_BLAST_POWER, ExplosionMode.TNT);
         verifyNoMoreInteractions(host);
-    }
-
-    @Test
-    void crystalFlechettesSplashesLivingBesideTheTargetWithinThree() {
-        verify(tickSplash("crystal_flechettes")).forEachEntityWithin(eq(SelectionShape.SPHERE), eq(FLECHETTE_SPLASH_RADIUS),
-                eq(Set.of(EntityFilter.LIVING, EntityFilter.NOT_TARGET)), any());
     }
 
     @Test

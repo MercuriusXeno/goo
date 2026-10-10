@@ -26,11 +26,33 @@ import java.util.Optional;
  * @param transformAt    the share of the flight by which the blob has taken its traveling form
  * @param sound          the sound a stream makes while held, empty for none; the server plays it, and the
  *                       holder's client loops it where it loops
- * @param chargeTicks    the ticks of hold a charged ability takes to charge fully, 0 for one that does not charge
+ * @param charge         the charge block: how long a hold charges and what a slinging release throws
+ * @param form           the form the goo takes in flight, by the share transformAt names
  */
 public record Delivery(DeliveryKind kind, double blocksPerTick, double range, double coneDegrees,
                        int ticksPerCharge, boolean grannyAllowed, Optional<Identifier> particle, double transformAt,
-                       Optional<StreamSound> sound, int chargeTicks) {
+                       Optional<StreamSound> sound, Charge charge, TravelForm form) {
+
+    /**
+     * A delivery whose charge slings nothing and whose goo stays a blob.
+     *
+     * @param kind           the delivery kind
+     * @param blocksPerTick  a beam's speed in blocks per tick
+     * @param range          a stream's reach in blocks
+     * @param coneDegrees    a stream's cone, apex to rim, in degrees
+     * @param ticksPerCharge a stream's ticks of hold one cost pays for
+     * @param grannyAllowed  whether an arc may lob onto a top face
+     * @param particle       the particle a stream sprays along its cone, empty for none
+     * @param transformAt    the share of the flight by which the blob has taken its traveling form
+     * @param sound          the sound a stream makes while held, empty for none
+     * @param chargeTicks    the ticks of hold a charged ability takes to charge fully, 0 for one that does not charge
+     */
+    public Delivery(DeliveryKind kind, double blocksPerTick, double range, double coneDegrees, int ticksPerCharge,
+                    boolean grannyAllowed, Optional<Identifier> particle, double transformAt,
+                    Optional<StreamSound> sound, int chargeTicks) {
+        this(kind, blocksPerTick, range, coneDegrees, ticksPerCharge, grannyAllowed, particle, transformAt, sound,
+                Charge.of(chargeTicks), TravelForm.BLOB);
+    }
 
     /**
      * A delivery that does not charge.
@@ -73,9 +95,6 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
     /** The charge ticks of a delivery that does not charge. */
     public static final int NO_CHARGE = 0;
 
-    /** Codec for the charge block, {@code "charge": {"max_ticks": 60}}. */
-    private static final Codec<Integer> CHARGE_CODEC = Codec.INT.fieldOf("max_ticks").codec();
-
     /** A beam's speed where the JSON names none. */
     public static final double DEFAULT_BLOCKS_PER_TICK = 2.5;
     /** A stream's cone where the JSON names none. */
@@ -110,7 +129,9 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
             // mycosis-spore-stream-buds-and-poisons
             StreamSound.CODEC.codec().optionalFieldOf("sound").forGetter(Delivery::sound),
             // nova-ring-grows-with-the-hold
-            CHARGE_CODEC.optionalFieldOf("charge", NO_CHARGE).forGetter(Delivery::chargeTicks)
+            Charge.CODEC.optionalFieldOf("charge", Charge.NONE).forGetter(Delivery::charge),
+            // shards-sling-then-morph-to-flechettes
+            TravelForm.CODEC.optionalFieldOf("form", TravelForm.BLOB).forGetter(Delivery::form)
     ).apply(inst, Delivery::new));
 
     /**
@@ -128,7 +149,8 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
             ByteBufCodecs.optional(Identifier.STREAM_CODEC), Delivery::particle,
             ByteBufCodecs.DOUBLE, Delivery::transformAt,
             ByteBufCodecs.optional(StreamSound.STREAM_CODEC), Delivery::sound,
-            ByteBufCodecs.VAR_INT, Delivery::chargeTicks,
+            Charge.STREAM_CODEC, Delivery::charge,
+            TravelForm.STREAM_CODEC, Delivery::form,
             Delivery::new);
 
     /**
@@ -149,7 +171,16 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
      * @return true for a delivery naming a charge
      */
     public boolean charges() {
-        return chargeTicks > NO_CHARGE;
+        return charge.maxTicks() > NO_CHARGE;
+    }
+
+    /**
+     * The ticks of hold a full charge takes.
+     *
+     * @return the ticks, 0 for a delivery that does not charge
+     */
+    public int chargeTicks() {
+        return charge.maxTicks();
     }
 
     /**
@@ -159,7 +190,7 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
      * @return 0 to 1; 1 for a delivery that does not charge
      */
     public float chargeShare(int heldTicks) {
-        return charges() ? Math.clamp((float) heldTicks / chargeTicks, 0f, 1f) : 1f;
+        return charges() ? Math.clamp((float) heldTicks / charge.maxTicks(), 0f, 1f) : 1f;
     }
 
     /**
