@@ -85,7 +85,8 @@ public final class DrinkUpload {
      * @param sprite     the block's sprite
      * @param blockLight the block light along the stream, in lightmap coordinates
      * @param skyLight   the sky light along the stream, in lightmap coordinates
-     * @param layers     the block's goo types mingled over it past the funnel, largest first
+     * @param layers     the block's goo types, mingled among themselves and crossfaded over the block's texture
+     *                   along the route, largest first
      */
     public record Coat(int tint, GooRenderUtil.UvRect sprite, int blockLight, int skyLight, List<Layer> layers) {
     }
@@ -419,8 +420,8 @@ public final class DrinkUpload {
     /**
      * Writes the boxes and the rings: a box as its camera-relative middle and
      * half width then its rounding and stream, a ring as its camera-relative
-     * middle and radius then its material, its route share, its stream and
-     * its blocks along the route, which the texture's boundary reads.
+     * middle and radius then its material, its route share, which the skin's
+     * crossfade from block to goo reads, and its stream.
      *
      * @param bytes the block
      */
@@ -433,10 +434,9 @@ public final class DrinkUpload {
         }
         for (int index = 0; index < rings.size(); index++) {
             DrinkStream.Ring ring = rings.get(index);
-            DrinkTree.Stream stream = skeletons.get(ringStreams.get(index)).stream();
             putVec3(bytes, RINGS_AT + index * PAIR * VEC4, ring.center().subtract(camera), ring.radius());
             putVec4(bytes, RINGS_AT + (index * PAIR + 1) * VEC4, ring.material(), ring.share(),
-                    streamOf.get(ringStreams.get(index)), ring.share() * stream.routeLength());
+                    streamOf.get(ringStreams.get(index)), 0);
         }
     }
 

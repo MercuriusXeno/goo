@@ -41,12 +41,12 @@ import java.util.Set;
  * on between ticks; blocks, streams and their joins are one skin with no seam,
  * blending like metaballs where they meet, moving every frame and never
  * standing or vanishing mid-air, and the drink is drawn until its last stream
- * is spent. Each piece of the skin wears its block's own texture from the
- * block through its funnel, laid along the liquid and round the stream so it
- * rides the flow unstretched, and over the standing block where it stands,
- * solid; past the funnel's end it wears the block's goo types alone, roiling
- * in mingled blotches that share the skin by volume, one standing boundary
- * between the two that the liquid flows through.
+ * is spent. Each piece of the skin wears its block's own texture, laid along
+ * the liquid and round the stream so it rides the flow unstretched, and over
+ * the standing block where it stands, solid, crossfading into the block's
+ * goo types, mingled among themselves by volume, by its share of the route:
+ * none of the goo at the block and all of it at the hand, a blend the whole
+ * way with no band and no boundary.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)

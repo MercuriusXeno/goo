@@ -18,11 +18,11 @@
 // the hit is refined by bisection, shaded from the gradient of the nearest
 // stream's own field, lit by the lightmap and the cardinal lights, textured
 // along the liquid and round the nearest segment or over the block's world
-// axes in its own stream's coat: the block's own texture from the block
-// through its funnel and the block's goo types alone past the funnel's end,
-// mingled in blotches, one boundary and no blend; its depth is written so the
-// world occludes it. The constants mirror DrinkField, DrinkStream, DrinkBody
-// and DrinkUpload, which DrinkShaderTest checks.
+// axes in its own stream's coat: the block's own texture crossfading into
+// the block's goo types, mingled among themselves, by the point's share of
+// the route, none at the block and all at the hand; its depth is written so
+// the world occludes it. The constants mirror DrinkField, DrinkStream and
+// DrinkUpload, which DrinkShaderTest checks.
 
 uniform sampler2D Sampler0;
 uniform sampler2D Sampler2;
@@ -44,7 +44,6 @@ const float DEPTH = 0.05;
 const float REACH = 0.24;
 const float FULL_RADIUS = 0.1;
 const float THINNEST = 0.02;
-const float FUNNEL_END = 3.0;
 const float REGION_SPAN = 1.0;
 const int STREAM_VEC4S = 16;
 const int COAT_SLOT = 0;
@@ -205,8 +204,8 @@ vec2 uvOf(vec4 sprite, vec2 place) {
 
 // A point's place on a stream's texture: along the liquid at its foot on the
 // segment, and round the spine by arc length in the stream's own frame;
-// along is the foot's blocks along the block's route.
-vec2 placeOnSegment(int segment, int stream, vec3 p, out float along) {
+// route is the foot's share of the block's route, 0 at the block and 1 at the hand.
+vec2 placeOnSegment(int segment, int stream, vec3 p, out float route) {
     vec4 a = Rings[2 * segment];
     vec4 b = Rings[2 * segment + 2];
     vec4 ma = Rings[2 * segment + 1];
@@ -217,7 +216,7 @@ vec2 placeOnSegment(int segment, int stream, vec3 p, out float along) {
     vec3 offset = p - (a.xyz + line * t);
     float angle = atan(dot(offset, streamSlot(stream, ACROSS_SLOT).xyz), dot(offset, streamSlot(stream, SIDE_SLOT).xyz));
     float radius = max(THINNEST, mix(a.w, b.w, t));
-    along = mix(ma.w, mb.w, t);
+    route = mix(ma.y, mb.y, t);
     return vec2(mix(ma.x, mb.x, t), angle * radius);
 }
 
@@ -229,9 +228,9 @@ vec2 placeOnBlock(vec3 world, vec3 n) {
     return a.x >= a.z ? world.zy : world.xy;
 }
 
-// The block's goo types over the skin past the funnel: each type's blotches
-// cover its share of what the types before it left, so together they cover
-// the skin whole and the block's texture shows nowhere.
+// The block's goo types mingled among themselves: each type's blotches cover
+// its share of what the types before it left, so together they cover the
+// skin whole; a block with no goo type keeps the color handed in.
 vec4 mingled(vec4 color, int stream, vec3 world, vec2 place) {
     int layers = int(streamSlot(stream, COAT_SLOT).z);
     for (int l = 0; l < layers; l++) {
@@ -295,14 +294,14 @@ void main() {
     int stream = int(onBlock ? Boxes[2 * (body - BOX_BASE) + 1].y : Rings[2 * body + 1].z);
     vec3 n = normalAt(p, stream);
     vec3 world = p + vec3(CameraBlockPos) - CameraOffset;
-    float along = 0.0;
-    vec2 place = onBlock ? placeOnBlock(world, n) : placeOnSegment(body, stream, p, along);
+    float route = 0.0;
+    vec2 place = onBlock ? placeOnBlock(world, n) : placeOnSegment(body, stream, p, route);
     vec4 coat = streamSlot(stream, COAT_SLOT);
     vec4 color = texture(Sampler0, uvOf(streamSlot(stream, SPRITE_SLOT), place))
         * vec4(streamSlot(stream, TINT_SLOT).rgb, 1.0);
-    // The block's own texture through the funnel, the goo's wholly past the funnel's end: one boundary, no blend.
-    if (!onBlock && along >= FUNNEL_END) {
-        color = mingled(color, stream, world, place);
+    // The block's texture crossfades into its goo along the whole route: none at the block, all at the hand.
+    if (!onBlock) {
+        color = mix(color, mingled(color, stream, world, place), route);
     }
     color = minecraft_mix_light(Light0_Direction, Light1_Direction, normalize(mat3(ModelViewMat) * n), color);
     color *= sample_lightmap(Sampler2, ivec2(int(coat.x), int(coat.y)));
