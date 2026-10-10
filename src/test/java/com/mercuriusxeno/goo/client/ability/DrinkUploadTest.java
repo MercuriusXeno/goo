@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.program.SiphonRule;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
@@ -59,9 +60,14 @@ class DrinkUploadTest {
      * @return a skeleton of a straight chain and no box
      */
     private static DrinkField.Skeleton chain(DrinkTree.Stream stream, Vec3 origin, int rings, double radius) {
+        return chain(stream, origin, rings, radius, 1);
+    }
+
+    private static DrinkField.Skeleton chain(DrinkTree.Stream stream, Vec3 origin, int rings, double radius,
+                                             double spacing) {
         List<DrinkStream.Ring> chain = new ArrayList<>();
         for (int index = 0; index < rings; index++) {
-            chain.add(ring(origin.add(EAST.scale(index)), radius));
+            chain.add(ring(origin.add(EAST.scale(index * spacing)), radius));
         }
         return new DrinkField.Skeleton(stream, chain, null);
     }
@@ -116,6 +122,29 @@ class DrinkUploadTest {
             assertEquals(List.of(DrinkUpload.RUN_START, 1), entriesOf(bytes, 1));
             assertEquals(3, ringsCount(bytes));
             assertEquals(2, (int) floatAt(bytes, DrinkUpload.COUNTS_AT + PAIR * Float.BYTES), "two proxies");
+        }
+
+        @Test
+        void everyProxyOfTheLongestStreamWithANeighbourAtEachJoinKeepsItsEntries() {
+            List<DrinkTree.Stream> streams = streams(4);
+            double spacing = 1.0 / DrinkStream.RINGS_PER_BLOCK;
+            int rings = DrinkTree.stationsAlong(SiphonRule.RANGE + DrinkStream.GLOVE_SLACK);
+            DrinkField.Skeleton mine = chain(streams.get(0), Vec3.ZERO, rings, DrinkStream.WAIST, spacing);
+            List<DrinkField.Skeleton> skeletons = new ArrayList<>(List.of(mine));
+            for (int index = 1; index < streams.size(); index++) {
+                skeletons.add(chain(streams.get(index), UP.scale(2 * DrinkStream.WAIST + 0.1).add(EAST.scale(index * 3)),
+                        DrinkStream.RINGS_PER_BLOCK, DrinkStream.WAIST, spacing));
+            }
+
+            DrinkUpload.Block block = DrinkUpload.of(skeletons, 0, CAMERA, COAT);
+
+            assertEquals(rings - 1, block.proxies().size());
+            assertEquals(0, block.dropped(), "no entry is dropped");
+            for (int proxy = 0; proxy < block.proxies().size(); proxy++) {
+                assertTrue(entriesOf(block.bytes(), proxy).contains(proxy == 0 ? DrinkUpload.RUN_START : proxy)
+                        || entriesOf(block.bytes(), proxy).contains(proxy | DrinkUpload.RUN_START),
+                        "proxy " + proxy + " lists its own segment");
+            }
         }
 
         @Test
