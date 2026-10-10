@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.PrismCombos;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.LandingHost;
+import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
@@ -74,7 +75,7 @@ public final class AbilityImpact {
      */
     public static void land(ServerLevel level, BlockPos pos, ResourceKey<GooTypeDefinition> type,
                             Direction face, AbilityDefinition ability, @Nullable Vec3 point) {
-        if (level.getBlockEntity(pos) instanceof PrismBlockEntity prism) {
+        if (level.getBlockEntity(pos) instanceof PrismBlockEntity prism && !ticksAComboPrism(prism, ability)) {
             landOnPrism(level, prism, type, ability);
             return;
         }
@@ -87,6 +88,23 @@ public final class AbilityImpact {
         LandingHost host = new LandingHost(level, cell, face, spot.get().waterlogged(), type,
                 ability.id().toString(), point == null ? Vec3.atCenterOf(cell) : point);
         AbilitySplat.resolve(new Landing(host, ability));
+    }
+
+    /**
+     * Whether a landing ticks a prism already holding a combo as it would any
+     * block, rather than landing in it: Zap's pulse stands beside the prism
+     * as a moment of power, which a Metronome hears as a signal, so two Zaps
+     * set its timer.
+     * zap-ticks-the-device-and-stuns
+     * metronome-prism-pulses-at-the-learned-rate
+     *
+     * @param prism   the struck prism
+     * @param ability the landing ability
+     * @return true when the prism holds a combo and the ability ticks redstone devices
+     */
+    static boolean ticksAComboPrism(PrismBlockEntity prism, AbilityDefinition ability) {
+        return prism.hasCombo() && ability.behaviors().stream()
+                .anyMatch(step -> step.type() == LeafSteps.POWER_PULSE.type());
     }
 
     /**

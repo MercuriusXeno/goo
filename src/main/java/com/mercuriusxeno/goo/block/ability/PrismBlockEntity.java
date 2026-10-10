@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.PrismCombos;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.pulse.RedstoneBeat;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooSyncedBlockEntity;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
@@ -41,6 +42,9 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     private static final String TAG_REFLECTOR = "Reflector";
     private static final String TAG_LINKS = "Links";
     private static final String TAG_LINK_LIGHT = "LinkLight";
+    private static final String TAG_PREVIOUS_EDGE = "BeatPreviousEdge";
+    private static final String TAG_LAST_EDGE = "BeatLastEdge";
+    private static final String TAG_HEARD = "BeatHeard";
 
     private final MarkerProgramState programState = new MarkerProgramState();
     private ResourceKey<GooTypeDefinition> gooType = GooTypes.CRYSTAL;
@@ -53,6 +57,13 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     private List<BlockPos> links = List.of();
     /** The light its network's rails carry. */
     private int linkLight;
+    /** The redstone beat the prism has heard (decision metronome-prism-pulses-at-the-learned-rate). */
+    private RedstoneBeat beat = RedstoneBeat.SILENT;
+    /**
+     * Whether the prism's combo is a relay, set by the relay step's first tick
+     * after the prism loads (decision relay-prism-carries-the-signal-through-air).
+     */
+    private boolean relaying;
     /**
      * Whether a combo that was running when the prism saved waits to rebuild
      * its program: a chunk loads the prism before it has a level, when no
@@ -128,6 +139,41 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         }
         setChanged();
         BlockEntitySync.markDirtyAndSync(this);
+    }
+
+    /**
+     * Reads the prism's redstone input as a neighbor changes, moving its beat
+     * on when a signal starts.
+     *
+     * @param powered whether a signal reaches the prism now
+     * @param now     the game time
+     */
+    public void hearSignal(boolean powered, long now) {
+        RedstoneBeat after = beat.hear(powered, now);
+        if (after != beat) {
+            beat = after;
+            // metronome-prism-pulses-at-the-learned-rate: the client glows while a signal reaches the prism
+            BlockEntitySync.markDirtyAndSync(this);
+        }
+    }
+
+    /** Marks the prism as a relay, so the other relays find it. */
+    public void markRelaying() {
+        relaying = true;
+    }
+
+    /**
+     * @return true when the prism carries signals as a relay
+     */
+    public boolean relays() {
+        return relaying && behavior != null;
+    }
+
+    /**
+     * @return the redstone beat the prism has heard
+     */
+    public RedstoneBeat beat() {
+        return beat;
     }
 
     /**
@@ -229,6 +275,8 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         links = input.read(TAG_LINKS, BlockPos.CODEC.listOf()).orElse(List.of());
         linkLight = input.getIntOr(TAG_LINK_LIGHT, 0);
         programState.load(input);
+        beat = new RedstoneBeat(input.getLongOr(TAG_PREVIOUS_EDGE, RedstoneBeat.NEVER),
+                input.getLongOr(TAG_LAST_EDGE, RedstoneBeat.NEVER), input.getBooleanOr(TAG_HEARD, false));
         boolean running = input.getBooleanOr(TAG_RUNNING, false);
         behavior = running ? comboProgram() : null;
         if (behavior != null) {
@@ -262,6 +310,9 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         output.store(TAG_LINKS, BlockPos.CODEC.listOf(), links);
         output.putInt(TAG_LINK_LIGHT, linkLight);
         programState.save(output);
+        output.putLong(TAG_PREVIOUS_EDGE, beat.previousEdge());
+        output.putLong(TAG_LAST_EDGE, beat.lastEdge());
+        output.putBoolean(TAG_HEARD, beat.heard());
         output.putBoolean(TAG_RUNNING, behavior != null || resumesCombo);
         if (behavior != null) {
             behavior.saveAdditional(output);

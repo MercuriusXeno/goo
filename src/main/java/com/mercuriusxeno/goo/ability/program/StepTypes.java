@@ -92,6 +92,15 @@ public final class StepTypes {
         register(PetrifyDripStep.TYPE);
         register(LeafSteps.HEAL.type());
         register(LeafSteps.COURT.type());
+        register(LeafSteps.POWER_PULSE.type());
+        register(LeafSteps.TOGGLE_DEVICE.type());
+        register(EmitPowerStep.TYPE);
+        register(MetronomeStep.TYPE);
+        register(RelayStep.TYPE);
+        register(ExtenderStep.TYPE);
+        register(LeafSteps.STUN.type());
+        register(SignalWaveStep.TYPE);
+        register(PulserToggleStep.TYPE);
         register(NourishStep.TYPE);
         register(ReserveDrainStep.TYPE);
         register(CharmStep.TYPE);

@@ -7,11 +7,13 @@ import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CrystalClusterSubmitter;
 import com.mercuriusxeno.goo.client.PrismCrystal;
 import com.mercuriusxeno.goo.client.ability.AgitatorWisps;
+import com.mercuriusxeno.goo.client.ability.ThumpRings;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ber.style.AgitatorPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyles;
+import com.mercuriusxeno.goo.client.ber.style.PulsePrismStyle;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -73,6 +75,20 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         state.blobLook = blob == null ? null : CrystalClusterSubmitter.lookOf(blob.gooType(),
                 ClientGooTypes.color(blob.gooType()));
         state.combo = prism.getCombo();
+        extractGlow(prism, state, partialTick, cameraPos);
+        extractPulse(prism, state);
+        extractAgitation(prism, state, partialTick);
+    }
+
+    /**
+     * Reads glow's beams: the beacon beam's scroll and width, and a reflector's links.
+     *
+     * @param prism       the prism
+     * @param state       the render state
+     * @param partialTick the partial tick
+     * @param cameraPos   the camera's position
+     */
+    private static void extractGlow(PrismBlockEntity prism, PrismRenderState state, float partialTick, Vec3 cameraPos) {
         // bulb-one-model-max-light-beacon-combo: a beam scrolls and widens as vanilla's beacon beam does
         long gameTime = prism.getLevel() == null ? 0L : prism.getLevel().getGameTime();
         state.animationTime = Math.floorMod(gameTime, BEAM_CYCLE_TICKS) + partialTick;
@@ -80,6 +96,33 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         state.links = prism.getLinks().stream().map(link -> Vec3.atLowerCornerOf(link.subtract(prism.getBlockPos())))
                 .toList();
         state.linkLight = prism.getLinkLight();
+    }
+
+    /**
+     * Reads pulse's redstone: the power given, the signal heard and the time since the last beat.
+     *
+     * @param prism the prism
+     * @param state the render state
+     */
+    private static void extractPulse(PrismBlockEntity prism, PrismRenderState state) {
+        // metronome-prism-pulses-at-the-learned-rate, relay-prism-carries-the-signal-through-air
+        state.power = prism.getBlockState().getValue(PrismBlock.POWER);
+        state.signalHeard = prism.beat().heard();
+        state.sinceBeat = PrismBeats.secondsSinceBeat(prism.getBlockPos(), state.power > 0);
+        if (PulsePrismStyle.METRONOME_COMBO.equals(state.combo)) {
+            // metronome-prism-pulses-at-the-learned-rate: each beat sends a red ring out from the prism's base
+            ThumpRings.see(prism.getBlockPos(), state.facing, state.power > 0);
+        }
+    }
+
+    /**
+     * Reads an agitator's beat off its synced countdown.
+     *
+     * @param prism       the prism
+     * @param state       the render state
+     * @param partialTick the partial tick
+     */
+    private static void extractAgitation(PrismBlockEntity prism, PrismRenderState state, float partialTick) {
         // agitator-prism-quickens-until-a-spawn: the beat rides the synced countdown
         AgitationState agitation = prism.programState().agitation();
         state.beat = agitation.interval() > 0

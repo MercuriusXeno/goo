@@ -18,11 +18,11 @@ import java.util.List;
  * @param aimPoint    the world point under the client's cursor, or a stream's reach along the look
  * @param plane       the face the hold began on, or null where it began on none or the hold is a stream
  * @param coneDegrees a stream's cone, apex to rim, in degrees; zero for a channel aiming one point
- * @param heldTicks   the hold's age this tick, 1 on the tick it began
+ * @param held        the hold's tick count, 1 on its first tick; zero where the hold is uncounted
  */
-public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees, int heldTicks) {
+public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees, int held) {
 
-    /** The age a hold reads when none was counted: its first tick. */
+    /** The age a hold reads on its first counted tick. */
     public static final int FIRST_TICK = 1;
 
     /** How far past the aim point, along the line from the eye, the aimed block is read. */
@@ -80,18 +80,18 @@ public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDe
      * @param plane    the face the hold began on, or null where it began on none
      */
     public ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane) {
-        this(aimPoint, plane, 0, FIRST_TICK);
+        this(aimPoint, plane, 0, 0);
     }
 
     /**
-     * The aim of a stream's block pass, at the end of its reach.
+     * The aim of an uncounted hold through a cone, as Bore's block pass reads it.
      *
-     * @param aimPoint    the end of the stream's reach along the look
-     * @param plane       null, a stream holding no face
-     * @param coneDegrees the stream's cone, apex to rim, in degrees
+     * @param aimPoint    the stream's reach along the look
+     * @param plane       the face the hold began on, or null
+     * @param coneDegrees the cone, apex to rim, in degrees
      */
     public ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees) {
-        this(aimPoint, plane, coneDegrees, FIRST_TICK);
+        this(aimPoint, plane, coneDegrees, 0);
     }
 
     /**

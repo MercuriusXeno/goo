@@ -68,7 +68,7 @@ public record ScryStep(double growth, double reach, double fade, List<EntityFilt
 
     @Override
     public boolean tick(StepContext context) {
-        int held = context.hostAs(ChannelHost.class).channelAim().map(ChannelAim::heldTicks)
+        int held = context.hostAs(ChannelHost.class).channelAim().map(ChannelAim::held)
                 .orElse(ChannelAim.FIRST_TICK);
         int pingTick = pingTick(held);
         LivingEntity caster = context.hostAs(TargetHost.class).target();
