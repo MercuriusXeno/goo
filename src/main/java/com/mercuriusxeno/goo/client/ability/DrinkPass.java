@@ -22,8 +22,6 @@ import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.List;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
@@ -55,6 +53,7 @@ final class DrinkPass {
         {2, 6, 4, 0}, {5, 7, 3, 1}, {4, 5, 1, 0}, {3, 7, 6, 2}, {1, 3, 2, 0}, {6, 7, 5, 4},
     };
     private static final Vector4f WHITE = new Vector4f(1, 1, 1, 1);
+    private static final DrinkPacking PACKING = new DrinkPacking();
 
     private DrinkPass() {
     }
@@ -83,7 +82,7 @@ final class DrinkPass {
         GpuDevice device = RenderSystem.getDevice();
         int stride = strideOf(device);
         GpuBuffer uniforms = device.createBuffer(() -> STREAMS_BUFFER, GpuBuffer.USAGE_UNIFORM,
-                packed(blocks, stride));
+                PACKING.pack(blocks, stride));
         try (ByteBufferBuilder bytes = new ByteBufferBuilder(quads * CORNERS
                 * DefaultVertexFormat.ENTITY.getVertexSize())) {
             MeshData mesh = proxiesOf(blocks, bytes);
@@ -109,19 +108,6 @@ final class DrinkPass {
     private static int strideOf(GpuDevice device) {
         int alignment = Math.max(1, device.getUniformOffsetAlignment());
         return Math.ceilDiv(DrinkUpload.BYTES, alignment) * alignment;
-    }
-
-    /**
-     * @param blocks the uploads
-     * @param stride bytes from one block to the next, the device's alignment
-     * @return every block's bytes laid end to end at the stride, in a buffer the device can read
-     */
-    private static ByteBuffer packed(List<DrinkUpload.Block> blocks, int stride) {
-        ByteBuffer packed = ByteBuffer.allocateDirect(stride * blocks.size()).order(ByteOrder.nativeOrder());
-        for (int index = 0; index < blocks.size(); index++) {
-            packed.put(index * stride, blocks.get(index).bytes(), 0, DrinkUpload.BYTES);
-        }
-        return packed;
     }
 
     private static RenderPass openPass(GpuDevice device, Matrix4fc modelView) {
