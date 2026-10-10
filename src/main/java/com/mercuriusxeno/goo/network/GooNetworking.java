@@ -84,6 +84,7 @@ public final class GooNetworking {
         r.playToClient(ReapSwellPayload.TYPE, ReapSwellPayload.STREAM_CODEC);
         r.playToClient(TickAimPayload.TYPE, TickAimPayload.STREAM_CODEC);
         r.playToClient(ShardFallPayload.TYPE, ShardFallPayload.STREAM_CODEC);
+        r.playToClient(OreRevealPayload.TYPE, OreRevealPayload.STREAM_CODEC);
     }
 
     /** Registers server-bound payloads.

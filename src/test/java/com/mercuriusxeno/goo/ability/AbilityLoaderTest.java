@@ -236,6 +236,17 @@ class AbilityLoaderTest {
     }
 
     /**
+     * Crystal's Glitter consumes a lapis lazuli beside its goo
+     * (decisions glitter-sphere-icons-gem-ore-groups, ability-json-names-its-reagent).
+     */
+    @Test
+    void glitterConsumesALapisLazuli() {
+        assertEquals(List.of(Identifier.withDefaultNamespace("lapis_lazuli")),
+                scanShipped(AbilityJson.files()).get(Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_glitter"))
+                        .consumes());
+    }
+
+    /**
      * Every shipped self + brew ability names an upkeep in place of a one-shot
      * cost, and every other ability names no upkeep
      * (decision self-effects-trickle-until-ended).

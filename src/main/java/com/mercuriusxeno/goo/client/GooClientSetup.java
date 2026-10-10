@@ -44,6 +44,7 @@ import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
+import com.mercuriusxeno.goo.client.overlay.OreIcons;
 import com.mercuriusxeno.goo.client.overlay.TickSplashes;
 import com.mercuriusxeno.goo.client.particle.*;
 import com.mercuriusxeno.goo.client.radial.CutItemRenderer;
@@ -456,6 +457,7 @@ public final class GooClientSetup {
         FrozenPoses.CLIENT.clear();
         NovaRings.CLIENT.clear();
         FallingShards.CLIENT.clear();
+        OreIcons.CLIENT.clear();
         WindLines.CLIENT.clear();
         BlockTransforms.CLIENT.clear();
         Afterimages.CLIENT.clear();
