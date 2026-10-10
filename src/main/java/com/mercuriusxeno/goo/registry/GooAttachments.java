@@ -12,6 +12,7 @@ import com.mercuriusxeno.goo.ability.program.EntityCounters;
 import com.mercuriusxeno.goo.ability.program.Lux;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.pulse.Stunned;
+import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.spray.Spored;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
@@ -154,6 +155,19 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> Petrification.NONE)
                             .serialize(Petrification.CODEC, Petrification::started)
                             .sync(GooAttachments::syncsToWatcher, Petrification.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The vines rooting a mob, saved with it while they stand and synced to
+     * every client drawing it, which draws the tangle over its model and the
+     * tendrils down to the root.
+     * vines-unpack-root-and-thorn
+     */
+    public static final Supplier<AttachmentType<Rooted>> ROOTED =
+            ATTACHMENT_TYPES.register("rooted",
+                    () -> AttachmentType.builder(() -> Rooted.NONE)
+                            .serialize(Rooted.CODEC, Rooted::stands)
+                            .sync(GooAttachments::syncsToWatcher, Rooted.STREAM_CODEC)
                             .build());
 
     /**

@@ -45,12 +45,7 @@ public final class GooNetworking {
         r.playToClient(ChainBurnoutPayload.TYPE, ChainBurnoutPayload.STREAM_CODEC);
         r.playToClient(MobHitPayload.TYPE, MobHitPayload.STREAM_CODEC);
         r.playToClient(AilmentPayload.TYPE, AilmentPayload.STREAM_CODEC);
-        r.playToClient(ScryPayload.TYPE, ScryPayload.STREAM_CODEC);
-        r.playToClient(SunbeamPayload.TYPE, SunbeamPayload.STREAM_CODEC);
-        r.playToClient(RadiantAuraPayload.TYPE, RadiantAuraPayload.STREAM_CODEC);
-        r.playToClient(LeechPayload.TYPE, LeechPayload.STREAM_CODEC);
-        r.playToClient(TomePayload.TYPE, TomePayload.STREAM_CODEC);
-        r.playToClient(NovaRingPayload.TYPE, NovaRingPayload.STREAM_CODEC);
+        registerAbilityVisualPayloads(r);
         r.playToClient(BlockTransformPayload.TYPE, BlockTransformPayload.STREAM_CODEC);
         r.playToClient(BlockExposurePayload.TYPE, BlockExposurePayload.STREAM_CODEC);
         r.playToClient(AfterimagePayload.TYPE, AfterimagePayload.STREAM_CODEC);
@@ -60,6 +55,24 @@ public final class GooNetworking {
         r.playToClient(KnownItemLearnedPayload.TYPE, KnownItemLearnedPayload.STREAM_CODEC);
         r.playToClient(StreamHealedPayload.TYPE, StreamHealedPayload.STREAM_CODEC);
         r.playToClient(DripHealedPayload.TYPE, DripHealedPayload.STREAM_CODEC);
+        r.playToClient(BlockAfterimagePayload.TYPE, BlockAfterimagePayload.STREAM_CODEC);
+    }
+
+    /**
+     * Registers the client-bound payloads of the abilities' own visuals:
+     * glow's Scry, Sunbeam and Radiant, hex's leech and tomes, frost's Nova
+     * rings and leaf's Reap swells.
+     *
+     * @param r the payload registrar
+     */
+    private static void registerAbilityVisualPayloads(PayloadRegistrar r) {
+        r.playToClient(ScryPayload.TYPE, ScryPayload.STREAM_CODEC);
+        r.playToClient(SunbeamPayload.TYPE, SunbeamPayload.STREAM_CODEC);
+        r.playToClient(RadiantAuraPayload.TYPE, RadiantAuraPayload.STREAM_CODEC);
+        r.playToClient(LeechPayload.TYPE, LeechPayload.STREAM_CODEC);
+        r.playToClient(TomePayload.TYPE, TomePayload.STREAM_CODEC);
+        r.playToClient(NovaRingPayload.TYPE, NovaRingPayload.STREAM_CODEC);
+        r.playToClient(ReapSwellPayload.TYPE, ReapSwellPayload.STREAM_CODEC);
     }
 
     /** Registers server-bound payloads.

@@ -61,7 +61,8 @@ public final class PetrifyFog {
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         FlatQuadContext quads = new FlatQuadContext(event.getPoseStack().last(),
                 buffers.getBuffer(GooRenderTypes.PETRIFY_FOG_TYPE));
-        ConeSections.emit(quads, new ConeSections.Volume(apex, axis, FROM_THE_GLOVE, range, SECTIONS,
+        ConeSections.emit(quads, new ConeSections.Volume(apex, axis, player.getViewYRot(partialTick), FROM_THE_GLOVE,
+                range, SECTIONS,
                 distance -> distance * tan));
         buffers.endBatch(GooRenderTypes.PETRIFY_FOG_TYPE);
     }
@@ -76,6 +77,6 @@ public final class PetrifyFog {
         String abilityId = GloveAim.selectedAbilityId(player);
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
         boolean petrifies = ability != null && ability.behaviors().stream().anyMatch(PetrifyStep.class::isInstance);
-        return petrifies && GloveUseTracker.showsArea() ? ability : null;
+        return petrifies && GloveUseTracker.runsHeld(player) ? ability : null;
     }
 }

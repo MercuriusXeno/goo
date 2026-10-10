@@ -1,0 +1,13 @@
+{
+  "gooType": "leaf",
+  "displayName": "goo.ability.leaf.verdant",
+  "badge": "prism",
+  "order": 5,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "verdant", "map": "goo:greening", "radius": 5, "interval": 40, "tries": 8, "crop_odds": 4,
+      "swell_radius": 1.5, "swell_ticks": 6 }
+  ],
+  "tags": []
+}
