@@ -278,8 +278,7 @@ public final class DrinkRenderer {
         Map<BlockPos, BlockState> states = new HashMap<>();
         List<DrinkTree.Block> blocks = blocksOf(level, drink, states);
         Map<BlockPos, DrinkTree.Stream> last = LAST.getOrDefault(drink.playerId(), Map.of());
-        drink.layout().place(states.keySet(), frame.glove(), frame.ticks(),
-                (pos, distance) -> last.containsKey(pos) && last.get(pos).flowingAt(distance));
+        drink.layout().place(states.keySet(), frame.glove(), frame.ticks(), DrinkTree.flowingOf(last, states.keySet()));
         List<DrinkField.Skeleton> skeletons = new ArrayList<>();
         List<DrinkUpload.Coat> coats = new ArrayList<>();
         Map<BlockPos, DrinkTree.Stream> built = new HashMap<>();

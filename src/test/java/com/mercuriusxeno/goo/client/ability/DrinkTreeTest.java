@@ -6,6 +6,8 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -84,6 +86,27 @@ class DrinkTreeTest {
      */
     private static double pastJoin(DrinkTree.Stream trunk, double blocksPastJoin) {
         return trunk.tributaries().getFirst().joinShare() + blocksPastJoin / trunk.path().length();
+    }
+
+    @Nested
+    class Flowing {
+
+        @Test
+        void aStreamingBlockNotYetBuiltFlowsEverywhereAGoneBlockNowhereAndABuiltOneWhereItsStreamDoes() {
+            BlockPos fresh = new BlockPos(7, 4, 5);
+            BlockPos gone = new BlockPos(7, 5, 6);
+            DrinkTree.Stream flowing = lone();
+            DrinkTree.Stream spent = DrinkTree.build(List.of(FAR), layoutOf(FAR), GLOVE, PULL, END + THOUSAND)
+                    .getFirst();
+            DrinkLayout.Flowing test = DrinkTree.flowingOf(Map.of(NEAR.pos(), flowing, FAR.pos(), spent),
+                    Set.of(NEAR.pos(), FAR.pos(), fresh));
+
+            assertTrue(flowing.flowingAt(0) && test.at(NEAR.pos(), 0), "a built stream flows where it does");
+            assertFalse(spent.flowingAt(1) || test.at(FAR.pos(), 1), "and not where it has passed");
+            assertTrue(test.at(fresh, 0) && test.at(fresh, 1),
+                    "a block streaming this frame but not yet built flows everywhere, so the first frame's blocks join");
+            assertFalse(test.at(gone, 0), "a block no longer streaming flows nowhere, so its tributaries re-root");
+        }
     }
 
     @Nested
