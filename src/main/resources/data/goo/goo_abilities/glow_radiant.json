@@ -6,7 +6,7 @@
   "cost": 200,
   "delivery": { "kind": "self", "ticks_per_charge": 20 },
   "behaviors": [
-    { "type": "wisps", "radius": 64, "count": 4000, "life": 1200, "aura": true, "flood": true }
+    { "type": "wisps", "radius": 64, "count": 4000, "life": 1200, "aura": true, "flood": true, "growth": 0.8 }
   ],
   "tags": ["self"]
 }

@@ -27,7 +27,7 @@ class WispFloodTest {
     @Test
     void theFirstTickLightsTheCellsNearestTheEyes() {
         Grid grid = new Grid(WispFloodTest::inTheRoom, cell -> true);
-        WispFlood flood = new WispFlood(EYES, RANGE);
+        WispFlood flood = new WispFlood(EYES, RANGE, 0);
         assertTrue(flood.walk(TICK_BUDGET, grid) > 0, "The first tick should place wisps");
         int nearest = grid.placed.stream().mapToInt(cell -> cell.distManhattan(EYES)).min().orElseThrow();
         assertEquals(WispFlood.CLEAR_OF_THE_EYES + 1, nearest);
@@ -36,7 +36,7 @@ class WispFloodTest {
     @Test
     void noWispSitsInAnotherWispsLightNorAtTheEyes() {
         Grid grid = new Grid(WispFloodTest::inTheRoom, cell -> true);
-        new WispFlood(EYES, RANGE).walk(TICK_BUDGET * 3, grid);
+        new WispFlood(EYES, RANGE, 0).walk(TICK_BUDGET * 3, grid);
         for (BlockPos wisp : grid.placed) {
             assertTrue(wisp.distManhattan(EYES) > WispFlood.CLEAR_OF_THE_EYES, wisp + " sits at the eyes");
             for (BlockPos other : grid.placed) {
@@ -49,7 +49,7 @@ class WispFloodTest {
     @Test
     void theFloodPassesOnlyThroughOpenCells() {
         Grid grid = new Grid(cell -> inTheRoom(cell) && cell.getX() < 3, cell -> true);
-        new WispFlood(EYES, RANGE).walk(TICK_BUDGET * 3, grid);
+        new WispFlood(EYES, RANGE, 0).walk(TICK_BUDGET * 3, grid);
         assertFalse(grid.placed.isEmpty(), "The open side should take wisps");
         assertTrue(grid.placed.stream().allMatch(cell -> cell.getX() < 3), "No wisp should pass the wall");
     }
@@ -57,7 +57,7 @@ class WispFloodTest {
     @Test
     void theFloodPlacesOnlyWhereTheEyesSee() {
         Grid grid = new Grid(WispFloodTest::inTheRoom, cell -> cell.getY() >= 0);
-        new WispFlood(EYES, RANGE).walk(TICK_BUDGET * 3, grid);
+        new WispFlood(EYES, RANGE, 0).walk(TICK_BUDGET * 3, grid);
         assertFalse(grid.placed.isEmpty(), "The seen half should take wisps");
         assertTrue(grid.placed.stream().allMatch(cell -> cell.getY() >= 0), "No wisp should sit out of sight");
     }
@@ -66,9 +66,35 @@ class WispFloodTest {
     void theFloodStopsAtItsRange() {
         double shortRange = 6;
         Grid grid = new Grid(WispFloodTest::inTheRoom, cell -> true);
-        new WispFlood(EYES, shortRange).walk(TICK_BUDGET * 3, grid);
+        new WispFlood(EYES, shortRange, 0).walk(TICK_BUDGET * 3, grid);
         assertTrue(grid.placed.stream().allMatch(cell -> cell.distSqr(EYES) <= shortRange * shortRange),
                 "No wisp should sit past the range");
+    }
+
+    @Test
+    void theEdgeGrowsEachTickAndHoldsTheFloodWithinIt() {
+        double growth = 0.8;
+        int ticks = 10;
+        Grid grid = new Grid(WispFloodTest::inTheRoom, cell -> true);
+        WispFlood flood = new WispFlood(EYES, RANGE, growth);
+        for (int tick = 1; tick <= ticks; tick++) {
+            flood.walk(TICK_BUDGET, grid);
+            double edge = growth * tick;
+            assertEquals(edge, flood.edge(), 1e-9);
+            assertTrue(grid.placed.stream().allMatch(cell -> cell.distSqr(EYES) <= edge * edge),
+                    "No wisp should sit past the edge on tick " + tick);
+        }
+        assertFalse(grid.placed.isEmpty(), "Eight blocks of edge should reach past the eyes' clear steps");
+    }
+
+    @Test
+    void theEdgeStopsAtTheRange() {
+        double shortRange = 3;
+        WispFlood flood = new WispFlood(EYES, shortRange, 2);
+        Grid grid = new Grid(WispFloodTest::inTheRoom, cell -> true);
+        flood.walk(TICK_BUDGET, grid);
+        flood.walk(TICK_BUDGET, grid);
+        assertEquals(shortRange, flood.edge(), 1e-9);
     }
 
     private static boolean inTheRoom(BlockPos cell) {
