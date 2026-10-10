@@ -69,9 +69,11 @@ public record PushStep(Expr strength, Expr steer, Expr elytraSteer) implements S
         if (thrower != null) {
             LivingEntity target = host.target();
             double share = (wearsElytra(target) ? elytraSteer : steer).evaluate(context);
-            // airborn-steerable-levitation-and-soft-falls: Airborn makes Jet's push stronger
-            double speed = AirbornMotion.jetStrength(strength.evaluate(context),
-                    target.getData(GooAttachments.AIRBORN), target.level().getGameTime());
+            // airborn-steerable-levitation-and-soft-falls: Airborn makes a player's push of itself, Jet's, stronger
+            double speed = target == thrower
+                    ? AirbornMotion.jetStrength(strength.evaluate(context), target.getData(GooAttachments.AIRBORN),
+                            target.level().getGameTime())
+                    : strength.evaluate(context);
             host.push(steered(target.getDeltaMovement(), thrower.getLookAngle().scale(speed), share));
         }
         return true;
