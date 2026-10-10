@@ -26,6 +26,7 @@ import com.mercuriusxeno.goo.network.MobHitPayload;
 import com.mercuriusxeno.goo.network.ModelShrinkPayload;
 import com.mercuriusxeno.goo.network.NovaRingPayload;
 import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
+import com.mercuriusxeno.goo.network.OreRevealPayload;
 import com.mercuriusxeno.goo.network.ReapSwellPayload;
 import com.mercuriusxeno.goo.network.ScryPayload;
 import com.mercuriusxeno.goo.network.ShardFallPayload;
@@ -105,5 +106,6 @@ public final class GooClientNetworking {
         event.register(ReapSwellPayload.TYPE, ReapSwells::handle);
         event.register(TickAimPayload.TYPE, TickAim::handle);
         event.register(ShardFallPayload.TYPE, ShardFallHandler::handle);
+        event.register(OreRevealPayload.TYPE, OreRevealHandler::handle);
     }
 }

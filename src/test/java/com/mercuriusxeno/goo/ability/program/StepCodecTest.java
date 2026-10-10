@@ -49,6 +49,8 @@ class StepCodecTest {
             Map.entry("freeze_blocks", new FreezeBlocksStep(Expr.literal(2))),
             Map.entry("drips", new DripsStep(6, List.of(new FreezeBlocksStep(Expr.literal(2))))),
             Map.entry("shard_fall", new ShardFallStep(List.of())),
+            Map.entry("detect_ore", new DetectOreStep(TagKey.create(Registries.BLOCK,
+                    Identifier.fromNamespaceAndPath("goo", "gem_ores")), 24, 1, 32, 100)),
             Map.entry("wind", new WindStep(true)),
             Map.entry("glacial", new GlacialStep(5)),
             Map.entry("traveling", new TravelingStep(3f, List.of(new FreezeBlocksStep(Expr.literal(2.5), false)))),

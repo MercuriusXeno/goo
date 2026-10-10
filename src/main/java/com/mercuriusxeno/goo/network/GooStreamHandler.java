@@ -27,6 +27,7 @@ import com.mercuriusxeno.goo.ability.program.WithdrawBankStep;
 import com.mercuriusxeno.goo.ability.spray.SprayPrograms;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
@@ -185,7 +186,7 @@ public final class GooStreamHandler {
                                       AbilityDefinition ability) {
         MinecraftServer server = player.level().getServer();
         int held = GooServerState.of(server).streamHolds().advance(player.getUUID(), server.getTickCount());
-        if (held == 0) {
+        if (held == 0 || !paysReagents(player, ability, held)) {
             return 0;
         }
         // timekeeper-prism-banks-ticks-forward-only: withdrawing a timekeeper's bank costs nothing
@@ -196,6 +197,29 @@ public final class GooStreamHandler {
         }
         GooSourceScanner.deplete(player, gooType, share);
         return held;
+    }
+
+    /**
+     * Whether a hold has its reagents: a held ability consuming items takes
+     * one of each on the hold's first tick, and a hold that could not pay
+     * then runs nothing until a new hold starts; one consuming nothing pays
+     * nothing (decision ability-json-names-its-reagent).
+     *
+     * @param player  the holding player
+     * @param ability the held ability
+     * @param held    the hold's tick count, 1 on its first tick
+     * @return true when the hold may run this tick
+     */
+    private static boolean paysReagents(ServerPlayer player, AbilityDefinition ability, int held) {
+        if (ability.consumes().isEmpty()) {
+            return true;
+        }
+        StreamHolds holds = GooServerState.of(player.level().getServer()).streamHolds();
+        if (held == ChannelAim.FIRST_TICK && ReagentScanner.holdsEvery(player, ability.consumes())) {
+            ReagentScanner.consumeOneOfEach(player, ability.consumes());
+            holds.markPaid(player.getUUID());
+        }
+        return holds.paid(player.getUUID());
     }
 
     /**

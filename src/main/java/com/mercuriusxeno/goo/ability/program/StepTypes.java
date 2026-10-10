@@ -44,6 +44,7 @@ public final class StepTypes {
         register(FreezeBlocksStep.TYPE);
         register(DripsStep.TYPE);
         register(ShardFallStep.TYPE);
+        register(DetectOreStep.TYPE);
         register(WindStep.TYPE);
         register(BreakBlocksStep.TYPE);
         register(TravelingStep.TYPE);
