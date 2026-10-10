@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
@@ -106,8 +108,7 @@ public final class GloveUseTracker {
         if (!PRESS.isArmed()) {
             pressHand = hand;
             Minecraft mc = Minecraft.getInstance();
-            pressPlane = mc.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK
-                    ? new ChannelAim.FacePlane(hit.getBlockPos(), hit.getDirection()) : null;
+            pressPlane = planeAtPress(mc);
             pressPin = mc.player == null ? null : farFace(mc.player);
         }
         PRESS.arm();
@@ -139,6 +140,43 @@ public final class GloveUseTracker {
      */
     public static @Nullable BlockHitResult pressPin() {
         return PRESS.isArmed() ? pressPin : null;
+    }
+
+    /**
+     * The face a press begins on: a blink pins the first face its look
+     * crosses within its range (decision blink-lands-safely-costed-by-distance),
+     * and every other ability the face the crosshair rests on.
+     *
+     * @param mc the client
+     * @return the face plane, or null where the press began on none
+     */
+    private static ChannelAim.@Nullable FacePlane planeAtPress(Minecraft mc) {
+        LocalPlayer player = mc.player;
+        ClientAbility ability = player == null ? null : heldAbility(player);
+        return player != null && BlinkAim.blinks(ability) ? BlinkAim.pinAtPress(player, ability).orElse(null)
+                : crosshairPlane(mc);
+    }
+
+    /**
+     * The face the crosshair rests on.
+     *
+     * @param mc the client
+     * @return the face plane, or null where the crosshair rests on no block
+     */
+    private static ChannelAim.@Nullable FacePlane crosshairPlane(Minecraft mc) {
+        return mc.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK
+                ? new ChannelAim.FacePlane(hit.getBlockPos(), hit.getDirection()) : null;
+    }
+
+    /**
+     * The synced copy of the ability the held glove selects.
+     *
+     * @param player the local player
+     * @return the ability, or null with no selection or no synced copy
+     */
+    private static @Nullable ClientAbility heldAbility(LocalPlayer player) {
+        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        return selection == null ? null : AbilitySyncHandler.findAbility(selection.abilityId());
     }
 
     /**
@@ -248,6 +286,29 @@ public final class GloveUseTracker {
      */
     public static boolean showsArea() {
         return PRESS.isArmed();
+    }
+
+    /**
+     * Whether a held ability's visual runs: right click holds it and the
+     * selected goo is still on hand, as the stream tick it plays beside is
+     * sent only then, so the fog, breeze, vortex and cursor stop with the goo.
+     *
+     * @param player the local player
+     * @return true while the held ability runs
+     */
+    public static boolean runsHeld(LocalPlayer player) {
+        return heldVisualRuns(showsArea(), checkSelectedTypeAvailable(player));
+    }
+
+    /**
+     * Whether a held ability's visual runs, read from the press and the goo on hand.
+     *
+     * @param armed   whether right click holds a live press
+     * @param gooLeft whether any of the selected goo is on hand
+     * @return true only while both hold
+     */
+    static boolean heldVisualRuns(boolean armed, boolean gooLeft) {
+        return armed && gooLeft;
     }
 
     /**

@@ -32,14 +32,18 @@ import java.util.function.Consumer;
  * A held channel runs its ability on this host each tick of the hold,
  * carrying that tick's aim (decision flatten-disc-cursor-breaks-above-the-plane).
  *
+ * A blink runs on this host carrying the face plane its press pinned
+ * (decision blink-lands-safely-costed-by-distance).
+ *
  * @param level         the server level
  * @param player        the invoking player
  * @param brewDuration  the drunk brew's duration in ticks, empty for a glove invocation
  * @param channelAim    the held channel's aim this tick, empty outside a channel
  * @param charge        the share of a full charge a charged ability's hold reached, 0 outside a charge
+ * @param blinkPin      the face plane a blink's press pinned, empty for free aim
  */
 public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt brewDuration,
-                         Optional<ChannelAim> channelAim, float charge)
+                         Optional<ChannelAim> channelAim, float charge, Optional<ChannelAim.FacePlane> blinkPin)
         implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, EffectExtendHost, FrostHost {
 
     /** The share of the player's height Nova emanates from. */
@@ -60,7 +64,20 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
      * @param player the invoking player
      */
     public PlayerHost(ServerLevel level, ServerPlayer player) {
-        this(level, player, OptionalInt.empty(), Optional.empty(), NO_CHARGE);
+        this(level, player, OptionalInt.empty(), Optional.empty(), NO_CHARGE, Optional.empty());
+    }
+
+    /**
+     * The host of a glove invocation of a blink, carrying the face plane its press pinned.
+     *
+     * @param level    the server level
+     * @param player   the invoking player
+     * @param blinkPin the pinned face plane, empty for free aim
+     * @return the host carrying the pin
+     */
+    public static PlayerHost blinking(ServerLevel level, ServerPlayer player,
+            Optional<ChannelAim.FacePlane> blinkPin) {
+        return new PlayerHost(level, player, OptionalInt.empty(), Optional.empty(), NO_CHARGE, blinkPin);
     }
 
     /**
@@ -71,7 +88,7 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
      * @param brewDuration the brew's duration in ticks
      */
     public PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt brewDuration) {
-        this(level, player, brewDuration, Optional.empty(), NO_CHARGE);
+        this(level, player, brewDuration, Optional.empty(), NO_CHARGE, Optional.empty());
     }
 
     /**
@@ -83,7 +100,7 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
      * @return the host carrying the aim
      */
     public static PlayerHost channeling(ServerLevel level, ServerPlayer player, ChannelAim aim) {
-        return new PlayerHost(level, player, OptionalInt.empty(), Optional.of(aim), NO_CHARGE);
+        return new PlayerHost(level, player, OptionalInt.empty(), Optional.of(aim), NO_CHARGE, Optional.empty());
     }
 
     /**
@@ -96,7 +113,7 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
      * @return the host carrying the charge
      */
     public static PlayerHost charged(ServerLevel level, ServerPlayer player, float charge) {
-        return new PlayerHost(level, player, OptionalInt.empty(), Optional.empty(), charge);
+        return new PlayerHost(level, player, OptionalInt.empty(), Optional.empty(), charge, Optional.empty());
     }
 
     @Override

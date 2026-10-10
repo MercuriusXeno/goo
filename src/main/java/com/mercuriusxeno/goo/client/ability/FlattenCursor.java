@@ -42,7 +42,7 @@ public final class FlattenCursor {
         LocalPlayer player = mc.player;
         ChannelAim.FacePlane plane = GloveUseTracker.pressPlane();
         if (player == null || mc.level == null || plane == null
-                || !showsCursor(selectedAbility(player), GloveUseTracker.showsArea())) {
+                || !showsCursor(selectedAbility(player), GloveUseTracker.runsHeld(player))) {
             return;
         }
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);

@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.client.ability.CrystalCloudVisual;
 import com.mercuriusxeno.goo.client.ability.MarkerOrbVisual;
 import com.mercuriusxeno.goo.client.ability.MetalSpikeVisual;
 import com.mercuriusxeno.goo.client.ability.ThumpRings;
+import com.mercuriusxeno.goo.client.ability.VineTrapVisual;
 import com.mercuriusxeno.goo.client.ber.style.NetherHoleStyles;
 import com.mercuriusxeno.goo.client.throwing.ThrowFreezeState;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -35,6 +36,7 @@ import org.jspecify.annotations.Nullable;
  *   <li>{@link MetalSpikeVisual} - cone spikes from the marker to tracked entities</li>
  *   <li>{@link CrystalCloudVisual} - the shard cloud a crystal marker stands</li>
  *   <li>{@link NetherHoleStyles#active()} - the swappable nether black-hole style</li>
+ *   <li>{@link VineTrapVisual} - the Vines trap's knot and tendrils on the ground</li>
  * </ul>
  */
 public class AbilityBlockRenderer
@@ -139,6 +141,7 @@ public class AbilityBlockRenderer
         MetalSpikeVisual.extract(be, state);
         CrystalCloudVisual.extract(be, state);
         NetherHoleStyles.active().extract(be, state);
+        VineTrapVisual.extract(be, state);
         // thumper-blob-pulses-periodically-then-fades
         boolean powered = be.getBlockState().getOptionalValue(AbilityBlock.POWERED).orElse(false);
         ThumpRings.see(be.getBlockPos(), be.getPlacedFace(), powered);
@@ -149,6 +152,10 @@ public class AbilityBlockRenderer
                        SubmitNodeCollector nodeCollector, CameraRenderState cameraState) {
         if (state.netherActive) {
             NetherHoleStyles.active().submit(state, poseStack, nodeCollector);
+            return;
+        }
+        if (state.vinesTrap) {
+            VineTrapVisual.submit(state, poseStack, nodeCollector);
             return;
         }
         MarkerOrbVisual.submit(state, poseStack, nodeCollector);

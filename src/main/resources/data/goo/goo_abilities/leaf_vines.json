@@ -1,0 +1,35 @@
+{
+  "gooType": "leaf",
+  "displayName": "goo.ability.leaf.vines",
+  "badge": "mob",
+  "order": 0,
+  "cost": 1000,
+  "requires": ["minecraft:vine"],
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    {
+      "type": "hit_or_miss",
+      "hit": [
+        { "type": "root", "duration": 300, "hits": 4, "thorns": 1.0, "fire_factor": 1.5 }
+      ],
+      "miss": [
+        {
+          "type": "linger",
+          "steps": [
+            { "type": "await_entity", "shape": "sphere", "radius": 1.0, "where": ["mob", "alive"] },
+            {
+              "type": "entities",
+              "shape": "sphere",
+              "radius": 1.0,
+              "where": ["mob", "alive"],
+              "steps": [
+                { "type": "root", "duration": 300, "hits": 4, "thorns": 1.0, "fire_factor": 1.5 }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "tags": ["entity", "trap"]
+}

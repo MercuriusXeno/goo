@@ -8,9 +8,9 @@ import com.mercuriusxeno.goo.ability.HealReport;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.StreamSound;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
+import com.mercuriusxeno.goo.ability.program.ChannelHost;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.FloorReach;
-import com.mercuriusxeno.goo.ability.program.HostCapability;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
@@ -316,9 +316,7 @@ public final class GooStreamHandler {
      * @return the steps of that pass, in program order
      */
     static List<Step> channelSteps(List<Step> behaviors, boolean channel) {
-        return behaviors.stream()
-                .filter(step -> step.requires().contains(HostCapability.CHANNEL) == channel)
-                .toList();
+        return ChannelHost.passSteps(behaviors, channel);
     }
 
     /**

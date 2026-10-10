@@ -420,6 +420,18 @@ class HeartOverlayTest {
             assertEquals(19, stripped.tick(FULL_HEALTH, false, NOW + 50L).shieldHalves());
         }
 
+        /** Growth's hold runs the bark's regrow clock ahead (decision growth-breeze-ticks-plants). */
+        @Test
+        void growthHeldThreeTimesAsFastRegrowsBarkInAThirdOfTheTime() {
+            HeartOverlay overlay = barked(FULL_HEALTH).drain(2f, NOW).overlay();
+            long tick = NOW;
+            while (overlay.shieldHalves() < 19) {
+                tick++;
+                overlay = overlay.hastened(2).tick(FULL_HEALTH, false, tick);
+            }
+            assertEquals(NOW + 17L, tick);
+        }
+
         @Test
         void barkskinStartsWithOneBarkHeartAndBarksEachFurtherHeart() {
             // heart-effects-crawl-while-held

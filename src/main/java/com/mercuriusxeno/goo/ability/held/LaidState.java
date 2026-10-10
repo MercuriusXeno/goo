@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
 import com.mercuriusxeno.goo.ability.program.NourishStep;
 import com.mercuriusxeno.goo.ability.program.SightStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.TeleportitisStep;
 import com.mercuriusxeno.goo.ability.program.UndeadStep;
 import com.mojang.serialization.Codec;
 import io.netty.buffer.ByteBuf;
@@ -31,6 +32,8 @@ public enum LaidState {
     SIGHT,
     /** Counting as undead (decision undead-nether-hearts-burn-in-sunlight). */
     UNDEAD,
+    /** Teleportitis (decision teleportitis-blinks-along-the-cursor-on-hit). */
+    TELEPORTITIS,
     /** The Extender's mark, laid by an extender step (decision extender-multiplies-the-next-self-duration). */
     EXTENDER,
     /** A lifetap (decision lifetap-trades-regen-for-leech). */
@@ -43,15 +46,6 @@ public enum LaidState {
     public static final StreamCodec<ByteBuf, LaidState> STREAM_CODEC =
             ByteBufCodecs.idMapper(ordinal -> values()[ordinal], LaidState::ordinal);
 
-    /** The state each laying step lays. */
-    private static final Map<Class<? extends Step>, LaidState> LAID_BY_STEP = Map.of(
-            HeartOverlayStep.class, HEART_OVERLAY,
-            NourishStep.class, NOURISH,
-            SightStep.class, SIGHT,
-            UndeadStep.class, UNDEAD,
-            ExtenderStep.class, EXTENDER,
-            LifetapStep.class, LIFETAP);
-
     /**
      * The state a program lays, read from its steps and every step beneath them.
      *
@@ -60,14 +54,24 @@ public enum LaidState {
      */
     public static Set<LaidState> laidBy(List<Step> behaviors) {
         Set<LaidState> laid = EnumSet.noneOf(LaidState.class);
-        behaviors.stream().flatMap(LaidState::withDescendants).forEach(step -> {
-            LaidState lays = LAID_BY_STEP.get(step.getClass());
-            if (lays != null) {
-                laid.add(lays);
-            }
-        });
+        behaviors.stream().flatMap(LaidState::withDescendants).forEach(step ->
+                LAID_BY.forEach((kind, state) -> {
+                    if (kind.isInstance(step)) {
+                        laid.add(state);
+                    }
+                }));
         return laid;
     }
+
+    /** The state each kind of step lays. */
+    private static final Map<Class<? extends Step>, LaidState> LAID_BY = Map.of(
+            HeartOverlayStep.class, HEART_OVERLAY,
+            NourishStep.class, NOURISH,
+            SightStep.class, SIGHT,
+            UndeadStep.class, UNDEAD,
+            TeleportitisStep.class, TELEPORTITIS,
+            ExtenderStep.class, EXTENDER,
+            LifetapStep.class, LIFETAP);
 
     private static Stream<Step> withDescendants(Step step) {
         return Stream.concat(Stream.of(step), step.children().flatMap(LaidState::withDescendants));

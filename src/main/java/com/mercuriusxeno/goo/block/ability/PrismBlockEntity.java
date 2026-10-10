@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.PrismCombos;
 import com.mercuriusxeno.goo.ability.nether.HiveSwarm;
+import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
+import com.mercuriusxeno.goo.ability.oculus.OculusRegistry;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -40,6 +42,7 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     private static final String TAG_COMBO = "Combo";
     private static final String TAG_GOO_TYPE = "goo_type";
     private static final String TAG_RUNNING = "ComboRunning";
+    private static final String TAG_COMBO_SINCE = "ComboSince";
     private static final String TAG_PREVIOUS_EDGE = "BeatPreviousEdge";
     private static final String TAG_LAST_EDGE = "BeatLastEdge";
     private static final String TAG_HEARD = "BeatHeard";
@@ -47,6 +50,8 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     private final MarkerProgramState programState = new MarkerProgramState();
     private ResourceKey<GooTypeDefinition> gooType = GooTypes.CRYSTAL;
     private String combo = NO_COMBO;
+    /** The game time the combo took, which its transformation plays from. */
+    private long comboSince;
     /** The combo's program while it runs; null once it ends or before any combo. */
     private @Nullable ProgramBehavior behavior;
     /** The redstone beat the prism has heard (decision metronome-prism-pulses-at-the-learned-rate). */
@@ -125,6 +130,8 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         }
         gooType = type;
         combo = comboId;
+        comboSince = server.getGameTime();
+        listOculus();
         behavior = ProgramBehavior.forHost(steps, HostKind.MARKER);
         behavior.onSplat(server, worldPosition, this);
         settle();
@@ -192,6 +199,13 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     }
 
     /**
+     * @return the game time the prism's combo took
+     */
+    public long comboSince() {
+        return comboSince;
+    }
+
+    /**
      * @return the combo's program while it runs, null otherwise
      */
     public @Nullable ProgramBehavior getBehavior() {
@@ -219,11 +233,56 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     }
 
     @Override
+    public void onLoad() {
+        super.onLoad();
+        listOculus();
+    }
+
+    @Override
+    public void setRemoved() {
+        super.setRemoved();
+        unlistOculus();
+    }
+
+    @Override
+    public void onChunkUnloaded() {
+        super.onChunkUnloaded();
+        unlistOculus();
+    }
+
+    /**
+     * Keeps the level's list of oculi in step with this prism: listed while
+     * it holds the oculus combo, so Blink finds it from any distance.
+     * decision oculus-prism-becomes-a-hovering-eye
+     */
+    private void listOculus() {
+        if (level == null) {
+            return;
+        }
+        if (OculusNodes.OCULUS.equals(combo)) {
+            OculusRegistry.add(level, worldPosition);
+        } else {
+            OculusRegistry.remove(level, worldPosition);
+        }
+    }
+
+    /**
+     * Takes this prism off the level's list of oculi as it goes.
+     */
+    private void unlistOculus() {
+        if (level != null) {
+            OculusRegistry.remove(level, worldPosition);
+        }
+    }
+
+    @Override
     protected void loadAdditional(@NonNull ValueInput input) {
         super.loadAdditional(input);
         ResourceKey<GooTypeDefinition> loaded = GooTypes.byId(input.getStringOr(TAG_GOO_TYPE, GooTypes.id(gooType)));
         gooType = loaded != null ? loaded : GooTypes.CRYSTAL;
         combo = input.getStringOr(TAG_COMBO, NO_COMBO);
+        comboSince = input.getLongOr(TAG_COMBO_SINCE, 0L);
+        listOculus();
         programState.load(input);
         beat = new RedstoneBeat(input.getLongOr(TAG_PREVIOUS_EDGE, RedstoneBeat.NEVER),
                 input.getLongOr(TAG_LAST_EDGE, RedstoneBeat.NEVER), input.getBooleanOr(TAG_HEARD, false));
@@ -256,6 +315,7 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         super.saveAdditional(output);
         output.putString(TAG_GOO_TYPE, GooTypes.id(gooType));
         output.putString(TAG_COMBO, combo);
+        output.putLong(TAG_COMBO_SINCE, comboSince);
         programState.save(output);
         output.putLong(TAG_PREVIOUS_EDGE, beat.previousEdge());
         output.putLong(TAG_LAST_EDGE, beat.lastEdge());

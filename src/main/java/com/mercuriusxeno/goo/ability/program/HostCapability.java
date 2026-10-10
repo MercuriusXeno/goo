@@ -85,6 +85,21 @@ public enum HostCapability {
      */
     DRIP(DripHost.class),
     /**
+     * A spot a mob from the host's chunk can be pulled to (decision
+     * convoke-blob-throbs-until-a-mob-arrives).
+     */
+    CONVOKE(ConvokeHost.class),
+    /**
+     * A struck surface a Dragon Gate can open over (decision
+     * dragon-gate-banishes-blocks-and-opens-a-portal).
+     */
+    DRAGON_GATE(GateHost.class),
+    /**
+     * The world around a lasting host to green tick after tick (decision
+     * verdant-prism-greens-blocks-slowly).
+     */
+    GREENING(GreeningHost.class),
+    /**
      * A landing that can tick the redstone device it landed on (decision
      * zap-ticks-the-device-and-stuns).
      */

@@ -39,7 +39,8 @@ import java.util.function.Consumer;
  */
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
-        FieldEffectHost, PhasedHost, HoardHost, PowerEmitHost, BeatHost, RelayHost, AgitateHost, FrostHost {
+        FieldEffectHost, PhasedHost, HoardHost, ConvokeHost, PowerEmitHost, BeatHost, RelayHost, AgitateHost,
+        FrostHost, GreeningHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
     /** The power a block gives at full strength. */
@@ -67,6 +68,15 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     @Override
     public BlockPos position() {
         return pos;
+    }
+
+    /**
+     * The marker cell's center, where a verdant prism's greening reaches out from.
+     * verdant-prism-greens-blocks-slowly
+     */
+    @Override
+    public Vec3 center() {
+        return Vec3.atCenterOf(pos);
     }
 
     @Override
@@ -229,6 +239,15 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     @Override
     public void playSound(SoundCue cue) {
         SoundPlays.play(level, Vec3.atCenterOf(pos), cue);
+    }
+
+    /**
+     * Pulls a mob from the marker's chunk to stand in the marker's cell.
+     * decision convoke-blob-throbs-until-a-mob-arrives
+     */
+    @Override
+    public boolean convokeFromChunk() {
+        return ChunkConvoke.convoke(level, Vec3.atBottomCenterOf(pos));
     }
 
     @Override
