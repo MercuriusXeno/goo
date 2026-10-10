@@ -4,6 +4,8 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.frost.Frozen;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
+import com.mercuriusxeno.goo.ability.hex.Charmed;
+import com.mercuriusxeno.goo.ability.hex.Lifetap;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.petrify.Petrification;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
@@ -134,6 +136,30 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> Petrification.NONE)
                             .serialize(Petrification.CODEC, Petrification::started)
                             .sync(GooAttachments::syncsToWatcher, Petrification.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The charm a mob holds, the player it fights for and when it fades,
+     * saved with the mob and synced to every client drawing it, which floats
+     * the charmed heart over its head.
+     * charm-glisten-and-icon-over-the-head
+     */
+    public static final Supplier<AttachmentType<Charmed>> CHARMED =
+            ATTACHMENT_TYPES.register("charmed",
+                    () -> AttachmentType.builder(() -> Charmed.NONE)
+                            .serialize(Charmed.CODEC)
+                            .sync(GooAttachments::syncsToWatcher, Charmed.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The lifetap a player holds, its leech fraction and when it fades,
+     * saved with the player while it stands.
+     * lifetap-trades-regen-for-leech
+     */
+    public static final Supplier<AttachmentType<Lifetap>> LIFETAP =
+            ATTACHMENT_TYPES.register("lifetap",
+                    () -> AttachmentType.builder(() -> Lifetap.NONE)
+                            .serialize(Lifetap.CODEC, lifetap -> lifetap.expiresAt() > 0L)
                             .build());
 
     /**

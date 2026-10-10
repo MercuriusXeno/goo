@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.client.ability.LeechWisps;
+import com.mercuriusxeno.goo.client.ability.Tomes;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.AfterimagePayload;
@@ -14,10 +16,12 @@ import com.mercuriusxeno.goo.network.GooFlightPayload;
 import com.mercuriusxeno.goo.network.GooValueSyncPayload;
 import com.mercuriusxeno.goo.network.KnownItemLearnedPayload;
 import com.mercuriusxeno.goo.network.KnownItemsSyncPayload;
+import com.mercuriusxeno.goo.network.LeechPayload;
 import com.mercuriusxeno.goo.network.MobHitPayload;
 import com.mercuriusxeno.goo.network.NovaRingPayload;
 import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
+import com.mercuriusxeno.goo.network.TomePayload;
 import com.mercuriusxeno.goo.network.TransformationPayload;
 import com.mercuriusxeno.goo.network.TunerFeedbackPayload;
 import net.neoforged.api.distmarker.Dist;
@@ -51,6 +55,8 @@ public final class GooClientNetworking {
         event.register(ChainBurnoutPayload.TYPE, ChainBurnoutHandler::handle);
         event.register(MobHitPayload.TYPE, MobHitHandler::handle);
         event.register(AilmentPayload.TYPE, AilmentHandler::handle);
+        event.register(LeechPayload.TYPE, LeechWisps::handle);
+        event.register(TomePayload.TYPE, Tomes::handle);
         event.register(NovaRingPayload.TYPE, NovaRingHandler::handle);
         event.register(BlockTransformPayload.TYPE, BlockTransformHandler::handle);
         event.register(BlockExposurePayload.TYPE, BlockTransformHandler::handleExposure);
