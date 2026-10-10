@@ -41,13 +41,20 @@ public final class EncasementLayer<S extends LivingEntityRenderState, M extends 
     public static final ContextKey<Float> FROZEN = new ContextKey<>(Identifier.fromNamespaceAndPath(Goo.MODID,
             "frozen"));
 
+    /** The render data carrying the seed the mob's encasement spreads its pattern from. */
+    public static final ContextKey<Integer> SEED = new ContextKey<>(Identifier.fromNamespaceAndPath(Goo.MODID,
+            "encasement_seed"));
+
     /** A whole encasement's share. */
     public static final float WHOLE = 1f;
 
     /** Draw order after the mob's model and its coat. */
     private static final int ENCASEMENT_ORDER = 2;
     private static final int NO_OUTLINE = 0;
-    private static final int UNTINTED = 0xFFFFFF;
+    /** The color's red, green and blue, which carry the seed to the shader, the share riding the alpha. */
+    private static final int SEED_BITS = 0xFFFFFF;
+    /** Mixes an entity id before it becomes a seed. */
+    private static final int SEED_MIX = 0x9E3779B1;
 
     /** The outer shell the mob shows over its body, which the encasement covers too while it shows. */
     private final MobShells.Shell shell;
@@ -92,6 +99,7 @@ public final class EncasementLayer<S extends LivingEntityRenderState, M extends 
      * @param state  its render state
      */
     public static void stampPetrify(Entity entity, EntityRenderState state) {
+        state.setRenderData(SEED, seedOf(entity.getId()));
         if (entity.hasData(GooAttachments.PETRIFICATION)) {
             state.setRenderData(PETRIFIED, entity.getData(GooAttachments.PETRIFICATION).share());
         }
@@ -104,19 +112,34 @@ public final class EncasementLayer<S extends LivingEntityRenderState, M extends 
      * @param state  its render state
      */
     public static void stampFrozen(Entity entity, EntityRenderState state) {
+        state.setRenderData(SEED, seedOf(entity.getId()));
         if (entity.hasData(GooAttachments.FROZEN)) {
             state.setRenderData(FROZEN, entity.getData(GooAttachments.FROZEN).gauge());
         }
     }
 
     /**
-     * The color the encasement's vertices carry: white, the share riding the alpha.
+     * The color the encasement's vertices carry: the mob's seed in red, green
+     * and blue, which the shader offsets its pattern by, the share riding the
+     * alpha (decision frozen-gauge-per-mob-encases-when-full).
      *
      * @param share the share encased, 0 to 1
+     * @param seed  the mob's seed
      * @return the ARGB color
      */
-    static int shareColor(float share) {
-        return ARGB.color(ARGB.as8BitChannel(Math.clamp(share, 0f, 1f)), UNTINTED);
+    static int shareColor(float share, int seed) {
+        return ARGB.color(ARGB.as8BitChannel(Math.clamp(share, 0f, 1f)), seed & SEED_BITS);
+    }
+
+    /**
+     * The seed a mob's encasement spreads its pattern from: its entity id,
+     * hashed so neighbouring ids seed far apart.
+     *
+     * @param entityId the entity's id
+     * @return the seed, 24 bits
+     */
+    static int seedOf(int entityId) {
+        return Integer.reverse(entityId * SEED_MIX) & SEED_BITS;
     }
 
     @Override
@@ -142,6 +165,7 @@ public final class EncasementLayer<S extends LivingEntityRenderState, M extends 
     private void submitEncasement(SubmitNodeCollector collector, EntityModel<? super S> model, S state,
                                   PoseStack poseStack, int lightCoords, float share) {
         collector.order(ENCASEMENT_ORDER).submitModel(model, state, poseStack, renderType,
-                lightCoords, OverlayTexture.NO_OVERLAY, shareColor(share), null, NO_OUTLINE, null);
+                lightCoords, OverlayTexture.NO_OVERLAY, shareColor(share, state.getRenderDataOrDefault(SEED, 0)), null,
+                NO_OUTLINE, null);
     }
 }

@@ -33,19 +33,23 @@ const float SEAM_BAND = 0.04;
 const float SEAM_SHADE = 0.45;
 // A share at or over this is a whole statue, with no patch edges left.
 const float WHOLE = 0.999;
+// The mob's seed rides the vertex color's red, green and blue; it shifts the patch
+// noise this far so each mob's stone or frost spreads in its own pattern, and shifts
+// the texture's tiling (decision frozen-gauge-per-mob-encases-when-full).
+const vec3 SEED_SPREAD = vec3(97.0, 89.0, 83.0);
 
 void main() {
     float share = stoneColor.a;
     float seam = 0.0;
     if (share < WHOLE) {
         float threshold = mingleThreshold(share);
-        float field = mingleField(vec3(skinCoord * PATCH_CELLS, 0.0));
+        float field = mingleField(vec3(skinCoord * PATCH_CELLS, 0.0) + stoneColor.rgb * SEED_SPREAD);
         if (field < threshold) {
             discard;
         }
         seam = 1.0 - smoothstep(threshold, threshold + SEAM_BAND, field);
     }
-    vec4 stone = texture(Sampler0, fract(skinCoord * STONE_TILES));
+    vec4 stone = texture(Sampler0, fract(skinCoord * STONE_TILES + stoneColor.rg));
     float shade = 0.7 + 0.3 * abs(normalize(skinNormal).y);
     vec3 lit = stone.rgb * shade * mix(1.0, SEAM_SHADE, seam);
     lit *= lightMapColor.rgb;
