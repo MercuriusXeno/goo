@@ -20,10 +20,13 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Keeps a player's Lux working while it stands: night vision topped up with
- * its particles off, and the glow glisten on the living mob under the
- * crosshair within the gaze's reach, the gaze stopping at blocks. Once Lux
- * no longer stands it ends, taking the night vision it kept up with it.
+ * Keeps a player's Lux working while it stands: night vision laid once as
+ * Lux's own hidden instance, endless, ambient, without particles or icon,
+ * whose card the client hides too ({@link #isLuxVision}), and the glow
+ * glisten on the living mob under the crosshair within the gaze's reach,
+ * the gaze stopping at blocks. Once Lux no longer stands it ends, taking its
+ * night vision with it (operator ruling 2026-10-09: no night vision card,
+ * nothing re-added on a clock).
  * decision lux-night-vision-without-particles
  */
 @EventBusSubscriber(modid = Goo.MODID)
@@ -31,10 +34,6 @@ public final class LuxEvents {
 
     /** How far the gaze reaches, in blocks (operator ruling 2026-10-09). */
     static final double GAZE_REACH = 32;
-    /** Night vision Lux grants at a time, in ticks; it is topped up before it runs low. */
-    static final int NIGHT_VISION_TICKS = 400;
-    /** The duration left under which night vision is topped up, above vanilla's flicker at 200. */
-    static final int TOP_UP_BELOW = 220;
     /** Ticks between glisten sends to the mob under the crosshair. */
     static final int GAZE_EVERY = 5;
     /** How long a gaze glisten lasts, a little past the next send so it never blinks. */
@@ -58,17 +57,44 @@ public final class LuxEvents {
             end(player);
             return;
         }
-        topUpNightVision(player);
+        layNightVision(player);
         if (now % GAZE_EVERY == 0) {
             glistenTheGaze(player);
         }
     }
 
-    private static void topUpNightVision(ServerPlayer player) {
-        MobEffectInstance vision = player.getEffect(MobEffects.NIGHT_VISION);
-        if (needsTopUp(vision == null ? 0 : vision.getDuration())) {
-            player.addEffect(new MobEffectInstance(MobEffects.NIGHT_VISION, NIGHT_VISION_TICKS, 0, false, false, true));
+    private static void layNightVision(ServerPlayer player) {
+        if (!isLuxVision(player.getEffect(MobEffects.NIGHT_VISION))) {
+            player.addEffect(new MobEffectInstance(MobEffects.NIGHT_VISION, MobEffectInstance.INFINITE_DURATION, 0,
+                    true, false, false));
         }
+    }
+
+    /**
+     * Whether a night vision instance is Lux's own: endless, ambient, without
+     * particles and without icon, which no potion or beacon lays.
+     *
+     * @param vision the player's night vision, or null for none
+     * @return true for Lux's instance
+     */
+    public static boolean isLuxVision(@Nullable MobEffectInstance vision) {
+        return vision != null
+                && isLuxVision(vision.isInfiniteDuration(), vision.isAmbient(), vision.isVisible(), vision.showIcon());
+    }
+
+    /**
+     * Whether an instance's flags mark it as Lux's: endless and ambient, with
+     * neither particles nor icon.
+     *
+     * @param endless   whether it never runs out
+     * @param ambient   whether it is ambient
+     * @param particles whether it shows particles
+     * @param icon      whether it shows an icon
+     * @return true for Lux's flags
+     */
+    static boolean isLuxVision(boolean endless, boolean ambient, boolean particles, boolean icon) {
+        boolean quiet = !particles && !icon;
+        return endless && ambient && quiet;
     }
 
     private static void glistenTheGaze(ServerPlayer player) {
@@ -85,20 +111,9 @@ public final class LuxEvents {
      */
     public static void end(ServerPlayer player) {
         player.removeData(GooAttachments.LUX);
-        MobEffectInstance vision = player.getEffect(MobEffects.NIGHT_VISION);
-        if (vision != null && vision.getDuration() <= NIGHT_VISION_TICKS) {
+        if (isLuxVision(player.getEffect(MobEffects.NIGHT_VISION))) {
             player.removeEffect(MobEffects.NIGHT_VISION);
         }
-    }
-
-    /**
-     * Whether night vision with a duration left needs topping up.
-     *
-     * @param ticksLeft the duration left, zero for none
-     * @return true when it would soon flicker or has run out
-     */
-    static boolean needsTopUp(int ticksLeft) {
-        return ticksLeft < TOP_UP_BELOW;
     }
 
     /**

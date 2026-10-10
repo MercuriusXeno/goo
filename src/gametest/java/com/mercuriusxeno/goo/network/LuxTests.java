@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.held.LuxEvents;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -18,7 +19,7 @@ public final class LuxTests {
 
     private static final Identifier GLOW_LUX = Identifier.parse("goo:glow_lux");
     private static final String SHOULD_HOLD = "Once the eat finishes the player should hold Lux";
-    private static final String SHOULD_SEE_IN_THE_DARK = "Lux should grant night vision with no particles, granted %s";
+    private static final String SHOULD_SEE_IN_THE_DARK = "Lux should grant its endless night vision with no particles or card, granted %s";
     private static final String SHOULD_END = "Invoking held Lux again should end it and its night vision";
 
     private LuxTests() {
@@ -38,7 +39,7 @@ public final class LuxTests {
         boolean stands = player.getData(GooAttachments.LUX).standsAt(player.level().getGameTime());
         MobEffectInstance vision = player.getEffect(MobEffects.NIGHT_VISION);
         helper.assertTrue(held && stands, SHOULD_HOLD);
-        helper.assertTrue(vision != null && !vision.isVisible(), String.format(SHOULD_SEE_IN_THE_DARK, vision));
+        helper.assertTrue(LuxEvents.isLuxVision(vision), String.format(SHOULD_SEE_IN_THE_DARK, vision));
 
         SelfDeliveryTests.invoke(player, GooTypes.GLOW, GLOW_LUX);
         player.doTick();
