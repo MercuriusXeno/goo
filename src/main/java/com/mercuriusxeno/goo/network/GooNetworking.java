@@ -60,7 +60,7 @@ public final class GooNetworking {
 
     /**
      * Registers the client-bound payloads of the abilities' own visuals:
-     * glow's Scry, Sunbeam and Radiant, hex's leech and tomes, frost's Nova
+     * glow's Scry and Sunbeam, hex's leech and tomes, frost's Nova
      * rings and leaf's Reap swells.
      *
      * @param r the payload registrar
@@ -68,7 +68,6 @@ public final class GooNetworking {
     private static void registerAbilityVisualPayloads(PayloadRegistrar r) {
         r.playToClient(ScryPayload.TYPE, ScryPayload.STREAM_CODEC);
         r.playToClient(SunbeamPayload.TYPE, SunbeamPayload.STREAM_CODEC);
-        r.playToClient(WispFlightPayload.TYPE, WispFlightPayload.STREAM_CODEC);
         r.playToClient(LeechPayload.TYPE, LeechPayload.STREAM_CODEC);
         r.playToClient(TomePayload.TYPE, TomePayload.STREAM_CODEC);
         r.playToClient(NovaRingPayload.TYPE, NovaRingPayload.STREAM_CODEC);

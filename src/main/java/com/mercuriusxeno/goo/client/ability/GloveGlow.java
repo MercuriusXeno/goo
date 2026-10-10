@@ -2,51 +2,51 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GloveSelection;
-import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ber.WispRenderer;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
 /**
- * While right click holds a glow ability and glow goo is on hand, a soft
- * golden light glows around the glove: a disc facing the camera, added onto
- * the world, bright at the hand and fading to nothing at its rim, breathing
- * gently. It fades in as the hold starts and out as it ends, so the holder
- * sees the channel running even while no wisp leaves the hand.
+ * While right click holds a glow ability and glow goo is on hand, the goo in
+ * the local player's glove lights up: it draws full bright, and a golden
+ * shell of light, added onto what lies behind it, breathes around it. The
+ * glove's renderer draws the shell in the hand's own pass, so the glove
+ * never hides it. It fades in as the hold starts and out as it ends, so the
+ * holder sees the channel running even while no wisp appears.
  * decision radiant-wisps-where-light-is-low
- * operator ruling 2026-10-10: a light glow around the hand marks a held glow channel
+ * operator rulings 2026-10-10: a light glow around the hand marks a held glow channel;
+ * the first glow, drawn in the world at the hand, sat behind the glove and never showed
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GloveGlow {
 
     /** Ticks the glow takes to fade fully in, and to fade fully out. */
     static final int FADE_TICKS = 5;
-    /** The disc's radius, in blocks, before it breathes. */
-    private static final float RADIUS = 0.11f;
-    /** How much the radius breathes, as a share of itself, and how fast, in radians a tick. */
-    private static final float BREATH = 0.12f;
-    private static final float BREATH_PACE = 0.15f;
-    /** The glow's alpha at the hand, at full strength: light, never a blinding flare. */
-    private static final int CENTER_ALPHA = 110;
-    private static final int GLOW_RGB = 0xFFE07A;
-    /** Wedges the disc is drawn in around its center. */
-    private static final int WEDGES = 20;
+    /** The inner shell's half-size over the goo's, and its alpha at full strength. */
+    static final float INNER_SCALE = 1.45f;
+    private static final int INNER_ALPHA = 120;
+    /** The outer shell's half-size over the goo's, and its alpha at full strength. */
+    static final float OUTER_SCALE = 2.3f;
+    private static final int OUTER_ALPHA = 45;
+    private static final int INNER_RGB = 0xFFF0A8;
+    private static final int OUTER_RGB = 0xFFD84A;
+    /** How much the shells breathe, as a share of their size, and how fast, in radians a tick. */
+    private static final float BREATH = 0.1f;
+    private static final float BREATH_PACE = 0.2f;
 
-    /** Ticks the glow has faded in so far, zero to {@link #FADE_TICKS}. */
+    /** Ticks the glow has faded in so far, zero to {@link #FADE_TICKS}, now and the tick before. */
     private static int faded;
     private static int fadedBefore;
 
@@ -88,50 +88,59 @@ public final class GloveGlow {
     }
 
     /**
-     * Draws the glow around the glove after the translucent blocks, so water shows behind it.
+     * How strongly a glove glows this frame: the local player's held glove
+     * by its fade, any other glove not at all.
      *
-     * @param event the level render stage event
+     * @param stack the glove being drawn
+     * @return the strength, zero to one
      */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+    public static float strengthFor(ItemStack stack) {
         Minecraft mc = Minecraft.getInstance();
-        float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        float strength = Mth.lerp(partialTick, fadedBefore, faded) / FADE_TICKS;
-        if (strength <= 0f || mc.player == null || mc.level == null) {
-            return;
+        LocalPlayer player = mc.player;
+        if (faded == 0 && fadedBefore == 0 || player == null || !inHand(stack, player)) {
+            return 0f;
         }
-        Camera camera = mc.gameRenderer.getMainCamera();
-        Vec3 hand = GloveHand.of(mc, mc.player, partialTick).subtract(camera.position());
-        float time = mc.level.getGameTime() + partialTick;
-        float radius = RADIUS * (1f + BREATH * Mth.sin(time * BREATH_PACE));
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.GLOW_SHELL_TYPE);
-        PoseStack poseStack = event.getPoseStack();
-        poseStack.pushPose();
-        poseStack.translate(hand.x, hand.y, hand.z);
-        poseStack.mulPose(camera.rotation());
-        emitDisc(poseStack.last(), consumer, radius, ARGB.color(Math.round(CENTER_ALPHA * strength), GLOW_RGB));
-        poseStack.popPose();
-        buffers.endBatch(GooRenderTypes.GLOW_SHELL_TYPE);
+        return Mth.lerp(mc.getDeltaTracker().getGameTimeDeltaPartialTick(false), fadedBefore, faded) / FADE_TICKS;
     }
 
     /**
-     * Emits a disc in the pose's XY plane, its center the given color and its rim clear.
+     * Whether a glove being drawn is the one in either of the player's hands.
      *
-     * @param pose     the pose at the disc's center
-     * @param consumer the vertex consumer, position and color
-     * @param radius   the disc's radius
-     * @param center   the packed ARGB color at its center
+     * @param stack  the glove being drawn
+     * @param player the local player
+     * @return true when either hand holds it
      */
-    static void emitDisc(PoseStack.Pose pose, VertexConsumer consumer, float radius, int center) {
-        int rim = ARGB.color(0, center);
-        for (int wedge = 0; wedge < WEDGES; wedge++) {
-            float from = wedge * Mth.TWO_PI / WEDGES;
-            float to = (wedge + 1) * Mth.TWO_PI / WEDGES;
-            consumer.addVertex(pose, 0f, 0f, 0f).setColor(center);
-            consumer.addVertex(pose, Mth.cos(from) * radius, Mth.sin(from) * radius, 0f).setColor(rim);
-            consumer.addVertex(pose, Mth.cos(to) * radius, Mth.sin(to) * radius, 0f).setColor(rim);
-            consumer.addVertex(pose, 0f, 0f, 0f).setColor(center);
-        }
+    private static boolean inHand(ItemStack stack, LocalPlayer player) {
+        return heldBy(stack, player.getMainHandItem()) || heldBy(stack, player.getOffhandItem());
+    }
+
+    /**
+     * Whether a glove being drawn is the one in a hand: the same stack, or
+     * one alike in item and components, should the draw hold a copy.
+     *
+     * @param stack the glove being drawn
+     * @param held  the stack in the hand
+     * @return true when they match
+     */
+    private static boolean heldBy(ItemStack stack, ItemStack held) {
+        return stack == held || ItemStack.isSameItemSameComponents(stack, held);
+    }
+
+    /**
+     * Emits the glow's two shells about the pose's origin, the goo's center.
+     *
+     * @param pose     the pose at the goo's center
+     * @param consumer the vertex consumer, position and color
+     * @param gooHalf  the goo's half-size
+     * @param strength how strongly it glows, zero to one
+     * @param time     the game clock in ticks, which the breath follows
+     */
+    public static void emitShells(PoseStack.Pose pose, VertexConsumer consumer, float gooHalf, float strength,
+                                  float time) {
+        float breath = 1f + BREATH * Mth.sin(time * BREATH_PACE);
+        WispRenderer.emitCube(pose, consumer, gooHalf * OUTER_SCALE * breath,
+                ARGB.color(Math.round(OUTER_ALPHA * strength), OUTER_RGB));
+        WispRenderer.emitCube(pose, consumer, gooHalf * INNER_SCALE * breath,
+                ARGB.color(Math.round(INNER_ALPHA * strength), INNER_RGB));
     }
 }

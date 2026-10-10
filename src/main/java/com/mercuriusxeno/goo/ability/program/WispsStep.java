@@ -2,8 +2,6 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.GooConfig;
 import com.mercuriusxeno.goo.block.ability.WispBlock;
-import com.mercuriusxeno.goo.network.EntityVisuals;
-import com.mercuriusxeno.goo.network.WispFlightPayload;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
@@ -20,8 +18,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -44,11 +40,10 @@ import java.util.stream.Stream;
  * @param count  how many cells to walk each run
  * @param life   how many ticks a wisp lasts
  * @param above  how many blocks above the host the drip's cell sits
- * @param flight whether each wisp a holder's flood places flies out of their glove for the clients tracking them
  * @param flood  whether the step floods out from the holder's eyes; otherwise it tries the host's own cell
  * @param growth how many blocks the flood's edge grows each tick; zero reaches the radius at once
  */
-public record WispsStep(double radius, int count, int life, int above, boolean flight, boolean flood, double growth)
+public record WispsStep(double radius, int count, int life, int above, boolean flood, double growth)
         implements Step {
 
     private static final String NAME = "wisps";
@@ -56,7 +51,6 @@ public record WispsStep(double radius, int count, int life, int above, boolean f
     private static final String FIELD_COUNT = "count";
     private static final String FIELD_LIFE = "life";
     private static final String FIELD_ABOVE = "above";
-    private static final String FIELD_FLIGHT = "flight";
     private static final String FIELD_FLOOD = "flood";
     private static final String FIELD_GROWTH = "growth";
     private static final float CHIME_VOLUME = 0.4f;
@@ -79,7 +73,6 @@ public record WispsStep(double radius, int count, int life, int above, boolean f
             Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_COUNT).forGetter(WispsStep::count),
             Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_LIFE).forGetter(WispsStep::life),
             Codec.INT.optionalFieldOf(FIELD_ABOVE, 0).forGetter(WispsStep::above),
-            Codec.BOOL.optionalFieldOf(FIELD_FLIGHT, false).forGetter(WispsStep::flight),
             Codec.BOOL.optionalFieldOf(FIELD_FLOOD, false).forGetter(WispsStep::flood),
             Codec.DOUBLE.optionalFieldOf(FIELD_GROWTH, 0.0).forGetter(WispsStep::growth)
     ).apply(inst, WispsStep::new));
@@ -120,12 +113,7 @@ public record WispsStep(double radius, int count, int life, int above, boolean f
             FLOODS.put(holder.getUUID(), under);
         }
         under.walkedAt(level.getGameTime());
-        LevelCells cells = new LevelCells(level, holder);
-        under.walk(count, cells);
-        if (flight && !cells.placed.isEmpty()) {
-            // operator ruling 2026-10-10: each wisp flies out of the glove to its spot, in place of motes off the hand
-            EntityVisuals.sendToWatchers(holder, new WispFlightPayload(holder.getId(), cells.placed));
-        }
+        under.walk(count, new LevelCells(level, holder));
     }
 
     /**
@@ -218,7 +206,7 @@ public record WispsStep(double radius, int count, int life, int above, boolean f
 
         private final ServerLevel level;
         private final LivingEntity holder;
-        private final List<BlockPos> placed = new ArrayList<>();
+        private int chimed;
 
         LevelCells(ServerLevel level, LivingEntity holder) {
             this.level = level;
@@ -246,8 +234,7 @@ public record WispsStep(double radius, int count, int life, int above, boolean f
 
         @Override
         public void place(BlockPos cell) {
-            placeWisp(level, cell, placed.size() < CHIMES_PER_TICK);
-            placed.add(cell.immutable());
+            placeWisp(level, cell, chimed++ < CHIMES_PER_TICK);
         }
     }
 }

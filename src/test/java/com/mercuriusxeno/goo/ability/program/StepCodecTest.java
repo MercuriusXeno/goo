@@ -113,7 +113,7 @@ class StepCodecTest {
             Map.entry("shift", new ShiftStep(Expr.literal(16))),
             Map.entry("sight", new SightStep(Expr.literal(3))),
             Map.entry("lux", new LuxStep()),
-            Map.entry("wisps", new WispsStep(64, 4000, 1200, 0, true, true, 0.8)),
+            Map.entry("wisps", new WispsStep(64, 4000, 1200, 0, true, 0.8)),
             Map.entry("reflector", new ReflectorStep(20)),
             Map.entry("ray", new RayStep(32, 10, List.of(EntityFilter.LIVING), new RayStep.Refraction(16, 1.5, 0.85),
                     List.of(new DamageStep(Expr.parse("(4 + 4 * undead) * share").getOrThrow(), DamageKind.MAGIC)))),

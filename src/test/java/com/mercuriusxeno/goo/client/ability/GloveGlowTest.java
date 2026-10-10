@@ -10,12 +10,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * GloveGlow: the glow around the glove fades in while a glow hold runs and
- * out once it ends, and draws as a disc bright at the hand and clear at its rim.
+ * out once it ends, and draws as two shells around the held goo, the inner
+ * one brighter.
  * decision radiant-wisps-where-light-is-low
  */
 class GloveGlowTest {
 
-    private static final float RADIUS = 0.2f;
+    private static final float GOO_HALF = 2.5f / 16f;
     private static final float TOLERANCE = 1e-5f;
 
     @Test
@@ -34,21 +35,24 @@ class GloveGlowTest {
     }
 
     @Test
-    void theDiscIsBrightAtTheHandAndClearAtItsRim() {
+    void theGlowIsTwoShellsAroundTheGooBrighterWithin() {
         RecordingVertexConsumer consumer = new RecordingVertexConsumer();
-        int center = ARGB.color(110, 0xFFE07A);
-        GloveGlow.emitDisc(new PoseStack().last(), consumer, RADIUS, center);
+        GloveGlow.emitShells(new PoseStack().last(), consumer, GOO_HALF, 1f, 0f);
         List<RecordingVertexConsumer.Vertex> vertices = consumer.vertices();
-        assertTrue(vertices.size() > 0);
-        for (RecordingVertexConsumer.Vertex v : vertices) {
-            float reach = (float) Math.hypot(v.x(), v.y());
-            assertEquals(0f, v.z(), TOLERANCE);
-            if (reach < TOLERANCE) {
-                assertEquals(center, v.color());
-            } else {
-                assertEquals(RADIUS, reach, TOLERANCE);
-                assertEquals(0, ARGB.alpha(v.color()));
-            }
-        }
+        assertEquals(48, vertices.size());
+        float outer = Math.abs(vertices.get(0).x());
+        float inner = Math.abs(vertices.get(24).x());
+        assertEquals(GOO_HALF * GloveGlow.OUTER_SCALE, outer, TOLERANCE);
+        assertEquals(GOO_HALF * GloveGlow.INNER_SCALE, inner, TOLERANCE);
+        assertTrue(inner > GOO_HALF, "The inner shell should stand clear of the goo");
+        assertTrue(ARGB.alpha(vertices.get(24).color()) > ARGB.alpha(vertices.get(0).color()),
+                "The inner shell should glow brighter than the outer");
+    }
+
+    @Test
+    void noGlowDrawsClear() {
+        RecordingVertexConsumer consumer = new RecordingVertexConsumer();
+        GloveGlow.emitShells(new PoseStack().last(), consumer, GOO_HALF, 0f, 0f);
+        assertTrue(consumer.vertices().stream().allMatch(v -> ARGB.alpha(v.color()) == 0));
     }
 }
