@@ -18,7 +18,7 @@ public final class HivePrismStyle implements PrismComboStyle {
     /** The combo the style draws, nether's hive ability. */
     public static final String COMBO = HiveSwarm.COMBO;
     /** The swarm's maroon, the column's tint. */
-    private static final int MAROON = 0x7A1A2A;
+    static final int MAROON = 0x7A1A2A;
 
     @Override
     public void submit(PrismRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector) {
@@ -27,8 +27,17 @@ public final class HivePrismStyle implements PrismComboStyle {
             return;
         }
         PrismCrystal.standOnLandingFace(poseStack, state.facing);
-        CrystalClusterSubmitter.Look hive = new CrystalClusterSubmitter.Look(quartz.uv(),
-                ARGB.color(ARGB.alpha(quartz.color()), MAROON));
+        CrystalClusterSubmitter.Look hive = new CrystalClusterSubmitter.Look(quartz.uv(), columnColor(quartz.color()));
         CrystalClusterSubmitter.submit(poseStack, nodeCollector, PrismCrystal.PRISMS, hive, state.lightCoords);
+    }
+
+    /**
+     * The hive column's color: the quartz's alpha, in the swarm's maroon.
+     *
+     * @param quartzColor the plain prism's ARGB
+     * @return the column's ARGB
+     */
+    static int columnColor(int quartzColor) {
+        return ARGB.color(ARGB.alpha(quartzColor), MAROON);
     }
 }
