@@ -420,7 +420,8 @@ public final class DrinkTree {
         double join = Math.min(1, node.joinAt() / trunk.path().length());
         Vec3 at = node.endToward(DrinkStream.pointAt(trunk.path(), join, now), now);
         Vec3 arrival = DrinkStream.flowAt(trunk.path(), join, now);
-        return new Stream(block, new DrinkStream.Path(node.farSide(), at, block.seed(), arrival), trunk, join, now);
+        return new Stream(block, new DrinkStream.Path(node.farSide(), at, block.seed(), arrival, trunk.path(), join),
+                trunk, join, now);
     }
 
     /**

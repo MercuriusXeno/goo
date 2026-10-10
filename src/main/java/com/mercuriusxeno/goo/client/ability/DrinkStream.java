@@ -9,7 +9,8 @@ import org.jspecify.annotations.Nullable;
  * The shape of one stream of an Unmake drink along one path of its tree: a
  * goopy stream flowing languidly out of the block's lump at its entry, from
  * its far side through where the block stood to its join or the glove, snaking off the straight line as a
- * smooth noise field bends it, the bends carried slowly downstream and
+ * smooth noise field bends it, its last stretch sliding onto its trunk's spine
+ * so it runs with the trunk into the join as one strand, the bends carried slowly downstream and
  * drifting with time so the snake never repeats; its width a slow profile of
  * elongated bulbs and hourglass waists with gentle grades between them, the
  * bulb clamped at a few times the waist, scaled by the square root of its
@@ -56,7 +57,10 @@ public final class DrinkStream {
     static final double DRIFT = 0.01;
     /** Blocks over which an end of the stream tapers to its point. */
     static final double TIP = 0.6;
-    /** Blocks before its end over which a path curves to land along its arrival: its trunk's flow, or the look. */
+    /**
+     * Blocks before its end over which a path curves to land along its arrival, its trunk's flow or the look, and
+     * slides onto its trunk's spine to run with it into the join.
+     */
     static final double ARRIVAL_REACH = 1.5;
     /**
      * The largest a sprite is laid on the skin, in blocks, both along and round: the sprite's cell is half the
@@ -84,12 +88,16 @@ public final class DrinkStream {
     /**
      * One path of a drink's tree.
      *
-     * @param from    the block's far side, where the path starts
-     * @param to      where it ends: its join on the trunk it feeds, or the glove
-     * @param seed    the block's seed, so its snake and its width are its own
-     * @param arrival the unit direction the path arrives along, the trunk's flow at the join, or null to run straight
+     * @param from      the block's far side, where the path starts
+     * @param to        where it ends: its join on the trunk it feeds, or the glove
+     * @param seed      the block's seed, so its snake and its width are its own
+     * @param arrival   the unit direction the path arrives along, the trunk's flow at the join, or null to run straight
+     * @param trunk     the path it lands on, whose spine its last stretch slides onto so the two run as one strand
+     *                  into the join, or null for a path running to the glove
+     * @param joinShare the share of the trunk's path it lands at
      */
-    public record Path(Vec3 from, Vec3 to, long seed, @Nullable Vec3 arrival) {
+    public record Path(Vec3 from, Vec3 to, long seed, @Nullable Vec3 arrival, @Nullable Path trunk,
+                       double joinShare) {
 
         /**
          * A straight path.
@@ -100,6 +108,18 @@ public final class DrinkStream {
          */
         public Path(Vec3 from, Vec3 to, long seed) {
             this(from, to, seed, null);
+        }
+
+        /**
+         * A path landing along an arrival on no trunk.
+         *
+         * @param from    the block's far side
+         * @param to      where it ends
+         * @param seed    the block's seed
+         * @param arrival the unit direction it arrives along, or null to run straight
+         */
+        public Path(Vec3 from, Vec3 to, long seed, @Nullable Vec3 arrival) {
+            this(from, to, seed, arrival, null, 0);
         }
 
         /**
@@ -188,9 +208,12 @@ public final class DrinkStream {
     }
 
     /**
-     * Where the stream's middle runs: the path's spine, bent sideways by a
-     * smooth noise field read along the stream, most in the middle and not at
-     * all at either end.
+     * Where the stream's middle runs: the path's own snaking spine, and over
+     * the last {@link #ARRIVAL_REACH} of a path landing on a trunk, sliding
+     * onto the trunk's own spine the same distance before the join, so the
+     * tributary runs with the trunk into the join as one strand rather than
+     * beside it; a hand end gliding off the trunk's spine carries the stretch
+     * with it.
      *
      * @param path  the path
      * @param share the share of the path
@@ -198,6 +221,27 @@ public final class DrinkStream {
      * @return the point of the stream's middle there
      */
     public static Vec3 pointAt(Path path, double share, double now) {
+        Vec3 own = snakeAt(path, share, now);
+        Path trunk = path.trunk();
+        double remaining = (1 - share) * path.length();
+        if (trunk == null || trunk.length() == 0 || remaining >= ARRIVAL_REACH) {
+            return own;
+        }
+        Vec3 glide = path.to().subtract(pointAt(trunk, path.joinShare(), now));
+        Vec3 along = pointAt(trunk, Math.max(0, path.joinShare() - remaining / trunk.length()), now).add(glide);
+        return own.lerp(along, smoothRamp(0, ARRIVAL_REACH, ARRIVAL_REACH - remaining));
+    }
+
+    /**
+     * The path's own spine, bent sideways by a smooth noise field read along
+     * the stream, most in the middle and not at all at either end.
+     *
+     * @param path  the path
+     * @param share the share of the path
+     * @param now   the game time, with the partial tick
+     * @return the point of the path's own middle there
+     */
+    private static Vec3 snakeAt(Path path, double share, double now) {
         double length = path.length();
         if (length == 0) {
             return path.from();

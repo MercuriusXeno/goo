@@ -109,6 +109,38 @@ class DrinkStreamTest {
         }
 
         @Test
+        void aPathLandingOnATrunkSlidesOntoTheTrunksSpineOverItsLastStretch() {
+            DrinkStream.Path trunk = new DrinkStream.Path(new Vec3(9, 2.5, 3.5), TO, SEED + 1);
+            double joinShare = 0.5;
+            Vec3 join = DrinkStream.pointAt(trunk, joinShare, START);
+            Vec3 arrival = DrinkStream.flowAt(trunk, joinShare, START);
+            Vec3 far = new Vec3(9, 7.5, 3.5);
+            Vec3 lift = new Vec3(0, 0.3, 0);
+            DrinkStream.Path alone = new DrinkStream.Path(far, join, SEED, arrival);
+            DrinkStream.Path landing = new DrinkStream.Path(far, join, SEED, arrival, trunk, joinShare);
+            DrinkStream.Path gliding = new DrinkStream.Path(far, join.add(lift), SEED, arrival, trunk, joinShare);
+            double reach = DrinkStream.ARRIVAL_REACH;
+            double stretchStart = 1 - reach / landing.length();
+            double midway = 1 - reach / 2 / landing.length();
+            Vec3 onTrunk = DrinkStream.pointAt(trunk, joinShare - reach / 2 / trunk.length(), START);
+
+            assertEquals(DrinkStream.pointAt(alone, stretchStart / 2, START),
+                    DrinkStream.pointAt(landing, stretchStart / 2, START), "its own snake before the stretch");
+            assertEquals(0, DrinkStream.pointAt(alone, stretchStart, START)
+                    .distanceTo(DrinkStream.pointAt(landing, stretchStart, START)), DELTA, "and where it starts");
+            assertEquals(0, DrinkStream.pointAt(alone, midway, START).lerp(onTrunk, 0.5)
+                    .distanceTo(DrinkStream.pointAt(landing, midway, START)), DELTA,
+                    "midway it is half way from its own snake onto the trunk's spine the same distance before the join");
+            assertEquals(0, DrinkStream.pointAt(landing, 1, START).distanceTo(join), DELTA, "it ends at the join");
+            DrinkStream.Path aloneLifted = new DrinkStream.Path(far, join.add(lift), SEED, arrival);
+            double midwayGliding = 1 - reach / 2 / gliding.length();
+            assertEquals(0, DrinkStream.pointAt(aloneLifted, midwayGliding, START).lerp(onTrunk.add(lift), 0.5)
+                    .distanceTo(DrinkStream.pointAt(gliding, midwayGliding, START)), DELTA,
+                    "a hand end gliding off the spine carries the stretch with it");
+            assertEquals(0, DrinkStream.pointAt(gliding, 1, START).distanceTo(join.add(lift)), DELTA);
+        }
+
+        @Test
         void theTextureIsLaidAtItsOwnSizeMirroredWithNoSeam() {
             assertEquals(0, DrinkStream.textureAt(0), DELTA);
             assertEquals(1, DrinkStream.textureAt(1), DELTA);
