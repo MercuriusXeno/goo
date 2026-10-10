@@ -10,6 +10,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -89,20 +90,47 @@ public final class HiveSwarm {
         // the operator's ruling on Hive: the swarm buzzes as Decay's gnats do, one loop fading out with the prism
         buzzLoops.keepAlive(pos.immutable(), BUZZ, SoundSource.BLOCKS, BUZZ_VOLUME,
                 BUZZ_PITCH + (random.nextFloat() - (float) HALF) * BUZZ_PITCH_SPREAD, center);
-        List<Mob> eaten = level.getEntitiesOfClass(Mob.class, new AABB(pos).inflate(REACH),
-                mob -> mob.isAlive() && mob.position().distanceTo(center) <= REACH);
-        if (eaten.isEmpty()) {
-            Vec3 at = center.add(spread(random, CLUSTER_RADIUS));
-            Vec3 drift = spread(random, IDLE_DRIFT);
-            level.addParticle(GooParticles.GNAT.get(), at.x, at.y, at.z, drift.x, drift.y, drift.z);
-            return;
+        List<Vec3> prey = level.getEntitiesOfClass(Mob.class, new AABB(pos).inflate(REACH),
+                mob -> mob.isAlive() && mob.position().distanceTo(center) <= REACH)
+                .stream().map(mob -> mob.getBoundingBox().getCenter()).toList();
+        for (Gnat gnat : gnatsFor(center, prey, random)) {
+            level.addParticle(GooParticles.GNAT.get(), gnat.at().x, gnat.at().y, gnat.at().z,
+                    gnat.velocity().x, gnat.velocity().y, gnat.velocity().z);
         }
-        for (Mob mob : eaten) {
-            Vec3 launch = launchToward(center, mob.getBoundingBox().getCenter());
+    }
+
+    /**
+     * One gnat the swarm shows this tick.
+     *
+     * @param at       where it appears
+     * @param velocity how it starts moving, in blocks per tick
+     */
+    record Gnat(Vec3 at, Vec3 velocity) {
+    }
+
+    /**
+     * The gnats a hive shows this tick: with no prey in reach one idle gnat
+     * hovering about the column; with prey, gnats leaving the column for each
+     * one, which fade at the prey while new idle gnats gather at the column
+     * once the prey is gone (decision hive-prism-pillar-eats-the-living).
+     *
+     * @param center the column's center
+     * @param prey   the centers of the mobs in reach
+     * @param random the random source
+     * @return the gnats
+     */
+    static List<Gnat> gnatsFor(Vec3 center, List<Vec3> prey, RandomSource random) {
+        if (prey.isEmpty()) {
+            return List.of(new Gnat(center.add(spread(random, CLUSTER_RADIUS)), spread(random, IDLE_DRIFT)));
+        }
+        List<Gnat> gnats = new ArrayList<>();
+        for (Vec3 mob : prey) {
+            Vec3 launch = launchToward(center, mob);
             for (int gnat = 0; gnat < GNATS_PER_MOB; gnat++) {
-                level.addParticle(GooParticles.GNAT.get(), center.x, center.y, center.z, launch.x, launch.y, launch.z);
+                gnats.add(new Gnat(center, launch));
             }
         }
+        return gnats;
     }
 
     /**
