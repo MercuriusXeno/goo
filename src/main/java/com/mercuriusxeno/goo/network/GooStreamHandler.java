@@ -124,7 +124,7 @@ public final class GooStreamHandler {
             return;
         }
         if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge())) {
-            channelOnPlayer(player, new ChannelAim(payload.aimPoint(), payload.plane()), ability);
+            channelOnPlayer(player, new ChannelAim(payload.aimPoint(), payload.plane(), 0, held), ability);
         } else {
             strikeCone(player, payload.origin(), ability, held);
         }

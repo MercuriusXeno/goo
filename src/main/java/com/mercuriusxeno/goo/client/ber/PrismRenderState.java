@@ -4,7 +4,9 @@ import com.mercuriusxeno.goo.client.CrystalClusterSubmitter;
 import com.mercuriusxeno.goo.client.PrismCrystal;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.core.Direction;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
 
 /**
  * Render state snapshot for the prism: the look of its crystal, the face it
@@ -29,11 +31,24 @@ public class PrismRenderState extends BlockEntityRenderState {
     /** The id of the ability whose program is the prism's combo, empty for a plain prism. */
     public String combo = "";
 
+    /** The beam's scroll clock: the game time within vanilla's 40-tick beacon cycle plus the partial tick. */
+    public float animationTime;
+
+    /** How much a beam widens with the camera's horizontal distance, as vanilla's beacon widens. */
+    public float beamRadiusScale = 1f;
+
+    /** Each linked reflector's offset from this prism's cell, for the rail beams (decision reflector-rails-carry-the-brightest-light). */
+    public List<Vec3> links = List.of();
+
+    /** The light the linked network's rails carry, 0 to 15. */
+    public int linkLight;
+
     /** The charge a timekeeper prism's bank holds, zero for a prism that banks nothing. */
     public long bankTotal;
 
     /** True while Tick spends the bank, its charge falling within the last moments. */
     public boolean bankSpending;
+
     /** The game time with the partial tick, which a combo's animation reads. */
     public float gameTime;
 

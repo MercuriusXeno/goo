@@ -122,6 +122,13 @@ class AilmentOverlayLayerTest {
             assertTrue(AilmentOverlayLayer.overlayColor(AilmentKind.HEX, 1f) >>> 24
                     < AilmentOverlayLayer.overlayColor(AilmentKind.STASIS, 1f) >>> 24);
         }
+
+        /** Scry's glisten draws lighter still, since it marks every mob in its sphere at once. */
+        @Test
+        void glowGlistenDrawsLighterThanHex() {
+            assertTrue(AilmentOverlayLayer.overlayColor(AilmentKind.GLOW, 1f) >>> 24
+                    < AilmentOverlayLayer.overlayColor(AilmentKind.HEX, 1f) >>> 24);
+        }
     }
 
     @Test

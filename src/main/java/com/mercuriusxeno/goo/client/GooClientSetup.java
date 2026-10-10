@@ -30,6 +30,8 @@ import com.mercuriusxeno.goo.client.ability.ZapBolts;
 import com.mercuriusxeno.goo.client.ber.*;
 import com.mercuriusxeno.goo.client.ber.style.AgitatorPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlacialPrismStyle;
+import com.mercuriusxeno.goo.client.ber.style.GlowBeaconStyle;
+import com.mercuriusxeno.goo.client.ber.style.GlowReflectorStyle;
 import com.mercuriusxeno.goo.client.ber.style.HivePrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.OculusStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyles;
@@ -198,6 +200,9 @@ public final class GooClientSetup {
         event.registerBlockEntityRenderer(GooBlockEntities.ABILITY_BLOCK.get(),
                 AbilityBlockRenderer::new);
         event.registerBlockEntityRenderer(GooBlockEntities.PRISM.get(), PrismRenderer::new);
+        event.registerBlockEntityRenderer(GooBlockEntities.WISP.get(), WispRenderer::new);
+        PrismComboStyles.register(GlowBeaconStyle.COMBO, new GlowBeaconStyle());
+        PrismComboStyles.register(GlowReflectorStyle.COMBO, new GlowReflectorStyle());
         PrismComboStyles.register(HivePrismStyle.COMBO, new HivePrismStyle());
         event.registerBlockEntityRenderer(GooBlockEntities.DRAGON_GATE.get(), DragonGateRenderer::new);
         // oculus-prism-becomes-a-hovering-eye: an oculus prism draws as the hovering eye

@@ -49,7 +49,7 @@ public final class MobEffectTests {
      * corner, where an explosion's rays die on the barrier.
      */
     private static final BlockPos SPAWN_POS = new BlockPos(3, 1, 3);
-    /** One block beside the spawn, where the glow laser test stands its zombie. */
+    /** One block beside the spawn, where the charm tests stand their second mob. */
     private static final BlockPos BYSTANDER_POS = SPAWN_POS.east();
     /** The tick after spawning, once the level's entity index holds the spawned mobs. */
     private static final int SETTLE_TICKS = 1;
@@ -62,7 +62,6 @@ public final class MobEffectTests {
     private static final String CHARMED_SLIME_SHOULD_SPARE = "A charmed slime's hit should land nothing on its charmer";
     private static final String WILD_SLIME_SHOULD_HURT = "An uncharmed slime's hit should hurt the player";
     private static final float SLIME_HIT = 4f;
-    private static final String SHOULD_HAVE_GLOWING = "Target should have glowing";
     private static final String SHOULD_NOT_GLOW = "Target should wear the ailment overlay, not vanilla glowing";
     private static final String SHOULD_TAKE_DAMAGE = "Target should have taken damage";
     private static final String SHOULD_BE_ON_FIRE = "Target should be on fire";
@@ -92,7 +91,6 @@ public final class MobEffectTests {
     private static final String ABILITY_HEX_CHARM = "goo:hex_charm";
     private static final String ABILITY_VITAL_CLONE = "goo:vital_clone";
     private static final String ABILITY_BLAZE_IGNITE = "goo:blaze_ignite";
-    private static final String ABILITY_GLOW_LASER = "goo:glow_laser";
     private static final String ABILITY_CRYSTAL_FLECHETTES = "goo:crystal_flechettes";
     private static final String ABILITY_ENDER_BANISH = "goo:ender_banish";
     /** Above ender_banish.json's radius of six, so the player sets nothing off until the test walks it in. */
@@ -296,28 +294,6 @@ public final class MobEffectTests {
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, mob, ABILITY_TYPHOON_LEVITATE);
             helper.assertTrue(mob.hasEffect(MobEffects.LEVITATION), SHOULD_HAVE_LEVITATION);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Glow laser is a program: magic damage doubled by the undead variable,
-     * crit particles, an ignite step under an undead target selection and
-     * glowing under an alive one, so a zombie burns and a cow does not.
-     *
-     * @param helper the gametest helper
-     */
-    public static void glowLaser(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, BYSTANDER_POS);
-        float before = mob.getHealth();
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_GLOW_LASER);
-            strike(helper, zombie, ABILITY_GLOW_LASER);
-            helper.assertTrue(mob.getHealth() < before, SHOULD_TAKE_DAMAGE);
-            helper.assertTrue(mob.hasEffect(MobEffects.GLOWING), SHOULD_HAVE_GLOWING);
-            helper.assertFalse(mob.isOnFire(), LIVING_SHOULD_NOT_BURN);
-            helper.assertTrue(zombie.isOnFire(), UNDEAD_SHOULD_BURN);
             helper.succeed();
         });
     }

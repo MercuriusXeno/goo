@@ -85,6 +85,16 @@ public enum HostCapability {
      */
     DRIP(DripHost.class),
     /**
+     * The host's own block, whose properties can change in place (decision
+     * bulb-one-model-max-light-beacon-combo).
+     */
+    STATE_WRITE(StateWriteHost.class),
+    /**
+     * The server level the host stands in, read and written around its
+     * position (decision reflector-rails-carry-the-brightest-light).
+     */
+    LEVEL(LevelHost.class),
+    /**
      * A spot a mob from the host's chunk can be pulled to (decision
      * convoke-blob-throbs-until-a-mob-arrives).
      */
