@@ -69,13 +69,6 @@ public final class CharmEvents {
     }
 
     /**
-     * The charm a mob holds on the server while it stands; a faded charm
-     * is ended here.
-     *
-     * @param mob the mob
-     * @return the standing charm, or empty for none
-     */
-    /**
      * Holds a charmed mob's hits off every player: a slime's touch, which
      * hurts whatever player it bumps whatever it targets, among them.
      *
@@ -89,6 +82,13 @@ public final class CharmEvents {
         }
     }
 
+    /**
+     * The charm a mob holds on the server while it stands; a faded charm
+     * is ended here.
+     *
+     * @param mob the mob
+     * @return the standing charm, or empty for none
+     */
     private static Optional<Charmed> standingCharm(Mob mob) {
         if (mob.level().isClientSide() || !mob.hasData(GooAttachments.CHARMED)) {
             return Optional.empty();

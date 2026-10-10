@@ -50,8 +50,6 @@ public final class HexSpawnTests {
     private static final int MORPH_TICKS = 20;
     private static final float ALWAYS = 100f;
     private static final float NEVER = 0f;
-    /** Ticks after the drip to look for a conjured mob, the morph and then some. */
-    private static final int AFTER_THE_DRIP = MORPH_TICKS + 5;
     private static final String NO_TAP_MOB = "A drip at chance 100 should conjure a mob below the tap";
     private static final String TAP_MOB_AT_ZERO = "A drip at chance 0 should conjure nothing, found %s";
 
@@ -70,15 +68,11 @@ public final class HexSpawnTests {
         helper.setBlock(FLOOR_POS, Blocks.STONE);
         BlockPos landing = helper.absolutePos(FLOOR_POS);
         drip(helper, landing, NEVER);
-        helper.runAfterDelay(AFTER_THE_DRIP, () -> {
-            List<LivingEntity> atZero = mobsAbove(helper, landing);
-            helper.assertTrue(atZero.isEmpty(), String.format(TAP_MOB_AT_ZERO, atZero));
-            drip(helper, landing, ALWAYS);
-            helper.runAfterDelay(AFTER_THE_DRIP, () -> {
-                helper.assertFalse(mobsAbove(helper, landing).isEmpty(), NO_TAP_MOB);
-                helper.succeed();
-            });
-        });
+        List<LivingEntity> atZero = bornAbove(helper, landing);
+        helper.assertTrue(atZero.isEmpty(), String.format(TAP_MOB_AT_ZERO, atZero));
+        drip(helper, landing, ALWAYS);
+        helper.assertFalse(bornAbove(helper, landing).isEmpty(), NO_TAP_MOB);
+        helper.succeed();
     }
 
     private static void drip(GameTestHelper helper, BlockPos landing, float chancePercent) {
@@ -88,9 +82,19 @@ public final class HexSpawnTests {
                 .tick(new TapHost(helper.getLevel(), landing, Direction.UP));
     }
 
-    private static List<LivingEntity> mobsAbove(GameTestHelper helper, BlockPos landing) {
-        return helper.getLevel().getEntitiesOfClass(LivingEntity.class, new AABB(landing.above()).inflate(0.5),
-                living -> !(living instanceof Player));
+    /**
+     * The mobs standing in the cell above the landing that were born this
+     * tick. Read on the drip's own tick, before a mob's first tick, so a bat
+     * cannot fly off nor a walker step off the floor before it is counted,
+     * and a mob wandering in from a neighbouring test is never counted.
+     *
+     * @param helper  the gametest helper
+     * @param landing the cell the drip landed on
+     * @return the mobs born above the landing this tick
+     */
+    private static List<LivingEntity> bornAbove(GameTestHelper helper, BlockPos landing) {
+        return helper.getLevel().getEntitiesOfClass(LivingEntity.class, new AABB(landing.above()),
+                living -> !(living instanceof Player) && living.tickCount == 0);
     }
 
     /**
