@@ -47,7 +47,7 @@ class HeldDomeRendererTest {
         }
 
         @ParameterizedTest
-        @ValueSource(strings = {"crystal_flechettes", "ender_blink", "blaze_spitfire"})
+        @ValueSource(strings = {"crystal_shards", "ender_blink", "blaze_spitfire"})
         void mobSelfAndChanneledShowNoDome(String name) {
             assertFalse(shows(name, true));
         }

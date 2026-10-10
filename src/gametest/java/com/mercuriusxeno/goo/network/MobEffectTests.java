@@ -91,7 +91,6 @@ public final class MobEffectTests {
     private static final String ABILITY_HEX_CHARM = "goo:hex_charm";
     private static final String ABILITY_VITAL_CLONE = "goo:vital_clone";
     private static final String ABILITY_BLAZE_IGNITE = "goo:blaze_ignite";
-    private static final String ABILITY_CRYSTAL_FLECHETTES = "goo:crystal_flechettes";
     private static final String ABILITY_ENDER_BANISH = "goo:ender_banish";
     /** Above ender_banish.json's radius of six, so the player sets nothing off until the test walks it in. */
     private static final double PLAYER_OUT_OF_REACH_ABOVE = 20.0;
@@ -110,8 +109,6 @@ public final class MobEffectTests {
     private static final int CHICKENS_AFTER_CLONE = 2;
     /** Beside the cow, inside unstable_explode.json's blast of power 3. */
     private static final BlockPos BLAST_DIRT_POS = SPAWN_POS.south();
-    /** The damage crystal_flechettes.json's first damage step names. */
-    private static final float FLECHETTE_DAMAGE = 4.0f;
     private static final String LIVING_SHOULD_NOT_BURN = "A cow is not undead and should not burn";
     private static final String UNDEAD_SHOULD_BURN = "A zombie is undead and should burn";
     private static final String SHOULD_BE_HALF_FROZEN = "One snap should fill half a zombie's frozen gauge, stands %s";
@@ -176,22 +173,6 @@ public final class MobEffectTests {
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, mob, ABILITY_METAL_JAVELIN);
             helper.assertTrue(mob.getHealth() <= before - JAVELIN_DAMAGE, SHOULD_TAKE_JAVELIN_DAMAGE);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Crystal flechettes deals four magic damage to the struck mob; the
-     * splash selection it asks of the host is graded in MobProgramTest.
-     *
-     * @param helper the gametest helper
-     */
-    public static void crystalFlechettes(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        float before = mob.getHealth();
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_CRYSTAL_FLECHETTES);
-            helper.assertTrue(mob.getHealth() <= before - FLECHETTE_DAMAGE, SHOULD_TAKE_DAMAGE);
             helper.succeed();
         });
     }

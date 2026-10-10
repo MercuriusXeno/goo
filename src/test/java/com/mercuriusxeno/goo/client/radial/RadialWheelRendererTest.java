@@ -161,7 +161,7 @@ class RadialWheelRendererTest {
                 Map.entry("aeon_tick", "Tick"), Map.entry("aeon_timekeeper", "Timekeeper"),
                 Map.entry("aeon_chronosphere", "Chronosphere"), Map.entry("aeon_haste", "Haste"),
                 Map.entry("blaze_ignite", "Scorch"),
-                Map.entry("crystal_cloud", "Razor"), Map.entry("crystal_flechettes", "Shards"),
+                Map.entry("crystal_cloud", "Razor"), Map.entry("crystal_shards", "Shards"),
                 Map.entry("crystal_prism", "Prism"),
                 Map.entry("ender_banish", "Banish"), Map.entry("ender_teleportitis", "Teleportitis"), Map.entry("ender_convoke", "Convoke"), Map.entry("ender_dragon_gate", "End"), Map.entry("ender_oculus", "Oculus"),
                 Map.entry("frost_snap", "Snap"), Map.entry("frost_nova", "Nova"), Map.entry("frost_cold", "Cold"), Map.entry("frost_orb", "Orb"), Map.entry("frost_glacial", "Glacial"), Map.entry("frost_iceborn", "Iceborn"), Map.entry("glow_crystal", "Bulb"),

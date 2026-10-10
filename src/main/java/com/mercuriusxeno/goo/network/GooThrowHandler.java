@@ -92,7 +92,9 @@ public final class GooThrowHandler {
     }
 
     /**
-     * Fires a charged ability the player let go, when it may.
+     * Fires a charged ability the player let go, when it may: a self ability
+     * on the player, a thrown one as a sweep of flecks.
+     * shards-sling-then-morph-to-flechettes
      *
      * @param player  the releasing player
      * @param payload the charge payload
@@ -104,7 +106,25 @@ public final class GooThrowHandler {
         }
         AbilityDefinition ability = usableAbility(player, payload.abilityId(), gooType);
         if (ability != null && holdsReagents(player, ability)) {
-            GooSelfHandler.release(player, gooType, ability, payload.heldTicks());
+            fireCharge(player, gooType, ability, payload.heldTicks());
+        }
+    }
+
+    /**
+     * Fires a released charge by its delivery: on the player for a self
+     * ability, as a sweep of flecks for a thrown one that slings.
+     *
+     * @param player    the releasing player
+     * @param gooType   the ability's goo type
+     * @param ability   the charged ability
+     * @param heldTicks the ticks the use key was held
+     */
+    private static void fireCharge(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
+                                   AbilityDefinition ability, int heldTicks) {
+        if (ability.delivery().kind() == DeliveryKind.SELF) {
+            GooSelfHandler.release(player, gooType, ability, heldTicks);
+        } else if (ability.delivery().charge().slings()) {
+            FleckSling.sling(player, gooType, ability, heldTicks);
         }
     }
 

@@ -1,0 +1,20 @@
+{
+  "gooType": "crystal",
+  "displayName": "goo.ability.crystal.shards",
+  "badge": "channeled",
+  "order": 10,
+  "cost": 1000,
+  "requires": ["minecraft:amethyst_shard"],
+  "delivery": {
+    "kind": "arc",
+    "range": 16,
+    "transform_at": 0.25,
+    "form": "flechette",
+    "charge": { "max_ticks": 30, "flecks": 12, "spread_degrees": 60, "sweep_ticks": 4 }
+  },
+  "behaviors": [
+    { "type": "damage", "amount": 2, "source": "magic", "knockback": false },
+    { "type": "particles", "id": "minecraft:crit", "at": "target", "count": 4, "spread": 0.3, "speed": 0.1 }
+  ],
+  "tags": ["entity"]
+}
