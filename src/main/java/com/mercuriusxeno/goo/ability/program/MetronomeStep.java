@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.pulse.RedstoneBeat;
 import com.mojang.serialization.MapCodec;
+import net.minecraft.resources.Identifier;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -31,11 +32,22 @@ public record MetronomeStep() implements Step {
         return TYPE;
     }
 
+    /**
+     * The tick each beat plays, a soft clock tick so the rhythm carries
+     * across a room (operator UAT: the metronome struggled with conveyance).
+     */
+    static final SoundCue BEAT_TICK = new SoundCue(Identifier.withDefaultNamespace("block.note_block.hat"),
+            SoundKind.BLOCKS, 0.5f, 1.6f);
+
     @Override
     public boolean tick(StepContext context) {
         BeatHost beatHost = context.hostAs(BeatHost.class);
         RedstoneBeat beat = beatHost.beat();
-        context.hostAs(PowerEmitHost.class).emitPower(beat.pulsesAt(beatHost.gameTime()));
+        boolean pulses = beat.pulsesAt(beatHost.gameTime());
+        context.hostAs(PowerEmitHost.class).emitPower(pulses);
+        if (pulses) {
+            context.playSound(BEAT_TICK, 0);
+        }
         return false;
     }
 
