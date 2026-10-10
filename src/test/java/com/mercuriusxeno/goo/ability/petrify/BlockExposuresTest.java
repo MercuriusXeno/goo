@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.petrify;
 
+import com.mercuriusxeno.goo.ability.program.DegradeStep;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -39,7 +40,7 @@ class BlockExposuresTest {
     // decay-gnats-degrade-each-block-once: Decay's maroon stays on its overlay as the share grows or recedes
     @Test
     void aTintedShareKeepsItsTintGrowingOrDecaying() {
-        int maroon = 0xC03434;
+        int maroon = DegradeStep.NETHER_MAROON;
         BlockExposures.Exposure finishing = new BlockExposures.Exposure(null, 0.6f, NOW, 0.1f, maroon);
         assertEquals(maroon, BlockExposures.decayed(finishing, NOW + 1).tint());
         BlockExposures.Exposure left = new BlockExposures.Exposure(null, 0.5f, NOW, 0f, maroon);

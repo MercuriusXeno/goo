@@ -443,6 +443,7 @@ public final class GooTestFunctions {
     private static final String DECAY_PAST_HALF_FINISHES = "decay_past_half_finishes_after_release";
     private static final String DECAY_BITES_THE_MOB = "decay_bites_the_mob_and_spares_the_blocks";
     private static final String DECAY_PAINTS_CROSSHAIR = "decay_paints_the_crosshair_block_off_center";
+    private static final String DECAY_STEPS_THROUGH_A_BITE = "decay_painted_block_steps_through_a_bite";
     private static final String STATUE_MINES = "statue_mines_for_cobblestone_and_experience";
     private static final String PETRIFY_TAP_CALCIFIES = "petrify_tap_calcifies";
     private static final String DECAY_TAP_DEGRADES_BELOW = "decay_tap_degrades_below";
@@ -943,6 +944,7 @@ public final class GooTestFunctions {
         reg(r, DECAY_PAST_HALF_FINISHES, DecayStreamTests::decayPastHalfFinishesAfterRelease);
         reg(r, DECAY_BITES_THE_MOB, DecayStreamTests::decayBitesTheMobAndSparesTheBlocks);
         reg(r, DECAY_PAINTS_CROSSHAIR, DecayStreamTests::decayPaintsTheCrosshairBlockOffCenter);
+        reg(r, DECAY_STEPS_THROUGH_A_BITE, DecayStreamTests::decayPaintedBlockStepsThroughABite);
         reg(r, STATUE_MINES, PetrifyStreamTests::statueMinesForCobblestoneAndExperience);
         reg(r, PETRIFY_TAP_CALCIFIES, PetrifyTapTests::petrifyTapCalcifies);
         reg(r, DECAY_TAP_DEGRADES_BELOW, DecayTapTests::decayTapDegradesBelow);

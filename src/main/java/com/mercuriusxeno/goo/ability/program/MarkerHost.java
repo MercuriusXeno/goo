@@ -38,9 +38,10 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
     /**
-     * The blocks a black hole takes each tick, core outward: a radius 3 hole
-     * in one tick, a radius 20 hole in some 17, so a huge one never stalls
-     * the server in a single tick (decision black-hole-leaves-a-compression-sphere).
+     * The work a black hole's take spends each tick, a cell or a column of
+     * its shell walk each a unit: a radius 3 hole in one tick, a bigger one
+     * over more, so no size stalls the server in a single tick
+     * (decision black-hole-leaves-a-compression-sphere).
      */
     static final int BLOCKS_TAKEN_PER_TICK = 2048;
 
@@ -141,9 +142,9 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         if (!state.taking()) {
             return;
         }
-        List<BlockPos> cells = state.takeCells(pos, HoardedBlocks::coreOutward);
-        int next = HoardedBlocks.takeSome(level, cells, state.taken(), BLOCKS_TAKEN_PER_TICK, state.hoard());
-        if (state.tookTo(next, cells.size())) {
+        ShellWalk.Cursor next = HoardedBlocks.takeSome(level, pos, state.takeRadius(), state.takeCursor(),
+                BLOCKS_TAKEN_PER_TICK, state.hoard());
+        if (state.tookTo(next)) {
             CompressionSphere.leave(level, Vec3.atCenterOf(pos), state.hoard());
         }
     }

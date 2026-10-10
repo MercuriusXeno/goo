@@ -3,13 +3,11 @@ package com.mercuriusxeno.goo.block.ability;
 import com.mercuriusxeno.goo.ability.program.AgitationState;
 import com.mercuriusxeno.goo.ability.program.FieldEffectState;
 import com.mercuriusxeno.goo.ability.program.PhasedState;
+import com.mercuriusxeno.goo.ability.program.ShellWalk;
 import com.mercuriusxeno.goo.entity.CompressedHoard;
-import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import org.jspecify.annotations.Nullable;
-import java.util.List;
-import java.util.function.BiFunction;
 
 /**
  * The state a program running on a marker host keeps between ticks, held by
@@ -22,7 +20,9 @@ public final class MarkerProgramState {
     private static final String TAG_HOARD = "Hoard";
     private static final String TAG_CAST_SIZE = "CastSize";
     private static final String TAG_TAKE_RADIUS = "TakeRadius";
-    private static final String TAG_TAKEN = "Taken";
+    private static final String TAG_TAKE_SHELL = "TakeShell";
+    private static final String TAG_TAKE_X = "TakeX";
+    private static final String TAG_TAKE_Y = "TakeY";
     private static final String TAG_DROP_WHEN_TAKEN = "DropWhenTaken";
     /** The take radius of a marker taking no sphere. */
     private static final int NO_TAKE = -1;
@@ -33,10 +33,8 @@ public final class MarkerProgramState {
     private CompressedHoard hoard = new CompressedHoard();
     private double castSize;
     private int takeRadius = NO_TAKE;
-    private int taken;
+    private ShellWalk.Cursor takeCursor = ShellWalk.START;
     private boolean dropWhenTaken;
-    /** The cells of the sphere being taken, core outward; rebuilt from the radius when absent. */
-    private @Nullable List<BlockPos> takeCells;
 
     /**
      * Starts taking a sphere of blocks around the marker, core outward, a
@@ -46,8 +44,7 @@ public final class MarkerProgramState {
      */
     public void beginTaking(int radius) {
         takeRadius = radius;
-        taken = 0;
-        takeCells = null;
+        takeCursor = ShellWalk.START;
     }
 
     /**
@@ -58,46 +55,36 @@ public final class MarkerProgramState {
     }
 
     /**
-     * The sphere's cells, core outward, built once from the radius.
-     *
-     * @param center the marker's position
-     * @param order  how the cells of a sphere are ordered
-     * @return the cells
+     * @return the sphere radius being taken
      */
-    public List<BlockPos> takeCells(BlockPos center, BiFunction<BlockPos, Integer, List<BlockPos>> order) {
-        if (takeCells == null) {
-            takeCells = order.apply(center, takeRadius);
-        }
-        return takeCells;
+    public int takeRadius() {
+        return takeRadius;
     }
 
     /**
-     * @return the index of the first cell of the sphere not yet taken
+     * @return where the take of the sphere stands
      */
-    public int taken() {
-        return taken;
+    public ShellWalk.Cursor takeCursor() {
+        return takeCursor;
     }
 
     /**
      * Records how far the take has reached, ending it once every cell is taken.
      *
-     * @param next  the index of the first cell still to take
-     * @param total the sphere's cell count
+     * @param next where the take stands, or null once every cell is taken
      * @return true when this ends the take and the program asked for the sphere meanwhile, so it is due now
      */
-    public boolean tookTo(int next, int total) {
-        taken = next;
-        if (next < total) {
+    public boolean tookTo(ShellWalk.@Nullable Cursor next) {
+        if (next != null) {
+            takeCursor = next;
             return false;
         }
         takeRadius = NO_TAKE;
-        taken = 0;
-        takeCells = null;
+        takeCursor = ShellWalk.START;
         boolean due = dropWhenTaken;
         dropWhenTaken = false;
         return due;
     }
-
     /**
      * Asks for the sphere: while a take runs it is put off until the take
      * ends, so the sphere holds every block the hole takes.
@@ -165,9 +152,9 @@ public final class MarkerProgramState {
         hoard = input.read(TAG_HOARD, CompressedHoard.CODEC).orElseGet(CompressedHoard::new);
         castSize = input.getDoubleOr(TAG_CAST_SIZE, 0);
         takeRadius = input.getIntOr(TAG_TAKE_RADIUS, NO_TAKE);
-        taken = input.getIntOr(TAG_TAKEN, 0);
+        takeCursor = new ShellWalk.Cursor(input.getIntOr(TAG_TAKE_SHELL, ShellWalk.START.shell()),
+                input.getIntOr(TAG_TAKE_X, ShellWalk.START.x()), input.getIntOr(TAG_TAKE_Y, ShellWalk.START.y()));
         dropWhenTaken = input.getBooleanOr(TAG_DROP_WHEN_TAKEN, false);
-        takeCells = null;
         agitation.load(input);
     }
 
@@ -188,7 +175,9 @@ public final class MarkerProgramState {
         }
         if (taking()) {
             output.putInt(TAG_TAKE_RADIUS, takeRadius);
-            output.putInt(TAG_TAKEN, taken);
+            output.putInt(TAG_TAKE_SHELL, takeCursor.shell());
+            output.putInt(TAG_TAKE_X, takeCursor.x());
+            output.putInt(TAG_TAKE_Y, takeCursor.y());
         }
         if (dropWhenTaken) {
             output.putBoolean(TAG_DROP_WHEN_TAKEN, true);

@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.AbilityMath;
 import com.mercuriusxeno.goo.entity.CompressedHoard;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -14,9 +13,7 @@ import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The world side of {@link HoardHost}: walks a sphere of blocks core outward,
@@ -33,44 +30,23 @@ final class HoardedBlocks {
     }
 
     /**
-     * The cells of a sphere a black hole takes, its center, the anchor's own
-     * cell, left out, nearest the center first, so the hole decays away its
-     * core outward (decision black-hole-leaves-a-compression-sphere).
-     *
-     * @param center the sphere center
-     * @param radius the sphere radius in whole blocks
-     * @return the cells, nearest first
-     */
-    static List<BlockPos> coreOutward(BlockPos center, int radius) {
-        List<BlockPos> cells = new ArrayList<>();
-        AbilityMath.forEachInSphere(center, radius, cell -> {
-            if (!cell.equals(center)) {
-                cells.add(cell.immutable());
-            }
-        });
-        cells.sort(Comparator.comparingDouble(cell -> cell.distSqr(center)));
-        return cells;
-    }
-
-    /**
-     * Takes the next cells of a sphere into the hoard, up to a budget, each
-     * breakable block as its silk-touched drops; air, a fluid and an
-     * unbreakable block stand.
+     * Takes the next cells of a sphere into the hoard, core outward a shell
+     * at a time, about a budget of work, each breakable block as its
+     * silk-touched drops; air, a fluid and an unbreakable block stand
+     * (decision black-hole-leaves-a-compression-sphere).
      *
      * @param level  the level to take from
-     * @param cells  the sphere's cells, nearest the center first
-     * @param from   the index of the first cell not yet taken
-     * @param budget the most cells this call takes
+     * @param center the sphere center, the anchor's own cell, never taken
+     * @param radius the sphere radius in whole blocks
+     * @param from   where the take stands
+     * @param budget the work this call spends
      * @param hoard  the hoard each block's drops join
-     * @return the index of the first cell still to take, the cell count once every cell is taken
+     * @return where the take stands after, or null once every cell is taken
      */
-    static int takeSome(ServerLevel level, List<BlockPos> cells, int from, int budget, CompressedHoard hoard) {
+    static ShellWalk.@Nullable Cursor takeSome(ServerLevel level, BlockPos center, int radius, ShellWalk.Cursor from,
+                                               int budget, CompressedHoard hoard) {
         ItemStack silkPick = silkPick(level);
-        int to = Math.min(cells.size(), from + budget);
-        for (int index = from; index < to; index++) {
-            takeIfBreakable(level, cells.get(index), silkPick, hoard);
-        }
-        return to;
+        return ShellWalk.walk(center, radius, from, budget, cell -> takeIfBreakable(level, cell, silkPick, hoard));
     }
 
     private static ItemStack silkPick(ServerLevel level) {

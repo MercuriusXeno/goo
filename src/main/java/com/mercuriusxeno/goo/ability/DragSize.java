@@ -17,6 +17,8 @@ public final class DragSize {
     /** The smallest radius a cast opens at, however short the drag. */
     public static final double MIN_RADIUS = 1;
     private static final double CUBE = 3;
+    /** Slack under a whole radius a cube root's rounding may leave, so 2.9999999 reads 3. */
+    private static final double WHOLE_SLACK = 1e-9;
 
     private DragSize() {
     }
@@ -51,18 +53,17 @@ public final class DragSize {
 
     /**
      * The radius a cast opens at: the radius dragged, cut back to the largest
-     * the holdings pay for.
+     * the holdings pay for, in whole blocks, since the hole takes whole
+     * blocks and is charged for the radius it takes.
      *
      * @param dragged       the radius the drag set
      * @param referenceCost the ability's JSON cost
      * @param holdings      the mB the player holds of the ability's goo type
-     * @return the radius, the smallest radius when the holdings pay for less, which the cast then cannot afford
+     * @return the whole radius, the smallest radius when the holdings pay for less, which the cast then cannot afford
      */
     public static double affordable(double dragged, int referenceCost, int holdings) {
-        if (referenceCost <= 0) {
-            return dragged;
-        }
-        double paidFor = REFERENCE_RADIUS * Math.cbrt((double) holdings / referenceCost);
-        return Math.max(MIN_RADIUS, Math.min(dragged, paidFor));
+        double paidFor = referenceCost <= 0 ? dragged
+                : REFERENCE_RADIUS * Math.cbrt((double) holdings / referenceCost);
+        return Math.max(MIN_RADIUS, Math.floor(Math.min(dragged, paidFor) + WHOLE_SLACK));
     }
 }

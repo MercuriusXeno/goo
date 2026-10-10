@@ -114,7 +114,8 @@ public final class FrostAbilityTests {
     private static final int STILL_ROLLING_TICKS = 40;
     private static final int RANGE_SPENT_TICKS = 70;
     private static final String SHOULD_STILL_ROLL = "The Orb should still be rolling twelve blocks out";
-    private static final String SHOULD_END_AT_RANGE = "The Orb should end once it has rolled its sixteen blocks";
+    private static final String SHOULD_END_AT_RANGE_FROM =
+            "The Orb should end once it has rolled its sixteen blocks; it stands %s from its start, entity ticking %s";
     /** A prism in the bay's corner, a zombie beside it and its twin in the far corner past Glacial's reach of 5. */
     private static final BlockPos GLACIAL_PRISM_POS = new BlockPos(0, 1, 0);
     private static final BlockPos GLACIAL_INSIDE_POS = new BlockPos(1, 1, 1);
@@ -331,7 +332,9 @@ public final class FrostAbilityTests {
                 SHOULD_STILL_ROLL));
         helper.runAfterDelay(RANGE_SPENT_TICKS, () -> {
             helper.getLevel().getServer().getPlayerList().remove(thrower);
-            helper.assertTrue(rolled.get().isRemoved(), SHOULD_END_AT_RANGE);
+            RollingGoo goo = rolled.get();
+            helper.assertTrue(goo.isRemoved(), String.format(SHOULD_END_AT_RANGE_FROM, goo.position().subtract(sky),
+                    helper.getLevel().isPositionEntityTicking(goo.blockPosition())));
             helper.succeed();
         });
     }

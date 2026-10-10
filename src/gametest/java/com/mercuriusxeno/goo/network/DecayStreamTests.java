@@ -51,6 +51,12 @@ public final class DecayStreamTests {
     private static final Identifier NETHER_DECAY = Identifier.parse("goo:nether_decay");
     private static final String ABILITY_REQUIRED = "Ability registry must hold nether_decay";
     private static final String SHOULD_BITE = "Decay's swarm should bite the zombie in its cone";
+    private static final String SHOULD_BITE_AT_HIVES_RATE = "Decay's swarm bit %.2f health, Hive's rate gives %.2f";
+    /** nether_hive.json's bite, 2 every 4 ticks, as health a tick. */
+    private static final float HIVE_RATE = 2f / 4f;
+    private static final float HEALTH_SLACK = 0.01f;
+    /** A zombie stands two blocks out, in the cone the player aims at the stone three out. */
+    private static final BlockPos IN_THE_CONE = STAND_POS.east(2);
     /**
      * Pitch down onto the middle of a zombie four blocks off; the stone five
      * off, behind it, lies under three degrees from that line, inside the cone.
@@ -157,8 +163,37 @@ public final class DecayStreamTests {
         hold(helper, player, 1, FINISH_TICKS);
         helper.runAfterDelay(FINISH_TICKS + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(zombie.getHealth() < zombie.getMaxHealth(), SHOULD_BITE);
+            // decay-gnats-degrade-each-block-once: the swarm bites at Hive's rate, 2 every 4 ticks, half a tick
+            float bitten = zombie.getMaxHealth() - zombie.getHealth();
+            helper.assertTrue(Math.abs(bitten - HIVE_RATE * FINISH_TICKS) < HEALTH_SLACK,
+                    String.format(SHOULD_BITE_AT_HIVES_RATE, bitten, HIVE_RATE * FINISH_TICKS));
             helper.assertBlockPresent(Blocks.STONE, BEHIND_ZOMBIE);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A mock player brushes decay across stone for a few ticks, short of half
+     * its step, then a zombie steps into the cone and the swarm bites it while
+     * the hold goes on: the painted stone keeps stepping to cobblestone
+     * through the bite (the operator's ruling on decision
+     * decay-gnats-degrade-each-block-once).
+     *
+     * @param helper the gametest helper
+     */
+    public static void decayPaintedBlockStepsThroughABite(GameTestHelper helper) {
+        ServerPlayer player = decayerOverStone(helper);
+        helper.setBlock(IN_THE_CONE.below(), Blocks.BEDROCK);
+        hold(helper, player, 1, BRUSH_TICKS + FINISH_TICKS);
+        Mob[] zombie = new Mob[1];
+        helper.runAfterDelay(BRUSH_TICKS + 1, () -> {
+            zombie[0] = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, IN_THE_CONE);
+            zombie[0].setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+        });
+        helper.runAfterDelay(BRUSH_TICKS + FINISH_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(zombie[0].getHealth() < zombie[0].getMaxHealth(), SHOULD_BITE);
+            helper.assertBlockPresent(Blocks.COBBLESTONE, TARGET_POS);
             helper.succeed();
         });
     }

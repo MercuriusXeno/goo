@@ -44,7 +44,7 @@ public record DegradeStep(Identifier map, int ticks) implements Step {
      * The tint Decay's mingled block wears, nether goo's #C03434, so the
      * block's own grays multiply down to a dark maroon.
      */
-    static final int NETHER_MAROON = 0xC03434;
+    public static final int NETHER_MAROON = 0xC03434;
 
     /**
      * Codec for the step's params.
@@ -70,7 +70,9 @@ public record DegradeStep(Identifier map, int ticks) implements Step {
         Optional<BlockMap> steps = BlockMaps.get(map);
         host.channelAim().ifPresent(aim -> steps.ifPresent(found -> {
             HoldMarks marks = host.holdMarks();
-            paintCone(host, aim, found, marks);
+            if (aim.reaching()) {
+                paintCone(host, aim, found, marks);
+            }
             buildPainted(host, found, marks, 1f / ticks);
         }));
         return true;
