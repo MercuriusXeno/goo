@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.banish.Teleportitis;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
+import com.mercuriusxeno.goo.ability.hex.Lifetap;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.Sight;
@@ -23,6 +24,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Holds a player's self + brew effects on the server: starts one when the
@@ -223,22 +225,36 @@ public final class HeldEffectsEvents {
 
     private static void clearLaid(ServerPlayer player, List<HeldEffects.Held> ended) {
         for (HeldEffects.Held effect : ended) {
-            if (effect.lays().contains(LaidState.HEART_OVERLAY)) {
-                player.setData(GooAttachments.HEART_OVERLAY, HeartOverlay.NONE);
-            }
-            if (effect.lays().contains(LaidState.NOURISH)) {
-                player.setData(GooAttachments.NOURISH, Nourish.NONE);
-            }
-            if (effect.lays().contains(LaidState.SIGHT)) {
-                // sight-lengthens-shift-and-outlines-fungus: the sight ends with its held effect
-                player.setData(GooAttachments.SIGHT, Sight.NONE);
-            }
-            if (effect.lays().contains(LaidState.TELEPORTITIS)) {
-                // teleportitis-blinks-along-the-cursor-on-hit: the teleportitis ends with its held effect
-                player.setData(GooAttachments.TELEPORTITIS, Teleportitis.NONE);
-            }
+            clearState(player, effect.lays());
             // brew-runs-the-crawl-prepaid-on-a-shown-clock: the effect list's entry ends with the effect
             player.removeEffect(GooMobEffects.BREW_EFFECTS.get(effect.gooType()));
+        }
+    }
+
+    /**
+     * Clears the player state one ended effect laid.
+     *
+     * @param player the player
+     * @param lays   the state the effect laid
+     */
+    private static void clearState(ServerPlayer player, Set<LaidState> lays) {
+        if (lays.contains(LaidState.HEART_OVERLAY)) {
+            player.setData(GooAttachments.HEART_OVERLAY, HeartOverlay.NONE);
+        }
+        if (lays.contains(LaidState.NOURISH)) {
+            player.setData(GooAttachments.NOURISH, Nourish.NONE);
+        }
+        if (lays.contains(LaidState.SIGHT)) {
+            // sight-lengthens-shift-and-outlines-fungus: the sight ends with its held effect
+            player.setData(GooAttachments.SIGHT, Sight.NONE);
+        }
+        if (lays.contains(LaidState.TELEPORTITIS)) {
+            // teleportitis-blinks-along-the-cursor-on-hit: the teleportitis ends with its held effect
+            player.setData(GooAttachments.TELEPORTITIS, Teleportitis.NONE);
+        }
+        if (lays.contains(LaidState.LIFETAP)) {
+            // lifetap-trades-regen-for-leech: the leech ends with its held effect
+            player.setData(GooAttachments.LIFETAP, Lifetap.NONE);
         }
     }
 }

@@ -4,14 +4,21 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.AfterimageStep;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
 import com.mercuriusxeno.goo.ability.program.AilmentOverlayStep;
+import com.mercuriusxeno.goo.ability.program.BranchStep;
+import com.mercuriusxeno.goo.ability.program.CharmStep;
+import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.GhostTrailStep;
+import com.mercuriusxeno.goo.ability.program.HostVariables;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.PotionStep;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.SoundStep;
+import com.mercuriusxeno.goo.ability.program.SpawnRandomStep;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
+import com.mercuriusxeno.goo.ability.program.TomeKind;
+import com.mercuriusxeno.goo.ability.program.TomeStep;
 import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.data.IdentifiedJsonScan;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -32,8 +39,10 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -54,6 +63,11 @@ class AbilityLoaderTest {
 
     private static final String DIRECTORY = "goo_abilities";
     private static final Identifier GLOWING = Identifier.parse("minecraft:glowing");
+    private static final int CHARM_ROLLS = 1000;
+    private static final int RARE_CHARMS = 50;
+    private static final double ZOMBIE_MAX_HEALTH = 20;
+    private static final double TOP_MAX_HEALTH = 1024;
+    private static final double TAP_SPAWN_CHANCE = 5;
     /** The abilities whose whole design was a per-stack shape. */
     /** The world abilities that stay after their blob lands. */
     private static final List<String> LINGERING_ABILITIES = List.of("crystal_cloud", "metal_spikes",
@@ -77,6 +91,11 @@ class AbilityLoaderTest {
             Map.entry("ender_dragon_gate", List.of("dragon_breath")),
             Map.entry("ender_oculus", List.of("ender_eye")),
             Map.entry("hex_charm", List.of("honey_bottle", "cake", "cookie")),
+            Map.entry("hex_enchant", List.of("book", "lapis_lazuli")),
+            Map.entry("hex_fuse", List.of("bookshelf", "lapis_lazuli")),
+            Map.entry("hex_spawn", List.of("sculk")),
+            Map.entry("hex_lifetap", List.of("soul_sand")),
+            Map.entry("hex_drain", List.of("soul_sand")),
             Map.entry("unstable_explode", List.of("gunpowder")),
             Map.entry("unstable_proximity_mine", List.of("tnt")),
             Map.entry("glow_laser", List.of("spectral_arrow")),
@@ -251,6 +270,86 @@ class AbilityLoaderTest {
                 .map(step -> ((AilmentOverlayStep) step).kind()).toList(), name);
         assertTrue(steps.stream().filter(PotionStep.class::isInstance)
                 .noneMatch(step -> GLOWING.equals(((PotionStep) step).effect())), name + " still applies glowing");
+    }
+
+    /**
+     * Hex charm charms the struck mob in place of weakening it
+     * (decision charm-glisten-and-icon-over-the-head).
+     */
+    @Test
+    void hexCharmCharmsInPlaceOfWeakness() {
+        List<Step> steps = AbilityJson.decode("hex_charm").behaviors().stream()
+                .flatMap(AbilityLoaderTest::stepTree).toList();
+
+        assertTrue(steps.stream().anyMatch(CharmStep.class::isInstance), "no charm step");
+        assertTrue(steps.stream().noneMatch(PotionStep.class::isInstance), "still applies a potion");
+    }
+
+    /**
+     * Hex enchant consumes one book and plays a hex afterimage on the player
+     * (decision enchant-book-with-a-purple-afterimage).
+     */
+    @Test
+    void hexEnchantTakesABookUnderAHexAfterimage() {
+        AbilityDefinition enchant = AbilityJson.decode("hex_enchant");
+
+        assertEquals(List.of(Identifier.withDefaultNamespace("book")), enchant.consumes());
+        assertEquals(List.of(GooTypes.HEX), afterimageTypes(enchant.behaviors()));
+    }
+
+    /**
+     * Hex's tap conjures on one drip in twenty, its chance in its JSON
+     * (decision spawn-drip-rolls-a-fresh-spawn).
+     */
+    @Test
+    void hexSpawnTapRollsFivePercent() {
+        SpawnRandomStep spawn = AbilityJson.decode("hex_spawn_tap").behaviors().stream()
+                .filter(SpawnRandomStep.class::isInstance).map(SpawnRandomStep.class::cast).findFirst().orElseThrow();
+
+        assertEquals(TAP_SPAWN_CHANCE, spawn.chance().evaluate(Variables.NONE));
+    }
+
+    /**
+     * Enchant and Fuse each play their tome once their own step has acted
+     * (decisions enchant-book-with-a-purple-afterimage, fuse-two-books-for-hex-goo).
+     */
+    @ParameterizedTest
+    @CsvSource({"hex_enchant, ENCHANT", "hex_fuse, FUSE"})
+    void bookAbilitiesPlayTheirTome(String name, TomeKind kind) {
+        assertEquals(List.of(kind), AbilityJson.decode(name).behaviors().stream()
+                .filter(TomeStep.class::isInstance).map(step -> ((TomeStep) step).kind()).toList(), name);
+    }
+
+    /**
+     * Every brew sounds as its effect starts, as every held effect sounds as
+     * it ends (decision held-effects-sound-up-and-down).
+     */
+    @ParameterizedTest
+    @CsvSource({"blaze_kindle", "leaf_barkskin", "rock_stoneskin", "vital_nourish", "shroom_sight", "hex_lifetap"})
+    void everyBrewSoundsAsItStarts(String name) {
+        assertTrue(AbilityJson.decode(name).behaviors().stream().anyMatch(SoundStep.class::isInstance), name);
+    }
+
+    /**
+     * Hex charm lands on every zombie, max health 20, and on few mobs at
+     * vanilla's top max health, 1024: of a thousand rolls at 1024, where
+     * pow(20 / max_health, 1.5) expects under three, fewer than fifty land
+     * (decision charm-glisten-and-icon-over-the-head).
+     */
+    @Test
+    void hexCharmIsResistedByHighHealth() {
+        Expr chance = AbilityJson.decode("hex_charm").behaviors().stream()
+                .flatMap(AbilityLoaderTest::stepTree).filter(BranchStep.class::isInstance)
+                .map(step -> ((BranchStep) step).when()).findFirst().orElseThrow();
+
+        assertEquals(CHARM_ROLLS, landedCharms(chance, ZOMBIE_MAX_HEALTH));
+        assertTrue(landedCharms(chance, TOP_MAX_HEALTH) < RARE_CHARMS, "high health should rarely be charmed");
+    }
+
+    private static long landedCharms(Expr chance, double maxHealth) {
+        Variables mob = name -> HostVariables.MAX_HEALTH.equals(name) ? OptionalDouble.of(maxHealth)
+                : OptionalDouble.empty();
+        return IntStream.range(0, CHARM_ROLLS).filter(roll -> chance.evaluate(mob) != 0).count();
     }
 
     /**

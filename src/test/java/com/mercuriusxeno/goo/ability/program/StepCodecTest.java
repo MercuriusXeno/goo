@@ -130,7 +130,18 @@ class StepCodecTest {
             Map.entry("banish", new BanishStep(Expr.literal(6), Expr.literal(32))),
             Map.entry("teleportitis", new TeleportitisStep(Expr.literal(8))),
             Map.entry("convoke", new ConvokeStep(Expr.literal(20))),
-            Map.entry("dragon_gate", new DragonGateStep(Expr.literal(1200)))
+            Map.entry("dragon_gate", new DragonGateStep(Expr.literal(1200))),
+            Map.entry("charm", new CharmStep(Expr.literal(6000))),
+            Map.entry("enchant_book", LeafSteps.ENCHANT_BOOK.step(Unit.INSTANCE)),
+            Map.entry("fuse_books", new FuseBooksStep(Optional.of(new SoundCue(
+                    Identifier.withDefaultNamespace("block.fire.extinguish"), SoundKind.PLAYERS, 0.4f, 1.6f)))),
+            Map.entry("spawn_random", new SpawnRandomStep(GooTypes.HEX, 20,
+                    List.of(new AilmentOverlayStep(AilmentKind.HEX, Expr.literal(60))), Expr.literal(5))),
+            Map.entry("agitate", new AgitateStep(8, 400, 0.75, 40)),
+            Map.entry("lifetap", new LifetapStep(Expr.literal(0.3))),
+            Map.entry("tome", new TomeStep(TomeKind.FUSE)),
+            Map.entry("leech", new LeechStep(Expr.literal(0.5),
+                    List.of(new DamageStep(Expr.literal(2), DamageKind.ATTACK))))
     );
 
     private static Step roundTrip(Step step) {

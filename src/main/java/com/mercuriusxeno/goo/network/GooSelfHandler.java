@@ -15,6 +15,7 @@ import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepContext;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
 import com.mercuriusxeno.goo.item.GooGloveItem;
@@ -172,7 +173,11 @@ public final class GooSelfHandler {
         int price = ability.distancePrice().priceOf(ability.cost(), trip);
         // oculus-prism-becomes-a-hovering-eye: a charged oculus pays for the blink to it
         int cost = OculusCharge.costAt(player.level(), price, trip);
-        if (!affords(player, gooType, ability, cost) || !admits(host, ability)) {
+        if (!affords(player, gooType, ability, cost)) {
+            return false;
+        }
+        if (!admits(host, ability)) {
+            playRefusal(host, ability);
             return false;
         }
         GooSourceScanner.deplete(player, gooType, cost);
@@ -194,6 +199,19 @@ public final class GooSelfHandler {
     private static boolean admits(PlayerHost host, AbilityDefinition ability) {
         StepContext context = new StepContext(host, 0, 0);
         return ability.behaviors().stream().allMatch(step -> step.admits(context));
+    }
+
+    /**
+     * Plays the refusal sound the first refusing step names, if it names
+     * one; Fuse with no pair fizzles (decision fuse-two-books-for-hex-goo).
+     *
+     * @param host    the player host
+     * @param ability the refused self ability
+     */
+    private static void playRefusal(PlayerHost host, AbilityDefinition ability) {
+        StepContext context = new StepContext(host, 0, 0);
+        ability.behaviors().stream().filter(step -> !step.admits(context)).findFirst()
+                .flatMap(Step::refusal).ifPresent(host::playSound);
     }
 
     /**

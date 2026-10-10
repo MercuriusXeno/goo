@@ -18,8 +18,8 @@ public enum AilmentKind {
     BANISH(0xB05CFF, AilmentPattern.SHIMMER),
     /** Teleportitis: the banish shimmer. */
     TELEPORTITIS(0xB05CFF, AilmentPattern.SHIMMER),
-    /** Hex's charm: a dark purple glisten. */
-    HEX(0x6A1FB0, AilmentPattern.GLINT),
+    /** Hex's charm: a dark purple glisten, drawn light so the mob shows through. */
+    HEX(0x6A1FB0, AilmentPattern.GLINT, 0.55f),
     /** Petrify: a stone encasement. */
     PETRIFY(0x8C8A86, AilmentPattern.STONE),
     /** Frozen: frost. */
@@ -28,12 +28,21 @@ public enum AilmentKind {
     /** Codec for the kind as an ability JSON writes it, in lower case. */
     public static final Codec<AilmentKind> CODEC = LowerCaseEnumCodec.of(AilmentKind.class, "ailment kind");
 
+    /** The opacity an ailment draws at unless it names its own. */
+    private static final float FULL_OPACITY = 1f;
+
     private final int rgb;
     private final AilmentPattern pattern;
+    private final float opacity;
 
     AilmentKind(int rgb, AilmentPattern pattern) {
+        this(rgb, pattern, FULL_OPACITY);
+    }
+
+    AilmentKind(int rgb, AilmentPattern pattern, float opacity) {
         this.rgb = rgb;
         this.pattern = pattern;
+        this.opacity = opacity;
     }
 
     /** @return the overlay's color, 0xRRGGBB */
@@ -44,5 +53,10 @@ public enum AilmentKind {
     /** @return the field the overlay draws */
     public AilmentPattern pattern() {
         return pattern;
+    }
+
+    /** @return how opaque the overlay draws at full strength, 0 to 1 */
+    public float opacity() {
+        return opacity;
     }
 }
