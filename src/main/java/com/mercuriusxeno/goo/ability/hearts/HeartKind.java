@@ -101,6 +101,20 @@ public enum HeartKind {
             // heart-effects-crawl-while-held: frost crawls at bark's pace, a frozen heart every 5 seconds
             return (long) BARK_REGROW_SECONDS * TICKS_PER_SECOND / HALVES_PER_HEART;
         }
+    },
+    /**
+     * Crystal Scales: crystal over present hearts, crawling over each further
+     * present heart at bark's pace while held, taking every hit at a heart's
+     * worth before real health. Crystal is diamond skin, with no weakness by
+     * design (operator ruling 2026-10-10). Appended last, since ordinals are synced.
+     * scales-crystal-hearts-diamond-blue-overlay
+     */
+    SCALES(1.0f, false, false, true) {
+        @Override
+        long regrowInterval(int shieldHalves) {
+            // heart-effects-crawl-while-held: crystal crawls at bark's pace, a crystal heart every 5 seconds
+            return (long) BARK_REGROW_SECONDS * TICKS_PER_SECOND / HALVES_PER_HEART;
+        }
     };
 
     /**

@@ -411,6 +411,16 @@ public final class BrewEffectTests {
         brewLaysForAnHour(helper, GooTypes.FROST, HeartKind.ICEBORN);
     }
 
+    /**
+     * A crystal brew lays Scales' crystal hearts for the brew's hour
+     * (decision scales-crystal-hearts-diamond-blue-overlay).
+     *
+     * @param helper the gametest helper
+     */
+    public static void crystalBrewScalesForAnHour(GameTestHelper helper) {
+        brewLaysForAnHour(helper, GooTypes.CRYSTAL, HeartKind.SCALES);
+    }
+
     private static void brewLaysForAnHour(GameTestHelper helper, ResourceKey<GooTypeDefinition> gooType,
                                           HeartKind kind) {
         ServerPlayer player = drinker(helper, gooType);
