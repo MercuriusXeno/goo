@@ -399,6 +399,20 @@ class DrinkTreeTest {
         }
 
         @Test
+        void aPathsRingsMaterialIsBroughtWithinATexturePeriodOfZeroTogether() {
+            DrinkTree.Stream stream = lone();
+            List<DrinkStream.Ring> rings = DrinkTree.rings(stream);
+            double period = DrinkStream.TEXTURE_PERIOD;
+            double first = rings.getFirst().material();
+            double shift = stream.materialAt(0) - first;
+            double step = DrinkTree.ring(stream, 1.0 / (rings.size() - 1)).material() - stream.materialAt(0);
+
+            assertTrue(first >= 0 && first < period, "the first ring lies within a period of zero");
+            assertEquals(shift, period * Math.round(shift / period), DELTA, "shifted by whole periods");
+            assertEquals(step, rings.get(1).material() - first, DELTA, "the rings keep their spacing");
+        }
+
+        @Test
         void theTravelTimeReadsCleanlyAtAndJustShortOfThePathsEnd() {
             DrinkTree.Stream stream = loneAt(RAMPED);
             double length = stream.path().length();

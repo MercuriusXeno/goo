@@ -434,7 +434,9 @@ public final class DrinkUpload {
      * Writes the boxes and the rings: a box as its camera-relative middle and
      * half width then its rounding and stream, a ring as its camera-relative
      * middle and radius then its material, its route share, which the skin's
-     * crossfade from block to goo reads, and its stream.
+     * crossfade from block to goo reads, its stream, and its pace over the base
+     * pace, which the sprites laid to a block of material follow so a fast
+     * trunk's texture is not stretched.
      *
      * @param bytes the block
      */
@@ -449,7 +451,7 @@ public final class DrinkUpload {
             DrinkStream.Ring ring = rings.get(index);
             putVec3(bytes, RINGS_AT + index * PAIR * VEC4, ring.center().subtract(camera), ring.radius());
             putVec4(bytes, RINGS_AT + (index * PAIR + 1) * VEC4, ring.material(), ring.share(),
-                    streamOf.get(ringStreams.get(index)), 0);
+                    streamOf.get(ringStreams.get(index)), ring.speed() / DrinkStream.FLOW);
         }
     }
 

@@ -411,7 +411,27 @@ public final class DrinkTree {
         for (int index = 0; index < count; index++) {
             rings.add(ring(stream, (double) index / (count - 1)));
         }
-        return rings;
+        return laid(rings);
+    }
+
+    /**
+     * The rings with their material brought down by one multiple of the
+     * texture's period for all of them, so the first lies within a period of
+     * zero: the texture reads the same, and the shader's floats keep their
+     * texels where a long drink's material has run to the tens of thousands.
+     *
+     * @param rings a path's rings
+     * @return the rings, their material shifted together
+     */
+    static List<DrinkStream.Ring> laid(List<DrinkStream.Ring> rings) {
+        double shift = DrinkStream.TEXTURE_PERIOD
+                * Math.floor(rings.getFirst().material() / DrinkStream.TEXTURE_PERIOD);
+        List<DrinkStream.Ring> laid = new ArrayList<>();
+        for (DrinkStream.Ring ring : rings) {
+            laid.add(new DrinkStream.Ring(ring.center(), ring.flow(), ring.radius(), ring.material() - shift,
+                    ring.share(), ring.speed()));
+        }
+        return laid;
     }
 
     /**
