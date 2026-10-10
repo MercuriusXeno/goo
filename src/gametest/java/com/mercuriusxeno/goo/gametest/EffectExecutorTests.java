@@ -136,6 +136,20 @@ public final class EffectExecutorTests {
     private static final double LEFTOVER_CLEAR_RADIUS = 9;
     private static final String HOLE_LEFT_STONE = "The black hole left the stone it faced standing";
     private static final String HOLE_SPARED_ZOMBIE = "The black hole left the zombie inside it alive";
+    private static final String HOLE_SHOULD_CUT_PLAYER = "A player at full health inside the hole should come out hurt "
+            + "and alive; it stands at %.1f";
+    private static final String HOLE_SHOULD_FLOOR_PLAYER = "A player at three health inside the hole should be cut to "
+            + "half a heart and held there; it stands at %.1f";
+    private static final float FULL_HEALTH = 20f;
+    /** Three health: the first cut takes one, rounded up from three quarters, the next one more, then none. */
+    private static final float FRAIL_HEALTH = 3f;
+    private static final float HALF_A_HEART = 1f;
+    /** The first cut on a full-health player, a quarter of twenty; more than two cuts take more than twice it. */
+    private static final float FIRST_CUT = 5f;
+    /** Food a point short of the eighteen regeneration needs. */
+    private static final int UNREGENERATING_FOOD = 17;
+    /** Ticks past vanilla's sixty-tick shield on a player new to the world. */
+    private static final int SPAWN_SHIELD_TICKS = 61;
     private static final String HOLE_DROPPED_EARLY = "The black hole left a sphere before it contracted";
     private static final String HOLE_MOVED = "The black hole left the cell it landed in while it ran";
     private static final String HOLE_LEFT_SPHERES = "The black hole left %d compression spheres, not one";
@@ -585,6 +599,57 @@ public final class EffectExecutorTests {
             helper.assertTrue(itemsAroundMarker(helper).isEmpty(), HOLE_LEFT_LOOSE_ITEMS);
             helper.succeed();
         });
+    }
+
+    /**
+     * A player inside the black hole is cut, never killed: one at full health
+     * comes out hurt and alive, and one at three health is cut to one, half
+     * a heart, and held there while the hole runs on (the operator's ruling on
+     * decision black-hole-leaves-a-compression-sphere: each second cuts a
+     * quarter of current health, rounded up to the half heart, and never takes
+     * a player below half a heart).
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    public static void blackHoleCutsPlayersToHalfAHeart(GameTestHelper helper) {
+        discardLeftoverEntities(helper);
+        layBarrierFloor(helper);
+        ServerPlayer hale = playerInsideTheHole(helper, MARKER_POS.east(2), FULL_HEALTH);
+        ServerPlayer frail = playerInsideTheHole(helper, MARKER_POS.west(2), FRAIL_HEALTH);
+        // a mock player has no connection to tick it, so the test ticks it as the server would a real one
+        helper.onEachTick(() -> {
+            hale.doTick();
+            frail.doTick();
+        });
+        // a player fresh in the world shrugs off harm for its first three seconds, as vanilla shields a joining one
+        helper.runAfterDelay(SPAWN_SHIELD_TICKS, () -> castDraggedHole(helper));
+        helper.runAfterDelay(SPAWN_SHIELD_TICKS + BLACK_HOLE_LIFE_TICKS + SHORT_WAIT, () -> {
+            boolean haleAlive = hale.isAlive();
+            boolean frailAlive = frail.isAlive();
+            float haleHealth = hale.getHealth();
+            float frailHealth = frail.getHealth();
+            helper.getLevel().getServer().getPlayerList().remove(hale);
+            helper.getLevel().getServer().getPlayerList().remove(frail);
+            helper.assertTrue(haleAlive && haleHealth < FULL_HEALTH - 2 * FIRST_CUT,
+                    String.format(HOLE_SHOULD_CUT_PLAYER, haleHealth));
+            helper.assertTrue(frailAlive && frailHealth == HALF_A_HEART,
+                    String.format(HOLE_SHOULD_FLOOR_PLAYER, frailHealth));
+            helper.succeed();
+        });
+    }
+
+    @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
+    private static ServerPlayer playerInsideTheHole(GameTestHelper helper, BlockPos at, float health) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.setGameMode(GameType.SURVIVAL);
+        Vec3 stand = helper.absoluteVec(Vec3.atBottomCenterOf(at));
+        player.setPos(stand.x, stand.y, stand.z);
+        player.setHealth(health);
+        // fed short of the regeneration threshold and above starving, so food neither heals nor hurts it
+        player.getFoodData().setFoodLevel(UNREGENERATING_FOOD);
+        player.getFoodData().setSaturation(0f);
+        return player;
     }
 
     /**

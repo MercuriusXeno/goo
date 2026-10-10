@@ -14,6 +14,7 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -42,6 +43,15 @@ public enum LaidState {
     public static final StreamCodec<ByteBuf, LaidState> STREAM_CODEC =
             ByteBufCodecs.idMapper(ordinal -> values()[ordinal], LaidState::ordinal);
 
+    /** The state each laying step lays. */
+    private static final Map<Class<? extends Step>, LaidState> LAID_BY_STEP = Map.of(
+            HeartOverlayStep.class, HEART_OVERLAY,
+            NourishStep.class, NOURISH,
+            SightStep.class, SIGHT,
+            UndeadStep.class, UNDEAD,
+            ExtenderStep.class, EXTENDER,
+            LifetapStep.class, LIFETAP);
+
     /**
      * The state a program lays, read from its steps and every step beneath them.
      *
@@ -51,18 +61,9 @@ public enum LaidState {
     public static Set<LaidState> laidBy(List<Step> behaviors) {
         Set<LaidState> laid = EnumSet.noneOf(LaidState.class);
         behaviors.stream().flatMap(LaidState::withDescendants).forEach(step -> {
-            if (step instanceof HeartOverlayStep) {
-                laid.add(HEART_OVERLAY);
-            } else if (step instanceof NourishStep) {
-                laid.add(NOURISH);
-            } else if (step instanceof SightStep) {
-                laid.add(SIGHT);
-            } else if (step instanceof UndeadStep) {
-                laid.add(UNDEAD);
-            } else if (step instanceof ExtenderStep) {
-                laid.add(EXTENDER);
-            } else if (step instanceof LifetapStep) {
-                laid.add(LIFETAP);
+            LaidState lays = LAID_BY_STEP.get(step.getClass());
+            if (lays != null) {
+                laid.add(lays);
             }
         });
         return laid;

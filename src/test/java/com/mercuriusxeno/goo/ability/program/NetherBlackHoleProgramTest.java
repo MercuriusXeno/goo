@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
+import java.util.Set;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -99,7 +100,9 @@ class NetherBlackHoleProgramTest {
         // black-hole-leaves-a-compression-sphere: the hole is cast at the radius its JSON cost buys
         when(host.read(HostVariables.SIZE)).thenReturn(OptionalDouble.of(RADIUS));
         doAnswer(inv -> {
-            record("scan within " + inv.getArgument(1));
+            // the once-a-second cut scans only what its last cut no longer holds immune
+            Set<EntityFilter> where = inv.getArgument(2);
+            record((where.contains(EntityFilter.VULNERABLE) ? "cut within " : "scan within ") + inv.getArgument(1));
             return null;
         }).when(host).forEachEntityWithin(any(), anyDouble(), anySet(), any());
         doAnswer(inv -> {
@@ -170,10 +173,23 @@ class NetherBlackHoleProgramTest {
     }
 
     @Test
-    void theGatherRunsNoActAndConsumesNoBlocks() {
+    void theGatherRunsNoActButTheCutAndConsumesNoBlocks() {
         IntStream.range(0, GATHER_TICKS).forEach(i -> tickOnce());
 
-        assertTrue(actTicks.isEmpty(), "the gather ran " + actTicks.keySet());
+        assertEquals(Set.of("cut within " + (double) RADIUS), actTicks.keySet());
+    }
+
+    /**
+     * The operator's ruling on decision black-hole-leaves-a-compression-sphere:
+     * everything inside is cut once a second for as long as the hole stands;
+     * the cut's scan runs every tick, keeping only what its last cut no
+     * longer holds immune, so each thing inside is cut once a second.
+     */
+    @Test
+    void theCutScansTheSphereEveryTickTheHoleStands() {
+        runToTheEnd();
+
+        assertEquals(ticks(1, LAST_CONTRACT_TICK), ticksOf("cut within " + (double) RADIUS));
     }
 
     @Test
