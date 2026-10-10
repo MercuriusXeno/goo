@@ -104,6 +104,19 @@ class HeartOverlayHudTest {
         assertEquals(198, HeartOverlayHud.reserveY(200));
     }
 
+    // iceborn-frozen-hearts-thaw-on-fire: frozen hearts lie over present hearts only
+    @Test
+    void icebornLaysFrostOverPresentHalvesOnly() {
+        assertEquals(List.of("goo:hud/heart/ice_full"), sprites(HeartKind.ICEBORN, 2, 2));
+        assertEquals(List.of("goo:hud/heart/ice_half"), sprites(HeartKind.ICEBORN, 2, 1));
+    }
+
+    @Test
+    void icebornsCrawlPaintsFrost() {
+        assertEquals("goo:hud/heart/ice_full", HeartOverlayHud.crawlSprite(HeartKind.ICEBORN).toString());
+        assertEquals("goo:hud/heart/stone_full", HeartOverlayHud.crawlSprite(HeartKind.STONESKIN).toString());
+    }
+
     private static List<String> sprites(HeartKind kind, int shieldHalves, int realHalves) {
         return HeartOverlayHud.heartSprites(kind, shieldHalves, realHalves).stream().map(Object::toString).toList();
     }

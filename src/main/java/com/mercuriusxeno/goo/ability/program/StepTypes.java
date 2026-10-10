@@ -39,7 +39,14 @@ public final class StepTypes {
         register(DamageStep.TYPE);
         register(PotionStep.TYPE);
         register(TargetStep.TYPE);
-        register(LeafSteps.FREEZE_TICKS.type());
+        register(FreezeStep.TYPE);
+        register(NovaStep.TYPE);
+        register(FreezeBlocksStep.TYPE);
+        register(DripsStep.TYPE);
+        register(WindStep.TYPE);
+        register(BreakBlocksStep.TYPE);
+        register(TravelingStep.TYPE);
+        register(GlacialStep.TYPE);
         register(LeafSteps.SET_AI.type());
         register(LeafSteps.SET_INVULNERABLE.type());
         register(CloneEntityStep.TYPE);

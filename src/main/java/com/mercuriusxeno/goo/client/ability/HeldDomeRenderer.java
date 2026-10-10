@@ -53,6 +53,7 @@ public final class HeldDomeRenderer {
     /** The ghost each goo type holds; a type with none draws no dome. */
     private static final Map<ResourceKey<GooTypeDefinition>, HeldGhostVisual> GHOSTS = Map.of(
             GooTypes.CRYSTAL, CrystalExplosionVisual.INSTANCE,
+            GooTypes.FROST, FrostExplosionVisual.INSTANCE,
             GooTypes.METAL, MetalExplosionVisual.INSTANCE,
             GooTypes.NETHER, NetherHeldGhost.INSTANCE,
             GooTypes.SHROOM, ShroomHeldGhost.INSTANCE,

@@ -1,0 +1,13 @@
+{
+  "gooType": "frost",
+  "displayName": "goo.ability.frost.iceborn",
+  "badge": "brew",
+  "order": 70,
+  "upkeep": 1,
+  "delivery": { "kind": "self" },
+  "behaviors": [
+    { "type": "heart_overlay", "kind": "iceborn" },
+    { "type": "sound", "id": "minecraft:block.glass.place", "at": "target", "source": "players", "volume": 1, "pitch": 1.4 }
+  ],
+  "tags": ["self"]
+}

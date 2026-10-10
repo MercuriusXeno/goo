@@ -1,0 +1,10 @@
+{
+  "inputs": [
+    {"goo": "goo:nether", "amount": 1},
+    {"goo": "goo:glow", "amount": 1}
+  ],
+  "outputs": [
+    {"goo": "goo:pulse", "amount": 2}
+  ],
+  "rate": 1
+}

@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.network.BarkskinTests;
 import com.mercuriusxeno.goo.network.BlockLandingTests;
 import com.mercuriusxeno.goo.network.BrewEffectTests;
 import com.mercuriusxeno.goo.network.ColonizeTests;
+import com.mercuriusxeno.goo.network.FrostAbilityTests;
 import com.mercuriusxeno.goo.network.FungalShiftTests;
 import com.mercuriusxeno.goo.network.GloveSelectTests;
 import com.mercuriusxeno.goo.network.HeartOverlayTests;
@@ -362,6 +363,7 @@ public final class GooTestFunctions {
     private static final String MACHINE_REACTOR_WITHOUT_INPUTS = "machine_reactor_without_inputs";
     private static final String MACHINE_REACTOR_BREAK_RELEASES_GASKET = "machine_reactor_break_releases_gasket";
     private static final String MACHINE_REACTOR_REACTION = "machine_reactor_reaction";
+    private static final String MACHINE_REACTOR_PULSE_FROM_NETHER_GLOW = "machine_reactor_pulse_from_nether_glow";
     private static final String MACHINE_REACTOR_REDSTONE = "machine_reactor_redstone";
     private static final String MACHINE_PLEXER_WITHOUT_GOO = "machine_plexer_without_goo";
 
@@ -450,6 +452,19 @@ public final class GooTestFunctions {
     private static final String MOB_VITAL = "mob_vital_clone";
     private static final String MOB_BLAZE = "mob_blaze_ignite";
     private static final String MOB_FROST = "mob_frost_snap";
+    private static final String SNAP_ENCASES_THEN_THAWS = "snap_encases_then_thaws";
+    private static final String NOVA_HELD_REACHES_BOTH = "nova_held_reaches_both_zombies";
+    private static final String NOVA_TAPPED_REACHES_NEAR = "nova_tapped_reaches_only_the_near";
+    private static final String NOVA_TAP_FREEZES_BELOW = "nova_tap_freezes_below";
+    private static final String COLD_BREAKS_GRASS = "cold_breaks_grass_and_freezes_faster";
+    private static final String ORB_FREEZES_PATH = "orb_freezes_path_and_pool";
+    private static final String ORB_ENDS_ON_A_MOB = "orb_ends_on_a_mob";
+    private static final String ORB_ENDS_AT_ITS_RANGE = "orb_ends_at_its_range";
+    private static final String GLACIAL_HOLDS_THE_GAUGE = "glacial_holds_the_gauge";
+    private static final String GLACIAL_SURVIVES_A_RELOAD = "glacial_survives_a_reload";
+    private static final String ICEBORN_FREEZES_SURROUNDINGS = "iceborn_freezes_surroundings";
+    private static final String ICEBORN_THAWS_ON_FIRE = "iceborn_thaws_on_fire";
+    private static final String BREW_FROST_ICEBORN = "brew_frost_iceborn_for_an_hour";
     private static final String MOB_TYPHOON = "mob_typhoon_levitate";
     private static final String MOB_GLOW = "mob_glow_laser";
     private static final String MOB_HEX = "mob_hex_charm";
@@ -837,6 +852,7 @@ public final class GooTestFunctions {
         reg(r, MACHINE_REACTOR_WITHOUT_INPUTS, MachineTests::reactorWithoutInputsMakesNothing);
         reg(r, MACHINE_REACTOR_BREAK_RELEASES_GASKET, MachineTests::reactorBreakReleasesOutputGasket);
         reg(r, MACHINE_REACTOR_REACTION, MachineTests::reactorProcessesReaction);
+        reg(r, MACHINE_REACTOR_PULSE_FROM_NETHER_GLOW, MachineTests::reactorMakesPulseFromNetherGlow);
         reg(r, MACHINE_REACTOR_REDSTONE, MachineTests::reactorRedstoneHalts);
         reg(r, MACHINE_PLEXER_WITHOUT_GOO, MachineTests::plexerWithoutGooMakesNothing);
     }
@@ -926,6 +942,19 @@ public final class GooTestFunctions {
         reg(r, MOB_VITAL, MobEffectTests::vitalClone);
         reg(r, MOB_BLAZE, MobEffectTests::blazeIgnite);
         reg(r, MOB_FROST, MobEffectTests::frostSnap);
+        reg(r, SNAP_ENCASES_THEN_THAWS, MobEffectTests::snapEncasesThenThaws);
+        reg(r, NOVA_HELD_REACHES_BOTH, FrostAbilityTests::novaHeldReachesBothZombies);
+        reg(r, NOVA_TAPPED_REACHES_NEAR, FrostAbilityTests::novaTappedReachesOnlyTheNear);
+        reg(r, NOVA_TAP_FREEZES_BELOW, FrostAbilityTests::novaTapFreezesBelow);
+        reg(r, COLD_BREAKS_GRASS, FrostAbilityTests::coldBreaksGrassAndFreezesFaster);
+        reg(r, ORB_FREEZES_PATH, FrostAbilityTests::orbFreezesPathAndPool);
+        reg(r, ORB_ENDS_ON_A_MOB, FrostAbilityTests::orbEndsOnAMob);
+        reg(r, ORB_ENDS_AT_ITS_RANGE, FrostAbilityTests::orbEndsAtItsRange);
+        reg(r, GLACIAL_HOLDS_THE_GAUGE, FrostAbilityTests::glacialHoldsTheGauge);
+        reg(r, GLACIAL_SURVIVES_A_RELOAD, FrostAbilityTests::glacialSurvivesAReload);
+        reg(r, ICEBORN_FREEZES_SURROUNDINGS, FrostAbilityTests::icebornFreezesSurroundings);
+        reg(r, ICEBORN_THAWS_ON_FIRE, FrostAbilityTests::icebornThawsOnFire);
+        reg(r, BREW_FROST_ICEBORN, BrewEffectTests::frostBrewIcebornForAnHour);
         reg(r, MOB_TYPHOON, MobEffectTests::typhoonLevitate);
         reg(r, MOB_GLOW, MobEffectTests::glowLaser);
         reg(r, MOB_HEX, MobEffectTests::hexCharm);
