@@ -33,7 +33,8 @@ import java.util.stream.Stream;
  * its life. The channel floods ({@link WispFlood}): from the holder's eyes
  * out through the connected air they see, nearest first, a budget of cells
  * a tick, a wisp in each dark cell no wisp already lights, the flood
- * starting over when the hold starts or the holder moves on. The drip
+ * starting over when the hold starts, and carried on from where the holder
+ * moves to, its reach and its wisps kept, as they walk. The drip
  * tries the one cell above the block below the tap, a wisp there when it
  * is dark air.
  * decisions radiant-wisps-where-light-is-low, radiant-drip-places-a-wisp
@@ -115,7 +116,7 @@ public record WispsStep(double radius, int count, int life, int above, boolean f
             long now = level.getGameTime();
             FLOODS.values().removeIf(stale -> now - stale.lastWalked() > FORGET_AFTER_TICKS);
             // a wisp's light keeps a cell lit until it drops to the threshold, one level a step
-            under = new WispFlood(eyes, radius, growth, WispBlock.LIGHT - GooConfig.radiantLightThreshold());
+            under = floodFor(under, eyes, heldTicks, WispBlock.LIGHT - GooConfig.radiantLightThreshold());
             FLOODS.put(holder.getUUID(), under);
         }
         under.walkedAt(level.getGameTime());
@@ -139,6 +140,21 @@ public record WispsStep(double radius, int count, int life, int above, boolean f
     static boolean startsOver(@Nullable WispFlood under, BlockPos eyes, int heldTicks) {
         return under == null || heldTicks == ChannelAim.FIRST_TICK
                 || under.origin().distManhattan(eyes) > RESTART_STEPS;
+    }
+
+    /**
+     * The flood a holder's eyes start: a fresh one as the hold begins or
+     * where none is under way, otherwise one from where the eyes moved to.
+     *
+     * @param under     the flood under way, or null
+     * @param eyes      the holder's eye cell
+     * @param heldTicks the hold's age, 1 on its first tick
+     * @param litSteps  how many steps out a placed wisp's light keeps a cell lit
+     * @return the flood to walk
+     */
+    WispFlood floodFor(@Nullable WispFlood under, BlockPos eyes, int heldTicks, int litSteps) {
+        return under == null || heldTicks == ChannelAim.FIRST_TICK ? new WispFlood(eyes, radius, growth, litSteps)
+                : under.movedTo(eyes);
     }
 
     private static int heldTicks(StepContext context) {
