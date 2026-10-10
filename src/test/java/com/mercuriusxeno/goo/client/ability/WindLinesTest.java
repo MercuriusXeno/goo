@@ -132,6 +132,8 @@ class WindLinesTest {
 
         /** The last spin: one turn over twelve ticks. */
         private static final double LAST_TURN_PER_TICK = 2 * Math.PI / 12;
+        /** The earlier straight run: 60% of an 18-tick life, its head crossing it at an even pace. */
+        private static final double EARLIER_STRAIGHT_TICKS = 18 * 0.6;
 
         @Test
         void aboutFourInTenHeldTicksBlowALine() {
@@ -140,6 +142,17 @@ class WindLinesTest {
                 blown += WindLines.blowsOn(tick) ? 1 : 0;
             }
             assertEquals(45, blown);
+        }
+
+        // cold-wind-slows-down, cold-wind-thins-slows-and-coils
+        @Test
+        void theHeadTravelsSlowerEachTickThanTheEarlierEvenPace() {
+            double earlierShareEachTick = 1 / EARLIER_STRAIGHT_TICKS;
+            for (int tick = 0; tick < WindLines.STRAIGHT_TICKS; tick++) {
+                double travelled = WindLines.launched((tick + 1) / WindLines.STRAIGHT_TICKS)
+                        - WindLines.launched(tick / WindLines.STRAIGHT_TICKS);
+                assertTrue(travelled < earlierShareEachTick, "tick " + tick + " travels " + travelled);
+            }
         }
 
         @Test
