@@ -7,15 +7,17 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.Vec3;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
 /**
  * The links between relay prisms: a relay links to every other relay in
- * range, in any direction, with only air between their centers, the way
- * Glow's Reflector links through air; each relay gives the strongest
+ * range along one of the three axes, with only air between their centers;
+ * each relay gives the strongest
  * redstone signal reaching any relay it links to.
  * relay-prism-carries-the-signal-through-air
  */
@@ -29,6 +31,8 @@ public final class RelayNetwork {
     public static final int RANGE = 16;
     /** Samples per block along a link, fine enough to cross every cell it passes. */
     private static final int SAMPLES_PER_BLOCK = 8;
+    /** The most relays one network walk gathers, bounding a relay's tick. */
+    private static final int MAX_NETWORK = 64;
 
     private RelayNetwork() {
     }
@@ -45,12 +49,39 @@ public final class RelayNetwork {
     public static int carriedTo(ServerLevel level, BlockPos pos, PrismBlockEntity relay) {
         relay.markRelaying();
         int carried = 0;
-        for (BlockPos other : relaysNear(level, pos)) {
-            if (!other.equals(pos) && linksThroughAir(level, pos, other)) {
+        for (BlockPos other : networkOf(level, pos)) {
+            if (!other.equals(pos)) {
                 carried = Math.max(carried, level.getBestNeighborSignal(other));
             }
         }
         return carried;
+    }
+
+    /**
+     * Every relay a relay reaches link by link, itself among them: a signal
+     * entering any relay of the network leaves every other, however many hops
+     * apart, rather than only the relays linked to it directly.
+     * relay-prism-carries-the-signal-through-air
+     *
+     * @param level the server level
+     * @param start the relay the walk starts from
+     * @return the network's relays, the start first
+     */
+    static Set<BlockPos> networkOf(ServerLevel level, BlockPos start) {
+        Set<BlockPos> network = new LinkedHashSet<>();
+        Deque<BlockPos> toWalk = new ArrayDeque<>();
+        network.add(start);
+        toWalk.add(start);
+        while (!toWalk.isEmpty() && network.size() < MAX_NETWORK) {
+            BlockPos current = toWalk.poll();
+            for (BlockPos other : relaysNear(level, current)) {
+                if (!network.contains(other) && linksThroughAir(level, current, other)) {
+                    network.add(other);
+                    toWalk.add(other);
+                }
+            }
+        }
+        return network;
     }
 
     /**
@@ -79,11 +110,28 @@ public final class RelayNetwork {
 
     private static void addRelaysIn(LevelChunk chunk, BlockPos pos, List<BlockPos> relays) {
         for (BlockEntity entity : chunk.getBlockEntities().values()) {
-            if (entity instanceof PrismBlockEntity prism && prism.relays()
-                    && prism.getBlockPos().closerThan(pos, RANGE + 1)) {
+            if (entity instanceof PrismBlockEntity prism && prism.relays() && inLinkReach(pos, prism.getBlockPos())) {
                 relays.add(prism.getBlockPos());
             }
         }
+    }
+
+    /**
+     * Whether two relays stand where a link can join them: on one axis, east
+     * to west, up to down or north to south, never diagonally, and within range.
+     * A diagonal link joined every relay to every other and lit the whole network.
+     * relay-prism-carries-the-signal-through-air
+     *
+     * @param from one relay
+     * @param to   the other
+     * @return true when the two share a line along an axis within range
+     */
+    public static boolean inLinkReach(BlockPos from, BlockPos to) {
+        int dx = Math.abs(from.getX() - to.getX());
+        int dy = Math.abs(from.getY() - to.getY());
+        int dz = Math.abs(from.getZ() - to.getZ());
+        int axesApart = Integer.signum(dx) + Integer.signum(dy) + Integer.signum(dz);
+        return axesApart == 1 && dx + dy + dz <= RANGE;
     }
 
     private static boolean linksThroughAir(ServerLevel level, BlockPos from, BlockPos to) {

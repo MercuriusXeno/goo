@@ -98,24 +98,13 @@ public final class RelayLasers {
 
     private static void drawLink(ClientLevel level, LineContext lines, BlockPos from, BlockPos to, Vec3 camera,
                                  float width) {
-        if (!linked(from, to) || !RelayNetwork.cellsBetween(from, to).stream()
+        if (!RelayNetwork.inLinkReach(from, to) || !RelayNetwork.cellsBetween(from, to).stream()
                 .allMatch(cell -> level.getBlockState(cell).isAir())) {
             return;
         }
         int alpha = carrying(level, from) || carrying(level, to) ? CARRYING_ALPHA : IDLE_ALPHA;
         lines.emitPolyline(camera, new Vec3[] {Vec3.atCenterOf(from), Vec3.atCenterOf(to)},
                 ARGB.color(alpha, LASER_RGB), width);
-    }
-
-    /**
-     * Whether two relays are near enough to link, as the server's relay range reads.
-     *
-     * @param from one relay
-     * @param to   the other
-     * @return true within the relay range
-     */
-    static boolean linked(BlockPos from, BlockPos to) {
-        return from.closerThan(to, RelayNetwork.RANGE + 1);
     }
 
     private static boolean carrying(ClientLevel level, BlockPos relay) {

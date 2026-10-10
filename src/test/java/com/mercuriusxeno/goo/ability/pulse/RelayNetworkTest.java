@@ -35,8 +35,27 @@ class RelayNetworkTest {
     }
 
     @Test
-    void aDiagonalLinkCrossesCellsOnTheDiagonal() {
-        Set<BlockPos> cells = RelayNetwork.cellsBetween(new BlockPos(0, 0, 0), new BlockPos(4, 4, 4));
-        assertTrue(cells.contains(new BlockPos(2, 2, 2)));
+    void relaysAlongEachAxisWithinRangeLink() {
+        assertTrue(RelayNetwork.inLinkReach(BlockPos.ZERO, new BlockPos(RelayNetwork.RANGE, 0, 0)));
+        assertTrue(RelayNetwork.inLinkReach(BlockPos.ZERO, new BlockPos(0, -RelayNetwork.RANGE, 0)));
+        assertTrue(RelayNetwork.inLinkReach(BlockPos.ZERO, new BlockPos(0, 0, 3)));
+    }
+
+    @Test
+    void relaysPastTheRangeDoNotLink() {
+        assertFalse(RelayNetwork.inLinkReach(BlockPos.ZERO, new BlockPos(RelayNetwork.RANGE + 1, 0, 0)));
+    }
+
+    /** Relays link orthogonally only: one step off the axis breaks the link. */
+    @Test
+    void diagonalRelaysDoNotLink() {
+        assertFalse(RelayNetwork.inLinkReach(BlockPos.ZERO, new BlockPos(5, 1, 0)));
+        assertFalse(RelayNetwork.inLinkReach(BlockPos.ZERO, new BlockPos(0, 2, 2)));
+        assertFalse(RelayNetwork.inLinkReach(BlockPos.ZERO, new BlockPos(1, 1, 1)));
+    }
+
+    @Test
+    void aRelayDoesNotLinkToItself() {
+        assertFalse(RelayNetwork.inLinkReach(BlockPos.ZERO, BlockPos.ZERO));
     }
 }
