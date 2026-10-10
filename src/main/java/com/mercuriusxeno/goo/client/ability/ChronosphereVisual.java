@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.program.HostVariables;
 import com.mercuriusxeno.goo.ability.program.SlowTimeStep;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
@@ -23,8 +24,6 @@ import java.util.Optional;
  */
 public final class ChronosphereVisual {
 
-    /** The veil's color: the stasis gold, faint enough to see the slowed mobs through. */
-    static final int VEIL_COLOR = ARGB.color(46, 0xFF, 0xD4, 0x47);
     /** Bands from pole to pole, and segments around each band. */
     static final int BANDS = 24;
     static final int SEGMENTS = 48;
@@ -40,8 +39,8 @@ public final class ChronosphereVisual {
 
     /**
      * Copies the veil's radius this frame into the render state, from the
-     * marker's synced slow_time step and the ticks since this client first
-     * saw it stand.
+     * marker's synced slow_time step at the size its cast was dragged to, and
+     * the ticks since this client first saw it stand.
      *
      * @param be    the ability block entity
      * @param state the render state
@@ -56,7 +55,9 @@ public final class ChronosphereVisual {
         }
         long now = be.getLevel().getGameTime();
         long stood = STOOD_AT.computeIfAbsent(be.getBlockPos().immutable(), pos -> now);
-        state.chronosphereRadius = (float) veil.get().radiusAt(now - stood + state.partialTick);
+        // chronosphere-hastes-players-slows-mobs: the veil grows to the radius its cast was dragged to
+        double fullRadius = veil.get().radius().evaluate(HostVariables.sized(be.programState().castSize()));
+        state.chronosphereRadius = (float) veil.get().radiusAt(fullRadius, now - stood + state.partialTick);
     }
 
     /**
@@ -83,25 +84,38 @@ public final class ChronosphereVisual {
      * @param radius the veil's radius
      */
     static void emitVeil(FlatQuadContext quads, float radius) {
+        emitVeil(quads, radius, 1f);
+    }
+
+    /**
+     * Emits the veil for its shader at a strength, which the shader draws
+     * every part of it at a share of.
+     *
+     * @param quads    the quad context
+     * @param radius   the veil's radius
+     * @param strength how strongly the veil draws, 0 to 1
+     */
+    static void emitVeil(FlatQuadContext quads, float radius, float strength) {
+        int alpha = Math.round(Math.clamp(strength, 0f, 1f) * OPAQUE);
         for (int band = 0; band < BANDS; band++) {
             double lowPolar = Math.PI * band / BANDS;
             double highPolar = Math.PI * (band + 1) / BANDS;
             for (int segment = 0; segment < SEGMENTS; segment++) {
                 double from = Math.TAU * segment / SEGMENTS;
                 double to = Math.TAU * (segment + 1) / SEGMENTS;
-                veilVertex(quads, radius, lowPolar, from);
-                veilVertex(quads, radius, highPolar, from);
-                veilVertex(quads, radius, highPolar, to);
-                veilVertex(quads, radius, lowPolar, to);
+                veilVertex(quads, radius, lowPolar, from, alpha);
+                veilVertex(quads, radius, highPolar, from, alpha);
+                veilVertex(quads, radius, highPolar, to, alpha);
+                veilVertex(quads, radius, lowPolar, to, alpha);
             }
         }
     }
 
-    private static void veilVertex(FlatQuadContext quads, float radius, double polar, double azimuth) {
+    private static void veilVertex(FlatQuadContext quads, float radius, double polar, double azimuth, int alpha) {
         float x = (float) (Math.sin(polar) * Math.cos(azimuth));
         float y = (float) Math.cos(polar);
         float z = (float) (Math.sin(polar) * Math.sin(azimuth));
-        int color = ARGB.color(OPAQUE, packed(x), packed(y), packed(z));
+        int color = ARGB.color(alpha, packed(x), packed(y), packed(z));
         quads.vertex(CENTER + radius * x, CENTER + radius * y, CENTER + radius * z, color, x, y, z);
     }
 
@@ -113,34 +127,5 @@ public final class ChronosphereVisual {
      */
     static int packed(float component) {
         return Math.round((component * HALF_CHANNEL_SPAN + HALF_CHANNEL_SPAN) * OPAQUE);
-    }
-
-    /**
-     * Emits the veil as bands of quads from pole to pole, about the cell's center.
-     *
-     * @param quads  the quad context
-     * @param radius the veil's radius
-     * @param color  the veil's color, ARGB
-     */
-    static void emitSphere(FlatQuadContext quads, float radius, int color) {
-        for (int band = 0; band < BANDS; band++) {
-            double lowPolar = Math.PI * band / BANDS;
-            double highPolar = Math.PI * (band + 1) / BANDS;
-            for (int segment = 0; segment < SEGMENTS; segment++) {
-                double from = Math.TAU * segment / SEGMENTS;
-                double to = Math.TAU * (segment + 1) / SEGMENTS;
-                vertex(quads, radius, lowPolar, from, color);
-                vertex(quads, radius, highPolar, from, color);
-                vertex(quads, radius, highPolar, to, color);
-                vertex(quads, radius, lowPolar, to, color);
-            }
-        }
-    }
-
-    private static void vertex(FlatQuadContext quads, float radius, double polar, double azimuth, int color) {
-        float x = (float) (radius * Math.sin(polar) * Math.cos(azimuth));
-        float y = (float) (radius * Math.cos(polar));
-        float z = (float) (radius * Math.sin(polar) * Math.sin(azimuth));
-        quads.vertex(CENTER + x, CENTER + y, CENTER + z, color);
     }
 }

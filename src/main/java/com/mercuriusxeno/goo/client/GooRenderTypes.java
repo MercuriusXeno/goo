@@ -836,6 +836,13 @@ public final class GooRenderTypes {
     /** The chronosphere veil render type. */
     public static final RenderType CHRONOSPHERE_TYPE = burnoutType(CHRONOSPHERE);
 
+    /** The chronosphere veil through blocks, for the held ghost while the drag sizes it. */
+    public static final RenderPipeline CHRONOSPHERE_THROUGH_BLOCKS = throughBlocksPipeline("goo_chronosphere",
+            BlendFunction.TRANSLUCENT);
+
+    /** The chronosphere veil's through-blocks render type. */
+    public static final RenderType CHRONOSPHERE_THROUGH_BLOCKS_TYPE = burnoutType(CHRONOSPHERE_THROUGH_BLOCKS);
+
     /**
      * Ghost trail pipeline (decision ghost-trail-spans-the-blink): an entity's
      * body drawn again through {@code goo_ghost.vsh / .fsh} as a translucent
@@ -1073,6 +1080,7 @@ public final class GooRenderTypes {
         event.registerPipeline(BORE_VORTEX);
         event.registerPipeline(TICK_FACE);
         event.registerPipeline(CHRONOSPHERE);
+        event.registerPipeline(CHRONOSPHERE_THROUGH_BLOCKS);
         GOO_RIPPLE_MASKS.forEach(event::registerPipeline);
         event.registerPipeline(GOO_RIPPLE_EDGE);
         event.registerPipeline(GOO_GHOST);

@@ -61,7 +61,7 @@ public final class TimekeeperTests {
     private static final int TIME_SINCE_REST = 5000;
     private static final String SHOULD_BANK = "The prism should bank ticks, holding combo '%s'";
     private static final String SHOULD_FEED = "An aeon landing should feed the bank its cost, fed %d";
-    private static final String SHOULD_MOVE_FORWARD = "The clock should move forward by the %d spent, moved %d";
+    private static final String SHOULD_MOVE_FORWARD = "The clock should move forward by %d, moved %d";
     private static final String SHOULD_WIND_BACK = "Time since rest should wind back by %d from %d, reads %d";
     private static final String SHOULD_WITHDRAW = "Rewind should pour %d mB of aeon into holdings for free, %d became %d";
     private static final String ABILITY_REQUIRED = "Ability registry must hold %s";
@@ -80,17 +80,18 @@ public final class TimekeeperTests {
         landAeon(helper);
         helper.assertTrue(prism.bank().fed() >= HELD_GOO, String.format(SHOULD_FEED, prism.bank().fed()));
         ServerPlayer player = streamer(helper, AEON_TICK);
+        long[] before = new long[2];
         helper.runAfterDelay(STAND_TICKS, () -> {
-            long before = clockOf(helper.getLevel());
-            long banked = prism.bank().total();
-            for (int held = 0; held < HOLD_TICKS; held++) {
-                GooStreamHandler.streamTick(player, payload(player, AEON_TICK));
-            }
-            long spent = banked - prism.bank().total();
-            long moved = clockOf(helper.getLevel()) - before;
+            before[0] = clockOf(helper.getLevel());
+            before[1] = helper.getLevel().getGameTime();
+        });
+        holdStream(helper, player, AEON_TICK, STAND_TICKS + 1);
+        helper.runAfterDelay(STAND_TICKS + 1 + HOLD_TICKS, () -> {
+            // the clock also runs its own tick for each server tick the hold spans
+            long moved = clockOf(helper.getLevel()) - before[0] - (helper.getLevel().getGameTime() - before[1]);
             helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(spent == HOLD_TICKS * SPEND_PER_TICK && moved == spent,
-                    String.format(SHOULD_MOVE_FORWARD, spent, moved));
+            helper.assertTrue(moved == HOLD_TICKS * SPEND_PER_TICK,
+                    String.format(SHOULD_MOVE_FORWARD, HOLD_TICKS * SPEND_PER_TICK, moved));
             helper.succeed();
         });
     }
@@ -129,17 +130,32 @@ public final class TimekeeperTests {
         PrismBlockEntity prism = timekeeper(helper);
         prism.bankTicks(STANDING_CHARGE, (int) SPEND_PER_TICK);
         ServerPlayer player = streamer(helper, AEON_REWIND);
-        helper.runAfterDelay(1, () -> {
-            int before = aeonHeld(player);
-            for (int held = 0; held < HOLD_TICKS; held++) {
-                GooStreamHandler.streamTick(player, payload(player, AEON_REWIND));
-            }
+        int[] before = new int[1];
+        helper.runAfterDelay(1, () -> before[0] = aeonHeld(player));
+        holdStream(helper, player, AEON_REWIND, 2);
+        helper.runAfterDelay(2 + HOLD_TICKS, () -> {
             int after = aeonHeld(player);
             int expected = HOLD_TICKS * MB_PER_TICK;
             helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertTrue(after - before == expected, String.format(SHOULD_WITHDRAW, expected, before, after));
+            helper.assertTrue(after - before[0] == expected,
+                    String.format(SHOULD_WITHDRAW, expected, before[0], after));
             helper.succeed();
         });
+    }
+
+    /**
+     * Holds a stream for HOLD_TICKS server ticks from a delay, one stream tick
+     * each, as a client sends them; the stream runs at most once a server tick.
+     *
+     * @param helper  the gametest helper
+     * @param player  the streaming player
+     * @param ability the stream ability
+     * @param from    the delay the hold starts at
+     */
+    private static void holdStream(GameTestHelper helper, ServerPlayer player, Identifier ability, int from) {
+        for (int held = 0; held < HOLD_TICKS; held++) {
+            helper.runAfterDelay(from + held, () -> GooStreamHandler.streamTick(player, payload(player, ability)));
+        }
     }
 
     /**
