@@ -54,6 +54,36 @@ class EntityLiftTest {
         }
     }
 
+    /** A lift prism's shaft (decision lift-prism-levitates-the-block-above). */
+    @Nested
+    class Shaft {
+
+        private static final int CAP = 32;
+
+        @Test
+        void aShaftRunsUpToTheFirstBlockThatStopsMovement() {
+            assertEquals(4, EntityLift.shaftHeight(up -> up < 4, CAP));
+        }
+
+        @Test
+        void anOpenSkyShaftStopsAtTheCap() {
+            assertEquals(CAP, EntityLift.shaftHeight(up -> true, CAP));
+        }
+
+        @Test
+        void aBlockedFloorStandsNoShaft() {
+            assertEquals(0, EntityLift.shaftHeight(up -> false, CAP));
+        }
+
+        @Test
+        void aRiderRisesAndASneakingRiderSinksKeepingItsSidewaysMotion() {
+            Vec3 drifting = new Vec3(0.1, -0.5, 0.05);
+
+            assertEquals(new Vec3(0.1, 0.3, 0.05), EntityLift.ridden(drifting, false, 0.3, 0.2));
+            assertEquals(new Vec3(0.1, -0.2, 0.05), EntityLift.ridden(drifting, true, 0.3, 0.2));
+        }
+    }
+
     @Nested
     class Lift {
 

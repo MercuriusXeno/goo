@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.client.ability.AgitatorWisps;
 import com.mercuriusxeno.goo.client.ability.ThumpRings;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
+import com.mercuriusxeno.goo.client.ability.UpdraftWind;
 import com.mercuriusxeno.goo.client.ber.style.AgitatorPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.OculusLids;
 import com.mercuriusxeno.goo.client.ber.style.OculusStyle;
@@ -79,6 +80,10 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         }
         extractAgitation(prism, state, partialTick);
         extractOculus(prism, state, partialTick, cameraPos);
+        if (!state.combo.isEmpty() && prism.getLevel() != null) {
+            // lift-prism-levitates-the-block-above: a lift blows wind up its shaft
+            UpdraftWind.seeLift(prism.getBlockPos(), state.combo, prism.getLevel(), prism.getLevel().getGameTime());
+        }
     }
 
     /**

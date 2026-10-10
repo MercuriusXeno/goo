@@ -124,6 +124,7 @@ public final class StepTypes {
         register(FloatStep.TYPE);
         register(AirbornStep.TYPE);
         register(UpdraftStep.TYPE);
+        register(LiftStep.TYPE);
     }
 
     private StepTypes() {
