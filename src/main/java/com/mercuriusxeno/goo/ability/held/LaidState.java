@@ -14,6 +14,7 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -50,23 +51,23 @@ public enum LaidState {
      */
     public static Set<LaidState> laidBy(List<Step> behaviors) {
         Set<LaidState> laid = EnumSet.noneOf(LaidState.class);
-        behaviors.stream().flatMap(LaidState::withDescendants).forEach(step -> {
-            if (step instanceof HeartOverlayStep) {
-                laid.add(HEART_OVERLAY);
-            } else if (step instanceof NourishStep) {
-                laid.add(NOURISH);
-            } else if (step instanceof SightStep) {
-                laid.add(SIGHT);
-            } else if (step instanceof TeleportitisStep) {
-                laid.add(TELEPORTITIS);
-            } else if (step instanceof ExtenderStep) {
-                laid.add(EXTENDER);
-            } else if (step instanceof LifetapStep) {
-                laid.add(LIFETAP);
-            }
-        });
+        behaviors.stream().flatMap(LaidState::withDescendants).forEach(step ->
+                LAID_BY.forEach((kind, state) -> {
+                    if (kind.isInstance(step)) {
+                        laid.add(state);
+                    }
+                }));
         return laid;
     }
+
+    /** The state each kind of step lays. */
+    private static final Map<Class<? extends Step>, LaidState> LAID_BY = Map.of(
+            HeartOverlayStep.class, HEART_OVERLAY,
+            NourishStep.class, NOURISH,
+            SightStep.class, SIGHT,
+            TeleportitisStep.class, TELEPORTITIS,
+            ExtenderStep.class, EXTENDER,
+            LifetapStep.class, LIFETAP);
 
     private static Stream<Step> withDescendants(Step step) {
         return Stream.concat(Stream.of(step), step.children().flatMap(LaidState::withDescendants));
