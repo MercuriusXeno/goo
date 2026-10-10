@@ -304,7 +304,7 @@ class DrinkTreeTest {
         }
 
         @Test
-        void theTrunkThinsBackToOneStreamsWidthOverItsLastBlockIntoTheGlove() {
+        void theTrunkThinsToAThreadOverItsLastBlockIntoTheGlove() {
             List<DrinkTree.Stream> streams = treeAt(START + tree().get(1).routeLength() / DrinkStream.FLOW);
             DrinkTree.Stream trunk = streams.getFirst();
             DrinkTree.Stream tributary = streams.get(1);
@@ -313,17 +313,22 @@ class DrinkTreeTest {
             double halfOut = 1 - DrinkTree.THIN_INTO_HAND / TWO / length;
             DrinkTree.Flow out = DrinkTree.flowOf(trunk, trunk, aBlockOut).plus(DrinkTree.flowOf(tributary, trunk,
                     aBlockOut));
+            DrinkTree.Flow half = DrinkTree.flowOf(trunk, trunk, halfOut).plus(DrinkTree.flowOf(tributary, trunk,
+                    halfOut));
             DrinkTree.Flow atGlove = DrinkTree.flowOf(trunk, trunk, 1).plus(DrinkTree.flowOf(tributary, trunk, 1));
 
-            assertEquals(1, DrinkTree.growthHeldAt(trunk, aBlockOut), DELTA, "the whole growth a block out");
-            assertEquals(0.5, DrinkTree.growthHeldAt(trunk, halfOut), DELTA);
-            assertEquals(0, DrinkTree.growthHeldAt(trunk, 1), DELTA, "none at the glove");
-            assertEquals(1, DrinkTree.growthHeldAt(tributary, 1), DELTA, "a tributary keeps its growth to its join");
+            assertEquals(1, DrinkTree.widthHeldAt(trunk, aBlockOut), DELTA, "the whole width a block out");
+            assertEquals(0.5, DrinkTree.widthHeldAt(trunk, halfOut), DELTA);
+            assertEquals(0, DrinkTree.widthHeldAt(trunk, 1), DELTA, "none at the glove");
+            assertEquals(1, DrinkTree.widthHeldAt(tributary, 1), DELTA, "a tributary keeps its width to its join");
             assertEquals(TWO, out.presence(), DELTA, "both streams wholly there");
             assertEquals(TWO, atGlove.presence(), DELTA);
             assertEquals(widthOf(out), DrinkTree.radiusAt(trunk, aBlockOut), DELTA, "the fourth root a block out");
-            assertEquals(atGlove.radius() / atGlove.presence(), DrinkTree.radiusAt(trunk, 1), DELTA,
-                    "one stream's width at the glove");
+            assertEquals((DrinkTree.THREAD + widthOf(half)) / TWO, DrinkTree.radiusAt(trunk, halfOut), DELTA,
+                    "halfway between the full width and the thread half a block out");
+            assertEquals(DrinkTree.THREAD, DrinkTree.radiusAt(trunk, 1), DELTA, "a thread at the glove");
+            assertEquals(DrinkStream.THINNEST, DrinkTree.THREAD, DELTA, "the thread is the thinnest the skin reads round");
+            assertTrue(DrinkTree.THREAD < DrinkStream.WAIST / 4, "a thread is far thinner than one stream's waist");
         }
 
         @Test
