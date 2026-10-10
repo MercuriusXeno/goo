@@ -1,7 +1,7 @@
 {
   "type": "minecraft:function",
   "function": "goo:timekeeper_tick_moves_day_forward",
-  "environment": "minecraft:default",
+  "environment": "goo:timekeeper_clock",
   "structure": "goo:test_bay",
   "max_ticks": 40,
   "setup_ticks": 0,
