@@ -42,6 +42,9 @@ public final class RadiantChannelTests {
     private static final String NO_WISP = "Holding Radiant in a dark room should leave a wisp in it";
     private static final String UNLIT = "A wisp should light its cell to %d, it reads %d";
     private static final String WISP_IN_THE_LIGHT = "A lit room should take no wisp, it took %d";
+    private static final String WISP_OUT_OF_SIGHT = "Air behind the wall should take no wisp, it took %d";
+    /** The stone wall's column, splitting the room so the air past it is out of the player's sight. */
+    private static final int WALL_X = 4;
 
     private RadiantChannelTests() {
     }
@@ -76,6 +79,27 @@ public final class RadiantChannelTests {
         holdRadiant(helper, () -> {
             int wisps = wispsInTheRoom(helper).size();
             helper.assertTrue(wisps == 0, String.format(WISP_IN_THE_LIGHT, wisps));
+        });
+    }
+
+    /**
+     * Holding Radiant in a sealed dark room split by a stone wall lights the
+     * player's side and leaves the air past the wall, out of sight, unlit.
+     *
+     * @param helper the gametest helper
+     */
+    public static void radiantFillsOnlyAirInSight(GameTestHelper helper) {
+        sealRoom(helper);
+        for (int y = 1; y < ROOM_TOP; y++) {
+            for (int z = 1; z < ROOM_EDGE; z++) {
+                helper.setBlock(new BlockPos(WALL_X, y, z), Blocks.STONE);
+            }
+        }
+        holdRadiant(helper, () -> {
+            List<BlockPos> wisps = wispsInTheRoom(helper);
+            long hidden = wisps.stream().filter(pos -> pos.getX() > WALL_X).count();
+            helper.assertTrue(wisps.size() > hidden, NO_WISP);
+            helper.assertTrue(hidden == 0, String.format(WISP_OUT_OF_SIGHT, hidden));
         });
     }
 

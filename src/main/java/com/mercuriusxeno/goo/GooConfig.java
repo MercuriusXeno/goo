@@ -19,7 +19,7 @@ public class GooConfig {
     public static final int DEFAULT_COMBO_DRAIN_PER_TICK = 2;
     public static final ModConfigSpec.IntValue COMBO_DRAIN_PER_TICK;
     /** The light level under which Radiant leaves a wisp (decision radiant-wisps-where-light-is-low). */
-    public static final int DEFAULT_RADIANT_LIGHT_THRESHOLD = 12;
+    public static final int DEFAULT_RADIANT_LIGHT_THRESHOLD = 10;
     public static final ModConfigSpec.IntValue RADIANT_LIGHT_THRESHOLD;
     private static final int MAX_LIGHT = 15;
     /** The largest melt exponent the config accepts. */

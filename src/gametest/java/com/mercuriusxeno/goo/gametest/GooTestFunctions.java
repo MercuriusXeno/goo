@@ -448,6 +448,7 @@ public final class GooTestFunctions {
     private static final String MOB_TYPHOON = "mob_typhoon_levitate";
     private static final String SUNBEAM_REFRACTS_TO_THREE = "sunbeam_refracts_to_three";
     private static final String RADIANT_LIGHTS_A_DARK_ROOM = "radiant_lights_a_dark_room";
+    private static final String RADIANT_FILLS_ONLY_AIR_IN_SIGHT = "radiant_fills_only_air_in_sight";
     private static final String RADIANT_SKIPS_A_LIT_ROOM = "radiant_skips_a_lit_room";
     private static final String SUNBEAM_BURNS_THE_UNDEAD_IT_STRIKES = "sunbeam_burns_the_undead_it_strikes";
     private static final String MOB_HEX = "mob_hex_charm";
@@ -921,6 +922,7 @@ public final class GooTestFunctions {
         reg(r, MOB_TYPHOON, MobEffectTests::typhoonLevitate);
         reg(r, SUNBEAM_REFRACTS_TO_THREE, SunbeamChannelTests::sunbeamRefractsToThree);
         reg(r, RADIANT_LIGHTS_A_DARK_ROOM, RadiantChannelTests::radiantLightsADarkRoom);
+        reg(r, RADIANT_FILLS_ONLY_AIR_IN_SIGHT, RadiantChannelTests::radiantFillsOnlyAirInSight);
         reg(r, RADIANT_SKIPS_A_LIT_ROOM, RadiantChannelTests::radiantSkipsALitRoom);
         reg(r, SUNBEAM_BURNS_THE_UNDEAD_IT_STRIKES, SunbeamChannelTests::sunbeamBurnsTheUndeadItStrikes);
         reg(r, MOB_HEX, MobEffectTests::hexCharm);
