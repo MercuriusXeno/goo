@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -11,12 +12,13 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 /**
  * Radiant's flood: from the holder's eye cell outward through connected
  * open air, nearest cells first, a wisp in each dark cell the holder sees
- * and that no wisp this flood placed already lights. Each tick walks a
- * budget of cells, so the space right around the holder lights within a
- * tick or two and the lit zone keeps pushing out while the channel holds,
- * up to its range or the bounds of its visited cells.
+ * and that no wisp this flood placed already lights. Its edge grows a set
+ * number of blocks each tick it walks, and each tick walks up to a budget
+ * of cells within the edge, so the light spreads out from the holder at a
+ * steady pace while the channel holds, up to its range or the bounds of
+ * its visited cells.
  * decision radiant-wisps-where-light-is-low
- * operator ruling 2026-10-10: wisps flood out from the eyes very fast, nearest first, to 64 blocks
+ * operator rulings 2026-10-10: wisps flood out from the eyes nearest first to 64 blocks, the edge at 16 blocks a second
  */
 public final class WispFlood {
 
@@ -33,6 +35,8 @@ public final class WispFlood {
 
     private final BlockPos origin;
     private final double range;
+    private final double growth;
+    private double edge;
     private final Deque<BlockPos> frontier = new ArrayDeque<>();
     private final LongOpenHashSet visited = new LongOpenHashSet();
     private final List<BlockPos> placed = new ArrayList<>();
@@ -43,10 +47,12 @@ public final class WispFlood {
      *
      * @param origin the holder's eye cell
      * @param range  how far from the origin a cell may be, in blocks
+     * @param growth how many blocks the edge grows each tick it walks; zero or less reaches the range at once
      */
-    public WispFlood(BlockPos origin, double range) {
+    public WispFlood(BlockPos origin, double range, double growth) {
         this.origin = origin.immutable();
         this.range = range;
+        this.growth = growth;
         frontier.add(this.origin);
         visited.add(this.origin.asLong());
     }
@@ -96,8 +102,9 @@ public final class WispFlood {
      * @return how many wisps it placed
      */
     public int walk(int budget, Cells cells) {
+        edge = growth <= 0 ? range : Math.min(range, edge + growth);
         int placedNow = 0;
-        for (int walked = 0; walked < budget && !frontier.isEmpty(); walked++) {
+        for (int walked = 0; walked < budget && withinTheEdge(frontier.peek()); walked++) {
             BlockPos cell = frontier.poll();
             if (takes(cell, cells)) {
                 cells.place(cell);
@@ -107,6 +114,25 @@ public final class WispFlood {
             spread(cell, cells);
         }
         return placedNow;
+    }
+
+    /**
+     * Whether a frontier cell lies within the edge, so this tick may walk it.
+     *
+     * @param cell the frontier's next cell, or null when it is spent
+     * @return true when there is a cell and the edge has reached it
+     */
+    private boolean withinTheEdge(@Nullable BlockPos cell) {
+        return cell != null && cell.distSqr(origin) <= edge * edge;
+    }
+
+    /**
+     * How far the edge has grown, in blocks.
+     *
+     * @return the edge's radius
+     */
+    double edge() {
+        return edge;
     }
 
     private boolean takes(BlockPos cell, Cells cells) {

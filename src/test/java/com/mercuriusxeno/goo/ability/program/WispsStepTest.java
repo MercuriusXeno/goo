@@ -30,19 +30,19 @@ class WispsStepTest {
 
     @Test
     void aFloodStartsOverWhenTheHoldBegins() {
-        assertTrue(WispsStep.startsOver(new WispFlood(EYES, 64), EYES, ChannelAim.FIRST_TICK));
+        assertTrue(WispsStep.startsOver(new WispFlood(EYES, 64, 0), EYES, ChannelAim.FIRST_TICK));
     }
 
     @Test
     void aFloodGoesOnWhileTheEyesStayNear() {
-        WispFlood under = new WispFlood(EYES, 64);
+        WispFlood under = new WispFlood(EYES, 64, 0);
         assertFalse(WispsStep.startsOver(under, EYES, LATER_TICK));
         assertFalse(WispsStep.startsOver(under, EYES.east(WispsStep.RESTART_STEPS), LATER_TICK));
     }
 
     @Test
     void aFloodStartsOverWhenTheEyesMoveOn() {
-        WispFlood under = new WispFlood(EYES, 64);
+        WispFlood under = new WispFlood(EYES, 64, 0);
         assertTrue(WispsStep.startsOver(under, EYES.east(WispsStep.RESTART_STEPS + 1), LATER_TICK));
     }
 }

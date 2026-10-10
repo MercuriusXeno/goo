@@ -35,7 +35,7 @@ import java.util.stream.Stream;
  * tries the one cell above the block below the tap, a wisp there when it
  * is dark air.
  * decisions radiant-wisps-where-light-is-low, radiant-drip-places-a-wisp
- * operator ruling 2026-10-10: wisps flood out from the eyes very fast, nearest first, to 64 blocks
+ * operator rulings 2026-10-10: wisps flood out from the eyes nearest first to 64 blocks, the edge at 16 blocks a second
  *
  * @param radius how far from the host a cell may be, in blocks; zero for the host's own cell
  * @param count  how many cells to walk each run
@@ -43,8 +43,9 @@ import java.util.stream.Stream;
  * @param above  how many blocks above the host the drip's cell sits
  * @param aura   whether a player holding the channel shows the held aura to the clients tracking them
  * @param flood  whether the step floods out from the holder's eyes; otherwise it tries the host's own cell
+ * @param growth how many blocks the flood's edge grows each tick; zero reaches the radius at once
  */
-public record WispsStep(double radius, int count, int life, int above, boolean aura, boolean flood)
+public record WispsStep(double radius, int count, int life, int above, boolean aura, boolean flood, double growth)
         implements Step {
 
     private static final String NAME = "wisps";
@@ -54,6 +55,7 @@ public record WispsStep(double radius, int count, int life, int above, boolean a
     private static final String FIELD_ABOVE = "above";
     private static final String FIELD_AURA = "aura";
     private static final String FIELD_FLOOD = "flood";
+    private static final String FIELD_GROWTH = "growth";
     private static final float CHIME_VOLUME = 0.4f;
     private static final float CHIME_PITCH = 1.6f;
     private static final float CHIME_PITCH_SPREAD = 0.4f;
@@ -75,7 +77,8 @@ public record WispsStep(double radius, int count, int life, int above, boolean a
             Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_LIFE).forGetter(WispsStep::life),
             Codec.INT.optionalFieldOf(FIELD_ABOVE, 0).forGetter(WispsStep::above),
             Codec.BOOL.optionalFieldOf(FIELD_AURA, false).forGetter(WispsStep::aura),
-            Codec.BOOL.optionalFieldOf(FIELD_FLOOD, false).forGetter(WispsStep::flood)
+            Codec.BOOL.optionalFieldOf(FIELD_FLOOD, false).forGetter(WispsStep::flood),
+            Codec.DOUBLE.optionalFieldOf(FIELD_GROWTH, 0.0).forGetter(WispsStep::growth)
     ).apply(inst, WispsStep::new));
 
     /**
@@ -110,7 +113,7 @@ public record WispsStep(double radius, int count, int life, int above, boolean a
         if (startsOver(under, eyes, heldTicks)) {
             long now = level.getGameTime();
             FLOODS.values().removeIf(stale -> now - stale.lastWalked() > FORGET_AFTER_TICKS);
-            under = new WispFlood(eyes, radius);
+            under = new WispFlood(eyes, radius, growth);
             FLOODS.put(holder.getUUID(), under);
         }
         under.walkedAt(level.getGameTime());
