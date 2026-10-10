@@ -112,13 +112,13 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("jump_source", () -> AttachmentType.builder(() -> Vec3.ZERO).build());
 
     /**
-     * The game time a living entity's Charged runs until, saved with it; at or
-     * before the current time it stands uncharged
+     * Whether a player stands Charged, laid by the charged step as its held
+     * effect starts and cleared when that effect ends, saved with the player
      * (decision charged-scales-channel-params-by-json).
      */
-    public static final Supplier<AttachmentType<Long>> CHARGED =
+    public static final Supplier<AttachmentType<Boolean>> CHARGED =
             ATTACHMENT_TYPES.register("charged",
-                    () -> AttachmentType.builder(() -> 0L).serialize(Codec.LONG.fieldOf("until")).build());
+                    () -> AttachmentType.builder(() -> false).serialize(Codec.BOOL.fieldOf("standing")).build());
 
     /**
      * The spores a mob carries, bursting another spray from its corpse when

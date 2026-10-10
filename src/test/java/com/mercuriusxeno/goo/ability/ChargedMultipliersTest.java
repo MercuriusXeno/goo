@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.ability;
 
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.ability.program.ChargedMultipliers;
-import com.mercuriusxeno.goo.ability.program.ChargedStep;
 import com.mercuriusxeno.goo.ability.program.DamageKind;
 import com.mercuriusxeno.goo.ability.program.DamageStep;
 import com.mercuriusxeno.goo.ability.program.Expr;
@@ -23,9 +22,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Charged's multipliers read 1 wherever an ability's JSON names none, a
- * charged cast's programs read them as variables, and casts stack while a
- * brew charges for its hour (decision charged-scales-channel-params-by-json).
+ * Charged's multipliers read 1 wherever an ability's JSON names none, and a
+ * charged cast's programs read them as variables
+ * (decision charged-scales-channel-params-by-json).
  */
 class ChargedMultipliersTest {
 
@@ -84,26 +83,6 @@ class ChargedMultipliersTest {
 
             assertDoesNotThrow(() -> ProgramBehavior.forHost(program, HostKind.ENTITY));
             assertDoesNotThrow(() -> ProgramBehavior.forHost(program, HostKind.PLAYER));
-        }
-    }
-
-    @Nested
-    class Charge {
-
-        @Test
-        void aCastStacksOntoAStandingCharge() {
-            assertEquals(1400L, ChargedStep.stackedUntil(1200L, 1000L, 200));
-        }
-
-        @Test
-        void aCastAfterTheChargeRanOutStartsFromNow() {
-            assertEquals(1200L, ChargedStep.stackedUntil(500L, 1000L, 200));
-        }
-
-        @Test
-        void aBrewChargesForItsHourUnlessALongerChargeStands() {
-            assertEquals(73000L, ChargedStep.brewedUntil(1200L, 1000L, 72000));
-            assertEquals(90000L, ChargedStep.brewedUntil(90000L, 1000L, 72000));
         }
     }
 }

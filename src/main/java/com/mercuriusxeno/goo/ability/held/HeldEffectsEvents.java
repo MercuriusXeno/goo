@@ -255,7 +255,7 @@ public final class HeldEffectsEvents {
 
     /**
      * Clears the states an ended effect laid on the player's senses and
-     * draws: its sight, its teleportitis and its lifetap.
+     * draws: its sight, its teleportitis, its lifetap and its charge.
      *
      * @param player the player
      * @param lays   the states the ended effect laid
@@ -264,6 +264,10 @@ public final class HeldEffectsEvents {
         if (lays.contains(LaidState.SIGHT)) {
             // sight-lengthens-shift-and-outlines-fungus: the sight ends with its held effect
             player.setData(GooAttachments.SIGHT, Sight.NONE);
+        }
+        if (lays.contains(LaidState.CHARGED)) {
+            // charged-scales-channel-params-by-json: the charge ends with its held effect, dry, pressed or expired
+            player.setData(GooAttachments.CHARGED, false);
         }
         if (lays.contains(LaidState.TELEPORTITIS)) {
             // teleportitis-blinks-along-the-cursor-on-hit: the teleportitis ends with its held effect

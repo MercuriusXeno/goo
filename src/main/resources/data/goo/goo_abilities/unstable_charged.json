@@ -7,7 +7,7 @@
   "requires": ["minecraft:fire_charge"],
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "charged", "duration": 400 },
+    { "type": "charged" },
     { "type": "sound", "id": "minecraft:item.firecharge.use", "at": "target", "source": "players", "volume": 1, "pitch": 1.5 }
   ],
   "tags": ["self"]

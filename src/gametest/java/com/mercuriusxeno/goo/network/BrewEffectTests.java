@@ -48,6 +48,9 @@ public final class BrewEffectTests {
     private static final String SHOULD_HOLD_EFFECT = "The %s brew effect should stand for %d ticks, stands %s";
     private static final String SHOULD_DRAIN_NOTHING = "A brew should drain no goo, drained %d";
     private static final String SHOULD_CHARGE = "The unstable brew should charge until %d, charges until %d";
+    private static final Identifier UNSTABLE_CHARGED = Identifier.parse("goo:unstable_charged");
+    /** The expiry read for a player holding no Charged at all. */
+    private static final long NOT_HELD = -1;
     /** shroom_sight.json's factor. */
     private static final float SIGHT_FACTOR = 3f;
     /** hex_lifetap.json's fraction. */
@@ -115,7 +118,8 @@ public final class BrewEffectTests {
     }
 
     /**
-     * Drinking the unstable brew charges the player for an hour
+     * Drinking the unstable brew charges the player for an hour: Charged
+     * stands and its held effect is prepaid to the brew's expiry
      * (decision charged-scales-channel-params-by-json).
      *
      * @param helper the gametest helper
@@ -126,10 +130,13 @@ public final class BrewEffectTests {
 
         drink(player, GooTypes.UNSTABLE);
 
-        long chargedUntil = player.getData(GooAttachments.CHARGED);
+        boolean charged = player.getData(GooAttachments.CHARGED);
+        long chargedUntil = player.getData(GooAttachments.HELD_EFFECTS).held().stream()
+                .filter(held -> held.ability().equals(UNSTABLE_CHARGED)).mapToLong(HeldEffects.Held::expiresAt)
+                .findFirst().orElse(NOT_HELD);
         helper.getLevel().getServer().getPlayerList().remove(player);
         long expected = now + GooPotions.BREW_DURATION;
-        helper.assertTrue(chargedUntil == expected, String.format(SHOULD_CHARGE, expected, chargedUntil));
+        helper.assertTrue(charged && chargedUntil == expected, String.format(SHOULD_CHARGE, expected, chargedUntil));
         helper.succeed();
     }
 
