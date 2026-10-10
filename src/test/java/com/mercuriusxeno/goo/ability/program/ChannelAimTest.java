@@ -6,6 +6,7 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -43,6 +44,16 @@ class ChannelAimTest {
             assertEquals(13, swath.getLast().getX());
             assertTrue(swath.stream().allMatch(pos -> pos.getX() < WALL.getX()));
             assertTrue(swath.contains(new BlockPos(13, 66, 2)));
+        }
+
+        @Test
+        void aSliceBreaksItsRingInTurnAndItsMiddleLast() {
+            BlockPos middle = new BlockPos(1, 2, 0);
+            List<BlockPos> slice = ChannelAim.sliceRingIn(middle, Direction.Axis.X);
+            assertEquals(9, Set.copyOf(slice).size());
+            assertEquals(middle, slice.getLast());
+            assertTrue(slice.stream().allMatch(pos -> pos.getX() == middle.getX()
+                    && Math.abs(pos.getY() - middle.getY()) <= 1 && Math.abs(pos.getZ() - middle.getZ()) <= 1));
         }
 
         @Test
