@@ -123,9 +123,10 @@ public class GlowCrystalBlock extends Block {
      * @return the Z-axis-anchored voxel shape
      */
     private static VoxelShape shapeAlongZ(Direction facing, double min, double max, double depth) {
+        // a crystal facing north stands on the north face of the block south of it, so it hugs z = 1
         return facing == Direction.NORTH
-                ? Shapes.box(min, min, 0, max, max, depth)
-                : Shapes.box(min, min, 1 - depth, max, max, 1);
+                ? Shapes.box(min, min, 1 - depth, max, max, 1)
+                : Shapes.box(min, min, 0, max, max, depth);
     }
 
     /**
@@ -138,9 +139,10 @@ public class GlowCrystalBlock extends Block {
      * @return the X-axis-anchored voxel shape
      */
     private static VoxelShape shapeAlongX(Direction facing, double min, double max, double depth) {
+        // a crystal facing west stands on the west face of the block east of it, so it hugs x = 1
         return facing == Direction.WEST
-                ? Shapes.box(0, min, min, depth, max, max)
-                : Shapes.box(1 - depth, min, min, 1, max, max);
+                ? Shapes.box(1 - depth, min, min, 1, max, max)
+                : Shapes.box(0, min, min, depth, max, max);
     }
 
     @Override
