@@ -47,8 +47,6 @@ public final class HeldDomeRenderer {
     private static final int RING_PEAK_ALPHA = 160;
     /** Offset to a block's center from its corner. */
     private static final double BLOCK_CENTER = 0.5;
-    /** A sized black hole pulls from three times its radius, nether_black_hole.json's {@code 3 * size}. */
-    static final float PULL_REACH_PER_RADIUS = 3f;
 
     /** The ghost each goo type holds; a type with none draws no dome. */
     private static final Map<ResourceKey<GooTypeDefinition>, HeldGhostVisual> GHOSTS = Map.of(
@@ -154,9 +152,10 @@ public final class HeldDomeRenderer {
 
     /**
      * Draws a sized ability's ghost at the epicenter its press pinned, at the
-     * radius its drag sets, its rings pulsing in from three times that radius,
-     * the reach a black hole pulls from
-     * (decision black-hole-leaves-a-compression-sphere).
+     * radius its drag sets, its rings as its type's ghost names them: the
+     * black hole's pulsing in from the reach it pulls from, Blast's out to the
+     * radius dragged (decisions black-hole-leaves-a-compression-sphere,
+     * blast-is-drag-sized-like-the-black-hole).
      *
      * @param poseStack  the pose stack, camera relative
      * @param buffers    the buffer source
@@ -176,18 +175,8 @@ public final class HeldDomeRenderer {
         }
         DomeAnchor anchor = new DomeAnchor(Vec3.atLowerCornerOf(pin.getBlockPos().relative(pin.getDirection())),
                 pin.getLocation(), pin.getDirection());
-        draw(poseStack, buffers, camera, new GhostAt(visual, anchor, sizedGhost(radius)), ringRgb, nowSeconds);
-    }
-
-    /**
-     * A sized black hole's ghost: its dome at the radius dragged and its rings
-     * closing in from the reach it pulls from, three times that.
-     *
-     * @param radius the radius dragged, in blocks
-     * @return the ghost
-     */
-    static HeldGhost sizedGhost(float radius) {
-        return new HeldGhost(radius, HeldGhost.RingDirection.INWARD, radius * PULL_REACH_PER_RADIUS);
+        draw(poseStack, buffers, camera, new GhostAt(visual, anchor, visual.sizedGhost(radius)), ringRgb,
+                nowSeconds);
     }
 
     /**

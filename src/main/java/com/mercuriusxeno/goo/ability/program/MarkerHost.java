@@ -110,7 +110,7 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
      */
     ChainBurnoutPayload burnout() {
         return new ChainBurnoutPayload(pos, be.getPlacedFace().ordinal(), GooTypes.id(be.getGooType()),
-                be.getAbilityId());
+                be.getAbilityId(), be.programState().castSize());
     }
 
     @Override

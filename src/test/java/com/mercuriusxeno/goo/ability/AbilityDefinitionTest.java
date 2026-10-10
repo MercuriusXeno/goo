@@ -30,7 +30,7 @@ class AbilityDefinitionTest {
     private static final Pattern RADIUS_BEARING = Pattern.compile("\"radius\"|\"type\"\s*:\s*\"explode\"");
 
     @ParameterizedTest
-    @CsvSource({"unstable_explode, 3.0", "unstable_lurker, 2.5", "unstable_timed_bomb, 2.0"})
+    @CsvSource({"unstable_lurker, 2.5", "unstable_timed_bomb, 2.0"})
     void explosiveSphereIsDrawnAtTheExplosionsMaxReach(String name, float power) {
         assertEquals(ExplosionMarch.maxReach(power), AbilityJson.decode(name).area().size(), TOLERANCE);
     }
@@ -92,7 +92,7 @@ class AbilityDefinitionTest {
 
         @ParameterizedTest
         @CsvSource({"glow_laser, LINE, 0.0, 0.0", "glow_crystal, LINE, 0.0, 0.0", "blaze_spitfire, CONE, 6.0, 20.0",
-                "unstable_explode, SPHERE, 4.0, 0.0"})
+                "unstable_explode, NONE, 0.0, 0.0"})
         void writtenAreaStandsOverTheDerivedOne(String name, AbilityArea.Shape shape, double size, double angle) {
             assertEquals(new AbilityArea(shape, size, angle), AbilityJson.decode(name).area());
         }

@@ -76,7 +76,8 @@ public final class MobEffectTests {
     private static final String ABILITY_TYPHOON_LEVITATE = "goo:typhoon_levitate";
     private static final String ABILITY_FROST_SNAP = "goo:frost_snap";
     private static final String ABILITY_AEON_TIME_STOP = "goo:aeon_time_stop";
-    private static final String ABILITY_UNSTABLE_EXPLODE = "goo:unstable_explode";
+    /** The gametests' own thrown blast, today's Blast before it was drag-sized, struck at a mob. */
+    private static final String ABILITY_UNSTABLE_EXPLODE = "goo:test_blast";
     private static final String ABILITY_HEX_CHARM = "goo:hex_charm";
     private static final String ABILITY_VITAL_CLONE = "goo:vital_clone";
     private static final String ABILITY_BLAZE_IGNITE = "goo:blaze_ignite";
@@ -98,7 +99,7 @@ public final class MobEffectTests {
     /** Wide enough that a gaussian step from the target cannot leave it. */
     private static final double CLONE_SEARCH_RADIUS = 8.0;
     private static final int CHICKENS_AFTER_CLONE = 2;
-    /** Beside the cow, inside unstable_explode.json's blast of power 3. */
+    /** Beside the cow, inside test_blast.json's blast of power 3. */
     private static final BlockPos BLAST_DIRT_POS = SPAWN_POS.south();
     /** The damage crystal_flechettes.json's first damage step names. */
     private static final float FLECHETTE_DAMAGE = 4.0f;
