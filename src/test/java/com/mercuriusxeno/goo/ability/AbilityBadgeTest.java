@@ -19,24 +19,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AbilityBadgeTest {
 
-    private static final int SHIPPED_MOB_BADGES = 13;
+    private static final int SHIPPED_MOB_BADGES = 12;
     private static final int SHIPPED_WORLD_BADGES = 11;
     private static final int SHIPPED_SELF_BADGES = 5;
-    private static final int SHIPPED_BREW_BADGES = 9;
-    private static final int SHIPPED_CHANNELED_BADGES = 14;
+    private static final int SHIPPED_BREW_BADGES = 10;
+    private static final int SHIPPED_CHANNELED_BADGES = 15;
     private static final int SHIPPED_FREE_BADGES = 6;
-    private static final int SHIPPED_TAP_BADGES = 8;
-    private static final int SHIPPED_PRISM_BADGES = 6;
+    private static final int SHIPPED_TAP_BADGES = 9;
+    private static final int SHIPPED_PRISM_BADGES = 7;
     /**
-     * The prism combos (decisions prism-hosts-the-combos, glacial-prism-holds-the-area-frozen,
-     * agitator-prism-quickens-until-a-spawn, verdant-prism-greens-blocks-slowly,
-     * oculus-prism-becomes-a-hovering-eye).
+     * The prism combos (decisions prism-hosts-the-combos, hive-prism-pillar-eats-the-living,
+     * glacial-prism-holds-the-area-frozen, agitator-prism-quickens-until-a-spawn,
+     * verdant-prism-greens-blocks-slowly, oculus-prism-becomes-a-hovering-eye).
      */
-    private static final List<String> SHIPPED_PRISMS = List.of("pulse_metronome", "pulse_relay", "frost_glacial",
-            "hex_agitator", "leaf_verdant", "ender_oculus");
+    private static final List<String> SHIPPED_PRISMS = List.of("nether_hive", "pulse_metronome", "pulse_relay",
+            "frost_glacial", "hex_agitator", "leaf_verdant", "ender_oculus");
     /** The self + brew abilities, which wear brew on their self delivery (decision self-brew-goos-eat-before-the-effect). */
     private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "ender_teleportitis", "leaf_barkskin",
-            "rock_stoneskin", "vital_nourish", "shroom_sight", "pulse_extender", "frost_iceborn", "hex_lifetap");
+            "rock_stoneskin", "vital_nourish", "shroom_sight", "nether_undead", "pulse_extender", "frost_iceborn",
+            "hex_lifetap");
     /** The shipped free abilities (decisions badge-vocabulary-gains-free-prism-tap-brew, zap-ticks-the-device-and-stuns). */
     private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "rock_crush", "shroom_colonize",
             "pulse_zap", "frost_orb", "leaf_reap");
@@ -87,7 +88,7 @@ class AbilityBadgeTest {
      * The badge a shipped ability wears: its delivery's own badge for a self
      * or a stream (decision one-proving-ability-per-kind), brew for a self +
      * brew ability, free for Blast, tap for a tap's drip ability, prism for
-     * a prism combo, channeled for a thrown channel such as Spawn, and for any
+     * a prism combo such as Hive, channeled for a thrown channel such as Spawn, and for any
      * other thrown ability, mob where it targets entities and world elsewhere.
      *
      * @param definition the shipped ability

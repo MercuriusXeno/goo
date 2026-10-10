@@ -19,8 +19,23 @@ import java.util.List;
  * @param plane       the face the hold began on, or null where it began on none or the hold is a stream
  * @param coneDegrees a stream's cone, apex to rim, in degrees; zero for a channel aiming one point
  * @param held        the hold's tick count, 1 on its first tick; zero where the hold is uncounted
+ * @param reaching    whether the swarm reaches new blocks this tick; false while a mob-first stream bites a mob,
+ *                    when blocks already reached keep working but none is reached anew
  */
-public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees, int held) {
+public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees, int held,
+                         boolean reaching) {
+
+    /**
+     * The aim of a counted hold through a cone, reaching the blocks in it.
+     *
+     * @param aimPoint    the stream's reach along the look
+     * @param plane       the face the hold began on, or null
+     * @param coneDegrees the cone, apex to rim, in degrees
+     * @param held        the hold's tick count, 1 on its first tick
+     */
+    public ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees, int held) {
+        this(aimPoint, plane, coneDegrees, held, true);
+    }
 
     /** How far past the aim point, along the line from the eye, the aimed block is read. */
     private static final double INTO_THE_FACE = 0.01;
@@ -77,7 +92,7 @@ public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDe
      * @param plane    the face the hold began on, or null where it began on none
      */
     public ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane) {
-        this(aimPoint, plane, 0, 0);
+        this(aimPoint, plane, 0, 0, true);
     }
 
     /**
@@ -88,7 +103,7 @@ public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDe
      * @param coneDegrees the cone, apex to rim, in degrees
      */
     public ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees) {
-        this(aimPoint, plane, coneDegrees, 0);
+        this(aimPoint, plane, coneDegrees, 0, true);
     }
 
     /**

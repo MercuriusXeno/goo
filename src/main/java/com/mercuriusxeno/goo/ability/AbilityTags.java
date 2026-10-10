@@ -32,6 +32,22 @@ public final class AbilityTags {
      */
     public static final String SELF = "self";
 
+    /**
+     * A stream that works on a mob or on blocks, never both at once: with a
+     * mob in its cone it strikes the nearest one alone and leaves the blocks,
+     * and with none it runs its block pass
+     * (decision decay-gnats-degrade-each-block-once).
+     */
+    public static final String MOB_FIRST = "mob_first";
+
+    /**
+     * A world ability sized at will: pressing pins its epicenter, dragging
+     * sets its radius, and releasing opens it at once, its program reading
+     * the radius as {@code size}; it is never thrown
+     * (decision black-hole-leaves-a-compression-sphere).
+     */
+    public static final String DRAG_SIZED = "drag_sized";
+
     private AbilityTags() {
     }
 }

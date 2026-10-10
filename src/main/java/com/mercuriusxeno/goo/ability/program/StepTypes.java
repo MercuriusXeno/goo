@@ -39,7 +39,6 @@ public final class StepTypes {
         register(DamageStep.TYPE);
         register(PotionStep.TYPE);
         register(TargetStep.TYPE);
-        register(LeafSteps.SET_HEALTH.type());
         register(FreezeStep.TYPE);
         register(NovaStep.TYPE);
         register(FreezeBlocksStep.TYPE);
@@ -64,7 +63,7 @@ public final class StepTypes {
         register(PhasedStep.TYPE);
         register(PullStep.TYPE);
         register(LeafSteps.CONSUME_BLOCKS.type());
-        register(LeafSteps.DROP_CONSUMED.type());
+        register(LeafSteps.DROP_SPHERE.type());
         register(CounterStep.TYPE);
         register(BranchStep.TYPE);
         register(LeafSteps.DISCARD.type());
@@ -78,12 +77,15 @@ public final class StepTypes {
         register(FloorsStep.TYPE);
         register(ShiftStep.TYPE);
         register(SightStep.TYPE);
+        register(UndeadStep.TYPE);
         register(FlattenStep.TYPE);
         register(BoreStep.TYPE);
         register(CrushStep.TYPE);
         register(PetrifyStep.TYPE);
         register(CalcifyStep.TYPE);
+        register(DegradeStep.TYPE);
         register(PetrifyDripStep.TYPE);
+        register(DegradeDripStep.TYPE);
         register(LeafSteps.HEAL.type());
         register(LeafSteps.COURT.type());
         register(LeafSteps.POWER_PULSE.type());

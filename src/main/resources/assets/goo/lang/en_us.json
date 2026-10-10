@@ -1,5 +1,6 @@
 {
   "itemGroup.goo": "Goo",
+  "entity.goo.compression_sphere": "Compression Sphere",
 
   "key.category.goo.glove": "Goo",
   "key.goo.glove_menu": "Goo glove menu",
@@ -79,7 +80,7 @@
   "item.minecraft.potion.effect.hex_goo": "Potion of Soul Sight",
   "item.minecraft.potion.effect.leaf_goo": "Potion of Bramble Hearts",
   "item.minecraft.potion.effect.metal_goo": "Potion of Heavy Metal",
-  "item.minecraft.potion.effect.nether_goo": "Potion of Wither Inoculation",
+  "item.minecraft.potion.effect.nether_goo": "Potion of Undeath",
   "item.minecraft.potion.effect.pulse_goo": "Potion of Extending",
   "item.minecraft.potion.effect.rock_goo": "Potion of Stoneskin",
   "item.minecraft.potion.effect.shroom_goo": "Potion of Mycelial Network",
@@ -162,7 +163,10 @@
   "goo.ability.metal.javelin": "Dart",
   "goo.ability.metal.spikes": "Urchin",
   "goo.ability.nether.black_hole": "Anti",
-  "goo.ability.nether.wither": "Wither",
+  "goo.ability.nether.decay": "Decay",
+  "goo.ability.nether.decay_tap": "Decay",
+  "goo.ability.nether.hive": "Hive",
+  "goo.ability.nether.undead": "Undead",
   "goo.ability.pulse.extender": "Extender",
   "goo.ability.pulse.metronome": "Metronome",
   "goo.ability.pulse.pulser": "Pulser",

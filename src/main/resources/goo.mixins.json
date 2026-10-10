@@ -6,6 +6,7 @@
     "ContainerShiftClickMergeMixin",
     "FoodDataLifetapMixin",
     "InventoryPickupMergeMixin",
+    "LivingEntityUndeadMixin",
     "MinecraftServerGooStateMixin",
     "GooQuickCraftMixin",
     "ReloadableServerResourcesGooMixin"

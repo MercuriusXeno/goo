@@ -24,8 +24,8 @@ import java.util.Optional;
  * @param grannyAllowed  whether an arc may lob onto a top face
  * @param particle       the particle a stream sprays along its cone, empty for none
  * @param transformAt    the share of the flight by which the blob has taken its traveling form
- * @param sound          the sound a stream makes while held, empty for none; the server plays it, so the
- *                       network copy carries none
+ * @param sound          the sound a stream makes while held, empty for none; the server plays it, and the
+ *                       holder's client loops it where it loops
  * @param chargeTicks    the ticks of hold a charged ability takes to charge fully, 0 for one that does not charge
  */
 public record Delivery(DeliveryKind kind, double blocksPerTick, double range, double coneDegrees,
@@ -127,10 +127,9 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
             ByteBufCodecs.BOOL, Delivery::grannyAllowed,
             ByteBufCodecs.optional(Identifier.STREAM_CODEC), Delivery::particle,
             ByteBufCodecs.DOUBLE, Delivery::transformAt,
+            ByteBufCodecs.optional(StreamSound.STREAM_CODEC), Delivery::sound,
             ByteBufCodecs.VAR_INT, Delivery::chargeTicks,
-            (kind, blocksPerTick, range, cone, ticksPerCharge, granny, particle, transformAt, chargeTicks) ->
-                    new Delivery(kind, blocksPerTick, range, cone, ticksPerCharge, granny, particle, transformAt,
-                            Optional.empty(), chargeTicks));
+            Delivery::new);
 
     /**
      * A delivery of the kind with every param at its default.

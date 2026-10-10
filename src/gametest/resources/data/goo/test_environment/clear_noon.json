@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:all_of",
+  "definitions": [
+    { "type": "minecraft:clock_time", "clock": "minecraft:overworld", "time": 6000 },
+    { "type": "minecraft:weather", "weather": "clear" }
+  ]
+}

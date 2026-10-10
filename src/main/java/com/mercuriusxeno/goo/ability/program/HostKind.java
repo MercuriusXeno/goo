@@ -15,7 +15,7 @@ public enum HostKind {
      * cursor of a phased step, and the goo a black hole consumes until it
      * pops.
      */
-    MARKER("marker block", MarkerHost.class, Set.of()),
+    MARKER("marker block", MarkerHost.class, Set.of(HostVariables.SIZE)),
     /**
      * The struck living entity: a target and its thrower, acted on in the
      * tick the goo lands, with no driver for later ticks.
@@ -36,7 +36,7 @@ public enum HostKind {
      * acted on in the landing tick with no driver for later ticks (decisions
      * splat-runs-the-program-no-fuse, lingering-abilities-place-their-own-thing).
      */
-    LANDING("blob landing", LandingHost.class, Set.of()),
+    LANDING("blob landing", LandingHost.class, Set.of(HostVariables.SIZE)),
     /**
      * A floor a stream's cone or a spore burst reaches: the world around its
      * top face and the cell above it to write, acted on in the tick the spray

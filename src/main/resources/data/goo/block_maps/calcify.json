@@ -4,6 +4,12 @@
     "minecraft:dirt": "minecraft:coarse_dirt",
     "minecraft:coarse_dirt": "minecraft:gravel",
     "minecraft:gravel": "minecraft:cobblestone",
-    "minecraft:cobblestone": "minecraft:stone"
+    "minecraft:cobblestone": "minecraft:stone",
+    "minecraft:cobbled_deepslate": "minecraft:deepslate",
+    "minecraft:cracked_stone_bricks": "minecraft:stone_bricks",
+    "minecraft:cracked_deepslate_bricks": "minecraft:deepslate_bricks",
+    "minecraft:cracked_deepslate_tiles": "minecraft:deepslate_tiles",
+    "minecraft:cracked_polished_blackstone_bricks": "minecraft:polished_blackstone_bricks",
+    "minecraft:cracked_nether_bricks": "minecraft:nether_bricks"
   }
 }

@@ -33,6 +33,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Gametests for the frost abilities: each lands a frost ability the way the
@@ -113,7 +114,8 @@ public final class FrostAbilityTests {
     private static final int STILL_ROLLING_TICKS = 40;
     private static final int RANGE_SPENT_TICKS = 70;
     private static final String SHOULD_STILL_ROLL = "The Orb should still be rolling twelve blocks out";
-    private static final String SHOULD_END_AT_RANGE = "The Orb should end once it has rolled its sixteen blocks";
+    private static final String SHOULD_END_AT_RANGE_FROM =
+            "The Orb should end once it has rolled its sixteen blocks; it stands %s from its start, entity ticking %s";
     /** A prism in the bay's corner, a zombie beside it and its twin in the far corner past Glacial's reach of 5. */
     private static final BlockPos GLACIAL_PRISM_POS = new BlockPos(0, 1, 0);
     private static final BlockPos GLACIAL_INSIDE_POS = new BlockPos(1, 1, 1);
@@ -322,18 +324,20 @@ public final class FrostAbilityTests {
         ServerPlayer thrower = orbThrower(helper);
         AbilityDefinition orb = AbilityRegistry.of(helper.getLevel()).getAbility(FROST_ORB);
         Vec3 sky = Vec3.atCenterOf(helper.absolutePos(STREAMER_POS.above(OPEN_SKY)));
-        // The test watches the one Orb it rolled: an Orb rolled by a test beside this one may pass near its sky.
-        RollingGoo[] rolled = new RollingGoo[1];
-        helper.runAfterDelay(SETTLE_TICKS, () -> rolled[0] = RollingGoo.roll(helper.getLevel(), thrower, orb, sky,
-                new Vec3(1, 0, 0)));
-        helper.runAfterDelay(STILL_ROLLING_TICKS, () -> helper.assertFalse(rolled[0].isRemoved(), SHOULD_STILL_ROLL));
+        // the orb this test rolled, so a neighboring test's orb rolling past never stands in for it
+        AtomicReference<RollingGoo> rolled = new AtomicReference<>();
+        helper.runAfterDelay(SETTLE_TICKS, () -> rolled.set(RollingGoo.roll(helper.getLevel(), thrower, orb, sky,
+                new Vec3(1, 0, 0))));
+        helper.runAfterDelay(STILL_ROLLING_TICKS, () -> helper.assertFalse(rolled.get().isRemoved(),
+                SHOULD_STILL_ROLL));
         helper.runAfterDelay(RANGE_SPENT_TICKS, () -> {
             helper.getLevel().getServer().getPlayerList().remove(thrower);
-            helper.assertTrue(rolled[0].isRemoved(), SHOULD_END_AT_RANGE);
+            RollingGoo goo = rolled.get();
+            helper.assertTrue(goo.isRemoved(), String.format(SHOULD_END_AT_RANGE_FROM, goo.position().subtract(sky),
+                    helper.getLevel().isPositionEntityTicking(goo.blockPosition())));
             helper.succeed();
         });
     }
-
 
     private static ServerPlayer orbThrower(GameTestHelper helper) {
         ServerPlayer thrower = SelfDeliveryTests.invoker(helper, GooTypes.FROST);
