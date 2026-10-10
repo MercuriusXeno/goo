@@ -68,7 +68,7 @@ public final class GooNetworking {
     private static void registerAbilityVisualPayloads(PayloadRegistrar r) {
         r.playToClient(ScryPayload.TYPE, ScryPayload.STREAM_CODEC);
         r.playToClient(SunbeamPayload.TYPE, SunbeamPayload.STREAM_CODEC);
-        r.playToClient(RadiantAuraPayload.TYPE, RadiantAuraPayload.STREAM_CODEC);
+        r.playToClient(WispFlightPayload.TYPE, WispFlightPayload.STREAM_CODEC);
         r.playToClient(LeechPayload.TYPE, LeechPayload.STREAM_CODEC);
         r.playToClient(TomePayload.TYPE, TomePayload.STREAM_CODEC);
         r.playToClient(NovaRingPayload.TYPE, NovaRingPayload.STREAM_CODEC);
