@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.program.HasteStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
 import com.mercuriusxeno.goo.ability.program.LifetapStep;
 import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
+import com.mercuriusxeno.goo.ability.program.LuxStep;
 import com.mercuriusxeno.goo.ability.program.NourishStep;
 import com.mercuriusxeno.goo.ability.program.SightStep;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -31,6 +32,8 @@ public enum LaidState {
     NOURISH,
     /** Fungal sight (decision sight-lengthens-shift-and-outlines-fungus). */
     SIGHT,
+    /** Lux's night vision and gaze glisten (decision lux-night-vision-without-particles). */
+    LUX,
     /** Counting as undead (decision undead-nether-hearts-burn-in-sunlight). */
     UNDEAD,
     /** Teleportitis (decision teleportitis-blinks-along-the-cursor-on-hit). */
@@ -71,6 +74,7 @@ public enum LaidState {
             HeartOverlayStep.class, HEART_OVERLAY,
             NourishStep.class, NOURISH,
             SightStep.class, SIGHT,
+            LuxStep.class, LUX,
             UndeadStep.class, UNDEAD,
             TeleportitisStep.class, TELEPORTITIS,
             ExtenderStep.class, EXTENDER,

@@ -43,6 +43,9 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     private static final String TAG_COMBO = "Combo";
     private static final String TAG_GOO_TYPE = "goo_type";
     private static final String TAG_RUNNING = "ComboRunning";
+    private static final String TAG_REFLECTOR = "Reflector";
+    private static final String TAG_LINKS = "Links";
+    private static final String TAG_LINK_LIGHT = "LinkLight";
     private static final String TAG_BANK_FED = "BankFed";
     private static final String TAG_BANK_STANDING = "BankStanding";
     private static final String TAG_BANK_SPEND = "BankSpend";
@@ -59,6 +62,12 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     private long comboSince;
     /** The combo's program while it runs; null once it ends or before any combo. */
     private @Nullable ProgramBehavior behavior;
+    /** Whether the prism's combo made it a reflector (decision reflector-rails-carry-the-brightest-light). */
+    private boolean reflector;
+    /** The reflectors this one links to by light rail. */
+    private List<BlockPos> links = List.of();
+    /** The light its network's rails carry. */
+    private int linkLight;
     /** The redstone beat the prism has heard (decision metronome-prism-pulses-at-the-learned-rate). */
     private RedstoneBeat beat = RedstoneBeat.SILENT;
     /**
@@ -84,8 +93,9 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     }
 
     /**
-     * Server tick: runs the combo's program one tick while it runs. The prism
-     * stands once the program ends; only the program stops.
+     * Server tick: runs the combo's program one tick while it runs, a
+     * reflector's for as long as the prism stands. The prism stands once the
+     * program ends; only the program stops.
      *
      * @param level the current level
      * @param pos   the prism's position
@@ -101,7 +111,12 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
             return;
         }
         prism.behavior.serverTick((ServerLevel) level, pos, prism);
-        prism.settle();
+        // reflector-rails-carry-the-brightest-light: a lasting program saves each tick and syncs only as it ends
+        if (prism.behavior.isActive()) {
+            prism.setChanged();
+        } else {
+            prism.settle();
+        }
     }
 
     /**
@@ -291,6 +306,54 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     }
 
     /**
+     * Makes the prism a reflector, its combo's program linking it to others.
+     * decision reflector-rails-carry-the-brightest-light
+     */
+    public void markReflector() {
+        if (!reflector) {
+            reflector = true;
+            settle();
+        }
+    }
+
+    /**
+     * @return true when the prism's combo made it a reflector
+     */
+    public boolean isReflector() {
+        return reflector;
+    }
+
+    /**
+     * Records the reflectors this one links to and the light its network
+     * carries, syncing the prism when either changed so its renderer draws
+     * the beams.
+     *
+     * @param partners the reflectors linked by rail
+     * @param light    the network's light
+     */
+    public void setLinks(List<BlockPos> partners, int light) {
+        if (!links.equals(partners) || linkLight != light) {
+            links = List.copyOf(partners);
+            linkLight = light;
+            settle();
+        }
+    }
+
+    /**
+     * @return the reflectors this one links to by light rail
+     */
+    public List<BlockPos> getLinks() {
+        return links;
+    }
+
+    /**
+     * @return the light its network's rails carry
+     */
+    public int getLinkLight() {
+        return linkLight;
+    }
+
+    /**
      * @return the game time the prism's combo took
      */
     public long comboSince() {
@@ -373,6 +436,9 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         ResourceKey<GooTypeDefinition> loaded = GooTypes.byId(input.getStringOr(TAG_GOO_TYPE, GooTypes.id(gooType)));
         gooType = loaded != null ? loaded : GooTypes.CRYSTAL;
         combo = input.getStringOr(TAG_COMBO, NO_COMBO);
+        reflector = input.getBooleanOr(TAG_REFLECTOR, false);
+        links = input.read(TAG_LINKS, BlockPos.CODEC.listOf()).orElse(List.of());
+        linkLight = input.getIntOr(TAG_LINK_LIGHT, 0);
         bank = new TickBank(input.getLongOr(TAG_BANK_FED, 0L), input.getLongOr(TAG_BANK_STANDING, 0L),
                 input.getIntOr(TAG_BANK_SPEND, 0));
         comboSince = input.getLongOr(TAG_COMBO_SINCE, 0L);
@@ -409,6 +475,9 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         super.saveAdditional(output);
         output.putString(TAG_GOO_TYPE, GooTypes.id(gooType));
         output.putString(TAG_COMBO, combo);
+        output.putBoolean(TAG_REFLECTOR, reflector);
+        output.store(TAG_LINKS, BlockPos.CODEC.listOf(), links);
+        output.putInt(TAG_LINK_LIGHT, linkLight);
         output.putLong(TAG_BANK_FED, bank.fed());
         output.putLong(TAG_BANK_STANDING, bank.standing());
         output.putInt(TAG_BANK_SPEND, bank.spendPerTick());

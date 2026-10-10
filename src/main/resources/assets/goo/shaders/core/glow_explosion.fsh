@@ -1,16 +1,15 @@
 #version 330
 
-// Glow goo's burnout explosion (decision elemental-explosion-per-type): an
-// aurora bloom. Vertical aurora bands run up the dome, FFFF28 at the base
-// shading to FFD700 and a pale white crown, sliding slowly around it like
-// the fade walls' curtains. The half of the sphere behind the face is
-// discarded. LIGHTNING blend (SRC_ALPHA, ONE).
+// Glow goo's burnout explosion (decisions elemental-explosion-per-type,
+// burnouts-are-whole-spheres): an aurora bloom, a whole sphere. Vertical
+// aurora bands run up world up, FFFF28 at the bottom shading to FFD700 and
+// a pale white crown, sliding slowly around the sphere like the fade walls'
+// curtains. LIGHTNING blend (SRC_ALPHA, ONE).
 
 in vec3 surfaceDir;
 in float progress;
 in float opacity;
 in float brightness;
-flat in vec3 faceUp;
 
 out vec4 fragColor;
 
@@ -24,20 +23,13 @@ const float PI = 3.14159265;
 
 void main() {
     vec3 dir = normalize(surfaceDir);
-    float height = dot(dir, faceUp);
-    if (height < 0.0) {
-        discard;
-    }
-    // The angle about the face's normal, measured in a basis square to it,
-    // places each band around the dome.
-    vec3 side = abs(faceUp.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
-    vec3 across = normalize(cross(faceUp, side));
-    vec3 around = cross(faceUp, across);
-    float azimuth = atan(dot(dir, around), dot(dir, across));
+    // Height runs from the sphere's bottom at 0 to its top at 1.
+    float height = 0.5 + 0.5 * dir.y;
+    float azimuth = atan(dir.z, dir.x);
 
     float wave = azimuth * BAND_COUNT / (2.0 * PI) + progress * BAND_SLIDE + sin(height * 4.0 + azimuth * 2.0) * 0.3;
     float band = pow(0.5 + 0.5 * sin(wave * 2.0 * PI), 3.0);
-    // The curtains hang thick at the base and thin toward the crown.
+    // The curtains hang thick low and thin toward the crown.
     float curtain = band * (1.0 - smoothstep(0.5, 1.0, height)) + 0.15 * (1.0 - height);
 
     vec3 color = mix(BASE_COLOR, BODY_COLOR, smoothstep(0.0, 0.5, height));

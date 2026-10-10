@@ -269,9 +269,23 @@ public final class HeldEffectsEvents {
             // sight-lengthens-shift-and-outlines-fungus: the sight ends with its held effect
             player.setData(GooAttachments.SIGHT, Sight.NONE);
         }
+        clearAbilityState(player, lays);
+    }
+
+    /**
+     * Clears the player state an ability's own step laid: teleportitis, Lux, a lifetap.
+     *
+     * @param player the player
+     * @param lays   the state the effect laid
+     */
+    private static void clearAbilityState(ServerPlayer player, Set<LaidState> lays) {
         if (lays.contains(LaidState.TELEPORTITIS)) {
             // teleportitis-blinks-along-the-cursor-on-hit: the teleportitis ends with its held effect
             player.setData(GooAttachments.TELEPORTITIS, Teleportitis.NONE);
+        }
+        if (lays.contains(LaidState.LUX)) {
+            // lux-night-vision-without-particles: Lux and the night vision it kept up end with its held effect
+            LuxEvents.end(player);
         }
         if (lays.contains(LaidState.LIFETAP)) {
             // lifetap-trades-regen-for-leech: the leech ends with its held effect

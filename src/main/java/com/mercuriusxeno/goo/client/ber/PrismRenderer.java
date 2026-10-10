@@ -25,7 +25,10 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.SectionPos;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
@@ -35,14 +38,20 @@ import java.util.List;
  * the face it grew from. While the landing blob transforms into it, the blob's
  * cube morphs into the column, its goo look fading into the quartz. A prism
  * holding a combo draws by the style its combo registered in
- * {@link PrismComboStyles}, scaled about the landing face's center as it grows.
+ * {@link PrismComboStyles}, scaled about the landing face's center as it grows,
+ * and keeps drawing a combo's beam from as far as the render distance reaches.
  * decision prism-blob-becomes-a-milky-quartz-crystal
  * decision prism-is-one-pointed-quartz-column
  * decision prism-hosts-the-combos
+ * decision bulb-one-model-max-light-beacon-combo
  */
 public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, PrismRenderState> {
 
     private static final float HALF = 0.5f;
+    /** Ticks in vanilla's beacon beam scroll cycle. */
+    private static final int BEAM_CYCLE_TICKS = 40;
+    /** The camera distance past which a beam widens, in blocks, vanilla's beacon threshold. */
+    static final float BEAM_WIDEN_DISTANCE = 96f;
 
     /**
      * Creates the prism renderer.
@@ -69,10 +78,51 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         state.blobLook = blob == null ? null : CrystalClusterSubmitter.lookOf(blob.gooType(),
                 ClientGooTypes.color(blob.gooType()));
         state.combo = prism.getCombo();
+        extractGlow(prism, state, partialTick, cameraPos);
+        extractBank(prism, state);
+        extractPulse(prism, state);
+        extractAgitation(prism, state, partialTick);
+        extractOculus(prism, state, partialTick, cameraPos);
+    }
+
+    /**
+     * Reads glow's beams: the beacon beam's scroll and width, and a reflector's links.
+     *
+     * @param prism       the prism
+     * @param state       the render state
+     * @param partialTick the partial tick
+     * @param cameraPos   the camera's position
+     */
+    private static void extractGlow(PrismBlockEntity prism, PrismRenderState state, float partialTick, Vec3 cameraPos) {
+        // bulb-one-model-max-light-beacon-combo: a beam scrolls and widens as vanilla's beacon beam does
+        long gameTime = prism.getLevel() == null ? 0L : prism.getLevel().getGameTime();
+        state.animationTime = Math.floorMod(gameTime, BEAM_CYCLE_TICKS) + partialTick;
+        state.beamRadiusScale = beamRadiusScale((float) cameraPos.subtract(state.blockPos.getCenter()).horizontalDistance());
+        state.links = prism.getLinks().stream().map(link -> Vec3.atLowerCornerOf(link.subtract(prism.getBlockPos())))
+                .toList();
+        state.linkLight = prism.getLinkLight();
+    }
+
+    /**
+     * Reads a timekeeper's bank: its charge and whether Tick spends it.
+     *
+     * @param prism the prism
+     * @param state the render state
+     */
+    private static void extractBank(PrismBlockEntity prism, PrismRenderState state) {
         // timekeeper-prism-banks-ticks-forward-only: the shell reads the bank's charge and whether Tick spends it
         state.bankTotal = prism.bank().total();
         state.bankSpending = BankWatch.CLIENT.spending(prism.getBlockPos(), state.bankTotal,
                 prism.getLevel() == null ? 0L : prism.getLevel().getGameTime());
+    }
+
+    /**
+     * Reads pulse's redstone: the power given, the signal heard and the time since the last beat.
+     *
+     * @param prism the prism
+     * @param state the render state
+     */
+    private static void extractPulse(PrismBlockEntity prism, PrismRenderState state) {
         // metronome-prism-pulses-at-the-learned-rate, relay-prism-carries-the-signal-through-air
         state.power = prism.getBlockState().getValue(PrismBlock.POWER);
         state.signalHeard = prism.beat().heard();
@@ -81,8 +131,6 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
             // metronome-prism-pulses-at-the-learned-rate: each beat sends a red ring out from the prism's base
             ThumpRings.see(prism.getBlockPos(), state.facing, state.power > 0);
         }
-        extractAgitation(prism, state, partialTick);
-        extractOculus(prism, state, partialTick, cameraPos);
     }
 
     /**
@@ -101,6 +149,53 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         if (AgitatorPrismStyle.COMBO.equals(state.combo)) {
             AgitatorWisps.report(prism.getBlockPos(), agitation.countdown());
         }
+    }
+
+    /**
+     * How much a beam widens at a camera distance: not at all within 96
+     * blocks, then in step with the distance, as vanilla's beacon beam widens.
+     *
+     * @param horizontalDistance the camera's horizontal distance from the prism, in blocks
+     * @return the factor the beam's radii take
+     */
+    static float beamRadiusScale(float horizontalDistance) {
+        return Math.max(1f, horizontalDistance / BEAM_WIDEN_DISTANCE);
+    }
+
+    /**
+     * The box a prism draws within: its cell, stretched along the face it
+     * grew from by its combo's reach, so a beam draws while its prism is off screen.
+     *
+     * @param pos    the prism's position
+     * @param facing the face the prism grew from
+     * @param reach  how far its combo draws out of the cell, in blocks
+     * @return the render bounding box
+     */
+    static AABB drawnBounds(BlockPos pos, Direction facing, int reach) {
+        return new AABB(pos).expandTowards(facing.getStepX() * reach, facing.getStepY() * reach,
+                facing.getStepZ() * reach);
+    }
+
+    @Override
+    public AABB getRenderBoundingBox(PrismBlockEntity prism) {
+        PrismComboStyle style = PrismComboStyles.forCombo(prism.getCombo());
+        int reach = style == null ? 0 : style.beamReach();
+        AABB bounds = drawnBounds(prism.getBlockPos(), prism.getBlockState().getValue(PrismBlock.FACING), reach);
+        // reflector-rails-carry-the-brightest-light: the box reaches every linked reflector, so its beams draw
+        for (BlockPos link : prism.getLinks()) {
+            bounds = bounds.minmax(new AABB(link));
+        }
+        return bounds;
+    }
+
+    @Override
+    public boolean shouldRenderOffScreen() {
+        return true;
+    }
+
+    @Override
+    public int getViewDistance() {
+        return Minecraft.getInstance().options.getEffectiveRenderDistance() * SectionPos.SECTION_SIZE;
     }
 
     /**

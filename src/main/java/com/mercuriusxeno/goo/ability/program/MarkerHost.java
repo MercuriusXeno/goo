@@ -40,8 +40,8 @@ import java.util.function.Consumer;
  */
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
-        FieldEffectHost, PhasedHost, HoardHost, ConvokeHost, PowerEmitHost, BeatHost, RelayHost, AgitateHost,
-        FrostHost, GreeningHost, TickBankHost, TimeVeilHost {
+        FieldEffectHost, PhasedHost, HoardHost, StateWriteHost, LevelHost, ConvokeHost, PowerEmitHost,
+        BeatHost, RelayHost, AgitateHost, FrostHost, GreeningHost, TickBankHost, TimeVeilHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
     /** The power a block gives at full strength. */
@@ -267,6 +267,14 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
                 .orElseThrow(() -> new IllegalArgumentException(ERR_UNKNOWN_BLOCK + block));
         List<Property.Value<?>> values = StatePropertyWriter.resolve(found.getStateDefinition(), state, block);
         level.setBlock(pos, StatePropertyWriter.write(found.defaultBlockState(), values), Block.UPDATE_ALL);
+    }
+
+    @Override
+    public void writeOwnState(Map<String, String> state) {
+        BlockState standing = level.getBlockState(pos);
+        List<Property.Value<?>> values = StatePropertyWriter.resolve(standing.getBlock().getStateDefinition(), state,
+                BuiltInRegistries.BLOCK.getKey(standing.getBlock()));
+        level.setBlock(pos, StatePropertyWriter.write(standing, values), Block.UPDATE_ALL);
     }
 
     /** The prism or marker's center, which a glacial prism holds frozen around (decision glacial-prism-holds-the-area-frozen). */

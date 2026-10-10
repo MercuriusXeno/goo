@@ -20,4 +20,14 @@ public interface PrismComboStyle {
      * @param nodeCollector the submit collector
      */
     void submit(PrismRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector);
+
+    /**
+     * How far the combo draws out of the prism along the face it grew from,
+     * so the renderer keeps drawing it while the prism itself is off screen.
+     *
+     * @return the reach in blocks, none by default
+     */
+    default int beamReach() {
+        return 0;
+    }
 }

@@ -12,6 +12,7 @@ import com.mercuriusxeno.goo.ability.nether.Undead;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.petrify.Petrification;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
+import com.mercuriusxeno.goo.ability.program.Lux;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.pulse.Stunned;
 import com.mercuriusxeno.goo.ability.rewind.Rewinding;
@@ -112,6 +113,14 @@ public final class GooAttachments {
      */
     public static final Supplier<AttachmentType<Vec3>> JUMP_SOURCE =
             ATTACHMENT_TYPES.register("jump_source", () -> AttachmentType.builder(() -> Vec3.ZERO).build());
+
+    /**
+     * The Lux a player holds, keeping night vision up and glistening the mob
+     * under the crosshair while it stands (decision lux-night-vision-without-particles).
+     */
+    public static final Supplier<AttachmentType<Lux>> LUX =
+            ATTACHMENT_TYPES.register("lux",
+                    () -> AttachmentType.builder(() -> Lux.NONE).serialize(Lux.CODEC).build());
 
     /**
      * The spores a mob carries, bursting another spray from its corpse when

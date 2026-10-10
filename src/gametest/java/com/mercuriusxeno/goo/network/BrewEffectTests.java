@@ -49,6 +49,7 @@ public final class BrewEffectTests {
     private static final String SHOULD_DRAIN_NOTHING = "A brew should drain no goo, drained %d";
     /** shroom_sight.json's factor. */
     private static final float SIGHT_FACTOR = 3f;
+    private static final String SHOULD_LUX = "The glow brew should grant Lux until %d, granted until %d";
     /** hex_lifetap.json's fraction. */
     private static final float LIFETAP_FRACTION = 0.3f;
     private static final String SHOULD_LIFETAP = "The hex brew should lifetap at %.2f until %d, granted %.2f until %d";
@@ -213,6 +214,28 @@ public final class BrewEffectTests {
         long expected = now + GooPotions.BREW_DURATION;
         helper.assertTrue(sight.factor() == SIGHT_FACTOR && sight.expiresAt() == expected,
                 String.format(SHOULD_SEE, SIGHT_FACTOR, expected, sight.factor(), sight.expiresAt()));
+        helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
+        helper.succeed();
+    }
+
+    /**
+     * Drinking the glow brew grants Lux for an hour, draining no goo
+     * (decisions lux-night-vision-without-particles, brew-runs-the-crawl-prepaid-on-a-shown-clock).
+     *
+     * @param helper the gametest helper
+     */
+    public static void glowBrewLuxForAnHour(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.GLOW);
+        int heldBefore = held(player, GooTypes.GLOW);
+        long now = player.level().getGameTime();
+
+        drink(player, GooTypes.GLOW);
+
+        long expiresAt = player.getData(GooAttachments.LUX).expiresAt();
+        int drained = heldBefore - held(player, GooTypes.GLOW);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        long expected = now + GooPotions.BREW_DURATION;
+        helper.assertTrue(expiresAt == expected, String.format(SHOULD_LUX, expected, expiresAt));
         helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
         helper.succeed();
     }
