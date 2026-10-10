@@ -40,6 +40,11 @@ public record DegradeStep(Identifier map, int ticks) implements Step {
     private static final String FIELD_TICKS = "ticks";
     /** The share past which a painted block finishes its step alone. */
     static final float FINISHES_ALONE = 0.5f;
+    /**
+     * The tint Decay's mingled block wears, nether goo's #C03434, so the
+     * block's own grays multiply down to a dark maroon.
+     */
+    static final int NETHER_MAROON = 0xC03434;
 
     /**
      * Codec for the step's params.
@@ -136,7 +141,8 @@ public record DegradeStep(Identifier map, int ticks) implements Step {
      * @param rate  the share one tick builds
      */
     private static void build(ChannelHost host, HoldMarks marks, BlockPos pos, Block next, float rate) {
-        float share = host.exposeBlock(pos, next.defaultBlockState(), rate);
+        // the operator's ruling on Decay: its overlay wears the nether family's dark maroon
+        float share = host.exposeBlock(pos, next.defaultBlockState(), rate, NETHER_MAROON);
         if (share >= 1f) {
             host.transformBlock(pos, next.defaultBlockState());
             marks.noteStepped(pos);
