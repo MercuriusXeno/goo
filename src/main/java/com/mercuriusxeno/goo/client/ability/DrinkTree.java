@@ -15,9 +15,9 @@ import java.util.Map;
  * course when the stream re-roots, a tributary
  * curving in to land along its trunk's flow and the trunk landing along the
  * pull of the look. About a join the trunk carries every stream whose liquid
- * is there, combined so its area is the sum of theirs, swelling into each
- * over a short length either side of the join and bulging into a node where
- * the stream arrives, so the two meet like metaballs touching. The liquid's
+ * is there, as wide as one of them times the square root of how many, each
+ * swelling in over a short length either side of its join, so the two meet
+ * like metaballs touching and a trunk of nine is three times one. The liquid's
  * pace is set by the goo massing where it flows: a lone block's stream runs
  * at the base pace and a trunk fed by many runs faster by the square root of
  * the goo through it, so a join pulls its tributaries' liquid on; a block's
@@ -33,10 +33,6 @@ public final class DrinkTree {
     static final double MERGE = 0.6;
     /** The goo volume of a block whose stream has scale 1, in mB. */
     static final double BASE_VOLUME = 1000;
-    /** The power streams combine by: the trunk's radius is this root of the sum of this power of each, their areas summing. */
-    static final double COMBINE = 2;
-    /** How far a join bulges into a node, as a share of the radius of the stream arriving there. */
-    static final double NODE = 0.7;
     /** Ticks a block's goo takes to weigh wholly on the pace of the trunks it feeds, so the pace glides rather than jumps. */
     static final double MASS_RAMP = 10;
     /** Stations along one block of path the liquid's travel time is summed at. */
@@ -115,7 +111,6 @@ public final class DrinkTree {
         private double @Nullable [] times;
         private double head = Double.NaN;
         private double tail = Double.NaN;
-        private double arriving = Double.NaN;
 
         private Stream(Block block, DrinkStream.Path path, @Nullable Stream trunk, double joinShare, double now) {
             this.block = block;
@@ -326,16 +321,6 @@ public final class DrinkTree {
             return Math.min(routeLength(), zoopHeadAt() + DrinkStream.ZOOP_LENGTH);
         }
 
-        /**
-         * @return the radius of the stream as it arrives at its end, every stream feeding it combined
-         */
-        double arrivingRadius() {
-            if (Double.isNaN(arriving)) {
-                arriving = radiusAt(this, 1);
-            }
-            return arriving;
-        }
-
         private double[] times() {
             if (times == null) {
                 int count = stationsAlong(path.length());
@@ -467,17 +452,34 @@ public final class DrinkTree {
     }
 
     /**
+     * The radius of a stream at a share of its path: every stream flowing
+     * through there combined as one of them times the square root of how
+     * many, each counting by how much of it is there, which is the sum of
+     * their radii over the root of the sum of their presences, so nine equal
+     * streams make three times one, a stream swelling in counts in
+     * proportion, and a trunk whose own liquid has passed is still as wide as
+     * what flows through it.
+     *
      * @param stream the stream
      * @param share  the share of its path
-     * @return the radius of the stream there: every stream flowing through it and every join's node, combined
+     * @return the radius there, 0 where nothing flows
      */
     static double radiusAt(Stream stream, double share) {
-        double powers = power(contribution(stream, stream, share));
-        for (Stream tributary : stream.tributaries()) {
-            powers += powersUnder(tributary, stream, share);
-            powers += power(nodeOf(tributary, (share - tributary.joinShare()) * stream.path().length()));
+        Flow sum = flowUnder(stream, stream, share);
+        return sum.presence() > 0 ? sum.radius() / Math.sqrt(sum.presence()) : 0;
+    }
+
+    /**
+     * Liquid at a point: its radius and how much of a whole stream it is.
+     *
+     * @param radius   the radius it gives the point
+     * @param presence 1 for a stream wholly there, less as it tapers or swells in, 0 for none
+     */
+    record Flow(double radius, double presence) {
+
+        Flow plus(Flow other) {
+            return new Flow(radius + other.radius, presence + other.presence);
         }
-        return Math.pow(powers, 1 / COMBINE);
     }
 
     /**
@@ -493,16 +495,18 @@ public final class DrinkTree {
         return new DrinkField.Skeleton(stream, rings(stream), box);
     }
 
-    private static double powersUnder(Stream branch, Stream through, double share) {
-        double powers = power(contribution(branch, through, share));
+    /**
+     * @param branch  a stream, and every tributary under it
+     * @param through its own path or a trunk it flows through
+     * @param share   a share of that path
+     * @return the liquid of the branch and all under it at the point, summed
+     */
+    private static Flow flowUnder(Stream branch, Stream through, double share) {
+        Flow sum = flowOf(branch, through, share);
         for (Stream tributary : branch.tributaries()) {
-            powers += powersUnder(tributary, through, share);
+            sum = sum.plus(flowUnder(tributary, through, share));
         }
-        return powers;
-    }
-
-    private static double power(double radius) {
-        return Math.pow(radius, COMBINE);
+        return sum;
     }
 
     /**
@@ -553,25 +557,43 @@ public final class DrinkTree {
      * @return the radius, 0 where its liquid is not there now
      */
     static double contribution(Stream stream, Stream through, double share) {
+        return flowOf(stream, through, share).radius();
+    }
+
+    /**
+     * The liquid one stream alone gives a point of a path it flows through:
+     * its width there times how much of it is there, the taper at its ends
+     * and, on a trunk it joins, the swell in about the join.
+     *
+     * @param stream  the stream
+     * @param through its own path or a trunk it flows through
+     * @param share   a share of that path
+     * @return its liquid there, none where it is not there now
+     */
+    static Flow flowOf(Stream stream, Stream through, double share) {
         Entry entry = entryOf(stream, through, share);
         if (entry == null) {
-            return 0;
+            return new Flow(0, 0);
         }
-        double radius = stream.zooping() ? zoopRadius(stream, entry.distance()) : liquidRadius(stream, entry.distance());
-        return stream == through ? radius : radius * mergeRamp(entry.pastJoin());
+        double distance = entry.distance();
+        double width = stream.zooping() ? DrinkStream.ZOOP_RADIUS : liquidWidth(stream, distance);
+        double taper = stream.zooping()
+                ? DrinkStream.taperAt(distance, stream.zoopHeadAt(), stream.zoopTailAt())
+                : DrinkStream.taperAt(distance, stream.tailAt(), stream.headAt());
+        double presence = stream == through ? taper : taper * mergeRamp(entry.pastJoin());
+        return new Flow(width * presence, presence);
     }
 
     /**
      * @param stream   a stream whose block is streaming
      * @param distance blocks along its route
-     * @return the radius of its liquid there: its matter's width, tapering at its ends
+     * @return the width of its matter there before any taper
      */
-    private static double liquidRadius(Stream stream, double distance) {
+    private static double liquidWidth(Stream stream, double distance) {
         Block block = stream.block();
         double now = stream.now();
-        double width = DrinkBody.widthAt(distance, block.progressAt(now), block.scale()
+        return DrinkBody.widthAt(distance, block.progressAt(now), block.scale()
                 * DrinkStream.widthAt(stream.materialAt(distance), block.seed()), block.seed(), now);
-        return width * DrinkStream.taperAt(distance, stream.tailAt(), stream.headAt());
     }
 
     /**
@@ -581,24 +603,6 @@ public final class DrinkTree {
      */
     static double zoopRadius(Stream stream, double distance) {
         return DrinkStream.ZOOP_RADIUS * DrinkStream.taperAt(distance, stream.zoopHeadAt(), stream.zoopTailAt());
-    }
-
-    /**
-     * The node a join bulges into: a bell about the join, {@link #MERGE} each
-     * way, as big as {@link #NODE} of the radius the stream arrives with, so
-     * the more goo joins the fatter the node.
-     *
-     * @param tributary the stream joining
-     * @param pastJoin  blocks past its join along the trunk, below zero before it
-     * @return the node's radius there, 0 outside the bell
-     */
-    static double nodeOf(Stream tributary, double pastJoin) {
-        double t = pastJoin / MERGE;
-        if (Math.abs(t) >= 1) {
-            return 0;
-        }
-        double bell = (1 - t * t) * (1 - t * t);
-        return NODE * tributary.arrivingRadius() * bell;
     }
 
     /**
