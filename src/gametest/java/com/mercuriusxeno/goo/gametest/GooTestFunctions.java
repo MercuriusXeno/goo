@@ -24,6 +24,7 @@ import com.mercuriusxeno.goo.network.MycosisTests;
 import com.mercuriusxeno.goo.network.OculusTests;
 import com.mercuriusxeno.goo.network.NourishTests;
 import com.mercuriusxeno.goo.network.ReserveTests;
+import com.mercuriusxeno.goo.network.ScalesTests;
 import com.mercuriusxeno.goo.network.SelfDeliveryTests;
 import com.mercuriusxeno.goo.network.ShardsSlingTests;
 import com.mercuriusxeno.goo.network.ExtenderTests;
@@ -542,6 +543,8 @@ public final class GooTestFunctions {
     private static final String ICEBORN_FREEZES_SURROUNDINGS = "iceborn_freezes_surroundings";
     private static final String ICEBORN_THAWS_ON_FIRE = "iceborn_thaws_on_fire";
     private static final String BREW_FROST_ICEBORN = "brew_frost_iceborn_for_an_hour";
+    private static final String BREW_CRYSTAL_SCALES = "brew_crystal_scales_for_an_hour";
+    private static final String SCALES_ABSORBS_BEFORE_HEALTH = "scales_absorbs_before_health";
     private static final String MOB_TYPHOON = "mob_typhoon_levitate";
     private static final String SUNBEAM_REFRACTS_TO_THREE = "sunbeam_refracts_to_three";
     private static final String RADIANT_LIGHTS_A_DARK_ROOM = "radiant_lights_a_dark_room";
@@ -1111,6 +1114,8 @@ public final class GooTestFunctions {
         reg(r, ICEBORN_FREEZES_SURROUNDINGS, FrostAbilityTests::icebornFreezesSurroundings);
         reg(r, ICEBORN_THAWS_ON_FIRE, FrostAbilityTests::icebornThawsOnFire);
         reg(r, BREW_FROST_ICEBORN, BrewEffectTests::frostBrewIcebornForAnHour);
+        reg(r, BREW_CRYSTAL_SCALES, BrewEffectTests::crystalBrewScalesForAnHour);
+        reg(r, SCALES_ABSORBS_BEFORE_HEALTH, ScalesTests::scalesAbsorbsBeforeHealth);
         reg(r, MOB_TYPHOON, MobEffectTests::typhoonLevitate);
         reg(r, SUNBEAM_REFRACTS_TO_THREE, SunbeamChannelTests::sunbeamRefractsToThree);
         reg(r, RADIANT_LIGHTS_A_DARK_ROOM, RadiantChannelTests::radiantLightsADarkRoom);

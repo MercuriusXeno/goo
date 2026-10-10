@@ -103,6 +103,7 @@ class AbilityLoaderTest {
             Map.entry("crystal_cloud", List.of("glass", "sand")),
             Map.entry("crystal_shards", List.of("amethyst_shard")),
             Map.entry("crystal_prism", List.of("quartz")),
+            Map.entry("crystal_scales", List.of("diamond", "turtle_scute")),
             Map.entry("blaze_spitfire", List.of("torchflower")),
             Map.entry("frost_nova", List.of("packed_ice")),
             Map.entry("frost_cold", List.of("snowball")),
