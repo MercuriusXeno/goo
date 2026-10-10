@@ -98,7 +98,9 @@ public class AbilityBlockEntity extends GooSyncedBlockEntity implements MarkerAn
      */
     public static void serverTick(Level level, BlockPos pos, BlockState state,
                                   AbilityBlockEntity be) {
-        ServerLevel server = (ServerLevel) level;
+        if (!(level instanceof ServerLevel server)) {
+            return;
+        }
         if (be.running()) {
             be.behavior.serverTick(server, pos, be);
         }

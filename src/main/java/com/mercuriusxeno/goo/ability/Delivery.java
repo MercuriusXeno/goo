@@ -24,8 +24,8 @@ import java.util.Optional;
  * @param grannyAllowed  whether an arc may lob onto a top face
  * @param particle       the particle a stream sprays along its cone, empty for none
  * @param transformAt    the share of the flight by which the blob has taken its traveling form
- * @param sound          the sound a stream makes while held, empty for none; the server plays it, so the
- *                       network copy carries none
+ * @param sound          the sound a stream makes while held, empty for none; the server plays it, and the
+ *                       holder's client loops it where it loops
  */
 public record Delivery(DeliveryKind kind, double blocksPerTick, double range, double coneDegrees,
                        int ticksPerCharge, boolean grannyAllowed, Optional<Identifier> particle, double transformAt,
@@ -98,6 +98,7 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
             ByteBufCodecs.BOOL, Delivery::grannyAllowed,
             ByteBufCodecs.optional(Identifier.STREAM_CODEC), Delivery::particle,
             ByteBufCodecs.DOUBLE, Delivery::transformAt,
+            ByteBufCodecs.optional(StreamSound.STREAM_CODEC), Delivery::sound,
             Delivery::new);
 
     /**

@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.DragSize;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
+import com.mercuriusxeno.goo.ability.StreamSound;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.ReserveVisual;
@@ -15,6 +16,7 @@ import com.mercuriusxeno.goo.client.ability.VitalityVisual;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
+import com.mercuriusxeno.goo.client.sound.FadingLoops;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -31,6 +33,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.BlockHitResult;
@@ -135,7 +138,21 @@ public final class GloveThrowSender {
         }
         VitalityVisual.drawFog(player, abilityId, selectedArea(abilityId), origin);
         ReserveVisual.drawDrain(player, abilityId);
+        loopStreamSound(player, abilityId);
         return true;
+    }
+
+    /**
+     * Keeps a held stream's looped sound sounding for its holder one more
+     * tick, fading out once the hold ends (decision decay-gnats-degrade-each-block-once).
+     *
+     * @param player    the local player
+     * @param abilityId the selected ability id string
+     */
+    private static void loopStreamSound(Player player, String abilityId) {
+        selectedDelivery(abilityId).sound().filter(StreamSound::loop).ifPresent(sound ->
+                FadingLoops.keepAlive(abilityId, sound.sound(), SoundSource.PLAYERS, sound.volume(),
+                        sound.pitchFor(player.getRandom().nextFloat()), player.getEyePosition()));
     }
 
     /**

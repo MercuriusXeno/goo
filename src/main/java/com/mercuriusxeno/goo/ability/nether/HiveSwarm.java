@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.ability.nether;
 
 import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.core.BlockPos;
-import net.minecraft.sounds.SoundEvents;
+import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Mob;
@@ -37,14 +37,43 @@ public final class HiveSwarm {
      */
     static final double GNAT_FRICTION = 0.9;
     private static final double HALF = 0.5;
-    /** The swarm buzzes on one tick in this many, a second or so apart. */
-    private static final int BUZZ_ONE_IN = 20;
-    /** Decay's buzz: a bee's loop, quiet and pitched high (nether_decay.json's sound). */
-    private static final float BUZZ_VOLUME = 0.3f;
-    private static final float BUZZ_PITCH = 1.8f;
-    private static final float BUZZ_PITCH_SPREAD = 0.3f;
+    /** Decay's buzz: a bee's loop, soft and pitched high (nether_decay.json's sound). */
+    private static final Identifier BUZZ = Identifier.withDefaultNamespace("entity.bee.loop");
+    private static final float BUZZ_VOLUME = 0.12f;
+    private static final float BUZZ_PITCH = 1.95f;
+    private static final float BUZZ_PITCH_SPREAD = 0.1f;
+
+    /** Keeps the swarm's buzz loop sounding; the client installs it, a server needs none. */
+    private static LoopKeeper buzzLoops = (key, sound, source, volume, pitch, at) -> { };
 
     private HiveSwarm() {
+    }
+
+    /**
+     * Something keeping a fading loop sounding one more tick for a key.
+     */
+    @FunctionalInterface
+    public interface LoopKeeper {
+        /**
+         * Keeps the key's loop sounding one more tick, starting it when none sounds.
+         *
+         * @param key    what the loop belongs to
+         * @param sound  the looped sound's id
+         * @param source the mixer channel it plays on
+         * @param volume the volume it swells to
+         * @param pitch  its pitch, used when it starts
+         * @param at     where it plays
+         */
+        void keepAlive(Object key, Identifier sound, SoundSource source, float volume, float pitch, Vec3 at);
+    }
+
+    /**
+     * Installs the client's fading loops as the swarm's buzz.
+     *
+     * @param keeper the client's loop keeper
+     */
+    public static void installBuzzLoops(LoopKeeper keeper) {
+        buzzLoops = keeper;
     }
 
     /**
@@ -56,11 +85,9 @@ public final class HiveSwarm {
     public static void tick(Level level, BlockPos pos) {
         Vec3 center = Vec3.atCenterOf(pos);
         RandomSource random = level.getRandom();
-        if (random.nextInt(BUZZ_ONE_IN) == 0) {
-            // the operator's ruling on Hive: the swarm buzzes as Decay's gnats do
-            level.playLocalSound(center.x, center.y, center.z, SoundEvents.BEE_LOOP, SoundSource.BLOCKS, BUZZ_VOLUME,
-                    BUZZ_PITCH + (random.nextFloat() - (float) HALF) * BUZZ_PITCH_SPREAD, false);
-        }
+        // the operator's ruling on Hive: the swarm buzzes as Decay's gnats do, one loop fading out with the prism
+        buzzLoops.keepAlive(pos.immutable(), BUZZ, SoundSource.BLOCKS, BUZZ_VOLUME,
+                BUZZ_PITCH + (random.nextFloat() - (float) HALF) * BUZZ_PITCH_SPREAD, center);
         List<Mob> eaten = level.getEntitiesOfClass(Mob.class, new AABB(pos).inflate(REACH),
                 mob -> mob.isAlive() && mob.position().distanceTo(center) <= REACH);
         if (eaten.isEmpty()) {

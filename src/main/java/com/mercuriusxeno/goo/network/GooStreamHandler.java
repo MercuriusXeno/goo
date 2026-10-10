@@ -131,7 +131,8 @@ public final class GooStreamHandler {
      */
     private static void playStreamSound(ServerPlayer player, StreamSound sound) {
         float pitch = sound.pitchFor(player.getRandom().nextFloat());
-        SoundPlays.play(player.level(), player.getEyePosition(),
+        // decay-gnats-degrade-each-block-once: a looped sound's holder hears its own fading loop instead
+        SoundPlays.playExcept(player.level(), sound.loop() ? player : null, player.getEyePosition(),
                 new SoundCue(sound.sound(), SoundKind.PLAYERS, sound.volume(), pitch));
     }
 
