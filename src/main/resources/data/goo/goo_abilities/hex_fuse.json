@@ -1,0 +1,14 @@
+{
+  "gooType": "hex",
+  "displayName": "goo.ability.hex.fuse",
+  "badge": "self",
+  "order": 20,
+  "cost": 2000,
+  "requires": ["minecraft:bookshelf", "minecraft:lapis_lazuli"],
+  "delivery": { "kind": "self" },
+  "behaviors": [
+    { "type": "fuse_books", "refused": { "id": "minecraft:block.fire.extinguish", "volume": 0.4, "pitch": 1.6 } },
+    { "type": "tome", "kind": "fuse" }
+  ],
+  "tags": ["self"]
+}

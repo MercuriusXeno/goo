@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -102,6 +103,16 @@ public interface Step {
      */
     default boolean admits(StepContext context) {
         return true;
+    }
+
+    /**
+     * The sound a self ability plays when this step refuses it; Fuse with
+     * no pair to fuse fizzles (decision fuse-two-books-for-hex-goo).
+     *
+     * @return the refusal sound, or empty for a silent refusal
+     */
+    default Optional<SoundCue> refusal() {
+        return Optional.empty();
     }
 
     /**

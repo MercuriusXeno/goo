@@ -47,7 +47,7 @@ import java.util.OptionalDouble;
 public record LandingHost(ServerLevel level, BlockPos cell, Direction face, boolean waterlogged,
                           ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 anchor, double size)
         implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
-        ColonizeHost, FloorScanHost, FrostHost {
+        ColonizeHost, FloorScanHost, MobSpawnHost, FrostHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -64,6 +64,16 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     /** The point the throw landed at, where a landing nova spreads from (decision orb-carries-a-swirling-nova). */
     @Override
     public Vec3 frostCenter() {
+        return anchor;
+    }
+
+    @Override
+    public BlockPos spawnCell() {
+        return cell;
+    }
+
+    @Override
+    public Vec3 morphFrom() {
         return anchor;
     }
 

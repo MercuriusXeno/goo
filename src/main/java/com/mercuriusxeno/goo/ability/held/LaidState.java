@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.held;
 
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
+import com.mercuriusxeno.goo.ability.program.LifetapStep;
 import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
 import com.mercuriusxeno.goo.ability.program.NourishStep;
 import com.mercuriusxeno.goo.ability.program.SightStep;
@@ -27,7 +28,9 @@ public enum LaidState {
     /** Fungal sight (decision sight-lengthens-shift-and-outlines-fungus). */
     SIGHT,
     /** Counting as undead (decision undead-nether-hearts-burn-in-sunlight). */
-    UNDEAD;
+    UNDEAD,
+    /** A lifetap (decision lifetap-trades-regen-for-leech). */
+    LIFETAP;
 
     /** Codec for the saved state. */
     public static final Codec<LaidState> CODEC = LowerCaseEnumCodec.of(LaidState.class, "laid state");
@@ -53,6 +56,8 @@ public enum LaidState {
                 laid.add(SIGHT);
             } else if (step instanceof UndeadStep) {
                 laid.add(UNDEAD);
+            } else if (step instanceof LifetapStep) {
+                laid.add(LIFETAP);
             }
         });
         return laid;

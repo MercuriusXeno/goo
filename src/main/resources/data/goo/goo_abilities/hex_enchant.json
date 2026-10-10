@@ -1,0 +1,16 @@
+{
+  "gooType": "hex",
+  "displayName": "goo.ability.hex.enchant",
+  "badge": "self",
+  "order": 10,
+  "cost": 1000,
+  "requires": ["minecraft:book", "minecraft:lapis_lazuli"],
+  "consumes": ["minecraft:book"],
+  "delivery": { "kind": "self" },
+  "behaviors": [
+    { "type": "enchant_book" },
+    { "type": "tome", "kind": "enchant" },
+    { "type": "afterimage", "goo": "hex" }
+  ],
+  "tags": ["self"]
+}
