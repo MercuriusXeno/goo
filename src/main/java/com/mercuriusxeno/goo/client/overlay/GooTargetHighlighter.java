@@ -287,7 +287,7 @@ public final class GooTargetHighlighter {
         Minecraft mc = Minecraft.getInstance();
         ArcRenderer.renderTargetArc(event.getPoseStack(), mc.renderBuffers().bufferSource(),
                 mc.gameRenderer.getMainCamera(), end, ClientGooTypes.highlight(type),
-                partialTick, grannyWeight(target, delivery), delivery.fliesStraight());
+                partialTick, grannyWeight(target, delivery), delivery.aimsStraight());
     }
 
     /**

@@ -32,9 +32,11 @@ public final class HeldRoute {
      *
      * @param delivery the ability's delivery, or null where none is selected
      * @param badge    the ability's badge, or null where none is selected
-     * @return true for a self delivery wearing the channeled badge
+     * @return true for a self delivery wearing the channeled badge that does not charge; a charged
+     *         channel fires once on release (decision nova-ring-grows-with-the-hold)
      */
     public static boolean channelsOnSelf(@Nullable Delivery delivery, @Nullable AbilityBadge badge) {
-        return delivery != null && delivery.kind() == DeliveryKind.SELF && badge == AbilityBadge.CHANNELED;
+        return delivery != null && delivery.kind() == DeliveryKind.SELF && badge == AbilityBadge.CHANNELED
+                && !delivery.charges();
     }
 }

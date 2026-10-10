@@ -1,0 +1,12 @@
+{
+  "gooType": "frost",
+  "displayName": "goo.ability.frost.glacial",
+  "badge": "prism",
+  "order": 50,
+  "cost": 2000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "glacial", "radius": 5 }
+  ],
+  "tags": []
+}
