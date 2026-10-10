@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.typhoon.AirbornMotion;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.component.DataComponents;
@@ -67,8 +69,10 @@ public record PushStep(Expr strength, Expr steer, Expr elytraSteer) implements S
         if (thrower != null) {
             LivingEntity target = host.target();
             double share = (wearsElytra(target) ? elytraSteer : steer).evaluate(context);
-            host.push(steered(target.getDeltaMovement(), thrower.getLookAngle().scale(strength.evaluate(context)),
-                    share));
+            // airborn-steerable-levitation-and-soft-falls: Airborn makes Jet's push stronger
+            double speed = AirbornMotion.jetStrength(strength.evaluate(context),
+                    target.getData(GooAttachments.AIRBORN), target.level().getGameTime());
+            host.push(steered(target.getDeltaMovement(), thrower.getLookAngle().scale(speed), share));
         }
         return true;
     }

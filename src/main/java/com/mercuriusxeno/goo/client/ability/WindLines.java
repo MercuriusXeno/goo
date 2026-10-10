@@ -86,8 +86,8 @@ public final class WindLines {
     private static final double TWO_PI = 2 * Math.PI;
     private static final double HALF = 0.5;
     private static final double NEAR_VERTICAL = 0.99;
-    /** How far behind the player's middle a jet's wake leaves, in blocks, clear of the body. */
-    static final double EXHAUST_SETBACK = 0.4;
+    /** How far behind the eye a jet's tailwind leaves, in blocks, so its lines overtake the camera. */
+    static final double TAILWIND_SETBACK = 0.6;
 
     /** How far a line tilts its curl forward from facing the player, so the head flows into it, in radians. */
     static final double CURL_TILT = 0.35;
@@ -120,7 +120,7 @@ public final class WindLines {
     /**
      * One line of wind.
      *
-     * @param origin     where it leaves the glove
+     * @param origin     where it leaves: in the world, or relative to the player's feet when carried
      * @param axis       the unit direction it rushes along
      * @param outward    the unit direction out from the cone's middle, square to the look, it curls toward
      * @param across     the unit direction square to the look and to outward, which with outward faces the player
@@ -130,9 +130,10 @@ public final class WindLines {
      * @param gray       how far its color leans from white to pale gray, 0 to 1
      * @param snowflakes whether snowflakes flit along it
      * @param startTick  the game time it left the glove
+     * @param carried    whether it rides along with the player, a jet's tailwind
      */
     record Line(Vec3 origin, Vec3 axis, Vec3 outward, Vec3 across, double straight, Sway sway, double winding,
-                float gray, boolean snowflakes, long startTick) {
+                float gray, boolean snowflakes, long startTick, boolean carried) {
     }
 
     private final List<Line> live = new ArrayList<>();
@@ -240,10 +241,9 @@ public final class WindLines {
      */
     public static void blow(Player player, String abilityId, AbilityArea area, Vec3 apex) {
         windOf(abilityId).ifPresent(wind -> {
-            Gust gust = wind.exhaust()
-                    .map(exhaust -> exhaustGust(exhaust, player.position().add(0, player.getBbHeight() * HALF, 0),
-                            player.getLookAngle()))
-                    .orElseGet(() -> new Gust(apex, player.getLookAngle(), area.size(), area.angle()));
+            Gust gust = wind.tailwind()
+                    .map(tailwind -> tailwindGust(tailwind, player.getEyeHeight(), player.getLookAngle()))
+                    .orElseGet(() -> new Gust(apex, player.getLookAngle(), area.size(), area.angle(), false));
             CLIENT.add(player.level().getRandom(), gust, wind.snowflakes(), player.level().getGameTime());
             CLIENT.keepWindBlowing(player);
         });
@@ -252,27 +252,30 @@ public final class WindLines {
     /**
      * Where a held tick's wind blows from and along.
      *
-     * @param origin      where the lines leave
+     * @param origin      where the lines leave: in the world, or relative to the player's feet when carried
      * @param axis        the unit direction they rush along
      * @param range       how far the cone they fill reaches, in blocks
      * @param coneDegrees the cone's apex angle, in degrees
+     * @param carried     whether the lines ride along with the player
      */
-    record Gust(Vec3 origin, Vec3 axis, double range, double coneDegrees) {
+    record Gust(Vec3 origin, Vec3 axis, double range, double coneDegrees, boolean carried) {
     }
 
     /**
-     * A jet's wake: the lines leave just behind the player's middle and rush
-     * back against the look through the exhaust's cone.
+     * A jet's tailwind: the lines ride along with the player, leaving just
+     * behind its eye and rushing forward along the look past the camera
+     * through the tailwind's cone, so a first-person player sees them overtake
+     * it and curl ahead.
      * jet-pushes-along-the-look-while-held
      *
-     * @param exhaust the wind step's exhaust
-     * @param middle  the player's middle
-     * @param look    the player's look, unit length
-     * @return the gust
+     * @param tailwind  the wind step's tailwind
+     * @param eyeHeight the player's eye height
+     * @param look      the player's look, unit length
+     * @return the gust, its origin relative to the player's feet
      */
-    static Gust exhaustGust(WindStep.Exhaust exhaust, Vec3 middle, Vec3 look) {
-        Vec3 back = look.reverse();
-        return new Gust(middle.add(back.scale(EXHAUST_SETBACK)), back, exhaust.range(), exhaust.coneDegrees());
+    static Gust tailwindGust(WindStep.Tailwind tailwind, double eyeHeight, Vec3 look) {
+        Vec3 origin = new Vec3(0, eyeHeight, 0).subtract(look.scale(TAILWIND_SETBACK));
+        return new Gust(origin, look, tailwind.range(), tailwind.coneDegrees(), true);
     }
 
     /**
@@ -357,7 +360,7 @@ public final class WindLines {
         double straight = range * STRAIGHT_SHARE * (HALF + random.nextDouble());
         double winding = random.nextBoolean() ? CLOCKWISE : COUNTERCLOCKWISE;
         live.add(new Line(apex, axis, outward, across, straight, sway(random, axis), winding, random.nextFloat(),
-                snowflakes, now));
+                snowflakes, now, gust.carried()));
     }
 
     /**
@@ -477,31 +480,46 @@ public final class WindLines {
         if (CLIENT.live.isEmpty()) {
             return;
         }
-        double gameTime = now + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        double gameTime = now + partialTick;
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 rider = mc.player == null ? Vec3.ZERO : mc.player.getPosition(partialTick);
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         RenderType type = RenderTypes.linesTranslucent();
         LineContext lines = new LineContext(event.getPoseStack().last(), buffers.getBuffer(type));
         for (Line line : CLIENT.live) {
-            drawLine(lines, camera, line, gameTime - line.startTick());
+            drawLine(lines, camera, line, gameTime - line.startTick(), anchorOf(line, rider));
         }
         buffers.endBatch(type);
-        CLIENT.dropSnowflakes(mc.level, now);
+        CLIENT.dropSnowflakes(mc.level, now, mc.player == null ? Vec3.ZERO : mc.player.position());
     }
 
-    private static void drawLine(LineContext lines, Vec3 camera, Line line, double age) {
+    /**
+     * What a line's path is measured from: the player it rides along with
+     * for a carried line, the world's origin for any other.
+     * jet-pushes-along-the-look-while-held
+     *
+     * @param line  the line
+     * @param rider the local player's position
+     * @return the anchor its path points add to
+     */
+    static Vec3 anchorOf(Line line, Vec3 rider) {
+        return line.carried() ? rider : Vec3.ZERO;
+    }
+
+    private static void drawLine(LineContext lines, Vec3 camera, Line line, double age, Vec3 anchor) {
         float life = (float) (age / LIFE_TICKS);
         double lag = tailLag(age);
-        Vec3 previous = pathPoint(line, age);
+        Vec3 previous = anchor.add(pathPoint(line, age));
         for (int sample = 1; sample <= TAIL_SAMPLES; sample++) {
             float tail = (float) sample / TAIL_SAMPLES;
-            Vec3 next = pathPoint(line, age - tail * lag);
+            Vec3 next = anchor.add(pathPoint(line, age - tail * lag));
             lines.emitPolyline(camera, new Vec3[] {previous, next}, trailColor(line, life, tail), LINE_WIDTH);
             previous = next;
         }
     }
 
-    private void dropSnowflakes(ClientLevel level, long now) {
+    private void dropSnowflakes(ClientLevel level, long now, Vec3 rider) {
         if (snowflakesDroppedAt == now) {
             return;
         }
@@ -510,8 +528,8 @@ public final class WindLines {
         for (Line line : live) {
             if (line.snowflakes() && random.nextFloat() < SNOWFLAKES_PER_LINE_TICK) {
                 double age = now - line.startTick();
-                Vec3 at = pathPoint(line, age);
-                Vec3 along = at.subtract(pathPoint(line, age - 1));
+                Vec3 at = anchorOf(line, rider).add(pathPoint(line, age));
+                Vec3 along = at.subtract(anchorOf(line, rider).add(pathPoint(line, age - 1)));
                 level.addParticle(GooParticles.SNOWFLAKE.get(), at.x, at.y, at.z, along.x, along.y, along.z);
             }
         }

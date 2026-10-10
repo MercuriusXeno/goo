@@ -16,6 +16,7 @@ import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.pulse.Stunned;
 import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.spray.Spored;
+import com.mercuriusxeno.goo.ability.typhoon.Airborn;
 import com.mercuriusxeno.goo.ability.typhoon.Floating;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
@@ -244,6 +245,19 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> Floating.NONE)
                             .serialize(Floating.CODEC)
                             .sync(GooAttachments::syncsToWatcher, Floating.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The air control Airborn lays on a player, saved with the player while
+     * it stands and synced to the owning client, which steers it in midair,
+     * caps its fall and draws the rising wind.
+     * airborn-steerable-levitation-and-soft-falls
+     */
+    public static final Supplier<AttachmentType<Airborn>> AIRBORN =
+            ATTACHMENT_TYPES.register("airborn",
+                    () -> AttachmentType.builder(() -> Airborn.NONE)
+                            .serialize(Airborn.CODEC, airborn -> airborn.expiresAt() > 0L)
+                            .sync(GooAttachments::syncsToOwner, Airborn.STREAM_CODEC)
                             .build());
 
     private GooAttachments() {

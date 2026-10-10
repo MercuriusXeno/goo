@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.typhoon.Airborn;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -75,6 +77,7 @@ class PlayerHostTest {
         when(player.level()).thenReturn(openAir);
         when(player.getLookAngle()).thenReturn(look);
         when(player.getDeltaMovement()).thenReturn(Vec3.ZERO);
+        when(player.getData(GooAttachments.AIRBORN)).thenReturn(Airborn.NONE);
         when(player.getItemBySlot(EquipmentSlot.CHEST)).thenReturn(mock(ItemStack.class));
         when(player.position()).thenReturn(new Vec3(X, Y, Z));
         when(player.getX()).thenReturn(X);

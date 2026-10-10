@@ -363,7 +363,7 @@ class AbilityLoaderTest {
      * it ends (decision held-effects-sound-up-and-down).
      */
     @ParameterizedTest
-    @CsvSource({"blaze_kindle", "leaf_barkskin", "rock_stoneskin", "vital_nourish", "shroom_sight", "hex_lifetap"})
+    @CsvSource({"blaze_kindle", "leaf_barkskin", "rock_stoneskin", "vital_nourish", "shroom_sight", "hex_lifetap", "typhoon_airborn"})
     void everyBrewSoundsAsItStarts(String name) {
         assertTrue(AbilityJson.decode(name).behaviors().stream().anyMatch(SoundStep.class::isInstance), name);
     }

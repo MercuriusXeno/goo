@@ -24,29 +24,56 @@ class WindLinesTest {
     private static final WindLines.Sway SWAYING = new WindLines.Sway(UP.scale(WindLines.SWAY),
             SOUTH.scale(WindLines.SWAY), 0.3, 1.1, 0.2, 0.15);
 
-    /** A jet's wake leaves behind the player and rushes back against the look (decision jet-pushes-along-the-look-while-held). */
+    /**
+     * A jet's tailwind rides along with the player, leaving just behind the
+     * eye and rushing forward along the look past the camera
+     * (decision jet-pushes-along-the-look-while-held).
+     */
     @Nested
-    class Exhaust {
+    class Tailwind {
+
+        private static final double EYE_HEIGHT = 1.62;
+        private static final WindStep.Tailwind TAILWIND = new WindStep.Tailwind(6, 30);
 
         @Test
-        void aJetsWakeLeavesBehindThePlayerAndRushesBackThroughItsCone() {
-            Vec3 middle = new Vec3(4, 65, -3);
-            WindStep.Exhaust exhaust = new WindStep.Exhaust(4, 24);
+        void aTailwindLeavesBehindTheEyeAndRushesForwardAlongTheLook() {
+            WindLines.Gust gust = WindLines.tailwindGust(TAILWIND, EYE_HEIGHT, EAST);
 
-            WindLines.Gust gust = WindLines.exhaustGust(exhaust, middle, EAST);
+            assertEquals(EAST, gust.axis());
+            assertEquals(-WindLines.TAILWIND_SETBACK, gust.origin().x, EPSILON);
+            assertEquals(EYE_HEIGHT, gust.origin().y, EPSILON);
+            assertEquals(0, gust.origin().z, EPSILON);
+            assertEquals(TAILWIND.range(), gust.range(), EPSILON);
+            assertEquals(TAILWIND.coneDegrees(), gust.coneDegrees(), EPSILON);
+            assertTrue(gust.carried());
+        }
 
-            assertEquals(EAST.reverse(), gust.axis());
-            assertEquals(middle.x - WindLines.EXHAUST_SETBACK, gust.origin().x, EPSILON);
-            assertEquals(middle.y, gust.origin().y, EPSILON);
-            assertEquals(middle.z, gust.origin().z, EPSILON);
-            assertEquals(exhaust.range(), gust.range(), EPSILON);
-            assertEquals(exhaust.coneDegrees(), gust.coneDegrees(), EPSILON);
+        @Test
+        void aCarriedLineRidesWithThePlayerAndAnyOtherStaysInTheWorld() {
+            Vec3 rider = new Vec3(10, 64, -5);
+
+            assertEquals(rider, WindLines.anchorOf(line(WindLines.Sway.NONE, true), rider));
+            assertEquals(Vec3.ZERO, WindLines.anchorOf(line(WindLines.Sway.NONE, false), rider));
+        }
+
+        @Test
+        void aCarriedLineOvertakesTheCameraOnItsStraightRun() {
+            WindLines.Gust gust = WindLines.tailwindGust(TAILWIND, EYE_HEIGHT, EAST);
+            WindLines.Line rushing = new WindLines.Line(gust.origin(), EAST, SOUTH, EAST.cross(SOUTH), STRAIGHT,
+                    WindLines.Sway.NONE, 1, 0f, false, 0L, true);
+
+            assertTrue(WindLines.pathPoint(rushing, 0).x < 0);
+            assertTrue(WindLines.pathPoint(rushing, WindLines.STRAIGHT_TICKS).x > 0);
         }
     }
 
     /** A line blown straight along the look, curling south. */
     private static WindLines.Line line(WindLines.Sway sway) {
-        return new WindLines.Line(Vec3.ZERO, EAST, SOUTH, EAST.cross(SOUTH), STRAIGHT, sway, 1, 0f, true, 0L);
+        return line(sway, false);
+    }
+
+    private static WindLines.Line line(WindLines.Sway sway, boolean carried) {
+        return new WindLines.Line(Vec3.ZERO, EAST, SOUTH, EAST.cross(SOUTH), STRAIGHT, sway, 1, 0f, true, 0L, carried);
     }
 
     @Nested

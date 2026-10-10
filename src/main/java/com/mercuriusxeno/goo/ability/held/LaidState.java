@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.held;
 
+import com.mercuriusxeno.goo.ability.program.AirbornStep;
 import com.mercuriusxeno.goo.ability.program.ExtenderStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
 import com.mercuriusxeno.goo.ability.program.LifetapStep;
@@ -37,7 +38,9 @@ public enum LaidState {
     /** The Extender's mark, laid by an extender step (decision extender-multiplies-the-next-self-duration). */
     EXTENDER,
     /** A lifetap (decision lifetap-trades-regen-for-leech). */
-    LIFETAP;
+    LIFETAP,
+    /** Air control (decision airborn-steerable-levitation-and-soft-falls). */
+    AIRBORN;
 
     /** Codec for the saved state. */
     public static final Codec<LaidState> CODEC = LowerCaseEnumCodec.of(LaidState.class, "laid state");
@@ -71,7 +74,8 @@ public enum LaidState {
             UndeadStep.class, UNDEAD,
             TeleportitisStep.class, TELEPORTITIS,
             ExtenderStep.class, EXTENDER,
-            LifetapStep.class, LIFETAP);
+            LifetapStep.class, LIFETAP,
+            AirbornStep.class, AIRBORN);
 
     private static Stream<Step> withDescendants(Step step) {
         return Stream.concat(Stream.of(step), step.children().flatMap(LaidState::withDescendants));
