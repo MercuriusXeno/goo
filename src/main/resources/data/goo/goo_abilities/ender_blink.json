@@ -12,7 +12,7 @@
   "behaviors": [
     { "type": "afterimage", "goo": "ender" },
     { "type": "particles", "id": "minecraft:portal", "at": "target", "count": 32, "spread": 0.5, "lift": 1, "speed": 0.5 },
-    { "type": "teleport", "mode": "thrower_look", "range": 32, "node_range": 48, "node_cone": 10 },
+    { "type": "teleport", "mode": "thrower_look", "range": 32, "node_range": 1024, "node_cone": 10 },
     { "type": "ghost_trail", "goo": "ender" },
     { "type": "afterimage", "goo": "ender" },
     { "type": "particles", "id": "minecraft:portal", "at": "target", "count": 32, "spread": 0.5, "lift": 1, "speed": 0.5 },

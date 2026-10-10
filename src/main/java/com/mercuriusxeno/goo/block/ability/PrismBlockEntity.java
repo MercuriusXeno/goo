@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.block.ability;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.PrismCombos;
+import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
+import com.mercuriusxeno.goo.ability.oculus.OculusRegistry;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -105,6 +107,7 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         gooType = type;
         combo = comboId;
         comboSince = server.getGameTime();
+        listOculus();
         behavior = ProgramBehavior.forHost(steps, HostKind.MARKER);
         behavior.onSplat(server, worldPosition, this);
         settle();
@@ -190,6 +193,49 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     }
 
     @Override
+    public void onLoad() {
+        super.onLoad();
+        listOculus();
+    }
+
+    @Override
+    public void setRemoved() {
+        super.setRemoved();
+        unlistOculus();
+    }
+
+    @Override
+    public void onChunkUnloaded() {
+        super.onChunkUnloaded();
+        unlistOculus();
+    }
+
+    /**
+     * Keeps the level's list of oculi in step with this prism: listed while
+     * it holds the oculus combo, so Blink finds it from any distance.
+     * decision oculus-prism-becomes-a-hovering-eye
+     */
+    private void listOculus() {
+        if (level == null) {
+            return;
+        }
+        if (OculusNodes.OCULUS.equals(combo)) {
+            OculusRegistry.add(level, worldPosition);
+        } else {
+            OculusRegistry.remove(level, worldPosition);
+        }
+    }
+
+    /**
+     * Takes this prism off the level's list of oculi as it goes.
+     */
+    private void unlistOculus() {
+        if (level != null) {
+            OculusRegistry.remove(level, worldPosition);
+        }
+    }
+
+    @Override
     protected void loadAdditional(@NonNull ValueInput input) {
         super.loadAdditional(input);
         ResourceKey<GooTypeDefinition> loaded = GooTypes.byId(input.getStringOr(TAG_GOO_TYPE, GooTypes.id(gooType)));
@@ -197,6 +243,7 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         combo = input.getStringOr(TAG_COMBO, NO_COMBO);
         charge = input.getIntOr(TAG_CHARGE, 0);
         comboSince = input.getLongOr(TAG_COMBO_SINCE, 0L);
+        listOculus();
         programState.load(input);
         boolean running = input.getBooleanOr(TAG_RUNNING, false);
         behavior = running ? comboProgram() : null;

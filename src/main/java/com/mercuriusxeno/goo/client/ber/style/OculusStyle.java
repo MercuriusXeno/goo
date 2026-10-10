@@ -33,12 +33,14 @@ public final class OculusStyle implements PrismComboStyle {
     static final float HOVER_AMPLITUDE = 0.03f;
     /** Ticks per bob. */
     static final float HOVER_PERIOD = 60f;
-    /** How much of the eye's front each lid covers when shut, in blocks. */
-    static final float LID_REACH = 2.5f / 16f;
+    /** The pixel rows each lid covers when shut: half the eye's six. */
+    static final int LID_ROWS = 3;
+    /** One pixel, in blocks: a lid closes a whole row at a time, so it never squeezes a texel. */
+    static final float ROW = 1f / 16f;
     /** Where the eye's front starts, in the eye model's blocks. */
-    static final float EYE_BOTTOM = 5.5f / 16f;
+    static final float EYE_BOTTOM = 5f / 16f;
     /** Where the eye's front ends, in the eye model's blocks. */
-    static final float EYE_TOP = 10.5f / 16f;
+    static final float EYE_TOP = 11f / 16f;
     /** The eye's side texture, which the lens wears as the column turns into it. */
     private static final Identifier EYE_SIDE = Identifier.fromNamespaceAndPath(Goo.MODID, "block/oculus_eye_side");
     private static final float PIXELS_PER_BLOCK = 16f;
@@ -100,28 +102,36 @@ public final class OculusStyle implements PrismComboStyle {
         poseStack.mulPose(Axis.YP.rotationDegrees(state.yawToCamera));
         poseStack.translate(-HALF, -HALF, -HALF);
         GooSubmitter.submitBakedBody(poseStack, nodeCollector, state.lightCoords, OculusModels.eye());
-        float shut = state.lidClosure;
-        if (shut > 0f) {
-            submitLid(state, poseStack, nodeCollector, EYE_TOP - shut * LID_REACH, shut);
-            submitLid(state, poseStack, nodeCollector, EYE_BOTTOM, shut);
+        int rows = lidRows(state.lidClosure);
+        for (int row = 0; row < rows; row++) {
+            submitLidRow(state, poseStack, nodeCollector, EYE_TOP - (row + 1) * ROW);
+            submitLidRow(state, poseStack, nodeCollector, EYE_BOTTOM + row * ROW);
         }
         poseStack.popPose();
     }
 
     /**
-     * Draws one lid over the eye's front, as tall as the lids stand shut.
+     * How many pixel rows each lid covers at a closure.
+     *
+     * @param shut how shut the lids stand, 0 to 1
+     * @return the rows, 0 open to {@link #LID_ROWS} shut
+     */
+    static int lidRows(float shut) {
+        return Math.round(Math.clamp(shut, 0f, 1f) * LID_ROWS);
+    }
+
+    /**
+     * Draws one pixel row of lid flush on the eye's front.
      *
      * @param state         the prism's render state
      * @param poseStack     the pose in the eye's frame
      * @param nodeCollector the submit collector
-     * @param bottom        the lid's bottom edge, in blocks
-     * @param shut          how shut the lids stand, 0 to 1
+     * @param bottom        the row's bottom edge, in blocks
      */
-    private static void submitLid(PrismRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector,
-                                  float bottom, float shut) {
+    private static void submitLidRow(PrismRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector,
+                                     float bottom) {
         poseStack.pushPose();
         poseStack.translate(0f, bottom, 0f);
-        poseStack.scale(1f, shut * LID_REACH * PIXELS_PER_BLOCK, 1f);
         GooSubmitter.submitBakedBody(poseStack, nodeCollector, state.lightCoords, OculusModels.lid());
         poseStack.popPose();
     }
