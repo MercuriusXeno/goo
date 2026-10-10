@@ -2,10 +2,9 @@ package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlockEntity;
-import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.ability.WispGlow;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.math.Axis;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
@@ -22,7 +21,8 @@ import org.jspecify.annotations.Nullable;
  * glow-yellow halo cube, both added onto the world, bobbing and turning
  * slowly in place, each wisp at its own phase and pace so no two move in
  * step, and shrinking and dimming through the wisp's fade stages (operator
- * rulings 2026-10-09).
+ * rulings 2026-10-09). The wisp queues to {@link WispGlow}, which draws it
+ * after the translucent blocks so water shows behind it, not over it.
  * decision radiant-wisps-where-light-is-low
  */
 public class WispRenderer implements BlockEntityRenderer<WispBlockEntity, WispRenderer.WispRenderState> {
@@ -41,7 +41,6 @@ public class WispRenderer implements BlockEntityRenderer<WispBlockEntity, WispRe
     static final float BOB_SPREAD = 0.05f;
     /** Degrees a wisp turns each tick, at most, either way. */
     private static final float MOST_TURN = 1.5f;
-    private static final float HALF = 0.5f;
     private static final int PHASE_BITS = 0xFFFF;
     private static final int PACE_SHIFT = 16;
     private static final int TURN_SHIFT = 32;
@@ -101,15 +100,12 @@ public class WispRenderer implements BlockEntityRenderer<WispBlockEntity, WispRe
     public void submit(WispRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector,
                        CameraRenderState cameraState) {
         float strength = strength(state.fade);
-        float bob = bob(state.seed, state.time);
-        poseStack.pushPose();
-        poseStack.translate(HALF, HALF + bob, HALF);
-        poseStack.mulPose(Axis.YP.rotationDegrees(state.time * turn(state.seed)));
-        nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.GLOW_SHELL_TYPE, (pose, consumer) -> {
+        Vec3 center = Vec3.atCenterOf(state.blockPos).add(0, bob(state.seed, state.time), 0);
+        // operator UAT 2026-10-10: water drew over the wisps, so they draw after the translucent blocks
+        WispGlow.queue(new WispGlow.Sprite(center, state.time * turn(state.seed), (pose, consumer) -> {
             emitCube(pose, consumer, HALO_HALF * strength, ARGB.color(Math.round(HALO_ALPHA * strength), HALO_RGB));
             emitCube(pose, consumer, CORE_HALF * strength, ARGB.color(Math.round(CORE_ALPHA * strength), CORE_RGB));
-        });
-        poseStack.popPose();
+        }));
     }
 
     /**
