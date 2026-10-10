@@ -139,6 +139,10 @@ public final class AbilityImpact {
      */
     private static void landOnPrism(ServerLevel level, PrismBlockEntity prism, ResourceKey<GooTypeDefinition> type,
                                     AbilityDefinition ability) {
+        // timekeeper-prism-banks-ticks-forward-only: goo of a banking prism's own type feeds its bank
+        if (prism.feed(type, ability.cost())) {
+            return;
+        }
         AbilityDefinition source = PrismCombos.comboSource(ability, AbilityRegistry.of(level).prismAbilityFor(type));
         if (source == null || prism.hasCombo()) {
             return;

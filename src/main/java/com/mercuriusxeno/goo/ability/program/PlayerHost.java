@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.pulse.ExtenderEvents;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
+import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
+import com.mercuriusxeno.goo.item.GooDeposit;
 import com.mercuriusxeno.goo.network.HoldMarks;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import net.minecraft.core.BlockPos;
@@ -10,7 +12,11 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
 import java.util.Optional;
@@ -44,7 +50,7 @@ import java.util.function.Consumer;
  */
 public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt brewDuration,
                          Optional<ChannelAim> channelAim, float charge, Optional<ChannelAim.FacePlane> blinkPin)
-        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, EffectExtendHost, FrostHost {
+        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, EffectExtendHost, FrostHost, TickBlockHost {
 
     /** The share of the player's height Nova emanates from. */
     private static final double HALF_HEIGHT = 0.5;
@@ -213,6 +219,41 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     }
 
 
+
+    /**
+     * The block a held stream ends on: the first block along the look from
+     * the eye to the end of the stream's reach.
+     * tick-channel-marches-squares-on-the-face
+     */
+    @Override
+    public Optional<BlockPos> tickedBlock() {
+        return channelAim.map(aim -> level.clip(new ClipContext(eye(), aim.aimPoint(), ClipContext.Block.OUTLINE,
+                        ClipContext.Fluid.NONE, player)))
+                .filter(hit -> hit.getType() == HitResult.Type.BLOCK)
+                .map(BlockHitResult::getBlockPos);
+    }
+
+    @Override
+    public void tickBlock(BlockPos pos, int times) {
+        BlockTicking.tickBlockEntity(level, pos, times);
+    }
+
+    /**
+     * Withdraws a banking prism's standing charge as aeon goo into the
+     * player's holdings, putting back what found no home.
+     * timekeeper-prism-banks-ticks-forward-only
+     */
+    @Override
+    public void withdrawBank(BlockPos pos, int maxMb, int chargePerMb) {
+        if (!(level.getBlockEntity(pos) instanceof PrismBlockEntity prism) || !prism.banksTicks()) {
+            return;
+        }
+        int mb = prism.withdrawStanding(maxMb, chargePerMb);
+        int homeless = GooDeposit.intoInventory(player, ItemStack.EMPTY).deposit(prism.getGooType(), mb);
+        if (homeless > 0) {
+            prism.refundStanding(homeless, chargePerMb);
+        }
+    }
 
     @Override
     public boolean reaches(BlockPos pos) {

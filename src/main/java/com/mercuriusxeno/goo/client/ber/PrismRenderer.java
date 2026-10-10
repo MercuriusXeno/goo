@@ -69,6 +69,10 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         state.blobLook = blob == null ? null : CrystalClusterSubmitter.lookOf(blob.gooType(),
                 ClientGooTypes.color(blob.gooType()));
         state.combo = prism.getCombo();
+        // timekeeper-prism-banks-ticks-forward-only: the shell reads the bank's charge and whether Tick spends it
+        state.bankTotal = prism.bank().total();
+        state.bankSpending = BankWatch.CLIENT.spending(prism.getBlockPos(), state.bankTotal,
+                prism.getLevel() == null ? 0L : prism.getLevel().getGameTime());
         // metronome-prism-pulses-at-the-learned-rate, relay-prism-carries-the-signal-through-air
         state.power = prism.getBlockState().getValue(PrismBlock.POWER);
         state.signalHeard = prism.beat().heard();

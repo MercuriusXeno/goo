@@ -235,7 +235,7 @@ public final class HeldEffectsEvents {
 
     /**
      * Clears the states an ended effect laid on the player's body: its heart
-     * overlay, its nourishment and its counting as undead.
+     * overlay, its nourishment, its counting as undead and its haste overlay.
      *
      * @param player the player
      * @param lays   the states the ended effect laid
@@ -250,6 +250,10 @@ public final class HeldEffectsEvents {
         if (lays.contains(LaidState.UNDEAD)) {
             // undead-nether-hearts-burn-in-sunlight: the player counts as undead no longer
             player.setData(GooAttachments.UNDEAD, Undead.NONE);
+        }
+        if (lays.contains(LaidState.HASTE)) {
+            // haste-stacks-speed-under-the-golden-overlay: the golden overlay ends with the held effect
+            Haste.clear(player);
         }
     }
 

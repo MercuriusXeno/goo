@@ -31,4 +31,15 @@ public interface MarkerAnchor {
      * @return the state the anchor's program keeps between ticks
      */
     MarkerProgramState programState();
+
+    /**
+     * Banks one tick of standing on an anchor that stores ticks; an anchor
+     * that stores none ignores it.
+     * timekeeper-prism-banks-ticks-forward-only
+     *
+     * @param perTick  the charge standing banks a tick
+     * @param spending the most charge one held tick of Tick spends
+     */
+    default void bankTicks(int perTick, int spending) {
+    }
 }

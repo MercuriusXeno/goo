@@ -1,0 +1,12 @@
+{
+  "gooType": "aeon",
+  "displayName": "goo.ability.aeon.tick_tap",
+  "badge": "tap",
+  "order": 60,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "tick_block", "extra_ticks": 16 }
+  ],
+  "tags": ["tap"]
+}
