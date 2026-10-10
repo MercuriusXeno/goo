@@ -15,9 +15,9 @@ import java.util.Map;
  * course when the stream re-roots, a tributary
  * curving in to land along its trunk's flow and the trunk landing along the
  * pull of the look. About a join the trunk carries every stream whose liquid
- * is there, as wide as one of them times the square root of how many, each
+ * is there, as wide as one of them times the fourth root of how many, each
  * swelling in over a short length either side of its join, so the two meet
- * like metaballs touching and a trunk of nine is three times one. The liquid's
+ * like metaballs touching and a trunk grows gently however many feed it. The liquid's
  * pace is set by the goo massing where it flows: a lone block's stream runs
  * at the base pace and a trunk fed by many runs faster by the square root of
  * the goo through it, so a join pulls its tributaries' liquid on; a block's
@@ -33,6 +33,8 @@ public final class DrinkTree {
     static final double MERGE = 0.6;
     /** The goo volume of a block whose stream has scale 1, in mB. */
     static final double BASE_VOLUME = 1000;
+    /** The root of the count of streams a trunk's width grows by: the fourth, so a trunk never fattens far. */
+    static final double TRUNK_ROOT = 4;
     /** Ticks a block's goo takes to weigh wholly on the pace of the trunks it feeds, so the pace glides rather than jumps. */
     static final double MASS_RAMP = 10;
     /** Stations along one block of path the liquid's travel time is summed at. */
@@ -453,10 +455,11 @@ public final class DrinkTree {
 
     /**
      * The radius of a stream at a share of its path: every stream flowing
-     * through there combined as one of them times the square root of how
-     * many, each counting by how much of it is there, which is the sum of
-     * their radii over the root of the sum of their presences, so nine equal
-     * streams make three times one, a stream swelling in counts in
+     * through there combined as the mean of them times the
+     * {@link #TRUNK_ROOT}th root of how many, each counting by how much of it
+     * is there, so a trunk grows gently with the streams it carries and never
+     * fattens into something that blocks the view at the hand: nine equal
+     * streams make about 1.7 times one, a stream swelling in counts in
      * proportion, and a trunk whose own liquid has passed is still as wide as
      * what flows through it.
      *
@@ -466,7 +469,11 @@ public final class DrinkTree {
      */
     static double radiusAt(Stream stream, double share) {
         Flow sum = flowUnder(stream, stream, share);
-        return sum.presence() > 0 ? sum.radius() / Math.sqrt(sum.presence()) : 0;
+        if (sum.presence() <= 0) {
+            return 0;
+        }
+        double mean = sum.radius() / sum.presence();
+        return mean * Math.pow(sum.presence(), 1 / TRUNK_ROOT);
     }
 
     /**
