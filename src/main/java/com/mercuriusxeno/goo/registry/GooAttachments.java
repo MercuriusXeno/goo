@@ -16,6 +16,7 @@ import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.pulse.Stunned;
 import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.spray.Spored;
+import com.mercuriusxeno.goo.ability.typhoon.Floating;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
 import net.minecraft.server.level.ServerPlayer;
@@ -230,6 +231,19 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> Frozen.NONE)
                             .serialize(Frozen.CODEC, Frozen::started)
                             .sync(GooAttachments::syncsToWatcher, Frozen.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The float Float leaves on a mob while its levitation lasts, saved with
+     * the mob and synced to every client drawing it, which pulses the mint
+     * platform under its feet.
+     * float-blob-levitates-the-mob
+     */
+    public static final Supplier<AttachmentType<Floating>> FLOATING =
+            ATTACHMENT_TYPES.register("floating",
+                    () -> AttachmentType.builder(() -> Floating.NONE)
+                            .serialize(Floating.CODEC)
+                            .sync(GooAttachments::syncsToWatcher, Floating.STREAM_CODEC)
                             .build());
 
     private GooAttachments() {
