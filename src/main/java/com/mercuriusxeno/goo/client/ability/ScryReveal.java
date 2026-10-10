@@ -131,6 +131,22 @@ public final class ScryReveal {
     }
 
     /**
+     * How strongly a ping still shows as its front travels: full within its
+     * reach, then fading to nothing over the fade past it.
+     *
+     * @param radius the front's radius
+     * @param reach  how far it reaches before fading
+     * @param fade   how far past the reach it travels while fading
+     * @return the strength, zero to one
+     */
+    public static float pingFade(float radius, float reach, float fade) {
+        if (radius <= reach) {
+            return 1f;
+        }
+        return fade <= 0f ? 0f : Math.max(0f, 1f - (radius - reach) / fade);
+    }
+
+    /**
      * How much brighter a face shows for being newly revealed: a flash that
      * settles over half a second, so the front reads as a sonar ping.
      *

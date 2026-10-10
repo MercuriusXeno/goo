@@ -10,7 +10,8 @@
     {
       "type": "scry",
       "growth": 1,
-      "reach": 48,
+      "reach": 96,
+      "fade": 20,
       "where": ["living"],
       "steps": [
         { "type": "ailment_overlay", "kind": "glow", "duration": 200 }

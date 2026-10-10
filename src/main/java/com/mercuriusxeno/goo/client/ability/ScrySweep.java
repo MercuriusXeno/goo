@@ -44,18 +44,22 @@ public final class ScrySweep {
     private static final int OPAQUE = 255;
     /** How far a face quad stands off its block, so it never sinks into the face it marks. */
     private static final float FACE_LIFT = 0.002f;
-    private static final double HALF_HEIGHT = 0.5;
+    /** A ping's sphere centers at the caster's body, this far above where the caster stood. */
+    private static final double BODY_CENTER = 0.9;
 
     private static final List<RevealedBlock> revealed = new ArrayList<>();
     private static float radius;
+    private static Vec3 origin = Vec3.ZERO;
+    private static float pingFade = 1f;
     private static long lastRadiusAt = Long.MIN_VALUE;
 
     private ScrySweep() {
     }
 
     /**
-     * Handles a radius on the client thread: a sweep after a let-go starts
-     * over, and the front reveals the faces it crossed since the last radius.
+     * Handles a ping's radius on the client thread: a new ping, or one after a
+     * let-go, starts over from its own origin, and the front reveals the
+     * faces it crossed within its reach since the last radius.
      *
      * @param payload the radius payload
      * @param context the network context
@@ -64,17 +68,21 @@ public final class ScrySweep {
         context.enqueueWork(() -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level != null && mc.player != null) {
-                advance(mc.level, center(mc.player, 1f), payload.radius(), mc.level.getGameTime());
+                advance(mc.level, payload, mc.level.getGameTime());
             }
         });
     }
 
-    private static void advance(ClientLevel level, Vec3 center, float next, long now) {
-        if (now - lastRadiusAt > ScryReveal.RELEASE_GRACE_TICKS || next < radius) {
+    private static void advance(ClientLevel level, ScryPayload ping, long now) {
+        Vec3 center = ping.origin().add(0, BODY_CENTER, 0);
+        float next = ping.radius();
+        if (now - lastRadiusAt > ScryReveal.RELEASE_GRACE_TICKS || next < radius || !center.equals(origin)) {
             revealed.clear();
             radius = 0f;
         }
-        for (BlockPos pos : ScryReveal.shell(center, radius, next)) {
+        origin = center;
+        pingFade = ScryReveal.pingFade(next, ping.reach(), ping.fade());
+        for (BlockPos pos : ScryReveal.shell(center, Math.min(radius, ping.reach()), Math.min(next, ping.reach()))) {
             List<Direction> sides = ScryReveal.exposedFaces(at -> level.getBlockState(at).isAir(), pos);
             if (!sides.isEmpty() && revealed.size() < MOST_BLOCKS) {
                 // the reveal traces the block's own shape, so slabs, stairs and fences show as they stand
@@ -100,7 +108,7 @@ public final class ScrySweep {
             return;
         }
         long now = mc.level.getGameTime();
-        float strength = ScryReveal.fade(now - lastRadiusAt);
+        float strength = ScryReveal.fade(now - lastRadiusAt) * pingFade;
         if (strength <= 0f) {
             revealed.clear();
             lastRadiusAt = Long.MIN_VALUE;
@@ -109,9 +117,7 @@ public final class ScrySweep {
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         PoseStack.Pose pose = event.getPoseStack().last();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        ColorSphere.emit(pose, buffers.getBuffer(GooRenderTypes.GLOW_SHELL_TYPE),
-                center(player, partialTick).subtract(camera), radius,
+        ColorSphere.emit(pose, buffers.getBuffer(GooRenderTypes.GLOW_SHELL_TYPE), origin.subtract(camera), radius,
                 ARGB.color(Math.round(SPHERE_ALPHA * strength), GLOW_RGB));
         buffers.endBatch(GooRenderTypes.GLOW_SHELL_TYPE);
         drawRevealed(pose, buffers, camera, now, strength);
@@ -131,10 +137,6 @@ public final class ScrySweep {
             }
         }
         buffers.endBatch(GooRenderTypes.SCRY_FACES_TYPE);
-    }
-
-    private static Vec3 center(LocalPlayer player, float partialTick) {
-        return player.getPosition(partialTick).add(0, player.getBbHeight() * HALF_HEIGHT, 0);
     }
 
     /**
