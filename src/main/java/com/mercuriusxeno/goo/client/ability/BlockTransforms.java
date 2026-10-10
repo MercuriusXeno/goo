@@ -36,8 +36,9 @@ public final class BlockTransforms {
      * @param toward  the state it calcifies into
      * @param share   the share built, 0 to 1
      * @param updated the game tick the share last arrived
+     * @param tint    the RGB the mingled block is tinted by, negative for none
      */
-    public record Exposure(BlockPos pos, BlockState toward, float share, long updated) {
+    public record Exposure(BlockPos pos, BlockState toward, float share, long updated, int tint) {
     }
 
     /**
@@ -91,12 +92,13 @@ public final class BlockTransforms {
      * @param toward the state it calcifies into
      * @param share  the share built
      * @param tick   the game tick it arrived
+     * @param tint   the RGB the mingled block is tinted by, negative for none
      */
-    public void expose(BlockPos pos, BlockState toward, float share, long tick) {
+    public void expose(BlockPos pos, BlockState toward, float share, long tick, int tint) {
         if (share <= 0f) {
             exposures.remove(pos);
         } else {
-            exposures.put(pos.immutable(), new Exposure(pos.immutable(), toward, share, tick));
+            exposures.put(pos.immutable(), new Exposure(pos.immutable(), toward, share, tick, tint));
         }
     }
 

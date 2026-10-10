@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.particle;
 
-import com.mercuriusxeno.goo.client.GooSubmitter;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.ParticleProvider;
 import net.minecraft.client.particle.SingleQuadParticle;
@@ -27,14 +26,12 @@ public final class GnatParticle extends SingleQuadParticle {
     private static final float BASE_QUAD_SIZE = 0.06f;
     private static final float QUAD_SIZE_VARIANCE = 0.04f;
     private static final float START_ALPHA = 0.95f;
-    /** The lighter edge of the swarm's maroon, #8A2030, around the hive column's #7A1A2A. */
-    private static final float MAROON_RED = 0x8A / 255f;
-    private static final float MAROON_GREEN = 0x20 / 255f;
-    private static final float MAROON_BLUE = 0x30 / 255f;
-    /** The darker edge of the swarm's maroon, #6A1622. */
-    private static final float DARK_RED = 0x6A / 255f;
-    private static final float DARK_GREEN = 0x16 / 255f;
-    private static final float DARK_BLUE = 0x22 / 255f;
+    private static final float MAROON_RED = 0.75f;
+    private static final float MAROON_GREEN = 0.12f;
+    private static final float MAROON_BLUE = 0.2f;
+    private static final float DARK_RED = 0.5f;
+    private static final float DARK_GREEN = 0.06f;
+    private static final float DARK_BLUE = 0.11f;
     private static final double HALF = 0.5;
 
     private GnatParticle(ClientLevel level, double x, double y, double z, double vx, double vy, double vz,
@@ -68,15 +65,6 @@ public final class GnatParticle extends SingleQuadParticle {
         this.zd += (random.nextDouble() - HALF) * DART_SPAN;
         super.tick();
         this.alpha = START_ALPHA * (1f - (float) this.age / this.lifetime);
-    }
-
-    /**
-     * Lights the gnat at full brightness, so shade never darkens its maroon to black
-     * (decision decay-gnats-degrade-each-block-once).
-     */
-    @Override
-    protected int getLightCoords(float partialTick) {
-        return GooSubmitter.fullbrightLight();
     }
 
     @Override
