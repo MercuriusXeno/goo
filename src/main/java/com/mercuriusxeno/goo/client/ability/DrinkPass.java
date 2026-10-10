@@ -146,7 +146,7 @@ final class DrinkPass {
         int firstQuad = 0;
         for (int index = 0; index < blocks.size(); index++) {
             int quads = blocks.get(index).proxies().size() * FACES;
-            pass.setUniform(GooRenderTypes.DRINK_STREAM_BLOCK, uniforms.slice((long) index * stride,
+            pass.setUniform(GooRenderTypes.DRINK_REGION_BLOCK, uniforms.slice((long) index * stride,
                     DrinkUpload.BYTES));
             pass.drawIndexed(0, firstQuad * INDICES_PER_QUAD, quads * INDICES_PER_QUAD, 1);
             firstQuad += quads;

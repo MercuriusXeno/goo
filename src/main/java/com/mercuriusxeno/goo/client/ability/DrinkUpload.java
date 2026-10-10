@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderUtil;
+import net.minecraft.core.BlockPos;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
 import java.nio.ByteBuffer;
@@ -9,79 +10,79 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
- * One stream's upload for the drink field shader: the uniform block the
- * shader marches, and the proxy boxes it marches inside. Every body of the
- * stream that radiates gets a proxy, its bounds grown by the field's reach,
- * and the block lists for each proxy every body of the drink whose reach
- * meets it, the stream's own bodies first and each other stream's as its own
- * run, so the shader reads each skeleton at its least distance and sums them
- * as the field does; the rings those bodies need are copied into the block in
- * runs, with the frame of their own path, so a point on any of them reads its
- * texture in that path's frame. Positions are camera-relative.
+ * A drink's upload for the drink field shader, cut by region of space rather
+ * than by stream: the space about the drink is tiled in one-block regions,
+ * and every region some body's field reaches becomes one proxy box with one
+ * uniform block holding only the bodies that reach it, grouped per stream so
+ * the shader reads each skeleton at its least distance and sums them as the
+ * field does, the rings those bodies need copied in, and the coat of every
+ * stream present so a hit reads its own stream's texture, light and goo. A
+ * pixel is so marched once for each region its ray crosses rather than once
+ * for every stream that overlaps there, which is what keeps a crowd of
+ * streams cheap. Positions are camera-relative.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 public final class DrinkUpload {
 
-    /** The most rings a stream's block carries, its own and the copied runs of its neighbours'. */
-    static final int MOST_RINGS = 192;
-    /** The most boxes a stream's block carries. */
+    /** Blocks a region spans each way; a region is one proxy the shader marches, aligned to the world grid. */
+    public static final double REGION = 1;
+    /** The most streams one region's block holds coats and rings for. */
+    static final int MOST_STREAMS = 16;
+    /** The most rings a region's block carries. */
+    static final int MOST_RINGS = 224;
+    /** The most boxes a region's block carries. */
     static final int MOST_BOXES = 8;
-    /** The most proxies a stream draws. */
-    static final int MOST_PROXIES = 64;
-    /**
-     * The most table entries a stream's proxies list: the longest stream's sixty proxies each list the nine
-     * segments within reach of them and the bodies of every neighbour at a join, and the block stays under
-     * the 16 KB every device grants a uniform block.
-     */
-    static final int MOST_ENTRIES = 1536;
-    /** The most paths whose frames a block carries, the stream's own and its neighbours'. */
-    static final int MOST_FRAMES = 8;
+    /** The most table entries a region lists. */
+    static final int MOST_ENTRIES = 1024;
     /** The most goo types mingled over one stream. */
     public static final int MOST_LAYERS = 3;
     /** The flag on a table entry that begins a skeleton's run. */
     static final int RUN_START = 1 << 16;
     /** Table entries at and over this name a box, below it a segment. */
     static final int BOX_BASE = 1 << 12;
+    /** The vec4 slots one stream's coat takes in the block. */
+    static final int STREAM_VEC4S = 14;
+    static final int COAT_SLOT = 0;
+    static final int TINT_SLOT = 1;
+    static final int SPRITE_SLOT = 2;
+    static final int SIDE_SLOT = 3;
+    static final int ACROSS_SLOT = 4;
+    static final int LAYER_TINT_SLOT = 5;
+    static final int LAYER_SPRITE_SLOT = 8;
+    static final int LAYER_SHARE_SLOT = 11;
 
     static final int VEC4 = 16;
-    static final int COAT_AT = 0;
-    static final int TINT_AT = COAT_AT + VEC4;
-    static final int SPRITE_AT = TINT_AT + VEC4;
-    static final int COUNTS_AT = SPRITE_AT + VEC4;
-    static final int LAYER_TINT_AT = COUNTS_AT + VEC4;
-    static final int LAYER_SPRITE_AT = LAYER_TINT_AT + MOST_LAYERS * VEC4;
-    static final int LAYER_SHARE_AT = LAYER_SPRITE_AT + MOST_LAYERS * VEC4;
-    static final int FRAMES_AT = LAYER_SHARE_AT + MOST_LAYERS * VEC4;
-    static final int PROXY_LOW_AT = FRAMES_AT + MOST_FRAMES * 2 * VEC4;
-    static final int PROXY_HIGH_AT = PROXY_LOW_AT + MOST_PROXIES * VEC4;
-    static final int TABLE_AT = PROXY_HIGH_AT + MOST_PROXIES * VEC4;
+    static final int REGION_AT = 0;
+    static final int COUNTS_AT = REGION_AT + VEC4;
+    static final int STREAMS_AT = COUNTS_AT + VEC4;
+    static final int TABLE_AT = STREAMS_AT + MOST_STREAMS * STREAM_VEC4S * VEC4;
     static final int BOXES_AT = TABLE_AT + MOST_ENTRIES * Integer.BYTES;
     static final int RINGS_AT = BOXES_AT + MOST_BOXES * 2 * VEC4;
     /** The block's size in bytes. */
     public static final int BYTES = RINGS_AT + MOST_RINGS * 2 * VEC4;
 
     private static final int PAIR = 2;
-    /** No ring, or no entry. */
-    private static final int NONE = -1;
     private static final int Y = 1;
     private static final int Z = 2;
     private static final int W = 3;
+    /** No ring, or no entry. */
+    private static final int NONE = -1;
 
     /**
      * What a stream is drawn with.
      *
-     * @param tint           the block sprite's tint, ARGB
-     * @param sprite         the block's sprite, or unstable goo's while the zoop flies
-     * @param blockLight     the block light along the stream, in lightmap coordinates
-     * @param skyLight       the sky light along the stream, in lightmap coordinates
-     * @param zoop           whether the zoop is flying, which wears unstable goo's sprite and no blotches
-     * @param depthZeroToOne whether the device's depth runs 0 to 1 rather than -1 to 1
-     * @param layers         the block's goo types mingled over it, largest first
+     * @param tint       the block sprite's tint, ARGB
+     * @param sprite     the block's sprite, or unstable goo's while the zoop flies
+     * @param blockLight the block light along the stream, in lightmap coordinates
+     * @param skyLight   the sky light along the stream, in lightmap coordinates
+     * @param zoop       whether the zoop is flying, which wears unstable goo's sprite and no blotches
+     * @param layers     the block's goo types mingled over it, largest first
      */
     public record Coat(int tint, GooRenderUtil.UvRect sprite, int blockLight, int skyLight, boolean zoop,
-                       boolean depthZeroToOne, List<Layer> layers) {
+                       List<Layer> layers) {
     }
 
     /**
@@ -106,51 +107,71 @@ public final class DrinkUpload {
     }
 
     /**
-     * A stream's upload.
+     * One region's upload.
      *
      * @param bytes   the uniform block, {@link #BYTES} long
-     * @param proxies the proxy boxes to draw, in the block's order
-     * @param dropped how many table entries the cap left out, 0 for a whole upload
+     * @param proxies the proxy boxes to draw, the region's one
+     * @param dropped how many bodies and table entries the caps left out, 0 for a whole upload
      */
     public record Block(ByteBuffer bytes, List<Proxy> proxies, int dropped) {
     }
 
+    /**
+     * A body with the bounds its field reaches.
+     *
+     * @param skeleton the skeleton's index
+     * @param body     the body's index within it
+     * @param low      the low corner of its reach
+     * @param high     the high corner of its reach
+     */
+    record Bound(int skeleton, int body, Vec3 low, Vec3 high) {
+    }
+
     private final List<DrinkField.Skeleton> skeletons;
+    private final List<Coat> coats;
     private final Vec3 camera;
-    private final List<Proxy> proxies = new ArrayList<>();
-    private final List<Map<Integer, List<Integer>>> candidates = new ArrayList<>();
-    private final Map<Integer, Integer> frameOf = new LinkedHashMap<>();
+    private final BlockPos region;
+    private final Map<Integer, Integer> streamOf = new LinkedHashMap<>();
     private final Map<Integer, Integer> ringBaseOf = new LinkedHashMap<>();
     private final Map<Integer, Integer> firstRingOf = new LinkedHashMap<>();
     private final Map<Integer, Integer> boxOf = new LinkedHashMap<>();
-    private final List<Integer> ringSkeletons = new ArrayList<>();
     private final List<DrinkStream.Ring> rings = new ArrayList<>();
+    private final List<Integer> ringStreams = new ArrayList<>();
     private final List<DrinkBody.Box> boxes = new ArrayList<>();
+    private final List<Integer> boxStreams = new ArrayList<>();
     private final List<Integer> table = new ArrayList<>();
-    private final List<int[]> ranges = new ArrayList<>();
     private int dropped;
 
-    private DrinkUpload(List<DrinkField.Skeleton> skeletons, Vec3 camera) {
+    private DrinkUpload(List<DrinkField.Skeleton> skeletons, List<Coat> coats, Vec3 camera, BlockPos region) {
         this.skeletons = skeletons;
+        this.coats = coats;
         this.camera = camera;
+        this.region = region;
     }
 
     /**
-     * Builds one stream's upload.
+     * Builds a drink's uploads, one for every region some body's field reaches.
      *
-     * @param skeletons every skeleton of the drink with liquid to show
-     * @param own       the index of the stream's skeleton
-     * @param camera    the camera's position
-     * @param coat      what the stream is drawn with
-     * @return the upload
+     * @param skeletons      every skeleton of the drink with liquid to show
+     * @param coats          what each skeleton's stream is drawn with, in the same order
+     * @param camera         the camera's position
+     * @param depthZeroToOne whether the device's depth runs 0 to 1 rather than -1 to 1
+     * @return the uploads, in region order
      */
-    public static Block of(List<DrinkField.Skeleton> skeletons, int own, Vec3 camera, Coat coat) {
-        DrinkUpload upload = new DrinkUpload(skeletons, camera);
-        upload.layProxies(own);
-        upload.copy(own);
-        upload.copyNeighbours(own);
-        upload.tabulate();
-        return new Block(upload.write(coat), List.copyOf(upload.proxies), upload.dropped);
+    public static List<Block> of(List<DrinkField.Skeleton> skeletons, List<Coat> coats, Vec3 camera,
+                                 boolean depthZeroToOne) {
+        Map<BlockPos, List<Bound>> regions = new TreeMap<>();
+        for (int index = 0; index < skeletons.size(); index++) {
+            for (int body = 0; body < skeletons.get(index).bodies(); body++) {
+                if (radiates(skeletons.get(index), body)) {
+                    spread(regions, boundOf(skeletons.get(index), index, body));
+                }
+            }
+        }
+        List<Block> blocks = new ArrayList<>();
+        regions.forEach((key, bounds) -> blocks.add(new DrinkUpload(skeletons, coats, camera, key)
+                .build(bounds, depthZeroToOne)));
+        return blocks;
     }
 
     /**
@@ -168,166 +189,102 @@ public final class DrinkUpload {
 
     /**
      * @param skeleton a skeleton
+     * @param index    its index
      * @param body     a body's index within it
-     * @param low      a box's low corner
-     * @param high     its high corner
-     * @return whether the body's field, reaching {@link DrinkField#REACH} past its own bounds, meets the box
+     * @return the body with the bounds its field reaches, {@link DrinkField#REACH} past its own
      */
-    static boolean reaches(DrinkField.Skeleton skeleton, int body, Vec3 low, Vec3 high) {
-        Vec3 bodyLow = skeleton.lowOf(body);
-        Vec3 bodyHigh = skeleton.highOf(body);
-        return overlaps(bodyLow.x, bodyHigh.x, low.x, high.x) && overlaps(bodyLow.y, bodyHigh.y, low.y, high.y)
-                && overlaps(bodyLow.z, bodyHigh.z, low.z, high.z);
-    }
-
-    private static boolean overlaps(double bodyLow, double bodyHigh, double low, double high) {
-        return bodyLow - DrinkField.REACH <= high && bodyHigh + DrinkField.REACH >= low;
-    }
-
-    private void layProxies(int own) {
-        DrinkField.Skeleton mine = skeletons.get(own);
-        for (int body = 0; body < mine.bodies() && proxies.size() < MOST_PROXIES; body++) {
-            if (radiates(mine, body)) {
-                Vec3 low = mine.lowOf(body).subtract(DrinkField.REACH, DrinkField.REACH, DrinkField.REACH);
-                Vec3 high = mine.highOf(body).add(DrinkField.REACH, DrinkField.REACH, DrinkField.REACH);
-                proxies.add(new Proxy(low.subtract(camera), high.subtract(camera)));
-                candidates.add(candidatesIn(own, low, high));
-            }
-        }
+    static Bound boundOf(DrinkField.Skeleton skeleton, int index, int body) {
+        return new Bound(index, body,
+                skeleton.lowOf(body).subtract(DrinkField.REACH, DrinkField.REACH, DrinkField.REACH),
+                skeleton.highOf(body).add(DrinkField.REACH, DrinkField.REACH, DrinkField.REACH));
     }
 
     /**
-     * @param own  the stream's skeleton, listed first
-     * @param low  a proxy's low corner
-     * @param high its high corner
-     * @return the bodies whose field meets the proxy, by skeleton, the stream's own first
+     * @param coordinate a world coordinate
+     * @return the index of the region holding it along that axis
      */
-    private Map<Integer, List<Integer>> candidatesIn(int own, Vec3 low, Vec3 high) {
-        Map<Integer, List<Integer>> found = new LinkedHashMap<>();
-        found.put(own, bodiesIn(skeletons.get(own), low, high));
-        for (int index = 0; index < skeletons.size(); index++) {
-            if (index != own) {
-                List<Integer> bodies = bodiesIn(skeletons.get(index), low, high);
-                if (!bodies.isEmpty()) {
-                    found.put(index, bodies);
+    static int regionOf(double coordinate) {
+        return (int) Math.floor(coordinate / REGION);
+    }
+
+    private static void spread(Map<BlockPos, List<Bound>> regions, Bound bound) {
+        for (int x = regionOf(bound.low().x); x <= regionOf(bound.high().x); x++) {
+            for (int y = regionOf(bound.low().y); y <= regionOf(bound.high().y); y++) {
+                for (int z = regionOf(bound.low().z); z <= regionOf(bound.high().z); z++) {
+                    regions.computeIfAbsent(new BlockPos(x, y, z), ignored -> new ArrayList<>()).add(bound);
                 }
             }
         }
-        return found;
     }
 
-    private static List<Integer> bodiesIn(DrinkField.Skeleton skeleton, Vec3 low, Vec3 high) {
-        List<Integer> bodies = new ArrayList<>();
-        for (int body = 0; body < skeleton.bodies(); body++) {
-            if (radiates(skeleton, body) && reaches(skeleton, body, low, high)) {
-                bodies.add(body);
-            }
+    private Block build(List<Bound> bounds, boolean depthZeroToOne) {
+        Map<Integer, List<Integer>> bySkeleton = new TreeMap<>();
+        for (Bound bound : bounds) {
+            bySkeleton.computeIfAbsent(bound.skeleton(), ignored -> new ArrayList<>()).add(bound.body());
         }
-        return bodies;
+        bySkeleton.forEach((index, bodies) -> {
+            bodies.sort(null);
+            if (copy(index, bodies)) {
+                list(index, bodies);
+            } else {
+                dropped += bodies.size();
+            }
+        });
+        Vec3 low = new Vec3(region.getX(), region.getY(), region.getZ()).scale(REGION);
+        Proxy proxy = new Proxy(low.subtract(camera), low.add(REGION, REGION, REGION).subtract(camera));
+        return new Block(write(depthZeroToOne), List.of(proxy), dropped);
     }
 
     /**
-     * Copies a skeleton's rings from the first to the last named into the
-     * block, with its box, and gives it a frame; a skeleton the caps leave no
-     * room for is left out, so its bodies are not listed.
+     * Copies a skeleton into the block: the span of its rings its listed
+     * segments need, its box where listed, and its stream's coat slot.
      *
-     * @param index     the skeleton
-     * @param firstRing the first ring to copy
-     * @param lastRing  the last ring to copy
-     * @param withBox   whether to copy its box
+     * @param index  the skeleton
+     * @param bodies its listed bodies, ascending
+     * @return whether the caps left room for it
      */
-    private void copyRun(int index, int firstRing, int lastRing, boolean withBox) {
+    private boolean copy(int index, List<Integer> bodies) {
         DrinkField.Skeleton skeleton = skeletons.get(index);
-        boolean copyBox = withBox && skeleton.box() != null;
-        if (!roomFor(lastRing - firstRing + 1, copyBox)) {
-            return;
+        int segments = skeleton.rings().size() - 1;
+        boolean withBox = bodies.getLast() >= segments && skeleton.box() != null;
+        int firstRing = bodies.getFirst() < segments ? bodies.getFirst() : 0;
+        int lastRing = bodies.getFirst() < segments ? Math.min(bodies.getLast(), segments - 1) + 1 : NONE;
+        int count = lastRing - firstRing + 1;
+        if (!roomFor(count, withBox)) {
+            return false;
         }
-        frameOf.put(index, frameOf.size());
+        streamOf.put(index, streamOf.size());
         ringBaseOf.put(index, rings.size());
         firstRingOf.put(index, firstRing);
         for (int ring = firstRing; ring <= lastRing; ring++) {
             rings.add(skeleton.rings().get(ring));
-            ringSkeletons.add(index);
+            ringStreams.add(index);
         }
-        if (copyBox) {
+        if (withBox) {
             boxOf.put(index, boxes.size());
             boxes.add(skeleton.box());
+            boxStreams.add(index);
         }
+        return true;
     }
 
     /**
      * @param count   rings to copy
      * @param withBox whether a box comes with them
-     * @return whether the caps leave room for another frame, the rings and the box
+     * @return whether the caps leave room for another stream, the rings and the box
      */
     private boolean roomFor(int count, boolean withBox) {
         boolean roomForBox = !withBox || boxes.size() < MOST_BOXES;
-        return frameOf.size() < MOST_FRAMES && rings.size() + count <= MOST_RINGS && roomForBox;
-    }
-
-    private void copy(int own) {
-        DrinkField.Skeleton mine = skeletons.get(own);
-        if (!mine.rings().isEmpty()) {
-            copyRun(own, 0, mine.rings().size() - 1, true);
-        } else if (mine.box() != null) {
-            copyRun(own, 0, NONE, true);
-        }
+        return streamOf.size() < MOST_STREAMS && rings.size() + count <= MOST_RINGS && roomForBox;
     }
 
     /**
-     * Copies every other skeleton some proxy lists: the span of its rings its
-     * listed segments need, and its box where listed.
+     * Lists a copied skeleton's bodies in the table as one run, up to the table's cap.
      *
-     * @param own the stream's own skeleton
+     * @param index  the skeleton
+     * @param bodies its listed bodies
      */
-    private void copyNeighbours(int own) {
-        Map<Integer, int[]> spans = new LinkedHashMap<>();
-        Map<Integer, Boolean> boxed = new LinkedHashMap<>();
-        for (Map<Integer, List<Integer>> listed : candidates) {
-            listed.forEach((index, bodies) -> {
-                if (index != own) {
-                    widen(spans, boxed, index, bodies);
-                }
-            });
-        }
-        spans.forEach((index, span) -> {
-            boolean withBox = boxed.getOrDefault(index, false);
-            copyRun(index, span[0], span[1] == Integer.MIN_VALUE ? NONE : span[1] + 1, withBox);
-        });
-    }
-
-    private void widen(Map<Integer, int[]> spans, Map<Integer, Boolean> boxed, int index, List<Integer> bodies) {
-        int segments = skeletons.get(index).rings().size() - 1;
-        int[] span = spans.computeIfAbsent(index, ignored -> new int[]{Integer.MAX_VALUE, Integer.MIN_VALUE});
-        for (int body : bodies) {
-            if (body < segments) {
-                span[0] = Math.min(span[0], body);
-                span[1] = Math.max(span[1], body);
-            } else {
-                boxed.put(index, true);
-            }
-        }
-        if (span[0] == Integer.MAX_VALUE) {
-            span[0] = 0;
-        }
-    }
-
-    /**
-     * Lists each proxy's bodies in the table, each copied skeleton's bodies
-     * as one run, the stream's own first, up to the table's cap.
-     */
-    private void tabulate() {
-        for (Map<Integer, List<Integer>> listed : candidates) {
-            int first = table.size();
-            listed.forEach(this::listRun);
-            ranges.add(new int[]{first, table.size() - first});
-        }
-    }
-
-    private void listRun(int index, List<Integer> bodies) {
-        if (!frameOf.containsKey(index)) {
-            return;
-        }
+    private void list(int index, List<Integer> bodies) {
         boolean starting = true;
         for (int body : bodies) {
             int entry = entryOf(index, body);
@@ -357,11 +314,14 @@ public final class DrinkUpload {
         return box == null ? NONE : BOX_BASE + box;
     }
 
-    private ByteBuffer write(Coat coat) {
+    private ByteBuffer write(boolean depthZeroToOne) {
         ByteBuffer bytes = ByteBuffer.allocate(BYTES).order(ByteOrder.nativeOrder());
-        writeCoat(bytes, coat);
-        writeFrames(bytes);
-        writeProxies(bytes);
+        Vec3 low = new Vec3(region.getX(), region.getY(), region.getZ()).scale(REGION).subtract(camera);
+        putVec3(bytes, REGION_AT, low, depthZeroToOne ? 1 : 0);
+        putVec4(bytes, COUNTS_AT, streamOf.size(), rings.size(), boxes.size(), table.size());
+        for (Map.Entry<Integer, Integer> stream : streamOf.entrySet()) {
+            writeStream(bytes, stream.getKey(), stream.getValue());
+        }
         for (int entry = 0; entry < table.size(); entry++) {
             bytes.putInt(TABLE_AT + entry * Integer.BYTES, table.get(entry));
         }
@@ -369,32 +329,21 @@ public final class DrinkUpload {
         return bytes;
     }
 
-    private void writeCoat(ByteBuffer bytes, Coat coat) {
+    private void writeStream(ByteBuffer bytes, int index, int stream) {
+        int at = STREAMS_AT + stream * STREAM_VEC4S * VEC4;
+        Coat coat = coats.get(index);
         List<Layer> layers = coat.layers().subList(0, Math.min(MOST_LAYERS, coat.layers().size()));
-        putVec4(bytes, COAT_AT, coat.blockLight(), coat.skyLight(), coat.zoop() ? 1 : 0, coat.depthZeroToOne() ? 1 : 0);
-        putTint(bytes, TINT_AT, coat.tint());
-        putSprite(bytes, SPRITE_AT, coat.sprite());
-        putVec4(bytes, COUNTS_AT, rings.size(), boxes.size(), proxies.size(), layers.size());
-        for (int index = 0; index < layers.size(); index++) {
-            Layer layer = layers.get(index);
-            putTint(bytes, LAYER_TINT_AT + index * VEC4, layer.tint());
-            putSprite(bytes, LAYER_SPRITE_AT + index * VEC4, layer.sprite());
-            putVec4(bytes, LAYER_SHARE_AT + index * VEC4, layer.before(), layer.cumulative(), layer.seed(), 0);
-        }
-    }
-
-    private void writeFrames(ByteBuffer bytes) {
-        frameOf.forEach((index, frame) -> {
-            DrinkStream.Path path = skeletons.get(index).stream().path();
-            putVec3(bytes, FRAMES_AT + frame * PAIR * VEC4, DrinkStream.sideOf(path), 0);
-            putVec3(bytes, FRAMES_AT + (frame * PAIR + 1) * VEC4, DrinkStream.acrossOf(path), 0);
-        });
-    }
-
-    private void writeProxies(ByteBuffer bytes) {
-        for (int index = 0; index < proxies.size(); index++) {
-            putVec3(bytes, PROXY_LOW_AT + index * VEC4, proxies.get(index).low(), ranges.get(index)[0]);
-            putVec3(bytes, PROXY_HIGH_AT + index * VEC4, proxies.get(index).high(), ranges.get(index)[1]);
+        putVec4(bytes, at + COAT_SLOT * VEC4, coat.blockLight(), coat.skyLight(), coat.zoop() ? 1 : 0, layers.size());
+        putTint(bytes, at + TINT_SLOT * VEC4, coat.tint());
+        putSprite(bytes, at + SPRITE_SLOT * VEC4, coat.sprite());
+        DrinkStream.Path path = skeletons.get(index).stream().path();
+        putVec3(bytes, at + SIDE_SLOT * VEC4, DrinkStream.sideOf(path), 0);
+        putVec3(bytes, at + ACROSS_SLOT * VEC4, DrinkStream.acrossOf(path), 0);
+        for (int layer = 0; layer < layers.size(); layer++) {
+            putTint(bytes, at + (LAYER_TINT_SLOT + layer) * VEC4, layers.get(layer).tint());
+            putSprite(bytes, at + (LAYER_SPRITE_SLOT + layer) * VEC4, layers.get(layer).sprite());
+            putVec4(bytes, at + (LAYER_SHARE_SLOT + layer) * VEC4, layers.get(layer).before(),
+                    layers.get(layer).cumulative(), layers.get(layer).seed(), 0);
         }
     }
 
@@ -402,13 +351,14 @@ public final class DrinkUpload {
         for (int index = 0; index < boxes.size(); index++) {
             DrinkBody.Box box = boxes.get(index);
             putVec3(bytes, BOXES_AT + index * PAIR * VEC4, box.center().subtract(camera), box.half());
-            putVec4(bytes, BOXES_AT + (index * PAIR + 1) * VEC4, box.rounding(), 0, 0, 0);
+            putVec4(bytes, BOXES_AT + (index * PAIR + 1) * VEC4, box.rounding(), streamOf.get(boxStreams.get(index)),
+                    0, 0);
         }
         for (int index = 0; index < rings.size(); index++) {
             DrinkStream.Ring ring = rings.get(index);
             putVec3(bytes, RINGS_AT + index * PAIR * VEC4, ring.center().subtract(camera), ring.radius());
             putVec4(bytes, RINGS_AT + (index * PAIR + 1) * VEC4, ring.material(), ring.share(),
-                    frameOf.get(ringSkeletons.get(index)), 0);
+                    streamOf.get(ringStreams.get(index)), 0);
         }
     }
 

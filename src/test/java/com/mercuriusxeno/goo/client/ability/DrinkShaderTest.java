@@ -53,12 +53,17 @@ class DrinkShaderTest {
         assertEquals(DrinkRenderer.GOO_REACH, (float) constant(fragment, "GOO_REACH"), (float) DELTA);
         assertEquals(DrinkUpload.RUN_START, constant(fragment, "RUN_START"), DELTA);
         assertEquals(DrinkUpload.BOX_BASE, constant(fragment, "BOX_BASE"), DELTA);
-        assertEquals(DrinkUpload.MOST_LAYERS, arrayLength(fragment, "LayerTint"));
-        assertEquals(DrinkUpload.MOST_LAYERS, arrayLength(fragment, "LayerSprite"));
-        assertEquals(DrinkUpload.MOST_LAYERS, arrayLength(fragment, "LayerShare"));
-        assertEquals(2 * DrinkUpload.MOST_FRAMES, arrayLength(fragment, "Frames"));
-        assertEquals(DrinkUpload.MOST_PROXIES, arrayLength(fragment, "ProxyLow"));
-        assertEquals(DrinkUpload.MOST_PROXIES, arrayLength(fragment, "ProxyHigh"));
+        assertEquals(DrinkUpload.REGION, constant(fragment, "REGION_SPAN"), DELTA);
+        assertEquals(DrinkUpload.STREAM_VEC4S, constant(fragment, "STREAM_VEC4S"), DELTA);
+        assertEquals(DrinkUpload.COAT_SLOT, constant(fragment, "COAT_SLOT"), DELTA);
+        assertEquals(DrinkUpload.TINT_SLOT, constant(fragment, "TINT_SLOT"), DELTA);
+        assertEquals(DrinkUpload.SPRITE_SLOT, constant(fragment, "SPRITE_SLOT"), DELTA);
+        assertEquals(DrinkUpload.SIDE_SLOT, constant(fragment, "SIDE_SLOT"), DELTA);
+        assertEquals(DrinkUpload.ACROSS_SLOT, constant(fragment, "ACROSS_SLOT"), DELTA);
+        assertEquals(DrinkUpload.LAYER_TINT_SLOT, constant(fragment, "LAYER_TINT_SLOT"), DELTA);
+        assertEquals(DrinkUpload.LAYER_SPRITE_SLOT, constant(fragment, "LAYER_SPRITE_SLOT"), DELTA);
+        assertEquals(DrinkUpload.LAYER_SHARE_SLOT, constant(fragment, "LAYER_SHARE_SLOT"), DELTA);
+        assertEquals(DrinkUpload.MOST_STREAMS * DrinkUpload.STREAM_VEC4S, arrayLength(fragment, "Streams"));
         assertEquals(DrinkUpload.MOST_ENTRIES / IVEC4, arrayLength(fragment, "Table"));
         assertEquals(2 * DrinkUpload.MOST_BOXES, arrayLength(fragment, "Boxes"));
         assertEquals(2 * DrinkUpload.MOST_RINGS, arrayLength(fragment, "Rings"));
@@ -66,11 +71,10 @@ class DrinkShaderTest {
     }
 
     @Test
-    void theVertexShaderHandsEachProxyItsIndexAndTheRayToIt() throws IOException {
+    void theVertexShaderHandsTheFragmentTheRayToMarch() throws IOException {
         String vertex = source(VERTEX);
 
-        assertTrue(vertex.contains("flat out int proxy;"));
-        assertTrue(vertex.contains("proxy = UV1.x;"));
+        assertTrue(vertex.contains("out vec3 rayPoint;"));
         assertTrue(vertex.contains("rayPoint = Position;"));
     }
 }

@@ -8,39 +8,32 @@
 #moj_import <minecraft:sample_lightmap.glsl>
 #moj_import "mingle_noise.glsl"
 
-// One stream of an Unmake drink, drawn by marching the drink's field
-// (decision unmake-waves-dissolve-by-crucible-cost): inside each proxy box
+// One region of an Unmake drink, drawn by marching the drink's field
+// (decision unmake-waves-dissolve-by-crucible-cost): inside the region's box
 // the ray from the camera steps through the metaball field of the bodies that
-// reach the box, every stream a soft capsule chain and every standing block a
-// soft rounded box, each skeleton read at its least distance and all summed,
-// until the field reaches the iso; the hit is refined by bisection, shaded
-// from the field's gradient, lit by the lightmap and the cardinal lights,
-// textured along the liquid and round the nearest segment or over the block's
-// world axes, with the block's goo types mingled over it in blotches, and its
-// depth written so the world occludes it. The constants mirror DrinkField,
-// DrinkStream and DrinkRenderer, which DrinkShaderTest checks.
+// reach the region, every stream a soft capsule chain and every standing
+// block a soft rounded box, each skeleton read at its least distance and all
+// summed, until the field reaches the iso; the hit is refined by bisection,
+// shaded from the field's gradient, lit by the lightmap and the cardinal
+// lights, textured along the liquid and round the nearest segment or over the
+// block's world axes in its own stream's coat, with the stream's goo types
+// mingled over it in blotches, and its depth written so the world occludes
+// it. The constants mirror DrinkField, DrinkStream, DrinkRenderer and
+// DrinkUpload, which DrinkShaderTest checks.
 
 uniform sampler2D Sampler0;
 uniform sampler2D Sampler2;
 
-layout(std140) uniform DrinkStream {
-    vec4 Coat;
-    vec4 Tint;
-    vec4 Sprite;
+layout(std140) uniform DrinkRegion {
+    vec4 Region;
     vec4 Counts;
-    vec4 LayerTint[3];
-    vec4 LayerSprite[3];
-    vec4 LayerShare[3];
-    vec4 Frames[16];
-    vec4 ProxyLow[64];
-    vec4 ProxyHigh[64];
-    ivec4 Table[384];
+    vec4 Streams[224];
+    ivec4 Table[256];
     vec4 Boxes[16];
-    vec4 Rings[384];
+    vec4 Rings[448];
 };
 
 in vec3 rayPoint;
-flat in int proxy;
 
 out vec4 fragColor;
 
@@ -49,11 +42,21 @@ const float REACH = 0.24;
 const float FULL_RADIUS = 0.1;
 const float THINNEST = 0.02;
 const float GOO_REACH = 0.45;
+const float REGION_SPAN = 1.0;
+const int STREAM_VEC4S = 14;
+const int COAT_SLOT = 0;
+const int TINT_SLOT = 1;
+const int SPRITE_SLOT = 2;
+const int SIDE_SLOT = 3;
+const int ACROSS_SLOT = 4;
+const int LAYER_TINT_SLOT = 5;
+const int LAYER_SPRITE_SLOT = 8;
+const int LAYER_SHARE_SLOT = 11;
 const int RUN_START = 65536;
 const int BOX_BASE = 4096;
 const int MAX_STEPS = 96;
 const float MIN_STEP = 0.01;
-const float MAX_STEP = 0.05;
+const float MAX_STEP = 0.08;
 const float SLOPE_BOUND = 12.0;
 const int REFINE_STEPS = 6;
 const float NORMAL_STEP = 0.004;
@@ -72,6 +75,10 @@ float scaled(float signedDistance, float radius) {
 
 int entryAt(int index) {
     return Table[index >> 2][index & 3];
+}
+
+vec4 streamSlot(int stream, int slot) {
+    return Streams[stream * STREAM_VEC4S + slot];
 }
 
 // A body's reading at a point: x its scaled signed distance, y the gap to
@@ -103,14 +110,14 @@ vec2 readBody(int entry, vec3 p) {
     return body >= BOX_BASE ? boxRead(body - BOX_BASE, p) : segmentRead(body, p);
 }
 
-// The field at a point over the proxy's bodies, each skeleton's run read at
+// The field at a point over the region's bodies, each skeleton's run read at
 // its least distance and the runs summed; gap is the least gap to any body's field.
-float fieldAt(vec3 p, int first, int count, out float gap) {
+float fieldAt(vec3 p, int count, out float gap) {
     float value = 0.0;
     float least = REACH;
     gap = FAR;
     for (int e = 0; e < count; e++) {
-        int entry = entryAt(first + e);
+        int entry = entryAt(e);
         if (e > 0 && (entry & RUN_START) != 0) {
             value += falloff(least);
             least = REACH;
@@ -122,31 +129,31 @@ float fieldAt(vec3 p, int first, int count, out float gap) {
     return value + falloff(least);
 }
 
-float fieldOnly(vec3 p, int first, int count) {
+float fieldOnly(vec3 p, int count) {
     float gap;
-    return fieldAt(p, first, count, gap);
+    return fieldAt(p, count, gap);
 }
 
-int nearestEntry(vec3 p, int first, int count) {
+int nearestBody(vec3 p, int count) {
     int nearest = 0;
     float least = FAR;
     for (int e = 0; e < count; e++) {
-        int entry = entryAt(first + e);
+        int entry = entryAt(e);
         float d = readBody(entry, p).x;
         if (d < least) {
             least = d;
             nearest = entry;
         }
     }
-    return nearest;
+    return nearest & (RUN_START - 1);
 }
 
-vec3 normalAt(vec3 p, int first, int count) {
+vec3 normalAt(vec3 p, int count) {
     vec2 e = vec2(NORMAL_STEP, 0.0);
     vec3 gradient = vec3(
-        fieldOnly(p + e.xyy, first, count) - fieldOnly(p - e.xyy, first, count),
-        fieldOnly(p + e.yxy, first, count) - fieldOnly(p - e.yxy, first, count),
-        fieldOnly(p + e.yyx, first, count) - fieldOnly(p - e.yyx, first, count));
+        fieldOnly(p + e.xyy, count) - fieldOnly(p - e.xyy, count),
+        fieldOnly(p + e.yxy, count) - fieldOnly(p - e.yxy, count),
+        fieldOnly(p + e.yyx, count) - fieldOnly(p - e.yyx, count));
     return dot(gradient, gradient) > 0.0 ? -normalize(gradient) : vec3(0.0, 1.0, 0.0);
 }
 
@@ -173,7 +180,7 @@ vec2 uvOf(vec4 sprite, vec2 place) {
 
 // A point's place on a stream's texture: along the liquid at its foot on the
 // segment, and round the spine by arc length in the stream's own frame.
-vec2 placeOnSegment(int segment, vec3 p, out float route) {
+vec2 placeOnSegment(int segment, int stream, vec3 p, out float route) {
     vec4 a = Rings[2 * segment];
     vec4 b = Rings[2 * segment + 2];
     vec4 ma = Rings[2 * segment + 1];
@@ -182,8 +189,7 @@ vec2 placeOnSegment(int segment, vec3 p, out float route) {
     float len2 = dot(line, line);
     float t = len2 == 0.0 ? 0.0 : clamp(dot(p - a.xyz, line) / len2, 0.0, 1.0);
     vec3 offset = p - (a.xyz + line * t);
-    int frame = int(ma.z);
-    float angle = atan(dot(offset, Frames[2 * frame + 1].xyz), dot(offset, Frames[2 * frame].xyz));
+    float angle = atan(dot(offset, streamSlot(stream, ACROSS_SLOT).xyz), dot(offset, streamSlot(stream, SIDE_SLOT).xyz));
     float radius = max(THINNEST, mix(a.w, b.w, t));
     route = mix(ma.y, mb.y, t);
     return vec2(mix(ma.x, mb.x, t), angle * radius);
@@ -197,15 +203,17 @@ vec2 placeOnBlock(vec3 world, vec3 n) {
     return a.x >= a.z ? world.zy : world.xy;
 }
 
-vec4 mingled(vec4 color, vec3 world, vec2 place, float route) {
+vec4 mingled(vec4 color, int stream, vec3 world, vec2 place, float route) {
     float reach = route * GOO_REACH;
-    int layers = int(Counts.w);
+    int layers = int(streamSlot(stream, COAT_SLOT).w);
     for (int l = 0; l < layers; l++) {
-        float lo = 1.0 - reach * (1.0 - LayerShare[l].x);
-        float hi = 1.0 - reach * (1.0 - LayerShare[l].y);
-        float share = hi > 0.0 ? (hi - lo) / hi : 0.0;
-        float opacity = mingleOpacity(world, GameTime, share, LayerShare[l].z);
-        vec4 goo = texture(Sampler0, uvOf(LayerSprite[l], place)) * vec4(LayerTint[l].rgb, 1.0);
+        vec4 share = streamSlot(stream, LAYER_SHARE_SLOT + l);
+        float lo = 1.0 - reach * (1.0 - share.x);
+        float hi = 1.0 - reach * (1.0 - share.y);
+        float conditional = hi > 0.0 ? (hi - lo) / hi : 0.0;
+        float opacity = mingleOpacity(world, GameTime, conditional, share.z);
+        vec4 goo = texture(Sampler0, uvOf(streamSlot(stream, LAYER_SPRITE_SLOT + l), place))
+            * vec4(streamSlot(stream, LAYER_TINT_SLOT + l).rgb, 1.0);
         color.rgb = mix(color.rgb, goo.rgb, opacity * goo.a);
     }
     return color;
@@ -214,17 +222,16 @@ vec4 mingled(vec4 color, vec3 world, vec2 place, float route) {
 void main() {
     vec3 rd = normalize(rayPoint);
     rd += vec3(lessThan(abs(rd), vec3(STRAIGHT))) * STRAIGHT;
-    int first = int(ProxyLow[proxy].w);
-    int count = int(ProxyHigh[proxy].w);
+    int count = int(Counts.w);
     float tEnter;
     float tExit;
-    if (!slab(ProxyLow[proxy].xyz, ProxyHigh[proxy].xyz, rd, tEnter, tExit)) {
+    if (!slab(Region.xyz, Region.xyz + vec3(REGION_SPAN), rd, tEnter, tExit)) {
         discard;
     }
     float iso = falloff(0.0);
     float t = max(tEnter, 0.0);
     float gap;
-    float f = fieldAt(rd * t, first, count, gap);
+    float f = fieldAt(rd * t, count, gap);
     if (f >= iso) {
         discard;
     }
@@ -237,7 +244,7 @@ void main() {
         if (t > tExit) {
             break;
         }
-        f = fieldAt(rd * t, first, count, gap);
+        f = fieldAt(rd * t, count, gap);
         hit = f >= iso;
     }
     if (!hit) {
@@ -247,28 +254,32 @@ void main() {
     float inside = t;
     for (int i = 0; i < REFINE_STEPS; i++) {
         float mid = 0.5 * (outside + inside);
-        if (fieldOnly(rd * mid, first, count) >= iso) {
+        if (fieldOnly(rd * mid, count) >= iso) {
             inside = mid;
         } else {
             outside = mid;
         }
     }
     vec3 p = rd * inside;
-    vec3 n = normalAt(p, first, count);
-    int body = nearestEntry(p, first, count) & (RUN_START - 1);
+    vec3 n = normalAt(p, count);
+    int body = nearestBody(p, count);
+    bool onBlock = body >= BOX_BASE;
+    int stream = int(onBlock ? Boxes[2 * (body - BOX_BASE) + 1].y : Rings[2 * body + 1].z);
     vec3 world = p + vec3(CameraBlockPos) - CameraOffset;
     float route = 0.0;
-    vec2 place = body >= BOX_BASE ? placeOnBlock(world, n) : placeOnSegment(body, p, route);
-    vec4 color = texture(Sampler0, uvOf(Sprite, place)) * vec4(Tint.rgb, 1.0);
+    vec2 place = onBlock ? placeOnBlock(world, n) : placeOnSegment(body, stream, p, route);
+    vec4 coat = streamSlot(stream, COAT_SLOT);
+    vec4 color = texture(Sampler0, uvOf(streamSlot(stream, SPRITE_SLOT), place))
+        * vec4(streamSlot(stream, TINT_SLOT).rgb, 1.0);
     color = minecraft_mix_light(Light0_Direction, Light1_Direction, normalize(mat3(ModelViewMat) * n), color);
-    color *= sample_lightmap(Sampler2, ivec2(int(Coat.x), int(Coat.y)));
-    if (Coat.z < 0.5) {
-        color = mingled(color, world, place, route);
+    color *= sample_lightmap(Sampler2, ivec2(int(coat.x), int(coat.y)));
+    if (coat.z < 0.5) {
+        color = mingled(color, stream, world, place, route);
     }
     color.a = 1.0;
     fragColor = apply_fog(color, fog_spherical_distance(p), fog_cylindrical_distance(p), FogEnvironmentalStart,
         FogEnvironmentalEnd, FogRenderDistanceStart, FogRenderDistanceEnd, FogColor);
     vec4 clip = ProjMat * ModelViewMat * vec4(p, 1.0);
     float ndc = clip.z / clip.w;
-    gl_FragDepth = Coat.w > 0.5 ? ndc : ndc * 0.5 + 0.5;
+    gl_FragDepth = Region.w > 0.5 ? ndc : ndc * 0.5 + 0.5;
 }
