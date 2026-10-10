@@ -1,141 +1,60 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.network.RadiantAuraPayload;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
-import net.minecraft.client.resources.sounds.SoundInstance;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.ARGB;
-import net.minecraft.util.Mth;
+import net.minecraft.core.particles.DustParticleOptions;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
- * Radiant's held aura as every client tracking the caster sees it: a soft
- * glow-yellow shell of light around the caster, breathing slowly, and a
- * quiet looping shimmer, both while the caster holds Radiant and a moment
- * after (operator ruling 2026-10-09).
+ * Radiant's held cue as every client tracking the caster sees it: a few
+ * small glow motes drifting up off the caster's glove hand each tick the
+ * caster holds Radiant, beside the wisps appearing in the dark around them;
+ * nothing tints the view and nothing loops a sound (operator rulings 2026-10-09).
  * decision radiant-wisps-where-light-is-low
  */
-@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class RadiantAura {
 
-    /** Ticks the aura keeps showing after the last hold tick arrived. */
-    static final int LINGER_TICKS = 2;
-    static final float AURA_RADIUS = 1.2f;
-    private static final int AURA_ALPHA = 26;
-    private static final int AURA_RGB = 0xFFE628;
-    private static final float BREATH_PER_TICK = 0.15f;
-    private static final float BREATH_DEPTH = 0.08f;
-    private static final double BODY_CENTER = 0.9;
-
-    private static final Map<Integer, Long> HELD_AT = new HashMap<>();
+    /** Motes each hold tick sends off the glove. */
+    static final int MOTES_PER_TICK = 2;
+    private static final int MOTE_RGB = 0xFFE628;
+    private static final float MOTE_SIZE = 0.6f;
+    private static final double SPREAD = 0.12;
+    private static final double DRIFT_UP = 0.03;
+    private static final double DRIFT_SIDEWAYS = 0.01;
+    private static final double HALF = 0.5;
+    /** A jitter spans its reach on both sides. */
+    private static final double BOTH_WAYS = 2;
+    private static final DustParticleOptions MOTE = new DustParticleOptions(MOTE_RGB, MOTE_SIZE);
 
     private RadiantAura() {
     }
 
     /**
-     * Handles a hold tick on the client thread, starting the shimmer as a hold begins.
+     * Handles a hold tick on the client thread, drifting motes off the caster's glove.
      *
-     * @param payload the aura payload
+     * @param payload the hold payload
      * @param context the network context
      */
     public static void onPayload(RadiantAuraPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             Minecraft mc = Minecraft.getInstance();
-            if (mc.level == null) {
+            if (mc.level == null || !(mc.level.getEntity(payload.casterId()) instanceof Entity caster)) {
                 return;
             }
-            boolean starting = !isShowing(payload.casterId());
-            HELD_AT.put(payload.casterId(), mc.level.getGameTime());
-            Entity caster = mc.level.getEntity(payload.casterId());
-            if (starting && caster != null) {
-                mc.getSoundManager().play(new Shimmer(caster));
+            Vec3 hand = GloveHand.of(mc, caster, 1f);
+            RandomSource random = mc.level.getRandom();
+            for (int mote = 0; mote < MOTES_PER_TICK; mote++) {
+                mc.level.addParticle(MOTE, hand.x + jitter(random, SPREAD), hand.y + jitter(random, SPREAD),
+                        hand.z + jitter(random, SPREAD), jitter(random, DRIFT_SIDEWAYS), DRIFT_UP,
+                        jitter(random, DRIFT_SIDEWAYS));
             }
         });
     }
 
-    /**
-     * Whether a caster's aura still shows.
-     *
-     * @param casterId the caster's entity id
-     * @return true within the linger of the last hold tick
-     */
-    static boolean isShowing(int casterId) {
-        Minecraft mc = Minecraft.getInstance();
-        Long at = HELD_AT.get(casterId);
-        return at != null && mc.level != null && mc.level.getGameTime() - at <= LINGER_TICKS;
-    }
-
-    /**
-     * Draws every aura still showing once the world has drawn.
-     *
-     * @param event the level render stage event
-     */
-    @SubscribeEvent
-    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || HELD_AT.isEmpty()) {
-            HELD_AT.clear();
-            return;
-        }
-        float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
-        float time = mc.level.getGameTime() + partialTick;
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        HELD_AT.keySet().removeIf(id -> !isShowing(id) || mc.level.getEntity(id) == null);
-        for (int id : HELD_AT.keySet()) {
-            Entity caster = mc.level.getEntity(id);
-            Vec3 center = caster.getPosition(partialTick).add(0, BODY_CENTER, 0).subtract(camera);
-            float radius = AURA_RADIUS * (1f + BREATH_DEPTH * Mth.sin(time * BREATH_PER_TICK));
-            ColorSphere.emit(event.getPoseStack().last(), buffers.getBuffer(GooRenderTypes.GLOW_SHELL_TYPE),
-                    center, radius, ARGB.color(AURA_ALPHA, AURA_RGB));
-        }
-        buffers.endBatch(GooRenderTypes.GLOW_SHELL_TYPE);
-    }
-
-    /** The held shimmer: a quiet looping amethyst resonance following the caster. */
-    private static final class Shimmer extends AbstractTickableSoundInstance {
-
-        private static final float VOLUME = 0.35f;
-        private static final float PITCH = 1.5f;
-
-        private final Entity caster;
-
-        Shimmer(Entity caster) {
-            super(SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.PLAYERS, SoundInstance.createUnseededRandom());
-            this.caster = caster;
-            this.looping = true;
-            this.delay = 0;
-            this.volume = VOLUME;
-            this.pitch = PITCH;
-            follow();
-        }
-
-        @Override
-        public void tick() {
-            if (caster.isRemoved() || !isShowing(caster.getId())) {
-                stop();
-                return;
-            }
-            follow();
-        }
-
-        private void follow() {
-            x = caster.getX();
-            y = caster.getY() + BODY_CENTER;
-            z = caster.getZ();
-        }
+    private static double jitter(RandomSource random, double reach) {
+        return (random.nextDouble() - HALF) * reach * BOTH_WAYS;
     }
 }
