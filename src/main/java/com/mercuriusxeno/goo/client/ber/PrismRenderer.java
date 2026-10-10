@@ -77,7 +77,19 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
             // metronome-prism-pulses-at-the-learned-rate: each beat sends a red ring out from the prism's base
             ThumpRings.see(prism.getBlockPos(), state.facing, state.power > 0);
         }
-        // agitator-prism-quickens-until-a-spawn: the beat rides the synced countdown
+        extractAgitation(prism, state, partialTick);
+        extractOculus(prism, state, partialTick, cameraPos);
+    }
+
+    /**
+     * Reads an agitator's beat off its synced countdown.
+     * agitator-prism-quickens-until-a-spawn
+     *
+     * @param prism       the prism
+     * @param state       its render state
+     * @param partialTick the frame's partial tick
+     */
+    private static void extractAgitation(PrismBlockEntity prism, PrismRenderState state, float partialTick) {
         AgitationState agitation = prism.programState().agitation();
         state.beat = agitation.interval() > 0
                 ? AgitatorPrismStyle.beat(agitation.interval() - agitation.countdown() + partialTick)
@@ -85,6 +97,20 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         if (AgitatorPrismStyle.COMBO.equals(state.combo)) {
             AgitatorWisps.report(prism.getBlockPos(), agitation.countdown());
         }
+    }
+
+    /**
+     * Reads what an oculus draws by: its combo's start, the time, the turn
+     * toward the camera and how shut its lids stand for this viewer.
+     * oculus-prism-becomes-a-hovering-eye
+     *
+     * @param prism       the prism
+     * @param state       its render state, its facing and combo already read
+     * @param partialTick the frame's partial tick
+     * @param cameraPos   the camera
+     */
+    private static void extractOculus(PrismBlockEntity prism, PrismRenderState state, float partialTick,
+                                      Vec3 cameraPos) {
         state.comboSince = prism.comboSince();
         state.gameTime = prism.getLevel() == null ? 0f : prism.getLevel().getGameTime() + partialTick;
         state.yawToCamera = yawToward(prism.getBlockPos().getCenter(), cameraPos);
