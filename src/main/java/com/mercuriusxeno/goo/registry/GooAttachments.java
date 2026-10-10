@@ -17,6 +17,7 @@ import com.mercuriusxeno.goo.ability.pulse.Stunned;
 import com.mercuriusxeno.goo.ability.rewind.Rewinding;
 import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.spray.Spored;
+import com.mercuriusxeno.goo.ability.world.TimeVeiled;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
 import com.mojang.serialization.Codec;
@@ -184,6 +185,15 @@ public final class GooAttachments {
     public static final Supplier<AttachmentType<Rewinding>> REWINDING =
             ATTACHMENT_TYPES.register("rewinding",
                     () -> AttachmentType.builder(() -> Rewinding.NONE).serialize(Rewinding.CODEC).build());
+
+    /**
+     * A mob a chronosphere's AI pacing holds, saved with the mob so a reload
+     * mid-veil hands back the AI state it had before the veil.
+     * chronosphere-hastes-players-slows-mobs
+     */
+    public static final Supplier<AttachmentType<TimeVeiled>> TIME_VEILED =
+            ATTACHMENT_TYPES.register("time_veiled",
+                    () -> AttachmentType.builder(() -> TimeVeiled.NONE).serialize(TimeVeiled.CODEC).build());
 
     /**
      * The teleportitis curse Banish leaves on a mob, saved with the mob while

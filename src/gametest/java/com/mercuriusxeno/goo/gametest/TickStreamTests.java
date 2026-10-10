@@ -18,12 +18,15 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import java.util.Optional;
 
 /**
  * Gametests for aeon Tick: a mock player streams it on a lit crucible
  * melting a stack of cobblestone, which melts faster than its unticked twin
- * melting the same stack.
+ * melting the same stack; the server names to the client a furnace Tick
+ * hastens and nothing for a chest it cannot.
  * tick-channel-marches-squares-on-the-face
  */
 public final class TickStreamTests {
@@ -52,6 +55,8 @@ public final class TickStreamTests {
     private static final String ABILITY_REQUIRED = "Ability registry must hold aeon_tick";
     private static final String BOTH_MELTING = "Both crucibles should hold the stack melting, pools %d and %d";
     private static final String SHOULD_MELT_FASTER = "The ticked crucible should melt over %d times the twin's %d mB, melted %d";
+    private static final String SHOULD_NAME_FURNACE = "The tick aim should name the furnace at %s, named %s";
+    private static final String SHOULD_NAME_NOTHING = "The tick aim should name nothing for a chest, named %s";
 
     private TickStreamTests() {
     }
@@ -85,6 +90,28 @@ public final class TickStreamTests {
                     String.format(SHOULD_MELT_FASTER, FASTER_FACTOR, twinMelted, tickedMelted));
             helper.succeed();
         });
+    }
+
+    /**
+     * The server's tick aim names a furnace, whose server ticker Tick runs,
+     * and names nothing for a chest, whose only ticker animates its lid on
+     * the client.
+     *
+     * @param helper the gametest helper
+     */
+    public static void tickNamesOnlyABlockItHastens(GameTestHelper helper) {
+        helper.setBlock(TICKED_POS, Blocks.FURNACE);
+        helper.setBlock(TWIN_POS, Blocks.CHEST);
+        ServerPlayer player = ticker(helper);
+        AbilityDefinition tick = AbilityRegistry.of(helper.getLevel()).getAbility(AEON_TICK);
+        BlockPos furnace = helper.absolutePos(TICKED_POS);
+        Optional<BlockPos> onFurnace = GooStreamHandler.tickAim(player, tick);
+        player.lookAt(EntityAnchorArgument.Anchor.EYES, Vec3.atCenterOf(helper.absolutePos(TWIN_POS)));
+        Optional<BlockPos> onChest = GooStreamHandler.tickAim(player, tick);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(onFurnace.equals(Optional.of(furnace)), String.format(SHOULD_NAME_FURNACE, furnace, onFurnace));
+        helper.assertTrue(onChest.isEmpty(), String.format(SHOULD_NAME_NOTHING, onChest));
+        helper.succeed();
     }
 
     private static CrucibleBlockEntity litCrucibleMelting(GameTestHelper helper, BlockPos pos) {

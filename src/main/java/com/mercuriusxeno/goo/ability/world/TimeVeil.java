@@ -15,9 +15,8 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
-import java.util.Map;
-import java.util.WeakHashMap;
 
 /**
  * Slows time inside a chronosphere: every non-player living entity and
@@ -38,19 +37,6 @@ public final class TimeVeil {
     /** Slack under a whole number of slowness levels, so a share landing on one does not round up past it. */
     private static final double LEVEL_SLACK = 1e-9;
     private static final int MAX_AMPLIFIER = 255;
-
-    /** The mobs the veil holds, each until its veil lets go, by mob; lost on a restart with the veil's hold. */
-    private static final Map<Mob, Veiled> VEILED = new WeakHashMap<>();
-
-    /**
-     * One mob the veil holds.
-     *
-     * @param until    the game time the veil lets it go unless it touches it again
-     * @param aiPeriod the ticks between one AI tick it runs and the next
-     * @param aiWasOff true when the mob had no AI before the veil, which the veil then leaves alone
-     */
-    record Veiled(long until, int aiPeriod, boolean aiWasOff) {
-    }
 
     private TimeVeil() {
     }
@@ -139,8 +125,9 @@ public final class TimeVeil {
                     true, false, false));
         }
         if (entity instanceof Mob mob) {
-            VEILED.compute(mob, (held, veiled) -> new Veiled(until, aiPeriod(slow),
-                    veiled == null ? mob.isNoAi() : veiled.aiWasOff()));
+            boolean aiWasOff = mob.hasData(GooAttachments.TIME_VEILED)
+                    ? mob.getData(GooAttachments.TIME_VEILED).aiWasOff() : mob.isNoAi();
+            mob.setData(GooAttachments.TIME_VEILED, new TimeVeiled(until, aiPeriod(slow), aiWasOff));
         }
     }
 
@@ -155,9 +142,34 @@ public final class TimeVeil {
         if (!(event.getEntity() instanceof Mob mob) || mob.level().isClientSide()) {
             return;
         }
-        Veiled veiled = VEILED.get(mob);
-        if (veiled != null && !veiled.aiWasOff()) {
-            paceAi(mob, veiled, mob.level().getGameTime());
+        if (mob.hasData(GooAttachments.TIME_VEILED)) {
+            paceAi(mob, mob.getData(GooAttachments.TIME_VEILED), mob.level().getGameTime());
+        }
+    }
+
+    /**
+     * Hands a mob loaded mid-veil back the AI state it had before the veil,
+     * since the save caught it on whichever tick its pacing stood at; a veil
+     * still standing over it takes it up again on its next touch.
+     *
+     * @param event the entity join event, a chunk load or a world load among its causes
+     */
+    @SubscribeEvent
+    public static void onEntityJoin(EntityJoinLevelEvent event) {
+        if (event.getEntity() instanceof Mob mob && !mob.level().isClientSide()) {
+            release(mob);
+        }
+    }
+
+    /**
+     * Lets go of a veiled mob, handing back the AI state it had before the veil.
+     *
+     * @param mob the mob
+     */
+    static void release(Mob mob) {
+        if (mob.hasData(GooAttachments.TIME_VEILED)) {
+            mob.setNoAi(mob.getData(GooAttachments.TIME_VEILED).aiWasOff());
+            mob.removeData(GooAttachments.TIME_VEILED);
         }
     }
 
@@ -169,13 +181,12 @@ public final class TimeVeil {
      * @param veiled how the veil holds it
      * @param now    the game time
      */
-    private static void paceAi(Mob mob, Veiled veiled, long now) {
+    private static void paceAi(Mob mob, TimeVeiled veiled, long now) {
         if (heldStillElsewhere(mob)) {
-            VEILED.remove(mob);
+            mob.removeData(GooAttachments.TIME_VEILED);
         } else if (now > veiled.until()) {
-            VEILED.remove(mob);
-            mob.setNoAi(false);
-        } else {
+            release(mob);
+        } else if (!veiled.aiWasOff()) {
             mob.setNoAi(!thinksAt(now, veiled.aiPeriod()));
         }
     }
