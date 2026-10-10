@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.program.WindStep;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,26 @@ class WindLinesTest {
     private static final double STRAIGHT = 6;
     private static final WindLines.Sway SWAYING = new WindLines.Sway(UP.scale(WindLines.SWAY),
             SOUTH.scale(WindLines.SWAY), 0.3, 1.1, 0.2, 0.15);
+
+    /** A jet's wake leaves behind the player and rushes back against the look (decision jet-pushes-along-the-look-while-held). */
+    @Nested
+    class Exhaust {
+
+        @Test
+        void aJetsWakeLeavesBehindThePlayerAndRushesBackThroughItsCone() {
+            Vec3 middle = new Vec3(4, 65, -3);
+            WindStep.Exhaust exhaust = new WindStep.Exhaust(4, 24);
+
+            WindLines.Gust gust = WindLines.exhaustGust(exhaust, middle, EAST);
+
+            assertEquals(EAST.reverse(), gust.axis());
+            assertEquals(middle.x - WindLines.EXHAUST_SETBACK, gust.origin().x, EPSILON);
+            assertEquals(middle.y, gust.origin().y, EPSILON);
+            assertEquals(middle.z, gust.origin().z, EPSILON);
+            assertEquals(exhaust.range(), gust.range(), EPSILON);
+            assertEquals(exhaust.coneDegrees(), gust.coneDegrees(), EPSILON);
+        }
+    }
 
     /** A line blown straight along the look, curling south. */
     private static WindLines.Line line(WindLines.Sway sway) {

@@ -21,6 +21,7 @@ import com.mercuriusxeno.goo.network.MycosisFungiTests;
 import com.mercuriusxeno.goo.network.MycosisTests;
 import com.mercuriusxeno.goo.network.OculusTests;
 import com.mercuriusxeno.goo.network.NourishTests;
+import com.mercuriusxeno.goo.network.JetTests;
 import com.mercuriusxeno.goo.network.ReserveTests;
 import com.mercuriusxeno.goo.network.SelfDeliveryTests;
 import com.mercuriusxeno.goo.network.ExtenderTests;
@@ -398,7 +399,7 @@ public final class GooTestFunctions {
     private static final String SELF_KINDLE_HELD_PAYS_UPKEEP = "self_kindle_held_pays_upkeep_each_tick";
     private static final String SELF_KINDLE_INVOKED_AGAIN_ENDS = "self_kindle_invoked_again_ends";
     private static final String SELF_KINDLE_ENDS_WHEN_DRY = "self_kindle_ends_when_dry";
-    private static final String SELF_TYPHOON_PROPEL = "self_typhoon_propel";
+    private static final String JET_FLIES_WHILE_HELD = "jet_flies_while_held";
     private static final String SELF_KINDLE_SHIELDS = "self_kindle_shields_then_quenches";
     private static final String SELF_KINDLE_BURNS = "self_kindle_burns_the_attacker";
     private static final String SELF_HEART_BREWS_REPLACE = "self_heart_brews_replace_each_other";
@@ -941,7 +942,7 @@ public final class GooTestFunctions {
         reg(r, SELF_KINDLE_HELD_PAYS_UPKEEP, SelfDeliveryTests::kindleHeldPaysUpkeepEachTick);
         reg(r, SELF_KINDLE_INVOKED_AGAIN_ENDS, SelfDeliveryTests::kindleInvokedAgainEnds);
         reg(r, SELF_KINDLE_ENDS_WHEN_DRY, SelfDeliveryTests::kindleEndsWhenDry);
-        reg(r, SELF_TYPHOON_PROPEL, SelfDeliveryTests::typhoonPropel);
+        reg(r, JET_FLIES_WHILE_HELD, JetTests::jetFliesWhileHeld);
         reg(r, SELF_KINDLE_SHIELDS, HeartOverlayTests::kindleShieldsThenQuenches);
         reg(r, SELF_KINDLE_BURNS, HeartOverlayTests::kindleBurnsTheAttacker);
         reg(r, SELF_HEART_BREWS_REPLACE, HeartOverlayTests::heartBrewsReplaceEachOther);

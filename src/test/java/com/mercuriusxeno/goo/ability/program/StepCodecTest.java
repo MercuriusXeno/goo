@@ -48,7 +48,7 @@ class StepCodecTest {
                     Expr.parse("4 + 12 * charge").getOrThrow(), 0.05f, 0.4f, new FrostCurve(300, 0.005f, 0.5f, 3f))),
             Map.entry("freeze_blocks", new FreezeBlocksStep(Expr.literal(2))),
             Map.entry("drips", new DripsStep(6, List.of(new FreezeBlocksStep(Expr.literal(2))))),
-            Map.entry("wind", new WindStep(true)),
+            Map.entry("wind", new WindStep(true, Optional.of(new WindStep.Exhaust(4, 24)))),
             Map.entry("glacial", new GlacialStep(5)),
             Map.entry("traveling", new TravelingStep(3f, List.of(new FreezeBlocksStep(Expr.literal(2.5), false)))),
             Map.entry("break_blocks", new BreakBlocksStep(TagKey.create(Registries.BLOCK,

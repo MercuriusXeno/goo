@@ -21,9 +21,9 @@ class AbilityBadgeTest {
 
     private static final int SHIPPED_MOB_BADGES = 12;
     private static final int SHIPPED_WORLD_BADGES = 11;
-    private static final int SHIPPED_SELF_BADGES = 5;
+    private static final int SHIPPED_SELF_BADGES = 4;
     private static final int SHIPPED_BREW_BADGES = 10;
-    private static final int SHIPPED_CHANNELED_BADGES = 15;
+    private static final int SHIPPED_CHANNELED_BADGES = 16;
     private static final int SHIPPED_FREE_BADGES = 6;
     private static final int SHIPPED_TAP_BADGES = 9;
     private static final int SHIPPED_PRISM_BADGES = 7;
@@ -42,7 +42,7 @@ class AbilityBadgeTest {
     private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "rock_crush", "shroom_colonize",
             "pulse_zap", "frost_orb", "leaf_reap");
     /** Self deliveries wearing the channeled badge (decision flatten-disc-cursor-breaks-above-the-plane). */
-    private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten", "frost_nova");
+    private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten", "frost_nova", "typhoon_jet");
     /** Thrown deliveries wearing the channeled badge (decision spawn-goo-morphs-into-the-mob-it-births). */
     private static final List<String> SHIPPED_THROWN_CHANNELS = List.of("hex_spawn");
 
