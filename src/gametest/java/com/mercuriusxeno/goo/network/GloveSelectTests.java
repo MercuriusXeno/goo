@@ -21,6 +21,8 @@ public final class GloveSelectTests {
     private static final String BLAZE_ID = GooTypes.id(GooTypes.BLAZE);
     private static final String BLAZE_IGNITE = "goo:blaze_ignite";
     private static final String BLAZE_SPITFIRE = "goo:blaze_spitfire";
+    private static final String CRYSTAL_ID = GooTypes.id(GooTypes.CRYSTAL);
+    private static final String CRYSTAL_CLOUD = "goo:crystal_cloud";
     private static final String REMOVAL = "removal";
     private static final String NO_ABILITY = "";
     private static final String TYPE_ONLY_TOOK = "A type with no ability changed the glove's selection";
@@ -75,6 +77,32 @@ public final class GloveSelectTests {
         GloveSelectHandler.resolveAndApply(player, glove, spitfire);
         GloveSelection held = GooGloveItem.getSelection(glove);
         helper.assertTrue(held != null && BLAZE_SPITFIRE.equals(held.abilityId()), ABILITY_NOT_HELD);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.succeed();
+    }
+
+    /**
+     * A player who knows glass alone selects Razor and the glove stays empty;
+     * once they know sand too, the same selection holds.
+     * decision razor-keeps-its-look-gated-on-glass
+     *
+     * @param helper the gametest helper
+     */
+    @SuppressWarnings(REMOVAL) // vanilla marks the mock server player helper for removal and names no replacement
+    public static void razorHiddenUntilGlassAndSand(GameTestHelper helper) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ItemStack glove = new ItemStack(GooItems.GOO_GLOVE.get());
+        GloveSelectPayload razor = new GloveSelectPayload(CRYSTAL_ID, CRYSTAL_CLOUD);
+
+        PlayerKnowledge.learn(player, Items.GLASS);
+        GloveSelectHandler.resolveAndApply(player, glove, razor);
+        helper.assertTrue(GooGloveItem.getSelection(glove) == null,
+                "A player knowing glass but not sand should not select Razor");
+
+        PlayerKnowledge.learn(player, Items.SAND);
+        GloveSelectHandler.resolveAndApply(player, glove, razor);
+        GloveSelection held = GooGloveItem.getSelection(glove);
+        helper.assertTrue(held != null && CRYSTAL_CLOUD.equals(held.abilityId()), ABILITY_NOT_HELD);
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.succeed();
     }
