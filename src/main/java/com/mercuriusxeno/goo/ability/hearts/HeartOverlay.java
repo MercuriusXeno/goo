@@ -522,6 +522,21 @@ public record HeartOverlay(HeartKind kind, List<Integer> shields, long expiresAt
         return kind.regrowInterval(shieldHalves());
     }
 
+    /**
+     * Runs the regrow clock ahead, so the next half of shield regrows sooner;
+     * a kind that never regrows keeps its clock.
+     * growth-breeze-ticks-plants
+     *
+     * @param ticks the ticks the clock runs ahead by
+     * @return the overlay with its regrow brought forward, the same instance for a kind that never regrows
+     */
+    public HeartOverlay hastened(long ticks) {
+        if (!stands() || !kind.regrows()) {
+            return this;
+        }
+        return withShields(shields, regrowAt - ticks);
+    }
+
     private HeartOverlay regrow(float health, long now) {
         int shortSlot = crawlSlot(health);
         // reserve-hearts-sit-behind-the-bar: a banked reserve only spends

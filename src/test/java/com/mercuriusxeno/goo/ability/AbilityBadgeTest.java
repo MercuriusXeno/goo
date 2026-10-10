@@ -19,26 +19,27 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AbilityBadgeTest {
 
-    private static final int SHIPPED_MOB_BADGES = 12;
-    private static final int SHIPPED_WORLD_BADGES = 10;
+    private static final int SHIPPED_MOB_BADGES = 13;
+    private static final int SHIPPED_WORLD_BADGES = 11;
     private static final int SHIPPED_SELF_BADGES = 5;
     private static final int SHIPPED_BREW_BADGES = 9;
-    private static final int SHIPPED_CHANNELED_BADGES = 13;
-    private static final int SHIPPED_FREE_BADGES = 5;
-    private static final int SHIPPED_TAP_BADGES = 7;
-    private static final int SHIPPED_PRISM_BADGES = 5;
+    private static final int SHIPPED_CHANNELED_BADGES = 14;
+    private static final int SHIPPED_FREE_BADGES = 6;
+    private static final int SHIPPED_TAP_BADGES = 8;
+    private static final int SHIPPED_PRISM_BADGES = 6;
     /**
      * The prism combos (decisions prism-hosts-the-combos, glacial-prism-holds-the-area-frozen,
-     * agitator-prism-quickens-until-a-spawn, oculus-prism-becomes-a-hovering-eye).
+     * agitator-prism-quickens-until-a-spawn, verdant-prism-greens-blocks-slowly,
+     * oculus-prism-becomes-a-hovering-eye).
      */
     private static final List<String> SHIPPED_PRISMS = List.of("pulse_metronome", "pulse_relay", "frost_glacial",
-            "hex_agitator", "ender_oculus");
+            "hex_agitator", "leaf_verdant", "ender_oculus");
     /** The self + brew abilities, which wear brew on their self delivery (decision self-brew-goos-eat-before-the-effect). */
     private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "ender_teleportitis", "leaf_barkskin",
             "rock_stoneskin", "vital_nourish", "shroom_sight", "pulse_extender", "frost_iceborn", "hex_lifetap");
     /** The shipped free abilities (decisions badge-vocabulary-gains-free-prism-tap-brew, zap-ticks-the-device-and-stuns). */
     private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "rock_crush", "shroom_colonize",
-            "pulse_zap", "frost_orb");
+            "pulse_zap", "frost_orb", "leaf_reap");
     /** Self deliveries wearing the channeled badge (decision flatten-disc-cursor-breaks-above-the-plane). */
     private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten", "frost_nova");
     /** Thrown deliveries wearing the channeled badge (decision spawn-goo-morphs-into-the-mob-it-births). */

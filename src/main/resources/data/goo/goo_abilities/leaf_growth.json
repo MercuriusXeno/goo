@@ -1,0 +1,14 @@
+{
+  "gooType": "leaf",
+  "displayName": "goo.ability.leaf.growth",
+  "badge": "channeled",
+  "order": 2,
+  "cost": 1000,
+  "requires": ["minecraft:bone_meal"],
+  "delivery": { "kind": "stream", "range": 6, "cone": 40, "ticks_per_charge": 20 },
+  "behaviors": [
+    { "type": "tick_plants" },
+    { "type": "hasten_regrow", "ticks": 2 }
+  ],
+  "tags": ["stream"]
+}

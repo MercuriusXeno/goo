@@ -101,6 +101,16 @@ public final class StepTypes {
         register(TeleportitisStep.TYPE);
         register(ConvokeStep.TYPE);
         register(DragonGateStep.TYPE);
+        register(RootStep.TYPE);
+        register(HitOrMissStep.TYPE);
+        register(BloomStep.TYPE);
+        register(TickPlantsStep.TYPE);
+        register(TendFungiStep.TYPE);
+        register(PulsePlantsStep.TYPE);
+        register(ToxinStep.TYPE);
+        register(VerdantStep.TYPE);
+        register(HastenRegrowStep.TYPE);
+        register(ReapStep.TYPE);
         register(CharmStep.TYPE);
         register(LeafSteps.ENCHANT_BOOK.type());
         register(FuseBooksStep.TYPE);
