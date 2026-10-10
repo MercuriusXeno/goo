@@ -7,6 +7,7 @@ import net.minecraft.world.phys.Vec3;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,12 +17,14 @@ import java.util.TreeMap;
  * A drink's upload for the drink field shader, cut by region of space rather
  * than by stream: the space about the drink is tiled in one-block regions,
  * and every region some body's field reaches becomes one proxy box with one
- * uniform block holding only the bodies that reach it, grouped per stream so
- * the shader reads each skeleton at its least distance and sums them as the
- * field does, the rings those bodies need copied in, and the coat of every
- * stream present so a hit reads its own stream's texture, light and goo. A
- * pixel is so marched once for each region its ray crosses rather than once
- * for every stream that overlaps there, which is what keeps a crowd of
+ * uniform block holding only the bodies that reach it, grouped per stream as
+ * runs, each run carrying the box its bodies reach and its span of the
+ * table, so the shader reads a run only where the point is within its box
+ * and jumps the gap to it otherwise, the rings those bodies need copied in,
+ * and the coat of every stream present so a hit reads its own stream's
+ * texture, light and goo. A pixel is so marched once for each region its ray
+ * crosses rather than once for every stream that overlaps there, and each
+ * step reads only the streams within reach, which is what keeps a crowd of
  * streams cheap. Positions are camera-relative.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
@@ -43,8 +46,8 @@ public final class DrinkUpload {
     static final int RUN_START = 1 << 16;
     /** Table entries at and over this name a box, below it a segment. */
     static final int BOX_BASE = 1 << 12;
-    /** The vec4 slots one stream's coat takes in the block. */
-    static final int STREAM_VEC4S = 14;
+    /** The vec4 slots one stream's coat and run take in the block. */
+    static final int STREAM_VEC4S = 16;
     static final int COAT_SLOT = 0;
     static final int TINT_SLOT = 1;
     static final int SPRITE_SLOT = 2;
@@ -53,6 +56,10 @@ public final class DrinkUpload {
     static final int LAYER_TINT_SLOT = 5;
     static final int LAYER_SPRITE_SLOT = 8;
     static final int LAYER_SHARE_SLOT = 11;
+    /** The low corner of the box the stream's run reaches, and the table entry its run starts at. */
+    static final int RUN_LOW_SLOT = 14;
+    /** The high corner of that box, and how many entries the run lists. */
+    static final int RUN_HIGH_SLOT = 15;
 
     static final int VEC4 = 16;
     static final int REGION_AT = 0;
@@ -75,14 +82,12 @@ public final class DrinkUpload {
      * What a stream is drawn with.
      *
      * @param tint       the block sprite's tint, ARGB
-     * @param sprite     the block's sprite, or unstable goo's while the zoop flies
+     * @param sprite     the block's sprite
      * @param blockLight the block light along the stream, in lightmap coordinates
      * @param skyLight   the sky light along the stream, in lightmap coordinates
-     * @param zoop       whether the zoop is flying, which wears unstable goo's sprite and no blotches
-     * @param layers     the block's goo types mingled over it, largest first
+     * @param layers     the block's goo types mingled over it past the funnel, largest first
      */
-    public record Coat(int tint, GooRenderUtil.UvRect sprite, int blockLight, int skyLight, boolean zoop,
-                       List<Layer> layers) {
+    public record Coat(int tint, GooRenderUtil.UvRect sprite, int blockLight, int skyLight, List<Layer> layers) {
     }
 
     /**
@@ -127,6 +132,19 @@ public final class DrinkUpload {
     record Bound(int skeleton, int body, Vec3 low, Vec3 high) {
     }
 
+    /**
+     * A copied skeleton's span of rings: the first and the last its listed segments need.
+     *
+     * @param first the first ring
+     * @param last  the last ring, before the first for a box alone
+     */
+    private record Span(int first, int last) {
+
+        int count() {
+            return last - first + 1;
+        }
+    }
+
     private final List<DrinkField.Skeleton> skeletons;
     private final List<Coat> coats;
     private final Vec3 camera;
@@ -135,6 +153,9 @@ public final class DrinkUpload {
     private final Map<Integer, Integer> ringBaseOf = new LinkedHashMap<>();
     private final Map<Integer, Integer> firstRingOf = new LinkedHashMap<>();
     private final Map<Integer, Integer> boxOf = new LinkedHashMap<>();
+    private final Map<Integer, Bound> runs = new LinkedHashMap<>();
+    private final Map<Integer, Integer> runStartOf = new LinkedHashMap<>();
+    private final Map<Integer, Integer> runCountOf = new LinkedHashMap<>();
     private final List<DrinkStream.Ring> rings = new ArrayList<>();
     private final List<Integer> ringStreams = new ArrayList<>();
     private final List<DrinkBody.Box> boxes = new ArrayList<>();
@@ -200,6 +221,27 @@ public final class DrinkUpload {
     }
 
     /**
+     * @param run the bodies of one skeleton a region lists
+     * @return the box every one of them reaches, the run's bound
+     */
+    static Bound reachOf(List<Bound> run) {
+        Bound whole = run.getFirst();
+        for (Bound bound : run) {
+            whole = new Bound(whole.skeleton(), whole.body(), least(whole.low(), bound.low()),
+                    most(whole.high(), bound.high()));
+        }
+        return whole;
+    }
+
+    private static Vec3 least(Vec3 a, Vec3 b) {
+        return new Vec3(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.min(a.z, b.z));
+    }
+
+    private static Vec3 most(Vec3 a, Vec3 b) {
+        return new Vec3(Math.max(a.x, b.x), Math.max(a.y, b.y), Math.max(a.z, b.z));
+    }
+
+    /**
      * @param coordinate a world coordinate
      * @return the index of the region holding it along that axis
      */
@@ -218,16 +260,18 @@ public final class DrinkUpload {
     }
 
     private Block build(List<Bound> bounds, boolean depthZeroToOne) {
-        Map<Integer, List<Integer>> bySkeleton = new TreeMap<>();
+        Map<Integer, List<Bound>> bySkeleton = new TreeMap<>();
         for (Bound bound : bounds) {
-            bySkeleton.computeIfAbsent(bound.skeleton(), ignored -> new ArrayList<>()).add(bound.body());
+            bySkeleton.computeIfAbsent(bound.skeleton(), ignored -> new ArrayList<>()).add(bound);
         }
-        bySkeleton.forEach((index, bodies) -> {
-            bodies.sort(null);
+        bySkeleton.forEach((index, run) -> {
+            run.sort(Comparator.comparingInt(Bound::body));
+            List<Integer> bodies = run.stream().map(Bound::body).toList();
             if (copy(index, bodies)) {
                 list(index, bodies);
+                runs.put(index, reachOf(run));
             } else {
-                dropped += bodies.size();
+                dropped += run.size();
             }
         });
         Vec3 low = new Vec3(region.getX(), region.getY(), region.getZ()).scale(REGION);
@@ -247,16 +291,14 @@ public final class DrinkUpload {
         DrinkField.Skeleton skeleton = skeletons.get(index);
         int segments = skeleton.rings().size() - 1;
         boolean withBox = bodies.getLast() >= segments && skeleton.box() != null;
-        int firstRing = bodies.getFirst() < segments ? bodies.getFirst() : 0;
-        int lastRing = bodies.getFirst() < segments ? Math.min(bodies.getLast(), segments - 1) + 1 : NONE;
-        int count = lastRing - firstRing + 1;
-        if (!roomFor(count, withBox)) {
+        Span span = spanOf(bodies, segments);
+        if (!roomFor(span.count(), withBox)) {
             return false;
         }
         streamOf.put(index, streamOf.size());
         ringBaseOf.put(index, rings.size());
-        firstRingOf.put(index, firstRing);
-        for (int ring = firstRing; ring <= lastRing; ring++) {
+        firstRingOf.put(index, span.first());
+        for (int ring = span.first(); ring <= span.last(); ring++) {
             rings.add(skeleton.rings().get(ring));
             ringStreams.add(index);
         }
@@ -266,6 +308,18 @@ public final class DrinkUpload {
             boxStreams.add(index);
         }
         return true;
+    }
+
+    /**
+     * @param bodies   a skeleton's listed bodies, ascending
+     * @param segments how many segments the skeleton has
+     * @return the span of rings the listed segments need, empty for a box alone
+     */
+    private static Span spanOf(List<Integer> bodies, int segments) {
+        if (bodies.getFirst() >= segments) {
+            return new Span(0, NONE);
+        }
+        return new Span(bodies.getFirst(), Math.min(bodies.getLast(), segments - 1) + 1);
     }
 
     /**
@@ -279,12 +333,14 @@ public final class DrinkUpload {
     }
 
     /**
-     * Lists a copied skeleton's bodies in the table as one run, up to the table's cap.
+     * Lists a copied skeleton's bodies in the table as one run, up to the
+     * table's cap, and notes where the run starts and how long it is.
      *
      * @param index  the skeleton
      * @param bodies its listed bodies
      */
     private void list(int index, List<Integer> bodies) {
+        int start = table.size();
         boolean starting = true;
         for (int body : bodies) {
             int entry = entryOf(index, body);
@@ -298,6 +354,8 @@ public final class DrinkUpload {
                 starting = false;
             }
         }
+        runStartOf.put(index, start);
+        runCountOf.put(index, table.size() - start);
     }
 
     /**
@@ -329,16 +387,27 @@ public final class DrinkUpload {
         return bytes;
     }
 
+    /**
+     * Writes a stream's slots: its coat, its path's frame, the box its run
+     * reaches with the run's span of the table, and its goo layers.
+     *
+     * @param bytes  the block
+     * @param index  the skeleton
+     * @param stream its slot
+     */
     private void writeStream(ByteBuffer bytes, int index, int stream) {
         int at = STREAMS_AT + stream * STREAM_VEC4S * VEC4;
         Coat coat = coats.get(index);
         List<Layer> layers = coat.layers().subList(0, Math.min(MOST_LAYERS, coat.layers().size()));
-        putVec4(bytes, at + COAT_SLOT * VEC4, coat.blockLight(), coat.skyLight(), coat.zoop() ? 1 : 0, layers.size());
+        putVec4(bytes, at + COAT_SLOT * VEC4, coat.blockLight(), coat.skyLight(), layers.size(), 0);
         putTint(bytes, at + TINT_SLOT * VEC4, coat.tint());
         putSprite(bytes, at + SPRITE_SLOT * VEC4, coat.sprite());
         DrinkStream.Path path = skeletons.get(index).stream().path();
         putVec3(bytes, at + SIDE_SLOT * VEC4, DrinkStream.sideOf(path), 0);
         putVec3(bytes, at + ACROSS_SLOT * VEC4, DrinkStream.acrossOf(path), 0);
+        Bound run = runs.get(index);
+        putVec3(bytes, at + RUN_LOW_SLOT * VEC4, run.low().subtract(camera), runStartOf.get(index));
+        putVec3(bytes, at + RUN_HIGH_SLOT * VEC4, run.high().subtract(camera), runCountOf.get(index));
         for (int layer = 0; layer < layers.size(); layer++) {
             putTint(bytes, at + (LAYER_TINT_SLOT + layer) * VEC4, layers.get(layer).tint());
             putSprite(bytes, at + (LAYER_SPRITE_SLOT + layer) * VEC4, layers.get(layer).sprite());
@@ -347,6 +416,14 @@ public final class DrinkUpload {
         }
     }
 
+    /**
+     * Writes the boxes and the rings: a box as its camera-relative middle and
+     * half width then its rounding and stream, a ring as its camera-relative
+     * middle and radius then its material, its route share, its stream and
+     * its blocks along the route, which the texture's boundary reads.
+     *
+     * @param bytes the block
+     */
     private void writeBodies(ByteBuffer bytes) {
         for (int index = 0; index < boxes.size(); index++) {
             DrinkBody.Box box = boxes.get(index);
@@ -356,9 +433,10 @@ public final class DrinkUpload {
         }
         for (int index = 0; index < rings.size(); index++) {
             DrinkStream.Ring ring = rings.get(index);
+            DrinkTree.Stream stream = skeletons.get(ringStreams.get(index)).stream();
             putVec3(bytes, RINGS_AT + index * PAIR * VEC4, ring.center().subtract(camera), ring.radius());
             putVec4(bytes, RINGS_AT + (index * PAIR + 1) * VEC4, ring.material(), ring.share(),
-                    streamOf.get(ringStreams.get(index)), 0);
+                    streamOf.get(ringStreams.get(index)), ring.share() * stream.routeLength());
         }
     }
 

@@ -21,14 +21,10 @@ import org.jspecify.annotations.Nullable;
  */
 public final class DrinkStream {
 
-    /** Blocks the liquid flows a tick where a lone block of goo flows: four blocks a second, and faster where more goo masses. */
+    /** Blocks the liquid flows a tick where a lone block of goo flows: eight blocks a second, and faster where more goo masses. */
     public static final double FLOW = SiphonRule.BASE_PACE;
     /** The radius at a waist of a stream of scale 1, in blocks, over a cell of the surface's grid so it reads round. */
     static final double WAIST = 0.1;
-    /** The radius of the zoop of unstable goo that flies from the hand into a picked block: as thin as a waist. */
-    public static final double ZOOP_RADIUS = WAIST;
-    /** Blocks of route the zoop spans from its head to its tail. */
-    public static final double ZOOP_LENGTH = 1.5;
     /** Blocks of the way the block's own matter spans, from its far side through its middle to its near face. */
     public static final double BLOCK_SPAN = 1;
     /** Blocks past the cone's reach a route to the glove can run, the glove hanging off the eye and a tributary going round. */

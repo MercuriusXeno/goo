@@ -27,8 +27,8 @@ import java.util.UUID;
 /**
  * Every player's Unmake drink: the blocks picked into the glove while the
  * channel is held, each through its choreography. A picked block is paid for
- * at once and stands as itself while the zoop flies to it; when the zoop is
- * in, the melting stand-in takes its place and it streams in; when it is
+ * at once and stands as itself while the square flies to it; when the square
+ * lands, the melting stand-in takes its place and it streams in; when it is
  * drained the stand-in goes; and when its tail has had time to reach the
  * hand its goo goes into the player's inventory, dropping at their feet only
  * what has no space. Letting go of the use cuts none of it.
@@ -43,8 +43,8 @@ public final class Drinks {
      * One block picked into the glove.
      *
      * @param goo    the goo it gives
-     * @param picked the game time it was picked, the zoop leaving the hand
-     * @param start  the game time the zoop is in and it starts to melt
+     * @param picked the game time it was picked, the square leaving the hand
+     * @param start  the game time the square lands and it starts to melt
      * @param end    the game time it is drained and the stand-in goes
      * @param payAt  the game time its tail has reached the hand and its goo is paid
      */
@@ -109,8 +109,8 @@ public final class Drinks {
         }
 
         /**
-         * Starts each block whose zoop is in melting: the stand-in takes its
-         * place. A block no longer standing when its zoop lands is dropped
+         * Starts each block whose square has landed melting: the stand-in takes
+         * its place. A block no longer standing when its square lands is dropped
          * from the drink, nothing to melt.
          *
          * @param now the game time
@@ -209,7 +209,7 @@ public final class Drinks {
     }
 
     /**
-     * Moves every drink's blocks through their choreography this tick: zoops
+     * Moves every drink's blocks through their choreography this tick: squares
      * landing start melts, drained blocks lose their stand-ins, goo that has
      * reached the hand is paid out; shows every open drink's blocks to its
      * viewers, and forgets each whose hold has ended with nothing left on its way.

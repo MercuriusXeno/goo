@@ -18,7 +18,7 @@ import java.util.Set;
  * always drunk and the cone widens about that line. A block costs
  * the unstable fuel the unstable crucible burns melting it plus the square
  * root of that, the price of doing it at will, paid the tick it is picked as
- * a zoop of unstable goo leaves the hand for it; the zoop takes
+ * a square of unstable goo leaves the hand for it; the square takes
  * {@link #INJECT_TICKS} to reach the block, which then streams in over the
  * crucible's own time for it, and its goo is in hand once its tail has
  * travelled back at the base pace.
@@ -30,10 +30,10 @@ public final class SiphonRule {
     public static final double RANGE = 7;
     /** The distance the cone is as wide as its square, the middle of its far half. */
     public static final double MID_RANGE = 5.5;
-    /** Ticks the zoop of unstable goo takes from the hand into a picked block before it starts to melt. */
+    /** Ticks the square of unstable goo takes from the hand to a picked block's near face before it starts to melt. */
     public static final int INJECT_TICKS = 9;
-    /** Blocks a tick a lone stream flows back to the hand: four blocks a second. */
-    public static final double BASE_PACE = 0.2;
+    /** Blocks a tick a lone stream flows back to the hand: eight blocks a second, so the goo is not long in flight. */
+    public static final double BASE_PACE = 0.4;
     private static final double SLOWEST_SPEED = 0.01;
     private static final double HALF_BLOCK = 0.5;
     private static final double EDGE_TO_EDGE = 2;

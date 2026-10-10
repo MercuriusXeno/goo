@@ -32,7 +32,7 @@ class DrinkStreamTest {
     private static final double LENGTH = 3;
     private static final double MIDDLE = 1.5;
     private static final int TICKS_A_SECOND = 20;
-    private static final double FOUR_BLOCKS = 4;
+    private static final double EIGHT_BLOCKS = 8;
     private static final double OFF_THE_LINE = 0.02;
     /** Blocks of liquid the width is read over, both ways from the start. */
     private static final double READ = 40;
@@ -56,9 +56,9 @@ class DrinkStreamTest {
         }
 
         @Test
-        void theFlowIsFourBlocksASecondTheServersPaceAndTheLongestRouteOutlastsTheCone() {
+        void theFlowIsEightBlocksASecondTheServersPaceAndTheLongestRouteOutlastsTheCone() {
             double longestRoute = SiphonRule.RANGE + DrinkStream.GLOVE_SLACK;
-            assertEquals(FOUR_BLOCKS, DrinkStream.FLOW * TICKS_A_SECOND, DELTA);
+            assertEquals(EIGHT_BLOCKS, DrinkStream.FLOW * TICKS_A_SECOND, DELTA);
             assertEquals(SiphonRule.BASE_PACE, DrinkStream.FLOW, DELTA);
             assertTrue(DrinkStream.LONGEST_TRAVEL_TICKS * DrinkStream.FLOW >= longestRoute);
         }

@@ -44,10 +44,9 @@ class DrinkTreeTest {
     private static final double THREE = 3;
     private static final double TWO = 2;
 
-    /** The time the blocks were picked, the zoop leaving the hand. */
+    /** The time the blocks were picked, the square leaving the hand. */
     private static final long PICKED = START - SiphonRule.INJECT_TICKS;
     private static final double HALF_WAY = 0.5;
-    private static final double JUST_OUTSIDE = 0.1;
 
     private static DrinkTree.Block block(BlockPos pos, double scale) {
         return new DrinkTree.Block(pos, Vec3.atCenterOf(pos), scale, PICKED, START, END);
@@ -140,38 +139,35 @@ class DrinkTreeTest {
     }
 
     @Nested
-    class Zoop {
+    class Square {
 
         @Test
-        void theZoopGrowsOutOfTheHandAndIsWhollyInTheBlockAsItStarts() {
+        void theBlockStandsAsItselfWithNoStreamAndNoMassUntilTheSquareLands() {
             DrinkTree.Stream leaving = loneAt(PICKED);
             DrinkTree.Stream landing = loneAt(START - DELTA);
-            double route = leaving.routeLength();
+            DrinkTree.Stream started = loneAt(START);
+            double middle = DrinkBody.CENTER / started.path().length();
 
-            assertTrue(leaving.zooping());
-            assertFalse(loneAt(START).zooping());
-            assertEquals(route, leaving.zoopHeadAt(), DELTA);
-            assertEquals(route, leaving.zoopTailAt(), DELTA);
-            assertEquals(0, DrinkTree.contribution(leaving, leaving, 1), DELTA);
-            assertEquals(DrinkStream.BLOCK_SPAN - DrinkStream.ZOOP_LENGTH, landing.zoopHeadAt(), 1e-6);
-            assertEquals(DrinkStream.BLOCK_SPAN, landing.zoopTailAt(), 1e-6);
+            assertTrue(leaving.awaiting());
+            assertTrue(landing.awaiting());
+            assertFalse(started.awaiting());
+            assertEquals(0, DrinkTree.contribution(landing, landing, middle), DELTA,
+                    "nothing of the stream shows while the square flies, not even the block's own liquid");
+            assertEquals(0, DrinkTree.ring(landing, middle).radius(), DELTA);
+            assertNull(DrinkTree.skeleton(landing).box());
+            assertEquals(0, landing.block().massAt(landing.now()), DELTA);
+            assertTrue(landing.flowingAt(0) && landing.flowingAt(landing.routeLength()), "the layout keeps its route");
+            assertEquals(DrinkBody.MOUTH, DrinkTree.contribution(started, started, middle), DELTA,
+                    "the block's liquid shows as the square lands");
         }
 
         @Test
-        void halfWayTheZoopIsAThinStreamOfItsLengthAndTheBlockStandsAsItself() {
-            DrinkTree.Stream stream = loneAt(PICKED + SiphonRule.INJECT_TICKS * HALF_WAY);
-            double head = stream.zoopHeadAt();
-            double tail = stream.zoopTailAt();
-            double middle = (head + tail) / 2;
+        void theSquaresFlightRunsFromThePickToTheStart() {
+            DrinkTree.Block block = NEAR;
 
-            assertEquals(DrinkStream.ZOOP_LENGTH, tail - head, DELTA);
-            assertEquals(DrinkStream.ZOOP_RADIUS, DrinkTree.zoopRadius(stream, middle), DELTA);
-            assertEquals(0, DrinkTree.zoopRadius(stream, head - JUST_OUTSIDE), DELTA);
-            assertEquals(0, DrinkTree.zoopRadius(stream, tail + JUST_OUTSIDE), DELTA);
-            assertEquals(DrinkStream.ZOOP_RADIUS, DrinkTree.ring(stream, middle / stream.path().length()).radius(),
-                    DELTA);
-            assertNull(DrinkTree.skeleton(stream).box());
-            assertEquals(0, stream.block().massAt(stream.now()), DELTA);
+            assertEquals(0, block.flightShareAt(PICKED), DELTA);
+            assertEquals(HALF_WAY, block.flightShareAt(PICKED + SiphonRule.INJECT_TICKS * HALF_WAY), DELTA);
+            assertEquals(1, block.flightShareAt(START), DELTA);
         }
     }
 
@@ -240,12 +236,12 @@ class DrinkTreeTest {
         @Test
         void aStreamFlowsAtADistanceUntilItsTailPassesAndIsSpentOnceAllOfItIsPast() {
             DrinkTree.Stream draining = loneAt(END);
-            DrinkTree.Stream zooping = loneAt(PICKED + 1);
+            DrinkTree.Stream awaiting = loneAt(PICKED + 1);
             DrinkTree.Stream longGone = loneAt(END + THOUSAND);
 
             assertTrue(draining.flowingAt(DrinkStream.BLOCK_SPAN + 1), "the liquid is still coming past the face");
             assertFalse(draining.flowingAt(DrinkStream.BLOCK_SPAN / 2), "the far half of the block has drained");
-            assertTrue(zooping.flowingAt(0) && zooping.flowingAt(zooping.routeLength()));
+            assertTrue(awaiting.flowingAt(0) && awaiting.flowingAt(awaiting.routeLength()));
             assertFalse(draining.spent());
             assertTrue(longGone.spent());
             assertTrue(treeAt(END + THOUSAND).getFirst().spent(), "a trunk is spent once its tributaries are too");
@@ -305,6 +301,29 @@ class DrinkTreeTest {
 
         private double widthOf(DrinkTree.Flow flow) {
             return flow.radius() / flow.presence() * Math.pow(flow.presence(), 1 / DrinkTree.TRUNK_ROOT);
+        }
+
+        @Test
+        void theTrunkThinsBackToOneStreamsWidthOverItsLastBlockIntoTheGlove() {
+            List<DrinkTree.Stream> streams = treeAt(START + tree().get(1).routeLength() / DrinkStream.FLOW);
+            DrinkTree.Stream trunk = streams.getFirst();
+            DrinkTree.Stream tributary = streams.get(1);
+            double length = trunk.path().length();
+            double aBlockOut = 1 - DrinkTree.THIN_INTO_HAND / length;
+            double halfOut = 1 - DrinkTree.THIN_INTO_HAND / TWO / length;
+            DrinkTree.Flow out = DrinkTree.flowOf(trunk, trunk, aBlockOut).plus(DrinkTree.flowOf(tributary, trunk,
+                    aBlockOut));
+            DrinkTree.Flow atGlove = DrinkTree.flowOf(trunk, trunk, 1).plus(DrinkTree.flowOf(tributary, trunk, 1));
+
+            assertEquals(1, DrinkTree.growthHeldAt(trunk, aBlockOut), DELTA, "the whole growth a block out");
+            assertEquals(0.5, DrinkTree.growthHeldAt(trunk, halfOut), DELTA);
+            assertEquals(0, DrinkTree.growthHeldAt(trunk, 1), DELTA, "none at the glove");
+            assertEquals(1, DrinkTree.growthHeldAt(tributary, 1), DELTA, "a tributary keeps its growth to its join");
+            assertEquals(TWO, out.presence(), DELTA, "both streams wholly there");
+            assertEquals(TWO, atGlove.presence(), DELTA);
+            assertEquals(widthOf(out), DrinkTree.radiusAt(trunk, aBlockOut), DELTA, "the fourth root a block out");
+            assertEquals(atGlove.radius() / atGlove.presence(), DrinkTree.radiusAt(trunk, 1), DELTA,
+                    "one stream's width at the glove");
         }
 
         @Test

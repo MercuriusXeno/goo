@@ -41,19 +41,17 @@ import java.util.Set;
  * on between ticks; blocks, streams and their joins are one skin with no seam,
  * blending like metaballs where they meet, moving every frame and never
  * standing or vanishing mid-air, and the drink is drawn until its last stream
- * is spent. Each piece of the skin wears its block's own texture, laid along
- * the liquid and round the stream so it rides the flow unstretched, and over
- * the standing block where it stands, solid, with the block's goo types
- * roiling over it in mingled blotches that cover more of it along the block's
- * route but never all of it, the types sharing the blotches by volume; a
- * block's zoop wears unstable goo's own sprite.
+ * is spent. Each piece of the skin wears its block's own texture from the
+ * block through its funnel, laid along the liquid and round the stream so it
+ * rides the flow unstretched, and over the standing block where it stands,
+ * solid; past the funnel's end it wears the block's goo types alone, roiling
+ * in mingled blotches that share the skin by volume, one standing boundary
+ * between the two that the liquid flows through.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class DrinkRenderer {
 
-    /** The share of a stream's skin the goo covers by the hand, so the block's texture shows mingled the whole way. */
-    static final float GOO_REACH = 0.45f;
     /** The shares of a path its light is read at: the block, just before it, the middle of the way and the hand. */
     private static final double[] LIGHT_SHARES = {0.0, 0.25, 0.5, 1.0};
     /** Where another player's glove hangs before their eyes, in blocks. */
@@ -159,7 +157,7 @@ public final class DrinkRenderer {
      * @param partialTick the partial tick
      * @return the glove's world position
      */
-    private static Vec3 gloveOf(Minecraft mc, Entity drinker, float partialTick) {
+    static Vec3 gloveOf(Minecraft mc, Entity drinker, float partialTick) {
         Camera camera = mc.gameRenderer.getMainCamera();
         if (drinker == mc.player && mc.options.getCameraType().isFirstPerson()) {
             return GloveAim.handPosition(camera);
@@ -230,7 +228,7 @@ public final class DrinkRenderer {
     /**
      * The block a streaming block is seen as this frame: the one its melting
      * stand-in holds, the block itself while it still stands as itself with
-     * the zoop on its way, or nothing once it is gone.
+     * the square on its way, or nothing once it is gone.
      *
      * @param level the client level
      * @param pos   the block
@@ -245,8 +243,7 @@ public final class DrinkRenderer {
     }
 
     /**
-     * What a stream is drawn with: unstable goo's own sprite and no blotches
-     * while its zoop flies, then its block's skin, in the light along its path.
+     * What a stream is drawn with: its block's skin, in the light along its path.
      *
      * @param level  the client level
      * @param id     the drinker
@@ -258,16 +255,10 @@ public final class DrinkRenderer {
     private static DrinkUpload.Coat coatOf(ClientLevel level, int id, DrinkTree.Stream stream, BlockState state,
                                            double now) {
         int light = lightAlong(level, stream, now);
-        int block = light & LIGHT_MASK;
-        int sky = light >>> SKY_SHIFT;
-        if (stream.zooping()) {
-            return new DrinkUpload.Coat(GooSubmitter.fluidTint(GooTypes.UNSTABLE),
-                    GooSubmitter.spriteUv(GooRenderUtil.lookupFluidSprite(GooTypes.UNSTABLE)), block, sky, true,
-                    List.of());
-        }
         Skin skin = SKINS.computeIfAbsent(id, ignored -> new HashMap<>())
                 .computeIfAbsent(stream.block().pos(), pos -> skinOf(level, pos, state));
-        return new DrinkUpload.Coat(skin.tint(), skin.sprite(), block, sky, false, skin.layers());
+        return new DrinkUpload.Coat(skin.tint(), skin.sprite(), light & LIGHT_MASK, light >>> SKY_SHIFT,
+                skin.layers());
     }
 
     /**
