@@ -1,0 +1,12 @@
+{
+  "gooType": "pulse",
+  "displayName": "goo.ability.pulse.metronome",
+  "badge": "prism",
+  "order": 50,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "metronome" }
+  ],
+  "tags": []
+}

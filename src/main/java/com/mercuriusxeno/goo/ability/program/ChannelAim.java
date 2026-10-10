@@ -18,8 +18,9 @@ import java.util.List;
  * @param aimPoint    the world point under the client's cursor, or a stream's reach along the look
  * @param plane       the face the hold began on, or null where it began on none or the hold is a stream
  * @param coneDegrees a stream's cone, apex to rim, in degrees; zero for a channel aiming one point
+ * @param held        the hold's tick count, 1 on its first tick; zero where the hold is uncounted
  */
-public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees) {
+public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees, int held) {
 
     /** How far past the aim point, along the line from the eye, the aimed block is read. */
     private static final double INTO_THE_FACE = 0.01;
@@ -76,7 +77,18 @@ public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDe
      * @param plane    the face the hold began on, or null where it began on none
      */
     public ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane) {
-        this(aimPoint, plane, 0);
+        this(aimPoint, plane, 0, 0);
+    }
+
+    /**
+     * The aim of an uncounted hold through a cone, as Bore's block pass reads it.
+     *
+     * @param aimPoint    the stream's reach along the look
+     * @param plane       the face the hold began on, or null
+     * @param coneDegrees the cone, apex to rim, in degrees
+     */
+    public ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDegrees) {
+        this(aimPoint, plane, coneDegrees, 0);
     }
 
     /**

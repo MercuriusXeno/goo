@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.held;
 
+import com.mercuriusxeno.goo.ability.program.ExtenderStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
 import com.mercuriusxeno.goo.ability.program.LifetapStep;
 import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
@@ -29,6 +30,8 @@ public enum LaidState {
     SIGHT,
     /** Teleportitis (decision teleportitis-blinks-along-the-cursor-on-hit). */
     TELEPORTITIS,
+    /** The Extender's mark, laid by an extender step (decision extender-multiplies-the-next-self-duration). */
+    EXTENDER,
     /** A lifetap (decision lifetap-trades-regen-for-leech). */
     LIFETAP;
 
@@ -56,6 +59,8 @@ public enum LaidState {
                 laid.add(SIGHT);
             } else if (step instanceof TeleportitisStep) {
                 laid.add(TELEPORTITIS);
+            } else if (step instanceof ExtenderStep) {
+                laid.add(EXTENDER);
             } else if (step instanceof LifetapStep) {
                 laid.add(LIFETAP);
             }

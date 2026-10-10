@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -30,7 +31,7 @@ import java.util.function.Consumer;
  */
 public record TapHost(ServerLevel level, BlockPos landing, Direction face)
         implements ExplodeHost, AnchoredWorldHost, PlaceBlockHost, EntityScanHost, DripHost, ConvokeHost,
-        MobSpawnHost, FrostHost {
+        DeviceToggleHost, MobSpawnHost, FrostHost {
 
     private static final double HALF = 0.5;
 
@@ -116,6 +117,19 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
             level.setBlock(below, Blocks.POINTED_DRIPSTONE.defaultBlockState()
                     .setValue(PointedDripstoneBlock.TIP_DIRECTION, Direction.DOWN), Block.UPDATE_ALL);
         }
+    }
+
+    /**
+     * Toggles the device below the tap: the landing block when it is one, a
+     * closed trapdoor or door the drip struck, else the device standing on
+     * the struck face, a lever or button the drip fell through
+     * (decision pulser-drip-toggles-the-block-below).
+     */
+    @Override
+    public void toggleDevice() {
+        ZapDevice.handDevice(level, landing)
+                .or(() -> ZapDevice.handDevice(level, landing.relative(face)))
+                .ifPresent(device -> ZapDevice.toggleByHand(level, device));
     }
 
     @Override
