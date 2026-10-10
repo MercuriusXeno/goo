@@ -140,6 +140,8 @@ class DrinkTreeTest {
             assertEquals(0, tributary.path().to().distanceTo(DrinkStream.pointAt(trunk.path(), tributary.joinShare(),
                     NOW)), DELTA);
             assertEquals(DrinkStream.flowAt(trunk.path(), tributary.joinShare(), NOW), tributary.path().arrival());
+            assertSame(trunk.path(), tributary.path().trunk(), "its last stretch slides onto the trunk's spine");
+            assertEquals(tributary.joinShare(), tributary.path().joinShare(), DELTA);
         }
 
         @Test
