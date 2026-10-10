@@ -43,13 +43,13 @@ class OculusStyleTest {
         @Test
         void aFloorEyeHoversLowOffTheFloor() {
             Vec3 eye = OculusStyle.eyeInCell(Direction.UP);
-            assertEquals(new Vec3(0.5, 3.5 / 16, 0.5), eye);
+            assertEquals(new Vec3(0.5, 4.0 / 16, 0.5), eye);
         }
 
         @Test
         void aWallEyeHoversOffTheWall() {
             Vec3 eye = OculusStyle.eyeInCell(Direction.SOUTH);
-            assertEquals(3.5 / 16, eye.z, EPSILON);
+            assertEquals(4.0 / 16, eye.z, EPSILON);
         }
     }
 
@@ -85,9 +85,10 @@ class OculusStyleTest {
 
         @Test
         void theLidsCloseInWholePixelRows() {
-            assertEquals(0, OculusStyle.lidRows(0f));
-            assertEquals(OculusStyle.LID_ROWS, OculusStyle.lidRows(1f));
-            assertEquals(2, OculusStyle.lidRows(0.6f));
+            assertEquals(0, OculusStyle.lidRows(0f, OculusStyle.TOP_LID_ROWS));
+            assertEquals(OculusStyle.TOP_LID_ROWS + OculusStyle.BOTTOM_LID_ROWS,
+                    OculusStyle.lidRows(1f, OculusStyle.TOP_LID_ROWS) + OculusStyle.lidRows(1f, OculusStyle.BOTTOM_LID_ROWS));
+            assertEquals(2, OculusStyle.lidRows(0.6f, OculusStyle.BOTTOM_LID_ROWS));
         }
 
         @Test

@@ -18,9 +18,9 @@ import java.util.List;
 public final class OculusMorph {
 
     /** Where the eye's middle hovers off the face, in model pixels. */
-    static final double EYE_LIFT = 3.5;
+    static final double EYE_LIFT = 4;
     /** The eye's radius, in model pixels. */
-    static final double EYE_RADIUS = 3;
+    static final double EYE_RADIUS = 3.5;
     /** How far the lens's rims stand from its middle, a share of its radius. */
     private static final double RIM_SHARE = 0.5;
     /** Points around the rim, every 15 degrees, so the hexagon's corners fall on one. */

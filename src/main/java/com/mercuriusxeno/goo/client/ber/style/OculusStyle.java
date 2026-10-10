@@ -33,14 +33,16 @@ public final class OculusStyle implements PrismComboStyle {
     static final float HOVER_AMPLITUDE = 0.03f;
     /** Ticks per bob. */
     static final float HOVER_PERIOD = 60f;
-    /** The pixel rows each lid covers when shut: half the eye's six. */
-    static final int LID_ROWS = 3;
+    /** The pixel rows the top lid covers when shut, the larger half of the eye's seven. */
+    static final int TOP_LID_ROWS = 4;
+    /** The pixel rows the bottom lid covers when shut, the smaller half. */
+    static final int BOTTOM_LID_ROWS = 3;
     /** One pixel, in blocks: a lid closes a whole row at a time, so it never squeezes a texel. */
     static final float ROW = 1f / 16f;
     /** Where the eye's front starts, in the eye model's blocks. */
-    static final float EYE_BOTTOM = 5f / 16f;
+    static final float EYE_BOTTOM = 4.5f / 16f;
     /** Where the eye's front ends, in the eye model's blocks. */
-    static final float EYE_TOP = 11f / 16f;
+    static final float EYE_TOP = 11.5f / 16f;
     /** The eye's side texture, which the lens wears as the column turns into it. */
     private static final Identifier EYE_SIDE = Identifier.fromNamespaceAndPath(Goo.MODID, "block/oculus_eye_side");
     private static final float PIXELS_PER_BLOCK = 16f;
@@ -102,22 +104,24 @@ public final class OculusStyle implements PrismComboStyle {
         poseStack.mulPose(Axis.YP.rotationDegrees(state.yawToCamera));
         poseStack.translate(-HALF, -HALF, -HALF);
         GooSubmitter.submitBakedBody(poseStack, nodeCollector, state.lightCoords, OculusModels.eye());
-        int rows = lidRows(state.lidClosure);
-        for (int row = 0; row < rows; row++) {
+        for (int row = 0; row < lidRows(state.lidClosure, TOP_LID_ROWS); row++) {
             submitLidRow(state, poseStack, nodeCollector, EYE_TOP - (row + 1) * ROW);
+        }
+        for (int row = 0; row < lidRows(state.lidClosure, BOTTOM_LID_ROWS); row++) {
             submitLidRow(state, poseStack, nodeCollector, EYE_BOTTOM + row * ROW);
         }
         poseStack.popPose();
     }
 
     /**
-     * How many pixel rows each lid covers at a closure.
+     * How many pixel rows a lid covers at a closure.
      *
-     * @param shut how shut the lids stand, 0 to 1
-     * @return the rows, 0 open to {@link #LID_ROWS} shut
+     * @param shut    how shut the lids stand, 0 to 1
+     * @param mostRows the rows the lid covers shut
+     * @return the rows, 0 open to mostRows shut
      */
-    static int lidRows(float shut) {
-        return Math.round(Math.clamp(shut, 0f, 1f) * LID_ROWS);
+    static int lidRows(float shut, int mostRows) {
+        return Math.round(Math.clamp(shut, 0f, 1f) * mostRows);
     }
 
     /**

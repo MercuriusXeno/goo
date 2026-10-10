@@ -2,8 +2,10 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
+import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
@@ -20,12 +22,12 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import java.util.Optional;
 
 /**
  * Gametests for the oculus prism as a blink node: a player looking at an
- * oculus well past Blink's range blinks to stand beside it, paying the
- * trip's price into the oculus's charge, and a charged oculus makes the
- * blink to it free, spending its charge instead
+ * oculus well past Blink's range blinks to stand beside it, a pressed face
+ * or not, and every blink to an oculus costs a tenth of its price
  * (decision oculus-prism-becomes-a-hovering-eye).
  */
 public final class OculusTests {
@@ -36,18 +38,16 @@ public final class OculusTests {
     private static final int NODE_HEIGHT = 24;
     /** Enough ender goo for the trip up to the oculus. */
     private static final int EXTRA_GOO = 8 * GooStacks.THOUSAND;
-    /** A charge that covers any trip a test makes. */
-    private static final int FULL_CHARGE = 100_000;
     private static final float LOOKING_STRAIGHT_UP = -90f;
     private static final int NO_ENTITY = -1;
     /** A landing beside the oculus stands one cell off its own, give or take. */
     private static final double BESIDE = 1.05;
     private static final String ABILITY_REQUIRED = "%s must be loaded";
     private static final String SHOULD_SNAP = "The blink should land beside the oculus at %s, landed at %s";
-    private static final String SHOULD_CHARGE = "The oculus should hold the %d drained as its charge, holds %d";
-    private static final String SHOULD_PRICE_THE_TRIP = "The trip up should cost more than the flat %d, cost %d";
-    private static final String SHOULD_BE_FREE = "A blink the charge covers should drain nothing, drained %d";
-    private static final String SHOULD_SPEND = "The oculus should spend the trip's price, more than the flat %d, spent %d";
+    private static final String SHOULD_COST_A_TENTH = "A blink to the oculus should drain a tenth of its price, %d, drained %d";
+    private static final String SHOULD_COST_THE_SAME = "Every blink to the oculus should cost the same, %d then %d";
+    /** ender_blink.json's oculus share, in percent. */
+    private static final int OCULUS_PERCENT = 10;
 
     private OculusTests() {
     }
@@ -55,9 +55,7 @@ public final class OculusTests {
     /**
      * A player looking straight up at an oculus twenty-four blocks over it
      * presses on the face of the stone it stands on, pinning that face, and
-     * blinks: the oculus wins over the pin, so it lands beside the oculus,
-     * drains the trip's price, more than Blink's flat cost, and the oculus
-     * holds what it drained as its charge.
+     * blinks: the oculus wins over the pin, so it lands beside the oculus.
      *
      * @param helper the gametest helper
      */
@@ -65,45 +63,59 @@ public final class OculusTests {
         ServerPlayer player = blinker(helper);
         PrismBlockEntity oculus = oculusAbove(helper, player);
         Vec3 cell = Vec3.atBottomCenterOf(oculus.getBlockPos());
-        int heldBefore = held(player);
 
         blinkPinned(player, oculus.getBlockPos().below());
 
         Vec3 after = player.position();
-        int drained = heldBefore - held(player);
-        int flat = ability(helper, ENDER_BLINK).cost();
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.assertTrue(after.distanceTo(cell) < BESIDE, String.format(SHOULD_SNAP, cell, after));
-        helper.assertTrue(drained > flat, String.format(SHOULD_PRICE_THE_TRIP, flat, drained));
-        helper.assertTrue(oculus.charge() == drained, String.format(SHOULD_CHARGE, drained, oculus.charge()));
         helper.succeed();
     }
 
     /**
-     * A player blinks to an oculus whose charge covers the trip: it lands
-     * beside the oculus draining no goo, and the oculus's charge falls by the
-     * trip's price, more than Blink's flat cost.
+     * A blink to an oculus costs ender_blink.json's tenth of the trip's
+     * price, every time: two blinks up to it from the same spot drain the
+     * same tenth each.
      *
      * @param helper the gametest helper
      */
-    public static void oculusChargeMakesBlinkFree(GameTestHelper helper) {
+    public static void oculusBlinkCostsATenth(GameTestHelper helper) {
         ServerPlayer player = blinker(helper);
         PrismBlockEntity oculus = oculusAbove(helper, player);
-        oculus.setCharge(FULL_CHARGE);
-        Vec3 cell = Vec3.atBottomCenterOf(oculus.getBlockPos());
-        int heldBefore = held(player);
-
-        blink(player);
-
-        Vec3 after = player.position();
-        int drained = heldBefore - held(player);
-        int spent = FULL_CHARGE - oculus.charge();
-        int flat = ability(helper, ENDER_BLINK).cost();
+        Vec3 start = player.position();
+        AbilityDefinition blink = ability(helper, ENDER_BLINK);
+        int[] drained = new int[2];
+        Vec3 after = start;
+        for (int trip = 0; trip < drained.length; trip++) {
+            player.setPos(start);
+            int heldBefore = held(player);
+            blink(player);
+            drained[trip] = heldBefore - held(player);
+            after = player.position();
+        }
+        double distance = start.distanceTo(after);
+        int whole = blink.distancePrice().priceOf(blink.cost(), Optional.of(new BlinkLanding(after, distance, true)));
+        int clearWhole = blink.distancePrice().priceOf(blink.cost(),
+                Optional.of(new BlinkLanding(after, distance, false)));
+        int tenth = tenthOf(whole);
+        int clearTenth = tenthOf(clearWhole);
         helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(after.distanceTo(cell) < BESIDE, String.format(SHOULD_SNAP, cell, after));
-        helper.assertTrue(drained == 0, String.format(SHOULD_BE_FREE, drained));
-        helper.assertTrue(spent > flat, String.format(SHOULD_SPEND, flat, spent));
+        helper.assertTrue(after.distanceTo(Vec3.atBottomCenterOf(oculus.getBlockPos())) < BESIDE,
+                String.format(SHOULD_SNAP, oculus.getBlockPos(), after));
+        helper.assertTrue(drained[0] == tenth || drained[0] == clearTenth,
+                String.format(SHOULD_COST_A_TENTH, tenth, drained[0]));
+        helper.assertTrue(drained[1] == drained[0], String.format(SHOULD_COST_THE_SAME, drained[0], drained[1]));
         helper.succeed();
+    }
+
+    /**
+     * A tenth of a price, rounded up, as ender_blink.json's oculus share takes it.
+     *
+     * @param whole the whole price
+     * @return the tenth
+     */
+    private static int tenthOf(int whole) {
+        return (int) Math.ceil(whole * OCULUS_PERCENT / (double) DistancePrice.WHOLE_PERCENT);
     }
 
     /**
