@@ -173,6 +173,11 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
         EntityPull.pullWithin(level, anchor(), radius, speed, null);
     }
 
+    @Override
+    public void liftEntitiesInColumn(double radius, double height, double speed) {
+        EntityLift.liftInColumn(level, anchor(), radius, height, speed);
+    }
+
     /**
      * Writes the block into the cell beyond the struck face when that cell
      * can be replaced, so a drip never overwrites the tap it fell from or

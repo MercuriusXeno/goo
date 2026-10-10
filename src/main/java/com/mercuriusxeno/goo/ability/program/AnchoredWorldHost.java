@@ -56,6 +56,11 @@ public interface AnchoredWorldHost extends EntityScanHost {
     }
 
     @Override
+    default void liftEntitiesInColumn(double radius, double height, double speed) {
+        EntityLift.liftInColumn(level(), anchor(), radius, height, speed);
+    }
+
+    @Override
     default void spawnParticles(ParticleBurst burst) {
         BlockAnchoredActions.sendBurst(level(), anchor(), burstAxis(), burst);
     }
