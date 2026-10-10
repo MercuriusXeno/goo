@@ -56,6 +56,8 @@ import java.util.List;
 public final class GooStreamHandler {
 
     private static final String LOG_PROGRAM_REFUSED = "Ability {} refused on its held pass's host: {}";
+    /** Log: one held tick reached the server, so a hold that does nothing shows where it stops. */
+    private static final String LOG_HELD_TICK = "Held tick of {} for {}: hold tick {}";
     /** Particles sprayed along the cone each tick. */
     private static final int PARTICLES_PER_TICK = 6;
     /**
@@ -103,13 +105,14 @@ public final class GooStreamHandler {
         }
         AbilityDefinition ability = heldAbility(player, payload, gooType);
         int held = ability == null ? 0 : drainShare(player, gooType, ability);
+        Goo.LOGGER.debug(LOG_HELD_TICK, payload.abilityId(), player.getName().getString(), held);
         if (held == 0) {
             return;
         }
         if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge())) {
             channelOnPlayer(player, new ChannelAim(payload.aimPoint(), payload.plane(), 0, held), ability);
         } else {
-            strikeCone(player, payload.origin(), ability);
+            strikeCone(player, payload.origin(), ability, held);
         }
         // mycosis-spore-stream-buds-and-poisons
         ability.delivery().sound().filter(sound -> sound.playsOn(held))
@@ -160,12 +163,16 @@ public final class GooStreamHandler {
      * @param player  the streaming player
      * @param gooType the ability's goo type
      * @param ability the stream ability
-     * @return false when the player cannot pay the share, which stops the stream
+     * @return the hold's tick count, or 0 when the tick runs nothing: a second stream tick in one
+     *         server tick, or a share the player cannot pay, which stops the stream
      */
     private static int drainShare(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
                                       AbilityDefinition ability) {
         MinecraftServer server = player.level().getServer();
         int held = GooServerState.of(server).streamHolds().advance(player.getUUID(), server.getTickCount());
+        if (held == 0) {
+            return 0;
+        }
         int share = StreamHolds.shareAt(ability.cost(), ability.delivery().ticksPerCharge(), held);
         if (!GooSourceScanner.hasEnough(player, gooType, share)) {
             return 0;
@@ -182,8 +189,9 @@ public final class GooStreamHandler {
      * @param player  the streaming player
      * @param origin  the glove hand the client sent
      * @param ability the stream ability
+     * @param held    the hold's tick count, 1 on its first tick
      */
-    private static void strikeCone(ServerPlayer player, Vec3 origin, AbilityDefinition ability) {
+    private static void strikeCone(ServerPlayer player, Vec3 origin, AbilityDefinition ability, int held) {
         ServerLevel level = player.level();
         Delivery delivery = ability.delivery();
         Vec3 apex = ThrowArc.clampToReach(player.getEyePosition(), origin, ThrowArc.HAND_REACH * player.getScale());
@@ -193,7 +201,7 @@ public final class GooStreamHandler {
         if (delivery.range() > 0) {
             // reserve-hearts-sit-behind-the-bar: a stream reaching nothing runs only on its caster
             sprayParticles(level, apex, axis, delivery);
-            runBlockPass(player, axis, ability);
+            runBlockPass(player, axis, ability, held);
             for (LivingEntity living : livingInCone(level, player, apex, axis, delivery)) {
                 HEALS.runNoting(living, healed, () -> runSteps(new EntityHost(level, living, player), HostKind.ENTITY,
                         entitySteps, ability));
@@ -239,15 +247,16 @@ public final class GooStreamHandler {
      * @param player  the streaming player
      * @param axis    the look
      * @param ability the stream ability
+     * @param held    the hold's tick count, which a wave front grows by
      */
-    private static void runBlockPass(ServerPlayer player, Vec3 axis, AbilityDefinition ability) {
+    private static void runBlockPass(ServerPlayer player, Vec3 axis, AbilityDefinition ability, int held) {
         List<Step> blockSteps = channelSteps(ability.behaviors(), true);
         if (blockSteps.isEmpty()) {
             return;
         }
         Delivery delivery = ability.delivery();
         ChannelAim aim = new ChannelAim(player.getEyePosition().add(axis.scale(delivery.range())), null,
-                delivery.coneDegrees());
+                delivery.coneDegrees(), held);
         runSteps(PlayerHost.channeling(player.level(), player, aim), HostKind.PLAYER, blockSteps, ability);
     }
 

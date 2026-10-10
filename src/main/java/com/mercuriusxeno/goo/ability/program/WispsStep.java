@@ -136,7 +136,7 @@ public record WispsStep(double radius, int count, int life, int above, boolean a
 
     private static int heldTicks(StepContext context) {
         return context.host() instanceof ChannelHost channel
-                ? channel.channelAim().map(ChannelAim::heldTicks).orElse(ChannelAim.FIRST_TICK)
+                ? channel.channelAim().map(ChannelAim::held).orElse(ChannelAim.FIRST_TICK)
                 : ChannelAim.FIRST_TICK;
     }
 

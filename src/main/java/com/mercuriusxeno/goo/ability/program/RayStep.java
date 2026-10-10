@@ -86,7 +86,7 @@ public record RayStep(double range, int every, List<EntityFilter> where, Refract
         Vec3 eye = channel.eye();
         Vec3 reach = eye.add(aim.get().aimPoint().subtract(eye).normalize().scale(range));
         HitResult hit = cast(level, caster, eye, reach);
-        List<Vec3> refracted = land(level, caster, hit, hitsOn(aim.get().heldTicks()));
+        List<Vec3> refracted = land(level, caster, hit, hitsOn(aim.get().held()));
         EntityVisuals.sendToWatchers(caster, new SunbeamPayload(caster.getId(), hit.getLocation(), refracted));
         return true;
     }

@@ -1,0 +1,12 @@
+{
+  "gooType": "pulse",
+  "displayName": "goo.ability.pulse.relay",
+  "badge": "prism",
+  "order": 60,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "relay" }
+  ],
+  "tags": []
+}
