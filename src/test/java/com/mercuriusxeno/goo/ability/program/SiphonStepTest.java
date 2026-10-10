@@ -4,12 +4,14 @@ import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -160,6 +162,34 @@ class SiphonStepTest {
             assertEquals(0.5, Math.tan(narrow) * SiphonRule.MID_RANGE, DELTA);
             assertEquals(1.25, Math.tan(charged) * SiphonRule.MID_RANGE, DELTA);
             assertTrue(Math.tan(narrow) * SiphonRule.RANGE < 1, "the cone is under a block wide at its reach");
+        }
+
+        @Test
+        void theDrinkPicksEveryBlockTheAimLinePassesThroughHoweverNarrowTheConeIsThere() {
+            Vec3 eye = new Vec3(0.5, 0.9, 0.5);
+            Vec3 aim = new Vec3(3.5, 0.9, 0.5);
+            List<BlockPos> picked = SiphonRule.blocksToDrink(eye, aim, 0);
+
+            assertTrue(picked.contains(new BlockPos(3, 0, 0)),
+                    "the block under the cursor is drunk though its middle is off the narrow cone's axis");
+            assertTrue(picked.contains(new BlockPos(2, 0, 0)), "and the block the line crosses before it");
+            assertTrue(picked.contains(new BlockPos(1, 0, 0)));
+            assertFalse(picked.contains(new BlockPos(3, 1, 0)), "a block the line misses and the cone does not hold");
+            assertFalse(picked.contains(new BlockPos(3, 0, 1)));
+            assertEquals(new BlockPos(0, 0, 0), picked.getFirst(), "nearest first, the eye's own block included");
+            assertTrue(picked.stream().allMatch(pos -> Vec3.atCenterOf(pos).distanceTo(eye) <= SiphonRule.RANGE + 1),
+                    "nothing past the reach");
+        }
+
+        @Test
+        void theConeStillPicksAWholeColumnAndNotTheWallAboutIt() {
+            Vec3 eye = new Vec3(0.5, 2.5, 0.5);
+            Vec3 aim = new Vec3(6.5, 2.5, 0.5);
+            List<BlockPos> picked = SiphonRule.blocksToDrink(eye, aim, 0);
+
+            assertTrue(picked.containsAll(List.of(new BlockPos(6, 2, 0), new BlockPos(7, 2, 0))));
+            assertFalse(picked.contains(new BlockPos(6, 3, 0)), "the wall beside a centred aim stands");
+            assertFalse(picked.contains(new BlockPos(6, 2, 1)));
         }
     }
 
