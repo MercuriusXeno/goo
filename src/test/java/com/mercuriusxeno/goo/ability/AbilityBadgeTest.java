@@ -25,7 +25,7 @@ class AbilityBadgeTest {
     private static final int SHIPPED_BREW_BADGES = 12;
     private static final int SHIPPED_CHANNELED_BADGES = 21;
     private static final int SHIPPED_FREE_BADGES = 6;
-    private static final int SHIPPED_TAP_BADGES = 11;
+    private static final int SHIPPED_TAP_BADGES = 12;
     private static final int SHIPPED_PRISM_BADGES = 9;
     /**
      * The prism combos (decisions prism-hosts-the-combos, hive-prism-pillar-eats-the-living,
