@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:mycosis_buds_ripen_at_warts_pace",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 40,
+  "setup_ticks": 0,
+  "required": true
+}

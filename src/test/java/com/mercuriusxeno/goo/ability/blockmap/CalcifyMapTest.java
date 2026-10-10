@@ -8,7 +8,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -22,13 +24,18 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 class CalcifyMapTest {
 
     private static final String CALCIFY = "/data/goo/block_maps/calcify.json";
+    private static final String DECAY = "/data/goo/block_maps/decay.json";
     private static final String STEPS = "steps";
     private static final List<String> MAIN_SEQUENCE = List.of("minecraft:sand", "minecraft:dirt",
             "minecraft:coarse_dirt", "minecraft:gravel", "minecraft:cobblestone", "minecraft:stone");
 
     private static JsonObject steps() throws IOException {
-        try (InputStream in = CalcifyMapTest.class.getResourceAsStream(CALCIFY)) {
-            assertNotNull(in, CALCIFY);
+        return steps(CALCIFY);
+    }
+
+    private static JsonObject steps(String path) throws IOException {
+        try (InputStream in = CalcifyMapTest.class.getResourceAsStream(path)) {
+            assertNotNull(in, path);
             return JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8))
                     .getAsJsonObject().getAsJsonObject(STEPS);
         }
@@ -47,5 +54,21 @@ class CalcifyMapTest {
     @Test
     void stoneIsTheEnd() throws IOException {
         assertFalse(steps().has(MAIN_SEQUENCE.getLast()));
+    }
+
+    // decision decay-gnats-degrade-each-block-once: decay is calcify run backward, over the same blocks
+    @Test
+    void decayIsCalcifyRunBackward() throws IOException {
+        Map<String, String> calcify = asMap(steps());
+        Map<String, String> reversedDecay = new HashMap<>();
+        asMap(steps(DECAY)).forEach((from, to) -> reversedDecay.put(to, from));
+
+        assertEquals(calcify, reversedDecay);
+    }
+
+    private static Map<String, String> asMap(JsonObject steps) {
+        Map<String, String> map = new HashMap<>();
+        steps.entrySet().forEach(entry -> map.put(entry.getKey(), entry.getValue().getAsString()));
+        return map;
     }
 }

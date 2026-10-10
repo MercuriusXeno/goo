@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.hex.RandomEnchantment;
+import com.mercuriusxeno.goo.ability.pulse.StunEvents;
 import com.mercuriusxeno.goo.ability.rewind.RewindEvents;
 import com.mercuriusxeno.goo.ability.stasis.StasisEvents;
 import com.mojang.datafixers.util.Unit;
@@ -21,7 +23,7 @@ public final class LeafSteps {
     private static final MapCodec<Boolean> ENABLED = Codec.BOOL.fieldOf(FIELD_ENABLED);
     private static final MapCodec<Unit> NO_PARAMS = MapCodec.unit(Unit.INSTANCE);
     private static final Set<HostCapability> TARGET = Set.of(HostCapability.TARGET);
-    private static final Set<HostCapability> CONSUMED_GOO = Set.of(HostCapability.CONSUMED_GOO);
+    private static final Set<HostCapability> HOARD = Set.of(HostCapability.HOARD);
     private static final float PERCENT = 100;
 
     /**
@@ -32,25 +34,25 @@ public final class LeafSteps {
             Set.of(HostCapability.TICKING), (ticks, context) -> context.stepTicks() >= ticks.evaluateInt(context));
 
     /**
-     * Removes every block with a goo value within a sphere around the host
-     * anchor, adding each block's goo to the total the host keeps; the
+     * Takes every breakable block within a sphere around the host anchor
+     * into the hoard the host keeps, each as its silk-touched drops; the
      * nether black hole consumes its blast sphere as it leaves its expand
      * phase: {@code consume_blocks radius=3}.
      */
-    public static final LeafStepType<Expr> CONSUME_BLOCKS = StepType.of("consume_blocks", "radius", CONSUMED_GOO,
+    public static final LeafStepType<Expr> CONSUME_BLOCKS = StepType.of("consume_blocks", "radius", HOARD,
             (radius, context) -> {
-                context.hostAs(ConsumedGooHost.class).consumeValuedBlocks(radius.evaluateInt(context));
+                context.hostAs(HoardHost.class).hoardBlocks(radius.evaluateInt(context));
                 return true;
             });
 
     /**
-     * Drops the goo total the host consumed as goo items at the anchor,
-     * emptying the total; the nether black hole pops what it consumed once
-     * it has contracted: {@code drop_consumed}.
+     * Leaves the host's hoard as one compression sphere at the anchor,
+     * emptying it; the nether black hole drops what it pulled in once it
+     * has contracted: {@code drop_sphere}.
      */
-    public static final LeafStepType<Unit> DROP_CONSUMED = StepType.of("drop_consumed", NO_PARAMS, CONSUMED_GOO,
+    public static final LeafStepType<Unit> DROP_SPHERE = StepType.of("drop_sphere", NO_PARAMS, HOARD,
             (none, context) -> {
-                context.hostAs(ConsumedGooHost.class).dropConsumedGoo();
+                context.hostAs(HoardHost.class).dropSphere();
                 return true;
             });
 
@@ -66,7 +68,7 @@ public final class LeafSteps {
 
     /**
      * Toggles the host's target's AI; a target that is not a mob has no AI
-     * to toggle and is left alone, so pulse short circuit wraps
+     * to toggle and is left alone, so aeon time stop wraps
      * {@code set_ai enabled=false} in {@code target where=[mob]}.
      */
     public static final LeafStepType<Boolean> SET_AI = StepType.of("set_ai", ENABLED, TARGET, (enabled, context) -> {
@@ -135,20 +137,6 @@ public final class LeafSteps {
             (target, seconds, context) -> target.igniteForSeconds(seconds.evaluateInt(context)));
 
     /**
-     * Sets the host's target to a fraction of its current health, bypassing
-     * damage; nether wither is {@code set_health fraction=0.5}.
-     */
-    public static final LeafStepType<Expr> SET_HEALTH = TargetEffectStep.of("set_health", "fraction",
-            (target, fraction, context) -> target.setHealth(target.getHealth() * fraction.evaluateFloat(context)));
-
-    /**
-     * Adds to the host's target's frozen ticks; a full freeze stands at
-     * 140, so frost snap is {@code freeze_ticks add=140}.
-     */
-    public static final LeafStepType<Expr> FREEZE_TICKS = TargetEffectStep.of("freeze_ticks", "add",
-            (target, add, context) -> target.setTicksFrozen(target.getTicksFrozen() + add.evaluateInt(context)));
-
-    /**
      * Heals the host's target by an amount of health points; vitality
      * streams {@code heal amount=0.1} over each living thing in its cone
      * and its caster every tick it is held.
@@ -172,6 +160,51 @@ public final class LeafSteps {
         }
         return true;
     });
+
+    /**
+     * Ticks the redstone device the host's blob landed on, as one pulse of
+     * power would: Zap is {@code power_pulse}.
+     * zap-ticks-the-device-and-stuns
+     */
+    public static final LeafStepType<Unit> POWER_PULSE = StepType.of("power_pulse", NO_PARAMS,
+            Set.of(HostCapability.POWER_PULSE), (none, context) -> {
+                context.hostAs(PowerPulseHost.class).powerPulse();
+                return true;
+            });
+
+    /**
+     * Toggles the redstone device where the host acts, as a hand would:
+     * Pulser's drip toggles the device below the tap with {@code toggle_device}.
+     * pulser-drip-toggles-the-block-below
+     */
+    public static final LeafStepType<Unit> TOGGLE_DEVICE = StepType.of("toggle_device", NO_PARAMS,
+            Set.of(HostCapability.TOGGLE_DEVICE), (none, context) -> {
+                context.hostAs(DeviceToggleHost.class).toggleDevice();
+                return true;
+            });
+
+    /**
+     * Stuns the host's target for a number of ticks: it drops its target and
+     * what it was doing, and its AI stands off until the stun ends. Zap
+     * stuns what stands at its landing with {@code stun ticks=60}.
+     * zap-ticks-the-device-and-stuns
+     */
+    public static final LeafStepType<Expr> STUN = TargetEffectStep.of("stun", "ticks",
+            (target, ticks, context) -> StunEvents.stun(target, ticks.evaluateInt(context)));
+
+    /**
+     * Gives the host's target, when a player, an enchanted book holding one
+     * random enchantment at level one; Enchant runs {@code enchant_book}
+     * on the invoking player once its book is consumed.
+     * enchant-book-with-a-purple-afterimage
+     */
+    public static final LeafStepType<Unit> ENCHANT_BOOK = StepType.of("enchant_book", NO_PARAMS, TARGET,
+            (none, context) -> {
+                if (context.hostAs(TargetHost.class).target() instanceof Player player) {
+                    RandomEnchantment.giveBook(player);
+                }
+                return true;
+            });
 
     private LeafSteps() {
     }

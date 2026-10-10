@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:spawn_tap_at_full_chance",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

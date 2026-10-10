@@ -192,7 +192,7 @@ class ProgramHostLoadTest {
     private static final Map<HostKind, Class<? extends StepHost>> HOST_TYPES = Map.of(
             HostKind.MARKER, MarkerHost.class, HostKind.ENTITY, EntityHost.class, HostKind.TAP, TapHost.class,
             HostKind.LANDING, LandingHost.class, HostKind.PLAYER, PlayerHost.class,
-            HostKind.SURFACE, SurfaceHost.class);
+            HostKind.SURFACE, SurfaceHost.class, HostKind.FLIGHT, FlightHost.class);
 
     /**
      * A step needing exactly one capability, standing in for whichever
@@ -212,17 +212,23 @@ class ProgramHostLoadTest {
     void eachKindProvidesTheCapabilityInterfacesItsHostImplements() {
         assertEquals(EnumSet.complementOf(EnumSet.of(HostCapability.TARGET, HostCapability.LINGER, HostCapability.CHANNEL,
                         HostCapability.BREAK_BLOCKS, HostCapability.DRIP, HostCapability.COLONIZE,
-                        HostCapability.FLOOR_SCAN, HostCapability.TICK_BLOCK)),
+                        HostCapability.FLOOR_SCAN, HostCapability.DRAGON_GATE, HostCapability.POWER_PULSE,
+                        HostCapability.TOGGLE_DEVICE, HostCapability.EXTEND_EFFECTS, HostCapability.SPAWN_MOB, HostCapability.TICK_BLOCK)),
                 HostKind.MARKER.capabilities());
         assertEquals(Set.of(HostCapability.PLACED_FACE, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
                 HostCapability.PLACE_BLOCK, HostCapability.LINGER, HostCapability.BREAK_BLOCKS, HostCapability.COLONIZE,
-                HostCapability.FLOOR_SCAN), HostKind.LANDING.capabilities());
+                HostCapability.FLOOR_SCAN, HostCapability.DRAGON_GATE, HostCapability.POWER_PULSE, HostCapability.SPAWN_MOB,
+                HostCapability.FROST),
+                HostKind.LANDING.capabilities());
         assertEquals(Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN),
                 HostKind.ENTITY.capabilities());
         assertEquals(Set.of(HostCapability.EXPLODE, HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK,
-                HostCapability.BREAK_BLOCKS, HostCapability.DRIP, HostCapability.TICK_BLOCK), HostKind.TAP.capabilities());
+                HostCapability.BREAK_BLOCKS, HostCapability.DRIP, HostCapability.CONVOKE, HostCapability.TOGGLE_DEVICE,
+                HostCapability.SPAWN_MOB, HostCapability.FROST, HostCapability.TICK_BLOCK),
+                HostKind.TAP.capabilities());
         assertEquals(Set.of(HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK),
                 HostKind.SURFACE.capabilities());
+        assertEquals(Set.of(HostCapability.ENTITY_SCAN, HostCapability.FROST), HostKind.FLIGHT.capabilities());
     }
 
     @ParameterizedTest

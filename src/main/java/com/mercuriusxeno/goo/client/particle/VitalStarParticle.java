@@ -83,7 +83,7 @@ public final class VitalStarParticle extends SingleQuadParticle {
         /**
          * Creates a provider over the star's sprite set.
          *
-         * @param sprites the sprite set from vital_star.json, vanilla's glint
+         * @param sprites the sprite set from vital_star.json, a white copy of vanilla's glint
          */
         public Provider(SpriteSet sprites) {
             this.sprites = sprites;

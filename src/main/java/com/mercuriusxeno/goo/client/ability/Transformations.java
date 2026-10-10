@@ -13,7 +13,10 @@ import java.util.List;
  * its origin to an entity or a block over the first HOP_SHARE of the
  * transformation, then shrinks to nothing as the target's model grows from
  * nothing to full size on a smoothstep, so the target is never whole while
- * the blob stands. A blob turning into a block makes no hop: the block's
+ * the blob stands. A blob already standing where its entity forms, as a
+ * conjured spawn's splat does, makes no hop either: it morphs in place for
+ * the whole transformation (decision spawn-goo-morphs-into-the-mob-it-births).
+ * A blob turning into a block makes no hop: the block's
  * renderer morphs it out of the struck face from the tick it lands
  * (decision prism-is-one-pointed-quartz-column).
  * Decision model-transformation-is-one-animation.
@@ -29,6 +32,9 @@ public final class Transformations {
 
     /** Blocks the blob's hop arcs above the straight line at its peak. */
     static final float HOP_HEIGHT = 0.6f;
+
+    /** How close the blob's origin stands to its entity, in blocks, for the blob to morph in place. */
+    static final double IN_PLACE_REACH = 0.05;
 
     /** A model at full size. */
     private static final float FULL = 1f;
@@ -129,6 +135,14 @@ public final class Transformations {
         }
 
         /**
+         * @return true when the blob hops to its entity before it morphs: an
+         *         entity target standing off from where the blob leaves
+         */
+        boolean hops() {
+            return targetBlock == null && from.distanceToSqr(to) > IN_PLACE_REACH * IN_PLACE_REACH;
+        }
+
+        /**
          * How far the blob has become the model: nothing through an entity's hop,
          * then a smoothstep to whole at the end; a block's morph takes the whole time.
          *
@@ -136,7 +150,7 @@ public final class Transformations {
          * @return 0 to 1
          */
         public float morph(float gameTime) {
-            float hop = targetBlock == null ? HOP_SHARE : 0f;
+            float hop = hops() ? HOP_SHARE : 0f;
             return smoothstep(Math.clamp((progress(gameTime) - hop) / (FULL - hop), 0f, 1f));
         }
 
@@ -168,6 +182,9 @@ public final class Transformations {
          * @return the blob's world point
          */
         public Vec3 blobPosition(float gameTime) {
+            if (!hops()) {
+                return from;
+            }
             float hop = Math.min(FULL, progress(gameTime) / HOP_SHARE);
             float along = smoothstep(hop);
             return from.lerp(to, along).add(0, HOP_HEIGHT * Math.sin(Math.PI * hop), 0);

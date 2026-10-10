@@ -31,6 +31,7 @@ class GloveInputGateTest {
         private int throwsSent;
         private int swings;
         private int holds;
+        private int lastHeldTicks = -1;
 
         RecordingActions(boolean payloadSent, boolean stream) {
             this(payloadSent, stream, false);
@@ -43,8 +44,9 @@ class GloveInputGateTest {
         }
 
         @Override
-        public boolean sendThrow() {
+        public boolean sendThrow(int heldTicks) {
             throwsSent++;
+            lastHeldTicks = heldTicks;
             return payloadSent;
         }
 
@@ -75,6 +77,33 @@ class GloveInputGateTest {
 
     @Nested
     class AThrow {
+
+        // nova-ring-grows-with-the-hold
+        @Test
+        void theReleaseCarriesTheTicksTheKeyWasHeld() {
+            GloveInputGate gate = new GloveInputGate();
+            RecordingActions actions = thrown();
+            gate.arm();
+            for (int tick = 0; tick < 5; tick++) {
+                gate.tick(true, actions);
+            }
+            gate.tick(false, actions);
+            assertEquals(5, actions.lastHeldTicks);
+        }
+
+        @Test
+        void aFreshPressCountsItsHoldFromZero() {
+            GloveInputGate gate = new GloveInputGate();
+            RecordingActions actions = thrown();
+            gate.arm();
+            gate.tick(true, actions);
+            gate.tick(true, actions);
+            gate.tick(false, actions);
+            gate.arm();
+            gate.tick(true, actions);
+            gate.tick(false, actions);
+            assertEquals(1, actions.lastHeldTicks);
+        }
 
         @Test
         void thePressSendsNothing() {

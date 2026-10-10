@@ -15,7 +15,7 @@ public enum HostKind {
      * cursor of a phased step, and the goo a black hole consumes until it
      * pops.
      */
-    MARKER("marker block", MarkerHost.class, Set.of()),
+    MARKER("marker block", MarkerHost.class, Set.of(HostVariables.SIZE)),
     /**
      * The struck living entity: a target and its thrower, acted on in the
      * tick the goo lands, with no driver for later ticks.
@@ -36,7 +36,7 @@ public enum HostKind {
      * acted on in the landing tick with no driver for later ticks (decisions
      * splat-runs-the-program-no-fuse, lingering-abilities-place-their-own-thing).
      */
-    LANDING("blob landing", LandingHost.class, Set.of()),
+    LANDING("blob landing", LandingHost.class, Set.of(HostVariables.SIZE)),
     /**
      * A floor a stream's cone or a spore burst reaches: the world around its
      * top face and the cell above it to write, acted on in the tick the spray
@@ -51,7 +51,13 @@ public enum HostKind {
      */
     PLAYER("player host", PlayerHost.class,
             Set.of(HostVariables.HEALTH, HostVariables.MAX_HEALTH, HostVariables.DISTANCE,
-                    HostVariables.UNDEAD, HostVariables.SPRINTING));
+                    HostVariables.UNDEAD, HostVariables.SPRINTING, HostVariables.CHARGE)),
+    /**
+     * A thrown blob in flight: the world around the point it has reached,
+     * acted on each tick of the flight, with no target and no driver of its
+     * own (decision orb-carries-a-swirling-nova).
+     */
+    FLIGHT("blob in flight", FlightHost.class, Set.of());
 
     private final String label;
     private final Set<HostCapability> capabilities;

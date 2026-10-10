@@ -291,6 +291,16 @@ public final class GooEffectScheduler {
     }
 
     /**
+     * Lands an effect at once, as a rolling goo ends where it struck or
+     * where its range ran out (decision orb-carries-a-swirling-nova).
+     *
+     * @param pe the effect to land now
+     */
+    public static void landNow(PendingEffect pe) {
+        applyEffect(pe, LIVE_LANDING);
+    }
+
+    /**
      * Applies the goo effect at the target location or entity, a mob
      * landing going through the landing given.
      *

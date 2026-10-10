@@ -4,16 +4,22 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -38,6 +44,8 @@ public final class GloveUseTracker {
      * (decision flatten-disc-cursor-breaks-above-the-plane).
      */
     private static ChannelAim.@Nullable FacePlane pressPlane;
+    /** The block face the live press began on, which a sized ability opens at. */
+    private static @Nullable BlockHitResult pressPin;
 
     /** How often (in ticks) to re-check whether the selected goo type is in inventory. */
     private static final int AVAILABILITY_CHECK_INTERVAL = 10;
@@ -100,10 +108,75 @@ public final class GloveUseTracker {
         if (!PRESS.isArmed()) {
             pressHand = hand;
             Minecraft mc = Minecraft.getInstance();
-            pressPlane = mc.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK
-                    ? new ChannelAim.FacePlane(hit.getBlockPos(), hit.getDirection()) : null;
+            pressPlane = planeAtPress(mc);
+            pressPin = mc.player == null ? null : farFace(mc.player);
         }
         PRESS.arm();
+    }
+
+    /**
+     * The block face the player's look meets within the throw range, farther
+     * than the block reach the crosshair's own hit stops at, so a sized
+     * ability pins an epicenter across the room as a throw aims there
+     * (decision black-hole-leaves-a-compression-sphere).
+     *
+     * @param player the local player
+     * @return the face, or null where the look meets none within range
+     */
+    private static @Nullable BlockHitResult farFace(Player player) {
+        Vec3 eye = player.getEyePosition();
+        Vec3 end = eye.add(player.getViewVector(1f).scale(GooThrowHandler.MAX_RANGE));
+        BlockHitResult hit = player.level().clip(new ClipContext(eye, end, ClipContext.Block.OUTLINE,
+                ClipContext.Fluid.NONE, player));
+        return hit.getType() == HitResult.Type.BLOCK ? hit : null;
+    }
+
+    /**
+     * Where the live press pinned a world ability sized at will: the block
+     * face and point the cursor rested on at the press
+     * (decision black-hole-leaves-a-compression-sphere).
+     *
+     * @return the pin, or null when no press is live or it rested on no block
+     */
+    public static @Nullable BlockHitResult pressPin() {
+        return PRESS.isArmed() ? pressPin : null;
+    }
+
+    /**
+     * The face a press begins on: a blink pins the first face its look
+     * crosses within its range (decision blink-lands-safely-costed-by-distance),
+     * and every other ability the face the crosshair rests on.
+     *
+     * @param mc the client
+     * @return the face plane, or null where the press began on none
+     */
+    private static ChannelAim.@Nullable FacePlane planeAtPress(Minecraft mc) {
+        LocalPlayer player = mc.player;
+        ClientAbility ability = player == null ? null : heldAbility(player);
+        return player != null && BlinkAim.blinks(ability) ? BlinkAim.pinAtPress(player, ability).orElse(null)
+                : crosshairPlane(mc);
+    }
+
+    /**
+     * The face the crosshair rests on.
+     *
+     * @param mc the client
+     * @return the face plane, or null where the crosshair rests on no block
+     */
+    private static ChannelAim.@Nullable FacePlane crosshairPlane(Minecraft mc) {
+        return mc.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK
+                ? new ChannelAim.FacePlane(hit.getBlockPos(), hit.getDirection()) : null;
+    }
+
+    /**
+     * The synced copy of the ability the held glove selects.
+     *
+     * @param player the local player
+     * @return the ability, or null with no selection or no synced copy
+     */
+    private static @Nullable ClientAbility heldAbility(LocalPlayer player) {
+        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        return selection == null ? null : AbilitySyncHandler.findAbility(selection.abilityId());
     }
 
     /**
@@ -154,8 +227,8 @@ public final class GloveUseTracker {
     private static GloveInputGate.PressActions pressActions(LocalPlayer player) {
         return new GloveInputGate.PressActions() {
             @Override
-            public boolean sendThrow() {
-                return GloveThrowSender.sendThrow(player);
+            public boolean sendThrow(int heldTicks) {
+                return GloveThrowSender.sendThrow(player, heldTicks);
             }
 
             @Override
@@ -213,6 +286,39 @@ public final class GloveUseTracker {
      */
     public static boolean showsArea() {
         return PRESS.isArmed();
+    }
+
+    /**
+     * Whether a held ability's visual runs: right click holds it and the
+     * selected goo is still on hand, as the stream tick it plays beside is
+     * sent only then, so the fog, breeze, vortex and cursor stop with the goo.
+     *
+     * @param player the local player
+     * @return true while the held ability runs
+     */
+    public static boolean runsHeld(LocalPlayer player) {
+        return heldVisualRuns(showsArea(), checkSelectedTypeAvailable(player));
+    }
+
+    /**
+     * Whether a held ability's visual runs, read from the press and the goo on hand.
+     *
+     * @param armed   whether right click holds a live press
+     * @param gooLeft whether any of the selected goo is on hand
+     * @return true only while both hold
+     */
+    static boolean heldVisualRuns(boolean armed, boolean gooLeft) {
+        return armed && gooLeft;
+    }
+
+    /**
+     * The ticks the live press has held its preview, which a charged
+     * ability's ghost reads (decision nova-ring-grows-with-the-hold).
+     *
+     * @return the held ticks, 0 while no press previews
+     */
+    public static int heldTicks() {
+        return PRESS.heldTicks();
     }
 
     /**

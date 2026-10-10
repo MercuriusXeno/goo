@@ -1,0 +1,12 @@
+{
+  "gooType": "nether",
+  "displayName": "goo.ability.nether.decay_tap",
+  "badge": "tap",
+  "order": 60,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "degrade_drip", "map": "goo:decay", "drips": 8 }
+  ],
+  "tags": ["tap"]
+}

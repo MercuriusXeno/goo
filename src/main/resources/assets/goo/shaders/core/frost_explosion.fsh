@@ -8,6 +8,9 @@
 in float progress;
 in vec2 discPos;
 in float fog;
+// The ring's seed, an angle: its fog's noise turns by it and shifts along it,
+// so no two rings billow alike (decision nova-ring-grows-with-the-hold).
+in float seed;
 
 out vec4 fragColor;
 
@@ -18,6 +21,7 @@ const float FOG_SCALE = 3.0;
 const float FOG_DRIFT = 1.6;
 const float FOG_OPACITY = 0.6;
 const float EDGE_WIDTH = 0.08;
+const float SEED_SHIFT = 17.0;
 
 float hash(vec2 p) {
     p = fract(p * vec2(123.34, 456.21));
@@ -50,7 +54,9 @@ void main() {
         discard;
     }
     vec2 outward = radial > 0.0 ? discPos / radial : vec2(0.0);
-    float billows = billow(discPos * FOG_SCALE - outward * progress * FOG_DRIFT);
+    mat2 turn = mat2(cos(seed), sin(seed), -sin(seed), cos(seed));
+    vec2 shift = vec2(cos(seed), sin(seed)) * SEED_SHIFT + vec2(seed * 3.1, -seed * 1.7);
+    float billows = billow(turn * discPos * FOG_SCALE + shift - outward * progress * FOG_DRIFT);
 
     // Dense at the leading edge, thinning toward the marker behind it.
     float density = smoothstep(0.25, 0.75, billows) * mix(0.3, 1.0, radial * radial);

@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:black_hole_cuts_players_to_half_a_heart",
+  "environment": "goo:phased_nether",
+  "structure": "goo:test_bay",
+  "max_ticks": 220,
+  "setup_ticks": 0,
+  "required": true
+}

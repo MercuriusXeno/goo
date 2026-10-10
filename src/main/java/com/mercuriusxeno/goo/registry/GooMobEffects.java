@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GooBrewEffect;
+import com.mercuriusxeno.goo.ability.bio.BioToxinEffect;
 import com.mercuriusxeno.goo.ability.spray.MycosisEffect;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -52,6 +53,13 @@ public final class GooMobEffects {
      */
     public static final DeferredHolder<MobEffect, MobEffect> MYCOSIS =
             MOB_EFFECTS.register("mycosis", MycosisEffect::new);
+
+    /**
+     * Bio's toxin, draining a share of max health a second
+     * (decision bio-toxin-stacks-to-amplitude-two).
+     */
+    public static final DeferredHolder<MobEffect, MobEffect> BIO_TOXIN =
+            MOB_EFFECTS.register("bio_toxin", BioToxinEffect::new);
 
     private GooMobEffects() {
     }
