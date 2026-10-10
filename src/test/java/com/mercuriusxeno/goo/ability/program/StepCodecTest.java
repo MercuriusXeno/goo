@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.frost.FrostCurve;
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.datafixers.util.Unit;
@@ -42,8 +43,17 @@ class StepCodecTest {
             Map.entry("target", new TargetStep(List.of(EntityFilter.NOT_BOSS),
                     List.of(new DamageStep(Expr.literal(4), DamageKind.FREEZE)))),
             Map.entry("set_health", LeafSteps.SET_HEALTH.step(Expr.parse("0.5 * health / max_health").getOrThrow())),
-            Map.entry("freeze_ticks",
-                    LeafSteps.FREEZE_TICKS.step(Expr.parse("140 * 25 / pow(health, 0.2) / 100").getOrThrow())),
+            Map.entry("freeze", new FreezeStep(Expr.parse("10 * stacks").getOrThrow(),
+                    new FrostCurve(300, 0.005f, 0.5f))),
+            Map.entry("nova", new NovaStep(Expr.parse("2 + 6 * charge").getOrThrow(),
+                    Expr.parse("4 + 12 * charge").getOrThrow(), 0.05f, 0.4f, new FrostCurve(300, 0.005f, 0.5f, 3f))),
+            Map.entry("freeze_blocks", new FreezeBlocksStep(Expr.literal(2))),
+            Map.entry("drips", new DripsStep(6, List.of(new FreezeBlocksStep(Expr.literal(2))))),
+            Map.entry("wind", new WindStep(true)),
+            Map.entry("glacial", new GlacialStep(5)),
+            Map.entry("traveling", new TravelingStep(3f, List.of(new FreezeBlocksStep(Expr.literal(2.5), false)))),
+            Map.entry("break_blocks", new BreakBlocksStep(TagKey.create(Registries.BLOCK,
+                    Identifier.fromNamespaceAndPath("goo", "foliage")))),
             Map.entry("set_ai", LeafSteps.SET_AI.step(false)),
             Map.entry("set_invulnerable", LeafSteps.SET_INVULNERABLE.step(true)),
             Map.entry("clone_entity", new CloneEntityStep(Expr.parse("100 / pow(max_health, 0.6)").getOrThrow(),
@@ -129,7 +139,18 @@ class StepCodecTest {
             Map.entry("root", new RootStep(Expr.literal(60), Expr.literal(4), Expr.literal(1), Expr.literal(1.5))),
             Map.entry("hit_or_miss", new HitOrMissStep(
                     List.of(new RootStep(Expr.literal(60), Expr.literal(4), Expr.literal(1), Expr.literal(1.5))),
-                    List.of(new LingerStep(List.of(LeafSteps.DISCARD.step(Unit.INSTANCE))))))
+                    List.of(new LingerStep(List.of(LeafSteps.DISCARD.step(Unit.INSTANCE)))))),
+            Map.entry("charm", new CharmStep(Expr.literal(6000))),
+            Map.entry("enchant_book", LeafSteps.ENCHANT_BOOK.step(Unit.INSTANCE)),
+            Map.entry("fuse_books", new FuseBooksStep(Optional.of(new SoundCue(
+                    Identifier.withDefaultNamespace("block.fire.extinguish"), SoundKind.PLAYERS, 0.4f, 1.6f)))),
+            Map.entry("spawn_random", new SpawnRandomStep(GooTypes.HEX, 20,
+                    List.of(new AilmentOverlayStep(AilmentKind.HEX, Expr.literal(60))), Expr.literal(5))),
+            Map.entry("agitate", new AgitateStep(8, 400, 0.75, 40)),
+            Map.entry("lifetap", new LifetapStep(Expr.literal(0.3))),
+            Map.entry("tome", new TomeStep(TomeKind.FUSE)),
+            Map.entry("leech", new LeechStep(Expr.literal(0.5),
+                    List.of(new DamageStep(Expr.literal(2), DamageKind.ATTACK))))
     );
 
     private static Step roundTrip(Step step) {

@@ -1,0 +1,29 @@
+{
+  "gooType": "frost",
+  "displayName": "goo.ability.frost.nova_tap",
+  "badge": "tap",
+  "order": 60,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    {
+      "type": "drips",
+      "count": 6,
+      "steps": [
+        {
+          "type": "nova",
+          "radius": 2,
+          "amount": 6,
+          "crowd": 0.05,
+          "push": 0.2,
+          "hold": 300,
+          "thaw": 0.005,
+          "vulnerability": 0.5,
+          "physical_bonus": 3
+        },
+        { "type": "freeze_blocks", "radius": 2 }
+      ]
+    }
+  ],
+  "tags": ["tap"]
+}

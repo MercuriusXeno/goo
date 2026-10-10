@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.hex.RandomEnchantment;
 import com.mojang.datafixers.util.Unit;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
@@ -113,13 +114,6 @@ public final class LeafSteps {
             (target, fraction, context) -> target.setHealth(target.getHealth() * fraction.evaluateFloat(context)));
 
     /**
-     * Adds to the host's target's frozen ticks; a full freeze stands at
-     * 140, so frost snap is {@code freeze_ticks add=140}.
-     */
-    public static final LeafStepType<Expr> FREEZE_TICKS = TargetEffectStep.of("freeze_ticks", "add",
-            (target, add, context) -> target.setTicksFrozen(target.getTicksFrozen() + add.evaluateInt(context)));
-
-    /**
      * Heals the host's target by an amount of health points; vitality
      * streams {@code heal amount=0.1} over each living thing in its cone
      * and its caster every tick it is held.
@@ -143,6 +137,20 @@ public final class LeafSteps {
         }
         return true;
     });
+
+    /**
+     * Gives the host's target, when a player, an enchanted book holding one
+     * random enchantment at level one; Enchant runs {@code enchant_book}
+     * on the invoking player once its book is consumed.
+     * enchant-book-with-a-purple-afterimage
+     */
+    public static final LeafStepType<Unit> ENCHANT_BOOK = StepType.of("enchant_book", NO_PARAMS, TARGET,
+            (none, context) -> {
+                if (context.hostAs(TargetHost.class).target() instanceof Player player) {
+                    RandomEnchantment.giveBook(player);
+                }
+                return true;
+            });
 
     private LeafSteps() {
     }

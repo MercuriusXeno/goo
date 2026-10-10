@@ -3,13 +3,18 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Vector3f;
+import java.util.List;
 
 /**
  * Frost goo's burnout explosion, the design the operator settled (decision
@@ -26,7 +31,7 @@ import net.minecraft.world.phys.Vec3;
  * remaining opacity in alpha, since a core pipeline takes no per-draw
  * uniforms.
  */
-public final class FrostExplosionVisual implements BurnoutVisual {
+public final class FrostExplosionVisual implements BurnoutVisual, HeldGhostVisual {
 
     /** The one instance the burnout registry holds. */
     public static final FrostExplosionVisual INSTANCE = new FrostExplosionVisual();
@@ -43,12 +48,18 @@ public final class FrostExplosionVisual implements BurnoutVisual {
     static final int SNOWFLAKES = 48;
     /** Snowflake speed as a share of the ring's reach per tick, so the burst rides out with the edge. */
     static final float SNOWFLAKE_SPEED = 0.08f;
+    /** The progress the held ghost rests at: the ring fully spread, its fog whole. */
+    private static final float HELD_PROGRESS = (float) SPREAD_TICKS / DURATION_TICKS;
     /** How far the ring sits from the block center along the face's step: just off the face plane. */
     private static final float RING_LIFT = -0.47f;
     private static final int RING_SEGMENTS = 48;
     /** Maps a disc-local coordinate in [-1, 1] onto [0, 1] for a color byte. */
     private static final float SIGNED_TO_UNIT = 0.5f;
     private static final double TWO_PI = 2 * Math.PI;
+    /** Mixes a ring's fixed value before hashing, so neighbouring rings seed far apart. */
+    private static final long SEED_MIX = 0x9E3779B97F4A7C15L;
+    /** Spreads a hashed value across the unit before it becomes an angle. */
+    private static final double SEED_SCALE = 1.0 / 4096;
 
     private FrostExplosionVisual() {
     }
@@ -56,6 +67,47 @@ public final class FrostExplosionVisual implements BurnoutVisual {
     @Override
     public ResourceKey<GooTypeDefinition> gooType() {
         return GooTypes.FROST;
+    }
+
+    /**
+     * The Orb's held ghost: frost's fog ring lying whole on the face the
+     * throw strikes, out to the reach of its landing freeze, so the player
+     * sees what the ball freezes outright where it lands
+     * (decisions orb-carries-a-swirling-nova, held-visual-ghosts-the-landing-in-two-passes).
+     *
+     * @return the ghost's one layer
+     */
+    @Override
+    public List<HeldLayer> heldLayers() {
+        return List.of(new HeldLayer(GooRenderTypes.FROST_EXPLOSION_TYPE,
+                GooRenderTypes.FROST_EXPLOSION_THROUGH_BLOCKS_TYPE, FrostExplosionVisual::emitHeld));
+    }
+
+    private static void emitHeld(PoseStack.Pose pose, VertexConsumer c, HeldGhost ghost, Direction face,
+                                 float opacity, double nowSeconds) {
+        emitWholeFog(pose, c, face, RING_LIFT, ghost.domeRadius(), opacity);
+    }
+
+    /**
+     * Emits frost's fog disc fully spread and whole, square to a face: the
+     * Orb's held ghost lies this way on the struck face
+     * (decision orb-carries-a-swirling-nova).
+     *
+     * @param pose    the pose entry
+     * @param c       the vertex consumer
+     * @param face    the face the disc lies square to
+     * @param lift    the shift from the block center along the face's step
+     * @param reach   the disc's radius in blocks
+     * @param opacity the share of the fog's opacity
+     */
+    static void emitWholeFog(PoseStack.Pose pose, VertexConsumer c, Direction face, float lift, float reach,
+                                    float opacity) {
+        int progressByte = NetherDiscMesh.toByte(HELD_PROGRESS);
+        int fog = NetherDiscMesh.toByte(opacity);
+        int center = ARGB.color(fog, progressByte, NetherDiscMesh.toByte(SIGNED_TO_UNIT),
+                NetherDiscMesh.toByte(SIGNED_TO_UNIT));
+        BurnoutGeometry.emitAnnulus(pose, c, face, lift, 0f, reach, RING_SEGMENTS,
+                (angle, outer) -> outer ? edgeColor(fog, progressByte, angle) : center);
     }
 
     @Override
@@ -80,15 +132,74 @@ public final class FrostExplosionVisual implements BurnoutVisual {
 
     @Override
     public void render(ChainBurnouts.Burnout burnout, BurnoutFrame frame) {
-        float progress = burnout.progress(frame.gameTime());
-        float radius = ZONE_REACH * spread(progress);
+        drawRing(frame, Vec3.atLowerCornerOf(burnout.pos()), burnout.placedFace(), RING_LIFT, ZONE_REACH,
+                burnout.progress(frame.gameTime()), seedOf(burnout.pos().asLong() ^ burnout.startTick()));
+    }
+
+    /**
+     * A ring's seed from a value fixed for the ring's life, so its fog holds
+     * one look from frame to frame and differs from every other ring's.
+     *
+     * @param value the ring's fixed value, such as its position and start
+     * @return the seed, an angle in radians
+     */
+    static float seedOf(long value) {
+        return (float) (Mth.frac(Long.hashCode(value * SEED_MIX) * SEED_SCALE) * TWO_PI);
+    }
+
+    /**
+     * The normal that carries a ring's seed to the frost fog shader, which
+     * reads it back as the angle of the normal about the up axis.
+     * decision nova-ring-grows-with-the-hold
+     *
+     * @param seed the seed, an angle in radians
+     * @return the unit normal
+     */
+    static Vector3f seedNormal(float seed) {
+        return new Vector3f(Mth.cos(seed), 0f, Mth.sin(seed));
+    }
+
+    /**
+     * Draws the frost ring spread toward a reach, its block-local center a
+     * block's center shifted along the face by lift; Nova draws its ring
+     * this way at the caster's feet (decision nova-ring-grows-with-the-hold).
+     *
+     * @param frame    the frame being drawn
+     * @param corner   the world point the ring's block-local coordinates are measured from
+     * @param face     the face the ring lies square to
+     * @param lift     the shift from the block center along the face's step
+     * @param reach    the reach the ring spreads to, in blocks
+     * @param progress the ring's progress in [0, 1]
+     * @param seed     the ring's seed, which its fog billows from
+     */
+    static void drawRing(BurnoutFrame frame, Vec3 corner, Direction face, float lift, float reach, float progress,
+                         float seed) {
+        drawDisc(frame, corner, face, lift, reach * spread(progress), progress, fog(progress), seed);
+    }
+
+    /**
+     * Draws frost's fog disc at a radius and fog given outright, for a ring
+     * paced on its own clock, such as Nova's fast ring
+     * (decision nova-ring-grows-with-the-hold).
+     *
+     * @param frame    the frame being drawn
+     * @param corner   the world point the disc's block-local coordinates are measured from
+     * @param face     the face the disc lies square to
+     * @param lift     the shift from the block center along the face's step
+     * @param radius   the disc's radius in blocks
+     * @param progress the share of its life the disc has lived, which drifts its billows
+     * @param fogShare the fog's opacity, 0 to 1
+     * @param seed     the ring's seed, which its fog billows from
+     */
+    static void drawDisc(BurnoutFrame frame, Vec3 corner, Direction face, float lift, float radius, float progress,
+                         float fogShare, float seed) {
         int progressByte = NetherDiscMesh.toByte(progress);
-        int fog = NetherDiscMesh.toByte(fog(progress));
+        int fog = NetherDiscMesh.toByte(fogShare);
         int center = ARGB.color(fog, progressByte, NetherDiscMesh.toByte(SIGNED_TO_UNIT),
                 NetherDiscMesh.toByte(SIGNED_TO_UNIT));
-        BurnoutGeometry.drawAtMarker(frame, burnout.pos(), GooRenderTypes.FROST_EXPLOSION_TYPE, (pose, c) ->
-                BurnoutGeometry.emitAnnulus(pose, c, burnout.placedFace(), RING_LIFT, 0f, radius, RING_SEGMENTS,
-                        (angle, outer) -> outer ? edgeColor(fog, progressByte, angle) : center));
+        BurnoutGeometry.drawAt(frame, corner, GooRenderTypes.FROST_EXPLOSION_TYPE, (pose, c) ->
+                BurnoutGeometry.emitAnnulus(pose, c, face, lift, 0f, radius, RING_SEGMENTS,
+                        (angle, outer) -> outer ? edgeColor(fog, progressByte, angle) : center, seedNormal(seed)));
     }
 
     /**
