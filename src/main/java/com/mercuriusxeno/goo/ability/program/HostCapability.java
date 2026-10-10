@@ -85,6 +85,36 @@ public enum HostCapability {
      */
     DRIP(DripHost.class),
     /**
+     * A landing that can tick the redstone device it landed on (decision
+     * zap-ticks-the-device-and-stuns).
+     */
+    POWER_PULSE(PowerPulseHost.class),
+    /**
+     * A host that can toggle the redstone device where it acts, as a hand
+     * would (decision pulser-drip-toggles-the-block-below).
+     */
+    TOGGLE_DEVICE(DeviceToggleHost.class),
+    /**
+     * A host whose own block can give redstone power to its neighbors
+     * (decision thumper-blob-pulses-periodically-then-fades).
+     */
+    EMIT_POWER(PowerEmitHost.class),
+    /**
+     * A host that hears the redstone signals reaching its block and keeps
+     * their beat (decision metronome-prism-pulses-at-the-learned-rate).
+     */
+    BEAT(BeatHost.class),
+    /**
+     * A host that carries redstone signals between relays linked through air
+     * (decision relay-prism-carries-the-signal-through-air).
+     */
+    RELAY(RelayHost.class),
+    /**
+     * A host that can lengthen the timed effects standing on it (decision
+     * extender-multiplies-the-next-self-duration).
+     */
+    EXTEND_EFFECTS(EffectExtendHost.class),
+    /**
      * A cell a conjured mob stands in, and the point the goo morphs into it
      * from (decision spawn-goo-morphs-into-the-mob-it-births).
      */

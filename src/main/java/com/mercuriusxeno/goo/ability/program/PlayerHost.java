@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.pulse.ExtenderEvents;
+import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.network.HoldMarks;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import net.minecraft.core.BlockPos;
@@ -37,7 +40,7 @@ import java.util.function.Consumer;
  */
 public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt brewDuration,
                          Optional<ChannelAim> channelAim, float charge)
-        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, FrostHost {
+        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, EffectExtendHost, FrostHost {
 
     /** The share of the player's height Nova emanates from. */
     private static final double HALF_HEIGHT = 0.5;
@@ -47,6 +50,8 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
 
     /** Blocks past the interaction range a channel still breaks at, vanilla's own slack for a block break. */
     private static final double REACH_SLACK = 1.0;
+    /** Log: how many devices a Pulser tick found to toggle among its cone's cells. */
+    private static final String LOG_TOGGLES = "Pulser toggles {} devices among {} cells";
 
     /**
      * The host of a glove invocation, which carries no brew duration.
@@ -200,6 +205,39 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     @Override
     public Entity breaker() {
         return player;
+    }
+
+    /**
+     * Toggles the device once in the player's stream hold, its door read by
+     * its lower half so both halves count as one
+     * (decision signal-wave-toggles-each-device-once).
+     */
+    @Override
+    public void toggleOnceThisHold(BlockPos pos) {
+        ZapDevice.handDevice(level, pos)
+                .filter(device -> GooServerState.of(level.getServer()).streamHolds().touchOnce(player.getUUID(), device))
+                .ifPresent(device -> ZapDevice.toggleByHand(level, device));
+    }
+
+    /**
+     * Lengthens the player's timed effects by the drunk brew's duration; a
+     * glove invocation lengthens nothing (decision extender-multiplies-the-next-self-duration).
+     */
+    @Override
+    public void extendTimedEffects() {
+        brewDuration.ifPresent(duration -> ExtenderEvents.extendStanding(player, duration));
+    }
+
+    /**
+     * Toggles each device standing in the cells once, a door's two halves
+     * counting as one device (decision pulser-toggles-rapidly-while-held).
+     */
+    @Override
+    public void toggleEachDevice(List<BlockPos> cells) {
+        List<BlockPos> devices = cells.stream().map(pos -> ZapDevice.handDevice(level, pos)).flatMap(Optional::stream)
+                .distinct().toList();
+        Goo.LOGGER.debug(LOG_TOGGLES, devices.size(), cells.size());
+        devices.forEach(device -> ZapDevice.toggleByHand(level, device));
     }
 
     @Override

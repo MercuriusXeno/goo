@@ -207,4 +207,67 @@ class HeldEffectsTest {
         assertEquals(Set.of(LaidState.NOURISH), LaidState.laidBy(List.of(new NourishStep(Expr.literal(80)))));
         assertEquals(Set.of(), LaidState.laidBy(List.of()));
     }
+
+    /** Extender's two forms (decision extender-multiplies-the-next-self-duration). */
+    @Nested
+    class Extender {
+
+        private static final Identifier EXTENDER = Identifier.fromNamespaceAndPath("goo", "pulse_extender");
+        private static final int TICKS = 20;
+        private static final int PLENTY = 1000;
+        private static final long BREW = 1200L;
+
+        private HeldEffects.Held gloveExtender() {
+            return new HeldEffects.Held(EXTENDER, GooTypes.PULSE, UPKEEP, Set.of(LaidState.EXTENDER), STARTED);
+        }
+
+        @Test
+        void extenderBesideKindlePaysPulseEveryTickAndCoversEveryOtherBlazeTick() {
+            HeldEffects held = holding(gloveExtender(), hearts(KINDLE, GooTypes.BLAZE));
+            int pulse = 0;
+            int blaze = 0;
+            for (long now = STARTED + 1; now <= STARTED + TICKS; now++) {
+                HeldEffects.Ticked ticked = held.tick(type -> PLENTY, now);
+                pulse += ticked.drawn().getOrDefault(GooTypes.PULSE, 0);
+                blaze += ticked.drawn().getOrDefault(GooTypes.BLAZE, 0);
+                held = ticked.after();
+            }
+            assertEquals(TICKS * UPKEEP, pulse);
+            assertEquals(TICKS / 2 * UPKEEP, blaze);
+        }
+
+        @Test
+        void pulseRunningDryEndsTheExtenderAloneAndTheOthersPayEveryTick() {
+            HeldEffects.Ticked ticked = holding(gloveExtender(), hearts(KINDLE, GooTypes.BLAZE))
+                    .tick(type -> type == GooTypes.PULSE ? 0 : PLENTY, STARTED + 2);
+            assertEquals(List.of(gloveExtender()), ticked.ended());
+            assertEquals(UPKEEP, ticked.drawn().get(GooTypes.BLAZE));
+        }
+
+        @Test
+        void thePulseBrewLengthensEachOtherPrepaidBrewFlat() {
+            HeldEffects.Held kindle = new HeldEffects.Held(KINDLE, GooTypes.BLAZE, UPKEEP, Set.of(), STARTED,
+                    STARTED + BREW);
+            HeldEffects.Held drunk = new HeldEffects.Held(EXTENDER, GooTypes.PULSE, UPKEEP,
+                    Set.of(LaidState.EXTENDER), STARTED, STARTED + BREW);
+            HeldEffects extended = holding(kindle, drunk).extendPrepaid(BREW);
+            assertEquals(STARTED + 2 * BREW, extended.held().get(0).expiresAt());
+            assertEquals(STARTED + BREW, extended.held().get(1).expiresAt());
+            assertEquals(BREW, extended.extensionTicks());
+        }
+
+        @Test
+        void aGloveExtenderDoublesEachOtherEffectsTimeLeftUntilItEnds() {
+            HeldEffects held = holding(gloveExtender(), hearts(KINDLE, GooTypes.BLAZE));
+            assertEquals(2 * PLENTY / UPKEEP, held.ticksLeft(type -> PLENTY).get(GooTypes.BLAZE));
+            assertEquals(PLENTY / UPKEEP, held.ticksLeft(type -> PLENTY).get(GooTypes.PULSE));
+            HeldEffects ended = held.end(EXTENDER).after();
+            assertEquals(PLENTY / UPKEEP, ended.ticksLeft(type -> PLENTY).get(GooTypes.BLAZE));
+        }
+
+        @Test
+        void aGloveExtenderLengthensNothingApplied() {
+            assertEquals(0, holding(gloveExtender()).extensionTicks());
+        }
+    }
 }
