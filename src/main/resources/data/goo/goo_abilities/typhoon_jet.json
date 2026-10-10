@@ -8,7 +8,7 @@
   "delivery": { "kind": "self", "ticks_per_charge": 20 },
   "behaviors": [
     { "type": "push", "strength": 0.8, "steer": 0.2, "elytra_steer": 0.5 },
-    { "type": "wind", "exhaust": { "range": 4, "cone": 24 } }
+    { "type": "wind", "tailwind": { "range": 6, "cone": 30 } }
   ],
   "tags": ["self"]
 }

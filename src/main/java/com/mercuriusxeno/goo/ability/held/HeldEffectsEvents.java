@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
+import com.mercuriusxeno.goo.ability.typhoon.Airborn;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooMobEffects;
@@ -250,6 +251,10 @@ public final class HeldEffectsEvents {
         if (lays.contains(LaidState.UNDEAD)) {
             // undead-nether-hearts-burn-in-sunlight: the player counts as undead no longer
             player.setData(GooAttachments.UNDEAD, Undead.NONE);
+        }
+        if (lays.contains(LaidState.AIRBORN)) {
+            // airborn-steerable-levitation-and-soft-falls: the air control ends with its held effect
+            player.setData(GooAttachments.AIRBORN, Airborn.NONE);
         }
     }
 

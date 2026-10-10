@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.ability.hex.Lifetap;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
+import com.mercuriusxeno.goo.ability.typhoon.Airborn;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -49,6 +50,10 @@ public final class BrewEffectTests {
     private static final String SHOULD_DRAIN_NOTHING = "A brew should drain no goo, drained %d";
     /** shroom_sight.json's factor. */
     private static final float SIGHT_FACTOR = 3f;
+    /** typhoon_airborn.json's jet boost. */
+    private static final float AIRBORN_JET_BOOST = 1.5f;
+    private static final String SHOULD_BE_AIRBORN =
+            "The typhoon brew should grant Airborn at jet boost %.1f until %d, granted %.1f until %d";
     /** hex_lifetap.json's fraction. */
     private static final float LIFETAP_FRACTION = 0.3f;
     private static final String SHOULD_LIFETAP = "The hex brew should lifetap at %.2f until %d, granted %.2f until %d";
@@ -217,6 +222,30 @@ public final class BrewEffectTests {
     }
 
     /**
+     * Drinking the typhoon brew grants Airborn for an hour, draining no goo
+     * (decision airborn-steerable-levitation-and-soft-falls).
+     *
+     * @param helper the gametest helper
+     */
+    public static void typhoonBrewAirbornForAnHour(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.TYPHOON);
+        int heldBefore = held(player, GooTypes.TYPHOON);
+        long now = player.level().getGameTime();
+
+        drink(player, GooTypes.TYPHOON);
+
+        Airborn airborn = player.getData(GooAttachments.AIRBORN);
+        int drained = heldBefore - held(player, GooTypes.TYPHOON);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        long expected = now + GooPotions.BREW_DURATION;
+        helper.assertTrue(airborn.expiresAt() == expected && airborn.jetBoost() == AIRBORN_JET_BOOST,
+                String.format(SHOULD_BE_AIRBORN, AIRBORN_JET_BOOST, expected, airborn.jetBoost(),
+                        airborn.expiresAt()));
+        helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
+        helper.succeed();
+    }
+
+    /**
      * Drinking the ender brew grants teleportitis at ender_teleportitis.json's
      * distance for an hour, draining no goo
      * (decision teleportitis-blinks-along-the-cursor-on-hit).
@@ -334,18 +363,18 @@ public final class BrewEffectTests {
     }
 
     /**
-     * Drinking the typhoon brew, a type with no brew ability yet, holds the
+     * Drinking the aeon brew, a type with no brew ability yet, holds the
      * effect and lays no hearts.
      *
      * @param helper the gametest helper
      */
     public static void brewWithoutAnAbilityRunsNothing(GameTestHelper helper) {
-        ServerPlayer player = drinker(helper, GooTypes.TYPHOON);
-        drink(player, GooTypes.TYPHOON);
+        ServerPlayer player = drinker(helper, GooTypes.AEON);
+        drink(player, GooTypes.AEON);
         HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
-        MobEffectInstance standing = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.TYPHOON));
+        MobEffectInstance standing = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.AEON));
         helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(standing != null, String.format(SHOULD_HOLD_EFFECT, GooTypes.TYPHOON.identifier(),
+        helper.assertTrue(standing != null, String.format(SHOULD_HOLD_EFFECT, GooTypes.AEON.identifier(),
                 GooPotions.BREW_DURATION, standing));
         helper.assertFalse(overlay.stands(), String.format(SHOULD_RUN_NOTHING, overlay));
         helper.succeed();
