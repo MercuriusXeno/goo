@@ -123,7 +123,7 @@ public final class LuxEvents {
      * @param player the player
      * @return the mob, or null for none
      */
-    private static @Nullable LivingEntity gazedAt(ServerPlayer player) {
+    public static @Nullable LivingEntity gazedAt(ServerPlayer player) {
         Vec3 eye = player.getEyePosition();
         Vec3 reach = eye.add(player.getLookAngle().scale(GAZE_REACH));
         Vec3 stop = player.level().clip(new ClipContext(eye, reach, ClipContext.Block.COLLIDER,

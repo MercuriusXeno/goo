@@ -464,6 +464,7 @@ public final class GooTestFunctions {
     private static final String BREW_SHROOM_SIGHTS = "brew_shroom_sights_for_an_hour";
     private static final String BREW_GLOW_LUX = "brew_glow_lux_for_an_hour";
     private static final String LUX_SEES_IN_THE_DARK_UNTIL_ENDED = "lux_sees_in_the_dark_until_ended";
+    private static final String LUX_GAZE_PICKS = "lux_gaze_picks_the_mob_in_clear_line_within_reach";
     private static final String BREW_ENDER_TELEPORTITIS = "brew_ender_teleportitis_for_an_hour";
     private static final String TELEPORTITIS_BLINKS = "teleportitis_blinks_instead_of_damage";
     private static final String TELEPORTITIS_VOID = "teleportitis_void_returns_to_safe_ground";
@@ -1019,6 +1020,7 @@ public final class GooTestFunctions {
         reg(r, BREW_SHROOM_SIGHTS, BrewEffectTests::shroomBrewSightForAnHour);
         reg(r, BREW_GLOW_LUX, BrewEffectTests::glowBrewLuxForAnHour);
         reg(r, LUX_SEES_IN_THE_DARK_UNTIL_ENDED, LuxTests::luxSeesInTheDarkUntilEnded);
+        reg(r, LUX_GAZE_PICKS, LuxTests::luxGazePicksTheMobInClearLineWithinReach);
         reg(r, BREW_ENDER_TELEPORTITIS, BrewEffectTests::enderBrewTeleportitisForAnHour);
         reg(r, TELEPORTITIS_BLINKS, BrewEffectTests::teleportitisBlinksInsteadOfDamage);
         reg(r, TELEPORTITIS_VOID, BrewEffectTests::teleportitisVoidReturnsToSafeGround);
