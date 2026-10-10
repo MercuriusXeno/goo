@@ -1,13 +1,16 @@
 package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
+import com.mercuriusxeno.goo.ability.program.AgitationState;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CrystalClusterSubmitter;
 import com.mercuriusxeno.goo.client.PrismCrystal;
+import com.mercuriusxeno.goo.client.ability.AgitatorWisps;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
+import com.mercuriusxeno.goo.client.ber.style.AgitatorPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.OculusLids;
 import com.mercuriusxeno.goo.client.ber.style.OculusStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyle;
@@ -64,6 +67,14 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         state.blobLook = blob == null ? null : CrystalClusterSubmitter.lookOf(blob.gooType(),
                 ClientGooTypes.color(blob.gooType()));
         state.combo = prism.getCombo();
+        // agitator-prism-quickens-until-a-spawn: the beat rides the synced countdown
+        AgitationState agitation = prism.programState().agitation();
+        state.beat = agitation.interval() > 0
+                ? AgitatorPrismStyle.beat(agitation.interval() - agitation.countdown() + partialTick)
+                : 0f;
+        if (AgitatorPrismStyle.COMBO.equals(state.combo)) {
+            AgitatorWisps.report(prism.getBlockPos(), agitation.countdown());
+        }
         state.comboSince = prism.comboSince();
         state.gameTime = prism.getLevel() == null ? 0f : prism.getLevel().getGameTime() + partialTick;
         state.yawToCamera = yawToward(prism.getBlockPos().getCenter(), cameraPos);

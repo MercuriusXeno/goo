@@ -23,6 +23,7 @@ import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ability.ViewportRipples;
 import com.mercuriusxeno.goo.client.ability.WindLines;
 import com.mercuriusxeno.goo.client.ber.*;
+import com.mercuriusxeno.goo.client.ber.style.AgitatorPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlacialPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.OculusStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyles;
@@ -125,6 +126,8 @@ public final class GooClientSetup {
     public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
         registerMachineRenderers(event);
         registerEffectRenderers(event);
+        // agitator-prism-quickens-until-a-spawn
+        PrismComboStyles.register(AgitatorPrismStyle.COMBO, new AgitatorPrismStyle());
     }
 
     /**
@@ -254,6 +257,8 @@ public final class GooClientSetup {
         event.registerSpriteSet(GooParticles.SNOWFLAKE.get(), SnowflakeParticle.Provider::new);
         event.registerSpriteSet(GooParticles.RESTORE_MOTE.get(), RestoreMoteParticle.Provider::new);
         event.registerSpriteSet(GooParticles.VITAL_MOTE.get(), VitalMoteParticle.Provider::new);
+        event.registerSpriteSet(GooParticles.HEX_WISP.get(), HexWispParticle.Provider::new);
+        event.registerSpriteSet(GooParticles.HEX_GLYPH.get(), HexGlyphParticle.Provider::new);
         event.registerSpriteSet(GooParticles.VITAL_FOG.get(), VitalFogParticle.Provider::new);
         event.registerSpriteSet(GooParticles.VITAL_STAR.get(), VitalStarParticle.Provider::new);
         event.registerSpecial(GooParticles.SILENT_BLAST.get(),
@@ -299,15 +304,15 @@ public final class GooClientSetup {
             EntityRenderer<?, ?> renderer = event.getRenderer(type);
             if (renderer != null) {
                 MobCoatLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
-                AilmentOverlayLayer.addTo(renderer);
+                AilmentOverlayLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
                 EncasementLayer.addTo(renderer, MobShells.of(type, event.getEntityModels()));
             }
         }
         for (PlayerModelType skin : event.getSkins()) {
             MobCoatLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
             MobCoatLayer.addTo(event.getMannequinRenderer(skin), MobShells.NONE);
-            AilmentOverlayLayer.addTo(event.getPlayerRenderer(skin));
-            AilmentOverlayLayer.addTo(event.getMannequinRenderer(skin));
+            AilmentOverlayLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
+            AilmentOverlayLayer.addTo(event.getMannequinRenderer(skin), MobShells.NONE);
             EncasementLayer.addTo(event.getPlayerRenderer(skin), MobShells.NONE);
         }
     }

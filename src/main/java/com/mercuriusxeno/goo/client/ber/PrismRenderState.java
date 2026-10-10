@@ -46,4 +46,7 @@ public class PrismRenderState extends BlockEntityRenderState {
      * shut (decision oculus-prism-becomes-a-hovering-eye).
      */
     public float lidClosure = 1f;
+
+    /** How strongly an agitator's beat shows this frame, 0 to 1; 0 for any other prism. */
+    public float beat;
 }
