@@ -275,21 +275,31 @@ public final class BrewEffectTests {
     }
 
     /**
-     * Drinking the frost brew, a type with no brew ability yet, holds the
+     * Drinking the typhoon brew, a type with no brew ability yet, holds the
      * effect and lays no hearts.
      *
      * @param helper the gametest helper
      */
     public static void brewWithoutAnAbilityRunsNothing(GameTestHelper helper) {
-        ServerPlayer player = drinker(helper, GooTypes.FROST);
-        drink(player, GooTypes.FROST);
+        ServerPlayer player = drinker(helper, GooTypes.TYPHOON);
+        drink(player, GooTypes.TYPHOON);
         HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
-        MobEffectInstance standing = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.FROST));
+        MobEffectInstance standing = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.TYPHOON));
         helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(standing != null, String.format(SHOULD_HOLD_EFFECT, GooTypes.FROST.identifier(),
+        helper.assertTrue(standing != null, String.format(SHOULD_HOLD_EFFECT, GooTypes.TYPHOON.identifier(),
                 GooPotions.BREW_DURATION, standing));
         helper.assertFalse(overlay.stands(), String.format(SHOULD_RUN_NOTHING, overlay));
         helper.succeed();
+    }
+
+    /**
+     * A frost brew lays Iceborn's frozen hearts for the brew's hour
+     * (decision iceborn-frozen-hearts-thaw-on-fire).
+     *
+     * @param helper the gametest helper
+     */
+    public static void frostBrewIcebornForAnHour(GameTestHelper helper) {
+        brewLaysForAnHour(helper, GooTypes.FROST, HeartKind.ICEBORN);
     }
 
     private static void brewLaysForAnHour(GameTestHelper helper, ResourceKey<GooTypeDefinition> gooType,

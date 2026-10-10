@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.registry;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.banish.Banished;
 import com.mercuriusxeno.goo.ability.banish.Teleportitis;
+import com.mercuriusxeno.goo.ability.frost.Frozen;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
@@ -156,6 +157,18 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("teleportitis",
                     () -> AttachmentType.builder(() -> Teleportitis.NONE)
                             .serialize(Teleportitis.CODEC)
+                            .build());
+
+    /**
+     * A mob's frozen gauge, saved with the mob and synced to every client
+     * drawing it, which spreads frost over it and holds its pose at full
+     * (decision frozen-gauge-per-mob-encases-when-full).
+     */
+    public static final Supplier<AttachmentType<Frozen>> FROZEN =
+            ATTACHMENT_TYPES.register("frozen",
+                    () -> AttachmentType.builder(() -> Frozen.NONE)
+                            .serialize(Frozen.CODEC, Frozen::started)
+                            .sync(GooAttachments::syncsToWatcher, Frozen.STREAM_CODEC)
                             .build());
 
     private GooAttachments() {

@@ -51,6 +51,8 @@ public final class HeartOverlayHud {
     private static final Identifier BARK_HALF = sprite("bark_half");
     private static final Identifier STONE_FULL = sprite("stone_full");
     private static final Identifier STONE_HALF = sprite("stone_half");
+    private static final Identifier ICE_FULL = sprite("ice_full");
+    private static final Identifier ICE_HALF = sprite("ice_half");
     private static final Identifier RESERVE_FULL = sprite("reserve_full");
     private static final Identifier RESERVE_HALF = sprite("reserve_half");
     /** Vanilla's red half heart, the health a travelling half leaves the bar as. */
@@ -249,6 +251,11 @@ public final class HeartOverlayHud {
         if (kind == HeartKind.BARKSKIN) {
             // barkskin-bark-hearts-thorn-and-burn: bark hearts wear oak bark over normal hearts
             addHalves(sprites, shown, BARK_HALF, BARK_FULL);
+            return sprites;
+        }
+        if (kind == HeartKind.ICEBORN) {
+            // iceborn-frozen-hearts-thaw-on-fire: frozen hearts lie over present hearts only
+            addHalves(sprites, shown, ICE_HALF, ICE_FULL);
             return sprites;
         }
         addHalves(sprites, realHalves, ASH_HALF, ASH_FULL);
@@ -495,7 +502,7 @@ public final class HeartOverlayHud {
     private static void paintCrawl(GuiGraphicsExtractor graphics, HeartKind kind, RegrowCrawl.Crawl crawl, int guiTicks,
                                    int x, int y) {
         boolean smolder = kind == HeartKind.KINDLE;
-        Identifier sprite = smolder ? EMBER_FULL : kind == HeartKind.STONESKIN ? STONE_FULL : BARK_FULL;
+        Identifier sprite = smolder ? EMBER_FULL : crawlSprite(kind);
         float alpha = smolder ? SMOLDER_ALPHA + SMOLDER_PULSE * Mth.sin(guiTicks * SMOLDER_PULSE_RATE) : 1f;
         int left = x + halfStart(crawl.fromHalf());
         int right = x + halfEnd(crawl.fromHalf());
@@ -508,6 +515,21 @@ public final class HeartOverlayHud {
             }
         }
     }
+    /**
+     * The sprite a crawl paints over a heart: stone for Stoneskin, frost for
+     * Iceborn, bark otherwise (decision heart-effects-crawl-while-held).
+     *
+     * @param kind the overlay's kind
+     * @return the sprite
+     */
+    static Identifier crawlSprite(HeartKind kind) {
+        return switch (kind) {
+            case STONESKIN -> STONE_FULL;
+            case ICEBORN -> ICE_FULL;
+            default -> BARK_FULL;
+        };
+    }
+
     /**
      * The first sprite column of a heart's half, split where vanilla's half
      * heart ends: the left half takes columns 0 to 4, its tip in the center

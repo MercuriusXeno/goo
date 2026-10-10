@@ -50,6 +50,12 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     private long comboSince;
     /** The combo's program while it runs; null once it ends or before any combo. */
     private @Nullable ProgramBehavior behavior;
+    /**
+     * Whether a combo that was running when the prism saved waits to rebuild
+     * its program: a chunk loads the prism before it has a level, when no
+     * ability can be read, so the program comes back on its first server tick.
+     */
+    private boolean resumesCombo;
 
     /**
      * Creates the prism's block entity.
@@ -71,6 +77,10 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
      * @param prism the prism's block entity
      */
     public static void serverTick(Level level, BlockPos pos, BlockState state, PrismBlockEntity prism) {
+        if (prism.resumesCombo) {
+            prism.resumesCombo = false;
+            prism.behavior = prism.comboProgram();
+        }
         if (prism.behavior == null) {
             return;
         }
@@ -188,10 +198,13 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         charge = input.getIntOr(TAG_CHARGE, 0);
         comboSince = input.getLongOr(TAG_COMBO_SINCE, 0L);
         programState.load(input);
-        behavior = input.getBooleanOr(TAG_RUNNING, false) ? comboProgram() : null;
+        boolean running = input.getBooleanOr(TAG_RUNNING, false);
+        behavior = running ? comboProgram() : null;
         if (behavior != null) {
             behavior.loadAdditional(input);
         }
+        // a chunk reads the prism before its level is set: the running combo comes back on the first server tick
+        resumesCombo = running && behavior == null && level == null;
     }
 
     /**
@@ -217,7 +230,7 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         output.putInt(TAG_CHARGE, charge);
         output.putLong(TAG_COMBO_SINCE, comboSince);
         programState.save(output);
-        output.putBoolean(TAG_RUNNING, behavior != null);
+        output.putBoolean(TAG_RUNNING, behavior != null || resumesCombo);
         if (behavior != null) {
             behavior.saveAdditional(output);
         }

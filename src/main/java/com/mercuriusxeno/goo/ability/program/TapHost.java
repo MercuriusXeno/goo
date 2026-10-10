@@ -29,7 +29,7 @@ import java.util.function.Consumer;
  * @param face    the landing block's face the drip struck
  */
 public record TapHost(ServerLevel level, BlockPos landing, Direction face)
-        implements ExplodeHost, AnchoredWorldHost, PlaceBlockHost, EntityScanHost, DripHost, ConvokeHost {
+        implements ExplodeHost, AnchoredWorldHost, PlaceBlockHost, EntityScanHost, DripHost, ConvokeHost, FrostHost {
 
     private static final double HALF = 0.5;
 
@@ -47,6 +47,11 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
     @Override
     public Vec3 anchor() {
         return faceCenter(landing, face);
+    }
+
+    @Override
+    public Vec3 frostCenter() {
+        return anchor();
     }
 
     @Override

@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
@@ -61,7 +62,7 @@ public final class GooSelfHandler {
      */
     static void deliver(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability,
             Optional<ChannelAim.FacePlane> pin) {
-        if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge())) {
+        if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge()) || ability.delivery().charges()) {
             return;
         }
         boolean held = HeldEffectsEvents.holds(player, ability.id());
@@ -69,7 +70,28 @@ public final class GooSelfHandler {
             HeldEffectsEvents.end(player, ability.id());
         } else if (SelfEatRoute.eats(ability.delivery(), ability.badge())) {
             beginEating(player, gooType, ability);
-        } else if (invoke(player, gooType, ability, pin)) {
+        } else if (invoke(PlayerHost.blinking(player.level(), player, pin), gooType, ability)) {
+            GooEffectScheduler.playThrowSound(player, ability.delivery());
+        }
+    }
+
+    /**
+     * Fires a charged self ability let go after a hold: its programs run on
+     * the player carrying the share of a full charge the hold reached.
+     * nova-ring-grows-with-the-hold
+     *
+     * @param player    the releasing player
+     * @param gooType   the ability's goo type
+     * @param ability   the charged ability
+     * @param heldTicks the ticks the use key was held
+     */
+    static void release(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability,
+            int heldTicks) {
+        if (ability.delivery().kind() != DeliveryKind.SELF || !ability.delivery().charges()) {
+            return;
+        }
+        PlayerHost host = PlayerHost.charged(player.level(), player, ability.delivery().chargeShare(heldTicks));
+        if (invoke(host, gooType, ability)) {
             GooEffectScheduler.playThrowSound(player, ability.delivery());
         }
     }
@@ -137,17 +159,16 @@ public final class GooSelfHandler {
      * is about to make, before it runs.
      * decision blink-lands-safely-costed-by-distance
      *
-     * @param player  the invoking player
+     * @param host    the host over the invoking player
      * @param gooType the ability's goo type
      * @param ability the self ability
-     * @param pin     the face plane the press pinned, empty for free aim
      * @return true when the cost drained and the programs ran
      */
-    private static boolean invoke(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
-            AbilityDefinition ability, Optional<ChannelAim.FacePlane> pin) {
-        PlayerHost host = PlayerHost.blinking(player.level(), player, pin);
+    private static boolean invoke(PlayerHost host, ResourceKey<GooTypeDefinition> gooType,
+            AbilityDefinition ability) {
+        ServerPlayer player = host.player();
         Optional<BlinkLanding> trip = TeleportStep.tripOf(ability.behaviors(), player, player.position(),
-                player.getLookAngle(), pin);
+                player.getLookAngle(), host.blinkPin());
         int price = ability.distancePrice().priceOf(ability.cost(), trip);
         // oculus-prism-becomes-a-hovering-eye: a charged oculus pays for the blink to it
         int cost = OculusCharge.costAt(player.level(), price, trip);
