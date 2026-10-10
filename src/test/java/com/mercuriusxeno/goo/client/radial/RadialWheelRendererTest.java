@@ -179,7 +179,7 @@ class RadialWheelRendererTest {
                 Map.entry("typhoon_float", "Float"), Map.entry("unstable_timed_bomb", "Countdown"),
                 Map.entry("unstable_proximity_mine", "Claymore"),
                 Map.entry("blaze_spitfire", "Spitfire"), Map.entry("blaze_kindle", "Kindle"),
-                Map.entry("ender_blink", "Blink"), Map.entry("typhoon_jet", "Jet"), Map.entry("typhoon_airborn", "Airborn"),
+                Map.entry("ender_blink", "Blink"), Map.entry("typhoon_jet", "Jet"), Map.entry("typhoon_airborn", "Airborn"), Map.entry("typhoon_repel", "Repel"),
                 Map.entry("unstable_explode", "Blast"), Map.entry("vital_clone", "Clone"),
                 Map.entry("vital_vitality", "Vitality"), Map.entry("vital_reserve", "Reserve"),
                 Map.entry("vital_nourish", "Nourish"));

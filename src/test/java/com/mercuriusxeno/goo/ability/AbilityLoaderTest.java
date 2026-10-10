@@ -118,6 +118,7 @@ class AbilityLoaderTest {
             Map.entry("leaf_bio", List.of("poisonous_potato")),
             Map.entry("typhoon_float", List.of("shulker_shell")),
             Map.entry("typhoon_jet", List.of("phantom_membrane")),
+            Map.entry("typhoon_repel", List.of("wind_charge")),
             Map.entry("rock_bore", List.of("stone", "cobblestone")),
             Map.entry("rock_crush", List.of("gravel", "sand")),
             Map.entry("rock_flatten", List.of("dirt")),
