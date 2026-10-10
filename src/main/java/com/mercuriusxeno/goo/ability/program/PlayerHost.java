@@ -203,6 +203,11 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     }
 
     @Override
+    public void rideShaftAbove(int cap, double rise, double sink) {
+        asEntity().rideShaftAbove(cap, rise, sink);
+    }
+
+    @Override
     public void spawnParticles(ParticleBurst burst) {
         asEntity().spawnParticles(burst);
     }

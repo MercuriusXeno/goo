@@ -23,6 +23,7 @@ import com.mercuriusxeno.goo.network.OculusTests;
 import com.mercuriusxeno.goo.network.NourishTests;
 import com.mercuriusxeno.goo.network.AirbornTests;
 import com.mercuriusxeno.goo.network.JetTests;
+import com.mercuriusxeno.goo.network.LiftTests;
 import com.mercuriusxeno.goo.network.RepelTests;
 import com.mercuriusxeno.goo.network.ReserveTests;
 import com.mercuriusxeno.goo.network.UpdraftTests;
@@ -407,6 +408,8 @@ public final class GooTestFunctions {
     private static final String BREW_TYPHOON_AIRBORN = "brew_typhoon_airborn_for_an_hour";
     private static final String REPEL_FLINGS_A_ZOMBIE = "repel_flings_a_zombie";
     private static final String UPDRAFT_LIFTS_A_ZOMBIE = "updraft_lifts_a_zombie";
+    private static final String LIFT_RAISES = "lift_raises_what_stands_above";
+    private static final String LIFT_SINKS = "lift_sinks_a_sneaking_rider";
     private static final String REPEL_SPARES_AIRBORN_BOOST = "repel_pushes_an_airborn_player_at_its_own_strength";
     private static final String SELF_KINDLE_SHIELDS = "self_kindle_shields_then_quenches";
     private static final String SELF_KINDLE_BURNS = "self_kindle_burns_the_attacker";
@@ -955,6 +958,8 @@ public final class GooTestFunctions {
         reg(r, BREW_TYPHOON_AIRBORN, BrewEffectTests::typhoonBrewAirbornForAnHour);
         reg(r, REPEL_FLINGS_A_ZOMBIE, RepelTests::repelFlingsAZombie);
         reg(r, UPDRAFT_LIFTS_A_ZOMBIE, UpdraftTests::updraftLiftsAZombie);
+        reg(r, LIFT_RAISES, LiftTests::liftRaisesWhatStandsAbove);
+        reg(r, LIFT_SINKS, LiftTests::liftSinksASneakingRider);
         reg(r, REPEL_SPARES_AIRBORN_BOOST, RepelTests::repelPushesAnAirbornPlayerAtItsOwnStrength);
         reg(r, SELF_KINDLE_SHIELDS, HeartOverlayTests::kindleShieldsThenQuenches);
         reg(r, SELF_KINDLE_BURNS, HeartOverlayTests::kindleBurnsTheAttacker);

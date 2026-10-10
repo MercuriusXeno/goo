@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.program.LiftStep;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.UpdraftStep;
@@ -7,6 +8,7 @@ import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
@@ -17,11 +19,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 /**
- * Updraft's look: while an updraft's blob stands, frost's wind lines without
- * snowflakes rise from it up through its column and curl out near the top,
- * the column sized from the ability's updraft step. The blob itself stays
- * drawn at the column's foot by the marker's own visual.
+ * Updraft's and Lift's look: while an updraft's blob stands, frost's wind
+ * lines without snowflakes rise from it up through its column and curl out
+ * near the top, the column sized from the ability's updraft step, the blob
+ * itself staying drawn at the column's foot by the marker's own visual; and
+ * the same lines rise up a lift prism's shaft.
  * updraft-blob-stands-a-column-of-wind
+ * lift-prism-levitates-the-block-above
  */
 public final class UpdraftWind {
 
@@ -31,6 +35,8 @@ public final class UpdraftWind {
     private static final Map<BlockPos, Long> BLOWN_AT = new ConcurrentHashMap<>();
     /** Ticks a column goes unseen before its record is dropped. */
     private static final long FORGET_AFTER_TICKS = 40;
+    /** A lift's shaft is one block wide. */
+    private static final double SHAFT_HALF_WIDTH = 0.5;
 
     private UpdraftWind() {
     }
@@ -63,6 +69,41 @@ public final class UpdraftWind {
             WindLines.CLIENT.rise(mc.level.getRandom(), Vec3.atBottomCenterOf(pos), column.get().radius(),
                     column.get().height(), gameTime);
         }
+    }
+
+    /**
+     * Notes a lift prism as the renderer reads it: it blows this tick's line
+     * up the shaft above it, as tall as the shaft stands.
+     * lift-prism-levitates-the-block-above
+     *
+     * @param prism    the prism's block
+     * @param combo    the prism's combo, its ability's id
+     * @param level    the world the shaft stands in
+     * @param gameTime the game time
+     */
+    public static void seeLift(BlockPos prism, String combo, BlockGetter level, long gameTime) {
+        AbilitySyncHandler.ClientAbility ability = AbilitySyncHandler.findAbility(combo);
+        Optional<LiftStep> lift = ability == null ? Optional.empty() : liftOf(ability.behaviors());
+        if (lift.isEmpty() || !blowsNow(prism.immutable(), gameTime)) {
+            return;
+        }
+        int height = LiftStep.shaftHeightAbove(level, prism, lift.get().cap().evaluateInt(NONE));
+        Minecraft mc = Minecraft.getInstance();
+        if (height > 0 && mc.level != null) {
+            WindLines.CLIENT.rise(mc.level.getRandom(), Vec3.atBottomCenterOf(prism.above()), SHAFT_HALF_WIDTH,
+                    height, gameTime);
+        }
+    }
+
+    /**
+     * The lift step a combo's program runs.
+     *
+     * @param behaviors the combo's program
+     * @return the lift step, or empty for any other combo
+     */
+    static Optional<LiftStep> liftOf(List<Step> behaviors) {
+        return behaviors.stream().flatMap(UpdraftWind::withDescendants).filter(LiftStep.class::isInstance)
+                .map(LiftStep.class::cast).findFirst();
     }
 
     /**
