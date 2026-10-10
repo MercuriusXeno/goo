@@ -817,6 +817,33 @@ public final class GooRenderTypes {
     public static final RenderType BORE_VORTEX_TYPE = burnoutType(BORE_VORTEX);
 
     /**
+     * Tick's face overlay pipeline (decision tick-channel-marches-squares-on-the-face):
+     * one quad on the aimed face drawn through {@code goo_tick_face.vsh / .fsh},
+     * golden squares marching out from the face's middle at the tick rate.
+     */
+    public static final RenderPipeline TICK_FACE = burnoutPipeline("goo_tick_face", BlendFunction.TRANSLUCENT);
+
+    /** The tick face overlay render type. */
+    public static final RenderType TICK_FACE_TYPE = burnoutType(TICK_FACE);
+
+    /**
+     * Chronosphere's veil pipeline (decision chronosphere-hastes-players-slows-mobs):
+     * the sphere drawn through {@code goo_chronosphere.vsh / .fsh}, a glassy gold
+     * veil with a glowing rim, falling bands and clock-hour meridians.
+     */
+    public static final RenderPipeline CHRONOSPHERE = burnoutPipeline("goo_chronosphere", BlendFunction.TRANSLUCENT);
+
+    /** The chronosphere veil render type. */
+    public static final RenderType CHRONOSPHERE_TYPE = burnoutType(CHRONOSPHERE);
+
+    /** The chronosphere veil through blocks, for the held ghost while the drag sizes it. */
+    public static final RenderPipeline CHRONOSPHERE_THROUGH_BLOCKS = throughBlocksPipeline("goo_chronosphere",
+            BlendFunction.TRANSLUCENT);
+
+    /** The chronosphere veil's through-blocks render type. */
+    public static final RenderType CHRONOSPHERE_THROUGH_BLOCKS_TYPE = burnoutType(CHRONOSPHERE_THROUGH_BLOCKS);
+
+    /**
      * Ghost trail pipeline (decision ghost-trail-spans-the-blink): an entity's
      * body drawn again through {@code goo_ghost.vsh / .fsh} as a translucent
      * echo in the goo type's color, its skin read for the cutout and the
@@ -1042,13 +1069,7 @@ public final class GooRenderTypes {
         registerMobLayerPipelines(event);
         registerLeafPipelines(event);
         registerLinePipelines(event);
-        event.registerPipeline(NETHER_BLACKHOLE);
-        event.registerPipeline(NETHER_CORONA);
-        event.registerPipeline(NETHER_BLACKHOLE_HELD);
-        event.registerPipeline(NETHER_BLACKHOLE_THROUGH_BLOCKS);
-        event.registerPipeline(NETHER_CORONA_THROUGH_BLOCKS);
-        event.registerPipeline(NETHER_DISK);
-        event.registerPipeline(NETHER_CUBE_EDGE);
+        registerNetherPipelines(event);
         event.registerPipeline(VORONOI_FISSURE);
         event.registerPipeline(CRYSTAL_SHARD);
         event.registerPipeline(GOO_FLUID);
@@ -1057,9 +1078,28 @@ public final class GooRenderTypes {
         event.registerPipeline(BLOCK_MINGLE);
         event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(BORE_VORTEX);
+        event.registerPipeline(TICK_FACE);
+        event.registerPipeline(CHRONOSPHERE);
+        event.registerPipeline(CHRONOSPHERE_THROUGH_BLOCKS);
         GOO_RIPPLE_MASKS.forEach(event::registerPipeline);
         event.registerPipeline(GOO_RIPPLE_EDGE);
         event.registerPipeline(GOO_GHOST);
+    }
+
+    /**
+     * Registers the nether black hole's pipelines: its body, corona, disk and
+     * cube edges, and their held and through-blocks twins.
+     *
+     * @param event the event instance
+     */
+    private static void registerNetherPipelines(RegisterRenderPipelinesEvent event) {
+        event.registerPipeline(NETHER_BLACKHOLE);
+        event.registerPipeline(NETHER_CORONA);
+        event.registerPipeline(NETHER_BLACKHOLE_HELD);
+        event.registerPipeline(NETHER_BLACKHOLE_THROUGH_BLOCKS);
+        event.registerPipeline(NETHER_CORONA_THROUGH_BLOCKS);
+        event.registerPipeline(NETHER_DISK);
+        event.registerPipeline(NETHER_CUBE_EDGE);
     }
 
     /**

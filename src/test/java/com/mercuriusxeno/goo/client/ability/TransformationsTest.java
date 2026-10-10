@@ -134,9 +134,9 @@ class TransformationsTest {
             Transformations transformations = new Transformations();
             transformations.add(GooTypes.HEX, STRUCK, CLONE_AT, CLONE, START, TICKS);
 
-            assertEquals(0f, transformations.modelScaleOf(CLONE, START), EPSILON);
-            assertEquals(1f, transformations.modelScaleOf(CLONE + 1, START), EPSILON);
-            assertEquals(1f, transformations.modelScaleOf(CLONE, START + TICKS), EPSILON);
+            assertEquals(0f, transformations.modelScaleOf(CLONE, false, START), EPSILON);
+            assertEquals(1f, transformations.modelScaleOf(CLONE + 1, false, START), EPSILON);
+            assertEquals(1f, transformations.modelScaleOf(CLONE, false, START + TICKS), EPSILON);
         }
 
         // decision prism-blob-becomes-a-milky-quartz-crystal
@@ -150,7 +150,7 @@ class TransformationsTest {
             assertEquals(0.5f, transformations.modelScaleAt(prism, at(0.5f)), EPSILON);
             assertEquals(1f, transformations.modelScaleAt(prism.above(), START), EPSILON);
             assertEquals(1f, transformations.modelScaleAt(prism, START + TICKS), EPSILON);
-            assertEquals(1f, transformations.modelScaleOf(-1, START), EPSILON);
+            assertEquals(1f, transformations.modelScaleOf(-1, false, START), EPSILON);
         }
 
         @Test
@@ -178,6 +178,42 @@ class TransformationsTest {
             transformations.clear();
 
             assertTrue(transformations.live(START).isEmpty());
+        }
+    }
+
+    /** Rewind's shrinks ease a model between two sizes (decision rewind-shrinks-adult-to-baby-to-egg). */
+    @Nested
+    class Shrinks {
+
+        private static final float ADULT_OVER_BABY = 2f;
+
+        @Test
+        void aBabyShrinksFromTheAdultsSizeToItsOwn() {
+            Transformations transformations = new Transformations();
+            transformations.shrink(CLONE, ADULT_OVER_BABY, 1f, true, START, TICKS);
+
+            assertEquals(ADULT_OVER_BABY, transformations.modelScaleOf(CLONE, true, START), EPSILON);
+            assertEquals(1.5f, transformations.modelScaleOf(CLONE, true, at(0.5f)), EPSILON);
+            assertEquals(1f, transformations.modelScaleOf(CLONE, true, START + TICKS), EPSILON);
+        }
+
+        @Test
+        void aBabyShrinkHoldsOffUntilTheEntityReadsAsABaby() {
+            Transformations transformations = new Transformations();
+            transformations.shrink(CLONE, ADULT_OVER_BABY, 1f, true, START, TICKS);
+
+            assertEquals(1f, transformations.modelScaleOf(CLONE, false, START), EPSILON);
+        }
+
+        @Test
+        void aMobShrunkIntoItsEggStaysHiddenUntilItsRemovalArrives() {
+            Transformations transformations = new Transformations();
+            transformations.shrink(CLONE, 1f, 0f, false, START, TICKS);
+
+            assertEquals(0.5f, transformations.modelScaleOf(CLONE, false, at(0.5f)), EPSILON);
+            assertEquals(0f, transformations.modelScaleOf(CLONE, false,
+                    START + TICKS + Transformations.SHRINK_HOLD_TICKS - 1), EPSILON);
+            assertEquals(1f, transformations.modelScaleOf(CLONE + 1, false, at(0.5f)), EPSILON);
         }
     }
 

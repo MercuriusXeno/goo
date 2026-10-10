@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:rewind_baby_to_egg",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 160,
+  "setup_ticks": 0,
+  "required": true
+}

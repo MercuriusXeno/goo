@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.client.ability.LeechWisps;
 import com.mercuriusxeno.goo.client.ability.ReapSwells;
 import com.mercuriusxeno.goo.client.ability.Tomes;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
+import com.mercuriusxeno.goo.client.overlay.TickAim;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.AfterimagePayload;
 import com.mercuriusxeno.goo.network.AilmentPayload;
@@ -20,10 +21,12 @@ import com.mercuriusxeno.goo.network.KnownItemLearnedPayload;
 import com.mercuriusxeno.goo.network.KnownItemsSyncPayload;
 import com.mercuriusxeno.goo.network.LeechPayload;
 import com.mercuriusxeno.goo.network.MobHitPayload;
+import com.mercuriusxeno.goo.network.ModelShrinkPayload;
 import com.mercuriusxeno.goo.network.NovaRingPayload;
 import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
 import com.mercuriusxeno.goo.network.ReapSwellPayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
+import com.mercuriusxeno.goo.network.TickAimPayload;
 import com.mercuriusxeno.goo.network.TomePayload;
 import com.mercuriusxeno.goo.network.TransformationPayload;
 import com.mercuriusxeno.goo.network.TunerFeedbackPayload;
@@ -55,6 +58,17 @@ public final class GooClientNetworking {
         event.register(TunerFeedbackPayload.TYPE, TunerFeedbackHandler::handle);
         event.register(GooFlightPayload.TYPE, GooFlightHandler::handle);
         event.register(AbilitySyncPayload.TYPE, AbilitySyncHandler::handle);
+        event.register(KnownItemsSyncPayload.TYPE, KnownItemsHandler::handleSync);
+        event.register(KnownItemLearnedPayload.TYPE, KnownItemsHandler::handleLearned);
+        registerAbilityVisualHandlers(event);
+    }
+
+    /**
+     * Registers the handlers of the payloads that draw an ability's visuals.
+     *
+     * @param event the client payload handler registration event
+     */
+    private static void registerAbilityVisualHandlers(RegisterClientPayloadHandlersEvent event) {
         event.register(ChainBurnoutPayload.TYPE, ChainBurnoutHandler::handle);
         event.register(MobHitPayload.TYPE, MobHitHandler::handle);
         event.register(AilmentPayload.TYPE, AilmentHandler::handle);
@@ -65,12 +79,12 @@ public final class GooClientNetworking {
         event.register(BlockExposurePayload.TYPE, BlockTransformHandler::handleExposure);
         event.register(AfterimagePayload.TYPE, AfterimageHandler::handle);
         event.register(TransformationPayload.TYPE, TransformationHandler::handle);
+        event.register(ModelShrinkPayload.TYPE, TransformationHandler::handleShrink);
         event.register(GhostTrailPayload.TYPE, GhostTrailHandler::handle);
-        event.register(KnownItemsSyncPayload.TYPE, KnownItemsHandler::handleSync);
-        event.register(KnownItemLearnedPayload.TYPE, KnownItemsHandler::handleLearned);
         event.register(StreamHealedPayload.TYPE, VitalityVisual::handleHealed);
         event.register(DripHealedPayload.TYPE, VitalityVisual::handleDripHealed);
         event.register(BlockAfterimagePayload.TYPE, AfterimageHandler::handleBlock);
         event.register(ReapSwellPayload.TYPE, ReapSwells::handle);
+        event.register(TickAimPayload.TYPE, TickAim::handle);
     }
 }

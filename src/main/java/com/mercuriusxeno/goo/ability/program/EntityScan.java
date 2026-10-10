@@ -15,6 +15,7 @@ import net.minecraft.world.entity.monster.Zoglin;
 import net.minecraft.world.entity.monster.piglin.Piglin;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
@@ -190,6 +191,7 @@ public final class EntityScan {
         table.put(EntityFilter.HAS_BABY_FORM, (entity, self) -> hasBabyForm(entity));
         table.put(EntityFilter.NOT_BABY,
                 (entity, self) -> !(entity instanceof LivingEntity living && living.isBaby()));
+        table.put(EntityFilter.HAS_SPAWN_EGG, (entity, self) -> SpawnEggItem.byId(entity.getType()).isPresent());
         table.put(EntityFilter.VULNERABLE,
                 (entity, self) -> entity instanceof LivingEntity living && living.invulnerableTime == 0);
     }
@@ -219,7 +221,7 @@ public final class EntityScan {
      * @param entity the candidate
      * @return true when the entity has a baby form
      */
-    private static boolean hasBabyForm(Entity entity) {
+    static boolean hasBabyForm(Entity entity) {
         if (entity instanceof AgeableMob) {
             return !isAnyOf(entity, AGEABLE_WITHOUT_BABY);
         }

@@ -29,6 +29,11 @@ public class PrismRenderState extends BlockEntityRenderState {
     /** The id of the ability whose program is the prism's combo, empty for a plain prism. */
     public String combo = "";
 
+    /** The charge a timekeeper prism's bank holds, zero for a prism that banks nothing. */
+    public long bankTotal;
+
+    /** True while Tick spends the bank, its charge falling within the last moments. */
+    public boolean bankSpending;
     /** The game time with the partial tick, which a combo's animation reads. */
     public float gameTime;
 
