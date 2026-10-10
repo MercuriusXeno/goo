@@ -52,6 +52,7 @@ public final class HeldDomeRenderer {
 
     /** The ghost each goo type holds; a type with none draws no dome. */
     private static final Map<ResourceKey<GooTypeDefinition>, HeldGhostVisual> GHOSTS = Map.of(
+            GooTypes.AEON, AeonHeldGhost.INSTANCE,
             GooTypes.CRYSTAL, CrystalExplosionVisual.INSTANCE,
             GooTypes.LEAF, LeafHeldGhost.INSTANCE,
             GooTypes.FROST, FrostExplosionVisual.INSTANCE,
@@ -154,9 +155,8 @@ public final class HeldDomeRenderer {
 
     /**
      * Draws a sized ability's ghost at the epicenter its press pinned, at the
-     * radius its drag sets, its rings pulsing in from three times that radius,
-     * the reach a black hole pulls from
-     * (decision black-hole-leaves-a-compression-sphere).
+     * radius its drag sets, as the type's ghost sizes it
+     * (decisions black-hole-leaves-a-compression-sphere, chronosphere-hastes-players-slows-mobs).
      *
      * @param poseStack  the pose stack, camera relative
      * @param buffers    the buffer source
@@ -176,7 +176,7 @@ public final class HeldDomeRenderer {
         }
         DomeAnchor anchor = new DomeAnchor(Vec3.atLowerCornerOf(pin.getBlockPos().relative(pin.getDirection())),
                 pin.getLocation(), pin.getDirection());
-        draw(poseStack, buffers, camera, new GhostAt(visual, anchor, sizedGhost(radius)), ringRgb, nowSeconds);
+        draw(poseStack, buffers, camera, new GhostAt(visual, anchor, visual.sizedGhost(radius)), ringRgb, nowSeconds);
     }
 
     /**

@@ -43,6 +43,12 @@ public class PrismRenderState extends BlockEntityRenderState {
     /** The light the linked network's rails carry, 0 to 15. */
     public int linkLight;
 
+    /** The charge a timekeeper prism's bank holds, zero for a prism that banks nothing. */
+    public long bankTotal;
+
+    /** True while Tick spends the bank, its charge falling within the last moments. */
+    public boolean bankSpending;
+
     /** The game time with the partial tick, which a combo's animation reads. */
     public float gameTime;
 

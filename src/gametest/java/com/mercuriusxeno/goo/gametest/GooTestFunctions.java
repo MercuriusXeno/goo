@@ -36,7 +36,9 @@ import com.mercuriusxeno.goo.network.CrushMobTests;
 import com.mercuriusxeno.goo.network.FlattenChannelTests;
 import com.mercuriusxeno.goo.network.DecayStreamTests;
 import com.mercuriusxeno.goo.network.PetrifyStreamTests;
+import com.mercuriusxeno.goo.network.ChronosphereTests;
 import com.mercuriusxeno.goo.network.RadiantChannelTests;
+import com.mercuriusxeno.goo.network.RewindStreamTests;
 import com.mercuriusxeno.goo.network.ScryChannelTests;
 import com.mercuriusxeno.goo.network.UndeadTests;
 import com.mercuriusxeno.goo.network.StreamDeliveryTests;
@@ -555,12 +557,22 @@ public final class GooTestFunctions {
     private static final String BANISH_WARPS_THEN_EXILES = "banish_warps_then_exiles";
     private static final String BANISH_RESISTED_BY_HIGH_HEALTH = "banish_resisted_by_high_health";
     private static final String MOB_UNSTABLE = "mob_unstable_explode";
-    private static final String MOB_AEON = "mob_aeon_time_stop";
-    private static final String MOB_AEON_RITUAL_COUNTS = "mob_aeon_ritual_counts";
-    private static final String MOB_AEON_RITUAL_EGG = "mob_aeon_ritual_egg";
-    private static final String MOB_AEON_RITUAL_BABY = "mob_aeon_ritual_baby";
-    private static final String MOB_AEON_RITUAL_BABY_EGG = "mob_aeon_ritual_baby_egg";
-    private static final String MOB_AEON_RITUAL_NO_BABY_FORM = "mob_aeon_ritual_no_baby_form";
+    private static final String STASIS_HOLDS_UNTIL_STRUCK = "stasis_holds_until_struck";
+    private static final String REWIND_ADULT_TO_BABY = "rewind_adult_to_baby";
+    private static final String REWIND_BABY_TO_EGG = "rewind_baby_to_egg";
+    private static final String REWIND_LEAVES_BLOCKS = "rewind_leaves_blocks";
+    private static final String TICK_HASTENS_THE_CRUCIBLE = "tick_hastens_the_crucible";
+    private static final String TICK_NAMES_ONLY_A_BLOCK_IT_HASTENS = "tick_names_only_a_block_it_hastens";
+    private static final String TICK_TAP_TICKS_EVERY_DRIP = "tick_tap_ticks_every_drip";
+    private static final String TIMEKEEPER_TICK_MOVES_DAY_FORWARD = "timekeeper_tick_moves_day_forward";
+    private static final String TIMEKEEPER_OFFSETS_REST_STAT = "timekeeper_offsets_rest_stat";
+    private static final String TIMEKEEPER_REWIND_WITHDRAWS = "timekeeper_rewind_withdraws";
+    private static final String CHRONOSPHERE_SLOWS = "chronosphere_slows_mobs_and_projectiles";
+    private static final String CHRONOSPHERE_SPARES_PLAYERS = "chronosphere_spares_players";
+    private static final String CHRONOSPHERE_DRAGGED_RADIUS = "chronosphere_opens_at_the_dragged_radius";
+    private static final String VEILED_MOB_RELOADS_WITH_ITS_AI = "veiled_mob_reloads_with_its_ai";
+    private static final String HASTE_HOLDS_WITHOUT_PARTICLES = "haste_holds_without_particles";
+    private static final String AEON_BREW_HASTES = "aeon_brew_hastes_for_an_hour";
     private static final String MOB_AEON_BABY_FORM_FILTER = "mob_aeon_baby_form_filter";
 
     // --- Lighting ---
@@ -1111,12 +1123,22 @@ public final class GooTestFunctions {
         reg(r, BANISH_WARPS_THEN_EXILES, MobEffectTests::banishWarpsThenExiles);
         reg(r, BANISH_RESISTED_BY_HIGH_HEALTH, MobEffectTests::banishResistedByHighHealth);
         reg(r, MOB_UNSTABLE, MobEffectTests::unstableExplode);
-        reg(r, MOB_AEON, MobEffectTests::aeonTimeStop);
-        reg(r, MOB_AEON_RITUAL_COUNTS, MobEffectTests::aeonRitualCounts);
-        reg(r, MOB_AEON_RITUAL_EGG, MobEffectTests::aeonRitualEgg);
-        reg(r, MOB_AEON_RITUAL_BABY, MobEffectTests::aeonRitualBaby);
-        reg(r, MOB_AEON_RITUAL_BABY_EGG, MobEffectTests::aeonRitualBabyEgg);
-        reg(r, MOB_AEON_RITUAL_NO_BABY_FORM, MobEffectTests::aeonRitualNoBabyForm);
+        reg(r, STASIS_HOLDS_UNTIL_STRUCK, MobEffectTests::stasisHoldsUntilStruck);
+        reg(r, REWIND_ADULT_TO_BABY, RewindStreamTests::rewindAdultToBaby);
+        reg(r, REWIND_BABY_TO_EGG, RewindStreamTests::rewindBabyToEgg);
+        reg(r, REWIND_LEAVES_BLOCKS, RewindStreamTests::rewindLeavesBlocks);
+        reg(r, TICK_HASTENS_THE_CRUCIBLE, TickStreamTests::tickHastensTheCrucible);
+        reg(r, TICK_NAMES_ONLY_A_BLOCK_IT_HASTENS, TickStreamTests::tickNamesOnlyABlockItHastens);
+        reg(r, TICK_TAP_TICKS_EVERY_DRIP, TickTapTests::tickTapTicksEveryDrip);
+        reg(r, TIMEKEEPER_TICK_MOVES_DAY_FORWARD, TimekeeperTests::timekeeperTickMovesDayForward);
+        reg(r, TIMEKEEPER_OFFSETS_REST_STAT, TimekeeperTests::timekeeperOffsetsRestStat);
+        reg(r, TIMEKEEPER_REWIND_WITHDRAWS, TimekeeperTests::timekeeperRewindWithdraws);
+        reg(r, CHRONOSPHERE_SLOWS, ChronosphereTests::chronosphereSlowsMobsAndProjectiles);
+        reg(r, CHRONOSPHERE_SPARES_PLAYERS, ChronosphereTests::chronosphereSparesPlayers);
+        reg(r, CHRONOSPHERE_DRAGGED_RADIUS, ChronosphereTests::chronosphereOpensAtTheDraggedRadius);
+        reg(r, VEILED_MOB_RELOADS_WITH_ITS_AI, ChronosphereTests::veiledMobReloadsWithItsAi);
+        reg(r, HASTE_HOLDS_WITHOUT_PARTICLES, SelfDeliveryTests::hasteHoldsWithoutParticles);
+        reg(r, AEON_BREW_HASTES, BrewEffectTests::aeonBrewHastesForAnHour);
         reg(r, MOB_AEON_BABY_FORM_FILTER, MobEffectTests::aeonBabyFormFilter);
     }
 

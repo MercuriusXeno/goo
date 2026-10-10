@@ -42,17 +42,27 @@ public final class GooNetworking {
         r.playToClient(TunerFeedbackPayload.TYPE, TunerFeedbackPayload.STREAM_CODEC);
         r.playToClient(GooFlightPayload.TYPE, GooFlightPayload.STREAM_CODEC);
         r.playToClient(AbilitySyncPayload.TYPE, AbilitySyncPayload.STREAM_CODEC);
+        r.playToClient(KnownItemsSyncPayload.TYPE, KnownItemsSyncPayload.STREAM_CODEC);
+        r.playToClient(KnownItemLearnedPayload.TYPE, KnownItemLearnedPayload.STREAM_CODEC);
+        registerAbilityVisualPayloads(r);
+    }
+
+    /**
+     * Registers the client-bound payloads that draw an ability's visuals.
+     *
+     * @param r the payload registrar
+     */
+    private static void registerAbilityVisualPayloads(PayloadRegistrar r) {
         r.playToClient(ChainBurnoutPayload.TYPE, ChainBurnoutPayload.STREAM_CODEC);
         r.playToClient(MobHitPayload.TYPE, MobHitPayload.STREAM_CODEC);
         r.playToClient(AilmentPayload.TYPE, AilmentPayload.STREAM_CODEC);
-        registerAbilityVisualPayloads(r);
+        registerAbilityOwnVisualPayloads(r);
         r.playToClient(BlockTransformPayload.TYPE, BlockTransformPayload.STREAM_CODEC);
         r.playToClient(BlockExposurePayload.TYPE, BlockExposurePayload.STREAM_CODEC);
         r.playToClient(AfterimagePayload.TYPE, AfterimagePayload.STREAM_CODEC);
         r.playToClient(TransformationPayload.TYPE, TransformationPayload.STREAM_CODEC);
+        r.playToClient(ModelShrinkPayload.TYPE, ModelShrinkPayload.STREAM_CODEC);
         r.playToClient(GhostTrailPayload.TYPE, GhostTrailPayload.STREAM_CODEC);
-        r.playToClient(KnownItemsSyncPayload.TYPE, KnownItemsSyncPayload.STREAM_CODEC);
-        r.playToClient(KnownItemLearnedPayload.TYPE, KnownItemLearnedPayload.STREAM_CODEC);
         r.playToClient(StreamHealedPayload.TYPE, StreamHealedPayload.STREAM_CODEC);
         r.playToClient(DripHealedPayload.TYPE, DripHealedPayload.STREAM_CODEC);
         r.playToClient(BlockAfterimagePayload.TYPE, BlockAfterimagePayload.STREAM_CODEC);
@@ -65,13 +75,14 @@ public final class GooNetworking {
      *
      * @param r the payload registrar
      */
-    private static void registerAbilityVisualPayloads(PayloadRegistrar r) {
+    private static void registerAbilityOwnVisualPayloads(PayloadRegistrar r) {
         r.playToClient(ScryPayload.TYPE, ScryPayload.STREAM_CODEC);
         r.playToClient(SunbeamPayload.TYPE, SunbeamPayload.STREAM_CODEC);
         r.playToClient(LeechPayload.TYPE, LeechPayload.STREAM_CODEC);
         r.playToClient(TomePayload.TYPE, TomePayload.STREAM_CODEC);
         r.playToClient(NovaRingPayload.TYPE, NovaRingPayload.STREAM_CODEC);
         r.playToClient(ReapSwellPayload.TYPE, ReapSwellPayload.STREAM_CODEC);
+        r.playToClient(TickAimPayload.TYPE, TickAimPayload.STREAM_CODEC);
     }
 
     /** Registers server-bound payloads.

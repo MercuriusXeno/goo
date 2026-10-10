@@ -11,6 +11,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.PointedDripstoneBlock;
 import net.minecraft.world.phys.Vec3;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -31,7 +32,7 @@ import java.util.function.Consumer;
  */
 public record TapHost(ServerLevel level, BlockPos landing, Direction face)
         implements ExplodeHost, AnchoredWorldHost, PlaceBlockHost, EntityScanHost, DripHost, ConvokeHost,
-        DeviceToggleHost, MobSpawnHost, FrostHost {
+        DeviceToggleHost, MobSpawnHost, FrostHost, TickBlockHost {
 
     private static final double HALF = 0.5;
 
@@ -117,6 +118,20 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
             level.setBlock(below, Blocks.POINTED_DRIPSTONE.defaultBlockState()
                     .setValue(PointedDripstoneBlock.TIP_DIRECTION, Direction.DOWN), Block.UPDATE_ALL);
         }
+    }
+
+    /**
+     * The block the drip landed on, which Tick's tap ticks faster.
+     * tick-drip-splashes-a-small-tick-effect
+     */
+    @Override
+    public Optional<BlockPos> tickedBlock() {
+        return Optional.of(landing);
+    }
+
+    @Override
+    public void tickBlock(BlockPos pos, int times) {
+        BlockTicking.tickBlockEntity(level, pos, times);
     }
 
     /**
