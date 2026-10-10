@@ -16,33 +16,36 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 /**
- * Glow's Radiant: tries a number of air cells within a zone around the host
- * and leaves a wisp of light in each whose light level is under the
- * configured threshold, the wisp fading out after its life. The channel's
- * zone centers on the player's eyes and grows outward each tick it is held,
- * half its tries landing near the zone's growing edge, and takes only cells
- * the player's eyes see, so holding it sweeps light out through a cave; the
- * drip tries the one cell above the block below the tap.
+ * Glow's Radiant: leaves wisps of light in dark air, each fading out after
+ * its life. The channel floods ({@link WispFlood}): from the holder's eyes
+ * out through the connected air they see, nearest first, a budget of cells
+ * a tick, a wisp in each dark cell no wisp already lights, the flood
+ * starting over when the hold starts or the holder moves on. The drip
+ * tries the one cell above the block below the tap, a wisp there when it
+ * is dark air.
  * decisions radiant-wisps-where-light-is-low, radiant-drip-places-a-wisp
- * operator ruling 2026-10-09: the zone expands while channeled and fills only air in sight
+ * operator ruling 2026-10-10: wisps flood out from the eyes very fast, nearest first, to 64 blocks
  *
  * @param radius how far from the host a cell may be, in blocks; zero for the host's own cell
- * @param count  how many cells to try each run
+ * @param count  how many cells to walk each run
  * @param life   how many ticks a wisp lasts
- * @param above  how many blocks above the host the cells are centered, when the zone is not on the eyes
+ * @param above  how many blocks above the host the drip's cell sits
  * @param aura   whether a player holding the channel shows the held aura to the clients tracking them
- * @param growth how many blocks the zone grows each held tick, up to the radius; zero holds it at the radius
- * @param sight  whether the zone centers on the holder's eyes and takes only the cells they see
+ * @param flood  whether the step floods out from the holder's eyes; otherwise it tries the host's own cell
  */
-public record WispsStep(double radius, int count, int life, int above, boolean aura, double growth,
-                        boolean sight) implements Step {
+public record WispsStep(double radius, int count, int life, int above, boolean aura, boolean flood)
+        implements Step {
 
     private static final String NAME = "wisps";
     private static final String FIELD_RADIUS = "radius";
@@ -50,19 +53,18 @@ public record WispsStep(double radius, int count, int life, int above, boolean a
     private static final String FIELD_LIFE = "life";
     private static final String FIELD_ABOVE = "above";
     private static final String FIELD_AURA = "aura";
-    private static final String FIELD_GROWTH = "growth";
-    private static final String FIELD_SIGHT = "sight";
+    private static final String FIELD_FLOOD = "flood";
     private static final float CHIME_VOLUME = 0.4f;
     private static final float CHIME_PITCH = 1.6f;
     private static final float CHIME_PITCH_SPREAD = 0.4f;
-    private static final double DIAMETER_PER_RADIUS = 2;
-    private static final double HALF = 0.5;
-    /** The zone's radius on the hold's first tick, before it grows. */
-    static final double ZONE_START = 1;
-    /** How deep the band at the zone's edge is, where half the tries land. */
-    static final double EDGE_BAND = 3;
-    /** Tries alternate between the whole zone and its edge. */
-    private static final int TRIES_PER_ALTERNATION = 2;
+    /** The most wisps that chime in one tick, so a flood placing many rings a few. */
+    private static final int CHIMES_PER_TICK = 3;
+    /** How far the holder's eyes may move from a flood's origin, in blocks, before it starts over. */
+    static final int RESTART_STEPS = 2;
+    /** Ticks a flood stays remembered after it last walked, before a later flood drops it. */
+    static final int FORGET_AFTER_TICKS = 20;
+    /** Each holder's flood under way. */
+    private static final Map<UUID, WispFlood> FLOODS = new ConcurrentHashMap<>();
 
     /**
      * Codec for the step's params.
@@ -73,8 +75,7 @@ public record WispsStep(double radius, int count, int life, int above, boolean a
             Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_LIFE).forGetter(WispsStep::life),
             Codec.INT.optionalFieldOf(FIELD_ABOVE, 0).forGetter(WispsStep::above),
             Codec.BOOL.optionalFieldOf(FIELD_AURA, false).forGetter(WispsStep::aura),
-            Codec.DOUBLE.optionalFieldOf(FIELD_GROWTH, 0.0).forGetter(WispsStep::growth),
-            Codec.BOOL.optionalFieldOf(FIELD_SIGHT, false).forGetter(WispsStep::sight)
+            Codec.BOOL.optionalFieldOf(FIELD_FLOOD, false).forGetter(WispsStep::flood)
     ).apply(inst, WispsStep::new));
 
     /**
@@ -91,38 +92,43 @@ public record WispsStep(double radius, int count, int life, int above, boolean a
     public boolean tick(StepContext context) {
         BlockBreakHost host = context.hostAs(BlockBreakHost.class);
         ServerLevel level = host.level();
-        LivingEntity viewer = viewerOf(context);
-        BlockPos center = viewer == null ? host.position().above(above) : BlockPos.containing(viewer.getEyePosition());
-        double reach = zoneRadius(heldTicks(context));
-        int threshold = GooConfig.radiantLightThreshold();
-        for (int tried = 0; tried < count; tried++) {
-            BlockPos cell = pickForTry(tried, center, reach, level.getRandom());
-            if (takesAWisp(level, cell, threshold) && seenBy(level, viewer, cell)) {
-                placeWisp(level, cell);
+        if (flood && context.host() instanceof TargetHost holder) {
+            floodFrom(level, holder.target(), heldTicks(context));
+        } else {
+            BlockPos cell = host.position().above(above);
+            if (takesAWisp(level, cell)) {
+                placeWisp(level, cell, true);
             }
         }
         showAura(context);
         return true;
     }
 
-    private void showAura(StepContext context) {
-        if (aura && context.host() instanceof TargetHost holder) {
-            EntityVisuals.sendToWatchers(holder.target(), new RadiantAuraPayload(holder.target().getId()));
+    private void floodFrom(ServerLevel level, LivingEntity holder, int heldTicks) {
+        BlockPos eyes = BlockPos.containing(holder.getEyePosition());
+        WispFlood under = FLOODS.get(holder.getUUID());
+        if (startsOver(under, eyes, heldTicks)) {
+            long now = level.getGameTime();
+            FLOODS.values().removeIf(stale -> now - stale.lastWalked() > FORGET_AFTER_TICKS);
+            under = new WispFlood(eyes, radius);
+            FLOODS.put(holder.getUUID(), under);
         }
+        under.walkedAt(level.getGameTime());
+        under.walk(count, new LevelCells(level, holder));
     }
 
-    private @Nullable LivingEntity viewerOf(StepContext context) {
-        return sight && context.host() instanceof TargetHost holder ? holder.target() : null;
-    }
-
-    /** Even tries pick anywhere in the zone, odd tries near its growing edge. */
-    private static BlockPos pickForTry(int tried, BlockPos center, double reach, RandomSource random) {
-        return tried % TRIES_PER_ALTERNATION == 0 ? pick(center, reach, random)
-                : pickNearTheEdge(center, reach, random);
-    }
-
-    private static boolean seenBy(ServerLevel level, @Nullable LivingEntity viewer, BlockPos cell) {
-        return viewer == null || inSight(level, viewer, cell);
+    /**
+     * Whether a holder's flood starts over: none under way, the hold just
+     * begun, or the eyes moved on from where it started.
+     *
+     * @param under     the flood under way, or null
+     * @param eyes      the holder's eye cell
+     * @param heldTicks the hold's age, 1 on its first tick
+     * @return true to start a new flood
+     */
+    static boolean startsOver(@Nullable WispFlood under, BlockPos eyes, int heldTicks) {
+        return under == null || heldTicks == ChannelAim.FIRST_TICK
+                || under.origin().distManhattan(eyes) > RESTART_STEPS;
     }
 
     private static int heldTicks(StepContext context) {
@@ -131,16 +137,26 @@ public record WispsStep(double radius, int count, int life, int above, boolean a
                 : ChannelAim.FIRST_TICK;
     }
 
-    private static boolean takesAWisp(ServerLevel level, BlockPos cell, int threshold) {
-        return level.getBlockState(cell).isAir() && isDark(level.getMaxLocalRawBrightness(cell), threshold);
+    private void showAura(StepContext context) {
+        if (aura && context.host() instanceof TargetHost holder) {
+            EntityVisuals.sendToWatchers(holder.target(), new RadiantAuraPayload(holder.target().getId()));
+        }
     }
 
-    private void placeWisp(ServerLevel level, BlockPos cell) {
+    private static boolean takesAWisp(ServerLevel level, BlockPos cell) {
+        return level.getBlockState(cell).isAir()
+                && isDark(level.getMaxLocalRawBrightness(cell), GooConfig.radiantLightThreshold());
+    }
+
+    private void placeWisp(ServerLevel level, BlockPos cell, boolean chimes) {
         level.setBlock(cell, GooBlocks.WISP.get().defaultBlockState(), Block.UPDATE_ALL);
         level.scheduleTick(cell, GooBlocks.WISP.get(), WispBlock.ticksBeforeFading(life));
-        // operator ruling 2026-10-09: each wisp chimes as it appears
-        level.playSound(null, cell, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, CHIME_VOLUME,
-                CHIME_PITCH + level.getRandom().nextFloat() * CHIME_PITCH_SPREAD);
+        if (chimes) {
+            // operator ruling 2026-10-09: each wisp chimes as it appears
+            RandomSource random = level.getRandom();
+            level.playSound(null, cell, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, CHIME_VOLUME,
+                    CHIME_PITCH + random.nextFloat() * CHIME_PITCH_SPREAD);
+        }
     }
 
     /**
@@ -154,61 +170,6 @@ public record WispsStep(double radius, int count, int life, int above, boolean a
     static boolean inSight(ServerLevel level, LivingEntity viewer, BlockPos cell) {
         return level.clip(new ClipContext(viewer.getEyePosition(), Vec3.atCenterOf(cell), ClipContext.Block.COLLIDER,
                 ClipContext.Fluid.NONE, viewer)).getType() == HitResult.Type.MISS;
-    }
-
-    /**
-     * The zone's radius on a tick of the hold: from its start, grown each
-     * held tick, never past the radius; with no growth, the radius.
-     *
-     * @param heldTicks the hold's age, 1 on its first tick
-     * @return the zone's radius in blocks
-     */
-    double zoneRadius(int heldTicks) {
-        if (growth <= 0) {
-            return radius;
-        }
-        return Math.min(radius, ZONE_START + growth * (heldTicks - 1));
-    }
-
-    /**
-     * Picks a cell within a reach of a center, uniformly within the ball.
-     *
-     * @param center the center cell
-     * @param reach  the ball's radius
-     * @param random the random source
-     * @return the cell
-     */
-    static BlockPos pick(BlockPos center, double reach, RandomSource random) {
-        if (reach <= 0) {
-            return center;
-        }
-        while (true) {
-            double x = (random.nextDouble() - HALF) * reach * DIAMETER_PER_RADIUS;
-            double y = (random.nextDouble() - HALF) * reach * DIAMETER_PER_RADIUS;
-            double z = (random.nextDouble() - HALF) * reach * DIAMETER_PER_RADIUS;
-            if (x * x + y * y + z * z <= reach * reach) {
-                return center.offset((int) Math.round(x), (int) Math.round(y), (int) Math.round(z));
-            }
-        }
-    }
-
-    /**
-     * Picks a cell in the band at a ball's edge: any direction, at a distance
-     * within the edge band inside the reach.
-     *
-     * @param center the center cell
-     * @param reach  the ball's radius
-     * @param random the random source
-     * @return the cell
-     */
-    static BlockPos pickNearTheEdge(BlockPos center, double reach, RandomSource random) {
-        if (reach <= 0) {
-            return center;
-        }
-        Vec3 direction = new Vec3(random.nextGaussian(), random.nextGaussian(), random.nextGaussian()).normalize();
-        double distance = reach - random.nextDouble() * Math.min(reach, EDGE_BAND);
-        Vec3 offset = direction.scale(distance);
-        return center.offset((int) Math.round(offset.x), (int) Math.round(offset.y), (int) Math.round(offset.z));
     }
 
     /**
@@ -230,5 +191,42 @@ public record WispsStep(double radius, int count, int life, int above, boolean a
     @Override
     public Set<HostCapability> requires() {
         return Set.of(HostCapability.BREAK_BLOCKS);
+    }
+
+    /** The level's cells as a flood asks them, from one holder's eyes. */
+    private final class LevelCells implements WispFlood.Cells {
+
+        private final ServerLevel level;
+        private final LivingEntity holder;
+        private int chimed;
+
+        LevelCells(ServerLevel level, LivingEntity holder) {
+            this.level = level;
+            this.holder = holder;
+        }
+
+        @Override
+        public boolean open(BlockPos cell) {
+            if (!level.isLoaded(cell)) {
+                return false;
+            }
+            BlockState state = level.getBlockState(cell);
+            return state.isAir() || state.is(GooBlocks.WISP.get());
+        }
+
+        @Override
+        public boolean dark(BlockPos cell) {
+            return takesAWisp(level, cell);
+        }
+
+        @Override
+        public boolean seen(BlockPos cell) {
+            return inSight(level, holder, cell);
+        }
+
+        @Override
+        public void place(BlockPos cell) {
+            placeWisp(level, cell, chimed++ < CHIMES_PER_TICK);
+        }
     }
 }
