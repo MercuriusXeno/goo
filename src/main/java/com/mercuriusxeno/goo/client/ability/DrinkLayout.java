@@ -18,8 +18,9 @@ import java.util.Map;
  * glove when none does; a stream whose trunk runs dry at its join re-roots the
  * same way, its block end anchored and its hand end gliding onto the new
  * course rather than snapping, so the tree thins toward the hand as blocks
- * finish instead of channelling through what has gone. The trunk's arrival
- * follows the look with a lag, so the hand pulls the stream.
+ * finish instead of channelling through what has gone. The trunk arrives down
+ * a line lifted over the look, in over the fingertips into the palm, and the
+ * line follows the look with a lag, so the hand pulls the stream.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 public final class DrinkLayout {
@@ -28,6 +29,8 @@ public final class DrinkLayout {
     static final double LEAD = 1.2;
     /** Ticks the pull takes to close most of the way to a new look, so the stream sways rather than snaps. */
     static final double PULL_LAG = 6;
+    /** The rise over the look the trunk arrives down, as a slope: about thirty degrees, over the fingertips into the palm. */
+    static final double DESCENT = 0.6;
     /** Ticks a re-rooted stream's hand end takes to glide most of the way onto its new course. */
     static final double GLIDE = 6;
     /** The share of a glide past which the end is on its course and the glide is over. */
@@ -203,16 +206,28 @@ public final class DrinkLayout {
     }
 
     /**
-     * The direction the drink's trunk arrives into the hand along: against
-     * the look, followed with a short lag so a swing of the look drags the
-     * stream round rather than snapping it.
+     * The line the drink's trunk arrives down: the look lifted by
+     * {@link #DESCENT}, so the stream comes in from ahead and above, over the
+     * fingertips into the palm, rather than down the forearm's axis.
+     *
+     * @param look the drinker's unit look
+     * @return the unit direction from the hand toward where the trunk arrives from
+     */
+    public static Vec3 arrivalOf(Vec3 look) {
+        return look.add(0, DESCENT, 0).normalize();
+    }
+
+    /**
+     * The direction the drink's trunk arrives into the hand along: down the
+     * {@link #arrivalOf arrival line}, followed with a short lag so a swing
+     * of the look drags the stream round rather than snapping it.
      *
      * @param look the drinker's unit look this frame
      * @param now  the game time, with the partial tick
      * @return the unit direction the trunk flows as it enters the hand
      */
     public Vec3 pullToward(Vec3 look, double now) {
-        Vec3 target = look.reverse();
+        Vec3 target = arrivalOf(look).reverse();
         if (pull == null) {
             pull = target;
         } else {

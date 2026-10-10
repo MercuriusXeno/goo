@@ -31,6 +31,7 @@ class DrinkLayoutTest {
     private static final double NOW = 10;
     private static final double SETTLED = 1e-6;
     private static final double TWENTY = 20;
+    private static final double THIRTY_ONE_DEGREES = Math.toDegrees(Math.atan(0.6));
 
     /** Every stream flowing but the near block's, run dry along all of it. */
     private static final DrinkLayout.Flowing NEAR_DRY = (pos, distance) -> !pos.equals(NEAR);
@@ -149,19 +150,34 @@ class DrinkLayoutTest {
     }
 
     @Test
+    void theTrunkArrivesDownALineLiftedOverTheLookInOverTheFingertips() {
+        Vec3 east = new Vec3(1, 0, 0);
+
+        Vec3 arrival = DrinkLayout.arrivalOf(east);
+
+        assertEquals(1, arrival.length(), DELTA, "a unit direction");
+        assertTrue(arrival.y > 0, "lifted above the look");
+        assertEquals(THIRTY_ONE_DEGREES, Math.toDegrees(Math.atan2(arrival.y, arrival.x)), 0.1,
+                "about thirty degrees over the look, so it comes in from ahead and above");
+        assertEquals(0, arrival.z, DELTA, "and straight ahead otherwise");
+    }
+
+    @Test
     void thePullFollowsTheLookWithALagAndSettlesAgainstIt() {
         DrinkLayout layout = new DrinkLayout();
         Vec3 east = new Vec3(1, 0, 0);
         Vec3 north = new Vec3(0, 0, -1);
+        Vec3 fromEast = DrinkLayout.arrivalOf(east).reverse();
+        Vec3 fromNorth = DrinkLayout.arrivalOf(north).reverse();
 
         Vec3 first = layout.pullToward(east, 0);
         Vec3 soon = layout.pullToward(north, 1);
         Vec3 settled = layout.pullToward(north, 1 + TWENTY * DrinkLayout.PULL_LAG);
 
-        assertEquals(0, first.distanceTo(east.scale(-1)), DELTA);
-        assertTrue(soon.dot(east.scale(-1)) > 0.5, "a tick later the pull still mostly faces the old look");
-        assertTrue(soon.dot(north.scale(-1)) > 0, "and has begun to turn");
-        assertEquals(0, settled.distanceTo(north.scale(-1)), 1e-6);
+        assertEquals(0, first.distanceTo(fromEast), DELTA, "the pull flows back down the arrival line");
+        assertTrue(soon.dot(fromEast) > 0.5, "a tick later the pull still mostly faces the old look");
+        assertTrue(soon.distanceTo(fromNorth) < fromEast.distanceTo(fromNorth), "and has begun to turn");
+        assertEquals(0, settled.distanceTo(fromNorth), 1e-6);
         assertEquals(1, soon.length(), 1e-9);
     }
 }

@@ -18,8 +18,8 @@ import java.util.Map;
  * is there, as wide as one of them times the fourth root of how many, each
  * swelling in over a short length either side of its join, so the two meet
  * like metaballs touching and a trunk grows gently however many feed it,
- * and the trunk thins back to one stream's width over its last block into
- * the glove, so nothing by the eye is wider than one stream. The liquid's
+ * and the trunk thins to a thread over its last block into the glove, so it
+ * enters the palm no wider than a thread. The liquid's
  * pace is set by the goo massing where it flows: a lone block's stream runs
  * at the base pace and a trunk fed by many runs faster by the square root of
  * the goo through it, so a join pulls its tributaries' liquid on; a block's
@@ -37,8 +37,10 @@ public final class DrinkTree {
     static final double BASE_VOLUME = 1000;
     /** The root of the count of streams a trunk's width grows by: the fourth, so a trunk never fattens far. */
     static final double TRUNK_ROOT = 4;
-    /** Blocks before the glove over which the trunk's growth thins away, so it enters the hand one stream wide. */
+    /** Blocks before the glove over which the trunk thins from its full width to a thread, so it enters the palm as one. */
     static final double THIN_INTO_HAND = 1;
+    /** The radius of the thread the trunk is as it enters the palm, in blocks: the thinnest the skin reads round. */
+    static final double THREAD = DrinkStream.THINNEST;
     /** Ticks a block's goo takes to weigh wholly on the pace of the trunks it feeds, so the pace glides rather than jumps. */
     static final double MASS_RAMP = 10;
     /** Stations along one block of path the liquid's travel time is summed at. */
@@ -441,9 +443,9 @@ public final class DrinkTree {
      * is there, so a trunk grows gently with the streams it carries: nine
      * equal streams make about 1.7 times one, a stream swelling in counts in
      * proportion, and a trunk whose own liquid has passed is still as wide as
-     * what flows through it; the growth thins away over the trunk's last
-     * block into the glove, so it enters the hand one stream wide and never
-     * blocks the view there.
+     * what flows through it; over the trunk's last block into the glove the
+     * whole width thins to a {@link #THREAD}, so it enters the palm as a
+     * thread and never blocks the view there.
      *
      * @param stream the stream
      * @param share  the share of its path
@@ -457,19 +459,21 @@ public final class DrinkTree {
         double mean = sum.radius() / sum.presence();
         double taper = Math.pow(Math.min(1, sum.presence()), 1 / TRUNK_ROOT);
         double growth = Math.pow(Math.max(1, sum.presence()), 1 / TRUNK_ROOT);
-        return mean * taper * (1 + (growth - 1) * growthHeldAt(stream, share));
+        double full = mean * taper * growth;
+        return THREAD + (full - THREAD) * widthHeldAt(stream, share);
     }
 
     /**
-     * How much of its growth a trunk keeps at a share of its path: all of it
-     * along its length, thinning away over the last {@link #THIN_INTO_HAND}
-     * block into the glove; a tributary keeps all of it up to its join.
+     * How much of its full width a trunk keeps at a share of its path: all of
+     * it along its length, thinning to a thread over the last
+     * {@link #THIN_INTO_HAND} block into the glove; a tributary keeps all of
+     * it up to its join.
      *
      * @param stream the stream
      * @param share  the share of its path
-     * @return 1 for the whole growth, 0 for one stream's width
+     * @return 1 for the whole width, 0 for the thread
      */
-    static double growthHeldAt(Stream stream, double share) {
+    static double widthHeldAt(Stream stream, double share) {
         if (stream.trunk() != null) {
             return 1;
         }
