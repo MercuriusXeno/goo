@@ -23,6 +23,9 @@ public final class BlockTransforms {
     /** The client's transforms. */
     public static final BlockTransforms CLIENT = new BlockTransforms();
 
+    /** The tint of a state drawn in its own colors. */
+    static final int UNTINTED = -1;
+
     /** Game ticks an exposure stands with no update before it is dropped. */
     static final int EXPOSURE_STALE_TICKS = 40;
 
@@ -45,10 +48,22 @@ public final class BlockTransforms {
      * One block mingling from its old state into its new.
      *
      * @param pos   the block
-     * @param from  the state it was
+     * @param from  the state drawn over the new block as it dissolves
      * @param start the game tick the transform began
+     * @param tint  the RGB the drawn state is tinted by, negative for none
      */
-    public record Transform(BlockPos pos, BlockState from, long start) {
+    public record Transform(BlockPos pos, BlockState from, long start, int tint) {
+
+        /**
+         * An untinted transform from the state the block was.
+         *
+         * @param pos   the block
+         * @param from  the state it was
+         * @param start the game tick the transform began
+         */
+        public Transform(BlockPos pos, BlockState from, long start) {
+            this(pos, from, start, UNTINTED);
+        }
 
         /**
          * How far the transform has run.
@@ -62,16 +77,22 @@ public final class BlockTransforms {
     }
 
     /**
-     * Starts a block's transform, replacing any playing on it.
+     * Starts a block's transform, replacing any playing on it. A block whose
+     * exposure wore a tint dissolves from that tinted face into the new block,
+     * so the face it built up carries straight into the step; any other
+     * dissolves from the state it was.
      *
      * @param pos   the block
      * @param from  the state it was
      * @param start the game tick the transform began
      */
     public void start(BlockPos pos, BlockState from, long start) {
-        exposures.remove(pos);
+        Exposure built = exposures.remove(pos);
         playing.removeIf(transform -> transform.pos().equals(pos));
-        playing.add(new Transform(pos.immutable(), from, start));
+        // the operator's ruling on Decay: the maroon face transitions into the next block, never vanishing first
+        playing.add(built != null && built.tint() >= 0
+                ? new Transform(pos.immutable(), built.toward(), start, built.tint())
+                : new Transform(pos.immutable(), from, start));
     }
 
     /**

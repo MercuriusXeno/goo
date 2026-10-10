@@ -88,7 +88,8 @@ public final class BlockMingleRenderer {
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         for (BlockTransforms.Transform transform : live) {
             drawMingle(poseStack, consumer, camera,
-                    new Mingle(transform.pos(), transform.from(), transform.progress(gameTime), OPAQUE_WHITE));
+                    new Mingle(transform.pos(), transform.from(), transform.progress(gameTime),
+                            mingleColor(transform.tint())));
         }
         // petrify-stone-encasement-and-calcify-map: the next rung mingles in by the share built so far
         for (BlockTransforms.Exposure exposure : exposing) {
