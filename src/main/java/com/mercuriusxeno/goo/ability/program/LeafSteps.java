@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.hex.RandomEnchantment;
 import com.mercuriusxeno.goo.ability.pulse.StunEvents;
 import com.mojang.datafixers.util.Unit;
 import com.mojang.serialization.Codec;
@@ -168,6 +169,20 @@ public final class LeafSteps {
      */
     public static final LeafStepType<Expr> STUN = TargetEffectStep.of("stun", "ticks",
             (target, ticks, context) -> StunEvents.stun(target, ticks.evaluateInt(context)));
+
+    /**
+     * Gives the host's target, when a player, an enchanted book holding one
+     * random enchantment at level one; Enchant runs {@code enchant_book}
+     * on the invoking player once its book is consumed.
+     * enchant-book-with-a-purple-afterimage
+     */
+    public static final LeafStepType<Unit> ENCHANT_BOOK = StepType.of("enchant_book", NO_PARAMS, TARGET,
+            (none, context) -> {
+                if (context.hostAs(TargetHost.class).target() instanceof Player player) {
+                    RandomEnchantment.giveBook(player);
+                }
+                return true;
+            });
 
     private LeafSteps() {
     }
