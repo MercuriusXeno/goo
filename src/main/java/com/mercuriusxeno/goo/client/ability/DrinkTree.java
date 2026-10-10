@@ -17,14 +17,16 @@ import java.util.Map;
  * pull of the look. About a join the trunk carries every stream whose liquid
  * is there, as wide as one of them times the fourth root of how many, each
  * swelling in over a short length either side of its join, so the two meet
- * like metaballs touching and a trunk grows gently however many feed it. The liquid's
+ * like metaballs touching and a trunk grows gently however many feed it,
+ * and the trunk thins back to one stream's width over its last block into
+ * the glove, so nothing by the eye is wider than one stream. The liquid's
  * pace is set by the goo massing where it flows: a lone block's stream runs
  * at the base pace and a trunk fed by many runs faster by the square root of
  * the goo through it, so a join pulls its tributaries' liquid on; a block's
- * liquid runs its own path then each trunk's remainder, its goo mingling
- * over the whole of it. Before a block streams, its zoop of unstable goo
- * runs the same route backwards, a thin fast stream from the hand into the
- * block's near face, the block standing as itself until the zoop is in.
+ * liquid runs its own path then each trunk's remainder. Before a block
+ * streams, one square of unstable goo flies from the hand to its near face,
+ * the block standing as itself and nothing of its stream showing until the
+ * square lands.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 public final class DrinkTree {
@@ -35,6 +37,8 @@ public final class DrinkTree {
     static final double BASE_VOLUME = 1000;
     /** The root of the count of streams a trunk's width grows by: the fourth, so a trunk never fattens far. */
     static final double TRUNK_ROOT = 4;
+    /** Blocks before the glove over which the trunk's growth thins away, so it enters the hand one stream wide. */
+    static final double THIN_INTO_HAND = 1;
     /** Ticks a block's goo takes to weigh wholly on the pace of the trunks it feeds, so the pace glides rather than jumps. */
     static final double MASS_RAMP = 10;
     /** Stations along one block of path the liquid's travel time is summed at. */
@@ -52,25 +56,25 @@ public final class DrinkTree {
      * @param pos    the block
      * @param center its middle
      * @param scale  its stream's scale, the square root of its goo volume over {@link #BASE_VOLUME}
-     * @param picked the game time it was picked, the zoop leaving the hand for it
-     * @param start  the game time the zoop is in and it started streaming
+     * @param picked the game time it was picked, the square leaving the hand for it
+     * @param start  the game time the square lands and it started streaming
      * @param end    the game time it is drained
      */
     public record Block(BlockPos pos, Vec3 center, double scale, long picked, long start, long end) {
 
         /**
          * @param now the game time, with the partial tick
-         * @return whether the zoop is still on its way to the block, which stands as itself until it lands
+         * @return whether the square is still on its way to the block, which stands as itself until it lands
          */
-        public boolean zoopingAt(double now) {
+        public boolean awaitingAt(double now) {
             return now < start;
         }
 
         /**
          * @param now the game time, with the partial tick
-         * @return how far the zoop has flown, 0 leaving the hand to 1 wholly in the block
+         * @return how far the square has flown, 0 leaving the hand to 1 landing on the block's near face
          */
-        public double zoopShareAt(double now) {
+        public double flightShareAt(double now) {
             return Math.clamp((now - picked) / Math.max(1, start - picked), 0, 1);
         }
 
@@ -274,53 +278,30 @@ public final class DrinkTree {
         }
 
         /**
-         * @return whether the zoop is still on its way to the block
+         * @return whether the square is still on its way to the block, which stands as itself with no stream
          */
-        public boolean zooping() {
-            return block.zoopingAt(now);
+        public boolean awaiting() {
+            return block.awaitingAt(now);
         }
 
         /**
          * @param distance blocks along the stream's own path from its far side
-         * @return whether its liquid is still flowing there: its zoop on its way, or its tail not yet past
+         * @return whether its liquid is still flowing there: its square on its way, or its tail not yet past
          */
         public boolean flowingAt(double distance) {
-            return zooping() || tailAt() < distance;
+            return awaiting() || tailAt() < distance;
         }
 
         /**
          * @return whether nothing of the stream or of any stream feeding it is left to draw: the block drained,
-         *         every tail past the route's end and no zoop on its way
+         *         every tail past the route's end and no square on its way
          */
         public boolean spent() {
-            boolean own = !zooping() && block.progressAt(now) >= 1 && tailAt() >= routeLength() + DrinkStream.TIP;
+            boolean own = !awaiting() && block.progressAt(now) >= 1 && tailAt() >= routeLength() + DrinkStream.TIP;
             for (Stream tributary : tributaries) {
                 own &= tributary.spent();
             }
             return own;
-        }
-
-        /**
-         * Where the zoop's head stands along the route: at the hand as it
-         * leaves, a zoop's length inside the block's near face as the zoop is
-         * wholly in, flying toward the block.
-         *
-         * @return blocks along the route from the block's far side
-         */
-        public double zoopHeadAt() {
-            double route = routeLength();
-            return route - block.zoopShareAt(now) * (route - DrinkStream.BLOCK_SPAN + DrinkStream.ZOOP_LENGTH);
-        }
-
-        /**
-         * Where the zoop's tail stands along the route: {@link DrinkStream#ZOOP_LENGTH}
-         * behind its head toward the hand, never past the hand, so the zoop
-         * grows out of the hand and is at the block's near face as it is wholly in.
-         *
-         * @return blocks along the route from the block's far side
-         */
-        public double zoopTailAt() {
-            return Math.min(routeLength(), zoopHeadAt() + DrinkStream.ZOOP_LENGTH);
         }
 
         private double[] times() {
@@ -457,11 +438,12 @@ public final class DrinkTree {
      * The radius of a stream at a share of its path: every stream flowing
      * through there combined as the mean of them times the
      * {@link #TRUNK_ROOT}th root of how many, each counting by how much of it
-     * is there, so a trunk grows gently with the streams it carries and never
-     * fattens into something that blocks the view at the hand: nine equal
-     * streams make about 1.7 times one, a stream swelling in counts in
+     * is there, so a trunk grows gently with the streams it carries: nine
+     * equal streams make about 1.7 times one, a stream swelling in counts in
      * proportion, and a trunk whose own liquid has passed is still as wide as
-     * what flows through it.
+     * what flows through it; the growth thins away over the trunk's last
+     * block into the glove, so it enters the hand one stream wide and never
+     * blocks the view there.
      *
      * @param stream the stream
      * @param share  the share of its path
@@ -473,7 +455,25 @@ public final class DrinkTree {
             return 0;
         }
         double mean = sum.radius() / sum.presence();
-        return mean * Math.pow(sum.presence(), 1 / TRUNK_ROOT);
+        double taper = Math.pow(Math.min(1, sum.presence()), 1 / TRUNK_ROOT);
+        double growth = Math.pow(Math.max(1, sum.presence()), 1 / TRUNK_ROOT);
+        return mean * taper * (1 + (growth - 1) * growthHeldAt(stream, share));
+    }
+
+    /**
+     * How much of its growth a trunk keeps at a share of its path: all of it
+     * along its length, thinning away over the last {@link #THIN_INTO_HAND}
+     * block into the glove; a tributary keeps all of it up to its join.
+     *
+     * @param stream the stream
+     * @param share  the share of its path
+     * @return 1 for the whole growth, 0 for one stream's width
+     */
+    static double growthHeldAt(Stream stream, double share) {
+        if (stream.trunk() != null) {
+            return 1;
+        }
+        return DrinkStream.smoothRamp(0, THIN_INTO_HAND, (1 - share) * stream.path().length());
     }
 
     /**
@@ -498,7 +498,7 @@ public final class DrinkTree {
     public static DrinkField.Skeleton skeleton(Stream stream) {
         Block block = stream.block();
         double progress = block.progressAt(stream.now());
-        DrinkBody.Box box = progress < 1 && !stream.zooping() ? DrinkBody.boxAt(block.center(), progress) : null;
+        DrinkBody.Box box = progress < 1 && !stream.awaiting() ? DrinkBody.boxAt(block.center(), progress) : null;
         return new DrinkField.Skeleton(stream, rings(stream), box);
     }
 
@@ -570,7 +570,8 @@ public final class DrinkTree {
     /**
      * The liquid one stream alone gives a point of a path it flows through:
      * its width there times how much of it is there, the taper at its ends
-     * and, on a trunk it joins, the swell in about the join.
+     * and, on a trunk it joins, the swell in about the join; nothing at all
+     * while its square is still flying to the block.
      *
      * @param stream  the stream
      * @param through its own path or a trunk it flows through
@@ -579,14 +580,12 @@ public final class DrinkTree {
      */
     static Flow flowOf(Stream stream, Stream through, double share) {
         Entry entry = entryOf(stream, through, share);
-        if (entry == null) {
+        if (entry == null || stream.awaiting()) {
             return new Flow(0, 0);
         }
         double distance = entry.distance();
-        double width = stream.zooping() ? DrinkStream.ZOOP_RADIUS : liquidWidth(stream, distance);
-        double taper = stream.zooping()
-                ? DrinkStream.taperAt(distance, stream.zoopHeadAt(), stream.zoopTailAt())
-                : DrinkStream.taperAt(distance, stream.tailAt(), stream.headAt());
+        double width = liquidWidth(stream, distance);
+        double taper = DrinkStream.taperAt(distance, stream.tailAt(), stream.headAt());
         double presence = stream == through ? taper : taper * mergeRamp(entry.pastJoin());
         return new Flow(width * presence, presence);
     }
@@ -601,15 +600,6 @@ public final class DrinkTree {
         double now = stream.now();
         return DrinkBody.widthAt(distance, block.progressAt(now), block.scale()
                 * DrinkStream.widthAt(stream.materialAt(distance), block.seed()), block.seed(), now);
-    }
-
-    /**
-     * @param stream   a stream whose zoop is on its way
-     * @param distance blocks along its route
-     * @return the radius of the zoop there: thin, tapering at both ends, nothing outside its span
-     */
-    static double zoopRadius(Stream stream, double distance) {
-        return DrinkStream.ZOOP_RADIUS * DrinkStream.taperAt(distance, stream.zoopHeadAt(), stream.zoopTailAt());
     }
 
     /**

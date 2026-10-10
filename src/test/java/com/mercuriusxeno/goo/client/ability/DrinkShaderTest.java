@@ -50,7 +50,7 @@ class DrinkShaderTest {
         assertEquals(DrinkField.REACH, constant(fragment, "REACH"), DELTA);
         assertEquals(DrinkField.FULL_RADIUS, constant(fragment, "FULL_RADIUS"), DELTA);
         assertEquals(DrinkStream.THINNEST, constant(fragment, "THINNEST"), DELTA);
-        assertEquals(DrinkRenderer.GOO_REACH, (float) constant(fragment, "GOO_REACH"), (float) DELTA);
+        assertEquals(DrinkBody.CENTER + DrinkBody.FUNNEL, constant(fragment, "FUNNEL_END"), DELTA);
         assertEquals(DrinkUpload.RUN_START, constant(fragment, "RUN_START"), DELTA);
         assertEquals(DrinkUpload.BOX_BASE, constant(fragment, "BOX_BASE"), DELTA);
         assertEquals(DrinkUpload.REGION, constant(fragment, "REGION_SPAN"), DELTA);
@@ -63,6 +63,8 @@ class DrinkShaderTest {
         assertEquals(DrinkUpload.LAYER_TINT_SLOT, constant(fragment, "LAYER_TINT_SLOT"), DELTA);
         assertEquals(DrinkUpload.LAYER_SPRITE_SLOT, constant(fragment, "LAYER_SPRITE_SLOT"), DELTA);
         assertEquals(DrinkUpload.LAYER_SHARE_SLOT, constant(fragment, "LAYER_SHARE_SLOT"), DELTA);
+        assertEquals(DrinkUpload.RUN_LOW_SLOT, constant(fragment, "RUN_LOW_SLOT"), DELTA);
+        assertEquals(DrinkUpload.RUN_HIGH_SLOT, constant(fragment, "RUN_HIGH_SLOT"), DELTA);
         assertEquals(DrinkUpload.MOST_STREAMS * DrinkUpload.STREAM_VEC4S, arrayLength(fragment, "Streams"));
         assertEquals(DrinkUpload.MOST_ENTRIES / IVEC4, arrayLength(fragment, "Table"));
         assertEquals(2 * DrinkUpload.MOST_BOXES, arrayLength(fragment, "Boxes"));
@@ -79,6 +81,17 @@ class DrinkShaderTest {
         assertTrue(fragment.contains("if (f >= iso && tEnter <= 0.0) {"),
                 "only a camera inside the goo discards an entry inside the field");
         assertTrue(fragment.contains("bool hit = f >= iso;"), "an entry inside the field from another region is the hit");
+    }
+
+    @Test
+    void aStepReadsOnlyTheRunsWithinReachAndTheSkinTurnsToGooAtTheFunnelsEnd() throws IOException {
+        String fragment = source(FRAGMENT);
+
+        assertTrue(fragment.contains("gap = min(gap, outside);"),
+                "a run whose box the point is outside is skipped, its box the gap to jump");
+        assertTrue(fragment.contains("vec3 n = normalAt(p, stream);"), "the normal reads the hit's stream alone");
+        assertTrue(fragment.contains("if (!onBlock && along >= FUNNEL_END) {"),
+                "the goo texture begins at the funnel's end and the block's ends there, one boundary");
     }
 
     @Test

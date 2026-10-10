@@ -32,9 +32,9 @@ class DrinkUploadTest {
     private static final GooRenderUtil.UvRect SPRITE = new GooRenderUtil.UvRect(0.1f, 0.2f, 0.3f, 0.4f);
     private static final int BLOCK_LIGHT = 160;
     private static final int SKY_LIGHT = 240;
-    private static final DrinkUpload.Coat COAT = new DrinkUpload.Coat(0xFF8040C0, SPRITE, BLOCK_LIGHT, SKY_LIGHT, true,
+    private static final DrinkUpload.Coat COAT = new DrinkUpload.Coat(0xFF8040C0, SPRITE, BLOCK_LIGHT, SKY_LIGHT,
             List.of(new DrinkUpload.Layer(0xFFFFFFFF, SPRITE, 0f, 0.75f, 3)));
-    private static final DrinkUpload.Coat OTHER = new DrinkUpload.Coat(0xFF00FF00, SPRITE, 0, 0, false, List.of());
+    private static final DrinkUpload.Coat OTHER = new DrinkUpload.Coat(0xFF00FF00, SPRITE, 0, 0, List.of());
     private static final int PAIR = 2;
 
     private static List<DrinkTree.Stream> streams(int count) {
@@ -191,6 +191,29 @@ class DrinkUploadTest {
         }
 
         @Test
+        void eachRunCarriesTheBoxItsBodiesReachAndItsSpanOfTheTable() {
+            List<DrinkTree.Stream> streams = streams(2);
+            DrinkField.Skeleton mine = chain(streams.get(0), MIDDLE, 2, RADIUS);
+            DrinkField.Skeleton other = chain(streams.get(1), MIDDLE.add(UP.scale(0.3)), 2, RADIUS);
+            double reach = RADIUS + DrinkField.REACH;
+
+            ByteBuffer bytes = regionAt(DrinkUpload.of(List.of(mine, other), coats(2), CAMERA, true), 0, 0, 0).bytes();
+
+            int low = DrinkUpload.STREAMS_AT + DrinkUpload.RUN_LOW_SLOT * DrinkUpload.VEC4;
+            int high = DrinkUpload.STREAMS_AT + DrinkUpload.RUN_HIGH_SLOT * DrinkUpload.VEC4;
+            int second = DrinkUpload.STREAMS_AT + DrinkUpload.STREAM_VEC4S * DrinkUpload.VEC4;
+            assertEquals(-reach - CAMERA.x, floatAt(bytes, low), DELTA, "the run's box starts a reach before its ring");
+            assertEquals(0.5 - reach - CAMERA.y, floatAt(bytes, low + Float.BYTES), DELTA);
+            assertEquals(1 + reach - CAMERA.x, floatAt(bytes, high), DELTA, "and ends a reach past its last");
+            assertEquals(0, floatAt(bytes, low + (PAIR + 1) * Float.BYTES), DELTA, "the first run starts the table");
+            assertEquals(1, floatAt(bytes, high + (PAIR + 1) * Float.BYTES), DELTA, "and lists one segment");
+            assertEquals(1, floatAt(bytes, second + DrinkUpload.RUN_LOW_SLOT * DrinkUpload.VEC4 + (PAIR + 1)
+                    * Float.BYTES), DELTA, "the second run follows it");
+            assertEquals(0.8 + reach - CAMERA.y, floatAt(bytes, second + DrinkUpload.RUN_HIGH_SLOT * DrinkUpload.VEC4
+                    + Float.BYTES), DELTA, "its box is its own");
+        }
+
+        @Test
         void streamsPastTheCapAreDroppedWholeAndCounted() {
             List<DrinkTree.Stream> streams = streams(DrinkUpload.MOST_STREAMS + 1);
             List<DrinkField.Skeleton> skeletons = new ArrayList<>();
@@ -235,8 +258,7 @@ class DrinkUploadTest {
         int coat = DrinkUpload.STREAMS_AT + DrinkUpload.COAT_SLOT * DrinkUpload.VEC4;
         assertEquals(BLOCK_LIGHT, floatAt(bytes, coat), DELTA);
         assertEquals(SKY_LIGHT, floatAt(bytes, coat + Float.BYTES), DELTA);
-        assertEquals(1, floatAt(bytes, coat + PAIR * Float.BYTES), DELTA, "the zoop flag");
-        assertEquals(1, floatAt(bytes, coat + (PAIR + 1) * Float.BYTES), DELTA, "one layer");
+        assertEquals(1, floatAt(bytes, coat + PAIR * Float.BYTES), DELTA, "one layer");
         assertEquals(0.3f, floatAt(bytes, DrinkUpload.STREAMS_AT + DrinkUpload.SPRITE_SLOT * DrinkUpload.VEC4
                 + PAIR * Float.BYTES), DELTA);
         int share = DrinkUpload.STREAMS_AT + DrinkUpload.LAYER_SHARE_SLOT * DrinkUpload.VEC4;
@@ -248,5 +270,7 @@ class DrinkUploadTest {
         assertEquals(1.2, floatAt(bytes, DrinkUpload.RINGS_AT + DrinkUpload.VEC4), DELTA, "the ring's material");
         assertEquals(0, floatAt(bytes, DrinkUpload.RINGS_AT + DrinkUpload.VEC4 + PAIR * Float.BYTES), DELTA,
                 "the ring names its stream");
+        assertEquals(0.12 * lone.stream().routeLength(), floatAt(bytes, DrinkUpload.RINGS_AT + DrinkUpload.VEC4
+                + (PAIR + 1) * Float.BYTES), DELTA, "and its blocks along the route, its share of the route's length");
     }
 }

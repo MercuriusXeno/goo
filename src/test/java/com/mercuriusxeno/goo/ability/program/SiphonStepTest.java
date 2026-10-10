@@ -42,7 +42,7 @@ class SiphonStepTest {
     /** Cobblestone's cost at two ticks a mB: 17 mB plus ceil(sqrt(17)). */
     private static final int RICH_FUEL = 22;
     private static final double SIX_BLOCKS = 6;
-    private static final int THIRTY_TICKS = 30;
+    private static final int FIFTEEN_TICKS = 15;
     private static final double UNSTABLE_EXPONENT = 0.5;
     private static final double DELTA = 1e-6;
     private static final BlockPos AIMED = new BlockPos(4, 2, 3);
@@ -137,10 +137,10 @@ class SiphonStepTest {
         }
 
         @Test
-        void theGooIsAllowedTheStraightWayBackAtTheBasePace() {
-            assertEquals(THIRTY_TICKS, SiphonRule.travelTicks(SIX_BLOCKS));
+        void theGooIsAllowedTheStraightWayBackAtEightBlocksASecond() {
+            assertEquals(FIFTEEN_TICKS, SiphonRule.travelTicks(SIX_BLOCKS));
             assertEquals(1, SiphonRule.travelTicks(0));
-            assertEquals(THIRTY_TICKS + 1, SiphonRule.travelTicks(SIX_BLOCKS + DELTA));
+            assertEquals(FIFTEEN_TICKS + 1, SiphonRule.travelTicks(SIX_BLOCKS + DELTA));
         }
 
         @Test

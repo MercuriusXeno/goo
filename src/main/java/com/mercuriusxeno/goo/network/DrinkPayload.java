@@ -31,8 +31,8 @@ public record DrinkPayload(int playerId, List<Streaming> streaming) implements C
      * One block on its way into the glove.
      *
      * @param pos    the block
-     * @param picked the game time it was picked, the zoop leaving the hand for it
-     * @param start  the game time the zoop is in and it starts streaming
+     * @param picked the game time it was picked, the square leaving the hand for it
+     * @param start  the game time the square lands and it starts streaming
      * @param end    the game time it is drained and gone
      */
     public record Streaming(BlockPos pos, long picked, long start, long end) {

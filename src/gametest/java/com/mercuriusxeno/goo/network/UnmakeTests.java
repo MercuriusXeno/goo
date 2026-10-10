@@ -38,12 +38,12 @@ import java.util.Map;
  * Gametests for Unmake's drink: a hold down a cobblestone column at mid
  * range drinks the column the narrow cone covers, deep but not wide, all
  * together over the unstable crucible's own time for a cobblestone after the
- * zoop's flight, burning the crucible's fuel plus its root for each block,
+ * square's flight, burning the crucible's fuel plus its root for each block,
  * the wall about it standing, and the blocks' full goo goes into the
  * player's inventory once its travel back is done, not at the drain; a
  * player with no space gets it at their feet; a block that started goes
  * until it is done though the cursor leaves it or the use is let go, standing
- * as itself until the zoop is in, while one outside the cone stands; and a
+ * as itself until the square lands, while one outside the cone stands; and a
  * mob at the cursor is left alone.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
@@ -71,8 +71,8 @@ public final class UnmakeTests {
     private static final String STANDS = "The wall's block at %s should be drunk within %d ticks";
     private static final String UNPAID = "The hold should burn exactly the unstable crucible's fuel plus its root per block";
     private static final String PAID_EARLY = "The goo should not be in hand before its travel back, held %s";
-    private static final String ZOOP_EARLY = "A picked block should stand as itself while the zoop flies";
-    private static final String ZOOP_LATE = "A picked block should be the melting stand-in once the zoop is in";
+    private static final String SQUARE_EARLY = "A picked block should stand as itself while the square flies";
+    private static final String SQUARE_LATE = "A picked block should be the melting stand-in once the square lands";
     private static final String WALL_GONE = "The wall's block at %s, off the aim, should stand";
     private static final String WRONG_YIELD = "The inventory should hold %s, held %s";
     private static final String DROPPED = "With space in the inventory nothing should drop, dropped %s";
@@ -204,8 +204,8 @@ public final class UnmakeTests {
 
     /**
      * A mock player holds Unmake at a cobblestone for one tick and lets go,
-     * no tick following: the block stands as itself while the zoop flies, is
-     * the melting stand-in once the zoop is in, and is drunk anyway.
+     * no tick following: the block stands as itself while the square flies, is
+     * the melting stand-in once the square lands, and is drunk anyway.
      *
      * @param helper the gametest helper
      */
@@ -219,9 +219,9 @@ public final class UnmakeTests {
         GooStreamPayload aimed = aimedAt(player, westFace(helper, AIMED_POS));
         helper.runAfterDelay(1, () -> GooStreamHandler.streamTick(player, aimed));
         helper.runAfterDelay(SiphonRule.INJECT_TICKS, () -> helper.assertTrue(helper.getBlockState(AIMED_POS)
-                .is(Blocks.COBBLESTONE), ZOOP_EARLY));
+                .is(Blocks.COBBLESTONE), SQUARE_EARLY));
         helper.runAfterDelay(SiphonRule.INJECT_TICKS + 2L, () -> helper.assertTrue(helper.getBlockState(AIMED_POS)
-                .is(GooBlocks.MELTING_BLOCK.get()), ZOOP_LATE));
+                .is(GooBlocks.MELTING_BLOCK.get()), SQUARE_LATE));
         helper.runAfterDelay(drinkTicks + 1L, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertTrue(helper.getBlockState(AIMED_POS).isAir(), RELEASED);
@@ -255,7 +255,7 @@ public final class UnmakeTests {
     }
 
     /**
-     * A hold long enough to drink a cobblestone: the zoop's flight, then the
+     * A hold long enough to drink a cobblestone: the square's flight, then the
      * unstable crucible's own time for it, with slack.
      *
      * @param helper the gametest helper
