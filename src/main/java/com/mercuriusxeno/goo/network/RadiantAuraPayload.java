@@ -10,8 +10,8 @@ import org.jspecify.annotations.NonNull;
 
 /**
  * Server-to-client payload: a caster holds Radiant this tick, sent to every
- * client tracking the caster, which draws the held aura and plays its
- * shimmer while the payloads keep arriving (operator ruling 2026-10-09).
+ * client tracking the caster, which drifts glow motes off the caster's glove
+ * (operator rulings 2026-10-09).
  * decision radiant-wisps-where-light-is-low
  *
  * @param casterId the casting player's entity id

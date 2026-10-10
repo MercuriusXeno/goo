@@ -83,7 +83,6 @@ public class GooBlocks {
                     .noLootTable()
                     .replaceable()
                     .instabreak()
-                    .air()
                     .sound(SoundType.AMETHYST_CLUSTER)
                     .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)
                     .lightLevel(WispBlock::lightLevel));
