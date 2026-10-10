@@ -80,6 +80,7 @@ public final class GooTestFunctions {
     private static final String GLOVE_GATED_SELECTION_REFUSED = "glove_gated_selection_refused";
     private static final String RAZOR_HIDDEN_UNTIL_GLASS_AND_SAND = "razor_hidden_until_glass_and_sand";
     private static final String SHARDS_RELEASE_HITS_A_ROW = "shards_release_hits_a_row";
+    private static final String SHARDS_TAP_DAMAGES_PER_COUNT = "shards_tap_damages_per_count";
     private static final String GLOVE_SHIFT_RECOLLECTS_MARKER = "glove_shift_recollects_marker";
     private static final String GLOVE_RECOLLECT_PAYS_CHARGES_LEFT = "glove_recollect_pays_charges_left";
     private static final String GLOVE_RECOLLECT_OF_SPENT_TRAP_PAYS_NOTHING = "glove_recollect_of_spent_trap_pays_nothing";
@@ -701,6 +702,7 @@ public final class GooTestFunctions {
         reg(r, GLOVE_GATED_SELECTION_REFUSED, GloveSelectTests::gatedSelectionRefusedWithoutTheRecipe);
         reg(r, RAZOR_HIDDEN_UNTIL_GLASS_AND_SAND, GloveSelectTests::razorHiddenUntilGlassAndSand);
         reg(r, SHARDS_RELEASE_HITS_A_ROW, ShardsSlingTests::releaseHitsARow);
+        reg(r, SHARDS_TAP_DAMAGES_PER_COUNT, ShardsTapTests::shardsTapDamagesPerCount);
         reg(r, GLOVE_SHIFT_RECOLLECTS_MARKER, GloveRecollectTests::shiftClickRecollectsMarker);
         reg(r, GLOVE_RECOLLECT_PAYS_CHARGES_LEFT, GloveRecollectTests::recollectPaysTheChargesLeft);
         reg(r, GLOVE_RECOLLECT_OF_SPENT_TRAP_PAYS_NOTHING, GloveRecollectTests::recollectOfASpentTrapPaysNothing);
