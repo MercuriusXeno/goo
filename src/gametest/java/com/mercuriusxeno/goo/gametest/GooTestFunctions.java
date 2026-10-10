@@ -236,6 +236,7 @@ public final class GooTestFunctions {
     private static final String FX_PROGRAM_METAL_SPIKES = "fx_program_metal_spikes";
     private static final String FX_PROGRAM_CRYSTAL_CLOUD = "fx_program_crystal_cloud";
     private static final String BLACK_HOLE_LEAVES_A_SPHERE = "black_hole_leaves_a_sphere";
+    private static final String BLACK_HOLE_CUTS_PLAYERS = "black_hole_cuts_players_to_half_a_heart";
     private static final String COMPRESSION_SPHERE_SPILLS_ON_TOUCH = "compression_sphere_spills_on_touch";
     private static final String HOARD_KEEPS_WHOLE_STACKS = "hoard_keeps_whole_stacks";
     private static final String HOARD_CODEC_READS_BACK = "hoard_codec_reads_back_its_stacks";
@@ -737,6 +738,7 @@ public final class GooTestFunctions {
         reg(r, FX_PROGRAM_METAL_SPIKES, EffectExecutorTests::programMetalSpikes);
         reg(r, FX_PROGRAM_CRYSTAL_CLOUD, EffectExecutorTests::programCrystalCloud);
         reg(r, BLACK_HOLE_LEAVES_A_SPHERE, EffectExecutorTests::blackHoleLeavesASphere);
+        reg(r, BLACK_HOLE_CUTS_PLAYERS, EffectExecutorTests::blackHoleCutsPlayersToHalfAHeart);
         reg(r, COMPRESSION_SPHERE_SPILLS_ON_TOUCH, EffectExecutorTests::compressionSphereSpillsOnTouch);
         reg(r, HOARD_KEEPS_WHOLE_STACKS, CompressedHoardTests::hoardKeepsWholeStacks);
         reg(r, HOARD_CODEC_READS_BACK, CompressedHoardTests::hoardCodecReadsBackItsStacks);
