@@ -1,0 +1,12 @@
+{
+  "gooType": "pulse",
+  "displayName": "goo.ability.pulse.pulser",
+  "badge": "channeled",
+  "order": 20,
+  "cost": 1000,
+  "delivery": { "kind": "stream", "range": 8, "cone": 12, "ticks_per_charge": 40 },
+  "behaviors": [
+    { "type": "pulser_toggle", "every": 4 }
+  ],
+  "tags": ["stream"]
+}

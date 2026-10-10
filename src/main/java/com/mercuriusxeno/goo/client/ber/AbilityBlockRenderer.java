@@ -1,10 +1,12 @@
 package com.mercuriusxeno.goo.client.ber;
 
+import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.ability.CrystalCloudVisual;
 import com.mercuriusxeno.goo.client.ability.MarkerOrbVisual;
 import com.mercuriusxeno.goo.client.ability.MetalSpikeVisual;
+import com.mercuriusxeno.goo.client.ability.ThumpRings;
 import com.mercuriusxeno.goo.client.ability.VineTrapVisual;
 import com.mercuriusxeno.goo.client.ber.style.NetherHoleStyles;
 import com.mercuriusxeno.goo.client.throwing.ThrowFreezeState;
@@ -116,6 +118,9 @@ public class AbilityBlockRenderer
         CrystalCloudVisual.extract(be, state);
         NetherHoleStyles.active().extract(be, state);
         VineTrapVisual.extract(be, state);
+        // thumper-blob-pulses-periodically-then-fades
+        boolean powered = be.getBlockState().getOptionalValue(AbilityBlock.POWERED).orElse(false);
+        ThumpRings.see(be.getBlockPos(), be.getPlacedFace(), powered);
     }
 
     @Override

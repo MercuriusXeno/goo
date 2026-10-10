@@ -54,7 +54,7 @@ public final class HeldDomeRenderer {
             GooTypes.FROST, FrostExplosionVisual.INSTANCE,
             GooTypes.METAL, MetalExplosionVisual.INSTANCE,
             GooTypes.NETHER, NetherHeldGhost.INSTANCE,
-            GooTypes.SHROOM, ShroomHeldGhost.INSTANCE,
+            GooTypes.SHROOM, MoteCloudGhost.SHROOM,
             GooTypes.ROCK, RockExplosionVisual.INSTANCE,
             GooTypes.UNSTABLE, UnstableExplosionVisual.INSTANCE);
 
