@@ -23,6 +23,7 @@ import com.mercuriusxeno.goo.client.ability.RelayLasers;
 import com.mercuriusxeno.goo.client.ability.ThumpRings;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
+import com.mercuriusxeno.goo.client.ability.UpdraftWind;
 import com.mercuriusxeno.goo.client.ability.ViewportRipples;
 import com.mercuriusxeno.goo.client.ability.VineTangleLayer;
 import com.mercuriusxeno.goo.client.ability.WindLines;
@@ -446,6 +447,7 @@ public final class GooClientSetup {
         FrozenPoses.CLIENT.clear();
         NovaRings.CLIENT.clear();
         WindLines.CLIENT.clear();
+        UpdraftWind.clear();
         BlockTransforms.CLIENT.clear();
         Afterimages.CLIENT.clear();
         Transformations.CLIENT.clear();

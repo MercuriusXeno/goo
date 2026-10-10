@@ -88,6 +88,12 @@ public final class WindLines {
     private static final double NEAR_VERTICAL = 0.99;
     /** How far behind the eye a jet's tailwind leaves, in blocks, so its lines overtake the camera. */
     static final double TAILWIND_SETBACK = 0.6;
+    /** How far toward a column's edge an updraft's line may leave, as a share of its half width. */
+    static final double RISE_INSET = 0.8;
+    /** The narrow cone an updraft's lines rise through, in degrees, so they lean a little as they climb. */
+    static final double RISE_CONE = 10;
+    /** A unit random spread across both sides, -1 to 1. */
+    private static final double BOTH_SIDES = 2;
 
     /** How far a line tilts its curl forward from facing the player, so the head flows into it, in radians. */
     static final double CURL_TILT = 0.35;
@@ -247,6 +253,45 @@ public final class WindLines {
             CLIENT.add(player.level().getRandom(), gust, wind.snowflakes(), player.level().getGameTime());
             CLIENT.keepWindBlowing(player);
         });
+    }
+
+    /**
+     * Blows one line up an updraft's column on a blowing tick: it leaves the
+     * column's floor somewhere inside its width and rushes straight up before
+     * curling out, no snowflakes on it.
+     * updraft-blob-stands-a-column-of-wind
+     *
+     * @param random the random source
+     * @param base   the middle of the column's floor
+     * @param radius the column's half width
+     * @param height the column's height
+     * @param now    the game time
+     */
+    public void rise(RandomSource random, Vec3 base, double radius, double height, long now) {
+        add(random, riseGust(base, radius, height, bothSides(random.nextDouble()), bothSides(random.nextDouble())),
+                false, now);
+    }
+
+    private static double bothSides(double unit) {
+        return unit * BOTH_SIDES - 1;
+    }
+
+    /**
+     * An updraft's gust: from a point of the column's floor, straight up
+     * through a narrow cone the column's height tall.
+     * updraft-blob-stands-a-column-of-wind
+     *
+     * @param base   the middle of the column's floor
+     * @param radius the column's half width
+     * @param height the column's height
+     * @param alongX where across the floor it leaves on x, -1 to 1 of the width inside the edge
+     * @param alongZ where across the floor it leaves on z, -1 to 1 of the width inside the edge
+     * @return the gust
+     */
+    static Gust riseGust(Vec3 base, double radius, double height, double alongX, double alongZ) {
+        double reach = radius * RISE_INSET;
+        Vec3 origin = base.add(alongX * reach, 0, alongZ * reach);
+        return new Gust(origin, new Vec3(0, 1, 0), height, RISE_CONE, false);
     }
 
     /**

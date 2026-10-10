@@ -198,6 +198,11 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     }
 
     @Override
+    public void liftEntitiesInColumn(double radius, double height, double speed) {
+        asEntity().liftEntitiesInColumn(radius, height, speed);
+    }
+
+    @Override
     public void spawnParticles(ParticleBurst burst) {
         asEntity().spawnParticles(burst);
     }

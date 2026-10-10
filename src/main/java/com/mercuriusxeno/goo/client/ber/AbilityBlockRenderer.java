@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.client.ability.CrystalCloudVisual;
 import com.mercuriusxeno.goo.client.ability.MarkerOrbVisual;
 import com.mercuriusxeno.goo.client.ability.MetalSpikeVisual;
 import com.mercuriusxeno.goo.client.ability.ThumpRings;
+import com.mercuriusxeno.goo.client.ability.UpdraftWind;
 import com.mercuriusxeno.goo.client.ability.VineTrapVisual;
 import com.mercuriusxeno.goo.client.ber.style.NetherHoleStyles;
 import com.mercuriusxeno.goo.client.throwing.ThrowFreezeState;
@@ -145,6 +146,10 @@ public class AbilityBlockRenderer
         // thumper-blob-pulses-periodically-then-fades
         boolean powered = be.getBlockState().getOptionalValue(AbilityBlock.POWERED).orElse(false);
         ThumpRings.see(be.getBlockPos(), be.getPlacedFace(), powered);
+        // updraft-blob-stands-a-column-of-wind
+        if (state.behaviorActive && be.getLevel() != null) {
+            UpdraftWind.see(be.getBlockPos(), be.getAbilityId(), be.getLevel().getGameTime());
+        }
     }
 
     @Override

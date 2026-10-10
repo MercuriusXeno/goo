@@ -123,6 +123,7 @@ public final class StepTypes {
         register(TomeStep.TYPE);
         register(FloatStep.TYPE);
         register(AirbornStep.TYPE);
+        register(UpdraftStep.TYPE);
     }
 
     private StepTypes() {
