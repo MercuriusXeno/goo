@@ -106,13 +106,6 @@ public final class LeafSteps {
             (target, seconds, context) -> target.igniteForSeconds(seconds.evaluateInt(context)));
 
     /**
-     * Adds to the host's target's frozen ticks; a full freeze stands at
-     * 140, so frost snap is {@code freeze_ticks add=140}.
-     */
-    public static final LeafStepType<Expr> FREEZE_TICKS = TargetEffectStep.of("freeze_ticks", "add",
-            (target, add, context) -> target.setTicksFrozen(target.getTicksFrozen() + add.evaluateInt(context)));
-
-    /**
      * Heals the host's target by an amount of health points; vitality
      * streams {@code heal amount=0.1} over each living thing in its cone
      * and its caster every tick it is held.

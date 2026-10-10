@@ -22,20 +22,24 @@ class AbilityBadgeTest {
     private static final int SHIPPED_MOB_BADGES = 12;
     private static final int SHIPPED_WORLD_BADGES = 7;
     private static final int SHIPPED_SELF_BADGES = 3;
-    private static final int SHIPPED_BREW_BADGES = 6;
-    private static final int SHIPPED_CHANNELED_BADGES = 8;
-    private static final int SHIPPED_FREE_BADGES = 3;
-    private static final int SHIPPED_TAP_BADGES = 4;
-    private static final int SHIPPED_PRISM_BADGES = 1;
-    /** Hive, the shipped prism combo (decision hive-prism-pillar-eats-the-living). */
-    private static final List<String> SHIPPED_PRISM = List.of("nether_hive");
+    private static final int SHIPPED_BREW_BADGES = 7;
+    private static final int SHIPPED_CHANNELED_BADGES = 10;
+    private static final int SHIPPED_FREE_BADGES = 4;
+    private static final int SHIPPED_TAP_BADGES = 5;
+    private static final int SHIPPED_PRISM_BADGES = 2;
+    /**
+     * Hive and Glacial, the shipped prism abilities (decisions
+     * hive-prism-pillar-eats-the-living, glacial-prism-holds-the-area-frozen).
+     */
+    private static final List<String> SHIPPED_PRISMS = List.of("nether_hive", "frost_glacial");
     /** The self + brew abilities, which wear brew on their self delivery (decision self-brew-goos-eat-before-the-effect). */
     private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "leaf_barkskin", "rock_stoneskin",
-            "vital_nourish", "shroom_sight", "nether_undead");
+            "vital_nourish", "shroom_sight", "nether_undead", "frost_iceborn");
     /** Blast, Crush and Colonize, the shipped free abilities (decision badge-vocabulary-gains-free-prism-tap-brew). */
-    private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "rock_crush", "shroom_colonize");
+    private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "rock_crush", "shroom_colonize",
+            "frost_orb");
     /** Self deliveries wearing the channeled badge (decision flatten-disc-cursor-breaks-above-the-plane). */
-    private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten");
+    private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten", "frost_nova");
 
     @ParameterizedTest
     @CsvSource({"world, WORLD", "mob, MOB", "self, SELF", "channeled, CHANNELED", "brew, BREW",
@@ -88,7 +92,7 @@ class AbilityBadgeTest {
         if (SHIPPED_FREE.contains(definition.id().getPath())) {
             return AbilityBadge.FREE;
         }
-        if (SHIPPED_PRISM.contains(definition.id().getPath())) {
+        if (SHIPPED_PRISMS.contains(definition.id().getPath())) {
             return AbilityBadge.PRISM;
         }
         if (definition.hasTag(AbilityTags.TAP)) {

@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
+import com.mercuriusxeno.goo.entity.RollingGoo;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
@@ -71,6 +72,40 @@ public final class GooThrowHandler {
             if (!(context.player() instanceof ServerPlayer player)) { return; }
             execute(player, payload);
         });
+    }
+
+    /**
+     * Handles a charged ability's release on the server thread: a known
+     * ability of a known type, thrown from a held glove with every reagent
+     * it consumes, fires at the charge its hold reached.
+     * nova-ring-grows-with-the-hold
+     *
+     * @param payload the charge payload
+     * @param context the network context
+     */
+    public static void handleCharge(GooChargePayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (context.player() instanceof ServerPlayer player) {
+                releaseCharge(player, payload);
+            }
+        });
+    }
+
+    /**
+     * Fires a charged ability the player let go, when it may.
+     *
+     * @param player  the releasing player
+     * @param payload the charge payload
+     */
+    public static void releaseCharge(ServerPlayer player, GooChargePayload payload) {
+        ResourceKey<GooTypeDefinition> gooType = GooTypes.known(payload.gooTypeId());
+        if (!validateGlove(player) || gooType == null) {
+            return;
+        }
+        AbilityDefinition ability = usableAbility(player, payload.abilityId(), gooType);
+        if (ability != null && holdsReagents(player, ability)) {
+            GooSelfHandler.release(player, gooType, ability, payload.heldTicks());
+        }
     }
 
     /**
@@ -152,6 +187,8 @@ public final class GooThrowHandler {
             GooSelfHandler.deliver(player, gooType, ability);
         } else if (touchesTarget(player, payload, ability)) {
             GooTouchHandler.touch(player, payload, gooType);
+        } else if (ability.delivery().rolls()) {
+            rollGoo(player, payload, gooType, ability);
         } else if (ability.badge().aimsAPoint()) {
             throwAtPoint(player, payload, gooType);
         } else if (!aimsNoMob(ability.badge(), payload.targetEntityId() >= 0)) {
@@ -189,6 +226,29 @@ public final class GooThrowHandler {
         int cost = resolveThrowCost(player, aimed, gooType);
         if (!validateSupply(player, gooType, cost)) { return; }
         depleteAndThrow(player, aimed, gooType, eye.distanceToSqr(capped), cost);
+    }
+
+    /**
+     * Sets a rolling goo off from the hand along the player's look, when the
+     * player holds its cost: it pays and takes its reagents as any throw does.
+     * orb-carries-a-swirling-nova
+     *
+     * @param player  the throwing player
+     * @param payload the throw payload data
+     * @param gooType the validated goo type
+     * @param ability the rolling ability
+     */
+    private static void rollGoo(ServerPlayer player, GooThrowPayload payload, ResourceKey<GooTypeDefinition> gooType,
+                                AbilityDefinition ability) {
+        if (!validateSupply(player, gooType, ability.cost())) {
+            return;
+        }
+        GooSourceScanner.deplete(player, gooType, ability.cost());
+        consumeReagents(player, payload.abilityId(), gooType);
+        Vec3 hand = ThrowArc.clampToReach(player.getEyePosition(), payload.origin(),
+                ThrowArc.HAND_REACH * player.getScale());
+        GooEffectScheduler.playThrowSound(player, ability.delivery());
+        RollingGoo.roll(player.level(), player, ability, hand, player.getLookAngle());
     }
 
     /**

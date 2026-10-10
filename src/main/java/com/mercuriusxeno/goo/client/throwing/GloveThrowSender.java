@@ -13,6 +13,7 @@ import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.ReserveVisual;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
+import com.mercuriusxeno.goo.client.ability.WindLines;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
@@ -21,6 +22,7 @@ import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
+import com.mercuriusxeno.goo.network.GooChargePayload;
 import com.mercuriusxeno.goo.network.GooDragCastPayload;
 import com.mercuriusxeno.goo.network.GooStreamPayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
@@ -31,6 +33,7 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundSource;
@@ -64,16 +67,17 @@ public final class GloveThrowSender {
      * Resolves the current aim target and sends the throw packet for the
      * held glove's selection.
      *
-     * @param player the local player
+     * @param player    the local player
+     * @param heldTicks the ticks the use key was held, which a charged ability fires by
      * @return true when a payload was sent, the one press the arm swings for
      */
-    public static boolean sendThrow(Player player) {
+    public static boolean sendThrow(Player player, int heldTicks) {
         GloveSelection selection = heldSelection(player);
         ResourceKey<GooTypeDefinition> gooType = selection == null ? null : selection.getGooType();
         if (gooType == null || ThrowFreezeState.isThrowBlocked()) {
             return false;
         }
-        return sendFor(player, gooType, selection.abilityId());
+        return sendFor(player, gooType, selection.abilityId(), heldTicks);
     }
 
     /**
@@ -83,15 +87,20 @@ public final class GloveThrowSender {
      * @param player    the local player
      * @param gooType   the selected goo type
      * @param abilityId the selected ability id string
+     * @param heldTicks the ticks the use key was held
      * @return true when a payload was sent
      */
-    private static boolean sendFor(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId) {
+    private static boolean sendFor(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId,
+                                   int heldTicks) {
         if (selectedDragSized(abilityId)) {
             return sendDragCast(player, gooType, abilityId);
         }
         Delivery delivery = selectedDelivery(abilityId);
         if (HeldRoute.runsWhileHeld(delivery, selectedBadge(abilityId))) {
             return sendStreamTick(player, gooType, abilityId);
+        }
+        if (delivery.kind() == DeliveryKind.SELF && delivery.charges()) {
+            return sendCharge(player, gooType, abilityId, heldTicks);
         }
         return delivery.kind() == DeliveryKind.SELF
                 ? sendSelf(player, gooType, abilityId)
@@ -137,6 +146,7 @@ public final class GloveThrowSender {
                     held(GooTypes.id(gooType), abilityId, origin, cursorPoint(player))));
         }
         VitalityVisual.drawFog(player, abilityId, selectedArea(abilityId), origin);
+        WindLines.blow(player, abilityId, selectedArea(abilityId), origin);
         ReserveVisual.drawDrain(player, abilityId);
         loopStreamSound(player, abilityId);
         return true;
@@ -237,12 +247,29 @@ public final class GloveThrowSender {
                 || !GooSourceScanner.hasEnough(player, gooType, DragSize.costAt(ability.cost(), radius.getAsDouble()))) {
             return false;
         }
-        var connection = Minecraft.getInstance().getConnection();
-        if (connection != null) {
-            connection.send(new ServerboundCustomPayloadPacket(new GooDragCastPayload(GooTypes.id(gooType), abilityId,
-                    pin.getBlockPos(), pin.getDirection().get3DDataValue(), pin.getLocation(),
-                    radius.getAsDouble())));
+        sendPayload(new GooDragCastPayload(GooTypes.id(gooType), abilityId, pin.getBlockPos(),
+                pin.getDirection().get3DDataValue(), pin.getLocation(), radius.getAsDouble()));
+        return true;
+    }
+
+    /**
+     * Sends a charged self ability's release with the ticks it was held,
+     * when the player can afford it (decision nova-ring-grows-with-the-hold).
+     *
+     * @param player    the local player
+     * @param gooType   the selected goo type
+     * @param abilityId the selected ability id string
+     * @param heldTicks the ticks the use key was held
+     * @return true when the payload was sent
+     */
+    private static boolean sendCharge(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId,
+                                      int heldTicks) {
+        if (!affordsThrow(AbilitySyncHandler.findAbility(abilityId),
+                amount -> GooSourceScanner.hasEnough(player, gooType, amount),
+                reagent -> ReagentScanner.holds(player, reagent))) {
+            return false;
         }
+        sendPayload(new GooChargePayload(GooTypes.id(gooType), abilityId, heldTicks));
         return true;
     }
 
@@ -520,7 +547,7 @@ public final class GloveThrowSender {
      *
      * @param payload the payload to send
      */
-    private static void sendPayload(GooThrowPayload payload) {
+    private static void sendPayload(CustomPacketPayload payload) {
         var connection = Minecraft.getInstance().getConnection();
         if (connection != null) {
             connection.send(new ServerboundCustomPayloadPacket(payload));

@@ -44,7 +44,7 @@ public final class GloveAttackTracker {
             return;
         }
         if (GooTouchHandler.attackTouches(pressOf(player, player.getItemInHand(event.getHand())))) {
-            GloveThrowSender.sendThrow(player);
+            GloveThrowSender.sendThrow(player, 0);
         }
     }
 
