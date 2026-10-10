@@ -50,7 +50,6 @@ class DrinkShaderTest {
         assertEquals(DrinkField.REACH, constant(fragment, "REACH"), DELTA);
         assertEquals(DrinkField.FULL_RADIUS, constant(fragment, "FULL_RADIUS"), DELTA);
         assertEquals(DrinkStream.THINNEST, constant(fragment, "THINNEST"), DELTA);
-        assertEquals(DrinkBody.CENTER + DrinkBody.FUNNEL, constant(fragment, "FUNNEL_END"), DELTA);
         assertEquals(DrinkUpload.RUN_START, constant(fragment, "RUN_START"), DELTA);
         assertEquals(DrinkUpload.BOX_BASE, constant(fragment, "BOX_BASE"), DELTA);
         assertEquals(DrinkUpload.REGION, constant(fragment, "REGION_SPAN"), DELTA);
@@ -84,14 +83,15 @@ class DrinkShaderTest {
     }
 
     @Test
-    void aStepReadsOnlyTheRunsWithinReachAndTheSkinTurnsToGooAtTheFunnelsEnd() throws IOException {
+    void aStepReadsOnlyTheRunsWithinReachAndTheSkinCrossfadesToGooAlongTheRoute() throws IOException {
         String fragment = source(FRAGMENT);
 
         assertTrue(fragment.contains("gap = min(gap, outside);"),
                 "a run whose box the point is outside is skipped, its box the gap to jump");
         assertTrue(fragment.contains("vec3 n = normalAt(p, stream);"), "the normal reads the hit's stream alone");
-        assertTrue(fragment.contains("if (!onBlock && along >= FUNNEL_END) {"),
-                "the goo texture begins at the funnel's end and the block's ends there, one boundary");
+        assertTrue(fragment.contains("route = mix(ma.y, mb.y, t);"), "the hit reads its share of the route");
+        assertTrue(fragment.contains("color = mix(color, mingled(color, stream, world, place), route);"),
+                "the block's texture crossfades into its mingled goo by the route share, none at the block, all at the hand");
     }
 
     @Test

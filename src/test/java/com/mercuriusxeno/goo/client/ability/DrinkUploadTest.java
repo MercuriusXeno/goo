@@ -270,7 +270,7 @@ class DrinkUploadTest {
         assertEquals(1.2, floatAt(bytes, DrinkUpload.RINGS_AT + DrinkUpload.VEC4), DELTA, "the ring's material");
         assertEquals(0, floatAt(bytes, DrinkUpload.RINGS_AT + DrinkUpload.VEC4 + PAIR * Float.BYTES), DELTA,
                 "the ring names its stream");
-        assertEquals(0.12 * lone.stream().routeLength(), floatAt(bytes, DrinkUpload.RINGS_AT + DrinkUpload.VEC4
-                + (PAIR + 1) * Float.BYTES), DELTA, "and its blocks along the route, its share of the route's length");
+        assertEquals(0.12f, floatAt(bytes, DrinkUpload.RINGS_AT + DrinkUpload.VEC4 + Float.BYTES), DELTA,
+                "and its share of the route, which the skin's crossfade reads");
     }
 }
