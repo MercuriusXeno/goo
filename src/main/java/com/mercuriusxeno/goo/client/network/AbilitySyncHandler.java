@@ -5,8 +5,11 @@ import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
+import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.client.throwing.BlinkAim;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
@@ -16,6 +19,7 @@ import net.minecraft.resources.ResourceKey;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Client-side handler for the ability sync payload. Hands the abilities to
@@ -93,15 +97,43 @@ public final class AbilitySyncHandler {
      * @param consumes    the items a throw takes, one of each, beside its goo cost
      * @param upkeep      the mB a held self + brew effect pays each tick it stands
      *                    (decision self-effects-trickle-until-ended)
+     * @param distancePrice what a blink adds to the cost for its trip
+     *                    (decision blink-lands-safely-costed-by-distance)
      */
     public record ClientAbility(Identifier id, String displayName, String icon,
                                 int order, List<String> tags,
                                 List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
                                 List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
-                                List<Identifier> consumes, int upkeep) {
+                                List<Identifier> consumes, int upkeep, DistancePrice distancePrice) {
 
         private static final int TICKS_PER_SECOND = 20;
         private static final String PER_SECOND = "/s";
+
+        /**
+         * A client ability whose cost reads no trip.
+         *
+         * @param id          the ability resource identifier
+         * @param displayName the translation key
+         * @param icon        the icon texture path override
+         * @param order       the sort order
+         * @param tags        categorical tags
+         * @param behaviors   the ability's step program
+         * @param cost        the mB a throw costs
+         * @param delivery    how the ability leaves the glove
+         * @param badge       the target kind the radial marks on the icon
+         * @param requires    the items the player must know before its radial petal unlocks
+         * @param area        the area the glove draws while right click is held
+         * @param indicator   when the ability's indicator shows
+         * @param consumes    the items a throw takes, one of each
+         * @param upkeep      the mB a held self + brew effect pays each tick it stands
+         */
+        public ClientAbility(Identifier id, String displayName, String icon, int order, List<String> tags,
+                             List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
+                             List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
+                             List<Identifier> consumes, int upkeep) {
+            this(id, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires, area, indicator,
+                    consumes, upkeep, DistancePrice.NONE);
+        }
 
         /**
          * A client ability paying no upkeep.
@@ -203,7 +235,7 @@ public final class AbilitySyncHandler {
             return new ClientAbility(Identifier.tryParse(entry.abilityId()), entry.displayName(), entry.icon(),
                     entry.order(), entry.tags(), entry.behaviors(),
                     entry.cost(), entry.delivery(), entry.badge(), entry.requires(), entry.area(),
-                    entry.indicator(), entry.consumes(), entry.upkeep());
+                    entry.indicator(), entry.consumes(), entry.upkeep(), entry.distancePrice());
         }
 
         /**
@@ -226,8 +258,20 @@ public final class AbilitySyncHandler {
          * @return the cost, formatted
          */
         public String costLabel() {
+            return costLabel(Optional.empty());
+        }
+
+        /**
+         * What the ability costs for a trip: a held effect's upkeep a second,
+         * and every other ability's one-shot cost plus what the trip adds.
+         * blink-lands-safely-costed-by-distance
+         *
+         * @param trip the blink's trip, empty for an ability making none
+         * @return the cost, formatted
+         */
+        public String costLabel(Optional<BlinkLanding> trip) {
             return upkeep > 0 ? GooFormat.formatAmount(upkeepPerSecond()) + PER_SECOND
-                    : GooFormat.formatAmount(cost);
+                    : GooFormat.formatAmount(BlinkAim.tripCost(distancePrice, cost, trip));
         }
 
         /**

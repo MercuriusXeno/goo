@@ -117,10 +117,13 @@ public final class PrismCrystal {
     }
 
     /**
+     * The quads between each of four rings and the next: base centre, bottom
+     * rim, top rim and top centre, each a point per slice.
+     *
      * @param rings the morph's rings, each a point per slice and the first repeated last
      * @return the quads between each ring and the next, wound outward
      */
-    private static List<Vec3[]> facesBetween(Vec3[][] rings) {
+    public static List<Vec3[]> facesBetween(Vec3[][] rings) {
         List<Vec3[]> faces = new ArrayList<>();
         for (int band = 0; band < TOP_CENTER; band++) {
             for (int slice = 0; slice < RIM_SLICES; slice++) {

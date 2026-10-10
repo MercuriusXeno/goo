@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.FriendlyByteBuf;
@@ -9,6 +10,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
+import java.util.Optional;
 
 /**
  * Client-to-server payload: requests throwing the selected goo type at a target.
@@ -54,6 +56,20 @@ public record GooThrowPayload(String gooTypeId, int targetEntityId,
     public GooThrowPayload aimedAt(Vec3 point) {
         return new GooThrowPayload(gooTypeId, targetEntityId, BlockPos.containing(point), Direction.UP.ordinal(),
                 false, abilityId, origin, point);
+    }
+
+    /**
+     * The face a self ability's press pinned, which a blink's landing slides
+     * on: a self payload carries the face in its target block and face, and a
+     * negative face where the press pinned none.
+     * decision blink-lands-safely-costed-by-distance
+     *
+     * @return the pinned face plane, empty for free aim
+     */
+    public Optional<ChannelAim.FacePlane> pressedFace() {
+        return targetFace >= 0 && targetFace < Direction.values().length
+                ? Optional.of(new ChannelAim.FacePlane(targetPos, Direction.from3DDataValue(targetFace)))
+                : Optional.empty();
     }
 
     /** Payload type ID for registration. */
