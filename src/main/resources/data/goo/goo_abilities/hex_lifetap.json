@@ -7,7 +7,8 @@
   "requires": ["minecraft:soul_sand"],
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "lifetap", "fraction": 0.3 }
+    { "type": "lifetap", "fraction": 0.3 },
+    { "type": "sound", "id": "minecraft:particle.soul_escape", "at": "target", "source": "players", "volume": 1, "pitch": 0.6 }
   ],
   "tags": ["self"]
 }

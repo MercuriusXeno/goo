@@ -314,6 +314,16 @@ class AbilityLoaderTest {
     }
 
     /**
+     * Every brew sounds as its effect starts, as every held effect sounds as
+     * it ends (decision held-effects-sound-up-and-down).
+     */
+    @ParameterizedTest
+    @CsvSource({"blaze_kindle", "leaf_barkskin", "rock_stoneskin", "vital_nourish", "shroom_sight", "hex_lifetap"})
+    void everyBrewSoundsAsItStarts(String name) {
+        assertTrue(AbilityJson.decode(name).behaviors().stream().anyMatch(SoundStep.class::isInstance), name);
+    }
+
+    /**
      * Hex charm lands on every zombie, max health 20, and on few mobs at
      * vanilla's top max health, 1024: of a thousand rolls at 1024, where
      * pow(20 / max_health, 1.5) expects under three, fewer than fifty land
