@@ -6,14 +6,14 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A drink's field is the sum of soft bodies: a lone capsule's surface sits
- * at its radius, a box's at its faces and rounded corners, and two bodies
- * that come near swell into one another, their surfaces meeting in the gap
- * between them like metaballs (decision unmake-waves-dissolve-by-crucible-cost).
+ * A drink's field is the sum of soft bodies read per skeleton: a lone capsule's
+ * surface sits at its radius, a box's at its faces and rounded corners, two
+ * bodies that come near swell into one another, their surfaces meeting in the
+ * gap between them like metaballs, and a body of no radius radiates nothing
+ * (decision unmake-waves-dissolve-by-crucible-cost).
  */
 class DrinkFieldTest {
 
@@ -28,7 +28,11 @@ class DrinkFieldTest {
             1, 0, 0, 100);
 
     private static DrinkStream.Ring ring(Vec3 center) {
-        return new DrinkStream.Ring(center, EAST, RADIUS, 0, 0, DrinkStream.FLOW);
+        return ring(center, RADIUS);
+    }
+
+    private static DrinkStream.Ring ring(Vec3 center, double radius) {
+        return new DrinkStream.Ring(center, EAST, radius, 0, 0, DrinkStream.FLOW);
     }
 
     private static DrinkTree.Stream stream() {
@@ -46,6 +50,10 @@ class DrinkFieldTest {
         return new DrinkField.Skeleton(stream(), List.of(ring(from), ring(to)), null);
     }
 
+    private static boolean inside(List<DrinkField.Skeleton> skeletons, Vec3 point) {
+        return DrinkField.valueAt(skeletons, point) >= DrinkField.ISO;
+    }
+
     @Test
     void theFalloffIsWholeInsideTheIsoAtTheSurfaceAndNothingPastTheReach() {
         assertEquals(1, DrinkField.falloff(-DrinkField.DEPTH), DELTA);
@@ -58,26 +66,37 @@ class DrinkFieldTest {
 
     @Test
     void aLoneCapsulesSurfaceSitsAtItsRadius() {
-        DrinkField.Skeleton capsule = capsule(Vec3.ZERO, new Vec3(2, 0, 0));
-        List<DrinkField.Skeleton> alone = List.of(capsule);
+        List<DrinkField.Skeleton> alone = List.of(capsule(Vec3.ZERO, new Vec3(2, 0, 0)));
 
-        assertEquals(DrinkField.ISO, DrinkField.sample(alone, new Vec3(1, RADIUS, 0)).value(), DELTA);
-        assertTrue(DrinkField.sample(alone, new Vec3(1, RADIUS / 2, 0)).inside());
-        assertFalse(DrinkField.sample(alone, new Vec3(1, 2 * RADIUS, 0)).inside());
-        assertEquals(DrinkField.ISO, DrinkField.sample(alone, new Vec3(-RADIUS, 0, 0)).value(), DELTA);
-        assertSame(capsule, DrinkField.sample(alone, new Vec3(1, 0, 0)).skeleton());
+        assertEquals(DrinkField.ISO, DrinkField.valueAt(alone, new Vec3(1, RADIUS, 0)), DELTA);
+        assertTrue(inside(alone, new Vec3(1, RADIUS / 2, 0)));
+        assertFalse(inside(alone, new Vec3(1, 2 * RADIUS, 0)));
+        assertEquals(DrinkField.ISO, DrinkField.valueAt(alone, new Vec3(-RADIUS, 0, 0)), DELTA);
+    }
+
+    @Test
+    void aChainIsReadAtItsLeastDistanceSoItsJointsDoNotBulge() {
+        DrinkField.Skeleton chain = new DrinkField.Skeleton(stream(),
+                List.of(ring(Vec3.ZERO), ring(EAST), ring(EAST.scale(2))), null);
+
+        assertEquals(DrinkField.ISO, DrinkField.valueAt(List.of(chain), new Vec3(1, RADIUS, 0)), DELTA,
+                "at the joint of two capsules the surface sits at the radius, not swollen by both");
+        assertEquals(2, chain.bodies());
     }
 
     @Test
     void aBoxsSurfaceSitsAtItsFacesAndItsRoundedCornersAreCut() {
         DrinkBody.Box box = new DrinkBody.Box(Vec3.ZERO, 0.5, 0);
         DrinkBody.Box sphere = new DrinkBody.Box(Vec3.ZERO, 0.5, 0.5);
+        DrinkField.Skeleton boxed = new DrinkField.Skeleton(stream(), List.of(), box);
 
         assertEquals(0, box.signedDistance(new Vec3(0.5, 0.1, 0.2)), DELTA);
         assertEquals(-0.5, box.signedDistance(Vec3.ZERO), DELTA);
         assertEquals(0, box.signedDistance(new Vec3(0.5, 0.5, 0.5)), DELTA);
         assertEquals(0, sphere.signedDistance(UP.scale(0.5)), DELTA);
         assertTrue(sphere.signedDistance(new Vec3(0.5, 0.5, 0.5)) > 0, "a sphere's corner is outside it");
+        assertEquals(DrinkField.ISO, DrinkField.valueAt(List.of(boxed), new Vec3(0.5, 0.1, 0.2)), DELTA);
+        assertEquals(1, boxed.bodies());
     }
 
     @Test
@@ -87,76 +106,41 @@ class DrinkFieldTest {
         List<DrinkField.Skeleton> touching = List.of(capsule(Vec3.ZERO, EAST), capsule(near, near.add(EAST)));
         List<DrinkField.Skeleton> apart = List.of(capsule(Vec3.ZERO, EAST), capsule(far, far.add(EAST)));
 
-        assertTrue(DrinkField.sample(touching, new Vec3(0.5, RADIUS + NEAR_GAP / 2, 0)).inside(),
-                "the gap between near bodies fills");
-        assertFalse(DrinkField.sample(apart, new Vec3(0.5, RADIUS + DrinkField.REACH, 0)).inside(),
-                "far bodies leave the gap empty");
+        assertTrue(inside(touching, new Vec3(0.5, RADIUS + NEAR_GAP / 2, 0)), "the gap between near bodies fills");
+        assertFalse(inside(apart, new Vec3(0.5, RADIUS + DrinkField.REACH, 0)), "far bodies leave the gap empty");
     }
 
     @Test
     void aBodyOfNoRadiusRadiatesNothingAndAThinOneReachesInProportion() {
-        DrinkStream.Ring none = new DrinkStream.Ring(Vec3.ZERO, EAST, 0, 0, 0, DrinkStream.FLOW);
-        DrinkStream.Ring noneEast = new DrinkStream.Ring(EAST, EAST, 0, 0, 0, DrinkStream.FLOW);
         Vec3 beside = UP.scale(DrinkField.REACH / 2);
-        List<DrinkField.Skeleton> empty = List.of(new DrinkField.Skeleton(stream(), List.of(none, noneEast), null),
-                new DrinkField.Skeleton(stream(), List.of(new DrinkStream.Ring(beside, EAST, 0, 0, 0, DrinkStream.FLOW),
-                        new DrinkStream.Ring(beside.add(EAST), EAST, 0, 0, 0, DrinkStream.FLOW)), null));
+        List<DrinkField.Skeleton> empty = List.of(
+                new DrinkField.Skeleton(stream(), List.of(ring(Vec3.ZERO, 0), ring(EAST, 0)), null),
+                new DrinkField.Skeleton(stream(), List.of(ring(beside, 0), ring(beside.add(EAST), 0)), null));
         double thin = DrinkField.FULL_RADIUS / 2;
-        DrinkStream.Ring thinRing = new DrinkStream.Ring(Vec3.ZERO, EAST, thin, 0, 0, DrinkStream.FLOW);
-        List<DrinkField.Skeleton> slender = List.of(new DrinkField.Skeleton(stream(), List.of(thinRing,
-                new DrinkStream.Ring(EAST, EAST, thin, 0, 0, DrinkStream.FLOW)), null));
+        List<DrinkField.Skeleton> slender = List.of(
+                new DrinkField.Skeleton(stream(), List.of(ring(Vec3.ZERO, thin), ring(EAST, thin)), null));
 
-        assertEquals(0, DrinkField.sample(empty, new Vec3(0.5, 0.01, 0)).value(), DELTA);
-        assertFalse(DrinkField.sample(empty, beside.scale(0.5).add(0.5, 0, 0)).inside(),
+        assertEquals(0, DrinkField.valueAt(empty, new Vec3(0.5, 0.01, 0)), DELTA);
+        assertFalse(inside(empty, beside.scale(0.5).add(0.5, 0, 0)),
                 "two empty lines close together leave no blob between them");
-        assertEquals(DrinkField.ISO, DrinkField.sample(slender, new Vec3(0.5, thin, 0)).value(), DELTA);
-        assertTrue(DrinkField.sample(slender, new Vec3(0.5, thin + DrinkField.REACH / 4, 0)).value() > 0);
-        assertEquals(0, DrinkField.sample(slender, new Vec3(0.5, thin + DrinkField.REACH / 2 + 0.01, 0)).value(),
-                DELTA, "a body half a waist thick reaches half as far");
-    }
-
-    @Test
-    void readingOnlyTheBodiesThatReachACellGivesTheSameField() {
-        List<DrinkField.Skeleton> both = List.of(capsule(Vec3.ZERO, EAST), capsule(UP.scale(3), UP.scale(3).add(EAST)));
-        Vec3 point = new Vec3(0.5, RADIUS / 2, 0);
-
-        DrinkField.Sample whole = DrinkField.sample(both, point);
-        DrinkField.Sample some = DrinkField.sample(both, new int[]{DrinkField.candidate(0, 0)}, point);
-
-        assertEquals(whole.value(), some.value(), DELTA);
-        assertEquals(whole.value(), DrinkField.valueAt(both, new int[]{DrinkField.candidate(0, 0)}, point.x, point.y,
-                point.z), DELTA);
-        assertSame(both.getFirst(), some.skeleton());
-    }
-
-    @Test
-    void readingTheFieldIntoALentScratchGivesTheSameValueAndASkeletonWithABoxHasOneMoreBody() {
-        DrinkBody.Box box = new DrinkBody.Box(UP.scale(3), 0.5, 0);
-        DrinkField.Skeleton skeleton = new DrinkField.Skeleton(stream(), List.of(ring(Vec3.ZERO), ring(EAST)), box);
-        List<DrinkField.Skeleton> alone = List.of(skeleton);
-        int[] candidates = {DrinkField.candidate(0, 0), DrinkField.candidate(0, 1)};
-        Vec3 point = new Vec3(0.5, RADIUS / 2, 0);
-
-        assertEquals(DrinkField.valueAt(alone, candidates, point.x, point.y, point.z),
-                DrinkField.valueAt(alone, candidates, point.x, point.y, point.z, new double[1]), DELTA);
-        assertEquals(DrinkField.ISO, DrinkField.valueAt(alone, candidates, 0.5, 3.1, 0.2, new double[1]), DELTA);
-        assertEquals(2, skeleton.bodies());
+        assertEquals(DrinkField.ISO, DrinkField.valueAt(slender, new Vec3(0.5, thin, 0)), DELTA);
+        assertTrue(DrinkField.valueAt(slender, new Vec3(0.5, thin + DrinkField.REACH / 4, 0)) > 0);
+        assertEquals(0, DrinkField.valueAt(slender, new Vec3(0.5, thin + DrinkField.REACH / 2 + 0.01, 0)), DELTA,
+                "a body half a waist thick reaches half as far");
     }
 
     @Test
     void aBodysBoxBoundsItsOwnSurface() {
         DrinkField.Skeleton capsule = capsule(Vec3.ZERO, EAST);
+        DrinkBody.Box box = new DrinkBody.Box(UP.scale(3), 0.5, 0);
+        DrinkField.Skeleton boxed = new DrinkField.Skeleton(stream(), List.of(ring(Vec3.ZERO), ring(EAST)), box);
 
         assertEquals(new Vec3(-RADIUS, -RADIUS, -RADIUS), capsule.lowOf(0));
         assertEquals(new Vec3(1 + RADIUS, RADIUS, RADIUS), capsule.highOf(0));
         assertEquals(1, capsule.bodies());
-    }
-
-    @Test
-    void theNearestRingIsTheOneClosestToThePoint() {
-        List<DrinkStream.Ring> chain = List.of(ring(Vec3.ZERO), ring(EAST), ring(EAST.scale(2)));
-
-        assertSame(chain.get(1), DrinkField.nearestRing(chain, new Vec3(1.2, 0.3, 0)));
+        assertEquals(2, boxed.bodies());
+        assertEquals(new Vec3(-0.5, 2.5, -0.5), boxed.lowOf(1));
+        assertEquals(new Vec3(0.5, 3.5, 0.5), boxed.highOf(1));
         assertEquals(0, new DrinkField.Skeleton(stream(), List.of(), null).bodies());
     }
 }

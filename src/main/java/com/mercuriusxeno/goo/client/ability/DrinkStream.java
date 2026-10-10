@@ -61,6 +61,8 @@ public final class DrinkStream {
     static final double ARRIVAL_REACH = 1.5;
     /** Blocks of texture laid along one block of skin, mirrored each block so it has no seam. */
     private static final double TEXTURE_PER_BLOCK = 1;
+    /** The thinnest a stream reads its texture round, in blocks, so the arc coordinate never collapses. */
+    static final double THINNEST = 0.02;
     private static final double TWO = 2;
     private static final double THREE = 3;
     private static final double HALF = 0.5;
