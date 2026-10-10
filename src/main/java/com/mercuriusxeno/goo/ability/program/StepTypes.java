@@ -94,6 +94,14 @@ public final class StepTypes {
         register(LeafSteps.COURT.type());
         register(NourishStep.TYPE);
         register(ReserveDrainStep.TYPE);
+        register(CharmStep.TYPE);
+        register(LeafSteps.ENCHANT_BOOK.type());
+        register(FuseBooksStep.TYPE);
+        register(SpawnRandomStep.TYPE);
+        register(AgitateStep.TYPE);
+        register(LifetapStep.TYPE);
+        register(LeechStep.TYPE);
+        register(TomeStep.TYPE);
     }
 
     private StepTypes() {

@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.ability.held;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
+import com.mercuriusxeno.goo.ability.hex.Lifetap;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.Sight;
@@ -228,16 +229,30 @@ public final class HeldEffectsEvents {
             if (effect.lays().contains(LaidState.NOURISH)) {
                 player.setData(GooAttachments.NOURISH, Nourish.NONE);
             }
-            if (effect.lays().contains(LaidState.SIGHT)) {
-                // sight-lengthens-shift-and-outlines-fungus: the sight ends with its held effect
-                player.setData(GooAttachments.SIGHT, Sight.NONE);
-            }
-            if (effect.lays().contains(LaidState.LUX)) {
-                // lux-night-vision-without-particles: Lux and the night vision it kept up end with its held effect
-                LuxEvents.end(player);
-            }
+            clearAbilityLaid(player, effect);
             // brew-runs-the-crawl-prepaid-on-a-shown-clock: the effect list's entry ends with the effect
             player.removeEffect(GooMobEffects.BREW_EFFECTS.get(effect.gooType()));
+        }
+    }
+
+    /**
+     * Clears the state an ability's own step laid: sight, Lux, a lifetap.
+     *
+     * @param player the player whose held effect ended
+     * @param effect the ended held effect
+     */
+    private static void clearAbilityLaid(ServerPlayer player, HeldEffects.Held effect) {
+        if (effect.lays().contains(LaidState.SIGHT)) {
+            // sight-lengthens-shift-and-outlines-fungus: the sight ends with its held effect
+            player.setData(GooAttachments.SIGHT, Sight.NONE);
+        }
+        if (effect.lays().contains(LaidState.LUX)) {
+            // lux-night-vision-without-particles: Lux and the night vision it kept up end with its held effect
+            LuxEvents.end(player);
+        }
+        if (effect.lays().contains(LaidState.LIFETAP)) {
+            // lifetap-trades-regen-for-leech: the leech ends with its held effect
+            player.setData(GooAttachments.LIFETAP, Lifetap.NONE);
         }
     }
 }
