@@ -35,6 +35,12 @@ public final class HostVariables {
     public static final String SHARE = "share";
 
     /**
+     * The share of a full charge a charged ability's hold reached, 0 to 1,
+     * read on the player releasing it (decision nova-ring-grows-with-the-hold).
+     */
+    public static final String CHARGE = "charge";
+
+    /**
      * The separator of a namespaced id, which marks a variable name as a
      * counter read rather than a host variable.
      */

@@ -51,7 +51,13 @@ public enum HostKind {
      */
     PLAYER("player host", PlayerHost.class,
             Set.of(HostVariables.HEALTH, HostVariables.MAX_HEALTH, HostVariables.DISTANCE,
-                    HostVariables.UNDEAD, HostVariables.SPRINTING));
+                    HostVariables.UNDEAD, HostVariables.SPRINTING, HostVariables.CHARGE)),
+    /**
+     * A thrown blob in flight: the world around the point it has reached,
+     * acted on each tick of the flight, with no target and no driver of its
+     * own (decision orb-carries-a-swirling-nova).
+     */
+    FLIGHT("blob in flight", FlightHost.class, Set.of());
 
     private final String label;
     private final Set<HostCapability> capabilities;

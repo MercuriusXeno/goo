@@ -18,6 +18,7 @@ import com.mercuriusxeno.goo.network.GooValueSyncPayload;
 import com.mercuriusxeno.goo.network.KnownItemLearnedPayload;
 import com.mercuriusxeno.goo.network.KnownItemsSyncPayload;
 import com.mercuriusxeno.goo.network.MobHitPayload;
+import com.mercuriusxeno.goo.network.NovaRingPayload;
 import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
 import com.mercuriusxeno.goo.network.RadiantAuraPayload;
 import com.mercuriusxeno.goo.network.ScryPayload;
@@ -59,6 +60,7 @@ public final class GooClientNetworking {
         event.register(ScryPayload.TYPE, ScrySweep::onPayload);
         event.register(SunbeamPayload.TYPE, SunbeamVisual::onPayload);
         event.register(RadiantAuraPayload.TYPE, RadiantAura::onPayload);
+        event.register(NovaRingPayload.TYPE, NovaRingHandler::handle);
         event.register(BlockTransformPayload.TYPE, BlockTransformHandler::handle);
         event.register(BlockExposurePayload.TYPE, BlockTransformHandler::handleExposure);
         event.register(AfterimagePayload.TYPE, AfterimageHandler::handle);

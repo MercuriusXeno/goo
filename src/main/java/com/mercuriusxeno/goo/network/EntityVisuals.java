@@ -1,9 +1,12 @@
 package com.mercuriusxeno.goo.network;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
@@ -54,6 +57,25 @@ public final class EntityVisuals {
         }
         for (ServerPlayer player : level.getChunkSource().chunkMap.getPlayers(entity.chunkPosition(), false)) {
             if (player != entity && player.connection.hasChannel(payload)) {
+                PacketDistributor.sendToPlayer(player, payload);
+            }
+        }
+    }
+
+    /**
+     * Sends a visual at a point to every player watching the point's chunk
+     * whose client holds the payload's channel; a frost nova's ring reaches
+     * its watchers this way wherever it pulses from
+     * (decision nova-ring-grows-with-the-hold).
+     *
+     * @param level   the level
+     * @param point   where the visual plays
+     * @param payload the visual's payload
+     */
+    public static void sendToWatchersOf(ServerLevel level, Vec3 point, CustomPacketPayload payload) {
+        for (ServerPlayer player : level.getChunkSource().chunkMap.getPlayers(ChunkPos.containing(BlockPos.containing(point)),
+                false)) {
+            if (player.connection.hasChannel(payload)) {
                 PacketDistributor.sendToPlayer(player, payload);
             }
         }

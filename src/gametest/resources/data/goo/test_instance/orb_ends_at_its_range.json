@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:orb_ends_at_its_range",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 90,
+  "setup_ticks": 0,
+  "required": true
+}

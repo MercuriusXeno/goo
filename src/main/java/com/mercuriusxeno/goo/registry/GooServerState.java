@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.registry;
 
+import com.mercuriusxeno.goo.ability.frost.GlacialFields;
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
 import com.mercuriusxeno.goo.block.tap.TapDripCounts;
@@ -24,6 +25,7 @@ public final class GooServerState {
     private final BlockExposures blockExposures = new BlockExposures();
     private final AbilityBlockFallScheduler markerFalls = new AbilityBlockFallScheduler();
     private final StreamHolds streamHolds = new StreamHolds();
+    private final GlacialFields glacialFields = new GlacialFields();
 
     /**
      * Answers the state the server holds.
@@ -88,6 +90,15 @@ public final class GooServerState {
     }
 
     /**
+     * The glacial prisms standing on the server (decision glacial-prism-holds-the-area-frozen).
+     *
+     * @return the glacial fields
+     */
+    public GlacialFields glacialFields() {
+        return glacialFields;
+    }
+
+    /**
      * @return how long each player has held a stream
      */
     public StreamHolds streamHolds() {
@@ -121,5 +132,6 @@ public final class GooServerState {
         blockExposures.clear();
         markerFalls.clear();
         streamHolds.clear();
+        glacialFields.clear();
     }
 }

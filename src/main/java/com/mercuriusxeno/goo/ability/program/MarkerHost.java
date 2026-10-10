@@ -34,7 +34,7 @@ import java.util.function.Consumer;
  */
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
-        FieldEffectHost, PhasedHost, ConsumedGooHost, StateWriteHost, LevelHost {
+        FieldEffectHost, PhasedHost, ConsumedGooHost, StateWriteHost, LevelHost, FrostHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -151,5 +151,11 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         List<Property.Value<?>> values = StatePropertyWriter.resolve(standing.getBlock().getStateDefinition(), state,
                 BuiltInRegistries.BLOCK.getKey(standing.getBlock()));
         level.setBlock(pos, StatePropertyWriter.write(standing, values), Block.UPDATE_ALL);
+    }
+
+    /** The prism or marker's center, which a glacial prism holds frozen around (decision glacial-prism-holds-the-area-frozen). */
+    @Override
+    public Vec3 frostCenter() {
+        return Vec3.atCenterOf(pos);
     }
 }
