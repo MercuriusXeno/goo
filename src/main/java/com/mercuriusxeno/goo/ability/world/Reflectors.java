@@ -20,14 +20,16 @@ import java.util.WeakHashMap;
 
 /**
  * Glow's reflector prisms and the light rails between them. Each reflector
- * links to every other reflector in loaded chunks with only air, or rail,
- * on the straight line between them, and the line fills with light rail.
+ * links to every other reflector in loaded chunks that stands on one of its
+ * axes, never on a diagonal, with only air, or rail, on the straight line
+ * between them, and the line fills with light rail.
  * The reflectors linked one to the next form a network, and every rail in
  * it carries the brightest light any of its reflectors reads at its own
  * cell; a rail's own light reaches a reflector one level dimmer, so a
  * network cannot hold itself lit and settles to the light it is given.
  * A line no longer clear loses its rail.
  * decision reflector-rails-carry-the-brightest-light
+ * operator ruling 2026-10-09: reflectors link orthogonally, never diagonally
  */
 public final class Reflectors {
 
@@ -95,7 +97,7 @@ public final class Reflectors {
     }
 
     /**
-     * The reflectors a reflector links to: every other loaded one with a clear line between.
+     * The reflectors a reflector links to: every other loaded one on one of its axes with a clear line between.
      *
      * @param level the server level
      * @param from  the reflector
@@ -105,11 +107,25 @@ public final class Reflectors {
     private static List<BlockPos> partnersOf(ServerLevel level, BlockPos from, Set<BlockPos> known) {
         List<BlockPos> partners = new ArrayList<>();
         for (BlockPos other : known) {
-            if (!other.equals(from) && level.isLoaded(other) && isClear(level, RailLine.between(from, other))) {
+            if (onOneAxis(from, other) && level.isLoaded(other) && isClear(level, RailLine.between(from, other))) {
                 partners.add(other);
             }
         }
         return partners;
+    }
+
+    /**
+     * Whether two distinct cells stand on one axis: they share two of their
+     * three coordinates, so the line between them runs straight along it.
+     *
+     * @param from the one cell
+     * @param to   the other cell
+     * @return true when the cells differ along exactly one axis
+     */
+    static boolean onOneAxis(BlockPos from, BlockPos to) {
+        int differingAxes = (from.getX() == to.getX() ? 0 : 1) + (from.getY() == to.getY() ? 0 : 1)
+                + (from.getZ() == to.getZ() ? 0 : 1);
+        return differingAxes == 1;
     }
 
     private static Set<BlockPos> networkOf(ServerLevel level, BlockPos start, Set<BlockPos> known) {
