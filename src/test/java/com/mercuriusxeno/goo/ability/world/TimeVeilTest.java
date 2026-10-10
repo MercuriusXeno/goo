@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.world;
 
+import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.SlowTimeStep;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.entity.player.Player;
@@ -37,11 +38,11 @@ class TimeVeilTest {
 
     @Test
     void theVeilGrowsFromTheImpactToItsRadius() {
-        SlowTimeStep veil = new SlowTimeStep(5, 10, 200, 0.1);
+        SlowTimeStep veil = new SlowTimeStep(Expr.parse("size").getOrThrow(), 10, 200, 0.1);
 
-        assertEquals(0, veil.radiusAt(0), EPSILON);
-        assertEquals(2.5, veil.radiusAt(5), EPSILON);
-        assertEquals(5, veil.radiusAt(40), EPSILON);
+        assertEquals(0, veil.radiusAt(5, 0), EPSILON);
+        assertEquals(2.5, veil.radiusAt(5, 5), EPSILON);
+        assertEquals(5, veil.radiusAt(5, 40), EPSILON);
     }
 
     @Test

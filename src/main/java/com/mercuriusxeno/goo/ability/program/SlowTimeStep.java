@@ -10,7 +10,8 @@ import java.util.stream.Stream;
  * Aeon's chronosphere: a veil around the host's anchor that grows from the
  * impact point to its radius over the expand ticks and, every tick until its
  * duration runs out, slows every non-player living entity and every
- * projectile inside nearly to a halt, leaving players alone.
+ * projectile inside nearly to a halt, leaving players alone. The radius is
+ * an expression, {@code size} for the radius the cast was dragged to.
  * chronosphere-hastes-players-slows-mobs
  *
  * @param radius      the veil's full radius in blocks
@@ -18,7 +19,7 @@ import java.util.stream.Stream;
  * @param duration    the ticks the veil stands
  * @param slow        the share of its motion a slowed thing keeps a tick, 0 to 1
  */
-public record SlowTimeStep(double radius, int expandTicks, int duration, double slow) implements Step {
+public record SlowTimeStep(Expr radius, int expandTicks, int duration, double slow) implements Step {
 
     private static final String NAME = "slow_time";
     private static final String FIELD_RADIUS = "radius";
@@ -30,7 +31,7 @@ public record SlowTimeStep(double radius, int expandTicks, int duration, double 
      * Codec for the step's params.
      */
     public static final MapCodec<SlowTimeStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Codec.DOUBLE.fieldOf(FIELD_RADIUS).forGetter(SlowTimeStep::radius),
+            Expr.CODEC.fieldOf(FIELD_RADIUS).forGetter(SlowTimeStep::radius),
             Codec.INT.fieldOf(FIELD_EXPAND_TICKS).forGetter(SlowTimeStep::expandTicks),
             Codec.INT.fieldOf(FIELD_DURATION).forGetter(SlowTimeStep::duration),
             Codec.doubleRange(0, 1).fieldOf(FIELD_SLOW).forGetter(SlowTimeStep::slow)
@@ -50,23 +51,24 @@ public record SlowTimeStep(double radius, int expandTicks, int duration, double 
      * The veil's radius a number of ticks after it stood: growing evenly from
      * nothing to the full radius over the expand ticks.
      *
-     * @param ticks ticks since the veil stood
+     * @param fullRadius the radius the veil grows to, its radius expression's value
+     * @param ticks      ticks since the veil stood
      * @return the radius in blocks
      */
-    public double radiusAt(double ticks) {
-        return expandTicks <= 0 ? radius : radius * Math.clamp(ticks / expandTicks, 0.0, 1.0);
+    public double radiusAt(double fullRadius, double ticks) {
+        return expandTicks <= 0 ? fullRadius : fullRadius * Math.clamp(ticks / expandTicks, 0.0, 1.0);
     }
 
     @Override
     public boolean tick(StepContext context) {
         int ticks = context.stepTicks();
-        context.hostAs(TimeVeilHost.class).slowWithin(radiusAt(ticks), slow);
+        context.hostAs(TimeVeilHost.class).slowWithin(radiusAt(radius.evaluate(context), ticks), slow);
         return ticks >= duration;
     }
 
     @Override
     public Stream<Expr> expressions() {
-        return Stream.empty();
+        return Stream.of(radius);
     }
 
     @Override

@@ -26,6 +26,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -113,6 +114,8 @@ public final class FrostAbilityTests {
     /** frost_orb.json rolls 16 blocks at 0.3 a tick: still rolling at 40 ticks, 12 blocks out, gone by 70. */
     private static final int STILL_ROLLING_TICKS = 40;
     private static final int RANGE_SPENT_TICKS = 70;
+    /** Past frost_orb.json's range of 16, so every chunk the Orb's roll crosses is held loaded. */
+    private static final int ROLL_REACH = 20;
     private static final String SHOULD_STILL_ROLL = "The Orb should still be rolling twelve blocks out";
     private static final String SHOULD_END_AT_RANGE_FROM =
             "The Orb should end once it has rolled its sixteen blocks; it stands %s from its start, entity ticking %s";
@@ -324,6 +327,8 @@ public final class FrostAbilityTests {
         ServerPlayer thrower = orbThrower(helper);
         AbilityDefinition orb = AbilityRegistry.of(helper.getLevel()).getAbility(FROST_ORB);
         Vec3 sky = Vec3.atCenterOf(helper.absolutePos(STREAMER_POS.above(OPEN_SKY)));
+        // the roll leaves the bay's chunks, and an entity in a chunk that is not ticking stops short of its range
+        holdRollLoaded(helper, sky, true);
         // the orb this test rolled, so a neighboring test's orb rolling past never stands in for it
         AtomicReference<RollingGoo> rolled = new AtomicReference<>();
         helper.runAfterDelay(SETTLE_TICKS, () -> rolled.set(RollingGoo.roll(helper.getLevel(), thrower, orb, sky,
@@ -332,11 +337,28 @@ public final class FrostAbilityTests {
                 SHOULD_STILL_ROLL));
         helper.runAfterDelay(RANGE_SPENT_TICKS, () -> {
             helper.getLevel().getServer().getPlayerList().remove(thrower);
+            holdRollLoaded(helper, sky, false);
             RollingGoo goo = rolled.get();
             helper.assertTrue(goo.isRemoved(), String.format(SHOULD_END_AT_RANGE_FROM, goo.position().subtract(sky),
                     helper.getLevel().isPositionEntityTicking(goo.blockPosition())));
             helper.succeed();
         });
+    }
+
+    /**
+     * Holds loaded, or lets go of, every chunk the range test's Orb rolls
+     * through east of its start.
+     *
+     * @param helper the gametest helper
+     * @param start  where the Orb starts rolling
+     * @param loaded true to hold the chunks loaded, false to let them unload
+     */
+    private static void holdRollLoaded(GameTestHelper helper, Vec3 start, boolean loaded) {
+        ChunkPos from = ChunkPos.containing(BlockPos.containing(start));
+        ChunkPos to = ChunkPos.containing(BlockPos.containing(start.add(ROLL_REACH, 0, 0)));
+        for (int x = from.x(); x <= to.x(); x++) {
+            helper.getLevel().setChunkForced(x, from.z(), loaded);
+        }
     }
 
     private static ServerPlayer orbThrower(GameTestHelper helper) {
