@@ -27,7 +27,7 @@ class WispsStepTest {
 
     @Test
     void everyPickLiesWithinTheRadius() {
-        WispsStep wisps = new WispsStep(8, 2, 1200, 0);
+        WispsStep wisps = new WispsStep(8, 2, 1200, 0, false);
         RandomSource random = RandomSource.create(42L);
         for (int i = 0; i < PICKS; i++) {
             BlockPos pick = wisps.pick(CENTER, random);
@@ -37,6 +37,6 @@ class WispsStepTest {
 
     @Test
     void aZeroRadiusPicksTheCenter() {
-        assertEquals(CENTER, new WispsStep(0, 1, 1200, 1).pick(CENTER, RandomSource.create(7L)));
+        assertEquals(CENTER, new WispsStep(0, 1, 1200, 1, false).pick(CENTER, RandomSource.create(7L)));
     }
 }

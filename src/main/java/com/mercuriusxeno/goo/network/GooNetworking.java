@@ -47,6 +47,7 @@ public final class GooNetworking {
         r.playToClient(AilmentPayload.TYPE, AilmentPayload.STREAM_CODEC);
         r.playToClient(ScryPayload.TYPE, ScryPayload.STREAM_CODEC);
         r.playToClient(SunbeamPayload.TYPE, SunbeamPayload.STREAM_CODEC);
+        r.playToClient(RadiantAuraPayload.TYPE, RadiantAuraPayload.STREAM_CODEC);
         r.playToClient(BlockTransformPayload.TYPE, BlockTransformPayload.STREAM_CODEC);
         r.playToClient(BlockExposurePayload.TYPE, BlockExposurePayload.STREAM_CODEC);
         r.playToClient(AfterimagePayload.TYPE, AfterimagePayload.STREAM_CODEC);
