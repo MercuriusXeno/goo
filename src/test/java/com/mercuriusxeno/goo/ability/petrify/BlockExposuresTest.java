@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.petrify;
 
+import com.mercuriusxeno.goo.ability.program.DegradeStep;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -25,6 +26,25 @@ class BlockExposuresTest {
         BlockExposures.Exposure exposure = new BlockExposures.Exposure(null, 0.5f, NOW);
         BlockExposures.Exposure decayed = BlockExposures.decayed(exposure, NOW + BlockExposures.DECAY_DELAY_TICKS + 1);
         assertEquals(0.5f - BlockExposures.DECAY_PER_TICK, decayed.share(), DELTA);
+    }
+
+    // decision decay-gnats-degrade-each-block-once
+    @Test
+    void aShareLeftToFinishGrowsByItsRateWithNothingReachingIt() {
+        float rate = 0.1f;
+        BlockExposures.Exposure finishing = new BlockExposures.Exposure(null, 0.6f, NOW, rate);
+        BlockExposures.Exposure grown = BlockExposures.decayed(finishing, NOW + BlockExposures.DECAY_DELAY_TICKS * 10);
+        assertEquals(0.6f + rate, grown.share(), DELTA);
+    }
+
+    // decay-gnats-degrade-each-block-once: Decay's maroon stays on its overlay as the share grows or recedes
+    @Test
+    void aTintedShareKeepsItsTintGrowingOrDecaying() {
+        int maroon = DegradeStep.NETHER_MAROON;
+        BlockExposures.Exposure finishing = new BlockExposures.Exposure(null, 0.6f, NOW, 0.1f, maroon);
+        assertEquals(maroon, BlockExposures.decayed(finishing, NOW + 1).tint());
+        BlockExposures.Exposure left = new BlockExposures.Exposure(null, 0.5f, NOW, 0f, maroon);
+        assertEquals(maroon, BlockExposures.decayed(left, NOW + BlockExposures.DECAY_DELAY_TICKS + 1).tint());
     }
 
     @Test

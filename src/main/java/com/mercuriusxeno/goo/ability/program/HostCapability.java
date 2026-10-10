@@ -50,10 +50,10 @@ public enum HostCapability {
      */
     PHASED(PhasedHost.class),
     /**
-     * A goo total the host fills by consuming the valued blocks around its
-     * anchor and drops as goo.
+     * A hoard of stacks the host fills from the blocks and items around its
+     * anchor and leaves as a compression sphere.
      */
-    CONSUMED_GOO(ConsumedGooHost.class),
+    HOARD(HoardHost.class),
     /**
      * A landing where the ability can stand its own block, which runs the
      * steps handed to it (decision lingering-abilities-place-their-own-thing).

@@ -2,10 +2,13 @@ package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
+import com.mercuriusxeno.goo.ability.DragSize;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
+import com.mercuriusxeno.goo.ability.StreamSound;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.client.TargetResult;
@@ -15,11 +18,13 @@ import com.mercuriusxeno.goo.client.ability.WindLines;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
+import com.mercuriusxeno.goo.client.sound.FadingLoops;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.network.GooChargePayload;
+import com.mercuriusxeno.goo.network.GooDragCastPayload;
 import com.mercuriusxeno.goo.network.GooStreamPayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.network.GooThrowPayload;
@@ -32,6 +37,7 @@ import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.BlockHitResult;
@@ -40,6 +46,7 @@ import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.function.IntPredicate;
 import java.util.function.Predicate;
 
@@ -86,6 +93,9 @@ public final class GloveThrowSender {
      */
     private static boolean sendFor(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId,
                                    int heldTicks) {
+        if (selectedDragSized(abilityId)) {
+            return sendDragCast(player, gooType, abilityId);
+        }
         Delivery delivery = selectedDelivery(abilityId);
         if (HeldRoute.runsWhileHeld(delivery, selectedBadge(abilityId))) {
             return sendStreamTick(player, gooType, abilityId);
@@ -139,7 +149,21 @@ public final class GloveThrowSender {
         VitalityVisual.drawFog(player, abilityId, selectedArea(abilityId), origin);
         WindLines.blow(player, abilityId, selectedArea(abilityId), origin);
         ReserveVisual.drawDrain(player, abilityId);
+        loopStreamSound(player, abilityId);
         return true;
+    }
+
+    /**
+     * Keeps a held stream's looped sound sounding for its holder one more
+     * tick, fading out once the hold ends (decision decay-gnats-degrade-each-block-once).
+     *
+     * @param player    the local player
+     * @param abilityId the selected ability id string
+     */
+    private static void loopStreamSound(Player player, String abilityId) {
+        selectedDelivery(abilityId).sound().filter(StreamSound::loop).ifPresent(sound ->
+                FadingLoops.keepAlive(abilityId, sound.sound(), SoundSource.PLAYERS, sound.volume(),
+                        sound.pitchFor(player.getRandom().nextFloat()), player.getEyePosition()));
     }
 
     /**
@@ -171,6 +195,62 @@ public final class GloveThrowSender {
             return hit.getLocation();
         }
         return player.getEyePosition().add(player.getViewVector(1f).scale(player.blockInteractionRange()));
+    }
+
+    /**
+     * Whether the selected ability is sized at will, pinned on the press and
+     * opened on release at the radius dragged
+     * (decision black-hole-leaves-a-compression-sphere).
+     *
+     * @param abilityId the selected ability id string
+     * @return true for a drag-sized selection
+     */
+    public static boolean selectedDragSized(@Nullable String abilityId) {
+        ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
+        return ability != null && ability.tags().contains(AbilityTags.DRAG_SIZED);
+    }
+
+    /**
+     * The radius the live drag of the held glove's sized ability sets: the
+     * distance from the pin to the cursor, cut back to what the player's goo
+     * pays for.
+     *
+     * @param player the local player
+     * @return the radius, or empty when no drag of a sized ability is live
+     */
+    public static OptionalDouble dragRadius(Player player) {
+        GloveSelection selection = heldSelection(player);
+        BlockHitResult pin = GloveUseTracker.pressPin();
+        ClientAbility ability = selection == null ? null : AbilitySyncHandler.findAbility(selection.abilityId());
+        if (pin == null || ability == null || selection.getGooType() == null
+                || !ability.tags().contains(AbilityTags.DRAG_SIZED)) {
+            return OptionalDouble.empty();
+        }
+        int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(selection.getGooType(), 0);
+        return OptionalDouble.of(DragSize.affordable(DragSize.dragged(pin.getLocation(), player.getEyePosition(),
+                player.getViewVector(1f)), ability.cost(), holdings));
+    }
+
+    /**
+     * Sends the release of a sized ability's drag at the pinned epicenter and
+     * the radius dragged, when the player's goo pays for it.
+     *
+     * @param player    the local player
+     * @param gooType   the selected goo type
+     * @param abilityId the selected ability id string
+     * @return true when the payload was sent
+     */
+    private static boolean sendDragCast(Player player, ResourceKey<GooTypeDefinition> gooType, String abilityId) {
+        BlockHitResult pin = GloveUseTracker.pressPin();
+        ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
+        OptionalDouble radius = dragRadius(player);
+        if (pin == null || ability == null || radius.isEmpty()
+                || !GooSourceScanner.hasEnough(player, gooType, DragSize.costAt(ability.cost(), radius.getAsDouble()))) {
+            return false;
+        }
+        sendPayload(new GooDragCastPayload(GooTypes.id(gooType), abilityId, pin.getBlockPos(),
+                pin.getDirection().get3DDataValue(), pin.getLocation(), radius.getAsDouble()));
+        return true;
     }
 
     /**
@@ -338,6 +418,11 @@ public final class GloveThrowSender {
             return Optional.empty();
         }
         ClientAbility ability = AbilitySyncHandler.findAbility(selection.abilityId());
+        OptionalDouble dragged = dragRadius(player);
+        if (ability != null && dragged.isPresent()) {
+            // black-hole-leaves-a-compression-sphere: a sized cast reads the price of the radius dragged
+            return Optional.of(GooFormat.formatAmount(DragSize.costAt(ability.cost(), dragged.getAsDouble())));
+        }
         float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
         return Optional.of(ability == null ? GooFormat.formatAmount(throwCostOf(null, Optional.empty()))
                 : ability.costLabel(BlinkAim.trip(player, ability, partialTick)));

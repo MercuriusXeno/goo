@@ -64,7 +64,7 @@ class AbilityDefinitionTest {
         }
 
         @ParameterizedTest
-        @CsvSource({"crystal_cloud, 4.5", "metal_spikes, 3.75", "nether_black_hole, 9.0", "rock_crush, 2.0",
+        @CsvSource({"crystal_cloud, 4.5", "metal_spikes, 3.75", "rock_crush, 2.0",
                 "shroom_colonize, 3.0"})
         void fieldThrowDrawsASphereAtItsWidestRadius(String name, double radius) {
             assertEquals(new AbilityArea(AbilityArea.Shape.SPHERE, radius, 0), AbilityJson.decode(name).area());
@@ -79,7 +79,9 @@ class AbilityDefinitionTest {
             String name = file.getFileName().toString().replace(".json", "");
             AbilityDefinition definition = AbilityJson.decode(file);
             boolean aimsTheWorld = definition.badge() == AbilityBadge.WORLD || definition.badge() == AbilityBadge.FREE;
+            // black-hole-leaves-a-compression-sphere: a sized cast draws its dragged radius, not a thrown area
             return definition.delivery().kind() == DeliveryKind.ARC && aimsTheWorld
+                    && !definition.hasTag(AbilityTags.DRAG_SIZED)
                     && RADIUS_BEARING.matcher(AbilityJson.read(name)).find();
         }
     }

@@ -1,10 +1,13 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.ability.program.HostVariables;
 import com.mercuriusxeno.goo.ability.program.PhasedStep;
-import com.mercuriusxeno.goo.ability.program.Variables;
+import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 
@@ -83,8 +86,13 @@ public final class NetherExplosionVisual implements BurnoutVisual {
      * @return the implode radius in blocks
      */
     private static float implodeReach(ChainBurnouts.Burnout burnout) {
+        // black-hole-leaves-a-compression-sphere: the rush starts from the radius the cast was dragged to
+        ClientLevel level = Minecraft.getInstance().level;
+        double size = level != null && level.getBlockEntity(burnout.pos()) instanceof AbilityBlockEntity be
+                ? be.programState().castSize() : 0;
         return SyncedSteps.first(burnout.abilityId(), PhasedStep.class)
-                .map(step -> step.radius().evaluateFloat(Variables.NONE))
+                .map(step -> step.radius().evaluateFloat(HostVariables.sized(size)))
+                .filter(reach -> reach > 0)
                 .orElse(FALLBACK_REACH);
     }
 

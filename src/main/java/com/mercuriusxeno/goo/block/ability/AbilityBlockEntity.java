@@ -4,12 +4,12 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.*;
 import com.mercuriusxeno.goo.ability.program.FieldEffectState;
 import com.mercuriusxeno.goo.ability.program.HostKind;
+import com.mercuriusxeno.goo.ability.program.MarkerHost;
 import com.mercuriusxeno.goo.ability.program.PhasedState;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.GooSyncedBlockEntity;
-import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -98,17 +98,25 @@ public class AbilityBlockEntity extends GooSyncedBlockEntity implements MarkerAn
      */
     public static void serverTick(Level level, BlockPos pos, BlockState state,
                                   AbilityBlockEntity be) {
-        if (be.behavior == null) {
-            level.removeBlock(pos, false);
+        if (!(level instanceof ServerLevel server)) {
             return;
         }
-        be.behavior.serverTick((ServerLevel) level, pos, be);
-        if (!be.behavior.isActive()) {
+        if (be.running()) {
+            be.behavior.serverTick(server, pos, be);
+        }
+        // black-hole-leaves-a-compression-sphere: a hole takes its sphere a budget a tick, core outward,
+        // and stands until the last block is in
+        new MarkerHost(server, pos, be).takeBlocks();
+        if (!be.running() && !be.programState.taking()) {
             level.removeBlock(pos, false);
             return;
         }
         be.setChanged();
         BlockEntitySync.markDirtyAndSync(be);
+    }
+
+    private boolean running() {
+        return behavior != null && behavior.isActive();
     }
 
     /**
@@ -121,11 +129,15 @@ public class AbilityBlockEntity extends GooSyncedBlockEntity implements MarkerAn
      * @param face      the placed face
      * @param ability   the id of the ability that lingers
      * @param steps     the body of the ability's linger step
+     * @param size      the size the cast was dragged to, which the program reads,
+     *                  zero for one naming none (decision black-hole-leaves-a-compression-sphere)
      */
-    public void stand(ResourceKey<GooTypeDefinition> type, Direction face, String ability, List<Step> steps) {
+    public void stand(ResourceKey<GooTypeDefinition> type, Direction face, String ability, List<Step> steps,
+                      double size) {
         this.gooType = type;
         this.placedFace = face;
         this.abilityId = ability;
+        programState.setCastSize(size);
         if (!(level instanceof ServerLevel server)) {
             return;
         }
@@ -178,34 +190,6 @@ public class AbilityBlockEntity extends GooSyncedBlockEntity implements MarkerAn
      */
     public PhasedState getPhased() {
         return programState.phased();
-    }
-
-    /**
-     * Returns the goo consumed from the blocks around this marker and not
-     * yet dropped.
-     *
-     * @return the consumed goo
-     */
-    public GooContents getConsumedGoo() {
-        return programState.consumedGoo();
-    }
-
-    /**
-     * Adds goo consumed from the blocks around this marker to its total.
-     *
-     * @param consumed the goo just consumed
-     */
-    public void addConsumedGoo(GooContents consumed) {
-        programState.addConsumedGoo(consumed);
-    }
-
-    /**
-     * Empties the consumed goo total, handing back what it held.
-     *
-     * @return the goo consumed so far
-     */
-    public GooContents takeConsumedGoo() {
-        return programState.takeConsumedGoo();
     }
 
     @Override

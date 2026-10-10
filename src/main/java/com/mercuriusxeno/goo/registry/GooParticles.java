@@ -31,6 +31,13 @@ public class GooParticles {
         PARTICLE_TYPES.register("spore", () -> new SimpleParticleType(false));
 
     /**
+     * A maroon gnat darting in Decay's swarm, the particle its stream sprays
+     * along the cone (decision decay-gnats-degrade-each-block-once).
+     */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> GNAT =
+        PARTICLE_TYPES.register("gnat", () -> new SimpleParticleType(false));
+
+    /**
      * A snowflake crystal flitting weightlessly along Cold's wind (decision
      * cold-streams-wind-lines-and-snowflakes).
      */

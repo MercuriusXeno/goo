@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
+import java.util.Set;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -30,10 +31,10 @@ import static org.mockito.Mockito.when;
  * it scans: it gathers first, running no act while nether's inward rush
  * plays on the client; on expand's first tick it scans its radius twice and three times its
  * radius once, for the blindness and the two darkness bands, and plays its
- * sound; it pulls from three times its radius through expand and hold;
- * leaving expand it consumes its sphere's valued blocks once and scans its
- * radius once for the halving hit; it drops the consumed goo once, the
- * tick after contract ends, and the program ends there. The potions and
+ * sound; it pulls mobs and items from three times its radius through expand and hold;
+ * leaving expand it takes its sphere's blocks into the hoard once and scans
+ * its radius once for the lethal hit; it leaves the hoard as a compression
+ * sphere once, the tick after contract ends, and the program ends there. The potions and
  * the hit act on each scanned entity itself, which no unit test can build,
  * so the black-hole gametest proves them (decision step-tick-holds-effect).
  */
@@ -96,8 +97,12 @@ class NetherBlackHoleProgramTest {
         when(host.kind()).thenReturn(HostKind.MARKER);
         when(host.phased()).thenReturn(state);
         when(host.read(anyString())).thenReturn(OptionalDouble.empty());
+        // black-hole-leaves-a-compression-sphere: the hole is cast at the radius its JSON cost buys
+        when(host.read(HostVariables.SIZE)).thenReturn(OptionalDouble.of(RADIUS));
         doAnswer(inv -> {
-            record("scan within " + inv.getArgument(1));
+            // the once-a-second cut scans only what its last cut no longer holds immune
+            Set<EntityFilter> where = inv.getArgument(2);
+            record((where.contains(EntityFilter.VULNERABLE) ? "cut within " : "scan within ") + inv.getArgument(1));
             return null;
         }).when(host).forEachEntityWithin(any(), anyDouble(), anySet(), any());
         doAnswer(inv -> {
@@ -107,11 +112,15 @@ class NetherBlackHoleProgramTest {
         doAnswer(inv -> {
             record("consume within " + inv.getArgument(0));
             return null;
-        }).when(host).consumeValuedBlocks(anyInt());
+        }).when(host).hoardBlocks(anyInt());
         doAnswer(inv -> {
-            record("drop consumed");
+            record("pull items within " + inv.getArgument(0) + " at " + inv.getArgument(1));
             return null;
-        }).when(host).dropConsumedGoo();
+        }).when(host).pullItemsIntoHoard(anyDouble(), anyDouble());
+        doAnswer(inv -> {
+            record("drop sphere");
+            return null;
+        }).when(host).dropSphere();
         doAnswer(inv -> {
             SoundCue cue = inv.getArgument(0);
             record("sound " + cue.sound() + " at volume " + cue.volume());
@@ -164,10 +173,23 @@ class NetherBlackHoleProgramTest {
     }
 
     @Test
-    void theGatherRunsNoActAndConsumesNoBlocks() {
+    void theGatherRunsNoActButTheCutAndConsumesNoBlocks() {
         IntStream.range(0, GATHER_TICKS).forEach(i -> tickOnce());
 
-        assertTrue(actTicks.isEmpty(), "the gather ran " + actTicks.keySet());
+        assertEquals(Set.of("cut within " + (double) RADIUS), actTicks.keySet());
+    }
+
+    /**
+     * The operator's ruling on decision black-hole-leaves-a-compression-sphere:
+     * everything inside is cut once a second for as long as the hole stands;
+     * the cut's scan runs every tick, keeping only what its last cut no
+     * longer holds immune, so each thing inside is cut once a second.
+     */
+    @Test
+    void theCutScansTheSphereEveryTickTheHoleStands() {
+        runToTheEnd();
+
+        assertEquals(ticks(1, LAST_CONTRACT_TICK), ticksOf("cut within " + (double) RADIUS));
     }
 
     @Test
@@ -182,11 +204,13 @@ class NetherBlackHoleProgramTest {
     }
 
     @Test
-    void pullRunsEveryTickOfExpandAndHoldFromThreeTimesTheRadius() {
+    void pullDrawsMobsAndItemsEveryTickOfExpandAndHoldFromThreeTimesTheRadius() {
         runToTheEnd();
 
         assertEquals(ticks(EXPAND_START, EXPAND_END + HOLD_TICKS),
                 ticksOf("pull within " + (double) PULL_RADIUS + " at " + PULL_SPEED));
+        assertEquals(ticks(EXPAND_START, EXPAND_END + HOLD_TICKS),
+                ticksOf("pull items within " + (double) PULL_RADIUS + " at " + PULL_SPEED));
     }
 
     @Test
@@ -198,7 +222,7 @@ class NetherBlackHoleProgramTest {
     }
 
     @Test
-    void leavingExpandConsumesTheSphereOnceAndScansItOnceForTheHalvingHit() {
+    void leavingExpandHoardsTheSphereOnceAndScansItOnceForTheLethalHit() {
         runToTheEnd();
 
         assertEquals(List.of(EXPAND_END), ticksOf("consume within " + RADIUS));
@@ -206,10 +230,10 @@ class NetherBlackHoleProgramTest {
     }
 
     @Test
-    void theConsumedGooDropsOnceTheTickAfterContractEnds() {
+    void theSphereDropsOnceTheTickAfterContractEnds() {
         runToTheEnd();
 
-        assertEquals(List.of(POPPING_TICK), ticksOf("drop consumed"));
+        assertEquals(List.of(POPPING_TICK), ticksOf("drop sphere"));
     }
 
     @Test

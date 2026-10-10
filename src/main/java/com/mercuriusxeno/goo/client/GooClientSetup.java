@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client;
 import com.google.common.reflect.TypeToken;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ISidedProxy;
+import com.mercuriusxeno.goo.ability.nether.HiveSwarm;
 import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
@@ -31,16 +32,19 @@ import com.mercuriusxeno.goo.client.ber.style.AgitatorPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlacialPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlowBeaconStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlowReflectorStyle;
+import com.mercuriusxeno.goo.client.ber.style.HivePrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.OculusStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyles;
 import com.mercuriusxeno.goo.client.ber.style.PulsePrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.VerdantPrismStyle;
+import com.mercuriusxeno.goo.client.entity.CompressionSphereRenderer;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.client.particle.*;
 import com.mercuriusxeno.goo.client.radial.CutItemRenderer;
+import com.mercuriusxeno.goo.client.sound.FadingLoops;
 import com.mercuriusxeno.goo.client.throwing.GooFlightManager;
 import com.mercuriusxeno.goo.client.throwing.GooSizeProperty;
 import com.mercuriusxeno.goo.client.throwing.GooVolumeDecorator;
@@ -108,6 +112,7 @@ public final class GooClientSetup {
         ISidedProxy.INSTANCE[0] = new ClientProxy();
         AbilityBlockEntity.installClientSteps(GooClientSetup::syncedSteps);
         GooTypes.readConnectionOrderFrom(GooClientSetup::connectionTypeOrder);
+        HiveSwarm.installBuzzLoops(FadingLoops::keepAlive);
     }
 
     /**
@@ -194,6 +199,7 @@ public final class GooClientSetup {
         event.registerBlockEntityRenderer(GooBlockEntities.WISP.get(), WispRenderer::new);
         PrismComboStyles.register(GlowBeaconStyle.COMBO, new GlowBeaconStyle());
         PrismComboStyles.register(GlowReflectorStyle.COMBO, new GlowReflectorStyle());
+        PrismComboStyles.register(HivePrismStyle.COMBO, new HivePrismStyle());
         event.registerBlockEntityRenderer(GooBlockEntities.DRAGON_GATE.get(), DragonGateRenderer::new);
         // oculus-prism-becomes-a-hovering-eye: an oculus prism draws as the hovering eye
         PrismComboStyles.register(OculusNodes.OCULUS, new OculusStyle());
@@ -202,6 +208,7 @@ public final class GooClientSetup {
         PrismComboStyles.register(PulsePrismStyle.RELAY_COMBO, PulsePrismStyle.RELAY);
         PrismComboStyles.register(GlacialPrismStyle.COMBO, new GlacialPrismStyle());
         event.registerBlockEntityRenderer(GooBlockEntities.STATUE.get(), StatueRenderer::new);
+        event.registerEntityRenderer(GooEntities.COMPRESSION_SPHERE.get(), CompressionSphereRenderer::new);
         // orb-carries-a-swirling-nova: RollingGooRenderer draws the ball and its swirl from the level stage
         event.registerEntityRenderer(GooEntities.ROLLING_GOO.get(), NoopRenderer::new);
     }
@@ -270,6 +277,7 @@ public final class GooClientSetup {
         event.registerSpriteSet(GooParticles.TAP_DRIP_LAND.get(), TapDripParticle.LandProvider::new);
         event.registerSpriteSet(GooParticles.GOO_FOG.get(), GooFogParticle.Provider::new);
         event.registerSpriteSet(GooParticles.SPORE.get(), SporeParticle.Provider::new);
+        event.registerSpriteSet(GooParticles.GNAT.get(), GnatParticle.Provider::new);
         event.registerSpriteSet(GooParticles.SNOWFLAKE.get(), SnowflakeParticle.Provider::new);
         event.registerSpriteSet(GooParticles.RESTORE_MOTE.get(), RestoreMoteParticle.Provider::new);
         event.registerSpriteSet(GooParticles.VITAL_MOTE.get(), VitalMoteParticle.Provider::new);

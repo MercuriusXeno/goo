@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:decay_paints_the_crosshair_block_off_center",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

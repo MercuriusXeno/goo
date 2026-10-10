@@ -16,6 +16,7 @@ import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.data.AtlasIds;
+import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -43,6 +44,7 @@ public final class BlockMingleRenderer {
     private static final float SWELL = 1.002f;
     private static final float BLOCK_CENTER = 0.5f;
     private static final int OPAQUE_WHITE = 0xFFFFFFFF;
+    private static final int OPAQUE_ALPHA = 0xFF000000;
     private static final long MODEL_SEED = 42L;
 
     private BlockMingleRenderer() {
@@ -86,12 +88,13 @@ public final class BlockMingleRenderer {
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         for (BlockTransforms.Transform transform : live) {
             drawMingle(poseStack, consumer, camera,
-                    new Mingle(transform.pos(), transform.from(), transform.progress(gameTime)));
+                    new Mingle(transform.pos(), transform.from(), transform.progress(gameTime),
+                            mingleColor(transform.tint())));
         }
         // petrify-stone-encasement-and-calcify-map: the next rung mingles in by the share built so far
         for (BlockTransforms.Exposure exposure : exposing) {
-            drawMingle(poseStack, consumer, camera,
-                    new Mingle(exposure.pos(), exposure.toward(), 1f - exposure.share()));
+            drawMingle(poseStack, consumer, camera, new Mingle(exposure.pos(), exposure.toward(),
+                    1f - exposure.share(), mingleColor(exposure.tint())));
         }
         buffers.endBatch(mingle);
     }
@@ -103,8 +106,38 @@ public final class BlockMingleRenderer {
      * @param pos      the block
      * @param state    the state drawn over it
      * @param progress the share of the drawn state dissolved, 0 whole to 1 gone
+     * @param color    the ARGB the drawn state is tinted by
      */
-    private record Mingle(BlockPos pos, BlockState state, float progress) {
+    private record Mingle(BlockPos pos, BlockState state, float progress, int color) {
+    }
+
+    /**
+     * The color an exposure's mingled block is drawn in: its own colors
+     * untinted, or the tint the ability sent, opaque
+     * (decision decay-gnats-degrade-each-block-once).
+     *
+     * @param tint the RGB the exposure carries, negative for none
+     * @return the ARGB to draw it in
+     */
+    static int mingleColor(int tint) {
+        return tint < 0 ? OPAQUE_WHITE : OPAQUE_ALPHA | tint;
+    }
+
+    /**
+     * The light a drawn state over a block wears: the brightest light on any
+     * of the block's faces, since a solid block holds no light inside it and
+     * its own position reads black.
+     *
+     * @param level the client level
+     * @param pos   the block
+     * @return the packed light coordinates
+     */
+    private static int faceLight(ClientLevel level, BlockPos pos) {
+        int brightest = LevelRenderer.getLightCoords(level, pos);
+        for (Direction side : Direction.values()) {
+            brightest = LightCoordsUtil.max(brightest, LevelRenderer.getLightCoords(level, pos.relative(side)));
+        }
+        return brightest;
     }
 
     /**
@@ -124,8 +157,8 @@ public final class BlockMingleRenderer {
         poseStack.scale(SWELL, SWELL, SWELL);
         poseStack.translate(-BLOCK_CENTER, -BLOCK_CENTER, -BLOCK_CENTER);
         QuadInstance instance = new QuadInstance();
-        instance.setColor(OPAQUE_WHITE);
-        instance.setLightCoords(LevelRenderer.getLightCoords(level, mingle.pos()));
+        instance.setColor(mingle.color());
+        instance.setLightCoords(faceLight(level, mingle.pos()));
         instance.setOverlayCoords(progressCoords(mingle.progress()));
         BlockStateModel model = mc.getModelManager().getBlockStateModelSet().get(mingle.state());
         for (BakedQuad quad : quadsOf(model, level, mingle)) {

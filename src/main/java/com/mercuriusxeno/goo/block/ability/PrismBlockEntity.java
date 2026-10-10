@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.block.ability;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.PrismCombos;
+import com.mercuriusxeno.goo.ability.nether.HiveSwarm;
 import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
 import com.mercuriusxeno.goo.ability.oculus.OculusRegistry;
 import com.mercuriusxeno.goo.ability.program.HostKind;
@@ -110,6 +111,21 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
             prism.setChanged();
         } else {
             prism.settle();
+        }
+    }
+
+    /**
+     * Client tick: a hive prism keeps its swarm around it
+     * (decision hive-prism-pillar-eats-the-living).
+     *
+     * @param level the current level
+     * @param pos   the prism's position
+     * @param state the prism's block state
+     * @param prism the prism's block entity
+     */
+    public static void clientTick(Level level, BlockPos pos, BlockState state, PrismBlockEntity prism) {
+        if (HiveSwarm.COMBO.equals(prism.combo)) {
+            HiveSwarm.tick(level, pos);
         }
     }
 
