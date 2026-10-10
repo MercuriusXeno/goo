@@ -17,15 +17,19 @@ public final class PrismCombos {
     }
 
     /**
-     * The ability whose program is the combo a landing runs on a prism.
+     * The ability whose program is the combo a landing runs on a prism. A
+     * prism ability thrown at a prism is its own combo, so a type with two,
+     * as Pulse has Metronome and Relay, grows whichever the player threw
+     * (decision relay-prism-carries-the-signal-through-air).
      *
      * @param landing   the ability that landed on the prism
      * @param typePrism the landing type's prism ability, null when the type has none
-     * @return the landing ability when it reacts to a prism itself, else the type's prism ability, or null for neither
+     * @return the landing ability when it is a prism ability or reacts to a prism itself, else the type's prism
+     *         ability, or null for neither
      */
     public static @Nullable AbilityDefinition comboSource(AbilityDefinition landing,
                                                          @Nullable AbilityDefinition typePrism) {
-        return reactsToPrisms(landing) ? landing : typePrism;
+        return landing.badge() == AbilityBadge.PRISM || reactsToPrisms(landing) ? landing : typePrism;
     }
 
     /**

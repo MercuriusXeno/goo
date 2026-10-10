@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
+import com.mercuriusxeno.goo.block.ability.ZapPulseBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlock;
@@ -95,6 +96,19 @@ public class GooBlocks {
                     .noLootTable()
                     .noOcclusion()
                     .sound(SoundType.FUNGUS)
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
+    /**
+     * Zap pulse: the moment of full power Zap stands beside a block with no
+     * toggle of its own (decision zap-ticks-the-device-and-stuns).
+     */
+    public static final DeferredBlock<ZapPulseBlock> ZAP_PULSE = BLOCKS.registerBlock(
+            "zap_pulse", ZapPulseBlock::new,
+            () -> BlockBehaviour.Properties.of()
+                    .noCollision()
+                    .instabreak()
+                    .noLootTable()
+                    .noOcclusion()
+                    .replaceable()
                     .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
     /**
      * Prism: the milky quartz crystal Crystal's Prism grows, the host every
