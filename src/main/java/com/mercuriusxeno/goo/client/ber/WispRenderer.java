@@ -3,8 +3,9 @@ package com.mercuriusxeno.goo.client.ber;
 import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.ability.WispBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
-import com.mercuriusxeno.goo.client.ability.ColorSphere;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.math.Axis;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
@@ -17,24 +18,60 @@ import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Draws a wisp as a soft floating mote: a small near-white core inside a
- * glow-yellow halo, both added onto the world, bobbing slowly in place and
- * shrinking and dimming through the wisp's fade stages.
+ * Draws a wisp as a soft floating mote: a small near-white cube inside a
+ * glow-yellow halo cube, both added onto the world, bobbing and turning
+ * slowly in place, each wisp at its own phase and pace so no two move in
+ * step, and shrinking and dimming through the wisp's fade stages (operator
+ * rulings 2026-10-09).
  * decision radiant-wisps-where-light-is-low
  */
 public class WispRenderer implements BlockEntityRenderer<WispBlockEntity, WispRenderer.WispRenderState> {
 
-    static final float CORE_RADIUS = 0.07f;
-    static final float HALO_RADIUS = 0.18f;
+    /** The core cube's half-size, in blocks. */
+    static final float CORE_HALF = 0.06f;
+    /** The halo cube's half-size, in blocks. */
+    static final float HALO_HALF = 0.15f;
     private static final int CORE_ALPHA = 210;
     private static final int HALO_ALPHA = 55;
     private static final int CORE_RGB = 0xFFF6C8;
     private static final int HALO_RGB = 0xFFE628;
     private static final float BOB_HEIGHT = 0.06f;
-    private static final float BOB_PER_TICK = 0.08f;
-    private static final double HALF = 0.5;
-    /** Spreads the bob's phase by position, so neighboring wisps never bob in step. */
-    private static final int PHASE_SPREAD = 31;
+    /** The slowest a wisp bobs, in radians a tick, and how much faster one may go. */
+    static final float SLOWEST_BOB = 0.05f;
+    static final float BOB_SPREAD = 0.05f;
+    /** Degrees a wisp turns each tick, at most, either way. */
+    private static final float MOST_TURN = 1.5f;
+    private static final float HALF = 0.5f;
+    private static final int PHASE_BITS = 0xFFFF;
+    private static final int PACE_SHIFT = 16;
+    private static final int TURN_SHIFT = 32;
+    private static final float PHASE_STEPS = 65_536f;
+    /** The second wobble's pace over the first's: irrational, so the two never fall into step. */
+    private static final float GOLDEN_RATIO = 1.618034f;
+    /** The slow bob's share of the float, the wobble taking the rest. */
+    private static final float SLOW_SHARE = 0.65f;
+    private static final int WOBBLE_SHIFT = 48;
+    private static final long GOLDEN_GAMMA = 0x9E3779B97F4A7C15L;
+    private static final long MIX_MULTIPLIER_A = 0xBF58476D1CE4E5B9L;
+    private static final long MIX_MULTIPLIER_B = 0x94D049BB133111EBL;
+    private static final int MIX_SHIFT_A = 30;
+    private static final int MIX_SHIFT_B = 27;
+    private static final int MIX_SHIFT_C = 31;
+    /** A turn spans its most on both sides. */
+    private static final float BOTH_WAYS = 2f;
+    /** A cube corner's coordinate: the low side or the high side of the unit cube. */
+    private static final float LO = -1f;
+    private static final float HI = 1f;
+    /** A corner takes three coordinates, in x, y, z order. */
+    private static final int AXES = 3;
+    private static final int X = 0;
+    private static final int Y = 1;
+    private static final int Z = 2;
+    /** The unit cube's six faces, each four corners of x, y and z. */
+    private static final float[][] CUBE_FACES = {
+        {LO, LO, LO, HI, LO, LO, HI, LO, HI, LO, LO, HI}, {LO, HI, LO, LO, HI, HI, HI, HI, HI, HI, HI, LO},
+        {LO, LO, LO, LO, HI, LO, HI, HI, LO, HI, LO, LO}, {LO, LO, HI, HI, LO, HI, HI, HI, HI, LO, HI, HI},
+        {LO, LO, LO, LO, LO, HI, LO, HI, HI, LO, HI, LO}, {HI, LO, LO, HI, HI, LO, HI, HI, HI, HI, LO, HI}};
 
     /**
      * Creates the wisp renderer.
@@ -56,20 +93,99 @@ public class WispRenderer implements BlockEntityRenderer<WispBlockEntity, WispRe
         BlockEntityRenderState.extractBase(wisp, state, breakProgress);
         state.fade = wisp.getBlockState().getValue(WispBlock.FADE);
         long gameTime = wisp.getLevel() == null ? 0L : wisp.getLevel().getGameTime();
-        state.time = gameTime + partialTick + wisp.getBlockPos().hashCode() % PHASE_SPREAD;
+        state.time = gameTime + partialTick;
+        state.seed = seedOf(wisp.getBlockPos().asLong());
     }
 
     @Override
     public void submit(WispRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector,
                        CameraRenderState cameraState) {
         float strength = strength(state.fade);
-        Vec3 center = new Vec3(HALF, HALF + BOB_HEIGHT * Mth.sin(state.time * BOB_PER_TICK), HALF);
+        float bob = bob(state.seed, state.time);
+        poseStack.pushPose();
+        poseStack.translate(HALF, HALF + bob, HALF);
+        poseStack.mulPose(Axis.YP.rotationDegrees(state.time * turn(state.seed)));
         nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.GLOW_SHELL_TYPE, (pose, consumer) -> {
-            ColorSphere.emit(pose, consumer, center, HALO_RADIUS * strength,
-                    ARGB.color(Math.round(HALO_ALPHA * strength), HALO_RGB));
-            ColorSphere.emit(pose, consumer, center, CORE_RADIUS * strength,
-                    ARGB.color(Math.round(CORE_ALPHA * strength), CORE_RGB));
+            emitCube(pose, consumer, HALO_HALF * strength, ARGB.color(Math.round(HALO_ALPHA * strength), HALO_RGB));
+            emitCube(pose, consumer, CORE_HALF * strength, ARGB.color(Math.round(CORE_ALPHA * strength), CORE_RGB));
         });
+        poseStack.popPose();
+    }
+
+    /**
+     * Scrambles a packed position into a seed whose bits spread well, so
+     * neighboring wisps take unrelated phases and paces.
+     *
+     * @param packed the wisp's packed position
+     * @return the seed
+     */
+    static long seedOf(long packed) {
+        long z = packed * GOLDEN_GAMMA;
+        z = (z ^ (z >>> MIX_SHIFT_A)) * MIX_MULTIPLIER_A;
+        z = (z ^ (z >>> MIX_SHIFT_B)) * MIX_MULTIPLIER_B;
+        return z ^ (z >>> MIX_SHIFT_C);
+    }
+
+    /**
+     * How far a wisp has bobbed at a time: two wobbles at its own phases and
+     * at paces in an irrational ratio, so its float never settles into a
+     * rhythm, and no two wisps float in step.
+     *
+     * @param seed the wisp's position seed
+     * @param time the game clock in ticks
+     * @return the bob's height off center, in blocks
+     */
+    static float bob(long seed, float time) {
+        float slow = Mth.sin(phase(seed) + time * pace(seed));
+        float wobble = Mth.sin(phase(seed >>> WOBBLE_SHIFT) + time * pace(seed) * GOLDEN_RATIO);
+        return BOB_HEIGHT * (SLOW_SHARE * slow + (1f - SLOW_SHARE) * wobble);
+    }
+
+    /**
+     * A wisp's bob phase, from its position's seed, anywhere in a full turn.
+     *
+     * @param seed the wisp's position seed
+     * @return the phase in radians
+     */
+    static float phase(long seed) {
+        return (seed & PHASE_BITS) / PHASE_STEPS * Mth.TWO_PI;
+    }
+
+    /**
+     * A wisp's bob pace, from its position's seed, between the slowest and the fastest.
+     *
+     * @param seed the wisp's position seed
+     * @return radians a tick
+     */
+    static float pace(long seed) {
+        return SLOWEST_BOB + ((seed >>> PACE_SHIFT) & PHASE_BITS) / PHASE_STEPS * BOB_SPREAD;
+    }
+
+    /**
+     * A wisp's turn, from its position's seed, slow either way.
+     *
+     * @param seed the wisp's position seed
+     * @return degrees a tick
+     */
+    static float turn(long seed) {
+        return (((seed >>> TURN_SHIFT) & PHASE_BITS) / PHASE_STEPS * BOTH_WAYS - 1f) * MOST_TURN;
+    }
+
+    /**
+     * Emits a cube centered on the pose's origin.
+     *
+     * @param pose     the pose
+     * @param consumer the vertex consumer, position and color
+     * @param half     the cube's half-size
+     * @param color    the packed ARGB color
+     */
+    static void emitCube(PoseStack.Pose pose, VertexConsumer consumer, float half, int color) {
+        for (float[] face : CUBE_FACES) {
+            for (int corner = 0; corner < face.length; corner += AXES) {
+                consumer.addVertex(pose, face[corner + X] * half, face[corner + Y] * half, face[corner + Z] * half)
+                        .setColor(color);
+            }
+        }
     }
 
     /**
@@ -86,7 +202,9 @@ public class WispRenderer implements BlockEntityRenderer<WispBlockEntity, WispRe
     public static class WispRenderState extends BlockEntityRenderState {
         /** The wisp's fade stage. */
         public int fade;
-        /** The bob's clock in ticks, its phase spread by position. */
+        /** The game clock in ticks. */
         public float time;
+        /** The wisp's position seed, which sets its own bob phase, pace and turn. */
+        public long seed;
     }
 }
