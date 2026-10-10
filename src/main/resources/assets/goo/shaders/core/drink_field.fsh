@@ -232,20 +232,22 @@ void main() {
     float t = max(tEnter, 0.0);
     float gap;
     float f = fieldAt(rd * t, count, gap);
-    if (f >= iso) {
+    // Inside the field at the entry: from another region the surface is at the entry itself, which that region's
+    // last step may have missed; from the camera the eye is inside the goo and sees through it.
+    if (f >= iso && tEnter <= 0.0) {
         discard;
     }
+    bool hit = f >= iso;
     float before = t;
-    bool hit = false;
     for (int i = 0; i < MAX_STEPS && !hit; i++) {
         float step = gap > 0.0 ? max(gap, MIN_STEP) : clamp((iso - f) / SLOPE_BOUND, MIN_STEP, MAX_STEP);
         before = t;
-        t += step;
-        if (t > tExit) {
-            break;
-        }
+        t = min(t + step, tExit);
         f = fieldAt(rd * t, count, gap);
         hit = f >= iso;
+        if (!hit && t >= tExit) {
+            break;
+        }
     }
     if (!hit) {
         discard;
