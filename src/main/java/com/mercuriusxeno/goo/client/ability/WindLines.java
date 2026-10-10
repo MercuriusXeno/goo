@@ -86,6 +86,8 @@ public final class WindLines {
     private static final double TWO_PI = 2 * Math.PI;
     private static final double HALF = 0.5;
     private static final double NEAR_VERTICAL = 0.99;
+    /** How far behind the player's middle a jet's wake leaves, in blocks, clear of the body. */
+    static final double EXHAUST_SETBACK = 0.4;
 
     /** How far a line tilts its curl forward from facing the player, so the head flows into it, in radians. */
     static final double CURL_TILT = 0.35;
@@ -238,10 +240,39 @@ public final class WindLines {
      */
     public static void blow(Player player, String abilityId, AbilityArea area, Vec3 apex) {
         windOf(abilityId).ifPresent(wind -> {
-            CLIENT.add(player.level().getRandom(), apex, player.getLookAngle(), area.size(), area.angle(),
-                    wind.snowflakes(), player.level().getGameTime());
+            Gust gust = wind.exhaust()
+                    .map(exhaust -> exhaustGust(exhaust, player.position().add(0, player.getBbHeight() * HALF, 0),
+                            player.getLookAngle()))
+                    .orElseGet(() -> new Gust(apex, player.getLookAngle(), area.size(), area.angle()));
+            CLIENT.add(player.level().getRandom(), gust, wind.snowflakes(), player.level().getGameTime());
             CLIENT.keepWindBlowing(player);
         });
+    }
+
+    /**
+     * Where a held tick's wind blows from and along.
+     *
+     * @param origin      where the lines leave
+     * @param axis        the unit direction they rush along
+     * @param range       how far the cone they fill reaches, in blocks
+     * @param coneDegrees the cone's apex angle, in degrees
+     */
+    record Gust(Vec3 origin, Vec3 axis, double range, double coneDegrees) {
+    }
+
+    /**
+     * A jet's wake: the lines leave just behind the player's middle and rush
+     * back against the look through the exhaust's cone.
+     * jet-pushes-along-the-look-while-held
+     *
+     * @param exhaust the wind step's exhaust
+     * @param middle  the player's middle
+     * @param look    the player's look, unit length
+     * @return the gust
+     */
+    static Gust exhaustGust(WindStep.Exhaust exhaust, Vec3 middle, Vec3 look) {
+        Vec3 back = look.reverse();
+        return new Gust(middle.add(back.scale(EXHAUST_SETBACK)), back, exhaust.range(), exhaust.coneDegrees());
     }
 
     /**
@@ -311,12 +342,14 @@ public final class WindLines {
         }
     }
 
-    private void add(RandomSource random, Vec3 apex, Vec3 look, double range, double coneDegrees, boolean snowflakes,
-                     long now) {
+    private void add(RandomSource random, Gust gust, boolean snowflakes, long now) {
         if (!blowsOn(now)) {
             return;
         }
-        double spread = Math.toRadians(coneDegrees * HALF);
+        Vec3 apex = gust.origin();
+        Vec3 look = gust.axis();
+        double range = gust.range();
+        double spread = Math.toRadians(gust.coneDegrees() * HALF);
         double about = random.nextDouble() * TWO_PI;
         Vec3 axis = tilt(look, spread * Math.sqrt(random.nextDouble()), about);
         Vec3 outward = radial(look, about);

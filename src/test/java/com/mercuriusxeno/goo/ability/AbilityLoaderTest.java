@@ -117,7 +117,7 @@ class AbilityLoaderTest {
             Map.entry("leaf_reap", List.of("wheat", "wheat_seeds")),
             Map.entry("leaf_bio", List.of("poisonous_potato")),
             Map.entry("typhoon_float", List.of("shulker_shell")),
-            Map.entry("typhoon_propel", List.of("phantom_membrane")),
+            Map.entry("typhoon_jet", List.of("phantom_membrane")),
             Map.entry("rock_bore", List.of("stone", "cobblestone")),
             Map.entry("rock_crush", List.of("gravel", "sand")),
             Map.entry("rock_flatten", List.of("dirt")),
@@ -175,6 +175,17 @@ class AbilityLoaderTest {
                 "typhoon_levitate still loads");
         assertEquals("goo.ability.typhoon.float", floatAbility.displayName());
         assertTrue(floatAbility.behaviors().stream().anyMatch(FloatStep.class::isInstance), "no float step");
+    }
+
+    // decision jet-pushes-along-the-look-while-held
+    @Test
+    void typhoonJetReplacesPropelAsAChannelOnTheSelf() {
+        Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
+        AbilityDefinition jet = scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, "typhoon_jet"));
+
+        assertFalse(scanned.containsKey(Identifier.fromNamespaceAndPath(Goo.MODID, "typhoon_propel")),
+                "typhoon_propel still loads");
+        assertTrue(HeldRoute.channelsOnSelf(jet.delivery(), jet.badge()), "typhoon_jet does not channel on the self");
     }
 
     // decision splat-runs-the-program-no-fuse

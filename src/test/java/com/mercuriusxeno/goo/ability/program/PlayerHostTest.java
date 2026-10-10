@@ -6,7 +6,10 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
@@ -15,6 +18,7 @@ import net.neoforged.fml.loading.FMLLoader;
 import net.neoforged.neoforge.attachment.AttachmentHolder;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.junit.jupiter.api.Test;
 import java.util.List;
@@ -70,6 +74,8 @@ class PlayerHostTest {
                 BlockPos.ZERO));
         when(player.level()).thenReturn(openAir);
         when(player.getLookAngle()).thenReturn(look);
+        when(player.getDeltaMovement()).thenReturn(Vec3.ZERO);
+        when(player.getItemBySlot(EquipmentSlot.CHEST)).thenReturn(mock(ItemStack.class));
         when(player.position()).thenReturn(new Vec3(X, Y, Z));
         when(player.getX()).thenReturn(X);
         when(player.getY()).thenReturn(Y);
@@ -124,6 +130,14 @@ class PlayerHostTest {
     class Push {
 
         private static final double STRENGTH = 1.5;
+        /** typhoon_jet.json's push: its speed and the shares it steers by, without and with an elytra. */
+        private static final double JET_STRENGTH = 0.8;
+        private static final double JET_STEER = 0.2;
+        private static final double JET_ELYTRA_STEER = 0.5;
+        private static final PushStep JET = new PushStep(Expr.literal(JET_STRENGTH), Expr.literal(JET_STEER),
+                Expr.literal(JET_ELYTRA_STEER));
+        private static final Vec3 EAST = new Vec3(1, 0, 0);
+        private static final double TOLERANCE = 1e-9;
 
         @Test
         void pushSetsTheMotionMarksItAndResetsTheFall() {
@@ -145,6 +159,51 @@ class PlayerHostTest {
             run(List.of(new PushStep(Expr.literal(STRENGTH))), player);
 
             verify(player).setDeltaMovement(look.scale(STRENGTH));
+        }
+
+        // decision jet-pushes-along-the-look-while-held
+        @Test
+        void jetTurnsAStillPlayerAFifthOfTheWayTowardItsLook() {
+            ServerPlayer player = playerLooking(EAST);
+
+            run(List.of(JET), player);
+
+            assertEquals(JET_STRENGTH * JET_STEER, pushedAlongEast(player), TOLERANCE);
+        }
+
+        // decision jet-pushes-along-the-look-while-held
+        @Test
+        void jetSteersHalfTheWayForAPlayerWearingAnElytra() {
+            ServerPlayer player = playerLooking(EAST);
+            ItemStack elytra = mock(ItemStack.class);
+            when(elytra.has(DataComponents.GLIDER)).thenReturn(true);
+            when(player.getItemBySlot(EquipmentSlot.CHEST)).thenReturn(elytra);
+
+            run(List.of(JET), player);
+
+            assertEquals(JET_STRENGTH * JET_ELYTRA_STEER, pushedAlongEast(player), TOLERANCE);
+        }
+
+        // decision jet-pushes-along-the-look-while-held
+        @Test
+        void jetKeepsTheRestOfAMovingPlayersVelocity() {
+            ServerPlayer player = playerLooking(EAST);
+            when(player.getDeltaMovement()).thenReturn(new Vec3(0, 0, 1));
+
+            run(List.of(JET), player);
+
+            ArgumentCaptor<Vec3> set = ArgumentCaptor.forClass(Vec3.class);
+            verify(player).setDeltaMovement(set.capture());
+            assertEquals(1 - JET_STEER, set.getValue().z, TOLERANCE);
+            assertEquals(JET_STRENGTH * JET_STEER, set.getValue().x, TOLERANCE);
+        }
+
+        private static double pushedAlongEast(ServerPlayer player) {
+            ArgumentCaptor<Vec3> set = ArgumentCaptor.forClass(Vec3.class);
+            verify(player).setDeltaMovement(set.capture());
+            assertEquals(0, set.getValue().y, TOLERANCE);
+            assertEquals(0, set.getValue().z, TOLERANCE);
+            return set.getValue().x;
         }
     }
 
