@@ -72,6 +72,9 @@ public final class TimekeeperTests {
     /**
      * A timekeeper fed by an aeon landing spends its bank under a held Tick:
      * the clock moves forward by the charge spent, never back.
+     * It runs alone in the goo:timekeeper_clock environment's batch, since
+     * the world clock is the level's and a sibling's skip mid-hold would
+     * count in its reading.
      *
      * @param helper the gametest helper
      */
