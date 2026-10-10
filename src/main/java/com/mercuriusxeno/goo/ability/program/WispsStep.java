@@ -113,7 +113,8 @@ public record WispsStep(double radius, int count, int life, int above, boolean a
         if (startsOver(under, eyes, heldTicks)) {
             long now = level.getGameTime();
             FLOODS.values().removeIf(stale -> now - stale.lastWalked() > FORGET_AFTER_TICKS);
-            under = new WispFlood(eyes, radius, growth);
+            // a wisp's light keeps a cell lit until it drops to the threshold, one level a step
+            under = new WispFlood(eyes, radius, growth, WispBlock.LIGHT - GooConfig.radiantLightThreshold());
             FLOODS.put(holder.getUUID(), under);
         }
         under.walkedAt(level.getGameTime());

@@ -23,11 +23,11 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 public final class WispFlood {
 
     /**
-     * How far a fresh wisp's light reaches before a cell reads dark again:
-     * a wisp gives 15, the threshold sits at 10, and light drops one a step,
-     * so a cell five steps out still reads 10, lit.
+     * How far a fresh wisp's light reaches before a cell reads dark again, at
+     * the default threshold: a wisp gives 15, the threshold sits at 8, and
+     * light drops one a step, so a cell seven steps out still reads 8, lit.
      */
-    static final int LIT_STEPS = 5;
+    static final int LIT_STEPS = 7;
     /** How close to the eyes a wisp may sit, in steps: none in the holder's face. */
     static final int CLEAR_OF_THE_EYES = 2;
     /** The most cells one flood remembers, so open sky never grows it without end. */
@@ -36,6 +36,7 @@ public final class WispFlood {
     private final BlockPos origin;
     private final double range;
     private final double growth;
+    private final int litSteps;
     private double edge;
     private final Deque<BlockPos> frontier = new ArrayDeque<>();
     private final LongOpenHashSet visited = new LongOpenHashSet();
@@ -50,9 +51,22 @@ public final class WispFlood {
      * @param growth how many blocks the edge grows each tick it walks; zero or less reaches the range at once
      */
     public WispFlood(BlockPos origin, double range, double growth) {
+        this(origin, range, growth, LIT_STEPS);
+    }
+
+    /**
+     * Starts a flood at a cell, its wisps' light reaching a given number of steps.
+     *
+     * @param origin   the holder's eye cell
+     * @param range    how far from the origin a cell may be, in blocks
+     * @param growth   how many blocks the edge grows each tick it walks; zero or less reaches the range at once
+     * @param litSteps how many steps out a placed wisp's light keeps a cell lit
+     */
+    public WispFlood(BlockPos origin, double range, double growth, int litSteps) {
         this.origin = origin.immutable();
         this.range = range;
         this.growth = growth;
+        this.litSteps = litSteps;
         frontier.add(this.origin);
         visited.add(this.origin.asLong());
     }
@@ -162,7 +176,7 @@ public final class WispFlood {
      */
     boolean litByThisFlood(BlockPos cell) {
         for (BlockPos wisp : placed) {
-            if (wisp.distManhattan(cell) <= LIT_STEPS) {
+            if (wisp.distManhattan(cell) <= litSteps) {
                 return true;
             }
         }

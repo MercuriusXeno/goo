@@ -97,6 +97,22 @@ class WispFloodTest {
         assertEquals(shortRange, flood.edge(), 1e-9);
     }
 
+    @Test
+    void aShorterLightReachPacksTheWispsCloser() {
+        int litSteps = 3;
+        Grid grid = new Grid(WispFloodTest::inTheRoom, cell -> true);
+        new WispFlood(EYES, RANGE, 0, litSteps).walk(TICK_BUDGET * 3, grid);
+        int closest = Integer.MAX_VALUE;
+        for (BlockPos wisp : grid.placed) {
+            for (BlockPos other : grid.placed) {
+                if (!wisp.equals(other)) {
+                    closest = Math.min(closest, wisp.distManhattan(other));
+                }
+            }
+        }
+        assertEquals(litSteps + 1, closest);
+    }
+
     private static boolean inTheRoom(BlockPos cell) {
         return Math.abs(cell.getX()) <= ROOM_HALF && Math.abs(cell.getY()) <= ROOM_HALF
                 && Math.abs(cell.getZ()) <= ROOM_HALF;
