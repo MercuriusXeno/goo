@@ -66,7 +66,7 @@ public final class DrinkRenderer {
     private static final int SKY_SHIFT = 16;
     private static final Vec3 UP = new Vec3(0, 1, 0);
     private static final double MILLIS_PER_NANO = 1e-6;
-    private static final String UPLOADED = "Unmake drink uploaded in {} ms: {} streams, {} proxies, {} entries dropped";
+    private static final String UPLOADED = "Unmake drink uploaded in {} ms: {} regions, {} bodies or entries dropped";
     private static final GooRenderUtil.UvRect NO_SPRITE = new GooRenderUtil.UvRect(0, 0, 0, 0);
     /** Each drink's streams as last built, by its drinker then block, which say where liquid still flows. */
     private static final Map<Integer, Map<BlockPos, DrinkTree.Stream>> LAST = new HashMap<>();
@@ -143,14 +143,11 @@ public final class DrinkRenderer {
             return;
         }
         loggedTick = tick;
-        int proxies = 0;
         int dropped = 0;
         for (DrinkUpload.Block block : blocks) {
-            proxies += block.proxies().size();
             dropped += block.dropped();
         }
-        Goo.LOGGER.debug(UPLOADED, Math.round((System.nanoTime() - began) * MILLIS_PER_NANO), blocks.size(), proxies,
-                dropped);
+        Goo.LOGGER.debug(UPLOADED, Math.round((System.nanoTime() - began) * MILLIS_PER_NANO), blocks.size(), dropped);
     }
 
     /**
@@ -212,11 +209,7 @@ public final class DrinkRenderer {
             return List.of();
         }
         SHOWING.add(id);
-        List<DrinkUpload.Block> uploads = new ArrayList<>();
-        for (int index = 0; index < skeletons.size(); index++) {
-            uploads.add(DrinkUpload.of(skeletons, index, camera, coats.get(index)));
-        }
-        return uploads;
+        return DrinkUpload.of(skeletons, coats, camera, DrinkPass.depthZeroToOne());
     }
 
     private static List<DrinkTree.Block> blocksOf(ClientLevel level, ClientDrinks.Drink drink,
@@ -267,15 +260,14 @@ public final class DrinkRenderer {
         int light = lightAlong(level, stream, now);
         int block = light & LIGHT_MASK;
         int sky = light >>> SKY_SHIFT;
-        boolean zeroToOne = DrinkPass.depthZeroToOne();
         if (stream.zooping()) {
             return new DrinkUpload.Coat(GooSubmitter.fluidTint(GooTypes.UNSTABLE),
                     GooSubmitter.spriteUv(GooRenderUtil.lookupFluidSprite(GooTypes.UNSTABLE)), block, sky, true,
-                    zeroToOne, List.of());
+                    List.of());
         }
         Skin skin = SKINS.computeIfAbsent(id, ignored -> new HashMap<>())
                 .computeIfAbsent(stream.block().pos(), pos -> skinOf(level, pos, state));
-        return new DrinkUpload.Coat(skin.tint(), skin.sprite(), block, sky, false, zeroToOne, skin.layers());
+        return new DrinkUpload.Coat(skin.tint(), skin.sprite(), block, sky, false, skin.layers());
     }
 
     /**

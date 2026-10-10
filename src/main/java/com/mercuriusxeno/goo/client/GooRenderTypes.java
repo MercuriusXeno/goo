@@ -797,15 +797,15 @@ public final class GooRenderTypes {
                 .build();
     }
 
-    /** The uniform block the drink field pipeline reads one stream's bodies, proxies and coat from. */
-    public static final String DRINK_STREAM_BLOCK = "DrinkStream";
+    /** The uniform block the drink field pipeline reads one region's bodies and its streams' coats from. */
+    public static final String DRINK_REGION_BLOCK = "DrinkRegion";
 
     /**
      * The Unmake drink's field pipeline (decision
-     * unmake-waves-dissolve-by-crucible-cost): proxy boxes whose fragments
+     * unmake-waves-dissolve-by-crucible-cost): region boxes whose fragments
      * march the drink's metaball field and write the hit's depth, opaque,
      * lit by the cardinal lights and the lightmap, textured off the block
-     * atlas, with the stream's bodies in a uniform block of their own.
+     * atlas, with each region's bodies in a uniform block of their own.
      */
     public static final RenderPipeline DRINK_FIELD = RenderPipeline.builder(
                     RenderPipelines.MATRICES_FOG_LIGHT_DIR_SNIPPET,
@@ -815,7 +815,7 @@ public final class GooRenderTypes {
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "drink_field"))
             .withSampler("Sampler0")
             .withSampler("Sampler2")
-            .withUniform(DRINK_STREAM_BLOCK, UniformType.UNIFORM_BUFFER)
+            .withUniform(DRINK_REGION_BLOCK, UniformType.UNIFORM_BUFFER)
             .withVertexFormat(DefaultVertexFormat.ENTITY, VertexFormat.Mode.QUADS)
             .withDepthStencilState(DepthStencilState.DEFAULT)
             .withCull(true)
