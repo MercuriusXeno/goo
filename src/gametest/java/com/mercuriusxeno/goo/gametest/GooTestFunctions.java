@@ -445,9 +445,8 @@ public final class GooTestFunctions {
     private static final String STASIS_HOLDS_UNTIL_STRUCK = "stasis_holds_until_struck";
     private static final String REWIND_ADULT_TO_BABY = "rewind_adult_to_baby";
     private static final String REWIND_BABY_TO_EGG = "rewind_baby_to_egg";
-    private static final String REWIND_LEAVES_BLOCKS = "rewind_leaves_blocks";
-    private static final String TICK_HASTENS_THE_CRUCIBLE = "tick_hastens_the_crucible";
-    private static final String TICK_TAP_COUNTS_DRIPS = "tick_tap_counts_drips";
+    private static final String REWIND_LEAVES_BLOCKS = "rewind_leaves_blocks";    private static final String TICK_HASTENS_THE_CRUCIBLE = "tick_hastens_the_crucible";
+    private static final String TICK_TAP_TICKS_EVERY_DRIP = "tick_tap_ticks_every_drip";
     private static final String TIMEKEEPER_TICK_MOVES_DAY_FORWARD = "timekeeper_tick_moves_day_forward";
     private static final String TIMEKEEPER_OFFSETS_REST_STAT = "timekeeper_offsets_rest_stat";
     private static final String TIMEKEEPER_REWIND_WITHDRAWS = "timekeeper_rewind_withdraws";
@@ -914,9 +913,8 @@ public final class GooTestFunctions {
         reg(r, STASIS_HOLDS_UNTIL_STRUCK, MobEffectTests::stasisHoldsUntilStruck);
         reg(r, REWIND_ADULT_TO_BABY, RewindStreamTests::rewindAdultToBaby);
         reg(r, REWIND_BABY_TO_EGG, RewindStreamTests::rewindBabyToEgg);
-        reg(r, REWIND_LEAVES_BLOCKS, RewindStreamTests::rewindLeavesBlocks);
-        reg(r, TICK_HASTENS_THE_CRUCIBLE, TickStreamTests::tickHastensTheCrucible);
-        reg(r, TICK_TAP_COUNTS_DRIPS, TickTapTests::tickTapCountsDrips);
+        reg(r, REWIND_LEAVES_BLOCKS, RewindStreamTests::rewindLeavesBlocks);        reg(r, TICK_HASTENS_THE_CRUCIBLE, TickStreamTests::tickHastensTheCrucible);
+        reg(r, TICK_TAP_TICKS_EVERY_DRIP, TickTapTests::tickTapTicksEveryDrip);
         reg(r, TIMEKEEPER_TICK_MOVES_DAY_FORWARD, TimekeeperTests::timekeeperTickMovesDayForward);
         reg(r, TIMEKEEPER_OFFSETS_REST_STAT, TimekeeperTests::timekeeperOffsetsRestStat);
         reg(r, TIMEKEEPER_REWIND_WITHDRAWS, TimekeeperTests::timekeeperRewindWithdraws);

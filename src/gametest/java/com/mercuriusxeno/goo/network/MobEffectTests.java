@@ -65,6 +65,8 @@ public final class MobEffectTests {
     private static final String SHOULD_STAY_IN_STASIS = "The zombie should stay in stasis until an attacker strikes it";
     private static final String SHOULD_STAND_STILL = "The zombie in stasis should not have moved";
     private static final String SHOULD_TAKE_NO_DAMAGE = "The zombie in stasis should take no damage";
+    private static final String SHOULD_SURVIVE_LANDING_PUNCH = "The punch landing the stasis should not free the mob";
+    private static final String SHOULD_DEAL_NOTHING_FROZEN = "A mob in stasis should deal no damage";
     private static final String SHOULD_BE_FREED = "An attacker's strike should free the zombie";
     private static final String SHOULD_HAVE_AI_AGAIN = "The freed zombie should have its AI back";
     private static final String ABILITY_UNSTABLE_EXPLODE = "goo:unstable_explode";
@@ -370,6 +372,12 @@ public final class MobEffectTests {
             strike(helper, mob, ABILITY_AEON_STASIS);
             Vec3 frozenAt = mob.position();
             float health = mob.getHealth();
+            // stasis-holds-mob-with-golden-shimmer: the punch that lands the blob arrives the same tick and frees nothing
+            mob.hurtServer(helper.getLevel(), helper.getLevel().damageSources().mobAttack(attacker), STASIS_HIT_DAMAGE);
+            helper.assertTrue(StasisEvents.held(mob), SHOULD_SURVIVE_LANDING_PUNCH);
+            float attackerHealth = attacker.getHealth();
+            attacker.hurtServer(helper.getLevel(), helper.getLevel().damageSources().mobAttack(mob), STASIS_HIT_DAMAGE);
+            helper.assertTrue(attacker.getHealth() == attackerHealth, SHOULD_DEAL_NOTHING_FROZEN);
             helper.runAfterDelay(STASIS_HOLD_TICKS, () -> {
                 mob.hurtServer(helper.getLevel(), helper.getLevel().damageSources().generic(), STASIS_HIT_DAMAGE);
                 helper.assertTrue(StasisEvents.held(mob), SHOULD_STAY_IN_STASIS);

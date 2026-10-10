@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.commands.arguments.EntityAnchorArgument;
@@ -15,8 +16,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.ai.attributes.AttributeInstance;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -26,10 +25,11 @@ import net.minecraft.world.phys.Vec3;
 import java.util.List;
 
 /**
- * Gametests for aeon Rewind: a mock player streams it on a penned cow, which
- * stands frozen while held and goes free once let go; an adult becomes a
- * baby, a baby shrinks into its spawn egg, and no block the stream crosses
- * changes.
+ * Gametests for aeon Rewind: a mock player aims at an ordinary penned pig at
+ * its own full health and streams Rewind from the glove hand, as a player
+ * does; the pig stands frozen while held and goes free once let go; an adult
+ * becomes a baby, a baby shrinks into its spawn egg, and no block the stream
+ * crosses changes.
  * rewind-fills-while-held
  * rewind-shrinks-adult-to-baby-to-egg
  */
@@ -39,87 +39,86 @@ public final class RewindStreamTests {
     /** Three blocks east of the player, at its height, on a floor the test lays. */
     private static final BlockPos TARGET_POS = STAND_POS.east(3);
     private static final int HELD_GOO = 6;
-    /**
-     * A max health of one makes aeon_rewind.json's share 5 / pow(1, 0.6) * 1 / 1,
-     * five a tick, so twenty held ticks fill the ritual's hundred.
-     */
-    private static final double QUICK_MAX_HEALTH = 1.0;
-    /** Past the twenty ticks the ritual takes at five a tick, short of a second ritual. */
-    private static final int HOLD_TICKS = 25;
-    /** Partway through the hold, short of the ritual. */
-    private static final int MID_HOLD_TICKS = 10;
+    /** Past the eighty ticks aeon_rewind.json's flat share of 1.25 a tick takes to fill the hundred. */
+    private static final int HOLD_TICKS = 85;
+    /** Halfway through the hold, short of the ritual. */
+    private static final int MID_HOLD_TICKS = 40;
     /** aeon_rewind.json's regress ticks, the shrink into the egg. */
     private static final int SHRINK_TICKS = 20;
     /** Past RewindEvents' grace after the stream lets go. */
     private static final int RELEASE_TICKS = 6;
+    /** The glove hand sits this far right of the eye and below it, as a player's glove does. */
+    private static final double HAND_RIGHT = 0.5;
+    private static final double HAND_DOWN = 0.4;
     private static final double ITEM_SEARCH_RADIUS = 2.0;
     private static final Identifier AEON_REWIND = Identifier.parse("goo:aeon_rewind");
     private static final String ABILITY_REQUIRED = "Ability registry must hold aeon_rewind";
-    private static final String MOB_HAS_MAX_HEALTH = "The cow carries a max health attribute";
-    private static final String SHOULD_FREEZE = "A held cow should stand frozen with no AI";
-    private static final String SHOULD_STAY_ADULT = "The cow should stay an adult short of the ritual";
-    private static final String SHOULD_BE_BABY = "The held adult should have become a baby";
-    private static final String SHOULD_GO_FREE = "The released cow should have its AI back";
+    private static final String SHOULD_FREEZE = "A held pig should stand frozen with no AI";
+    private static final String SHOULD_STAY_ADULT = "The pig should stay an adult short of the ritual";
+    private static final String SHOULD_BE_BABY = "The held adult should have become a baby; counters %s";
+    private static final String SHOULD_GO_FREE = "The released pig should have its AI back";
     private static final String SHOULD_VANISH = "The rewound baby should be gone into its egg";
-    private static final String SHOULD_DROP_ONLY_EGG = "Exactly one cow spawn egg should drop; found %s";
+    private static final String SHOULD_DROP_ONLY_EGG = "Exactly one pig spawn egg should drop; found %s";
 
     private RewindStreamTests() {
     }
 
     /**
-     * A held adult cow stands frozen partway, becomes a baby once its ritual
-     * fills, and goes free a few ticks after the stream lets go.
+     * A held adult pig stands frozen halfway, becomes a baby once its ritual
+     * fills after about four seconds, and goes free a few ticks after the
+     * stream lets go.
      *
      * @param helper the gametest helper
      */
     public static void rewindAdultToBaby(GameTestHelper helper) {
-        Mob cow = pennedCow(helper, false);
-        ServerPlayer player = rewinder(helper, cow);
+        Mob pig = pennedPig(helper, false);
+        ServerPlayer player = rewinder(helper, pig);
         hold(helper, player, HOLD_TICKS);
         helper.runAfterDelay(MID_HOLD_TICKS, () -> {
-            helper.assertTrue(cow.isNoAi(), SHOULD_FREEZE);
-            helper.assertFalse(cow.isBaby(), SHOULD_STAY_ADULT);
+            helper.assertTrue(pig.isNoAi(), SHOULD_FREEZE);
+            helper.assertFalse(pig.isBaby(), SHOULD_STAY_ADULT);
         });
-        helper.runAfterDelay(HOLD_TICKS + 1, () -> helper.assertTrue(cow.isAlive() && cow.isBaby(), SHOULD_BE_BABY));
+        helper.runAfterDelay(HOLD_TICKS + 1, () -> helper.assertTrue(pig.isAlive() && pig.isBaby(),
+                String.format(SHOULD_BE_BABY, pig.getData(GooAttachments.ENTITY_COUNTERS))));
         helper.runAfterDelay(HOLD_TICKS + RELEASE_TICKS, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
-            helper.assertFalse(cow.isNoAi(), SHOULD_GO_FREE);
+            helper.assertFalse(pig.isNoAi(), SHOULD_GO_FREE);
             helper.succeed();
         });
     }
 
     /**
-     * A held baby cow shrinks into its spawn egg once its ritual fills: after
-     * the shrink, one cow spawn egg stands where it stood and the cow is gone.
+     * A held baby pig shrinks into its spawn egg once its ritual fills: after
+     * the shrink, one pig spawn egg stands where it stood and the pig is gone.
      *
      * @param helper the gametest helper
      */
     public static void rewindBabyToEgg(GameTestHelper helper) {
-        Mob cow = pennedCow(helper, true);
-        Vec3 stood = cow.position();
-        ServerPlayer player = rewinder(helper, cow);
+        Mob pig = pennedPig(helper, true);
+        Vec3 stood = pig.position();
+        ServerPlayer player = rewinder(helper, pig);
         hold(helper, player, HOLD_TICKS);
         helper.runAfterDelay(HOLD_TICKS + SHRINK_TICKS, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.succeedWhen(() -> {
-                helper.assertTrue(cow.isRemoved(), SHOULD_VANISH);
+                helper.assertTrue(pig.isRemoved(), SHOULD_VANISH);
                 List<ItemEntity> items = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
                         new AABB(stood, stood).inflate(ITEM_SEARCH_RADIUS));
-                helper.assertTrue(items.size() == 1 && items.get(0).getItem().is(Items.COW_SPAWN_EGG),
+                helper.assertTrue(items.size() == 1 && items.get(0).getItem().is(Items.PIG_SPAWN_EGG),
                         String.format(SHOULD_DROP_ONLY_EGG, items.stream().map(ItemEntity::getItem).toList()));
             });
         });
     }
 
     /**
-     * Rewind held through a cow's whole ritual leaves every block it crosses
-     * as it stood: the cow's glass pen and its stone floor.
+     * Rewind held through a pig's whole ritual leaves every block it crosses
+     * as it stood: the pig's glass pen and its stone floor.
      *
      * @param helper the gametest helper
      */
     public static void rewindLeavesBlocks(GameTestHelper helper) {
-        Mob cow = pennedCow(helper, false);
-        ServerPlayer player = rewinder(helper, cow);
+        Mob pig = pennedPig(helper, false);
+        ServerPlayer player = rewinder(helper, pig);
         hold(helper, player, HOLD_TICKS);
         helper.runAfterDelay(HOLD_TICKS + 1, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
@@ -134,43 +133,42 @@ public final class RewindStreamTests {
 
     /**
      * Floors the target cell with stone, rings it with glass two high and
-     * stands a cow with its AI on in it, whose max health of one fills the
-     * ritual in twenty held ticks.
+     * stands an ordinary pig in it, at its own full health with its AI on.
      */
-    private static Mob pennedCow(GameTestHelper helper, boolean baby) {
+    private static Mob pennedPig(GameTestHelper helper, boolean baby) {
         helper.setBlock(TARGET_POS.below(), Blocks.STONE);
         for (Direction side : Direction.Plane.HORIZONTAL) {
             helper.setBlock(TARGET_POS.relative(side), Blocks.GLASS);
             helper.setBlock(TARGET_POS.relative(side).above(), Blocks.GLASS);
         }
-        Mob cow = helper.spawn(EntityType.COW, TARGET_POS);
-        cow.setBaby(baby);
-        AttributeInstance maxHealth = cow.getAttribute(Attributes.MAX_HEALTH);
-        helper.assertTrue(maxHealth != null, MOB_HAS_MAX_HEALTH);
-        maxHealth.setBaseValue(QUICK_MAX_HEALTH);
-        cow.setHealth((float) QUICK_MAX_HEALTH);
-        return cow;
+        Mob pig = helper.spawn(EntityType.PIG, TARGET_POS);
+        pig.setBaby(baby);
+        return pig;
     }
 
     /**
-     * Streams Rewind every tick of a hold, from the first tick.
+     * Streams Rewind every tick of a hold, from the first tick, out of the
+     * glove hand beside and below the eye, as a player's glove sends it.
      */
     private static void hold(GameTestHelper helper, ServerPlayer player, int ticks) {
+        Vec3 look = player.getLookAngle();
+        Vec3 right = look.cross(new Vec3(0, 1, 0)).normalize();
+        Vec3 hand = player.getEyePosition().add(right.scale(HAND_RIGHT)).subtract(0, HAND_DOWN, 0);
         GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.AEON), AEON_REWIND.toString(),
-                player.getEyePosition(), player.getEyePosition());
+                hand, player.getEyePosition());
         for (int held = 1; held <= ticks; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
         }
     }
 
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    private static ServerPlayer rewinder(GameTestHelper helper, Mob cow) {
+    private static ServerPlayer rewinder(GameTestHelper helper, Mob target) {
         AbilityDefinition rewind = AbilityRegistry.of(helper.getLevel()).getAbility(AEON_REWIND);
         helper.assertTrue(rewind != null, ABILITY_REQUIRED);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STAND_POS));
         player.setPos(stand.x, stand.y, stand.z);
-        player.lookAt(EntityAnchorArgument.Anchor.EYES, cow.getBoundingBox().getCenter());
+        player.lookAt(EntityAnchorArgument.Anchor.EYES, target.getBoundingBox().getCenter());
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
         player.getInventory().add(GooStacks.createForOutput(GooTypes.AEON, HELD_GOO * GooStacks.THOUSAND));
         KnownRecipes.teachRequires(player, rewind);

@@ -38,6 +38,28 @@ public final class BlockTicking {
     }
 
     /**
+     * Whether Tick can hasten the block at a position: a ticking block
+     * entity stands there, or a prism that banks ticks.
+     * tick-channel-marches-squares-on-the-face
+     *
+     * @param level the level
+     * @param pos   the block
+     * @return true where a held Tick does something
+     */
+    public static boolean canTick(Level level, BlockPos pos) {
+        BlockEntity blockEntity = level.getBlockEntity(pos);
+        if (blockEntity instanceof PrismBlockEntity prism) {
+            return prism.banksTicks();
+        }
+        return blockEntity != null && !blockEntity.isRemoved() && hasTicker(level, pos, blockEntity);
+    }
+
+    @SuppressWarnings("unchecked") // a block entity's type is the type of its own class
+    private static <T extends BlockEntity> boolean hasTicker(Level level, BlockPos pos, T blockEntity) {
+        return level.getBlockState(pos).getTicker(level, (BlockEntityType<T>) blockEntity.getType()) != null;
+    }
+
+    /**
      * Runs the ticker of the block entity at a position until the times run
      * out or no ticking block entity stands there.
      *

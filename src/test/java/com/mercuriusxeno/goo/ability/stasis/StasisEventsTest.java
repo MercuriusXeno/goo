@@ -9,11 +9,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Only a strike from an attacker frees a mob in stasis; harm with no
- * attacker leaves it frozen.
+ * Only a strike from an attacker frees a mob in stasis, and not the punch
+ * that lands it; harm with no attacker leaves it frozen.
  * stasis-holds-mob-with-golden-shimmer
  */
 class StasisEventsTest {
+
+    private static final long LANDED = 1000L;
 
     @Test
     void aStrikeCausedByAnEntityFrees() {
@@ -34,5 +36,17 @@ class StasisEventsTest {
     @Test
     void harmWithNoAttackerLeavesTheMobFrozen() {
         assertFalse(StasisEvents.struckByAttacker(mock(DamageSource.class)));
+    }
+
+    @Test
+    void theLandingPunchFreesNothing() {
+        assertFalse(StasisEvents.pastLandingGrace(LANDED, LANDED));
+        assertFalse(StasisEvents.pastLandingGrace(LANDED, LANDED + StasisEvents.LANDING_GRACE_TICKS));
+    }
+
+    @Test
+    void aStrikePastTheGraceFrees() {
+        assertTrue(StasisEvents.pastLandingGrace(LANDED, LANDED + StasisEvents.LANDING_GRACE_TICKS + 1));
+        assertTrue(StasisEvents.pastLandingGrace(null, LANDED));
     }
 }

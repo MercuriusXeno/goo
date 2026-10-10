@@ -739,6 +739,16 @@ public final class GooRenderTypes {
     public static final RenderType TICK_FACE_TYPE = burnoutType(TICK_FACE);
 
     /**
+     * Chronosphere's veil pipeline (decision chronosphere-hastes-players-slows-mobs):
+     * the sphere drawn through {@code goo_chronosphere.vsh / .fsh}, a glassy gold
+     * veil with a glowing rim, falling bands and clock-hour meridians.
+     */
+    public static final RenderPipeline CHRONOSPHERE = burnoutPipeline("goo_chronosphere", BlendFunction.TRANSLUCENT);
+
+    /** The chronosphere veil render type. */
+    public static final RenderType CHRONOSPHERE_TYPE = burnoutType(CHRONOSPHERE);
+
+    /**
      * Ghost trail pipeline (decision ghost-trail-spans-the-blink): an entity's
      * body drawn again through {@code goo_ghost.vsh / .fsh} as a translucent
      * echo in the goo type's color, its skin read for the cutout and the
@@ -974,6 +984,7 @@ public final class GooRenderTypes {
         event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(BORE_VORTEX);
         event.registerPipeline(TICK_FACE);
+        event.registerPipeline(CHRONOSPHERE);
         event.registerPipeline(GOO_AILMENT_OVERLAY);
         GOO_RIPPLE_MASKS.forEach(event::registerPipeline);
         event.registerPipeline(GOO_RIPPLE_EDGE);

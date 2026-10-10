@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.HealReport;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.StreamSound;
+import com.mercuriusxeno.goo.ability.program.BlockTicking;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.FloorReach;
@@ -21,6 +22,7 @@ import com.mercuriusxeno.goo.ability.program.SoundKind;
 import com.mercuriusxeno.goo.ability.program.SoundPlays;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepHost;
+import com.mercuriusxeno.goo.ability.program.TickBlockStep;
 import com.mercuriusxeno.goo.ability.program.WithdrawBankStep;
 import com.mercuriusxeno.goo.ability.spray.SprayPrograms;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
@@ -30,6 +32,7 @@ import com.mercuriusxeno.goo.throwing.StreamCone;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -42,6 +45,7 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -105,7 +109,7 @@ public final class GooStreamHandler {
             return;
         }
         AbilityDefinition ability = heldAbility(player, payload, gooType);
-        int held = ability == null ? 0 : drainShare(player, gooType, ability);
+        int held = ability == null ? 0 : heldShare(player, gooType, ability);
         if (held == 0) {
             return;
         }
@@ -180,6 +184,44 @@ public final class GooStreamHandler {
     }
 
     /**
+     * Drains this tick's share of a held ability, unless it is a tick stream
+     * aimed at nothing it ticks, which charges nothing and runs nothing
+     * (decision tick-channel-marches-squares-on-the-face).
+     *
+     * @param player  the streaming player
+     * @param gooType the ability's goo type
+     * @param ability the held ability
+     * @return the ticks the hold has run, zero when it stops
+     */
+    private static int heldShare(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
+                                 AbilityDefinition ability) {
+        return ticksNothing(player, ability) ? 0 : drainShare(player, gooType, ability);
+    }
+
+    /**
+     * Whether a tick stream's look ends on no block Tick can hasten this
+     * tick, so the stream charges nothing and runs nothing
+     * (decision tick-channel-marches-squares-on-the-face).
+     *
+     * @param player  the streaming player
+     * @param ability the stream ability
+     * @return true for a tick stream aimed at nothing it ticks
+     */
+    static boolean ticksNothing(ServerPlayer player, AbilityDefinition ability) {
+        if (ability.behaviors().stream().noneMatch(TickBlockStep.class::isInstance)) {
+            return false;
+        }
+        return aimedBlock(player, ability).map(pos -> !BlockTicking.canTick(player.level(), pos)).orElse(true);
+    }
+
+    private static Optional<BlockPos> aimedBlock(ServerPlayer player,
+                                                                             AbilityDefinition ability) {
+        ChannelAim aim = new ChannelAim(player.getEyePosition().add(player.getLookAngle().scale(ability.delivery().range())),
+                null, ability.delivery().coneDegrees());
+        return PlayerHost.channeling(player.level(), player, aim).tickedBlock();
+    }
+
+    /**
      * Whether a stream draws from a banking prism this tick: its program
      * withdraws a bank and its look ends on a prism that banks ticks, so
      * Rewind on a timekeeper gains more aeon than it costs
@@ -193,9 +235,7 @@ public final class GooStreamHandler {
         if (ability.behaviors().stream().noneMatch(WithdrawBankStep.class::isInstance)) {
             return false;
         }
-        ChannelAim aim = new ChannelAim(player.getEyePosition().add(player.getLookAngle().scale(ability.delivery().range())),
-                null, ability.delivery().coneDegrees());
-        return PlayerHost.channeling(player.level(), player, aim).tickedBlock()
+        return aimedBlock(player, ability)
                 .map(pos -> player.level().getBlockEntity(pos) instanceof PrismBlockEntity prism && prism.banksTicks())
                 .orElse(false);
     }
@@ -324,21 +364,31 @@ public final class GooStreamHandler {
     }
 
     /**
-     * The living entities inside the cone, the streaming player aside.
+     * The living entities the stream reaches, the streaming player aside:
+     * those inside the cone sprayed from the glove, and those the crosshair
+     * finds, inside the same cone cast from the eye.
+     * rewind-fills-while-held: the glove's cone runs parallel to the look a hand's width aside, so a
+     * narrow cone alone misses the mob under the crosshair
      *
      * @param level    the server level
      * @param player   the streaming player
-     * @param apex     the cone's apex
+     * @param apex     the cone's apex at the glove
      * @param axis     the cone's axis
      * @param delivery the stream delivery
      * @return the entities the stream reaches
      */
-    private static List<LivingEntity> livingInCone(ServerLevel level, ServerPlayer player, Vec3 apex, Vec3 axis,
-                                                   Delivery delivery) {
-        AABB reach = new AABB(apex, apex).inflate(delivery.range());
+    static List<LivingEntity> livingInCone(ServerLevel level, ServerPlayer player, Vec3 apex, Vec3 axis,
+                                           Delivery delivery) {
+        Vec3 eye = player.getEyePosition();
+        AABB reach = new AABB(apex, apex).inflate(delivery.range()).minmax(new AABB(eye, eye).inflate(delivery.range()));
         return level.getEntitiesOfClass(LivingEntity.class, reach, living -> living != player && living.isAlive()
-                && StreamCone.contains(apex, axis, delivery.range(), delivery.coneDegrees(),
-                        living.getBoundingBox().getCenter()));
+                && (inCone(apex, axis, delivery, living) || inCone(eye, axis, delivery, living)));
+    }
+
+    private static boolean inCone(Vec3 apex, Vec3 axis, Delivery delivery, LivingEntity living) {
+        return StreamCone.contains(apex, axis, delivery.range(), delivery.coneDegrees(),
+                living.getBoundingBox().getCenter())
+                || living.getBoundingBox().clip(apex, apex.add(axis.normalize().scale(delivery.range()))).isPresent();
     }
 
     /**

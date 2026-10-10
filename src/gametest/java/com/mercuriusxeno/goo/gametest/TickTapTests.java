@@ -14,8 +14,8 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Gametests for aeon Tick's tap: aeon drips landing on a melting crucible
- * tick it faster only once aeon_tick_tap.json's drip count has landed.
+ * Gametests for aeon Tick's tap: every aeon drip landing on a melting crucible
+ * ticks it faster, aeon_tick_tap.json's extra ticks a drip.
  * tick-drip-splashes-a-small-tick-effect
  */
 public final class TickTapTests {
@@ -28,22 +28,19 @@ public final class TickTapTests {
     private static final int STACK = 64;
     private static final double JUST_ABOVE_FLOOR = 0.05;
     private static final double BASIN_CENTER = 0.5;
-    /** aeon_tick_tap.json's drip count. */
-    private static final int DRIPS = 4;
     private static final String SHOULD_MELT = "The crucible should hold the stack melting, pool %d";
-    private static final String SHOULD_WAIT = "Drips short of the count should leave the melt where it stood, %d then %d";
-    private static final String SHOULD_TICK = "The drip that fills the count should hasten the melt, %d then %d";
+    private static final String SHOULD_TICK = "Each drip should hasten the melt, %d then %d";
 
     private TickTapTests() {
     }
 
     /**
-     * Within one game tick, so the crucible's own ticking stands still, three
-     * aeon drips leave its melt where it stood and the fourth melts more of it.
+     * Within one game tick, so the crucible's own ticking stands still, each of
+     * two aeon drips melts more of it.
      *
      * @param helper the gametest helper
      */
-    public static void tickTapCountsDrips(GameTestHelper helper) {
+    public static void tickTapTicksEveryDrip(GameTestHelper helper) {
         helper.setBlock(CRUCIBLE_POS, GooBlocks.CRUCIBLE.get());
         CrucibleBlockEntity crucible = helper.getBlockEntity(CRUCIBLE_POS, CrucibleBlockEntity.class);
         crucible.addHeat(HEAT_TICKS);
@@ -53,12 +50,12 @@ public final class TickTapTests {
         helper.runAfterDelay(ABSORB_TICKS, () -> {
             long before = crucible.getPoolVolume();
             helper.assertTrue(before > 0, String.format(SHOULD_MELT, before));
-            drip(helper, DRIPS - 1);
-            long shortOfCount = crucible.getPoolVolume();
-            helper.assertTrue(shortOfCount == before, String.format(SHOULD_WAIT, before, shortOfCount));
             drip(helper, 1);
-            long counted = crucible.getPoolVolume();
-            helper.assertTrue(counted < shortOfCount, String.format(SHOULD_TICK, shortOfCount, counted));
+            long first = crucible.getPoolVolume();
+            helper.assertTrue(first < before, String.format(SHOULD_TICK, before, first));
+            drip(helper, 1);
+            long second = crucible.getPoolVolume();
+            helper.assertTrue(second < first, String.format(SHOULD_TICK, first, second));
             helper.succeed();
         });
     }

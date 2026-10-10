@@ -4,7 +4,11 @@
   "badge": "channeled",
   "order": 30,
   "cost": 1000,
-  "delivery": { "kind": "stream", "range": 5, "cone": 10, "ticks_per_charge": 20 },
+  "delivery": {
+    "kind": "stream", "range": 5, "cone": 10, "ticks_per_charge": 20,
+    "particle": "minecraft:wax_on",
+    "sound": { "id": "minecraft:block.comparator.click", "every": 4, "volume": 0.7, "pitch_spread": 0.15 }
+  },
   "behaviors": [
     { "type": "tick_block", "extra_ticks": 4 }
   ],

@@ -7,7 +7,7 @@
   "requires": ["minecraft:sugar"],
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "haste", "speed": 1, "haste": 1 },
+    { "type": "haste" },
     { "type": "sound", "id": "minecraft:block.amethyst_block.chime", "at": "target", "source": "players", "volume": 0.8, "pitch": 1.8 }
   ],
   "tags": ["self"]

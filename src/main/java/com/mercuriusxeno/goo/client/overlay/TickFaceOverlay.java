@@ -167,9 +167,11 @@ public final class TickFaceOverlay {
      * @param face       the face
      * @param size       the face's width
      * @param extraTicks the extra ticks whose pace the squares march at
+     * @param strength   how strongly the squares glow, 0 to 1
      */
-    public static void emitFaceQuad(FlatQuadContext quads, Vec3 center, Direction face, double size, int extraTicks) {
-        emitFace(quads, new FaceQuad(center, face, size, 1f), Vec3.ZERO, marchRate(extraTicks));
+    public static void emitFaceQuad(FlatQuadContext quads, Vec3 center, Direction face, double size, int extraTicks,
+                                    float strength) {
+        emitFace(quads, new FaceQuad(center, face, size, strength), Vec3.ZERO, marchRate(extraTicks));
     }
 
     /**
@@ -220,7 +222,9 @@ public final class TickFaceOverlay {
     private static @Nullable BlockHitResult aimedBlock(Minecraft mc, LocalPlayer player, ClientAbility ability) {
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         HitResult hit = player.pick(ability.delivery().range(), partialTick, false);
-        return hit instanceof BlockHitResult block && hit.getType() == HitResult.Type.BLOCK ? block : null;
+        // tick-channel-marches-squares-on-the-face: only a block entity can tick, so a plain block gets no overlay
+        return hit instanceof BlockHitResult block && hit.getType() == HitResult.Type.BLOCK
+                && mc.level.getBlockEntity(block.getBlockPos()) != null ? block : null;
     }
 
     /**
