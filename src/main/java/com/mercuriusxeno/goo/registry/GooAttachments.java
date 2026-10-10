@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.petrify.Petrification;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
 import com.mercuriusxeno.goo.ability.program.Sight;
+import com.mercuriusxeno.goo.ability.pulse.Stunned;
 import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.spray.Spored;
 import com.mercuriusxeno.goo.data.KnownItems;
@@ -114,6 +115,14 @@ public final class GooAttachments {
     public static final Supplier<AttachmentType<Spored>> SPORED =
             ATTACHMENT_TYPES.register("spored",
                     () -> AttachmentType.builder(() -> Spored.NONE).serialize(Spored.CODEC).build());
+
+    /**
+     * A Zap stun's wake, saved with the mob so the stun ends after an unload
+     * (decision zap-ticks-the-device-and-stuns).
+     */
+    public static final Supplier<AttachmentType<Stunned>> STUNNED =
+            ATTACHMENT_TYPES.register("stunned",
+                    () -> AttachmentType.builder(() -> Stunned.NONE).serialize(Stunned.CODEC).build());
 
     /**
      * The fungal sight a player holds, lengthening Fungal Shift and synced to

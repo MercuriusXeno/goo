@@ -1,10 +1,13 @@
 package com.mercuriusxeno.goo.network;
 
+import net.minecraft.core.BlockPos;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.UUID;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A stream hold counts consecutive server ticks per player, and its ticks
@@ -30,11 +33,30 @@ class StreamHoldsTest {
         }
 
         @Test
-        void aGapStartsANewHold() {
+        void aGapOfMoreThanOneTickStartsANewHold() {
             StreamHolds holds = new StreamHolds();
             holds.advance(PLAYER, 100);
             holds.advance(PLAYER, 101);
-            assertEquals(1, holds.advance(PLAYER, 103));
+            assertEquals(1, holds.advance(PLAYER, 104));
+        }
+
+        /** A client's stream ticks jitter against the server's: one can land a tick late. */
+        @Test
+        void oneLateTickContinuesTheHold() {
+            StreamHolds holds = new StreamHolds();
+            holds.advance(PLAYER, 100);
+            holds.advance(PLAYER, 101);
+            assertEquals(3, holds.advance(PLAYER, 103));
+        }
+
+        /** Two stream ticks landing in one server tick run the hold once, the second running nothing. */
+        @Test
+        void aSecondStreamTickInOneServerTickRunsNothing() {
+            StreamHolds holds = new StreamHolds();
+            holds.advance(PLAYER, 100);
+            assertEquals(2, holds.advance(PLAYER, 101));
+            assertEquals(0, holds.advance(PLAYER, 101));
+            assertEquals(3, holds.advance(PLAYER, 102));
         }
 
         @Test
@@ -51,6 +73,36 @@ class StreamHoldsTest {
             holds.advance(PLAYER, 100);
             holds.clear();
             assertEquals(1, holds.advance(PLAYER, 101));
+        }
+    }
+
+    /** A hold touches each block once, and a new hold forgets what the last one touched (decision signal-wave-toggles-each-device-once). */
+    @Nested
+    class TouchOnce {
+
+        private static final BlockPos LEVER = new BlockPos(4, 64, 2);
+
+        @Test
+        void aHoldTouchesEachBlockOnce() {
+            StreamHolds holds = new StreamHolds();
+            holds.advance(PLAYER, 100);
+            assertTrue(holds.touchOnce(PLAYER, LEVER));
+            holds.advance(PLAYER, 101);
+            assertFalse(holds.touchOnce(PLAYER, LEVER));
+        }
+
+        @Test
+        void aNewHoldTouchesTheBlockAgain() {
+            StreamHolds holds = new StreamHolds();
+            holds.advance(PLAYER, 100);
+            holds.touchOnce(PLAYER, LEVER);
+            holds.advance(PLAYER, 103);
+            assertTrue(holds.touchOnce(PLAYER, LEVER));
+        }
+
+        @Test
+        void noHoldTouchesNothing() {
+            assertFalse(new StreamHolds().touchOnce(PLAYER, LEVER));
         }
     }
 

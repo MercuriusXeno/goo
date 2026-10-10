@@ -1,0 +1,12 @@
+{
+  "gooType": "pulse",
+  "displayName": "goo.ability.pulse.pulser_tap",
+  "badge": "tap",
+  "order": 30,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "toggle_device" }
+  ],
+  "tags": ["tap"]
+}
