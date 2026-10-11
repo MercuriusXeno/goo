@@ -34,6 +34,8 @@ public enum AilmentKind {
     TELEKINESIS(0xFF7A1A, AilmentPattern.SHIMMER, 0.2f),
     /** Xeno's mutation: sickly green veins writhing over the mob while it stays mutated (decision xeno-blob-mutates-the-struck). */
     MUTATED(0xA8CC48, AilmentPattern.WRITHE, 0.6f),
+    /** Ancient: aged stone veined with gold (decision ancient-makes-the-player-immortal). */
+    ANCIENT(0xC9A85C, AilmentPattern.STONE, 0.75f),
     /** Zoo's rally: a tawny glisten over the armed mob (decision zoo-rally-arms-the-peaceful). */
     ZOO(0xD89858, AilmentPattern.GLINT, 0.5f);
 
