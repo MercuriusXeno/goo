@@ -1,0 +1,13 @@
+{
+  "gooType": "yore",
+  "displayName": "goo.ability.yore.ancient",
+  "badge": "brew",
+  "order": 50,
+  "upkeep": 2,
+  "delivery": { "kind": "self" },
+  "behaviors": [
+    { "type": "ancient" },
+    { "type": "sound", "id": "minecraft:block.bell.resonate", "at": "target", "source": "players", "volume": 0.8, "pitch": 0.6 }
+  ],
+  "tags": ["self"]
+}
