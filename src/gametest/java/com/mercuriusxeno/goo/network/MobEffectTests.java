@@ -17,6 +17,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -24,7 +25,12 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.util.ProblemReporter;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -62,6 +68,14 @@ public final class MobEffectTests {
     private static final String CHARMED_SLIME_SHOULD_SPARE = "A charmed slime's hit should land nothing on its charmer";
     private static final String WILD_SLIME_SHOULD_HURT = "An uncharmed slime's hit should hurt the player";
     private static final float SLIME_HIT = 4f;
+    /** A hit too light to kill the zombie, so the charm, not the mob, is what ends. */
+    private static final float LIGHT_HIT = 1f;
+    /** Ticks the charm is held before the save, long past any timed ailment's fade. */
+    private static final int CHARM_HOLD_TICKS = 100;
+    private static final String CHARM_SHOULD_HOLD = "The charm should hold with no expiry";
+    private static final String CHARM_SHOULD_RELOAD = "The reloaded zombie should hold the charm for its charmer";
+    private static final String CHARMERS_HIT_SHOULD_BREAK = "The charmer's hit should end the charm";
+    private static final String OTHER_HIT_SHOULD_LEAVE = "A hit from another mob should leave the charm";
     private static final String SHOULD_NOT_GLOW = "Target should wear the ailment overlay, not vanilla glowing";
     private static final String SHOULD_TAKE_DAMAGE = "Target should have taken damage";
     private static final String SHOULD_BE_ON_FIRE = "Target should be on fire";
@@ -70,7 +84,10 @@ public final class MobEffectTests {
     private static final String SHOULD_TAKE_JAVELIN_DAMAGE = "Target should have taken the javelin's damage";
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
     private static final String ABILITY_METAL_JAVELIN = "goo:metal_javelin";
-    private static final String ABILITY_TYPHOON_LEVITATE = "goo:typhoon_levitate";
+    private static final String ABILITY_TYPHOON_FLOAT = "goo:typhoon_float";
+    private static final String LEVITATION_SHOULD_HIDE_PARTICLES = "Float's levitation should show no particles";
+    private static final String FLOAT_SHOULD_END_WITH_LEVITATION = "The zombie's float should end when its levitation does";
+    private static final String FLOAT_SHOULD_CLEAR_WITH_LEVITATION = "Removing the levitation should clear the float";
     private static final String ABILITY_FROST_SNAP = "goo:frost_snap";
     private static final String ABILITY_PULSE_SHORT_CIRCUIT = "goo:pulse_short_circuit";
     private static final String ABILITY_AEON_STASIS = "goo:aeon_stasis";
@@ -285,15 +302,24 @@ public final class MobEffectTests {
     }
 
     /**
-     * Typhoon levitate is a program of one potion step: levitation.
+     * Typhoon float lifts a zombie with levitation that shows no particles,
+     * marks it floating until the levitation's last tick, and drops the mark
+     * when the levitation is removed (decision float-blob-levitates-the-mob).
      *
      * @param helper the gametest helper
      */
-    public static void typhoonLevitate(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
+    public static void floatLevitatesAZombie(GameTestHelper helper) {
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_TYPHOON_LEVITATE);
-            helper.assertTrue(mob.hasEffect(MobEffects.LEVITATION), SHOULD_HAVE_LEVITATION);
+            strike(helper, zombie, ABILITY_TYPHOON_FLOAT);
+            MobEffectInstance levitation = zombie.getEffect(MobEffects.LEVITATION);
+            helper.assertTrue(levitation != null, SHOULD_HAVE_LEVITATION);
+            helper.assertFalse(levitation.isVisible(), LEVITATION_SHOULD_HIDE_PARTICLES);
+            long endsAt = helper.getLevel().getGameTime() + levitation.getDuration();
+            helper.assertTrue(zombie.hasData(GooAttachments.FLOATING)
+                    && zombie.getData(GooAttachments.FLOATING).expiresAt() == endsAt, FLOAT_SHOULD_END_WITH_LEVITATION);
+            zombie.removeEffect(MobEffects.LEVITATION);
+            helper.assertFalse(zombie.hasData(GooAttachments.FLOATING), FLOAT_SHOULD_CLEAR_WITH_LEVITATION);
             helper.succeed();
         });
     }
@@ -328,6 +354,76 @@ public final class MobEffectTests {
                 helper.getLevel().getServer().getPlayerList().remove(charmer);
                 helper.succeed();
             });
+        });
+    }
+
+    /**
+     * A charm holds with no expiry: the zombie still holds it after the
+     * hold, and a save loaded back holds it for the same charmer
+     * (decision charm-holds-until-struck).
+     *
+     * @param helper the gametest helper
+     */
+    public static void charmHasNoExpiry(GameTestHelper helper) {
+        ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, zombie, ABILITY_HEX_CHARM, charmer);
+            helper.runAfterDelay(CHARM_HOLD_TICKS, () -> {
+                helper.assertTrue(zombie.hasData(GooAttachments.CHARMED), CHARM_SHOULD_HOLD);
+                TagValueOutput saved = TagValueOutput.createWithContext(ProblemReporter.DISCARDING,
+                        helper.getLevel().registryAccess());
+                zombie.save(saved);
+                zombie.discard();
+                Entity loaded = EntityType.loadEntityRecursive(TagValueInput.create(ProblemReporter.DISCARDING,
+                        helper.getLevel().registryAccess(), saved.buildResult()), helper.getLevel(),
+                        EntitySpawnReason.LOAD, entity -> entity);
+                helper.assertTrue(loaded != null && loaded.hasData(GooAttachments.CHARMED)
+                        && loaded.getData(GooAttachments.CHARMED).charmer().equals(charmer.getUUID()),
+                        CHARM_SHOULD_RELOAD);
+                helper.getLevel().getServer().getPlayerList().remove(charmer);
+                helper.succeed();
+            });
+        });
+    }
+
+    /**
+     * The charmer's own hit on a charmed zombie ends the charm
+     * (decision charm-holds-until-struck).
+     *
+     * @param helper the gametest helper
+     */
+    public static void charmBreaksOnTheCharmersHit(GameTestHelper helper) {
+        ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, zombie, ABILITY_HEX_CHARM, charmer);
+            helper.assertTrue(zombie.hasData(GooAttachments.CHARMED), ZOMBIE_SHOULD_BE_CHARMED);
+            zombie.hurtServer(helper.getLevel(), zombie.damageSources().playerAttack(charmer), LIGHT_HIT);
+            helper.assertFalse(zombie.hasData(GooAttachments.CHARMED), CHARMERS_HIT_SHOULD_BREAK);
+            helper.getLevel().getServer().getPlayerList().remove(charmer);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A hit on a charmed zombie from another mob leaves the charm standing
+     * (decision charm-holds-until-struck).
+     *
+     * @param helper the gametest helper
+     */
+    public static void charmSurvivesAnotherHit(GameTestHelper helper) {
+        ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
+        Mob skeleton = helper.spawnWithNoFreeWill(EntityType.SKELETON, BYSTANDER_POS);
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, zombie, ABILITY_HEX_CHARM, charmer);
+            float before = zombie.getHealth();
+            zombie.hurtServer(helper.getLevel(), zombie.damageSources().mobAttack(skeleton), LIGHT_HIT);
+            helper.assertTrue(zombie.getHealth() < before && zombie.hasData(GooAttachments.CHARMED),
+                    OTHER_HIT_SHOULD_LEAVE);
+            helper.getLevel().getServer().getPlayerList().remove(charmer);
+            helper.succeed();
         });
     }
 

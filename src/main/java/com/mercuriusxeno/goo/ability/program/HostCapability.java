@@ -145,11 +145,6 @@ public enum HostCapability {
      */
     SPAWN_MOB(MobSpawnHost.class),
     /**
-     * An agitator's countdown kept across ticks (decision
-     * agitator-prism-quickens-until-a-spawn).
-     */
-    AGITATE(AgitateHost.class),
-    /**
      * The level and the point frost spreads out of (decisions
      * nova-ring-grows-with-the-hold, nova-drip-pulses-a-short-lasting-freeze).
      */
