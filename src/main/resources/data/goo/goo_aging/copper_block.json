@@ -1,0 +1,6 @@
+{
+  "source": "minecraft:copper_block",
+  "result": "minecraft:exposed_copper",
+  "ticks": 24000,
+  "price": 25
+}

@@ -217,12 +217,12 @@ class ProgramHostLoadTest {
                         HostCapability.ASTRAL_GATE, HostCapability.METEOR, HostCapability.POWER_PULSE,
                         HostCapability.TOGGLE_DEVICE, HostCapability.EXTEND_EFFECTS, HostCapability.TICK_BLOCK,
                         HostCapability.SHARD_FALL, HostCapability.RAISE_GROUND, HostCapability.TIMED_BLOCK,
-                        HostCapability.SPAWN_MOB)),
+                        HostCapability.SPAWN_MOB, HostCapability.AGING)),
                 HostKind.MARKER.capabilities());
         assertEquals(Set.of(HostCapability.PLACED_FACE, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
                 HostCapability.PLACE_BLOCK, HostCapability.LINGER, HostCapability.BREAK_BLOCKS, HostCapability.COLONIZE,
                 HostCapability.FLOOR_SCAN, HostCapability.END_GATE, HostCapability.ASTRAL_GATE, HostCapability.METEOR, HostCapability.POWER_PULSE,
-                HostCapability.SPAWN_MOB, HostCapability.FROST, HostCapability.TIMED_BLOCK),
+                HostCapability.SPAWN_MOB, HostCapability.FROST, HostCapability.TIMED_BLOCK, HostCapability.AGING),
                 HostKind.LANDING.capabilities());
         assertEquals(Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN),
                 HostKind.ENTITY.capabilities());
