@@ -1,0 +1,14 @@
+{
+  "gooType": "typhoon",
+  "displayName": "goo.ability.typhoon.jet",
+  "badge": "channeled",
+  "order": 10,
+  "cost": 1000,
+  "requires": ["minecraft:phantom_membrane"],
+  "delivery": { "kind": "self", "ticks_per_charge": 20 },
+  "behaviors": [
+    { "type": "push", "strength": 0.8, "steer": 0.2, "elytra_steer": 0.5 },
+    { "type": "wind", "tailwind": { "range": 6, "cone": 30 } }
+  ],
+  "tags": ["self"]
+}
