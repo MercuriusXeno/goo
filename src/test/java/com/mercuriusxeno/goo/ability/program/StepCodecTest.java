@@ -159,6 +159,7 @@ class StepCodecTest {
             Map.entry("convoke", new ConvokeStep(Expr.literal(20))),
             Map.entry("dragon_gate", new DragonGateStep(Expr.literal(1200))),
             Map.entry("astral_gate", new AstralGateStep(Expr.literal(1200))),
+            Map.entry("meteor", new MeteorStep(Expr.literal(4), Expr.literal(60))),
             Map.entry("bloom", new BloomStep(Expr.literal(4), Expr.literal(8), Expr.literal(64))),
             Map.entry("tick_plants", new TickPlantsStep()),
             Map.entry("tend_fungi", new TendFungiStep()),

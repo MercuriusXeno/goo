@@ -110,6 +110,11 @@ public enum HostCapability {
      */
     ASTRAL_GATE(GateHost.class),
     /**
+     * A landing a meteor can be called down on (decision
+     * meteo-needs-a-clear-sky).
+     */
+    METEOR(MeteorHost.class),
+    /**
      * The world around a lasting host to green tick after tick (decision
      * verdant-prism-greens-blocks-slowly).
      */
