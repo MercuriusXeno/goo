@@ -561,6 +561,7 @@ public final class GooTestFunctions {
     private static final String STASIS_HOLDS_UNTIL_STRUCK = "stasis_holds_until_struck";
     private static final String PHASED_PLAYER_IGNORED = "phased_player_ignored_by_zombie";
     private static final String PHASED_PAIR_HURT = "phased_pair_hurt_each_other";
+    private static final String HOLE_WALKS_THROUGH = "hole_walks_through_and_restores";
     private static final String REWIND_ADULT_TO_BABY = "rewind_adult_to_baby";
     private static final String REWIND_BABY_TO_EGG = "rewind_baby_to_egg";
     private static final String REWIND_LEAVES_BLOCKS = "rewind_leaves_blocks";
@@ -1129,6 +1130,7 @@ public final class GooTestFunctions {
         reg(r, STASIS_HOLDS_UNTIL_STRUCK, MobEffectTests::stasisHoldsUntilStruck);
         reg(r, PHASED_PLAYER_IGNORED, PhaseTests::phasedPlayerIgnoredByZombie);
         reg(r, PHASED_PAIR_HURT, PhaseTests::phasedPairHurtEachOther);
+        reg(r, HOLE_WALKS_THROUGH, PortableHoleTests::holeWalksThroughAndRestores);
         reg(r, REWIND_ADULT_TO_BABY, RewindStreamTests::rewindAdultToBaby);
         reg(r, REWIND_BABY_TO_EGG, RewindStreamTests::rewindBabyToEgg);
         reg(r, REWIND_LEAVES_BLOCKS, RewindStreamTests::rewindLeavesBlocks);

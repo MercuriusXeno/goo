@@ -16,6 +16,7 @@ import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlock;
 import com.mercuriusxeno.goo.block.gate.DragonGateBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
+import com.mercuriusxeno.goo.block.quantum.PhasedBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
 import com.mercuriusxeno.goo.block.statue.StatueBlock;
 import com.mercuriusxeno.goo.block.tap.TapBlock;
@@ -176,6 +177,16 @@ public class GooBlocks {
     public static final DeferredBlock<DragonGateBlock> DRAGON_GATE = BLOCKS.registerBlock(
             "dragon_gate", DragonGateBlock::new,
             () -> BlockBehaviour.Properties.ofFullCopy(Blocks.END_PORTAL).noLootTable());
+
+    /**
+     * A block out of phase, holding the block it stood as until it steps back
+     * (decision portable-hole-phases-blocks-for-a-while). Nothing collides with
+     * it or mines it, and it drops nothing.
+     */
+    public static final DeferredBlock<PhasedBlock> PHASED_BLOCK = BLOCKS.registerBlock(
+            "phased_block", PhasedBlock::new,
+            () -> BlockBehaviour.Properties.of().noCollision().noOcclusion().strength(-1.0F, 3_600_000.0F)
+                    .noLootTable().pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK));
     /**
      * Magicked ice: a non-melting mod variant of vanilla ice, placed
      * permanently by the frost cold snap. Visually, audibly, and

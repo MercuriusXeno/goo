@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:hole_walks_through_and_restores",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 300,
+  "setup_ticks": 0,
+  "required": true
+}
