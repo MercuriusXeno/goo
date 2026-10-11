@@ -13,13 +13,29 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LeverBlock;
 import net.minecraft.world.level.block.state.properties.AttachFace;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametest for Pulser's tap: a pulse tap over a lever flips it once for
  * each drip that falls through it.
  * pulser-drip-toggles-the-block-below
  */
+@RegistersGameTests
 public final class PulserTapTests {
+    private static final String PULSER_TAP_FLIPS_PER_DRIP = "pulser_tap_flips_per_drip";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, PULSER_TAP_FLIPS_PER_DRIP, PulserTapTests::pulserTapFlipsPerDrip);
+    }
+
 
     private static final BlockPos TAP_POS = new BlockPos(1, 3, 1);
     /** The lever below the tap, standing on stone; a drip falls through it onto the stone. */

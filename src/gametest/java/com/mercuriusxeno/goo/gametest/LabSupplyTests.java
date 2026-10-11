@@ -4,7 +4,8 @@ import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.command.LabCommand;
 import com.mercuriusxeno.goo.data.GooValues;
-import com.mercuriusxeno.goo.item.CanisterItem;
+import com.mercuriusxeno.goo.item.GooContents;
+import com.mercuriusxeno.goo.item.VatBlockItem;
 import com.mercuriusxeno.goo.lab.LabBox;
 import com.mercuriusxeno.goo.lab.LabBuilder;
 import com.mercuriusxeno.goo.lab.LabKit;
@@ -25,16 +26,34 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for the parts of the Goo Lab read from the registries at build
  * time: the supply row, one station per goo type a datapack included, and
  * the player kit (decision lab-iterates-the-registries).
  */
+@RegistersGameTests
 public final class LabSupplyTests {
+    private static final String LAB_SUPPLY_ROW = "lab_supply_row";
+    private static final String LAB_KIT = "lab_kit";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, LAB_SUPPLY_ROW, LabSupplyTests::supplyRow);
+        GooTestFunctions.registerTest(registrar, LAB_KIT, LabSupplyTests::kit);
+    }
+
 
     /**
      * The goo type only the seventeenth_goo_type test datapack adds.
@@ -52,7 +71,7 @@ public final class LabSupplyTests {
     private static final String STRAY_ITEM = "Station chest holds an item whose goo value lacks its type: ";
     private static final String EMPTY_CHEST = "The rock station's chest should hold the items that decompose into rock";
     private static final String KIT_MISSING = "Kit should put in the inventory: ";
-    private static final String KIT_CANISTERS = "Kit should hold one filled canister per registered goo type";
+    private static final String KIT_VAT = "Kit should hold one vat sharing its capacity evenly between every registered goo type";
     private static final String BUILD_NO_KIT = "Build handler should hand the kit to its invoking player";
     private static final String BUILD_FAILED = "Lab build failed: ";
     private static final String SEPARATOR = " ";
@@ -137,7 +156,7 @@ public final class LabSupplyTests {
     }
 
     /**
-     * Asserts an inventory holds every fixed kit item and one filled canister per goo type.
+     * Asserts an inventory holds every fixed kit item and one vat holding an even share of every goo type.
      *
      * @param helper    the gametest helper
      * @param inventory the inventory
@@ -150,13 +169,19 @@ public final class LabSupplyTests {
         for (Item item : expected) {
             helper.assertTrue(inventory.contains(new ItemStack(item)), KIT_MISSING + item);
         }
-        Set<String> canisterTypes = new HashSet<>();
+        List<ItemStack> vats = new ArrayList<>();
         for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
-            ItemStack stack = inventory.getItem(slot);
-            if (stack.getItem() instanceof CanisterItem && CanisterItem.getFluidContent(stack).totalVolume() > 0) {
-                canisterTypes.add(String.valueOf(CanisterItem.getFluidContent(stack).dominantGooType().identifier()));
+            if (inventory.getItem(slot).is(GooItems.VAT.get())) {
+                vats.add(inventory.getItem(slot));
             }
         }
-        helper.assertTrue(canisterTypes.equals(Set.copyOf(LabStock.gooTypeIds(helper.getLevel()))), KIT_CANISTERS);
+        helper.assertTrue(vats.size() == 1, KIT_VAT + ": " + vats.size() + " vats");
+        GooContents contents = VatBlockItem.getGooContents(vats.getFirst());
+        Set<String> held = new TreeSet<>();
+        contents.contents().keySet().forEach(type -> held.add(type.identifier().toString()));
+        Set<String> registered = new TreeSet<>(LabStock.gooTypeIds(helper.getLevel()));
+        Set<Integer> shares = new HashSet<>(contents.contents().values());
+        helper.assertTrue(held.equals(registered) && shares.size() == 1 && shares.iterator().next() > 0,
+                KIT_VAT + ": holds " + held + " in shares " + shares + ", registered " + registered);
     }
 }

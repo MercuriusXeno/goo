@@ -20,6 +20,8 @@ import net.minecraft.world.level.block.IronBarsBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import java.util.Collections;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for exorite bars (decision exorite-bars-retextured-iron-bars):
@@ -27,7 +29,25 @@ import java.util.List;
  * it is as hard and blast resistant as obsidian and drops only to a diamond
  * pickaxe or better, and breaking it drops itself.
  */
+@RegistersGameTests
 public final class ExoriteBarsTests {
+    private static final String EXORITE_BARS_REGISTERED = "exorite_bars_registered";
+    private static final String EXORITE_BARS_CRAFTED = "exorite_bars_crafted";
+    private static final String EXORITE_BARS_STRENGTH = "exorite_bars_strength";
+    private static final String EXORITE_BARS_DROPS = "exorite_bars_drops";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, EXORITE_BARS_REGISTERED, ExoriteBarsTests::registered);
+        GooTestFunctions.registerTest(registrar, EXORITE_BARS_CRAFTED, ExoriteBarsTests::crafted);
+        GooTestFunctions.registerTest(registrar, EXORITE_BARS_STRENGTH, ExoriteBarsTests::strength);
+        GooTestFunctions.registerTest(registrar, EXORITE_BARS_DROPS, ExoriteBarsTests::dropsItself);
+    }
+
 
     private static final BlockPos BARS_POS = new BlockPos(1, 1, 1);
     private static final int GRID_WIDTH = 3;

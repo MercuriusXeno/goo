@@ -29,13 +29,33 @@ import net.minecraft.world.level.block.FenceBlock;
 import net.minecraft.world.phys.AABB;
 import java.util.List;
 import java.util.UUID;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests that build one Goo Lab bay or zone into a test instance through
  * {@link LabBuilder#buildWithin} and read its state back through the block
  * entities' own accessors (decision lab-holds-bays-supply-pens-kit).
  */
+@RegistersGameTests
 public final class LabBayTests {
+    private static final String LAB_BAY_TAP = "lab_bay_tap";
+    private static final String LAB_BAY_HUB = "lab_bay_hub";
+    private static final String LAB_BAY_GASKET = "lab_bay_gasket";
+    private static final String LAB_PENS_AND_RANGE = "lab_pens_and_range";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, LAB_BAY_TAP, LabBayTests::tapBay);
+        GooTestFunctions.registerTest(registrar, LAB_BAY_HUB, LabBayTests::hubBay);
+        GooTestFunctions.registerTest(registrar, LAB_BAY_GASKET, LabBayTests::gasketBay);
+        GooTestFunctions.registerTest(registrar, LAB_PENS_AND_RANGE, LabBayTests::pensAndRange);
+    }
+
 
     /**
      * Where a single bay's north-west corner lands inside the test instance.

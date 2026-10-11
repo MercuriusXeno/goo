@@ -7,6 +7,10 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.GameType;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametest for Nourish through the glove: a hungry player eats the vital
@@ -14,7 +18,19 @@ import net.minecraft.world.level.GameType;
  * goo to pay the upkeep, then no more once it runs dry (decisions
  * nourish-restores-hunger-over-time and self-effects-trickle-until-ended).
  */
+@RegistersGameTests
 public final class NourishTests {
+    private static final String NOURISH_REFILLS_HUNGER = "nourish_refills_hunger";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, NOURISH_REFILLS_HUNGER, NourishTests::nourishRefillsHunger);
+    }
+
 
     private static final Identifier VITAL_NOURISH = Identifier.parse("goo:vital_nourish");
     /** Low enough that the gained points never reach a full bar. */

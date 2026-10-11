@@ -19,6 +19,8 @@ import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Blocks;
 import java.util.ArrayList;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametest for glow's Reflector through the real landing path: glow goo
@@ -29,7 +31,19 @@ import java.util.List;
  * its rail goes (decision reflector-rails-carry-the-brightest-light; operator
  * ruling 2026-10-09: reflectors link orthogonally, never diagonally).
  */
+@RegistersGameTests
 public final class ReflectorTests {
+    private static final String REFLECTORS_LINK_LIGHT_AND_BURN = "reflectors_link_light_and_burn";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, REFLECTORS_LINK_LIGHT_AND_BURN, ReflectorTests::reflectorsLinkLightAndBurn);
+    }
+
 
     private static final BlockPos LOW_PRISM = new BlockPos(0, 1, 0);
     private static final BlockPos FAR_PRISM = new BlockPos(5, 1, 0);

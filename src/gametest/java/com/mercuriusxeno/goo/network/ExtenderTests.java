@@ -10,6 +10,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.level.GameType;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for the pulse brew: drinking it lengthens every timed effect
@@ -17,7 +21,21 @@ import net.minecraft.world.level.GameType;
  * timed effect applied while it stands lands lengthened the same.
  * extender-multiplies-the-next-self-duration
  */
+@RegistersGameTests
 public final class ExtenderTests {
+    private static final String PULSE_BREW_EXTENDS_STANDING_EFFECTS = "pulse_brew_extends_standing_effects";
+    private static final String PULSE_BREW_EXTENDS_LATER_EFFECTS = "pulse_brew_extends_later_effects";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, PULSE_BREW_EXTENDS_STANDING_EFFECTS, ExtenderTests::pulseBrewExtendsStandingEffects);
+        GooTestFunctions.registerTest(registrar, PULSE_BREW_EXTENDS_LATER_EFFECTS, ExtenderTests::pulseBrewExtendsLaterEffects);
+    }
+
 
     private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
     private static final int REGENERATION_TICKS = 600;

@@ -18,6 +18,8 @@ import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BrewingStandBlockEntity;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for goo on the vanilla brewing stand: a goo is no brew
@@ -25,7 +27,27 @@ import net.minecraft.world.level.block.entity.BrewingStandBlockEntity;
  * type brews that type's potion (decision brew-from-chrysm-on-vanilla-stand).
  * Each case sets a real stand and lets vanilla tick it past its brew time.
  */
+@RegistersGameTests
 public final class BrewingTests {
+    private static final String BREWING_GOO_NEVER_BREWS = "brewing_goo_never_brews";
+    private static final String BREWING_CHRYSM_BREWS_POTION = "brewing_chrysm_brews_potion";
+    private static final String BREWING_CHRYSM_BREWS_SPLASH = "brewing_chrysm_brews_splash";
+    private static final String BREWING_CHRYSM_BREWS_LINGERING = "brewing_chrysm_brews_lingering";
+    private static final String BREWING_HIGHER_TIERS_NEVER_BREW = "brewing_higher_tiers_never_brew";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, BREWING_GOO_NEVER_BREWS, BrewingTests::gooNeverBrews);
+        GooTestFunctions.registerTest(registrar, BREWING_CHRYSM_BREWS_POTION, BrewingTests::chrysmBrewsTypePotion);
+        GooTestFunctions.registerTest(registrar, BREWING_CHRYSM_BREWS_SPLASH, BrewingTests::chrysmBrewsTypeSplashPotion);
+        GooTestFunctions.registerTest(registrar, BREWING_CHRYSM_BREWS_LINGERING, BrewingTests::chrysmBrewsTypeLingeringPotion);
+        GooTestFunctions.registerTest(registrar, BREWING_HIGHER_TIERS_NEVER_BREW, BrewingTests::higherTiersNeverBrew);
+    }
+
 
     /** Vanilla's brew time, 400 ticks, plus margin for the stand to pick the brew up. */
     private static final int BREW_WAIT_TICKS = 420;

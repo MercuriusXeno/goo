@@ -14,12 +14,26 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametest for the vat's pour stream after a goo click
  * (decision diagnose-then-fix-vat-stream-flash).
  */
+@RegistersGameTests
 public final class VatStreamTests {
+    private static final String IX_VAT_STREAM_HOLDS = "ix_vat_stream_holds";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, IX_VAT_STREAM_HOLDS, VatStreamTests::gooClickHoldsStream);
+    }
+
 
     private static final BlockPos VAT_POS = new BlockPos(1, 1, 1);
     private static final ResourceKey<GooTypeDefinition> ROCK = GooTypes.ROCK;

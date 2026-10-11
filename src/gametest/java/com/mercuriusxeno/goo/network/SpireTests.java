@@ -21,6 +21,10 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametest for rock's Spire, submitted the way the second right click
@@ -30,7 +34,19 @@ import java.util.List;
  * that refill.
  * decision spire-rips-walls-and-platforms
  */
+@RegistersGameTests
 public final class SpireTests {
+    private static final String SPIRE_STANDS_A_WALL = "spire_stands_a_wall";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, SPIRE_STANDS_A_WALL, SpireTests::spireStandsAWall);
+    }
+
 
     private static final String ROCK_SPIRE = "goo:rock_spire";
     /**

@@ -9,6 +9,10 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Crystal's Scales: the glove lays crystal hearts over the
@@ -16,7 +20,19 @@ import net.minecraft.server.level.ServerPlayer;
  * them, and the player wears the faceted diamond-blue overlay while they stand.
  * decision scales-crystal-hearts-diamond-blue-overlay
  */
+@RegistersGameTests
 public final class ScalesTests {
+    private static final String SCALES_ABSORBS_BEFORE_HEALTH = "scales_absorbs_before_health";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, SCALES_ABSORBS_BEFORE_HEALTH, ScalesTests::scalesAbsorbsBeforeHealth);
+    }
+
 
     private static final Identifier CRYSTAL_SCALES = Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_scales");
     private static final float ONE_POINT = 1f;

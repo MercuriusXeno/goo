@@ -13,6 +13,8 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Blocks;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for glow's Bulb through the real landing path: the crystal it
@@ -20,7 +22,21 @@ import net.minecraft.world.level.block.Blocks;
  * landing on a prism lights it as a beacon.
  * decision bulb-one-model-max-light-beacon-combo
  */
+@RegistersGameTests
 public final class GlowBulbTests {
+    private static final String BULB_IS_ONE_SIZE_LIGHT_15 = "bulb_is_one_size_light_15";
+    private static final String BULB_ON_PRISM_BEACONS = "bulb_on_prism_beacons";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, BULB_IS_ONE_SIZE_LIGHT_15, GlowBulbTests::bulbIsOneSizeLight15);
+        GooTestFunctions.registerTest(registrar, BULB_ON_PRISM_BEACONS, GlowBulbTests::bulbOnPrismBeacons);
+    }
+
 
     private static final BlockPos FLOOR_POS = new BlockPos(1, 1, 1);
     private static final BlockPos LANDED_POS = FLOOR_POS.above();

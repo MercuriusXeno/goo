@@ -34,13 +34,45 @@ import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import java.util.UUID;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for {@link com.mercuriusxeno.goo.block.gasket.GasketPusher} tick guard
  * and dispose behavior on real block entities, and for the reactor output
  * canister pushing through the same pipeline as a canister block slot.
  */
+@RegistersGameTests
 public final class GasketPusherTests {
+    private static final String PUSHER_EMPTY_RESERVOIR = "pusher_empty_reservoir";
+    private static final String PUSHER_NO_PARTNER = "pusher_no_partner";
+    private static final String PUSHER_DISPOSE_DROPS_GASKET = "pusher_dispose_drops_gasket_once";
+    private static final String PUSHER_DOUBLE_DISPOSE_DROPS_GASKETS = "pusher_double_dispose_drops_gasket_each_time";
+    private static final String PUSHER_REACTOR_OUTPUT_PUSH = "pusher_reactor_output_push";
+    private static final String PUSHER_REACTOR_OUTPUT_REMOVAL = "pusher_reactor_output_removal";
+    private static final String PUSHER_WATERLOGGED_GASKET_VAT = "pusher_waterlogged_gasket_vat";
+    private static final String PUSHER_BREAK_RELEASES_CHUNK = "pusher_crucible_break_releases_partner_chunk";
+    private static final String PUSHER_UNLOAD_RELEASES_CHUNK = "pusher_crucible_unload_releases_partner_chunk";
+    private static final String PUSHER_MOVED_RECEIVER = "pusher_moved_receiver_keeps_receiving";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, PUSHER_EMPTY_RESERVOIR, GasketPusherTests::emptyReservoirSkipsTick);
+        GooTestFunctions.registerTest(registrar, PUSHER_NO_PARTNER, GasketPusherTests::noPartnerSkipsTick);
+        GooTestFunctions.registerTest(registrar, PUSHER_DISPOSE_DROPS_GASKET, GasketPusherTests::disposeDropsGasketOnce);
+        GooTestFunctions.registerTest(registrar, PUSHER_DOUBLE_DISPOSE_DROPS_GASKETS, GasketPusherTests::doubleDisposeDropsGasketEachTime);
+        GooTestFunctions.registerTest(registrar, PUSHER_REACTOR_OUTPUT_PUSH, GasketPusherTests::reactorOutputPushesToLinkedReceiver);
+        GooTestFunctions.registerTest(registrar, PUSHER_REACTOR_OUTPUT_REMOVAL, GasketPusherTests::reactorOutputRemovalStopsPush);
+        GooTestFunctions.registerTest(registrar, PUSHER_WATERLOGGED_GASKET_VAT, GasketPusherTests::waterloggedGasketPushesIntoVat);
+        GooTestFunctions.registerTest(registrar, PUSHER_BREAK_RELEASES_CHUNK, GasketPusherTests::crucibleBreakReleasesPartnerChunk);
+        GooTestFunctions.registerTest(registrar, PUSHER_UNLOAD_RELEASES_CHUNK, GasketPusherTests::crucibleUnloadReleasesPartnerChunk);
+        GooTestFunctions.registerTest(registrar, PUSHER_MOVED_RECEIVER, GasketPusherTests::movedReceiverKeepsReceiving);
+    }
+
 
     private static final BlockPos BE_POS = new BlockPos(1, 1, 1);
     private static final int IDLE_TICKS = 25;

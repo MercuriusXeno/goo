@@ -48,13 +48,61 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for machine block interactions via mock player.
  * Exercises TapInteractionHandler, VatInteractionHandler,
  * HubBlockHandlers, PlexerInteractionHelper, and CrucibleInteraction.
  */
+@RegistersGameTests
 public final class MachineInteractionTests {
+    private static final String IX_TAP_VALVE = "ix_tap_valve_toggle";
+    private static final String IX_TAP_TOP_CLICK_INSERT = "ix_tap_top_click_insert";
+    private static final String IX_TAP_SLOT_CLICK_INSERT = "ix_tap_slot_click_insert";
+    private static final String IX_TAP_EMPTY_HAND_TAKE = "ix_tap_empty_hand_take";
+    private static final String IX_TAP_GOO_POUR = "ix_tap_goo_pour";
+    private static final String IX_VAT_GASKET = "ix_vat_gasket_apply";
+    private static final String IX_HUB_INSERT = "ix_hub_canister_insert";
+    private static final String IX_HUB_PICKUP = "ix_hub_canister_pickup";
+    private static final String IX_HUB_POUR_AIMED_ONLY = "ix_hub_pour_aimed_only";
+    private static final String IX_PLEXER_TARGET = "ix_plexer_set_target";
+    private static final String IX_PLEXER_REFUSES_UNLEARNED = "ix_plexer_refuses_unlearned";
+    private static final String IX_PLEXER_FIZZLES_UNTIL_LAB_LEARN = "ix_plexer_fizzles_until_lab_learn";
+    private static final String IX_REACTOR_INSERT_PICKUP = "ix_reactor_insert_pickup";
+    private static final String IX_CRUCIBLE_BLAZE_ROD_COLD = "ix_crucible_blaze_rod_click_leaves_cold";
+    private static final String IX_CRUCIBLE_COLD_ABSORBS_NOTHING = "ix_crucible_cold_absorbs_nothing";
+    private static final String IX_CRUCIBLE_BLAZE_ABSORBS = "ix_crucible_blaze_absorbs_item";
+    private static final String IX_CRUCIBLE_FLINT_SPARKS = "ix_crucible_flint_and_steel_sparks";
+    private static final String IX_CRUCIBLE_SPARK_MELTS_COAL = "ix_crucible_spark_melts_coal";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, IX_TAP_VALVE, MachineInteractionTests::tapCanisterInsert);
+        GooTestFunctions.registerTest(registrar, IX_TAP_TOP_CLICK_INSERT, MachineInteractionTests::tapTopClickInsertsCanister);
+        GooTestFunctions.registerTest(registrar, IX_TAP_SLOT_CLICK_INSERT, MachineInteractionTests::tapSlotRegionClickInsertsCanister);
+        GooTestFunctions.registerTest(registrar, IX_TAP_EMPTY_HAND_TAKE, MachineInteractionTests::tapEmptyHandClickTakesCanister);
+        GooTestFunctions.registerTest(registrar, IX_TAP_GOO_POUR, MachineInteractionTests::tapGooClickPoursIntoSlottedCanister);
+        GooTestFunctions.registerTest(registrar, IX_VAT_GASKET, MachineInteractionTests::vatGasketApply);
+        GooTestFunctions.registerTest(registrar, IX_HUB_INSERT, MachineInteractionTests::hubCanisterInsert);
+        GooTestFunctions.registerTest(registrar, IX_HUB_PICKUP, MachineInteractionTests::hubCanisterPickup);
+        GooTestFunctions.registerTest(registrar, IX_HUB_POUR_AIMED_ONLY, MachineInteractionTests::hubPourFillsOnlyTheAimedCanister);
+        GooTestFunctions.registerTest(registrar, IX_PLEXER_TARGET, MachineInteractionTests::plexerSetTarget);
+        GooTestFunctions.registerTest(registrar, IX_PLEXER_REFUSES_UNLEARNED, MachineInteractionTests::plexerRefusesAnUnlearnedTarget);
+        GooTestFunctions.registerTest(registrar, IX_PLEXER_FIZZLES_UNTIL_LAB_LEARN, MachineInteractionTests::plexerFizzlesOnAKitPlayerUntilLabLearn);
+        GooTestFunctions.registerTest(registrar, IX_REACTOR_INSERT_PICKUP, MachineInteractionTests::reactorCanisterInsertThenSneakPickup);
+        GooTestFunctions.registerTest(registrar, IX_CRUCIBLE_BLAZE_ROD_COLD, MachineInteractionTests::crucibleBlazeRodClickLeavesItCold);
+        GooTestFunctions.registerTest(registrar, IX_CRUCIBLE_COLD_ABSORBS_NOTHING, MachineInteractionTests::coldCrucibleAbsorbsNothing);
+        GooTestFunctions.registerTest(registrar, IX_CRUCIBLE_BLAZE_ABSORBS, MachineInteractionTests::blazeCrucibleAbsorbsItem);
+        GooTestFunctions.registerTest(registrar, IX_CRUCIBLE_FLINT_SPARKS, MachineInteractionTests::flintAndSteelSparksColdCrucible);
+        GooTestFunctions.registerTest(registrar, IX_CRUCIBLE_SPARK_MELTS_COAL, MachineInteractionTests::sparkedCrucibleMeltsCoalOnItsBlaze);
+    }
+
 
     private static final BlockPos BE_POS = new BlockPos(1, 1, 1);
     private static final String TAP_SHOULD_INSERT = "Tap should accept canister insertion";

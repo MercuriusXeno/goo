@@ -16,6 +16,10 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for the touch: a glove use with metal javelin, a mob ability,
@@ -25,7 +29,21 @@ import net.minecraft.world.phys.Vec3;
  * package to read its pending effects. The mob is a husk, which takes no
  * daylight burn that would move its health between throw and arrival.
  */
+@RegistersGameTests
 public final class TouchDeliveryTests {
+    private static final String MOB_METAL_TOUCH = "mob_metal_javelin_touch";
+    private static final String MOB_METAL_THROW_BEYOND_REACH = "mob_metal_javelin_beyond_reach";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, MOB_METAL_TOUCH, TouchDeliveryTests::javelinTouchesWithinReach);
+        GooTestFunctions.registerTest(registrar, MOB_METAL_THROW_BEYOND_REACH, TouchDeliveryTests::javelinThrowsBeyondReach);
+    }
+
 
     private static final BlockPos NEAR_MOB_POS = new BlockPos(3, 1, 3);
     /** Two blocks west of the near mob, inside a player's reach of three. */

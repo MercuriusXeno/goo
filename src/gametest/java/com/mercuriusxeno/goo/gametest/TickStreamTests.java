@@ -21,6 +21,8 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import java.util.Optional;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for aeon Tick: a mock player streams it on a lit crucible
@@ -29,7 +31,21 @@ import java.util.Optional;
  * hastens and nothing for a chest it cannot.
  * tick-channel-marches-squares-on-the-face
  */
+@RegistersGameTests
 public final class TickStreamTests {
+    private static final String TICK_HASTENS_THE_CRUCIBLE = "tick_hastens_the_crucible";
+    private static final String TICK_NAMES_ONLY_A_BLOCK_IT_HASTENS = "tick_names_only_a_block_it_hastens";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, TICK_HASTENS_THE_CRUCIBLE, TickStreamTests::tickHastensTheCrucible);
+        GooTestFunctions.registerTest(registrar, TICK_NAMES_ONLY_A_BLOCK_IT_HASTENS, TickStreamTests::tickNamesOnlyABlockItHastens);
+    }
+
 
     private static final BlockPos TICKED_POS = CrucibleSpawns.CRUCIBLE_POS;
     /** The twin, two blocks south, off the stream's line. */

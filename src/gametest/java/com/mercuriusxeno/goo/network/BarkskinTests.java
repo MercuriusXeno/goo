@@ -14,6 +14,10 @@ import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.entity.projectile.arrow.Arrow;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for aggravated damage through Leaf Barkskin invoked on a survival
@@ -22,7 +26,23 @@ import net.minecraft.world.item.Items;
  * and a striking mob takes thorns by the bark count (decisions
  * aggravated-damage-is-a-per-heart-rule and barkskin-bark-hearts-thorn-and-burn).
  */
+@RegistersGameTests
 public final class BarkskinTests {
+    private static final String SELF_BARKSKIN_FIRE = "self_barkskin_fire_burns_through_arrow_breaks_bark";
+    private static final String SELF_BARKSKIN_BARE_STAYS_HELD = "self_barkskin_bare_stays_held_and_regrows";
+    private static final String SELF_BARKSKIN_THORNS = "self_barkskin_thorns_and_the_axe";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, SELF_BARKSKIN_FIRE, BarkskinTests::fireBurnsThroughArrowBreaksBark);
+        GooTestFunctions.registerTest(registrar, SELF_BARKSKIN_BARE_STAYS_HELD, BarkskinTests::bareBarkskinStaysHeldAndRegrows);
+        GooTestFunctions.registerTest(registrar, SELF_BARKSKIN_THORNS, BarkskinTests::thornsAndTheAxe);
+    }
+
 
     private static final Identifier LEAF_BARKSKIN = Identifier.parse("goo:leaf_barkskin");
     private static final BlockPos ATTACKER_POS = new BlockPos(2, 1, 3);

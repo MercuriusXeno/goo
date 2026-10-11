@@ -18,6 +18,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Kinetic's Telekinesis, drunk as its brew by a survival mock
@@ -26,7 +30,21 @@ import net.minecraft.world.phys.Vec3;
  * block break and attack handlers, the kinetic brew the one effect worn
  * (decision telekinesis-enacts-at-extended-reach).
  */
+@RegistersGameTests
 public final class TelekinesisTests {
+    private static final String TELEKINESIS_BREAKS_BEYOND_REACH = "telekinesis_breaks_beyond_reach";
+    private static final String TELEKINESIS_HITS_BEYOND_REACH = "telekinesis_hits_beyond_reach";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, TELEKINESIS_BREAKS_BEYOND_REACH, TelekinesisTests::telekinesisBreaksBeyondReach);
+        GooTestFunctions.registerTest(registrar, TELEKINESIS_HITS_BEYOND_REACH, TelekinesisTests::telekinesisHitsBeyondReach);
+    }
+
 
     private static final BlockPos STAND_POS = new BlockPos(0, 1, 0);
     /** Twelve blocks out: past survival's block reach and attack reach, inside them raised by Telekinesis's 8. */

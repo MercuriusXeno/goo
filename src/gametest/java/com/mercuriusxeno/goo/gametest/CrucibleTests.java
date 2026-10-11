@@ -45,13 +45,89 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for crucible absorption and insertion paths.
  * Exercises CrucibleAbsorption (item entity intake) and
  * CrucibleInsertion (goo right-click insertion).
  */
+@RegistersGameTests
 public final class CrucibleTests {
+    private static final String CR_GOO_INSERT = "cr_goo_insert";
+    private static final String CR_ITEM_ABSORB = "cr_item_absorb";
+    private static final String CR_THROWN_ITEM_TEACHES = "cr_thrown_item_teaches";
+    private static final String CR_THROWN_CONTAINER_TEACHES = "cr_thrown_container_teaches";
+    private static final String CR_UNTHROWN_ITEM_TEACHES_NOBODY = "cr_unthrown_item_teaches_nobody";
+    private static final String CR_MELTS_CHRYSM = "cr_melts_chrysm";
+    private static final String CR_CAP_EACH_TYPE = "cr_cap_each_type";
+    private static final String CR_CAP_GOO_IN_HAND = "cr_cap_goo_in_hand";
+    private static final String CR_CAP_GOO_ENTITY = "cr_cap_goo_entity";
+    private static final String CR_CAP_ITEMS_THAT_FIT = "cr_cap_items_that_fit";
+    private static final String CR_CAP_CONTAINER = "cr_cap_container";
+    private static final String CR_CAP_MELTED_ITEM = "cr_cap_melted_item";
+    private static final String CR_CAP_ACCOUNTED = "cr_cap_accounted";
+    private static final String CR_GOO_STACK_WHOLE = "cr_goo_stack_whole";
+    private static final String CR_GOO_STACK_TO_CAP = "cr_goo_stack_to_cap";
+    private static final String CR_FIRST_MELT_PUDDLE = "cr_first_melt_puddle";
+    private static final String CR_DROP_RESTS_ON_FLOOR = "cr_drop_rests_on_floor";
+    private static final String CR_LEDGE_ITEM_TAKEN_INSIDE = "cr_ledge_item_taken_inside";
+    private static final String CR_WALL_TOP_ITEMS_SLIDE_IN = "cr_wall_top_items_slide_in";
+    private static final String CR_LEDGE_ITEM_LIFTED_IN = "cr_ledge_item_lifted_in";
+    private static final String CR_THROWN_ITEM_CAUGHT = "cr_thrown_item_caught";
+    private static final String CR_SIDE_HIT_LIFTED_IN = "cr_side_hit_lifted_in";
+    private static final String CR_ROUGH_THROW_STEERED_IN = "cr_rough_throw_steered_in";
+    private static final String CR_ITEM_TAKEN_AT_KILL_BOX = "cr_item_taken_at_kill_box";
+    private static final String CR_COLD_ITEM_WAITS_ON_FLOOR = "cr_cold_item_waits_on_floor";
+    private static final String CR_ITEM_MELTS_ON_ITS_CLOCK = "cr_item_melts_on_its_clock";
+    private static final String CR_BROKEN_MID_MELT_DROPS_REMAINDER = "cr_broken_mid_melt_drops_remainder";
+    private static final String CR_STACK_MELTS_ITEM_BY_ITEM = "cr_stack_melts_item_by_item";
+    private static final String CR_COMBO_MELTS_EVERY_ITEM = "cr_combo_melts_every_item";
+    private static final String CR_SPARK_REFUSED_BLAZE = "cr_spark_refused_blaze";
+    private static final String CR_SPARK_REFUSED_HEAT = "cr_spark_refused_heat";
+    private static final String CR_SPARK_LIGHTS_COLD = "cr_spark_lights_cold";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, CR_GOO_INSERT, CrucibleTests::gooInsertViaInteraction);
+        GooTestFunctions.registerTest(registrar, CR_ITEM_ABSORB, CrucibleTests::itemEntityAbsorption);
+        GooTestFunctions.registerTest(registrar, CR_THROWN_ITEM_TEACHES, CrucibleTests::thrownItemTeachesTheThrower);
+        GooTestFunctions.registerTest(registrar, CR_THROWN_CONTAINER_TEACHES, CrucibleTests::thrownContainerTeachesItsContents);
+        GooTestFunctions.registerTest(registrar, CR_UNTHROWN_ITEM_TEACHES_NOBODY, CrucibleTests::unthrownItemTeachesNobody);
+        GooTestFunctions.registerTest(registrar, CR_MELTS_CHRYSM, CrucibleTests::meltsChrysm);
+        GooTestFunctions.registerTest(registrar, CR_CAP_EACH_TYPE, CrucibleTests::reservoirCapsEachType);
+        GooTestFunctions.registerTest(registrar, CR_CAP_GOO_IN_HAND, CrucibleTests::gooInHandRefusedAtCap);
+        GooTestFunctions.registerTest(registrar, CR_CAP_GOO_ENTITY, CrucibleTests::gooEntityRefusedAtCap);
+        GooTestFunctions.registerTest(registrar, CR_CAP_ITEMS_THAT_FIT, CrucibleTests::itemStackMeltsWholeItemsThatFit);
+        GooTestFunctions.registerTest(registrar, CR_CAP_CONTAINER, CrucibleTests::containerRefusedWholeAtCap);
+        GooTestFunctions.registerTest(registrar, CR_CAP_MELTED_ITEM, CrucibleTests::meltedItemRefusedWholeAtCap);
+        GooTestFunctions.registerTest(registrar, CR_CAP_ACCOUNTED, CrucibleTests::fillPastTheCapAccountsForEveryMb);
+        GooTestFunctions.registerTest(registrar, CR_GOO_STACK_WHOLE, CrucibleTests::gooStackConsumedWhole);
+        GooTestFunctions.registerTest(registrar, CR_GOO_STACK_TO_CAP, CrucibleTests::gooStackFillsToTheCap);
+        GooTestFunctions.registerTest(registrar, CR_FIRST_MELT_PUDDLE, CrucibleTests::firstMeltTicksDrawAPuddle);
+        GooTestFunctions.registerTest(registrar, CR_DROP_RESTS_ON_FLOOR, CrucibleTests::droppedItemRestsOnBasinFloor);
+        GooTestFunctions.registerTest(registrar, CR_LEDGE_ITEM_TAKEN_INSIDE, CrucibleTests::ledgeItemTakenOnlyInsideTheCavity);
+        GooTestFunctions.registerTest(registrar, CR_WALL_TOP_ITEMS_SLIDE_IN, CrucibleTests::wallTopItemsSlideIntoTheCavity);
+        GooTestFunctions.registerTest(registrar, CR_LEDGE_ITEM_LIFTED_IN, CrucibleTests::ledgeItemLiftedIntoTheCavity);
+        GooTestFunctions.registerTest(registrar, CR_THROWN_ITEM_CAUGHT, CrucibleTests::thrownItemCaughtByTheField);
+        GooTestFunctions.registerTest(registrar, CR_SIDE_HIT_LIFTED_IN, CrucibleTests::sideHitItemLiftedIntoTheCavity);
+        GooTestFunctions.registerTest(registrar, CR_ROUGH_THROW_STEERED_IN, CrucibleTests::roughThrowSteeredIntoTheMouth);
+        GooTestFunctions.registerTest(registrar, CR_ITEM_TAKEN_AT_KILL_BOX, CrucibleTests::droppedItemTakenAtTheKillBox);
+        GooTestFunctions.registerTest(registrar, CR_COLD_ITEM_WAITS_ON_FLOOR, CrucibleTests::coldCrucibleItemWaitsOnTheFloor);
+        GooTestFunctions.registerTest(registrar, CR_ITEM_MELTS_ON_ITS_CLOCK, CrucibleTests::itemMeltsOnItsClock);
+        GooTestFunctions.registerTest(registrar, CR_BROKEN_MID_MELT_DROPS_REMAINDER, CrucibleTests::brokenMidMeltDropsTheRemainder);
+        GooTestFunctions.registerTest(registrar, CR_STACK_MELTS_ITEM_BY_ITEM, CrucibleTests::stackMeltsItemByItemInTurn);
+        GooTestFunctions.registerTest(registrar, CR_COMBO_MELTS_EVERY_ITEM, CrucibleTests::comboMeltsEveryItemAtOnce);
+        GooTestFunctions.registerTest(registrar, CR_SPARK_REFUSED_BLAZE, CrucibleTests::sparkRefusedOnBlazeGoo);
+        GooTestFunctions.registerTest(registrar, CR_SPARK_REFUSED_HEAT, CrucibleTests::sparkRefusedOnHeatTicks);
+        GooTestFunctions.registerTest(registrar, CR_SPARK_LIGHTS_COLD, CrucibleTests::sparkLightsColdEmptyCrucible);
+    }
+
 
     private static final BlockPos BE_POS = new BlockPos(1, 1, 1);
     /** Ticks a still item dropped at the basin center takes to land, rest and be consumed. */

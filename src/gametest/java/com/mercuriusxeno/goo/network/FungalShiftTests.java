@@ -14,6 +14,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Fungal Shift through the real throw path: released aimed
@@ -22,7 +26,29 @@ import net.minecraft.world.phys.Vec3;
  * sight it reaches a mushroom beyond its base range (decisions
  * fungal-shift-blinks-to-the-aimed-fungus and sight-lengthens-shift-and-outlines-fungus).
  */
+@RegistersGameTests
 public final class FungalShiftTests {
+    private static final String FUNGAL_SHIFT_TO_A_MUSHROOM = "fungal_shift_to_a_mushroom";
+    private static final String FUNGAL_SHIFT_REFUSES_STONE = "fungal_shift_refuses_stone";
+    private static final String FUNGAL_SHIFT_NEEDS_A_FUNGUS_NEAR = "fungal_shift_needs_a_fungus_near";
+    private static final String SIGHT_EXTENDS_THE_SHIFT = "sight_extends_the_shift";
+    private static final String SIGHT_SHIFTS_THROUGH_A_WALL = "sight_shifts_through_a_wall";
+    private static final String FUNGAL_SHIFT_SNAPS_TO_A_NEAR_MISS = "fungal_shift_snaps_to_a_near_miss";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, FUNGAL_SHIFT_TO_A_MUSHROOM, FungalShiftTests::fungalShiftToAMushroom);
+        GooTestFunctions.registerTest(registrar, FUNGAL_SHIFT_REFUSES_STONE, FungalShiftTests::fungalShiftRefusesStone);
+        GooTestFunctions.registerTest(registrar, FUNGAL_SHIFT_NEEDS_A_FUNGUS_NEAR, FungalShiftTests::fungalShiftNeedsAFungusNear);
+        GooTestFunctions.registerTest(registrar, SIGHT_EXTENDS_THE_SHIFT, FungalShiftTests::sightExtendsTheShift);
+        GooTestFunctions.registerTest(registrar, SIGHT_SHIFTS_THROUGH_A_WALL, FungalShiftTests::sightShiftsThroughAWall);
+        GooTestFunctions.registerTest(registrar, FUNGAL_SHIFT_SNAPS_TO_A_NEAR_MISS, FungalShiftTests::fungalShiftSnapsToANearMiss);
+    }
+
 
     private static final Identifier FUNGAL_SHIFT = Identifier.parse("goo:shroom_fungal_shift");
     /** The light bay's west edge, on its floor. */

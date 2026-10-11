@@ -35,6 +35,10 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.concurrent.atomic.AtomicReference;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for the frost abilities: each lands a frost ability the way the
@@ -43,7 +47,39 @@ import java.util.concurrent.atomic.AtomicReference;
  * cold-streams-wind-lines-and-snowflakes, orb-carries-a-swirling-nova,
  * glacial-prism-holds-the-area-frozen, iceborn-frozen-hearts-thaw-on-fire.
  */
+@RegistersGameTests
 public final class FrostAbilityTests {
+    private static final String NOVA_HELD_REACHES_BOTH = "nova_held_reaches_both_zombies";
+    private static final String NOVA_TAPPED_REACHES_NEAR = "nova_tapped_reaches_only_the_near";
+    private static final String NOVA_TAP_FREEZES_BELOW = "nova_tap_freezes_below";
+    private static final String COLD_BREAKS_GRASS = "cold_breaks_grass_and_freezes_faster";
+    private static final String ORB_FREEZES_PATH = "orb_freezes_path_and_pool";
+    private static final String ORB_ENDS_ON_A_MOB = "orb_ends_on_a_mob";
+    private static final String ORB_ENDS_AT_ITS_RANGE = "orb_ends_at_its_range";
+    private static final String GLACIAL_HOLDS_THE_GAUGE = "glacial_holds_the_gauge";
+    private static final String GLACIAL_SURVIVES_A_RELOAD = "glacial_survives_a_reload";
+    private static final String ICEBORN_FREEZES_SURROUNDINGS = "iceborn_freezes_surroundings";
+    private static final String ICEBORN_THAWS_ON_FIRE = "iceborn_thaws_on_fire";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, NOVA_HELD_REACHES_BOTH, FrostAbilityTests::novaHeldReachesBothZombies);
+        GooTestFunctions.registerTest(registrar, NOVA_TAPPED_REACHES_NEAR, FrostAbilityTests::novaTappedReachesOnlyTheNear);
+        GooTestFunctions.registerTest(registrar, NOVA_TAP_FREEZES_BELOW, FrostAbilityTests::novaTapFreezesBelow);
+        GooTestFunctions.registerTest(registrar, COLD_BREAKS_GRASS, FrostAbilityTests::coldBreaksGrassAndFreezesFaster);
+        GooTestFunctions.registerTest(registrar, ORB_FREEZES_PATH, FrostAbilityTests::orbFreezesPathAndPool);
+        GooTestFunctions.registerTest(registrar, ORB_ENDS_ON_A_MOB, FrostAbilityTests::orbEndsOnAMob);
+        GooTestFunctions.registerTest(registrar, ORB_ENDS_AT_ITS_RANGE, FrostAbilityTests::orbEndsAtItsRange);
+        GooTestFunctions.registerTest(registrar, GLACIAL_HOLDS_THE_GAUGE, FrostAbilityTests::glacialHoldsTheGauge);
+        GooTestFunctions.registerTest(registrar, GLACIAL_SURVIVES_A_RELOAD, FrostAbilityTests::glacialSurvivesAReload);
+        GooTestFunctions.registerTest(registrar, ICEBORN_FREEZES_SURROUNDINGS, FrostAbilityTests::icebornFreezesSurroundings);
+        GooTestFunctions.registerTest(registrar, ICEBORN_THAWS_ON_FIRE, FrostAbilityTests::icebornThawsOnFire);
+    }
+
 
     private static final BlockPos CASTER_POS = new BlockPos(1, 1, 1);
     /** About one and a half blocks from the caster: inside Nova's uncharged reach of two. */

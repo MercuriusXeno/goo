@@ -20,6 +20,10 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for glow's Radiant through the real channel path: a mock player
@@ -27,7 +31,23 @@ import java.util.List;
  * that light it; lit past the threshold, the room takes none
  * (decision radiant-wisps-where-light-is-low).
  */
+@RegistersGameTests
 public final class RadiantChannelTests {
+    private static final String RADIANT_LIGHTS_A_DARK_ROOM = "radiant_lights_a_dark_room";
+    private static final String RADIANT_FILLS_ONLY_AIR_IN_SIGHT = "radiant_fills_only_air_in_sight";
+    private static final String RADIANT_SKIPS_A_LIT_ROOM = "radiant_skips_a_lit_room";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, RADIANT_LIGHTS_A_DARK_ROOM, RadiantChannelTests::radiantLightsADarkRoom);
+        GooTestFunctions.registerTest(registrar, RADIANT_FILLS_ONLY_AIR_IN_SIGHT, RadiantChannelTests::radiantFillsOnlyAirInSight);
+        GooTestFunctions.registerTest(registrar, RADIANT_SKIPS_A_LIT_ROOM, RadiantChannelTests::radiantSkipsALitRoom);
+    }
+
 
     /** The room's walls, floor and roof span 0 to 6 across and 0 to 4 up; its air is inside. */
     private static final int ROOM_EDGE = 6;

@@ -17,6 +17,10 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import java.util.List;
 import java.util.stream.Stream;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametest for xeno's Mutate: a pig the blob strikes carries one mutation
@@ -24,7 +28,19 @@ import java.util.stream.Stream;
  * stands on the pig.
  * xeno-blob-mutates-the-struck
  */
+@RegistersGameTests
 public final class MutateTests {
+    private static final String XENO_MUTATES_THE_STRUCK_PIG = "xeno_mutates_the_struck_pig";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, XENO_MUTATES_THE_STRUCK_PIG, MutateTests::xenoMutatesTheStruckPig);
+    }
+
 
     private static final String XENO_MUTATE = "goo:xeno_mutate";
     private static final int NO_ENTITY = -1;

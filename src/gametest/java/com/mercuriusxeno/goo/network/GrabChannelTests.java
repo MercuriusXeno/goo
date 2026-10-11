@@ -21,6 +21,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 import java.util.concurrent.atomic.AtomicReference;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Kinetic's Grab, driven through the channel's stream tick
@@ -29,7 +33,25 @@ import java.util.concurrent.atomic.AtomicReference;
  * closer, a throw sends it along the look, and an item entity is held and
  * thrown the same (decision grab-holds-and-throws-a-physics-body).
  */
+@RegistersGameTests
 public final class GrabChannelTests {
+    private static final String GRAB_SUSPENDS_THE_ZOMBIE = "grab_suspends_the_zombie";
+    private static final String GRAB_PITCH_DRAWS_CLOSER = "grab_pitch_draws_closer";
+    private static final String GRAB_THROWS_ALONG_THE_LOOK = "grab_throws_along_the_look";
+    private static final String GRAB_THROWS_AN_ITEM = "grab_throws_an_item";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, GRAB_SUSPENDS_THE_ZOMBIE, GrabChannelTests::grabSuspendsTheZombie);
+        GooTestFunctions.registerTest(registrar, GRAB_PITCH_DRAWS_CLOSER, GrabChannelTests::grabPitchDrawsCloser);
+        GooTestFunctions.registerTest(registrar, GRAB_THROWS_ALONG_THE_LOOK, GrabChannelTests::grabThrowsAlongTheLook);
+        GooTestFunctions.registerTest(registrar, GRAB_THROWS_AN_ITEM, GrabChannelTests::grabThrowsAnItem);
+    }
+
 
     private static final BlockPos STAND_POS = new BlockPos(0, 1, 2);
     private static final BlockPos ZOMBIE_POS = new BlockPos(3, 1, 2);

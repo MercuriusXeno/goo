@@ -25,13 +25,35 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import java.util.Map;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for goo light emission held in block entity contents. Proves
  * that a sync enqueues the recompute and the server light engine's own tick
  * propagates it, with no manual drain (decision light-kick-never-drains).
  */
+@RegistersGameTests
 public final class LightingTests {
+    private static final String LIGHT_CANISTER_SYNC = "light_canister_sync";
+    private static final String LIGHT_CANISTER_LOAD = "light_canister_load";
+    private static final String LIGHT_DATAPACK_TYPE = "light_datapack_type";
+    private static final String LIGHT_VAT_STACK = "light_vat_stack";
+    private static final String LIGHT_VAT_DATA_PACKET = "light_vat_data_packet";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, LIGHT_CANISTER_SYNC, LightingTests::filledCanisterLightsNeighbour);
+        GooTestFunctions.registerTest(registrar, LIGHT_CANISTER_LOAD, LightingTests::loadedCanisterLightsNeighbour);
+        GooTestFunctions.registerTest(registrar, LIGHT_DATAPACK_TYPE, LightingTests::datapackLightLevelDrivesCanisterEmission);
+        GooTestFunctions.registerTest(registrar, LIGHT_VAT_STACK, LightingTests::vatStackLightsWithItsGoo);
+        GooTestFunctions.registerTest(registrar, LIGHT_VAT_DATA_PACKET, LightingTests::vatDataPacketLightsVat);
+    }
+
 
     private static final BlockPos BE_POS = new BlockPos(1, 1, 1);
     private static final BlockPos AIR_ABOVE = BE_POS.above();
