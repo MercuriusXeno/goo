@@ -26,7 +26,7 @@ class GooTypesTest {
     private static final ResourceKey<GooTypeDefinition> SEVENTEENTH = ResourceKey.create(
             GooTypes.REGISTRY, Identifier.fromNamespaceAndPath("gootest", "seventeenth"));
     private static final List<String> BUNDLED_IDS = List.of(
-            "aeon", "blaze", "crystal", "ender", "frost", "glow", "hex", "leaf",
+            "aeon", "astral", "blaze", "crystal", "ender", "frost", "glow", "hex", "leaf",
             "metal", "nether", "pulse", "rock", "shroom", "typhoon", "unstable", "vital");
 
     /**

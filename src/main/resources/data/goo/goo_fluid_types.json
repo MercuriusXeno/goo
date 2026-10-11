@@ -25,6 +25,29 @@
     ]
   },
   {
+    "id": "astral",
+    "seed": 40981,
+    "genParams": {
+      "viscosity": 1.6,
+      "decayRate": 0.03,
+      "ignitionChance": 0.006,
+      "ignitionStrength": 1.4,
+      "potHeatRate": 0.01,
+      "potInfluence": 0.7,
+      "neighborhoodReach": 1
+    },
+    "frametime": 4,
+    "shadowHue": -1,
+    "palette": [
+      { "position": 0.0, "color": "#7888A8" },
+      { "position": 0.25, "color": "#98A8C8" },
+      { "position": 0.5, "color": "#B8C6E0" },
+      { "position": 0.7, "color": "#D0D8E8" },
+      { "position": 0.88, "color": "#E8F0FF" },
+      { "position": 1.0, "color": "#FFFFFF" }
+    ]
+  },
+  {
     "id": "blaze",
     "seed": 40967,
     "genParams": {

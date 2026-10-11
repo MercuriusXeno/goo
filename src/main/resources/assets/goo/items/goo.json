@@ -8,6 +8,7 @@
         "size": "tiny",
         "cases": [
             {"when": "goo:item/aeon_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/aeon_goo_tiny"}},
+            {"when": "goo:item/astral_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/astral_goo_tiny"}},
             {"when": "goo:item/blaze_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/blaze_goo_tiny"}},
             {"when": "goo:item/crystal_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/crystal_goo_tiny"}},
             {"when": "goo:item/ender_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/ender_goo_tiny"}},
@@ -35,6 +36,7 @@
         "size": "small",
         "cases": [
             {"when": "goo:item/aeon_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/aeon_goo_small"}},
+            {"when": "goo:item/astral_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/astral_goo_small"}},
             {"when": "goo:item/blaze_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/blaze_goo_small"}},
             {"when": "goo:item/crystal_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/crystal_goo_small"}},
             {"when": "goo:item/ender_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/ender_goo_small"}},
@@ -62,6 +64,7 @@
         "size": "base",
         "cases": [
             {"when": "goo:item/aeon_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/aeon_goo"}},
+            {"when": "goo:item/astral_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/astral_goo"}},
             {"when": "goo:item/blaze_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/blaze_goo"}},
             {"when": "goo:item/crystal_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/crystal_goo"}},
             {"when": "goo:item/ender_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/ender_goo"}},
@@ -89,6 +92,7 @@
         "size": "large",
         "cases": [
             {"when": "goo:item/aeon_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/aeon_goo_large"}},
+            {"when": "goo:item/astral_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/astral_goo_large"}},
             {"when": "goo:item/blaze_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/blaze_goo_large"}},
             {"when": "goo:item/crystal_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/crystal_goo_large"}},
             {"when": "goo:item/ender_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/ender_goo_large"}},

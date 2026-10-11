@@ -54,6 +54,7 @@
   "block.goo.vat": "Vat",
 
   "goo.type.aeon": "Aeon",
+  "goo.type.astral": "Astral",
   "goo.type.blaze": "Blaze",
   "goo.type.crystal": "Crystal",
   "goo.type.ender": "Ender",
@@ -72,6 +73,7 @@
   "goo.type.untyped": "Untyped",
 
   "item.minecraft.potion.effect.aeon_goo": "Potion of Timecurve",
+  "item.minecraft.potion.effect.astral_goo": "Potion of Starlight",
   "item.minecraft.potion.effect.blaze_goo": "Potion of Infernal",
   "item.minecraft.potion.effect.crystal_goo": "Potion of Mineral Sense",
   "item.minecraft.potion.effect.ender_goo": "Potion of Phasing",
@@ -89,6 +91,7 @@
   "item.minecraft.potion.effect.vital_goo": "Potion of Nourishment",
 
   "effect.goo.aeon_brew": "Aeon Brew",
+  "effect.goo.astral_brew": "Astral Brew",
   "effect.goo.blaze_brew": "Blaze Brew",
   "effect.goo.crystal_brew": "Crystal Brew",
   "effect.goo.ender_brew": "Ender Brew",
