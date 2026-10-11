@@ -117,6 +117,7 @@ public final class StepTypes {
         register(BanishStep.TYPE);
         register(TeleportitisStep.TYPE);
         register(ConvokeStep.TYPE);
+        register(DiveStep.TYPE);
         register(DragonGateStep.TYPE);
         register(RootStep.TYPE);
         register(HitOrMissStep.TYPE);

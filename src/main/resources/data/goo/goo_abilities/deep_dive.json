@@ -1,0 +1,17 @@
+{
+  "gooType": "deep",
+  "displayName": "goo.ability.deep.dive",
+  "badge": "self",
+  "order": 10,
+  "cost": 400,
+  "requires": ["minecraft:nautilus_shell"],
+  "delivery": { "kind": "self" },
+  "behaviors": [
+    { "type": "afterimage", "goo": "deep" },
+    { "type": "dive", "radius": 16 },
+    { "type": "ghost_trail", "goo": "deep" },
+    { "type": "afterimage", "goo": "deep" },
+    { "type": "sound", "id": "minecraft:ambient.underwater.enter", "at": "target", "source": "players", "volume": 1, "pitch": 0.8 }
+  ],
+  "tags": ["self"]
+}

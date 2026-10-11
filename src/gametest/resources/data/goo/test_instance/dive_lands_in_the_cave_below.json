@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:dive_lands_in_the_cave_below",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}
