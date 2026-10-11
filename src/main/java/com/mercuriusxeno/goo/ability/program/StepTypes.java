@@ -119,6 +119,8 @@ public final class StepTypes {
         register(ZoneStep.TYPE);
         register(ShifterStep.TYPE);
         register(ConvokeStep.TYPE);
+        register(DiveStep.TYPE);
+        register(ChurnStep.TYPE);
         register(EndStep.TYPE);
         register(RootStep.TYPE);
         register(HitOrMissStep.TYPE);
