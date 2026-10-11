@@ -1,0 +1,19 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:redstone_wire",
+    "minecraft:redstone_lamp",
+    "minecraft:piston",
+    "minecraft:sticky_piston",
+    "minecraft:dispenser",
+    "minecraft:dropper",
+    "minecraft:note_block",
+    "minecraft:tnt",
+    "minecraft:comparator",
+    "minecraft:powered_rail",
+    "minecraft:activator_rail",
+    "minecraft:bell",
+    "minecraft:crafter",
+    "goo:prism"
+  ]
+}
