@@ -15,7 +15,7 @@ public enum HeartKind {
      * costing double, one ember back every n / 2 + 2 seconds, quenched by water
      * (decision kindle-ember-hearts-ash-and-retaliate).
      */
-    KINDLE(2.0f, false, true, true) {
+    KINDLE(2.0f, true) {
         @Override
         long regrowInterval(int shieldHalves) {
             // kindle-ember-hearts-ash-and-retaliate: n / 2 + 2 seconds a heart, n the embers, so a high bar
@@ -29,7 +29,7 @@ public enum HeartKind {
      * seconds, standing with no bark left and regrowing it until ended
      * (decisions barkskin-bark-hearts-thorn-and-burn and heart-effects-crawl-while-held).
      */
-    BARKSKIN(1.0f, false, false, true) {
+    BARKSKIN(1.0f, false) {
         @Override
         long regrowInterval(int shieldHalves) {
             // barkskin-bark-hearts-thorn-and-burn: a bark heart every 5 seconds, a half every 2.5
@@ -37,27 +37,13 @@ public enum HeartKind {
         }
     },
     /**
-     * Vital Reserve: health drained while right click is held, banked behind
-     * the bar at a lossy ratio, spent before real health and gone with its
-     * last half; it has no weakness, retaliates at nothing and never regrows.
-     * Appended last, so the synced ordinals of the kinds before it stand.
-     * reserve-hearts-sit-behind-the-bar
-     */
-    RESERVE(1.0f, true, false, false) {
-        @Override
-        long regrowInterval(int shieldHalves) {
-            return 0L;
-        }
-    },
-    /**
      * Rock Stoneskin: stone over the hearts the player is missing, crawling
      * into each further missing heart a stone every five seconds, standing
      * with no stone left and crawling it back until ended, and holding the
-     * player's health from regenerating while it stands; appended after Reserve, so the synced ordinals of the kinds
-     * before it stand (decisions stoneskin-stone-hearts-block-regeneration
+     * player's health from regenerating while it stands (decisions stoneskin-stone-hearts-block-regeneration
      * and heart-effects-crawl-while-held).
      */
-    STONESKIN(1.0f, false, false, true) {
+    STONESKIN(1.0f, false) {
         @Override
         long regrowInterval(int shieldHalves) {
             // heart-effects-crawl-while-held: stone crawls at bark's pace, a stone heart every 5 seconds
@@ -76,7 +62,7 @@ public enum HeartKind {
      * appended last, so the synced ordinals of the kinds before it stand
      * (decisions undead-nether-hearts-burn-in-sunlight and heart-effects-crawl-while-held).
      */
-    UNDEAD(1.0f, false, false, true) {
+    UNDEAD(1.0f, false) {
         @Override
         long regrowInterval(int shieldHalves) {
             // undead-nether-hearts-burn-in-sunlight: nether hearts regenerate rapidly
@@ -95,7 +81,7 @@ public enum HeartKind {
      * Appended last, since ordinals are synced.
      * iceborn-frozen-hearts-thaw-on-fire
      */
-    ICEBORN(1.0f, false, false, true) {
+    ICEBORN(1.0f, false) {
         @Override
         long regrowInterval(int shieldHalves) {
             // heart-effects-crawl-while-held: frost crawls at bark's pace, a frozen heart every 5 seconds
@@ -118,24 +104,11 @@ public enum HeartKind {
     private static final long UNDEAD_REGROW_TICKS_PER_HALF = 10L;
 
     private final float bareCostMultiplier;
-    private final boolean endsWhenBare;
     private final boolean quenchedByWater;
-    private final boolean regrows;
 
-    HeartKind(float bareCostMultiplier, boolean endsWhenBare, boolean quenchedByWater, boolean regrows) {
+    HeartKind(float bareCostMultiplier, boolean quenchedByWater) {
         this.bareCostMultiplier = bareCostMultiplier;
-        this.endsWhenBare = endsWhenBare;
         this.quenchedByWater = quenchedByWater;
-        this.regrows = regrows;
-    }
-
-    /**
-     * Answers whether a bare heart regrows its shield over time.
-     *
-     * @return true when shields regrow
-     */
-    boolean regrows() {
-        return regrows;
     }
 
     /**
@@ -163,15 +136,6 @@ public enum HeartKind {
      */
     float bareCostMultiplier() {
         return bareCostMultiplier;
-    }
-
-    /**
-     * Answers whether the overlay ends the moment its last shield breaks.
-     *
-     * @return true when the overlay lasts only while a shield stands
-     */
-    boolean endsWhenBare() {
-        return endsWhenBare;
     }
 
     /**

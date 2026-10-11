@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.hearts.ReserveDrain;
+import com.mercuriusxeno.goo.ability.reserve.ReserveDrain;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -9,13 +9,14 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Drains the host's target player into a reserve behind the bar for one held
+ * Drains the host's target player into a reserve behind the bars for one held
  * tick and finishes; the held stream runs it again each tick right click
  * stays down, so releasing stops the drain. Health is set lower with no
  * damage event, so no flinch, sound, red flash or invulnerability frames
- * follow. Vital Reserve is
- * {@code reserve_drain drain=0.05 ratio=0.5 cap=10 floor=0.5}, every amount in hearts.
+ * follow; hunger drains beside health into reserve shanks. Jelly Reserve is
+ * {@code reserve_drain drain=0.05 ratio=0.5 cap=10 floor=0.5}, every amount in hearts and shanks.
  * reserve-hearts-sit-behind-the-bar
+ * reserve-channels-on-jelly
  *
  * @param drain the hearts one held tick drains
  * @param ratio the reserve hearts one drained heart banks
@@ -52,9 +53,11 @@ public record ReserveDrainStep(Expr drain, Expr ratio, Expr cap, Expr floor) imp
         if (host.target() instanceof Player player) {
             ReserveDrain reserve = new ReserveDrain(drain.evaluateFloat(context), ratio.evaluateFloat(context),
                     cap.evaluateFloat(context), floor.evaluateFloat(context));
-            ReserveDrain.Drawn drawn = reserve.draw(player.getData(GooAttachments.HEART_OVERLAY), player.getHealth());
-            player.setData(GooAttachments.HEART_OVERLAY, drawn.overlay());
+            ReserveDrain.Drawn drawn = reserve.draw(player.getData(GooAttachments.RESERVE), player.getHealth(),
+                    player.getFoodData().getFoodLevel());
+            player.setData(GooAttachments.RESERVE, drawn.reserve());
             player.setHealth(drawn.health());
+            player.getFoodData().setFoodLevel(drawn.food());
         }
         return true;
     }

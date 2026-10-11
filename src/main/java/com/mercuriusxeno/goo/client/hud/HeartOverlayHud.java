@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.hud;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
+import com.mercuriusxeno.goo.ability.reserve.Reserve;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
@@ -33,7 +34,7 @@ import java.util.Optional;
  * and barkskin-bark-hearts-thorn-and-burn), and while Stoneskin stands each
  * missing heart it fills reads stone (decision
  * stoneskin-stone-hearts-block-regeneration). While Reserve stands, its banked
- * hearts draw in their own vital sprite as a row behind vanilla's, before
+ * hearts draw in their own sprite as a row behind vanilla's, before
  * vanilla draws, and each half heart the drain takes travels from the bar to
  * that row (decision reserve-hearts-sit-behind-the-bar). The layer wraps vanilla's health
  * layer and lays its sprites on the slots vanilla drew, mirroring vanilla's
@@ -120,7 +121,7 @@ public final class HeartOverlayHud {
             LocalPlayer player = hurtablePlayer(mc);
             if (player != null) {
                 // reserve-hearts-sit-behind-the-bar: the reserve row goes down first, so vanilla's hearts cover it
-                paintReserve(graphics, mc.gui, player, player.getData(GooAttachments.HEART_OVERLAY), leftHeightBefore);
+                paintReserve(graphics, mc.gui, player, player.getData(GooAttachments.RESERVE), leftHeightBefore);
             }
             vanilla.render(graphics, deltaTracker);
             if (player != null) {
@@ -145,11 +146,11 @@ public final class HeartOverlayHud {
      */
     private static void paintTravels(GuiGraphicsExtractor graphics, Gui gui, LocalPlayer player, int leftHeightBefore,
                                      float partialTick) {
-        HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
+        Reserve reserve = player.getData(GooAttachments.RESERVE);
         float now = gui.getGuiTicks() + partialTick;
-        boolean draining = overlay.reserves() && player.hurtTime == 0;
+        boolean draining = reserve.stands() && player.hurtTime == 0;
         List<ReserveTravels.Travel> travels = TRAVELS.update(Mth.ceil(player.getHealth()), draining,
-                overlay.shieldHalves(), now);
+                reserve.heartHalves(), now);
         if (travels.isEmpty()) {
             return;
         }
@@ -247,10 +248,6 @@ public final class HeartOverlayHud {
             addHalves(sprites, shieldHalves, missingHalf(kind), missingFull(kind));
             return sprites;
         }
-        if (kind == HeartKind.RESERVE) {
-            // reserve-hearts-sit-behind-the-bar: nothing lies over the bar, the reserve row sits behind it
-            return sprites;
-        }
         if (kind == HeartKind.BARKSKIN) {
             // barkskin-bark-hearts-thorn-and-burn: bark hearts wear oak bark over normal hearts
             addHalves(sprites, shown, BARK_HALF, BARK_FULL);
@@ -325,16 +322,17 @@ public final class HeartOverlayHud {
         return slotY - RESERVE_RISE;
     }
 
-    private static void paintReserve(GuiGraphicsExtractor graphics, Gui gui, LocalPlayer player, HeartOverlay overlay,
+    private static void paintReserve(GuiGraphicsExtractor graphics, Gui gui, LocalPlayer player, Reserve reserve,
                                      int leftHeightBefore) {
-        if (!overlay.reserves()) {
+        if (reserve.heartHalves() == 0) {
             return;
         }
         BarLayout layout = layout(graphics, gui, player, leftHeightBefore);
-        for (int slot = 0; slot < overlay.shields().size(); slot++) {
+        int slots = Mth.positiveCeilDiv(reserve.heartHalves(), Reserve.HALVES_PER_SLOT);
+        for (int slot = 0; slot < slots; slot++) {
             int x = layout.x(slot) + RESERVE_SHIFT;
             int y = reserveY(layout.y(slot));
-            reserveSprite(overlay.shieldAt(slot)).ifPresent(sprite -> graphics.blitSprite(
+            reserveSprite(Reserve.halvesAt(reserve.heartHalves(), slot)).ifPresent(sprite -> graphics.blitSprite(
                     RenderPipelines.GUI_TEXTURED, sprite, x, y, HEART_SIZE, HEART_SIZE));
         }
     }

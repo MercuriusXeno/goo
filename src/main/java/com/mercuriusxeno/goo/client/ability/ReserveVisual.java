@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.program.ReserveDrainStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.reserve.Reserve;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.particle.VitalMoteParticle;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
@@ -25,12 +25,13 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import java.util.stream.Stream;
 
 /**
- * Reserve's effect in the world: each held tick, pink motes of vital goo
+ * Reserve's effect in the world: each held tick, amber motes of jelly goo
  * pull out of the player's chest into the glove; each half heart the drain
  * takes thumps a heartbeat; each reserve half banked rings the player in a
- * soft pink pulse. The client reads the drained and banked halves from its
- * own health and overlay, so no packet carries them.
+ * soft pulse. The client reads the drained and banked halves from its
+ * own health and reserve, so no packet carries them.
  * reserve-hearts-sit-behind-the-bar
+ * reserve-channels-on-jelly
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class ReserveVisual {
@@ -153,12 +154,12 @@ public final class ReserveVisual {
             lastHealthHalves = NO_READING;
             return;
         }
-        HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
+        Reserve standing = player.getData(GooAttachments.RESERVE);
         int health = Mth.ceil(player.getHealth());
-        int reserve = overlay.shieldHalves();
+        int reserve = standing.heartHalves();
         if (lastHealthHalves != NO_READING) {
             Cues cues = cuesFor(lastHealthHalves, health, lastReserveHalves, reserve,
-                    overlay.reserves() && player.hurtTime == 0);
+                    standing.stands() && player.hurtTime == 0);
             play(player, cues);
         }
         lastHealthHalves = health;
