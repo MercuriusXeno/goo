@@ -307,11 +307,12 @@ public final class DrinkTree {
 
         /**
          * Whether anything still flows through the stream at a distance along
-         * its own path: its own liquid, or a tributary's entering at or before
-         * there whose liquid still reaches its join; a trunk whose own liquid
-         * has passed still carries what joins it, so its tributaries stay on
-         * it and one stream enters the palm rather than each re-rooting to the
-         * glove the moment the trunk's own tail passes.
+         * its own path: its own liquid, or that of a tributary entering at or
+         * before there whose liquid is still in flight anywhere down the route,
+         * on its own path or riding this trunk; a trunk whose own liquid has
+         * passed still carries what joins it, so a tributary is never torn off
+         * the trunk its liquid is riding, which made the stream vanish from the
+         * trunk instead of arriving, and one stream enters the palm.
          *
          * @param distance blocks along the stream's own path from its far side
          * @return whether liquid still flows there
@@ -321,7 +322,7 @@ public final class DrinkTree {
                 return true;
             }
             for (Stream tributary : tributaries) {
-                if (tributary.joinShare * path.length() <= distance && tributary.carriesAt(tributary.path.length())) {
+                if (tributary.joinShare * path.length() <= distance && !tributary.spent()) {
                     return true;
                 }
             }
