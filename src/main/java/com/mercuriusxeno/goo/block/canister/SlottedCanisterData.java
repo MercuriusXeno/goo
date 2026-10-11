@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.block.canister;
 
 import com.mercuriusxeno.goo.block.GooLightEntry;
 import com.mercuriusxeno.goo.block.GooMachineBlockEntity;
+import com.mercuriusxeno.goo.block.fluid.VesselSourcing;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
 import com.mercuriusxeno.goo.block.gasket.SlotGasketPusher;
 import com.mercuriusxeno.goo.block.gasket.SlotGasketRegistration;
@@ -353,6 +354,20 @@ public class SlottedCanisterData {
     }
 
     // --- Pusher lifecycle (cross-slot) ---
+
+    /**
+     * Runs each slotted canister's vessel sourcing for the tick.
+     *
+     * @param level the canister block's level
+     */
+    public void sourceSlots(Level level) {
+        for (CanisterSlot slot : slots) {
+            CanisterSlotFluidHandler handler = slot.handler();
+            if (handler != null) {
+                VesselSourcing.sourceTick(level, handler.toGooContents(), slot::insertGoo);
+            }
+        }
+    }
 
     /** Ticks all active slot pushers. */
     public void tickPushers() {

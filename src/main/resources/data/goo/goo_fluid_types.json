@@ -25,6 +25,29 @@
     ]
   },
   {
+    "id": "astral",
+    "seed": 40981,
+    "genParams": {
+      "viscosity": 1.6,
+      "decayRate": 0.03,
+      "ignitionChance": 0.006,
+      "ignitionStrength": 1.4,
+      "potHeatRate": 0.01,
+      "potInfluence": 0.7,
+      "neighborhoodReach": 1
+    },
+    "frametime": 4,
+    "shadowHue": -1,
+    "palette": [
+      { "position": 0.0, "color": "#7888A8" },
+      { "position": 0.25, "color": "#98A8C8" },
+      { "position": 0.5, "color": "#B8C6E0" },
+      { "position": 0.7, "color": "#D0D8E8" },
+      { "position": 0.88, "color": "#E8F0FF" },
+      { "position": 1.0, "color": "#FFFFFF" }
+    ]
+  },
+  {
     "id": "blaze",
     "seed": 40967,
     "genParams": {
@@ -180,6 +203,54 @@
       { "position": 0.6, "color": "#5030E0" },
       { "position": 0.8, "color": "#2858F0" },
       { "position": 1.0, "color": "#1890FF" }
+    ]
+  },
+  {
+    "id": "infinity",
+    "seed": 40999,
+    "genParams": {
+      "viscosity": 2.0,
+      "decayRate": 0.02,
+      "ignitionChance": 0.006,
+      "ignitionStrength": 1.0,
+      "potHeatRate": 0.01,
+      "potInfluence": 0.85,
+      "neighborhoodReach": 2
+    },
+    "frametime": 3,
+    "shadowHue": -1,
+    "palette": [
+      { "position": 0.0, "color": "#6830C8" },
+      { "position": 0.15, "color": "#3878F0" },
+      { "position": 0.3, "color": "#30D8E8" },
+      { "position": 0.45, "color": "#70F0A8" },
+      { "position": 0.6, "color": "#F8E878" },
+      { "position": 0.75, "color": "#F890C8" },
+      { "position": 0.9, "color": "#C8A0F8" },
+      { "position": 1.0, "color": "#FFF8FF" }
+    ]
+  },
+  {
+    "id": "kinetic",
+    "seed": 40977,
+    "genParams": {
+      "viscosity": 1.0,
+      "decayRate": 0.05,
+      "ignitionChance": 0.012,
+      "ignitionStrength": 1.6,
+      "potHeatRate": 0.02,
+      "potInfluence": 0.7,
+      "neighborhoodReach": 1
+    },
+    "frametime": 2,
+    "shadowHue": 0.6,
+    "palette": [
+      { "position": 0.0, "color": "#4A4E54" },
+      { "position": 0.3, "color": "#6E737A" },
+      { "position": 0.55, "color": "#9A8270" },
+      { "position": 0.75, "color": "#E8681A" },
+      { "position": 0.9, "color": "#FF8A2A" },
+      { "position": 1.0, "color": "#FFC07A" }
     ]
   },
   {

@@ -154,6 +154,7 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
      * @param be    the canister block entity
      */
     public static void serverTick(Level level, BlockPos pos, BlockState state, CanisterBlockEntity be) {
+        be.state.sourceSlots(level);
         be.state.tickPushers();
     }
 

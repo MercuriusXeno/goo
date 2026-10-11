@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 
@@ -46,7 +47,7 @@ public final class GooContentsOps {
      */
     public static int removeGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
         GooContents contents = getContents(stack);
-        if (contents.isEmpty()) { return 0; }
+        if (contents.isEmpty() || GooTypes.isUnspendable(type)) { return 0; }
         int available = contents.getVolume(type);
         int toRemove = Math.min(amount, available);
         if (toRemove <= 0) { return 0; }

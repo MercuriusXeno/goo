@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.block.ability.MarkerProgramState;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
+import com.mercuriusxeno.goo.network.LurkerPulsePayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -42,7 +43,7 @@ import java.util.function.Consumer;
  */
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
-        FieldEffectHost, PhasedHost, HoardHost, StateWriteHost, LevelHost, ConvokeHost, PowerEmitHost,
+        FieldEffectHost, PhasedHost, WatchHost, HoardHost, StateWriteHost, LevelHost, ConvokeHost, PowerEmitHost,
         BeatHost, RelayHost, FrostHost, GreeningHost, TickBankHost, TimeVeilHost, ChurnHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
@@ -117,7 +118,7 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
      */
     ChainBurnoutPayload burnout() {
         return new ChainBurnoutPayload(pos, be.getPlacedFace().ordinal(), GooTypes.id(be.getGooType()),
-                be.getAbilityId());
+                be.getAbilityId(), be.programState().castSize());
     }
 
     @Override
@@ -129,6 +130,16 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     public void forEachEntityWithin(SelectionShape shape, double radius, Set<EntityFilter> filters,
                                     Consumer<TargetHost> body) {
         BlockAnchoredActions.forEachEntityWithin(level, Vec3.atCenterOf(pos), shape, radius, filters, body);
+    }
+
+    @Override
+    public OptionalDouble nearestEntityDistance(double radius, Set<EntityFilter> filters) {
+        return EntityScan.nearestDistanceWithin(level, Vec3.atCenterOf(pos), radius, filters, null);
+    }
+
+    @Override
+    public void pulse(double distance, double radius) {
+        new LurkerPulsePayload(pos, (float) distance, (float) radius).sendToTracking(level);
     }
 
     @Override

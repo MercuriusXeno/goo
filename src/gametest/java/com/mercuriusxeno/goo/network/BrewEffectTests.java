@@ -48,6 +48,10 @@ public final class BrewEffectTests {
     private static final String SHOULD_LAY = "The %s brew should lay %d %s halves expiring at %d, laid %s %d expiring at %d";
     private static final String SHOULD_HOLD_EFFECT = "The %s brew effect should stand for %d ticks, stands %s";
     private static final String SHOULD_DRAIN_NOTHING = "A brew should drain no goo, drained %d";
+    private static final String SHOULD_CHARGE = "The unstable brew should charge until %d, charges until %d";
+    private static final Identifier UNSTABLE_CHARGED = Identifier.parse("goo:unstable_charged");
+    /** The expiry read for a player holding no Charged at all. */
+    private static final long NOT_HELD = -1;
     /** shroom_sight.json's factor. */
     private static final float SIGHT_FACTOR = 3f;
     /** typhoon_airborn.json's jet boost. */
@@ -118,6 +122,29 @@ public final class BrewEffectTests {
      */
     public static void leafBrewBarksForAnHour(GameTestHelper helper) {
         brewLaysForAnHour(helper, GooTypes.LEAF, HeartKind.BARKSKIN);
+    }
+
+    /**
+     * Drinking the unstable brew charges the player for an hour: Charged
+     * stands and its held effect is prepaid to the brew's expiry
+     * (decision charged-scales-channel-params-by-json).
+     *
+     * @param helper the gametest helper
+     */
+    public static void unstableBrewChargesForAnHour(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.UNSTABLE);
+        long now = player.level().getGameTime();
+
+        drink(player, GooTypes.UNSTABLE);
+
+        boolean charged = player.getData(GooAttachments.CHARGED);
+        long chargedUntil = player.getData(GooAttachments.HELD_EFFECTS).held().stream()
+                .filter(held -> held.ability().equals(UNSTABLE_CHARGED)).mapToLong(HeldEffects.Held::expiresAt)
+                .findFirst().orElse(NOT_HELD);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        long expected = now + GooPotions.BREW_DURATION;
+        helper.assertTrue(charged && chargedUntil == expected, String.format(SHOULD_CHARGE, expected, chargedUntil));
+        helper.succeed();
     }
 
     /**
@@ -438,6 +465,16 @@ public final class BrewEffectTests {
      */
     public static void frostBrewIcebornForAnHour(GameTestHelper helper) {
         brewLaysForAnHour(helper, GooTypes.FROST, HeartKind.ICEBORN);
+    }
+
+    /**
+     * A crystal brew lays Scales' crystal hearts for the brew's hour
+     * (decision scales-crystal-hearts-diamond-blue-overlay).
+     *
+     * @param helper the gametest helper
+     */
+    public static void crystalBrewScalesForAnHour(GameTestHelper helper) {
+        brewLaysForAnHour(helper, GooTypes.CRYSTAL, HeartKind.SCALES);
     }
 
     private static void brewLaysForAnHour(GameTestHelper helper, ResourceKey<GooTypeDefinition> gooType,

@@ -1,7 +1,7 @@
 {
   "type": "minecraft:function",
   "function": "goo:reap_harvests_and_replants",
-  "environment": "minecraft:default",
+  "environment": "goo:no_random_ticks",
   "structure": "goo:test_bay",
   "max_ticks": 40,
   "setup_ticks": 0,

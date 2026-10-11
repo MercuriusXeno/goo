@@ -52,6 +52,22 @@ class CanisterSlotFluidHandlerTest {
         assertEquals(0, slot.toFluidContent().volumeOf(rock));
     }
 
+    /**
+     * Infinity never leaves the slot, while the blaze beside it does.
+     * decision infinity-sources-whatever-shares-its-vessel
+     */
+    @Test
+    void anExtractTakesNoInfinity() {
+        FluidResource infinity = goo.resource(GooTypes.INFINITY);
+        CanisterSlotFluidHandler slot = new CanisterSlotFluidHandler(CAPACITY, () -> { });
+        slot.insertFluid(infinity, 1, false);
+        slot.insertFluid(blaze, BLAZE_VOLUME, false);
+
+        assertEquals(0, slot.extractFluid(infinity, CAPACITY, false));
+        assertEquals(BLAZE_VOLUME, slot.extractFluid(blaze, CAPACITY, false));
+        assertEquals(Map.of(GooTypes.INFINITY, 1), slot.toGooContents().getAll());
+    }
+
     @Test
     void theSecondTypeStopsAtTheCapacityLessTheFirst() {
         CanisterSlotFluidHandler slot = new CanisterSlotFluidHandler(CAPACITY, () -> { });
