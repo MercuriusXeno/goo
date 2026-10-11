@@ -543,6 +543,8 @@ public final class GooTestFunctions {
     private static final String RADIANT_FILLS_ONLY_AIR_IN_SIGHT = "radiant_fills_only_air_in_sight";
     private static final String RADIANT_SKIPS_A_LIT_ROOM = "radiant_skips_a_lit_room";
     private static final String SUNBEAM_BURNS_THE_UNDEAD_IT_STRIKES = "sunbeam_burns_the_undead_it_strikes";
+    private static final String SUNBEAM_HITS_THE_AIMED_ZOMBIE = "sunbeam_hits_the_aimed_zombie";
+    private static final String SUNBEAM_IMPACT_FIRES_AT_THE_HIT = "sunbeam_impact_fires_at_the_hit";
     private static final String CHARM_TURNS_ZOMBIE = "charm_turns_zombie_on_skeleton";
     private static final String CHARMED_SLIME_SPARES = "charmed_slime_spares_its_charmer";
     private static final String ENCHANT_GIVES_BOOK = "enchant_gives_one_level_one_book";
@@ -1109,6 +1111,8 @@ public final class GooTestFunctions {
         reg(r, RADIANT_FILLS_ONLY_AIR_IN_SIGHT, RadiantChannelTests::radiantFillsOnlyAirInSight);
         reg(r, RADIANT_SKIPS_A_LIT_ROOM, RadiantChannelTests::radiantSkipsALitRoom);
         reg(r, SUNBEAM_BURNS_THE_UNDEAD_IT_STRIKES, SunbeamChannelTests::sunbeamBurnsTheUndeadItStrikes);
+        reg(r, SUNBEAM_HITS_THE_AIMED_ZOMBIE, SunbeamChannelTests::sunbeamHitsTheAimedZombie);
+        reg(r, SUNBEAM_IMPACT_FIRES_AT_THE_HIT, SunbeamChannelTests::sunbeamImpactFiresAtTheHit);
         reg(r, CHARM_TURNS_ZOMBIE, MobEffectTests::charmTurnsZombieOnSkeleton);
         reg(r, CHARMED_SLIME_SPARES, MobEffectTests::charmedSlimeSparesItsCharmer);
         reg(r, ENCHANT_GIVES_BOOK, HexSelfTests::enchantGivesOneLevelOneBook);
