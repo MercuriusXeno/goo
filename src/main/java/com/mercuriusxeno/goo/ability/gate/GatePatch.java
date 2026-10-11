@@ -11,10 +11,10 @@ import net.minecraft.world.phys.Vec3;
 import java.util.List;
 
 /**
- * One gate of a Dragon Gate pair: the struck block it is centred on, the
+ * One gate of an End gate pair: the struck block it is centred on, the
  * face it looks out of, and the open cells its layer took, kept to clear
  * when it closes.
- * Decision dragon-gate-banishes-blocks-and-opens-a-portal.
+ * Decision end-clears-blocks-and-opens-a-portal.
  *
  * @param dimension the level the gate lies in
  * @param center    the struck block the gate is centred on
