@@ -1,0 +1,19 @@
+{
+  "gooType": "quantum",
+  "displayName": "goo.ability.quantum.link",
+  "badge": "mob",
+  "order": 10,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    {
+      "type": "target",
+      "where": ["mob", "not_boss"],
+      "steps": [
+        { "type": "quantum_link", "duration": 1200 },
+        { "type": "sound", "id": "minecraft:block.amethyst_block.resonate", "at": "target", "source": "players", "volume": 1, "pitch": 1.4 }
+      ]
+    }
+  ],
+  "tags": ["entity"]
+}

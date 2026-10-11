@@ -133,6 +133,7 @@ public final class StepTypes {
         register(PhaseStep.TYPE);
         register(QuantumAnchorStep.TYPE);
         register(QuantumSwapStep.TYPE);
+        register(QuantumLinkStep.TYPE);
         register(LeafSteps.ENCHANT_BOOK.type());
         register(FuseBooksStep.TYPE);
         register(SpawnRandomStep.TYPE);

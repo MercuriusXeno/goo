@@ -16,6 +16,7 @@ import com.mercuriusxeno.goo.ability.program.Lux;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.pulse.Stunned;
 import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
+import com.mercuriusxeno.goo.ability.quantum.SharedFate;
 import com.mercuriusxeno.goo.ability.quantum.SwapBodyRef;
 import com.mercuriusxeno.goo.ability.rewind.Rewinding;
 import com.mercuriusxeno.goo.ability.root.Rooted;
@@ -34,6 +35,7 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
@@ -309,6 +311,27 @@ public final class GooAttachments {
                     () -> AttachmentType.<Optional<SwapBodyRef>>builder(Optional::empty)
                             .serialize(SwapBodyRef.CODEC.optionalFieldOf("ref"), Optional::isPresent)
                             .build());
+
+    /**
+     * A creature's shared fate with its partner, saved while laid and synced to
+     * every client drawing it, which draws the thread between the pair.
+     * shared-fate-pools-health-and-status
+     */
+    public static final Supplier<AttachmentType<SharedFate>> SHARED_FATE =
+            ATTACHMENT_TYPES.register("shared_fate",
+                    () -> AttachmentType.builder(() -> SharedFate.NONE)
+                            .serialize(SharedFate.CODEC, SharedFate::laid)
+                            .sync(GooAttachments::syncsToWatcher, SharedFate.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The creature a player's shared-fate link struck first, waiting for its
+     * pair. Not saved.
+     * shared-fate-pools-health-and-status
+     */
+    public static final Supplier<AttachmentType<Optional<UUID>>> FATE_WAITING =
+            ATTACHMENT_TYPES.register("fate_waiting",
+                    () -> AttachmentType.<Optional<UUID>>builder(Optional::empty).build());
 
     private GooAttachments() {
     }

@@ -26,6 +26,7 @@ import com.mercuriusxeno.goo.network.OculusTests;
 import com.mercuriusxeno.goo.network.NourishTests;
 import com.mercuriusxeno.goo.network.ReserveTests;
 import com.mercuriusxeno.goo.network.SelfDeliveryTests;
+import com.mercuriusxeno.goo.network.SharedFateTests;
 import com.mercuriusxeno.goo.network.ExtenderTests;
 import com.mercuriusxeno.goo.network.MetronomeTests;
 import com.mercuriusxeno.goo.network.PulserTapTests;
@@ -566,6 +567,7 @@ public final class GooTestFunctions {
     private static final String HOLE_WALKS_THROUGH = "hole_walks_through_and_restores";
     private static final String ANCHORS_BOTH_WAYS = "anchors_teleport_both_ways";
     private static final String SWAP_BODY_ROUND_TRIP = "swap_body_round_trip";
+    private static final String SHARED_FATE_MIRRORS = "shared_fate_mirrors_health_and_effects";
     private static final String REWIND_ADULT_TO_BABY = "rewind_adult_to_baby";
     private static final String REWIND_BABY_TO_EGG = "rewind_baby_to_egg";
     private static final String REWIND_LEAVES_BLOCKS = "rewind_leaves_blocks";
@@ -1137,6 +1139,7 @@ public final class GooTestFunctions {
         reg(r, HOLE_WALKS_THROUGH, PortableHoleTests::holeWalksThroughAndRestores);
         reg(r, ANCHORS_BOTH_WAYS, AnchorTests::anchorsTeleportBothWays);
         reg(r, SWAP_BODY_ROUND_TRIP, SwapBodyTests::swapBodyRoundTrip);
+        reg(r, SHARED_FATE_MIRRORS, SharedFateTests::sharedFateMirrorsHealthAndEffects);
         reg(r, REWIND_ADULT_TO_BABY, RewindStreamTests::rewindAdultToBaby);
         reg(r, REWIND_BABY_TO_EGG, RewindStreamTests::rewindBabyToEgg);
         reg(r, REWIND_LEAVES_BLOCKS, RewindStreamTests::rewindLeavesBlocks);
