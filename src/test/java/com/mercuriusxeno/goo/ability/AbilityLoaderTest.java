@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -305,9 +306,16 @@ class AbilityLoaderTest {
      * it ends (decision held-effects-sound-up-and-down).
      */
     @ParameterizedTest
-    @CsvSource({"blaze_kindle", "leaf_barkskin", "rock_stoneskin", "jelly_gluttony", "shroom_sight", "hex_lifetap", "typhoon_airborn"})
-    void everyBrewSoundsAsItStarts(String name) {
-        assertTrue(AbilityJson.decode(name).behaviors().stream().anyMatch(SoundStep.class::isInstance), name);
+    @MethodSource("shippedBrews")
+    void everyBrewSoundsAsItStarts(AbilityDefinition brew) {
+        assertTrue(brew.behaviors().stream().flatMap(AbilityLoaderTest::stepTree).anyMatch(SoundStep.class::isInstance),
+                brew.id().toString());
+    }
+
+    /** Every shipped self + brew ability (decision tests-read-the-inventory-from-loaded-json). */
+    static Stream<AbilityDefinition> shippedBrews() {
+        return AbilityJson.files().stream().map(AbilityJson::decode)
+                .filter(ability -> SelfEatRoute.eats(ability.delivery(), ability.badge()));
     }
 
     /**
