@@ -1,0 +1,11 @@
+{
+  "gooType": "weird",
+  "displayName": "goo.ability.weird.magma",
+  "badge": "world",
+  "order": 0,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "cool_lava", "radius": 3 }
+  ]
+}

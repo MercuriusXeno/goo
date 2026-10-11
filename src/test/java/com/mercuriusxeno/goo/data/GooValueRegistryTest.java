@@ -2547,6 +2547,26 @@ class GooValueRegistryTest {
                 assertTrue(value.get(GooTypes.OPULENT) > 0, item + " carries no opulent: " + value);
             }
         }
+
+        /**
+         * The shipped base_values.json values slime balls and the sculk family
+         * in weird.
+         * decision weird-ships-from-slime-and-sculk
+         */
+        @Test
+        void slimeBallAndSculkFamilyResolveWeird() throws IOException {
+            try (java.io.InputStream in = GooValueRegistryTest.class.getResourceAsStream(SHIPPED_BASE_VALUES)) {
+                assertNotNull(in, SHIPPED_BASE_VALUES);
+                parseBaseValuesFromStream(in);
+            }
+            copyBaseToEffective();
+            for (String item : List.of("minecraft:slime_ball", "minecraft:sculk", "minecraft:sculk_vein",
+                    "minecraft:sculk_sensor", "minecraft:sculk_shrieker", "minecraft:sculk_catalyst")) {
+                GooValue value = registry.table().lookup(id(item));
+                assertNotNull(value, item);
+                assertTrue(value.get(GooTypes.WEIRD) > 0, item + " carries no weird: " + value);
+            }
+        }
     }
 
     // ── Shipped values ─────────────────────────────────────────────────

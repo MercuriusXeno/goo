@@ -26,6 +26,8 @@ public enum AilmentKind {
     FROZEN(0xC4ECFF, AilmentPattern.FROST),
     /** Glow's glisten: Scry's sweep marks a mob in glow yellow (decision scry-sphere-reveals-faces-and-glistens-mobs). */
     GLOW(0xFFE628, AilmentPattern.GLINT, 0.4f),
+    /** Weird's wobble: a magenta gel shell that jiggles and stretches (decision weird-bounces-and-softens-harm). */
+    WOBBLE(0xFF33CC, AilmentPattern.WOBBLE, 0.6f),
     /** Grab's hold: a faint kinetic orange shimmer, and the flail its pose stamp reads (decision grab-holds-and-throws-a-physics-body). */
     GRABBED(0xFF7A1A, AilmentPattern.SHIMMER, 0.35f),
     /** Telekinesis: the kinetic shimmer, fainter, on the player and the arm (decision telekinesis-enacts-at-extended-reach). */
