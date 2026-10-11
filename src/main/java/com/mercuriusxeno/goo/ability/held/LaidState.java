@@ -1,15 +1,16 @@
 package com.mercuriusxeno.goo.ability.held;
 
 import com.mercuriusxeno.goo.ability.program.AirbornStep;
+import com.mercuriusxeno.goo.ability.program.AncientStep;
 import com.mercuriusxeno.goo.ability.program.ChargedStep;
 import com.mercuriusxeno.goo.ability.program.EldritchStep;
 import com.mercuriusxeno.goo.ability.program.ExtenderStep;
+import com.mercuriusxeno.goo.ability.program.GluttonyStep;
 import com.mercuriusxeno.goo.ability.program.HasteStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
 import com.mercuriusxeno.goo.ability.program.LifetapStep;
 import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
 import com.mercuriusxeno.goo.ability.program.LuxStep;
-import com.mercuriusxeno.goo.ability.program.NourishStep;
 import com.mercuriusxeno.goo.ability.program.ShifterStep;
 import com.mercuriusxeno.goo.ability.program.SightStep;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -32,8 +33,8 @@ import java.util.stream.Stream;
 public enum LaidState {
     /** A heart overlay over the health bar, laid by a heart_overlay step. */
     HEART_OVERLAY,
-    /** Nourishment, laid by a nourish step. */
-    NOURISH,
+    /** Gluttony and its banks, laid by a gluttony step (decision gluttony-overheals-and-overhungers). */
+    GLUTTONY,
     /** Fungal sight (decision sight-lengthens-shift-and-outlines-fungus). */
     SIGHT,
     /** Lux's night vision and gaze glisten (decision lux-night-vision-without-particles). */
@@ -55,7 +56,9 @@ public enum LaidState {
     /** The eldritch state (decision eldritch-sight-reveals-the-out-of-phase). */
     ELDRITCH,
     /** Charged, laid by a charged step (decision charged-scales-channel-params-by-json). */
-    CHARGED;
+    CHARGED,
+    /** Ancient's floor of half a heart and its aged overlay (decision ancient-makes-the-player-immortal). */
+    ANCIENT;
 
     /** Codec for the saved state. */
     public static final Codec<LaidState> CODEC = LowerCaseEnumCodec.of(LaidState.class, "laid state");
@@ -84,7 +87,7 @@ public enum LaidState {
     /** The state each kind of step lays. */
     private static final Map<Class<? extends Step>, LaidState> LAID_BY = Map.ofEntries(
             Map.entry(HeartOverlayStep.class, HEART_OVERLAY),
-            Map.entry(NourishStep.class, NOURISH),
+            Map.entry(GluttonyStep.class, GLUTTONY),
             Map.entry(SightStep.class, SIGHT),
             Map.entry(LuxStep.class, LUX),
             Map.entry(UndeadStep.class, UNDEAD),
@@ -95,7 +98,8 @@ public enum LaidState {
             Map.entry(AirbornStep.class, AIRBORN),
             Map.entry(TelekinesisStep.class, TELEKINESIS),
             Map.entry(EldritchStep.class, ELDRITCH),
-            Map.entry(ChargedStep.class, CHARGED));
+            Map.entry(ChargedStep.class, CHARGED),
+            Map.entry(AncientStep.class, ANCIENT));
 
     private static Stream<Step> withDescendants(Step step) {
         return Stream.concat(Stream.of(step), step.children().flatMap(LaidState::withDescendants));

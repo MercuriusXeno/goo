@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.aging.AgingBlocks;
 import com.mercuriusxeno.goo.ability.frost.Frozen;
+import com.mercuriusxeno.goo.ability.gluttony.Gluttony;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.ability.hex.Charmed;
@@ -9,12 +11,12 @@ import com.mercuriusxeno.goo.ability.hex.Lifetap;
 import com.mercuriusxeno.goo.ability.kinetic.GrabHold;
 import com.mercuriusxeno.goo.ability.kinetic.Grabbed;
 import com.mercuriusxeno.goo.ability.nether.Undead;
-import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.petrify.Petrification;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
 import com.mercuriusxeno.goo.ability.program.Lux;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.pulse.Stunned;
+import com.mercuriusxeno.goo.ability.reserve.Reserve;
 import com.mercuriusxeno.goo.ability.rewind.Rewinding;
 import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.spray.Spored;
@@ -49,6 +51,14 @@ public final class GooAttachments {
             DeferredRegister.create(NeoForgeRegistries.Keys.ATTACHMENT_TYPES, Goo.MODID);
 
     /**
+     * The blocks aging in a chunk, saved with the chunk so an aging resumes
+     * when it loads again (decision old-blob-ages-valuables-slowly).
+     */
+    public static final Supplier<AttachmentType<AgingBlocks>> AGING_BLOCKS =
+            ATTACHMENT_TYPES.register("aging_blocks",
+                    () -> AttachmentType.builder(() -> AgingBlocks.NONE).serialize(AgingBlocks.CODEC).build());
+
+    /**
      * The soul-bound stacks a dead player holds until respawn, serialized so a
      * player who leaves before respawning keeps them (decision
      * exorite-kept-through-death).
@@ -80,14 +90,26 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The nourishment Nourish leaves on a player, a food point every interval
-     * until it expires, saved with the player while it stands.
-     * nourish-restores-hunger-over-time
+     * The reserve Reserve banks behind a player's health and hunger bars, apart
+     * from any heart overlay, synced to the owning client for the HUD
+     * (decisions reserve-channels-on-jelly and reserve-hearts-sit-behind-the-bar).
      */
-    public static final Supplier<AttachmentType<Nourish>> NOURISH =
-            ATTACHMENT_TYPES.register("nourish",
-                    () -> AttachmentType.builder(() -> Nourish.NONE)
-                            .serialize(Nourish.CODEC, Nourish::stands)
+    public static final Supplier<AttachmentType<Reserve>> RESERVE =
+            ATTACHMENT_TYPES.register("reserve",
+                    () -> AttachmentType.builder(() -> Reserve.NONE)
+                            .serialize(Reserve.CODEC, Reserve::stands)
+                            .sync(GooAttachments::syncsToOwner, Reserve.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The gluttony Gluttony leaves on a player, a point every interval until
+     * it expires and the overheal and overhunger it banks, saved with the player while it stands.
+     * gluttony-overheals-and-overhungers
+     */
+    public static final Supplier<AttachmentType<Gluttony>> GLUTTONY =
+            ATTACHMENT_TYPES.register("gluttony",
+                    () -> AttachmentType.builder(() -> Gluttony.NONE)
+                            .serialize(Gluttony.CODEC, Gluttony::stands)
                             .build());
 
     /**

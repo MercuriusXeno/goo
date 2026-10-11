@@ -88,12 +88,7 @@ class HeartOverlayHudTest {
     }
 
     @Test
-    void reserveLaysNothingOverTheBar() {
-        assertTrue(sprites(HeartKind.RESERVE, 2, 2).isEmpty());
-    }
-
-    @Test
-    void reserveDrawsItsOwnVitalHeartBehindByTheHalvesBanked() {
+    void reserveDrawsItsOwnHeartBehindByTheHalvesBanked() {
         assertEquals("goo:hud/heart/reserve_full", HeartOverlayHud.reserveSprite(2).orElseThrow().toString());
         assertEquals("goo:hud/heart/reserve_half", HeartOverlayHud.reserveSprite(1).orElseThrow().toString());
         assertTrue(HeartOverlayHud.reserveSprite(0).isEmpty());

@@ -96,6 +96,10 @@ afterEvaluate {
     tasks.named('runGameTestServer').configure {
         var reportDir = file("${buildDir.get()}/test-results/gameTest")
         doFirst { reportDir.mkdirs() }
+        // GooValues.attach derives values only when no cache file stands, so a cache left by an
+        // earlier run would serve values from before the current data; each run derives afresh.
+        var valueCache = file('runs/gameTestServer/config/goo_derived_values.json')
+        doFirst { valueCache.delete() }
     }
 }
 

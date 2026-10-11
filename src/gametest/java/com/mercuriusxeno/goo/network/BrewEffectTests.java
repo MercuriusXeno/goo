@@ -5,7 +5,7 @@ import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.ability.hex.Lifetap;
-import com.mercuriusxeno.goo.ability.nourish.Nourish;
+import com.mercuriusxeno.goo.ability.gluttony.Gluttony;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.typhoon.Airborn;
 import com.mercuriusxeno.goo.ability.zone.Shifter;
@@ -46,7 +46,6 @@ public final class BrewEffectTests {
     private static final String BREW_EVERY_POTION_CARRIES = "brew_every_potion_carries_its_effect";
     private static final String BREW_BLAZE_KINDLES = "brew_blaze_kindles_for_an_hour";
     private static final String BREW_LEAF_BARKS = "brew_leaf_barks_for_an_hour";
-    private static final String BREW_VITAL_NOURISHES = "brew_vital_nourishes_for_an_hour";
     private static final String BREW_WITHOUT_ABILITY = "brew_without_an_ability_runs_nothing";
     private static final String BREW_ROCK_STONESKINS = "brew_rock_stoneskins_for_an_hour";
     private static final String BREW_NETHER_UNDEAD = "brew_nether_undead_for_an_hour";
@@ -63,6 +62,7 @@ public final class BrewEffectTests {
     private static final String AEON_BREW_HASTES = "aeon_brew_hastes_for_an_hour";
     private static final String UNSTABLE_BREW_CHARGES_FOR_AN_HOUR = "unstable_brew_charges_for_an_hour";
 
+    private static final String BREW_JELLY_GLUTTONY = "brew_jelly_gluttony_for_an_hour";
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
      *
@@ -73,7 +73,6 @@ public final class BrewEffectTests {
         GooTestFunctions.registerTest(registrar, BREW_EVERY_POTION_CARRIES, BrewEffectTests::everyPotionCarriesItsBrewEffect);
         GooTestFunctions.registerTest(registrar, BREW_BLAZE_KINDLES, BrewEffectTests::blazeBrewKindlesForAnHour);
         GooTestFunctions.registerTest(registrar, BREW_LEAF_BARKS, BrewEffectTests::leafBrewBarksForAnHour);
-        GooTestFunctions.registerTest(registrar, BREW_VITAL_NOURISHES, BrewEffectTests::vitalBrewNourishesForAnHour);
         GooTestFunctions.registerTest(registrar, BREW_WITHOUT_ABILITY, BrewEffectTests::brewWithoutAnAbilityRunsNothing);
         GooTestFunctions.registerTest(registrar, BREW_ROCK_STONESKINS, BrewEffectTests::rockBrewStoneskinsForAnHour);
         GooTestFunctions.registerTest(registrar, BREW_NETHER_UNDEAD, BrewEffectTests::netherBrewUndeadForAnHour);
@@ -89,6 +88,7 @@ public final class BrewEffectTests {
         GooTestFunctions.registerTest(registrar, HEX_BREW_LIFETAPS, BrewEffectTests::hexBrewLifetapsForAnHour);
         GooTestFunctions.registerTest(registrar, AEON_BREW_HASTES, BrewEffectTests::aeonBrewHastesForAnHour);
         GooTestFunctions.registerTest(registrar, UNSTABLE_BREW_CHARGES_FOR_AN_HOUR, BrewEffectTests::unstableBrewChargesForAnHour);
+        GooTestFunctions.registerTest(registrar, BREW_JELLY_GLUTTONY, BrewEffectTests::jellyBrewGluttonyForAnHour);
     }
 
 
@@ -119,7 +119,7 @@ public final class BrewEffectTests {
     private static final String SHOULD_SEE = "The shroom brew should grant sight at %.1f until %d, granted %.1f until %d";
     private static final String SHOULD_SHOW_NO_PARTICLES = "A brew should show its icon and no particles, stands %s";
     private static final String SHOULD_HASTE = "The aeon brew should raise speed and mining speed for %d ticks, stands %s";
-    private static final String SHOULD_NOURISH = "The vital brew should nourish until %d, nourishes until %d";
+    private static final String SHOULD_GLUT = "The jelly brew should hold gluttony until %d, holds it until %d";
     private static final String SHOULD_RUN_NOTHING = "A brew of a type with no brew ability should lay nothing, laid %s";
     private static final String SHOULD_HOLD_PREPAID = "The blaze brew should hold Kindle prepaid until %d, held %s";
     private static final String SHOULD_DRAIN_NOTHING_HELD = "A prepaid brew should drain no goo over %d ticks, drained %d";
@@ -256,27 +256,27 @@ public final class BrewEffectTests {
     }
 
     /**
-     * Drinking the vital brew nourishes the player for an hour, draining no
-     * goo (decision nourish-restores-hunger-over-time).
+     * Drinking the jelly brew lays Gluttony on the player for an hour, draining no
+     * goo (decision gluttony-overheals-and-overhungers).
      *
      * @param helper the gametest helper
      */
-    public static void vitalBrewNourishesForAnHour(GameTestHelper helper) {
-        ServerPlayer player = drinker(helper, GooTypes.VITAL);
-        int heldBefore = held(player, GooTypes.VITAL);
+    public static void jellyBrewGluttonyForAnHour(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.JELLY);
+        int heldBefore = held(player, GooTypes.JELLY);
         long now = player.level().getGameTime();
 
-        drink(player, GooTypes.VITAL);
+        drink(player, GooTypes.JELLY);
 
-        Nourish nourish = player.getData(GooAttachments.NOURISH);
-        MobEffectInstance standing = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.VITAL));
-        int drained = heldBefore - held(player, GooTypes.VITAL);
+        Gluttony gluttony = player.getData(GooAttachments.GLUTTONY);
+        MobEffectInstance standing = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.JELLY));
+        int drained = heldBefore - held(player, GooTypes.JELLY);
         helper.getLevel().getServer().getPlayerList().remove(player);
         long expected = now + GooPotions.BREW_DURATION;
-        helper.assertTrue(nourish.expiresAt() == expected,
-                String.format(SHOULD_NOURISH, expected, nourish.expiresAt()));
+        helper.assertTrue(gluttony.expiresAt() == expected,
+                String.format(SHOULD_GLUT, expected, gluttony.expiresAt()));
         helper.assertTrue(standing != null && standing.getDuration() == GooPotions.BREW_DURATION,
-                String.format(SHOULD_HOLD_EFFECT, GooTypes.VITAL.identifier(), GooPotions.BREW_DURATION, standing));
+                String.format(SHOULD_HOLD_EFFECT, GooTypes.JELLY.identifier(), GooPotions.BREW_DURATION, standing));
         helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
         helper.succeed();
     }

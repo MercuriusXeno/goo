@@ -69,6 +69,7 @@ public final class GooTypes {
      * decision infinity-sources-whatever-shares-its-vessel
      */
     public static final ResourceKey<GooTypeDefinition> INFINITY = bundled("infinity");
+    public static final ResourceKey<GooTypeDefinition> JELLY = bundled("jelly");
     public static final ResourceKey<GooTypeDefinition> KINETIC = bundled("kinetic");
     public static final ResourceKey<GooTypeDefinition> LEAF = bundled("leaf");
     public static final ResourceKey<GooTypeDefinition> METAL = bundled("metal");
@@ -85,6 +86,7 @@ public final class GooTypes {
      * decision xeno-ships-as-a-type-with-no-source-yet
      */
     public static final ResourceKey<GooTypeDefinition> XENO = bundled("xeno");
+    public static final ResourceKey<GooTypeDefinition> YORE = bundled("yore");
     public static final ResourceKey<GooTypeDefinition> ZOO = bundled("zoo");
 
     /**
@@ -103,8 +105,8 @@ public final class GooTypes {
      * Every type the mod ships as JSON, in constant order.
      */
     public static final List<ResourceKey<GooTypeDefinition>> BUNDLED = List.of(
-            AEON, ASTRAL, BLAZE, CRYSTAL, DEEP, ENDER, FROST, GLOW, HEX, INFINITY, KINETIC, LEAF,
-            METAL, NETHER, OPULENT, PULSE, ROCK, SHROOM, TYPHOON, UNSTABLE, VITAL, XENO, ZOO);
+            AEON, ASTRAL, BLAZE, CRYSTAL, DEEP, ENDER, FROST, GLOW, HEX, INFINITY, JELLY, KINETIC, LEAF,
+            METAL, NETHER, OPULENT, PULSE, ROCK, SHROOM, TYPHOON, UNSTABLE, VITAL, XENO, YORE, ZOO);
 
     /**
      * A type key as its short id: the bare path for a bundled type, the
