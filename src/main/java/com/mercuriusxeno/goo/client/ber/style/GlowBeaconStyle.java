@@ -27,7 +27,7 @@ public final class GlowBeaconStyle implements PrismComboStyle {
 
     @Override
     public void submit(PrismRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector) {
-        GlowColumn.submit(state, poseStack, nodeCollector);
+        GlowColumn.submit(state, poseStack, nodeCollector, restingSides());
         poseStack.pushPose();
         poseStack.translate(HALF, HALF, HALF);
         poseStack.mulPose(state.facing.getRotation());
