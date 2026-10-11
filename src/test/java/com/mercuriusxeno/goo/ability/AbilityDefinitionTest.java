@@ -48,6 +48,15 @@ class AbilityDefinitionTest {
         assertEquals(written, AbilityDefinition.previewAtMaxReach(written, explodes));
     }
 
+    @Test
+    void spawnConsumesNoItemAndNeedsNoRecipe() {
+        // ability-json-names-its-reagent
+        // spawn-hostile-shape-peaceful-from-a-slime
+        AbilityDefinition spawn = AbilityJson.decode("zoo_spawn");
+        assertEquals(List.of(), spawn.consumes());
+        assertEquals(List.of(), spawn.requires());
+    }
+
     /** An instant area throw writing no area draws the sphere its program reaches. */
     @Nested
     class DerivedFromTheProgram {

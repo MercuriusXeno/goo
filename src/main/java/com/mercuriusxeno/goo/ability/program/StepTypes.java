@@ -113,10 +113,10 @@ public final class StepTypes {
         register(PulserToggleStep.TYPE);
         register(NourishStep.TYPE);
         register(ReserveDrainStep.TYPE);
-        register(BanishStep.TYPE);
-        register(TeleportitisStep.TYPE);
+        register(ZoneStep.TYPE);
+        register(ShifterStep.TYPE);
         register(ConvokeStep.TYPE);
-        register(DragonGateStep.TYPE);
+        register(EndStep.TYPE);
         register(RootStep.TYPE);
         register(HitOrMissStep.TYPE);
         register(BloomStep.TYPE);
@@ -132,10 +132,13 @@ public final class StepTypes {
         register(FuseBooksStep.TYPE);
         register(SlimeTransmuteStep.TYPE);
         register(RallyStep.TYPE);
-        register(AgitateStep.TYPE);
         register(LifetapStep.TYPE);
         register(LeechStep.TYPE);
         register(TomeStep.TYPE);
+        register(FloatStep.TYPE);
+        register(AirbornStep.TYPE);
+        register(UpdraftStep.TYPE);
+        register(LiftStep.TYPE);
     }
 
     private StepTypes() {
