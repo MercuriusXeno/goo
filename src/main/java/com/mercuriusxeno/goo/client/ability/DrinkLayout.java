@@ -13,12 +13,14 @@ import java.util.Map;
 /**
  * The layout of one Unmake drink's tree, every stream pathing to the hand:
  * a block joins the nearest standing stream that runs nearer the hand and
- * whose liquid is still flowing where it would join, a little toward the hand
- * from the nearest point so it arrives at a shallow angle, or runs to the
- * glove when none does; a stream whose trunk runs dry at its join re-roots the
- * same way, its block end anchored and its hand end gliding onto the new
- * course rather than snapping, so the tree thins toward the hand as blocks
- * finish instead of channelling through what has gone. The trunk arrives down
+ * still carries liquid where it would join, its own or a tributary's, a little
+ * toward the hand from the nearest point so it arrives at a shallow angle, or
+ * runs to the glove when none does; a stream whose trunk carries nothing at
+ * its join any more re-roots the same way, its block end anchored and its hand
+ * end gliding onto the new course rather than snapping, so the tree thins
+ * toward the hand as blocks finish instead of channelling through what has
+ * gone, while a trunk whose own liquid has passed keeps carrying what joins
+ * it, so one stream enters the palm. The trunk arrives down
  * a line lifted over the look, in over the fingertips into the palm, and the
  * line follows the look with a lag, so the hand pulls the stream.
  * decision unmake-waves-dissolve-by-crucible-cost

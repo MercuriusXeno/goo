@@ -306,6 +306,29 @@ public final class DrinkTree {
         }
 
         /**
+         * Whether anything still flows through the stream at a distance along
+         * its own path: its own liquid, or a tributary's entering at or before
+         * there whose liquid still reaches its join; a trunk whose own liquid
+         * has passed still carries what joins it, so its tributaries stay on
+         * it and one stream enters the palm rather than each re-rooting to the
+         * glove the moment the trunk's own tail passes.
+         *
+         * @param distance blocks along the stream's own path from its far side
+         * @return whether liquid still flows there
+         */
+        public boolean carriesAt(double distance) {
+            if (flowingAt(distance)) {
+                return true;
+            }
+            for (Stream tributary : tributaries) {
+                if (tributary.joinShare * path.length() <= distance && tributary.carriesAt(tributary.path.length())) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /**
          * @return whether nothing of the stream or of any stream feeding it is left to draw: the block drained,
          *         every tail past the route's end and no square on its way
          */
@@ -370,19 +393,20 @@ public final class DrinkTree {
     }
 
     /**
-     * Whether a laid stream's liquid still flows at a distance along its path:
-     * where its stream was last built, where that stream flows; a block
-     * streaming this frame but not yet built flows everywhere, its liquid all
-     * still to come, so the blocks of a drink's first frame join one trunk
-     * rather than each running to the glove for good; a block no longer
-     * streaming flows nowhere, so its tributaries re-root.
+     * Whether a laid stream still carries liquid at a distance along its path:
+     * where its stream was last built, where that stream carries anything,
+     * its own liquid or a tributary's; a block streaming this frame but not
+     * yet built flows everywhere, its liquid all still to come, so the blocks
+     * of a drink's first frame join one trunk rather than each running to the
+     * glove for good; a block no longer streaming flows nowhere, so its
+     * tributaries re-root.
      *
      * @param last      each block's stream as last built
      * @param streaming the blocks streaming this frame
      * @return the test the layout lays and re-roots by
      */
     public static DrinkLayout.Flowing flowingOf(Map<BlockPos, Stream> last, Set<BlockPos> streaming) {
-        return (pos, distance) -> last.containsKey(pos) ? last.get(pos).flowingAt(distance) : streaming.contains(pos);
+        return (pos, distance) -> last.containsKey(pos) ? last.get(pos).carriesAt(distance) : streaming.contains(pos);
     }
 
     /**
