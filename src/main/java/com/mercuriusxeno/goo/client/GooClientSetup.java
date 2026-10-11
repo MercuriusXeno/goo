@@ -28,7 +28,6 @@ import com.mercuriusxeno.goo.client.ability.VineTangleLayer;
 import com.mercuriusxeno.goo.client.ability.WindLines;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
 import com.mercuriusxeno.goo.client.ber.*;
-import com.mercuriusxeno.goo.client.ber.style.AgitatorPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlacialPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlowBeaconStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlowReflectorStyle;
@@ -145,8 +144,6 @@ public final class GooClientSetup {
         PrismComboStyles.register(TimekeeperPrismStyle.COMBO, new TimekeeperPrismStyle());
         // verdant-prism-greens-blocks-slowly: a verdant prism draws its crystal leaf-green
         PrismComboStyles.register(VerdantPrismStyle.COMBO, new VerdantPrismStyle());
-        // agitator-prism-quickens-until-a-spawn
-        PrismComboStyles.register(AgitatorPrismStyle.COMBO, new AgitatorPrismStyle());
     }
 
     /**
