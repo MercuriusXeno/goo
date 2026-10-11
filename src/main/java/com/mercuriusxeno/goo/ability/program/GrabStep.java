@@ -134,7 +134,7 @@ public record GrabStep(double range, double near, double far, double throwSpeed)
         if (candidate instanceof ItemEntity) {
             return candidate.isAlive();
         }
-        return candidate instanceof Mob mob && mob.isAlive() && !EntityScan.isBoss(mob) &&!mob.isPassenger();
+        return candidate instanceof Mob mob && mob.isAlive() && !EntityScan.isBoss(mob) && !mob.isPassenger();
     }
 
     /**
