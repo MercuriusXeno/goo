@@ -15,8 +15,11 @@
 // block a soft rounded box, each stream's run read at its least distance only
 // where the point is within the box its bodies reach, the gap to the others'
 // boxes being the jump, and the runs summed, until the field reaches the iso;
-// the hit is refined by bisection, shaded from the gradient of the nearest
-// stream's own field, lit by the lightmap and the cardinal lights, textured
+// the hit is refined by bisection, shaded from the gradient of the whole
+// field so skin two streams share is one smooth shape, painted as the skins
+// of the two streams most present there blended by their presence so a
+// tributary folding into its trunk shows no seam, lit by the lightmap and
+// the cardinal lights, textured
 // along the liquid and round the nearest segment or over the block's world
 // axes in its own stream's coat, the sprite sized to the skin's girth, half
 // its circumference and a block at most, both along and round, and laid
@@ -163,27 +166,32 @@ float runOnly(vec3 p, int stream) {
     return runField(p, stream, gap);
 }
 
-int nearestBody(vec3 p, int count) {
-    int nearest = 0;
+// The body of one stream nearest a point, by its scaled signed distance.
+int nearestBodyOf(vec3 p, int stream) {
+    vec4 low = streamSlot(stream, RUN_LOW_SLOT);
+    vec4 high = streamSlot(stream, RUN_HIGH_SLOT);
+    int first = int(low.w);
+    int end = first + int(high.w);
+    int nearest = entryAt(first) & (RUN_START - 1);
     float least = FAR;
-    for (int e = 0; e < count; e++) {
-        int entry = entryAt(e);
+    for (int e = first; e < end; e++) {
+        int entry = entryAt(e) & (RUN_START - 1);
         float d = readBody(entry, p).x;
         if (d < least) {
             least = d;
             nearest = entry;
         }
     }
-    return nearest & (RUN_START - 1);
+    return nearest;
 }
 
-// The normal from the nearest stream's own field alone, the stream the hit wears.
-vec3 normalAt(vec3 p, int stream) {
+// The normal of the whole field, so skin two streams share is one smooth shape with no crease between them.
+vec3 normalAt(vec3 p, int streams) {
     vec2 e = vec2(NORMAL_STEP, 0.0);
     vec3 gradient = vec3(
-        runOnly(p + e.xyy, stream) - runOnly(p - e.xyy, stream),
-        runOnly(p + e.yxy, stream) - runOnly(p - e.yxy, stream),
-        runOnly(p + e.yyx, stream) - runOnly(p - e.yyx, stream));
+        fieldOnly(p + e.xyy, streams) - fieldOnly(p - e.xyy, streams),
+        fieldOnly(p + e.yxy, streams) - fieldOnly(p - e.yxy, streams),
+        fieldOnly(p + e.yyx, streams) - fieldOnly(p - e.yyx, streams));
     return dot(gradient, gradient) > 0.0 ? -normalize(gradient) : vec3(0.0, 1.0, 0.0);
 }
 
@@ -272,11 +280,56 @@ vec4 mingled(vec4 color, int stream, vec3 world, vec2 place, float density) {
     return color;
 }
 
+// One stream's skin at a hit: its own texture on its nearest body, along the
+// liquid and round it or over the block's world axes, crossfading into its
+// goo by the route, in its own light.
+vec4 skinOf(int stream, vec3 p, vec3 world, vec3 n) {
+    int body = nearestBodyOf(p, stream);
+    bool onBlock = body >= BOX_BASE;
+    float route = 0.0;
+    float density = 1.0;
+    vec2 place = onBlock ? placeOnBlock(world, n) : placeOnSegment(body, stream, p, route, density);
+    vec4 coat = streamSlot(stream, COAT_SLOT);
+    vec4 color = skinAt(streamSlot(stream, SPRITE_SLOT), place, density)
+        * vec4(streamSlot(stream, TINT_SLOT).rgb, 1.0);
+    // The block's texture crossfades into its goo along the whole route: none at the block, all at the hand.
+    if (!onBlock) {
+        color = mix(color, mingled(color, stream, world, place, density), route);
+    }
+    return color * sample_lightmap(Sampler2, ivec2(int(coat.x), int(coat.y)));
+}
+
+// The skin at a hit: the skins of the two streams most present there, blended
+// by their presence, so where a tributary folds into its trunk the skin
+// passes smoothly from one to the other with no seam where a pick would flip.
+vec4 skinAtHit(vec3 p, vec3 world, vec3 n, int streams) {
+    int first = 0;
+    float firstField = -1.0;
+    int second = 0;
+    float secondField = -1.0;
+    for (int s = 0; s < streams; s++) {
+        float f = runOnly(p, s);
+        if (f > firstField) {
+            second = first;
+            secondField = firstField;
+            first = s;
+            firstField = f;
+        } else if (f > secondField) {
+            second = s;
+            secondField = f;
+        }
+    }
+    vec4 color = skinOf(first, p, world, n);
+    if (secondField > 0.0) {
+        color = mix(color, skinOf(second, p, world, n), secondField / (firstField + secondField));
+    }
+    return color;
+}
+
 void main() {
     vec3 rd = normalize(rayPoint);
     rd += vec3(lessThan(abs(rd), vec3(STRAIGHT))) * STRAIGHT;
     int streams = int(Counts.x);
-    int count = int(Counts.w);
     float tEnter;
     float tExit;
     if (!slab(Region.xyz, Region.xyz + vec3(REGION_SPAN), rd, tEnter, tExit)) {
@@ -317,23 +370,10 @@ void main() {
         }
     }
     vec3 p = rd * inside;
-    int body = nearestBody(p, count);
-    bool onBlock = body >= BOX_BASE;
-    int stream = int(onBlock ? Boxes[2 * (body - BOX_BASE) + 1].y : Rings[2 * body + 1].z);
-    vec3 n = normalAt(p, stream);
+    vec3 n = normalAt(p, streams);
     vec3 world = p + vec3(CameraBlockPos) - CameraOffset;
-    float route = 0.0;
-    float density = 1.0;
-    vec2 place = onBlock ? placeOnBlock(world, n) : placeOnSegment(body, stream, p, route, density);
-    vec4 coat = streamSlot(stream, COAT_SLOT);
-    vec4 color = skinAt(streamSlot(stream, SPRITE_SLOT), place, density)
-        * vec4(streamSlot(stream, TINT_SLOT).rgb, 1.0);
-    // The block's texture crossfades into its goo along the whole route: none at the block, all at the hand.
-    if (!onBlock) {
-        color = mix(color, mingled(color, stream, world, place, density), route);
-    }
+    vec4 color = skinAtHit(p, world, n, streams);
     color = minecraft_mix_light(Light0_Direction, Light1_Direction, normalize(mat3(ModelViewMat) * n), color);
-    color *= sample_lightmap(Sampler2, ivec2(int(coat.x), int(coat.y)));
     color.a = 1.0;
     fragColor = apply_fog(color, fog_spherical_distance(p), fog_cylindrical_distance(p), FogEnvironmentalStart,
         FogEnvironmentalEnd, FogRenderDistanceStart, FogRenderDistanceEnd, FogColor);
