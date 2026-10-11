@@ -67,7 +67,7 @@ class WindLinesTest {
         }
     }
 
-    /** A line blown straight along the look, curling south. */
+    /** A line blown straight along the look, twisting out south first. */
     private static WindLines.Line line(WindLines.Sway sway) {
         return line(sway, false);
     }
@@ -95,36 +95,52 @@ class WindLinesTest {
             assertTrue(WindLines.launched(1) - WindLines.launched(1 - step) < step, "it slows before it curls");
         }
 
-        @Test
-        void theCurlLiesOutFromTheCone() {
-            Vec3 center = WindLines.curlCenter(line(WindLines.Sway.NONE));
-            assertEquals(WindLines.CURL_RADIUS, center.dot(SOUTH), EPSILON);
-        }
+        /** The most the head's heading may turn from one tick to the next: no corner, only a gentle bend. */
+        private static final double MOST_TURN_PER_TICK = Math.toRadians(8);
+        /** The most the head's heading may stand off its axis anywhere: a slight twist, never square to it. */
+        private static final double MOST_OFF_AXIS = Math.toRadians(45);
 
         @Test
-        void theCurlFacesBackAlongTheLook() {
+        void theHeadNeverTurnsACorner() {
             WindLines.Line line = line(WindLines.Sway.NONE);
-            Vec3 normal = line.outward().cross(WindLines.curlForward(line)).normalize();
-            assertEquals(Math.cos(WindLines.CURL_TILT), Math.abs(normal.dot(EAST)), 1e-6);
+            for (int tick = 1; tick < WindLines.LIFE_TICKS; tick++) {
+                Vec3 before = heading(line, tick - 1);
+                Vec3 after = heading(line, tick);
+                double turn = Math.acos(Math.clamp(before.dot(after), -1, 1));
+                assertTrue(turn < MOST_TURN_PER_TICK, "tick " + tick + " turns " + Math.toDegrees(turn) + " degrees");
+            }
         }
 
         @Test
-        void theCurlWindsInwardToItsCenterAsTheLineEnds() {
+        void theHeadKeepsHeadingAlongItsAxisAsItTwists() {
             WindLines.Line line = line(WindLines.Sway.NONE);
-            Vec3 center = WindLines.curlCenter(line);
-            double early = WindLines.pathPoint(line, WindLines.STRAIGHT_TICKS + 1).distanceTo(center);
-            double late = WindLines.pathPoint(line, WindLines.LIFE_TICKS - 1).distanceTo(center);
-            assertTrue(late < early, "the curl closes in on its center");
-            assertEquals(0, WindLines.pathPoint(line, WindLines.LIFE_TICKS).distanceTo(center), EPSILON);
+            for (int tick = 0; tick < WindLines.LIFE_TICKS; tick++) {
+                double offAxis = Math.acos(Math.clamp(heading(line, tick).dot(EAST), -1, 1));
+                assertTrue(offAxis < MOST_OFF_AXIS, "tick " + tick + " heads " + Math.toDegrees(offAxis) + " off");
+            }
         }
 
         @Test
-        void theHeadSlowsAsItWindsIn() {
+        void theTwistStaysSlight() {
+            WindLines.Line line = line(WindLines.Sway.NONE);
+            Vec3 end = WindLines.pathPoint(line, WindLines.LIFE_TICKS);
+            assertEquals(WindLines.TWIST_RADIUS, Math.hypot(end.y, end.z), EPSILON);
+            assertTrue(WindLines.TWIST_TURNS < 1, "less than a turn");
+        }
+
+        @Test
+        void theHeadSlowsAsItTwistsButStillAdvances() {
             WindLines.Line line = line(WindLines.Sway.NONE);
             double rushing = WindLines.pathPoint(line, 2).distanceTo(WindLines.pathPoint(line, 1));
-            double closing = WindLines.pathPoint(line, WindLines.LIFE_TICKS)
+            double fading = WindLines.pathPoint(line, WindLines.LIFE_TICKS)
                     .distanceTo(WindLines.pathPoint(line, WindLines.LIFE_TICKS - 1));
-            assertTrue(closing < rushing, "the head slows in its curl");
+            assertTrue(fading < rushing, "the head slows as it twists");
+            assertTrue(WindLines.pathPoint(line, WindLines.LIFE_TICKS).x
+                    > WindLines.pathPoint(line, WindLines.LIFE_TICKS - 1).x, "it still advances as it fades");
+        }
+
+        private static Vec3 heading(WindLines.Line line, double tick) {
+            return WindLines.pathPoint(line, tick + 1).subtract(WindLines.pathPoint(line, tick)).normalize();
         }
     }
 
@@ -209,12 +225,18 @@ class WindLinesTest {
         }
 
         @Test
-        void theCurlCoilsTighterAndLongerWithoutSpinningFaster() {
-            double curlTicks = WindLines.LIFE_TICKS - WindLines.STRAIGHT_TICKS;
-            assertEquals(WindLines.LIFE_TICKS / 2.0, curlTicks, EPSILON);
-            assertTrue(WindLines.CURL_TURNS >= 2 && WindLines.CURL_RADIUS < 0.3);
-            assertTrue(WindLines.CURL_TURNS * 2 * Math.PI / curlTicks <= LAST_TURN_PER_TICK, "no faster a spin");
+        void theTwistSpinsNoFasterThanTheLastCoil() {
+            assertTrue(WindLines.TWIST_TURNS * 2 * Math.PI / WindLines.TWIST_TICKS <= LAST_TURN_PER_TICK,
+                    "no faster a spin");
         }
+    }
+
+    // jet-pushes-along-the-look-while-held
+    @Test
+    void aJetsWindWhistlesHigherTheFasterThePlayerMoves() {
+        assertEquals(WindLines.WIND_PITCH, WindLines.pitchAt(0), 1e-6);
+        assertTrue(WindLines.pitchAt(1.2) > WindLines.pitchAt(0.4));
+        assertEquals(WindLines.MAX_PITCH, WindLines.pitchAt(10), 1e-6);
     }
 
     // cold-wind-fades-on-release
