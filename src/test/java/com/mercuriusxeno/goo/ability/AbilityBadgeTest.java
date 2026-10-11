@@ -23,7 +23,7 @@ class AbilityBadgeTest {
     private static final int SHIPPED_WORLD_BADGES = 20;
     private static final int SHIPPED_SELF_BADGES = 7;
     private static final int SHIPPED_BREW_BADGES = 19;
-    private static final int SHIPPED_CHANNELED_BADGES = 25;
+    private static final int SHIPPED_CHANNELED_BADGES = 26;
     private static final int SHIPPED_FREE_BADGES = 7;
     private static final int SHIPPED_TAP_BADGES = 12;
     private static final int SHIPPED_PRISM_BADGES = 10;
@@ -47,10 +47,10 @@ class AbilityBadgeTest {
             "pulse_zap", "frost_orb", "leaf_reap", "jelly_feed", "weird_slime");
     /**
      * Self deliveries wearing the channeled badge (decisions flatten-disc-cursor-breaks-above-the-plane,
-     * unmake-waves-dissolve-by-crucible-cost).
+     * unmake-waves-dissolve-by-crucible-cost, magnet-sphere-icons-metal-ores).
      */
     private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten", "frost_nova", "glow_scry",
-            "glow_sunbeam", "glow_radiant", "typhoon_jet", "crystal_glitter", "unstable_unmake",
+            "glow_sunbeam", "glow_radiant", "typhoon_jet", "crystal_glitter", "metal_magnet", "unstable_unmake",
             "kinetic_grab");
     /** Thrown deliveries wearing the channeled badge (decision shards-sling-then-morph-to-flechettes). */
     private static final List<String> SHIPPED_THROWN_CHANNELS = List.of("crystal_shards");

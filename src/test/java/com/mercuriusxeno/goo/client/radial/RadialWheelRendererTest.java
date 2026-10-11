@@ -204,7 +204,7 @@ class RadialWheelRendererTest {
                 Map.entry("glow_sunbeam", "Sunbeam"), Map.entry("hex_charm", "Charm"), Map.entry("hex_enchant", "Enchant"), Map.entry("hex_fuse", "Fuse"), Map.entry("hex_lifetap", "Lifetap"), Map.entry("hex_drain", "Drain"),
                 Map.entry("leaf_vines", "Vines"), Map.entry("leaf_bloom", "Bloom"), Map.entry("leaf_growth", "Growth"), Map.entry("leaf_reap", "Reap"), Map.entry("leaf_bio", "Bio"), Map.entry("leaf_verdant", "Verdant"),
                 Map.entry("leaf_barkskin", "Barkskin"), Map.entry("metal_spikes", "Urchin"),
-                Map.entry("metal_javelin", "Dart"), Map.entry("nether_black_hole", "Anti"),
+                Map.entry("metal_javelin", "Dart"), Map.entry("metal_magnet", "Magnet"),Map.entry("nether_black_hole", "Anti"),
                 Map.entry("nether_decay", "Decay"), Map.entry("nether_hive", "Hive"), Map.entry("nether_undead", "Undead"),
                 Map.entry("pulse_zap", "Zap"),
                 Map.entry("pulse_pulser", "Pulser"),
