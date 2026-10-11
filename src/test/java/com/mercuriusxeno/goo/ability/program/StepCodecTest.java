@@ -156,7 +156,7 @@ class StepCodecTest {
                     Expr.literal(0.5))),
             Map.entry("banish", new BanishStep(Expr.literal(6), Expr.literal(32))),
             Map.entry("teleportitis", new TeleportitisStep(Expr.literal(8))),
-            Map.entry("convoke", new ConvokeStep(Expr.literal(20))),
+            Map.entry("convoke", new ConvokeStep(GooTypes.DEEP, Expr.literal(20))),
             Map.entry("dragon_gate", new DragonGateStep(Expr.literal(1200))),
             Map.entry("bloom", new BloomStep(Expr.literal(4), Expr.literal(8), Expr.literal(64))),
             Map.entry("tick_plants", new TickPlantsStep()),
