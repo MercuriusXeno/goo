@@ -105,6 +105,11 @@ public enum HostCapability {
      */
     DRAGON_GATE(GateHost.class),
     /**
+     * A struck surface whose blocks can go out of phase (decision
+     * portable-hole-phases-blocks-for-a-while).
+     */
+    PHASE_BLOCKS(PhaseBlocksHost.class),
+    /**
      * The world around a lasting host to green tick after tick (decision
      * verdant-prism-greens-blocks-slowly).
      */
