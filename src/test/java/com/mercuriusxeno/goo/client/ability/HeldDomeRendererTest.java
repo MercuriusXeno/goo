@@ -82,7 +82,7 @@ class HeldDomeRendererTest {
         }
     }
 
-    /** A dome the renderer would show with no ghost for its type draws nothing at all, as Rock Crush did. */
+    /** A dome the renderer would show with no ghost for its type draws nothing at all. */
     @Test
     void everyShippedHeldDomeHasAGhostForItsType() {
         for (var file : AbilityJson.files()) {
@@ -94,7 +94,7 @@ class HeldDomeRendererTest {
     }
 
     @Test
-    void rockCrushsGhostIsTheRockDust() {
+    void rocksGhostIsTheRockDust() {
         assertSame(RockExplosionVisual.INSTANCE, HeldDomeRenderer.ghostOf(GooTypes.ROCK));
         PipelineShaders.assertExist(GooRenderTypes.ROCK_EXPLOSION_THROUGH_BLOCKS);
         assertEquals(CompareOp.ALWAYS_PASS,
