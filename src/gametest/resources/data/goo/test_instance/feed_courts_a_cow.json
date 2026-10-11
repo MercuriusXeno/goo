@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:nourish_refills_hunger",
+  "function": "goo:feed_courts_a_cow",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 600,
+  "max_ticks": 60,
   "setup_ticks": 0,
   "required": true
 }

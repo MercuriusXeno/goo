@@ -10,7 +10,7 @@ import net.minecraft.util.RandomSource;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A healing star: bonemeal's green star drawn in vital pink, rising a little
+ * A healing star: bonemeal's green star drawn in jelly amber, rising a little
  * and fading where something was healed.
  * vitality-waves-regenerate-and-court
  */
@@ -23,10 +23,13 @@ public final class VitalStarParticle extends SingleQuadParticle {
     private static final float QUAD_SIZE = 0.1f;
     /** Full opacity until half its life, then fading to nothing. */
     private static final float FADE_SPEED = 2f;
-    /** Vital pink, as bright as bonemeal's green. */
+    /**
+     * Jelly amber, as bright as bonemeal's green.
+     * nourish-and-healing-ship-on-jelly
+     */
     private static final float RED = 1.0f;
-    private static final float GREEN = 0.42f;
-    private static final float BLUE = 0.7f;
+    private static final float GREEN = 0.72f;
+    private static final float BLUE = 0.25f;
 
     private VitalStarParticle(ClientLevel level, double x, double y, double z, SpriteSet sprites) {
         super(level, x, y, z, sprites.get(0, 1));

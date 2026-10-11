@@ -69,6 +69,7 @@ public final class GooTypes {
      * decision infinity-sources-whatever-shares-its-vessel
      */
     public static final ResourceKey<GooTypeDefinition> INFINITY = bundled("infinity");
+    public static final ResourceKey<GooTypeDefinition> JELLY = bundled("jelly");
     public static final ResourceKey<GooTypeDefinition> KINETIC = bundled("kinetic");
     public static final ResourceKey<GooTypeDefinition> LEAF = bundled("leaf");
     public static final ResourceKey<GooTypeDefinition> METAL = bundled("metal");
@@ -104,7 +105,7 @@ public final class GooTypes {
      * Every type the mod ships as JSON, in constant order.
      */
     public static final List<ResourceKey<GooTypeDefinition>> BUNDLED = List.of(
-            AEON, ASTRAL, BLAZE, CRYSTAL, DEEP, ENDER, FROST, GLOW, HEX, INFINITY, KINETIC, LEAF,
+            AEON, ASTRAL, BLAZE, CRYSTAL, DEEP, ENDER, FROST, GLOW, HEX, INFINITY, JELLY, KINETIC, LEAF,
             METAL, NETHER, OPULENT, PULSE, QUANTUM, ROCK, SHROOM, TYPHOON, UNSTABLE, VITAL, XENO, ZOO);
 
     /**
