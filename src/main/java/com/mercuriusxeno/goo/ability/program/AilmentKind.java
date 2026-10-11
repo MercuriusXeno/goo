@@ -29,7 +29,9 @@ public enum AilmentKind {
     /** Xeno's mutation: sickly green veins writhing over the mob while it stays mutated (decision xeno-blob-mutates-the-struck). */
     MUTATED(0xA8CC48, AilmentPattern.WRITHE, 0.6f),
     /** Ancient: aged stone veined with gold (decision ancient-makes-the-player-immortal). */
-    ANCIENT(0xC9A85C, AilmentPattern.STONE, 0.75f);
+    ANCIENT(0xC9A85C, AilmentPattern.STONE, 0.75f),
+    /** Zoo's rally: a tawny glisten over the armed mob (decision zoo-rally-arms-the-peaceful). */
+    ZOO(0xD89858, AilmentPattern.GLINT, 0.5f);
 
     /** Codec for the kind as an ability JSON writes it, in lower case. */
     public static final Codec<AilmentKind> CODEC = LowerCaseEnumCodec.of(AilmentKind.class, "ailment kind");
