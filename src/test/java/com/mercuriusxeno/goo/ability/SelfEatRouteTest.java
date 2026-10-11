@@ -56,7 +56,7 @@ class SelfEatRouteTest {
                 AbilityDefinition ability = AbilityJson.decode(brew);
                 assertTrue(SelfEatRoute.eats(ability.delivery(), ability.badge()), brew);
             }
-            for (String onCommand : List.of("ender_blink", "typhoon_propel")) {
+            for (String onCommand : List.of("ender_blink", "hex_enchant")) {
                 AbilityDefinition ability = AbilityJson.decode(onCommand);
                 assertFalse(SelfEatRoute.eats(ability.delivery(), ability.badge()), onCommand);
             }

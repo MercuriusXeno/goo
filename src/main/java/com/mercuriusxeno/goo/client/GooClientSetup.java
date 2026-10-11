@@ -14,6 +14,7 @@ import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
 import com.mercuriusxeno.goo.client.ability.EncasementLayer;
 import com.mercuriusxeno.goo.client.ability.FrozenPoses;
 import com.mercuriusxeno.goo.client.ability.GhostTrails;
+import com.mercuriusxeno.goo.client.ability.LiftWind;
 import com.mercuriusxeno.goo.client.ability.MobAilments;
 import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
 import com.mercuriusxeno.goo.client.ability.MobCoats;
@@ -23,12 +24,12 @@ import com.mercuriusxeno.goo.client.ability.RelayLasers;
 import com.mercuriusxeno.goo.client.ability.ThumpRings;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
+import com.mercuriusxeno.goo.client.ability.UpdraftWind;
 import com.mercuriusxeno.goo.client.ability.ViewportRipples;
 import com.mercuriusxeno.goo.client.ability.VineTangleLayer;
 import com.mercuriusxeno.goo.client.ability.WindLines;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
 import com.mercuriusxeno.goo.client.ber.*;
-import com.mercuriusxeno.goo.client.ber.style.AgitatorPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlacialPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlowBeaconStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlowReflectorStyle;
@@ -146,8 +147,6 @@ public final class GooClientSetup {
         PrismComboStyles.register(TimekeeperPrismStyle.COMBO, new TimekeeperPrismStyle());
         // verdant-prism-greens-blocks-slowly: a verdant prism draws its crystal leaf-green
         PrismComboStyles.register(VerdantPrismStyle.COMBO, new VerdantPrismStyle());
-        // agitator-prism-quickens-until-a-spawn
-        PrismComboStyles.register(AgitatorPrismStyle.COMBO, new AgitatorPrismStyle());
     }
 
     /**
@@ -205,7 +204,7 @@ public final class GooClientSetup {
         PrismComboStyles.register(GlowBeaconStyle.COMBO, new GlowBeaconStyle());
         PrismComboStyles.register(GlowReflectorStyle.COMBO, new GlowReflectorStyle());
         PrismComboStyles.register(HivePrismStyle.COMBO, new HivePrismStyle());
-        event.registerBlockEntityRenderer(GooBlockEntities.DRAGON_GATE.get(), DragonGateRenderer::new);
+        event.registerBlockEntityRenderer(GooBlockEntities.END_GATE.get(), EndGateRenderer::new);
         // oculus-prism-becomes-a-hovering-eye: an oculus prism draws as the hovering eye
         PrismComboStyles.register(OculusNodes.OCULUS, new OculusStyle());
         // metronome-prism-pulses-at-the-learned-rate, relay-prism-carries-the-signal-through-air
@@ -457,6 +456,8 @@ public final class GooClientSetup {
         FrozenPoses.CLIENT.clear();
         NovaRings.CLIENT.clear();
         WindLines.CLIENT.clear();
+        UpdraftWind.clear();
+        LiftWind.clear();
         BlockTransforms.CLIENT.clear();
         Afterimages.CLIENT.clear();
         Transformations.CLIENT.clear();
