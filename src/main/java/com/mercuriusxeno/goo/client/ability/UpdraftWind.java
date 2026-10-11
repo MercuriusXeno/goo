@@ -23,7 +23,7 @@ import java.util.stream.Stream;
  * lines without snowflakes rise from it up through its column and curl out
  * near the top, the column sized from the ability's updraft step, the blob
  * itself staying drawn at the column's foot by the marker's own visual; and
- * the same lines rise up a lift prism's shaft.
+ * a lift prism's wind spirals out around it from its base (LiftWind).
  * updraft-blob-stands-a-column-of-wind
  * lift-prism-levitates-the-block-above
  */
@@ -35,8 +35,6 @@ public final class UpdraftWind {
     private static final Map<BlockPos, Long> BLOWN_AT = new ConcurrentHashMap<>();
     /** Ticks a column goes unseen before its record is dropped. */
     private static final long FORGET_AFTER_TICKS = 40;
-    /** A lift's shaft is one block wide. */
-    private static final double SHAFT_HALF_WIDTH = 0.5;
 
     private UpdraftWind() {
     }
@@ -89,9 +87,8 @@ public final class UpdraftWind {
         }
         int height = LiftStep.shaftHeightAbove(level, prism, lift.get().cap().evaluateInt(NONE));
         Minecraft mc = Minecraft.getInstance();
-        if (height > 0 && mc.level != null) {
-            WindLines.CLIENT.rise(mc.level.getRandom(), Vec3.atBottomCenterOf(prism.above()), SHAFT_HALF_WIDTH,
-                    height, gameTime);
+        if (mc.level != null) {
+            LiftWind.blow(prism, height, mc.level.getRandom(), gameTime);
         }
     }
 

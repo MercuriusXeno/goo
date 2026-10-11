@@ -33,10 +33,11 @@ import java.util.stream.Stream;
 /**
  * Line-drawn wind for a held stream that names it: each held tick a few
  * thick lines, white and very light gray tinted slightly blue, rush straight
- * out of the glove along the cone, swaying slightly off course, then at their
- * end curl out from the cone in a tight spiral facing the player, the head slowing as it winds inward to a center point while
- * the tail draws in quickly behind it, so the line ends at that point as it
- * fades; drawn as smooth curves, and where the stream asks, snowflakes flit
+ * out of the glove along the cone, swaying slightly off course, then carry
+ * on, slowing, as they twist slightly about their course and fade, the tail
+ * drawing in behind the head; drawn as smooth curves with no corner in them
+ * (the operator's ruling: twist slightly, never bend square into a loop),
+ * and where the stream asks, snowflakes flit
  * weightlessly along them. Typhoon's streams reuse the lines without the
  * snowflakes.
  * cold-streams-wind-lines-and-snowflakes
@@ -57,7 +58,11 @@ public final class WindLines {
     static final double LAUNCH_SURGE = 0.35;
     /** The stream's wind: its volume and pitch, and the held ticks it outlasts a let-go by. */
     static final float WIND_VOLUME = 0.7f;
-    private static final float WIND_PITCH = 1.0f;
+    static final float WIND_PITCH = 1.0f;
+    /** How much a jet's wind pitch rises for each block a tick the player moves. */
+    static final double PITCH_PER_SPEED = 0.6;
+    /** The highest a jet's wind pitches. */
+    static final float MAX_PITCH = 2.0f;
     private static final long WIND_LINGER_TICKS = 2;
     /** Ticks the wind takes to fade to silence once the stream is let go. */
     static final int WIND_FADE_TICKS = 15;
@@ -69,10 +74,14 @@ public final class WindLines {
     static final double STRAIGHT_TICKS = LIFE_TICKS * CURL_STARTS;
     /** The share of the cone's length a line rushes straight before it curls. */
     static final double STRAIGHT_SHARE = 0.6;
-    /** The curl's starting radius in blocks, which it winds inward from to nothing. */
-    static final double CURL_RADIUS = 0.25;
-    /** Turns the curl winds through before it reaches its center. */
-    static final double CURL_TURNS = 2.0;
+    /** The ticks a line twists for after its straight run, until it fades. */
+    static final double TWIST_TICKS = LIFE_TICKS - STRAIGHT_TICKS;
+    /** How far off its axis a line has twisted when it fades, in blocks: slight. */
+    static final double TWIST_RADIUS = 0.15;
+    /** The share of a turn a line twists through before it fades. */
+    static final double TWIST_TURNS = 0.35;
+    /** How much of its pace a twisting line sheds by the time it fades: half. */
+    static final double TWIST_EASE = 0.5;
     /** Ticks of the path the trailing line spans behind its head while it rushes straight. */
     static final double TAIL_TICKS = 10;
     /** Points the line draws through, enough that its curve reads smooth. */
@@ -95,9 +104,7 @@ public final class WindLines {
     /** A unit random spread across both sides, -1 to 1. */
     private static final double BOTH_SIDES = 2;
 
-    /** How far a line tilts its curl forward from facing the player, so the head flows into it, in radians. */
-    static final double CURL_TILT = 0.35;
-    /** The two ways a curl winds. */
+    /** The two ways a twist winds. */
     private static final double CLOCKWISE = 1;
     private static final double COUNTERCLOCKWISE = -1;
     /** The most a line sways off its course, in blocks, each of its two drifts. */
@@ -149,16 +156,18 @@ public final class WindLines {
     private long windHeldAt;
     /** The game time snowflakes last dropped, so a tick drawn over several frames drops them once. */
     private long snowflakesDroppedAt = -1;
+    /** Whether the playing wind is a jet's tailwind, whose pitch rises with the player's speed. */
+    private volatile boolean pitchesWithSpeed;
 
     private WindLines() {
     }
 
     /**
      * Where a line's head stands a number of ticks after it left the glove:
-     * along its axis for its straight run, then winding inward on a tight
-     * curl out from the cone, in a plane that faces back along the look,
-     * tilted forward, slowing as it closes on the curl's center, which it
-     * reaches the tick the line ends; all the while swaying slightly off course.
+     * along its axis for its straight run, then still carrying on along it,
+     * slowing, while it eases into a slight twist about its course, the
+     * twist's reach growing from nothing so the line bends a little at a time
+     * and never turns a corner; all the while swaying slightly off course.
      *
      * @param line the line
      * @param age  ticks since it left the glove
@@ -173,37 +182,26 @@ public final class WindLines {
         if (age <= STRAIGHT_TICKS) {
             return line.origin().add(line.axis().scale(line.straight() * launched(age / STRAIGHT_TICKS)));
         }
-        double curled = (age - STRAIGHT_TICKS) / (LIFE_TICKS - STRAIGHT_TICKS);
-        // the head slows as it winds in: its turn eases out toward the center
-        double eased = 1 - (1 - curled) * (1 - curled);
-        double angle = eased * CURL_TURNS * TWO_PI;
-        double radius = CURL_RADIUS * (1 - eased);
-        return curlCenter(line).add(line.outward().scale(-radius * Math.cos(angle)))
-                .add(curlForward(line).scale(radius * Math.sin(angle)));
+        double twisted = (age - STRAIGHT_TICKS) / TWIST_TICKS;
+        double radius = TWIST_RADIUS * twisted * twisted;
+        double angle = line.winding() * TWIST_TURNS * TWO_PI * twisted;
+        return line.origin().add(line.axis().scale(line.straight() + twistAdvance(line, twisted)))
+                .add(line.outward().scale(radius * Math.cos(angle)))
+                .add(line.across().scale(radius * Math.sin(angle)));
     }
 
     /**
-     * The point a line's curl winds in to: a curl's radius past the end of its
-     * straight run, out from the cone's middle.
+     * How far past its straight run a twisting line has carried on along its
+     * axis: leaving at the pace its straight run ended at and easing to half
+     * that by the time it fades, so it never stops to turn.
      *
-     * @param line the line
-     * @return the curl's center, before the line's sway
+     * @param line     the line
+     * @param twisted  the share of its twist gone, 0 to 1
+     * @return the distance past the straight run, in blocks
      */
-    static Vec3 curlCenter(Line line) {
-        return line.origin().add(line.axis().scale(line.straight())).add(line.outward().scale(CURL_RADIUS));
-    }
-
-    /**
-     * The curl plane's second direction beside outward: across the look,
-     * tilted forward along the line so the head flows into the curl, winding
-     * whichever way the line winds.
-     *
-     * @param line the line
-     * @return the unit direction
-     */
-    static Vec3 curlForward(Line line) {
-        return line.across().scale(line.winding() * Math.cos(CURL_TILT)).add(line.axis().scale(Math.sin(CURL_TILT)))
-                .normalize();
+    static double twistAdvance(Line line, double twisted) {
+        double endPace = line.straight() * (1 - LAUNCH_SURGE) / STRAIGHT_TICKS;
+        return endPace * TWIST_TICKS * (twisted - twisted * twisted * TWIST_EASE * HALF);
     }
 
     /**
@@ -251,6 +249,7 @@ public final class WindLines {
                     .map(tailwind -> tailwindGust(tailwind, player.getEyeHeight(), player.getLookAngle()))
                     .orElseGet(() -> new Gust(apex, player.getLookAngle(), area.size(), area.angle(), false));
             CLIENT.add(player.level().getRandom(), gust, wind.snowflakes(), player.level().getGameTime());
+            CLIENT.pitchesWithSpeed = gust.carried();
             CLIENT.keepWindBlowing(player);
         });
     }
@@ -353,6 +352,18 @@ public final class WindLines {
         return WIND_VOLUME * Math.max(0f, 1f - (float) sinceLetGo / WIND_FADE_TICKS);
     }
 
+    /**
+     * A jet's wind pitch at a speed: its plain pitch at rest, rising with
+     * every block a tick the player moves, to at most twice it.
+     * jet-pushes-along-the-look-while-held
+     *
+     * @param speed the player's speed, in blocks per tick
+     * @return the pitch
+     */
+    static float pitchAt(double speed) {
+        return (float) Math.clamp(WIND_PITCH + PITCH_PER_SPEED * speed, WIND_PITCH, MAX_PITCH);
+    }
+
     /** The stream's continuous wind, following the player and fading once the stream is let go. */
     private final class StreamWind extends AbstractTickableSoundInstance {
 
@@ -376,6 +387,8 @@ public final class WindLines {
             }
             long sinceLetGo = player.level().getGameTime() - windHeldAt - WIND_LINGER_TICKS;
             this.volume = windVolume(sinceLetGo);
+            // jet-pushes-along-the-look-while-held: a jet's wind whistles higher the faster it carries the player
+            this.pitch = pitchesWithSpeed ? pitchAt(player.getDeltaMovement().length()) : WIND_PITCH;
             if (this.volume <= 0f) {
                 stop();
             } else {
