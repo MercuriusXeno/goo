@@ -2,11 +2,11 @@ package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.AfterimageStep;
-import com.mercuriusxeno.goo.ability.program.AilmentKind;
-import com.mercuriusxeno.goo.ability.program.AilmentOverlayStep;
+import com.mercuriusxeno.goo.ability.program.AirbornStep;
 import com.mercuriusxeno.goo.ability.program.BranchStep;
 import com.mercuriusxeno.goo.ability.program.CharmStep;
 import com.mercuriusxeno.goo.ability.program.Expr;
+import com.mercuriusxeno.goo.ability.program.FloatStep;
 import com.mercuriusxeno.goo.ability.program.GhostTrailStep;
 import com.mercuriusxeno.goo.ability.program.HostVariables;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
@@ -62,7 +62,6 @@ import static org.mockito.Mockito.when;
 class AbilityLoaderTest {
 
     private static final String DIRECTORY = "goo_abilities";
-    private static final Identifier GLOWING = Identifier.parse("minecraft:glowing");
     private static final int CHARM_ROLLS = 1000;
     private static final int RARE_CHARMS = 50;
     private static final double ZOMBIE_MAX_HEALTH = 20;
@@ -71,7 +70,7 @@ class AbilityLoaderTest {
     /** The abilities whose whole design was a per-stack shape. */
     /** The world abilities that stay after their blob lands. */
     private static final List<String> LINGERING_ABILITIES = List.of("crystal_cloud", "metal_spikes",
-            "nether_black_hole", "unstable_proximity_mine", "glow_crystal", "crystal_prism");
+            "nether_black_hole", "unstable_proximity_mine", "glow_crystal", "crystal_prism", "typhoon_updraft");
     /** The ability whose program ends the tick it lands. */
     private static final String BLAST = "unstable_explode";
     private static final List<String> STACK_SHAPE_ABILITIES = List.of("blaze_flat", "blaze_tunnel",
@@ -85,12 +84,12 @@ class AbilityLoaderTest {
     /** The items each gated ability requires, as the task's how maps the operator's lists. */
     private static final Map<String, List<String>> GATES = Map.ofEntries(
             Map.entry("ender_blink", List.of("ender_pearl")),
-            Map.entry("ender_banish", List.of("popped_chorus_fruit")),
-            Map.entry("ender_teleportitis", List.of("chorus_fruit")),
+            Map.entry("ender_zone", List.of("popped_chorus_fruit")),
+            Map.entry("ender_shifter", List.of("chorus_fruit")),
             Map.entry("deep_churn", List.of("sculk_catalyst")),
             Map.entry("deep_convoke", List.of("sculk_shrieker")),
             Map.entry("deep_dive", List.of("nautilus_shell")),
-            Map.entry("ender_dragon_gate", List.of("dragon_breath")),
+            Map.entry("ender_end", List.of("dragon_breath")),
             Map.entry("ender_oculus", List.of("ender_eye")),
             Map.entry("hex_charm", List.of("honey_bottle", "cake", "cookie")),
             Map.entry("hex_enchant", List.of("book", "lapis_lazuli")),
@@ -119,8 +118,10 @@ class AbilityLoaderTest {
             Map.entry("leaf_growth", List.of("bone_meal")),
             Map.entry("leaf_reap", List.of("wheat", "wheat_seeds")),
             Map.entry("leaf_bio", List.of("poisonous_potato")),
-            Map.entry("typhoon_levitate", List.of("shulker_shell")),
-            Map.entry("typhoon_propel", List.of("phantom_membrane")),
+            Map.entry("typhoon_float", List.of("shulker_shell")),
+            Map.entry("typhoon_jet", List.of("phantom_membrane")),
+            Map.entry("typhoon_repel", List.of("wind_charge")),
+            Map.entry("typhoon_updraft", List.of("breeze_rod")),
             Map.entry("rock_bore", List.of("stone", "cobblestone")),
             Map.entry("rock_crush", List.of("gravel", "sand")),
             Map.entry("rock_flatten", List.of("dirt")),
@@ -149,6 +150,17 @@ class AbilityLoaderTest {
         }
     }
 
+    // decision airborn-steerable-levitation-and-soft-falls
+    @Test
+    void typhoonAirbornNamesItsGlideSpeedAndSteer() {
+        AirbornStep airborn = AbilityJson.decode("typhoon_airborn").behaviors().stream()
+                .filter(AirbornStep.class::isInstance).map(AirbornStep.class::cast).findFirst().orElseThrow();
+
+        assertEquals(Expr.literal(1.2), airborn.glideSpeed());
+        assertEquals(Expr.literal(0.05), airborn.glideSteer());
+        assertEquals(Expr.literal(1.5), airborn.jetBoost());
+    }
+
     // decision splat-runs-the-program-no-fuse
     @Test
     void stackShapeAbilitiesLeaveTheRegistry() {
@@ -168,6 +180,29 @@ class AbilityLoaderTest {
         assertTrue(scanned.values().stream().anyMatch(def -> def.gooType() == GooTypes.NETHER), "No nether ability scanned");
         assertTrue(scanned.values().stream().filter(def -> def.gooType() == GooTypes.NETHER)
                 .noneMatch(def -> def.id().getPath().contains("wither")), "a nether wither ability still loads");
+    }
+
+    // decision float-blob-levitates-the-mob
+    @Test
+    void typhoonFloatReplacesLevitateWithAFloatStep() {
+        Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
+        AbilityDefinition floatAbility = scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, "typhoon_float"));
+
+        assertFalse(scanned.containsKey(Identifier.fromNamespaceAndPath(Goo.MODID, "typhoon_levitate")),
+                "typhoon_levitate still loads");
+        assertEquals("goo.ability.typhoon.float", floatAbility.displayName());
+        assertTrue(floatAbility.behaviors().stream().anyMatch(FloatStep.class::isInstance), "no float step");
+    }
+
+    // decision jet-pushes-along-the-look-while-held
+    @Test
+    void typhoonJetReplacesPropelAsAChannelOnTheSelf() {
+        Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
+        AbilityDefinition jet = scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, "typhoon_jet"));
+
+        assertFalse(scanned.containsKey(Identifier.fromNamespaceAndPath(Goo.MODID, "typhoon_propel")),
+                "typhoon_propel still loads");
+        assertTrue(HeldRoute.channelsOnSelf(jet.delivery(), jet.badge()), "typhoon_jet does not channel on the self");
     }
 
     // decision splat-runs-the-program-no-fuse
@@ -276,23 +311,6 @@ class AbilityLoaderTest {
     }
 
     /**
-     * Hex charm shows its ailment through the overlay step and applies no
-     * vanilla glowing; stasis keeps its shimmer through StasisEvents
-     * (decision ailment-overlay-shader-per-ailment).
-     */
-    @ParameterizedTest
-    @CsvSource({"hex_charm, HEX"})
-    void ailmentAbilitiesWearTheOverlayInPlaceOfGlowing(String name, AilmentKind kind) {
-        List<Step> steps = AbilityJson.decode(name).behaviors().stream()
-                .flatMap(AbilityLoaderTest::stepTree).toList();
-
-        assertEquals(List.of(kind), steps.stream().filter(AilmentOverlayStep.class::isInstance)
-                .map(step -> ((AilmentOverlayStep) step).kind()).toList(), name);
-        assertTrue(steps.stream().filter(PotionStep.class::isInstance)
-                .noneMatch(step -> GLOWING.equals(((PotionStep) step).effect())), name + " still applies glowing");
-    }
-
-    /**
      * Hex charm charms the struck mob in place of weakening it
      * (decision charm-glisten-and-icon-over-the-head).
      */
@@ -345,7 +363,7 @@ class AbilityLoaderTest {
      * it ends (decision held-effects-sound-up-and-down).
      */
     @ParameterizedTest
-    @CsvSource({"blaze_kindle", "leaf_barkskin", "rock_stoneskin", "vital_nourish", "shroom_sight", "hex_lifetap"})
+    @CsvSource({"blaze_kindle", "leaf_barkskin", "rock_stoneskin", "vital_nourish", "shroom_sight", "hex_lifetap", "typhoon_airborn"})
     void everyBrewSoundsAsItStarts(String name) {
         assertTrue(AbilityJson.decode(name).behaviors().stream().anyMatch(SoundStep.class::isInstance), name);
     }

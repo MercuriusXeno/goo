@@ -15,8 +15,7 @@
           "type": "branch",
           "when": "chance(pow(20 / max_health, 1.5))",
           "then": [
-            { "type": "charm", "duration": "6000 * pow(20 / health, 0.4)" },
-            { "type": "ailment_overlay", "kind": "hex", "duration": "6000 * pow(20 / health, 0.4)" }
+            { "type": "charm" }
           ]
         }
       ]
