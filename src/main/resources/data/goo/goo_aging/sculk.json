@@ -1,0 +1,7 @@
+{
+  "source": "minecraft:sculk",
+  "result": "minecraft:air",
+  "drop": "minecraft:echo_shard",
+  "ticks": 72000,
+  "price": 50
+}

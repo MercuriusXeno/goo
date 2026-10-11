@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.aging.AgingBlocks;
 import com.mercuriusxeno.goo.ability.banish.Banished;
 import com.mercuriusxeno.goo.ability.banish.Teleportitis;
 import com.mercuriusxeno.goo.ability.frost.Frozen;
@@ -39,6 +40,14 @@ public final class GooAttachments {
 
     public static final DeferredRegister<AttachmentType<?>> ATTACHMENT_TYPES =
             DeferredRegister.create(NeoForgeRegistries.Keys.ATTACHMENT_TYPES, Goo.MODID);
+
+    /**
+     * The blocks aging in a chunk, saved with the chunk so an aging resumes
+     * when it loads again (decision old-blob-ages-valuables-slowly).
+     */
+    public static final Supplier<AttachmentType<AgingBlocks>> AGING_BLOCKS =
+            ATTACHMENT_TYPES.register("aging_blocks",
+                    () -> AttachmentType.builder(() -> AgingBlocks.NONE).serialize(AgingBlocks.CODEC).build());
 
     /**
      * The soul-bound stacks a dead player holds until respawn, serialized so a

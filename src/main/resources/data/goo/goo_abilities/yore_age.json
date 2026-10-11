@@ -1,0 +1,35 @@
+{
+  "gooType": "yore",
+  "displayName": "goo.ability.yore.age",
+  "badge": "world",
+  "order": 30,
+  "cost": 25,
+  "delivery": {
+    "kind": "arc"
+  },
+  "behaviors": [
+    {
+      "type": "age"
+    },
+    {
+      "type": "particles",
+      "id": "minecraft:white_ash",
+      "at": "host",
+      "count": 24,
+      "spread": 0.5,
+      "speed": 0.02,
+      "lift": 0.5
+    },
+    {
+      "type": "sound",
+      "id": "minecraft:block.bell.resonate",
+      "at": "host",
+      "source": "players",
+      "volume": 0.5,
+      "pitch": 0.5
+    }
+  ],
+  "tags": [
+    "block"
+  ]
+}

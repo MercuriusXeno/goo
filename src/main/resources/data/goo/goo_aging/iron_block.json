@@ -1,0 +1,6 @@
+{
+  "source": "minecraft:iron_block",
+  "result": "minecraft:ancient_debris",
+  "ticks": 120000,
+  "price": 150
+}

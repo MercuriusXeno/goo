@@ -105,6 +105,7 @@ public final class StepTypes {
         register(LeafSteps.HEAL.type());
         register(LeafSteps.COURT.type());
         register(LeafSteps.POWER_PULSE.type());
+        register(LeafSteps.AGE.type());
         register(LeafSteps.TOGGLE_DEVICE.type());
         register(EmitPowerStep.TYPE);
         register(MetronomeStep.TYPE);

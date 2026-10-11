@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.aging.Aging;
 import com.mercuriusxeno.goo.ability.colonize.ShroomNetwork;
 import com.mercuriusxeno.goo.ability.gate.DragonGateOpening;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
@@ -49,7 +50,7 @@ import java.util.OptionalDouble;
 public record LandingHost(ServerLevel level, BlockPos cell, Direction face, boolean waterlogged,
                           ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 anchor, double size)
         implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
-        ColonizeHost, FloorScanHost, GateHost, PowerPulseHost, MobSpawnHost, FrostHost {
+        ColonizeHost, FloorScanHost, GateHost, PowerPulseHost, MobSpawnHost, FrostHost, AgingHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -160,5 +161,15 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     public void powerPulse() {
         BlockPos landedOn = level.getBlockState(cell).isAir() ? cell.relative(face.getOpposite()) : cell;
         ZapDevice.pulse(level, landedOn, cell);
+    }
+
+    /**
+     * Starts aging the block the blob landed on, the struck block where the
+     * blob landed beside it (decision old-blob-ages-valuables-slowly).
+     */
+    @Override
+    public void startAging() {
+        BlockPos landedOn = level.getBlockState(cell).isAir() ? cell.relative(face.getOpposite()) : cell;
+        Aging.start(level, landedOn);
     }
 }

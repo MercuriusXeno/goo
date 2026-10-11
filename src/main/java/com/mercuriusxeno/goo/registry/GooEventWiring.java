@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.registry;
 import com.mercuriusxeno.goo.ability.AbilityLoader;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.AbilityRegistrySource;
+import com.mercuriusxeno.goo.ability.aging.Aging;
+import com.mercuriusxeno.goo.ability.aging.AgingTable;
 import com.mercuriusxeno.goo.ability.blockmap.BlockMaps;
 import com.mercuriusxeno.goo.command.GooCommand;
 import com.mercuriusxeno.goo.data.GooReactionLoader;
@@ -69,6 +71,8 @@ public final class GooEventWiring {
                 new AbilityLoader((AbilityRegistrySource) event.getServerResources()));
         // petrify-stone-encasement-and-calcify-map: the block maps an ability steps blocks by
         event.addListener(BlockMaps.LISTENER_ID, new BlockMaps());
+        // old-blob-ages-valuables-slowly: the table an aging throw is priced and refused by
+        event.addListener(AgingTable.LISTENER_ID, new AgingTable());
     }
 
     /**
@@ -94,6 +98,8 @@ public final class GooEventWiring {
         GooValues.detach(event.getServer());
         GooServerState.of(event.getServer()).clear();
         BlockMaps.clear();
+        AgingTable.clear();
+        Aging.clear();
     }
 
     /**
