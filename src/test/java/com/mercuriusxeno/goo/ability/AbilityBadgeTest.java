@@ -22,8 +22,8 @@ class AbilityBadgeTest {
     private static final int SHIPPED_MOB_BADGES = 13;
     private static final int SHIPPED_WORLD_BADGES = 16;
     private static final int SHIPPED_SELF_BADGES = 6;
-    private static final int SHIPPED_BREW_BADGES = 16;
-    private static final int SHIPPED_CHANNELED_BADGES = 23;
+    private static final int SHIPPED_BREW_BADGES = 17;
+    private static final int SHIPPED_CHANNELED_BADGES = 24;
     private static final int SHIPPED_FREE_BADGES = 5;
     private static final int SHIPPED_TAP_BADGES = 12;
     private static final int SHIPPED_PRISM_BADGES = 9;
@@ -39,7 +39,7 @@ class AbilityBadgeTest {
     private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "ender_shifter", "leaf_barkskin",
             "rock_stoneskin", "vital_nourish", "shroom_sight", "nether_undead", "pulse_extender", "frost_iceborn",
             "hex_lifetap", "glow_lux", "aeon_haste", "typhoon_airborn", "xeno_eldritch", "crystal_scales",
-            "unstable_charged");
+            "unstable_charged", "kinetic_telekinesis");
     /** The shipped free abilities (decisions badge-vocabulary-gains-free-prism-tap-brew, zap-ticks-the-device-and-stuns). */
     private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "shroom_colonize",
             "pulse_zap", "frost_orb", "leaf_reap");
@@ -48,7 +48,8 @@ class AbilityBadgeTest {
      * unmake-waves-dissolve-by-crucible-cost).
      */
     private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten", "frost_nova", "glow_scry",
-            "glow_sunbeam", "glow_radiant", "typhoon_jet", "crystal_glitter", "unstable_unmake");
+            "glow_sunbeam", "glow_radiant", "typhoon_jet", "crystal_glitter", "unstable_unmake",
+            "kinetic_grab");
     /** Thrown deliveries wearing the channeled badge (decision shards-sling-then-morph-to-flechettes). */
     private static final List<String> SHIPPED_THROWN_CHANNELS = List.of("crystal_shards");
 

@@ -289,7 +289,7 @@ public final class HeldEffectsEvents {
     }
 
     /**
-     * Clears the player state an ability's own step laid: shifter, Lux, the charge, a lifetap, the eldritch state.
+     * Clears the player state an ability's own step laid: shifter, Lux and the charge, then the rest.
      *
      * @param player the player
      * @param lays   the state the effect laid
@@ -307,9 +307,24 @@ public final class HeldEffectsEvents {
             // charged-scales-channel-params-by-json: the charge ends with its held effect, dry, pressed or expired
             player.setData(GooAttachments.CHARGED, false);
         }
+        clearSensesAndReach(player, lays);
+    }
+
+    /**
+     * Clears the player state an ability's own step laid on the player's
+     * draws, reach and senses: a lifetap, Telekinesis's reach, the eldritch state.
+     *
+     * @param player the player
+     * @param lays   the state the effect laid
+     */
+    private static void clearSensesAndReach(ServerPlayer player, Set<LaidState> lays) {
         if (lays.contains(LaidState.LIFETAP)) {
             // lifetap-trades-regen-for-leech: the leech ends with its held effect
             player.setData(GooAttachments.LIFETAP, Lifetap.NONE);
+        }
+        if (lays.contains(LaidState.TELEKINESIS)) {
+            // telekinesis-enacts-at-extended-reach: the reach returns to its own with the held effect
+            Telekinesis.clear(player);
         }
         if (lays.contains(LaidState.ELDRITCH)) {
             // eldritch-sight-reveals-the-out-of-phase: the eldritch state ends with its held effect
