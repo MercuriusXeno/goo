@@ -8,14 +8,11 @@ import com.mercuriusxeno.goo.network.GlassKnifePayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.core.particles.BlockParticleOption;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -31,7 +28,7 @@ import java.util.List;
  * server's arc point first, rolling as it goes, and ends as the server
  * found: one stuck in a block stands there a moment, then shatters; one
  * striking a mob, or spent in the air, shatters at once, with a tinkle of
- * glass and glass bits.
+ * glass, cracking into splinters that tumble down and melt away.
  * decision shards-sling-then-morph-to-flechettes
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -43,18 +40,17 @@ public final class GlassKnives {
     private static final float ROLL_PER_TICK = 0.9f;
     /** How deep a stuck knife's point sinks into the block, in blocks. */
     private static final double SINK = 0.08;
-    private static final int SHATTER_BITS = 5;
-    private static final double SHATTER_SPEED = 0.1;
     private static final float STICK_VOLUME = 0.35f;
     private static final float SHATTER_VOLUME = 0.3f;
     private static final float STRIKE_VOLUME = 0.6f;
     private static final float PITCH_LOW = 1.3f;
     private static final float PITCH_SPAN = 0.5f;
-    private static final double HALF = 0.5;
     /** The heading of a knife with no path to read one from. */
     private static final Vec3 DOWN = new Vec3(0, -1, 0);
 
     private static final List<Knife> LIVE = new ArrayList<>();
+    /** The splinters shattered knives crack into. */
+    private static final GlassSlivers SLIVERS = new GlassSlivers();
 
     private GlassKnives() {
     }
@@ -116,6 +112,7 @@ public final class GlassKnives {
     /** Drops every knife, as a disconnect does. */
     public static void clear() {
         LIVE.clear();
+        SLIVERS.clear();
     }
 
     /**
@@ -172,11 +169,7 @@ public final class GlassKnives {
     private static void shatter(ClientLevel level, Vec3 at, SoundEvent sound, float volume) {
         RandomSource random = level.getRandom();
         level.playLocalSound(at.x, at.y, at.z, sound, SoundSource.PLAYERS, volume, pitch(random), false);
-        BlockParticleOption glass = new BlockParticleOption(ParticleTypes.BLOCK, Blocks.GLASS.defaultBlockState());
-        for (int bit = 0; bit < SHATTER_BITS; bit++) {
-            level.addParticle(glass, at.x, at.y, at.z, (random.nextDouble() - HALF) * SHATTER_SPEED,
-                    random.nextDouble() * SHATTER_SPEED, (random.nextDouble() - HALF) * SHATTER_SPEED);
-        }
+        SLIVERS.crack(at, level.getGameTime(), random);
     }
 
     private static float pitch(RandomSource random) {
@@ -192,7 +185,7 @@ public final class GlassKnives {
     @SubscribeEvent
     public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || LIVE.isEmpty()) {
+        if (mc.level == null || LIVE.isEmpty() && SLIVERS.isEmpty()) {
             return;
         }
         double now = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
@@ -203,6 +196,7 @@ public final class GlassKnives {
         for (Knife knife : LIVE) {
             drawKnife(quads, knife, now - knife.startTick(), camera);
         }
+        SLIVERS.draw(quads, now, camera);
         buffers.endBatch(GooRenderTypes.CRYSTAL_SHARD_TYPE);
     }
 

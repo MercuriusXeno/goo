@@ -29,6 +29,12 @@ public final class GlassKunai {
     /** The grip's glass: a deeper teal, less clear. */
     static final int GRIP_COLOR = 0xE04FA6C4;
     private static final double LEVEL_EPSILON = 1e-4;
+    /** Half a splinter's length, from its middle to a tip. */
+    private static final double SPLINTER_HALF = 0.5;
+    /** A splinter's half-width against its length. */
+    private static final double SPLINTER_WIDTH = 0.18;
+    private static final int ALPHA_SHIFT = 24;
+    private static final int RGB_MASK = 0xFFFFFF;
 
     private GlassKunai() {
     }
@@ -71,6 +77,34 @@ public final class GlassKunai {
             Vec3 b = offsets[(corner + 1) % offsets.length];
             triangle(quads, heel.add(a), heel.add(b), butt.add(b), GRIP_COLOR);
             triangle(quads, heel.add(a), butt.add(b), butt.add(a), GRIP_COLOR);
+        }
+    }
+
+    /**
+     * Emits one sliver of a shattered kunai: a thin glass splinter pointed at
+     * both ends, centered on a place, at a share of the blade's opacity.
+     *
+     * @param quads   the context the faces emit through
+     * @param center  the splinter's middle, camera-relative
+     * @param heading the unit direction its length lies along
+     * @param length  its length tip to tip, in blocks
+     * @param opacity the share of the blade's alpha it shows at, 0 to 1
+     */
+    public static void emitSplinter(FlatQuadContext quads, Vec3 center, Vec3 heading, float length, float opacity) {
+        Vec3[] frame = frame(heading, 0f);
+        Vec3 tip = center.add(heading.scale(length * SPLINTER_HALF));
+        Vec3 tail = center.subtract(heading.scale(length * SPLINTER_HALF));
+        double width = length * SPLINTER_WIDTH;
+        Vec3[] ring = {
+            center.add(frame[0].scale(width)), center.add(frame[1].scale(width)),
+            center.subtract(frame[0].scale(width)), center.subtract(frame[1].scale(width)),
+        };
+        int alpha = Math.round((BLADE_COLOR >>> ALPHA_SHIFT) * Math.clamp(opacity, 0f, 1f));
+        int color = (alpha << ALPHA_SHIFT) | (BLADE_COLOR & RGB_MASK);
+        for (int corner = 0; corner < ring.length; corner++) {
+            Vec3 next = ring[(corner + 1) % ring.length];
+            triangle(quads, ring[corner], next, tip, color);
+            triangle(quads, next, ring[corner], tail, color);
         }
     }
 
