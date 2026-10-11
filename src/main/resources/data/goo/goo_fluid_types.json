@@ -160,6 +160,29 @@
     ]
   },
   {
+    "id": "kinetic",
+    "seed": 40977,
+    "genParams": {
+      "viscosity": 1.0,
+      "decayRate": 0.05,
+      "ignitionChance": 0.012,
+      "ignitionStrength": 1.6,
+      "potHeatRate": 0.02,
+      "potInfluence": 0.7,
+      "neighborhoodReach": 1
+    },
+    "frametime": 2,
+    "shadowHue": 0.6,
+    "palette": [
+      { "position": 0.0, "color": "#4A4E54" },
+      { "position": 0.3, "color": "#6E737A" },
+      { "position": 0.55, "color": "#9A8270" },
+      { "position": 0.75, "color": "#E8681A" },
+      { "position": 0.9, "color": "#FF8A2A" },
+      { "position": 1.0, "color": "#FFC07A" }
+    ]
+  },
+  {
     "id": "leaf",
     "seed": 40963,
     "genParams": {

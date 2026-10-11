@@ -22,8 +22,8 @@ class AbilityBadgeTest {
     private static final int SHIPPED_MOB_BADGES = 11;
     private static final int SHIPPED_WORLD_BADGES = 12;
     private static final int SHIPPED_SELF_BADGES = 4;
-    private static final int SHIPPED_BREW_BADGES = 13;
-    private static final int SHIPPED_CHANNELED_BADGES = 21;
+    private static final int SHIPPED_BREW_BADGES = 14;
+    private static final int SHIPPED_CHANNELED_BADGES = 22;
     private static final int SHIPPED_FREE_BADGES = 6;
     private static final int SHIPPED_TAP_BADGES = 11;
     private static final int SHIPPED_PRISM_BADGES = 9;
@@ -38,13 +38,13 @@ class AbilityBadgeTest {
     /** The self + brew abilities, which wear brew on their self delivery (decision self-brew-goos-eat-before-the-effect). */
     private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "ender_shifter", "leaf_barkskin",
             "rock_stoneskin", "vital_nourish", "shroom_sight", "nether_undead", "pulse_extender", "frost_iceborn",
-            "hex_lifetap", "glow_lux", "aeon_haste", "typhoon_airborn");
+            "hex_lifetap", "glow_lux", "aeon_haste", "typhoon_airborn", "kinetic_telekinesis");
     /** The shipped free abilities (decisions badge-vocabulary-gains-free-prism-tap-brew, zap-ticks-the-device-and-stuns). */
     private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "rock_crush", "shroom_colonize",
             "pulse_zap", "frost_orb", "leaf_reap");
     /** Self deliveries wearing the channeled badge (decision flatten-disc-cursor-breaks-above-the-plane). */
     private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten", "frost_nova", "glow_scry",
-            "glow_sunbeam", "glow_radiant", "typhoon_jet");
+            "glow_sunbeam", "glow_radiant", "typhoon_jet", "kinetic_grab");
     /** Thrown deliveries wearing the channeled badge (decision spawn-goo-morphs-into-the-mob-it-births). */
     private static final List<String> SHIPPED_THROWN_CHANNELS = List.of("hex_spawn");
 

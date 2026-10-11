@@ -6,6 +6,8 @@ import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.ability.hex.Charmed;
 import com.mercuriusxeno.goo.ability.hex.Lifetap;
+import com.mercuriusxeno.goo.ability.kinetic.GrabHold;
+import com.mercuriusxeno.goo.ability.kinetic.Grabbed;
 import com.mercuriusxeno.goo.ability.nether.Undead;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.petrify.Petrification;
@@ -196,6 +198,22 @@ public final class GooAttachments {
     public static final Supplier<AttachmentType<Rewinding>> REWINDING =
             ATTACHMENT_TYPES.register("rewinding",
                     () -> AttachmentType.builder(() -> Rewinding.NONE).serialize(Rewinding.CODEC).build());
+
+    /**
+     * An entity Grab holds: suspended until shortly after the channel lets
+     * go, saved with the entity so a reload mid-hold still frees it.
+     * grab-holds-and-throws-a-physics-body
+     */
+    public static final Supplier<AttachmentType<Grabbed>> GRABBED =
+            ATTACHMENT_TYPES.register("grabbed",
+                    () -> AttachmentType.builder(() -> Grabbed.NONE).serialize(Grabbed.CODEC).build());
+
+    /**
+     * What a player's Grab holds, server side for the length of the hold.
+     * grab-holds-and-throws-a-physics-body
+     */
+    public static final Supplier<AttachmentType<GrabHold>> GRAB_HOLD =
+            ATTACHMENT_TYPES.register("grab_hold", () -> AttachmentType.builder(() -> GrabHold.NONE).build());
 
     /**
      * A mob a chronosphere's AI pacing holds, saved with the mob so a reload

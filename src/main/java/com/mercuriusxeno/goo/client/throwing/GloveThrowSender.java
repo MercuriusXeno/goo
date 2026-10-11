@@ -595,7 +595,7 @@ public final class GloveThrowSender {
      *
      * @param payload the payload to send
      */
-    private static void sendPayload(CustomPacketPayload payload) {
+    static void sendPayload(CustomPacketPayload payload) {
         var connection = Minecraft.getInstance().getConnection();
         if (connection != null) {
             connection.send(new ServerboundCustomPayloadPacket(payload));

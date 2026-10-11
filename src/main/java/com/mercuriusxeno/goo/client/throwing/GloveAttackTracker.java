@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.program.GrabStep;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -9,6 +10,7 @@ import com.mercuriusxeno.goo.client.overlay.AimTracker;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.network.GooTouchHandler;
 import com.mercuriusxeno.goo.network.GooTouchHandler.AttackPress;
+import com.mercuriusxeno.goo.network.GrabThrowPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.item.ItemStack;
@@ -23,8 +25,11 @@ import org.jspecify.annotations.Nullable;
  * within reach, with a mob ability selected on the glove in the pressing
  * hand, sends the touch the use key sends. The event is never canceled and
  * its swing never cleared, so vanilla swings the arm and lands the melee hit
- * in the same press; every other attack-key press stays vanilla.
+ * in the same press; every other attack-key press stays vanilla. While a
+ * glove press holds a Grab, the press throws the held entity instead and
+ * lands no punch.
  * decision attack-key-touches-plus-punches
+ * decision grab-holds-and-throws-a-physics-body
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GloveAttackTracker {
@@ -41,6 +46,13 @@ public final class GloveAttackTracker {
     public static void onAttackKeyInteraction(InputEvent.InteractionKeyMappingTriggered event) {
         LocalPlayer player = Minecraft.getInstance().player;
         if (!event.isAttack() || player == null) {
+            return;
+        }
+        ClientAbility selected = selectedAbility(player.getItemInHand(event.getHand()));
+        if (selected != null && GrabStep.throwsOnAttack(GloveUseTracker.showsArea(), selected.behaviors())) {
+            // grab-holds-and-throws-a-physics-body: the click throws the held entity instead of punching it
+            event.setCanceled(true);
+            GloveThrowSender.sendPayload(GrabThrowPayload.INSTANCE);
             return;
         }
         if (GooTouchHandler.attackTouches(pressOf(player, player.getItemInHand(event.getHand())))) {

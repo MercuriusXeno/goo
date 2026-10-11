@@ -138,6 +138,8 @@ public final class StepTypes {
         register(AirbornStep.TYPE);
         register(UpdraftStep.TYPE);
         register(LiftStep.TYPE);
+        register(GrabStep.TYPE);
+        register(TelekinesisStep.TYPE);
     }
 
     private StepTypes() {

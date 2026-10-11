@@ -62,6 +62,7 @@ public final class GooTypes {
     public static final ResourceKey<GooTypeDefinition> FROST = bundled("frost");
     public static final ResourceKey<GooTypeDefinition> GLOW = bundled("glow");
     public static final ResourceKey<GooTypeDefinition> HEX = bundled("hex");
+    public static final ResourceKey<GooTypeDefinition> KINETIC = bundled("kinetic");
     public static final ResourceKey<GooTypeDefinition> LEAF = bundled("leaf");
     public static final ResourceKey<GooTypeDefinition> METAL = bundled("metal");
     public static final ResourceKey<GooTypeDefinition> NETHER = bundled("nether");
@@ -77,7 +78,7 @@ public final class GooTypes {
      * Every type the mod ships as JSON, in constant order.
      */
     public static final List<ResourceKey<GooTypeDefinition>> BUNDLED = List.of(
-            AEON, BLAZE, CRYSTAL, ENDER, FROST, GLOW, HEX, LEAF,
+            AEON, BLAZE, CRYSTAL, ENDER, FROST, GLOW, HEX, KINETIC, LEAF,
             METAL, NETHER, OPULENT, PULSE, ROCK, SHROOM, TYPHOON, UNSTABLE, VITAL);
 
     /**

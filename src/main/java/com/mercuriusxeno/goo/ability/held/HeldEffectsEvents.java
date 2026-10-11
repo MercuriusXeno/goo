@@ -306,5 +306,9 @@ public final class HeldEffectsEvents {
             // lifetap-trades-regen-for-leech: the leech ends with its held effect
             player.setData(GooAttachments.LIFETAP, Lifetap.NONE);
         }
+        if (lays.contains(LaidState.TELEKINESIS)) {
+            // telekinesis-enacts-at-extended-reach: the reach returns to its own with the held effect
+            Telekinesis.clear(player);
+        }
     }
 }
