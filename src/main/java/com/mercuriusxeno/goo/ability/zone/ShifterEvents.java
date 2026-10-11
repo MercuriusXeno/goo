@@ -26,16 +26,16 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * Runs the teleportitis a player holds: each hit they would take is
+ * Runs the shifter a player holds: each hit they would take is
  * cancelled and blinks them the distance along their look through the blink
  * resolver, an afterimage left where they stood and where they land; a fall
  * out of the world returns them to the last solid ground they stood on; only
  * /kill passes. While it stands the player remembers that ground and wears
- * the teleportitis shimmer.
- * Decision teleportitis-blinks-along-the-cursor-on-hit.
+ * the shifter shimmer.
+ * Decision shifter-blinks-along-the-cursor-on-hit.
  */
 @EventBusSubscriber(modid = Goo.MODID)
-public final class TeleportitisEvents {
+public final class ShifterEvents {
 
     /** Ticks between one shimmer refresh and the next. */
     static final int SHIMMER_REFRESH_TICKS = 20;
@@ -44,11 +44,11 @@ public final class TeleportitisEvents {
     /** Ticks each blink's afterimage grows and fades over, the blink's own. */
     static final int AFTERIMAGE_LIFE_TICKS = 12;
 
-    private TeleportitisEvents() {
+    private ShifterEvents() {
     }
 
     /**
-     * Remembers the solid ground a player holding teleportitis stands on,
+     * Remembers the solid ground a player holding shifter stands on,
      * and keeps their shimmer on.
      *
      * @param event the player tick event
@@ -56,26 +56,26 @@ public final class TeleportitisEvents {
     @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Post event) {
         if (event.getEntity() instanceof ServerPlayer player && player.level() instanceof ServerLevel level) {
-            Teleportitis held = standing(player);
+            Shifter held = standing(player);
             if (held != null) {
                 rememberGround(level, player, held);
                 if (level.getGameTime() % SHIMMER_REFRESH_TICKS == 0) {
                     EntityVisuals.sendToWatchers(player,
-                            new AilmentPayload(player.getId(), AilmentKind.TELEPORTITIS, SHIMMER_TICKS));
+                            new AilmentPayload(player.getId(), AilmentKind.SHIFTER, SHIMMER_TICKS));
                 }
             }
         }
     }
 
     /**
-     * Cancels a hit on a player holding teleportitis and moves them instead.
+     * Cancels a hit on a player holding shifter and moves them instead.
      *
      * @param event the incoming damage event
      */
     @SubscribeEvent
     public static void onIncomingDamage(LivingIncomingDamageEvent event) {
         if (event.getEntity() instanceof ServerPlayer player && player.level() instanceof ServerLevel level) {
-            Teleportitis held = standing(player);
+            Shifter held = standing(player);
             if (held != null && escapes(event.getSource(), held)) {
                 event.setCanceled(true);
                 escapeTo(player, held, event.getSource()).ifPresent(feet -> blinkTo(level, player, feet));
@@ -84,15 +84,15 @@ public final class TeleportitisEvents {
     }
 
     /**
-     * Whether teleportitis turns a hit aside: every hit but /kill, and a fall
+     * Whether shifter turns a hit aside: every hit but /kill, and a fall
      * out of the world only once the player has stood on solid ground to
      * return to.
      *
      * @param source the hit's source
-     * @param held   the player's teleportitis
+     * @param held   the player's shifter
      * @return true for a hit the player escapes
      */
-    static boolean escapes(DamageSource source, Teleportitis held) {
+    static boolean escapes(DamageSource source, Shifter held) {
         return !source.is(DamageTypes.GENERIC_KILL)
                 && (!source.is(DamageTypes.FELL_OUT_OF_WORLD) || held.safeGround().isPresent());
     }
@@ -102,11 +102,11 @@ public final class TeleportitisEvents {
      * the world, the blink along their look from any other hit.
      *
      * @param player the player
-     * @param held   their teleportitis
+     * @param held   their shifter
      * @param source the hit's source
      * @return where their feet land, empty where the blink finds nowhere they fit
      */
-    private static Optional<Vec3> escapeTo(ServerPlayer player, Teleportitis held, DamageSource source) {
+    private static Optional<Vec3> escapeTo(ServerPlayer player, Shifter held, DamageSource source) {
         return source.is(DamageTypes.FELL_OUT_OF_WORLD) ? held.safeGround()
                 : TeleportStep.landingAlongLook(player, player.position(), player.getLookAngle(), held.distance(),
                         Optional.empty()).map(BlinkLanding::feet);
@@ -138,26 +138,26 @@ public final class TeleportitisEvents {
      *
      * @param level  the player's level
      * @param player the player
-     * @param held   their teleportitis
+     * @param held   their shifter
      */
-    private static void rememberGround(ServerLevel level, ServerPlayer player, Teleportitis held) {
+    private static void rememberGround(ServerLevel level, ServerPlayer player, Shifter held) {
         BlockPos under = BlockPos.containing(player.position()).below();
         boolean solid = level.getBlockState(under).isFaceSturdy(level, under, Direction.UP)
                 && level.noCollision(player, player.getBoundingBox());
         if (solid && !held.safeGround().map(player.position()::equals).orElse(false)) {
-            player.setData(GooAttachments.TELEPORTITIS, held.standingOn(player.position()));
+            player.setData(GooAttachments.SHIFTER, held.standingOn(player.position()));
         }
     }
 
     /**
-     * The teleportitis a player holds now.
+     * The shifter a player holds now.
      *
      * @param player the player
-     * @return their teleportitis, or null where none stands
+     * @return their shifter, or null where none stands
      */
-    public static @Nullable Teleportitis standing(ServerPlayer player) {
-        Teleportitis held = player.hasData(GooAttachments.TELEPORTITIS)
-                ? player.getData(GooAttachments.TELEPORTITIS) : null;
+    public static @Nullable Shifter standing(ServerPlayer player) {
+        Shifter held = player.hasData(GooAttachments.SHIFTER)
+                ? player.getData(GooAttachments.SHIFTER) : null;
         return held != null && held.standsAt(player.level().getGameTime()) ? held : null;
     }
 }

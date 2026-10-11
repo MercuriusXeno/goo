@@ -9,7 +9,7 @@ import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
-import com.mercuriusxeno.goo.ability.zone.Teleportitis;
+import com.mercuriusxeno.goo.ability.zone.Shifter;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooMobEffects;
@@ -259,7 +259,7 @@ public final class HeldEffectsEvents {
 
     /**
      * Clears the states an ended effect laid on the player's senses and
-     * draws: its sight, its teleportitis and its lifetap.
+     * draws: its sight, its shifter and its lifetap.
      *
      * @param player the player
      * @param lays   the states the ended effect laid
@@ -273,15 +273,15 @@ public final class HeldEffectsEvents {
     }
 
     /**
-     * Clears the player state an ability's own step laid: teleportitis, Lux, a lifetap.
+     * Clears the player state an ability's own step laid: shifter, Lux, a lifetap.
      *
      * @param player the player
      * @param lays   the state the effect laid
      */
     private static void clearAbilityState(ServerPlayer player, Set<LaidState> lays) {
-        if (lays.contains(LaidState.TELEPORTITIS)) {
-            // teleportitis-blinks-along-the-cursor-on-hit: the teleportitis ends with its held effect
-            player.setData(GooAttachments.TELEPORTITIS, Teleportitis.NONE);
+        if (lays.contains(LaidState.SHIFTER)) {
+            // shifter-blinks-along-the-cursor-on-hit: the shifter ends with its held effect
+            player.setData(GooAttachments.SHIFTER, Shifter.NONE);
         }
         if (lays.contains(LaidState.LUX)) {
             // lux-night-vision-without-particles: Lux and the night vision it kept up end with its held effect

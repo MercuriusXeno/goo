@@ -16,17 +16,17 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Teleportitis turns aside every hit but /kill, and a fall out of the world
+ * Shifter turns aside every hit but /kill, and a fall out of the world
  * only once there is ground to return to
- * (decision teleportitis-blinks-along-the-cursor-on-hit).
+ * (decision shifter-blinks-along-the-cursor-on-hit).
  */
-class TeleportitisTest {
+class ShifterTest {
 
     private static final long NOW = 1000L;
     private static final int HOUR = 72000;
     private static final Vec3 FLOOR = new Vec3(0.5, 64, 0.5);
-    private static final Teleportitis GROUNDED = new Teleportitis(8f, NOW + HOUR, Optional.of(FLOOR));
-    private static final Teleportitis UNGROUNDED = new Teleportitis(8f, NOW + HOUR, Optional.empty());
+    private static final Shifter GROUNDED = new Shifter(8f, NOW + HOUR, Optional.of(FLOOR));
+    private static final Shifter UNGROUNDED = new Shifter(8f, NOW + HOUR, Optional.empty());
 
     private static DamageSource hitOf(ResourceKey<DamageType> type) {
         DamageSource source = mock(DamageSource.class);
@@ -39,22 +39,22 @@ class TeleportitisTest {
 
         @Test
         void aGenericHit() {
-            assertTrue(TeleportitisEvents.escapes(hitOf(DamageTypes.GENERIC), UNGROUNDED));
+            assertTrue(ShifterEvents.escapes(hitOf(DamageTypes.GENERIC), UNGROUNDED));
         }
 
         @Test
         void aFallWithGroundToReturnTo() {
-            assertTrue(TeleportitisEvents.escapes(hitOf(DamageTypes.FELL_OUT_OF_WORLD), GROUNDED));
+            assertTrue(ShifterEvents.escapes(hitOf(DamageTypes.FELL_OUT_OF_WORLD), GROUNDED));
         }
 
         @Test
         void notAFallWithNoGroundToReturnTo() {
-            assertFalse(TeleportitisEvents.escapes(hitOf(DamageTypes.FELL_OUT_OF_WORLD), UNGROUNDED));
+            assertFalse(ShifterEvents.escapes(hitOf(DamageTypes.FELL_OUT_OF_WORLD), UNGROUNDED));
         }
 
         @Test
         void notAKill() {
-            assertFalse(TeleportitisEvents.escapes(hitOf(DamageTypes.GENERIC_KILL), GROUNDED));
+            assertFalse(ShifterEvents.escapes(hitOf(DamageTypes.GENERIC_KILL), GROUNDED));
         }
     }
 
@@ -63,19 +63,19 @@ class TeleportitisTest {
 
         @Test
         void aBrewStandsForItsHour() {
-            Teleportitis brewed = Teleportitis.NONE.brew(8f, HOUR, NOW);
+            Shifter brewed = Shifter.NONE.brew(8f, HOUR, NOW);
             assertTrue(brewed.standsAt(NOW + HOUR - 1));
             assertFalse(brewed.standsAt(NOW + HOUR));
         }
 
         @Test
         void aHeldCastNeverFades() {
-            assertEquals(Teleportitis.NEVER_EXPIRES, Teleportitis.NONE.hold(8f).expiresAt());
+            assertEquals(Shifter.NEVER_EXPIRES, Shifter.NONE.hold(8f).expiresAt());
         }
 
         @Test
         void standingKeepsTheGround() {
-            assertEquals(Optional.of(FLOOR), Teleportitis.NONE.standingOn(FLOOR).hold(8f).safeGround());
+            assertEquals(Optional.of(FLOOR), Shifter.NONE.standingOn(FLOOR).hold(8f).safeGround());
         }
     }
 }

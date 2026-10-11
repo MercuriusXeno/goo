@@ -7,7 +7,7 @@ import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.ability.hex.Lifetap;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.program.Sight;
-import com.mercuriusxeno.goo.ability.zone.Teleportitis;
+import com.mercuriusxeno.goo.ability.zone.Shifter;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -65,14 +65,14 @@ public final class BrewEffectTests {
     private static final Identifier LEAF_BARKSKIN = Identifier.parse("goo:leaf_barkskin");
     private static final Identifier NETHER_UNDEAD = Identifier.parse("goo:nether_undead");
     private static final String SHOULD_BE_UNDEAD_PREPAID = "The nether brew should make the player undead, held prepaid";
-    /** ender_teleportitis.json's blink distance. */
-    private static final float TELEPORTITIS_DISTANCE = 8f;
+    /** ender_shifter.json's blink distance. */
+    private static final float SHIFTER_DISTANCE = 8f;
     /** A hit of two hearts. */
     private static final float HIT = 4f;
     /** Where the void test lifts the player before the fall, well off the floor it stood on. */
     private static final double FALLING_ABOVE = 30.0;
-    private static final String SHOULD_TELEPORTITIS = "The ender brew should grant teleportitis at %.1f until %d, granted %s";
-    private static final String SHOULD_TAKE_NO_DAMAGE = "A player under teleportitis should keep %.1f health, has %.1f";
+    private static final String SHOULD_SHIFTER = "The ender brew should grant shifter at %.1f until %d, granted %s";
+    private static final String SHOULD_TAKE_NO_DAMAGE = "A player under shifter should keep %.1f health, has %.1f";
     private static final String SHOULD_BLINK = "A hit should blink the player along their look from %s, stands at %s";
     private static final String SHOULD_RETURN_TO_GROUND = "A fall out of the world should return the player to %s, stands at %s";
     /** The ticks a prepaid brew is watched paying nothing. */
@@ -267,25 +267,25 @@ public final class BrewEffectTests {
     }
 
     /**
-     * Drinking the ender brew grants teleportitis at ender_teleportitis.json's
+     * Drinking the ender brew grants shifter at ender_shifter.json's
      * distance for an hour, draining no goo
-     * (decision teleportitis-blinks-along-the-cursor-on-hit).
+     * (decision shifter-blinks-along-the-cursor-on-hit).
      *
      * @param helper the gametest helper
      */
-    public static void enderBrewTeleportitisForAnHour(GameTestHelper helper) {
+    public static void enderBrewShifterForAnHour(GameTestHelper helper) {
         ServerPlayer player = drinker(helper, GooTypes.ENDER);
         int heldBefore = held(player, GooTypes.ENDER);
         long now = player.level().getGameTime();
 
         drink(player, GooTypes.ENDER);
 
-        Teleportitis teleportitis = player.getData(GooAttachments.TELEPORTITIS);
+        Shifter shifter = player.getData(GooAttachments.SHIFTER);
         int drained = heldBefore - held(player, GooTypes.ENDER);
         helper.getLevel().getServer().getPlayerList().remove(player);
         long expected = now + GooPotions.BREW_DURATION;
-        helper.assertTrue(teleportitis.distance() == TELEPORTITIS_DISTANCE && teleportitis.expiresAt() == expected,
-                String.format(SHOULD_TELEPORTITIS, TELEPORTITIS_DISTANCE, expected, teleportitis));
+        helper.assertTrue(shifter.distance() == SHIFTER_DISTANCE && shifter.expiresAt() == expected,
+                String.format(SHOULD_SHIFTER, SHIFTER_DISTANCE, expected, shifter));
         helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
         helper.succeed();
     }
@@ -319,7 +319,7 @@ public final class BrewEffectTests {
      *
      * @param helper the gametest helper
      */
-    public static void teleportitisBlinksInsteadOfDamage(GameTestHelper helper) {
+    public static void shifterBlinksInsteadOfDamage(GameTestHelper helper) {
         ServerPlayer player = hittableDrinker(helper);
         Vec3 stood = player.position();
         float health = player.getHealth();
@@ -341,7 +341,7 @@ public final class BrewEffectTests {
      *
      * @param helper the gametest helper
      */
-    public static void teleportitisVoidReturnsToSafeGround(GameTestHelper helper) {
+    public static void shifterVoidReturnsToSafeGround(GameTestHelper helper) {
         ServerPlayer player = hittableDrinker(helper);
         Vec3 ground = player.position();
         helper.getLevel().setBlockAndUpdate(BlockPos.containing(ground).below(), Blocks.STONE.defaultBlockState());

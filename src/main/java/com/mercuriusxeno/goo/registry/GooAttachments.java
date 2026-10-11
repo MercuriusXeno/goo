@@ -17,7 +17,7 @@ import com.mercuriusxeno.goo.ability.rewind.Rewinding;
 import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.spray.Spored;
 import com.mercuriusxeno.goo.ability.world.TimeVeiled;
-import com.mercuriusxeno.goo.ability.zone.Teleportitis;
+import com.mercuriusxeno.goo.ability.zone.Shifter;
 import com.mercuriusxeno.goo.ability.zone.ZoneCurse;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
@@ -205,7 +205,7 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> TimeVeiled.NONE).serialize(TimeVeiled.CODEC).build());
 
     /**
-     * The teleportitis curse Zone leaves on a mob, saved with the mob while
+     * The warp curse Zone leaves on a mob, saved with the mob while
      * it stands.
      * zone-curses-with-ender-shimmer
      */
@@ -216,13 +216,13 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The teleportitis a player holds, saved with the player.
-     * teleportitis-blinks-along-the-cursor-on-hit
+     * The shifter a player holds, saved with the player.
+     * shifter-blinks-along-the-cursor-on-hit
      */
-    public static final Supplier<AttachmentType<Teleportitis>> TELEPORTITIS =
-            ATTACHMENT_TYPES.register("teleportitis",
-                    () -> AttachmentType.builder(() -> Teleportitis.NONE)
-                            .serialize(Teleportitis.CODEC)
+    public static final Supplier<AttachmentType<Shifter>> SHIFTER =
+            ATTACHMENT_TYPES.register("shifter",
+                    () -> AttachmentType.builder(() -> Shifter.NONE)
+                            .serialize(Shifter.CODEC)
                             .build());
 
     /**

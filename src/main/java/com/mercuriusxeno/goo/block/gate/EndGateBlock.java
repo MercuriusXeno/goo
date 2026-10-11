@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.block.gate;
 
-import com.mercuriusxeno.goo.ability.gate.DragonGates;
+import com.mercuriusxeno.goo.ability.gate.EndGates;
 import com.mercuriusxeno.goo.ability.gate.GateSquare;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
@@ -31,7 +31,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
 /**
- * One cell of a Dragon Gate: a thin layer in the open cell in front of a
+ * One cell of an End gate: a thin layer in the open cell in front of a
  * struck face, holding its share of the gate's two by two starfield square,
  * which is centred on the struck block and overlaps each of its eight
  * neighbours by half a block. The face it lies against never changes.
@@ -41,9 +41,9 @@ import org.jspecify.annotations.Nullable;
  * its gate closes on the gate's clock.
  * Decision end-clears-blocks-and-opens-a-portal.
  */
-public class DragonGateBlock extends BaseEntityBlock implements Portal {
+public class EndGateBlock extends BaseEntityBlock implements Portal {
 
-    public static final MapCodec<DragonGateBlock> CODEC = simpleCodec(DragonGateBlock::new);
+    public static final MapCodec<EndGateBlock> CODEC = simpleCodec(EndGateBlock::new);
 
     /** The face the gate looks out of; the cell lies against the struck face behind it. */
     public static final EnumProperty<Direction> FACING = EnumProperty.create("facing", Direction.class);
@@ -57,7 +57,7 @@ public class DragonGateBlock extends BaseEntityBlock implements Portal {
      *
      * @param properties the block's properties
      */
-    public DragonGateBlock(Properties properties) {
+    public EndGateBlock(Properties properties) {
         super(properties);
         registerDefaultState(stateDefinition.any().setValue(FACING, Direction.UP).setValue(ACROSS, 1)
                 .setValue(ALONG, 1));
@@ -75,7 +75,7 @@ public class DragonGateBlock extends BaseEntityBlock implements Portal {
 
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return new DragonGateBlockEntity(pos, state);
+        return new EndGateBlockEntity(pos, state);
     }
 
     @Override
@@ -111,7 +111,7 @@ public class DragonGateBlock extends BaseEntityBlock implements Portal {
     @Override
     public @Nullable TeleportTransition getPortalDestination(ServerLevel currentLevel, Entity entity,
                                                              BlockPos portalEntryPos) {
-        return DragonGates.get(currentLevel).partnerOf(currentLevel.dimension(), portalEntryPos)
+        return EndGates.get(currentLevel).partnerOf(currentLevel.dimension(), portalEntryPos)
                 .map(partner -> {
                     ServerLevel target = currentLevel.getServer().getLevel(partner.dimension());
                     return target == null ? null : new TeleportTransition(target, partner.arrival(),

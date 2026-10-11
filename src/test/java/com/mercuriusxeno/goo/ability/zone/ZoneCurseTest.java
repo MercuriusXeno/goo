@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The teleportitis curse Zone leaves (decision zone-curses-with-ender-shimmer):
+ * The warp curse Zone leaves (decision zone-curses-with-ender-shimmer):
  * which mobs resist it, and whether it stands.
  */
 class ZoneCurseTest {

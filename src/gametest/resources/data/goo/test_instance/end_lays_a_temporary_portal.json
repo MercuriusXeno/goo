@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:teleportitis_void_returns_to_safe_ground",
+  "function": "goo:end_lays_a_temporary_portal",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 40,
+  "max_ticks": 20,
   "setup_ticks": 0,
   "required": true
 }

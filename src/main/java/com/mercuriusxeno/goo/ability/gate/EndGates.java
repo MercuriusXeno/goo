@@ -14,26 +14,26 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * The Dragon Gate pairs open on a server, saved in the overworld's data so a
+ * The End gate pairs open on a server, saved in the overworld's data so a
  * pair closes on its clock however long its chunks stood unloaded or the
  * server stood stopped.
  * Decision end-clears-blocks-and-opens-a-portal.
  */
-public class DragonGates extends SavedData {
+public class EndGates extends SavedData {
 
     /** Saves the open pairs. */
-    public static final Codec<DragonGates> CODEC = RecordCodecBuilder.create(inst -> inst.group(
+    public static final Codec<EndGates> CODEC = RecordCodecBuilder.create(inst -> inst.group(
             Pair.CODEC.listOf().fieldOf("pairs").forGetter(gates -> gates.pairs)
-    ).apply(inst, DragonGates::new));
+    ).apply(inst, EndGates::new));
 
-    /** Stored as goo/dragon_gates.dat in the overworld's data. */
-    public static final SavedDataType<DragonGates> TYPE = new SavedDataType<>(
-            Identifier.fromNamespaceAndPath("goo", "dragon_gates"), DragonGates::new, CODEC);
+    /** Stored as goo/end_gates.dat in the overworld's data. */
+    public static final SavedDataType<EndGates> TYPE = new SavedDataType<>(
+            Identifier.fromNamespaceAndPath("goo", "end_gates"), EndGates::new, CODEC);
 
     private final List<Pair> pairs;
 
     /** Creates a server's gates with none open. */
-    public DragonGates() {
+    public EndGates() {
         this(List.of());
     }
 
@@ -42,7 +42,7 @@ public class DragonGates extends SavedData {
      *
      * @param pairs the open pairs
      */
-    public DragonGates(List<Pair> pairs) {
+    public EndGates(List<Pair> pairs) {
         this.pairs = new ArrayList<>(pairs);
     }
 
@@ -69,7 +69,7 @@ public class DragonGates extends SavedData {
      * @param level any level of the server
      * @return the gates
      */
-    public static DragonGates get(ServerLevel level) {
+    public static EndGates get(ServerLevel level) {
         return level.getServer().overworld().getDataStorage().computeIfAbsent(TYPE);
     }
 

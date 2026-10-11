@@ -44,8 +44,8 @@ class AilmentKindTest {
     @Test
     void eachRemainingAilmentWearsItsOwnLook() {
         assertEquals(AilmentPattern.SHIMMER, AilmentKind.ZONE.pattern());
-        assertEquals(AilmentKind.ZONE.rgb(), AilmentKind.TELEPORTITIS.rgb());
-        assertEquals(AilmentPattern.SHIMMER, AilmentKind.TELEPORTITIS.pattern());
+        assertEquals(AilmentKind.ZONE.rgb(), AilmentKind.SHIFTER.rgb());
+        assertEquals(AilmentPattern.SHIMMER, AilmentKind.SHIFTER.pattern());
         assertEquals(AilmentPattern.GLINT, AilmentKind.HEX.pattern());
         assertNotEquals(AilmentKind.STASIS.rgb(), AilmentKind.HEX.rgb());
         assertEquals(AilmentPattern.STONE, AilmentKind.PETRIFY.pattern());
