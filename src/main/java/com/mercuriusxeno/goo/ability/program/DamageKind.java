@@ -24,7 +24,7 @@ public enum DamageKind {
      */
     CACTUS,
     /**
-     * Blunt force, rock crush's source (decision crush-blob-breaks-along-its-strike).
+     * Blunt force, a rock strike's source (decision crush-blob-breaks-along-its-strike).
      */
     FORCE,
     /**

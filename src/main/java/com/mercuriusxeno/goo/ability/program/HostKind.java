@@ -57,7 +57,13 @@ public enum HostKind {
      * acted on each tick of the flight, with no target and no driver of its
      * own (decision orb-carries-a-swirling-nova).
      */
-    FLIGHT("blob in flight", FlightHost.class, Set.of());
+    FLIGHT("blob in flight", FlightHost.class, Set.of()),
+    /**
+     * A Spire's submitted footprint: the ground it lifts and the world around
+     * it, acted on in the tick the submit lands, with no driver for later
+     * ticks (decision spire-rips-walls-and-platforms).
+     */
+    FOOTPRINT("raised footprint", FootprintHost.class, Set.of());
 
     private final String label;
     private final Set<HostCapability> capabilities;

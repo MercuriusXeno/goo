@@ -174,7 +174,7 @@ class RadialWheelRendererTest {
                 Map.entry("pulse_pulser", "Pulser"), Map.entry("pulse_thumper", "Thumper"),
                 Map.entry("pulse_metronome", "Metronome"), Map.entry("pulse_relay", "Relay"),
                 Map.entry("pulse_extender", "Extender"),
-                Map.entry("rock_bore", "Bore"), Map.entry("rock_crush", "Crush"), Map.entry("rock_flatten", "Flatten"),
+                Map.entry("rock_bore", "Bore"), Map.entry("rock_spire", "Spire"), Map.entry("rock_flatten", "Flatten"),
                 Map.entry("glow_scry", "Scry"), Map.entry("glow_lux", "Lux"), Map.entry("glow_radiant", "Radiant"), Map.entry("glow_reflector", "Reflector"),
                 Map.entry("rock_petrify", "Petrify"),
                 Map.entry("rock_stoneskin", "Stoneskin"),

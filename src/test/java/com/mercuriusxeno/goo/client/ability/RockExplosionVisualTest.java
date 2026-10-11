@@ -49,7 +49,7 @@ class RockExplosionVisualTest {
                 RockExplosionVisual.cursorProgress(RockExplosionVisual.DURATION_TICKS + half), TOLERANCE);
     }
 
-    /** Crush's held dust never jumps: a frame's step moves each dome vertex's dust coordinate by a hair (decision held-visual-ghosts-the-landing-in-two-passes). */
+    /** Rock's held dust never jumps: a frame's step moves each dome vertex's dust coordinate by a hair (decision held-visual-ghosts-the-landing-in-two-passes). */
     @Test
     void heldDustTurnsWithNoCut() {
         Vector3f side = new Vector3f(1f, 0f, 0f);

@@ -28,7 +28,7 @@ import java.util.List;
  * early drift so it never thins out
  * (decision flatten-disc-cursor-breaks-above-the-plane).
  *
- * The same dust is Crush's held ghost, drawn on a dome at Crush's radius,
+ * The same dust is rock's held ghost, drawn on a dome at the ghost's radius,
  * resting past the sonic ring and turning steadily, so it never loops back
  * (decision held-visual-ghosts-the-landing-in-two-passes).
  */
@@ -108,7 +108,7 @@ public final class RockExplosionVisual implements BurnoutVisual, HeldGhostVisual
     }
 
     /**
-     * Crush's ghost: the dust on a dome at the ghost's radius about the cell
+     * Rock's held ghost: the dust on a dome at the ghost's radius about the cell
      * the throw lands in, resting at one progress and turning steadily about
      * the face axis on the real-time clock, so it never jumps back.
      * held-visual-ghosts-the-landing-in-two-passes

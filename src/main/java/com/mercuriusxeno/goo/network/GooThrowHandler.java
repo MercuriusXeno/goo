@@ -143,7 +143,8 @@ public final class GooThrowHandler {
 
     /**
      * Whether an ability may be thrown: never one sized at will, which opens
-     * by its drag (decision black-hole-leaves-a-compression-sphere), and only
+     * by its drag (decision black-hole-leaves-a-compression-sphere), nor one
+     * cast by its footprint (decision spire-rips-walls-and-platforms), and only
      * with every reagent it consumes held.
      *
      * @param player  the throwing player
@@ -151,7 +152,8 @@ public final class GooThrowHandler {
      * @return true when the throw goes ahead
      */
     private static boolean throwable(ServerPlayer player, AbilityDefinition ability) {
-        return !ability.hasTag(AbilityTags.DRAG_SIZED) && holdsReagents(player, ability);
+        return !ability.hasTag(AbilityTags.DRAG_SIZED) && !ability.hasTag(AbilityTags.FOOTPRINT)
+                && holdsReagents(player, ability);
     }
 
     /**

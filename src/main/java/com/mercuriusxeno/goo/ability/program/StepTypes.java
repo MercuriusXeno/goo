@@ -95,7 +95,7 @@ public final class StepTypes {
         register(UndeadStep.TYPE);
         register(FlattenStep.TYPE);
         register(BoreStep.TYPE);
-        register(CrushStep.TYPE);
+        register(SpireStep.TYPE);
         register(PetrifyStep.TYPE);
         register(CalcifyStep.TYPE);
         register(DegradeStep.TYPE);
