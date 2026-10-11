@@ -77,7 +77,7 @@ class AbilitySyncPayloadTest {
      */
     @ParameterizedTest
     @CsvSource({"unstable_explode, NONE, 0.0, 0.0", "unstable_lurker, SPHERE, 3.3333333333333335, 0.0",
-            "glow_laser, LINE, 0.0, 0.0", "blaze_spitfire, CONE, 6.0, 20.0", "ender_blink, NONE, 0.0, 0.0",
+            "blaze_spitfire, CONE, 6.0, 20.0", "ender_blink, NONE, 0.0, 0.0",
             "crystal_cloud, SPHERE, 4.5, 0.0"})
     void eachShippedAreaRoundTripsThroughTheSyncCodec(String name, AbilityArea.Shape shape, double size,
                                                        double angle) {

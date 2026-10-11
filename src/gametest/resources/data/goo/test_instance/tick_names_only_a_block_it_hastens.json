@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:tick_names_only_a_block_it_hastens",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

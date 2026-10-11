@@ -35,8 +35,8 @@ class MobProgramTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"metal_javelin", "crystal_flechettes", "leaf_vines", "vital_clone",
-        "blaze_ignite", "frost_snap", "typhoon_levitate", "glow_laser", "hex_charm",
-        "ender_banish", "aeon_time_stop"})
+        "blaze_ignite", "frost_snap", "typhoon_float", "hex_charm",
+        "ender_zone", "aeon_stasis"})
     void everyMobAbilityIsAProgramThatLoadsForTheStruckEntityHost(String name) {
         assertDoesNotThrow(() -> ProgramBehavior.forHost(ability(name).behaviors(), HostKind.ENTITY), name);
     }

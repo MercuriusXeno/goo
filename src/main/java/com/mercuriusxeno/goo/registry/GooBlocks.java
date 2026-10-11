@@ -4,14 +4,16 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.FungalBudBlock;
 import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
+import com.mercuriusxeno.goo.block.ability.LightRailBlock;
 import com.mercuriusxeno.goo.block.ability.MagickedIceBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
+import com.mercuriusxeno.goo.block.ability.WispBlock;
 import com.mercuriusxeno.goo.block.ability.ZapPulseBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlock;
 import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlock;
-import com.mercuriusxeno.goo.block.gate.DragonGateBlock;
+import com.mercuriusxeno.goo.block.gate.EndGateBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
@@ -72,6 +74,36 @@ public class GooBlocks {
     /**
      * Glow crystal: permanent light source a glow ability block places.
      */
+    /**
+     * A wisp of light Radiant leaves in dark air: lit, replaceable, without
+     * shape or collision, fading on its own (decision radiant-wisps-where-light-is-low).
+     */
+    public static final DeferredBlock<WispBlock> WISP = BLOCKS.registerBlock(
+            "wisp", WispBlock::new,
+            () -> BlockBehaviour.Properties.of()
+                    .noCollision()
+                    .noOcclusion()
+                    .noLootTable()
+                    .replaceable()
+                    .instabreak()
+                    .sound(SoundType.AMETHYST_CLUSTER)
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)
+                    .lightLevel(WispBlock::lightLevel));
+    /**
+     * One cell of the light rail between linked reflector prisms: lit,
+     * replaceable, shapeless and without collision, burning the undead that
+     * cross it (decision reflector-rails-carry-the-brightest-light).
+     */
+    public static final DeferredBlock<LightRailBlock> LIGHT_RAIL = BLOCKS.registerBlock(
+            "light_rail", LightRailBlock::new,
+            () -> BlockBehaviour.Properties.of()
+                    .noCollision()
+                    .noOcclusion()
+                    .noLootTable()
+                    .replaceable()
+                    .instabreak()
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)
+                    .lightLevel(LightRailBlock::lightLevel));
     public static final DeferredBlock<GlowCrystalBlock> GLOW_CRYSTAL = BLOCKS.registerBlock(
             "glow_crystal", GlowCrystalBlock::new,
             () -> BlockBehaviour.Properties.of()
@@ -82,7 +114,7 @@ public class GooBlocks {
                     .noOcclusion()
                     .sound(SoundType.GLASS)
                     .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)
-                    .lightLevel(GlowCrystalBlock::lightLevel));
+                    .lightLevel(state -> GlowCrystalBlock.LIGHT_LEVEL));
     /**
      * Fungal bud: the colony bud Mycosis leaves on a sprayed floor, ripening
      * on random ticks into a mushroom (decision mycosis-spore-stream-buds-and-poisons).
@@ -147,14 +179,15 @@ public class GooBlocks {
                     .noLootTable()
                     .noOcclusion()
                     .sound(SoundType.AMETHYST_CLUSTER)
-                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY));
+                    .pushReaction(net.minecraft.world.level.material.PushReaction.DESTROY)
+                    .lightLevel(PrismBlock::lightLevel));
     /**
-     * Dragon Gate: an end portal laid over a block for a while, carrying what
+     * End gate: an end portal laid over a block for a while, carrying what
      * steps in to its partner gate; unbreakable, uncollidable and dropping
-     * nothing (decision dragon-gate-banishes-blocks-and-opens-a-portal).
+     * nothing (decision end-clears-blocks-and-opens-a-portal).
      */
-    public static final DeferredBlock<DragonGateBlock> DRAGON_GATE = BLOCKS.registerBlock(
-            "dragon_gate", DragonGateBlock::new,
+    public static final DeferredBlock<EndGateBlock> END_GATE = BLOCKS.registerBlock(
+            "end_gate", EndGateBlock::new,
             () -> BlockBehaviour.Properties.ofFullCopy(Blocks.END_PORTAL).noLootTable());
     /**
      * Magicked ice: a non-melting mod variant of vanilla ice, placed

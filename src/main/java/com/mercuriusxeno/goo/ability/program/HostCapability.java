@@ -100,15 +100,25 @@ public enum HostCapability {
      */
     DRIP(DripHost.class),
     /**
+     * The host's own block, whose properties can change in place (decision
+     * bulb-one-model-max-light-beacon-combo).
+     */
+    STATE_WRITE(StateWriteHost.class),
+    /**
+     * The server level the host stands in, read and written around its
+     * position (decision reflector-rails-carry-the-brightest-light).
+     */
+    LEVEL(LevelHost.class),
+    /**
      * A spot a mob from the host's chunk can be pulled to (decision
      * convoke-blob-throbs-until-a-mob-arrives).
      */
     CONVOKE(ConvokeHost.class),
     /**
-     * A struck surface a Dragon Gate can open over (decision
-     * dragon-gate-banishes-blocks-and-opens-a-portal).
+     * A struck surface an End gate can open over (decision
+     * end-clears-blocks-and-opens-a-portal).
      */
-    DRAGON_GATE(GateHost.class),
+    END_GATE(GateHost.class),
     /**
      * The world around a lasting host to green tick after tick (decision
      * verdant-prism-greens-blocks-slowly).
@@ -150,15 +160,25 @@ public enum HostCapability {
      */
     SPAWN_MOB(MobSpawnHost.class),
     /**
-     * An agitator's countdown kept across ticks (decision
-     * agitator-prism-quickens-until-a-spawn).
-     */
-    AGITATE(AgitateHost.class),
-    /**
      * The level and the point frost spreads out of (decisions
      * nova-ring-grows-with-the-hold, nova-drip-pulses-a-short-lasting-freeze).
      */
-    FROST(FrostHost.class);
+    FROST(FrostHost.class),
+    /**
+     * A block to tick faster, the aimed machine a held stream ends on
+     * (decision tick-channel-marches-squares-on-the-face).
+     */
+    TICK_BLOCK(TickBlockHost.class),
+    /**
+     * An anchor that banks ticks, the timekeeper prism
+     * (decision timekeeper-prism-banks-ticks-forward-only).
+     */
+    TICK_BANK(TickBankHost.class),
+    /**
+     * A sphere around the anchor to slow time in, the chronosphere's marker
+     * (decision chronosphere-hastes-players-slows-mobs).
+     */
+    TIME_VEIL(TimeVeilHost.class);
 
     private final Class<? extends StepHost> hostType;
 

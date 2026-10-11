@@ -53,6 +53,15 @@ public final class StepTypes {
         register(GlacialStep.TYPE);
         register(LeafSteps.SET_AI.type());
         register(LeafSteps.SET_INVULNERABLE.type());
+        register(LeafSteps.STASIS.type());
+        register(LeafSteps.REWIND_HOLD.type());
+        register(RegressStep.TYPE);
+        register(TickBlockStep.TYPE);
+        register(DripsStep.TYPE);
+        register(BankTicksStep.TYPE);
+        register(WithdrawBankStep.TYPE);
+        register(SlowTimeStep.TYPE);
+        register(HasteStep.TYPE);
         register(CloneEntityStep.TYPE);
         register(DropItemStep.TYPE);
         register(LeafSteps.IGNITE.type());
@@ -62,6 +71,7 @@ public final class StepTypes {
         register(TeleportStep.TYPE);
         register(PushStep.TYPE);
         register(PlaceBlockStep.TYPE);
+        register(SetStateStep.TYPE);
         register(FieldEffectStep.TYPE);
         register(LingerStep.TYPE);
         register(PhasedStep.TYPE);
@@ -81,6 +91,11 @@ public final class StepTypes {
         register(FloorsStep.TYPE);
         register(ShiftStep.TYPE);
         register(SightStep.TYPE);
+        register(LuxStep.TYPE);
+        register(WispsStep.TYPE);
+        register(ReflectorStep.TYPE);
+        register(ScryStep.TYPE);
+        register(RayStep.TYPE);
         register(UndeadStep.TYPE);
         register(FlattenStep.TYPE);
         register(BoreStep.TYPE);
@@ -103,10 +118,10 @@ public final class StepTypes {
         register(PulserToggleStep.TYPE);
         register(NourishStep.TYPE);
         register(ReserveDrainStep.TYPE);
-        register(BanishStep.TYPE);
-        register(TeleportitisStep.TYPE);
+        register(ZoneStep.TYPE);
+        register(ShifterStep.TYPE);
         register(ConvokeStep.TYPE);
-        register(DragonGateStep.TYPE);
+        register(EndStep.TYPE);
         register(RootStep.TYPE);
         register(HitOrMissStep.TYPE);
         register(BloomStep.TYPE);
@@ -121,10 +136,13 @@ public final class StepTypes {
         register(LeafSteps.ENCHANT_BOOK.type());
         register(FuseBooksStep.TYPE);
         register(SpawnRandomStep.TYPE);
-        register(AgitateStep.TYPE);
         register(LifetapStep.TYPE);
         register(LeechStep.TYPE);
         register(TomeStep.TYPE);
+        register(FloatStep.TYPE);
+        register(AirbornStep.TYPE);
+        register(UpdraftStep.TYPE);
+        register(LiftStep.TYPE);
     }
 
     private StepTypes() {

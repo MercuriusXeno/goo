@@ -1,13 +1,14 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.banish.Teleportitis;
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
-import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.ability.hex.Lifetap;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
+import com.mercuriusxeno.goo.ability.program.Sight;
+import com.mercuriusxeno.goo.ability.typhoon.Airborn;
+import com.mercuriusxeno.goo.ability.zone.Shifter;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -53,11 +54,17 @@ public final class BrewEffectTests {
     private static final long NOT_HELD = -1;
     /** shroom_sight.json's factor. */
     private static final float SIGHT_FACTOR = 3f;
+    /** typhoon_airborn.json's jet boost. */
+    private static final float AIRBORN_JET_BOOST = 1.5f;
+    private static final String SHOULD_BE_AIRBORN =
+            "The typhoon brew should grant Airborn at jet boost %.1f until %d, granted %.1f until %d";
+    private static final String SHOULD_LUX = "The glow brew should grant Lux until %d, granted until %d";
     /** hex_lifetap.json's fraction. */
     private static final float LIFETAP_FRACTION = 0.3f;
     private static final String SHOULD_LIFETAP = "The hex brew should lifetap at %.2f until %d, granted %.2f until %d";
     private static final String SHOULD_SEE = "The shroom brew should grant sight at %.1f until %d, granted %.1f until %d";
     private static final String SHOULD_SHOW_NO_PARTICLES = "A brew should show its icon and no particles, stands %s";
+    private static final String SHOULD_HASTE = "The aeon brew should raise speed and mining speed for %d ticks, stands %s";
     private static final String SHOULD_NOURISH = "The vital brew should nourish until %d, nourishes until %d";
     private static final String SHOULD_RUN_NOTHING = "A brew of a type with no brew ability should lay nothing, laid %s";
     private static final String SHOULD_HOLD_PREPAID = "The blaze brew should hold Kindle prepaid until %d, held %s";
@@ -67,14 +74,14 @@ public final class BrewEffectTests {
     private static final Identifier LEAF_BARKSKIN = Identifier.parse("goo:leaf_barkskin");
     private static final Identifier NETHER_UNDEAD = Identifier.parse("goo:nether_undead");
     private static final String SHOULD_BE_UNDEAD_PREPAID = "The nether brew should make the player undead, held prepaid";
-    /** ender_teleportitis.json's blink distance. */
-    private static final float TELEPORTITIS_DISTANCE = 8f;
+    /** ender_shifter.json's blink distance. */
+    private static final float SHIFTER_DISTANCE = 8f;
     /** A hit of two hearts. */
     private static final float HIT = 4f;
     /** Where the void test lifts the player before the fall, well off the floor it stood on. */
     private static final double FALLING_ABOVE = 30.0;
-    private static final String SHOULD_TELEPORTITIS = "The ender brew should grant teleportitis at %.1f until %d, granted %s";
-    private static final String SHOULD_TAKE_NO_DAMAGE = "A player under teleportitis should keep %.1f health, has %.1f";
+    private static final String SHOULD_SHIFTER = "The ender brew should grant shifter at %.1f until %d, granted %s";
+    private static final String SHOULD_TAKE_NO_DAMAGE = "A player under shifter should keep %.1f health, has %.1f";
     private static final String SHOULD_BLINK = "A hit should blink the player along their look from %s, stands at %s";
     private static final String SHOULD_RETURN_TO_GROUND = "A fall out of the world should return the player to %s, stands at %s";
     /** The ticks a prepaid brew is watched paying nothing. */
@@ -244,25 +251,97 @@ public final class BrewEffectTests {
     }
 
     /**
-     * Drinking the ender brew grants teleportitis at ender_teleportitis.json's
-     * distance for an hour, draining no goo
-     * (decision teleportitis-blinks-along-the-cursor-on-hit).
+     * Drinking the typhoon brew grants Airborn for an hour, draining no goo
+     * (decision airborn-steerable-levitation-and-soft-falls).
      *
      * @param helper the gametest helper
      */
-    public static void enderBrewTeleportitisForAnHour(GameTestHelper helper) {
+    public static void typhoonBrewAirbornForAnHour(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.TYPHOON);
+        int heldBefore = held(player, GooTypes.TYPHOON);
+        long now = player.level().getGameTime();
+
+        drink(player, GooTypes.TYPHOON);
+
+        Airborn airborn = player.getData(GooAttachments.AIRBORN);
+        int drained = heldBefore - held(player, GooTypes.TYPHOON);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        long expected = now + GooPotions.BREW_DURATION;
+        helper.assertTrue(airborn.expiresAt() == expected && airborn.jetBoost() == AIRBORN_JET_BOOST,
+                String.format(SHOULD_BE_AIRBORN, AIRBORN_JET_BOOST, expected, airborn.jetBoost(),
+                        airborn.expiresAt()));
+        helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
+        helper.succeed();
+    }
+
+    /**
+     * Drinking the glow brew grants Lux for an hour, draining no goo
+     * (decisions lux-night-vision-without-particles, brew-runs-the-crawl-prepaid-on-a-shown-clock).
+     *
+     * @param helper the gametest helper
+     */
+    public static void glowBrewLuxForAnHour(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.GLOW);
+        int heldBefore = held(player, GooTypes.GLOW);
+        long now = player.level().getGameTime();
+
+        drink(player, GooTypes.GLOW);
+
+        long expiresAt = player.getData(GooAttachments.LUX).expiresAt();
+        int drained = heldBefore - held(player, GooTypes.GLOW);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        long expected = now + GooPotions.BREW_DURATION;
+        helper.assertTrue(expiresAt == expected, String.format(SHOULD_LUX, expected, expiresAt));
+        helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
+        helper.succeed();
+    }
+
+    /**
+     * Drinking the aeon brew hastes the player for an hour: the aeon brew is
+     * the one effect it wears, for the brew's duration with no particles,
+     * and it moves and mines faster, draining no goo
+     * (decision haste-stacks-speed-under-the-golden-overlay).
+     *
+     * @param helper the gametest helper
+     */
+    public static void aeonBrewHastesForAnHour(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.AEON);
+        int heldBefore = held(player, GooTypes.AEON);
+
+        drink(player, GooTypes.AEON);
+
+        MobEffectInstance brew = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.AEON));
+        String wrongEffects = HasteChecks.onlyTheAeonBrew(player);
+        boolean hasted = HasteChecks.hasted(player);
+        int drained = heldBefore - held(player, GooTypes.AEON);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(wrongEffects.isEmpty(), wrongEffects);
+        helper.assertTrue(hasted && brew != null && brew.getDuration() == GooPotions.BREW_DURATION,
+                String.format(SHOULD_HASTE, GooPotions.BREW_DURATION, brew));
+        helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
+        helper.succeed();
+    }
+
+    /**
+     * Drinking the ender brew grants shifter at ender_shifter.json's
+     * distance for an hour, draining no goo
+     * (decision shifter-blinks-along-the-cursor-on-hit).
+     *
+     * @param helper the gametest helper
+     */
+    public static void enderBrewShifterForAnHour(GameTestHelper helper) {
         ServerPlayer player = drinker(helper, GooTypes.ENDER);
         int heldBefore = held(player, GooTypes.ENDER);
         long now = player.level().getGameTime();
 
         drink(player, GooTypes.ENDER);
 
-        Teleportitis teleportitis = player.getData(GooAttachments.TELEPORTITIS);
+        Shifter shifter = player.getData(GooAttachments.SHIFTER);
         int drained = heldBefore - held(player, GooTypes.ENDER);
         helper.getLevel().getServer().getPlayerList().remove(player);
         long expected = now + GooPotions.BREW_DURATION;
-        helper.assertTrue(teleportitis.distance() == TELEPORTITIS_DISTANCE && teleportitis.expiresAt() == expected,
-                String.format(SHOULD_TELEPORTITIS, TELEPORTITIS_DISTANCE, expected, teleportitis));
+        helper.assertTrue(shifter.distance() == SHIFTER_DISTANCE && shifter.expiresAt() == expected,
+                String.format(SHOULD_SHIFTER, SHIFTER_DISTANCE, expected, shifter));
         helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
         helper.succeed();
     }
@@ -296,7 +375,7 @@ public final class BrewEffectTests {
      *
      * @param helper the gametest helper
      */
-    public static void teleportitisBlinksInsteadOfDamage(GameTestHelper helper) {
+    public static void shifterBlinksInsteadOfDamage(GameTestHelper helper) {
         ServerPlayer player = hittableDrinker(helper);
         Vec3 stood = player.position();
         float health = player.getHealth();
@@ -318,7 +397,7 @@ public final class BrewEffectTests {
      *
      * @param helper the gametest helper
      */
-    public static void teleportitisVoidReturnsToSafeGround(GameTestHelper helper) {
+    public static void shifterVoidReturnsToSafeGround(GameTestHelper helper) {
         ServerPlayer player = hittableDrinker(helper);
         Vec3 ground = player.position();
         helper.getLevel().setBlockAndUpdate(BlockPos.containing(ground).below(), Blocks.STONE.defaultBlockState());
@@ -361,18 +440,18 @@ public final class BrewEffectTests {
     }
 
     /**
-     * Drinking the typhoon brew, a type with no brew ability yet, holds the
+     * Drinking the metal brew, a type with no brew ability yet, holds the
      * effect and lays no hearts.
      *
      * @param helper the gametest helper
      */
     public static void brewWithoutAnAbilityRunsNothing(GameTestHelper helper) {
-        ServerPlayer player = drinker(helper, GooTypes.TYPHOON);
-        drink(player, GooTypes.TYPHOON);
+        ServerPlayer player = drinker(helper, GooTypes.METAL);
+        drink(player, GooTypes.METAL);
         HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
-        MobEffectInstance standing = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.TYPHOON));
+        MobEffectInstance standing = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.METAL));
         helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(standing != null, String.format(SHOULD_HOLD_EFFECT, GooTypes.TYPHOON.identifier(),
+        helper.assertTrue(standing != null, String.format(SHOULD_HOLD_EFFECT, GooTypes.METAL.identifier(),
                 GooPotions.BREW_DURATION, standing));
         helper.assertFalse(overlay.stands(), String.format(SHOULD_RUN_NOTHING, overlay));
         helper.succeed();

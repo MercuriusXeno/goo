@@ -3,9 +3,11 @@ package com.mercuriusxeno.goo.client.model;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.program.ShiftStep;
 import com.mercuriusxeno.goo.client.CuboidBounds;
+import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
+import com.mercuriusxeno.goo.client.ability.GloveGlow;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.FungusNearby;
@@ -13,10 +15,12 @@ import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.serialization.MapCodec;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.special.SpecialModelRenderer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
@@ -183,6 +187,29 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
     }
 
     /**
+     * Submits the light breathing around the held goo while a glow channel
+     * holds, in the hand's own pass so the glove never hides it.
+     * operator ruling 2026-10-10: a light glow around the hand marks a held glow channel
+     *
+     * @param poseStack     the pose stack for rendering
+     * @param nodeCollector the render node collector
+     * @param strength      how strongly it glows, zero for no glow
+     */
+    private static void submitChannelGlow(PoseStack poseStack, SubmitNodeCollector nodeCollector, float strength) {
+        if (strength <= 0f) {
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        float time = mc.level == null ? 0f
+                : mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        poseStack.pushPose();
+        poseStack.translate(GOO_CX_PX / BLOCK_PIXELS, GOO_CY_PX / BLOCK_PIXELS, GOO_CZ_PX / BLOCK_PIXELS);
+        nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.GLOW_SHELL_TYPE,
+                (pose, c) -> GloveGlow.emitShells(pose, c, GOO_HW_PX / BLOCK_PIXELS, strength, time));
+        poseStack.popPose();
+    }
+
+    /**
      * Emits all six faces of the held goo cuboid.
      *
      * @param pose        the pose matrix entry
@@ -247,7 +274,21 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         if (type != null && !GloveUseTracker.isSelectedTypeAvailable()) {
             type = null;
         }
-        return new GloveData(stack.getItem(), type, type != null && glowsNearFungus(stack));
+        float channelGlow = channelGlowOf(type, stack);
+        return new GloveData(stack.getItem(), type, type != null && (channelGlow > 0f || glowsNearFungus(stack)),
+                channelGlow);
+    }
+
+    /**
+     * How strongly the light around a glove's goo glows: by the held glow
+     * channel's fade for glow goo, none for any other.
+     *
+     * @param type  the goo shown in the glove, or null for none
+     * @param stack the glove
+     * @return the strength, zero to one
+     */
+    private static float channelGlowOf(@Nullable ResourceKey<GooTypeDefinition> type, ItemStack stack) {
+        return type == GooTypes.GLOW ? GloveGlow.strengthFor(stack) : 0f;
     }
 
     /**
@@ -273,6 +314,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         if (data != null && data.selectedType() != null) {
             int light = data.glows() ? GooSubmitter.fullbrightLight() : packedLight;
             submitHeldGoo(poseStack, nodeCollector, light, data.selectedType());
+            submitChannelGlow(poseStack, nodeCollector, data.channelGlow());
         }
 
         poseStack.popPose();
@@ -295,9 +337,11 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      *
      * @param item         the glove item instance (determines tier/body model)
      * @param selectedType the selected goo type, or null if none selected
-     * @param glows        whether the held goo brightens, Fungal Shift selected near a fungus
+     * @param glows        whether the held goo brightens: Fungal Shift selected near a fungus, or a glow channel held
+     * @param channelGlow  how strongly the light around the held goo glows while a glow channel holds, zero to one
      */
-    public record GloveData(Item item, @Nullable ResourceKey<GooTypeDefinition> selectedType, boolean glows) {
+    public record GloveData(Item item, @Nullable ResourceKey<GooTypeDefinition> selectedType, boolean glows,
+                            float channelGlow) {
     }
 
     /**

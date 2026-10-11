@@ -1,8 +1,6 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.banish.Banished;
-import com.mercuriusxeno.goo.ability.banish.Teleportitis;
 import com.mercuriusxeno.goo.ability.frost.Frozen;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
@@ -12,10 +10,17 @@ import com.mercuriusxeno.goo.ability.nether.Undead;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.petrify.Petrification;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
+import com.mercuriusxeno.goo.ability.program.Lux;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.pulse.Stunned;
+import com.mercuriusxeno.goo.ability.rewind.Rewinding;
 import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.spray.Spored;
+import com.mercuriusxeno.goo.ability.typhoon.Airborn;
+import com.mercuriusxeno.goo.ability.typhoon.Floating;
+import com.mercuriusxeno.goo.ability.world.TimeVeiled;
+import com.mercuriusxeno.goo.ability.zone.Shifter;
+import com.mercuriusxeno.goo.ability.zone.ZoneCurse;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
 import com.mojang.serialization.Codec;
@@ -121,6 +126,14 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> false).serialize(Codec.BOOL.fieldOf("standing")).build());
 
     /**
+     * The Lux a player holds, keeping night vision up and glistening the mob
+     * under the crosshair while it stands (decision lux-night-vision-without-particles).
+     */
+    public static final Supplier<AttachmentType<Lux>> LUX =
+            ATTACHMENT_TYPES.register("lux",
+                    () -> AttachmentType.builder(() -> Lux.NONE).serialize(Lux.CODEC).build());
+
+    /**
      * The spores a mob carries, bursting another spray from its corpse when
      * it dies before they fade, saved with the mob (decision
      * mycosis-spore-stream-buds-and-poisons).
@@ -173,24 +186,54 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The teleportitis curse Banish leaves on a mob, saved with the mob while
-     * it stands.
-     * banish-curses-with-ender-shimmer
+     * Marks a mob held in stasis until it is struck, saved with the mob so
+     * the hold outlasts a reload; a freed mob drops the attachment.
+     * stasis-holds-mob-with-golden-shimmer
      */
-    public static final Supplier<AttachmentType<Banished>> BANISHED =
-            ATTACHMENT_TYPES.register("banished",
-                    () -> AttachmentType.builder(() -> Banished.NONE)
-                            .serialize(Banished.CODEC, Banished::stands)
+    public static final Supplier<AttachmentType<Boolean>> STASIS =
+            ATTACHMENT_TYPES.register("stasis",
+                    () -> AttachmentType.builder(() -> Boolean.FALSE)
+                            .serialize(Codec.BOOL.fieldOf("held"), Boolean::booleanValue)
                             .build());
 
     /**
-     * The teleportitis a player holds, saved with the player.
-     * teleportitis-blinks-along-the-cursor-on-hit
+     * A mob Rewind's stream holds: frozen until shortly after the stream lets
+     * go, or shrinking into its egg, saved with the mob so a reload mid-hold
+     * still frees it.
+     * rewind-fills-while-held
      */
-    public static final Supplier<AttachmentType<Teleportitis>> TELEPORTITIS =
-            ATTACHMENT_TYPES.register("teleportitis",
-                    () -> AttachmentType.builder(() -> Teleportitis.NONE)
-                            .serialize(Teleportitis.CODEC)
+    public static final Supplier<AttachmentType<Rewinding>> REWINDING =
+            ATTACHMENT_TYPES.register("rewinding",
+                    () -> AttachmentType.builder(() -> Rewinding.NONE).serialize(Rewinding.CODEC).build());
+
+    /**
+     * A mob a chronosphere's AI pacing holds, saved with the mob so a reload
+     * mid-veil hands back the AI state it had before the veil.
+     * chronosphere-hastes-players-slows-mobs
+     */
+    public static final Supplier<AttachmentType<TimeVeiled>> TIME_VEILED =
+            ATTACHMENT_TYPES.register("time_veiled",
+                    () -> AttachmentType.builder(() -> TimeVeiled.NONE).serialize(TimeVeiled.CODEC).build());
+
+    /**
+     * The warp curse Zone leaves on a mob, saved with the mob while
+     * it stands.
+     * zone-curses-with-ender-shimmer
+     */
+    public static final Supplier<AttachmentType<ZoneCurse>> ZONE_CURSE =
+            ATTACHMENT_TYPES.register("zone_curse",
+                    () -> AttachmentType.builder(() -> ZoneCurse.NONE)
+                            .serialize(ZoneCurse.CODEC, ZoneCurse::stands)
+                            .build());
+
+    /**
+     * The shifter a player holds, saved with the player.
+     * shifter-blinks-along-the-cursor-on-hit
+     */
+    public static final Supplier<AttachmentType<Shifter>> SHIFTER =
+            ATTACHMENT_TYPES.register("shifter",
+                    () -> AttachmentType.builder(() -> Shifter.NONE)
+                            .serialize(Shifter.CODEC)
                             .build());
 
     /**
@@ -240,6 +283,32 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> Frozen.NONE)
                             .serialize(Frozen.CODEC, Frozen::started)
                             .sync(GooAttachments::syncsToWatcher, Frozen.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The float Float leaves on a mob while its levitation lasts, saved with
+     * the mob and synced to every client drawing it, which pulses the mint
+     * platform under its feet.
+     * float-blob-levitates-the-mob
+     */
+    public static final Supplier<AttachmentType<Floating>> FLOATING =
+            ATTACHMENT_TYPES.register("floating",
+                    () -> AttachmentType.builder(() -> Floating.NONE)
+                            .serialize(Floating.CODEC)
+                            .sync(GooAttachments::syncsToWatcher, Floating.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The air control Airborn lays on a player, saved with the player while
+     * it stands and synced to the owning client, which steers it in midair,
+     * caps its fall and draws the rising wind.
+     * airborn-steerable-levitation-and-soft-falls
+     */
+    public static final Supplier<AttachmentType<Airborn>> AIRBORN =
+            ATTACHMENT_TYPES.register("airborn",
+                    () -> AttachmentType.builder(() -> Airborn.NONE)
+                            .serialize(Airborn.CODEC, airborn -> airborn.expiresAt() > 0L)
+                            .sync(GooAttachments::syncsToOwner, Airborn.STREAM_CODEC)
                             .build());
 
     private GooAttachments() {

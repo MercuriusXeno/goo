@@ -17,6 +17,7 @@ import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -37,7 +38,7 @@ import java.util.function.Consumer;
  */
 public record TapHost(ServerLevel level, BlockPos landing, Direction face)
         implements ExplodeHost, AnchoredWorldHost, PlaceBlockHost, EntityScanHost, DripHost, UnmakeHost, ConvokeHost,
-        DeviceToggleHost, MobSpawnHost, FrostHost {
+        DeviceToggleHost, MobSpawnHost, FrostHost, TickBlockHost {
 
     private static final double HALF = 0.5;
 
@@ -127,6 +128,20 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
     }
 
     /**
+     * The block the drip landed on, which Tick's tap ticks faster.
+     * tick-drip-splashes-a-small-tick-effect
+     */
+    @Override
+    public Optional<BlockPos> tickedBlock() {
+        return Optional.of(landing);
+    }
+
+    @Override
+    public void tickBlock(BlockPos pos, int times) {
+        BlockTicking.tickBlockEntity(level, pos, times);
+    }
+
+    /**
      * Toggles the device below the tap: the landing block when it is one, a
      * closed trapdoor or door the drip struck, else the device standing on
      * the struck face, a lever or button the drip fell through
@@ -178,6 +193,16 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
     @Override
     public void pullEntitiesWithin(double radius, double speed) {
         EntityPull.pullWithin(level, anchor(), radius, speed, null);
+    }
+
+    @Override
+    public void liftEntitiesInColumn(double radius, double height, double speed) {
+        EntityLift.liftInColumn(level, anchor(), radius, height, speed);
+    }
+
+    @Override
+    public void rideShaftAbove(int cap, double rise, double sink) {
+        EntityLift.rideShaft(level, BlockPos.containing(anchor()).above(), cap, rise, sink);
     }
 
     /**

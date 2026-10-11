@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.ExplosionMode;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.Step;
+import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -46,6 +47,15 @@ class AbilityDefinitionTest {
         AbilityArea written = new AbilityArea(AbilityArea.Shape.CONE, JSON_SIZE, CONE_ANGLE);
         List<Step> explodes = List.of(new ExplodeStep(Expr.literal(EXPLOSION_POWER), ExplosionMode.TNT));
         assertEquals(written, AbilityDefinition.previewAtMaxReach(written, explodes));
+    }
+
+    @Test
+    void spawnConsumesNoItemAndStaysGatedBehindSculk() {
+        // ability-json-names-its-reagent
+        // spawn-goo-morphs-into-the-mob-it-births
+        AbilityDefinition spawn = AbilityJson.decode("hex_spawn");
+        assertEquals(List.of(), spawn.consumes());
+        assertEquals(List.of(Identifier.withDefaultNamespace("sculk")), spawn.requires());
     }
 
     /** An instant area throw writing no area draws the sphere its program reaches. */
@@ -91,7 +101,7 @@ class AbilityDefinitionTest {
     class WrittenOrNotAThrow {
 
         @ParameterizedTest
-        @CsvSource({"glow_laser, LINE, 0.0, 0.0", "glow_crystal, LINE, 0.0, 0.0", "blaze_spitfire, CONE, 6.0, 20.0",
+        @CsvSource({"glow_crystal, LINE, 0.0, 0.0", "blaze_spitfire, CONE, 6.0, 20.0",
                 "unstable_explode, NONE, 0.0, 0.0"})
         void writtenAreaStandsOverTheDerivedOne(String name, AbilityArea.Shape shape, double size, double angle) {
             assertEquals(new AbilityArea(shape, size, angle), AbilityJson.decode(name).area());

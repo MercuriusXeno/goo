@@ -1,0 +1,12 @@
+{
+  "gooType": "glow",
+  "displayName": "goo.ability.glow.radiant_tap",
+  "badge": "tap",
+  "order": 60,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "wisps", "radius": 0, "count": 1, "life": 1200, "above": 1 }
+  ],
+  "tags": ["tap"]
+}

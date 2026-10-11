@@ -3,11 +3,12 @@ package com.mercuriusxeno.goo.registry;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
+import com.mercuriusxeno.goo.block.ability.WispBlockEntity;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlockEntity;
 import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlockEntity;
-import com.mercuriusxeno.goo.block.gate.DragonGateBlockEntity;
+import com.mercuriusxeno.goo.block.gate.EndGateBlockEntity;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
@@ -80,10 +81,14 @@ public class GooBlockEntities {
             BLOCK_ENTITIES.register("prism",
                     () -> new BlockEntityType<>(PrismBlockEntity::new, GooBlocks.PRISM.get()));
 
-    /** A Dragon Gate cell (decision dragon-gate-banishes-blocks-and-opens-a-portal). */
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DragonGateBlockEntity>> DRAGON_GATE =
-            BLOCK_ENTITIES.register("dragon_gate",
-                    () -> new BlockEntityType<>(DragonGateBlockEntity::new, GooBlocks.DRAGON_GATE.get()));
+    /** The wisp's block entity, which its renderer draws (decision radiant-wisps-where-light-is-low). */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<WispBlockEntity>> WISP =
+            BLOCK_ENTITIES.register("wisp",
+                    () -> new BlockEntityType<>(WispBlockEntity::new, GooBlocks.WISP.get()));
+    /** An End gate cell (decision end-clears-blocks-and-opens-a-portal). */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<EndGateBlockEntity>> END_GATE =
+            BLOCK_ENTITIES.register("end_gate",
+                    () -> new BlockEntityType<>(EndGateBlockEntity::new, GooBlocks.END_GATE.get()));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ChoralGasketBlockEntity>> CHORAL_GASKET =
             BLOCK_ENTITIES.register("choral_gasket",
