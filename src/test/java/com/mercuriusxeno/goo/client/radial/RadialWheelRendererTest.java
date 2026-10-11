@@ -188,7 +188,8 @@ class RadialWheelRendererTest {
                 Map.entry("unstable_explode", "Blast"), Map.entry("weird_slime", "Slime"),
                 Map.entry("vital_vitality", "Vitality"), Map.entry("vital_reserve", "Reserve"),
                 Map.entry("vital_nourish", "Nourish"), Map.entry("weird_magma", "Magma"), Map.entry("weird_bounce", "Bounce"),
-                Map.entry("weird_wobble", "Wobble"));
+                Map.entry("weird_wobble", "Wobble"), Map.entry("xeno_eldritch", "Eldritch Sight"),
+                Map.entry("xeno_mutate", "Mutate"));
 
         private static JsonObject englishLang() throws IOException {
             try (InputStream stream = RadialWheelRendererTest.class.getClassLoader().getResourceAsStream(LANG_RESOURCE)) {

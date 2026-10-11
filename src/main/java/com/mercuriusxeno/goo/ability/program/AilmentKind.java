@@ -27,7 +27,9 @@ public enum AilmentKind {
     /** Glow's glisten: Scry's sweep marks a mob in glow yellow (decision scry-sphere-reveals-faces-and-glistens-mobs). */
     GLOW(0xFFE628, AilmentPattern.GLINT, 0.4f),
     /** Weird's wobble: a magenta gel shell that jiggles and stretches (decision weird-bounces-and-softens-harm). */
-    WOBBLE(0xFF33CC, AilmentPattern.WOBBLE, 0.6f);
+    WOBBLE(0xFF33CC, AilmentPattern.WOBBLE, 0.6f),
+    /** Xeno's mutation: sickly green veins writhing over the mob while it stays mutated (decision xeno-blob-mutates-the-struck). */
+    MUTATED(0xA8CC48, AilmentPattern.WRITHE, 0.6f);
 
     /** Codec for the kind as an ability JSON writes it, in lower case. */
     public static final Codec<AilmentKind> CODEC = LowerCaseEnumCodec.of(AilmentKind.class, "ailment kind");
