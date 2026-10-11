@@ -165,9 +165,43 @@ final class RadialWheelRenderer {
      */
     private static void renderType(GuiGraphicsExtractor graphics, Frame frame, RadialWheel.PetalArc petal) {
         ResourceKey<GooTypeDefinition> key = frame.types().get(petal.type());
-        PetalPainter.paint(graphics, frame, frame.look().fluidFace(key), petal, typePetalTint(frame, petal.type()));
+        PetalPainter.paint(graphics, frame, frame.look().fluidFace(key), petal, typePetalTint(frame, petal));
         blitIcon(graphics, new Icon(typeIcon(key), TYPE_ICON_SIZE), lengthCenter(frame, petal),
-                COLOR_WHITE);
+                typeIconColor(petal));
+    }
+
+    /**
+     * The tint a type petal's fill blits under, faded by the petal's presence.
+     * decision open-type-keeps-six-neighbors-a-side
+     *
+     * @param frame what the frame draws from
+     * @param petal the type's petal
+     * @return the packed ARGB tint
+     */
+    static int typePetalTint(Frame frame, RadialWheel.PetalArc petal) {
+        return faded(typePetalTint(frame, petal.type()), petal.presence());
+    }
+
+    /**
+     * The color a type petal's icon draws under: full white faded by the petal's presence.
+     * decision open-type-keeps-six-neighbors-a-side
+     *
+     * @param petal the type's petal
+     * @return the packed ARGB color
+     */
+    static int typeIconColor(RadialWheel.PetalArc petal) {
+        return faded(COLOR_WHITE, petal.presence());
+    }
+
+    /**
+     * A color with its alpha multiplied by a presence.
+     *
+     * @param color    the packed ARGB color
+     * @param presence 0 hidden to 1 full
+     * @return the color at the faded alpha
+     */
+    static int faded(int color, double presence) {
+        return ARGB.color((int) Math.round(ARGB.alpha(color) * presence), color);
     }
 
     /**

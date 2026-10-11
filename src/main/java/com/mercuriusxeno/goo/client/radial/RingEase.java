@@ -2,8 +2,8 @@ package com.mercuriusxeno.goo.client.radial;
 
 /**
  * Eases the ring's displayed pose toward its target over a short duration
- * on the client tick: each type's slot width, how far open each type is and
- * the ring's rotation interpolate together, so opening a type plays like a
+ * on the client tick: each type's slot width, how far open and how present
+ * each type is and the ring's rotation interpolate together, so opening a type plays like a
  * fan of cards and closing plays it in reverse. A new target restarts the
  * ease from the pose on display.
  * decision petal-moves-animate
@@ -86,15 +86,17 @@ final class RingEase {
     }
 
     /**
-     * The ring as its rotation and, per type, the width of the slot it holds
-     * and how far open it is: 0 shows the type's own petal at full length,
-     * 1 its ability petals fanned across the slot.
+     * The ring as its rotation and, per type, the width of the slot it holds,
+     * how far open it is, 0 showing the type's own petal at full length and
+     * 1 its ability petals fanned across the slot, and how present it is.
+     * decision open-type-keeps-six-neighbors-a-side
      *
      * @param rotation the angle the first slot starts at, clockwise from the top
      * @param widths   each type's slot width in radians
      * @param openness each type's openness, 0 to 1
+     * @param presence each type's presence, 0 hidden to 1 full
      */
-    record Pose(double rotation, double[] widths, double[] openness) {
+    record Pose(double rotation, double[] widths, double[] openness, double[] presence) {
 
         /**
          * The pose a fraction of the way to another.
@@ -105,7 +107,7 @@ final class RingEase {
          */
         Pose toward(Pose target, double fraction) {
             return new Pose(mix(rotation, target.rotation(), fraction), mix(widths, target.widths(), fraction),
-                    mix(openness, target.openness(), fraction));
+                    mix(openness, target.openness(), fraction), mix(presence, target.presence(), fraction));
         }
 
         /**
@@ -115,7 +117,7 @@ final class RingEase {
          * @return the turned pose
          */
         Pose turnedBy(double turn) {
-            return new Pose(rotation + turn, widths, openness);
+            return new Pose(rotation + turn, widths, openness, presence);
         }
 
         private static double mix(double from, double to, double fraction) {
