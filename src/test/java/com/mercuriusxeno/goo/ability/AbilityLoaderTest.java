@@ -87,6 +87,7 @@ class AbilityLoaderTest {
             Map.entry("ender_blink", List.of("ender_pearl")),
             Map.entry("ender_banish", List.of("popped_chorus_fruit")),
             Map.entry("ender_teleportitis", List.of("chorus_fruit")),
+            Map.entry("deep_churn", List.of("sculk_catalyst")),
             Map.entry("deep_convoke", List.of("sculk_shrieker")),
             Map.entry("deep_dive", List.of("nautilus_shell")),
             Map.entry("ender_dragon_gate", List.of("dragon_breath")),

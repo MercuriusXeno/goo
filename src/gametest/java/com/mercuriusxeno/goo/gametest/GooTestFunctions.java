@@ -474,6 +474,7 @@ public final class GooTestFunctions {
     private static final String CONVOKE_LINGERS = "convoke_lingers_without_a_mob";
     private static final String CONVOKE_TAP = "convoke_tap_at_full_chance";
     private static final String DIVE_LANDS = "dive_lands_in_the_cave_below";
+    private static final String CHURN_SWAPS = "churn_swaps_the_layers";
     private static final String DRAGON_GATE_LAYS = "dragon_gate_lays_a_temporary_portal";
     private static final String BLINK_SNAPS_TO_OCULUS = "blink_snaps_to_oculus";
     private static final String OCULUS_COSTS_A_TENTH = "oculus_blink_costs_a_tenth";
@@ -1041,6 +1042,7 @@ public final class GooTestFunctions {
         reg(r, CONVOKE_LINGERS, ConvokeTests::convokeLingersWithoutAMob);
         reg(r, CONVOKE_TAP, ConvokeTests::convokeTapAtFullChance);
         reg(r, DIVE_LANDS, DiveTests::diveLandsInTheCaveBelow);
+        reg(r, CHURN_SWAPS, ChurnTests::churnSwapsTheLayers);
         reg(r, DRAGON_GATE_LAYS, DragonGateTests::dragonGateLaysATemporaryPortal);
         reg(r, BLINK_SNAPS_TO_OCULUS, OculusTests::blinkSnapsToOculus);
         reg(r, OCULUS_COSTS_A_TENTH, OculusTests::oculusBlinkCostsATenth);

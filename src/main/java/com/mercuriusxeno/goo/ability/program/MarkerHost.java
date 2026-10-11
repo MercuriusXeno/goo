@@ -43,7 +43,7 @@ import java.util.function.Consumer;
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
         FieldEffectHost, PhasedHost, HoardHost, StateWriteHost, LevelHost, ConvokeHost, PowerEmitHost,
-        BeatHost, RelayHost, AgitateHost, FrostHost, GreeningHost, TickBankHost, TimeVeilHost {
+        BeatHost, RelayHost, AgitateHost, FrostHost, GreeningHost, TickBankHost, TimeVeilHost, ChurnHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
     /** The power a block gives at full strength. */
@@ -261,6 +261,17 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     @Override
     public boolean convokeFromChunk(ResourceKey<GooTypeDefinition> goo) {
         return ChunkConvoke.convoke(level, Vec3.atBottomCenterOf(pos), goo);
+    }
+
+    /**
+     * Turns the column under the block the marker landed on, that block one
+     * of the core's four middle cells.
+     * decision churn-rotates-a-plus-shaped-column
+     */
+    @Override
+    public void churnColumn(int depth) {
+        BlockPos landed = pos.relative(be.getPlacedFace().getOpposite());
+        ChurnColumn.turn(ChurnMap.originUnder(landed), depth, new LevelChurnCells(level));
     }
 
     @Override
