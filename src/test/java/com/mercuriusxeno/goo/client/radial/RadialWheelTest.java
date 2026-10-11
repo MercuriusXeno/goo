@@ -26,7 +26,7 @@ class RadialWheelTest {
     /** Fourteen 30-degree petals would take more than the whole ring. */
     private static final int MORE_ABILITIES_THAN_FIT = 14;
     private static final int NEIGHBORS = 2 * RadialWheel.NEIGHBORS_A_SIDE;
-    /** The fewest types a wheel hides none of while one is open: the open type and six either side. */
+    /** The fewest types a wheel hides none of while one is open: the open type and five either side. */
     private static final int WINDOW_TYPES = NEIGHBORS + 1;
     private static final double RADIUS = 100.0;
     private static final double PETAL = (RadialWheel.HUB_FRACTION + 1.0) / 2 * RADIUS;
@@ -166,10 +166,10 @@ class RadialWheelTest {
 
         /** decision open-type-keeps-six-neighbors-a-side */
         @Test
-        void sixNeighborsASideStayTheFarThreeFadingAndTheRestHide() {
+        void fiveNeighborsASideStayTheFarThreeFadingAndTheRestHide() {
             RadialWheel wheel = opened(ABILITIES);
             List<RadialWheel.PetalArc> petals = wheel.layout();
-            double[] presenceBySteps = {1.0, 1.0, 1.0, 0.8, 0.6, 0.4};
+            double[] presenceBySteps = {1.0, 1.0, 0.8, 0.6, 0.4};
 
             assertAll(IntStream.rangeClosed(1, RadialWheel.NEIGHBORS_A_SIDE).boxed().flatMap(steps -> Stream.of(
                     (Executable) () -> assertEquals(presenceBySteps[steps - 1],
