@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.client.ability.ChronosphereVisual;
 import com.mercuriusxeno.goo.client.ability.CrystalCloudVisual;
 import com.mercuriusxeno.goo.client.ability.MarkerOrbVisual;
 import com.mercuriusxeno.goo.client.ability.MetalSpikeVisual;
+import com.mercuriusxeno.goo.client.ability.UpdraftWind;
 import com.mercuriusxeno.goo.client.ability.VineTrapVisual;
 import com.mercuriusxeno.goo.client.ber.style.NetherHoleStyles;
 import com.mercuriusxeno.goo.client.throwing.ThrowFreezeState;
@@ -143,6 +144,10 @@ public class AbilityBlockRenderer
         ChronosphereVisual.extract(be, state);
         NetherHoleStyles.active().extract(be, state);
         VineTrapVisual.extract(be, state);
+        // updraft-blob-stands-a-column-of-wind
+        if (state.behaviorActive && be.getLevel() != null) {
+            UpdraftWind.see(be.getBlockPos(), be.getAbilityId(), be.getLevel().getGameTime());
+        }
     }
 
     @Override
