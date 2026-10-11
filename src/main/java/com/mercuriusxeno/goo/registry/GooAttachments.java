@@ -15,6 +15,7 @@ import com.mercuriusxeno.goo.ability.program.EntityCounters;
 import com.mercuriusxeno.goo.ability.program.Lux;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.pulse.Stunned;
+import com.mercuriusxeno.goo.ability.reserve.Reserve;
 import com.mercuriusxeno.goo.ability.rewind.Rewinding;
 import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.spray.Spored;
@@ -69,6 +70,18 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> HeartOverlay.NONE)
                             .serialize(HeartOverlay.CODEC, HeartOverlay::stands)
                             .sync(GooAttachments::syncsToOwner, HeartOverlay.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The reserve Reserve banks behind a player's health and hunger bars, apart
+     * from any heart overlay, synced to the owning client for the HUD
+     * (decisions reserve-channels-on-jelly and reserve-hearts-sit-behind-the-bar).
+     */
+    public static final Supplier<AttachmentType<Reserve>> RESERVE =
+            ATTACHMENT_TYPES.register("reserve",
+                    () -> AttachmentType.builder(() -> Reserve.NONE)
+                            .serialize(Reserve.CODEC, Reserve::stands)
+                            .sync(GooAttachments::syncsToOwner, Reserve.STREAM_CODEC)
                             .build());
 
     /**

@@ -413,6 +413,8 @@ public final class GooTestFunctions {
     private static final String SELF_HEART_BREWS_REPLACE = "self_heart_brews_replace_each_other";
     private static final String RESERVE_DRAINS_FIRST = "reserve_drains_first";
     private static final String RESERVE_DRAINS_WHILE_HELD = "reserve_drains_while_held";
+    private static final String RESERVE_BANKS_SHANKS = "reserve_banks_shanks";
+    private static final String RESERVE_COEXISTS_WITH_BARKSKIN = "reserve_coexists_with_barkskin";
     private static final String SELF_BARKSKIN_FIRE = "self_barkskin_fire_burns_through_arrow_breaks_bark";
     private static final String SELF_BARKSKIN_BARE_STAYS_HELD = "self_barkskin_bare_stays_held_and_regrows";
     private static final String SELF_BARKSKIN_THORNS = "self_barkskin_thorns_and_the_axe";
@@ -980,6 +982,8 @@ public final class GooTestFunctions {
         reg(r, SELF_HEART_BREWS_REPLACE, HeartOverlayTests::heartBrewsReplaceEachOther);
         reg(r, RESERVE_DRAINS_FIRST, ReserveTests::reserveDrainsFirst);
         reg(r, RESERVE_DRAINS_WHILE_HELD, ReserveTests::reserveDrainsWhileHeld);
+        reg(r, RESERVE_BANKS_SHANKS, ReserveTests::reserveBanksShanks);
+        reg(r, RESERVE_COEXISTS_WITH_BARKSKIN, ReserveTests::reserveCoexistsWithBarkskin);
         reg(r, SELF_BARKSKIN_FIRE, BarkskinTests::fireBurnsThroughArrowBreaksBark);
         reg(r, SELF_BARKSKIN_BARE_STAYS_HELD, BarkskinTests::bareBarkskinStaysHeldAndRegrows);
         reg(r, SELF_BARKSKIN_THORNS, BarkskinTests::thornsAndTheAxe);
