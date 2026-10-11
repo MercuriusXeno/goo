@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.block.hub;
 
-import com.mercuriusxeno.goo.block.BlockEntitySync;
 import com.mercuriusxeno.goo.block.canister.CanisterSlotFluidHandler;
 import com.mercuriusxeno.goo.block.gasket.GasketDemand;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
@@ -16,10 +15,12 @@ import java.util.OptionalInt;
 /**
  * Block-level fluid handler for the Hub. Presents one virtual tank per
  * canister slot (up to {@link HubBlockEntity#MAX_CANISTERS}). Each tank
- * reflects the single-type fluid in the corresponding canister.
+ * shows the fluid its canister holds most of; inserts and extracts route by
+ * resource, so a canister holding several goo types gives up each alone.
  *
  * <p>This is a read-through/write-through adapter: no data duplication.
- * All state lives on the Hub's internal canister ItemStacks.</p>
+ * Reads come from the hub's canister stacks; writes go through each slot's
+ * fluid handler, which writes back onto its stack.</p>
  */
 public class HubFluidHandler implements ResourceHandler<FluidResource>, GasketDemand {
 
@@ -52,21 +53,19 @@ public class HubFluidHandler implements ResourceHandler<FluidResource>, GasketDe
      */
     @Override
     public FluidResource getResource(int index) {
-        CanisterFluidContent content = getSlotContent(index);
-        return content.isEmpty()
-                ? FluidResource.EMPTY
-                : content.resource();
+        return getSlotContent(index).dominantResource();
     }
 
     /**
-     * Returns the volume in the canister at the given slot.
+     * Returns the volume of the fluid the canister at the given slot holds most of.
      *
      * @param index the tank index
      * @return the amount
      */
     @Override
     public long getAmountAsLong(int index) {
-        return getSlotContent(index).amount();
+        CanisterFluidContent.Portion dominant = getSlotContent(index).dominant();
+        return dominant == null ? 0 : dominant.amount();
     }
 
     /**
@@ -86,7 +85,8 @@ public class HubFluidHandler implements ResourceHandler<FluidResource>, GasketDe
     }
 
     /**
-     * Accepts any fluid if the canister slot is empty or already holds it.
+     * Accepts any fluid the canister at the slot takes: goo beside goo, a
+     * vanilla fluid alone (decision canisters-hold-more-than-one-goo-type).
      *
      * @param index    the tank index
      * @param resource the fluid resource
@@ -94,15 +94,8 @@ public class HubFluidHandler implements ResourceHandler<FluidResource>, GasketDe
      */
     @Override
     public boolean isValid(int index, FluidResource resource) {
-        if (resource.isEmpty()) {
-            return false;
-        }
         ItemStack stack = hub.getCanister(index);
-        if (stack.isEmpty()) {
-            return false;
-        }
-        CanisterFluidContent content = CanisterItem.getFluidContent(stack);
-        return content.isEmpty() || content.resource().equals(resource);
+        return !stack.isEmpty() && CanisterItem.getFluidContent(stack).canAccept(resource);
     }
 
     /**
@@ -159,40 +152,26 @@ public class HubFluidHandler implements ResourceHandler<FluidResource>, GasketDe
         if (amount <= 0 || resource.isEmpty()) {
             return 0;
         }
-        return extractFromCanisters(resource, amount);
+        return amount - scanAndExtract(resource, amount, transaction);
     }
 
     /**
-     * Scans hub canisters and extracts the requested fluid.
+     * Iterates hub canister slots and removes fluid of the requested type through
+     * each slot's handler inside the caller's transaction; on commit each handler
+     * writes its change back onto its canister stack and syncs the hub.
      *
-     * @param fluid  the fluid resource to extract
-     * @param amount the maximum amount to extract in mB
-     * @return the total amount actually extracted
-     */
-    private int extractFromCanisters(FluidResource fluid, int amount) {
-        int remaining = scanAndExtract(fluid, amount);
-        int totalExtracted = amount - remaining;
-        if (totalExtracted > 0) {
-            BlockEntitySync.markDirtyAndSync(hub);
-        }
-        return totalExtracted;
-    }
-
-    /**
-     * Iterates hub canister slots and removes fluid of the requested type.
-     *
-     * @param fluid  the fluid resource to remove from canisters
-     * @param amount the maximum amount to remove in mB
+     * @param fluid       the fluid resource to remove from canisters
+     * @param amount      the maximum amount to remove in mB
+     * @param transaction the caller's transaction
      * @return the remaining amount that could not be extracted
      */
-    private int scanAndExtract(FluidResource fluid, int amount) {
+    private int scanAndExtract(FluidResource fluid, int amount, TransactionContext transaction) {
         int remaining = amount;
         for (int i = 0; i < HubBlockEntity.MAX_CANISTERS && remaining > 0; i++) {
-            ItemStack stack = hub.getCanister(i);
-            if (stack.isEmpty()) {
-                continue;
+            CanisterSlotFluidHandler slot = hub.containerState().getSlotFluidHandler(i);
+            if (slot != null) {
+                remaining -= slot.extract(0, fluid, remaining, transaction);
             }
-            remaining -= CanisterItem.removeFluid(stack, fluid, remaining);
         }
         return remaining;
     }
