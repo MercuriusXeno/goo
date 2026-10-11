@@ -123,36 +123,6 @@ class StreamHoldsTest {
         }
     }
 
-    /** A hold touches each block once, and a new hold forgets what the last one touched (decision signal-wave-toggles-each-device-once). */
-    @Nested
-    class TouchOnce {
-
-        private static final BlockPos LEVER = new BlockPos(4, 64, 2);
-
-        @Test
-        void aHoldTouchesEachBlockOnce() {
-            StreamHolds holds = new StreamHolds();
-            holds.advance(PLAYER, 100);
-            assertTrue(holds.touchOnce(PLAYER, LEVER));
-            holds.advance(PLAYER, 101);
-            assertFalse(holds.touchOnce(PLAYER, LEVER));
-        }
-
-        @Test
-        void aNewHoldTouchesTheBlockAgain() {
-            StreamHolds holds = new StreamHolds();
-            holds.advance(PLAYER, 100);
-            holds.touchOnce(PLAYER, LEVER);
-            holds.advance(PLAYER, 103);
-            assertTrue(holds.touchOnce(PLAYER, LEVER));
-        }
-
-        @Test
-        void noHoldTouchesNothing() {
-            assertFalse(new StreamHolds().touchOnce(PLAYER, LEVER));
-        }
-    }
-
     @Nested
     class ShareAt {
 

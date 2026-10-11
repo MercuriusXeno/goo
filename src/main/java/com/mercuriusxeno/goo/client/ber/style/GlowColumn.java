@@ -15,8 +15,10 @@ import net.minecraft.world.phys.Vec3;
  * re-tinted glow-yellow and drawn full-bright, inside a faint halo shaped
  * like the column itself, the column again swollen a little and drawn
  * faintly, so the prism reads as glow's whichever combo it holds; its beams
- * tell the beacon from the reflector (operator rulings 2026-10-09).
+ * tell the beacon from the reflector (operator rulings 2026-10-09), and the
+ * reflector's column folds into four sides as its combo takes.
  * decisions bulb-one-model-max-light-beacon-combo, reflector-rails-carry-the-brightest-light
+ * relay-and-metronome-read-apart-at-rest
  */
 final class GlowColumn {
 
@@ -42,8 +44,10 @@ final class GlowColumn {
      * @param state         the prism's render state
      * @param poseStack     the pose at the prism's cell corner
      * @param nodeCollector the submit collector
+     * @param sides         the column's resting sides
      */
-    static void submit(PrismRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector) {
+    static void submit(PrismRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector,
+                       PrismCrystal.ColumnSides sides) {
         CrystalClusterSubmitter.Look look = state.look;
         if (look == null) {
             return;
@@ -51,12 +55,13 @@ final class GlowColumn {
         poseStack.pushPose();
         PrismCrystal.standOnLandingFace(poseStack, state.facing);
         int light = GooSubmitter.fullbrightLight();
-        CrystalClusterSubmitter.submit(poseStack, nodeCollector, PrismCrystal.PRISMS,
+        double fold = OculusStyle.transformationShare(state.gameTime, state.comboSince);
+        PrismCrystal.submitColumn(poseStack, nodeCollector, sides, fold,
                 new CrystalClusterSubmitter.Look(look.uv(), TINT), light);
         poseStack.translate(COLUMN_BASE.x, COLUMN_BASE.y, COLUMN_BASE.z);
         poseStack.scale(HALO_WIDTH, HALO_LENGTH, HALO_WIDTH);
         poseStack.translate(-COLUMN_BASE.x, -COLUMN_BASE.y, -COLUMN_BASE.z);
-        CrystalClusterSubmitter.submit(poseStack, nodeCollector, PrismCrystal.PRISMS,
+        PrismCrystal.submitColumn(poseStack, nodeCollector, sides, fold,
                 new CrystalClusterSubmitter.Look(look.uv(), HALO), light);
         poseStack.popPose();
     }
