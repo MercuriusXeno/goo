@@ -67,13 +67,15 @@ public final class FateLinks {
             return Optional.empty();
         }
         SharedFate fate = creature.getData(GooAttachments.SHARED_FATE);
-        if (fate.standsAt(level.getGameTime()) && level.getEntity(fate.partner()) instanceof LivingEntity partner
-                && partner.isAlive()) {
-            return Optional.of(partner);
-        }
         if (!fate.standsAt(level.getGameTime())) {
             creature.removeData(GooAttachments.SHARED_FATE);
+            return Optional.empty();
         }
-        return Optional.empty();
+        return livingPartner(level, fate);
+    }
+
+    private static Optional<LivingEntity> livingPartner(ServerLevel level, SharedFate fate) {
+        return level.getEntity(fate.partner()) instanceof LivingEntity partner && partner.isAlive()
+                ? Optional.of(partner) : Optional.empty();
     }
 }
