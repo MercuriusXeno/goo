@@ -198,7 +198,7 @@ public final class HeartOverlayTests {
         HeartOverlay primed = player.getData(GooAttachments.HEART_OVERLAY);
         List<Integer> whole = Collections.nCopies(HeartOverlay.filledSlots(player.getHealth()), HeartOverlay.FULL_SHIELD);
         player.setData(GooAttachments.HEART_OVERLAY, new HeartOverlay(primed.kind(), whole, primed.expiresAt(),
-                primed.regrowAt(), primed.fireReadyAt(), primed.damageTaken(), primed.drainCarry()));
+                primed.regrowAt(), primed.fireReadyAt(), primed.damageTaken()));
         return player;
     }
 
@@ -231,7 +231,7 @@ public final class HeartOverlayTests {
      * @param gooType the brew's goo type
      * @param ability the brew's id
      */
-    private static void invoke(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, Identifier ability) {
+    static void invoke(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType, Identifier ability) {
         KnownRecipes.teachRequires(player, AbilityRegistry.of(player.level()).getAbility(ability));
         SelfDeliveryTests.invoke(player, gooType, ability);
         SelfDeliveryTests.eatThrough(player);
