@@ -1128,8 +1128,9 @@ public final class GooRenderTypes {
      * The Unmake drink's field pipeline (decision
      * unmake-waves-dissolve-by-crucible-cost): region boxes whose fragments
      * march the drink's metaball field and write the hit's depth, opaque,
-     * lit by the cardinal lights and the lightmap, textured off the block
-     * atlas, with each region's bodies in a uniform block of their own.
+     * lit by the cardinal lights and the lightmap, painted in two solid
+     * colors with no texture (decision unmake-skin-is-a-solid-sampled-color),
+     * with each region's bodies in a uniform block of their own.
      */
     public static final RenderPipeline DRINK_FIELD = RenderPipeline.builder(
                     RenderPipelines.MATRICES_FOG_LIGHT_DIR_SNIPPET,
@@ -1137,13 +1138,33 @@ public final class GooRenderTypes {
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "drink_field"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "drink_field"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "drink_field"))
-            .withSampler("Sampler0")
             .withSampler("Sampler2")
             .withUniform(DRINK_REGION_BLOCK, UniformType.UNIFORM_BUFFER)
             .withVertexFormat(DefaultVertexFormat.ENTITY, VertexFormat.Mode.QUADS)
             .withDepthStencilState(DepthStencilState.DEFAULT)
             .withCull(true)
             .build();
+
+    /**
+     * The goo film pipeline (decision unmake-skin-is-a-solid-sampled-color):
+     * the entity look with no texture at all, each vertex's own color lit by
+     * the cardinal lights and the lightmap, translucent, for the solid goo
+     * spreading over a block Unmake melts without the sag.
+     */
+    public static final RenderPipeline GOO_FILM = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_FOG_LIGHT_DIR_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_film"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_film"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_film"))
+            .withSampler("Sampler2")
+            .withVertexFormat(DefaultVertexFormat.ENTITY, VertexFormat.Mode.QUADS)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(DepthStencilState.DEFAULT)
+            .build();
+
+    /** The render type that draws the goo film, in the level's light. */
+    public static final RenderType GOO_FILM_TYPE = RenderType.create("goo_film",
+            RenderSetup.builder(GOO_FILM).useLightmap().sortOnUpload().createRenderSetup());
 
     /**
      * The render type that draws a burnout explosion pipeline to the main target.
@@ -1211,6 +1232,7 @@ public final class GooRenderTypes {
         event.registerPipeline(GLOW_SHELL);
         event.registerPipeline(SCRY_FACES);
         event.registerPipeline(DRINK_FIELD);
+        event.registerPipeline(GOO_FILM);
     }
 
     /**
