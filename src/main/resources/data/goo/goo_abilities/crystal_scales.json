@@ -1,0 +1,14 @@
+{
+  "gooType": "crystal",
+  "displayName": "goo.ability.crystal.scales",
+  "badge": "brew",
+  "order": 50,
+  "upkeep": 1,
+  "requires": ["minecraft:diamond", "minecraft:turtle_scute"],
+  "delivery": { "kind": "self" },
+  "behaviors": [
+    { "type": "heart_overlay", "kind": "scales" },
+    { "type": "sound", "id": "minecraft:block.amethyst_block.resonate", "at": "target", "source": "players", "volume": 1, "pitch": 1.2 }
+  ],
+  "tags": ["self"]
+}

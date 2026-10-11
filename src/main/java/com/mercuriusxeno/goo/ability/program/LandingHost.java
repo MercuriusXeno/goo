@@ -1,11 +1,14 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.colonize.ShroomNetwork;
+import com.mercuriusxeno.goo.ability.gate.AstralGateOpening;
 import com.mercuriusxeno.goo.ability.gate.EndGateOpening;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
+import com.mercuriusxeno.goo.ability.world.MeteorSky;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
+import com.mercuriusxeno.goo.entity.Meteor;
 import com.mercuriusxeno.goo.network.BlockVisuals;
 import com.mercuriusxeno.goo.network.TransformationPayload;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -49,7 +52,7 @@ import java.util.OptionalDouble;
 public record LandingHost(ServerLevel level, BlockPos cell, Direction face, boolean waterlogged,
                           ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 anchor, double size)
         implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
-        ColonizeHost, FloorScanHost, GateHost, PowerPulseHost, MobSpawnHost, FrostHost, TimedBlockHost {
+        ColonizeHost, FloorScanHost, GateHost, PowerPulseHost, MobSpawnHost, FrostHost, MeteorHost, TimedBlockHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -101,6 +104,32 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     @Override
     public boolean openEndGate(int lifetime) {
         return EndGateOpening.open(level, cell.relative(face.getOpposite()), face, lifetime);
+    }
+
+    /**
+     * Opens Astral's gate over the block the blob struck, the one behind the cell.
+     * decision astral-visits-lunar-and-solar-dimensions
+     */
+    @Override
+    public boolean openAstralGate(int lifetime) {
+        return AstralGateOpening.open(level, cell.relative(face.getOpposite()), face, lifetime);
+    }
+
+    /**
+     * Calls a meteor down on the cell's center when the sky above the cell
+     * is clear, fizzling there otherwise; a throw at a roofed target was
+     * refused before it was paid for, so this fizzle meets a blob that
+     * landed somewhere other than it was aimed.
+     * decision meteo-needs-a-clear-sky
+     */
+    @Override
+    public boolean callMeteor(float power, int fallTicks) {
+        if (!MeteorSky.clearAbove(level, cell)) {
+            MeteorSky.fizzle(level, cell);
+            return false;
+        }
+        Meteor.call(level, Vec3.atCenterOf(cell), power, fallTicks);
+        return true;
     }
 
     /**

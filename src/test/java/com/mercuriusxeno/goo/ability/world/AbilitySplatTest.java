@@ -66,7 +66,7 @@ class AbilitySplatTest {
 
     @Test
     void theMineRunsWithNoBurnoutAtTheSplat() {
-        RecordingSplat splat = new RecordingSplat(AbilityImpact.explodesLater(AbilityJson.decode("unstable_proximity_mine")));
+        RecordingSplat splat = new RecordingSplat(AbilityImpact.explodesLater(AbilityJson.decode("unstable_lurker")));
         AbilitySplat.resolve(splat);
         assertEquals(List.of(RUN), splat.calls());
     }

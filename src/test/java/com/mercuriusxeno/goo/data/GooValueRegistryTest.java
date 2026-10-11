@@ -2443,10 +2443,50 @@ class GooValueRegistryTest {
         }
     }
 
+    // ── Shipped base values ────────────────────────────────────────────
+
     @Nested
-    class ShippedTypeSources {
+    class ShippedBaseValues {
 
         private static final String SHIPPED_BASE_VALUES = "/data/goo/goo_values/base_values.json";
+
+        /**
+         * The shipped slime ball and gunpowder each resolve a kinetic share.
+         * decision kinetic-ships-from-slime-and-gunpowder
+         */
+        @Test
+        void slimeBallAndGunpowderResolveKinetic() throws IOException {
+            try (java.io.InputStream in = GooValueRegistryTest.class.getResourceAsStream(SHIPPED_BASE_VALUES)) {
+                assertNotNull(in, SHIPPED_BASE_VALUES);
+                parseBaseValuesFromStream(in);
+            }
+            copyBaseToEffective();
+            for (String item : List.of("minecraft:slime_ball", "minecraft:gunpowder")) {
+                GooValue value = registry.table().lookup(id(item));
+                assertNotNull(value, item);
+                assertTrue(value.get(GooTypes.KINETIC) > 0, item + " resolves no kinetic");
+            }
+        }
+
+        /**
+         * End stone and its bricks resolve astral from the base values the mod
+         * ships, beside the ender end stone always carried.
+         * decision astral-ships-from-endstone
+         */
+        @Test
+        void endStoneResolvesAstral() throws IOException {
+            try (java.io.InputStream shipped = GooValueRegistryTest.class.getResourceAsStream(SHIPPED_BASE_VALUES)) {
+                assertNotNull(shipped, SHIPPED_BASE_VALUES + " is off the test classpath");
+                parseBaseValuesFromStream(shipped);
+            }
+            copyBaseToEffective();
+            for (String item : List.of("minecraft:end_stone", "minecraft:end_stone_bricks")) {
+                GooValue value = registry.table().lookup(id(item));
+                assertNotNull(value, item + " holds no value");
+                assertTrue(value.get(GooTypes.ASTRAL) > 0, item + " resolves no astral: " + value);
+                assertTrue(value.get(GooTypes.ENDER) > 0, item + " lost its ender: " + value);
+            }
+        }
 
         /**
          * The shipped base_values.json values gold, emeralds, diamonds and
@@ -2517,6 +2557,27 @@ class GooValueRegistryTest {
                     .map(Map.Entry::getKey)
                     .toList();
             assertEquals(List.of(), carryingXeno);
+        }
+
+        /**
+         * No shipped item resolves to infinity, so no item can be broken down into it.
+         * decision infinity-sources-whatever-shares-its-vessel
+         */
+        @Test
+        void noShippedItemResolvesInfinity() throws IOException {
+            try (java.io.InputStream in = GooValueRegistryTest.class.getResourceAsStream(SHIPPED_BASE_VALUES)) {
+                assertNotNull(in, SHIPPED_BASE_VALUES);
+                parseBaseValuesFromStream(in);
+            }
+            copyBaseToEffective();
+            Map<Identifier, GooValue> effective = registry.table().getEffectiveValues();
+
+            assertFalse(effective.isEmpty(), SHIPPED_BASE_VALUES);
+            List<Identifier> yieldingInfinity = effective.entrySet().stream()
+                    .filter(entry -> entry.getValue().get(GooTypes.INFINITY) > 0)
+                    .map(Map.Entry::getKey)
+                    .toList();
+            assertEquals(List.of(), yieldingInfinity);
         }
     }
 

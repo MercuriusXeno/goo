@@ -103,7 +103,7 @@ public final class GloveThrowSender {
         if (HeldRoute.runsWhileHeld(delivery, selectedBadge(abilityId))) {
             return sendStreamTick(player, gooType, abilityId);
         }
-        if (delivery.kind() == DeliveryKind.SELF && delivery.charges()) {
+        if (delivery.charges()) {
             return sendCharge(player, gooType, abilityId, heldTicks);
         }
         return delivery.kind() == DeliveryKind.SELF
@@ -273,7 +273,7 @@ public final class GloveThrowSender {
     }
 
     /**
-     * Sends a charged self ability's release with the ticks it was held,
+     * Sends a charged ability's release with the ticks it was held,
      * when the player can afford it (decision nova-ring-grows-with-the-hold).
      *
      * @param player    the local player
@@ -618,7 +618,7 @@ public final class GloveThrowSender {
      *
      * @param payload the payload to send
      */
-    private static void sendPayload(CustomPacketPayload payload) {
+    static void sendPayload(CustomPacketPayload payload) {
         var connection = Minecraft.getInstance().getConnection();
         if (connection != null) {
             connection.send(new ServerboundCustomPayloadPacket(payload));

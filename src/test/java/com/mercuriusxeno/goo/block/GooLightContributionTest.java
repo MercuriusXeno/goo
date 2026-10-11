@@ -63,7 +63,8 @@ class GooLightContributionTest {
 
     private static GooTypeDefinition lit(int peak, float saturation) {
         return new GooTypeDefinition(peak, saturation, ANY_COLOR, ANY_COLOR, ANY_COLOR, ANY_COLOR,
-                WATER_LIKE, WATER_LIKE, WATER_LIKE, false, MapColor.STONE, 1.0f, 3, GooTypeTextures.NONE);
+                WATER_LIKE, WATER_LIKE, WATER_LIKE, false, MapColor.STONE, 1.0f, 3, GooTypeTextures.NONE,
+                GooTypeDefinition.NO_VESSEL_SOURCE);
     }
 
     /**
