@@ -1,16 +1,16 @@
 {
-  "gooType": "vital",
-  "displayName": "goo.ability.vital.clone",
+  "gooType": "zoo",
+  "displayName": "goo.ability.zoo.allure",
   "badge": "mob",
   "order": 0,
-  "cost": 1000,
+  "cost": 500,
   "delivery": { "kind": "arc" },
   "behaviors": [
     {
       "type": "target",
       "where": ["mob"],
       "steps": [
-        { "type": "clone_entity", "chance": "100 / pow(max_health, 0.6)", "goo": "vital" }
+        { "type": "court", "chance": 100 }
       ]
     }
   ],

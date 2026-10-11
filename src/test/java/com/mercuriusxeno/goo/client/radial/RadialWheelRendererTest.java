@@ -196,7 +196,7 @@ class RadialWheelRendererTest {
                 Map.entry("crystal_prism", "Prism"), Map.entry("deep_churn", "Churn"), Map.entry("deep_convoke", "Convoke"), Map.entry("deep_dive", "Dive"),
                 Map.entry("ender_zone", "Zone"), Map.entry("ender_shifter", "Shifter"), Map.entry("ender_end", "End"), Map.entry("ender_oculus", "Oculus"),
                 Map.entry("frost_snap", "Snap"), Map.entry("frost_nova", "Nova"), Map.entry("frost_cold", "Cold"), Map.entry("frost_orb", "Orb"), Map.entry("frost_glacial", "Glacial"), Map.entry("frost_iceborn", "Iceborn"), Map.entry("glow_crystal", "Bulb"),
-                Map.entry("glow_sunbeam", "Sunbeam"), Map.entry("hex_charm", "Charm"), Map.entry("hex_enchant", "Enchant"), Map.entry("hex_fuse", "Fuse"), Map.entry("hex_spawn", "Spawn"), Map.entry("hex_lifetap", "Lifetap"), Map.entry("hex_drain", "Drain"),
+                Map.entry("glow_sunbeam", "Sunbeam"), Map.entry("hex_charm", "Charm"), Map.entry("hex_enchant", "Enchant"), Map.entry("hex_fuse", "Fuse"), Map.entry("hex_lifetap", "Lifetap"), Map.entry("hex_drain", "Drain"),
                 Map.entry("leaf_vines", "Vines"), Map.entry("leaf_bloom", "Bloom"), Map.entry("leaf_growth", "Growth"), Map.entry("leaf_reap", "Reap"), Map.entry("leaf_bio", "Bio"), Map.entry("leaf_verdant", "Verdant"),
                 Map.entry("leaf_barkskin", "Barkskin"), Map.entry("metal_spikes", "Urchin"),
                 Map.entry("metal_javelin", "Dart"), Map.entry("nether_black_hole", "Anti"),
@@ -217,7 +217,7 @@ class RadialWheelRendererTest {
                 Map.entry("ender_blink", "Blink"), Map.entry("typhoon_jet", "Jet"), Map.entry("typhoon_airborn", "Airborn"), Map.entry("typhoon_repel", "Repel"),
                 Map.entry("typhoon_updraft", "Updraft"), Map.entry("typhoon_lift", "Lift"),
                 Map.entry("kinetic_grab", "Grab"), Map.entry("kinetic_telekinesis", "Telekinesis"),
-                Map.entry("unstable_explode", "Blast"), Map.entry("vital_clone", "Clone"),
+                Map.entry("unstable_explode", "Blast"), Map.entry("zoo_allure", "Allure"), Map.entry("zoo_spawn", "Spawn"), Map.entry("zoo_shape", "Shape"), Map.entry("zoo_rally", "Rally"),
                 Map.entry("vital_vitality", "Vitality"), Map.entry("vital_reserve", "Reserve"),
                 Map.entry("vital_nourish", "Nourish"), Map.entry("xeno_eldritch", "Eldritch Sight"),
                 Map.entry("xeno_mutate", "Mutate"));
