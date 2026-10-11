@@ -16,89 +16,103 @@ import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.EventHooks;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
- * Conjures a random mob the biome spawns naturally into the host's spawn
- * cell and finishes: the players watching see the goo morph into the mob
- * right where it splatted, the mob growing out of the shrinking blob, then
- * the steps under it run on the new mob. Hex
- * spawn is {@code spawn_random goo=hex morph_ticks=20 steps=[ailment_overlay,
- * afterimage]}; a cell nothing the biome spawns fits conjures nothing.
- * spawn-goo-morphs-into-the-mob-it-births
- *
- * <p>A tap rolls for each drip: {@code chance=5} conjures on one drip in
- * twenty (decision spawn-drip-rolls-a-fresh-spawn).
+ * Transmutes the struck slime into a random mob the biome it stands in
+ * spawns naturally, hostile or peaceful, and finishes: the slime is
+ * consumed, no egg is spent, and the players watching see the goo morph
+ * into the mob where the slime stood; the steps under it then run on the
+ * new mob. A blob on anything but a slime does nothing. Zoo's Spawn is
+ * {@code transmute_slime goo=zoo hostile=true}, Shape the same with
+ * {@code hostile=false}.
+ * spawn-hostile-shape-peaceful-from-a-slime
+ * model-transformation-is-one-animation
  *
  * @param goo        the goo type that morphs into the mob
+ * @param hostile    true draws a monster, false a mob of a peaceful category
  * @param morphTicks the game ticks the morph takes
- * @param steps      the steps run on the conjured mob, instant ones
- * @param chance     the percent chance a mob is conjured, evaluated when the step runs
+ * @param steps      the steps run on the born mob, instant ones
  */
-public record SpawnRandomStep(ResourceKey<GooTypeDefinition> goo, int morphTicks, List<Step> steps, Expr chance)
-        implements Step {
+public record SlimeTransmuteStep(ResourceKey<GooTypeDefinition> goo, boolean hostile, int morphTicks,
+                                 List<Step> steps) implements Step {
 
-    private static final String NAME = "spawn_random";
+    private static final String NAME = "transmute_slime";
     private static final String FIELD_GOO = "goo";
+    private static final String FIELD_HOSTILE = "hostile";
     private static final String FIELD_MORPH_TICKS = "morph_ticks";
     private static final String FIELD_STEPS = "steps";
-    private static final String FIELD_CHANCE = "chance";
-    /** A whole chance, in percent: the throw always conjures. */
-    private static final float PERCENT = 100;
     /** Game ticks a goo morph takes where the JSON names none. */
     static final int DEFAULT_MORPH_TICKS = 16;
-    /** A whole turn, in degrees, over which the conjured mob's facing is drawn. */
+    /** A whole turn, in degrees, over which the born mob's facing is drawn. */
     private static final float FULL_TURN_DEGREES = 360f;
 
     /**
      * Codec for the step's params. The list codec is read lazily because
      * {@link StepTypes} registers this type while building it.
      */
-    public static final MapCodec<SpawnRandomStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            GooTypes.ID_CODEC.fieldOf(FIELD_GOO).forGetter(SpawnRandomStep::goo),
-            Codec.INT.optionalFieldOf(FIELD_MORPH_TICKS, DEFAULT_MORPH_TICKS).forGetter(SpawnRandomStep::morphTicks),
+    public static final MapCodec<SlimeTransmuteStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
+            GooTypes.ID_CODEC.fieldOf(FIELD_GOO).forGetter(SlimeTransmuteStep::goo),
+            Codec.BOOL.fieldOf(FIELD_HOSTILE).forGetter(SlimeTransmuteStep::hostile),
+            Codec.INT.optionalFieldOf(FIELD_MORPH_TICKS, DEFAULT_MORPH_TICKS).forGetter(SlimeTransmuteStep::morphTicks),
             Codec.lazyInitialized(() -> StepTypes.LIST_CODEC).optionalFieldOf(FIELD_STEPS, List.of())
-                    .forGetter(SpawnRandomStep::steps),
-            Expr.CODEC.optionalFieldOf(FIELD_CHANCE, Expr.literal(PERCENT)).forGetter(SpawnRandomStep::chance)
-    ).apply(inst, SpawnRandomStep::new));
+                    .forGetter(SlimeTransmuteStep::steps)
+    ).apply(inst, SlimeTransmuteStep::new));
 
     /**
      * The registered type.
      */
-    public static final StepType<SpawnRandomStep> TYPE = new StepType<>(NAME, CODEC);
+    public static final StepType<SlimeTransmuteStep> TYPE = new StepType<>(NAME, CODEC);
 
     @Override
-    public StepType<SpawnRandomStep> type() {
+    public StepType<SlimeTransmuteStep> type() {
         return TYPE;
     }
 
     @Override
     public boolean tick(StepContext context) {
-        MobSpawnHost host = context.hostAs(MobSpawnHost.class);
-        ServerLevel level = host.level();
-        if (!rolls(chance.evaluateFloat(context), level.getRandom().nextFloat())) {
-            return true;
+        if (context.hostAs(TargetHost.class).target() instanceof Slime slime
+                && slime.level() instanceof ServerLevel level) {
+            BlockPos cell = slime.blockPosition();
+            Vec3 morphFrom = slime.getBoundingBox().getCenter();
+            NaturalSpawns.drawAt(level, cell, level.getRandom(), categoryFilter(hostile), type -> type != EntityType.SLIME)
+                    .ifPresent(type -> {
+                        slime.discard();
+                        bear(level, type, cell, morphFrom);
+                    });
         }
-        NaturalSpawns.drawAt(level, host.spawnCell(), level.getRandom())
-                .ifPresent(type -> conjure(level, type, host.spawnCell(), host.morphFrom()));
         return true;
     }
 
     /**
-     * Makes a mob of the type standing in the cell, announces the goo
+     * The categories a draw takes from: monsters for a hostile draw, every
+     * friendly category for a peaceful one.
+     *
+     * @param hostile whether the draw is hostile
+     * @return the category filter
+     */
+    static Predicate<MobCategory> categoryFilter(boolean hostile) {
+        return hostile ? category -> category == MobCategory.MONSTER : MobCategory::isFriendly;
+    }
+
+    /**
+     * Makes a mob of the type standing in the slime's cell, announces the goo
      * morphing into it, adds it to the level and runs the steps on it.
      *
      * @param level     the level
      * @param type      the type drawn
      * @param cell      the cell the mob stands in
-     * @param morphFrom where the goo morphs from
+     * @param morphFrom where the goo morphs from, the slime's center
      */
-    private void conjure(ServerLevel level, EntityType<?> type, BlockPos cell, Vec3 morphFrom) {
+    private void bear(ServerLevel level, EntityType<?> type, BlockPos cell, Vec3 morphFrom) {
         Entity entity = type.create(level, EntitySpawnReason.MOB_SUMMONED);
         if (entity == null) {
             return;
@@ -109,25 +123,11 @@ public record SpawnRandomStep(ResourceKey<GooTypeDefinition> goo, int morphTicks
             EventHooks.finalizeMobSpawn(mob, level, level.getCurrentDifficultyAt(cell), EntitySpawnReason.MOB_SUMMONED,
                     null);
         }
-        // spawn-goo-morphs-into-the-mob-it-births: the splat morphs in place, no hop
-        TransformationPayload morph = new TransformationPayload(goo, morphFrom, morphFrom, entity.getId(),
-                morphTicks);
-        spawnAnnounced(entity, () -> BlockVisuals.sendToWatchers(level, cell, morph),
-                level::addFreshEntity);
+        TransformationPayload morph = new TransformationPayload(goo, morphFrom, morphFrom, entity.getId(), morphTicks);
+        spawnAnnounced(entity, () -> BlockVisuals.sendToWatchers(level, cell, morph), level::addFreshEntity);
         if (entity instanceof LivingEntity living && !steps.isEmpty()) {
             new ProgramBehavior(steps).tick(new EntityHost(level, living, null));
         }
-    }
-
-    /**
-     * Whether a conjure roll lands: a roll in [0, 1) lands under a percent chance.
-     *
-     * @param chancePercent the percent chance the step names
-     * @param roll          the uniform roll in [0, 1)
-     * @return true when the roll lands
-     */
-    static boolean rolls(float chancePercent, float roll) {
-        return roll * PERCENT < chancePercent;
     }
 
     /**
@@ -135,7 +135,7 @@ public record SpawnRandomStep(ResourceKey<GooTypeDefinition> goo, int morphTicks
      * Adding it sends its spawn to the watchers at once, so the
      * transformation goes first: the client keys it by the mob's id, which
      * the mob holds from construction, and draws the mob at nothing from its
-     * first frame (decision model-transformation-is-one-animation).
+     * first frame.
      *
      * @param mob      the mob, its id and position set
      * @param announce sends the transformation to the watchers
@@ -159,11 +159,11 @@ public record SpawnRandomStep(ResourceKey<GooTypeDefinition> goo, int morphTicks
 
     @Override
     public Stream<Expr> expressions() {
-        return Stream.of(chance);
+        return Stream.empty();
     }
 
     @Override
     public Set<HostCapability> requires() {
-        return Set.of(HostCapability.SPAWN_MOB);
+        return Set.of(HostCapability.TARGET);
     }
 }

@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:spawn_births_a_natural_mob",
+  "function": "goo:spawn_turns_a_slime_hostile",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 100,
+  "max_ticks": 5,
   "setup_ticks": 0,
   "required": true
 }
