@@ -18,6 +18,7 @@ import com.mercuriusxeno.goo.network.BlockAfterimagePayload;
 import com.mercuriusxeno.goo.network.BlockExposurePayload;
 import com.mercuriusxeno.goo.network.BlockTransformPayload;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
+import com.mercuriusxeno.goo.network.DrinkPayload;
 import com.mercuriusxeno.goo.network.DripHealedPayload;
 import com.mercuriusxeno.goo.network.GhostTrailPayload;
 import com.mercuriusxeno.goo.network.GlassKnifePayload;
@@ -26,6 +27,7 @@ import com.mercuriusxeno.goo.network.GooValueSyncPayload;
 import com.mercuriusxeno.goo.network.KnownItemLearnedPayload;
 import com.mercuriusxeno.goo.network.KnownItemsSyncPayload;
 import com.mercuriusxeno.goo.network.LeechPayload;
+import com.mercuriusxeno.goo.network.LurkerPulsePayload;
 import com.mercuriusxeno.goo.network.MobHitPayload;
 import com.mercuriusxeno.goo.network.ModelShrinkPayload;
 import com.mercuriusxeno.goo.network.NovaRingPayload;
@@ -40,6 +42,8 @@ import com.mercuriusxeno.goo.network.TickAimPayload;
 import com.mercuriusxeno.goo.network.TomePayload;
 import com.mercuriusxeno.goo.network.TransformationPayload;
 import com.mercuriusxeno.goo.network.TunerFeedbackPayload;
+import com.mercuriusxeno.goo.network.UnmadePayload;
+import com.mercuriusxeno.goo.network.UnmakePayload;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -80,6 +84,19 @@ public final class GooClientNetworking {
      */
     private static void registerAbilityVisualHandlers(RegisterClientPayloadHandlersEvent event) {
         event.register(ChainBurnoutPayload.TYPE, ChainBurnoutHandler::handle);
+        event.register(LurkerPulsePayload.TYPE, LurkerPulseHandler::handle);
+        event.register(UnmakePayload.TYPE, UnmakeHandler::handle);
+        event.register(DrinkPayload.TYPE, UnmakeHandler::handleDrink);
+        event.register(UnmadePayload.TYPE, UnmakeHandler::handleUnmade);
+        registerEffectHandlers(event);
+    }
+
+    /**
+     * Registers the client-bound handlers of the mob and self effects' visuals.
+     *
+     * @param event the client payload handler registration event
+     */
+    private static void registerEffectHandlers(RegisterClientPayloadHandlersEvent event) {
         event.register(MobHitPayload.TYPE, MobHitHandler::handle);
         event.register(AilmentPayload.TYPE, AilmentHandler::handle);
         registerAbilityOwnVisualHandlers(event);

@@ -172,6 +172,16 @@ class GooTypeDefinitionTest {
     }
 
     /**
+     * Bundled infinity names a vessel source rate of 1, and a type naming none sources nothing.
+     * decision infinity-sources-whatever-shares-its-vessel
+     */
+    @Test
+    void infinityNamesAVesselSourceRateAndOtherTypesNone() throws Exception {
+        assertEquals(1, decodeBundled(GooTypes.INFINITY).vesselSourcePerMb());
+        assertEquals(GooTypeDefinition.NO_VESSEL_SOURCE, decodeBundled(GooTypes.BLAZE).vesselSourcePerMb());
+    }
+
+    /**
      * A texture id that is not a valid identifier is refused.
      */
     @Test

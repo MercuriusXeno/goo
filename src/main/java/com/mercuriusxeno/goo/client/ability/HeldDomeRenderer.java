@@ -156,8 +156,10 @@ public final class HeldDomeRenderer {
 
     /**
      * Draws a sized ability's ghost at the epicenter its press pinned, at the
-     * radius its drag sets, as the type's ghost sizes it
-     * (decisions black-hole-leaves-a-compression-sphere, chronosphere-hastes-players-slows-mobs).
+     * radius its drag sets, its rings as its type's ghost names them, the
+     * black hole's pulsing in from the reach it pulls from and Blast's out to
+     * the radius dragged (decisions black-hole-leaves-a-compression-sphere,
+     * chronosphere-hastes-players-slows-mobs, blast-is-drag-sized-like-the-black-hole).
      *
      * @param poseStack  the pose stack, camera relative
      * @param buffers    the buffer source
@@ -182,7 +184,8 @@ public final class HeldDomeRenderer {
 
     /**
      * A sized black hole's ghost: its dome at the radius dragged and its rings
-     * closing in from the reach it pulls from, three times that.
+     * closing in from the reach it pulls from, three times that
+     * (decision black-hole-leaves-a-compression-sphere).
      *
      * @param radius the radius dragged, in blocks
      * @return the ghost

@@ -125,6 +125,23 @@ class GooDepositTest {
 
             assertAll(() -> assertFalse(moved), () -> assertTrue(drawn.isEmpty()));
         }
+
+        /**
+         * Infinity stays in the container while the rest drains.
+         * decision infinity-sources-whatever-shares-its-vessel
+         */
+        @Test
+        void drainLeavesInfinityInTheContainer() {
+            Map<ResourceKey<GooTypeDefinition>, Integer> drawn = new HashMap<>();
+            Map<ResourceKey<GooTypeDefinition>, Integer> deposited = new HashMap<>();
+
+            GooDeposit.drainEveryType(Map.of(GooTypes.INFINITY, 1, ROCK, 900),
+                    (type, volume) -> { drawn.merge(type, volume, Integer::sum); return volume; },
+                    (type, volume) -> { deposited.merge(type, volume, Integer::sum); return 0; });
+
+            assertAll(() -> assertEquals(Map.of(ROCK, 900), drawn),
+                    () -> assertEquals(Map.of(ROCK, 900), deposited));
+        }
     }
 
     @Test

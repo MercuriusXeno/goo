@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.ability.ChronosphereVisual;
 import com.mercuriusxeno.goo.client.ability.CrystalCloudVisual;
+import com.mercuriusxeno.goo.client.ability.LurkerPulses;
 import com.mercuriusxeno.goo.client.ability.MarkerOrbVisual;
 import com.mercuriusxeno.goo.client.ability.MetalSpikeVisual;
 import com.mercuriusxeno.goo.client.ability.UpdraftWind;
@@ -139,6 +140,7 @@ public class AbilityBlockRenderer
         extractCoreFields(be, state, partialTick);
         extractTargetAndFace(be, state);
         state.abilityId = be.getAbilityId();
+        state.lurkerGlow = LurkerPulses.CLIENT.glowAt(be.getBlockPos(), state.gameTime);
         MetalSpikeVisual.extract(be, state);
         CrystalCloudVisual.extract(be, state);
         ChronosphereVisual.extract(be, state);
