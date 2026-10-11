@@ -17,19 +17,16 @@ final class GooRecipeEvaluator {
     }
 
     /**
-     * Cheaper = fewer total goo, then fewer goo types as tiebreaker.
+     * Cheaper = fewer total goo; a tie keeps the current value whatever its
+     * type count, so a hand-keyed base value holds against an equal recipe
+     * (idea explicit-value-wins-a-tie).
      *
      * @param candidate the proposed replacement value
      * @param current   the existing value to compare against
      * @return true if candidate is cheaper than current
      */
     static boolean isCheaper(GooValue candidate, GooValue current) {
-        int cGoo = candidate.totalGoo();
-        int eGoo = current.totalGoo();
-        if (cGoo != eGoo) {
-            return cGoo < eGoo;
-        }
-        return candidate.typeCount() < current.typeCount();
+        return candidate.totalGoo() < current.totalGoo();
     }
 
     /**

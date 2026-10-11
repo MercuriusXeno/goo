@@ -133,6 +133,22 @@ class GooValueRegistryTest {
         }
 
         /**
+         * A base value tying a recipe on total holds, though it carries more
+         * goo types than the recipe (idea explicit-value-wins-a-tie).
+         */
+        @Test
+        void baseHoldsAgainstAnEqualRecipeWithFewerTypes() {
+            setBaseValues(Map.of(
+                    id("shroom"), goo(GooTypes.SHROOM, 10),
+                    id("stew"), goo(GooTypes.SHROOM, 4, GooTypes.LEAF, 3, GooTypes.JELLY, 3)
+            ));
+            List<RecipeInput> recipes = List.of(recipe("stew", 1, slot("shroom")));
+
+            registry.deriveFromRecipeInputs(recipes, false);
+            assertEquals(3, registry.table().lookup(id("stew")).get(GooTypes.JELLY));
+        }
+
+        /**
          * Multi-pass: recipe B needs A's value, A derives on pass 1, B on pass 2.
          */
         @Test
@@ -212,29 +228,6 @@ class GooValueRegistryTest {
 
             assertDoesNotThrow(() -> registry.deriveFromRecipeInputs(recipes, false));
             assertEquals(0, registry.diagnostics().derivedSize());
-        }
-
-        /**
-         * Same total goo, fewer goo types wins.
-         */
-        @Test
-        void fewerGooTypesWinsTiebreak() {
-            setBaseValues(Map.of(
-                    id("a"), goo(GooTypes.METAL, 16, GooTypes.ROCK, 8, GooTypes.CRYSTAL, 8),
-                    id("b"), goo(GooTypes.METAL, 16, GooTypes.ROCK, 16)
-            ));
-            // Both recipes cost 32 total goo, but b has 2 types vs a's 3
-            List<RecipeInput> recipes = List.of(
-                    recipe("x", 1, slot("a")),
-                    recipe("x", 1, slot("b"))
-            );
-
-            registry.deriveFromRecipeInputs(recipes, false);
-            GooValue val = registry.table().lookup(id("x"));
-            assertNotNull(val);
-            assertEquals(2, val.getAll().size(), "Should pick the 2-type recipe: " + val);
-            assertEquals(16, val.get(GooTypes.METAL));
-            assertEquals(16, val.get(GooTypes.ROCK));
         }
 
         /**

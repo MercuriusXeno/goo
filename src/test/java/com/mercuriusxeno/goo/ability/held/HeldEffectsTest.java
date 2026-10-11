@@ -4,7 +4,7 @@ import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.HasteStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
-import com.mercuriusxeno.goo.ability.program.NourishStep;
+import com.mercuriusxeno.goo.ability.program.GluttonyStep;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.registry.GooSoundIds;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -30,14 +30,14 @@ class HeldEffectsTest {
     private static final int UPKEEP = 1;
     private static final Identifier KINDLE = Identifier.fromNamespaceAndPath("goo", "blaze_kindle");
     private static final Identifier BARKSKIN = Identifier.fromNamespaceAndPath("goo", "leaf_barkskin");
-    private static final Identifier NOURISH = Identifier.fromNamespaceAndPath("goo", "vital_nourish");
+    private static final Identifier GLUTTONY = Identifier.fromNamespaceAndPath("goo", "jelly_gluttony");
 
     private static HeldEffects.Held hearts(Identifier ability, ResourceKey<GooTypeDefinition> type) {
         return new HeldEffects.Held(ability, type, UPKEEP, Set.of(LaidState.HEART_OVERLAY), STARTED);
     }
 
-    private static HeldEffects.Held nourish() {
-        return new HeldEffects.Held(NOURISH, GooTypes.VITAL, UPKEEP, Set.of(LaidState.NOURISH), STARTED);
+    private static HeldEffects.Held gluttony() {
+        return new HeldEffects.Held(GLUTTONY, GooTypes.JELLY, UPKEEP, Set.of(LaidState.GLUTTONY), STARTED);
     }
 
     private static HeldEffects holding(HeldEffects.Held... held) {
@@ -93,7 +93,7 @@ class HeldEffectsTest {
         @Test
         void effectsSharingATypeDrawInTurnAndTheLastUnpaidEnds() {
             HeldEffects.Held first = new HeldEffects.Held(KINDLE, GooTypes.BLAZE, UPKEEP, Set.of(), STARTED);
-            HeldEffects.Held second = new HeldEffects.Held(NOURISH, GooTypes.BLAZE, UPKEEP, Set.of(), STARTED);
+            HeldEffects.Held second = new HeldEffects.Held(GLUTTONY, GooTypes.BLAZE, UPKEEP, Set.of(), STARTED);
             HeldEffects.Ticked ticked = holding(first, second).tick(type -> UPKEEP, STARTED + 1);
             assertEquals(Map.of(GooTypes.BLAZE, UPKEEP), ticked.drawn());
             assertEquals(List.of(second), ticked.ended());
@@ -106,17 +106,17 @@ class HeldEffectsTest {
 
         @Test
         void aHeartChangingStartEndsTheOtherHeartChangingEffect() {
-            HeldEffects.Changed changed = holding(hearts(KINDLE, GooTypes.BLAZE), nourish())
+            HeldEffects.Changed changed = holding(hearts(KINDLE, GooTypes.BLAZE), gluttony())
                     .start(hearts(BARKSKIN, GooTypes.LEAF));
             assertEquals(List.of(KINDLE), changed.ended().stream().map(HeldEffects.Held::ability).toList());
             assertTrue(changed.after().holds(BARKSKIN));
-            assertTrue(changed.after().holds(NOURISH));
+            assertTrue(changed.after().holds(GLUTTONY));
             assertFalse(changed.after().holds(KINDLE));
         }
 
         @Test
         void aStartChangingNoHeartsEndsNothing() {
-            HeldEffects.Changed changed = holding(hearts(KINDLE, GooTypes.BLAZE)).start(nourish());
+            HeldEffects.Changed changed = holding(hearts(KINDLE, GooTypes.BLAZE)).start(gluttony());
             assertTrue(changed.ended().isEmpty());
             assertTrue(changed.after().holds(KINDLE));
         }
@@ -130,7 +130,7 @@ class HeldEffectsTest {
 
         @Test
         void endingAnEffectNotHeldChangesNothing() {
-            HeldEffects held = holding(nourish());
+            HeldEffects held = holding(gluttony());
             HeldEffects.Changed changed = held.end(KINDLE);
             assertSame(held, changed.after());
             assertTrue(changed.ended().isEmpty());
@@ -150,7 +150,7 @@ class HeldEffectsTest {
         @Test
         void effectsSharingATypeSplitItsGoo() {
             HeldEffects.Held first = new HeldEffects.Held(KINDLE, GooTypes.BLAZE, UPKEEP, Set.of(), STARTED);
-            HeldEffects.Held second = new HeldEffects.Held(NOURISH, GooTypes.BLAZE, UPKEEP, Set.of(), STARTED);
+            HeldEffects.Held second = new HeldEffects.Held(GLUTTONY, GooTypes.BLAZE, UPKEEP, Set.of(), STARTED);
             assertEquals(Map.of(GooTypes.BLAZE, 1000), holding(first, second).ticksLeft(type -> 2000));
         }
 
@@ -205,7 +205,8 @@ class HeldEffectsTest {
     @Test
     void laidStateIsReadFromTheProgram() {
         assertEquals(Set.of(LaidState.HEART_OVERLAY), LaidState.laidBy(List.of(new HeartOverlayStep(HeartKind.KINDLE))));
-        assertEquals(Set.of(LaidState.NOURISH), LaidState.laidBy(List.of(new NourishStep(Expr.literal(80)))));
+        assertEquals(Set.of(LaidState.GLUTTONY), LaidState.laidBy(List.of(new GluttonyStep(Expr.literal(80),
+                Expr.literal(20), Expr.literal(20)))));
         // haste-stacks-speed-under-the-golden-overlay
         assertEquals(Set.of(LaidState.HASTE), LaidState.laidBy(List.of(new HasteStep())));
         assertEquals(Set.of(), LaidState.laidBy(List.of()));
