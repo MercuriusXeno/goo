@@ -1,7 +1,10 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.resources.ResourceKey;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -9,20 +12,25 @@ import java.util.stream.Stream;
  * Convokes a mob from the host's chunk to its spot, trying once every
  * period: finishes the try a mob arrives, and stays inert on each try none
  * does. The convoke blob lingers on
- * {@code convoke every=20} until a mob comes; a tap's single drip tries once.
- * Decisions convoke-blob-throbs-until-a-mob-arrives and convoke-drip-rolls-a-small-chance.
+ * {@code convoke goo=deep every=20} until a mob comes; a tap's single drip tries once.
+ * decision convoke-blob-throbs-until-a-mob-arrives
+ * decision convoke-drip-rolls-a-small-chance
+ * decision convoke-ships-on-deep
  *
+ * @param goo   the goo type whose color the convoked mob's afterimages wear
  * @param every the ticks between tries, evaluated each tick; one tries every tick
  */
-public record ConvokeStep(Expr every) implements Step {
+public record ConvokeStep(ResourceKey<GooTypeDefinition> goo, Expr every) implements Step {
 
     private static final String NAME = "convoke";
+    private static final String FIELD_GOO = "goo";
     private static final String FIELD_EVERY = "every";
 
     /**
      * Codec for the step's params.
      */
     public static final MapCodec<ConvokeStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
+            GooTypes.ID_CODEC.fieldOf(FIELD_GOO).forGetter(ConvokeStep::goo),
             Expr.CODEC.optionalFieldOf(FIELD_EVERY, Expr.literal(1)).forGetter(ConvokeStep::every)
     ).apply(inst, ConvokeStep::new));
 
@@ -39,7 +47,7 @@ public record ConvokeStep(Expr every) implements Step {
     @Override
     public boolean tick(StepContext context) {
         ConvokeHost host = context.hostAs(ConvokeHost.class);
-        return triesOn(host.gameTime(), every.evaluateInt(context)) && host.convokeFromChunk();
+        return triesOn(host.gameTime(), every.evaluateInt(context)) && host.convokeFromChunk(goo);
     }
 
     /**

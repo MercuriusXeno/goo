@@ -1,0 +1,18 @@
+{
+  "gooType": "deep",
+  "displayName": "goo.ability.deep.churn",
+  "badge": "world",
+  "order": 20,
+  "cost": 1000,
+  "requires": ["minecraft:sculk_catalyst"],
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    {
+      "type": "linger",
+      "steps": [
+        { "type": "churn", "depth": "4 * size" }
+      ]
+    }
+  ],
+  "tags": ["drag_sized"]
+}
