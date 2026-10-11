@@ -23,9 +23,9 @@ import org.jspecify.annotations.Nullable;
  */
 public interface BlockBreakHost extends StepHost {
 
-    /** Chunks of debris one crushed block throws. */
+    /** Chunks of debris one broken block throws. */
     int DEBRIS_CHUNKS = 12;
-    /** How far from a crushed block's center its debris starts, each way. */
+    /** How far from a broken block's center its debris starts, each way. */
     double DEBRIS_SPREAD = 0.3;
     /** How fast its debris flies out. */
     double DEBRIS_SPEED = 0.3;
