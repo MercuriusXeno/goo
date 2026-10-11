@@ -28,7 +28,9 @@ final class PetalPainter {
     }
 
     /**
-     * Submits a petal's fill under the hover, rest or disabled tint, then its edge.
+     * Submits a petal's fill under the hover, rest or disabled tint, then its
+     * edge, faded by the petal's presence.
+     * decision open-type-keeps-six-neighbors-a-side
      *
      * @param graphics the GUI graphics extractor
      * @param frame    what the frame draws from
@@ -47,7 +49,8 @@ final class PetalPainter {
         List<PetalRenderState.ScreenVertex> edge = toScreen(frame,
                 PetalMesh.edge(shape, PetalMesh.EDGE_THICKNESS, !petal.isAbility()), face.sprite());
         graphics.submitGuiElementRenderState(new PetalRenderState(RenderPipelines.GUI, TextureSetup.noTexture(), pose,
-                edge, face.edgeColor(), scissor, bounds(edge, pose, scissor)));
+                edge, RadialWheelRenderer.faded(face.edgeColor(), petal.presence()), scissor,
+                bounds(edge, pose, scissor)));
     }
 
     /**

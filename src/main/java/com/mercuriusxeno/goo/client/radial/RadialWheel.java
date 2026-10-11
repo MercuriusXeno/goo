@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.radial;
 
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.IntUnaryOperator;
@@ -10,12 +11,14 @@ import java.util.function.IntUnaryOperator;
  * The glove's one radial wheel as pure layout and state: one ring of petals
  * from the hub to the rim. At rest it holds one petal per type, each a full
  * type arc. Hovering a type (or scrolling to it) opens it with no click: its
- * petal is replaced in the same ring by its ability petals, and the other
- * types shrink to make room. The ring turns the least it must to keep the
- * cursor inside the open type's abilities. The cursor in the hub returns the
- * wheel to rest, unturned.
+ * petal is replaced in the same ring by its ability petals at their goal
+ * size, and the six nearest types either side take what remains, the far
+ * three fading, while the rest hide. The ring turns the least it must to
+ * keep the cursor inside the open type's abilities. The cursor in the hub
+ * returns the wheel to rest, unturned.
  * decision abilities-replace-the-hovered-type
- * decision ability-petals-take-a-type-arc-to-a-floor
+ * decision open-type-keeps-six-neighbors-a-side
+ * decision neighbors-fisheye-from-the-open-type
  * decision ring-rotates-to-keep-the-cursor-inside
  *
  * <p>Angles run clockwise from the top, the way the petal masks are drawn.
@@ -28,8 +31,16 @@ public final class RadialWheel {
     static final double HUB_FRACTION = 0.2;
     /** No type open, or no ability hovered. */
     static final int NONE = -1;
-    /** The narrowest arc a shrunken type petal keeps while another type is open. */
-    static final double TYPE_FLOOR = Math.toRadians(10.0);
+    /** The arc each ability petal of the open type takes while the ring has room for it. */
+    static final double ABILITY_ARC = Math.toRadians(30.0);
+    /** The narrowest arc a visible neighbor keeps when the open type holds more abilities than fit. */
+    static final double NEIGHBOR_MIN_ARC = Math.toRadians(3.0);
+    /** How many types either side of the open type stay on the ring. */
+    static final int NEIGHBORS_A_SIDE = 6;
+    /** The most types a wheel holds with none hidden while one is open: the open type and its neighbors. */
+    private static final int WINDOW_TYPES = NEIGHBORS_A_SIDE + 1 + NEIGHBORS_A_SIDE;
+    /** Each neighbor's presence by its distance from the open type, nearest first. */
+    private static final double[] NEIGHBOR_PRESENCE = {1.0, 1.0, 1.0, 0.8, 0.6, 0.4};
 
     private static final double TWO_PI = 2.0 * Math.PI;
     private static final double HALF = 0.5;
@@ -218,22 +229,86 @@ public final class RadialWheel {
     }
 
     /**
-     * The target pose: the open type's slot as wide as its abilities and
-     * fully open, every other type's slot its shrunken or resting arc and closed.
+     * The target pose: at rest every type a full type arc at full presence;
+     * with a type fanned out, its slot as wide as its abilities and fully
+     * open, each neighbor its share of what remains at its presence, and
+     * every type past the window no width and no presence.
+     * decision open-type-keeps-six-neighbors-a-side
      *
      * @return the target pose
      */
     private RingEase.Pose targetPose() {
-        int open = isOpen() ? abilityCount.applyAsInt(selectedType) : 0;
-        Arcs arcs = arcsAround(open);
-        int fanned = open > 0 ? selectedType : NONE;
+        if (!isOpen() || abilityCount.applyAsInt(selectedType) == 0) {
+            return restPose();
+        }
+        int fanned = selectedType;
         double[] widths = new double[typeCount];
         double[] openness = new double[typeCount];
+        double[] presence = new double[typeCount];
+        Arcs arcs = arcsWithOpenType(fanned);
         for (int type = 0; type < typeCount; type++) {
-            widths[type] = type == fanned ? open * arcs.ability() : arcs.type();
-            openness[type] = type == fanned ? 1.0 : 0.0;
+            presence[type] = type == fanned ? 1.0 : presenceAround(fanned, type);
+            widths[type] = type == fanned ? abilityCount.applyAsInt(type) * arcs.ability()
+                    : arcs.neighborRoom() * neighborWeight(fanned, type) / arcs.weightSum();
         }
-        return new RingEase.Pose(rotation, widths, openness);
+        openness[fanned] = 1.0;
+        return new RingEase.Pose(rotation, widths, openness, presence);
+    }
+
+    /**
+     * The pose with no type fanned out: every type a full type arc, closed, at full presence.
+     *
+     * @return the resting pose at the current rotation
+     */
+    private RingEase.Pose restPose() {
+        double[] widths = new double[typeCount];
+        double[] presence = new double[typeCount];
+        Arrays.fill(widths, typeArc());
+        Arrays.fill(presence, 1.0);
+        return new RingEase.Pose(rotation, widths, new double[typeCount], presence);
+    }
+
+    /**
+     * How far round the ring, either way, a type stands from the open type.
+     *
+     * @param open the open type
+     * @param type the other type
+     * @return the fewer steps of the two ways round
+     */
+    private int distance(int open, int type) {
+        return Math.min(Math.floorMod(type - open, typeCount), Math.floorMod(open - type, typeCount));
+    }
+
+    /**
+     * A type's presence while another is open: on a wheel the window holds
+     * whole every type stays at full presence; otherwise the three nearest
+     * either side stand full, the next three fade to 80%, 60% and 40%, and
+     * the rest hide.
+     * decision open-type-keeps-six-neighbors-a-side
+     *
+     * @param open the open type
+     * @param type the other type
+     * @return 0 hidden to 1 full
+     */
+    private double presenceAround(int open, int type) {
+        if (typeCount <= WINDOW_TYPES) {
+            return 1.0;
+        }
+        int steps = distance(open, type);
+        return steps <= NEIGHBORS_A_SIDE ? NEIGHBOR_PRESENCE[steps - 1] : 0.0;
+    }
+
+    /**
+     * A visible neighbor's share of the ring the abilities leave, relative
+     * to the others'; a hidden type takes none.
+     * decision neighbors-fisheye-from-the-open-type
+     *
+     * @param open the open type
+     * @param type the other type
+     * @return the weight, zero for the open type and a hidden one
+     */
+    private double neighborWeight(int open, int type) {
+        return type != open && presenceAround(open, type) > 0 ? 1.0 : 0.0;
     }
 
     /**
@@ -255,10 +330,11 @@ public final class RadialWheel {
             double openness = pose.openness()[type];
             double width = pose.widths()[type];
             double length = 1.0 - (1.0 - TYPE_BASE_LENGTH) * openness;
+            double presence = pose.presence()[type];
             PetalMask.Petal base = new PetalMask.Petal(start, width, HUB_FRACTION, length);
             addCards(petals, type, new Slot(start, openness, base), cardLength);
             if (width > 0) {
-                petals.add(new PetalArc(type, NONE, start, width, length, null, openness));
+                petals.add(new PetalArc(type, NONE, start, width, length, null, openness, presence));
             }
             start += width;
         }
@@ -270,10 +346,10 @@ public final class RadialWheel {
         if (abilities == 0 || slot.openness() <= VISIBLE) {
             return;
         }
-        double card = arcsWithOpenType(abilities).ability();
+        double card = arcsWithOpenType(type).ability();
         for (int ability = abilities - 1; ability >= 0; ability--) {
             petals.add(new PetalArc(type, ability, slot.start() + ability * card * slot.openness(), card,
-                    cardLength.of(type, ability), slot.base(), slot.openness()));
+                    cardLength.of(type, ability), slot.base(), slot.openness(), 1.0));
         }
     }
 
@@ -288,44 +364,42 @@ public final class RadialWheel {
     }
 
     /**
-     * The petal sizes with an open type's abilities, or at rest when none fan out.
+     * Sizes the ring around an open type: each ability takes its goal arc
+     * and the visible neighbors take what remains; a type holding more
+     * abilities than fit shrinks them evenly so the narrowest neighbor keeps
+     * its minimum, and with no neighbor the abilities take the whole ring.
+     * decision neighbors-fisheye-from-the-open-type
      *
-     * @param abilities the open type's ability count, zero at rest
-     * @return the arc of each type and of each ability
+     * @param open the open type, holding at least one ability
+     * @return the arc of each ability and the ring the neighbors share
      */
-    private Arcs arcsAround(int abilities) {
-        return abilities > 0 ? arcsWithOpenType(abilities) : new Arcs(typeArc(), 0.0);
+    private Arcs arcsWithOpenType(int open) {
+        int abilities = abilityCount.applyAsInt(open);
+        double weightSum = 0.0;
+        double narrowest = Double.POSITIVE_INFINITY;
+        for (int type = 0; type < typeCount; type++) {
+            double weight = neighborWeight(open, type);
+            if (weight > 0) {
+                weightSum += weight;
+                narrowest = Math.min(narrowest, weight);
+            }
+        }
+        if (weightSum == 0) {
+            return new Arcs(TWO_PI / abilities, 0.0, 1.0);
+        }
+        double neighborFloor = NEIGHBOR_MIN_ARC * weightSum / narrowest;
+        double ability = Math.min(ABILITY_ARC, (TWO_PI - neighborFloor) / abilities);
+        return new Arcs(ability, TWO_PI - abilities * ability, weightSum);
     }
 
     /**
-     * Sizes the petals around an open type: each ability takes a full type
-     * arc while every other type can keep the floor; past that the other
-     * types hold the floor and the abilities split the remainder evenly.
-     * decision ability-petals-take-a-type-arc-to-a-floor
+     * One open type's ring sizes.
      *
-     * @param abilities the open type's ability count, above zero
-     * @return the arc of each other type and of each ability
+     * @param ability      the arc of each ability petal
+     * @param neighborRoom the ring the visible neighbors share
+     * @param weightSum    the neighbors' weights summed, which each one's share divides by
      */
-    private Arcs arcsWithOpenType(int abilities) {
-        int others = typeCount - 1;
-        if (others == 0) {
-            return new Arcs(0.0, TWO_PI / abilities);
-        }
-        double floor = Math.min(TYPE_FLOOR, typeArc());
-        double othersAtFullAbilities = (TWO_PI - abilities * typeArc()) / others;
-        if (othersAtFullAbilities >= floor) {
-            return new Arcs(othersAtFullAbilities, typeArc());
-        }
-        return new Arcs(floor, (TWO_PI - others * floor) / abilities);
-    }
-
-    /**
-     * One layout's two petal sizes.
-     *
-     * @param type    the arc of each type petal
-     * @param ability the arc of each ability petal of the open type
-     */
-    private record Arcs(double type, double ability) {
+    private record Arcs(double ability, double neighborRoom, double weightSum) {
     }
 
     /**
@@ -642,9 +716,10 @@ public final class RadialWheel {
      *                which starts at the hub
      * @param openness how far the petal's type is open, 0 closed to 1 fanned, which the
      *                 ability petal's content slides in by
+     * @param presence how much of the petal shows, 0 hidden to 1 full, which its fill and icon fade by
      */
     record PetalArc(int type, int ability, double start, double arc, double length,
-                    PetalMask.@Nullable Petal root, double openness) {
+                    PetalMask.@Nullable Petal root, double openness, double presence) {
 
         /**
          * The petal's shape: from the hub for a type petal, from exactly where
