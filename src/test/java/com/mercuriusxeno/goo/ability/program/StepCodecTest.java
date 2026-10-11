@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.frost.FrostCurve;
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
+import com.mercuriusxeno.goo.ability.xeno.Mutation;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.datafixers.util.Unit;
 import com.google.gson.JsonElement;
@@ -122,6 +123,9 @@ class StepCodecTest {
             Map.entry("sight", new SightStep(Expr.literal(3))),
             Map.entry("lux", new LuxStep()),
             Map.entry("eldritch", new EldritchStep()),
+            Map.entry("mutate", new MutateStep(List.of(
+                    new Mutation(Mutation.Kind.SIZE, 0.5, Optional.empty()),
+                    new Mutation(Mutation.Kind.DROP, 0, Optional.of(Identifier.withDefaultNamespace("bone")))))),
             Map.entry("wisps", new WispsStep(64, 4000, 1200, 0, true, 0.8)),
             Map.entry("reflector", new ReflectorStep(20)),
             Map.entry("ray", new RayStep(32, 10, List.of(EntityFilter.LIVING), new RayStep.Refraction(16, 1.5, 0.85),

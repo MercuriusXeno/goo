@@ -13,6 +13,7 @@ import com.mercuriusxeno.goo.network.FrostAbilityTests;
 import com.mercuriusxeno.goo.network.FungalShiftTests;
 import com.mercuriusxeno.goo.network.EldritchTests;
 import com.mercuriusxeno.goo.network.LuxTests;
+import com.mercuriusxeno.goo.network.MutateTests;
 import com.mercuriusxeno.goo.network.GloveSelectTests;
 import com.mercuriusxeno.goo.network.GrowthStreamTests;
 import com.mercuriusxeno.goo.network.HeartOverlayTests;
@@ -470,6 +471,7 @@ public final class GooTestFunctions {
     private static final String LUX_GAZE_PICKS = "lux_gaze_picks_the_mob_in_clear_line_within_reach";
     private static final String ELDRITCH_PLAYER_IS_SEEN = "eldritch_player_is_seen";
     private static final String PLAIN_PLAYER_IS_UNSEEN = "plain_player_is_unseen";
+    private static final String XENO_MUTATES_THE_STRUCK_PIG = "xeno_mutates_the_struck_pig";
     private static final String BREW_ENDER_TELEPORTITIS = "brew_ender_teleportitis_for_an_hour";
     private static final String TELEPORTITIS_BLINKS = "teleportitis_blinks_instead_of_damage";
     private static final String TELEPORTITIS_VOID = "teleportitis_void_returns_to_safe_ground";
@@ -1038,6 +1040,7 @@ public final class GooTestFunctions {
         reg(r, LUX_GAZE_PICKS, LuxTests::luxGazePicksTheMobInClearLineWithinReach);
         reg(r, ELDRITCH_PLAYER_IS_SEEN, EldritchTests::eldritchPlayerIsSeen);
         reg(r, PLAIN_PLAYER_IS_UNSEEN, EldritchTests::plainPlayerIsUnseen);
+        reg(r, XENO_MUTATES_THE_STRUCK_PIG, MutateTests::xenoMutatesTheStruckPig);
         reg(r, BREW_ENDER_TELEPORTITIS, BrewEffectTests::enderBrewTeleportitisForAnHour);
         reg(r, TELEPORTITIS_BLINKS, BrewEffectTests::teleportitisBlinksInsteadOfDamage);
         reg(r, TELEPORTITIS_VOID, BrewEffectTests::teleportitisVoidReturnsToSafeGround);

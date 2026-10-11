@@ -20,6 +20,7 @@ import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.spray.Spored;
 import com.mercuriusxeno.goo.ability.world.TimeVeiled;
 import com.mercuriusxeno.goo.ability.xeno.Eldritch;
+import com.mercuriusxeno.goo.ability.xeno.Mutations;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
 import com.mojang.serialization.Codec;
@@ -134,6 +135,18 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> Eldritch.NONE)
                             .serialize(Eldritch.CODEC)
                             .sync(GooAttachments::syncsToOwner, Eldritch.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The mutations a Xeno blob worked on a mob, saved with it and synced to
+     * its watchers, which draw the writhing overlay while any stands.
+     * xeno-blob-mutates-the-struck
+     */
+    public static final Supplier<AttachmentType<Mutations>> MUTATIONS =
+            ATTACHMENT_TYPES.register("mutations",
+                    () -> AttachmentType.builder(() -> Mutations.NONE)
+                            .serialize(Mutations.CODEC, mutations -> !mutations.isEmpty())
+                            .sync(GooAttachments::syncsToWatcher, Mutations.STREAM_CODEC)
                             .build());
 
     /**
