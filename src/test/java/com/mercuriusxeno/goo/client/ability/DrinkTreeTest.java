@@ -129,6 +129,24 @@ class DrinkTreeTest {
             assertTrue(test.at(NEAR.pos(), joinAt), "the layout keeps the tributary on its trunk");
             assertFalse(treeAt(END + THOUSAND).getFirst().carriesAt(joinAt), "once nothing flows it carries nothing");
         }
+
+        @Test
+        void aTrunkCarriesATributaryWhoseLiquidIsRidingItThoughItHasLeftItsOwnPath() {
+            double riding = END;
+            List<DrinkTree.Stream> streams = treeAt(riding);
+            while (streams.get(1).flowingAt(streams.get(1).path().length())) {
+                riding += 1;
+                streams = treeAt(riding);
+            }
+            DrinkTree.Stream trunk = streams.getFirst();
+            DrinkTree.Stream tributary = streams.get(1);
+            double joinAt = tributary.joinShare() * trunk.path().length();
+
+            assertFalse(tributary.flowingAt(tributary.path().length()), "the tributary's tail has left its own path");
+            assertFalse(tributary.spent(), "its liquid is still in flight on the trunk");
+            assertFalse(trunk.flowingAt(joinAt), "the trunk's own liquid is gone");
+            assertTrue(trunk.carriesAt(joinAt), "so the trunk still carries it and the tributary is not torn off");
+        }
     }
 
     @Nested
