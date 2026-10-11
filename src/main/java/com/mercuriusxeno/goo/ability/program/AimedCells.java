@@ -14,7 +14,7 @@ import java.util.Set;
  * holds few cell centers, and the aimed device's center sits off the aim
  * line, so the cone alone missed the device being aimed at.
  * pulser-toggles-rapidly-while-held
- * signal-wave-toggles-each-device-once
+ * zap-disperses-into-signal
  */
 public final class AimedCells {
 

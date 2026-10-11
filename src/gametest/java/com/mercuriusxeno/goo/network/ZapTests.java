@@ -13,15 +13,19 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.LeverBlock;
 import net.minecraft.world.level.block.RedStoneWireBlock;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 
 /**
  * Gametests for Zap: a strike on a lever flips it, one on dust powers it
- * for a moment, and every mob at the strike drops its target and stands
- * without AI until the stun wears off. Each strike arrives the way a beam
- * delivery arrives, an arrival a beam and an arc share.
+ * for a moment, one on a plain wall disperses into the Signal wave and opens
+ * the door behind the wall, and every mob at the strike drops its target and
+ * stands without AI until the stun wears off. Each strike arrives the way a
+ * beam delivery arrives, an arrival a beam and an arc share.
  * zap-ticks-the-device-and-stuns
+ * zap-disperses-into-signal
  */
 public final class ZapTests {
 
@@ -42,6 +46,11 @@ public final class ZapTests {
     private static final String DUST_UNPOWERED = "Dust should lose its power once the pulse ends";
     private static final String STRIKES_AS_A_BEAM = "pulse_zap should strike by beam delivery";
     private static final String HAD_TARGET = "The zombie should target the player before the Zap";
+    /** A stone wall on the floor, and two blocks past it a closed door the wave reaches through the wall. */
+    private static final BlockPos WALL = ON_FLOOR;
+    private static final BlockPos DOOR = WALL.east(2);
+    private static final String DOOR_OPENED = "A Zap on the wall should open the door behind it, toggled once";
+    private static final String WALL_STANDS = "The wall a Zap disperses on should stand as it was";
     /** Ticks the dust's pulse stands, and a tick past them for it to clear. */
     private static final int PAST_THE_PULSE = 4;
 
@@ -53,12 +62,33 @@ public final class ZapTests {
      *
      * @param helper the gametest helper
      */
-    public static void zapFlipsALever(GameTestHelper helper) {
+    public static void zapTicksTheLever(GameTestHelper helper) {
         helper.setBlock(FLOOR, Blocks.STONE);
         helper.setBlock(ON_FLOOR, Blocks.LEVER.defaultBlockState()
                 .setValue(LeverBlock.FACE, net.minecraft.world.level.block.state.properties.AttachFace.FLOOR));
         landOn(helper, ON_FLOOR);
         helper.assertTrue(helper.getBlockState(ON_FLOOR).getValue(LeverBlock.POWERED), LEVER_FLIPPED);
+        helper.succeed();
+    }
+
+    /**
+     * Zap lands on the west face of a stone wall: the blob disperses into the
+     * Signal wave, which passes through the wall and opens the closed door
+     * two blocks behind it, once, both halves read as one door.
+     *
+     * @param helper the gametest helper
+     */
+    public static void zapOnAWallTogglesBehindIt(GameTestHelper helper) {
+        helper.setBlock(FLOOR, Blocks.STONE);
+        helper.setBlock(DOOR.below(), Blocks.STONE);
+        helper.setBlock(WALL, Blocks.STONE);
+        helper.setBlock(DOOR, Blocks.OAK_DOOR.defaultBlockState().setValue(DoorBlock.HALF, DoubleBlockHalf.LOWER));
+        helper.setBlock(DOOR.above(), Blocks.OAK_DOOR.defaultBlockState().setValue(DoorBlock.HALF, DoubleBlockHalf.UPPER));
+        assertStrikesAsABeam(helper);
+        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.PULSE,
+                NO_ENTITY, helper.absolutePos(WALL), Direction.WEST, ZAP));
+        helper.assertTrue(helper.getBlockState(DOOR).getValue(DoorBlock.OPEN), DOOR_OPENED);
+        helper.assertTrue(helper.getBlockState(WALL).is(Blocks.STONE), WALL_STANDS);
         helper.succeed();
     }
 
