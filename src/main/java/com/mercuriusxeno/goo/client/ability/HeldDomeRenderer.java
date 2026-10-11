@@ -60,7 +60,8 @@ public final class HeldDomeRenderer {
             GooTypes.NETHER, NetherHeldGhost.INSTANCE,
             GooTypes.SHROOM, MoteCloudGhost.SHROOM,
             GooTypes.ROCK, RockExplosionVisual.INSTANCE,
-            GooTypes.UNSTABLE, UnstableExplosionVisual.INSTANCE);
+            GooTypes.UNSTABLE, UnstableExplosionVisual.INSTANCE,
+            GooTypes.WEIRD, MoteCloudGhost.WEIRD);
 
     /**
      * Where a ghost draws: its dome about the center of the cell the throw lands

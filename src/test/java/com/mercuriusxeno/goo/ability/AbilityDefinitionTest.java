@@ -65,7 +65,7 @@ class AbilityDefinitionTest {
 
         @ParameterizedTest
         @CsvSource({"crystal_cloud, 4.5", "metal_spikes, 3.75", "rock_crush, 2.0",
-                "shroom_colonize, 3.0"})
+                "shroom_colonize, 3.0", "weird_magma, 3.0"})
         void fieldThrowDrawsASphereAtItsWidestRadius(String name, double radius) {
             assertEquals(new AbilityArea(AbilityArea.Shape.SPHERE, radius, 0), AbilityJson.decode(name).area());
         }

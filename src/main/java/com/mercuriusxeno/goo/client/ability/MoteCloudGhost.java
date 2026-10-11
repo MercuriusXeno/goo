@@ -30,6 +30,12 @@ public final class MoteCloudGhost implements HeldGhostVisual {
     /** Shroom's mauve spore cloud. */
     public static final MoteCloudGhost SHROOM = new MoteCloudGhost(GooTypes.SHROOM, 0xB57FC0);
 
+    /**
+     * Weird's magenta cloud about Magma's reach.
+     * weird-bounces-and-softens-harm
+     */
+    public static final MoteCloudGhost WEIRD = new MoteCloudGhost(GooTypes.WEIRD, 0xFF33CC);
+
     /** Motes in the cloud. */
     static final int MOTES = 600;
     /** The shallowest a mote sits, as a share of the reach. */

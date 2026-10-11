@@ -41,6 +41,7 @@ import com.mercuriusxeno.goo.network.RadiantChannelTests;
 import com.mercuriusxeno.goo.network.RewindStreamTests;
 import com.mercuriusxeno.goo.network.ScryChannelTests;
 import com.mercuriusxeno.goo.network.UndeadTests;
+import com.mercuriusxeno.goo.network.WeirdTests;
 import com.mercuriusxeno.goo.network.StreamDeliveryTests;
 import com.mercuriusxeno.goo.network.SunbeamChannelTests;
 import com.mercuriusxeno.goo.network.TouchDeliveryTests;
@@ -616,6 +617,7 @@ public final class GooTestFunctions {
             registerBrewingTests(registrar);
             registerCrystallizerTests(registrar);
             registerGasketDemandTests(registrar);
+            WeirdTests.register((name, fn) -> reg(registrar, name, fn));
         });
     }
 
