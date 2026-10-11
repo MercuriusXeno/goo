@@ -211,8 +211,13 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
 
 
     /**
-     * Ages every strike in flight by one tick, lands each that reaches the
-     * landing tick on its entity, and drops each that has run its length.
+     * Ages every strike in flight by one tick, re-aims each at its entity's
+     * body center, lands each that reaches the landing tick on its entity,
+     * and drops each that has run its length. The re-aim keeps the spear on
+     * a walking mob: aimed at the point frozen when the mob was picked, the
+     * spear stabbed empty air while the damage landed on the mob six ticks
+     * on, the misses the operator saw.
+     * urchin-rests-bristled-and-spears
      *
      * @param context the marker's tick context
      * @param scan    the marker host scanning for each strike's entity
@@ -223,12 +228,15 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
         int length = strikeTicks.evaluateInt(context);
         List<FieldStrike> kept = new ArrayList<>(state.strikes().size());
         for (FieldStrike strikeInFlight : state.strikes()) {
-            FieldStrike aged = strikeInFlight.aged();
-            if (aged.age() == landingAge) {
-                scan.forEntity(aged.entityId(), target -> land(context, target));
-            }
-            if (aged.age() < length) {
-                kept.add(aged);
+            FieldStrike[] aged = {strikeInFlight.aged()};
+            scan.forEntity(aged[0].entityId(), target -> {
+                aged[0] = FieldStrike.followed(aged[0], target.target());
+                if (aged[0].age() == landingAge) {
+                    land(context, target);
+                }
+            });
+            if (aged[0].age() < length) {
+                kept.add(aged[0]);
             }
         }
         state.setStrikes(kept);

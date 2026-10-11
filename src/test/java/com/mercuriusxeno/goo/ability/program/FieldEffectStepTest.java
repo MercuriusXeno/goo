@@ -65,9 +65,9 @@ class FieldEffectStepTest {
     private static final int SNEAKER_ID = 8;
     private static final int OTHER_WALKER_ID = 9;
     private static final int STRIKE_TICK = 6;
-    private static final int STRIKE_TICKS = 13;
-    /** The ticks after a strike lands that its spike retracts and its second shink plays. */
-    private static final int RETRACT_FRAME = 3;
+    private static final int STRIKE_TICKS = 12;
+    /** The ticks after a strike lands that its spear's retract shinks, a tick into the retract. */
+    private static final int RETRACT_FRAME = 1;
     private static final int COOLDOWN = 10;
     private static final int IDLE_TICKS = 40;
     private static final int METAL_CHARGES = 4;
@@ -109,6 +109,7 @@ class FieldEffectStepTest {
         aims = mockStatic(FieldStrike.class);
         aims.when(() -> FieldStrike.aimedAt(any())).thenAnswer(inv ->
                 new FieldStrike(idByHost.get(scanned), 1.5f, 1.0f, 0.5f, 0));
+        aims.when(() -> FieldStrike.followed(any(), any())).thenAnswer(inv -> inv.getArgument(0));
     }
 
     @AfterEach
