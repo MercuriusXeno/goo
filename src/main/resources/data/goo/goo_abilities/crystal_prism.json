@@ -5,7 +5,6 @@
   "order": 20,
   "cost": 4000,
   "requires": ["minecraft:quartz"],
-  "consumes": ["minecraft:quartz"],
   "delivery": { "kind": "arc" },
   "behaviors": [
     {

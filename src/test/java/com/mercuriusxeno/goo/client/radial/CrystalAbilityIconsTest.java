@@ -44,7 +44,7 @@ class CrystalAbilityIconsTest {
             ".......##.......");
 
     @ParameterizedTest
-    @ValueSource(strings = {"crystal_cloud", "crystal_scales", "crystal_shards_tap"})
+    @ValueSource(strings = {"crystal_cloud", "crystal_scales", "crystal_shards_tap", "crystal_glitter"})
     void crystalIconIsDrawnRatherThanThePlaceholder(String ability) throws IOException {
         BufferedImage icon = read(ABILITY_ICONS + ability + ".png");
         assertNotEquals(PLACEHOLDER, silhouette(icon), ability + " still shows the goo droplet placeholder");

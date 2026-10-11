@@ -27,15 +27,15 @@ import java.util.stream.Stream;
  * Glitter's ore sense: on the first tick of each ping of a held channel it
  * walks the sphere around the caster for blocks of a tag, groups touching
  * blocks of one ore into veins, and sends the caster each vein with the
- * tick the ping's front reaches it, matching the scry sphere the same
- * ability draws:
+ * tick the ping's front reaches it, for the client to draw the front as
+ * its sparkle shell:
  * {@code detect_ore tag=goo:gem_ores radius=24 growth=1 every=32 life=100}.
  * decision glitter-sphere-icons-gem-ore-groups
  *
  * @param tag    the block tag the sense finds
  * @param radius the sphere's radius in blocks
- * @param growth blocks the front grows each tick, the scry's growth
- * @param every  ticks between pings, the scry's ping length
+ * @param growth blocks the front grows each tick
+ * @param every  ticks between pings
  * @param life   ticks each vein's icon shows once revealed
  */
 public record DetectOreStep(TagKey<Block> tag, int radius, double growth, int every, int life) implements Step {
@@ -82,7 +82,7 @@ public record DetectOreStep(TagKey<Block> tag, int radius, double growth, int ev
         Vec3 origin = caster.position();
         List<OreVeins.Vein> veins = OreVeins.group(found(caster.level(), BlockPos.containing(origin)));
         List<Integer> reveal = veins.stream().map(vein -> revealTick(vein.centroid().distanceTo(origin))).toList();
-        return new OreRevealPayload(veins, reveal, life);
+        return new OreRevealPayload(origin, growth, radius, veins, reveal, life);
     }
 
     /**
