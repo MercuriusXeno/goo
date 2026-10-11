@@ -160,6 +160,29 @@
     ]
   },
   {
+    "id": "jelly",
+    "seed": 40977,
+    "genParams": {
+      "viscosity": 2.8,
+      "decayRate": 0.02,
+      "ignitionChance": 0.004,
+      "ignitionStrength": 0.8,
+      "potHeatRate": 0.006,
+      "potInfluence": 0.85,
+      "neighborhoodReach": 1
+    },
+    "frametime": 5,
+    "shadowHue": 0.95,
+    "palette": [
+      { "position": 0.0, "color": "#7A1030" },
+      { "position": 0.2, "color": "#B02848" },
+      { "position": 0.4, "color": "#D85A3C" },
+      { "position": 0.6, "color": "#F08A2C" },
+      { "position": 0.8, "color": "#FFB443" },
+      { "position": 1.0, "color": "#FFD98A" }
+    ]
+  },
+  {
     "id": "leaf",
     "seed": 40963,
     "genParams": {

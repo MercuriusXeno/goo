@@ -52,11 +52,12 @@
         "dead_coral_fan": {"vital": "$coral_fan.vital / 2", "nether": "$coral_fan.vital / 2"},
         "dead_coral_block": {"vital": "$coral_block.vital / 2", "nether": "$coral_block.vital / 2"},
         "shroom": {"shroom": "$base"},
-        "food": {"vital": 36},
-        "saturation": {"vital": 12},
-        "raw": {"vital": "-$food.vital", "nether": "$food.vital"},
+        "food": {"vital": 36, "jelly": 36},
+        "saturation": {"vital": 12, "jelly": 12},
+        "raw": {"vital": "-$food.vital", "jelly": "-$food.jelly", "nether": "$food.vital"},
         "nauseation": {
             "vital": "-$saturation.vital",
+            "jelly": "-$saturation.jelly",
             "nether": "$saturation.vital"
         },
         "copper_nugget": {"metal": 288, "pulse": 288},
@@ -656,7 +657,7 @@
     "chorus_flower": "$bush + $magic + $ender",
     "small_dripleaf": "$bush + $magic + $pulse",
     "big_dripleaf": "2 $bush + 2 $magic + 2 $pulse",
-    "kelp": {"vital": "3 $food.vital / 2", "leaf": "3 $food.vital / 2"},
+    "kelp": {"vital": "3 $food.vital / 2", "jelly": "3 $food.jelly / 2", "leaf": "3 $food.vital / 2"},
 
     "#dye_plants": "$dye",
     "#tall_dye_plants": "2 $dye",
@@ -702,15 +703,19 @@
     "baked_potato": "5 $food + 60 $saturation",
     "beetroot": {
         "vital": "$food.vital + $saturation.vital * 12",
+        "jelly": "$food.jelly + $saturation.jelly * 12",
         "leaf": "$dye.leaf - ($food.vital + $saturation.vital * 12)"
     },
     "bowl": "3 $plank / 4",
     "beetroot_soup": "6 beetroot + bowl",
+    "mushroom_stew": {"shroom": "2 $shroom.shroom", "jelly": "bowl.leaf"},
+    "suspicious_stew": {"shroom": "2 $shroom.shroom", "leaf": "$dye.leaf", "jelly": "bowl.leaf"},
     "bread": "5 $food + 60 $saturation",
-    "wheat": {"vital": "bread.vital / 6", "leaf": "bread.vital / 6"},
+    "wheat": {"vital": "bread.vital / 6", "jelly": "bread.jelly / 6", "leaf": "bread.vital / 6"},
     "carrot": "3 $food + 36 $saturation",
     "chorus_fruit": {
         "vital": "$food.vital * 4 + $saturation.vital * 24",
+        "jelly": "$food.jelly * 4 + $saturation.jelly * 24",
         "ender": "$medium - $food.vital * 4 + $saturation.vital * 24"
     },
     "purpur_block": "chorus_fruit",
@@ -719,6 +724,7 @@
     "glow_berries": "2 $food + 4 $saturation",
     "enchanted_golden_apple": {
         "vital": "$food.vital * 4 + $saturation.vital * 96",
+        "jelly": "$food.jelly * 4 + $saturation.jelly * 96",
         "metal": "$gold_block.metal - $magic.hex",
         "hex": "$magic.hex",
         "aeon": "$high"
@@ -970,12 +976,12 @@
     "zombified_piglin_spawn_egg": "5 $spawn_egg",
     "zoglin_spawn_egg": "7 $spawn_egg",
 
-    "axolotl_bucket": "bucket + axolotl_spawn_egg",
-    "cod_bucket": "bucket + cod_spawn_egg",
-    "pufferfish_bucket": "bucket + pufferfish_spawn_egg",
-    "salmon_bucket": "bucket + salmon_spawn_egg",
-    "tadpole_bucket": "bucket + tadpole_spawn_egg",
-    "tropical_fish_bucket": "bucket + tropical_fish_spawn_egg",
+    "axolotl_bucket": "bucket",
+    "cod_bucket": "bucket + cod",
+    "pufferfish_bucket": "bucket + pufferfish",
+    "salmon_bucket": "bucket + salmon",
+    "tadpole_bucket": "bucket",
+    "tropical_fish_bucket": "bucket + tropical_fish",
 
   "chorus_plant": "chorus_flower",
   "budding_amethyst": "amethyst_cluster",
