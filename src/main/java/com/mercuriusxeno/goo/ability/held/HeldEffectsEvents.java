@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
+import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooMobEffects;
@@ -290,6 +291,10 @@ public final class HeldEffectsEvents {
         if (lays.contains(LaidState.LIFETAP)) {
             // lifetap-trades-regen-for-leech: the leech ends with its held effect
             player.setData(GooAttachments.LIFETAP, Lifetap.NONE);
+        }
+        if (lays.contains(LaidState.PHASE)) {
+            // phase-shares-a-plane-between-the-phased: the player steps back into phase with its held effect
+            player.setData(GooAttachments.OUT_OF_PHASE, OutOfPhase.NONE);
         }
     }
 }

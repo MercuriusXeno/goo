@@ -15,6 +15,7 @@ import com.mercuriusxeno.goo.ability.program.EntityCounters;
 import com.mercuriusxeno.goo.ability.program.Lux;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.pulse.Stunned;
+import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
 import com.mercuriusxeno.goo.ability.rewind.Rewinding;
 import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.spray.Spored;
@@ -272,6 +273,19 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> Frozen.NONE)
                             .serialize(Frozen.CODEC, Frozen::started)
                             .sync(GooAttachments::syncsToWatcher, Frozen.STREAM_CODEC)
+                            .build());
+
+    /**
+     * An entity's standing out of phase and when it fades, saved with the
+     * entity while laid and synced to every client drawing it, which draws it
+     * translucent and grey. A plain attachment any ability may lay.
+     * phase-shares-a-plane-between-the-phased
+     */
+    public static final Supplier<AttachmentType<OutOfPhase>> OUT_OF_PHASE =
+            ATTACHMENT_TYPES.register("out_of_phase",
+                    () -> AttachmentType.builder(() -> OutOfPhase.NONE)
+                            .serialize(OutOfPhase.CODEC, OutOfPhase::laid)
+                            .sync(GooAttachments::syncsToWatcher, OutOfPhase.STREAM_CODEC)
                             .build());
 
     private GooAttachments() {

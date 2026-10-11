@@ -1,0 +1,19 @@
+{
+  "gooType": "quantum",
+  "displayName": "goo.ability.quantum.phase_shift",
+  "badge": "mob",
+  "order": 0,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    {
+      "type": "target",
+      "where": ["mob", "not_boss"],
+      "steps": [
+        { "type": "phase", "duration": 600 },
+        { "type": "sound", "id": "minecraft:block.respawn_anchor.deplete", "at": "target", "source": "players", "volume": 0.8, "pitch": 1.6 }
+      ]
+    }
+  ],
+  "tags": ["entity"]
+}
