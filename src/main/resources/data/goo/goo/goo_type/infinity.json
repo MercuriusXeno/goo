@@ -19,5 +19,6 @@
     "goo_large": "goo:item/infinity_goo_large",
     "fluid_still": "goo:fluid/infinity_fluid",
     "fluid_flowing": "goo:fluid/infinity_fluid"
-  }
+  },
+  "vessel_source_per_mb": 1
 }
