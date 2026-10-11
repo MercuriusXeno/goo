@@ -929,6 +929,41 @@ public final class GooRenderTypes {
         return GOO_GHOST_FACTORY.apply(skin);
     }
 
+    /**
+     * Phase pipeline (decision phase-shares-a-plane-between-the-phased): a
+     * phased entity's body drawn in place of its own through the ghost vertex
+     * shader and {@code goo_phase.fsh}, its skin washed toward grey and
+     * translucent under the vertex alpha. Depth write on, as vanilla's
+     * translucent entity, so the body hides its own far side.
+     */
+    public static final RenderPipeline GOO_PHASE = RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "goo_phase"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_ghost"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "goo_phase"))
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(DepthStencilState.DEFAULT)
+            .build();
+
+    /** Per-skin memoized render types on the phase pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> GOO_PHASE_FACTORY =
+            net.minecraft.util.Util.memoize(skin -> RenderType.create(
+                    "goo_phase",
+                    RenderSetup.builder(GOO_PHASE)
+                            .withTexture("Sampler0", skin)
+                            .useLightmap()
+                            .sortOnUpload()
+                            .createRenderSetup()
+            ));
+
+    /**
+     * Returns the phase render type over an entity's skin.
+     *
+     * @param skin the entity's texture
+     * @return memoized RenderType
+     */
+    public static RenderType gooPhase(Identifier skin) {
+        return GOO_PHASE_FACTORY.apply(skin);
+    }
     /** The ripple mask shader pair's name, and the stem of each mask pipeline's. */
     private static final String RIPPLE_MASK = "goo_ripple_mask";
 
@@ -1146,6 +1181,7 @@ public final class GooRenderTypes {
         GOO_RIPPLE_MASKS.forEach(event::registerPipeline);
         event.registerPipeline(GOO_RIPPLE_EDGE);
         event.registerPipeline(GOO_GHOST);
+        event.registerPipeline(GOO_PHASE);
         event.registerPipeline(GLOW_BEAM);
         event.registerPipeline(GLOW_SHELL);
         event.registerPipeline(SCRY_FACES);

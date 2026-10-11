@@ -19,6 +19,7 @@ import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
 import com.mercuriusxeno.goo.client.ability.MobCoats;
 import com.mercuriusxeno.goo.client.ability.MobShells;
 import com.mercuriusxeno.goo.client.ability.NovaRings;
+import com.mercuriusxeno.goo.client.ability.PhaseLook;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
 import com.mercuriusxeno.goo.client.ability.ThumpRings;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
@@ -296,8 +297,8 @@ public final class GooClientSetup {
     /**
      * Registers the render state modifiers that stamp each entity's goo state
      * onto its render state: the glove's target outline, the goo coat, the
-     * ailments, the stone and frost encasements, the frozen pose and the
-     * transformation, in that order.
+     * ailments, the phase, the stone and frost encasements, the frozen pose,
+     * the vine tangle and the transformation, in that order.
      *
      * @param event the event instance
      */
@@ -309,6 +310,7 @@ public final class GooClientSetup {
                 AimTracker::modifyEntityRenderState,
                 MobCoatLayer::stampCoat,
                 AilmentOverlayLayer::stampAilments,
+                PhaseLook::stampPhase,
                 EncasementLayer::stampPetrify,
                 EncasementLayer::stampFrozen,
                 FrozenPoses::stampFrozenPose,
