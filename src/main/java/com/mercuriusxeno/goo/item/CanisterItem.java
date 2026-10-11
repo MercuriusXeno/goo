@@ -167,12 +167,10 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
      * The goo a canister stack holds, which a hub item's carried canisters also read.
      *
      * @param stack a canister stack
-     * @return its goo type with the volume, or an empty map when it holds no goo
+     * @return each goo type it holds with its volume, or an empty map when it holds no goo
      */
     static Map<ResourceKey<GooTypeDefinition>, Integer> gooContentsOf(ItemStack stack) {
-        CanisterFluidContent content = getFluidContent(stack);
-        ResourceKey<GooTypeDefinition> type = content.getGooType();
-        return type != null && content.amount() > 0 ? Map.of(type, content.amount()) : Map.of();
+        return getFluidContent(stack).gooVolumes();
     }
 
     // --- Static contents helpers ---
@@ -230,7 +228,8 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
     }
 
     /**
-     * Try to add fluid to the canister. Only accepts if empty or same fluid.
+     * Try to add fluid to the canister, up to the capacity every fluid inside
+     * shares: goo joins goo, a vanilla fluid only an empty canister or itself.
      * Returns the amount actually added.
      *
      * @param stack  the canister item stack
@@ -261,8 +260,8 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
     }
 
     /**
-     * Try to remove fluid from the canister. Only extracts if the canister
-     * holds the specified fluid. Returns the amount actually removed.
+     * Try to remove one fluid from the canister, leaving every other fluid
+     * inside as it stands. Returns the amount actually removed.
      *
      * @param stack  the canister item stack
      * @param fluid  the fluid resource to remove
@@ -271,10 +270,11 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
      */
     public static int removeFluid(ItemStack stack, FluidResource fluid, int amount) {
         CanisterFluidContent current = getFluidContent(stack);
-        if (current.isEmpty() || !current.resource().equals(fluid)) { return 0; }
-        int removed = Math.min(amount, current.amount());
-        setFluidContent(stack, current.withRemoved(removed));
-        return removed;
+        int removed = Math.min(amount, current.volumeOf(fluid));
+        if (removed > 0) {
+            setFluidContent(stack, current.withRemoved(fluid, removed));
+        }
+        return Math.max(0, removed);
     }
 
     /**
@@ -326,16 +326,14 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
     }
 
     /**
-     * The canister item as a drain source: its one goo type, whole.
+     * The canister item as a drain source: every goo type it holds, whole.
      *
      * @param canister the canister item stack
      */
     private record CanisterGooSource(ItemStack canister) implements CanisterInventoryHandler.GooSource {
         @Override
         public Map<ResourceKey<GooTypeDefinition>, Integer> drainable() {
-            CanisterFluidContent content = getFluidContent(canister);
-            ResourceKey<GooTypeDefinition> type = content.getGooType();
-            return content.isEmpty() || type == null ? Map.of() : Map.of(type, content.amount());
+            return gooContentsOf(canister);
         }
 
         @Override

@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.block.fluid;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
+import com.mercuriusxeno.goo.registry.GooEnchantments;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -59,8 +60,7 @@ public final class PlayerInventorySlotHandler implements ResourceHandler<FluidRe
     public FluidResource getResource(int index) {
         ResourceKey<GooTypeDefinition> type = typeForIndex(index);
         if (type == null) { return FluidResource.EMPTY; }
-        CanisterFluidContent content = CanisterItem.getFluidContent(getStack());
-        return (content.getGooType() == type)
+        return CanisterItem.getFluidContent(getStack()).volumeOf(type) > 0
             ? GooFluids.resource(type)
             : FluidResource.EMPTY;
     }
@@ -74,11 +74,11 @@ public final class PlayerInventorySlotHandler implements ResourceHandler<FluidRe
     public long getAmountAsLong(int index) {
         ResourceKey<GooTypeDefinition> type = typeForIndex(index);
         if (type == null) { return 0; }
-        CanisterFluidContent content = CanisterItem.getFluidContent(getStack());
-        return (content.getGooType() == type) ? content.amount() : 0L;
+        return CanisterItem.getFluidContent(getStack()).volumeOf(type);
     }
 
-    /** Returns the canister's total capacity based on its compression level.
+    /** Returns the canister's shared capacity less every other type's volume
+     * (decision canisters-hold-more-than-one-goo-type).
      *
      * @param index    the tank index
      * @param resource the fluid resource
@@ -86,8 +86,9 @@ public final class PlayerInventorySlotHandler implements ResourceHandler<FluidRe
      */
     @Override
     public long getCapacityAsLong(int index, FluidResource resource) {
-        return ContainerCapacity.canisterCapacity(
-            com.mercuriusxeno.goo.registry.GooEnchantments.getCompressionLevel(getStack()));
+        CanisterFluidContent content = CanisterItem.getFluidContent(getStack());
+        int capacity = ContainerCapacity.canisterCapacity(GooEnchantments.getCompressionLevel(getStack()));
+        return capacity - content.totalVolume() + getAmountAsLong(index);
     }
 
     /** Only the goo fluid matching this tank index is valid.
