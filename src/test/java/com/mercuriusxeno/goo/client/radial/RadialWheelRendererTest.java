@@ -37,6 +37,8 @@ import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -136,6 +138,35 @@ class RadialWheelRendererTest {
                 assertEquals(List.of(RadialWheelRenderer.ABILITY_ICON_SIZE, RadialWheelRenderer.ABILITY_ICON_SIZE),
                         pngDimensions(resource), resource);
             }));
+        }
+
+        /** Each Rock ability draws an icon of its own, never one shared placeholder (decision rock-abilities-get-icons). */
+        @Test
+        void everyRockAbilityDrawsAnIconOfItsOwn() throws IOException {
+            Map<String, String> abilityByIcon = new HashMap<>();
+            for (ClientAbility ability : shippedAbilities()) {
+                if (!ability.id().getPath().startsWith(ROCK_PREFIX)) {
+                    continue;
+                }
+                Identifier icon = RadialWheelRenderer.resolveAbilityIcon(ability);
+                String resource = ASSETS_ROOT + icon.getNamespace() + "/" + icon.getPath();
+                assertEquals(List.of(RadialWheelRenderer.ABILITY_ICON_SIZE, RadialWheelRenderer.ABILITY_ICON_SIZE),
+                        pngDimensions(resource), resource);
+                String shared = abilityByIcon.put(HexFormat.of().formatHex(pngBytes(resource)), ability.id().getPath());
+                assertNull(shared, ability.id() + " draws the same icon as " + shared);
+            }
+            assertEquals(ROCK_ABILITIES, abilityByIcon.size());
+        }
+    }
+
+    private static final String ROCK_PREFIX = "rock_";
+    /** Flatten, Bore, Petrify, Stoneskin and Spire. */
+    private static final int ROCK_ABILITIES = 5;
+
+    private static byte[] pngBytes(String resource) throws IOException {
+        try (InputStream stream = RadialWheelRendererTest.class.getClassLoader().getResourceAsStream(resource)) {
+            assertNotNull(stream, resource + " is not on the classpath");
+            return stream.readAllBytes();
         }
     }
 
