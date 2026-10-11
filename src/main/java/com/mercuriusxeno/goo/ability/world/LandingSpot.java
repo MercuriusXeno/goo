@@ -71,6 +71,27 @@ public record LandingSpot(BlockPos cell, boolean waterlogged) {
     }
 
     /**
+     * The lava cell a blob that cools lava lands in, where the placement
+     * rules refused the landing: the struck block where it holds lava, the
+     * cell on the struck face otherwise, so a throw through a lava pool
+     * striking its floor lands in the lava above it.
+     * weird-bounces-and-softens-harm
+     *
+     * @param level the current level
+     * @param hit   the struck block
+     * @param face  the struck face
+     * @return the lava landing, or empty when neither candidate holds lava
+     */
+    public static Optional<LandingSpot> inLava(Level level, BlockPos hit, Direction face) {
+        BlockPos adjacent = hit.relative(face);
+        if (level.getFluidState(hit).is(Fluids.LAVA)) {
+            return Optional.of(new LandingSpot(hit, false));
+        }
+        return level.getFluidState(adjacent).is(Fluids.LAVA)
+                ? Optional.of(new LandingSpot(adjacent, false)) : Optional.empty();
+    }
+
+    /**
      * Decides between the struck block and one cell beside it.
      *
      * @param level    the current level

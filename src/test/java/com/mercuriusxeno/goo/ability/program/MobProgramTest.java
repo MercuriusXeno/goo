@@ -31,7 +31,7 @@ class MobProgramTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"metal_javelin", "crystal_shards", "leaf_vines", "zoo_allure",
+    @ValueSource(strings = {"metal_javelin", "crystal_shards", "leaf_vines", "zoo_allure", "weird_wobble",
         "blaze_ignite", "frost_snap", "typhoon_float", "hex_charm",
         "ender_zone", "aeon_stasis"})
     void everyMobAbilityIsAProgramThatLoadsForTheStruckEntityHost(String name) {
