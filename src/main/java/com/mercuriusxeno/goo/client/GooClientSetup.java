@@ -215,6 +215,8 @@ public final class GooClientSetup {
         event.registerEntityRenderer(GooEntities.COMPRESSION_SPHERE.get(), CompressionSphereRenderer::new);
         // orb-carries-a-swirling-nova: RollingGooRenderer draws the ball and its swirl from the level stage
         event.registerEntityRenderer(GooEntities.ROLLING_GOO.get(), NoopRenderer::new);
+        // meteo-needs-a-clear-sky: the meteor shows as the flame trail the server sends
+        event.registerEntityRenderer(GooEntities.METEOR.get(), NoopRenderer::new);
     }
 
     /**
