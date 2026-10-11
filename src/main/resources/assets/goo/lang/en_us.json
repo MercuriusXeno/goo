@@ -54,6 +54,7 @@
   "block.goo.vat": "Vat",
 
   "goo.type.aeon": "Aeon",
+  "goo.type.astral": "Astral",
   "goo.type.blaze": "Blaze",
   "goo.type.crystal": "Crystal",
   "goo.type.deep": "Deep",
@@ -77,6 +78,7 @@
   "goo.type.untyped": "Untyped",
 
   "item.minecraft.potion.effect.aeon_goo": "Potion of Timecurve",
+  "item.minecraft.potion.effect.astral_goo": "Potion of Starlight",
   "item.minecraft.potion.effect.blaze_goo": "Potion of Infernal",
   "item.minecraft.potion.effect.crystal_goo": "Potion of Mineral Sense",
   "item.minecraft.potion.effect.deep_goo": "Potion of Abyssal",
@@ -99,6 +101,7 @@
   "item.minecraft.potion.effect.zoo_goo": "Potion of the Wild",
 
   "effect.goo.aeon_brew": "Aeon Brew",
+  "effect.goo.astral_brew": "Astral Brew",
   "effect.goo.blaze_brew": "Blaze Brew",
   "effect.goo.crystal_brew": "Crystal Brew",
   "effect.goo.deep_brew": "Deep Brew",
@@ -152,6 +155,8 @@
   "goo.ability.crystal.glitter": "Glitter",
   "goo.ability.crystal.scales": "Scales",
   "goo.ability.crystal.prism": "Prism",
+  "goo.ability.astral.gate": "Astral Gate",
+  "goo.ability.astral.meteo": "Meteo",
   "goo.ability.deep.churn": "Churn",
   "goo.ability.deep.convoke": "Convoke",
   "goo.ability.deep.dive": "Dive",

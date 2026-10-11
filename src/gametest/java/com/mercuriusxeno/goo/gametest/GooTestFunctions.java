@@ -504,6 +504,9 @@ public final class GooTestFunctions {
     private static final String DIVE_LANDS = "dive_lands_in_the_cave_below";
     private static final String CHURN_SWAPS = "churn_swaps_the_layers";
     private static final String END_LAYS = "end_lays_a_temporary_portal";
+    private static final String ASTRAL_GATE_ROUND_TRIP = "astral_gate_round_trip";
+    private static final String METEO_STRIKES = "meteo_strikes_under_clear_sky";
+    private static final String METEO_FIZZLES = "meteo_fizzles_under_a_roof";
     private static final String BLINK_SNAPS_TO_OCULUS = "blink_snaps_to_oculus";
     private static final String OCULUS_COSTS_A_TENTH = "oculus_blink_costs_a_tenth";
     private static final String FLATTEN_BREAKS_ABOVE_THE_PLANE = "flatten_breaks_above_the_plane";
@@ -1095,6 +1098,9 @@ public final class GooTestFunctions {
         reg(r, DIVE_LANDS, DiveTests::diveLandsInTheCaveBelow);
         reg(r, CHURN_SWAPS, ChurnTests::churnSwapsTheLayers);
         reg(r, END_LAYS, EndGateTests::endLaysATemporaryPortal);
+        reg(r, ASTRAL_GATE_ROUND_TRIP, AstralGateTests::astralGateRoundTrip);
+        reg(r, METEO_STRIKES, MeteoTests::meteoStrikesUnderClearSky);
+        reg(r, METEO_FIZZLES, MeteoTests::meteoFizzlesUnderARoof);
         reg(r, BLINK_SNAPS_TO_OCULUS, OculusTests::blinkSnapsToOculus);
         reg(r, OCULUS_COSTS_A_TENTH, OculusTests::oculusBlinkCostsATenth);
         reg(r, FLATTEN_BREAKS_ABOVE_THE_PLANE, FlattenChannelTests::flattenBreaksAboveThePlane);
