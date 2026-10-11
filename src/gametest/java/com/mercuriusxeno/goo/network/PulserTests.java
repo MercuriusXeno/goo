@@ -18,13 +18,35 @@ import net.minecraft.world.level.block.LeverBlock;
 import net.minecraft.world.level.block.state.properties.AttachFace;
 import net.minecraft.world.phys.Vec3;
 import java.util.function.IntUnaryOperator;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametest for Pulser: a hold aimed at a lever flips it again and again for
  * as long as the hold runs.
  * pulser-toggles-rapidly-while-held
  */
+@RegistersGameTests
 public final class PulserTests {
+    private static final String PULSER_FLIPS_REPEATEDLY = "pulser_flips_repeatedly";
+    private static final String PULSER_FLIPS_UNDER_JITTER = "pulser_flips_under_jitter";
+    private static final String PULSER_FLIPS_A_FLOOR_LEVER = "pulser_flips_a_floor_lever";
+    private static final String PULSER_FLIPS_A_FAR_FLOOR_LEVER = "pulser_flips_a_far_floor_lever";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, PULSER_FLIPS_REPEATEDLY, PulserTests::pulserFlipsRepeatedly);
+        GooTestFunctions.registerTest(registrar, PULSER_FLIPS_UNDER_JITTER, PulserTests::pulserFlipsUnderJitter);
+        GooTestFunctions.registerTest(registrar, PULSER_FLIPS_A_FLOOR_LEVER, PulserTests::pulserFlipsAFloorLever);
+        GooTestFunctions.registerTest(registrar, PULSER_FLIPS_A_FAR_FLOOR_LEVER, PulserTests::pulserFlipsAFarFloorLever);
+    }
+
 
     private static final Identifier PULSER = Identifier.parse("goo:pulse_pulser");
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);

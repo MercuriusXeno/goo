@@ -15,6 +15,10 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Crystal's Shards: a full charge let go rains glass knives
@@ -22,7 +26,19 @@ import java.util.List;
  * before it has left the hand and flown.
  * decision shards-sling-then-morph-to-flechettes
  */
+@RegistersGameTests
 public final class ShardsSlingTests {
+    private static final String SHARDS_RAIN_LAYS_INTO_AN_AREA = "shards_rain_lays_into_an_area";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, SHARDS_RAIN_LAYS_INTO_AN_AREA, ShardsSlingTests::shardsRainLaysIntoAnArea);
+    }
+
 
     private static final Identifier CRYSTAL_SHARDS = Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_shards");
     /** The light bay is sixteen blocks across and holds no floor of its own. */

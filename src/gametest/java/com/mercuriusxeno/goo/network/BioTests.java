@@ -14,6 +14,10 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Leaf Bio: a struck zombie loses the toxin's share of its max
@@ -22,7 +26,19 @@ import net.minecraft.world.item.Items;
  * refreshed.
  * bio-toxin-stacks-to-amplitude-two
  */
+@RegistersGameTests
 public final class BioTests {
+    private static final String BIO_STACKS_TO_TWO = "bio_stacks_to_two";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, BIO_STACKS_TO_TWO, BioTests::bioStacksToTwo);
+    }
+
 
     private static final String BIO = "goo:leaf_bio";
     private static final BlockPos ZOMBIE_POS = new BlockPos(2, 1, 2);

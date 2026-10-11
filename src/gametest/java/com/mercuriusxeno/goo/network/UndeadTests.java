@@ -14,6 +14,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for nether Undead through the real self delivery: at noon under
@@ -22,7 +26,25 @@ import net.minecraft.world.phys.Vec3;
  * ends, its nether hearts and its undeath with it
  * (decision undead-nether-hearts-burn-in-sunlight).
  */
+@RegistersGameTests
 public final class UndeadTests {
+    private static final String UNDEAD_BURNS_IN_SUN = "undead_burns_in_sun_not_under_roof";
+    private static final String UNDEAD_HARMING_HEALS = "undead_harming_heals";
+    private static final String UNDEAD_SUNBURN_AGGRAVATED = "undead_sunburn_is_aggravated";
+    private static final String UNDEAD_ENDS_WHEN_DRY = "undead_ends_when_nether_runs_dry";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, UNDEAD_BURNS_IN_SUN, UndeadTests::undeadBurnsInSunNotUnderRoof);
+        GooTestFunctions.registerTest(registrar, UNDEAD_HARMING_HEALS, UndeadTests::undeadHarmingHeals);
+        GooTestFunctions.registerTest(registrar, UNDEAD_SUNBURN_AGGRAVATED, UndeadTests::undeadSunburnIsAggravated);
+        GooTestFunctions.registerTest(registrar, UNDEAD_ENDS_WHEN_DRY, UndeadTests::undeadEndsWhenNetherRunsDry);
+    }
+
 
     private static final Identifier NETHER_UNDEAD = Identifier.parse("goo:nether_undead");
     private static final BlockPos OPEN_POS = new BlockPos(1, 1, 1);

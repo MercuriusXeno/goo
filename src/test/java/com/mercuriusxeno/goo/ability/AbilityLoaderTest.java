@@ -20,6 +20,7 @@ import com.mercuriusxeno.goo.ability.program.TomeKind;
 import com.mercuriusxeno.goo.ability.program.TomeStep;
 import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.data.IdentifiedJsonScan;
+import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.JsonOps;
@@ -29,14 +30,18 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.world.item.Items;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
+import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
@@ -66,12 +71,11 @@ class AbilityLoaderTest {
     private static final double ZOMBIE_MAX_HEALTH = 20;
     private static final double TOP_MAX_HEALTH = 1024;
     private static final double TAP_SPAWN_CHANCE = 5;
-    /** The abilities whose whole design was a per-stack shape. */
-    /** The world abilities that stay after their blob lands. */
-    private static final List<String> LINGERING_ABILITIES = List.of("crystal_cloud", "metal_spikes",
-            "nether_black_hole", "unstable_lurker", "glow_crystal", "crystal_prism", "typhoon_updraft");
+    /** The proving example of a world ability that stays after its blob lands. */
+    private static final String LINGERING = "crystal_cloud";
     /** The ability whose program ends the tick it lands. */
     private static final String BLAST = "unstable_explode";
+    /** The abilities whose whole design was a per-stack shape. */
     private static final List<String> STACK_SHAPE_ABILITIES = List.of("blaze_flat", "blaze_tunnel",
             "frost_flat", "frost_tunnel", "frost_sphere", "rock_flat", "rock_tunnel");
 
@@ -80,63 +84,16 @@ class AbilityLoaderTest {
                 AbilityDefinition::codecFor);
     }
 
-    /** The items each gated ability requires, as the task's how maps the operator's lists. */
-    private static final Map<String, List<String>> GATES = Map.ofEntries(
-            Map.entry("ender_blink", List.of("ender_pearl")),
-            Map.entry("ender_zone", List.of("popped_chorus_fruit")),
-            Map.entry("ender_shifter", List.of("chorus_fruit")),
-            Map.entry("deep_churn", List.of("sculk_catalyst")),
-            Map.entry("deep_convoke", List.of("sculk_shrieker")),
-            Map.entry("deep_dive", List.of("nautilus_shell")),
-            Map.entry("ender_end", List.of("dragon_breath")),
-            Map.entry("ender_oculus", List.of("ender_eye")),
-            Map.entry("hex_charm", List.of("honey_bottle", "cake", "cookie")),
-            Map.entry("hex_enchant", List.of("book", "lapis_lazuli")),
-            Map.entry("hex_fuse", List.of("bookshelf", "lapis_lazuli")),
-            Map.entry("hex_lifetap", List.of("soul_sand")),
-            Map.entry("hex_drain", List.of("soul_sand")),
-            Map.entry("unstable_explode", List.of("gunpowder")),
-            Map.entry("unstable_lurker", List.of("tnt")),
-            Map.entry("unstable_unmake", List.of("dragon_breath")),
-            Map.entry("unstable_charged", List.of("fire_charge")),
-            Map.entry("glow_sunbeam", List.of("spectral_arrow")),
-            Map.entry("glow_crystal", List.of("glowstone")),
-            Map.entry("crystal_cloud", List.of("glass", "sand")),
-            Map.entry("crystal_shards", List.of("amethyst_shard")),
-            Map.entry("crystal_prism", List.of("quartz")),
-            Map.entry("crystal_scales", List.of("diamond", "turtle_scute")),
-            Map.entry("blaze_spitfire", List.of("torchflower")),
-            Map.entry("frost_nova", List.of("packed_ice")),
-            Map.entry("frost_cold", List.of("snowball")),
-            Map.entry("frost_orb", List.of("blue_ice")),
-            Map.entry("blaze_ignite", List.of("flint")),
-            Map.entry("blaze_kindle", List.of("magma_cream")),
-            Map.entry("leaf_barkskin", List.of("oak_log")),
-            Map.entry("aeon_rewind", List.of("clock")),
-            Map.entry("yore_rewind", List.of("clock")),
-            Map.entry("aeon_stasis", List.of("netherite_scrap")),
-            Map.entry("aeon_haste", List.of("sugar")),
-            Map.entry("leaf_vines", List.of("vine")),
-            Map.entry("leaf_growth", List.of("bone_meal")),
-            Map.entry("leaf_reap", List.of("wheat", "wheat_seeds")),
-            Map.entry("leaf_bio", List.of("poisonous_potato")),
-            Map.entry("typhoon_float", List.of("shulker_shell")),
-            Map.entry("typhoon_jet", List.of("phantom_membrane")),
-            Map.entry("typhoon_repel", List.of("wind_charge")),
-            Map.entry("typhoon_updraft", List.of("breeze_rod")),
-            Map.entry("rock_bore", List.of("stone", "cobblestone")),
-            Map.entry("rock_spire", List.of("gravel", "sand")),
-            Map.entry("rock_flatten", List.of("dirt")),
-            Map.entry("glow_scry", List.of("spyglass")),
-            Map.entry("glow_lux", List.of("carrot")),
-            Map.entry("rock_petrify", List.of("pointed_dripstone")),
-            Map.entry("rock_stoneskin", List.of("deepslate")),
-            Map.entry("pulse_zap", List.of("redstone")),
-            Map.entry("shroom_mycosis", List.of("nether_wart")),
-            Map.entry("shroom_colonize", List.of("brown_mushroom", "red_mushroom")),
-            Map.entry("shroom_fungal_shift", List.of("sculk")),
-            Map.entry("shroom_sight", List.of("sculk_sensor")),
-            Map.entry("nether_undead", List.of("rotten_flesh")));
+    /**
+     * The item paths a class declares, read from its static field names, so the suite loads
+     * no registry and calls no Bootstrap; reflecting on field names leaves the class uninitialized.
+     */
+    private static Set<String> declaredItemPaths(Class<?> itemHolder) {
+        return Stream.of(itemHolder.getDeclaredFields())
+                .filter(field -> Modifier.isStatic(field.getModifiers()))
+                .map(field -> field.getName().toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
+    }
 
     @Test
     void everyScannedAbilityCarriesItsFileId() {
@@ -221,15 +178,11 @@ class AbilityLoaderTest {
     }
 
     // decision lingering-abilities-place-their-own-thing
+    // decision one-proving-ability-per-kind
     @Test
     void eachLingeringAbilityPlacesItsOwnThingAndBlastPlacesNothing() {
-        Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
-        for (String name : LINGERING_ABILITIES) {
-            AbilityDefinition ability = scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, name));
-            assertTrue(placesItsOwnThing(ability), name + " names no step placing its own thing");
-        }
-        AbilityDefinition blast = scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, BLAST));
-        assertFalse(placesItsOwnThing(blast), BLAST + " places a thing of its own");
+        assertTrue(placesItsOwnThing(AbilityJson.decode(LINGERING)), LINGERING + " names no step placing its own thing");
+        assertFalse(placesItsOwnThing(AbilityJson.decode(BLAST)), BLAST + " places a thing of its own");
     }
 
     private static boolean placesItsOwnThing(AbilityDefinition ability) {
@@ -242,21 +195,20 @@ class AbilityLoaderTest {
     }
 
     /**
-     * Each shipped ability names the items the operator's lists gate it behind,
-     * and an ungated one names none (decision ability-hidden-until-recipes-known).
+     * Every item a shipped ability's gate names is one the game declares, vanilla or goo
+     * (decisions ability-hidden-until-recipes-known, tests-read-the-inventory-from-loaded-json).
      */
     @Test
     void everyShippedAbilityRequiresTheItemsItsGateNames() {
-        List<Path> files = AbilityJson.files();
-        Map<Identifier, AbilityDefinition> scanned = IdentifiedJsonScan.scan(
-                managerListing(files), FileToIdConverter.json(DIRECTORY), JsonOps.INSTANCE,
-                AbilityDefinition::codecFor);
+        Map<String, Set<String>> declared = Map.of(
+                Identifier.DEFAULT_NAMESPACE, declaredItemPaths(Items.class),
+                Goo.MODID, declaredItemPaths(GooItems.class));
 
-        for (Path file : files) {
-            Identifier fileId = AbilityJson.idOf(file.getFileName().toString());
-            List<Identifier> expected = GATES.getOrDefault(fileId.getPath(), List.of()).stream()
-                    .map(Identifier::withDefaultNamespace).toList();
-            assertEquals(expected, scanned.get(fileId).requires(), fileId.toString());
+        for (AbilityDefinition ability : scanShipped(AbilityJson.files()).values()) {
+            for (Identifier item : ability.requires()) {
+                assertTrue(declared.getOrDefault(item.getNamespace(), Set.of()).contains(item.getPath()),
+                        ability.id() + " requires " + item + ", which no item class declares");
+            }
         }
     }
 
@@ -354,9 +306,16 @@ class AbilityLoaderTest {
      * it ends (decision held-effects-sound-up-and-down).
      */
     @ParameterizedTest
-    @CsvSource({"blaze_kindle", "leaf_barkskin", "rock_stoneskin", "jelly_gluttony", "shroom_sight", "hex_lifetap", "typhoon_airborn"})
-    void everyBrewSoundsAsItStarts(String name) {
-        assertTrue(AbilityJson.decode(name).behaviors().stream().anyMatch(SoundStep.class::isInstance), name);
+    @MethodSource("shippedBrews")
+    void everyBrewSoundsAsItStarts(AbilityDefinition brew) {
+        assertTrue(brew.behaviors().stream().flatMap(AbilityLoaderTest::stepTree).anyMatch(SoundStep.class::isInstance),
+                brew.id().toString());
+    }
+
+    /** Every shipped self + brew ability (decision tests-read-the-inventory-from-loaded-json). */
+    static Stream<AbilityDefinition> shippedBrews() {
+        return AbilityJson.files().stream().map(AbilityJson::decode)
+                .filter(ability -> SelfEatRoute.eats(ability.delivery(), ability.badge()));
     }
 
     /**

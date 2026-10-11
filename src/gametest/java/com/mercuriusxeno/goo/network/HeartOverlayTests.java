@@ -24,6 +24,10 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import java.util.Collections;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for the heart overlay through Blaze Kindle invoked on a survival
@@ -32,7 +36,25 @@ import java.util.List;
  * overlay-hearts-are-an-elemental-overshield and
  * kindle-ember-hearts-ash-and-retaliate).
  */
+@RegistersGameTests
 public final class HeartOverlayTests {
+    private static final String SELF_KINDLE_SHIELDS = "self_kindle_shields_then_quenches";
+    private static final String SELF_KINDLE_BURNS = "self_kindle_burns_the_attacker";
+    private static final String SELF_HEART_BREWS_REPLACE = "self_heart_brews_replace_each_other";
+    private static final String SELF_KINDLE_FIRE = "self_kindle_fire_relights_for_a_heart";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, SELF_KINDLE_SHIELDS, HeartOverlayTests::kindleShieldsThenQuenches);
+        GooTestFunctions.registerTest(registrar, SELF_KINDLE_BURNS, HeartOverlayTests::kindleBurnsTheAttacker);
+        GooTestFunctions.registerTest(registrar, SELF_HEART_BREWS_REPLACE, HeartOverlayTests::heartBrewsReplaceEachOther);
+        GooTestFunctions.registerTest(registrar, SELF_KINDLE_FIRE, HeartOverlayTests::kindleFireRelightsForAHeart);
+    }
+
 
     private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
     private static final Identifier LEAF_BARKSKIN = Identifier.parse("goo:leaf_barkskin");

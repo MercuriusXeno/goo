@@ -9,6 +9,10 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Blocks;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametest for typhoon Updraft landed through the real effect path: its
@@ -16,7 +20,19 @@ import net.minecraft.world.level.block.Blocks;
  * the duration ends (decision updraft-blob-stands-a-column-of-wind). The bay's
  * ceiling stands below the column's top, so the test watches the climb.
  */
+@RegistersGameTests
 public final class UpdraftTests {
+    private static final String UPDRAFT_LIFTS_A_ZOMBIE = "updraft_lifts_a_zombie";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, UPDRAFT_LIFTS_A_ZOMBIE, UpdraftTests::updraftLiftsAZombie);
+    }
+
 
     /** Marks a pending effect aimed at a block rather than an entity. */
     private static final int NO_ENTITY = -1;

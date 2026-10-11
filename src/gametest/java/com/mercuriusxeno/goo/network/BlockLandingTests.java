@@ -8,6 +8,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.level.block.Blocks;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for a goo landing on a block through
@@ -16,7 +20,23 @@ import net.minecraft.world.level.block.Blocks;
  * (decision no-throw-without-ability). They sit in the scheduler's package
  * because the scheduler is package-private.
  */
+@RegistersGameTests
 public final class BlockLandingTests {
+    private static final String FX_NO_ABILITY_LANDS_NOTHING = "fx_no_ability_lands_nothing";
+    private static final String FX_ABILITY_LANDS_MARKER = "fx_ability_lands_marker";
+    private static final String FX_BLAST_LANDS_NO_BLOCK = "fx_blast_lands_no_block";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, FX_NO_ABILITY_LANDS_NOTHING, BlockLandingTests::noAbilityLandsNothing);
+        GooTestFunctions.registerTest(registrar, FX_ABILITY_LANDS_MARKER, BlockLandingTests::abilityLandsItsMarker);
+        GooTestFunctions.registerTest(registrar, FX_BLAST_LANDS_NO_BLOCK, BlockLandingTests::blastLandsNoBlock);
+    }
+
 
     /** The block the goo strikes. */
     private static final BlockPos WALL_POS = new BlockPos(1, 1, 1);

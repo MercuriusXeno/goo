@@ -26,6 +26,10 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for rock petrify: a held stream fills a penned zombie's gauge,
@@ -35,7 +39,25 @@ import net.minecraft.world.phys.Vec3;
  * cobblestone for cobblestone and the zombie's experience
  * (decision petrify-stone-encasement-and-calcify-map).
  */
+@RegistersGameTests
 public final class PetrifyStreamTests {
+    private static final String PETRIFY_SLOWS_THEN_STATUES = "petrify_slows_then_statues";
+    private static final String PETRIFY_GAUGE_DRAINS = "petrify_gauge_drains";
+    private static final String PETRIFY_CALCIFIES_GRADUALLY = "petrify_calcifies_gradually";
+    private static final String STATUE_MINES = "statue_mines_for_cobblestone_and_experience";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, PETRIFY_SLOWS_THEN_STATUES, PetrifyStreamTests::petrifySlowsThenStatues);
+        GooTestFunctions.registerTest(registrar, PETRIFY_GAUGE_DRAINS, PetrifyStreamTests::petrifyGaugeDrains);
+        GooTestFunctions.registerTest(registrar, PETRIFY_CALCIFIES_GRADUALLY, PetrifyStreamTests::petrifyCalcifiesGradually);
+        GooTestFunctions.registerTest(registrar, STATUE_MINES, PetrifyStreamTests::statueMinesForCobblestoneAndExperience);
+    }
+
 
     private static final BlockPos STAND_POS = new BlockPos(0, 1, 2);
     /** Three blocks east of the player, at its height, on a block the test lays. */

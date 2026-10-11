@@ -24,13 +24,30 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import java.util.List;
 import java.util.function.Consumer;
+import net.neoforged.neoforge.registries.RegisterEvent;
 
 /**
  * Gametests that build the Goo Lab plan through {@link LabBuilder} into a
  * test instance and read the level back (decision lab-built-from-code). The
  * lab test instances carry padding wide enough to hold the whole plan.
  */
+@RegistersGameTests
 public final class LabTests {
+    private static final String LAB_BUILD_SHELL = "lab_build_shell";
+    private static final String ZOMBIE_PEN_HOLDS_ONLY_ZOMBIES = "zombie_pen_holds_only_zombies";
+    private static final String PASSIVE_PEN_HAS_NO_ROOF = "passive_pen_has_no_roof";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, LAB_BUILD_SHELL, LabTests::buildShell);
+        GooTestFunctions.registerTest(registrar, ZOMBIE_PEN_HOLDS_ONLY_ZOMBIES, LabTests::zombiePenHoldsOnlyZombies);
+        GooTestFunctions.registerTest(registrar, PASSIVE_PEN_HAS_NO_ROOF, LabTests::passivePenHasNoRoof);
+    }
+
 
     /**
      * The sign line the builder writes the machine name on.

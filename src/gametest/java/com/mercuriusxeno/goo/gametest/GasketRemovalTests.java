@@ -31,6 +31,8 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import java.util.UUID;
 import static com.mercuriusxeno.goo.GooConstants.NO_SLOT;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for the one sneak empty-hand gasket removal route every machine
@@ -39,7 +41,29 @@ import static com.mercuriusxeno.goo.GooConstants.NO_SLOT;
  * region pops it into the player's inventory and a click on a bare region runs
  * the machine's standing empty-hand behavior.
  */
+@RegistersGameTests
 public final class GasketRemovalTests {
+    private static final String SNEAK_POPS_CANISTER_SLOT_GASKET = "sneak_pops_canister_slot_gasket";
+    private static final String SNEAK_POPS_HUB_GASKET = "sneak_pops_hub_gasket";
+    private static final String SNEAK_POPS_TAP_GASKET = "sneak_pops_tap_gasket";
+    private static final String SNEAK_POPS_VAT_GASKET = "sneak_pops_vat_gasket";
+    private static final String SNEAK_POPS_REACTOR_GASKET = "sneak_pops_reactor_gasket";
+    private static final String SNEAK_POPS_CRUCIBLE_GASKET = "sneak_pops_crucible_gasket";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, SNEAK_POPS_CANISTER_SLOT_GASKET, GasketRemovalTests::canisterSlotGasketPopsCanisterStays);
+        GooTestFunctions.registerTest(registrar, SNEAK_POPS_HUB_GASKET, GasketRemovalTests::hubPopsHitGasketThenHandsBackCanister);
+        GooTestFunctions.registerTest(registrar, SNEAK_POPS_TAP_GASKET, GasketRemovalTests::tapPopsGasketThenHandsBackCanister);
+        GooTestFunctions.registerTest(registrar, SNEAK_POPS_VAT_GASKET, GasketRemovalTests::vatPopsHitFaceThenLeavesStateUnchanged);
+        GooTestFunctions.registerTest(registrar, SNEAK_POPS_REACTOR_GASKET, GasketRemovalTests::reactorPopsHitFaceThenLeavesStateUnchanged);
+        GooTestFunctions.registerTest(registrar, SNEAK_POPS_CRUCIBLE_GASKET, GasketRemovalTests::cruciblePopsGasketThenPasses);
+    }
+
 
     private static final BlockPos BE_POS = new BlockPos(1, 1, 1);
     private static final double HALF = 0.5;

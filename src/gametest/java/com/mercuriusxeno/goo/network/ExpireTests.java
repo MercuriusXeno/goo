@@ -14,6 +14,10 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for yore Expire: a goo of it lands on a mob through
@@ -22,7 +26,21 @@ import net.minecraft.world.item.Items;
  * is untouched.
  * expire-kills-the-struck-mob
  */
+@RegistersGameTests
 public final class ExpireTests {
+    private static final String EXPIRE_KILLS_THE_STRUCK_ZOMBIE = "expire_kills_the_struck_zombie";
+    private static final String EXPIRE_SPARES_A_BOSS = "expire_spares_a_boss";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, EXPIRE_KILLS_THE_STRUCK_ZOMBIE, ExpireTests::expireKillsTheStruckZombie);
+        GooTestFunctions.registerTest(registrar, EXPIRE_SPARES_A_BOSS, ExpireTests::expireSparesABoss);
+    }
+
 
     private static final BlockPos SPAWN_POS = new BlockPos(3, 1, 3);
     /** The tick after spawning, once the level's entity index holds the spawned mob. */

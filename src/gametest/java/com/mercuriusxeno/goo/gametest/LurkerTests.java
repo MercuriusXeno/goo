@@ -20,6 +20,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests that a lurker pulses ever nearer as a zombie walks up to it and
@@ -27,7 +29,21 @@ import java.util.List;
  * it off as a mob does.
  * decision lurker-blob-brightens-then-detonates
  */
+@RegistersGameTests
 public final class LurkerTests {
+    private static final String LURKER_PULSES_THEN_EXPLODES = "lurker_pulses_then_explodes";
+    private static final String LURKER_ANSWERS_A_PLAYER = "lurker_answers_a_player";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, LURKER_PULSES_THEN_EXPLODES, LurkerTests::lurkerPulsesThenExplodes);
+        GooTestFunctions.registerTest(registrar, LURKER_ANSWERS_A_PLAYER, LurkerTests::lurkerAnswersAPlayer);
+    }
+
 
     private static final String REMOVAL = "removal";
     private static final Identifier LURKER = Identifier.fromNamespaceAndPath("goo", "unstable_lurker");

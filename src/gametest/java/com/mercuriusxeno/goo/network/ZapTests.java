@@ -17,6 +17,10 @@ import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.LeverBlock;
 import net.minecraft.world.level.block.RedStoneWireBlock;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Zap: a strike on a lever flips it, one on dust powers it
@@ -27,7 +31,27 @@ import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
  * zap-ticks-the-device-and-stuns
  * zap-disperses-into-signal
  */
+@RegistersGameTests
 public final class ZapTests {
+    private static final String ZAP_TICKS_THE_LEVER = "zap_ticks_the_lever";
+    private static final String ZAP_ON_A_WALL_TOGGLES_BEHIND_IT = "zap_on_a_wall_toggles_behind_it";
+    private static final String ZAP_STUNS_A_ZOMBIE = "zap_stuns_a_zombie";
+    private static final String ZAP_STUN_WEARS_OFF = "zap_stun_wears_off";
+    private static final String ZAP_PULSES_DUST = "zap_pulses_dust";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, ZAP_TICKS_THE_LEVER, ZapTests::zapTicksTheLever);
+        GooTestFunctions.registerTest(registrar, ZAP_ON_A_WALL_TOGGLES_BEHIND_IT, ZapTests::zapOnAWallTogglesBehindIt);
+        GooTestFunctions.registerTest(registrar, ZAP_STUNS_A_ZOMBIE, ZapTests::zapStunsAZombie);
+        GooTestFunctions.registerTest(registrar, ZAP_STUN_WEARS_OFF, ZapTests::zapStunWearsOff);
+        GooTestFunctions.registerTest(registrar, ZAP_PULSES_DUST, ZapTests::zapPulsesDust);
+    }
+
 
     /** Marks a pending effect aimed at a block rather than an entity. */
     private static final int NO_ENTITY = -1;

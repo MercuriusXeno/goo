@@ -9,13 +9,27 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametest for Jelly's value: every item carrying a food component resolves
  * a jelly term on the live server, recipe-derived foods included
  * (decision jelly-ships-from-every-food).
  */
+@RegistersGameTests
 public final class JellyValueTests {
+    private static final String EVERY_FOOD_RESOLVES_JELLY = "every_food_resolves_jelly";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, EVERY_FOOD_RESOLVES_JELLY, JellyValueTests::everyFoodResolvesJelly);
+    }
+
 
     private static final String UNJELLIED_FOODS = "Every food item should resolve jelly, but these do not: ";
     private static final String NO_FOODS = "The item registry should hold food items";

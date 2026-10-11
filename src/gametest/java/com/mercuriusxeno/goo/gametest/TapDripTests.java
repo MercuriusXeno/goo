@@ -46,11 +46,51 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for the tap's drip: what it draws, from where, and where it lands.
  */
+@RegistersGameTests
 public final class TapDripTests {
+    private static final String TAP_DRIP_DRAWS_ONE_MB = "tap_drip_draws_one_mb";
+    private static final String TAP_VALVE_GATES_DRIP = "tap_valve_gates_drip";
+    private static final String TAP_DRIP_LANDS_BELOW = "tap_drip_lands_below";
+    private static final String TAP_DRIP_BOTTOMLESS = "tap_drip_bottomless";
+    private static final String TAP_HOST_PLACES_ABOVE_LANDING = "tap_host_places_above_landing";
+    private static final String TAP_DRIP_NO_ABILITY = "tap_drip_no_ability";
+    private static final String VITALITY_TAP_HEALS = "vitality_tap_heals_below";
+    private static final String TAP_DRIP_SENDS_TAP_DRIP = "tap_drip_sends_tap_drip";
+    private static final String TAP_VALVE_STEPS_FIVE_GRADES = "tap_valve_steps_five_grades";
+    private static final String TAP_SNEAK_CLICK_STEPS_VALVE_BACK = "tap_sneak_click_steps_valve_back";
+    private static final String TAP_DRIP_FILLS_CRUCIBLE_BELOW = "tap_drip_fills_crucible_below";
+    private static final String TAP_DRIP_ONE_TO_FOUR_FILLS_CRUCIBLE = "tap_drip_one_to_four_fills_crucible";
+    private static final String TAP_DRIP_INTO_CRUCIBLE_RUNS_NO_PROGRAM = "tap_drip_into_crucible_runs_no_program";
+    private static final String TAP_DRIP_ON_REFUSING_BLOCK_RUNS_PROGRAM = "tap_drip_on_refusing_block_runs_program";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, TAP_DRIP_DRAWS_ONE_MB, TapDripTests::tapDripDrawsOneMb);
+        GooTestFunctions.registerTest(registrar, TAP_VALVE_GATES_DRIP, TapDripTests::tapValveGatesDrip);
+        GooTestFunctions.registerTest(registrar, TAP_DRIP_LANDS_BELOW, TapDripTests::tapDripLandsBelow);
+        GooTestFunctions.registerTest(registrar, TAP_DRIP_BOTTOMLESS, TapDripTests::tapDripBottomless);
+        GooTestFunctions.registerTest(registrar, TAP_HOST_PLACES_ABOVE_LANDING, TapDripTests::tapHostPlacesAboveLanding);
+        GooTestFunctions.registerTest(registrar, TAP_DRIP_NO_ABILITY, TapDripTests::tapDripNoAbility);
+        GooTestFunctions.registerTest(registrar, VITALITY_TAP_HEALS, TapDripTests::vitalityTapHealsBelow);
+        GooTestFunctions.registerTest(registrar, TAP_DRIP_SENDS_TAP_DRIP, TapDripTests::tapDripSendsTapDrip);
+        GooTestFunctions.registerTest(registrar, TAP_VALVE_STEPS_FIVE_GRADES, TapDripTests::tapValveStepsFiveGrades);
+        GooTestFunctions.registerTest(registrar, TAP_SNEAK_CLICK_STEPS_VALVE_BACK, TapDripTests::tapSneakClickStepsValveBack);
+        GooTestFunctions.registerTest(registrar, TAP_DRIP_FILLS_CRUCIBLE_BELOW, TapDripTests::tapDripFillsCrucibleBelow);
+        GooTestFunctions.registerTest(registrar, TAP_DRIP_ONE_TO_FOUR_FILLS_CRUCIBLE, TapDripTests::tapDripOneToFourFillsCrucible);
+        GooTestFunctions.registerTest(registrar, TAP_DRIP_INTO_CRUCIBLE_RUNS_NO_PROGRAM, TapDripTests::tapDripIntoCrucibleRunsNoProgram);
+        GooTestFunctions.registerTest(registrar, TAP_DRIP_ON_REFUSING_BLOCK_RUNS_PROGRAM, TapDripTests::tapDripOnRefusingBlockRunsProgram);
+    }
+
 
     private static final BlockPos TAP_POS = new BlockPos(1, 1, 1);
     /** The test pack's seventeenth type, which carries no tap ability while every bundled type gains one. */

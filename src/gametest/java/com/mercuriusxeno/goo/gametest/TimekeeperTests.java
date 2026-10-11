@@ -28,6 +28,8 @@ import net.minecraft.world.clock.WorldClock;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for aeon's Timekeeper: an aeon goo landing on a prism makes it a
@@ -37,7 +39,23 @@ import net.minecraft.world.phys.Vec3;
  * nothing and draws the standing-banked charge out as aeon goo.
  * timekeeper-prism-banks-ticks-forward-only
  */
+@RegistersGameTests
 public final class TimekeeperTests {
+    private static final String TIMEKEEPER_TICK_MOVES_DAY_FORWARD = "timekeeper_tick_moves_day_forward";
+    private static final String TIMEKEEPER_OFFSETS_REST_STAT = "timekeeper_offsets_rest_stat";
+    private static final String TIMEKEEPER_REWIND_WITHDRAWS = "timekeeper_rewind_withdraws";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, TIMEKEEPER_TICK_MOVES_DAY_FORWARD, TimekeeperTests::timekeeperTickMovesDayForward);
+        GooTestFunctions.registerTest(registrar, TIMEKEEPER_OFFSETS_REST_STAT, TimekeeperTests::timekeeperOffsetsRestStat);
+        GooTestFunctions.registerTest(registrar, TIMEKEEPER_REWIND_WITHDRAWS, TimekeeperTests::timekeeperRewindWithdraws);
+    }
+
 
     private static final BlockPos FLOOR_POS = new BlockPos(1, 1, 1);
     private static final BlockPos PRISM_POS = FLOOR_POS.above();

@@ -41,13 +41,59 @@ import net.minecraft.world.phys.Vec3;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for {@link IGasketHolder} contracts on real block entities.
  * Replaces the stub-based JUnit tests that used StubHolder, VatStub,
  * CrucibleStub, and HubStub to avoid Minecraft class initialization.
  */
+@RegistersGameTests
 public final class GasketHolderTests {
+    private static final String CRUCIBLE_ROLE_TRANSMITTER = "crucible_role_transmitter";
+    private static final String CRUCIBLE_NO_GASKET = "crucible_no_gasket";
+    private static final String CRUCIBLE_WITH_GASKET = "crucible_with_gasket";
+    private static final String VAT_SUPPORTS_ROLE = "vat_supports_role";
+    private static final String HUB_HAS_INTAKE = "hub_has_intake";
+    private static final String DEFAULT_ALLOWS_TUNING = "default_allows_tuning";
+    private static final String REACTOR_GASKET_INSTALL = "reactor_gasket_install";
+    private static final String REACTOR_TUNER_LINK = "reactor_tuner_link";
+    private static final String CRUCIBLE_GOO_GASKET_TUNER = "crucible_goo_gasket_tuner";
+    private static final String REACTOR_GASKET_LOCATION = "reactor_gasket_location";
+    private static final String REACTOR_SEATED_GASKET_METADATA = "reactor_seated_gasket_metadata";
+    private static final String TAP_ROLE_RECEIVER = "tap_role_receiver";
+    private static final String TAP_TUNER_LINK = "tap_tuner_link";
+    private static final String TAP_REFUSES_TRANSMITTER = "tap_refuses_transmitter";
+    private static final String HUB_SLOT_TRANSMITS = "hub_slot_transmits";
+    private static final String HUB_SUPPORTS_BOTH_ROLES = "hub_supports_both_roles";
+    private static final String HUB_SLOT_MISS_INTAKE = "hub_slot_miss_intake";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, CRUCIBLE_ROLE_TRANSMITTER, GasketHolderTests::crucibleResolveRoleAlwaysTransmitter);
+        GooTestFunctions.registerTest(registrar, CRUCIBLE_NO_GASKET, GasketHolderTests::crucibleNoGasketUnsupported);
+        GooTestFunctions.registerTest(registrar, CRUCIBLE_WITH_GASKET, GasketHolderTests::crucibleWithGasketSupported);
+        GooTestFunctions.registerTest(registrar, VAT_SUPPORTS_ROLE, GasketHolderTests::vatSupportsRoleMatchesBlockstate);
+        GooTestFunctions.registerTest(registrar, HUB_HAS_INTAKE, GasketHolderTests::hubHasIntake);
+        GooTestFunctions.registerTest(registrar, DEFAULT_ALLOWS_TUNING, GasketHolderTests::defaultAllowsTuningIsTrue);
+        GooTestFunctions.registerTest(registrar, REACTOR_GASKET_INSTALL, GasketHolderTests::reactorGasketInstallsOnOutputCanister);
+        GooTestFunctions.registerTest(registrar, REACTOR_TUNER_LINK, GasketHolderTests::reactorTunerLinksCrucibleToOutputCanister);
+        GooTestFunctions.registerTest(registrar, CRUCIBLE_GOO_GASKET_TUNER, GasketHolderTests::crucibleHoldingGooTakesGasketAndTuner);
+        GooTestFunctions.registerTest(registrar, REACTOR_GASKET_LOCATION, GasketHolderTests::reactorOutputGasketLocationFollowsCanister);
+        GooTestFunctions.registerTest(registrar, REACTOR_SEATED_GASKET_METADATA, GasketHolderTests::reactorSeatedCanisterAnswersGasketMetadata);
+        GooTestFunctions.registerTest(registrar, TAP_ROLE_RECEIVER, GasketHolderTests::tapResolveRoleAlwaysReceiver);
+        GooTestFunctions.registerTest(registrar, TAP_TUNER_LINK, GasketHolderTests::tapTunerLinksCanisterTransmitter);
+        GooTestFunctions.registerTest(registrar, TAP_REFUSES_TRANSMITTER, GasketHolderTests::tapRefusesTransmitterRole);
+        GooTestFunctions.registerTest(registrar, HUB_SLOT_TRANSMITS, GasketHolderTests::hubSlotLinksAsTransmitter);
+        GooTestFunctions.registerTest(registrar, HUB_SUPPORTS_BOTH_ROLES, GasketHolderTests::hubSupportsBothRolesIntakeReceives);
+        GooTestFunctions.registerTest(registrar, HUB_SLOT_MISS_INTAKE, GasketHolderTests::hubSlotMissKeepsIntakePath);
+    }
+
 
     private static final BlockPos BE_POS = new BlockPos(1, 1, 1);
     private static final String CRUCIBLE_TRANSMITTER = "Crucible resolveRole should always return TRANSMITTER";

@@ -14,6 +14,8 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import java.util.ArrayList;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametest for Deep's churn: a column whose core is deepslate and whose four
@@ -21,7 +23,19 @@ import java.util.List;
  * and deepslate in the strips (decision churn-rotates-a-plus-shaped-column).
  * The column floats above the test's own bay.
  */
+@RegistersGameTests
 public final class ChurnTests {
+    private static final String CHURN_SWAPS = "churn_swaps_the_layers";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, CHURN_SWAPS, ChurnTests::churnSwapsTheLayers);
+    }
+
 
     private static final Identifier DEEP_CHURN = Identifier.parse("goo:deep_churn");
     /** How far above the bay's floor the column's top layer floats. */

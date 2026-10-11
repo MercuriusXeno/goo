@@ -28,6 +28,10 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for glow's Sunbeam through the real channel path: a mock player
@@ -38,7 +42,25 @@ import java.util.List;
  * aim assist locks off the crosshair takes the hit, and the impact's burst
  * fires where the ray lands each tick, its sound on hits (decision sunbeam-lands-with-impact-and-aim).
  */
+@RegistersGameTests
 public final class SunbeamChannelTests {
+    private static final String SUNBEAM_REFRACTS_TO_THREE = "sunbeam_refracts_to_three";
+    private static final String SUNBEAM_BURNS_THE_UNDEAD_IT_STRIKES = "sunbeam_burns_the_undead_it_strikes";
+    private static final String SUNBEAM_HITS_THE_AIMED_ZOMBIE = "sunbeam_hits_the_aimed_zombie";
+    private static final String SUNBEAM_IMPACT_FIRES_AT_THE_HIT = "sunbeam_impact_fires_at_the_hit";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, SUNBEAM_REFRACTS_TO_THREE, SunbeamChannelTests::sunbeamRefractsToThree);
+        GooTestFunctions.registerTest(registrar, SUNBEAM_BURNS_THE_UNDEAD_IT_STRIKES, SunbeamChannelTests::sunbeamBurnsTheUndeadItStrikes);
+        GooTestFunctions.registerTest(registrar, SUNBEAM_HITS_THE_AIMED_ZOMBIE, SunbeamChannelTests::sunbeamHitsTheAimedZombie);
+        GooTestFunctions.registerTest(registrar, SUNBEAM_IMPACT_FIRES_AT_THE_HIT, SunbeamChannelTests::sunbeamImpactFiresAtTheHit);
+    }
+
 
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
     private static final BlockPos PRISM_POS = new BlockPos(4, 1, 3);

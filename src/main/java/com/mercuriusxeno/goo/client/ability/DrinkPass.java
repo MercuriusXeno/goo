@@ -15,8 +15,6 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.texture.AbstractTexture;
-import net.minecraft.data.AtlasIds;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
@@ -30,9 +28,10 @@ import java.util.OptionalInt;
  * Draws the uploads of every Unmake drink this frame in one render pass on
  * the drink field pipeline, against the level's depth: every stream's proxy
  * boxes as quads wound to show their inner faces, so a camera inside a box
- * still sees it, each stream drawn with its own uniform block, the block
- * atlas and the level's lightmap bound.
+ * still sees it, each stream drawn with its own uniform block and the
+ * level's lightmap bound, no texture.
  * decision unmake-waves-dissolve-by-crucible-cost
+ * decision unmake-skin-is-a-solid-sampled-color
  */
 final class DrinkPass {
 
@@ -40,7 +39,6 @@ final class DrinkPass {
     private static final String STREAMS_BUFFER = "Goo unmake drink streams";
     private static final String PROXIES_BUFFER = "Goo unmake drink proxies";
     private static final String TRANSFORMS_UNIFORM = "DynamicTransforms";
-    private static final String ATLAS_SAMPLER = "Sampler0";
     private static final String LIGHTMAP_SAMPLER = "Sampler2";
     private static final int FACES = 6;
     private static final int CORNERS = 4;
@@ -115,14 +113,11 @@ final class DrinkPass {
         RenderTarget main = mc.getMainRenderTarget();
         GpuBufferSlice transform = RenderSystem.getDynamicUniforms().writeTransform(new Matrix4f(modelView), WHITE,
                 new Vector3f(), new Matrix4f());
-        AbstractTexture atlas = mc.getTextureManager().getTexture(
-                mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location());
         RenderPass pass = device.createCommandEncoder().createRenderPass(() -> PASS, main.getColorTextureView(),
                 OptionalInt.empty(), main.getDepthTextureView(), OptionalDouble.empty());
         pass.setPipeline(GooRenderTypes.DRINK_FIELD);
         RenderSystem.bindDefaultUniforms(pass);
         pass.setUniform(TRANSFORMS_UNIFORM, transform);
-        pass.bindTexture(ATLAS_SAMPLER, atlas.getTextureView(), atlas.getSampler());
         pass.bindTexture(LIGHTMAP_SAMPLER, mc.gameRenderer.levelLightmap(),
                 RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
         return pass;

@@ -8,6 +8,10 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for {@link GloveSelectHandler}: a selection naming a type and
@@ -16,7 +20,23 @@ import net.minecraft.world.item.Items;
  * no-throw-without-ability). They sit in the handler's package because the
  * handler's apply step is package-private.
  */
+@RegistersGameTests
 public final class GloveSelectTests {
+    private static final String GLOVE_TYPE_ONLY_REFUSED = "glove_type_only_refused";
+    private static final String GLOVE_GATED_SELECTION_REFUSED = "glove_gated_selection_refused";
+    private static final String RAZOR_HIDDEN_UNTIL_GLASS_AND_SAND = "razor_hidden_until_glass_and_sand";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, GLOVE_TYPE_ONLY_REFUSED, GloveSelectTests::typeOnlySelectionRefused);
+        GooTestFunctions.registerTest(registrar, GLOVE_GATED_SELECTION_REFUSED, GloveSelectTests::gatedSelectionRefusedWithoutTheRecipe);
+        GooTestFunctions.registerTest(registrar, RAZOR_HIDDEN_UNTIL_GLASS_AND_SAND, GloveSelectTests::razorHiddenUntilGlassAndSand);
+    }
+
 
     private static final String BLAZE_ID = GooTypes.id(GooTypes.BLAZE);
     private static final String BLAZE_IGNITE = "goo:blaze_ignite";
