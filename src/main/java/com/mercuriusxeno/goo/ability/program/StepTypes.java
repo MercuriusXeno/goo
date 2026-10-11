@@ -137,6 +137,7 @@ public final class StepTypes {
         register(LeechStep.TYPE);
         register(TomeStep.TYPE);
         register(GrabStep.TYPE);
+        register(TelekinesisStep.TYPE);
     }
 
     private StepTypes() {

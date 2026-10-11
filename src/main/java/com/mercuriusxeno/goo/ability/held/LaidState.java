@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.ability.program.LuxStep;
 import com.mercuriusxeno.goo.ability.program.NourishStep;
 import com.mercuriusxeno.goo.ability.program.SightStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.TelekinesisStep;
 import com.mercuriusxeno.goo.ability.program.TeleportitisStep;
 import com.mercuriusxeno.goo.ability.program.UndeadStep;
 import com.mojang.serialization.Codec;
@@ -43,7 +44,9 @@ public enum LaidState {
     /** A lifetap (decision lifetap-trades-regen-for-leech). */
     LIFETAP,
     /** Haste's golden overlay (decision haste-stacks-speed-under-the-golden-overlay). */
-    HASTE;
+    HASTE,
+    /** Telekinesis's raised reach (decision telekinesis-enacts-at-extended-reach). */
+    TELEKINESIS;
 
     /** Codec for the saved state. */
     public static final Codec<LaidState> CODEC = LowerCaseEnumCodec.of(LaidState.class, "laid state");
@@ -79,7 +82,8 @@ public enum LaidState {
             TeleportitisStep.class, TELEPORTITIS,
             ExtenderStep.class, EXTENDER,
             LifetapStep.class, LIFETAP,
-            HasteStep.class, HASTE);
+            HasteStep.class, HASTE,
+            TelekinesisStep.class, TELEKINESIS);
 
     private static Stream<Step> withDescendants(Step step) {
         return Stream.concat(Stream.of(step), step.children().flatMap(LaidState::withDescendants));

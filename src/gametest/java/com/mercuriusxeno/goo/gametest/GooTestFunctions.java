@@ -35,6 +35,7 @@ import com.mercuriusxeno.goo.network.BoreStreamTests;
 import com.mercuriusxeno.goo.network.CrushMobTests;
 import com.mercuriusxeno.goo.network.FlattenChannelTests;
 import com.mercuriusxeno.goo.network.GrabChannelTests;
+import com.mercuriusxeno.goo.network.TelekinesisTests;
 import com.mercuriusxeno.goo.network.DecayStreamTests;
 import com.mercuriusxeno.goo.network.PetrifyStreamTests;
 import com.mercuriusxeno.goo.network.ChronosphereTests;
@@ -482,6 +483,8 @@ public final class GooTestFunctions {
     private static final String GRAB_PITCH_DRAWS_CLOSER = "grab_pitch_draws_closer";
     private static final String GRAB_THROWS_ALONG_THE_LOOK = "grab_throws_along_the_look";
     private static final String GRAB_THROWS_AN_ITEM = "grab_throws_an_item";
+    private static final String TELEKINESIS_BREAKS_BEYOND_REACH = "telekinesis_breaks_beyond_reach";
+    private static final String TELEKINESIS_HITS_BEYOND_REACH = "telekinesis_hits_beyond_reach";
     private static final String FLATTEN_SHAVES_A_WALL = "flatten_shaves_a_wall";
     private static final String SCRY_GLISTENS_THE_HIDDEN_ZOMBIE = "scry_glistens_the_hidden_zombie";
     private static final String BORE_CUTS_A_TUNNEL = "bore_cuts_a_tunnel";
@@ -1053,6 +1056,8 @@ public final class GooTestFunctions {
         reg(r, GRAB_PITCH_DRAWS_CLOSER, GrabChannelTests::grabPitchDrawsCloser);
         reg(r, GRAB_THROWS_ALONG_THE_LOOK, GrabChannelTests::grabThrowsAlongTheLook);
         reg(r, GRAB_THROWS_AN_ITEM, GrabChannelTests::grabThrowsAnItem);
+        reg(r, TELEKINESIS_BREAKS_BEYOND_REACH, TelekinesisTests::telekinesisBreaksBeyondReach);
+        reg(r, TELEKINESIS_HITS_BEYOND_REACH, TelekinesisTests::telekinesisHitsBeyondReach);
         reg(r, SCRY_GLISTENS_THE_HIDDEN_ZOMBIE, ScryChannelTests::scryGlistensTheHiddenZombie);
         reg(r, BORE_CUTS_A_TUNNEL, BoreStreamTests::boreCutsATunnel);
         reg(r, STONESKIN_ROUTES_HITS, StoneskinRoutingTests::stoneskinRoutesHitsBySource);
