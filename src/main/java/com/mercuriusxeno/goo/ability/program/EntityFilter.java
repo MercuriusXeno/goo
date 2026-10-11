@@ -68,6 +68,12 @@ public enum EntityFilter {
      */
     HAS_SPAWN_EGG,
     /**
+     * Keeps a mob normally peaceful: a mob of a friendly spawn category
+     * that is no monster; Rally arms only these
+     * (decision zoo-rally-arms-the-peaceful).
+     */
+    PEACEFUL,
+    /**
      * Keeps a living entity its last hit no longer holds immune; a step run
      * every tick spaces its hits by the immunity each hit leaves, as Bore's
      * tunnel strike does (decision bore-vortex-with-a-worldspace-shake).
