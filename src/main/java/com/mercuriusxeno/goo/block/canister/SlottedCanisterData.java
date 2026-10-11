@@ -37,6 +37,7 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.function.IntPredicate;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -306,8 +307,10 @@ public class SlottedCanisterData {
      * @return total volume accepted across all slots
      */
     public int routeFluid(FluidResource fluid, int amount, TransactionContext transaction) {
-        int remaining = distributePass(fluid, amount, true, transaction);
-        remaining = distributePass(fluid, remaining, false, transaction);
+        int remaining = distributePass(fluid, amount, handler -> handler.toFluidContent().volumeOf(fluid) > 0,
+                transaction);
+        remaining = distributePass(fluid, remaining, CanisterSlotFluidHandler::isEmpty, transaction);
+        remaining = distributePass(fluid, remaining, handler -> true, transaction);
         int routed = amount - remaining;
         if (routed > 0) {
             syncCallback.run();
@@ -326,29 +329,27 @@ public class SlottedCanisterData {
         return routeFluid(GooFluids.resource(type), amount);
     }
 
-    private int distributePass(FluidResource fluid, int remaining, boolean existing,
+    /**
+     * Pours fluid into each slot the pass picks, in slot order: first the slots
+     * already holding it, then empty slots, then any slot with room that takes
+     * it beside its goo (decision canisters-hold-more-than-one-goo-type).
+     *
+     * @param fluid       the fluid to route
+     * @param remaining   the mB still to route
+     * @param eligible    which slots this pass pours into
+     * @param transaction the caller's transaction
+     * @return the mB left unrouted
+     */
+    private int distributePass(FluidResource fluid, int remaining, Predicate<CanisterSlotFluidHandler> eligible,
                                TransactionContext transaction) {
         int left = remaining;
         for (CanisterSlot slot : slots) {
-            if (left <= 0) {
-                break;
-            }
             CanisterSlotFluidHandler handler = slot.handler();
-            if (handler == null) {
-                continue;
+            if (left > 0 && handler != null && eligible.test(handler)) {
+                left -= handler.insert(0, fluid, left, transaction);
             }
-            if (!isEligibleFluidHolder(fluid, existing, handler)) {
-                continue;
-            }
-            left -= handler.insert(0, fluid, left, transaction);
         }
         return left;
-    }
-
-    private static boolean isEligibleFluidHolder(FluidResource fluid, boolean existing,
-            CanisterSlotFluidHandler handler) {
-        return handler.isEmpty()
-                || (existing && !handler.isEmpty() && handler.getFluidResource().equals(fluid));
     }
 
     // --- Pusher lifecycle (cross-slot) ---
@@ -408,7 +409,7 @@ public class SlottedCanisterData {
 
     private boolean admitsContents(int index, ItemStack canister) {
         CanisterFluidContent content = CanisterItem.getFluidContent(canister);
-        return content.isEmpty() || fluidAdmitted.test(index, content.resource());
+        return content.portions().stream().allMatch(portion -> fluidAdmitted.test(index, portion.resource()));
     }
 
     /**
@@ -615,11 +616,8 @@ public class SlottedCanisterData {
     public List<GooLightEntry> lightEntries() {
         List<GooLightEntry> entries = new ArrayList<>(maxSlots);
         for (CanisterSlot slot : slots) {
-            CanisterFluidContent content = slot.fluidContent();
-            ResourceKey<GooTypeDefinition> type = content.getGooType();
-            if (!content.isEmpty() && type != null) {
-                entries.add(new GooLightEntry(type, content.amount(), slot.capacity()));
-            }
+            slot.fluidContent().gooVolumes().forEach((type, volume) ->
+                    entries.add(new GooLightEntry(type, volume, slot.capacity())));
         }
         return entries;
     }

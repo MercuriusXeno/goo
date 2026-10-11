@@ -30,7 +30,7 @@ flat out int pattern;
 // Blocks the overlay stands off the skin.
 const float OVERLAY_INFLATE = 0.02;
 // Must match AilmentPattern's order.
-const int PATTERN_WOBBLE = 5;
+const int PATTERN_WOBBLE = 6;
 // Weird's wobble (decision weird-bounces-and-softens-harm): the gel stands further off the
 // skin than any other overlay and bulges in and out along it, a wave running up the body.
 const float WOBBLE_EXTRA_INFLATE = 0.06;
