@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:machine_mixed_canister_source",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 10,
+  "setup_ticks": 0,
+  "required": true
+}

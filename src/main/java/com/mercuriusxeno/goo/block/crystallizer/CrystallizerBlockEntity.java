@@ -162,7 +162,7 @@ public class CrystallizerBlockEntity extends GooGlowingMachineBlockEntity
         CanisterBlockEntity canisters = canistersAbove();
         CanisterFluidContent content = canisters == null ? CanisterFluidContent.EMPTY
                 : canisters.getSlotFluidContent(canisterSlot(role));
-        return content.isEmpty() ? Held.NOTHING : new Held(content.getGooType(), content.amount());
+        return CrystallizerPhases.heldIn(content.gooVolumes());
     }
 
     /**

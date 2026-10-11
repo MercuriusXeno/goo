@@ -1,0 +1,13 @@
+{
+  "gooType": "xeno",
+  "displayName": "goo.ability.xeno.eldritch",
+  "badge": "brew",
+  "order": 30,
+  "upkeep": 1,
+  "delivery": { "kind": "self" },
+  "behaviors": [
+    { "type": "eldritch" },
+    { "type": "sound", "id": "minecraft:ambient.soul_sand_valley.mood", "at": "target", "source": "players", "volume": 0.8, "pitch": 0.6 }
+  ],
+  "tags": ["self"]
+}

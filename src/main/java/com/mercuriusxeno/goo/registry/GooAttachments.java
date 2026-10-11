@@ -19,11 +19,14 @@ import com.mercuriusxeno.goo.ability.spray.Spored;
 import com.mercuriusxeno.goo.ability.typhoon.Airborn;
 import com.mercuriusxeno.goo.ability.typhoon.Floating;
 import com.mercuriusxeno.goo.ability.world.TimeVeiled;
+import com.mercuriusxeno.goo.ability.xeno.Eldritch;
+import com.mercuriusxeno.goo.ability.xeno.Mutations;
 import com.mercuriusxeno.goo.ability.zone.Shifter;
 import com.mercuriusxeno.goo.ability.zone.ZoneCurse;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
 import com.mojang.serialization.Codec;
+import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.attachment.AttachmentType;
@@ -123,6 +126,43 @@ public final class GooAttachments {
     public static final Supplier<AttachmentType<Lux>> LUX =
             ATTACHMENT_TYPES.register("lux",
                     () -> AttachmentType.builder(() -> Lux.NONE).serialize(Lux.CODEC).build());
+
+    /**
+     * The eldritch state a player holds, synced to the owning client, which
+     * draws the out-of-phase while it stands.
+     * eldritch-sight-reveals-the-out-of-phase
+     */
+    public static final Supplier<AttachmentType<Eldritch>> ELDRITCH =
+            ATTACHMENT_TYPES.register("eldritch",
+                    () -> AttachmentType.builder(() -> Eldritch.NONE)
+                            .serialize(Eldritch.CODEC)
+                            .sync(GooAttachments::syncsToOwner, Eldritch.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The mutations a Xeno blob worked on a mob, saved with it and synced to
+     * its watchers, which draw the writhing overlay while any stands.
+     * xeno-blob-mutates-the-struck
+     */
+    public static final Supplier<AttachmentType<Mutations>> MUTATIONS =
+            ATTACHMENT_TYPES.register("mutations",
+                    () -> AttachmentType.builder(() -> Mutations.NONE)
+                            .serialize(Mutations.CODEC, mutations -> !mutations.isEmpty())
+                            .sync(GooAttachments::syncsToWatcher, Mutations.STREAM_CODEC)
+                            .build());
+
+    /**
+     * Goo's own out-of-phase flag, saved with the entity and synced to its
+     * watchers, standing in until the quantum-goo thread's phased attachment
+     * merges.
+     * eldritch-sight-reveals-the-out-of-phase
+     */
+    public static final Supplier<AttachmentType<Boolean>> OUT_OF_PHASE =
+            ATTACHMENT_TYPES.register("out_of_phase",
+                    () -> AttachmentType.builder(() -> Boolean.FALSE)
+                            .serialize(Codec.BOOL.fieldOf("out_of_phase"), Boolean::booleanValue)
+                            .sync(GooAttachments::syncsToWatcher, ByteBufCodecs.BOOL)
+                            .build());
 
     /**
      * The spores a mob carries, bursting another spray from its corpse when

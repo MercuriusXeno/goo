@@ -410,19 +410,16 @@ public class ReactorBlockEntity extends GooGlowingMachineBlockEntity
 
     /**
      * Returns true if the output canister can accept all products of the
-     * reaction. The canister must be empty or already contain the same
-     * fluid as every output entry.
+     * reaction: each output joins what the canister holds, goo beside goo
+     * (decision canisters-hold-more-than-one-goo-type).
      *
      * @param reaction the matched reaction
      * @return true if the output canister is compatible
      */
     private boolean outputCanAcceptProducts(GooReaction reaction) {
         CanisterFluidContent content = CanisterItem.getFluidContent(getOutputCanister());
-        if (content.isEmpty()) {
-            return true;
-        }
         for (GooReaction.FluidEntry entry : reaction.outputs()) {
-            if (!content.resource().equals(entry.resource())) {
+            if (!content.canAccept(entry.resource())) {
                 return false;
             }
         }
@@ -492,10 +489,7 @@ public class ReactorBlockEntity extends GooGlowingMachineBlockEntity
             if (stack.isEmpty()) {
                 continue;
             }
-            CanisterFluidContent content = CanisterItem.getFluidContent(stack);
-            if (content.resource().equals(fluid)) {
-                total += content.amount();
-            }
+            total += CanisterItem.getFluidContent(stack).volumeOf(fluid);
         }
         return total;
     }
