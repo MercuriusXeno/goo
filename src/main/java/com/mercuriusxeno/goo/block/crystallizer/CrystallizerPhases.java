@@ -56,10 +56,22 @@ public final class CrystallizerPhases {
     }
 
     /**
+     * Whether a held type can be the goo a crystallizer grows: neither the
+     * catalyst nor infinity, which is never spent.
+     *
+     * @param type a held goo type
+     * @return true for a type the crystallizer may draw
+     */
+    private static boolean canGrow(ResourceKey<GooTypeDefinition> type) {
+        return !CATALYST.equals(type) && !GooTypes.isUnspendable(type);
+    }
+
+    /**
      * What a canister holding several goo types counts as: the goo it would grow,
      * the most voluminous type other than crystal, or its crystal where it holds
      * nothing else, so a catalyst canister always reads its crystal volume
-     * (decision canisters-hold-more-than-one-goo-type).
+     * (decision canisters-hold-more-than-one-goo-type). Infinity never grows,
+     * since it is never spent (decision infinity-sources-whatever-shares-its-vessel).
      *
      * @param volumes each goo type the canister holds with its volume
      * @return what it holds, in plain values
@@ -67,7 +79,7 @@ public final class CrystallizerPhases {
     public static Held heldIn(Map<ResourceKey<GooTypeDefinition>, Integer> volumes) {
         Held grower = Held.NOTHING;
         for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : volumes.entrySet()) {
-            if (!CATALYST.equals(entry.getKey()) && entry.getValue() > grower.volume()) {
+            if (canGrow(entry.getKey()) && entry.getValue() > grower.volume()) {
                 grower = new Held(entry.getKey(), entry.getValue());
             }
         }

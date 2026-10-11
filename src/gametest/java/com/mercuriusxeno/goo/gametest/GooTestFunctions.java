@@ -408,6 +408,9 @@ public final class GooTestFunctions {
     private static final String IX_VAT_STREAM_HOLDS = "ix_vat_stream_holds";
     private static final String IX_CRUCIBLE_TOPS_UP_CANISTER = "ix_crucible_tops_up_canister";
     private static final String IX_VAT_UNPACKS_EVERY_TYPE = "ix_vat_unpacks_every_type";
+    private static final String INFINITY_FEEDS_THE_VAT = "infinity_feeds_the_vat";
+    private static final String INFINITY_FEEDS_THE_CRUCIBLE = "infinity_feeds_the_crucible";
+    private static final String INFINITY_FEEDS_THE_CANISTER_SLOT = "infinity_feeds_the_canister_slot";
 
     // --- Machines ---
     private static final String MACHINE_CANISTER_INSERT = "machine_canister_insert";
@@ -936,6 +939,9 @@ public final class GooTestFunctions {
         reg(r, IX_VAT_STREAM_HOLDS, VatStreamTests::gooClickHoldsStream);
         reg(r, IX_CRUCIBLE_TOPS_UP_CANISTER, DrainIntoInventoryTests::crucibleTopsUpCarriedCanister);
         reg(r, IX_VAT_UNPACKS_EVERY_TYPE, DrainIntoInventoryTests::vatUnpacksEveryTypeIntoInventory);
+        reg(r, INFINITY_FEEDS_THE_VAT, InfinityTests::infinityFeedsTheVat);
+        reg(r, INFINITY_FEEDS_THE_CRUCIBLE, InfinityTests::infinityFeedsTheCrucible);
+        reg(r, INFINITY_FEEDS_THE_CANISTER_SLOT, InfinityTests::infinityFeedsTheCanisterSlot);
     }
 
     private static void registerCrucibleTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {

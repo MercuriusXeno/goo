@@ -64,6 +64,11 @@ public final class GooTypes {
     public static final ResourceKey<GooTypeDefinition> FROST = bundled("frost");
     public static final ResourceKey<GooTypeDefinition> GLOW = bundled("glow");
     public static final ResourceKey<GooTypeDefinition> HEX = bundled("hex");
+    /**
+     * Sources whatever goo shares its vessel and cannot be spent.
+     * decision infinity-sources-whatever-shares-its-vessel
+     */
+    public static final ResourceKey<GooTypeDefinition> INFINITY = bundled("infinity");
     public static final ResourceKey<GooTypeDefinition> KINETIC = bundled("kinetic");
     public static final ResourceKey<GooTypeDefinition> LEAF = bundled("leaf");
     public static final ResourceKey<GooTypeDefinition> METAL = bundled("metal");
@@ -83,10 +88,22 @@ public final class GooTypes {
     public static final ResourceKey<GooTypeDefinition> ZOO = bundled("zoo");
 
     /**
+     * Whether a holder keeps goo of the type forever: infinity is never
+     * extracted, drained, drawn or spent.
+     * decision infinity-sources-whatever-shares-its-vessel
+     *
+     * @param key a goo type's key, or null for a fluid that is not goo
+     * @return true for infinity
+     */
+    public static boolean isUnspendable(@Nullable ResourceKey<GooTypeDefinition> key) {
+        return INFINITY.equals(key);
+    }
+
+    /**
      * Every type the mod ships as JSON, in constant order.
      */
     public static final List<ResourceKey<GooTypeDefinition>> BUNDLED = List.of(
-            AEON, ASTRAL, BLAZE, CRYSTAL, DEEP, ENDER, FROST, GLOW, HEX, KINETIC, LEAF,
+            AEON, ASTRAL, BLAZE, CRYSTAL, DEEP, ENDER, FROST, GLOW, HEX, INFINITY, KINETIC, LEAF,
             METAL, NETHER, OPULENT, PULSE, ROCK, SHROOM, TYPHOON, UNSTABLE, VITAL, XENO, ZOO);
 
     /**
