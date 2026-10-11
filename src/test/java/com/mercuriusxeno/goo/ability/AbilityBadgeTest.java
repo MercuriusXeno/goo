@@ -20,10 +20,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AbilityBadgeTest {
 
     private static final int SHIPPED_MOB_BADGES = 12;
-    private static final int SHIPPED_WORLD_BADGES = 14;
+    private static final int SHIPPED_WORLD_BADGES = 13;
     private static final int SHIPPED_SELF_BADGES = 4;
     private static final int SHIPPED_BREW_BADGES = 14;
-    private static final int SHIPPED_CHANNELED_BADGES = 23;
+    private static final int SHIPPED_CHANNELED_BADGES = 22;
     private static final int SHIPPED_FREE_BADGES = 6;
     private static final int SHIPPED_TAP_BADGES = 11;
     private static final int SHIPPED_PRISM_BADGES = 9;

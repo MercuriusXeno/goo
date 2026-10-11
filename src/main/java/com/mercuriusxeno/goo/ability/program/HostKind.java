@@ -57,7 +57,14 @@ public enum HostKind {
      * acted on each tick of the flight, with no target and no driver of its
      * own (decision orb-carries-a-swirling-nova).
      */
-    FLIGHT("blob in flight", FlightHost.class, Set.of());
+    FLIGHT("blob in flight", FlightHost.class, Set.of()),
+    /**
+     * The point a ray lands on: the world around the mob or block face it
+     * strikes, acted on each tick of the hold, the hold's age and whether
+     * the tick hits bound, with no target and no driver for later ticks
+     * (decision sunbeam-lands-with-impact-and-aim).
+     */
+    IMPACT("ray impact", ImpactHost.class, Set.of(HostVariables.HELD, HostVariables.HIT));
 
     private final String label;
     private final Set<HostCapability> capabilities;

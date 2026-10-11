@@ -83,16 +83,6 @@ public interface ChannelHost extends BlockBreakHost {
     HoldMarks holdMarks();
 
     /**
-     * Toggles the lever, button, door, trapdoor or fence gate at a block as a
-     * hand would, the first time the hold reaches it; a later reach in the
-     * same hold, or a block holding no such device, toggles nothing
-     * (decision signal-wave-toggles-each-device-once).
-     *
-     * @param pos the block
-     */
-    void toggleOnceThisHold(BlockPos pos);
-
-    /**
      * Toggles every lever, button, door, trapdoor or fence gate standing in
      * the cells as a hand would, each once however many of its cells the
      * list holds, with no memory of earlier toggles
