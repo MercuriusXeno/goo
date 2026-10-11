@@ -827,17 +827,19 @@ class RadialWheelRendererTest {
             assertTrue(calls.indexOf("text") > lastShape, "a word drew before shape " + lastShape);
         }
 
-        /** decisions petals-render-the-live-fluid, wedges-take-a-solid-edge */
+        /** decisions petals-render-the-live-fluid, wedges-take-a-solid-edge, open-type-keeps-six-neighbors-a-side */
         @Test
-        void petalEdgeStripDrawsUntexturedInTheOpaqueEdgeColor() {
+        void petalEdgeStripDrawsUntexturedInTheEdgeColorFadedByPresence() {
             List<PetalRenderState> edges = submittedArguments(renderFrame(openWheel()),
                     "submitGuiElementRenderState", PetalRenderState.class).stream()
                     .filter(state -> !state.isTextured()).toList();
+            List<RadialWheel.PetalArc> petals = openWheel().displayedLayout(0.0f);
 
-            assertEquals(openWheel().displayedLayout(0.0f).size(), edges.size());
-            assertAll(edges.stream().map(edge -> (Executable) () -> {
-                assertEquals(EDGE_COLOR, edge.color());
-                assertFalse(edge.vertices().isEmpty());
+            assertEquals(petals.size(), edges.size());
+            assertAll(IntStream.range(0, edges.size()).mapToObj(index -> (Executable) () -> {
+                assertEquals(RadialWheelRenderer.faded(EDGE_COLOR, petals.get(index).presence()),
+                        edges.get(index).color());
+                assertFalse(edges.get(index).vertices().isEmpty());
             }));
         }
     }
@@ -878,7 +880,7 @@ class RadialWheelRendererTest {
 
         private RadialWheel.PetalArc at(double openness) {
             return new RadialWheel.PetalArc(fanned.type(), fanned.ability(), fanned.start(), fanned.arc(),
-                    fanned.length(), fanned.root(), openness);
+                    fanned.length(), fanned.root(), openness, fanned.presence());
         }
 
         /** How far a screen point lies along the petal's center line from the wheel's center. */
@@ -1019,13 +1021,18 @@ class RadialWheelRendererTest {
         private static final float QUARTER_PERIOD = PetalPulse.PERIOD_TICKS / 4f;
 
         private RadialWheelRenderer.Frame frame(Set<Identifier> active) {
+            return frame(active, 1000);
+        }
+
+        private RadialWheelRenderer.Frame frame(Set<Identifier> active, int blazeHeld) {
             List<ResourceKey<GooTypeDefinition>> types = List.of(GooTypes.BLAZE, GooTypes.LEAF);
             List<List<OfferedAbility>> abilities = List.of(
                     List.of(new OfferedAbility(new ClientAbility(BLAZE_KINDLE, "ability.goo.kindle", "", 0, List.of(),
                             List.of(), 0, Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW, List.of()), List.of())),
                     List.of());
             return new RadialWheelRenderer.Frame(new RadialWheel(types.size(), type -> 1), types, abilities,
-                    Map.of(GooTypes.BLAZE, 1000, GooTypes.LEAF, 1000), 0, 0, 100, null, 0f, active, QUARTER_PERIOD);
+                    Map.of(GooTypes.BLAZE, blazeHeld, GooTypes.LEAF, 1000), 0, 0, 100, null, 0f, active,
+                    QUARTER_PERIOD);
         }
 
         @Test
@@ -1036,9 +1043,46 @@ class RadialWheelRendererTest {
         }
 
         @Test
-        void aTypeHoldingNothingRests() {
+        void aTypeHoldingNoActiveEffectRests() {
             assertEquals(RadialWheelRenderer.computeOverlayTint(false, false),
                     RadialWheelRenderer.typePetalTint(frame(Set.of()), BLAZE));
+        }
+
+        /** decision wheel-shows-only-held-types-with-abilities: no shown type is unheld, so none dims. */
+        @Test
+        void aTypeHeldAtZeroRestsUndimmed() {
+            assertEquals(RadialWheelRenderer.computeOverlayTint(false, false),
+                    RadialWheelRenderer.typePetalTint(frame(Set.of(), 0), BLAZE));
+        }
+    }
+
+    /** A far neighbor's fill and icon fade by its presence (decision open-type-keeps-six-neighbors-a-side). */
+    @Nested
+    class NeighborFade {
+
+        private static final double FAR_PRESENCE = 0.4;
+        private static final int FULL_ALPHA = 0xFF;
+
+        private final RadialWheel.PetalArc farNeighbor = new RadialWheel.PetalArc(0, RadialWheel.NONE, 0.0, 0.1,
+                1.0, null, 0.0, FAR_PRESENCE);
+
+        private RadialWheelRenderer.Frame frame() {
+            List<ResourceKey<GooTypeDefinition>> types = List.of(GooTypes.BLAZE);
+            return new RadialWheelRenderer.Frame(new RadialWheel(types.size(), type -> 0), types, List.of(List.of()),
+                    Map.of(GooTypes.BLAZE, 1000), 0, 0, 100, null, 0f);
+        }
+
+        @Test
+        void aFortyPercentNeighborsFillDrawsAtFortyPercentOfTheRestingAlpha() {
+            int tint = RadialWheelRenderer.typePetalTint(frame(), farNeighbor);
+
+            assertEquals(Math.round(RadialWheelRenderer.NORMAL_ALPHA * FAR_PRESENCE), ARGB.alpha(tint));
+        }
+
+        @Test
+        void aFortyPercentNeighborsIconDrawsAtFortyPercentOfFullAlpha() {
+            assertEquals(Math.round(FULL_ALPHA * FAR_PRESENCE),
+                    ARGB.alpha(RadialWheelRenderer.typeIconColor(farNeighbor)));
         }
     }
 
