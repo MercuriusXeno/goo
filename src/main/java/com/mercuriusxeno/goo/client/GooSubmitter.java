@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.client.model.CanisterBodyModels;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.QuadInstance;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.block.FluidModel;
@@ -258,6 +259,20 @@ public final class GooSubmitter {
         nodeCollector.submitCustomGeometry(poseStack, renderType(),
             (pose, c) -> emitter.accept(
                 new RenderContext(pose, c, fullbrightLight(), color)));
+    }
+
+    /**
+     * Submits geometry on Metal's chrome shader, the one the burnout urchin
+     * draws with, writing depth, for the Urchin trap's spines and spears.
+     * urchin-rests-bristled-and-spears
+     *
+     * @param poseStack     the pose stack
+     * @param nodeCollector the render node collector
+     * @param draw          emits the position, color and normal vertices
+     */
+    public static void submitChrome(PoseStack poseStack, SubmitNodeCollector nodeCollector,
+                                    BiConsumer<PoseStack.Pose, VertexConsumer> draw) {
+        nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.METAL_CHROME_TYPE, draw::accept);
     }
 
     /**

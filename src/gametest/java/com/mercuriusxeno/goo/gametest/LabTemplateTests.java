@@ -1,10 +1,12 @@
 package com.mercuriusxeno.goo.gametest;
 
+import com.mercuriusxeno.goo.Goo;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.Lifecycle;
-import net.minecraft.core.MappedRegistry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.dimension.LevelStem;
@@ -46,7 +48,13 @@ public final class LabTemplateTests {
     private static final String EXPERIMENTAL = "Template should open without the experimental settings warning";
     private static final String GEN_UNREADABLE = "World gen settings should parse: ";
     private static final String NOT_FLAT = "Overworld should be superflat";
-    private static final String UNSTABLE = "Every dimension should read stable";
+    private static final String UNSTABLE = "Every dimension, goo's own among them, should read stable,"
+            + " or the world opens on the Experimental Settings screen";
+    private static final String NO_GOO_DIMENSIONS = "The bake should hold the mod's goo:lunar and goo:solar";
+    private static final ResourceKey<LevelStem> LUNAR = ResourceKey.create(Registries.LEVEL_STEM,
+            Identifier.fromNamespaceAndPath(Goo.MODID, "lunar"));
+    private static final ResourceKey<LevelStem> SOLAR = ResourceKey.create(Registries.LEVEL_STEM,
+            Identifier.fromNamespaceAndPath(Goo.MODID, "solar"));
     private static final String STRUCTURES = "Template should generate no structures";
     private static final String RULES_UNREADABLE = "Game rules should parse: ";
     private static final String TIME_ADVANCES = "Template should lock daylight";
@@ -108,10 +116,11 @@ public final class LabTemplateTests {
         DataResult<WorldGenSettings> read = LevelStorageSource.readExistingSavedData(access, registry, WorldGenSettings.TYPE);
         helper.assertTrue(read.isSuccess(), GEN_UNREADABLE + read.error().map(Object::toString).orElse(NO_ERROR));
         WorldGenSettings settings = read.getOrThrow();
-        MappedRegistry<LevelStem> noDatapackDimensions = new MappedRegistry<>(Registries.LEVEL_STEM, Lifecycle.stable());
-        WorldDimensions.Complete baked = settings.dimensions().bake(noDatapackDimensions.freeze());
+        WorldDimensions.Complete baked = settings.dimensions().bake(registry.lookupOrThrow(Registries.LEVEL_STEM));
         LevelStem overworld = baked.dimensions().getValue(LevelStem.OVERWORLD);
         helper.assertTrue(overworld != null && overworld.generator() instanceof FlatLevelSource, NOT_FLAT);
+        helper.assertTrue(baked.dimensions().containsKey(LUNAR) && baked.dimensions().containsKey(SOLAR),
+                NO_GOO_DIMENSIONS);
         helper.assertTrue(baked.lifecycle().equals(Lifecycle.stable()), UNSTABLE);
         helper.assertFalse(settings.options().generateStructures(), STRUCTURES);
     }

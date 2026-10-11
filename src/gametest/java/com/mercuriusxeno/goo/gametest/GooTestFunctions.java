@@ -106,6 +106,7 @@ public final class GooTestFunctions {
     private static final String SHARDS_TAP_DAMAGES_PER_COUNT = "shards_tap_damages_per_count";
     private static final String GLITTER_REVEALS_DIAMOND_AND_LAPIS = "glitter_reveals_diamond_and_lapis";
     private static final String MAGNET_REVEALS_IRON_AND_DEBRIS = "magnet_reveals_iron_and_debris";
+    private static final String URCHIN_HITS_EVERY_SHOT = "urchin_hits_every_shot";
     private static final String GLOVE_SHIFT_RECOLLECTS_MARKER = "glove_shift_recollects_marker";
     private static final String GLOVE_RECOLLECT_PAYS_CHARGES_LEFT = "glove_recollect_pays_charges_left";
     private static final String GLOVE_RECOLLECT_OF_SPENT_TRAP_PAYS_NOTHING = "glove_recollect_of_spent_trap_pays_nothing";
@@ -797,6 +798,7 @@ public final class GooTestFunctions {
         reg(r, SHARDS_TAP_DAMAGES_PER_COUNT, ShardsTapTests::shardsTapDamagesPerCount);
         reg(r, GLITTER_REVEALS_DIAMOND_AND_LAPIS, GlitterChannelTests::glitterRevealsDiamondAndLapis);
         reg(r, MAGNET_REVEALS_IRON_AND_DEBRIS, MagnetChannelTests::magnetRevealsIronAndDebris);
+        reg(r, URCHIN_HITS_EVERY_SHOT, UrchinStrikeTests::urchinHitsEveryShot);
         reg(r, GLOVE_SHIFT_RECOLLECTS_MARKER, GloveRecollectTests::shiftClickRecollectsMarker);
         reg(r, GLOVE_RECOLLECT_PAYS_CHARGES_LEFT, GloveRecollectTests::recollectPaysTheChargesLeft);
         reg(r, GLOVE_RECOLLECT_OF_SPENT_TRAP_PAYS_NOTHING, GloveRecollectTests::recollectOfASpentTrapPaysNothing);

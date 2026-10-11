@@ -40,6 +40,16 @@ public class AbilityBlockRenderState extends BlockEntityRenderState {
     /** Metal spikes in flight, read from the marker's field-effect state. */
     public java.util.List<com.mercuriusxeno.goo.ability.program.FieldStrike> spikeAnims = java.util.List.of();
 
+    /**
+     * Where each spike in flight aims, block-local, parallel to
+     * {@link #spikeAnims}: its mob's interpolated body center while the
+     * client holds the mob, the strike's synced point otherwise.
+     */
+    public java.util.List<org.joml.Vector3f> spikeAims = java.util.List.of();
+
+    /** How far out Urchin's spines stand this frame, as a share of the landing flare's, zero at rest. */
+    public float urchinBristle;
+
     /** The spike age at which a spike reaches full extension and lands. */
     public int spikeStrikeTick;
 

@@ -94,9 +94,9 @@ public final class MetalExplosionVisual implements BurnoutVisual, HeldGhostVisua
     }
 
     /**
-     * Metal's ghost: the urchin at its hold, every spike out to the dome's
-     * radius and as thick for its length as a landing's, the specular band
-     * still sweeping on the real-time clock.
+     * Metal's ghost: the urchin at its hold, the landing flare's size, the
+     * specular band still sweeping on the real-time clock; the dome around
+     * it shows the trap's reach.
      * held-visual-ghosts-the-landing-in-two-passes
      *
      * @param pose       the pose entry
@@ -108,24 +108,52 @@ public final class MetalExplosionVisual implements BurnoutVisual, HeldGhostVisua
      */
     private void emitHeld(PoseStack.Pose pose, VertexConsumer c, HeldGhost ghost, Direction face, float opacity,
                          double nowSeconds) {
-        heldUrchin(ghost, face, opacity, nowSeconds).emit(pose, c);
+        heldUrchin(face, opacity, nowSeconds).emit(pose, c);
     }
 
     /**
-     * The urchin a held ghost draws: spikes the dome's radius long, their
-     * base scaled with them, the band's place on the real-time clock.
+     * The urchin a held ghost draws: the landing flare at its hold, spikes
+     * a block long, the band's place on the real-time clock (operator
+     * ruling 2026-10-11: the held urchin matches the flare's size).
+     * urchin-rests-bristled-and-spears
      *
-     * @param ghost      the ghost
      * @param face       the face the throw strikes
      * @param opacity    the share of the landing's opacity
      * @param nowSeconds seconds on the real-time clock
      * @return the urchin
      */
-    static Urchin heldUrchin(HeldGhost ghost, Direction face, float opacity, double nowSeconds) {
-        float length = ghost.domeRadius();
+    static Urchin heldUrchin(Direction face, float opacity, double nowSeconds) {
         float sweep = (float) Mth.frac(nowSeconds / HELD_SWEEP_SECONDS);
-        return new Urchin(face, length, SPIKE_BASE_RADIUS * length / SPIKE_REACH, NetherDiscMesh.toByte(sweep),
+        return new Urchin(face, SPIKE_REACH, SPIKE_BASE_RADIUS, NetherDiscMesh.toByte(sweep),
                 NetherDiscMesh.toByte(opacity));
+    }
+
+    /**
+     * The urchin a live Urchin trap bristles as it shoots: the landing's
+     * flare out to a share of its reach, the band's place on the clock the
+     * caller keeps.
+     * urchin-rests-bristled-and-spears
+     *
+     * @param face  the placed face
+     * @param sweep where the specular band sits, in [0, 1]
+     * @param share how far out the spines stand, as a share of the flare's reach
+     * @return the urchin
+     */
+    static Urchin bristled(Direction face, float sweep, float share) {
+        return new Urchin(face, SPIKE_REACH * share, SPIKE_BASE_RADIUS, NetherDiscMesh.toByte(sweep), OPAQUE);
+    }
+
+    /**
+     * Where the urchin's spikes share their base, block-local: just off
+     * the face plane, inside the block the marker stands in.
+     *
+     * @param face the placed face
+     * @return the base point
+     */
+    static Vector3f basePoint(Direction face) {
+        float center = BurnoutGeometry.BLOCK_CENTER;
+        return new Vector3f(center + face.getStepX() * BASE_LIFT, center + face.getStepY() * BASE_LIFT,
+                center + face.getStepZ() * BASE_LIFT);
     }
 
     /**
