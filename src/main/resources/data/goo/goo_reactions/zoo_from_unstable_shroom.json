@@ -4,7 +4,7 @@
     {"goo": "goo:shroom", "amount": 1}
   ],
   "outputs": [
-    {"goo": "goo:vital", "amount": 2}
+    {"goo": "goo:zoo", "amount": 2}
   ],
   "rate": 1
 }
