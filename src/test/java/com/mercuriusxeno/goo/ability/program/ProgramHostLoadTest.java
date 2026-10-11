@@ -192,7 +192,7 @@ class ProgramHostLoadTest {
     private static final Map<HostKind, Class<? extends StepHost>> HOST_TYPES = Map.of(
             HostKind.MARKER, MarkerHost.class, HostKind.ENTITY, EntityHost.class, HostKind.TAP, TapHost.class,
             HostKind.LANDING, LandingHost.class, HostKind.PLAYER, PlayerHost.class,
-            HostKind.SURFACE, SurfaceHost.class, HostKind.FLIGHT, FlightHost.class);
+            HostKind.SURFACE, SurfaceHost.class, HostKind.FLIGHT, FlightHost.class, HostKind.IMPACT, ImpactHost.class);
 
     /**
      * A step needing exactly one capability, standing in for whichever
@@ -230,6 +230,7 @@ class ProgramHostLoadTest {
         assertEquals(Set.of(HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK),
                 HostKind.SURFACE.capabilities());
         assertEquals(Set.of(HostCapability.ENTITY_SCAN, HostCapability.FROST), HostKind.FLIGHT.capabilities());
+        assertEquals(Set.of(HostCapability.ENTITY_SCAN), HostKind.IMPACT.capabilities());
     }
 
     @ParameterizedTest

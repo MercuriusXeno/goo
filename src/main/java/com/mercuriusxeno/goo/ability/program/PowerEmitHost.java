@@ -3,7 +3,7 @@ package com.mercuriusxeno.goo.ability.program;
 /**
  * A host whose own block can give redstone power to the blocks beside it
  * (capability {@link HostCapability#EMIT_POWER}).
- * thumper-blob-pulses-periodically-then-fades
+ * metronome-prism-pulses-at-the-learned-rate
  */
 public interface PowerEmitHost extends StepHost {
 

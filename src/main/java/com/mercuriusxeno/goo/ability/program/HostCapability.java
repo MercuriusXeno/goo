@@ -126,7 +126,7 @@ public enum HostCapability {
     TOGGLE_DEVICE(DeviceToggleHost.class),
     /**
      * A host whose own block can give redstone power to its neighbors
-     * (decision thumper-blob-pulses-periodically-then-fades).
+     * (decision metronome-prism-pulses-at-the-learned-rate).
      */
     EMIT_POWER(PowerEmitHost.class),
     /**
