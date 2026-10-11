@@ -1,38 +1,24 @@
 package com.mercuriusxeno.goo.item;
 
 import com.google.gson.JsonObject;
-import com.mercuriusxeno.goo.registry.GooFluids;
-import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
-import net.minecraft.SharedConstants;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.Bootstrap;
-import net.neoforged.fml.loading.FMLLoader;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.mockito.MockedStatic;
 import java.util.List;
-import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
 
 /**
  * A canister's content holds several goo types on one shared capacity, keeps a
  * vanilla fluid to itself, and reads the single-fluid shape older canisters saved, over a stub fluid codec
- * (decision canisters-hold-more-than-one-goo-type). Goo resources are mocks whose
- * type GooFluids answers through a static mock, since the goo fluid is unregistered
- * in the unit suite; the water resource is a mock GooFluids answers no type for.
+ * (decision canisters-hold-more-than-one-goo-type). StampedGoo stands the goo and
+ * water resources, since the goo fluid is unregistered in the unit suite.
  */
 class CanisterFluidContentTest {
 
@@ -42,29 +28,22 @@ class CanisterFluidContentTest {
     private static final int SAVED_VOLUME = 250;
     private static final String BLAZE_NAME = "goo:blaze";
 
-    private final FluidResource blaze = mock(FluidResource.class);
-    private final FluidResource rock = mock(FluidResource.class);
-    private final FluidResource water = mock(FluidResource.class);
-    private MockedStatic<GooFluids> gooFluids;
-
-    @BeforeAll
-    static void standVanillaFluids() {
-        try (MockedStatic<FMLLoader> loader = mockStatic(FMLLoader.class, RETURNS_DEEP_STUBS)) {
-            SharedConstants.tryDetectVersion();
-            Bootstrap.bootStrap();
-        }
-    }
+    private StampedGoo goo;
+    private FluidResource blaze;
+    private FluidResource rock;
+    private FluidResource water;
 
     @BeforeEach
     void stampGooTypes() {
-        Map<FluidResource, ResourceKey<GooTypeDefinition>> types = Map.of(blaze, GooTypes.BLAZE, rock, GooTypes.ROCK);
-        gooFluids = mockStatic(GooFluids.class);
-        gooFluids.when(() -> GooFluids.keyOf(any())).thenAnswer(call -> types.get(call.<FluidResource>getArgument(0)));
+        goo = new StampedGoo();
+        blaze = goo.resource(GooTypes.BLAZE);
+        rock = goo.resource(GooTypes.ROCK);
+        water = goo.vanilla();
     }
 
     @AfterEach
     void releaseGooFluids() {
-        gooFluids.close();
+        goo.close();
     }
 
     @Nested

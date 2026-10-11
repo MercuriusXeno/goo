@@ -185,8 +185,7 @@ public class ReactorBlockEntityRenderer
         if (state.slot.present) {
             extractContents(be.getOutputCanister(), state);
         } else {
-            state.slot.type = null;
-            state.slot.fill = 0f;
+            state.slot.showContent(CanisterFluidContent.EMPTY, 0);
             state.slot.topGasketPresent = false;
             state.slot.bottomGasketPresent = false;
         }
@@ -204,14 +203,7 @@ public class ReactorBlockEntityRenderer
         state.slot.topGasketPresent = meta.topGasketId() != null;
         state.slot.bottomGasketPresent = meta.bottomGasketId() != null;
         CanisterFluidContent content = CanisterItem.getFluidContent(canister);
-        if (content.isEmpty()) {
-            state.slot.type = null;
-            state.slot.fill = 0f;
-        } else {
-            int cap = ContainerCapacity.canisterCapacity(state.slot.compression);
-            state.slot.type = content.dominantGooType();
-            state.slot.fill = Math.min(1f, (float) content.totalVolume() / cap);
-        }
+        state.slot.showContent(content, ContainerCapacity.canisterCapacity(state.slot.compression));
     }
 
     /**

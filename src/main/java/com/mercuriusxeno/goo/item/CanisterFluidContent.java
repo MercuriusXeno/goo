@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -206,6 +207,21 @@ public record CanisterFluidContent(List<Portion> portions) {
             }
         }
         return volumes;
+    }
+
+    /**
+     * Every goo type held with its volume, most volume first, ties in the fixed
+     * type order, the order a canister lists its types in.
+     *
+     * @return the goo volumes by type, dominant first
+     */
+    public Map<ResourceKey<GooTypeDefinition>, Integer> gooVolumesDominantFirst() {
+        List<Map.Entry<ResourceKey<GooTypeDefinition>, Integer>> entries = new ArrayList<>(gooVolumes().entrySet());
+        entries.sort(Map.Entry.<ResourceKey<GooTypeDefinition>, Integer>comparingByValue().reversed()
+                .thenComparing(Map.Entry.comparingByKey(GooTypes.ORDER)));
+        Map<ResourceKey<GooTypeDefinition>, Integer> ordered = new LinkedHashMap<>();
+        entries.forEach(entry -> ordered.put(entry.getKey(), entry.getValue()));
+        return ordered;
     }
 
     /**

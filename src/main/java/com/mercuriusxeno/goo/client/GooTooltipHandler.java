@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.fluid.GooBucketItem;
 import com.mercuriusxeno.goo.item.*;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
+import com.mercuriusxeno.goo.registry.GooEnchantments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.datafixers.util.Either;
 import net.minecraft.ChatFormatting;
@@ -336,7 +337,8 @@ public final class GooTooltipHandler {
         }
         CanisterFluidContent canisterContent = stack.get(GooDataComponents.CANISTER_FLUID_CONTENT.get());
         if (isEmptyCanister(canisterContent)) {
-            appendCanisterFluidComponent(elements, canisterContent);
+            appendCanisterRows(elements, canisterContent,
+                    ContainerCapacity.canisterCapacity(GooEnchantments.getCompressionLevel(stack)));
             return true;
         }
         return false;
@@ -384,19 +386,24 @@ public final class GooTooltipHandler {
 
     /**
      * Appends the fluid tooltip lines for canister items: a row per goo type
-     * (icon + amount), or the vanilla fluid's text label + amount.
+     * (icon + amount), dominant first, or the vanilla fluid's text label +
+     * amount, then the total against capacity
+     * (decision canisters-hold-more-than-one-goo-type).
      *
      * @param elements the tooltip element list
      * @param content  the canister fluid content
+     * @param capacity the canister's capacity in mB
      */
-    private static void appendCanisterFluidComponent(
-            List<Either<FormattedText, TooltipComponent>> elements, CanisterFluidContent content) {
-        Map<ResourceKey<GooTypeDefinition>, Integer> gooVolumes = content.gooVolumes();
+    static void appendCanisterRows(List<Either<FormattedText, TooltipComponent>> elements,
+            CanisterFluidContent content, int capacity) {
+        Map<ResourceKey<GooTypeDefinition>, Integer> gooVolumes = content.gooVolumesDominantFirst();
         if (gooVolumes.isEmpty()) {
             appendVanillaFluidRow(elements, content.dominantFluid(), content.totalVolume());
         } else {
             appendGooRows(elements, gooVolumes);
         }
+        elements.add(Either.left(Component.literal(GooFormat.formatFill(content.totalVolume(), capacity))
+                .withStyle(ChatFormatting.GRAY)));
     }
 
     /**
