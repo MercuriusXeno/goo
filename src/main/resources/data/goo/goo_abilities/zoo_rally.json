@@ -1,0 +1,22 @@
+{
+  "gooType": "zoo",
+  "displayName": "goo.ability.zoo.rally",
+  "badge": "self",
+  "order": 30,
+  "cost": 2000,
+  "delivery": { "kind": "self" },
+  "behaviors": [
+    {
+      "type": "entities",
+      "shape": "sphere",
+      "radius": 12,
+      "where": ["living", "peaceful"],
+      "steps": [
+        { "type": "rally", "duration": 600, "damage": 6, "health": 1.5, "speed": 0.5 },
+        { "type": "ailment_overlay", "kind": "zoo", "duration": 600 }
+      ]
+    },
+    { "type": "sound", "id": "minecraft:entity.ravager.roar", "at": "target", "source": "players", "volume": 0.8, "pitch": 1.4 }
+  ],
+  "tags": ["self"]
+}
