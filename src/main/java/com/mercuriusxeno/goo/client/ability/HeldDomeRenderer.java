@@ -51,17 +51,18 @@ public final class HeldDomeRenderer {
     static final float PULL_REACH_PER_RADIUS = 3f;
 
     /** The ghost each goo type holds; a type with none draws no dome. */
-    private static final Map<ResourceKey<GooTypeDefinition>, HeldGhostVisual> GHOSTS = Map.of(
-            GooTypes.AEON, AeonHeldGhost.INSTANCE,
-            GooTypes.CRYSTAL, CrystalExplosionVisual.INSTANCE,
-            GooTypes.LEAF, LeafHeldGhost.INSTANCE,
-            GooTypes.FROST, FrostExplosionVisual.INSTANCE,
-            GooTypes.METAL, MetalExplosionVisual.INSTANCE,
-            GooTypes.NETHER, NetherHeldGhost.INSTANCE,
-            GooTypes.SHROOM, MoteCloudGhost.SHROOM,
-            GooTypes.ROCK, RockExplosionVisual.INSTANCE,
-            GooTypes.UNSTABLE, UnstableExplosionVisual.INSTANCE,
-            GooTypes.WEIRD, MoteCloudGhost.WEIRD);
+    private static final Map<ResourceKey<GooTypeDefinition>, HeldGhostVisual> GHOSTS = Map.ofEntries(
+            Map.entry(GooTypes.AEON, AeonHeldGhost.INSTANCE),
+            Map.entry(GooTypes.CRYSTAL, CrystalExplosionVisual.INSTANCE),
+            Map.entry(GooTypes.LEAF, LeafHeldGhost.INSTANCE),
+            Map.entry(GooTypes.FROST, FrostExplosionVisual.INSTANCE),
+            Map.entry(GooTypes.JELLY, MoteCloudGhost.JELLY),
+            Map.entry(GooTypes.METAL, MetalExplosionVisual.INSTANCE),
+            Map.entry(GooTypes.NETHER, NetherHeldGhost.INSTANCE),
+            Map.entry(GooTypes.SHROOM, MoteCloudGhost.SHROOM),
+            Map.entry(GooTypes.ROCK, RockExplosionVisual.INSTANCE),
+            Map.entry(GooTypes.UNSTABLE, UnstableExplosionVisual.INSTANCE),
+            Map.entry(GooTypes.WEIRD, MoteCloudGhost.WEIRD));
 
     /**
      * Where a ghost draws: its dome about the center of the cell the throw lands

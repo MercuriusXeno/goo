@@ -121,8 +121,9 @@ public final class StepTypes {
         register(LeafSteps.STUN.type());
         register(SignalWaveStep.TYPE);
         register(PulserToggleStep.TYPE);
-        register(NourishStep.TYPE);
+        register(GluttonyStep.TYPE);
         register(ReserveDrainStep.TYPE);
+        register(FeedStep.TYPE);
         register(ZoneStep.TYPE);
         register(ShifterStep.TYPE);
         register(ConvokeStep.TYPE);

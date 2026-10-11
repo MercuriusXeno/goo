@@ -71,7 +71,7 @@ class RegrowCrawlTest {
     void stoneCrawlsIntoTheNextMissingHeart() {
         long interval = 50L;
         HeartOverlay stone = new HeartOverlay(HeartKind.STONESKIN, List.of(0, 0, 0, 2, 0, 0, 0, 0, 0, 0), EXPIRES,
-                NOW + interval, NOW, 0.5f, 0f);
+                NOW + interval, NOW, 0.5f);
         RegrowCrawl.Crawl crawl = RegrowCrawl.crawl(stone, 6f, NOW + interval / 2f).orElseThrow();
         assertEquals(4, crawl.slot());
         assertEquals(0, crawl.fromHalf());
@@ -81,7 +81,7 @@ class RegrowCrawlTest {
     @Test
     void stoneCrawlsIntoTheEmptyHalfBesideAHalfHeart() {
         HeartOverlay stone = new HeartOverlay(HeartKind.STONESKIN, List.of(0, 0, 0, 0, 0, 0, 0, 0, 0, 0), EXPIRES,
-                NOW + 50L, NOW, 0.5f, 0f);
+                NOW + 50L, NOW, 0.5f);
         RegrowCrawl.Crawl crawl = RegrowCrawl.crawl(stone, 5f, NOW).orElseThrow();
         assertEquals(2, crawl.slot());
         assertEquals(1, crawl.fromHalf());
