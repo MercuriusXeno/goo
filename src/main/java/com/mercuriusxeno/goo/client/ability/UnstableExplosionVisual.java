@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
-import com.mercuriusxeno.goo.ability.program.Variables;
+import com.mercuriusxeno.goo.ability.program.HostVariables;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -158,15 +158,25 @@ public final class UnstableExplosionVisual implements BurnoutVisual, HeldGhostVi
 
     /**
      * The blast radius: the max reach of the ability's explode step's power,
-     * read off the synced ability, so the burnout fills the sphere the
-     * explosion cuts at most (decision preview-sphere-is-max-reach).
+     * read off the synced ability at the size the cast was dragged to, so the
+     * burnout fills the sphere the explosion cuts at most
+     * (decisions preview-sphere-is-max-reach, blast-is-drag-sized-like-the-black-hole).
      *
      * @param burnout the burnout
      * @return the blast radius in blocks
      */
     private static float blastReach(ChainBurnouts.Burnout burnout) {
         return SyncedSteps.first(burnout.abilityId(), ExplodeStep.class)
-                .map(step -> (float) ExplosionMarch.maxReach(step.power().evaluateFloat(Variables.NONE)))
+                .map(step -> blastReach(step, burnout.size()))
                 .orElse(FALLBACK_REACH);
+    }
+
+    /**
+     * @param step the explode step
+     * @param size the size the cast was dragged to, zero for a throw
+     * @return the max reach of the step's power at that size, in blocks
+     */
+    static float blastReach(ExplodeStep step, double size) {
+        return (float) ExplosionMarch.maxReach(step.power().evaluateFloat(HostVariables.sized(size)));
     }
 }

@@ -2443,6 +2443,8 @@ class GooValueRegistryTest {
         }
     }
 
+    // ── Shipped base values ────────────────────────────────────────────
+
     @Nested
     class ShippedBaseValues {
 
@@ -2463,6 +2465,26 @@ class GooValueRegistryTest {
                 GooValue value = registry.table().lookup(id(item));
                 assertNotNull(value, item);
                 assertTrue(value.get(GooTypes.KINETIC) > 0, item + " resolves no kinetic");
+            }
+        }
+
+        /**
+         * End stone and its bricks resolve astral from the base values the mod
+         * ships, beside the ender end stone always carried.
+         * decision astral-ships-from-endstone
+         */
+        @Test
+        void endStoneResolvesAstral() throws IOException {
+            try (java.io.InputStream shipped = GooValueRegistryTest.class.getResourceAsStream(SHIPPED_BASE_VALUES)) {
+                assertNotNull(shipped, SHIPPED_BASE_VALUES + " is off the test classpath");
+                parseBaseValuesFromStream(shipped);
+            }
+            copyBaseToEffective();
+            for (String item : List.of("minecraft:end_stone", "minecraft:end_stone_bricks")) {
+                GooValue value = registry.table().lookup(id(item));
+                assertNotNull(value, item + " holds no value");
+                assertTrue(value.get(GooTypes.ASTRAL) > 0, item + " resolves no astral: " + value);
+                assertTrue(value.get(GooTypes.ENDER) > 0, item + " lost its ender: " + value);
             }
         }
 

@@ -69,7 +69,7 @@ class AbilityLoaderTest {
     /** The abilities whose whole design was a per-stack shape. */
     /** The world abilities that stay after their blob lands. */
     private static final List<String> LINGERING_ABILITIES = List.of("crystal_cloud", "metal_spikes",
-            "nether_black_hole", "unstable_proximity_mine", "glow_crystal", "crystal_prism", "typhoon_updraft");
+            "nether_black_hole", "unstable_lurker", "glow_crystal", "crystal_prism", "typhoon_updraft");
     /** The ability whose program ends the tick it lands. */
     private static final String BLAST = "unstable_explode";
     private static final List<String> STACK_SHAPE_ABILITIES = List.of("blaze_flat", "blaze_tunnel",
@@ -96,12 +96,15 @@ class AbilityLoaderTest {
             Map.entry("hex_lifetap", List.of("soul_sand")),
             Map.entry("hex_drain", List.of("soul_sand")),
             Map.entry("unstable_explode", List.of("gunpowder")),
-            Map.entry("unstable_proximity_mine", List.of("tnt")),
+            Map.entry("unstable_lurker", List.of("tnt")),
+            Map.entry("unstable_unmake", List.of("dragon_breath")),
+            Map.entry("unstable_charged", List.of("fire_charge")),
             Map.entry("glow_sunbeam", List.of("spectral_arrow")),
             Map.entry("glow_crystal", List.of("glowstone")),
             Map.entry("crystal_cloud", List.of("glass", "sand")),
-            Map.entry("crystal_flechettes", List.of("amethyst_shard")),
+            Map.entry("crystal_shards", List.of("amethyst_shard")),
             Map.entry("crystal_prism", List.of("quartz")),
+            Map.entry("crystal_scales", List.of("diamond", "turtle_scute")),
             Map.entry("blaze_spitfire", List.of("torchflower")),
             Map.entry("frost_nova", List.of("packed_ice")),
             Map.entry("frost_cold", List.of("snowball")),
@@ -257,17 +260,17 @@ class AbilityLoaderTest {
     }
 
     /**
-     * Crystal's Prism names the nether quartz it consumes beside its goo
-     * cost, and an ability naming no reagent consumes nothing
-     * (decision ability-json-names-its-reagent).
+     * Crystal's Prism and Glitter take no item cost (operator ruling
+     * 2026-10-10), and an ability naming no reagent consumes nothing
+     * (decisions ability-json-names-its-reagent, glitter-sphere-icons-gem-ore-groups).
      */
     @Test
-    void prismConsumesANetherQuartzAndAnUnnamedReagentIsNone() {
+    void prismAndGlitterConsumeNothing() {
         Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
 
-        assertEquals(List.of(Identifier.withDefaultNamespace("quartz")),
-                scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_prism")).consumes());
-        assertEquals(List.of(), scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_cloud")).consumes());
+        for (String path : List.of("crystal_prism", "crystal_glitter", "crystal_cloud")) {
+            assertEquals(List.of(), scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, path)).consumes(), path);
+        }
     }
 
     /**

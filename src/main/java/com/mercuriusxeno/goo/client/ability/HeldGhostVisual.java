@@ -33,7 +33,8 @@ public interface HeldGhostVisual {
 
     /**
      * The ghost a cast sized by its drag holds: by default its dome at the
-     * radius dragged, its rings traveling outward to it.
+     * radius dragged, its rings traveling outward to it, as Blast's do
+     * (decision blast-is-drag-sized-like-the-black-hole).
      *
      * @param radius the radius the drag sets, in blocks
      * @return the ghost
