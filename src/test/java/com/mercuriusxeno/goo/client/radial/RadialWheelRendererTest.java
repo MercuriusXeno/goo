@@ -37,6 +37,8 @@ import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -137,6 +139,35 @@ class RadialWheelRendererTest {
                         pngDimensions(resource), resource);
             }));
         }
+
+        /** Each Rock ability draws an icon of its own, never one shared placeholder (decision rock-abilities-get-icons). */
+        @Test
+        void everyRockAbilityDrawsAnIconOfItsOwn() throws IOException {
+            Map<String, String> abilityByIcon = new HashMap<>();
+            for (ClientAbility ability : shippedAbilities()) {
+                if (!ability.id().getPath().startsWith(ROCK_PREFIX)) {
+                    continue;
+                }
+                Identifier icon = RadialWheelRenderer.resolveAbilityIcon(ability);
+                String resource = ASSETS_ROOT + icon.getNamespace() + "/" + icon.getPath();
+                assertEquals(List.of(RadialWheelRenderer.ABILITY_ICON_SIZE, RadialWheelRenderer.ABILITY_ICON_SIZE),
+                        pngDimensions(resource), resource);
+                String shared = abilityByIcon.put(HexFormat.of().formatHex(pngBytes(resource)), ability.id().getPath());
+                assertNull(shared, ability.id() + " draws the same icon as " + shared);
+            }
+            assertEquals(ROCK_ABILITIES, abilityByIcon.size());
+        }
+    }
+
+    private static final String ROCK_PREFIX = "rock_";
+    /** Flatten, Bore, Petrify, Stoneskin and Spire. */
+    private static final int ROCK_ABILITIES = 5;
+
+    private static byte[] pngBytes(String resource) throws IOException {
+        try (InputStream stream = RadialWheelRendererTest.class.getClassLoader().getResourceAsStream(resource)) {
+            assertNotNull(stream, resource + " is not on the classpath");
+            return stream.readAllBytes();
+        }
     }
 
     private static final int IHDR_WIDTH_OFFSET = 16;
@@ -176,7 +207,7 @@ class RadialWheelRendererTest {
                 Map.entry("pulse_pulser", "Pulser"),
                 Map.entry("pulse_metronome", "Metronome"), Map.entry("pulse_relay", "Relay"),
                 Map.entry("pulse_extender", "Extender"),
-                Map.entry("rock_bore", "Bore"), Map.entry("rock_crush", "Crush"), Map.entry("rock_flatten", "Flatten"),
+                Map.entry("rock_bore", "Bore"), Map.entry("rock_spire", "Spire"), Map.entry("rock_flatten", "Flatten"),
                 Map.entry("glow_scry", "Scry"), Map.entry("glow_lux", "Lux"), Map.entry("glow_radiant", "Radiant"), Map.entry("glow_reflector", "Reflector"),
                 Map.entry("rock_petrify", "Petrify"),
                 Map.entry("rock_stoneskin", "Stoneskin"),

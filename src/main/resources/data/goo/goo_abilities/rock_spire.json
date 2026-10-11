@@ -1,0 +1,13 @@
+{
+  "gooType": "rock",
+  "displayName": "goo.ability.rock.spire",
+  "badge": "world",
+  "order": 40,
+  "cost": 0,
+  "requires": ["minecraft:gravel", "minecraft:sand"],
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "spire", "lifts": "goo:spire_liftable" }
+  ],
+  "tags": ["footprint"]
+}

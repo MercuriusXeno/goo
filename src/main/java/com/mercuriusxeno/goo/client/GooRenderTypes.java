@@ -269,7 +269,7 @@ public final class GooRenderTypes {
 
     /**
      * Rock's held ghost through blocks: the rock dust shader with no depth
-     * test, so the part of Crush's dome inside blocks shows through them.
+     * test, so the part of a rock dome inside blocks shows through them.
      * held-visual-ghosts-the-landing-in-two-passes
      */
     public static final RenderPipeline ROCK_EXPLOSION_THROUGH_BLOCKS = throughBlocksPipeline("rock_explosion",
