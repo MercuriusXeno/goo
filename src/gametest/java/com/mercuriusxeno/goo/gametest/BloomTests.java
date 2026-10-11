@@ -80,6 +80,8 @@ public final class BloomTests {
         helper.assertTrue(bloom != null, ABILITY_REQUIRED);
         Spawned spawned = scan(helper);
         for (int throwCount = 0; throwCount < MAX_THROWS && !spawned.everySurface(); throwCount++) {
+            // a sapling an earlier throw grew in the landing cell takes no blob, so every later throw would land nowhere
+            helper.setBlock(STRUCK.above(), Blocks.AIR);
             AbilityImpact.land(helper.getLevel(), helper.absolutePos(STRUCK), bloom.gooType(), Direction.UP, bloom);
             spawned = scan(helper);
         }

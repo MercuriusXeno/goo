@@ -1,0 +1,12 @@
+{
+  "gooType": "astral",
+  "displayName": "goo.ability.astral.meteo",
+  "badge": "world",
+  "order": 40,
+  "cost": 3000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "meteor", "power": 4.0, "fall_ticks": 60 }
+  ],
+  "tags": ["explosive", "delayed"]
+}
