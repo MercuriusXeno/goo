@@ -2,16 +2,18 @@ package com.mercuriusxeno.goo.client.ability;
 
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Glitter's sparkle shell: its glints lie on the front's radius spread over
- * the whole sphere, the front grows to its reach and the shell fades after,
- * and its glints mix diamond-white with rainbow hues
+ * Glitter's band of glitter: its glints scatter at random over the whole
+ * sphere at varied depths about the front, flash dim and brief, drift
+ * through the prism, and the band fades once the front reaches its reach
  * (decision glitter-sphere-icons-gem-ore-groups).
  */
 class GlitterShellTest {
@@ -19,34 +21,57 @@ class GlitterShellTest {
     private static final double TOLERANCE = 1e-9;
 
     @Test
-    void glintsLieOnTheFrontsRadiusAndReachEveryOctant() {
-        List<Vec3> directions = GlitterShell.glintDirections(GlitterShell.GLINTS, 7L);
-        double radius = GlitterShell.frontRadius(10, 1.5, 24);
+    void glintsScatterOverTheWholeSphereAtVariedDepthsAboutTheFront() {
+        List<GlitterShell.Glint> glints = GlitterShell.glints(GlitterShell.GLINTS, 7L);
 
-        assertEquals(15, radius, TOLERANCE);
         boolean[] octants = new boolean[8];
-        for (Vec3 direction : directions) {
-            assertEquals(radius, direction.scale(radius).length(), TOLERANCE);
+        Set<Long> depths = new HashSet<>();
+        for (GlitterShell.Glint glint : glints) {
+            Vec3 direction = glint.direction();
+            assertEquals(1, direction.length(), 1e-6);
+            assertTrue(Math.abs(glint.depth() - 1) <= GlitterShell.DEPTH_SCATTER + TOLERANCE,
+                    "every glint lies near the front, at " + glint.depth());
+            depths.add(Math.round(glint.depth() * 1e4));
             octants[(direction.x > 0 ? 1 : 0) + (direction.y > 0 ? 2 : 0) + (direction.z > 0 ? 4 : 0)] = true;
         }
         for (boolean reached : octants) {
             assertTrue(reached);
         }
+        assertTrue(depths.size() > GlitterShell.GLINTS / 2, "glints lie at many depths, not one shell");
     }
 
     @Test
-    void theFrontStopsAtItsReachAndTheShellFadesAfter() {
+    void aGlintIsMostlyDarkAndFlashesNoBrighterThanTheBrightest() {
+        GlitterShell.Glint glint = new GlitterShell.Glint(new Vec3(0, 1, 0), 1, 0, 0.5, 0.3f, false);
+
+        int dark = 0;
+        for (int tick = 0; tick < 100; tick++) {
+            float flash = GlitterShell.flashAt(glint, tick);
+            assertTrue(flash >= 0f && flash <= GlitterShell.BRIGHTEST + 1e-6f);
+            if (flash < GlitterShell.BRIGHTEST / 10) {
+                dark++;
+            }
+        }
+        assertTrue(dark > 60, "the glint is dark most of its twinkle, dark " + dark + " of 100");
+        assertEquals(GlitterShell.BRIGHTEST, GlitterShell.flashAt(glint, Math.PI), 1e-5f);
+    }
+
+    @Test
+    void aHuedGlintDriftsThroughThePrismAndAWhiteOneStaysWhite() {
+        GlitterShell.Glint hued = new GlitterShell.Glint(new Vec3(0, 1, 0), 1, 0, 0.5, 0.3f, false);
+        GlitterShell.Glint white = new GlitterShell.Glint(new Vec3(0, 1, 0), 1, 0, 0.5, 0.3f, true);
+
+        assertNotEquals(GlitterShell.glintColor(hued, 0, 1f), GlitterShell.glintColor(hued, 10, 1f));
+        assertEquals(0xFFFFFFFF, GlitterShell.glintColor(white, 10, 1f));
+        assertEquals(0, GlitterShell.glintColor(hued, 0, 0f) >>> 24);
+    }
+
+    @Test
+    void theFrontStopsAtItsReachAndTheBandFadesAfter() {
+        assertEquals(15, GlitterShell.frontRadius(10, 1.5, 24), TOLERANCE);
         assertEquals(24, GlitterShell.frontRadius(40, 1, 24), TOLERANCE);
         assertEquals(1f, GlitterShell.strength(24, 1, 24), 1e-6f);
         assertEquals(0.5f, GlitterShell.strength(24 + GlitterShell.FADE_TICKS / 2, 1, 24), 1e-6f);
         assertEquals(0f, GlitterShell.strength(24 + GlitterShell.FADE_TICKS, 1, 24), 1e-6f);
-    }
-
-    @Test
-    void everyThirdGlintIsWhiteAndTheRestTakeHues() {
-        assertEquals(0xFFFFFFFF, GlitterShell.glintColor(0, 1f));
-        assertNotEquals(GlitterShell.glintColor(1, 1f), GlitterShell.glintColor(2, 1f));
-        assertNotEquals(0xFFFFFFFF, GlitterShell.glintColor(1, 1f));
-        assertEquals(0, GlitterShell.glintColor(3, 0f) >>> 24);
     }
 }

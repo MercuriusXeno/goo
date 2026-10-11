@@ -13,15 +13,12 @@ import java.util.Map;
 
 /**
  * Groups the gem ore blocks Glitter's sphere found into veins: blocks of one
- * ore touching at a face, an edge or a corner form one vein, which shows as
- * one icon at its centroid; and merges the veins of one ore lying close
- * together into one icon, so a cluster of small veins reads as one.
+ * ore touching at a face, an edge or a corner form one vein, revealed
+ * together as the front reaches its centroid.
  * decision glitter-sphere-icons-gem-ore-groups
  */
 public final class OreVeins {
 
-    /** The answer of a search finding no vein. */
-    private static final int NONE = -1;
     /** Blocks a touching block lies from another along each axis, corners included. */
     private static final int TOUCH = 1;
 
@@ -29,14 +26,19 @@ public final class OreVeins {
     }
 
     /**
-     * One vein, or several close veins merged: the ore it holds, the
-     * centroid its icon shows at and the blocks it counts.
+     * One vein: the ore it holds, the centroid the front reveals it at and
+     * its blocks.
      *
      * @param ore      the ore block's id
      * @param centroid the mean of its blocks' centers
-     * @param count    the ore blocks it holds
+     * @param blocks   its ore blocks
      */
-    public record Vein(Identifier ore, Vec3 centroid, int count) {
+    public record Vein(Identifier ore, Vec3 centroid, List<BlockPos> blocks) {
+
+        /** @return the ore blocks it holds */
+        public int count() {
+            return blocks.size();
+        }
     }
 
     /**
@@ -62,11 +64,11 @@ public final class OreVeins {
         Deque<BlockPos> frontier = new ArrayDeque<>();
         frontier.add(start);
         Vec3 sum = Vec3.ZERO;
-        int count = 0;
+        List<BlockPos> blocks = new ArrayList<>();
         while (!frontier.isEmpty()) {
             BlockPos block = frontier.poll();
             sum = sum.add(Vec3.atCenterOf(block));
-            count++;
+            blocks.add(block);
             for (BlockPos touching : BlockPos.betweenClosed(block.offset(-TOUCH, -TOUCH, -TOUCH), block.offset(TOUCH, TOUCH, TOUCH))) {
                 if (ore.equals(left.get(touching))) {
                     BlockPos kept = touching.immutable();
@@ -75,46 +77,6 @@ public final class OreVeins {
                 }
             }
         }
-        return new Vein(ore, sum.scale(1.0 / count), count);
-    }
-
-    /**
-     * Merges the veins of one ore whose centroids lie within a distance of
-     * a vein already merged into, into one icon at their blocks' joint
-     * centroid; veins of different ores never merge.
-     *
-     * @param veins    the veins
-     * @param distance the most blocks apart two veins' centroids lie and still merge
-     * @return the icons to show
-     */
-    public static List<Vein> merge(List<Vein> veins, double distance) {
-        double reach = distance * distance;
-        List<Vein> merged = new ArrayList<>();
-        for (Vein vein : veins) {
-            int into = closeVeinOfTheSameOre(merged, vein, reach);
-            if (into < 0) {
-                merged.add(vein);
-            } else {
-                merged.set(into, joined(merged.get(into), vein));
-            }
-        }
-        return merged;
-    }
-
-    private static int closeVeinOfTheSameOre(List<Vein> merged, Vein vein, double reach) {
-        for (int index = 0; index < merged.size(); index++) {
-            Vein other = merged.get(index);
-            if (other.ore().equals(vein.ore()) && other.centroid().distanceToSqr(vein.centroid()) <= reach) {
-                return index;
-            }
-        }
-        return NONE;
-    }
-
-    private static Vein joined(Vein first, Vein second) {
-        int count = first.count() + second.count();
-        Vec3 centroid = first.centroid().scale(first.count()).add(second.centroid().scale(second.count()))
-                .scale(1.0 / count);
-        return new Vein(first.ore(), centroid, count);
+        return new Vein(ore, sum.scale(1.0 / blocks.size()), List.copyOf(blocks));
     }
 }

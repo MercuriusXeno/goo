@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.crystal.OreVeins;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -22,7 +23,7 @@ import java.util.List;
  * @param radius the blocks the front reaches
  * @param veins  the veins found
  * @param reveal for each vein, the ticks after the ping began that the front reaches it
- * @param life   the ticks each icon shows once revealed
+ * @param life   the ticks each vein shows through walls once revealed
  */
 public record OreRevealPayload(Vec3 origin, double growth, int radius, List<OreVeins.Vein> veins,
                                List<Integer> reveal, int life)
@@ -55,6 +56,7 @@ public record OreRevealPayload(Vec3 origin, double growth, int radius, List<OreV
             buf.writeDouble(vein.centroid().y);
             buf.writeDouble(vein.centroid().z);
             buf.writeVarInt(vein.count());
+            vein.blocks().forEach(block -> buf.writeLong(block.asLong()));
             buf.writeVarInt(payload.reveal.get(index));
         }
         buf.writeVarInt(payload.life);
@@ -68,8 +70,14 @@ public record OreRevealPayload(Vec3 origin, double growth, int radius, List<OreV
         List<OreVeins.Vein> veins = new ArrayList<>(size);
         List<Integer> reveal = new ArrayList<>(size);
         for (int index = 0; index < size; index++) {
-            veins.add(new OreVeins.Vein(buf.readIdentifier(),
-                    new Vec3(buf.readDouble(), buf.readDouble(), buf.readDouble()), buf.readVarInt()));
+            Identifier ore = buf.readIdentifier();
+            Vec3 centroid = new Vec3(buf.readDouble(), buf.readDouble(), buf.readDouble());
+            int count = buf.readVarInt();
+            List<BlockPos> blocks = new ArrayList<>(count);
+            for (int block = 0; block < count; block++) {
+                blocks.add(BlockPos.of(buf.readLong()));
+            }
+            veins.add(new OreVeins.Vein(ore, centroid, blocks));
             reveal.add(buf.readVarInt());
         }
         return new OreRevealPayload(origin, growth, radius, veins, reveal, buf.readVarInt());

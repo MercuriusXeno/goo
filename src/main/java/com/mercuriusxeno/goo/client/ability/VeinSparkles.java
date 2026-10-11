@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.client.overlay.OreIcons;
+import com.mercuriusxeno.goo.client.overlay.OreSightings;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.particles.ParticleTypes;
@@ -14,7 +14,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 
 /**
  * Each gem vein Glitter's front reaches bursts into sparkles the tick its
- * icon begins to show, white glints and a few rising motes around the vein.
+ * ore begins to show through walls, white glints and a few rising motes around the vein.
  * decision glitter-sphere-icons-gem-ore-groups
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -38,7 +38,7 @@ public final class VeinSparkles {
     }
 
     /**
-     * Bursts every vein whose icon began to show since the last tick.
+     * Bursts every vein whose ore began to show since the last tick.
      *
      * @param event the client tick event
      */
@@ -51,7 +51,7 @@ public final class VeinSparkles {
         }
         long now = level.getGameTime();
         if (lastTick != Long.MIN_VALUE && now > lastTick) {
-            OreIcons.CLIENT.burstsBetween(lastTick, now).forEach(centroid -> burst(level, centroid));
+            OreSightings.CLIENT.burstsBetween(lastTick, now).forEach(centroid -> burst(level, centroid));
         }
         lastTick = now;
     }
