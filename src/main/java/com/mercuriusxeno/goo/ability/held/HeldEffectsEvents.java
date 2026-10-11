@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.ability.typhoon.Airborn;
+import com.mercuriusxeno.goo.ability.xeno.EldritchEvents;
 import com.mercuriusxeno.goo.ability.zone.Shifter;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -288,7 +289,7 @@ public final class HeldEffectsEvents {
     }
 
     /**
-     * Clears the player state an ability's own step laid: shifter, Lux, a lifetap.
+     * Clears the player state an ability's own step laid: shifter, Lux, a lifetap, the eldritch state.
      *
      * @param player the player
      * @param lays   the state the effect laid
@@ -309,6 +310,10 @@ public final class HeldEffectsEvents {
         if (lays.contains(LaidState.TELEKINESIS)) {
             // telekinesis-enacts-at-extended-reach: the reach returns to its own with the held effect
             Telekinesis.clear(player);
+        }
+        if (lays.contains(LaidState.ELDRITCH)) {
+            // eldritch-sight-reveals-the-out-of-phase: the eldritch state ends with its held effect
+            EldritchEvents.end(player);
         }
     }
 }
