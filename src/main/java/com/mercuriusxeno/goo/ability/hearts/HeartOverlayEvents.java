@@ -138,9 +138,27 @@ public final class HeartOverlayEvents {
 
     private static HeartOverlay.Drained strike(HeartOverlay overlay, DamageSource source, float damage,
                                                ServerPlayer player) {
-        long now = player.level().getGameTime();
+        return strikeAt(overlay, source, damage, player.getHealth(), player.level().getGameTime());
+    }
+
+    /**
+     * Runs a hit through the overlay by its kind's rules: Kindle's embers burn
+     * on fire, a hit a kind is weak to aggravates, a brittle kind takes a
+     * scaled share, and every other hit, any hit on crystal Scales among them,
+     * drains the shields at a heart's worth before real health.
+     * decision scales-crystal-hearts-diamond-blue-overlay
+     *
+     * @param overlay the player's overlay
+     * @param source  the damage source
+     * @param damage  the hit's damage
+     * @param health  the player's health before the hit
+     * @param now     the game time
+     * @return the overlay after the hit and the damage left for real health
+     */
+    static HeartOverlay.Drained strikeAt(HeartOverlay overlay, DamageSource source, float damage, float health,
+                                         long now) {
         if (overlay.kind() == HeartKind.KINDLE && source.is(DamageTypeTags.IS_FIRE)) {
-            return overlay.burn(damage, player.getHealth(), now);
+            return overlay.burn(damage, health, now);
         }
         if (aggravates(overlay.kind(), source)) {
             return overlay.aggravate(damage, now);

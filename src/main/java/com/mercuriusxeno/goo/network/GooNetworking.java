@@ -83,6 +83,10 @@ public final class GooNetworking {
         r.playToClient(NovaRingPayload.TYPE, NovaRingPayload.STREAM_CODEC);
         r.playToClient(ReapSwellPayload.TYPE, ReapSwellPayload.STREAM_CODEC);
         r.playToClient(TickAimPayload.TYPE, TickAimPayload.STREAM_CODEC);
+        r.playToClient(ShardFallPayload.TYPE, ShardFallPayload.STREAM_CODEC);
+        r.playToClient(OreRevealPayload.TYPE, OreRevealPayload.STREAM_CODEC);
+        r.playToClient(GlassKnifePayload.TYPE, GlassKnifePayload.STREAM_CODEC);
+        r.playToClient(ArmPosePayload.TYPE, ArmPosePayload.STREAM_CODEC);
     }
 
     /** Registers server-bound payloads.
@@ -97,6 +101,7 @@ public final class GooNetworking {
         r.playToServer(GooDragCastPayload.TYPE, GooDragCastPayload.STREAM_CODEC, GooDragCastHandler::handle);
         r.playToServer(GooSpirePayload.TYPE, GooSpirePayload.STREAM_CODEC, GooSpireHandler::handle);
         r.playToServer(GooChargePayload.TYPE, GooChargePayload.STREAM_CODEC, GooThrowHandler::handleCharge);
+        r.playToServer(ChargeHoldPayload.TYPE, ChargeHoldPayload.STREAM_CODEC, GooThrowHandler::handleChargeHold);
         r.playToServer(GloveSelectPayload.TYPE, GloveSelectPayload.STREAM_CODEC, GloveSelectHandler::handle);
     }
 }

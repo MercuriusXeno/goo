@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.network;
 
+import com.mercuriusxeno.goo.client.ability.PrismFormingSounds;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.network.ModelShrinkPayload;
 import com.mercuriusxeno.goo.network.TransformationPayload;
@@ -29,6 +30,10 @@ public final class TransformationHandler {
             }
             Transformations.CLIENT.add(payload.gooType(), payload.from(), payload.to(), payload.targetEntityId(),
                     payload.targetBlock(), mc.level.getGameTime(), payload.ticks());
+            if (payload.targetBlock() != null) {
+                // prism-blob-becomes-a-milky-quartz-crystal: a blob growing into a prism sounds as it forms
+                PrismFormingSounds.CLIENT.start(payload.targetBlock(), mc.level.getGameTime(), payload.ticks());
+            }
         });
     }
 

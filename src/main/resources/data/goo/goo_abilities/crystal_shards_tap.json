@@ -1,0 +1,23 @@
+{
+  "gooType": "crystal",
+  "displayName": "goo.ability.crystal.shards_tap",
+  "badge": "tap",
+  "order": 60,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    {
+      "type": "drips",
+      "count": 4,
+      "steps": [
+        {
+          "type": "shard_fall",
+          "steps": [
+            { "type": "damage", "amount": 3, "source": "magic", "knockback": false }
+          ]
+        }
+      ]
+    }
+  ],
+  "tags": ["tap"]
+}

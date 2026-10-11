@@ -55,6 +55,8 @@ public final class HeartOverlayHud {
     private static final Identifier NETHER_HALF = sprite("nether_half");
     private static final Identifier ICE_FULL = sprite("ice_full");
     private static final Identifier ICE_HALF = sprite("ice_half");
+    private static final Identifier CRYSTAL_FULL = sprite("crystal_full");
+    private static final Identifier CRYSTAL_HALF = sprite("crystal_half");
     private static final Identifier RESERVE_FULL = sprite("reserve_full");
     private static final Identifier RESERVE_HALF = sprite("reserve_half");
     /** Vanilla's red half heart, the health a travelling half leaves the bar as. */
@@ -226,6 +228,25 @@ public final class HeartOverlayHud {
     }
 
     /**
+     * The half and full sprites of a kind whose shields lie over present
+     * hearts only and leave the rest to vanilla's red heart: bark for
+     * Barkskin (barkskin-bark-hearts-thorn-and-burn), frost for Iceborn
+     * (iceborn-frozen-hearts-thaw-on-fire) and crystal for Scales
+     * (scales-crystal-hearts-diamond-blue-overlay).
+     *
+     * @param kind the overlay's kind
+     * @return the half then the full sprite, or empty for a kind laid otherwise
+     */
+    static Optional<Identifier[]> overPresentSprites(HeartKind kind) {
+        return switch (kind) {
+            case BARKSKIN -> Optional.of(new Identifier[]{BARK_HALF, BARK_FULL});
+            case ICEBORN -> Optional.of(new Identifier[]{ICE_HALF, ICE_FULL});
+            case SCALES -> Optional.of(new Identifier[]{CRYSTAL_HALF, CRYSTAL_FULL});
+            default -> Optional.empty();
+        };
+    }
+
+    /**
      * The sprites an overlay heart draws, bottom first. The shield shows as
      * many halves as it holds, never more than the real heart under it:
      * Kindle lays ash over the whole real heart and ember over its shielded
@@ -251,14 +272,9 @@ public final class HeartOverlayHud {
             // reserve-hearts-sit-behind-the-bar: nothing lies over the bar, the reserve row sits behind it
             return sprites;
         }
-        if (kind == HeartKind.BARKSKIN) {
-            // barkskin-bark-hearts-thorn-and-burn: bark hearts wear oak bark over normal hearts
-            addHalves(sprites, shown, BARK_HALF, BARK_FULL);
-            return sprites;
-        }
-        if (kind == HeartKind.ICEBORN) {
-            // iceborn-frozen-hearts-thaw-on-fire: frozen hearts lie over present hearts only
-            addHalves(sprites, shown, ICE_HALF, ICE_FULL);
+        Optional<Identifier[]> overPresent = overPresentSprites(kind);
+        if (overPresent.isPresent()) {
+            addHalves(sprites, shown, overPresent.get()[0], overPresent.get()[1]);
             return sprites;
         }
         addHalves(sprites, realHalves, ASH_HALF, ASH_FULL);
@@ -550,6 +566,7 @@ public final class HeartOverlayHud {
         return switch (kind) {
             case STONESKIN, UNDEAD -> missingFull(kind);
             case ICEBORN -> ICE_FULL;
+            case SCALES -> CRYSTAL_FULL;
             default -> BARK_FULL;
         };
     }
