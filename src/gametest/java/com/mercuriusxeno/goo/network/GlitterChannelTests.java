@@ -21,7 +21,8 @@ import net.minecraft.world.phys.Vec3;
  * Gametests for Crystal's Glitter: a caster holding no lapis channels
  * Glitter, since it takes no item cost (operator ruling 2026-10-10), and
  * its ping finds the gem ore veins buried around the caster, each at its
- * centroid, centering its shell where the caster stands.
+ * centroid with the blocks it shows through walls, centering its shell
+ * where the caster stands.
  * decision glitter-sphere-icons-gem-ore-groups
  */
 public final class GlitterChannelTests {
@@ -39,6 +40,7 @@ public final class GlitterChannelTests {
     private static final double TOLERANCE = 1e-6;
     private static final String ABILITY_REQUIRED = "Ability registry must hold crystal_glitter";
     private static final String SHOULD_SPEND = "A hold should spend crystal goo with no lapis held, %d of %d left";
+    private static final String SHOULD_CARRY_BLOCKS = "The diamond vein should carry both its ore blocks to draw";
     private static final String SHELL_AT_CASTER = "The ping's shell should center where the caster stands, at %s";
     private static final String NO_SENSE = "crystal_glitter should name a detect_ore step";
     private static final String SHOULD_FIND = "The ping should find the %s vein of %s at %s, found %s";
@@ -82,6 +84,9 @@ public final class GlitterChannelTests {
             assertFound(helper, reveal, DIAMOND_ORE, 2,
                     Vec3.atCenterOf(helper.absolutePos(DIAMOND_A)).add(0, 0, 0.5));
             assertFound(helper, reveal, LAPIS_ORE, 1, Vec3.atCenterOf(helper.absolutePos(LAPIS)));
+            boolean carriesBlocks = reveal.veins().stream().anyMatch(vein -> vein.blocks().containsAll(
+                    java.util.List.of(helper.absolutePos(DIAMOND_A), helper.absolutePos(DIAMOND_B))));
+            helper.assertTrue(carriesBlocks, SHOULD_CARRY_BLOCKS);
             helper.getLevel().getServer().getPlayerList().remove(caster);
             helper.succeed();
         });

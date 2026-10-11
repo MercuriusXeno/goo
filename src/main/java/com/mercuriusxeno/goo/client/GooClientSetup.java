@@ -47,7 +47,7 @@ import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
-import com.mercuriusxeno.goo.client.overlay.OreIcons;
+import com.mercuriusxeno.goo.client.overlay.OreSightings;
 import com.mercuriusxeno.goo.client.overlay.TickSplashes;
 import com.mercuriusxeno.goo.client.particle.*;
 import com.mercuriusxeno.goo.client.radial.CutItemRenderer;
@@ -473,7 +473,7 @@ public final class GooClientSetup {
     /** Clears Crystal's shards, glass knives, ore icons, glitter shells and arm poses. */
     private static void clearCrystalVisuals() {
         FallingShards.CLIENT.clear();
-        OreIcons.CLIENT.clear();
+        OreSightings.CLIENT.clear();
         GlitterShell.clear();
         GlassKnives.clear();
         AbilityPoses.clear();

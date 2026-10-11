@@ -36,7 +36,7 @@ import java.util.stream.Stream;
  * @param radius the sphere's radius in blocks
  * @param growth blocks the front grows each tick
  * @param every  ticks between pings
- * @param life   ticks each vein's icon shows once revealed
+ * @param life   ticks each vein's ore shows through walls once revealed
  */
 public record DetectOreStep(TagKey<Block> tag, int radius, double growth, int every, int life) implements Step {
 

@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.client.ability.GlitterShell;
-import com.mercuriusxeno.goo.client.overlay.OreIcons;
+import com.mercuriusxeno.goo.client.overlay.OreSightings;
 import com.mercuriusxeno.goo.network.OreRevealPayload;
 import net.minecraft.client.Minecraft;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -27,7 +27,7 @@ public final class OreRevealHandler {
             if (mc.level != null) {
                 long now = mc.level.getGameTime();
                 GlitterShell.start(payload, now);
-                OreIcons.CLIENT.reveal(now, payload.veins(), payload.reveal(), payload.life());
+                OreSightings.CLIENT.reveal(now, payload.veins(), payload.reveal(), payload.life());
             }
         });
     }
