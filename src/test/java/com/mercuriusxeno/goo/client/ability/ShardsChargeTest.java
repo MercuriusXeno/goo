@@ -4,11 +4,12 @@ import com.mercuriusxeno.goo.ability.Charge;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The fan of knives gathering at the shoulder while Shards charges: one
- * more knife as the charge grows, capped at what the fan shows, fanned
- * evenly about upright (decision shards-sling-then-morph-to-flechettes).
+ * Shards' charge: a chime at each step as the charge grows, capped at the
+ * steps it chimes, and a goo blob in the hand swelling with the charge
+ * (decision shards-sling-then-morph-to-flechettes).
  */
 class ShardsChargeTest {
 
@@ -16,17 +17,17 @@ class ShardsChargeTest {
     private static final float TOLERANCE = 1e-5f;
 
     @Test
-    void theFanGainsKnivesAsTheChargeGrowsUpToWhatItShows() {
+    void theChargeStepsUpAsItGrowsUpToTheStepsItChimes() {
         assertEquals(1, ShardsCharge.shownAt(SHARDS, 0f));
         assertEquals(5, ShardsCharge.shownAt(SHARDS, 0.2f));
         assertEquals(ShardsCharge.MOST_SHOWN, ShardsCharge.shownAt(SHARDS, 1f));
     }
 
     @Test
-    void theFanOpensEvenlyAboutUpright() {
-        assertEquals(0f, ShardsCharge.fanAngle(0, 1), TOLERANCE);
-        assertEquals(ShardsCharge.FAN_DEGREES / 2, ShardsCharge.fanAngle(0, 5), TOLERANCE);
-        assertEquals(0f, ShardsCharge.fanAngle(2, 5), TOLERANCE);
-        assertEquals(-ShardsCharge.FAN_DEGREES / 2, ShardsCharge.fanAngle(4, 5), TOLERANCE);
+    void theGooInTheHandSwellsWithTheCharge() {
+        assertEquals(ShardsCharge.BLOB_SMALLEST, ShardsCharge.blobScaleAt(0f), TOLERANCE);
+        assertTrue(ShardsCharge.blobScaleAt(0.5f) > ShardsCharge.blobScaleAt(0.25f));
+        assertEquals(ShardsCharge.BLOB_FULLEST, ShardsCharge.blobScaleAt(1f), TOLERANCE);
+        assertEquals(ShardsCharge.BLOB_FULLEST, ShardsCharge.blobScaleAt(2f), TOLERANCE);
     }
 }

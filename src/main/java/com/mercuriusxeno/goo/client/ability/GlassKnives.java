@@ -4,7 +4,10 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.crystal.KnifeRain;
 import com.mercuriusxeno.goo.client.FlatQuadContext;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.network.GlassKnifePayload;
+import com.mercuriusxeno.goo.type.GooTypes;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -24,8 +27,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Shards' glass knives in flight on this client: each kunai flies its
- * server's arc point first, rolling as it goes, and ends as the server
+ * Shards' glass knives in flight on this client: each leaves the hand as a
+ * little fleck of goo, with no drips, and turns into a glass kunai a few
+ * ticks into its flight, then flies its server's arc point first, rolling
+ * as it goes, and ends as the server
  * found: one stuck in a block stands there a moment, then shatters; one
  * striking a mob, or spent in the air, shatters at once, with a tinkle of
  * glass, cracking into splinters that tumble down and melt away.
@@ -36,6 +41,14 @@ public final class GlassKnives {
 
     /** Ticks a knife stuck in a block stands before it shatters. */
     static final int STUCK_TICKS = 30;
+    /** Ticks a knife flies as a goo fleck before it turns to glass, unless its flight is shorter. */
+    static final double FLECK_TICKS = 4;
+    /** Ticks the fleck takes to turn into the kunai. */
+    static final double MORPH_TICKS = 2;
+    /** A fleck's size against a flying goo blob's: a little drop. */
+    static final float FLECK_SCALE = 0.35f;
+    /** The share of a short flight a knife flies as a fleck, so it turns to glass before it lands. */
+    private static final double FLECK_SHARE_OF_SHORT_FLIGHT = 0.5;
     /** Radians a knife rolls about its heading each tick it flies. */
     private static final float ROLL_PER_TICK = 0.9f;
     /** How deep a stuck knife's point sinks into the block, in blocks. */
@@ -198,11 +211,54 @@ public final class GlassKnives {
         }
         SLIVERS.draw(quads, now, camera);
         buffers.endBatch(GooRenderTypes.CRYSTAL_SHARD_TYPE);
+        drawFlecks(event.getPoseStack(), buffers, now, camera);
     }
 
     /**
-     * Draws one knife an age into its flight: flying, or sunk at its end
-     * while it stands stuck; a knife that shattered draws nothing.
+     * Draws the knives still flying as goo flecks, shrinking away as they
+     * turn into glass.
+     *
+     * @param pose    the pose stack
+     * @param buffers the buffer source
+     * @param now     the game time with its partial tick
+     * @param camera  the camera's position
+     */
+    private static void drawFlecks(PoseStack pose, MultiBufferSource.BufferSource buffers, double now, Vec3 camera) {
+        for (Knife knife : LIVE) {
+            double age = now - knife.startTick();
+            float glass = glassAt(age, knife.ticks());
+            if (age >= 0 && age < knife.ticks() && glass < 1f) {
+                Vec3 at = placementAt(knife.path(), age).point().subtract(camera);
+                pose.pushPose();
+                pose.translate(at.x, at.y, at.z);
+                GooFlightRenderer.renderBlob(pose, buffers, GooTypes.CRYSTAL, (float) now, FLECK_SCALE * (1f - glass));
+                pose.popPose();
+            }
+        }
+        buffers.endBatch();
+    }
+
+    /**
+     * How far a knife has turned from goo to glass an age into its flight:
+     * a fleck for its first ticks, or half of a shorter flight, then glass
+     * over the morph; glass whole once it has landed.
+     *
+     * @param age   ticks since it left the hand, with the partial tick
+     * @param ticks the ticks it flies
+     * @return the share turned to glass, 0 a fleck and 1 a kunai
+     */
+    static float glassAt(double age, int ticks) {
+        if (age >= ticks) {
+            return 1f;
+        }
+        double fleck = Math.min(FLECK_TICKS, ticks * FLECK_SHARE_OF_SHORT_FLIGHT);
+        return (float) Math.clamp((age - fleck) / MORPH_TICKS, 0, 1);
+    }
+
+    /**
+     * Draws one knife an age into its flight: growing out of its fleck and
+     * flying, or sunk at its end while it stands stuck; a knife that
+     * shattered draws nothing.
      *
      * @param quads  the context the faces emit through
      * @param knife  the knife
@@ -212,13 +268,14 @@ public final class GlassKnives {
     private static void drawKnife(FlatQuadContext quads, Knife knife, double age, Vec3 camera) {
         boolean ended = age >= knife.ticks();
         boolean stuck = knife.ending() == GlassKnifePayload.Ending.STUCK;
-        if (age < 0 || ended && !stuck) {
+        float glass = glassAt(age, knife.ticks());
+        if (age < 0 || ended && !stuck || glass <= 0f) {
             return;
         }
         Placement placement = placementAt(knife.path(), age);
         Vec3 point = ended ? placement.point().add(placement.heading().scale(SINK)) : placement.point();
         GlassKunai.emit(quads, point.subtract(camera), placement.heading(),
-                (float) Math.min(age, knife.ticks()) * ROLL_PER_TICK, 1f);
+                (float) Math.min(age, knife.ticks()) * ROLL_PER_TICK, glass);
     }
 
     /**
