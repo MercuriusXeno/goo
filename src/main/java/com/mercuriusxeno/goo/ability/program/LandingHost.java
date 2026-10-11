@@ -122,7 +122,7 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
             // prism-blob-becomes-a-milky-quartz-crystal: announced before the block, so the client
             // holds the transformation when the prism's renderer first draws it
             BlockVisuals.sendToWatchers(level, cell, TransformationPayload.intoBlock(gooType, anchor,
-                    Vec3.atCenterOf(cell), cell, CloneEntityStep.TRANSFORMATION_TICKS));
+                    Vec3.atCenterOf(cell), cell, SpawnRandomStep.DEFAULT_MORPH_TICKS));
         }
         level.setBlock(cell, StatePropertyWriter.write(found.defaultBlockState(), values), Block.UPDATE_ALL);
     }

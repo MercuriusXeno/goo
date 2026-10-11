@@ -184,7 +184,7 @@ class RadialWheelRendererTest {
                 Map.entry("unstable_proximity_mine", "Claymore"),
                 Map.entry("blaze_spitfire", "Spitfire"), Map.entry("blaze_kindle", "Kindle"),
                 Map.entry("ender_blink", "Blink"), Map.entry("typhoon_propel", "Propel"),
-                Map.entry("unstable_explode", "Blast"), Map.entry("vital_clone", "Clone"),
+                Map.entry("unstable_explode", "Blast"), Map.entry("zoo_allure", "Allure"),
                 Map.entry("vital_vitality", "Vitality"), Map.entry("vital_reserve", "Reserve"),
                 Map.entry("vital_nourish", "Nourish"));
 
