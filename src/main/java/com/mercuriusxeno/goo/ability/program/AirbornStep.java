@@ -11,10 +11,11 @@ import java.util.stream.Stream;
 
 /**
  * Grants the host's target Airborn and finishes: steering in midair and
- * while levitating, a capped fall without fall damage, higher jumps and a
- * stronger Jet. Cast from the glove it stands as a held effect, paying its
+ * while levitating, a capped fall without fall damage, higher jumps, a
+ * stronger Jet and a faster elytra glide. Cast from the glove it stands as a held effect, paying its
  * upkeep until ended; drunk as a brew it stands for the brew's hour. Airborn
- * is {@code airborn air_speed=0.35 air_steer=0.15 fall_cap=0.4 jump_boost=0.5 jet_boost=1.5}.
+ * is {@code airborn air_speed=0.35 air_steer=0.15 fall_cap=0.4 jump_boost=0.5 jet_boost=1.5
+ * glide_speed=1.2 glide_steer=0.05}.
  * airborn-steerable-levitation-and-soft-falls
  *
  * @param airSpeed  the horizontal speed midair input drives toward, in blocks per tick
@@ -22,8 +23,11 @@ import java.util.stream.Stream;
  * @param fallCap   the fastest the target falls, in blocks per tick
  * @param jumpBoost the share the target's jump strength grows by
  * @param jetBoost  what Jet's push strength is multiplied by
+ * @param glideSpeed the speed an elytra glide is drawn toward along the look, in blocks per tick
+ * @param glideSteer the share of the way a slower glide is drawn toward it each tick
  */
-public record AirbornStep(Expr airSpeed, Expr airSteer, Expr fallCap, Expr jumpBoost, Expr jetBoost)
+public record AirbornStep(Expr airSpeed, Expr airSteer, Expr fallCap, Expr jumpBoost, Expr jetBoost,
+                          Expr glideSpeed, Expr glideSteer)
         implements Step {
 
     private static final String NAME = "airborn";
@@ -32,6 +36,8 @@ public record AirbornStep(Expr airSpeed, Expr airSteer, Expr fallCap, Expr jumpB
     private static final String FIELD_FALL_CAP = "fall_cap";
     private static final String FIELD_JUMP_BOOST = "jump_boost";
     private static final String FIELD_JET_BOOST = "jet_boost";
+    private static final String FIELD_GLIDE_SPEED = "glide_speed";
+    private static final String FIELD_GLIDE_STEER = "glide_steer";
 
     /**
      * Codec for the step's params.
@@ -41,7 +47,9 @@ public record AirbornStep(Expr airSpeed, Expr airSteer, Expr fallCap, Expr jumpB
             Expr.CODEC.fieldOf(FIELD_AIR_STEER).forGetter(AirbornStep::airSteer),
             Expr.CODEC.fieldOf(FIELD_FALL_CAP).forGetter(AirbornStep::fallCap),
             Expr.CODEC.fieldOf(FIELD_JUMP_BOOST).forGetter(AirbornStep::jumpBoost),
-            Expr.CODEC.fieldOf(FIELD_JET_BOOST).forGetter(AirbornStep::jetBoost)
+            Expr.CODEC.fieldOf(FIELD_JET_BOOST).forGetter(AirbornStep::jetBoost),
+            Expr.CODEC.fieldOf(FIELD_GLIDE_SPEED).forGetter(AirbornStep::glideSpeed),
+            Expr.CODEC.fieldOf(FIELD_GLIDE_STEER).forGetter(AirbornStep::glideSteer)
     ).apply(inst, AirbornStep::new));
 
     /**
@@ -64,13 +72,14 @@ public record AirbornStep(Expr airSpeed, Expr airSteer, Expr fallCap, Expr jumpB
         long endsAt = brew.isPresent() ? Math.max(standing, now + brew.getAsInt()) : Airborn.NEVER_EXPIRES;
         target.setData(GooAttachments.AIRBORN, new Airborn(airSpeed.evaluateFloat(context),
                 airSteer.evaluateFloat(context), fallCap.evaluateFloat(context), jumpBoost.evaluateFloat(context),
-                jetBoost.evaluateFloat(context), endsAt));
+                jetBoost.evaluateFloat(context), glideSpeed.evaluateFloat(context), glideSteer.evaluateFloat(context),
+                endsAt));
         return true;
     }
 
     @Override
     public Stream<Expr> expressions() {
-        return Stream.of(airSpeed, airSteer, fallCap, jumpBoost, jetBoost);
+        return Stream.of(airSpeed, airSteer, fallCap, jumpBoost, jetBoost, glideSpeed, glideSteer);
     }
 
     @Override

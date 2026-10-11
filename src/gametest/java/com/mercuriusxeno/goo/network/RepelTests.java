@@ -38,7 +38,7 @@ public final class RepelTests {
     private static final double REPEL_STRENGTH = 1.2;
     private static final double SPEED_TOLERANCE = 1e-6;
     /** An Airborn whose jet boost would show if it reached another's push. */
-    private static final Airborn BOOSTING = new Airborn(0.35f, 0.15f, 0.4f, 0.5f, 1.5f, Airborn.NEVER_EXPIRES);
+    private static final Airborn BOOSTING = new Airborn(0.35f, 0.15f, 0.4f, 0.5f, 1.5f, 1.2f, 0.05f, Airborn.NEVER_EXPIRES);
     private static final String ABILITY_REQUIRED = "Ability registry must hold typhoon_repel";
     private static final String SHOULD_FLING_OUT =
             "Ten held ticks of Repel should fling the zombie past its %.1f-block reach, stands %.2f from the streamer";

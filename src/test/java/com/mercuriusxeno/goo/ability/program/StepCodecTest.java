@@ -184,7 +184,7 @@ class StepCodecTest {
             Map.entry("lift", new LiftStep(Expr.literal(0.3), Expr.literal(0.2), Expr.literal(32))),
             Map.entry("updraft", new UpdraftStep(Expr.literal(1), Expr.literal(8), Expr.literal(0.4), Expr.literal(200))),
             Map.entry("airborn", new AirbornStep(Expr.literal(0.35), Expr.literal(0.15), Expr.literal(0.4),
-                    Expr.literal(0.5), Expr.literal(1.5))),
+                    Expr.literal(0.5), Expr.literal(1.5), Expr.literal(1.2), Expr.literal(0.05))),
             Map.entry("leech", new LeechStep(Expr.literal(0.5),
                     List.of(new DamageStep(Expr.literal(2), DamageKind.ATTACK))))
     );
