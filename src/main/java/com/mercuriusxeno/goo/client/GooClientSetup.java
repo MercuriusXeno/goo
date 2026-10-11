@@ -23,6 +23,7 @@ import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
 import com.mercuriusxeno.goo.client.ability.MobCoats;
 import com.mercuriusxeno.goo.client.ability.MobShells;
 import com.mercuriusxeno.goo.client.ability.NovaRings;
+import com.mercuriusxeno.goo.client.ability.PrismFormingSounds;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
 import com.mercuriusxeno.goo.client.ability.ThumpRings;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
@@ -470,13 +471,14 @@ public final class GooClientSetup {
         ThrowFreezeState.clear();
     }
 
-    /** Clears Crystal's shards, glass knives, ore icons, glitter shells and arm poses. */
+    /** Clears Crystal's shards, glass knives, ore sightings, glitter shells, arm poses and forming prisms. */
     private static void clearCrystalVisuals() {
         FallingShards.CLIENT.clear();
         OreSightings.CLIENT.clear();
         GlitterShell.clear();
         GlassKnives.clear();
         AbilityPoses.clear();
+        PrismFormingSounds.CLIENT.clear();
     }
 
     /**
