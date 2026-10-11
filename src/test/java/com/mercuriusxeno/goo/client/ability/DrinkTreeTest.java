@@ -369,6 +369,23 @@ class DrinkTreeTest {
         }
 
         @Test
+        void aTributaryHandsItsWidthToTheTrunkOverTheRideBeforeItsJoinSoTheJoinIsOneNeck() {
+            List<DrinkTree.Stream> streams = treeAt(START + tree().get(1).routeLength() / DrinkStream.FLOW);
+            DrinkTree.Stream trunk = streams.getFirst();
+            DrinkTree.Stream tributary = streams.get(1);
+            double ride = DrinkStream.RIDE;
+            double length = tributary.path().length();
+
+            assertEquals(DrinkTree.MERGE, ride, DELTA, "the trunk swells over the same ride");
+            assertEquals(1, DrinkTree.handoverAt(trunk, 1), DELTA, "a stream running to the glove keeps its width");
+            assertEquals(1, DrinkTree.handoverAt(tributary, 1 - ride / length), DELTA, "all of it a ride before");
+            assertEquals(0.5, DrinkTree.handoverAt(tributary, 1 - ride / TWO / length), DELTA, "half midway");
+            assertEquals(0, DrinkTree.handoverAt(tributary, 1), DELTA, "none at the join");
+            assertEquals(0, DrinkTree.ring(tributary, 1).radius(), DELTA, "so its last ring has no width of its own");
+            assertTrue(DrinkTree.ring(tributary, 1 - ride / length).radius() > 0);
+        }
+
+        @Test
         void everyStreamFallsStraightToAThreadOverTheLastTwoFifthsOfItsRoute() {
             List<DrinkTree.Stream> streams = treeAt(START + tree().get(1).routeLength() / DrinkStream.FLOW);
             DrinkTree.Stream trunk = streams.getFirst();

@@ -120,9 +120,12 @@ class DrinkStreamTest {
             DrinkStream.Path landing = new DrinkStream.Path(far, join, SEED, arrival, trunk, joinShare);
             DrinkStream.Path gliding = new DrinkStream.Path(far, join.add(lift), SEED, arrival, trunk, joinShare);
             double reach = DrinkStream.ARRIVAL_REACH;
+            double ride = DrinkStream.RIDE;
+            double halfSlide = ride + (reach - ride) / 2;
             double stretchStart = 1 - reach / landing.length();
-            double midway = 1 - reach / 2 / landing.length();
-            Vec3 onTrunk = DrinkStream.pointAt(trunk, joinShare - reach / 2 / trunk.length(), START);
+            double midway = 1 - halfSlide / landing.length();
+            Vec3 onTrunk = DrinkStream.pointAt(trunk, joinShare - halfSlide / trunk.length(), START);
+            Vec3 rideStart = DrinkStream.pointAt(trunk, joinShare - ride / trunk.length(), START);
 
             assertEquals(DrinkStream.pointAt(alone, stretchStart / 2, START),
                     DrinkStream.pointAt(landing, stretchStart / 2, START), "its own snake before the stretch");
@@ -131,9 +134,11 @@ class DrinkStreamTest {
             assertEquals(0, DrinkStream.pointAt(alone, midway, START).lerp(onTrunk, 0.5)
                     .distanceTo(DrinkStream.pointAt(landing, midway, START)), DELTA,
                     "midway it is half way from its own snake onto the trunk's spine the same distance before the join");
+            assertEquals(0, DrinkStream.pointAt(landing, 1 - ride / landing.length(), START).distanceTo(rideStart),
+                    DELTA, "a ride before the join it is wholly on the trunk's spine");
             assertEquals(0, DrinkStream.pointAt(landing, 1, START).distanceTo(join), DELTA, "it ends at the join");
             DrinkStream.Path aloneLifted = new DrinkStream.Path(far, join.add(lift), SEED, arrival);
-            double midwayGliding = 1 - reach / 2 / gliding.length();
+            double midwayGliding = 1 - halfSlide / gliding.length();
             assertEquals(0, DrinkStream.pointAt(aloneLifted, midwayGliding, START).lerp(onTrunk.add(lift), 0.5)
                     .distanceTo(DrinkStream.pointAt(gliding, midwayGliding, START)), DELTA,
                     "a hand end gliding off the spine carries the stretch with it");

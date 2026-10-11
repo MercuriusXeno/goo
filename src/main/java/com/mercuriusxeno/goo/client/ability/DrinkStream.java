@@ -63,6 +63,11 @@ public final class DrinkStream {
      */
     static final double ARRIVAL_REACH = 1.5;
     /**
+     * Blocks before its join over which a landing path rides its trunk's spine while its own width hands over to
+     * the trunk's swell, so the join is one neck rather than two tubes side by side with a valley between them.
+     */
+    static final double RIDE = 0.6;
+    /**
      * Blocks of skin the texture repeats over, a block of sprite to a block of skin and one sprite mirrored against
      * the next so it tiles with no seam; a sprite sized to the stream's girth read as ribbed rather than liquid.
      */
@@ -208,10 +213,10 @@ public final class DrinkStream {
     /**
      * Where the stream's middle runs: the path's own snaking spine, and over
      * the last {@link #ARRIVAL_REACH} of a path landing on a trunk, sliding
-     * onto the trunk's own spine the same distance before the join, so the
-     * tributary runs with the trunk into the join as one strand rather than
-     * beside it; a hand end gliding off the trunk's spine carries the stretch
-     * with it.
+     * onto the trunk's own spine the same distance before the join, wholly on
+     * it over the last {@link #RIDE}, so the tributary runs with the trunk
+     * into the join as one strand rather than beside it; a hand end gliding
+     * off the trunk's spine carries the stretch with it.
      *
      * @param path  the path
      * @param share the share of the path
@@ -227,7 +232,7 @@ public final class DrinkStream {
         }
         Vec3 glide = path.to().subtract(pointAt(trunk, path.joinShare(), now));
         Vec3 along = pointAt(trunk, Math.max(0, path.joinShare() - remaining / trunk.length()), now).add(glide);
-        return own.lerp(along, smoothRamp(0, ARRIVAL_REACH, ARRIVAL_REACH - remaining));
+        return own.lerp(along, smoothRamp(0, ARRIVAL_REACH - RIDE, ARRIVAL_REACH - remaining));
     }
 
     /**
