@@ -52,6 +52,6 @@ class UrchinChoreographyTest {
         assertEquals(FxAnchor.TARGET, out.at());
         assertNotEquals(out.pitch().evaluateFloat(Variables.NONE), back.pitch().evaluateFloat(Variables.NONE));
         assertEquals(0, out.frame().evaluateInt(Variables.NONE));
-        assertEquals(MetalSpikeVisual.HOLD_TICKS, back.frame().evaluateInt(Variables.NONE));
+        assertEquals(UrchinSpear.RETRACT_SHINK_FRAME, back.frame().evaluateInt(Variables.NONE));
     }
 }

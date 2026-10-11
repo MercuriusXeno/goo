@@ -327,6 +327,19 @@ public final class GooRenderTypes {
     public static final RenderType METAL_EXPLOSION_TYPE = burnoutType(METAL_EXPLOSION);
 
     /**
+     * Urchin's chrome on a landed trap, its spines and spears: the metal
+     * explosion shader writing depth, since they draw opaque, so the
+     * translucent goo blob drawn after them stays behind the parts in front
+     * of it rather than blending over them.
+     * urchin-rests-bristled-and-spears
+     */
+    public static final RenderPipeline METAL_CHROME = shaderPairPipeline("metal_chrome", "metal_explosion",
+            BlendFunction.TRANSLUCENT, DefaultVertexFormat.POSITION_COLOR_NORMAL, DepthStencilState.DEFAULT);
+
+    /** RenderType for Urchin's depth-writing chrome. */
+    public static final RenderType METAL_CHROME_TYPE = burnoutType(METAL_CHROME);
+
+    /**
      * Metal's held ghost through blocks: the metal explosion shader with no
      * depth test, so the spikes inside blocks show through them.
      * held-visual-ghosts-the-landing-in-two-passes
@@ -1110,13 +1123,29 @@ public final class GooRenderTypes {
      */
     private static RenderPipeline shaderPairPipeline(String location, String shader, BlendFunction blend,
                                                      VertexFormat format, CompareOp depthTest) {
+        return shaderPairPipeline(location, shader, blend, format, new DepthStencilState(depthTest, false));
+    }
+
+    /**
+     * A quad pipeline over a shader pair under {@code core/<shader>}, both
+     * faces drawn, on the depth state given.
+     *
+     * @param location the pipeline's name
+     * @param shader   the shader pair's name
+     * @param blend    how the pipeline blends over the world
+     * @param format   the vertex format its quads carry
+     * @param depth    the depth test and write its fragments take
+     * @return the pipeline
+     */
+    private static RenderPipeline shaderPairPipeline(String location, String shader, BlendFunction blend,
+                                                     VertexFormat format, DepthStencilState depth) {
         return RenderPipeline.builder(RenderPipelines.MATRICES_PROJECTION_SNIPPET, RenderPipelines.GLOBALS_SNIPPET)
                 .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + location))
                 .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + shader))
                 .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + shader))
                 .withVertexFormat(format, VertexFormat.Mode.QUADS)
                 .withColorTargetState(new ColorTargetState(blend))
-                .withDepthStencilState(new DepthStencilState(depthTest, false))
+                .withDepthStencilState(depth)
                 .withCull(false)
                 .build();
     }
@@ -1293,6 +1322,7 @@ public final class GooRenderTypes {
         event.registerPipeline(NETHER_EXPLOSION);
         event.registerPipeline(METAL_EXPLOSION);
         event.registerPipeline(METAL_EXPLOSION_THROUGH_BLOCKS);
+        event.registerPipeline(METAL_CHROME);
         event.registerPipeline(CRYSTAL_EXPLOSION);
         event.registerPipeline(CRYSTAL_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(GLOW_EXPLOSION);
