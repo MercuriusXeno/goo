@@ -90,10 +90,24 @@ class DrinkShaderTest {
 
         assertTrue(fragment.contains("gap = min(gap, outside);"),
                 "a run whose box the point is outside is skipped, its box the gap to jump");
-        assertTrue(fragment.contains("vec3 n = normalAt(p, stream);"), "the normal reads the hit's stream alone");
+        assertTrue(fragment.contains("vec3 n = normalAt(p, streams);"),
+                "the normal reads the whole field, so skin two streams share is one smooth shape");
         assertTrue(fragment.contains("route = mix(ma.y, mb.y, t);"), "the hit reads its share of the route");
         assertTrue(fragment.contains("color = mix(color, mingled(color, stream, world, place, density), route);"),
                 "the block's texture crossfades into its mingled goo by the route share, none at the block, all at the hand");
+    }
+
+    @Test
+    void theSkinAtAHitBlendsTheTwoStreamsMostPresentByTheirPresence() throws IOException {
+        String fragment = source(FRAGMENT);
+
+        assertTrue(fragment.contains("float f = runOnly(p, s);"), "each stream's presence at the hit is its own field");
+        assertTrue(fragment.contains("vec4 color = skinOf(first, p, world, n);"), "the most present stream's skin");
+        assertTrue(fragment.contains(
+                "color = mix(color, skinOf(second, p, world, n), secondField / (firstField + secondField));"),
+                "blended with the second's by their presence, so no seam where a pick would flip");
+        assertTrue(fragment.contains("int body = nearestBodyOf(p, stream);"),
+                "each stream's skin is read on its own nearest body");
     }
 
     @Test
