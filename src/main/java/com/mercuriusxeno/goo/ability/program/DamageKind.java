@@ -32,7 +32,13 @@ public enum DamageKind {
      * kill drops its experience and loot as the thrower's kill; generic
      * where no living thrower stands (decision bore-vortex-with-a-worldspace-shake).
      */
-    ATTACK;
+    ATTACK,
+    /**
+     * Expire's goo:expire, bypassing armor, resistance, effects and
+     * enchantments, so the struck mob dies whatever it wears.
+     * expire-kills-the-struck-mob
+     */
+    EXPIRE;
 
     private static final String WHAT = "damage source";
 

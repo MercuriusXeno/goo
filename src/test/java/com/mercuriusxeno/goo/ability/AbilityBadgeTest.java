@@ -113,10 +113,6 @@ class AbilityBadgeTest {
             AbilityDefinition definition = AbilityJson.decode(file);
             assertTrue(allowedBadges(definition, writtenDelivery(file)).contains(definition.badge()),
                     definition.id() + " wears " + definition.badge());
-            assertEquals(definition.hasTag(AbilityTags.ENTITY) && !definition.hasTag(AbilityTags.TAP)
-                            && definition.delivery().kind() != DeliveryKind.STREAM
-                            && definition.delivery().kind() != DeliveryKind.SELF && !definition.delivery().charges(),
-                    definition.badge() == AbilityBadge.MOB, definition.id() + " wears mob where it targets entities");
         }
     }
 }

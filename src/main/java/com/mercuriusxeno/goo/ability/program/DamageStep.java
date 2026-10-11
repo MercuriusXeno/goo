@@ -1,11 +1,16 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.Goo;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageSources;
+import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -34,6 +39,13 @@ import java.util.stream.Stream;
  */
 public record DamageStep(Expr amount, DamageKind source, boolean knockback,
                          Optional<Expr> invulnerableTicks) implements Step {
+
+    /**
+     * Expire's damage type, which the vanilla bypass tags name.
+     * expire-kills-the-struck-mob
+     */
+    public static final ResourceKey<DamageType> EXPIRE =
+            ResourceKey.create(Registries.DAMAGE_TYPE, Identifier.fromNamespaceAndPath(Goo.MODID, "expire"));
 
     private static final String NAME = "damage";
     private static final String FIELD_AMOUNT = "amount";
@@ -99,6 +111,10 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
      * @return the damage source
      */
     private DamageSource damageSource(LivingEntity target, @Nullable Entity thrower) {
+        if (source == DamageKind.EXPIRE) {
+            return new DamageSource(target.level().registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE)
+                    .getOrThrow(EXPIRE));
+        }
         DamageSources sources = target.damageSources();
         return source == DamageKind.ATTACK ? attackBy(sources, thrower) : sourceOfItsOwn(sources);
     }
@@ -115,7 +131,7 @@ public record DamageStep(Expr amount, DamageKind source, boolean knockback,
             case FREEZE -> sources.freeze();
             case STALAGMITE -> sources.stalagmite();
             case CACTUS -> sources.cactus();
-            case FORCE, ATTACK -> sources.generic();
+            case FORCE, ATTACK, EXPIRE -> sources.generic();
         };
     }
 

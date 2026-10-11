@@ -2,10 +2,10 @@ package com.mercuriusxeno.goo.ability.held;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.gluttony.GluttonyEvents;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.hex.Lifetap;
 import com.mercuriusxeno.goo.ability.nether.Undead;
-import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
@@ -238,7 +238,8 @@ public final class HeldEffectsEvents {
 
     /**
      * Clears the states an ended effect laid on the player's body: its heart
-     * overlay, its nourishment, its counting as undead and its haste overlay.
+     * overlay, its gluttony, its counting as undead, its haste overlay and
+     * its ancient overlay.
      *
      * @param player the player
      * @param lays   the states the ended effect laid
@@ -247,8 +248,8 @@ public final class HeldEffectsEvents {
         if (lays.contains(LaidState.HEART_OVERLAY)) {
             player.setData(GooAttachments.HEART_OVERLAY, HeartOverlay.NONE);
         }
-        if (lays.contains(LaidState.NOURISH)) {
-            player.setData(GooAttachments.NOURISH, Nourish.NONE);
+        if (lays.contains(LaidState.GLUTTONY)) {
+            GluttonyEvents.end(player);
         }
         if (lays.contains(LaidState.UNDEAD)) {
             // undead-nether-hearts-burn-in-sunlight: the player counts as undead no longer
@@ -257,6 +258,10 @@ public final class HeldEffectsEvents {
         if (lays.contains(LaidState.HASTE)) {
             // haste-stacks-speed-under-the-golden-overlay: the golden overlay ends with the held effect
             Haste.clear(player);
+        }
+        if (lays.contains(LaidState.ANCIENT)) {
+            // ancient-makes-the-player-immortal: the aged overlay ends with the held effect
+            Ancient.clear(player);
         }
     }
 

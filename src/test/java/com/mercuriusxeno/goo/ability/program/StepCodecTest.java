@@ -115,6 +115,7 @@ class StepCodecTest {
             Map.entry("withdraw_bank", new WithdrawBankStep(50, 20)),
             Map.entry("slow_time", new SlowTimeStep(Expr.literal(5), 10, 200, 0.1)),
             Map.entry("haste", new HasteStep()),
+            Map.entry("ancient", new AncientStep()),
             Map.entry("grab", new GrabStep(8, 2, 4, 1.5)),
             Map.entry("telekinesis", new TelekinesisStep(8)),
             Map.entry("set_baby", LeafSteps.SET_BABY.step(true)),
@@ -158,6 +159,7 @@ class StepCodecTest {
             Map.entry("heal", LeafSteps.HEAL.step(Expr.literal(0.1))),
             Map.entry("court", LeafSteps.COURT.step(Expr.literal(0.25))),
             Map.entry("power_pulse", LeafSteps.POWER_PULSE.step(Unit.INSTANCE)),
+            Map.entry("age", LeafSteps.AGE.step(Unit.INSTANCE)),
             Map.entry("toggle_device", LeafSteps.TOGGLE_DEVICE.step(Unit.INSTANCE)),
             Map.entry("metronome", new MetronomeStep()),
             Map.entry("relay", new RelayStep()),
@@ -165,9 +167,10 @@ class StepCodecTest {
             Map.entry("stun", LeafSteps.STUN.step(Expr.literal(60))),
             Map.entry("signal_wave", new SignalWaveStep(Expr.literal(8), Expr.literal(40))),
             Map.entry("pulser_toggle", new PulserToggleStep(Expr.literal(4))),
-            Map.entry("nourish", new NourishStep(Expr.literal(80))),
+            Map.entry("gluttony", new GluttonyStep(Expr.literal(80), Expr.literal(20), Expr.literal(20))),
             Map.entry("reserve_drain", new ReserveDrainStep(Expr.literal(0.05), Expr.literal(0.5), Expr.literal(10),
                     Expr.literal(0.5))),
+            Map.entry("feed", new FeedStep(Expr.literal(12), Expr.literal(100))),
             Map.entry("zone", new ZoneStep(Expr.literal(6), Expr.literal(32))),
             Map.entry("shifter", new ShifterStep(Expr.literal(8))),
             Map.entry("convoke", new ConvokeStep(GooTypes.DEEP, Expr.literal(20))),
@@ -270,8 +273,9 @@ class StepCodecTest {
         // self-effects-trickle-until-ended: the brew alone names a duration
         assertEquals(new HeartOverlayStep(HeartKind.KINDLE),
                 decode("{\"type\": \"heart_overlay\", \"kind\": \"kindle\"}").getOrThrow());
-        assertEquals(new NourishStep(Expr.literal(80)),
-                decode("{\"type\": \"nourish\", \"interval\": 80}").getOrThrow());
+        assertEquals(new GluttonyStep(Expr.literal(80), Expr.literal(20), Expr.literal(16)),
+                decode("{\"type\": \"gluttony\", \"interval\": 80, \"max_overheal\": 20, \"max_overhunger\": 16}")
+                        .getOrThrow());
     }
 
     @Test

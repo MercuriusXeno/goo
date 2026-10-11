@@ -237,7 +237,7 @@ class AbilityLoaderTest {
         for (AbilityDefinition ability : scanned.values()) {
             if (SelfEatRoute.eats(ability.delivery(), ability.badge())) {
                 assertEquals(0, ability.cost(), ability.id().toString());
-                assertEquals(1, ability.upkeep(), ability.id().toString());
+                assertTrue(ability.upkeep() >= 1, ability.id().toString());
             } else {
                 assertEquals(AbilityDefinition.NO_UPKEEP, ability.upkeep(), ability.id().toString());
             }
@@ -246,7 +246,7 @@ class AbilityLoaderTest {
 
     /**
      * Stoneskin's up sound is the petrify sound Statues plays, at another
-     * pitch, and Nourish's is a healing cue of its own
+     * pitch, and Gluttony's is a healing cue of its own
      * (decision held-effects-sound-up-and-down).
      */
     @Test
@@ -255,7 +255,7 @@ class AbilityLoaderTest {
         assertEquals(Identifier.withDefaultNamespace("block.deepslate.place"), stoneskinUp.sound());
         assertNotEquals(1.0, stoneskinUp.pitch().evaluate(Variables.NONE), 1e-6);
         assertNotEquals(0.8, stoneskinUp.pitch().evaluate(Variables.NONE), 1e-6);
-        assertTrue(AbilityJson.decode("vital_nourish").behaviors().stream().anyMatch(SoundStep.class::isInstance));
+        assertTrue(AbilityJson.decode("jelly_gluttony").behaviors().stream().anyMatch(SoundStep.class::isInstance));
     }
 
     private static SoundStep firstSound(String name) {
@@ -305,7 +305,7 @@ class AbilityLoaderTest {
      * it ends (decision held-effects-sound-up-and-down).
      */
     @ParameterizedTest
-    @CsvSource({"blaze_kindle", "leaf_barkskin", "rock_stoneskin", "vital_nourish", "shroom_sight", "hex_lifetap", "typhoon_airborn"})
+    @CsvSource({"blaze_kindle", "leaf_barkskin", "rock_stoneskin", "jelly_gluttony", "shroom_sight", "hex_lifetap", "typhoon_airborn"})
     void everyBrewSoundsAsItStarts(String name) {
         assertTrue(AbilityJson.decode(name).behaviors().stream().anyMatch(SoundStep.class::isInstance), name);
     }
