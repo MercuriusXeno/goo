@@ -1,0 +1,12 @@
+{
+  "gooType": "astral",
+  "displayName": "goo.ability.astral.gate",
+  "badge": "world",
+  "order": 50,
+  "cost": 4000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "astral_gate", "lifetime": 1200 }
+  ],
+  "tags": ["portal"]
+}

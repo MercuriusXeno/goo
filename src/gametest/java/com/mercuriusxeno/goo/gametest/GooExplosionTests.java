@@ -3,9 +3,10 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.DragSize;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
-import com.mercuriusxeno.goo.ability.program.Variables;
+import com.mercuriusxeno.goo.ability.program.HostVariables;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -21,11 +22,12 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Gametests for Goo's explosion through the landing path: Blast struck into
- * a stone floor breaks a crater that stays inside the sphere its preview
- * draws, every block it breaks drops whole, and items in its sphere survive
- * (decisions goo-ray-diminishes-block-resistance, preview-sphere-is-max-reach,
- * explosion-drops-whole-and-spares-items).
+ * Gametests for Goo's explosion through the landing path: Blast landed at its
+ * reference size into a stone floor breaks a crater that stays inside the
+ * sphere its preview draws, every block it breaks drops whole, and items in
+ * its sphere survive (decisions goo-ray-diminishes-block-resistance,
+ * preview-sphere-is-max-reach, explosion-drops-whole-and-spares-items,
+ * blast-is-drag-sized-like-the-black-hole).
  */
 public final class GooExplosionTests {
 
@@ -64,7 +66,7 @@ public final class GooExplosionTests {
 
     private static void strike(GameTestHelper helper, AbilityDefinition ability) {
         AbilityImpact.land(helper.getLevel(), helper.absolutePos(STRUCK), GooTypes.UNSTABLE, Direction.UP, ability,
-                helper.absoluteVec(AIM));
+                helper.absoluteVec(AIM), DragSize.REFERENCE_RADIUS);
     }
 
     /**
@@ -78,7 +80,8 @@ public final class GooExplosionTests {
         ExplodeStep explode = ability.behaviors().stream().filter(ExplodeStep.class::isInstance)
                 .map(ExplodeStep.class::cast).findFirst().orElse(null);
         helper.assertTrue(explode != null, NO_EXPLODE_STEP);
-        double reach = ExplosionMarch.maxReach(explode.power().evaluateFloat(Variables.NONE));
+        double reach = ExplosionMarch.maxReach(explode.power().evaluateFloat(
+                HostVariables.sized(DragSize.REFERENCE_RADIUS)));
         layFloor(helper, Blocks.STONE);
 
         strike(helper, ability);

@@ -102,7 +102,7 @@ public class CanisterFluidHandler implements ResourceHandler<FluidResource> {
         if (count == 0) {
             return 0;
         }
-        int perItem = Math.min(amount / count, readContent(item).volumeOf(resource));
+        int perItem = Math.min(amount / count, readContent(item).releasableVolumeOf(resource));
         return exchange(item, count, perItem, content -> content.withRemoved(resource, perItem), transaction);
     }
 

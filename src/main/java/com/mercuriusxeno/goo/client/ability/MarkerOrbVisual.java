@@ -36,6 +36,10 @@ public final class MarkerOrbVisual {
     private static final int SHELL_ALPHA = 0x60;
     /** Outer shell alpha when the player is aiming at the node. */
     private static final int SHELL_ALPHA_TARGETED = 0xC0;
+    /** Shell alpha a lurker reaches at full glow. */
+    private static final int OPAQUE_ALPHA = 0xFF;
+    /** How far a lurker's orb swells at full glow. */
+    static final float LURKER_SWELL = 0.35f;
 
     /** Ticks per cycle of the crystal marker's ebb, four seconds. */
     static final float CRYSTAL_EBB_PERIOD = 80f;
@@ -140,7 +144,14 @@ public final class MarkerOrbVisual {
      */
     static void emitOrbLayer(RenderContext ctx, int color, float half, Direction face,
                              OrbShape shape, GooRenderUtil.UvRect uv) {
-        ctx.emitBox(color, outwardHalfBounds(half, face, orbDepth(shape, half)), uv);
+        CuboidBounds bounds = outwardHalfBounds(half, face, orbDepth(shape, half));
+        Direction intoTheBlock = face.getOpposite();
+        for (Direction side : Direction.values()) {
+            // The side pressed to the block lies on the block's own face, where it would z-fight and is never seen.
+            if (side != intoTheBlock) {
+                ctx.emitFace(color, bounds, uv, side);
+            }
+        }
     }
 
     /**
@@ -217,7 +228,18 @@ public final class MarkerOrbVisual {
     private static float computeOrbModifier(AbilityBlockRenderState state) {
         float spikeShake = computeSpikeShake(state);
         float ebb = crystalEbb(state.crystalActive, state.gameTime);
-        return spikeShake * ebb;
+        return spikeShake * ebb * lurkerSwell(state.lurkerGlow);
+    }
+
+    /**
+     * The swell a watching marker's orb takes on its glow, so the orb beats
+     * as it brightens (decision lurker-blob-brightens-then-detonates).
+     *
+     * @param glow the lurker glow, 0 at rest
+     * @return the swell factor, exactly 1 at rest
+     */
+    static float lurkerSwell(float glow) {
+        return 1f + LURKER_SWELL * glow;
     }
 
     /**
@@ -267,10 +289,22 @@ public final class MarkerOrbVisual {
      * @return the packed ARGB shell color
      */
     private static int computeShellColor(AbilityBlockRenderState state) {
-        int baseShellAlpha = state.targeted ? SHELL_ALPHA_TARGETED : SHELL_ALPHA;
+        int baseShellAlpha = lurkerAlpha(state.targeted ? SHELL_ALPHA_TARGETED : SHELL_ALPHA, state.lurkerGlow);
         int rgb = state.gooType == GooTypes.GLOW
                 ? GooRenderUtil.OPAQUE_WHITE : ClientGooTypes.color(state.gooType);
         return ARGB.color(baseShellAlpha, rgb);
+    }
+
+    /**
+     * Brightens the shell toward opaque on a watching marker's glow
+     * (decision lurker-blob-brightens-then-detonates).
+     *
+     * @param alpha the shell alpha at rest
+     * @param glow  the lurker glow, 0 at rest
+     * @return the shell alpha
+     */
+    static int lurkerAlpha(int alpha, float glow) {
+        return alpha + Math.round((OPAQUE_ALPHA - alpha) * glow);
     }
 
     /**

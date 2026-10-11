@@ -1,0 +1,12 @@
+{
+  "gooType": "unstable",
+  "displayName": "goo.ability.unstable.unmake_tap",
+  "badge": "tap",
+  "order": 20,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "unmake" }
+  ],
+  "tags": ["tap"]
+}
