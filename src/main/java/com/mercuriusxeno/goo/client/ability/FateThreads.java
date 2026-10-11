@@ -15,6 +15,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The thread of light between two creatures sharing a fate: a thin glowing
@@ -52,18 +53,30 @@ public final class FateThreads {
         float width = mc.getWindow().getAppropriateLineWidth() * WIDTH_SCALE;
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         for (Entity creature : level.entitiesForRendering()) {
-            if (!creature.hasData(GooAttachments.SHARED_FATE)) {
-                continue;
-            }
-            SharedFate fate = creature.getData(GooAttachments.SHARED_FATE);
-            Entity partner = fate.standsAt(level.getGameTime()) ? level.getEntity(fate.partner()) : null;
-            // each pair draws once, from the creature whose id sorts first
-            if (partner != null && creature.getUUID().compareTo(partner.getUUID()) < 0) {
+            Entity partner = drawnPartnerOf(level, creature);
+            if (partner != null) {
                 lines.emitPolyline(camera, new Vec3[] {middleOf(creature, partialTick), middleOf(partner, partialTick)},
                         THREAD_COLOR, width);
             }
         }
         buffers.endBatch(GooRenderTypes.LINES_GLOW);
+    }
+
+    /**
+     * The partner a creature draws its thread to: one whose link stands, and
+     * only from the creature whose id sorts first, so each pair draws once.
+     *
+     * @param level    the client level
+     * @param creature the creature
+     * @return the partner to draw to, or null for none
+     */
+    private static @Nullable Entity drawnPartnerOf(ClientLevel level, Entity creature) {
+        if (!creature.hasData(GooAttachments.SHARED_FATE)) {
+            return null;
+        }
+        SharedFate fate = creature.getData(GooAttachments.SHARED_FATE);
+        Entity partner = fate.standsAt(level.getGameTime()) ? level.getEntity(fate.partner()) : null;
+        return partner != null && creature.getUUID().compareTo(partner.getUUID()) < 0 ? partner : null;
     }
 
     private static Vec3 middleOf(Entity creature, float partialTick) {
