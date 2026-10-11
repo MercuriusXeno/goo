@@ -24,6 +24,14 @@ class DrinkShaderTest {
     private static final String VERTEX = "/assets/goo/shaders/core/drink_field.vsh";
     private static final double DELTA = 1e-9;
     private static final int IVEC4 = 4;
+    /** How tight the glisten's highlight is. */
+    private static final double GLISTEN_POWER = 48;
+    /** How bright the highlight adds. */
+    private static final double GLISTEN_STRENGTH = 0.35;
+    /** How close to grazing the rim brightens. */
+    private static final double RIM_POWER = 3;
+    /** How bright the rim adds. */
+    private static final double RIM_STRENGTH = 0.25;
 
     private static String source(String path) throws IOException {
         try (InputStream in = DrinkShaderTest.class.getResourceAsStream(path)) {
@@ -116,6 +124,30 @@ class DrinkShaderTest {
                 "blended with the second's by their presence, so no seam where a pick would flip");
         assertTrue(fragment.contains("int body = nearestBodyOf(p, stream);"),
                 "each stream's skin is read on its own nearest body");
+    }
+
+    /** decision unmake-metaball-glistens-and-shades */
+    @Test
+    void theHitGlistensFromTheNormalAndTheViewBeforeTheLightMix() throws IOException {
+        String fragment = source(FRAGMENT);
+
+        assertEquals(GLISTEN_POWER, constant(fragment, "GLISTEN_POWER"), DELTA);
+        assertEquals(GLISTEN_STRENGTH, constant(fragment, "GLISTEN_STRENGTH"), DELTA);
+        assertEquals(RIM_POWER, constant(fragment, "RIM_POWER"), DELTA);
+        assertEquals(RIM_STRENGTH, constant(fragment, "RIM_STRENGTH"), DELTA);
+        assertTrue(fragment.contains("vec4 glisten(vec4 color, vec3 n, vec3 view) {"), "the glisten function");
+        assertTrue(fragment.contains("pow(max(dot(n, normalize(Light0_Direction + view)), 0.0), GLISTEN_POWER)")
+                && fragment.contains("pow(max(dot(n, normalize(Light1_Direction + view)), 0.0), GLISTEN_POWER)"),
+                "a specular highlight from each cardinal light's half vector");
+        assertTrue(fragment.contains("float rim = pow(1.0 - max(dot(n, view), 0.0), RIM_POWER);"),
+                "a rim brightening at grazing angles");
+        assertTrue(fragment.contains("color.rgb += vec3(shine * GLISTEN_STRENGTH + rim * RIM_STRENGTH);"),
+                "both added white-leaning, each by its strength");
+        int glistened = fragment.indexOf("vec4 color = glisten(skinAtHit(p, streams), viewNormal, toEye);");
+        int mixed = fragment.indexOf("color = minecraft_mix_light(");
+        assertTrue(glistened >= 0 && mixed > glistened, "main glistens the hit before the light mix");
+        assertTrue(fragment.contains("vec3 toEye = normalize(mat3(ModelViewMat) * -p);"),
+                "the view direction is toward the eye, in the lights' space");
     }
 
     @Test
