@@ -129,14 +129,7 @@ public final class GooTargetHighlighter {
      * @param frame     what the frame draws with
      */
     private static void renderHeldDome(TargetResult target, @Nullable String abilityId, HighlightFrame frame) {
-        Optional<SpireFootprint> footprint = SpireCast.footprint();
-        if (footprint.isPresent()) {
-            SpireOutlineRenderer.render(frame.ps(), frame.buf(), frame.camera().position(), footprint.get(),
-                    SpireCast.rising(), ClientGooTypes.highlight(frame.selectedType()));
-            return;
-        }
-        if (GloveThrowSender.selectedDragSized(abilityId)) {
-            renderSizedDome(frame);
+        if (renderSizedPreview(abilityId, frame)) {
             return;
         }
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
@@ -147,6 +140,29 @@ public final class GooTargetHighlighter {
         }
         HeldDomeRenderer.render(frame.ps(), frame.buf(), frame.camera().position(), target, ability,
                 frame.selectedType(), ClientGooTypes.highlight(frame.selectedType()), realTimeSeconds());
+    }
+
+    /**
+     * Draws the preview of a cast sized as it is made: a Spire's footprint
+     * (decision spire-rips-walls-and-platforms) or a drag-sized ability's
+     * dome (decision black-hole-leaves-a-compression-sphere).
+     *
+     * @param abilityId the selected ability id
+     * @param frame     what the frame draws with
+     * @return true where a sized cast drew its preview in place of the held ghost
+     */
+    private static boolean renderSizedPreview(@Nullable String abilityId, HighlightFrame frame) {
+        Optional<SpireFootprint> footprint = SpireCast.footprint();
+        if (footprint.isPresent()) {
+            SpireOutlineRenderer.render(frame.ps(), frame.buf(), frame.camera().position(), footprint.get(),
+                    SpireCast.rising(), ClientGooTypes.highlight(frame.selectedType()));
+            return true;
+        }
+        if (GloveThrowSender.selectedDragSized(abilityId)) {
+            renderSizedDome(frame);
+            return true;
+        }
+        return false;
     }
 
     /**

@@ -7,18 +7,18 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /**
- * Closes each Dragon Gate pair on its clock: once a second the server puts
+ * Closes each End gate pair on its clock: once a second the server puts
  * back the blocks every expired pair covered, loading their chunks as it
  * writes them.
- * Decision dragon-gate-banishes-blocks-and-opens-a-portal.
+ * Decision end-clears-blocks-and-opens-a-portal.
  */
 @EventBusSubscriber(modid = Goo.MODID)
-public final class DragonGateEvents {
+public final class EndGateEvents {
 
     /** Ticks between one look for expired pairs and the next. */
     static final int CHECK_INTERVAL_TICKS = 20;
 
-    private DragonGateEvents() {
+    private EndGateEvents() {
     }
 
     /**
@@ -31,7 +31,7 @@ public final class DragonGateEvents {
         MinecraftServer server = event.getServer();
         long now = server.overworld().getGameTime();
         if (now % CHECK_INTERVAL_TICKS == 0) {
-            DragonGateOpening.closeExpired(server, now);
+            EndGateOpening.closeExpired(server, now);
         }
     }
 }
