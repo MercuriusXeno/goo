@@ -129,6 +129,7 @@
   "goo.ability.aeon.rewind": "Rewind",
   "goo.ability.yore.rewind": "Rewind",
   "goo.ability.yore.expire": "Expire",
+  "goo.ability.yore.ancient": "Ancient",
   "death.attack.goo.expire": "%1$s expired",
   "death.attack.goo.expire.player": "%1$s was expired by %2$s",
   "goo.ability.aeon.stasis": "Stasis",

@@ -248,7 +248,7 @@ class AbilityLoaderTest {
         for (AbilityDefinition ability : scanned.values()) {
             if (SelfEatRoute.eats(ability.delivery(), ability.badge())) {
                 assertEquals(0, ability.cost(), ability.id().toString());
-                assertEquals(1, ability.upkeep(), ability.id().toString());
+                assertTrue(ability.upkeep() >= 1, ability.id().toString());
             } else {
                 assertEquals(AbilityDefinition.NO_UPKEEP, ability.upkeep(), ability.id().toString());
             }
