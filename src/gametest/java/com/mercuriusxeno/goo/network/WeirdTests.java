@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
+import com.mercuriusxeno.goo.ability.weird.Wobbled;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -46,6 +48,7 @@ public final class WeirdTests {
     private static final String SOFTEN_TRADES_DAMAGE = "weird_soften_trades_damage_for_knockback";
     private static final String HURT_BY_SOFTENED = "A softened zombie's hit should leave the player's health full, has ";
     private static final String NOT_KNOCKED = "A softened zombie's hit should knock the player back";
+    private static final String FADED_STILL_SOFT = "Once the wobble has faded, the zombie's hit should hurt the player";
 
     private WeirdTests() {
     }
@@ -79,7 +82,8 @@ public final class WeirdTests {
 
     /**
      * A zombie struck by a Weird Wobble blob strikes a survival player: the
-     * player keeps its full health and is knocked back instead.
+     * player keeps its full health and is knocked back instead; once the
+     * wobble has faded, the zombie's next hit hurts the player.
      *
      * @param helper the gametest helper
      */
@@ -94,6 +98,11 @@ public final class WeirdTests {
         zombie.doHurtTarget(helper.getLevel(), player);
         helper.assertTrue(player.getHealth() == player.getMaxHealth(), HURT_BY_SOFTENED + player.getHealth());
         helper.assertTrue(player.getDeltaMovement().horizontalDistance() > 0, NOT_KNOCKED);
+
+        zombie.setData(GooAttachments.WOBBLED, new Wobbled(helper.getLevel().getGameTime()));
+        player.invulnerableTime = 0;
+        zombie.doHurtTarget(helper.getLevel(), player);
+        helper.assertTrue(player.getHealth() < player.getMaxHealth(), FADED_STILL_SOFT);
         helper.succeed();
     }
 
