@@ -209,12 +209,12 @@
   "goo.ability.unstable.explode": "Blast",
   "goo.ability.unstable.proximity_mine": "Claymore",
   "goo.ability.unstable.timed_bomb": "Countdown",
-  "goo.ability.vital.clone": "Clone",
   "goo.ability.vital.vitality": "Vitality",
   "goo.ability.vital.vitality_tap": "Vitality",
   "goo.ability.vital.reserve": "Reserve",
   "goo.ability.vital.nourish": "Nourish",
   "goo.ability.weird.magma": "Magma",
   "goo.ability.weird.bounce": "Bounce",
-  "goo.ability.weird.wobble": "Wobble"
+  "goo.ability.weird.wobble": "Wobble",
+  "goo.ability.weird.slime": "Slime"
 }
