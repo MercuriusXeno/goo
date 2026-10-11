@@ -36,7 +36,7 @@ import java.util.List;
  * refracts to three zombies around it, whose split hits sum past one direct
  * hit (decision sunbeam-splits-at-the-prism-with-a-glisten). A zombie the
  * aim assist locks off the crosshair takes the hit, and the impact's burst
- * and sound fire where the ray lands (decision sunbeam-lands-with-impact-and-aim).
+ * fires where the ray lands each tick, its sound on hits (decision sunbeam-lands-with-impact-and-aim).
  */
 public final class SunbeamChannelTests {
 
@@ -52,7 +52,9 @@ public final class SunbeamChannelTests {
     /** A sound packet carries its position in eighths of a block, read back as a float. */
     private static final double SOUND_GRID = 0.125;
     private static final String NO_BURST = "The impact's light burst should reach the player at %s";
-    private static final String NO_SOUND = "The impact's sound should reach the player at %s";
+    private static final String NO_SOUND = "The impact's sound should reach the player once at %s on the hit, it reached %d";
+    private static final String NO_STEADY_BURST = "The impact's light burst should reach the player at %s between hits too";
+    private static final String SOUND_BETWEEN_HITS = "The impact's sound at %s should play on hits alone";
     /** Sunbeam's direct hit on an undead mob: 4 doubled. */
     private static final float UNDEAD_HIT = 8f;
     private static final float TOLERANCE = 0.01f;
@@ -146,9 +148,10 @@ public final class SunbeamChannelTests {
     }
 
     /**
-     * A mock player holds Sunbeam on a stone block's face: on the hit tick
-     * the impact's light burst and sound reach the player at the point the
-     * ray lands (decision sunbeam-lands-with-impact-and-aim).
+     * A mock player holds Sunbeam on a stone block's face for two ticks, the
+     * first hitting and the second between hits: the impact's light burst
+     * reaches the player at the point the ray lands on both ticks, and its
+     * sound on the hit tick alone (decision sunbeam-lands-with-impact-and-aim).
      *
      * @param helper the gametest helper
      */
@@ -159,19 +162,32 @@ public final class SunbeamChannelTests {
         Vec3 eye = player.getEyePosition();
         Vec3 face = new Vec3(helper.absolutePos(WALL_POS).getX(), eye.y, eye.z);
         GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.GLOW), SUNBEAM.toString(), eye, face);
+        long[] afterTheHit = new long[2];
         helper.runAfterDelay(1, () -> GooStreamHandler.streamTick(player, tick));
         helper.runAfterDelay(2, () -> {
+            afterTheHit[0] = burstsAt(recorder, face);
+            afterTheHit[1] = soundsAt(recorder, face);
+            GooStreamHandler.streamTick(player, tick);
+        });
+        helper.runAfterDelay(3, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
-            boolean burst = recorder.sentOf(ClientboundLevelParticlesPacket.class).stream().anyMatch(packet ->
-                    packet.getParticle().getType() == ParticleTypes.END_ROD
-                            && face.distanceTo(new Vec3(packet.getX(), packet.getY(), packet.getZ())) < TOLERANCE);
-            boolean sound = recorder.sentOf(ClientboundSoundPacket.class).stream().anyMatch(packet ->
-                    packet.getSound().is(SoundEvents.BEACON_POWER_SELECT.location())
-                            && soundsAt(packet, face));
-            helper.assertTrue(burst, String.format(NO_BURST, face));
-            helper.assertTrue(sound, String.format(NO_SOUND, face));
+            helper.assertTrue(afterTheHit[0] > 0, String.format(NO_BURST, face));
+            helper.assertTrue(afterTheHit[1] == 1, String.format(NO_SOUND, face, afterTheHit[1]));
+            helper.assertTrue(burstsAt(recorder, face) > afterTheHit[0], String.format(NO_STEADY_BURST, face));
+            helper.assertTrue(soundsAt(recorder, face) == 1, String.format(SOUND_BETWEEN_HITS, face));
             helper.succeed();
         });
+    }
+
+    private static long burstsAt(PacketRecorder recorder, Vec3 point) {
+        return recorder.sentOf(ClientboundLevelParticlesPacket.class).stream().filter(packet ->
+                packet.getParticle().getType() == ParticleTypes.END_ROD
+                        && point.distanceTo(new Vec3(packet.getX(), packet.getY(), packet.getZ())) < TOLERANCE).count();
+    }
+
+    private static long soundsAt(PacketRecorder recorder, Vec3 point) {
+        return recorder.sentOf(ClientboundSoundPacket.class).stream().filter(packet ->
+                packet.getSound().is(SoundEvents.BEACON_POWER_SELECT.location()) && soundsAt(packet, point)).count();
     }
 
     /**
