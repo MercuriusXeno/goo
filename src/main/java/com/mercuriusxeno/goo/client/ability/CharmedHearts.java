@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.hex.Charmed;
 import com.mercuriusxeno.goo.client.hud.InWorldHud;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -12,7 +11,6 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.resources.Identifier;
-import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -24,9 +22,9 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
 /**
  * Floats a dark purple heart over the head of every charmed mob in sight,
- * turned to face the camera and bobbing gently, fading out with the charm's
- * last ticks.
+ * turned to face the camera and bobbing gently, for as long as the charm holds.
  * charm-glisten-and-icon-over-the-head
+ * charm-holds-until-struck
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class CharmedHearts {
@@ -43,7 +41,7 @@ public final class CharmedHearts {
     private static final double BOB_PER_TICK = 0.12;
     /** The farthest a heart draws from the camera, in blocks. */
     private static final double SIGHT_RANGE = 48.0;
-    private static final int WHITE = 0xFFFFFF;
+    private static final int OPAQUE_WHITE = 0xFFFFFFFF;
 
     private CharmedHearts() {
     }
@@ -76,23 +74,20 @@ public final class CharmedHearts {
 
     private static void drawHeart(PoseStack poseStack, VertexConsumer consumer, Camera camera, LivingEntity living,
                                   float partialTick, float gameTime) {
-        Charmed charm = living.getData(GooAttachments.CHARMED);
-        float strength = MobAilments.strength(charm.expiresAt() - gameTime);
         Vec3 above = living.getPosition(partialTick)
                 .add(0, living.getBbHeight() + ABOVE_HEAD + bob(gameTime, living.getId()), 0)
                 .subtract(camera.position());
-        if (strength <= 0f || above.lengthSqr() > SIGHT_RANGE * SIGHT_RANGE) {
+        if (above.lengthSqr() > SIGHT_RANGE * SIGHT_RANGE) {
             return;
         }
-        int color = ARGB.color(ARGB.as8BitChannel(strength), WHITE);
         poseStack.pushPose();
         poseStack.translate(above.x, above.y, above.z);
         poseStack.mulPose(camera.rotation());
         PoseStack.Pose pose = poseStack.last();
-        InWorldHud.iconVertex(consumer, pose, -HALF_SIZE, HALF_SIZE, 0f, 0f, 0f, color);
-        InWorldHud.iconVertex(consumer, pose, -HALF_SIZE, -HALF_SIZE, 0f, 0f, 1f, color);
-        InWorldHud.iconVertex(consumer, pose, HALF_SIZE, -HALF_SIZE, 0f, 1f, 1f, color);
-        InWorldHud.iconVertex(consumer, pose, HALF_SIZE, HALF_SIZE, 0f, 1f, 0f, color);
+        InWorldHud.iconVertex(consumer, pose, -HALF_SIZE, HALF_SIZE, 0f, 0f, 0f, OPAQUE_WHITE);
+        InWorldHud.iconVertex(consumer, pose, -HALF_SIZE, -HALF_SIZE, 0f, 0f, 1f, OPAQUE_WHITE);
+        InWorldHud.iconVertex(consumer, pose, HALF_SIZE, -HALF_SIZE, 0f, 1f, 1f, OPAQUE_WHITE);
+        InWorldHud.iconVertex(consumer, pose, HALF_SIZE, HALF_SIZE, 0f, 1f, 0f, OPAQUE_WHITE);
         poseStack.popPose();
     }
 

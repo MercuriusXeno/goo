@@ -1,0 +1,12 @@
+{
+  "gooType": "typhoon",
+  "displayName": "goo.ability.typhoon.lift",
+  "badge": "prism",
+  "order": 40,
+  "cost": 2000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "lift", "rise": 0.3, "sink": 0.2, "cap": 32 }
+  ],
+  "tags": []
+}
