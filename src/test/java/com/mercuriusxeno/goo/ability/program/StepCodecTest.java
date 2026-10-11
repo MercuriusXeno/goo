@@ -48,7 +48,7 @@ class StepCodecTest {
                     Expr.parse("4 + 12 * charge").getOrThrow(), 0.05f, 0.4f, new FrostCurve(300, 0.005f, 0.5f, 3f))),
             Map.entry("freeze_blocks", new FreezeBlocksStep(Expr.literal(2))),
             Map.entry("drips", new DripsStep(6, List.of(new FreezeBlocksStep(Expr.literal(2))))),
-            Map.entry("wind", new WindStep(true)),
+            Map.entry("wind", new WindStep(true, Optional.of(new WindStep.Tailwind(6, 30)))),
             Map.entry("glacial", new GlacialStep(5)),
             Map.entry("traveling", new TravelingStep(3f, List.of(new FreezeBlocksStep(Expr.literal(2.5), false)))),
             Map.entry("break_blocks", new BreakBlocksStep(TagKey.create(Registries.BLOCK,
@@ -180,6 +180,11 @@ class StepCodecTest {
             Map.entry("agitate", new AgitateStep(8, 400, 0.75, 40)),
             Map.entry("lifetap", new LifetapStep(Expr.literal(0.3))),
             Map.entry("tome", new TomeStep(TomeKind.FUSE)),
+            Map.entry("float", new FloatStep(Expr.literal(100), Expr.literal(1))),
+            Map.entry("lift", new LiftStep(Expr.literal(0.3), Expr.literal(0.2), Expr.literal(32))),
+            Map.entry("updraft", new UpdraftStep(Expr.literal(1), Expr.literal(8), Expr.literal(0.4), Expr.literal(200))),
+            Map.entry("airborn", new AirbornStep(Expr.literal(0.35), Expr.literal(0.15), Expr.literal(0.4),
+                    Expr.literal(0.5), Expr.literal(1.5), Expr.literal(1.2), Expr.literal(0.05))),
             Map.entry("leech", new LeechStep(Expr.literal(0.5),
                     List.of(new DamageStep(Expr.literal(2), DamageKind.ATTACK))))
     );
