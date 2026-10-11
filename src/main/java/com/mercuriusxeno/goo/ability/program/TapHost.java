@@ -6,9 +6,11 @@ import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.network.ChunkWatchers;
 import com.mercuriusxeno.goo.network.UnmakePayload;
 import com.mercuriusxeno.goo.registry.GooServerState;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -165,8 +167,8 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
      * decision convoke-drip-rolls-a-small-chance
      */
     @Override
-    public boolean convokeFromChunk() {
-        return ChunkConvoke.convoke(level, Vec3.atBottomCenterOf(landing.relative(face)));
+    public boolean convokeFromChunk(ResourceKey<GooTypeDefinition> goo) {
+        return ChunkConvoke.convoke(level, Vec3.atBottomCenterOf(landing.relative(face)), goo);
     }
 
     @Override
