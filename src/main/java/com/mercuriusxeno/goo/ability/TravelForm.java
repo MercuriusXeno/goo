@@ -9,10 +9,8 @@ import net.minecraft.network.codec.StreamCodec;
 /**
  * The form a thrown goo takes in flight: it stays a blob, or it morphs
  * into a pointed shape by the share of the flight its delivery's
- * transform_at names, the metal javelin's dart or a crystal shard's
- * flechette.
+ * transform_at names, the metal javelin's dart.
  * decision traveling-form-transforms-in-flight
- * decision shards-sling-then-morph-to-flechettes
  *
  * @see Delivery#transformAt()
  */
@@ -20,9 +18,7 @@ public enum TravelForm {
     /** The goo stays a blob the whole flight. */
     BLOB(0f, 0f, 0f, 0f),
     /** A long needle-pointed spear with a stubby butt. */
-    DART(2.5f, 0.05f, 0.5f, 0.09f),
-    /** A short, slim shard, a fraction of the dart. */
-    FLECHETTE(0.7f, 0.035f, 0.18f, 0.06f);
+    DART(2.5f, 0.05f, 0.5f, 0.09f);
 
     private static final String WHAT = "travel form";
 

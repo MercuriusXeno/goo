@@ -6,39 +6,30 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A slinging charge's fleck count and spread follow the share of the charge
- * a hold reached, and its flecks leave across the sweep's ticks
- * (decision shards-sling-then-morph-to-flechettes).
+ * A slinging charge's knife count and cone follow the share of the charge
+ * a hold reached (decision shards-sling-then-morph-to-flechettes).
  */
 class ChargeTest {
 
     private static final double TOLERANCE = 1e-9;
-    private final Charge shards = new Charge(30, 12, 60, 4);
+    private final Charge shards = new Charge(30, 24, 60, 8);
 
     @Test
-    void aFullChargeSlingsEveryFleckAcrossTheWholeCone() {
-        assertEquals(12, shards.fleckCount(1f));
+    void aFullChargeThrowsEveryKnifeAcrossTheWholeCone() {
+        assertEquals(24, shards.fleckCount(1f));
         assertEquals(60, shards.spreadDegrees(1f), TOLERANCE);
     }
 
     @Test
-    void aHalfChargeSlingsHalfTheFlecksAcrossHalfTheCone() {
-        assertEquals(6, shards.fleckCount(0.5f));
-        assertEquals(30, shards.spreadDegrees(0.5f), TOLERANCE);
+    void aHalfChargeThrowsHalfTheKnivesAcrossThreeQuartersOfTheCone() {
+        assertEquals(12, shards.fleckCount(0.5f));
+        assertEquals(45, shards.spreadDegrees(0.5f), TOLERANCE);
     }
 
     @Test
-    void anUnchargedReleaseStillSlingsOneFleckStraight() {
+    void anUnchargedReleaseStillThrowsOneKnifeAcrossHalfTheCone() {
         assertEquals(1, shards.fleckCount(0f));
-        assertEquals(0, shards.spreadDegrees(0f), TOLERANCE);
-    }
-
-    @Test
-    void theSweepLeavesFirstToLastAcrossItsTicks() {
-        assertEquals(0, shards.launchDelay(0, 12));
-        assertEquals(2, shards.launchDelay(6, 12));
-        assertEquals(4, shards.launchDelay(11, 12));
-        assertEquals(0, shards.launchDelay(0, 1));
+        assertEquals(30, shards.spreadDegrees(0f), TOLERANCE);
     }
 
     @Test
