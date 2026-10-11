@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.SpireFootprint;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.HeldDomeRenderer;
@@ -10,6 +11,7 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
+import com.mercuriusxeno.goo.client.throwing.SpireCast;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
@@ -27,6 +29,7 @@ import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import org.jspecify.annotations.Nullable;
+import java.util.Optional;
 import java.util.OptionalDouble;
 
 /**
@@ -125,6 +128,12 @@ public final class GooTargetHighlighter {
      * @param frame     what the frame draws with
      */
     private static void renderHeldDome(TargetResult target, @Nullable String abilityId, HighlightFrame frame) {
+        Optional<SpireFootprint> footprint = SpireCast.footprint();
+        if (footprint.isPresent()) {
+            SpireOutlineRenderer.render(frame.ps(), frame.buf(), frame.camera().position(), footprint.get(),
+                    SpireCast.rising(), ClientGooTypes.highlight(frame.selectedType()));
+            return;
+        }
         if (GloveThrowSender.selectedDragSized(abilityId)) {
             renderSizedDome(frame);
             return;

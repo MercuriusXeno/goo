@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.DragSize;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
+import com.mercuriusxeno.goo.ability.SpireLift;
 import com.mercuriusxeno.goo.ability.StreamSound;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
@@ -32,6 +33,7 @@ import com.mercuriusxeno.goo.network.GooTouchHandler;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -47,6 +49,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.OptionalInt;
 import java.util.function.IntPredicate;
 import java.util.function.Predicate;
 
@@ -418,14 +421,34 @@ public final class GloveThrowSender {
             return Optional.empty();
         }
         ClientAbility ability = AbilitySyncHandler.findAbility(selection.abilityId());
-        OptionalDouble dragged = dragRadius(player);
-        if (ability != null && dragged.isPresent()) {
-            // black-hole-leaves-a-compression-sphere: a sized cast reads the price of the radius dragged
-            return Optional.of(GooFormat.formatAmount(DragSize.costAt(ability.cost(), dragged.getAsDouble())));
+        OptionalInt sized = sizedCost(player, ability);
+        if (sized.isPresent()) {
+            return Optional.of(GooFormat.formatAmount(sized.getAsInt()));
         }
         float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
         return Optional.of(ability == null ? GooFormat.formatAmount(throwCostOf(null, Optional.empty()))
                 : ability.costLabel(BlinkAim.trip(player, ability, partialTick)));
+    }
+
+    /**
+     * The cost of a cast sized as it is made: a drag-sized cast's dragged
+     * radius, or a Spire's planned refill.
+     *
+     * @param player  the local player
+     * @param ability the selected ability, or null where the client holds no synced copy
+     * @return the cost, empty where no sized cast is live
+     */
+    private static OptionalInt sizedCost(Player player, @Nullable ClientAbility ability) {
+        OptionalDouble dragged = dragRadius(player);
+        if (ability != null && dragged.isPresent()) {
+            // black-hole-leaves-a-compression-sphere: a sized cast reads the price of the radius dragged
+            return OptionalInt.of(DragSize.costAt(ability.cost(), dragged.getAsDouble()));
+        }
+        if (player instanceof LocalPlayer local && SpireCast.footprint().isPresent()) {
+            // spire-rips-walls-and-platforms: a Spire reads the goo value of the refill it would place
+            return OptionalInt.of(SpireCast.plannedLift(local).map(SpireLift::cost).orElse(0));
+        }
+        return OptionalInt.empty();
     }
 
     /**

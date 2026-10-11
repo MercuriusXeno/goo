@@ -19,8 +19,7 @@ public final class AbilityTags {
 
     /**
      * An ability whose blob draws no goo splat on the mob it strikes, its own
-     * program drawing the hit instead, as Crush's rubble does
-     * (decision crush-blob-breaks-along-its-strike).
+     * program drawing the hit instead, as Frost's Orb does.
      */
     public static final String NO_SPLAT = "no_splat";
 
@@ -47,6 +46,14 @@ public final class AbilityTags {
      * (decision black-hole-leaves-a-compression-sphere).
      */
     public static final String DRAG_SIZED = "drag_sized";
+
+    /**
+     * A world ability cast by its footprint: holding right click pins a
+     * corner, dragging sizes the footprint, releasing fixes it, the pitch sets
+     * its rise and a second right click submits; it is never thrown
+     * (decision spire-rips-walls-and-platforms).
+     */
+    public static final String FOOTPRINT = "footprint";
 
     private AbilityTags() {
     }

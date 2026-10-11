@@ -120,7 +120,7 @@ class AbilityLoaderTest {
             Map.entry("typhoon_levitate", List.of("shulker_shell")),
             Map.entry("typhoon_propel", List.of("phantom_membrane")),
             Map.entry("rock_bore", List.of("stone", "cobblestone")),
-            Map.entry("rock_crush", List.of("gravel", "sand")),
+            Map.entry("rock_spire", List.of("gravel", "sand")),
             Map.entry("rock_flatten", List.of("dirt")),
             Map.entry("glow_scry", List.of("spyglass")),
             Map.entry("glow_lux", List.of("carrot")),
