@@ -41,6 +41,8 @@ public final class WeirdTests {
     private static final String HURT = "A pig falling onto the pad should keep its full health, has ";
     private static final String PAD_STANDS = "The bounce pad should be gone once its time has passed";
     private static final String WOBBLE = "goo:weird_wobble";
+    private static final String SLIME = "goo:weird_slime";
+    private static final String SLIME_BLOB_MAKES_A_SLIME = "slime_blob_makes_a_slime";
     private static final String SOFTEN_TRADES_DAMAGE = "weird_soften_trades_damage_for_knockback";
     private static final String HURT_BY_SOFTENED = "A softened zombie's hit should leave the player's health full, has ";
     private static final String NOT_KNOCKED = "A softened zombie's hit should knock the player back";
@@ -57,6 +59,22 @@ public final class WeirdTests {
         reg.accept(TURNS_LAVA_TO_MAGMA, WeirdTests::weirdTurnsLavaToMagma);
         reg.accept(PAD_BREAKS_THE_FALL, WeirdTests::weirdPadBreaksTheFall);
         reg.accept(SOFTEN_TRADES_DAMAGE, WeirdTests::weirdSoftenTradesDamageForKnockback);
+        reg.accept(SLIME_BLOB_MAKES_A_SLIME, WeirdTests::slimeBlobMakesASlime);
+    }
+
+    /**
+     * A Weird Slime blob lands on stone and a slime stands in the cell it
+     * landed in.
+     * slime-creates-slimes-at-will
+     *
+     * @param helper the gametest helper
+     */
+    public static void slimeBlobMakesASlime(GameTestHelper helper) {
+        helper.setBlock(POOL_FLOOR, Blocks.STONE);
+        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.WEIRD,
+                NO_ENTITY, helper.absolutePos(POOL_FLOOR), Direction.UP, SLIME));
+        helper.assertEntityPresent(EntityType.SLIME, POOL_FLOOR.above());
+        helper.succeed();
     }
 
     /**

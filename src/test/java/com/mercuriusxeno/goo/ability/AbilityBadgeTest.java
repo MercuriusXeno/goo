@@ -19,12 +19,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AbilityBadgeTest {
 
-    private static final int SHIPPED_MOB_BADGES = 12;
+    private static final int SHIPPED_MOB_BADGES = 11;
     private static final int SHIPPED_WORLD_BADGES = 14;
     private static final int SHIPPED_SELF_BADGES = 5;
     private static final int SHIPPED_BREW_BADGES = 12;
     private static final int SHIPPED_CHANNELED_BADGES = 20;
-    private static final int SHIPPED_FREE_BADGES = 6;
+    private static final int SHIPPED_FREE_BADGES = 7;
     private static final int SHIPPED_TAP_BADGES = 11;
     private static final int SHIPPED_PRISM_BADGES = 9;
     /**
@@ -41,7 +41,7 @@ class AbilityBadgeTest {
             "hex_lifetap", "glow_lux", "aeon_haste");
     /** The shipped free abilities (decisions badge-vocabulary-gains-free-prism-tap-brew, zap-ticks-the-device-and-stuns). */
     private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "rock_crush", "shroom_colonize",
-            "pulse_zap", "frost_orb", "leaf_reap");
+            "pulse_zap", "frost_orb", "leaf_reap", "weird_slime");
     /** Self deliveries wearing the channeled badge (decision flatten-disc-cursor-breaks-above-the-plane). */
     private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten", "frost_nova", "glow_scry", "glow_sunbeam", "glow_radiant");
     /** Thrown deliveries wearing the channeled badge (decision spawn-goo-morphs-into-the-mob-it-births). */
