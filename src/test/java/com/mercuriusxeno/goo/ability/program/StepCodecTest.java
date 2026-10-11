@@ -47,6 +47,7 @@ class StepCodecTest {
             Map.entry("nova", new NovaStep(Expr.parse("2 + 6 * charge").getOrThrow(),
                     Expr.parse("4 + 12 * charge").getOrThrow(), 0.05f, 0.4f, new FrostCurve(300, 0.005f, 0.5f, 3f))),
             Map.entry("freeze_blocks", new FreezeBlocksStep(Expr.literal(2))),
+            Map.entry("cool_lava", new CoolLavaStep(Expr.literal(3))),
             Map.entry("drips", new DripsStep(6, List.of(new FreezeBlocksStep(Expr.literal(2))))),
             Map.entry("wind", new WindStep(true)),
             Map.entry("glacial", new GlacialStep(5)),

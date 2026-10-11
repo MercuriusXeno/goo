@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:weird_turns_lava_to_magma",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 20,
+  "setup_ticks": 0,
+  "required": true
+}
