@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A pulse stream reaches the cell under the crosshair however narrow its cone
- * (decisions pulser-toggles-rapidly-while-held, signal-wave-toggles-each-device-once).
+ * (decisions pulser-toggles-rapidly-while-held, zap-disperses-into-signal).
  */
 class AimedCellsTest {
 

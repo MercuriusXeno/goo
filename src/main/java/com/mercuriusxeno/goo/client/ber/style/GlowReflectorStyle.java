@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ber.style;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.client.PrismCrystal;
 import com.mercuriusxeno.goo.client.ability.GlowBeamMesh;
 import com.mercuriusxeno.goo.client.ber.PrismRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -12,11 +13,13 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Glow's Reflector on a prism: the glow column ({@link GlowColumn}), and glow's beam of light
+ * Glow's Reflector on a prism: the glow column ({@link GlowColumn}) folded into
+ * four sides as Relay's is, and glow's beam of light
  * ({@link GlowBeamMesh}) along the rail to each reflector it links to, the
  * beam wider and brighter the more light the network carries. Each beam is
  * drawn once, by the end whose position sorts first.
  * decision reflector-rails-carry-the-brightest-light
+ * decision relay-and-metronome-read-apart-at-rest
  */
 public final class GlowReflectorStyle implements PrismComboStyle {
 
@@ -30,7 +33,7 @@ public final class GlowReflectorStyle implements PrismComboStyle {
 
     @Override
     public void submit(PrismRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector) {
-        GlowColumn.submit(state, poseStack, nodeCollector);
+        GlowColumn.submit(state, poseStack, nodeCollector, restingSides());
         float share = lightShare(state.linkLight);
         float scroll = Mth.frac(-state.animationTime * SCROLL_PER_TICK);
         Vec3 center = new Vec3(HALF, HALF, HALF);
@@ -45,6 +48,11 @@ public final class GlowReflectorStyle implements PrismComboStyle {
                 poseStack.popPose();
             }
         }
+    }
+
+    @Override
+    public PrismCrystal.ColumnSides restingSides() {
+        return PrismCrystal.ColumnSides.FOUR;
     }
 
     private static void emitBeam(PoseStack.Pose pose, VertexConsumer buffer, float length, float share, float scroll) {

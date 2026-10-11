@@ -6,7 +6,7 @@ import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CrystalClusterSubmitter;
 import com.mercuriusxeno.goo.client.PrismCrystal;
-import com.mercuriusxeno.goo.client.ability.ThumpRings;
+import com.mercuriusxeno.goo.client.ability.BeatRings;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ability.UpdraftWind;
@@ -140,7 +140,7 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         state.sinceBeat = PrismBeats.secondsSinceBeat(prism.getBlockPos(), state.power > 0);
         if (PulsePrismStyle.METRONOME_COMBO.equals(state.combo)) {
             // metronome-prism-pulses-at-the-learned-rate: each beat sends a red ring out from the prism's base
-            ThumpRings.see(prism.getBlockPos(), state.facing, state.power > 0);
+            BeatRings.see(prism.getBlockPos(), state.facing, state.power > 0);
         }
     }
 
