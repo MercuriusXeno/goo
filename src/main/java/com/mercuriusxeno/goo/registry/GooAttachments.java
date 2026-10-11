@@ -16,6 +16,8 @@ import com.mercuriusxeno.goo.ability.pulse.Stunned;
 import com.mercuriusxeno.goo.ability.rewind.Rewinding;
 import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.spray.Spored;
+import com.mercuriusxeno.goo.ability.typhoon.Airborn;
+import com.mercuriusxeno.goo.ability.typhoon.Floating;
 import com.mercuriusxeno.goo.ability.world.TimeVeiled;
 import com.mercuriusxeno.goo.ability.zone.Shifter;
 import com.mercuriusxeno.goo.ability.zone.ZoneCurse;
@@ -272,6 +274,32 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> Frozen.NONE)
                             .serialize(Frozen.CODEC, Frozen::started)
                             .sync(GooAttachments::syncsToWatcher, Frozen.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The float Float leaves on a mob while its levitation lasts, saved with
+     * the mob and synced to every client drawing it, which pulses the mint
+     * platform under its feet.
+     * float-blob-levitates-the-mob
+     */
+    public static final Supplier<AttachmentType<Floating>> FLOATING =
+            ATTACHMENT_TYPES.register("floating",
+                    () -> AttachmentType.builder(() -> Floating.NONE)
+                            .serialize(Floating.CODEC)
+                            .sync(GooAttachments::syncsToWatcher, Floating.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The air control Airborn lays on a player, saved with the player while
+     * it stands and synced to the owning client, which steers it in midair,
+     * caps its fall and draws the rising wind.
+     * airborn-steerable-levitation-and-soft-falls
+     */
+    public static final Supplier<AttachmentType<Airborn>> AIRBORN =
+            ATTACHMENT_TYPES.register("airborn",
+                    () -> AttachmentType.builder(() -> Airborn.NONE)
+                            .serialize(Airborn.CODEC, airborn -> airborn.expiresAt() > 0L)
+                            .sync(GooAttachments::syncsToOwner, Airborn.STREAM_CODEC)
                             .build());
 
     private GooAttachments() {
