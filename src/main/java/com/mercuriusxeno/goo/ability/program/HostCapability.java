@@ -130,6 +130,16 @@ public enum HostCapability {
      */
     END_GATE(GateHost.class),
     /**
+     * A struck surface Astral's gate can open over (decision
+     * astral-visits-lunar-and-solar-dimensions).
+     */
+    ASTRAL_GATE(GateHost.class),
+    /**
+     * A landing a meteor can be called down on (decision
+     * meteo-needs-a-clear-sky).
+     */
+    METEOR(MeteorHost.class),
+    /**
      * The world around a lasting host to green tick after tick (decision
      * verdant-prism-greens-blocks-slowly).
      */
