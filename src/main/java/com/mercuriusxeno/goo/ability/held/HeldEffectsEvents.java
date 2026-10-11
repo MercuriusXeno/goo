@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
+import com.mercuriusxeno.goo.ability.typhoon.Airborn;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooMobEffects;
@@ -228,6 +229,7 @@ public final class HeldEffectsEvents {
         for (HeldEffects.Held effect : ended) {
             clearBodyStates(player, effect.lays());
             clearMindStates(player, effect.lays());
+            clearMotionStates(player, effect.lays());
             // brew-runs-the-crawl-prepaid-on-a-shown-clock: the effect list's entry ends with the effect
             player.removeEffect(GooMobEffects.BREW_EFFECTS.get(effect.gooType()));
         }
@@ -254,6 +256,19 @@ public final class HeldEffectsEvents {
         if (lays.contains(LaidState.HASTE)) {
             // haste-stacks-speed-under-the-golden-overlay: the golden overlay ends with the held effect
             Haste.clear(player);
+        }
+    }
+
+    /**
+     * Clears the state an ended effect laid on how the player moves: its air control.
+     *
+     * @param player the player
+     * @param lays   the states the ended effect laid
+     */
+    private static void clearMotionStates(ServerPlayer player, Set<LaidState> lays) {
+        if (lays.contains(LaidState.AIRBORN)) {
+            // airborn-steerable-levitation-and-soft-falls: the air control ends with its held effect
+            player.setData(GooAttachments.AIRBORN, Airborn.NONE);
         }
     }
 
