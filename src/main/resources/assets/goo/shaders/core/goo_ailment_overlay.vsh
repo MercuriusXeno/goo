@@ -32,24 +32,24 @@ const float OVERLAY_INFLATE = 0.02;
 // Must match AilmentPattern's order.
 const int PATTERN_WOBBLE = 5;
 // Weird's wobble (decision weird-bounces-and-softens-harm): the gel stands further off the
-// skin and bulges in and out along it, a wave running up the body.
-const float WOBBLE_INFLATE = 0.08;
+// skin than any other overlay and bulges in and out along it, a wave running up the body.
+const float WOBBLE_EXTRA_INFLATE = 0.06;
 const float WOBBLE_BULGE = 0.07;
 const float WOBBLE_WAVES_PER_BLOCK = 5.0;
 // GameTime is the fraction of a 24000-tick day: 1200 cycles a day is one every 20 ticks.
 const float WOBBLE_CYCLES_PER_DAY = 1200.0;
 const float TAU = 6.2831853;
 
-float standOff(int ailmentPattern) {
+float wobbleOffset(int ailmentPattern) {
     if (ailmentPattern != PATTERN_WOBBLE) {
-        return OVERLAY_INFLATE;
+        return 0.0;
     }
     float wave = sin(GameTime * WOBBLE_CYCLES_PER_DAY * TAU + Position.y * WOBBLE_WAVES_PER_BLOCK);
-    return WOBBLE_INFLATE + WOBBLE_BULGE * wave;
+    return WOBBLE_EXTRA_INFLATE + WOBBLE_BULGE * wave;
 }
 
 void main() {
-    vec3 encased = Position + normalize(Normal) * standOff(UV1.x);
+    vec3 encased = Position + normalize(Normal) * OVERLAY_INFLATE + normalize(Normal) * wobbleOffset(UV1.x);
     gl_Position = ProjMat * ModelViewMat * vec4(encased, 1.0);
 
     sphericalVertexDistance = fog_spherical_distance(encased);
