@@ -17,8 +17,9 @@ import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * The feed Jelly's Feed lays where it lands on the ground: a goo-owned
@@ -50,7 +51,7 @@ public class FeedPile extends Entity {
     private double radius;
     private int fightTicks;
     private long fightUntil;
-    private final List<Mob> fighters = new ArrayList<>();
+    private final Set<Mob> fighters = new HashSet<>();
 
     /**
      * The constructor the entity type builds a loaded or synced feed with.
