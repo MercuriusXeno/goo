@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ber.style;
 
+import com.mercuriusxeno.goo.block.ability.PrismColumn;
 import com.mercuriusxeno.goo.block.crystallizer.CrystalCluster;
 import com.mercuriusxeno.goo.client.PrismCrystal;
 import net.minecraft.world.phys.Vec3;
@@ -17,6 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PrismComboStyleTest {
 
     private static final double EPSILON = 1e-6;
+    /** The voxel shape's half-width across the hexagon's flats, the square column's half-width. */
+    private static final double HALF_FLATS = PrismColumn.RADIUS * Math.cos(Math.PI / 6);
 
     @Test
     void relayAndReflectorRestFourSidedAndMetronomeSix() {
@@ -27,21 +30,29 @@ class PrismComboStyleTest {
 
     @Test
     void theFoldEndsOnASquareColumn() {
-        double radius = PrismCrystal.PRISMS.getFirst().radius();
         for (Vec3 corner : corners(PrismCrystal.foldFaces(1))) {
-            assertTrue(squareReach(corner) <= radius + EPSILON, "a corner off the square at " + corner);
+            assertTrue(squareReach(corner) <= HALF_FLATS + EPSILON, "a corner off the square at " + corner);
+        }
+    }
+
+    @Test
+    void theFoldedColumnStaysInsideTheVoxelShape() {
+        for (Vec3 corner : corners(PrismCrystal.foldFaces(1))) {
+            assertTrue(Math.abs(corner.x - CrystalCluster.BASE_X) <= PrismColumn.RADIUS + EPSILON
+                    && Math.abs(corner.z - CrystalCluster.BASE_Z) <= HALF_FLATS + EPSILON,
+                    "a corner outside the voxel shape at " + corner);
         }
     }
 
     @Test
     void theFoldStartsOnTheSixSidedColumn() {
-        double radius = PrismCrystal.PRISMS.getFirst().radius();
-        assertTrue(corners(PrismCrystal.foldFaces(0)).stream().anyMatch(corner -> squareReach(corner) > radius + EPSILON));
+        assertTrue(corners(PrismCrystal.foldFaces(0)).stream()
+                .anyMatch(corner -> squareReach(corner) > HALF_FLATS + EPSILON));
     }
 
-    /** A corner's reach on the square whose corners stand on the axes: the sum of its offsets across the column. */
+    /** A corner's reach on the square whose sides face the axes: its larger offset across the column. */
     private static double squareReach(Vec3 corner) {
-        return Math.abs(corner.x - CrystalCluster.BASE_X) + Math.abs(corner.z - CrystalCluster.BASE_Z);
+        return Math.max(Math.abs(corner.x - CrystalCluster.BASE_X), Math.abs(corner.z - CrystalCluster.BASE_Z));
     }
 
     private static List<Vec3> corners(List<Vec3[]> faces) {
