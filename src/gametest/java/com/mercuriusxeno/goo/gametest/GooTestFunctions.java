@@ -387,6 +387,8 @@ public final class GooTestFunctions {
     private static final String MACHINE_CANISTER_BREAK_RELEASES_GASKET = "machine_canister_break_releases_gasket";
     private static final String MACHINE_CANISTER_FLUID = "machine_canister_fluid";
     private static final String MACHINE_CANISTER_ROUTING = "machine_canister_routing";
+    private static final String MACHINE_HUB_MIXED_EXTRACT = "machine_hub_mixed_extract";
+    private static final String MACHINE_MIXED_CANISTER_SOURCE = "machine_mixed_canister_source";
     private static final String MACHINE_CANISTER_ROUNDTRIP = "machine_canister_roundtrip";
     private static final String MACHINE_REACTOR_WITHOUT_INPUTS = "machine_reactor_without_inputs";
     private static final String MACHINE_REACTOR_BREAK_RELEASES_GASKET = "machine_reactor_break_releases_gasket";
@@ -965,6 +967,8 @@ public final class GooTestFunctions {
         reg(r, MACHINE_CANISTER_BREAK_RELEASES_GASKET, MachineTests::canisterBreakReleasesSlotGasket);
         reg(r, MACHINE_CANISTER_FLUID, MachineTests::canisterFluidInsertExtract);
         reg(r, MACHINE_CANISTER_ROUTING, MachineTests::canisterFluidRouting);
+        reg(r, MACHINE_HUB_MIXED_EXTRACT, MachineTests::hubExtractsOneTypeFromAMixedCanister);
+        reg(r, MACHINE_MIXED_CANISTER_SOURCE, MachineTests::mixedCanisterIsAGooSourceForEachType);
         reg(r, MACHINE_CANISTER_ROUNDTRIP, MachineTests::canisterSurvivesRoundTrip);
         reg(r, MACHINE_REACTOR_WITHOUT_INPUTS, MachineTests::reactorWithoutInputsMakesNothing);
         reg(r, MACHINE_REACTOR_BREAK_RELEASES_GASKET, MachineTests::reactorBreakReleasesOutputGasket);

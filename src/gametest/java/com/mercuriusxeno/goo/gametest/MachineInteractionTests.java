@@ -179,7 +179,7 @@ public final class MachineInteractionTests {
 
         helper.useBlock(BE_POS, player, tapHit(helper, TAP_SLOT_REGION_HIT_PX, Direction.NORTH));
 
-        helper.assertTrue(tap.getFluidContent().amount() == TAP_GOO_COUNT * GooStacks.THOUSAND,
+        helper.assertTrue(tap.getFluidContent().totalVolume() == TAP_GOO_COUNT * GooStacks.THOUSAND,
                 TAP_CANISTER_FILLED);
         helper.assertTrue(player.getMainHandItem().isEmpty(), TAP_GOO_USED_UP);
         helper.succeed();
@@ -320,7 +320,7 @@ public final class MachineInteractionTests {
         HubBlockEntity hub = helper.getBlockEntity(BE_POS, HubBlockEntity.class);
         int full = ContainerCapacity.canisterCapacity(0);
         ItemStack fullCanister = new ItemStack(GooItems.CANISTER.get());
-        CanisterItem.setFluidContent(fullCanister, new CanisterFluidContent(GooFluids.resource(GooTypes.ROCK), full));
+        CanisterItem.setFluidContent(fullCanister, CanisterFluidContent.of(GooFluids.resource(GooTypes.ROCK), full));
         int beside = (HUB_SLOT_NORTH + 1) % HubBlock.SLOT_CENTERS.length;
         helper.assertTrue(hub.insertCanister(HUB_SLOT_NORTH, fullCanister), HUB_SHOULD_INSERT);
         helper.assertTrue(hub.insertCanister(beside, new ItemStack(GooItems.CANISTER.get())), HUB_SHOULD_INSERT);

@@ -72,7 +72,7 @@ public final class LabBayTests {
         helper.assertTrue(helper.getLevel().getBlockState(tapPos).is(GooBlocks.TAP.get()), NO_TAP);
         TapBlockEntity tap = (TapBlockEntity) helper.getLevel().getBlockEntity(tapPos);
         helper.assertTrue(tap != null && !tap.getCanister().isEmpty()
-                && tap.getFluidContent().amount() == LabRigs.CANISTER_FILL, TAP_EMPTY);
+                && tap.getFluidContent().totalVolume() == LabRigs.CANISTER_FILL, TAP_EMPTY);
         helper.assertTrue(helper.getLevel().getBlockState(tapPos.below()).isAir(), NO_GAP);
         BlockPos catchPos = tapPos.below(LabBays.TAP_AIR_GAP + 1);
         helper.assertFalse(helper.getLevel().getBlockState(catchPos).getCollisionShape(
@@ -93,7 +93,7 @@ public final class LabBayTests {
                 LabBuilder.worldPos(origin, plot.machineOffset()));
         int filled = 0;
         for (int slot = 0; hub != null && slot < HubBlockEntity.MAX_CANISTERS; slot++) {
-            filled += hub.getSlotFluidContent(slot).amount() == LabRigs.CANISTER_FILL ? 1 : 0;
+            filled += hub.getSlotFluidContent(slot).totalVolume() == LabRigs.CANISTER_FILL ? 1 : 0;
         }
         helper.assertTrue(filled == HUB_FILLED_SLOTS, HUB_SLOTS);
         helper.succeed();
