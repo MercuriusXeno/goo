@@ -15,7 +15,6 @@ import com.mercuriusxeno.goo.ability.program.PotionStep;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.SoundStep;
-import com.mercuriusxeno.goo.ability.program.SpawnRandomStep;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
 import com.mercuriusxeno.goo.ability.program.TomeKind;
 import com.mercuriusxeno.goo.ability.program.TomeStep;
@@ -94,7 +93,6 @@ class AbilityLoaderTest {
             Map.entry("hex_charm", List.of("honey_bottle", "cake", "cookie")),
             Map.entry("hex_enchant", List.of("book", "lapis_lazuli")),
             Map.entry("hex_fuse", List.of("bookshelf", "lapis_lazuli")),
-            Map.entry("hex_spawn", List.of("sculk")),
             Map.entry("hex_lifetap", List.of("soul_sand")),
             Map.entry("hex_drain", List.of("soul_sand")),
             Map.entry("unstable_explode", List.of("gunpowder")),
@@ -102,8 +100,9 @@ class AbilityLoaderTest {
             Map.entry("glow_sunbeam", List.of("spectral_arrow")),
             Map.entry("glow_crystal", List.of("glowstone")),
             Map.entry("crystal_cloud", List.of("glass", "sand")),
-            Map.entry("crystal_flechettes", List.of("amethyst_shard")),
+            Map.entry("crystal_shards", List.of("amethyst_shard")),
             Map.entry("crystal_prism", List.of("quartz")),
+            Map.entry("crystal_scales", List.of("diamond", "turtle_scute")),
             Map.entry("blaze_spitfire", List.of("torchflower")),
             Map.entry("frost_nova", List.of("packed_ice")),
             Map.entry("frost_cold", List.of("snowball")),
@@ -123,7 +122,7 @@ class AbilityLoaderTest {
             Map.entry("typhoon_repel", List.of("wind_charge")),
             Map.entry("typhoon_updraft", List.of("breeze_rod")),
             Map.entry("rock_bore", List.of("stone", "cobblestone")),
-            Map.entry("rock_crush", List.of("gravel", "sand")),
+            Map.entry("rock_spire", List.of("gravel", "sand")),
             Map.entry("rock_flatten", List.of("dirt")),
             Map.entry("glow_scry", List.of("spyglass")),
             Map.entry("glow_lux", List.of("carrot")),
@@ -259,17 +258,17 @@ class AbilityLoaderTest {
     }
 
     /**
-     * Crystal's Prism names the nether quartz it consumes beside its goo
-     * cost, and an ability naming no reagent consumes nothing
-     * (decision ability-json-names-its-reagent).
+     * Crystal's Prism and Glitter take no item cost (operator ruling
+     * 2026-10-10), and an ability naming no reagent consumes nothing
+     * (decisions ability-json-names-its-reagent, glitter-sphere-icons-gem-ore-groups).
      */
     @Test
-    void prismConsumesANetherQuartzAndAnUnnamedReagentIsNone() {
+    void prismAndGlitterConsumeNothing() {
         Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
 
-        assertEquals(List.of(Identifier.withDefaultNamespace("quartz")),
-                scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_prism")).consumes());
-        assertEquals(List.of(), scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_cloud")).consumes());
+        for (String path : List.of("crystal_prism", "crystal_glitter", "crystal_cloud")) {
+            assertEquals(List.of(), scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, path)).consumes(), path);
+        }
     }
 
     /**
@@ -335,17 +334,6 @@ class AbilityLoaderTest {
         assertEquals(List.of(GooTypes.HEX), afterimageTypes(enchant.behaviors()));
     }
 
-    /**
-     * Hex's tap conjures on one drip in twenty, its chance in its JSON
-     * (decision spawn-drip-rolls-a-fresh-spawn).
-     */
-    @Test
-    void hexSpawnTapRollsFivePercent() {
-        SpawnRandomStep spawn = AbilityJson.decode("hex_spawn_tap").behaviors().stream()
-                .filter(SpawnRandomStep.class::isInstance).map(SpawnRandomStep.class::cast).findFirst().orElseThrow();
-
-        assertEquals(TAP_SPAWN_CHANCE, spawn.chance().evaluate(Variables.NONE));
-    }
 
     /**
      * Enchant and Fuse each play their tome once their own step has acted

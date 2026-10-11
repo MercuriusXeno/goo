@@ -37,7 +37,7 @@ public final class FeedTests {
     private static final String SHOULD_GROW = "A fed calf should grow to an adult, age %d";
     private static final String SHOULD_LAY = "A feed blob landing on the ground should lay a feed";
     private static final String SHOULD_START_OUT_OF_REACH = "The cow should start out of the feed's reach, %.2f off";
-    private static final String SHOULD_DRAW = "The feed should draw the cow to eat it: cow %.2f off, in love %b, feeds left %d";
+    private static final String SHOULD_DRAW = "The feed should draw the cow to eat it: cow %.2f off, in love %b, feeds left %d, heading to %s, panicking %b";
     private static final String SHOULD_FIGHT = "Two zombies at one feed should target each other: %s and %s";
 
     private FeedTests() {
@@ -110,7 +110,8 @@ public final class FeedTests {
             int left = helper.getLevel().getEntities(GooEntities.FEED_PILE.get(),
                     new AABB(helper.absolutePos(NEAR_CORNER)).inflate(FAR_REACH), FeedPile::isAlive).size();
             double off = cow.position().distanceTo(helper.absoluteVec(NEAR_CORNER.above().getBottomCenter()));
-            helper.assertTrue(left == 0 && cow.isInLove(), String.format(SHOULD_DRAW, off, cow.isInLove(), left));
+            helper.assertTrue(left == 0 && cow.isInLove(), String.format(SHOULD_DRAW, off, cow.isInLove(), left,
+                    cow.getNavigation().getTargetPos(), cow.isPanicking()));
         });
     }
 

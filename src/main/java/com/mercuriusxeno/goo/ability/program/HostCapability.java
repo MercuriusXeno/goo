@@ -85,6 +85,11 @@ public enum HostCapability {
      */
     DRIP(DripHost.class),
     /**
+     * A tap's spigot a glass shard falls from, onto the first mob under it
+     * (decision shards-drip-falls-as-a-glass-shard).
+     */
+    SHARD_FALL(ShardFallHost.class),
+    /**
      * The host's own block, whose properties can change in place (decision
      * bulb-one-model-max-light-beacon-combo).
      */
@@ -145,10 +150,6 @@ public enum HostCapability {
      */
     EXTEND_EFFECTS(EffectExtendHost.class),
     /**
-     * A cell a conjured mob stands in, and the point the goo morphs into it
-     * from (decision spawn-goo-morphs-into-the-mob-it-births).
-     */
-    SPAWN_MOB(MobSpawnHost.class),
     /**
      * The level and the point frost spreads out of (decisions
      * nova-ring-grows-with-the-hold, nova-drip-pulses-a-short-lasting-freeze).
@@ -168,7 +169,12 @@ public enum HostCapability {
      * A sphere around the anchor to slow time in, the chronosphere's marker
      * (decision chronosphere-hastes-players-slows-mobs).
      */
-    TIME_VEIL(TimeVeilHost.class);
+    TIME_VEIL(TimeVeilHost.class),
+    /**
+     * The ground a Spire lifts, the footprint and rise its submit planned
+     * (decision spire-rips-walls-and-platforms).
+     */
+    RAISE_GROUND(RaiseGroundHost.class);
 
     private final Class<? extends StepHost> hostType;
 

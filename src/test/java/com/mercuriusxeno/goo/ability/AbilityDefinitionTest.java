@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.ExplosionMode;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.Step;
-import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -50,12 +49,12 @@ class AbilityDefinitionTest {
     }
 
     @Test
-    void spawnConsumesNoItemAndStaysGatedBehindSculk() {
+    void spawnConsumesNoItemAndNeedsNoRecipe() {
         // ability-json-names-its-reagent
-        // spawn-goo-morphs-into-the-mob-it-births
-        AbilityDefinition spawn = AbilityJson.decode("hex_spawn");
+        // spawn-hostile-shape-peaceful-from-a-slime
+        AbilityDefinition spawn = AbilityJson.decode("zoo_spawn");
         assertEquals(List.of(), spawn.consumes());
-        assertEquals(List.of(Identifier.withDefaultNamespace("sculk")), spawn.requires());
+        assertEquals(List.of(), spawn.requires());
     }
 
     /** An instant area throw writing no area draws the sphere its program reaches. */
@@ -74,7 +73,7 @@ class AbilityDefinitionTest {
         }
 
         @ParameterizedTest
-        @CsvSource({"crystal_cloud, 4.5", "metal_spikes, 3.75", "rock_crush, 2.0",
+        @CsvSource({"crystal_cloud, 4.5", "metal_spikes, 3.75",
                 "shroom_colonize, 3.0"})
         void fieldThrowDrawsASphereAtItsWidestRadius(String name, double radius) {
             assertEquals(new AbilityArea(AbilityArea.Shape.SPHERE, radius, 0), AbilityJson.decode(name).area());
@@ -108,7 +107,7 @@ class AbilityDefinitionTest {
         }
 
         @ParameterizedTest
-        @CsvSource({"crystal_flechettes, NONE, 0.0, 0.0", "ender_blink, NONE, 0.0, 0.0",
+        @CsvSource({"crystal_shards, NONE, 0.0, 0.0", "ender_blink, NONE, 0.0, 0.0",
                 "blaze_kindle, NONE, 0.0, 0.0", "blaze_spitfire, CONE, 6.0, 20.0"})
         void mobSelfBrewAndChanneledKeepTheirArea(String name, AbilityArea.Shape shape, double size, double angle) {
             assertEquals(new AbilityArea(shape, size, angle), AbilityJson.decode(name).area());

@@ -23,6 +23,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.Slime;
+import net.minecraft.world.entity.animal.cow.Cow;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.util.ProblemReporter;
@@ -106,9 +107,8 @@ public final class MobEffectTests {
     private static final String MOB_HAS_MAX_HEALTH = "The mob carries a max health attribute";
     private static final String ABILITY_UNSTABLE_EXPLODE = "goo:unstable_explode";
     private static final String ABILITY_HEX_CHARM = "goo:hex_charm";
-    private static final String ABILITY_VITAL_CLONE = "goo:vital_clone";
+    private static final String ABILITY_ZOO_ALLURE = "goo:zoo_allure";
     private static final String ABILITY_BLAZE_IGNITE = "goo:blaze_ignite";
-    private static final String ABILITY_CRYSTAL_FLECHETTES = "goo:crystal_flechettes";
     private static final String ABILITY_ENDER_ZONE = "goo:ender_zone";
     /** Above ender_zone.json's radius of six, so the player sets nothing off until the test walks it in. */
     private static final double PLAYER_OUT_OF_REACH_ABOVE = 20.0;
@@ -118,17 +118,9 @@ public final class MobEffectTests {
     private static final String SHOULD_WARP = "The cursed zombie should warp away from the player standing on it";
     private static final String SHOULD_BE_EXILED = "A second Zone should exile the cursed zombie";
     private static final String SHOULD_RESIST = "A mob over the max health cap should resist the curse";
-    private static final String CHICKEN_HAS_MAX_HEALTH = "A chicken carries a max health attribute";
-    private static final String SHOULD_HAVE_A_CLONE = "A second chicken should stand beside the target";
-    /** A max health of one makes vital_clone.json's chance 100 / pow(1, 0.6), every roll. */
-    private static final double CERTAIN_CLONE_MAX_HEALTH = 1.0;
-    /** Wide enough that a gaussian step from the target cannot leave it. */
-    private static final double CLONE_SEARCH_RADIUS = 8.0;
-    private static final int CHICKENS_AFTER_CLONE = 2;
+    private static final String SHOULD_BE_IN_LOVE = "A cow struck by Allure should be in love";
     /** Beside the cow, inside unstable_explode.json's blast of power 3. */
     private static final BlockPos BLAST_DIRT_POS = SPAWN_POS.south();
-    /** The damage crystal_flechettes.json's first damage step names. */
-    private static final float FLECHETTE_DAMAGE = 4.0f;
     private static final String LIVING_SHOULD_NOT_BURN = "A cow is not undead and should not burn";
     private static final String UNDEAD_SHOULD_BURN = "A zombie is undead and should burn";
     private static final String SHOULD_BE_HALF_FROZEN = "One snap should fill half a zombie's frozen gauge, stands %s";
@@ -198,43 +190,17 @@ public final class MobEffectTests {
     }
 
     /**
-     * Crystal flechettes deals four magic damage to the struck mob; the
-     * splash selection it asks of the host is graded in MobProgramTest.
+     * Allure courts the struck animal: a grown cow hit by the blob is in love
+     * (decision allure-courts-the-struck-animal).
      *
      * @param helper the gametest helper
      */
-    public static void crystalFlechettes(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        float before = mob.getHealth();
+    public static void allureCourtsTheStruckAnimal(GameTestHelper helper) {
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_CRYSTAL_FLECHETTES);
-            helper.assertTrue(mob.getHealth() <= before - FLECHETTE_DAMAGE, SHOULD_TAKE_DAMAGE);
+            strike(helper, cow, ABILITY_ZOO_ALLURE);
+            helper.assertTrue(cow.isInLove(), SHOULD_BE_IN_LOVE);
             helper.succeed();
-        });
-    }
-
-    /**
-     * Vital clone is a program: a mob target selection wrapping a
-     * clone_entity step whose chance is 100 / pow(max_health, 0.6), so a
-     * chicken whose max health is one is cloned on every roll and a second
-     * chicken stands beside it.
-     *
-     * @param helper the gametest helper
-     */
-    public static void vitalClone(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.CHICKEN, SPAWN_POS);
-        AttributeInstance maxHealth = mob.getAttribute(Attributes.MAX_HEALTH);
-        helper.assertTrue(maxHealth != null, CHICKEN_HAS_MAX_HEALTH);
-        maxHealth.setBaseValue(CERTAIN_CLONE_MAX_HEALTH);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_VITAL_CLONE);
-            helper.runAfterDelay(SETTLE_TICKS, () -> {
-                long chickens = helper.getLevel()
-                        .getEntitiesOfClass(Mob.class, mob.getBoundingBox().inflate(CLONE_SEARCH_RADIUS))
-                        .stream().filter(found -> found.getType() == EntityType.CHICKEN).count();
-                helper.assertTrue(chickens == CHICKENS_AFTER_CLONE, SHOULD_HAVE_A_CLONE);
-                helper.succeed();
-            });
         });
     }
 

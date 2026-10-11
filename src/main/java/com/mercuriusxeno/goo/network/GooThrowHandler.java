@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.AbilityTags;
+import com.mercuriusxeno.goo.ability.ArmPoseKind;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.entity.RollingGoo;
@@ -92,7 +93,9 @@ public final class GooThrowHandler {
     }
 
     /**
-     * Fires a charged ability the player let go, when it may.
+     * Fires a charged ability the player let go, when it may: a self ability
+     * on the player, a thrown one as a rain of glass knives.
+     * decision shards-sling-then-morph-to-flechettes
      *
      * @param player  the releasing player
      * @param payload the charge payload
@@ -104,8 +107,45 @@ public final class GooThrowHandler {
         }
         AbilityDefinition ability = usableAbility(player, payload.abilityId(), gooType);
         if (ability != null && holdsReagents(player, ability)) {
-            GooSelfHandler.release(player, gooType, ability, payload.heldTicks());
+            fireCharge(player, gooType, ability, payload.heldTicks());
         }
+    }
+
+    /**
+     * Fires a released charge by its delivery: on the player for a self
+     * ability, as a rain of glass knives for a thrown one that slings.
+     *
+     * @param player    the releasing player
+     * @param gooType   the ability's goo type
+     * @param ability   the charged ability
+     * @param heldTicks the ticks the use key was held
+     */
+    private static void fireCharge(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
+                                   AbilityDefinition ability, int heldTicks) {
+        if (ability.delivery().kind() == DeliveryKind.SELF) {
+            GooSelfHandler.release(player, gooType, ability, heldTicks);
+        } else if (ability.delivery().charge().slings()) {
+            KnifeRainSling.sling(player, gooType, ability, heldTicks);
+        }
+    }
+
+    /**
+     * Handles a player beginning or ending a slinging charge's hold: the
+     * players watching draw the glove arm wound up to the opposite shoulder
+     * while it is held, and let it fall when it ends.
+     * decision shards-sling-then-morph-to-flechettes
+     *
+     * @param payload the hold payload
+     * @param context the network context
+     */
+    public static void handleChargeHold(ChargeHoldPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (context.player() instanceof ServerPlayer player && validateGlove(player)) {
+                EntityVisuals.sendToTrackers(player, new ArmPosePayload(player.getId(),
+                        payload.holding() ? ArmPoseKind.WIND_UP : ArmPoseKind.NONE,
+                        KnifeRainSling.gloveOnTheRight(player)));
+            }
+        });
     }
 
     /**
@@ -143,7 +183,8 @@ public final class GooThrowHandler {
 
     /**
      * Whether an ability may be thrown: never one sized at will, which opens
-     * by its drag (decision black-hole-leaves-a-compression-sphere), and only
+     * by its drag (decision black-hole-leaves-a-compression-sphere), nor one
+     * cast by its footprint (decision spire-rips-walls-and-platforms), and only
      * with every reagent it consumes held.
      *
      * @param player  the throwing player
@@ -151,7 +192,8 @@ public final class GooThrowHandler {
      * @return true when the throw goes ahead
      */
     private static boolean throwable(ServerPlayer player, AbilityDefinition ability) {
-        return !ability.hasTag(AbilityTags.DRAG_SIZED) && holdsReagents(player, ability);
+        return !ability.hasTag(AbilityTags.DRAG_SIZED) && !ability.hasTag(AbilityTags.FOOTPRINT)
+                && holdsReagents(player, ability);
     }
 
     /**
