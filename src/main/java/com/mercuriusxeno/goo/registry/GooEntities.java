@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
+import com.mercuriusxeno.goo.entity.FeedPile;
 import com.mercuriusxeno.goo.entity.RollingGoo;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -12,9 +13,10 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 
 /**
  * Entity type registry. World effects stand as blocks; an entity is
- * registered here only where a thing moves on its own: a goo rolling through
+ * registered here only where a thing moves or acts on its own: a goo rolling through
  * the air (decision orb-carries-a-swirling-nova), and the orb a black hole
- * leaves (decision black-hole-leaves-a-compression-sphere).
+ * leaves (decision black-hole-leaves-a-compression-sphere), and the feed
+ * Jelly's Feed lays (decision feed-blob-feeds-and-draws-mobs).
  */
 public final class GooEntities {
 
@@ -48,6 +50,19 @@ public final class GooEntities {
     public static final DeferredHolder<EntityType<?>, EntityType<CompressionSphere>> COMPRESSION_SPHERE =
         ENTITIES.register("compression_sphere", id -> EntityType.Builder
             .<CompressionSphere>of(CompressionSphere::new, MobCategory.MISC)
+            .sized(SPHERE_SIZE, SPHERE_SIZE)
+            .clientTrackingRange(SPHERE_TRACKING_CHUNKS)
+            .updateInterval(SPHERE_UPDATE_TICKS)
+            .noLootTable()
+            .build(ResourceKey.create(Registries.ENTITY_TYPE, id)));
+
+    /**
+     * The feed Jelly's Feed lays on the ground, drawing the mobs about it
+     * (decision feed-blob-feeds-and-draws-mobs).
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<FeedPile>> FEED_PILE =
+        ENTITIES.register("feed_pile", id -> EntityType.Builder
+            .<FeedPile>of(FeedPile::new, MobCategory.MISC)
             .sized(SPHERE_SIZE, SPHERE_SIZE)
             .clientTrackingRange(SPHERE_TRACKING_CHUNKS)
             .updateInterval(SPHERE_UPDATE_TICKS)

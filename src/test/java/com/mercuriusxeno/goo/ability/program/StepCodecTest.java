@@ -154,6 +154,7 @@ class StepCodecTest {
             Map.entry("gluttony", new GluttonyStep(Expr.literal(80), Expr.literal(20), Expr.literal(20))),
             Map.entry("reserve_drain", new ReserveDrainStep(Expr.literal(0.05), Expr.literal(0.5), Expr.literal(10),
                     Expr.literal(0.5))),
+            Map.entry("feed", new FeedStep(Expr.literal(12), Expr.literal(100))),
             Map.entry("banish", new BanishStep(Expr.literal(6), Expr.literal(32))),
             Map.entry("teleportitis", new TeleportitisStep(Expr.literal(8))),
             Map.entry("convoke", new ConvokeStep(Expr.literal(20))),

@@ -114,6 +114,7 @@ public final class StepTypes {
         register(PulserToggleStep.TYPE);
         register(GluttonyStep.TYPE);
         register(ReserveDrainStep.TYPE);
+        register(FeedStep.TYPE);
         register(BanishStep.TYPE);
         register(TeleportitisStep.TYPE);
         register(ConvokeStep.TYPE);

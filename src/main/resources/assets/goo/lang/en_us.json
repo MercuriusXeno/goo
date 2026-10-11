@@ -171,6 +171,8 @@
   "goo.ability.jelly.heal": "Vitality",
   "goo.ability.jelly.gluttony": "Gluttony",
   "goo.ability.jelly.reserve": "Reserve",
+  "goo.ability.jelly.feed": "Feed",
+  "entity.goo.feed_pile": "Feed",
   "goo.ability.leaf.barkskin": "Barkskin",
   "goo.ability.leaf.vines": "Vines",
   "goo.ability.leaf.bloom": "Bloom",
