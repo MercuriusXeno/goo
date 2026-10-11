@@ -96,6 +96,7 @@ public final class GooNetworking {
         r.playToServer(GooThrowPayload.TYPE, GooThrowPayload.STREAM_CODEC, GooThrowHandler::handle);
         r.playToServer(GrabThrowPayload.TYPE, GrabThrowPayload.STREAM_CODEC, GrabThrowPayload::handle);
         r.playToServer(GooDragCastPayload.TYPE, GooDragCastPayload.STREAM_CODEC, GooDragCastHandler::handle);
+        r.playToServer(GooSpirePayload.TYPE, GooSpirePayload.STREAM_CODEC, GooSpireHandler::handle);
         r.playToServer(GooChargePayload.TYPE, GooChargePayload.STREAM_CODEC, GooThrowHandler::handleCharge);
         r.playToServer(GloveSelectPayload.TYPE, GloveSelectPayload.STREAM_CODEC, GloveSelectHandler::handle);
     }

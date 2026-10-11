@@ -168,7 +168,12 @@ public enum HostCapability {
      * A sphere around the anchor to slow time in, the chronosphere's marker
      * (decision chronosphere-hastes-players-slows-mobs).
      */
-    TIME_VEIL(TimeVeilHost.class);
+    TIME_VEIL(TimeVeilHost.class),
+    /**
+     * The ground a Spire lifts, the footprint and rise its submit planned
+     * (decision spire-rips-walls-and-platforms).
+     */
+    RAISE_GROUND(RaiseGroundHost.class);
 
     private final Class<? extends StepHost> hostType;
 
