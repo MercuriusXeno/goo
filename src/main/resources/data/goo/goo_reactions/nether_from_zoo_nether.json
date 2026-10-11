@@ -1,0 +1,10 @@
+{
+  "inputs": [
+    {"goo": "goo:zoo", "amount": 1},
+    {"goo": "goo:nether", "amount": 1}
+  ],
+  "outputs": [
+    {"goo": "goo:nether", "amount": 2}
+  ],
+  "rate": 1
+}
