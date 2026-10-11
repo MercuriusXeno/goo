@@ -117,6 +117,14 @@ class HeartOverlayHudTest {
         assertEquals("goo:hud/heart/stone_full", HeartOverlayHud.crawlSprite(HeartKind.STONESKIN).toString());
     }
 
+    // scales-crystal-hearts-diamond-blue-overlay: crystal hearts lie over present hearts only
+    @Test
+    void scalesLaysCrystalOverPresentHalvesAndCrawlsCrystal() {
+        assertEquals(List.of("goo:hud/heart/crystal_full"), sprites(HeartKind.SCALES, 2, 2));
+        assertEquals(List.of("goo:hud/heart/crystal_half"), sprites(HeartKind.SCALES, 2, 1));
+        assertEquals("goo:hud/heart/crystal_full", HeartOverlayHud.crawlSprite(HeartKind.SCALES).toString());
+    }
+
     private static List<String> sprites(HeartKind kind, int shieldHalves, int realHalves) {
         return HeartOverlayHud.heartSprites(kind, shieldHalves, realHalves).stream().map(Object::toString).toList();
     }

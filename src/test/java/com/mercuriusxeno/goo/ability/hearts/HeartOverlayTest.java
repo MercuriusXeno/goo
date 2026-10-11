@@ -10,6 +10,12 @@ import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageType;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /** The overlay's rules in half hearts: laying shields, draining and burning hits, quenching, regrowing and expiring, for Kindle and Barkskin (decisions overlay-hearts-are-an-elemental-overshield, aggravated-damage-is-a-per-heart-rule, kindle-ember-hearts-ash-and-retaliate, barkskin-bark-hearts-thorn-and-burn). */
 class HeartOverlayTest {
@@ -268,6 +274,54 @@ class HeartOverlayTest {
         void strippedShieldRestartsTheRegrowClock() {
             HeartOverlay drained = kindled(FULL_HEALTH).drain(1f, NOW + 5).overlay();
             assertEquals(NOW + 5 + HeartKind.KINDLE.regrowInterval(19), drained.regrowAt());
+        }
+    }
+
+    /**
+     * Crystal Scales: hearts of crystal over present hearts that take every
+     * hit, fire, blast and armor-piercing alike, at a heart's worth before
+     * real health, with no weakness (decision scales-crystal-hearts-diamond-blue-overlay).
+     */
+    @Nested
+    class Scales {
+
+        private HeartOverlay crystal() {
+            return HeartOverlay.NONE.hold(HeartKind.SCALES, FULL_HEALTH, FULL_HEALTH, HeartOverlay.WHOLE_HIT, NOW);
+        }
+
+        private DamageSource source(TagKey<DamageType> tag) {
+            DamageSource source = mock(DamageSource.class);
+            if (tag != null) {
+                when(source.is(tag)).thenReturn(true);
+            }
+            return source;
+        }
+
+        @Test
+        void crystalLaysOverPresentHearts() {
+            assertTrue(crystal().stands());
+            assertFalse(HeartKind.SCALES.fillsMissing());
+        }
+
+        @Test
+        void everyHitTakesCrystalAtAHeartsWorthBeforeHealth() {
+            HeartOverlay laid = crystal();
+            List<TagKey<DamageType>> kinds = new ArrayList<>(List.of(DamageTypeTags.IS_FIRE,
+                    DamageTypeTags.IS_EXPLOSION, DamageTypeTags.BYPASSES_ARMOR));
+            kinds.add(null);
+            for (TagKey<DamageType> kind : kinds) {
+                HeartOverlay.Drained drained = HeartOverlayEvents.strikeAt(laid, source(kind), 1f, FULL_HEALTH, NOW);
+                assertEquals(0f, drained.remainder(), DELTA);
+                assertEquals(laid.shieldHalves() - 1, drained.overlay().shieldHalves());
+            }
+        }
+
+        @Test
+        void aHitPastTheCrystalLandsOnHealthUnscaled() {
+            HeartOverlay laid = crystal();
+            float past = laid.shieldHalves() + 3f;
+            HeartOverlay.Drained drained = HeartOverlayEvents.strikeAt(laid, source(null), past, FULL_HEALTH, NOW);
+            assertEquals(3f, drained.remainder(), DELTA);
         }
     }
 

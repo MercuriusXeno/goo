@@ -1,0 +1,18 @@
+{
+  "gooType": "zoo",
+  "displayName": "goo.ability.zoo.allure",
+  "badge": "mob",
+  "order": 0,
+  "cost": 500,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    {
+      "type": "target",
+      "where": ["mob"],
+      "steps": [
+        { "type": "court", "chance": 100 }
+      ]
+    }
+  ],
+  "tags": ["entity"]
+}

@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
 import com.mercuriusxeno.goo.block.tap.TapDripCounts;
 import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
+import com.mercuriusxeno.goo.network.FleckLaunches;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
 import com.mercuriusxeno.goo.network.StreamHolds;
 import net.minecraft.server.MinecraftServer;
@@ -20,6 +21,7 @@ import org.jspecify.annotations.Nullable;
 public final class GooServerState {
 
     private final GooEffectScheduler gooEffects = new GooEffectScheduler();
+    private final FleckLaunches fleckLaunches = new FleckLaunches();
     private final TapDripScheduler tapDrips = new TapDripScheduler();
     private final TapDripCounts tapDripCounts = new TapDripCounts();
     private final BlockExposures blockExposures = new BlockExposures();
@@ -53,6 +55,13 @@ public final class GooServerState {
      */
     public GooEffectScheduler gooEffects() {
         return gooEffects;
+    }
+
+    /**
+     * @return the slung flecks yet to leave the hand
+     */
+    public FleckLaunches fleckLaunches() {
+        return fleckLaunches;
     }
 
     /**
@@ -112,6 +121,9 @@ public final class GooServerState {
      */
     public void drainArrived(MinecraftServer server) {
         int currentTick = server.getTickCount();
+        if (fleckLaunches.hasPending()) {
+            fleckLaunches.drainArrived(currentTick);
+        }
         if (gooEffects.hasPending()) {
             gooEffects.drainArrivedEffects(currentTick);
         }
@@ -127,6 +139,7 @@ public final class GooServerState {
      */
     public void clear() {
         gooEffects.clear();
+        fleckLaunches.clear();
         tapDrips.clear();
         tapDripCounts.clear();
         blockExposures.clear();

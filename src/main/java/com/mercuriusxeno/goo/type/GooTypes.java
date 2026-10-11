@@ -83,6 +83,7 @@ public final class GooTypes {
      * decision xeno-ships-as-a-type-with-no-source-yet
      */
     public static final ResourceKey<GooTypeDefinition> XENO = bundled("xeno");
+    public static final ResourceKey<GooTypeDefinition> ZOO = bundled("zoo");
 
     /**
      * Whether a holder keeps goo of the type forever: infinity is never
@@ -101,7 +102,7 @@ public final class GooTypes {
      */
     public static final List<ResourceKey<GooTypeDefinition>> BUNDLED = List.of(
             AEON, BLAZE, CRYSTAL, DEEP, ENDER, FROST, GLOW, HEX, INFINITY, LEAF,
-            METAL, NETHER, OPULENT, PULSE, ROCK, SHROOM, TYPHOON, UNSTABLE, VITAL, XENO);
+            METAL, NETHER, OPULENT, PULSE, ROCK, SHROOM, TYPHOON, UNSTABLE, VITAL, XENO, ZOO);
 
     /**
      * A type key as its short id: the bare path for a bundled type, the
