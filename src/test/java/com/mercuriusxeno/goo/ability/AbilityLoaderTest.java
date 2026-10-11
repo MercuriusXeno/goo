@@ -111,6 +111,7 @@ class AbilityLoaderTest {
             Map.entry("blaze_kindle", List.of("magma_cream")),
             Map.entry("leaf_barkskin", List.of("oak_log")),
             Map.entry("aeon_rewind", List.of("clock")),
+            Map.entry("yore_rewind", List.of("clock")),
             Map.entry("aeon_stasis", List.of("netherite_scrap")),
             Map.entry("aeon_haste", List.of("sugar")),
             Map.entry("leaf_vines", List.of("vine")),
