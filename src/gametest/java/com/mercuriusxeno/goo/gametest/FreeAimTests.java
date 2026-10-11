@@ -23,7 +23,8 @@ import net.minecraft.world.phys.Vec3;
  */
 public final class FreeAimTests {
 
-    private static final Identifier BLAST = Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_explode");
+    /** The gametests' own thrown blast, today's Blast before it was drag-sized, for the free aim path. */
+    private static final Identifier BLAST = Identifier.fromNamespaceAndPath(Goo.MODID, "test_blast");
     private static final int NO_TARGET_ENTITY = -1;
     /** The open-air point Blast is aimed at, a cell's center in the bay. */
     private static final Vec3 AIR_POINT = new Vec3(1.5, 3.5, 1.5);
@@ -36,7 +37,7 @@ public final class FreeAimTests {
     /** Ticks past the arc from the player to the point. */
     private static final int ARRIVAL_TICKS = 10;
 
-    private static final String ABILITY_REQUIRED = "Ability registry must hold unstable_explode";
+    private static final String ABILITY_REQUIRED = "Ability registry must hold test_blast";
     private static final String NOT_AT_POINT = "Blast left the stone beside the aimed point standing";
     private static final String NOT_CENTERED = "Blast broke stone beyond its reach of the aimed point";
     private static final String SKY_REFUSED = "A throw aimed past the range was refused, spending %d of %d mB";

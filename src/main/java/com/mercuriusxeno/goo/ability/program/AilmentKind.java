@@ -28,6 +28,10 @@ public enum AilmentKind {
     GLOW(0xFFE628, AilmentPattern.GLINT, 0.4f),
     /** Weird's wobble: a magenta gel shell that jiggles and stretches (decision weird-bounces-and-softens-harm). */
     WOBBLE(0xFF33CC, AilmentPattern.WOBBLE, 0.6f),
+    /** Grab's hold: a faint kinetic orange shimmer, and the flail its pose stamp reads (decision grab-holds-and-throws-a-physics-body). */
+    GRABBED(0xFF7A1A, AilmentPattern.SHIMMER, 0.35f),
+    /** Telekinesis: the kinetic shimmer, fainter, on the player and the arm (decision telekinesis-enacts-at-extended-reach). */
+    TELEKINESIS(0xFF7A1A, AilmentPattern.SHIMMER, 0.2f),
     /** Xeno's mutation: sickly green veins writhing over the mob while it stays mutated (decision xeno-blob-mutates-the-struck). */
     MUTATED(0xA8CC48, AilmentPattern.WRITHE, 0.6f),
     /** Zoo's rally: a tawny glisten over the armed mob (decision zoo-rally-arms-the-peaceful). */

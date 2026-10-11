@@ -52,7 +52,7 @@ public record TargetStep(List<EntityFilter> where, List<Step> steps) implements 
     public boolean tick(StepContext context) {
         LivingEntity target = context.hostAs(TargetHost.class).target();
         if (EntityScan.passes(target, Set.copyOf(where), target)) {
-            new ProgramBehavior(steps).tick(context.host());
+            new ProgramBehavior(steps).tick(context.host(), context.charged());
         }
         return true;
     }

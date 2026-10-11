@@ -1,6 +1,12 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
+import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.item.GooContents;
+import com.mercuriusxeno.goo.network.ChunkWatchers;
+import com.mercuriusxeno.goo.network.EntityVisuals;
+import com.mercuriusxeno.goo.network.ShardFallPayload;
+import com.mercuriusxeno.goo.network.UnmakePayload;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
@@ -8,13 +14,19 @@ import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.PointedDripstoneBlock;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -28,15 +40,30 @@ import java.util.function.Consumer;
  * struck face, so a drip acts on what stands where it lands.
  * vitality-drip-heals-below
  *
- * @param level  the server level
+ * @param level   the server level
+ * @param tapPos  the tap the drip fell from
  * @param landing the block the drip landed on
  * @param face    the landing block's face the drip struck
  */
-public record TapHost(ServerLevel level, BlockPos landing, Direction face)
-        implements ExplodeHost, AnchoredWorldHost, PlaceBlockHost, EntityScanHost, DripHost, ConvokeHost,
-        DeviceToggleHost, FrostHost, TickBlockHost {
+public record TapHost(ServerLevel level, BlockPos tapPos, BlockPos landing, Direction face)
+        implements ExplodeHost, AnchoredWorldHost, PlaceBlockHost, EntityScanHost, DripHost, UnmakeHost, ConvokeHost,
+        DeviceToggleHost, FrostHost, TickBlockHost, ShardFallHost {
 
     private static final double HALF = 0.5;
+    /** Half the width of the column a shard falls down, narrower than a block. */
+    private static final double SHARD_COLUMN_HALF_WIDTH = 0.4;
+
+    /**
+     * A tap host whose tap stands right beyond the struck face, as a tap
+     * dripping straight onto the block below it does.
+     *
+     * @param level   the server level
+     * @param landing the block the drip landed on
+     * @param face    the landing block's face the drip struck
+     */
+    public TapHost(ServerLevel level, BlockPos landing, Direction face) {
+        this(level, landing.relative(face), landing, face);
+    }
 
     /**
      * The center of a block's face, where a tap host anchors its world actions.
@@ -82,7 +109,8 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
 
     @Override
     public int countDrip() {
-        return GooServerState.of(level.getServer()).tapDripCounts().countDrip(level.dimension(), landing);
+        return GooServerState.of(level.getServer()).tapDripCounts()
+                .countDrip(level.dimension(), landing, level.getBlockState(landing));
     }
 
     @Override
@@ -149,6 +177,25 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
         return ChunkConvoke.convoke(level, Vec3.atBottomCenterOf(landing.relative(face)), goo);
     }
 
+    /**
+     * Drops a glass shard from the tap's spigot down the column to the
+     * landing, striking the highest living mob standing in it.
+     * decision shards-drip-falls-as-a-glass-shard
+     */
+    @Override
+    public OptionalInt fallShard() {
+        Vec3 spigot = Vec3.atBottomCenterOf(tapPos);
+        Vec3 floor = anchor();
+        AABB column = new AABB(spigot.x - SHARD_COLUMN_HALF_WIDTH, floor.y, spigot.z - SHARD_COLUMN_HALF_WIDTH,
+                spigot.x + SHARD_COLUMN_HALF_WIDTH, spigot.y, spigot.z + SHARD_COLUMN_HALF_WIDTH);
+        Optional<LivingEntity> struck = level.getEntitiesOfClass(LivingEntity.class, column, LivingEntity::isAlive)
+                .stream().max(Comparator.comparingDouble(mob -> mob.getBoundingBox().maxY));
+        Vec3 hit = struck.map(mob -> new Vec3(spigot.x, Math.min(spigot.y, mob.getBoundingBox().maxY), spigot.z))
+                .orElse(floor);
+        EntityVisuals.sendToWatchersOf(level, spigot, new ShardFallPayload(spigot, hit));
+        return struck.map(mob -> OptionalInt.of(mob.getId())).orElseGet(OptionalInt::empty);
+    }
+
     @Override
     public void explode(float power, ExplosionMode mode) {
         GooExplosion.detonate(level, anchor(), power, mode, GooExplosion.Look.vanilla());
@@ -195,4 +242,41 @@ public record TapHost(ServerLevel level, BlockPos landing, Direction face)
         BlockAnchoredActions.placeBeyondFace(level, landing, face, block, state);
     }
 
+    /**
+     * A drip works the block it landed on
+     * (decision unmake-drip-dissolves-the-block-below).
+     */
+    @Override
+    public List<BlockPos> unmadeBlocks() {
+        return List.of(landing);
+    }
+
+    @Override
+    public @Nullable GooValue unmadeValue(BlockPos pos) {
+        return ValuedBlocks.valueAt(level, pos);
+    }
+
+    /**
+     * Counts this drip against the block it landed on, on the same tally a
+     * petrifying drip counts on (decision unmake-drip-dissolves-the-block-below).
+     */
+    @Override
+    public int countUnmakeWork(BlockPos pos, int needed) {
+        return countDrip();
+    }
+
+    @Override
+    public void showUnmaking(BlockPos pos, float fraction) {
+        ChunkWatchers.send(level, pos, new UnmakePayload(pos, fraction));
+    }
+
+    /**
+     * Removes the block; its remains morph into the goo item, which drops once the morph ends.
+     */
+    @Override
+    public void unmake(BlockPos pos, GooContents yield) {
+        level.removeBlock(pos, false);
+        resetDrips();
+        GooServerState.of(level.getServer()).unmakeDrops().unmade(level, Vec3.atBottomCenterOf(pos), 1f, yield);
+    }
 }

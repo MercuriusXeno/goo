@@ -19,13 +19,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AbilityBadgeTest {
 
-    private static final int SHIPPED_MOB_BADGES = 15;
-    private static final int SHIPPED_WORLD_BADGES = 16;
+    private static final int SHIPPED_MOB_BADGES = 14;
+    private static final int SHIPPED_WORLD_BADGES = 18;
     private static final int SHIPPED_SELF_BADGES = 6;
-    private static final int SHIPPED_BREW_BADGES = 14;
-    private static final int SHIPPED_CHANNELED_BADGES = 20;
+    private static final int SHIPPED_BREW_BADGES = 17;
+    private static final int SHIPPED_CHANNELED_BADGES = 24;
     private static final int SHIPPED_FREE_BADGES = 6;
-    private static final int SHIPPED_TAP_BADGES = 10;
+    private static final int SHIPPED_TAP_BADGES = 12;
     private static final int SHIPPED_PRISM_BADGES = 9;
     /**
      * The prism combos (decisions prism-hosts-the-combos, hive-prism-pillar-eats-the-living,
@@ -38,13 +38,20 @@ class AbilityBadgeTest {
     /** The self + brew abilities, which wear brew on their self delivery (decision self-brew-goos-eat-before-the-effect). */
     private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "ender_shifter", "leaf_barkskin",
             "rock_stoneskin", "vital_nourish", "shroom_sight", "nether_undead", "pulse_extender", "frost_iceborn",
-            "hex_lifetap", "glow_lux", "aeon_haste", "typhoon_airborn", "xeno_eldritch");
+            "hex_lifetap", "glow_lux", "aeon_haste", "typhoon_airborn", "xeno_eldritch", "crystal_scales",
+            "unstable_charged", "kinetic_telekinesis");
     /** The shipped free abilities (decisions badge-vocabulary-gains-free-prism-tap-brew, zap-ticks-the-device-and-stuns). */
     private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "shroom_colonize",
             "pulse_zap", "frost_orb", "leaf_reap", "weird_slime");
-    /** Self deliveries wearing the channeled badge (decision flatten-disc-cursor-breaks-above-the-plane). */
+    /**
+     * Self deliveries wearing the channeled badge (decisions flatten-disc-cursor-breaks-above-the-plane,
+     * unmake-waves-dissolve-by-crucible-cost).
+     */
     private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten", "frost_nova", "glow_scry",
-            "glow_sunbeam", "glow_radiant", "typhoon_jet");
+            "glow_sunbeam", "glow_radiant", "typhoon_jet", "crystal_glitter", "unstable_unmake",
+            "kinetic_grab");
+    /** Thrown deliveries wearing the channeled badge (decision shards-sling-then-morph-to-flechettes). */
+    private static final List<String> SHIPPED_THROWN_CHANNELS = List.of("crystal_shards");
 
     @ParameterizedTest
     @CsvSource({"world, WORLD", "mob, MOB", "self, SELF", "channeled, CHANNELED", "brew, BREW",
@@ -88,7 +95,7 @@ class AbilityBadgeTest {
      * The badge a shipped ability wears: its delivery's own badge for a self
      * or a stream (decision one-proving-ability-per-kind), brew for a self +
      * brew ability, free for Blast, tap for a tap's drip ability, prism for
-     * a prism combo such as Hive, channeled for a thrown channel such as Spawn, and for any
+     * a prism combo such as Hive, channeled for a thrown channel such as Shards, and for any
      * other thrown ability, mob where it targets entities and world elsewhere.
      *
      * @param definition the shipped ability
@@ -103,6 +110,9 @@ class AbilityBadgeTest {
         }
         if (definition.hasTag(AbilityTags.TAP)) {
             return AbilityBadge.TAP;
+        }
+        if (SHIPPED_THROWN_CHANNELS.contains(definition.id().getPath())) {
+            return AbilityBadge.CHANNELED;
         }
         return switch (definition.delivery().kind()) {
             case SELF -> selfBadge(definition.id().getPath());

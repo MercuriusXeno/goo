@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.block.ICanisterClickTaker;
 import com.mercuriusxeno.goo.block.IGooReceptacle;
 import com.mercuriusxeno.goo.block.fluid.GooFluidHandler;
 import com.mercuriusxeno.goo.block.fluid.GooStream;
+import com.mercuriusxeno.goo.block.fluid.VesselSourcing;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
@@ -98,6 +99,7 @@ public class VatBlockEntity extends GooGlowingMachineBlockEntity implements IGoo
      * @param be    the block entity
      */
     public static void serverTick(Level level, BlockPos pos, BlockState state, VatBlockEntity be) {
+        VesselSourcing.sourceTick(level, be.getContents(), be);
         be.gasketPusher.tick();
     }
 
