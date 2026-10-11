@@ -24,6 +24,7 @@
             {"when": "goo:item/typhoon_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/typhoon_goo_tiny"}},
             {"when": "goo:item/unstable_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/unstable_goo_tiny"}},
             {"when": "goo:item/vital_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/vital_goo_tiny"}},
+            {"when": "goo:item/xeno_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/xeno_goo_tiny"}},
             {"when": "goo:item/yore_goo_tiny", "model": {"type": "minecraft:model", "model": "goo:item/yore_goo_tiny"}}
         ],
         "fallback": {"type": "minecraft:model", "model": "goo:item/goo_tiny", "tints": [{"type": "goo:goo_type"}]}
@@ -53,6 +54,7 @@
             {"when": "goo:item/typhoon_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/typhoon_goo_small"}},
             {"when": "goo:item/unstable_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/unstable_goo_small"}},
             {"when": "goo:item/vital_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/vital_goo_small"}},
+            {"when": "goo:item/xeno_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/xeno_goo_small"}},
             {"when": "goo:item/yore_goo_small", "model": {"type": "minecraft:model", "model": "goo:item/yore_goo_small"}}
         ],
         "fallback": {"type": "minecraft:model", "model": "goo:item/goo_small", "tints": [{"type": "goo:goo_type"}]}
@@ -82,6 +84,7 @@
             {"when": "goo:item/typhoon_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/typhoon_goo"}},
             {"when": "goo:item/unstable_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/unstable_goo"}},
             {"when": "goo:item/vital_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/vital_goo"}},
+            {"when": "goo:item/xeno_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/xeno_goo"}},
             {"when": "goo:item/yore_goo_base", "model": {"type": "minecraft:model", "model": "goo:item/yore_goo"}}
         ],
         "fallback": {"type": "minecraft:model", "model": "goo:item/goo", "tints": [{"type": "goo:goo_type"}]}
@@ -111,6 +114,7 @@
             {"when": "goo:item/typhoon_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/typhoon_goo_large"}},
             {"when": "goo:item/unstable_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/unstable_goo_large"}},
             {"when": "goo:item/vital_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/vital_goo_large"}},
+            {"when": "goo:item/xeno_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/xeno_goo_large"}},
             {"when": "goo:item/yore_goo_large", "model": {"type": "minecraft:model", "model": "goo:item/yore_goo_large"}}
         ],
         "fallback": {"type": "minecraft:model", "model": "goo:item/goo_large", "tints": [{"type": "goo:goo_type"}]}

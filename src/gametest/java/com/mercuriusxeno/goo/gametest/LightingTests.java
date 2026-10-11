@@ -272,7 +272,7 @@ public final class LightingTests {
 
         ItemStack canister = new ItemStack(GooItems.CANISTER.get());
         CanisterItem.setFluidContent(canister,
-                new CanisterFluidContent(GooFluids.resource(type), SATURATION_VOLUME));
+                CanisterFluidContent.of(GooFluids.resource(type), SATURATION_VOLUME));
         be.insertCanister(CENTER_SLOT, canister, false);
 
         return be.gooLightEmission();
@@ -292,7 +292,7 @@ public final class LightingTests {
 
         FluidResource blazeFluid = GooFluids.resource(GooTypes.BLAZE);
         ItemStack canister = new ItemStack(GooItems.CANISTER.get());
-        CanisterItem.setFluidContent(canister, new CanisterFluidContent(blazeFluid, TEST_VOLUME));
+        CanisterItem.setFluidContent(canister, CanisterFluidContent.of(blazeFluid, TEST_VOLUME));
         be.insertCanister(CENTER_SLOT, canister, false);
         helper.assertTrue(be.gooLightEmission() > 0, CANISTER_EMITS);
         return be;

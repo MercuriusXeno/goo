@@ -73,18 +73,6 @@ final class VatFluidRenderer {
     }
 
     /**
-     * Grows the bounds outward by the lift on every side and the top.
-     *
-     * @param b    the fluid cuboid bounds
-     * @param lift the distance outward
-     * @return the grown bounds
-     */
-    private static CuboidBounds liftOutward(CuboidBounds b, float lift) {
-        return new CuboidBounds(b.x0() - lift, b.x1() + lift, b.z0() - lift, b.z1() + lift,
-            b.yBot(), b.yTop() + lift);
-    }
-
-    /**
      * Computes inset XZ bounds and Y range for the vat fluid column.
      * @param state      the vat render state with stack topology
      * @param localFloor the Y offset of this vat's floor within the stack
@@ -135,7 +123,7 @@ final class VatFluidRenderer {
     private static void renderVatSideFaces(RenderContext ctx, CuboidBounds b,
                                            TextureAtlasSprite sprite, float localHeight, float lift) {
         GooRenderUtil.UvRect uv = computeSideUv(sprite, b, localHeight);
-        CuboidBounds lifted = liftOutward(b, lift);
+        CuboidBounds lifted = b.liftedOutward(lift);
         ctx.emitFace(lifted, uv, Direction.NORTH);
         ctx.emitFace(lifted, uv, Direction.SOUTH);
         ctx.emitFace(lifted, uv, Direction.WEST);
