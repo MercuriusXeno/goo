@@ -85,4 +85,31 @@ class ChannelAimTest {
             assertEquals(new BlockPos(10, 63, 0), aim.aimedBlock(new Vec3(8.5, 65.6, 0.5)));
         }
     }
+
+    /**
+     * A held tick's aim point: a locking ability aims at the mob the aim
+     * assist locks, and every other hold aims at the crosshair
+     * (decision sunbeam-lands-with-impact-and-aim).
+     */
+    @Nested
+    class HeldAimPoint {
+
+        private static final Vec3 LOCKED_MOB = new Vec3(5, 2, 5);
+        private static final Vec3 CROSSHAIR = new Vec3(3, 2, 4);
+
+        @Test
+        void aLockingHoldAimsAtTheLockedMob() {
+            assertEquals(LOCKED_MOB, ChannelAim.heldAimPoint(true, LOCKED_MOB, CROSSHAIR));
+        }
+
+        @Test
+        void aHoldThatDoesNotLockAimsAtTheCrosshair() {
+            assertEquals(CROSSHAIR, ChannelAim.heldAimPoint(false, LOCKED_MOB, CROSSHAIR));
+        }
+
+        @Test
+        void aLockingHoldWithNoMobLockedAimsAtTheCrosshair() {
+            assertEquals(CROSSHAIR, ChannelAim.heldAimPoint(true, null, CROSSHAIR));
+        }
+    }
 }

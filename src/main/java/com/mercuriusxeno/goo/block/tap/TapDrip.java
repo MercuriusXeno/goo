@@ -54,7 +54,7 @@ public final class TapDrip {
     }
 
     /**
-     * Draws one drip of the goo the slot's canister holds, from that slot alone.
+     * Draws one drip of the goo the slot's canister holds most of, from that slot alone.
      *
      * @param holder the tap's canister holder
      * @param slot   the slot the tap drips from
@@ -71,14 +71,14 @@ public final class TapDrip {
     }
 
     /**
-     * Draws one drip from what the tap's gasket received.
+     * Draws one drip of the goo the tap's gasket received most of.
      *
      * @param intake the tap's gasket intake
      * @param volume the mB one drip draws at the tap's grade
      * @return the goo drawn, or null when the intake held no goo
      */
     static @Nullable Drawn drawIntake(CanisterSlotFluidHandler intake, int volume) {
-        ResourceKey<GooTypeDefinition> type = intake.getGooType();
+        ResourceKey<GooTypeDefinition> type = intake.toFluidContent().dominantGooType();
         if (type == null) {
             return null;
         }

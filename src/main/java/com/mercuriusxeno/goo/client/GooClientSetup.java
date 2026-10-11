@@ -9,8 +9,10 @@ import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.ability.Afterimages;
 import com.mercuriusxeno.goo.client.ability.AilmentOverlayLayer;
+import com.mercuriusxeno.goo.client.ability.BeatRings;
 import com.mercuriusxeno.goo.client.ability.BlockTransforms;
 import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
+import com.mercuriusxeno.goo.client.ability.EldritchSight;
 import com.mercuriusxeno.goo.client.ability.EncasementLayer;
 import com.mercuriusxeno.goo.client.ability.FrozenPoses;
 import com.mercuriusxeno.goo.client.ability.GhostTrails;
@@ -21,7 +23,7 @@ import com.mercuriusxeno.goo.client.ability.MobCoats;
 import com.mercuriusxeno.goo.client.ability.MobShells;
 import com.mercuriusxeno.goo.client.ability.NovaRings;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
-import com.mercuriusxeno.goo.client.ability.ThumpRings;
+import com.mercuriusxeno.goo.client.ability.SignalRings;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ability.UpdraftWind;
@@ -296,7 +298,7 @@ public final class GooClientSetup {
      * Registers the render state modifiers that stamp each entity's goo state
      * onto its render state: the glove's target outline, the goo coat, the
      * ailments, the stone and frost encasements, the frozen pose and the
-     * transformation, in that order.
+     * transformation and the eldritch phase, in that order.
      *
      * @param event the event instance
      */
@@ -312,7 +314,8 @@ public final class GooClientSetup {
                 EncasementLayer::stampFrozen,
                 FrozenPoses::stampFrozenPose,
                 VineTangleLayer::stampTangle,
-                TransformationRenderer::stampTransformation);
+                TransformationRenderer::stampTransformation,
+                EldritchSight::stampPhase);
         for (BiConsumer<Entity, EntityRenderState> stamp : stamps) {
             event.registerEntityModifier(new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
             }, stamp);
@@ -445,7 +448,8 @@ public final class GooClientSetup {
         TunerAwaitState.clear();
         GooFlightManager.clear();
         ZapBolts.clear();
-        ThumpRings.clear();
+        BeatRings.clear();
+        SignalRings.clear();
         RelayLasers.clear();
         PrismBeats.clear();
         ChainBurnouts.CLIENT.clear();

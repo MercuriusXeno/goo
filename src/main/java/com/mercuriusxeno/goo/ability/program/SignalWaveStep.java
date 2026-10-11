@@ -3,31 +3,35 @@ package com.mercuriusxeno.goo.ability.program;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Signal's block step, run each held tick of the stream: a wave front runs
- * out from the eye along the aim at the JSON's speed, up to the stream's
- * range, and every lever, button, door, trapdoor or fence gate inside the
- * cone behind the front toggles the first time the front reaches it in the
- * hold, and never again in that hold:
- * {@code signal_wave speed=0.5}.
- * signal-wave-toggles-each-device-once
+ * Zap's dispersal: a Zap landing on anything but a redstone device disperses
+ * into the Signal wave at the landing, which passes through the struck block
+ * and toggles each lever, button, door, trapdoor or fence gate inside the
+ * cone behind it, out to the range, once:
+ * {@code signal_wave range=8 cone=40}.
+ * zap-disperses-into-signal
  *
- * @param speed the blocks the front runs out per tick held, evaluated when the step runs
+ * @param range the blocks the wave reaches past the landing, evaluated when the step runs
+ * @param cone  the wave's cone, apex to rim, in degrees, evaluated when the step runs
  */
-public record SignalWaveStep(Expr speed) implements Step {
+public record SignalWaveStep(Expr range, Expr cone) implements Step {
 
     private static final String NAME = "signal_wave";
-    private static final String FIELD_SPEED = "speed";
+    private static final String FIELD_RANGE = "range";
+    private static final String FIELD_CONE = "cone";
 
     /**
      * Codec for the step's params.
      */
     public static final MapCodec<SignalWaveStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
-            Expr.CODEC.fieldOf(FIELD_SPEED).forGetter(SignalWaveStep::speed)
+            Expr.CODEC.fieldOf(FIELD_RANGE).forGetter(SignalWaveStep::range),
+            Expr.CODEC.fieldOf(FIELD_CONE).forGetter(SignalWaveStep::cone)
     ).apply(inst, SignalWaveStep::new));
 
     /**
@@ -42,41 +46,33 @@ public record SignalWaveStep(Expr speed) implements Step {
 
     @Override
     public boolean tick(StepContext context) {
-        ChannelHost host = context.hostAs(ChannelHost.class);
-        host.channelAim().ifPresent(aim -> {
-            Vec3 eye = host.eye();
-            Vec3 line = aim.aimPoint().subtract(eye);
-            double range = line.length();
-            double front = frontAt(aim.held(), speed.evaluateFloat(context), range);
-            if (front > 0) {
-                Vec3 reach = eye.add(line.scale(front / range));
-                for (BlockPos pos : AimedCells.along(eye, reach, aim.coneDegrees())) {
-                    host.toggleOnceThisHold(pos);
-                }
-            }
-        });
+        context.hostAs(PowerPulseHost.class).signalWave(range.evaluateFloat(context), cone.evaluateFloat(context));
         return true;
     }
 
     /**
-     * How far the wave front has run out from the eye on a tick of the hold.
+     * The cells the wave reaches: from the landing cell's center into the
+     * struck face and on through it, the cells along that line and inside
+     * the cone around it, nearest first.
      *
-     * @param held  the hold's tick count, 1 on its first tick
-     * @param speed the blocks the front runs per tick
-     * @param range the stream's range in blocks
-     * @return the front's distance, from one tick's run on the first tick up to the range
+     * @param cell        the cell the blob landed in
+     * @param face        the struck block's face the blob landed on
+     * @param range       the blocks the wave reaches
+     * @param coneDegrees the cone, apex to rim, in degrees
+     * @return the cells the wave crosses
      */
-    static double frontAt(int held, double speed, double range) {
-        return Math.min(range, Math.max(0, held) * speed);
+    public static List<BlockPos> cellsBehind(BlockPos cell, Direction face, double range, double coneDegrees) {
+        Vec3 apex = Vec3.atCenterOf(cell);
+        return AimedCells.along(apex, apex.add(face.getOpposite().getUnitVec3().scale(range)), coneDegrees);
     }
 
     @Override
     public Stream<Expr> expressions() {
-        return Stream.of(speed);
+        return Stream.of(range, cone);
     }
 
     @Override
     public Set<HostCapability> requires() {
-        return Set.of(HostCapability.CHANNEL);
+        return Set.of(HostCapability.POWER_PULSE);
     }
 }
