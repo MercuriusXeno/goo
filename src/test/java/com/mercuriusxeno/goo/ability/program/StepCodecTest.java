@@ -173,6 +173,8 @@ class StepCodecTest {
             Map.entry("enchant_book", LeafSteps.ENCHANT_BOOK.step(Unit.INSTANCE)),
             Map.entry("fuse_books", new FuseBooksStep(Optional.of(new SoundCue(
                     Identifier.withDefaultNamespace("block.fire.extinguish"), SoundKind.PLAYERS, 0.4f, 1.6f)))),
+            Map.entry("rally", new RallyStep(Expr.literal(600), Expr.literal(6), Expr.literal(1.5),
+                    Expr.literal(0.5))),
             Map.entry("transmute_slime", new SlimeTransmuteStep(GooTypes.ZOO, true, 20,
                     List.of(new AilmentOverlayStep(AilmentKind.HEX, Expr.literal(60))))),
             Map.entry("agitate", new AgitateStep(8, 400, 0.75, 40)),

@@ -17,6 +17,7 @@ import com.mercuriusxeno.goo.network.GrowthStreamTests;
 import com.mercuriusxeno.goo.network.HeartOverlayTests;
 import com.mercuriusxeno.goo.network.HexSelfTests;
 import com.mercuriusxeno.goo.network.MobEffectTests;
+import com.mercuriusxeno.goo.network.RallyTests;
 import com.mercuriusxeno.goo.network.ZooSpawnTests;
 import com.mercuriusxeno.goo.network.VinesTests;
 import com.mercuriusxeno.goo.network.MycosisFungiTests;
@@ -551,6 +552,7 @@ public final class GooTestFunctions {
     private static final String FUSE_WITHOUT_PAIR = "fuse_without_pair_costs_nothing";
     private static final String SPAWN_TURNS_A_SLIME_HOSTILE = "spawn_turns_a_slime_hostile";
     private static final String SHAPE_TURNS_A_SLIME_PEACEFUL = "shape_turns_a_slime_peaceful";
+    private static final String RALLY_COW_ATTACKS_THE_ZOMBIE = "rally_cow_attacks_the_zombie";
     private static final String AGITATOR_SPAWNS_IN_THE_DARK = "agitator_spawns_in_the_dark";
     private static final String LIFETAP_NO_REGEN_LEECH_ON_HIT = "lifetap_no_regen_leech_on_hit";
     private static final String HEX_BREW_LIFETAPS = "hex_brew_lifetaps_for_an_hour";
@@ -1117,6 +1119,7 @@ public final class GooTestFunctions {
         reg(r, FUSE_WITHOUT_PAIR, HexSelfTests::fuseWithoutPairCostsNothing);
         reg(r, SPAWN_TURNS_A_SLIME_HOSTILE, ZooSpawnTests::spawnTurnsASlimeHostile);
         reg(r, SHAPE_TURNS_A_SLIME_PEACEFUL, ZooSpawnTests::shapeTurnsASlimePeaceful);
+        reg(r, RALLY_COW_ATTACKS_THE_ZOMBIE, RallyTests::rallyCowAttacksTheZombie);
         reg(r, AGITATOR_SPAWNS_IN_THE_DARK, AgitatorTests::agitatorSpawnsInTheDark);
         reg(r, LIFETAP_NO_REGEN_LEECH_ON_HIT, HexSelfTests::lifetapNoRegenLeechOnHit);
         reg(r, HEX_BREW_LIFETAPS, BrewEffectTests::hexBrewLifetapsForAnHour);

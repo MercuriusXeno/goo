@@ -21,7 +21,7 @@ class AbilityBadgeTest {
 
     private static final int SHIPPED_MOB_BADGES = 13;
     private static final int SHIPPED_WORLD_BADGES = 12;
-    private static final int SHIPPED_SELF_BADGES = 5;
+    private static final int SHIPPED_SELF_BADGES = 6;
     private static final int SHIPPED_BREW_BADGES = 12;
     private static final int SHIPPED_CHANNELED_BADGES = 19;
     private static final int SHIPPED_FREE_BADGES = 6;
