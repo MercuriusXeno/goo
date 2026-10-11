@@ -2,22 +2,17 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.unmake.MeltingBlockEntity;
-import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
-import com.mercuriusxeno.goo.client.ber.MeltMesh;
 import com.mercuriusxeno.goo.client.ber.MeltMeshGoo;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.network.DrinkPayload;
-import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import com.mercuriusxeno.goo.type.GooTypes;
+import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
@@ -44,16 +39,16 @@ import java.util.Set;
  * on between ticks; blocks, streams and their joins are one skin with no seam,
  * blending like metaballs where they meet, moving every frame and never
  * standing or vanishing mid-air, and the drink is drawn until its last stream
- * is spent. Each piece of the skin wears its block's own texture, laid along
- * the liquid and round the stream so it rides the flow unstretched, and over
- * the standing block where it stands, solid, crossfading into the block's
- * goo types, mingled among themselves by volume, by its share of the route:
- * none of the goo at the block and all of it at the hand, a blend the whole
- * way with no band and no boundary. The drink is drawn after the level
+ * is spent. No texture anywhere: each piece of the skin wears one solid
+ * color, the block's particle sprite averaged over its raw pixels at the
+ * block crossfading by its share of the route to the goo's own color, its
+ * types' tints blended by volume, at the hand, a blend the whole way with no
+ * band and no boundary and nothing to stretch. The drink is drawn after the level
  * against its depth, but the player's own stretch by the glove is drawn in
  * the hand's pass, so it shows over the hand and ends in the palm rather than
  * disappearing behind the knuckles.
  * decision unmake-waves-dissolve-by-crucible-cost
+ * decision unmake-skin-is-a-solid-sampled-color
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class DrinkRenderer {
@@ -71,7 +66,6 @@ public final class DrinkRenderer {
     private static final Vec3 UP = new Vec3(0, 1, 0);
     private static final double MILLIS_PER_NANO = 1e-6;
     private static final String UPLOADED = "Unmake drink uploaded in {} ms: {} regions, {} bodies or entries dropped";
-    private static final GooRenderUtil.UvRect NO_SPRITE = new GooRenderUtil.UvRect(0, 0, 0, 0);
     /** Each drink's streams as last built, by its drinker then block, which say where liquid still flows. */
     private static final Map<Integer, Map<BlockPos, DrinkTree.Stream>> LAST = new HashMap<>();
     /** The drinkers whose drink still showed liquid last frame. */
@@ -103,13 +97,12 @@ public final class DrinkRenderer {
     }
 
     /**
-     * What a block's skin is drawn with once its liquid flows: its sprite, its tint and its goo types.
+     * What a block's skin is drawn with once its liquid flows: two solid colors.
      *
-     * @param sprite the block's sprite, its top
-     * @param tint   the block's tint
-     * @param layers the block's goo types mingled over it
+     * @param blockColor the block's color, worn at the block
+     * @param gooColor   its goo's color, worn at the hand
      */
-    private record Skin(GooRenderUtil.UvRect sprite, int tint, List<DrinkUpload.Layer> layers) {
+    private record Skin(int blockColor, int gooColor) {
     }
 
     /**
@@ -337,7 +330,7 @@ public final class DrinkRenderer {
     }
 
     /**
-     * What a stream is drawn with: its block's skin, in the light along its path.
+     * What a stream is drawn with: its block's two colors, in the light along its path.
      *
      * @param level  the client level
      * @param id     the drinker
@@ -351,37 +344,50 @@ public final class DrinkRenderer {
         int light = lightAlong(level, stream, now);
         Skin skin = SKINS.computeIfAbsent(id, ignored -> new HashMap<>())
                 .computeIfAbsent(stream.block().pos(), pos -> skinOf(level, pos, state));
-        return new DrinkUpload.Coat(skin.tint(), skin.sprite(), light & LIGHT_MASK, light >>> SKY_SHIFT,
-                skin.layers());
+        return new DrinkUpload.Coat(skin.blockColor(), skin.gooColor(), light & LIGHT_MASK, light >>> SKY_SHIFT);
     }
 
     /**
      * @param level the client level
      * @param pos   the block
      * @param state the block
-     * @return its skin: its top's sprite and tint, and its goo types as layers, largest first
+     * @return its skin: its particle sprite's raw mean, and its goo types' tints blended by volume share, or the
+     *         block's own color where it holds no goo
      */
     private static Skin skinOf(ClientLevel level, BlockPos pos, BlockState state) {
-        BakedQuad quad = faceQuad(level, pos, state);
-        GooRenderUtil.UvRect sprite = quad == null ? NO_SPRITE : MeltMesh.spriteOf(quad);
-        int tint = quad == null ? GooRenderUtil.OPAQUE_WHITE : MeltMesh.tintOf(state, level, pos, quad);
-        return new Skin(sprite, tint, layersOf(MeltMeshGoo.of(state)));
+        TextureAtlasSprite particle = Minecraft.getInstance().getModelManager().getBlockStateModelSet()
+                .getParticleMaterial(state, level, pos).sprite();
+        int blockColor = DrinkColors.blockColorOf(pixelsOf(particle.contents().getOriginalImage()));
+        MingledGoo goo = MeltMeshGoo.of(state);
+        return new Skin(blockColor, goo.types().isEmpty() ? blockColor : gooColorOf(goo));
+    }
+
+    /**
+     * @param image a sprite's raw image
+     * @return its pixels, ARGB, row by row
+     */
+    private static int[] pixelsOf(NativeImage image) {
+        int[] pixels = new int[image.getWidth() * image.getHeight()];
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                pixels[y * image.getWidth() + x] = image.getPixel(x, y);
+            }
+        }
+        return pixels;
     }
 
     /**
      * @param goo a block's goo types
-     * @return each type as a layer, with the volume ratio of the types before it and through it
+     * @return their tints blended by their shares of the volume
      */
-    static List<DrinkUpload.Layer> layersOf(MingledGoo goo) {
-        List<DrinkUpload.Layer> layers = new ArrayList<>();
-        for (int index = 0; index < Math.min(DrinkUpload.MOST_LAYERS, goo.types().size()); index++) {
-            ResourceKey<GooTypeDefinition> type = goo.types().get(index);
-            float before = index == 0 ? 0f : goo.cumulative().get(index - 1);
-            layers.add(new DrinkUpload.Layer(GooSubmitter.fluidTint(type),
-                    GooSubmitter.spriteUv(GooRenderUtil.lookupFluidSprite(type)), before,
-                    goo.cumulative().get(index), Math.max(0, GooTypes.indexOf(type))));
+    static int gooColorOf(MingledGoo goo) {
+        int[] tints = new int[goo.types().size()];
+        float[] shares = new float[tints.length];
+        for (int index = 0; index < tints.length; index++) {
+            tints[index] = GooSubmitter.fluidTint(goo.types().get(index));
+            shares[index] = goo.share(index);
         }
-        return layers;
+        return DrinkColors.gooColorOf(tints, shares);
     }
 
     /**
@@ -401,24 +407,5 @@ public final class DrinkRenderer {
                     BlockPos.containing(DrinkStream.pointAt(stream.path(), share, now))));
         }
         return brightest;
-    }
-
-    /**
-     * The quad the stream takes its texture from: one of the block's top, or
-     * failing that any of its model.
-     *
-     * @param level the client level
-     * @param pos   the block
-     * @param state the block
-     * @return the quad, or null for a block with no model
-     */
-    private static @Nullable BakedQuad faceQuad(ClientLevel level, BlockPos pos, BlockState state) {
-        List<BakedQuad> quads = MeltMesh.quadsOf(state, level, pos);
-        for (BakedQuad quad : quads) {
-            if (quad.direction() == Direction.UP) {
-                return quad;
-            }
-        }
-        return quads.isEmpty() ? null : quads.getFirst();
     }
 }
