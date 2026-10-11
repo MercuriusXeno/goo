@@ -160,6 +160,31 @@
     ]
   },
   {
+    "id": "infinity",
+    "seed": 40999,
+    "genParams": {
+      "viscosity": 2.0,
+      "decayRate": 0.02,
+      "ignitionChance": 0.006,
+      "ignitionStrength": 1.0,
+      "potHeatRate": 0.01,
+      "potInfluence": 0.85,
+      "neighborhoodReach": 2
+    },
+    "frametime": 3,
+    "shadowHue": -1,
+    "palette": [
+      { "position": 0.0, "color": "#6830C8" },
+      { "position": 0.15, "color": "#3878F0" },
+      { "position": 0.3, "color": "#30D8E8" },
+      { "position": 0.45, "color": "#70F0A8" },
+      { "position": 0.6, "color": "#F8E878" },
+      { "position": 0.75, "color": "#F890C8" },
+      { "position": 0.9, "color": "#C8A0F8" },
+      { "position": 1.0, "color": "#FFF8FF" }
+    ]
+  },
+  {
     "id": "leaf",
     "seed": 40963,
     "genParams": {

@@ -62,6 +62,11 @@ public final class GooTypes {
     public static final ResourceKey<GooTypeDefinition> FROST = bundled("frost");
     public static final ResourceKey<GooTypeDefinition> GLOW = bundled("glow");
     public static final ResourceKey<GooTypeDefinition> HEX = bundled("hex");
+    /**
+     * Sources whatever goo shares its vessel and cannot be spent.
+     * decision infinity-sources-whatever-shares-its-vessel
+     */
+    public static final ResourceKey<GooTypeDefinition> INFINITY = bundled("infinity");
     public static final ResourceKey<GooTypeDefinition> LEAF = bundled("leaf");
     public static final ResourceKey<GooTypeDefinition> METAL = bundled("metal");
     public static final ResourceKey<GooTypeDefinition> NETHER = bundled("nether");
@@ -76,8 +81,8 @@ public final class GooTypes {
      * Every type the mod ships as JSON, in constant order.
      */
     public static final List<ResourceKey<GooTypeDefinition>> BUNDLED = List.of(
-            AEON, BLAZE, CRYSTAL, ENDER, FROST, GLOW, HEX, LEAF,
-            METAL, NETHER, PULSE, ROCK, SHROOM, TYPHOON, UNSTABLE, VITAL);
+            AEON, BLAZE, CRYSTAL, ENDER, FROST, GLOW, HEX, INFINITY,
+            LEAF, METAL, NETHER, PULSE, ROCK, SHROOM, TYPHOON, UNSTABLE, VITAL);
 
     /**
      * A type key as its short id: the bare path for a bundled type, the

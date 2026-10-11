@@ -2409,4 +2409,31 @@ class GooValueRegistryTest {
             assertFalse(registry.table().isRestricted(id("minecraft:coal_ore")));
         }
     }
+
+    @Nested
+    class ShippedValues {
+
+        private static final String SHIPPED_BASE_VALUES = "/data/goo/goo_values/base_values.json";
+
+        /**
+         * No shipped item resolves to infinity, so no item can be broken down into it.
+         * decision infinity-sources-whatever-shares-its-vessel
+         */
+        @Test
+        void noShippedItemResolvesInfinity() throws IOException {
+            try (java.io.InputStream in = GooValueRegistryTest.class.getResourceAsStream(SHIPPED_BASE_VALUES)) {
+                assertNotNull(in, SHIPPED_BASE_VALUES);
+                parseBaseValuesFromStream(in);
+            }
+            copyBaseToEffective();
+            Map<Identifier, GooValue> effective = registry.table().getEffectiveValues();
+
+            assertFalse(effective.isEmpty(), SHIPPED_BASE_VALUES);
+            List<Identifier> yieldingInfinity = effective.entrySet().stream()
+                    .filter(entry -> entry.getValue().get(GooTypes.INFINITY) > 0)
+                    .map(Map.Entry::getKey)
+                    .toList();
+            assertEquals(List.of(), yieldingInfinity);
+        }
+    }
 }
