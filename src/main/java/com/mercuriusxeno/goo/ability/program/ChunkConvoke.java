@@ -2,9 +2,10 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.network.AfterimagePayload;
 import com.mercuriusxeno.goo.network.EntityVisuals;
-import com.mercuriusxeno.goo.type.GooTypes;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -40,9 +41,10 @@ public final class ChunkConvoke {
      *
      * @param level the level
      * @param spot  where the mob's feet land
+     * @param goo   the goo type whose color the afterimages wear
      * @return true once a mob stands at the spot
      */
-    public static boolean convoke(ServerLevel level, Vec3 spot) {
+    public static boolean convoke(ServerLevel level, Vec3 spot, ResourceKey<GooTypeDefinition> goo) {
         List<Mob> mobs = mobsInChunk(level, spot);
         if (mobs.isEmpty()) {
             return false;
@@ -52,7 +54,7 @@ public final class ChunkConvoke {
         mob.teleportTo(spot.x, spot.y, spot.z);
         mob.setDeltaMovement(Vec3.ZERO);
         for (Vec3 end : new Vec3[] {stood, spot}) {
-            EntityVisuals.sendToWatchers(mob, new AfterimagePayload(mob.getId(), end, GooTypes.ENDER,
+            EntityVisuals.sendToWatchers(mob, new AfterimagePayload(mob.getId(), end, goo,
                     AFTERIMAGE_LIFE_TICKS));
             level.playSound(null, end.x, end.y, end.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.HOSTILE, 1f, 1f);
         }
