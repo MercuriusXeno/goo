@@ -2436,5 +2436,25 @@ class GooValueRegistryTest {
                 assertTrue(value.get(GooTypes.ENDER) > 0, item + " lost its ender: " + value);
             }
         }
+
+        /**
+         * The shipped base_values.json values gold, emeralds, diamonds and
+         * honey in opulent.
+         * decision opulent-ships-from-things-of-worth
+         */
+        @Test
+        void goldEmeraldDiamondAndHoneyResolveOpulent() throws IOException {
+            try (java.io.InputStream in = GooValueRegistryTest.class.getResourceAsStream(SHIPPED_BASE_VALUES)) {
+                assertNotNull(in, SHIPPED_BASE_VALUES);
+                parseBaseValuesFromStream(in);
+            }
+            copyBaseToEffective();
+            for (String item : List.of("minecraft:gold_ingot", "minecraft:emerald", "minecraft:diamond",
+                    "minecraft:honey_bottle")) {
+                GooValue value = registry.table().lookup(id(item));
+                assertNotNull(value, item);
+                assertTrue(value.get(GooTypes.OPULENT) > 0, item + " carries no opulent: " + value);
+            }
+        }
     }
 }

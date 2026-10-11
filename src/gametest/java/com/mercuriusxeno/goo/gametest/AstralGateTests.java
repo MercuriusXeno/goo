@@ -3,8 +3,8 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.gate.AstralGateOpening;
-import com.mercuriusxeno.goo.ability.gate.DragonGateOpening;
-import com.mercuriusxeno.goo.ability.gate.DragonGates;
+import com.mercuriusxeno.goo.ability.gate.EndGateOpening;
+import com.mercuriusxeno.goo.ability.gate.EndGates;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -66,7 +66,7 @@ public final class AstralGateTests {
 
         AbilityImpact.land(level, center, GooTypes.ASTRAL, Direction.SOUTH, gate);
 
-        Optional<DragonGates.Pair> pair = DragonGates.get(level).pairs().stream()
+        Optional<EndGates.Pair> pair = EndGates.get(level).pairs().stream()
                 .filter(open -> open.near().center().equals(center)).findFirst();
         helper.assertTrue(pair.isPresent(), SHOULD_OPEN);
         helper.assertTrue(pair.get().far().dimension() == AstralGateOpening.LUNAR,
@@ -74,19 +74,19 @@ public final class AstralGateTests {
 
         ServerPlayer traveller = helper.makeMockServerPlayerInLevel();
         traveller.snapTo(center.south().getCenter());
-        TeleportTransition there = GooBlocks.DRAGON_GATE.get().getPortalDestination(level, traveller, center.south());
+        TeleportTransition there = GooBlocks.END_GATE.get().getPortalDestination(level, traveller, center.south());
         helper.assertTrue(there != null, SHOULD_OPEN);
         traveller.teleport(there);
         assertStandsAt(helper, traveller, lunar, pair.get().far().arrival());
 
         BlockPos mirrorCell = pair.get().far().center().above();
-        TeleportTransition back = GooBlocks.DRAGON_GATE.get().getPortalDestination(lunar, traveller, mirrorCell);
+        TeleportTransition back = GooBlocks.END_GATE.get().getPortalDestination(lunar, traveller, mirrorCell);
         helper.assertTrue(back != null, SHOULD_OPEN);
         traveller.teleport(back);
         assertStandsAt(helper, traveller, level, pair.get().near().arrival());
 
-        DragonGateOpening.closeExpired(level.getServer(), pair.get().closesAt());
-        helper.assertTrue(!lunar.getBlockState(mirrorCell).is(GooBlocks.DRAGON_GATE.get()), SHOULD_CLEAR);
+        EndGateOpening.closeExpired(level.getServer(), pair.get().closesAt());
+        helper.assertTrue(!lunar.getBlockState(mirrorCell).is(GooBlocks.END_GATE.get()), SHOULD_CLEAR);
         helper.succeed();
     }
 
