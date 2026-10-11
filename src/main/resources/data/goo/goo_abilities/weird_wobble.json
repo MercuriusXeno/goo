@@ -1,0 +1,19 @@
+{
+  "gooType": "weird",
+  "displayName": "goo.ability.weird.wobble",
+  "badge": "mob",
+  "order": 2,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    {
+      "type": "target",
+      "where": ["mob"],
+      "steps": [
+        { "type": "wobble", "duration": 600 },
+        { "type": "ailment_overlay", "kind": "wobble", "duration": 600 }
+      ]
+    }
+  ],
+  "tags": ["entity"]
+}

@@ -1,0 +1,23 @@
+{
+  "light_level": 8,
+  "saturation_fill": 0.5,
+  "wheel": "FF33CC",
+  "bright": "FF5BF4",
+  "highlight": "FF42DB",
+  "edge": "FF51EA",
+  "density": 1000,
+  "viscosity": 1000,
+  "temperature": 300,
+  "extinguishes": false,
+  "levity": 1.0,
+  "base_flight_time": 3,
+  "map_color": "color_magenta",
+  "textures": {
+    "goo_tiny": "goo:item/weird_goo_tiny",
+    "goo_small": "goo:item/weird_goo_small",
+    "goo_base": "goo:item/weird_goo_base",
+    "goo_large": "goo:item/weird_goo_large",
+    "fluid_still": "goo:fluid/weird_fluid",
+    "fluid_flowing": "goo:fluid/weird_fluid"
+  }
+}

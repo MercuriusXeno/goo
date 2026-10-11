@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.program.AwaitEntityStep;
 import com.mercuriusxeno.goo.ability.program.BloomStep;
 import com.mercuriusxeno.goo.ability.program.ChargedMultipliers;
 import com.mercuriusxeno.goo.ability.program.ColonizeStep;
+import com.mercuriusxeno.goo.ability.program.CoolLavaStep;
 import com.mercuriusxeno.goo.ability.program.EntitiesStep;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
@@ -324,6 +325,8 @@ public record AbilityDefinition(
             // colonize-blob-grows-the-network
             radiusOf(ColonizeStep.class, ColonizeStep::radius),
             radiusOf(FloorsStep.class, FloorsStep::radius),
+            // weird-bounces-and-softens-harm
+            radiusOf(CoolLavaStep.class, CoolLavaStep::radius),
             AbilityDefinition::consumedBlocksRadius);
 
     /**
