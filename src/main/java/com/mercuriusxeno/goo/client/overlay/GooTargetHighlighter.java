@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.overlay;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.SpireFootprint;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.ability.HeldColumnRenderer;
@@ -11,6 +12,7 @@ import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
+import com.mercuriusxeno.goo.client.throwing.SpireCast;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
@@ -28,6 +30,7 @@ import net.neoforged.neoforge.client.event.RenderGuiLayerEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import org.jspecify.annotations.Nullable;
+import java.util.Optional;
 import java.util.OptionalDouble;
 
 /**
@@ -126,8 +129,7 @@ public final class GooTargetHighlighter {
      * @param frame     what the frame draws with
      */
     private static void renderHeldDome(TargetResult target, @Nullable String abilityId, HighlightFrame frame) {
-        if (GloveThrowSender.selectedDragSized(abilityId)) {
-            renderSizedDome(frame);
+        if (renderSizedPreview(abilityId, frame)) {
             return;
         }
         ClientAbility ability = abilityId == null ? null : AbilitySyncHandler.findAbility(abilityId);
@@ -138,6 +140,29 @@ public final class GooTargetHighlighter {
         }
         HeldDomeRenderer.render(frame.ps(), frame.buf(), frame.camera().position(), target, ability,
                 frame.selectedType(), ClientGooTypes.highlight(frame.selectedType()), realTimeSeconds());
+    }
+
+    /**
+     * Draws the preview of a cast sized as it is made: a Spire's footprint
+     * (decision spire-rips-walls-and-platforms) or a drag-sized ability's
+     * dome (decision black-hole-leaves-a-compression-sphere).
+     *
+     * @param abilityId the selected ability id
+     * @param frame     what the frame draws with
+     * @return true where a sized cast drew its preview in place of the held ghost
+     */
+    private static boolean renderSizedPreview(@Nullable String abilityId, HighlightFrame frame) {
+        Optional<SpireFootprint> footprint = SpireCast.footprint();
+        if (footprint.isPresent()) {
+            SpireOutlineRenderer.render(frame.ps(), frame.buf(), frame.camera().position(), footprint.get(),
+                    SpireCast.rising(), ClientGooTypes.highlight(frame.selectedType()));
+            return true;
+        }
+        if (GloveThrowSender.selectedDragSized(abilityId)) {
+            renderSizedDome(frame);
+            return true;
+        }
+        return false;
     }
 
     /**
