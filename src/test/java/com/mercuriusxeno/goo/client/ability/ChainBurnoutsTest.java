@@ -29,6 +29,8 @@ class ChainBurnoutsTest {
     private static final BlockPos POS = new BlockPos(3, 64, -7);
     private static final long START = 48_200L;
     private static final String ABILITY = "goo:test_ability";
+    /** A thrown cast's size: none. */
+    private static final double NO_SIZE = 0;
 
     static final java.util.List<ResourceKey<GooTypeDefinition>> CHAIN_TYPES = BurnoutVisuals.CHAIN_TYPES;
 
@@ -36,7 +38,7 @@ class ChainBurnoutsTest {
     @FieldSource("CHAIN_TYPES")
     void burnoutResolvesItsTypesVisualAndDropsAfterItsDuration(ResourceKey<GooTypeDefinition> gooType) {
         ChainBurnouts burnouts = new ChainBurnouts();
-        ChainBurnouts.Burnout burnout = burnouts.add(POS, Direction.UP, gooType, ABILITY, START);
+        ChainBurnouts.Burnout burnout = burnouts.add(POS, Direction.UP, gooType, ABILITY, NO_SIZE, START);
 
         assertEquals(gooType, burnout.visual().gooType());
         assertEquals(START, burnout.startTick());
@@ -89,7 +91,8 @@ class ChainBurnoutsTest {
 
     @Test
     void glowBurnoutRendersWithNoBlockEntityAtItsPosition() {
-        ChainBurnouts.Burnout burnout = new ChainBurnouts().add(POS, Direction.UP, GooTypes.GLOW, ABILITY, START);
+        ChainBurnouts.Burnout burnout = new ChainBurnouts().add(POS, Direction.UP, GooTypes.GLOW, ABILITY, NO_SIZE,
+                START);
         RecordingVertexConsumer consumer = new RecordingVertexConsumer();
         MultiBufferSource.BufferSource buffers = mock(MultiBufferSource.BufferSource.class);
         when(buffers.getBuffer(any())).thenReturn(consumer);
@@ -102,7 +105,7 @@ class ChainBurnoutsTest {
     @Test
     void progressRunsFromStartToDuration() {
         ChainBurnouts.Burnout burnout = new ChainBurnouts().add(POS, Direction.UP, GooTypes.UNSTABLE,
-                ABILITY, START);
+                ABILITY, NO_SIZE, START);
         int duration = burnout.visual().durationTicks();
         assertEquals(0f, burnout.progress(START), 0f);
         assertEquals(0.5f, burnout.progress(START + duration / 2f), 1e-4f);

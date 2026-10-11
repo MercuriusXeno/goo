@@ -6,6 +6,7 @@ import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.CompareOp;
+import com.mojang.blaze3d.shaders.UniformType;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -1120,6 +1121,30 @@ public final class GooRenderTypes {
                 .build();
     }
 
+    /** The uniform block the drink field pipeline reads one region's bodies and its streams' coats from. */
+    public static final String DRINK_REGION_BLOCK = "DrinkRegion";
+
+    /**
+     * The Unmake drink's field pipeline (decision
+     * unmake-waves-dissolve-by-crucible-cost): region boxes whose fragments
+     * march the drink's metaball field and write the hit's depth, opaque,
+     * lit by the cardinal lights and the lightmap, textured off the block
+     * atlas, with each region's bodies in a uniform block of their own.
+     */
+    public static final RenderPipeline DRINK_FIELD = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_FOG_LIGHT_DIR_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "drink_field"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "drink_field"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "drink_field"))
+            .withSampler("Sampler0")
+            .withSampler("Sampler2")
+            .withUniform(DRINK_REGION_BLOCK, UniformType.UNIFORM_BUFFER)
+            .withVertexFormat(DefaultVertexFormat.ENTITY, VertexFormat.Mode.QUADS)
+            .withDepthStencilState(DepthStencilState.DEFAULT)
+            .withCull(true)
+            .build();
+
     /**
      * The render type that draws a burnout explosion pipeline to the main target.
      *
@@ -1173,7 +1198,7 @@ public final class GooRenderTypes {
 
     /**
      * Registers the overlay pipelines: the goo ripple masks and edge, the
-     * ghost, Bulb's glow beam, the glow shell and Scry's faces.
+     * ghost, Bulb's glow beam, the glow shell, Scry's faces and Unmake's drink field.
      *
      * @param event the event instance
      */
@@ -1185,6 +1210,7 @@ public final class GooRenderTypes {
         event.registerPipeline(GLOW_BEAM);
         event.registerPipeline(GLOW_SHELL);
         event.registerPipeline(SCRY_FACES);
+        event.registerPipeline(DRINK_FIELD);
     }
 
     /**

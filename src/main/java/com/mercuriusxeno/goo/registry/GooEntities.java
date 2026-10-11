@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
+import com.mercuriusxeno.goo.entity.Meteor;
 import com.mercuriusxeno.goo.entity.RollingGoo;
 import com.mercuriusxeno.goo.entity.SwapBody;
 import net.minecraft.core.registries.Registries;
@@ -40,6 +41,8 @@ public final class GooEntities {
     private static final float PLAYER_EYE_HEIGHT = 1.62f;
     private static final int SWAP_BODY_TRACKING_CHUNKS = 10;
     private static final int SWAP_BODY_UPDATE_TICKS = 2;
+    private static final float METEOR_SIZE = 1.0f;
+    private static final int METEOR_TRACKING_CHUNKS = 10;
 
     /**
      * A goo rolling through the air in a straight line, such as frost's Orb
@@ -77,6 +80,18 @@ public final class GooEntities {
             .noLootTable()
             .clientTrackingRange(SWAP_BODY_TRACKING_CHUNKS)
             .updateInterval(SWAP_BODY_UPDATE_TICKS)
+            .build(ResourceKey.create(Registries.ENTITY_TYPE, id)));
+
+    /**
+     * Meteo's meteor, falling from high above its target to a crater
+     * (decision meteo-needs-a-clear-sky).
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<Meteor>> METEOR =
+        ENTITIES.register("meteor", id -> EntityType.Builder.<Meteor>of(Meteor::new, MobCategory.MISC)
+            .sized(METEOR_SIZE, METEOR_SIZE)
+            .clientTrackingRange(METEOR_TRACKING_CHUNKS)
+            .updateInterval(1)
+            .noLootTable()
             .build(ResourceKey.create(Registries.ENTITY_TYPE, id)));
 
     private GooEntities() {

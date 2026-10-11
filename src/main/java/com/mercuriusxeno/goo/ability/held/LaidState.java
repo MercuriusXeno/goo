@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.held;
 
 import com.mercuriusxeno.goo.ability.program.AirbornStep;
+import com.mercuriusxeno.goo.ability.program.ChargedStep;
 import com.mercuriusxeno.goo.ability.program.EldritchStep;
 import com.mercuriusxeno.goo.ability.program.ExtenderStep;
 import com.mercuriusxeno.goo.ability.program.HasteStep;
@@ -13,6 +14,7 @@ import com.mercuriusxeno.goo.ability.program.PhaseStep;
 import com.mercuriusxeno.goo.ability.program.ShifterStep;
 import com.mercuriusxeno.goo.ability.program.SightStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.TelekinesisStep;
 import com.mercuriusxeno.goo.ability.program.UndeadStep;
 import com.mojang.serialization.Codec;
 import io.netty.buffer.ByteBuf;
@@ -49,8 +51,12 @@ public enum LaidState {
     HASTE,
     /** Air control (decision airborn-steerable-levitation-and-soft-falls). */
     AIRBORN,
+    /** Telekinesis's raised reach (decision telekinesis-enacts-at-extended-reach). */
+    TELEKINESIS,
     /** The eldritch state (decision eldritch-sight-reveals-the-out-of-phase). */
     ELDRITCH,
+    /** Charged, laid by a charged step (decision charged-scales-channel-params-by-json). */
+    CHARGED,
     /** Standing out of phase (decision phase-shares-a-plane-between-the-phased). */
     PHASE;
 
@@ -90,7 +96,9 @@ public enum LaidState {
             Map.entry(LifetapStep.class, LIFETAP),
             Map.entry(HasteStep.class, HASTE),
             Map.entry(AirbornStep.class, AIRBORN),
+            Map.entry(TelekinesisStep.class, TELEKINESIS),
             Map.entry(EldritchStep.class, ELDRITCH),
+            Map.entry(ChargedStep.class, CHARGED),
             Map.entry(PhaseStep.class, PHASE));
 
     private static Stream<Step> withDescendants(Step step) {

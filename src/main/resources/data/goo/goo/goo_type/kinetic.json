@@ -1,0 +1,23 @@
+{
+  "light_level": 6,
+  "saturation_fill": 0.55,
+  "wheel": "FF7A1A",
+  "bright": "FFB066",
+  "highlight": "FF9233",
+  "edge": "FFA04D",
+  "density": 1800,
+  "viscosity": 800,
+  "temperature": 300,
+  "extinguishes": false,
+  "levity": 1.0,
+  "base_flight_time": 3,
+  "map_color": "color_orange",
+  "textures": {
+    "goo_tiny": "goo:item/kinetic_goo_tiny",
+    "goo_small": "goo:item/kinetic_goo_small",
+    "goo_base": "goo:item/kinetic_goo_base",
+    "goo_large": "goo:item/kinetic_goo_large",
+    "fluid_still": "goo:fluid/kinetic_fluid",
+    "fluid_flowing": "goo:fluid/kinetic_fluid"
+  }
+}

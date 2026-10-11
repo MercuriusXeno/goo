@@ -60,6 +60,21 @@ public enum HostCapability {
      */
     LINGER(LingerHost.class),
     /**
+     * A standing block that watches the entities around it and pulses to
+     * its viewers (decision lurker-blob-brightens-then-detonates).
+     */
+    WATCH(WatchHost.class),
+    /**
+     * A tap holding the block under it that an unmake works on
+     * (decision unmake-drip-dissolves-the-block-below).
+     */
+    UNMAKE(UnmakeHost.class),
+    /**
+     * A held channel that drinks the face under its cursor into the glove
+     * (decision unmake-waves-dissolve-by-crucible-cost).
+     */
+    SIPHON(SiphonHost.class),
+    /**
      * A landing where a blob can grow a shroom network
      * (decision colonize-blob-grows-the-network).
      */
@@ -84,6 +99,11 @@ public enum HostCapability {
      * grow down from it (decision petrify-drip-calcifies-and-grows-dripstone).
      */
     DRIP(DripHost.class),
+    /**
+     * A tap's spigot a glass shard falls from, onto the first mob under it
+     * (decision shards-drip-falls-as-a-glass-shard).
+     */
+    SHARD_FALL(ShardFallHost.class),
     /**
      * The host's own block, whose properties can change in place (decision
      * bulb-one-model-max-light-beacon-combo).
@@ -114,6 +134,16 @@ public enum HostCapability {
      * portable-hole-phases-blocks-for-a-while).
      */
     PHASE_BLOCKS(PhaseBlocksHost.class),
+    /**
+     * A struck surface Astral's gate can open over (decision
+     * astral-visits-lunar-and-solar-dimensions).
+     */
+    ASTRAL_GATE(GateHost.class),
+    /**
+     * A landing a meteor can be called down on (decision
+     * meteo-needs-a-clear-sky).
+     */
+    METEOR(MeteorHost.class),
     /**
      * The world around a lasting host to green tick after tick (decision
      * verdant-prism-greens-blocks-slowly).

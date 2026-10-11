@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.block.crucible;
 
+import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooStacks;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -41,13 +43,25 @@ final class CrucibleDrops {
         }
     }
 
-    /** Drops reservoir contents as one goo per goo type.
+    /** Drops reservoir contents as one goo per goo type, save infinity, which
+     * never leaves a holder and is lost with the crucible.
+     * decision infinity-sources-whatever-shares-its-vessel
      *
      * @param crucible the crucible block entity
      * @param level    the current level
      * @param pos      the block position
      */
     private static void dropReservoirAsGoo(CrucibleBlockEntity crucible, Level level, BlockPos pos) {
-        GooStacks.dropAll(crucible.getReservoir(), level, pos);
+        GooStacks.dropAll(droppedReservoir(crucible.getReservoir()), level, pos);
+    }
+
+    /**
+     * The part of a reservoir a broken crucible drops: every type save infinity.
+     *
+     * @param reservoir what the crucible holds
+     * @return the same contents with no infinity
+     */
+    static GooContents droppedReservoir(GooContents reservoir) {
+        return reservoir.withRemoved(GooTypes.INFINITY, reservoir.getVolume(GooTypes.INFINITY));
     }
 }

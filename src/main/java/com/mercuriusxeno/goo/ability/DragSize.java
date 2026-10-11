@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability;
 
+import com.mercuriusxeno.goo.item.GooFormat;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -49,6 +50,18 @@ public final class DragSize {
      */
     public static int costAt(int referenceCost, double radius) {
         return (int) Math.ceil(referenceCost * Math.pow(radius / REFERENCE_RADIUS, CUBE));
+    }
+
+    /**
+     * The price a held drag shows for the radius dragged, every sized ability
+     * alike (decision blast-is-drag-sized-like-the-black-hole).
+     *
+     * @param referenceCost the ability's JSON cost, in mB
+     * @param radius        the radius dragged, in blocks
+     * @return the formatted cost
+     */
+    public static String priceLabel(int referenceCost, double radius) {
+        return GooFormat.formatAmount(costAt(referenceCost, radius));
     }
 
     /**

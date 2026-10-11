@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.block.crucible;
 
 import com.mercuriusxeno.goo.GooConfig;
+import com.mercuriusxeno.goo.block.fluid.VesselSourcing;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
 import com.mercuriusxeno.goo.type.GooColors;
@@ -39,6 +40,7 @@ final class CrucibleMelting {
         CrucibleItemDrift.driftItems(be, level, pos);
         handleMeltingTick(be, level, pos);
         handleBoilingEffects(be, level, pos);
+        VesselSourcing.sourceTick(level, be.getReservoir(), be);
         be.gasketPusher.tick();
 
         boolean lit = be.canHeat();

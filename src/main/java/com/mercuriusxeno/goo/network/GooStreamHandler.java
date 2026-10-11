@@ -10,6 +10,8 @@ import com.mercuriusxeno.goo.ability.StreamSound;
 import com.mercuriusxeno.goo.ability.program.BlockTicking;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.ChannelHost;
+import com.mercuriusxeno.goo.ability.program.ChargedMultipliers;
+import com.mercuriusxeno.goo.ability.program.ChargedStep;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.FloorReach;
 import com.mercuriusxeno.goo.ability.program.HostKind;
@@ -27,12 +29,14 @@ import com.mercuriusxeno.goo.ability.program.WithdrawBankStep;
 import com.mercuriusxeno.goo.ability.spray.SprayPrograms;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -72,6 +76,8 @@ public final class GooStreamHandler {
     private static final String LOG_HELD_TICK = "Held tick of {} for {}: hold tick {}";
     /** Particles sprayed along the cone each tick. */
     private static final int PARTICLES_PER_TICK = 6;
+    /** The widest a charged cone opens, a half turn. */
+    private static final double MAX_CONE_DEGREES = 180.0;
     /**
      * Launch speed per block of the stream's range: a mote slowing by a tenth
      * each tick carries ten times its launch speed, so it reaches the cone's end.
@@ -169,7 +175,8 @@ public final class GooStreamHandler {
      * @param ability the channel ability
      */
     private static void channelOnPlayer(ServerPlayer player, ChannelAim aim, AbilityDefinition ability) {
-        runSteps(PlayerHost.channeling(player.level(), player, aim), HostKind.PLAYER, ability.behaviors(), ability);
+        runSteps(PlayerHost.channeling(player.level(), player, aim), HostKind.PLAYER, ability.behaviors(),
+                new CastOn(player.level(), player, ability.id(), chargedFor(player, ability)));
     }
 
     /**
@@ -185,7 +192,7 @@ public final class GooStreamHandler {
                                       AbilityDefinition ability) {
         MinecraftServer server = player.level().getServer();
         int held = GooServerState.of(server).streamHolds().advance(player.getUUID(), server.getTickCount());
-        if (held == 0) {
+        if (held == 0 || !paysReagents(player, ability, held)) {
             return 0;
         }
         // timekeeper-prism-banks-ticks-forward-only: withdrawing a timekeeper's bank costs nothing
@@ -196,6 +203,29 @@ public final class GooStreamHandler {
         }
         GooSourceScanner.deplete(player, gooType, share);
         return held;
+    }
+
+    /**
+     * Whether a hold has its reagents: a held ability consuming items takes
+     * one of each on the hold's first tick, and a hold that could not pay
+     * then runs nothing until a new hold starts; one consuming nothing pays
+     * nothing (decision ability-json-names-its-reagent).
+     *
+     * @param player  the holding player
+     * @param ability the held ability
+     * @param held    the hold's tick count, 1 on its first tick
+     * @return true when the hold may run this tick
+     */
+    private static boolean paysReagents(ServerPlayer player, AbilityDefinition ability, int held) {
+        if (ability.consumes().isEmpty()) {
+            return true;
+        }
+        StreamHolds holds = GooServerState.of(player.level().getServer()).streamHolds();
+        if (held == ChannelAim.FIRST_TICK && ReagentScanner.holdsEvery(player, ability.consumes())) {
+            ReagentScanner.consumeOneOfEach(player, ability.consumes());
+            holds.markPaid(player.getUUID());
+        }
+        return holds.paid(player.getUUID());
     }
 
     /**
@@ -279,9 +309,11 @@ public final class GooStreamHandler {
      */
     private static void strikeCone(ServerPlayer player, Vec3 origin, AbilityDefinition ability, int held) {
         ServerLevel level = player.level();
-        Delivery delivery = ability.delivery();
+        ChargedMultipliers charged = chargedFor(player, ability);
+        Delivery delivery = chargedDelivery(ability.delivery(), charged);
         Vec3 apex = ThrowArc.clampToReach(player.getEyePosition(), origin, ThrowArc.HAND_REACH * player.getScale());
         Vec3 axis = player.getLookAngle();
+        CastOn cast = new CastOn(level, player, ability.id(), charged);
         // decay-gnats-degrade-each-block-once: what the stream strikes follows the look; only its motes
         // fly from the hand onto the point the crosshair lands on
         Vec3 target = crosshairTarget(player, delivery.range());
@@ -291,21 +323,78 @@ public final class GooStreamHandler {
             // reserve-hearts-sit-behind-the-bar: a stream reaching nothing runs only on its caster
             sprayParticles(level, apex, aimFrom(apex, target, axis), delivery,
                     Math.min(delivery.range(), apex.distanceTo(target)));
-            for (LivingEntity living : runPasses(player, apex, axis, ability, held)) {
+            for (LivingEntity living : runPasses(cast, apex, axis, ability, delivery, held)) {
                 HEALS.runNoting(living, healed, () -> runSteps(new EntityHost(level, living, player), HostKind.ENTITY,
-                        entitySteps, ability));
+                        entitySteps, cast));
             }
             sprayFloors(player, apex, axis, ability);
         }
+        strikeCaster(cast, ability, apex, entitySteps, healed);
+    }
+
+    /**
+     * Runs the entity pass on the caster of a stream tagged self, then tells
+     * the watchers who the tick healed (decision vitality-waves-regenerate-and-court).
+     *
+     * @param cast        the tick's cast
+     * @param ability     the stream ability
+     * @param apex        the cone's apex
+     * @param entitySteps the entity pass's steps
+     * @param healed      the living the tick healed so far, which the caster joins
+     */
+    private static void strikeCaster(CastOn cast, AbilityDefinition ability, Vec3 apex, List<Step> entitySteps,
+                                     List<Integer> healed) {
+        ServerPlayer player = cast.player();
         if (ability.hasTag(AbilityTags.SELF)) {
-            // vitality-waves-regenerate-and-court
             HEALS.runNoting(player, healed,
-                    () -> runSteps(new PlayerHost(level, player), HostKind.PLAYER, entitySteps, ability));
+                    () -> runSteps(new PlayerHost(cast.level(), player), HostKind.PLAYER, entitySteps, cast));
         }
         if (!healed.isEmpty()) {
-            // vitality-waves-regenerate-and-court: the client homes goo to each healed thing and stars it
+            // the client homes goo to each healed thing and stars it
             EntityVisuals.sendToWatchers(player, new StreamHealedPayload(player.getId(), apex, healed));
         }
+    }
+
+    /**
+     * One tick's cast of a stream or channel: where it runs, who holds it,
+     * which ability, and the Charged multipliers it carries.
+     *
+     * @param level     the server level
+     * @param player    the holding player
+     * @param abilityId the ability's id, for a refusal's log
+     * @param charged   the cast's Charged multipliers, all 1 for an uncharged player
+     */
+    private record CastOn(ServerLevel level, ServerPlayer player, Identifier abilityId, ChargedMultipliers charged) {
+    }
+
+    /**
+     * The Charged multipliers a player's hold of an ability carries: the
+     * ability's own while the player stands charged, else none
+     * (decision charged-scales-channel-params-by-json).
+     *
+     * @param player  the holding player
+     * @param ability the held ability
+     * @return the multipliers
+     */
+    private static ChargedMultipliers chargedFor(ServerPlayer player, AbilityDefinition ability) {
+        return ChargedStep.isCharged(player) ? ability.charged() : ChargedMultipliers.NONE;
+    }
+
+    /**
+     * The stream's delivery under Charged: its range and cone scaled by the
+     * area multiplier, the cone kept within a half turn
+     * (decision charged-scales-channel-params-by-json).
+     *
+     * @param delivery the ability's delivery
+     * @param charged  the cast's Charged multipliers
+     * @return the delivery the cone sprays
+     */
+    static Delivery chargedDelivery(Delivery delivery, ChargedMultipliers charged) {
+        if (charged.area() == 1.0) {
+            return delivery;
+        }
+        return delivery.withCone(delivery.range() * charged.area(),
+                Math.min(MAX_CONE_DEGREES, delivery.coneDegrees() * charged.area()));
     }
 
     /**
@@ -364,30 +453,32 @@ public final class GooStreamHandler {
      * needing the channel
      * (decisions bore-vortex-with-a-worldspace-shake, petrify-stone-encasement-and-calcify-map).
      *
-     * @param player   the streaming player
+     * @param cast     the tick's cast
      * @param axis     the look
+     * @param delivery the stream's delivery this tick
      * @param ability  the stream ability
      * @param held     the hold's tick count, which a wave front grows by
      * @param reaching whether the pass reaches new blocks, false while a mob-first stream bites
      */
-    private static void runBlockPass(ServerPlayer player, Vec3 axis, AbilityDefinition ability, int held,
+    private static void runBlockPass(CastOn cast, Vec3 axis, Delivery delivery, AbilityDefinition ability, int held,
                                      boolean reaching) {
         List<Step> blockSteps = channelSteps(ability.behaviors(), true);
         if (blockSteps.isEmpty()) {
             return;
         }
-        Delivery delivery = ability.delivery();
+        ServerPlayer player = cast.player();
         ChannelAim aim = new ChannelAim(player.getEyePosition().add(axis.scale(delivery.range())), null,
                 delivery.coneDegrees(), held, reaching);
-        runSteps(PlayerHost.channeling(player.level(), player, aim), HostKind.PLAYER, blockSteps, ability);
+        runSteps(PlayerHost.channeling(player.level(), player, aim), HostKind.PLAYER, blockSteps, cast);
     }
 
     /**
      * A stream program's top-level steps split by the pass they run in: those
-     * needing the channel run once a tick on the player over the cone's blocks
-     * (decisions bore-vortex-with-a-worldspace-shake,
-     * petrify-stone-encasement-and-calcify-map), and the rest run on every
-     * entity in the cone, and on the caster of a stream tagged self.
+     * needing the channel or working the cone's blocks run once a tick on the
+     * player over the cone's blocks (decisions bore-vortex-with-a-worldspace-shake,
+     * petrify-stone-encasement-and-calcify-map),
+     * and the rest run on every entity in the cone, and on the caster of a
+     * stream tagged self.
      *
      * @param behaviors the stream's top-level steps
      * @param channel   true for the block pass's steps, false for the entity pass's
@@ -398,18 +489,19 @@ public final class GooStreamHandler {
     }
 
     /**
-     * Runs a pass's steps on its host, logging a program the host refuses.
+     * Runs a pass's steps on its host with the cast's Charged multipliers,
+     * logging a program the host refuses.
      *
-     * @param host    the pass's host
-     * @param kind    the host's kind
-     * @param steps   the pass's steps
-     * @param ability the stream ability
+     * @param host  the pass's host
+     * @param kind  the host's kind
+     * @param steps the pass's steps
+     * @param cast  the tick's cast
      */
-    private static void runSteps(StepHost host, HostKind kind, List<Step> steps, AbilityDefinition ability) {
+    private static void runSteps(StepHost host, HostKind kind, List<Step> steps, CastOn cast) {
         try {
-            ProgramBehavior.forHost(steps, kind).tick(host);
+            ProgramBehavior.forHost(steps, kind).tick(host, cast.charged());
         } catch (ProgramLoadException e) {
-            Goo.LOGGER.error(LOG_PROGRAM_REFUSED, ability.id(), e.getMessage());
+            Goo.LOGGER.error(LOG_PROGRAM_REFUSED, cast.abilityId(), e.getMessage());
         }
     }
 
@@ -448,21 +540,22 @@ public final class GooStreamHandler {
      * reaches no new block but keeps working the ones already reached, and
      * the block pass alone when no mob stands in the cone.
      *
-     * @param player  the streaming player
-     * @param apex    the cone's apex
-     * @param axis    the cone's axis
-     * @param ability the stream ability
-     * @param held    the hold's tick count, which a wave front grows by
+     * @param cast     the tick's cast
+     * @param apex     the cone's apex
+     * @param axis     the cone's axis
+     * @param ability  the stream ability
+     * @param delivery the stream's delivery this tick, under Charged
+     * @param held     the hold's tick count, which a wave front grows by
      * @return the living the entity pass strikes this tick
      */
-    private static List<LivingEntity> runPasses(ServerPlayer player, Vec3 apex, Vec3 axis, AbilityDefinition ability,
-                                                int held) {
-        List<LivingEntity> inCone = livingInCone(player.level(), player, apex, axis, ability.delivery());
+    private static List<LivingEntity> runPasses(CastOn cast, Vec3 apex, Vec3 axis, AbilityDefinition ability,
+                                                Delivery delivery, int held) {
+        List<LivingEntity> inCone = livingInCone(cast.level(), cast.player(), apex, axis, delivery);
         // decay-gnats-degrade-each-block-once: a mob in the cone takes the swarm, else the blocks do;
         // the operator's ruling: blocks already painted keep stepping while the swarm bites
         boolean mobFirst = ability.hasTag(AbilityTags.MOB_FIRST);
         List<LivingEntity> struck = mobFirst ? nearestMob(inCone, apex) : inCone;
-        runBlockPass(player, axis, ability, held, !mobFirst || struck.isEmpty());
+        runBlockPass(cast, axis, delivery, ability, held, !mobFirst || struck.isEmpty());
         return struck;
     }
 
