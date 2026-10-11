@@ -40,6 +40,7 @@
         "life": "$base",
         "glow": {"glow":"$base"},
         "ender": {"ender":"$base"},
+        "deep": {"deep":"$base"},
         "pulse": {"pulse":"$base"},
         "spawn_egg": {"vital": "$life", "aeon": "2 $life"},
         "rare": {"aeon": "$base"},
@@ -65,7 +66,8 @@
         "iron_nugget": {"metal": "4 $copper_nugget.metal" },
         "iron_ingot": "9 $iron_nugget",
         "iron_block": "9 $iron_ingot",
-        "gold_nugget": {"metal": "4 $iron_nugget.metal", "glow": 1440},
+        "wealth": {"opulent": "$base"},
+        "gold_nugget": {"metal": "4 $iron_nugget.metal", "glow": 1440, "opulent": "$wealth.opulent"},
         "gold_ingot": "9 $gold_nugget",
         "gold_block": "9 $gold_ingot",
         "netherite_scrap": {"metal": "4 $gold_ingot.metal", "aeon": "$gold_ingot.metal", "nether": "$gold_ingot.metal"},
@@ -73,7 +75,7 @@
         "waxed": {"vital": "$medium"},
         "bottle": {"rock": "$medium"},
         "quartz": {"crystal": "$base"},
-        "diamond": {"crystal": "$ultra", "aeon": "$high"},
+        "diamond": {"crystal": "$ultra", "aeon": "$high", "opulent": "24 $wealth.opulent"},
         "mundane_trim": "7 $diamond + $mundane_block",
         "seed": "$log / 4"
     },
@@ -222,7 +224,6 @@
             "gravel",
             "flint",
             "terracotta",
-            "cobbled_deepslate",
             "tuff",
             "blackstone",
             "red_sand",
@@ -546,7 +547,19 @@
             "red_mushroom_block",
             "brown_mushroom_block",
             "mushroom_stem",
-            "warped_wart_block",
+            "warped_wart_block"
+        ],
+        "deepslate_blocks": [
+            "deepslate",
+            "cobbled_deepslate",
+            "polished_deepslate",
+            "chiseled_deepslate",
+            "deepslate_bricks",
+            "cracked_deepslate_bricks",
+            "deepslate_tiles",
+            "cracked_deepslate_tiles"
+        ],
+        "sculk_blocks": [
             "sculk",
             "sculk_vein"
         ],
@@ -615,6 +628,7 @@
     "#goo_special": "denied",
 
     "#mundane_blocks": "$mundane_block",
+    "#deepslate_blocks": "$mundane_block + $deep",
 
     "#sherds": "$sherd",
     "#discs": "$disc",
@@ -664,8 +678,9 @@
     "#shrooms": "$shroom",
     "#plain_shroom_blocks": "$shroom",
     "#nether_shroom_plants": "$shroom + $nether",
-    "sculk_shrieker": "$shroom + $magic",
-    "sculk_catalyst": "$shroom + $rare",
+    "#sculk_blocks": "$shroom + $deep",
+    "sculk_shrieker": "$shroom + $magic + $deep",
+    "sculk_catalyst": "$shroom + $rare + $deep",
     "shroomlight": "$shroom + $glow",
     "mycelium": "$mundane_block + $shroom",
 
@@ -675,6 +690,9 @@
     "raw_iron": "$iron_ingot",
     "raw_copper": "$copper_ingot",
     "raw_gold": "$gold_ingot",
+    "gold_nugget": "$gold_nugget",
+    "gold_ingot": "$gold_ingot",
+    "gold_block": "$gold_block",
 
     "gilded_blackstone": "$mundane_block + 4 $gold_nugget",
 
@@ -723,7 +741,7 @@
         "hex": "$magic.hex",
         "aeon": "$high"
     },
-    "honey_bottle": "6 $food + 12 $saturation + $bottle",
+    "honey_bottle": "6 $food + 12 $saturation + $bottle + 2 $wealth",
     "melon_slice": "2 $food + 12 $saturation",
     "sweet_berries": "2 $food + 4 $saturation",
     "cooked_beef": "8 $food + 128 $saturation",
@@ -785,7 +803,7 @@
     "glowstone_dust": "$glow",
     "#froglights": "$glow + $food",
 
-    "emerald": {"crystal":"$high"},
+    "emerald": {"crystal": "$high", "opulent": "12 $wealth.opulent"},
     "amethyst_shard": {"crystal": "$base"},
     "small_amethyst_bud": "1 amethyst_shard",
     "medium_amethyst_bud": "2 amethyst_shard",
@@ -828,7 +846,7 @@
 
     "#leaves": "$stick",
     "nether_star": {"glow":"$ultra","nether":"$ultra"},
-    "sculk_sensor": {"shroom":"$high","pulse":"$high","hex":"$high"},
+    "sculk_sensor": {"shroom":"$high","pulse":"$high","hex":"$high","deep":"$base"},
     "prismarine_crystals": {"glow":"$base","crystal":"$base"},
     "prismarine_shard": {"crystal": "$base", "vital": "$base"},
     "creeper_head": {"vital":"$base","hex":"$base","nether":"$base","blaze":"$base"},
@@ -983,7 +1001,7 @@
   "infested_chiseled_stone_bricks": "$mundane_block",
   "infested_stone": "$mundane_block",
   "infested_cracked_stone_bricks": "$mundane_block",
-  "infested_deepslate": "$mundane_block",
+  "infested_deepslate": "$mundane_block + $deep",
   "infested_mossy_stone_bricks": "mossy_cobblestone",
   "infested_cobblestone": "$mundane_block",
   "suspicious_sand": "$mundane_block",
@@ -1001,6 +1019,7 @@
     "_conversions": {},
     "_post_conversions": {
         "waxed": "+$waxed",
+        "deep_ore": "+$deep",
         "oxidation_metal": "metal / 4 -> aeon / 9",
         "oxidation_pulse": "pulse / 4 -> aeon * 0",
         "exposed_metal": "@oxidation_metal",
@@ -1017,7 +1036,7 @@
         "#waxed_weathered": "#weathered @waxed",
         "#waxed_oxidized": "#oxidized @waxed",
         "#concrete": "#concrete_powder",
-        "#deepslate_ores": "#ores",
+        "#deepslate_ores": "#ores @deep_ore",
         "#nautilus_armors": "#horse_armors"
     }
 }

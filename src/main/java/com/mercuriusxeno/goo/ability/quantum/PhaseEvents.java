@@ -1,11 +1,13 @@
 package com.mercuriusxeno.goo.ability.quantum;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.xeno.EldritchEvents;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingChangeTargetEvent;
@@ -16,8 +18,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * Keeps phased entities on their own plane: a hit lands only between two
  * entities on the same side of phase, a mob never takes a target across it,
- * and a mob whose target crosses it drops that target. A faded phase is
- * ended here.
+ * save an eldritch player, and a mob whose target crosses it drops that
+ * target. A faded phase is ended here.
  * phase-shares-a-plane-between-the-phased
  */
 @EventBusSubscriber(modid = Goo.MODID)
@@ -47,7 +49,7 @@ public final class PhaseEvents {
     @SubscribeEvent
     public static void onChangeTarget(LivingChangeTargetEvent event) {
         LivingEntity target = event.getNewAboutToBeSetTarget();
-        if (target != null && !OutOfPhase.sharePlane(phased(event.getEntity()), phased(target))) {
+        if (target != null && !seesAcross(event.getEntity(), target)) {
             event.setNewAboutToBeSetTarget(null);
         }
     }
@@ -62,7 +64,7 @@ public final class PhaseEvents {
     public static void onEntityTick(EntityTickEvent.Post event) {
         if (event.getEntity() instanceof Mob mob && !mob.level().isClientSide()) {
             LivingEntity target = mob.getTarget();
-            if (target != null && !OutOfPhase.sharePlane(phased(mob), phased(target))) {
+            if (target != null && !seesAcross(mob, target)) {
                 mob.setTarget(null);
             }
         }
@@ -83,6 +85,20 @@ public final class PhaseEvents {
         }
         entity.removeData(GooAttachments.OUT_OF_PHASE);
         return false;
+    }
+
+    /**
+     * Whether a mob may hold a creature as its target: both on one side of
+     * phase, or the creature an eldritch player, whom the out-of-phase see
+     * (decision eldritch-sight-reveals-the-out-of-phase).
+     *
+     * @param mob    the mob taking aim
+     * @param target the creature aimed at
+     * @return true where the aim may stand
+     */
+    static boolean seesAcross(LivingEntity mob, LivingEntity target) {
+        return OutOfPhase.sharePlane(phased(mob), phased(target))
+                || target instanceof Player player && EldritchEvents.isEldritch(player);
     }
 
     // A projectile stands on its shooter's plane, so the shooter judges the hit; a hit with no entity behind it

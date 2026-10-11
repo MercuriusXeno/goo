@@ -9,12 +9,15 @@ import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.ability.Afterimages;
 import com.mercuriusxeno.goo.client.ability.AilmentOverlayLayer;
+import com.mercuriusxeno.goo.client.ability.BeatRings;
 import com.mercuriusxeno.goo.client.ability.BlockTransforms;
 import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
 import com.mercuriusxeno.goo.client.ability.ClientSwapBody;
+import com.mercuriusxeno.goo.client.ability.EldritchSight;
 import com.mercuriusxeno.goo.client.ability.EncasementLayer;
 import com.mercuriusxeno.goo.client.ability.FrozenPoses;
 import com.mercuriusxeno.goo.client.ability.GhostTrails;
+import com.mercuriusxeno.goo.client.ability.LiftWind;
 import com.mercuriusxeno.goo.client.ability.MobAilments;
 import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
 import com.mercuriusxeno.goo.client.ability.MobCoats;
@@ -22,15 +25,15 @@ import com.mercuriusxeno.goo.client.ability.MobShells;
 import com.mercuriusxeno.goo.client.ability.NovaRings;
 import com.mercuriusxeno.goo.client.ability.PhaseLook;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
-import com.mercuriusxeno.goo.client.ability.ThumpRings;
+import com.mercuriusxeno.goo.client.ability.SignalRings;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
+import com.mercuriusxeno.goo.client.ability.UpdraftWind;
 import com.mercuriusxeno.goo.client.ability.ViewportRipples;
 import com.mercuriusxeno.goo.client.ability.VineTangleLayer;
 import com.mercuriusxeno.goo.client.ability.WindLines;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
 import com.mercuriusxeno.goo.client.ber.*;
-import com.mercuriusxeno.goo.client.ber.style.AgitatorPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlacialPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlowBeaconStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlowReflectorStyle;
@@ -150,8 +153,6 @@ public final class GooClientSetup {
         PrismComboStyles.register(TimekeeperPrismStyle.COMBO, new TimekeeperPrismStyle());
         // verdant-prism-greens-blocks-slowly: a verdant prism draws its crystal leaf-green
         PrismComboStyles.register(VerdantPrismStyle.COMBO, new VerdantPrismStyle());
-        // agitator-prism-quickens-until-a-spawn
-        PrismComboStyles.register(AgitatorPrismStyle.COMBO, new AgitatorPrismStyle());
     }
 
     /**
@@ -209,7 +210,7 @@ public final class GooClientSetup {
         PrismComboStyles.register(GlowBeaconStyle.COMBO, new GlowBeaconStyle());
         PrismComboStyles.register(GlowReflectorStyle.COMBO, new GlowReflectorStyle());
         PrismComboStyles.register(HivePrismStyle.COMBO, new HivePrismStyle());
-        event.registerBlockEntityRenderer(GooBlockEntities.DRAGON_GATE.get(), DragonGateRenderer::new);
+        event.registerBlockEntityRenderer(GooBlockEntities.END_GATE.get(), EndGateRenderer::new);
         event.registerBlockEntityRenderer(GooBlockEntities.PHASED_BLOCK.get(), PhasedBlockRenderer::new);
         // oculus-prism-becomes-a-hovering-eye: an oculus prism draws as the hovering eye
         PrismComboStyles.register(OculusNodes.OCULUS, new OculusStyle());
@@ -316,7 +317,7 @@ public final class GooClientSetup {
      * Registers the render state modifiers that stamp each entity's goo state
      * onto its render state: the glove's target outline, the goo coat, the
      * ailments, the phase, the stone and frost encasements, the frozen pose,
-     * the vine tangle and the transformation, in that order.
+     * the vine tangle, the transformation and the eldritch phase, in that order.
      *
      * @param event the event instance
      */
@@ -333,7 +334,8 @@ public final class GooClientSetup {
                 EncasementLayer::stampFrozen,
                 FrozenPoses::stampFrozenPose,
                 VineTangleLayer::stampTangle,
-                TransformationRenderer::stampTransformation);
+                TransformationRenderer::stampTransformation,
+                EldritchSight::stampPhase);
         for (BiConsumer<Entity, EntityRenderState> stamp : stamps) {
             event.registerEntityModifier(new TypeToken<EntityRenderer<Entity, EntityRenderState>>() {
             }, stamp);
@@ -466,7 +468,8 @@ public final class GooClientSetup {
         TunerAwaitState.clear();
         GooFlightManager.clear();
         ZapBolts.clear();
-        ThumpRings.clear();
+        BeatRings.clear();
+        SignalRings.clear();
         RelayLasers.clear();
         PrismBeats.clear();
         ChainBurnouts.CLIENT.clear();
@@ -475,6 +478,8 @@ public final class GooClientSetup {
         FrozenPoses.CLIENT.clear();
         NovaRings.CLIENT.clear();
         WindLines.CLIENT.clear();
+        UpdraftWind.clear();
+        LiftWind.clear();
         BlockTransforms.CLIENT.clear();
         Afterimages.CLIENT.clear();
         Transformations.CLIENT.clear();

@@ -1,0 +1,13 @@
+{
+  "gooType": "typhoon",
+  "displayName": "goo.ability.typhoon.float",
+  "badge": "mob",
+  "order": 0,
+  "cost": 1000,
+  "requires": ["minecraft:shulker_shell"],
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "float", "duration": 100, "amplifier": 1 }
+  ],
+  "tags": ["entity"]
+}

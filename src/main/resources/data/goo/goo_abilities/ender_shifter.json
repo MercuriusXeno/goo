@@ -1,0 +1,16 @@
+{
+  "gooType": "ender",
+  "displayName": "goo.ability.ender.shifter",
+  "badge": "brew",
+  "order": 20,
+  "upkeep": 1,
+  "requires": ["minecraft:chorus_fruit"],
+  "delivery": { "kind": "self" },
+  "behaviors": [
+    { "type": "shifter", "distance": 8 },
+    { "type": "ailment_overlay", "kind": "shifter", "duration": 40 },
+    { "type": "afterimage", "goo": "ender" },
+    { "type": "sound", "id": "minecraft:entity.enderman.teleport", "at": "target", "source": "players", "volume": 1, "pitch": 0.8 }
+  ],
+  "tags": ["self"]
+}

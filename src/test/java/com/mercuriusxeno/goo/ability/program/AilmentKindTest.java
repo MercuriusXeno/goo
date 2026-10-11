@@ -18,7 +18,7 @@ class AilmentKindTest {
     @Test
     void tableCarriesEveryAilmentTheListsName() {
         Set<AilmentKind> named = EnumSet.of(AilmentKind.STASIS, AilmentKind.HASTE, AilmentKind.SCALES,
-                AilmentKind.BANISH, AilmentKind.HEX, AilmentKind.PETRIFY, AilmentKind.FROZEN);
+                AilmentKind.ZONE, AilmentKind.HEX, AilmentKind.PETRIFY, AilmentKind.FROZEN);
 
         assertTrue(EnumSet.allOf(AilmentKind.class).containsAll(named));
         for (AilmentKind kind : AilmentKind.values()) {
@@ -43,9 +43,9 @@ class AilmentKindTest {
 
     @Test
     void eachRemainingAilmentWearsItsOwnLook() {
-        assertEquals(AilmentPattern.SHIMMER, AilmentKind.BANISH.pattern());
-        assertEquals(AilmentKind.BANISH.rgb(), AilmentKind.TELEPORTITIS.rgb());
-        assertEquals(AilmentPattern.SHIMMER, AilmentKind.TELEPORTITIS.pattern());
+        assertEquals(AilmentPattern.SHIMMER, AilmentKind.ZONE.pattern());
+        assertEquals(AilmentKind.ZONE.rgb(), AilmentKind.SHIFTER.rgb());
+        assertEquals(AilmentPattern.SHIMMER, AilmentKind.SHIFTER.pattern());
         assertEquals(AilmentPattern.GLINT, AilmentKind.HEX.pattern());
         assertNotEquals(AilmentKind.STASIS.rgb(), AilmentKind.HEX.rgb());
         assertEquals(AilmentPattern.STONE, AilmentKind.PETRIFY.pattern());

@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.hex;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.registry.GooAttachments;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.NeutralMob;
@@ -10,18 +11,22 @@ import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingChangeTargetEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
- * Runs a charmed mob for its charmer until the charm fades: it fights the
+ * Runs a charmed mob for its charmer until the charmer hurts it: it fights the
  * nearest mob targeting the charmer, else the nearest monster hostile to
  * players before that monster aggresses; any target it would take that is a
  * player turns to that foe, or to none; with no foe in reach it follows the
- * charmer, and no hit of its lands on a player.
+ * charmer, and no hit of its lands on a player. A hit from anyone but the
+ * charmer leaves the charm standing.
  * charm-glisten-and-icon-over-the-head
+ * charm-holds-until-struck
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class CharmEvents {
@@ -55,7 +60,7 @@ public final class CharmEvents {
     }
 
     /**
-     * Ends a faded charm, and points a charmed mob with no foe, a player
+     * Points a charmed mob with no foe, a player
      * target counting as none, at its nearest foe, or at nothing and back
      * to its charmer.
      *
@@ -83,22 +88,34 @@ public final class CharmEvents {
     }
 
     /**
-     * The charm a mob holds on the server while it stands; a faded charm
-     * is ended here.
+     * Ends a mob's charm once damage from its charmer lands on it; damage
+     * from anyone else leaves the charm standing.
+     * charm-holds-until-struck
+     *
+     * @param event the damage event, after the damage lands
+     */
+    @SubscribeEvent
+    public static void onDamageTaken(LivingDamageEvent.Post event) {
+        if (!(event.getEntity() instanceof Mob mob)) {
+            return;
+        }
+        Entity attacker = event.getSource().getEntity();
+        UUID attackerId = attacker == null ? null : attacker.getUUID();
+        standingCharm(mob).filter(charm -> charm.brokenBy(attackerId))
+                .ifPresent(charm -> mob.removeData(GooAttachments.CHARMED));
+    }
+
+    /**
+     * The charm a mob holds on the server.
      *
      * @param mob the mob
-     * @return the standing charm, or empty for none
+     * @return the charm, or empty for none
      */
     private static Optional<Charmed> standingCharm(Mob mob) {
         if (mob.level().isClientSide() || !mob.hasData(GooAttachments.CHARMED)) {
             return Optional.empty();
         }
-        Charmed charm = mob.getData(GooAttachments.CHARMED);
-        if (charm.standsAt(mob.level().getGameTime())) {
-            return Optional.of(charm);
-        }
-        mob.removeData(GooAttachments.CHARMED);
-        return Optional.empty();
+        return Optional.of(mob.getData(GooAttachments.CHARMED));
     }
 
     private static boolean looksForFoe(Mob mob) {

@@ -14,10 +14,10 @@ public enum AilmentKind {
     HASTE(0xFFBF2E, AilmentPattern.GLINT),
     /** Scales: diamond blue, faceted rather than glinting. */
     SCALES(0x4AEDD9, AilmentPattern.FACETS),
-    /** Banish: an ender shimmer. */
-    BANISH(0xB05CFF, AilmentPattern.SHIMMER),
-    /** Teleportitis: the banish shimmer. */
-    TELEPORTITIS(0xB05CFF, AilmentPattern.SHIMMER),
+    /** Zone: an ender shimmer. */
+    ZONE(0xB05CFF, AilmentPattern.SHIMMER),
+    /** Shifter: the zone shimmer. */
+    SHIFTER(0xB05CFF, AilmentPattern.SHIMMER),
     /** Hex's charm: a dark purple glisten, drawn light so the mob shows through. */
     HEX(0x6A1FB0, AilmentPattern.GLINT, 0.55f),
     /** Petrify: a stone encasement. */
@@ -25,7 +25,9 @@ public enum AilmentKind {
     /** Frozen: frost. */
     FROZEN(0xC4ECFF, AilmentPattern.FROST),
     /** Glow's glisten: Scry's sweep marks a mob in glow yellow (decision scry-sphere-reveals-faces-and-glistens-mobs). */
-    GLOW(0xFFE628, AilmentPattern.GLINT, 0.4f);
+    GLOW(0xFFE628, AilmentPattern.GLINT, 0.4f),
+    /** Xeno's mutation: sickly green veins writhing over the mob while it stays mutated (decision xeno-blob-mutates-the-struck). */
+    MUTATED(0xA8CC48, AilmentPattern.WRITHE, 0.6f);
 
     /** Codec for the kind as an ability JSON writes it, in lower case. */
     public static final Codec<AilmentKind> CODEC = LowerCaseEnumCodec.of(AilmentKind.class, "ailment kind");

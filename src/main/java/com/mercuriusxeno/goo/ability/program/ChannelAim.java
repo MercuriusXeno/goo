@@ -110,6 +110,20 @@ public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDe
     }
 
     /**
+     * The point a held ability's tick aims at: the mob the aim assist locks,
+     * where the ability locks on and a mob is locked, else the crosshair's point.
+     * decision sunbeam-lands-with-impact-and-aim
+     *
+     * @param locksOn   whether the held ability follows the aim assist's lock
+     * @param lockedMob the point on the mob the aim assist locks, or null where it locks none
+     * @param crosshair the world point under the crosshair
+     * @return the point the tick aims at
+     */
+    public static Vec3 heldAimPoint(boolean locksOn, @Nullable Vec3 lockedMob, Vec3 crosshair) {
+        return locksOn && lockedMob != null ? lockedMob : crosshair;
+    }
+
+    /**
      * The block under the cursor: the aim point lies on a face, so the block
      * is read a hair past it along the line from the eye.
      *

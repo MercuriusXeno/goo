@@ -13,6 +13,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -128,6 +129,30 @@ class AilmentOverlayLayerTest {
         void glowGlistenDrawsLighterThanHex() {
             assertTrue(AilmentOverlayLayer.overlayColor(AilmentKind.GLOW, 1f) >>> 24
                     < AilmentOverlayLayer.overlayColor(AilmentKind.HEX, 1f) >>> 24);
+        }
+    }
+
+    /** A charmed mob wears the hex glisten whole for as long as its charm holds (decision charm-holds-until-struck). */
+    @Nested
+    class CharmGlisten {
+
+        private static final AilmentOverlayLayer.StampedAilment FADING_HEX =
+                new AilmentOverlayLayer.StampedAilment(AilmentKind.HEX, 0.2f);
+        private static final AilmentOverlayLayer.StampedAilment STASIS =
+                new AilmentOverlayLayer.StampedAilment(AilmentKind.STASIS, 1f);
+        private static final AilmentOverlayLayer.StampedAilment WHOLE_HEX =
+                new AilmentOverlayLayer.StampedAilment(AilmentKind.HEX, 1f);
+
+        @Test
+        void charmedMobWearsTheWholeGlistenOverAFadingHex() {
+            assertEquals(List.of(STASIS, WHOLE_HEX),
+                    AilmentOverlayLayer.withCharmGlisten(List.of(FADING_HEX, STASIS), true));
+        }
+
+        @Test
+        void uncharmedMobWearsOnlyItsTimedAilments() {
+            assertEquals(List.of(FADING_HEX, STASIS),
+                    AilmentOverlayLayer.withCharmGlisten(List.of(FADING_HEX, STASIS), false));
         }
     }
 

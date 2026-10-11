@@ -425,7 +425,7 @@ public final class GasketPusherTests {
         ReactorBlockEntity reactor = helper.getBlockEntity(BE_POS, ReactorBlockEntity.class);
         ItemStack output = new ItemStack(GooItems.CANISTER.get());
         CanisterItem.setFluidContent(output,
-                new CanisterFluidContent(GooFluids.resource(GooTypes.BLAZE), OUTPUT_GOO));
+                CanisterFluidContent.of(GooFluids.resource(GooTypes.BLAZE), OUTPUT_GOO));
         CanisterItem.setMetadata(output, CanisterItem.getMetadata(output).withBottomGasketId(outputGasket));
         reactor.insertOutputCanister(output);
 
@@ -445,11 +445,11 @@ public final class GasketPusherTests {
 
     private static int outputAmount(ReactorBlockEntity reactor) {
         CanisterSlotFluidHandler handler = reactor.containerState().getSlotFluidHandler(ReactorBlockEntity.OUTPUT_SLOT);
-        return handler == null ? 0 : handler.getAmount();
+        return handler == null ? 0 : handler.totalVolume();
     }
 
     private static int receiverAmount(CanisterBlockEntity receiver) {
         CanisterSlotFluidHandler handler = receiver.containerState().getSlotFluidHandler(CanisterBlock.CENTER_SLOT);
-        return handler == null ? 0 : handler.getAmount();
+        return handler == null ? 0 : handler.totalVolume();
     }
 }

@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ber.style;
 
+import com.mercuriusxeno.goo.client.PrismCrystal;
 import com.mercuriusxeno.goo.client.ber.PrismRenderState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -29,5 +30,15 @@ public interface PrismComboStyle {
      */
     default int beamReach() {
         return 0;
+    }
+
+    /**
+     * The sides the combined prism's column stands with at rest
+     * (decision relay-and-metronome-read-apart-at-rest).
+     *
+     * @return six by default, the plain column's
+     */
+    default PrismCrystal.ColumnSides restingSides() {
+        return PrismCrystal.ColumnSides.SIX;
     }
 }

@@ -1,0 +1,23 @@
+{
+  "light_level": 4,
+  "saturation_fill": 0.5,
+  "wheel": "E0B020",
+  "bright": "FFF2A8",
+  "highlight": "F2CF4A",
+  "edge": "2FBF6A",
+  "density": 1400,
+  "viscosity": 3000,
+  "temperature": 300,
+  "extinguishes": false,
+  "levity": 1.0,
+  "base_flight_time": 3,
+  "map_color": "gold",
+  "textures": {
+    "goo_tiny": "goo:item/opulent_goo_tiny",
+    "goo_small": "goo:item/opulent_goo_small",
+    "goo_base": "goo:item/opulent_goo_base",
+    "goo_large": "goo:item/opulent_goo_large",
+    "fluid_still": "goo:fluid/opulent_fluid",
+    "fluid_flowing": "goo:fluid/opulent_fluid"
+  }
+}

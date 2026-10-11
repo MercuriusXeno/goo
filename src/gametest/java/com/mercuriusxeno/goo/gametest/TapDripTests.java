@@ -35,9 +35,11 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -111,7 +113,7 @@ public final class TapDripTests {
     private static final String RECEPTACLE_ABILITY_RUNS = "tap ability runs for a drip into a crucible";
     private static final String REFUSED_PROGRAMS = "programs a drip onto a refusing block runs";
     private static final String REFUSED_ABILITY_RUNS = "tap ability runs for a drip onto a refusing block";
-    private static final String REFUSED_CANISTER_TYPE = "type a canister of another type holds after the drip";
+    private static final String REFUSED_CANISTER_TYPE = "a canister of water holds no goo after the drip";
 
     private static final String SENT_COUNT = "particles one tap drip sends";
     private static final String SENT_TYPE = "particle type one tap drip sends";
@@ -161,10 +163,10 @@ public final class TapDripTests {
         TapBlockEntity tap = filledTap(helper);
 
         helper.runAfterDelay(DRIPS * DRIP_INTERVAL + SETTLE_TICKS, () -> {
-            helper.assertValueEqual(tap.getFluidContent().amount(), START_VOLUME - DRIPS, TAP_VOLUME);
+            helper.assertValueEqual(tap.getFluidContent().totalVolume(), START_VOLUME - DRIPS, TAP_VOLUME);
             for (BlockPos neighbor : neighbors) {
                 CanisterBlockEntity canister = helper.getBlockEntity(neighbor, CanisterBlockEntity.class);
-                helper.assertValueEqual(canister.getSlotFluidContent(NEIGHBOR_SLOT).amount(), START_VOLUME,
+                helper.assertValueEqual(canister.getSlotFluidContent(NEIGHBOR_SLOT).totalVolume(), START_VOLUME,
                         NEIGHBOR_VOLUME);
             }
             helper.succeed();
@@ -182,11 +184,11 @@ public final class TapDripTests {
         int closedTicks = DRIPS * DRIP_INTERVAL + SETTLE_TICKS;
 
         helper.runAfterDelay(closedTicks, () -> {
-            helper.assertValueEqual(tap.getFluidContent().amount(), START_VOLUME, CLOSED_VOLUME);
+            helper.assertValueEqual(tap.getFluidContent().totalVolume(), START_VOLUME, CLOSED_VOLUME);
             helper.setBlock(TAP_POS, helper.getBlockState(TAP_POS).setValue(TapBlock.OPEN, true));
         });
         helper.runAfterDelay(closedTicks + DRIP_INTERVAL + SETTLE_TICKS, () -> {
-            helper.assertValueEqual(tap.getFluidContent().amount(), START_VOLUME - 1, OPENED_VOLUME);
+            helper.assertValueEqual(tap.getFluidContent().totalVolume(), START_VOLUME - 1, OPENED_VOLUME);
             helper.succeed();
         });
     }
@@ -233,7 +235,7 @@ public final class TapDripTests {
         }
 
         helper.runAfterDelay(DRIPS * DRIP_INTERVAL + SETTLE_TICKS, () -> {
-            helper.assertValueEqual(tap.getFluidContent().amount(), START_VOLUME, BOTTOMLESS_VOLUME);
+            helper.assertValueEqual(tap.getFluidContent().totalVolume(), START_VOLUME, BOTTOMLESS_VOLUME);
             helper.assertValueEqual(GooServerState.of(helper.getLevel().getServer()).tapDrips().pending().stream()
                     .filter(drip -> drip.tapPos().equals(tapAbs)).count(), 0L, BOTTOMLESS_PENDING);
             helper.succeed();
@@ -282,7 +284,7 @@ public final class TapDripTests {
         AABB around = new AABB(helper.absolutePos(stone)).inflate(ENTITY_SCAN_RADIUS);
 
         helper.runAfterDelay(DRIP_INTERVAL + SETTLE_TICKS, () -> {
-            helper.assertValueEqual(tap.getFluidContent().amount(), START_VOLUME - 1, TAP_VOLUME);
+            helper.assertValueEqual(tap.getFluidContent().totalVolume(), START_VOLUME - 1, TAP_VOLUME);
             helper.assertValueEqual(GooServerState.of(helper.getLevel().getServer()).tapDrips().pending().stream()
                     .filter(drip -> drip.tapPos().equals(tapAbs)).count(), 0L, NO_ABILITY_PENDING);
             before.forEach((pos, state) -> helper.assertValueEqual(helper.getBlockState(pos), state, NEIGHBOR_STATE));
@@ -309,7 +311,7 @@ public final class TapDripTests {
         helper.runAfterDelay(DRIPS * DRIP_INTERVAL + SETTLE_TICKS, () -> {
             long inFlight = GooServerState.of(helper.getLevel().getServer()).tapDrips().pending().stream()
                     .filter(drip -> drip.tapPos().equals(tapAbs)).count();
-            long landed = START_VOLUME - tap.getFluidContent().amount() - inFlight;
+            long landed = START_VOLUME - tap.getFluidContent().totalVolume() - inFlight;
             helper.assertTrue(landed > 0, VITAL_DRIPS_LANDED);
             helper.assertValueEqual(cow.getHealth(), HURT_COW_HEALTH + landed * HEAL_PER_DRIP, HEALED_COW);
             helper.succeed();
@@ -356,7 +358,7 @@ public final class TapDripTests {
         BlockPos tapAbs = helper.absolutePos(TAP_POS);
 
         helper.succeedWhen(() -> {
-            int lost = START_VOLUME - tap.getFluidContent().amount();
+            int lost = START_VOLUME - tap.getFluidContent().totalVolume();
             helper.assertTrue(lost >= DRIPS, CRUCIBLE_DRIPS_DRAWN);
             helper.assertValueEqual(GooServerState.of(helper.getLevel().getServer()).tapDrips().pending().stream()
                     .filter(drip -> drip.tapPos().equals(tapAbs)).count(), 0L, CRUCIBLE_PENDING);
@@ -376,7 +378,7 @@ public final class TapDripTests {
         TapBlockEntity tap = blazeTap(helper, ONE_TO_FOUR_MOVED, TapDripGrade.FOUR_PER_TICK);
 
         helper.runAfterDelay(ONE_TO_FOUR_TICKS + SETTLE_TICKS, () -> {
-            helper.assertValueEqual(tap.getFluidContent().amount(), 0, ONE_TO_FOUR_CANISTER);
+            helper.assertValueEqual(tap.getFluidContent().totalVolume(), 0, ONE_TO_FOUR_CANISTER);
             helper.assertValueEqual(crucible.getReservoir().getVolume(GooTypes.BLAZE), ONE_TO_FOUR_MOVED,
                     CRUCIBLE_RESERVOIR);
             helper.succeed();
@@ -405,8 +407,9 @@ public final class TapDripTests {
 
     /**
      * A drip landing on a block that keeps none of it, stone or a canister
-     * holding another type, runs the type's tap program and inserts nothing
-     * (decision landing-goo-enters-any-holder).
+     * holding a vanilla fluid, runs the type's tap program and inserts nothing
+     * (decisions landing-goo-enters-any-holder and canisters-hold-more-than-one-goo-type:
+     * goo joins goo in a canister, never a vanilla fluid).
      *
      * @param helper the gametest helper
      */
@@ -417,7 +420,7 @@ public final class TapDripTests {
         helper.setBlock(canisterPos, GooBlocks.CANISTER.get());
         CanisterBlockEntity canister = helper.getBlockEntity(canisterPos, CanisterBlockEntity.class);
         canister.insertCanister(NEIGHBOR_SLOT, new ItemStack(GooItems.CANISTER.get()), false);
-        canister.insertGoo(NEIGHBOR_SLOT, TYPE, START_VOLUME);
+        canister.insertFluid(NEIGHBOR_SLOT, FluidResource.of(Fluids.WATER), START_VOLUME);
 
         for (BlockPos landing : List.of(stonePos, canisterPos)) {
             AtomicInteger abilityRuns = new AtomicInteger();
@@ -425,8 +428,8 @@ public final class TapDripTests {
             helper.assertValueEqual(programs, 1, REFUSED_PROGRAMS);
             helper.assertValueEqual(abilityRuns.get(), 1, REFUSED_ABILITY_RUNS);
         }
-        helper.assertValueEqual(canister.getSlotFluidContent(NEIGHBOR_SLOT).amount(), START_VOLUME, NEIGHBOR_VOLUME);
-        helper.assertValueEqual(canister.getSlotGooType(NEIGHBOR_SLOT), TYPE, REFUSED_CANISTER_TYPE);
+        helper.assertValueEqual(canister.getSlotFluidContent(NEIGHBOR_SLOT).totalVolume(), START_VOLUME, NEIGHBOR_VOLUME);
+        helper.assertTrue(canister.getSlotFluidContent(NEIGHBOR_SLOT).gooVolumes().isEmpty(), REFUSED_CANISTER_TYPE);
         helper.succeed();
     }
 

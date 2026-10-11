@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.colonize.ShroomNetwork;
-import com.mercuriusxeno.goo.ability.gate.DragonGateOpening;
+import com.mercuriusxeno.goo.ability.gate.EndGateOpening;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.ability.quantum.PortableHole;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
@@ -97,11 +97,11 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
 
     /**
      * Opens the gate over the block the blob struck, the one behind the cell.
-     * decision dragon-gate-banishes-blocks-and-opens-a-portal
+     * decision end-clears-blocks-and-opens-a-portal
      */
     @Override
-    public boolean openDragonGate(int lifetime) {
-        return DragonGateOpening.open(level, cell.relative(face.getOpposite()), face, lifetime);
+    public boolean openEndGate(int lifetime) {
+        return EndGateOpening.open(level, cell.relative(face.getOpposite()), face, lifetime);
     }
 
     /**
@@ -163,13 +163,29 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     }
 
     /**
-     * Ticks the block the blob landed on: the struck block where the blob
-     * landed beside it, the landing cell's own block where the blob landed
-     * in place (decision zap-ticks-the-device-and-stuns).
+     * Ticks the block the blob landed on where it is a redstone device
+     * (decision zap-ticks-the-device-and-stuns).
      */
     @Override
     public void powerPulse() {
-        BlockPos landedOn = level.getBlockState(cell).isAir() ? cell.relative(face.getOpposite()) : cell;
-        ZapDevice.pulse(level, landedOn, cell);
+        BlockPos landedOn = ZapDevice.landedOn(level, cell, face);
+        if (ZapDevice.ticks(level.getBlockState(landedOn))) {
+            ZapDevice.pulse(level, landedOn, cell);
+        }
+    }
+
+    /**
+     * Toggles each hand device the wave crosses behind the landed-on block
+     * once, a door's two halves counting as one, where that block is no
+     * redstone device (decision zap-disperses-into-signal).
+     */
+    @Override
+    public void signalWave(double range, double coneDegrees) {
+        if (ZapDevice.ticks(level.getBlockState(ZapDevice.landedOn(level, cell, face)))) {
+            return;
+        }
+        SignalWaveStep.cellsBehind(cell, face, range, coneDegrees).stream()
+                .map(pos -> ZapDevice.handDevice(level, pos)).flatMap(Optional::stream).distinct()
+                .forEach(device -> ZapDevice.toggleByHand(level, device));
     }
 }

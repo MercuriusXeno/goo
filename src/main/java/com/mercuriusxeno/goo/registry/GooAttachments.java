@@ -1,8 +1,6 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.banish.Banished;
-import com.mercuriusxeno.goo.ability.banish.Teleportitis;
 import com.mercuriusxeno.goo.ability.frost.Frozen;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
@@ -21,7 +19,13 @@ import com.mercuriusxeno.goo.ability.quantum.SwapBodyRef;
 import com.mercuriusxeno.goo.ability.rewind.Rewinding;
 import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.spray.Spored;
+import com.mercuriusxeno.goo.ability.typhoon.Airborn;
+import com.mercuriusxeno.goo.ability.typhoon.Floating;
 import com.mercuriusxeno.goo.ability.world.TimeVeiled;
+import com.mercuriusxeno.goo.ability.xeno.Eldritch;
+import com.mercuriusxeno.goo.ability.xeno.Mutations;
+import com.mercuriusxeno.goo.ability.zone.Shifter;
+import com.mercuriusxeno.goo.ability.zone.ZoneCurse;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
 import com.mojang.serialization.Codec;
@@ -129,6 +133,31 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> Lux.NONE).serialize(Lux.CODEC).build());
 
     /**
+     * The eldritch state a player holds, synced to the owning client, which
+     * draws the out-of-phase while it stands.
+     * eldritch-sight-reveals-the-out-of-phase
+     */
+    public static final Supplier<AttachmentType<Eldritch>> ELDRITCH =
+            ATTACHMENT_TYPES.register("eldritch",
+                    () -> AttachmentType.builder(() -> Eldritch.NONE)
+                            .serialize(Eldritch.CODEC)
+                            .sync(GooAttachments::syncsToOwner, Eldritch.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The mutations a Xeno blob worked on a mob, saved with it and synced to
+     * its watchers, which draw the writhing overlay while any stands.
+     * xeno-blob-mutates-the-struck
+     */
+    public static final Supplier<AttachmentType<Mutations>> MUTATIONS =
+            ATTACHMENT_TYPES.register("mutations",
+                    () -> AttachmentType.builder(() -> Mutations.NONE)
+                            .serialize(Mutations.CODEC, mutations -> !mutations.isEmpty())
+                            .sync(GooAttachments::syncsToWatcher, Mutations.STREAM_CODEC)
+                            .build());
+
+
+    /**
      * The spores a mob carries, bursting another spray from its corpse when
      * it dies before they fade, saved with the mob (decision
      * mycosis-spore-stream-buds-and-poisons).
@@ -211,24 +240,24 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> TimeVeiled.NONE).serialize(TimeVeiled.CODEC).build());
 
     /**
-     * The teleportitis curse Banish leaves on a mob, saved with the mob while
+     * The warp curse Zone leaves on a mob, saved with the mob while
      * it stands.
-     * banish-curses-with-ender-shimmer
+     * zone-curses-with-ender-shimmer
      */
-    public static final Supplier<AttachmentType<Banished>> BANISHED =
-            ATTACHMENT_TYPES.register("banished",
-                    () -> AttachmentType.builder(() -> Banished.NONE)
-                            .serialize(Banished.CODEC, Banished::stands)
+    public static final Supplier<AttachmentType<ZoneCurse>> ZONE_CURSE =
+            ATTACHMENT_TYPES.register("zone_curse",
+                    () -> AttachmentType.builder(() -> ZoneCurse.NONE)
+                            .serialize(ZoneCurse.CODEC, ZoneCurse::stands)
                             .build());
 
     /**
-     * The teleportitis a player holds, saved with the player.
-     * teleportitis-blinks-along-the-cursor-on-hit
+     * The shifter a player holds, saved with the player.
+     * shifter-blinks-along-the-cursor-on-hit
      */
-    public static final Supplier<AttachmentType<Teleportitis>> TELEPORTITIS =
-            ATTACHMENT_TYPES.register("teleportitis",
-                    () -> AttachmentType.builder(() -> Teleportitis.NONE)
-                            .serialize(Teleportitis.CODEC)
+    public static final Supplier<AttachmentType<Shifter>> SHIFTER =
+            ATTACHMENT_TYPES.register("shifter",
+                    () -> AttachmentType.builder(() -> Shifter.NONE)
+                            .serialize(Shifter.CODEC)
                             .build());
 
     /**
@@ -283,7 +312,8 @@ public final class GooAttachments {
     /**
      * An entity's standing out of phase and when it fades, saved with the
      * entity while laid and synced to every client drawing it, which draws it
-     * translucent and grey. A plain attachment any ability may lay.
+     * translucent and grey. A plain attachment any ability may lay, which
+     * Eldritch sight reads too (decision eldritch-sight-reveals-the-out-of-phase).
      * phase-shares-a-plane-between-the-phased
      */
     public static final Supplier<AttachmentType<OutOfPhase>> OUT_OF_PHASE =
@@ -333,6 +363,31 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("fate_waiting",
                     () -> AttachmentType.<Optional<UUID>>builder(Optional::empty).build());
 
+    /**
+     * The float Float leaves on a mob while its levitation lasts, saved with
+     * the mob and synced to every client drawing it, which pulses the mint
+     * platform under its feet.
+     * float-blob-levitates-the-mob
+     */
+    public static final Supplier<AttachmentType<Floating>> FLOATING =
+            ATTACHMENT_TYPES.register("floating",
+                    () -> AttachmentType.builder(() -> Floating.NONE)
+                            .serialize(Floating.CODEC)
+                            .sync(GooAttachments::syncsToWatcher, Floating.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The air control Airborn lays on a player, saved with the player while
+     * it stands and synced to the owning client, which steers it in midair,
+     * caps its fall and draws the rising wind.
+     * airborn-steerable-levitation-and-soft-falls
+     */
+    public static final Supplier<AttachmentType<Airborn>> AIRBORN =
+            ATTACHMENT_TYPES.register("airborn",
+                    () -> AttachmentType.builder(() -> Airborn.NONE)
+                            .serialize(Airborn.CODEC, airborn -> airborn.expiresAt() > 0L)
+                            .sync(GooAttachments::syncsToOwner, Airborn.STREAM_CODEC)
+                            .build());
     private GooAttachments() {
     }
 

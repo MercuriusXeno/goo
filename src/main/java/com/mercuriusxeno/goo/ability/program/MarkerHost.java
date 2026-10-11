@@ -9,11 +9,13 @@ import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -41,7 +43,7 @@ import java.util.function.Consumer;
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
         FieldEffectHost, PhasedHost, HoardHost, StateWriteHost, LevelHost, ConvokeHost, PowerEmitHost,
-        BeatHost, RelayHost, AgitateHost, FrostHost, GreeningHost, TickBankHost, TimeVeilHost {
+        BeatHost, RelayHost, FrostHost, GreeningHost, TickBankHost, TimeVeilHost, ChurnHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
     /** The power a block gives at full strength. */
@@ -78,11 +80,6 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     @Override
     public Vec3 center() {
         return Vec3.atCenterOf(pos);
-    }
-
-    @Override
-    public AgitationState agitation() {
-        return be.programState().agitation();
     }
 
     @Override
@@ -155,7 +152,7 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     }
 
     /**
-     * Gives full power or none (decision thumper-blob-pulses-periodically-then-fades).
+     * Gives full power or none (decision metronome-prism-pulses-at-the-learned-rate).
      */
     @Override
     public void emitPower(boolean on) {
@@ -164,21 +161,14 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
 
     /**
      * Sets the power the marker block gives, so the blocks beside it read it
-     * through its signal: an ability block's powered state, on for any power,
-     * or a prism's power level (decision relay-prism-carries-the-signal-through-air).
+     * through the prism's power level (decision relay-prism-carries-the-signal-through-air).
      *
      * @param power the power, 0 to 15
      */
     private void setPowerLevel(int power) {
         BlockState state = level.getBlockState(pos);
-        BlockState after = state;
-        if (state.hasProperty(BlockStateProperties.POWERED)) {
-            after = state.setValue(BlockStateProperties.POWERED, power > 0);
-        } else if (state.hasProperty(BlockStateProperties.POWER)) {
-            after = state.setValue(BlockStateProperties.POWER, power);
-        }
-        if (after != state) {
-            level.setBlock(pos, after, Block.UPDATE_ALL);
+        if (state.hasProperty(BlockStateProperties.POWER) && state.getValue(BlockStateProperties.POWER) != power) {
+            level.setBlock(pos, state.setValue(BlockStateProperties.POWER, power), Block.UPDATE_ALL);
         }
     }
 
@@ -210,6 +200,16 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     @Override
     public void pullEntitiesWithin(double radius, double speed) {
         EntityPull.pullWithin(level, Vec3.atCenterOf(pos), radius, speed, null);
+    }
+
+    @Override
+    public void liftEntitiesInColumn(double radius, double height, double speed) {
+        EntityLift.liftInColumn(level, Vec3.atBottomCenterOf(pos), radius, height, speed);
+    }
+
+    @Override
+    public void rideShaftAbove(int cap, double rise, double sink) {
+        EntityLift.rideShaft(level, pos.above(), cap, rise, sink);
     }
 
     @Override
@@ -257,8 +257,19 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
      * decision convoke-blob-throbs-until-a-mob-arrives
      */
     @Override
-    public boolean convokeFromChunk() {
-        return ChunkConvoke.convoke(level, Vec3.atBottomCenterOf(pos));
+    public boolean convokeFromChunk(ResourceKey<GooTypeDefinition> goo) {
+        return ChunkConvoke.convoke(level, Vec3.atBottomCenterOf(pos), goo);
+    }
+
+    /**
+     * Turns the column under the block the marker landed on, that block one
+     * of the core's four middle cells.
+     * decision churn-rotates-a-plus-shaped-column
+     */
+    @Override
+    public void churnColumn(int depth) {
+        BlockPos landed = pos.relative(be.getPlacedFace().getOpposite());
+        ChurnColumn.turn(ChurnMap.originUnder(landed), depth, new LevelChurnCells(level));
     }
 
     @Override
