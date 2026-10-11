@@ -13,6 +13,7 @@
     "minecraft:powered_rail",
     "minecraft:activator_rail",
     "minecraft:bell",
-    "minecraft:crafter"
+    "minecraft:crafter",
+    "goo:prism"
   ]
 }
