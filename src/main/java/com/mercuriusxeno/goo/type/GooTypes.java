@@ -71,13 +71,14 @@ public final class GooTypes {
     public static final ResourceKey<GooTypeDefinition> TYPHOON = bundled("typhoon");
     public static final ResourceKey<GooTypeDefinition> UNSTABLE = bundled("unstable");
     public static final ResourceKey<GooTypeDefinition> VITAL = bundled("vital");
+    public static final ResourceKey<GooTypeDefinition> ZOO = bundled("zoo");
 
     /**
      * Every type the mod ships as JSON, in constant order.
      */
     public static final List<ResourceKey<GooTypeDefinition>> BUNDLED = List.of(
             AEON, BLAZE, CRYSTAL, ENDER, FROST, GLOW, HEX, LEAF,
-            METAL, NETHER, PULSE, ROCK, SHROOM, TYPHOON, UNSTABLE, VITAL);
+            METAL, NETHER, PULSE, ROCK, SHROOM, TYPHOON, UNSTABLE, VITAL, ZOO);
 
     /**
      * A type key as its short id: the bare path for a bundled type, the
