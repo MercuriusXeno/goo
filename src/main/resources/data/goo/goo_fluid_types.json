@@ -228,6 +228,29 @@
     ]
   },
   {
+    "id": "opulent",
+    "seed": 40991,
+    "genParams": {
+      "viscosity": 2.2,
+      "decayRate": 0.02,
+      "ignitionChance": 0.006,
+      "ignitionStrength": 1.2,
+      "potHeatRate": 0.01,
+      "potInfluence": 0.85,
+      "neighborhoodReach": 1
+    },
+    "frametime": 4,
+    "shadowHue": 0.12,
+    "palette": [
+      { "position": 0.0, "color": "#0E4A2A" },
+      { "position": 0.2, "color": "#1C7A44" },
+      { "position": 0.4, "color": "#8A6A12" },
+      { "position": 0.6, "color": "#C8961C" },
+      { "position": 0.8, "color": "#F0C840" },
+      { "position": 1.0, "color": "#FFF0A0" }
+    ]
+  },
+  {
     "id": "pulse",
     "seed": 40972,
     "genParams": {
