@@ -25,13 +25,14 @@ import net.minecraft.world.phys.Vec3;
 import java.util.List;
 
 /**
- * Gametests for aeon Rewind: a mock player aims at an ordinary penned pig at
+ * Gametests for yore Rewind: a mock player aims at an ordinary penned pig at
  * its own full health and streams Rewind from the glove hand, as a player
  * does; the pig stands frozen while held and goes free once let go; an adult
  * becomes a baby, a baby shrinks into its spawn egg, and no block the stream
  * crosses changes.
  * rewind-fills-while-held
  * rewind-shrinks-adult-to-baby-to-egg
+ * rewind-ships-on-yore
  */
 public final class RewindStreamTests {
 
@@ -39,11 +40,11 @@ public final class RewindStreamTests {
     /** Three blocks east of the player, at its height, on a floor the test lays. */
     private static final BlockPos TARGET_POS = STAND_POS.east(3);
     private static final int HELD_GOO = 6;
-    /** Past the eighty ticks aeon_rewind.json's flat share of 1.25 a tick takes to fill the hundred. */
+    /** Past the eighty ticks yore_rewind.json's flat share of 1.25 a tick takes to fill the hundred. */
     private static final int HOLD_TICKS = 85;
     /** Halfway through the hold, short of the ritual. */
     private static final int MID_HOLD_TICKS = 40;
-    /** aeon_rewind.json's regress ticks, the shrink into the egg. */
+    /** yore_rewind.json's regress ticks, the shrink into the egg. */
     private static final int SHRINK_TICKS = 20;
     /** Past RewindEvents' grace after the stream lets go. */
     private static final int RELEASE_TICKS = 6;
@@ -51,8 +52,8 @@ public final class RewindStreamTests {
     private static final double HAND_RIGHT = 0.5;
     private static final double HAND_DOWN = 0.4;
     private static final double ITEM_SEARCH_RADIUS = 2.0;
-    private static final Identifier AEON_REWIND = Identifier.parse("goo:aeon_rewind");
-    private static final String ABILITY_REQUIRED = "Ability registry must hold aeon_rewind";
+    private static final Identifier YORE_REWIND = Identifier.parse("goo:yore_rewind");
+    private static final String ABILITY_REQUIRED = "Ability registry must hold yore_rewind";
     private static final String SHOULD_FREEZE = "A held pig should stand frozen with no AI";
     private static final String SHOULD_STAY_ADULT = "The pig should stay an adult short of the ritual";
     private static final String SHOULD_BE_BABY = "The held adult should have become a baby; counters %s";
@@ -154,7 +155,7 @@ public final class RewindStreamTests {
         Vec3 look = player.getLookAngle();
         Vec3 right = look.cross(new Vec3(0, 1, 0)).normalize();
         Vec3 hand = player.getEyePosition().add(right.scale(HAND_RIGHT)).subtract(0, HAND_DOWN, 0);
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.AEON), AEON_REWIND.toString(),
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.YORE), YORE_REWIND.toString(),
                 hand, player.getEyePosition());
         for (int held = 1; held <= ticks; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
@@ -163,14 +164,14 @@ public final class RewindStreamTests {
 
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
     private static ServerPlayer rewinder(GameTestHelper helper, Mob target) {
-        AbilityDefinition rewind = AbilityRegistry.of(helper.getLevel()).getAbility(AEON_REWIND);
+        AbilityDefinition rewind = AbilityRegistry.of(helper.getLevel()).getAbility(YORE_REWIND);
         helper.assertTrue(rewind != null, ABILITY_REQUIRED);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STAND_POS));
         player.setPos(stand.x, stand.y, stand.z);
         player.lookAt(EntityAnchorArgument.Anchor.EYES, target.getBoundingBox().getCenter());
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
-        player.getInventory().add(GooStacks.createForOutput(GooTypes.AEON, HELD_GOO * GooStacks.THOUSAND));
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.YORE, HELD_GOO * GooStacks.THOUSAND));
         KnownRecipes.teachRequires(player, rewind);
         return player;
     }

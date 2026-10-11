@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:aging_coal_becomes_diamond",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 20,
+  "setup_ticks": 0,
+  "required": true
+}
