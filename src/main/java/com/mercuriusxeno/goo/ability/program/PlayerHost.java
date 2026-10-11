@@ -266,18 +266,6 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     }
 
     /**
-     * Toggles the device once in the player's stream hold, its door read by
-     * its lower half so both halves count as one
-     * (decision signal-wave-toggles-each-device-once).
-     */
-    @Override
-    public void toggleOnceThisHold(BlockPos pos) {
-        ZapDevice.handDevice(level, pos)
-                .filter(device -> GooServerState.of(level.getServer()).streamHolds().touchOnce(player.getUUID(), device))
-                .ifPresent(device -> ZapDevice.toggleByHand(level, device));
-    }
-
-    /**
      * Lengthens the player's timed effects by the drunk brew's duration; a
      * glove invocation lengthens nothing (decision extender-multiplies-the-next-self-duration).
      */

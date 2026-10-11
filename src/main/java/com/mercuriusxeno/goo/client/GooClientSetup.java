@@ -21,6 +21,7 @@ import com.mercuriusxeno.goo.client.ability.MobCoats;
 import com.mercuriusxeno.goo.client.ability.MobShells;
 import com.mercuriusxeno.goo.client.ability.NovaRings;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
+import com.mercuriusxeno.goo.client.ability.SignalRings;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ability.ViewportRipples;
@@ -447,6 +448,7 @@ public final class GooClientSetup {
         GooFlightManager.clear();
         ZapBolts.clear();
         BeatRings.clear();
+        SignalRings.clear();
         RelayLasers.clear();
         PrismBeats.clear();
         ChainBurnouts.CLIENT.clear();
