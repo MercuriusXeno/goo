@@ -59,6 +59,7 @@ public final class GooTypes {
     public static final ResourceKey<GooTypeDefinition> ASTRAL = bundled("astral");
     public static final ResourceKey<GooTypeDefinition> BLAZE = bundled("blaze");
     public static final ResourceKey<GooTypeDefinition> CRYSTAL = bundled("crystal");
+    public static final ResourceKey<GooTypeDefinition> DEEP = bundled("deep");
     public static final ResourceKey<GooTypeDefinition> ENDER = bundled("ender");
     public static final ResourceKey<GooTypeDefinition> FROST = bundled("frost");
     public static final ResourceKey<GooTypeDefinition> GLOW = bundled("glow");
@@ -73,13 +74,18 @@ public final class GooTypes {
     public static final ResourceKey<GooTypeDefinition> TYPHOON = bundled("typhoon");
     public static final ResourceKey<GooTypeDefinition> UNSTABLE = bundled("unstable");
     public static final ResourceKey<GooTypeDefinition> VITAL = bundled("vital");
+    /**
+     * Xeno ships with no item value until its source is designed.
+     * decision xeno-ships-as-a-type-with-no-source-yet
+     */
+    public static final ResourceKey<GooTypeDefinition> XENO = bundled("xeno");
 
     /**
      * Every type the mod ships as JSON, in constant order.
      */
     public static final List<ResourceKey<GooTypeDefinition>> BUNDLED = List.of(
-            AEON, ASTRAL, BLAZE, CRYSTAL, ENDER, FROST, GLOW, HEX,
-            LEAF, METAL, NETHER, OPULENT, PULSE, ROCK, SHROOM, TYPHOON, UNSTABLE, VITAL);
+            AEON, ASTRAL, BLAZE, CRYSTAL, DEEP, ENDER, FROST, GLOW, HEX, LEAF,
+            METAL, NETHER, OPULENT, PULSE, ROCK, SHROOM, TYPHOON, UNSTABLE, VITAL, XENO);
 
     /**
      * A type key as its short id: the bare path for a bundled type, the

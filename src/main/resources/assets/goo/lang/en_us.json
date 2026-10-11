@@ -57,6 +57,7 @@
   "goo.type.astral": "Astral",
   "goo.type.blaze": "Blaze",
   "goo.type.crystal": "Crystal",
+  "goo.type.deep": "Deep",
   "goo.type.ender": "Ender",
   "goo.type.frost": "Frost",
   "goo.type.glow": "Glow",
@@ -71,12 +72,14 @@
   "goo.type.typhoon": "Typhoon",
   "goo.type.unstable": "Unstable",
   "goo.type.vital": "Vital",
+  "goo.type.xeno": "Xeno",
   "goo.type.untyped": "Untyped",
 
   "item.minecraft.potion.effect.aeon_goo": "Potion of Timecurve",
   "item.minecraft.potion.effect.astral_goo": "Potion of Starlight",
   "item.minecraft.potion.effect.blaze_goo": "Potion of Infernal",
   "item.minecraft.potion.effect.crystal_goo": "Potion of Mineral Sense",
+  "item.minecraft.potion.effect.deep_goo": "Potion of Abyssal",
   "item.minecraft.potion.effect.ender_goo": "Potion of Phasing",
   "item.minecraft.potion.effect.frost_goo": "Potion of Endothermic",
   "item.minecraft.potion.effect.glow_goo": "Potion of Solar",
@@ -91,11 +94,13 @@
   "item.minecraft.potion.effect.typhoon_goo": "Potion of Air Control",
   "item.minecraft.potion.effect.unstable_goo": "Potion of Instability",
   "item.minecraft.potion.effect.vital_goo": "Potion of Nourishment",
+  "item.minecraft.potion.effect.xeno_goo": "Potion of Eldritch Sight",
 
   "effect.goo.aeon_brew": "Aeon Brew",
   "effect.goo.astral_brew": "Astral Brew",
   "effect.goo.blaze_brew": "Blaze Brew",
   "effect.goo.crystal_brew": "Crystal Brew",
+  "effect.goo.deep_brew": "Deep Brew",
   "effect.goo.ender_brew": "Ender Brew",
   "effect.goo.frost_brew": "Frost Brew",
   "effect.goo.glow_brew": "Glow Brew",
@@ -112,6 +117,7 @@
   "effect.goo.typhoon_brew": "Typhoon Brew",
   "effect.goo.unstable_brew": "Unstable Brew",
   "effect.goo.vital_brew": "Vital Brew",
+  "effect.goo.xeno_brew": "Xeno Brew",
 
   "item.goo.partially_melted_item": "Partially Melted Item",
 
@@ -142,9 +148,11 @@
   "goo.ability.crystal.prism": "Prism",
   "goo.ability.astral.gate": "Astral Gate",
   "goo.ability.astral.meteo": "Meteo",
+  "goo.ability.deep.churn": "Churn",
+  "goo.ability.deep.convoke": "Convoke",
+  "goo.ability.deep.dive": "Dive",
   "goo.ability.ender.zone": "Zone",
   "goo.ability.ender.blink": "Blink",
-  "goo.ability.ender.convoke": "Convoke",
   "goo.ability.ender.convoke_tap": "Convoke",
   "goo.ability.ender.end": "End",
   "goo.ability.ender.oculus": "Oculus",
@@ -218,5 +226,7 @@
   "goo.ability.vital.vitality": "Vitality",
   "goo.ability.vital.vitality_tap": "Vitality",
   "goo.ability.vital.reserve": "Reserve",
-  "goo.ability.vital.nourish": "Nourish"
+  "goo.ability.vital.nourish": "Nourish",
+  "goo.ability.xeno.eldritch": "Eldritch Sight",
+  "goo.ability.xeno.mutate": "Mutate"
 }
