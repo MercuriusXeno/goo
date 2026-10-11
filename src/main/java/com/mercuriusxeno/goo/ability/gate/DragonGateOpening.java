@@ -59,8 +59,27 @@ public final class DragonGateOpening {
             return false;
         }
         EndPlatformFeature.createEndPlatform(end, PLATFORM_FLOOR.above(), true);
+        return openPair(level, surface, face, lifetime, end, PLATFORM_FLOOR);
+    }
+
+    /**
+     * Opens a pair on a struck face and its mirror lying up from a floor in
+     * another level, the pair Dragon Gate and Astral's gate both stand. A
+     * face with no open cell in front of it, or a floor whose cell above is
+     * taken, lays nothing.
+     *
+     * @param level    the level the blob landed in
+     * @param surface  the struck block
+     * @param face     the struck face
+     * @param lifetime the ticks the pair stands
+     * @param mirror   the level the mirror lies in
+     * @param floor    the block the mirror lies on
+     * @return true once the pair stands open
+     */
+    public static boolean openPair(ServerLevel level, BlockPos surface, Direction face, int lifetime,
+                                   ServerLevel mirror, BlockPos floor) {
         Optional<GatePatch> near = cover(level, surface, face);
-        Optional<GatePatch> far = near.isPresent() ? cover(end, PLATFORM_FLOOR, Direction.UP) : Optional.empty();
+        Optional<GatePatch> far = near.isPresent() ? cover(mirror, floor, Direction.UP) : Optional.empty();
         if (near.isEmpty() || far.isEmpty()) {
             near.ifPresent(patch -> restore(level.getServer(), patch));
             return false;
@@ -68,7 +87,7 @@ public final class DragonGateOpening {
         long closesAt = level.getServer().overworld().getGameTime() + lifetime;
         DragonGates.get(level).open(new DragonGates.Pair(near.get(), far.get(), closesAt));
         mark(level, near.get(), ParticleTypes.REVERSE_PORTAL, SoundEvents.END_PORTAL_SPAWN);
-        mark(end, far.get(), ParticleTypes.REVERSE_PORTAL, SoundEvents.END_PORTAL_SPAWN);
+        mark(mirror, far.get(), ParticleTypes.REVERSE_PORTAL, SoundEvents.END_PORTAL_SPAWN);
         return true;
     }
 
