@@ -88,6 +88,8 @@ public final class StepTypes {
         register(ShiftStep.TYPE);
         register(SightStep.TYPE);
         register(LuxStep.TYPE);
+        register(EldritchStep.TYPE);
+        register(MutateStep.TYPE);
         register(WispsStep.TYPE);
         register(ReflectorStep.TYPE);
         register(ScryStep.TYPE);
