@@ -88,6 +88,8 @@ public final class StepTypes {
         register(ShiftStep.TYPE);
         register(SightStep.TYPE);
         register(LuxStep.TYPE);
+        register(EldritchStep.TYPE);
+        register(MutateStep.TYPE);
         register(WispsStep.TYPE);
         register(ReflectorStep.TYPE);
         register(ScryStep.TYPE);
@@ -105,7 +107,6 @@ public final class StepTypes {
         register(LeafSteps.COURT.type());
         register(LeafSteps.POWER_PULSE.type());
         register(LeafSteps.TOGGLE_DEVICE.type());
-        register(EmitPowerStep.TYPE);
         register(MetronomeStep.TYPE);
         register(RelayStep.TYPE);
         register(ExtenderStep.TYPE);

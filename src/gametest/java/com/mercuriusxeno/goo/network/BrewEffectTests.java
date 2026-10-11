@@ -540,7 +540,7 @@ public final class BrewEffectTests {
      * @param player  the drinking player
      * @param gooType the potion's type
      */
-    private static void drink(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType) {
+    static void drink(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType) {
         for (MobEffectInstance effect : GooPotions.GOO_POTIONS.get(gooType).value().getEffects()) {
             player.addEffect(new MobEffectInstance(effect));
         }

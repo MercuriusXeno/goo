@@ -13,6 +13,8 @@ public final class GooFormat {
     private static final int DECIMAL_BASE = 10;
     /** Decimal point separator. */
     private static final String DOT = ".";
+    /** Separator between a container's total and its capacity. */
+    private static final String OF_CAPACITY = " / ";
 
     /** Magnitudes in descending order; an amount under the smallest divisor reads whole. */
     private static final Magnitude[] MAGNITUDES = {
@@ -40,6 +42,18 @@ public final class GooFormat {
             }
         }
         return Long.toString(amount);
+    }
+
+    /**
+     * Formats a container's total against its capacity, each by magnitude:
+     * 500 of 16000 reads "500 / 16K".
+     *
+     * @param total    the volume every type holds together
+     * @param capacity the container's capacity
+     * @return the display string
+     */
+    public static String formatFill(long total, long capacity) {
+        return formatAmount(total) + OF_CAPACITY + formatAmount(capacity);
     }
 
     /**

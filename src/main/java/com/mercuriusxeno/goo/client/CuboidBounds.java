@@ -16,4 +16,15 @@ public record CuboidBounds(float x0, float x1, float z0, float z1, float yBot, f
     public CuboidBounds withY(float newYBot, float newYTop) {
         return new CuboidBounds(x0, x1, z0, z1, newYBot, newYTop);
     }
+
+    /**
+     * Grows the bounds outward by a mingled layer's lift on every side and the
+     * top, so each layer sits outside the one below (decision noise-mingled-type-textures).
+     *
+     * @param lift the distance outward
+     * @return the grown bounds
+     */
+    public CuboidBounds liftedOutward(float lift) {
+        return new CuboidBounds(x0 - lift, x1 + lift, z0 - lift, z1 + lift, yBot, yTop + lift);
+    }
 }

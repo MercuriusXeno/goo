@@ -9,15 +9,16 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Signal's rings fly from the hand to the range one after another, evenly
- * staggered, each expanding as it flies and fading as it expands, each a
- * closed ring square to the aim (decision signal-wave-toggles-each-device-once).
+ * The pulse rings fly from their start to the range one after another,
+ * evenly staggered, each expanding as it flies and fading as it expands,
+ * each a closed ring square to the aim; a Zap's volley flies once and ends
+ * (decisions pulser-toggles-rapidly-while-held, zap-disperses-into-signal).
  */
 class SignalRingsTest {
 
     private static final double EPSILON = 1e-9;
     private static final Vec3 EAST = new Vec3(1, 0, 0);
-    /** pulse_signal.json's range and cone. */
+    /** pulse_zap.json's wave range and cone. */
     private static final double RANGE = 8;
     private static final double CONE = 40;
 
@@ -35,6 +36,15 @@ class SignalRingsTest {
         void aRingStartsOverAtTheHandOnceItReachesTheRange() {
             assertEquals(SignalRings.flightShare(0.1, 0),
                     SignalRings.flightShare(0.1 + SignalRings.FLIGHT_SECONDS, 0), EPSILON);
+        }
+
+        @Test
+        void aVolleysRingsLeaveStaggeredAndEndOnceTheLastArrives() {
+            assertTrue(SignalRings.volleyShare(0.01, 1) < 0);
+            assertEquals(1.0 / SignalRings.RINGS,
+                    SignalRings.volleyShare(0.5, 0) - SignalRings.volleyShare(0.5, 1), EPSILON);
+            assertFalse(SignalRings.volleyEnded(SignalRings.FLIGHT_SECONDS));
+            assertTrue(SignalRings.volleyEnded(SignalRings.FLIGHT_SECONDS * 2));
         }
 
         @Test

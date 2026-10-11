@@ -9,14 +9,16 @@ import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.util.ARGB;
 
 /**
- * A pulse prism's look: the plain prism's pointed quartz column drawn
- * redstone red. It glows a brighter, self-lit red while it is energized: a
+ * A pulse prism's look: the prism's pointed quartz column drawn redstone
+ * red, six-sided for a metronome; a relay's folds into four sides as the
+ * combo takes, so the two read apart at rest. It glows a brighter, self-lit red while it is energized: a
  * metronome while a signal reaches it, a relay while it carries one. A
  * metronome also strobes near white on each beat, fading back over a
  * fraction of a second, so its timing shows.
  * metronome-prism-pulses-at-the-learned-rate
  * relay-prism-carries-the-signal-through-air
  * prism-is-one-pointed-quartz-column
+ * relay-and-metronome-read-apart-at-rest
  */
 public final class PulsePrismStyle implements PrismComboStyle {
 
@@ -25,9 +27,9 @@ public final class PulsePrismStyle implements PrismComboStyle {
     /** The id of the ability whose program is the relay combo. */
     public static final String RELAY_COMBO = "goo:pulse_relay";
     /** The metronome's look: energized while a signal reaches it, and strobing on each beat. */
-    public static final PulsePrismStyle METRONOME = new PulsePrismStyle(true);
-    /** The relay's look: energized while it carries a signal. */
-    public static final PulsePrismStyle RELAY = new PulsePrismStyle(false);
+    public static final PulsePrismStyle METRONOME = new PulsePrismStyle(true, PrismCrystal.ColumnSides.SIX);
+    /** The relay's look: energized while it carries a signal, four-sided. */
+    public static final PulsePrismStyle RELAY = new PulsePrismStyle(false, PrismCrystal.ColumnSides.FOUR);
 
     /** A dull redstone red the milky crystal is multiplied by at rest. */
     static final int RESTING_RED = 0xFF9A2A20;
@@ -39,9 +41,16 @@ public final class PulsePrismStyle implements PrismComboStyle {
     static final double STROBE_SECONDS = 0.3;
 
     private final boolean strobes;
+    private final PrismCrystal.ColumnSides sides;
 
-    private PulsePrismStyle(boolean strobes) {
+    private PulsePrismStyle(boolean strobes, PrismCrystal.ColumnSides sides) {
         this.strobes = strobes;
+        this.sides = sides;
+    }
+
+    @Override
+    public PrismCrystal.ColumnSides restingSides() {
+        return sides;
     }
 
     @Override
@@ -55,7 +64,8 @@ public final class PulsePrismStyle implements PrismComboStyle {
         int tint = tintFor(energized, strobe);
         int light = energized || strobe > 0 ? GooSubmitter.fullbrightLight() : state.lightCoords;
         PrismCrystal.standOnLandingFace(poseStack, state.facing);
-        CrystalClusterSubmitter.submit(poseStack, nodeCollector, PrismCrystal.PRISMS,
+        PrismCrystal.submitColumn(poseStack, nodeCollector, sides,
+                OculusStyle.transformationShare(state.gameTime, state.comboSince),
                 new CrystalClusterSubmitter.Look(plain.uv(), ARGB.multiply(plain.color(), tint)), light);
     }
 
