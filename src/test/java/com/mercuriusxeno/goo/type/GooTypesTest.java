@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.type;
 
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
 import io.netty.buffer.ByteBuf;
@@ -8,8 +9,17 @@ import io.netty.buffer.Unpooled;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -27,7 +37,12 @@ class GooTypesTest {
             GooTypes.REGISTRY, Identifier.fromNamespaceAndPath("gootest", "seventeenth"));
     private static final List<String> BUNDLED_IDS = List.of(
             "aeon", "blaze", "crystal", "ender", "frost", "glow", "hex", "leaf",
-            "metal", "nether", "pulse", "rock", "shroom", "typhoon", "unstable", "vital");
+            "metal", "nether", "pulse", "rock", "shroom", "typhoon", "unstable", "vital", "weird");
+    private static final String TYPE_JSON = "/data/goo/goo/goo_type/%s.json";
+    private static final String TEXTURES = "textures";
+    private static final String TEXTURE_PNG = "/assets/%s/textures/%s.png";
+    private static final String TYPE_ICON = "/assets/goo/textures/goo/type/%s.png";
+    private static final String EN_US = "/assets/goo/lang/en_us.json";
 
     /**
      * The registry key is goo:goo_type.
@@ -125,6 +140,46 @@ class GooTypesTest {
             GooTypes.KEY_STREAM_CODEC.encode(buf, key);
             assertEquals(key, GooTypes.KEY_STREAM_CODEC.decode(buf));
             assertEquals(0, buf.readableBytes());
+        }
+    }
+
+    /**
+     * Each bundled type ships every texture its JSON names, its type icon and
+     * the three lang keys a type, its potion and its brew effect read.
+     * decision weird-ships-from-slime-and-sculk
+     */
+    @ParameterizedTest
+    @MethodSource("bundledKeys")
+    void bundledTypeShipsItsTexturesAndLang(ResourceKey<GooTypeDefinition> key) throws IOException {
+        String id = GooTypes.id(key);
+        JsonObject type = readJson(TYPE_JSON.formatted(id)).getAsJsonObject();
+        for (Map.Entry<String, JsonElement> texture : type.getAsJsonObject(TEXTURES).entrySet()) {
+            Identifier sprite = Identifier.parse(texture.getValue().getAsString());
+            assertShipped(TEXTURE_PNG.formatted(sprite.getNamespace(), sprite.getPath()));
+        }
+        assertShipped(TYPE_ICON.formatted(id));
+
+        JsonObject lang = readJson(EN_US).getAsJsonObject();
+        for (String langKey : List.of("goo.type." + id, "item.minecraft.potion.effect." + id + "_goo",
+                "effect.goo." + id + "_brew")) {
+            assertTrue(lang.has(langKey), () -> EN_US + " lacks " + langKey);
+        }
+    }
+
+    static Stream<ResourceKey<GooTypeDefinition>> bundledKeys() {
+        return GooTypes.BUNDLED.stream();
+    }
+
+    private static void assertShipped(String path) throws IOException {
+        try (InputStream in = GooTypesTest.class.getResourceAsStream(path)) {
+            assertNotNull(in, () -> "missing on the classpath: " + path);
+        }
+    }
+
+    private static JsonElement readJson(String path) throws IOException {
+        try (InputStream in = GooTypesTest.class.getResourceAsStream(path)) {
+            assertNotNull(in, () -> "missing on the classpath: " + path);
+            return JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8));
         }
     }
 }
