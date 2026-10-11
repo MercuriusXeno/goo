@@ -25,10 +25,13 @@ public final class VitalMoteParticle extends SingleQuadParticle {
     private static final float BASE_QUAD_SIZE = 0.05f;
     private static final float QUAD_SIZE_VARIANCE = 0.03f;
     private static final float ALPHA = 0.9f;
-    /** Vital goo's bright pink, lighter than its wheel color so the mote reads as life, not blood. */
+    /**
+     * Jelly goo's bright amber, lighter than its wheel color so the mote reads as food.
+     * nourish-and-healing-ship-on-jelly
+     */
     private static final float RED = 1.0f;
-    private static final float GREEN = 0.45f;
-    private static final float BLUE = 0.6f;
+    private static final float GREEN = 0.7f;
+    private static final float BLUE = 0.22f;
 
     private HomingPath path;
     private Supplier<Vec3> target;
