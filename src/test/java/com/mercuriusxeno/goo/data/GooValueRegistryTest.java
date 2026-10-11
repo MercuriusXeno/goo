@@ -2410,6 +2410,39 @@ class GooValueRegistryTest {
         }
     }
 
+    // ── Shipped deep values ─────────────────────────────────────────────
+
+    /**
+     * The shipped base values give deepslate, its variants and ores, and the
+     * sculk family a deep term (decision deep-ships-from-deepslate-and-sculk).
+     */
+    @Nested
+    class ShippedDeepValues {
+
+        private static final String SHIPPED_BASE_VALUES = "/data/goo/goo_values/base_values.json";
+
+        @Test
+        void deepslateAndSculkResolveDeep() throws IOException {
+            try (java.io.InputStream shipped = GooValueRegistryTest.class.getResourceAsStream(SHIPPED_BASE_VALUES)) {
+                assertNotNull(shipped, SHIPPED_BASE_VALUES);
+                parseBaseValuesFromStream(shipped);
+            }
+            copyBaseToEffective();
+            for (String item : List.of("deepslate", "cobbled_deepslate", "polished_deepslate", "chiseled_deepslate",
+                    "deepslate_bricks", "cracked_deepslate_bricks", "deepslate_tiles", "cracked_deepslate_tiles",
+                    "infested_deepslate", "deepslate_iron_ore", "deepslate_diamond_ore",
+                    "sculk", "sculk_vein", "sculk_shrieker", "sculk_catalyst", "sculk_sensor")) {
+                GooValue value = registry.table().lookup(id("minecraft:" + item));
+                assertNotNull(value, item);
+                assertTrue(value.get(GooTypes.DEEP) > 0, item + " carries no deep: " + value);
+            }
+            GooValue ironOre = registry.table().lookup(id("minecraft:iron_ore"));
+            GooValue deepslateIronOre = registry.table().lookup(id("minecraft:deepslate_iron_ore"));
+            assertEquals(ironOre.get(GooTypes.METAL), deepslateIronOre.get(GooTypes.METAL));
+            assertEquals(0, ironOre.get(GooTypes.DEEP));
+        }
+    }
+
     // ── Shipped base values ────────────────────────────────────────────
 
     @Nested
@@ -2455,6 +2488,37 @@ class GooValueRegistryTest {
                 assertNotNull(value, item);
                 assertTrue(value.get(GooTypes.OPULENT) > 0, item + " carries no opulent: " + value);
             }
+        }
+    }
+
+    // ── Shipped values ─────────────────────────────────────────────────
+
+    @Nested
+    class ShippedValues {
+
+        private static final String SHIPPED_BASE_VALUES = "/data/goo/goo_values/base_values.json";
+
+        /**
+         * The shipped base values give no item any xeno, while the same load
+         * still values items in the standing types.
+         * decision xeno-ships-as-a-type-with-no-source-yet
+         */
+        @Test
+        void noShippedItemResolvesXeno() throws IOException {
+            try (var shipped = GooValueRegistryTest.class.getResourceAsStream(SHIPPED_BASE_VALUES)) {
+                assertNotNull(shipped, SHIPPED_BASE_VALUES);
+                parseBaseValuesFromStream(shipped);
+            }
+            copyBaseToEffective();
+
+            Map<Identifier, GooValue> effective = registry.table().getEffectiveValues();
+            assertTrue(effective.values().stream().anyMatch(value -> value.get(GooTypes.AEON) > 0),
+                    "the shipped load valued no item in aeon");
+            List<Identifier> carryingXeno = effective.entrySet().stream()
+                    .filter(entry -> entry.getValue().get(GooTypes.XENO) != 0)
+                    .map(Map.Entry::getKey)
+                    .toList();
+            assertEquals(List.of(), carryingXeno);
         }
     }
 }

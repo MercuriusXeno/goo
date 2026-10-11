@@ -33,7 +33,7 @@ import java.util.List;
  */
 public final class ConvokeTests {
 
-    private static final Identifier ENDER_CONVOKE = Identifier.parse("goo:ender_convoke");
+    private static final Identifier DEEP_CONVOKE = Identifier.parse("goo:deep_convoke");
     /** How far off its own bay each test lays its chunk, past every other test, and apart from each other. */
     private static final int PULL_FAR_OFF = 4096;
     private static final int LINGER_FAR_OFF = 8192;
@@ -43,11 +43,11 @@ public final class ConvokeTests {
     /** How far from the marker the cow stands, inside the marker's chunk. */
     private static final int COW_OFFSET = 3;
     private static final int CHUNK_MIDDLE = 8;
-    /** ender_convoke.json's period between tries. */
+    /** deep_convoke.json's period between tries. */
     private static final int PERIOD = 20;
     private static final int PERIODS_WITHOUT_A_MOB = 3;
     private static final double ARRIVED_WITHIN = 0.1;
-    private static final String ABILITY_REQUIRED = "goo:ender_convoke must be loaded";
+    private static final String ABILITY_REQUIRED = "%s must be loaded";
     private static final String SHOULD_ARRIVE = "The cow should stand at the convoke spot %s, stands at %s";
     private static final String SHOULD_LEAVE = "The marker should go once a mob arrives";
     private static final String SHOULD_LINGER = "The marker should still stand after three pulses with no mob in its chunk";
@@ -88,7 +88,7 @@ public final class ConvokeTests {
         BlockPos floor = farFloor(helper, TAP_FAR_OFF);
         Mob cow = spawnCow(helper, floor.above().east(COW_OFFSET));
         AbilityDefinition tap = AbilityRegistry.of(level).getAbility(ENDER_CONVOKE_TAP);
-        helper.assertTrue(tap != null, ABILITY_REQUIRED);
+        helper.assertTrue(tap != null, String.format(ABILITY_REQUIRED, ENDER_CONVOKE_TAP));
         BranchStep roll = (BranchStep) tap.behaviors().getFirst();
         BranchStep certain = new BranchStep(Expr.literal(1), roll.then(), roll.otherwise());
         // The far chunk's entities reach the level's entity scan some ticks after it is forced loaded.
@@ -171,14 +171,15 @@ public final class ConvokeTests {
     }
 
     /**
-     * Lands a convoke blob on the top of a floor block.
+     * Lands a deep goo convoke blob on the top of a floor block.
+     * decision convoke-ships-on-deep
      *
      * @param helper the gametest helper
      * @param floor  the floor block's absolute position
      */
     private static void landConvoke(GameTestHelper helper, BlockPos floor) {
-        AbilityDefinition convoke = AbilityRegistry.of(helper.getLevel()).getAbility(ENDER_CONVOKE);
-        helper.assertTrue(convoke != null, ABILITY_REQUIRED);
-        AbilityImpact.land(helper.getLevel(), floor, GooTypes.ENDER, Direction.UP, convoke);
+        AbilityDefinition convoke = AbilityRegistry.of(helper.getLevel()).getAbility(DEEP_CONVOKE);
+        helper.assertTrue(convoke != null, String.format(ABILITY_REQUIRED, DEEP_CONVOKE));
+        AbilityImpact.land(helper.getLevel(), floor, GooTypes.DEEP, Direction.UP, convoke);
     }
 }

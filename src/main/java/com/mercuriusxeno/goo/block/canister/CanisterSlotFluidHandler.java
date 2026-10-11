@@ -8,11 +8,14 @@ import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.material.Fluid;
-import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
-import net.neoforged.neoforge.transfer.fluid.FluidStacksResourceHandler;
+import net.neoforged.neoforge.transfer.transaction.SnapshotJournal;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
+import net.neoforged.neoforge.transfer.transaction.TransactionContext;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
 import java.util.function.Function;
@@ -20,18 +23,29 @@ import java.util.function.LongSupplier;
 import java.util.function.Predicate;
 
 /**
- * Single-tank block-level fluid handler for canister slots. Accepts any
- * fluid resource, a stamped goo type or a vanilla fluid. Only one resource
- * at a time, so two goo types never share a slot.
+ * Block-level fluid handler for canister slots: one tank per fluid held, in
+ * arrival order, plus one empty tank for a fluid not yet held, every tank on
+ * one shared capacity the way the vat's GooFluidHandler shares its own
+ * (capacity less the other tanks' volume). An insert or extract finds its
+ * fluid's tank by resource, whichever index the caller names.
  *
- * <p>Used by canister and hub block entities for per-slot fluid storage.
- * Replaces the multi-tank ordinal-indexed GooFluidHandler for canister slots.</p>
+ * <p>Used by canister, hub, tap, reactor, plexer and crystallizer block
+ * entities for per-slot fluid storage.</p>
+ *
+ * decision canisters-hold-more-than-one-goo-type
  */
-public class CanisterSlotFluidHandler extends FluidStacksResourceHandler implements GasketDemand {
+public class CanisterSlotFluidHandler extends SnapshotJournal<CanisterFluidContent>
+        implements ResourceHandler<FluidResource>, GasketDemand {
 
     private final Runnable onChange;
     private final LongSupplier tickSupplier;
     private final Predicate<FluidResource> admits;
+
+    /** The shared capacity every fluid in the slot fills together (mB). */
+    private int capacity;
+
+    /** Every fluid in the slot with its volume. */
+    private CanisterFluidContent content = CanisterFluidContent.EMPTY;
 
     /**
      * This canister's link in the gasket chain: its resting demand plus the consumer's.
@@ -61,7 +75,7 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler impleme
     private boolean suppressCallbacks;
 
     /**
-     * Creates a single-tank handler with the given capacity and change callback.
+     * Creates a handler with the given capacity and change callback.
      *
      * @param capacity total capacity (mB)
      * @param onChange called when contents change
@@ -71,7 +85,7 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler impleme
     }
 
     /**
-     * Creates a single-tank handler with capacity, change callback, and tick supplier.
+     * Creates a handler with capacity, change callback, and tick supplier.
      *
      * @param capacity     total capacity (mB)
      * @param onChange     called when contents change
@@ -82,7 +96,7 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler impleme
     }
 
     /**
-     * Creates a single-tank handler that takes only the goo its holder admits.
+     * Creates a handler that takes only the goo its holder admits.
      *
      * @param capacity     total capacity (mB)
      * @param onChange     called when contents change
@@ -91,7 +105,8 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler impleme
      */
     public CanisterSlotFluidHandler(int capacity, Runnable onChange, LongSupplier tickSupplier,
                                     Predicate<FluidResource> admits) {
-        super(1, capacity);
+        super();
+        this.capacity = capacity;
         this.onChange = onChange;
         this.tickSupplier = tickSupplier;
         this.admits = admits;
@@ -112,46 +127,149 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler impleme
      */
     @Override
     public OptionalInt statedDemand(FluidResource resource) {
-        return relay.statedDemand(resource, () -> GasketDemand.restingDemand(resource, capacity, getAmount()));
+        return relay.statedDemand(resource, () -> GasketDemand.restingDemand(resource, capacity, totalVolume()));
+    }
+
+    // --- ResourceHandler ---
+
+    /**
+     * One tank per fluid held plus one empty tank for the next.
+     *
+     * @return the tank count
+     */
+    @Override
+    public int size() {
+        return content.portions().size() + 1;
     }
 
     /**
-     * Accepts any non-empty resource if the slot is empty or already holds the same resource.
+     * The fluid in a tank.
      *
-     * @param index    always 0
+     * @param index the tank index
+     * @return the fluid, or EMPTY for the trailing tank
+     */
+    @Override
+    public FluidResource getResource(int index) {
+        List<CanisterFluidContent.Portion> portions = content.portions();
+        return index >= 0 && index < portions.size() ? portions.get(index).resource() : FluidResource.EMPTY;
+    }
+
+    /**
+     * The volume in a tank.
+     *
+     * @param index the tank index
+     * @return the volume in mB, 0 for the trailing tank
+     */
+    @Override
+    public long getAmountAsLong(int index) {
+        List<CanisterFluidContent.Portion> portions = content.portions();
+        return index >= 0 && index < portions.size() ? portions.get(index).amount() : 0;
+    }
+
+    /**
+     * The shared capacity less the volume every other tank holds.
+     *
+     * @param index    the tank index
+     * @param resource the fluid resource
+     * @return the room this tank has in mB, counting its own volume
+     */
+    @Override
+    public long getCapacityAsLong(int index, FluidResource resource) {
+        return capacity - content.totalVolume() + getAmountAsLong(index);
+    }
+
+    /**
+     * Any fluid the held content accepts and the holder admits: goo beside goo,
+     * a vanilla fluid alone.
+     *
+     * @param index    the tank index, which routing ignores
      * @param resource the fluid resource to validate
      * @return true if valid
      */
     @Override
     public boolean isValid(int index, FluidResource resource) {
-        if (resource.isEmpty()) {
-            return false;
-        }
-        FluidResource current = getResource(0);
-        return (current.isEmpty() || current.equals(resource)) && admits.test(resource);
+        return content.canAccept(resource) && admits.test(resource);
     }
 
     /**
-     * Full capacity for the single tank.
+     * Adds a fluid to the tank holding it, or to a new tank, up to the shared capacity.
      *
-     * @param index    always 0
-     * @param resource the fluid resource
-     * @return capacity in mB
+     * @param index       the tank index, which routing ignores
+     * @param resource    the fluid resource
+     * @param amount      the mB offered
+     * @param transaction the caller's transaction
+     * @return the mB accepted
      */
     @Override
-    protected int getCapacity(int index, FluidResource resource) {
-        return capacity;
+    public int insert(int index, FluidResource resource, int amount, TransactionContext transaction) {
+        if (amount <= 0 || !isValid(index, resource)) {
+            return 0;
+        }
+        int accepted = content.cappedAddAmount(resource, amount, capacity);
+        if (accepted > 0) {
+            updateSnapshots(transaction);
+            content = content.withCappedAdd(resource, accepted, capacity);
+            streamResource = resource;
+        }
+        return accepted;
     }
 
     /**
-     * Tracks insertions and notifies owner. Suppressed during bulk loads.
+     * Removes a fluid from the tank holding it, leaving every other fluid as it stands.
+     *
+     * @param index       the tank index, which routing ignores
+     * @param resource    the fluid resource
+     * @param amount      the mB requested
+     * @param transaction the caller's transaction
+     * @return the mB removed
      */
     @Override
-    protected void onContentsChanged(int index, FluidStack previousContents) {
-        if (suppressCallbacks) {
+    public int extract(int index, FluidResource resource, int amount, TransactionContext transaction) {
+        if (amount <= 0 || resource.isEmpty()) {
+            return 0;
+        }
+        int taken = Math.min(amount, content.volumeOf(resource));
+        if (taken > 0) {
+            updateSnapshots(transaction);
+            content = content.withRemoved(resource, taken);
+        }
+        return taken;
+    }
+
+    // --- SnapshotJournal ---
+
+    /**
+     * The content as it stands, immutable, so the snapshot is the value itself.
+     *
+     * @return the snapshot
+     */
+    @Override
+    protected CanisterFluidContent createSnapshot() {
+        return content;
+    }
+
+    /**
+     * Restores the content an aborted transaction changed.
+     *
+     * @param snapshot the content to restore
+     */
+    @Override
+    protected void revertToSnapshot(CanisterFluidContent snapshot) {
+        content = snapshot;
+    }
+
+    /**
+     * Tracks insertions and notifies the owner once the root transaction commits.
+     * Suppressed during bulk loads.
+     *
+     * @param original the content before the transaction
+     */
+    @Override
+    protected void onRootCommit(CanisterFluidContent original) {
+        if (suppressCallbacks || original.equals(content)) {
             return;
         }
-        int delta = (int) getAmountAsLong(0) - previousContents.getAmount();
+        int delta = content.totalVolume() - original.totalVolume();
         if (delta > 0) {
             trackInsertion(delta);
         }
@@ -169,8 +287,6 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler impleme
             streamRate = 0;
             streamTick = now;
         }
-        FluidResource res = getResource(0);
-        streamResource = res.isEmpty() ? null : res;
         streamRate += delta;
     }
 
@@ -219,127 +335,73 @@ public class CanisterSlotFluidHandler extends FluidStacksResourceHandler impleme
         return (currentTick - streamTick <= 1) ? streamRate : 0;
     }
 
+    // --- GooContents bridge ---
+
     /**
-     * Returns a GooContents snapshot. Single goo entry if holding goo, empty otherwise.
+     * Returns a GooContents snapshot: every goo type in the slot with its volume.
      *
      * @return goo contents for push operations
      */
     public GooContents toGooContents() {
-        ResourceKey<GooTypeDefinition> type = getGooType();
-        if (type == null) {
-            return GooContents.EMPTY;
-        }
-        return new GooContents(Map.of(type, getAmount()));
+        Map<ResourceKey<GooTypeDefinition>, Integer> volumes = content.gooVolumes();
+        return volumes.isEmpty() ? GooContents.EMPTY : new GooContents(volumes);
     }
 
     /**
-     * Loads from a GooContents snapshot. Reads the first (only) entry.
+     * Loads from a GooContents snapshot, every type it holds. Suppresses callbacks.
      *
      * @param contents the goo contents to load
      */
     public void loadFrom(GooContents contents) {
-        suppressCallbacks = true;
-        try {
-            if (contents.isEmpty()) {
-                set(0, FluidResource.EMPTY, 0);
-            } else {
-                var entry = contents.getAll().entrySet().iterator().next();
-                set(0, GooFluids.resource(entry.getKey()),
-                        Math.min(entry.getValue(), Integer.MAX_VALUE));
-            }
-        } finally {
-            suppressCallbacks = false;
-        }
+        List<CanisterFluidContent.Portion> portions = new ArrayList<>();
+        contents.getAll().forEach((type, volume) -> portions.add(
+                new CanisterFluidContent.Portion(GooFluids.resource(type), Math.min(volume, Integer.MAX_VALUE))));
+        loadFrom(new CanisterFluidContent(portions));
     }
 
     // --- CanisterFluidContent bridge ---
 
     /**
-     * Creates a CanisterFluidContent snapshot from the current tank state.
+     * Returns the slot's content.
      *
      * @return the fluid content
      */
     public CanisterFluidContent toFluidContent() {
-        FluidResource res = getResource(0);
-        if (res.isEmpty()) {
-            return CanisterFluidContent.EMPTY;
-        }
-        return new CanisterFluidContent(res, (int) getAmountAsLong(0));
+        return content;
     }
 
     /**
-     * Loads fluid from a CanisterFluidContent into the tank. Suppresses callbacks.
+     * Loads fluid from a CanisterFluidContent into the slot. Suppresses callbacks.
      *
-     * @param content the content to load
+     * @param loaded the content to load
      */
-    public void loadFrom(CanisterFluidContent content) {
+    public void loadFrom(CanisterFluidContent loaded) {
         suppressCallbacks = true;
-        try {
-            if (content.isEmpty()) {
-                set(0, FluidResource.EMPTY, 0);
-            } else {
-                set(0, content.resource(),
-                        Math.min(content.amount(), Integer.MAX_VALUE));
-            }
+        try (var tx = Transaction.openRoot()) {
+            updateSnapshots(tx);
+            content = loaded;
+            tx.commit();
         } finally {
             suppressCallbacks = false;
         }
     }
 
     /**
-     * Returns the resource stored in this slot, or FluidResource.EMPTY.
+     * Returns true if the slot holds no fluid.
      *
-     * @return the stored resource
-     */
-    public FluidResource getFluidResource() {
-        return getResource(0);
-    }
-
-    /**
-     * Returns the fluid stored in this slot without its components, for
-     * render code that tells vanilla fluids apart.
-     *
-     * @return the stored fluid, or the empty fluid
-     */
-    public Fluid getFluid() {
-        return getResource(0).getFluid();
-    }
-
-    /**
-     * Returns the goo type stored in this slot, or null for non-goo/empty.
-     *
-     * @return the goo type, or null
-     */
-    @Nullable
-    public ResourceKey<GooTypeDefinition> getGooType() {
-        return GooFluids.keyOf(getResource(0));
-    }
-
-    /**
-     * Returns the stored amount.
-     *
-     * @return volume in mB
-     */
-    public int getAmount() {
-        return (int) getAmountAsLong(0);
-    }
-
-    /**
-     * Returns true if the tank is empty.
-     *
-     * @return true if the tank holds no fluid
+     * @return true if empty
      */
     public boolean isEmpty() {
-        return getAmountAsLong(0) == 0;
+        return content.isEmpty();
     }
 
     /**
-     * Returns the total volume (same as getAmount for single-tank).
+     * Returns the volume of every fluid together.
      *
      * @return volume in mB
      */
     public int totalVolume() {
-        return (int) getAmountAsLong(0);
+        return content.totalVolume();
     }
 
     /**

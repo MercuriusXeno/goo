@@ -6,7 +6,7 @@
   "cost": 1000,
   "delivery": { "kind": "arc" },
   "behaviors": [
-    { "type": "branch", "when": "chance(0.05)", "then": [{ "type": "convoke" }] }
+    { "type": "branch", "when": "chance(0.05)", "then": [{ "type": "convoke", "goo": "ender" }] }
   ],
   "tags": ["tap"]
 }
