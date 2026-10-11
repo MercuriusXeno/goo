@@ -168,7 +168,12 @@ public enum HostCapability {
      * A sphere around the anchor to slow time in, the chronosphere's marker
      * (decision chronosphere-hastes-players-slows-mobs).
      */
-    TIME_VEIL(TimeVeilHost.class);
+    TIME_VEIL(TimeVeilHost.class),
+    /**
+     * A cell where a block stands for a set time (decision
+     * weird-bounces-and-softens-harm).
+     */
+    TIMED_BLOCK(TimedBlockHost.class);
 
     private final Class<? extends StepHost> hostType;
 
