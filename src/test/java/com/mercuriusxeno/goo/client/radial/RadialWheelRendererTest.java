@@ -219,6 +219,7 @@ class RadialWheelRendererTest {
                 Map.entry("blaze_spitfire", "Spitfire"), Map.entry("blaze_kindle", "Kindle"),
                 Map.entry("ender_blink", "Blink"), Map.entry("typhoon_jet", "Jet"), Map.entry("typhoon_airborn", "Airborn"), Map.entry("typhoon_repel", "Repel"),
                 Map.entry("typhoon_updraft", "Updraft"), Map.entry("typhoon_lift", "Lift"),
+                Map.entry("kinetic_grab", "Grab"), Map.entry("kinetic_telekinesis", "Telekinesis"),
                 Map.entry("unstable_explode", "Blast"), Map.entry("zoo_allure", "Allure"), Map.entry("zoo_spawn", "Spawn"), Map.entry("zoo_shape", "Shape"), Map.entry("zoo_rally", "Rally"),
                 Map.entry("vital_vitality", "Vitality"), Map.entry("vital_reserve", "Reserve"),
                 Map.entry("vital_nourish", "Nourish"), Map.entry("xeno_eldritch", "Eldritch Sight"),
