@@ -4,9 +4,11 @@ import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.network.ShardFallPayload;
 import com.mercuriusxeno.goo.registry.GooServerState;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.Block;
@@ -179,8 +181,8 @@ public record TapHost(ServerLevel level, BlockPos tapPos, BlockPos landing, Dire
      * decision convoke-drip-rolls-a-small-chance
      */
     @Override
-    public boolean convokeFromChunk() {
-        return ChunkConvoke.convoke(level, Vec3.atBottomCenterOf(landing.relative(face)));
+    public boolean convokeFromChunk(ResourceKey<GooTypeDefinition> goo) {
+        return ChunkConvoke.convoke(level, Vec3.atBottomCenterOf(landing.relative(face)), goo);
     }
 
     /**
