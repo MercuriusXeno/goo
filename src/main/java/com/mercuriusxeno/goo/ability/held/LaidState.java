@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.held;
 
 import com.mercuriusxeno.goo.ability.program.AirbornStep;
 import com.mercuriusxeno.goo.ability.program.ChargedStep;
+import com.mercuriusxeno.goo.ability.program.EldritchStep;
 import com.mercuriusxeno.goo.ability.program.ExtenderStep;
 import com.mercuriusxeno.goo.ability.program.HasteStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
@@ -48,6 +49,8 @@ public enum LaidState {
     HASTE,
     /** Air control (decision airborn-steerable-levitation-and-soft-falls). */
     AIRBORN,
+    /** The eldritch state (decision eldritch-sight-reveals-the-out-of-phase). */
+    ELDRITCH,
     /** Charged, laid by a charged step (decision charged-scales-channel-params-by-json). */
     CHARGED;
 
@@ -87,6 +90,7 @@ public enum LaidState {
             Map.entry(LifetapStep.class, LIFETAP),
             Map.entry(HasteStep.class, HASTE),
             Map.entry(AirbornStep.class, AIRBORN),
+            Map.entry(EldritchStep.class, ELDRITCH),
             Map.entry(ChargedStep.class, CHARGED));
 
     private static Stream<Step> withDescendants(Step step) {

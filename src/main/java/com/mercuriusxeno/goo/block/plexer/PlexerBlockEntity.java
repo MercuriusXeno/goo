@@ -10,7 +10,6 @@ import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
-import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -283,8 +282,7 @@ public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanister
     private int getAvailableGoo(List<SlotRef> slots, ResourceKey<GooTypeDefinition> type) {
         int total = 0;
         for (SlotRef ref : slots) {
-            CanisterFluidContent content = CanisterItem.getFluidContent(ref.entity.getCanister(ref.slot));
-            total += (content.getGooType() == type) ? content.amount() : 0;
+            total += CanisterItem.getFluidContent(ref.entity.getCanister(ref.slot)).volumeOf(type);
         }
         return total;
     }
@@ -302,15 +300,7 @@ public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanister
             if (remaining <= 0) {
                 break;
             }
-            ItemStack stack = ref.entity.getCanister(ref.slot);
-            if (stack.isEmpty()) {
-                continue;
-            }
-            int removed = CanisterItem.removeGoo(stack, type, remaining);
-            if (removed > 0) {
-                ref.entity.containerState().markChanged();
-                remaining -= removed;
-            }
+            remaining -= ref.entity.extractGoo(ref.slot, type, remaining);
         }
     }
 

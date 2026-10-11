@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RayStepTest {
 
     private static final RayStep.Refraction SUNBEAM = new RayStep.Refraction(16, 1.5, 0.85);
-    private static final RayStep RAY = new RayStep(32, 10, List.of(), SUNBEAM, List.of());
+    private static final RayStep RAY = new RayStep(32, 10, List.of(), SUNBEAM, List.of(), List.of());
     private static final double TOLERANCE = 1e-9;
 
     @Test

@@ -330,7 +330,7 @@ public final class CrystallizerTests {
         helper.assertTrue(canisters(helper).getSlotFluidContent(NORTH_SLOTS[SECOND]).isEmpty(),
                 "A pour on the full canister should leave the empty one empty, found "
                         + canisters(helper).getSlotFluidContent(NORTH_SLOTS[SECOND]));
-        helper.assertValueEqual(full, canisters(helper).getSlotFluidContent(NORTH_SLOTS[FIRST]).amount(),
+        helper.assertValueEqual(full, canisters(helper).getSlotFluidContent(NORTH_SLOTS[FIRST]).totalVolume(),
                 "the aimed canister stays full");
         helper.succeed();
     }
@@ -849,13 +849,13 @@ public final class CrystallizerTests {
 
     private static ItemStack canister(ResourceKey<GooTypeDefinition> type, int volume) {
         ItemStack canister = new ItemStack(GooItems.CANISTER.get());
-        CanisterItem.setFluidContent(canister, new CanisterFluidContent(GooFluids.resource(type), volume));
+        CanisterItem.setFluidContent(canister, CanisterFluidContent.of(GooFluids.resource(type), volume));
         return canister;
     }
 
     private static int enderIn(GameTestHelper helper) {
         CanisterFluidContent content = canisters(helper).getSlotFluidContent(NORTH_SLOTS[SECOND]);
-        return content.isEmpty() ? 0 : content.amount();
+        return content.isEmpty() ? 0 : content.totalVolume();
     }
 
     /** A click on the crystallizer's top face over a canister's quarter, the dial facing north. */

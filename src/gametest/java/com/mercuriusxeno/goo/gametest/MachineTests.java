@@ -2,11 +2,13 @@ package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.SlottedCanisterData;
+import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
 import com.mercuriusxeno.goo.data.GasketRegistry;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -16,11 +18,14 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.ProblemReporter;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
+import net.neoforged.neoforge.transfer.transaction.Transaction;
 import org.slf4j.Logger;
 import java.util.UUID;
 
@@ -83,6 +88,16 @@ public final class MachineTests {
     private static final String HANDLER_REBUILT = "Handler should be rebuilt after load";
     private static final String FLUID_SURVIVES = "Fluid type should survive round-trip";
     private static final String AMOUNT_SURVIVES = "Fluid amount should survive round-trip";
+    private static final int HUB_SLOT = 0;
+    private static final int PLAYER_CANISTER_SLOT = 3;
+    private static final int MIXED_BLAZE = 300;
+    private static final int MIXED_ROCK = 200;
+    private static final int CAPACITY_PROBE = 10_000;
+    private static final String MIXED_EXTRACTED = "rock drawn from the mixed canister";
+    private static final String MIXED_HANDLER_LEFT = "the slot handler after drawing rock: blaze stands, rock gone";
+    private static final String MIXED_STACK_LEFT = "the canister stack after drawing rock: blaze stands, rock gone";
+    private static final String MIXED_SCAN_BLAZE = "blaze the scan sees in the mixed canister";
+    private static final String MIXED_SCAN_ROCK = "rock the scan sees in the mixed canister";
 
     private MachineTests() {
     }
@@ -311,8 +326,8 @@ public final class MachineTests {
         var handler = reactor.containerState().getSlotFluidHandler(
                 ReactorBlockEntity.OUTPUT_SLOT);
         helper.assertTrue(handler != null, OUTPUT_HANDLER_EXISTS);
-        helper.assertTrue(handler.getFluidResource().equals(output), OUTPUT_IS_REACTION_PRODUCT);
-        helper.assertTrue(handler.getAmount() > 0, OUTPUT_AMOUNT_POSITIVE);
+        helper.assertTrue(handler.toFluidContent().dominantResource().equals(output), OUTPUT_IS_REACTION_PRODUCT);
+        helper.assertTrue(handler.totalVolume() > 0, OUTPUT_AMOUNT_POSITIVE);
     }
 
     /**
@@ -323,17 +338,17 @@ public final class MachineTests {
             CanisterBlockEntity inputBe) {
         var firstHandler = inputBe.containerState().getSlotFluidHandler(0);
         var secondHandler = inputBe.containerState().getSlotFluidHandler(CORNER_SLOT_2);
-        helper.assertTrue(firstHandler != null && firstHandler.getAmount() < INPUT_AMOUNT,
+        helper.assertTrue(firstHandler != null && firstHandler.totalVolume() < INPUT_AMOUNT,
                 FIRST_INPUT_DRAINED);
-        helper.assertTrue(secondHandler != null && secondHandler.getAmount() < INPUT_AMOUNT,
+        helper.assertTrue(secondHandler != null && secondHandler.totalVolume() < INPUT_AMOUNT,
                 SECOND_INPUT_DRAINED);
         CanisterFluidContent firstStackContent = CanisterItem.getFluidContent(
                 inputBe.containerState().getCanister(0));
         CanisterFluidContent secondStackContent = CanisterItem.getFluidContent(
                 inputBe.containerState().getCanister(CORNER_SLOT_2));
-        helper.assertTrue(firstStackContent.amount() < INPUT_AMOUNT,
+        helper.assertTrue(firstStackContent.totalVolume() < INPUT_AMOUNT,
                 FIRST_INPUT_STACK_DRAINED);
-        helper.assertTrue(secondStackContent.amount() < INPUT_AMOUNT,
+        helper.assertTrue(secondStackContent.totalVolume() < INPUT_AMOUNT,
                 SECOND_INPUT_STACK_DRAINED);
     }
 
@@ -346,9 +361,9 @@ public final class MachineTests {
             ReactorBlockEntity reactor, FluidResource output) {
         CanisterFluidContent outputStackContent = CanisterItem.getFluidContent(
                 reactor.getOutputCanister());
-        helper.assertTrue(outputStackContent.resource().equals(output),
+        helper.assertTrue(outputStackContent.dominantResource().equals(output),
                 OUTPUT_STACK_FLUID_PRESENT);
-        helper.assertTrue(outputStackContent.amount() > 0,
+        helper.assertTrue(outputStackContent.totalVolume() > 0,
                 OUTPUT_STACK_AMOUNT_POSITIVE);
     }
 
@@ -377,7 +392,7 @@ public final class MachineTests {
     private static void assertOutputEmpty(GameTestHelper helper, ReactorBlockEntity reactor, String message) {
         var handler = reactor.containerState().getSlotFluidHandler(ReactorBlockEntity.OUTPUT_SLOT);
         helper.assertTrue(handler != null, OUTPUT_HANDLER_EXISTS);
-        helper.assertTrue(handler.getAmount() == 0, message);
+        helper.assertTrue(handler.totalVolume() == 0, message);
     }
 
     // --- Canister fluid operations ---
@@ -402,8 +417,8 @@ public final class MachineTests {
 
         var handler = state.getSlotFluidHandler(CENTER_SLOT);
         helper.assertTrue(handler != null, HANDLER_EXISTS);
-        helper.assertTrue(handler.getFluidResource().equals(blazeFluid), HANDLER_HOLDS_BLAZE);
-        helper.assertTrue(handler.getAmount() == TEST_VOLUME, HANDLER_AMOUNT_MATCHES);
+        helper.assertTrue(handler.toFluidContent().dominantResource().equals(blazeFluid), HANDLER_HOLDS_BLAZE);
+        helper.assertTrue(handler.totalVolume() == TEST_VOLUME, HANDLER_AMOUNT_MATCHES);
 
         int extracted = state.extractFluid(CENTER_SLOT, blazeFluid, TEST_VOLUME);
         helper.assertTrue(extracted == TEST_VOLUME, SHOULD_EXTRACT_FULL);
@@ -436,7 +451,7 @@ public final class MachineTests {
         // Slot 0 should have received the routed fluid (matching pass first)
         var handler0 = state.getSlotFluidHandler(0);
         helper.assertTrue(handler0 != null, SLOT_0_HANDLER_EXISTS);
-        helper.assertTrue(handler0.getAmount() == DOUBLED_VOLUME, SLOT_0_HAS_ROUTED);
+        helper.assertTrue(handler0.totalVolume() == DOUBLED_VOLUME, SLOT_0_HAS_ROUTED);
 
         // Slot 2 should still be empty (matching pass consumed everything)
         var handler2 = state.getSlotFluidHandler(CORNER_SLOT_2);
@@ -477,9 +492,67 @@ public final class MachineTests {
         // Verify the fluid survived the round-trip
         var handler = restored.containerState().getSlotFluidHandler(CENTER_SLOT);
         helper.assertTrue(handler != null, HANDLER_REBUILT);
-        helper.assertTrue(handler.getFluidResource().equals(blazeFluid), FLUID_SURVIVES);
-        helper.assertTrue(handler.getAmount() == TEST_VOLUME, AMOUNT_SURVIVES);
+        helper.assertTrue(handler.toFluidContent().dominantResource().equals(blazeFluid), FLUID_SURVIVES);
+        helper.assertTrue(handler.totalVolume() == TEST_VOLUME, AMOUNT_SURVIVES);
         helper.succeed();
+    }
+
+    // --- Mixed canisters (decision canisters-hold-more-than-one-goo-type) ---
+
+    /**
+     * A hub extracting one goo type from a canister holding two takes that type
+     * alone: the slot's handler and the canister stack both keep the other type.
+     *
+     * @param helper the gametest helper
+     */
+    public static void hubExtractsOneTypeFromAMixedCanister(GameTestHelper helper) {
+        helper.setBlock(BE_POS, GooBlocks.HUB.get());
+        HubBlockEntity hub = helper.getBlockEntity(BE_POS, HubBlockEntity.class);
+        helper.assertTrue(hub.insertCanister(HUB_SLOT, mixedCanister()), SHOULD_INSERT);
+
+        int extracted;
+        try (var tx = Transaction.openRoot()) {
+            extracted = hub.getFluidHandler().extract(HUB_SLOT, GooFluids.resource(GooTypes.ROCK), CAPACITY_PROBE, tx);
+            tx.commit();
+        }
+
+        helper.assertValueEqual(extracted, MIXED_ROCK, MIXED_EXTRACTED);
+        assertMixedLeftBlaze(helper, hub.getSlotFluidContent(HUB_SLOT), MIXED_HANDLER_LEFT);
+        assertMixedLeftBlaze(helper, CanisterItem.getFluidContent(hub.getCanister(HUB_SLOT)), MIXED_STACK_LEFT);
+        helper.succeed();
+    }
+
+    /**
+     * A player carrying a canister holding two goo types holds a source of each, and
+     * spending one through GooSourceScanner draws that type alone from the canister.
+     *
+     * @param helper the gametest helper
+     */
+    public static void mixedCanisterIsAGooSourceForEachType(GameTestHelper helper) {
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.getInventory().setItem(PLAYER_CANISTER_SLOT, mixedCanister());
+
+        var available = GooSourceScanner.aggregateAvailable(player);
+        helper.assertValueEqual(available.getOrDefault(GooTypes.BLAZE, 0), MIXED_BLAZE, MIXED_SCAN_BLAZE);
+        helper.assertValueEqual(available.getOrDefault(GooTypes.ROCK, 0), MIXED_ROCK, MIXED_SCAN_ROCK);
+
+        helper.assertValueEqual(GooSourceScanner.deplete(player, GooTypes.ROCK, MIXED_ROCK), MIXED_ROCK,
+                MIXED_EXTRACTED);
+        assertMixedLeftBlaze(helper, CanisterItem.getFluidContent(player.getInventory().getItem(PLAYER_CANISTER_SLOT)),
+                MIXED_STACK_LEFT);
+        helper.succeed();
+    }
+
+    private static ItemStack mixedCanister() {
+        ItemStack canister = new ItemStack(GooItems.CANISTER.get());
+        CanisterItem.addGoo(canister, GooTypes.BLAZE, MIXED_BLAZE);
+        CanisterItem.addGoo(canister, GooTypes.ROCK, MIXED_ROCK);
+        return canister;
+    }
+
+    private static void assertMixedLeftBlaze(GameTestHelper helper, CanisterFluidContent content, String where) {
+        helper.assertValueEqual(content.volumeOf(GooTypes.BLAZE), MIXED_BLAZE, where);
+        helper.assertValueEqual(content.volumeOf(GooTypes.ROCK), 0, where);
     }
 
     // --- Plexer ---
@@ -512,7 +585,7 @@ public final class MachineTests {
     private static void insertFilledCanister(CanisterBlockEntity be,
                                              int slot, FluidResource fluid, int amount) {
         ItemStack canister = new ItemStack(GooItems.CANISTER.get());
-        CanisterItem.setFluidContent(canister, new CanisterFluidContent(fluid, amount));
+        CanisterItem.setFluidContent(canister, CanisterFluidContent.of(fluid, amount));
         be.insertCanister(slot, canister, false);
     }
 }
