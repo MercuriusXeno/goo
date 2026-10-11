@@ -14,7 +14,7 @@ import java.util.function.ToIntFunction;
  * from the hub to the rim. At rest it holds one petal per type, each a full
  * type arc. Hovering a type (or scrolling to it) opens it with no click: its
  * petal is replaced in the same ring by its ability petals at their goal
- * size, and the six nearest types either side take what remains, the far
+ * size, and the five nearest types either side take what remains, the far
  * three fading, while the rest hide. The ring turns the least it must to
  * keep the cursor inside the open type's abilities. The cursor in the hub
  * returns the wheel to rest, unturned.
@@ -38,11 +38,11 @@ public final class RadialWheel {
     /** The narrowest arc a visible neighbor keeps when the open type holds more abilities than fit. */
     static final double NEIGHBOR_MIN_ARC = Math.toRadians(3.0);
     /** How many types either side of the open type stay on the ring. */
-    static final int NEIGHBORS_A_SIDE = 6;
+    static final int NEIGHBORS_A_SIDE = 5;
     /** The most types a wheel holds with none hidden while one is open: the open type and its neighbors. */
     private static final int WINDOW_TYPES = NEIGHBORS_A_SIDE + 1 + NEIGHBORS_A_SIDE;
     /** Each neighbor's presence by its distance from the open type, nearest first. */
-    private static final double[] NEIGHBOR_PRESENCE = {1.0, 1.0, 1.0, 0.8, 0.6, 0.4};
+    private static final double[] NEIGHBOR_PRESENCE = {1.0, 1.0, 0.8, 0.6, 0.4};
 
     private static final double TWO_PI = 2.0 * Math.PI;
     private static final double HALF = 0.5;
@@ -300,7 +300,7 @@ public final class RadialWheel {
 
     /**
      * A type's presence while another is open: on a wheel the window holds
-     * whole every type stays at full presence; otherwise the three nearest
+     * whole every type stays at full presence; otherwise the two nearest
      * either side stand full, the next three fade to 80%, 60% and 40%, and
      * the rest hide.
      * decision open-type-keeps-six-neighbors-a-side
