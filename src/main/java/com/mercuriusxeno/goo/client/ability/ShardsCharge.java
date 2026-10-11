@@ -5,12 +5,13 @@ import com.mercuriusxeno.goo.ability.ArmPoseKind;
 import com.mercuriusxeno.goo.ability.Charge;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.GloveSelection;
-import com.mercuriusxeno.goo.client.FlatQuadContext;
-import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
+import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.network.ChargeHoldPayload;
+import com.mercuriusxeno.goo.type.GooTypes;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -26,49 +27,47 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.RenderHandEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Shards' charge, seen and heard while right click holds it: the glove arm
- * winds up to the opposite shoulder, where glass knives gather in a fan,
- * one more as the charge grows, each arriving with a chime that climbs in
- * pitch, and a ring of resonance once the charge is full. The hold goes to
- * the server, so the players watching see the arm wound up and the fan.
+ * Shards' charge, seen and heard while right click holds it: the glove
+ * hand eases left across the chest with a goo blob swelling in it as the
+ * charge grows, a chime climbing in pitch at each step of the charge and a
+ * ring of resonance once it is full. The hold goes to the server, so the
+ * players watching see the arm wound up and the goo in the hand.
  * decision shards-sling-then-morph-to-flechettes
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class ShardsCharge {
 
-    /** The most knives the fan at the shoulder shows, however many the release throws. */
+    /** The steps a charge chimes at, however many flecks the release throws. */
     static final int MOST_SHOWN = 9;
-    /** Degrees the fan opens across, edge to edge, at its fullest. */
-    static final float FAN_DEGREES = 110f;
-    /** The fan's knives against a thrown knife's size. */
-    private static final float FAN_SCALE = 0.55f;
-    /** Ticks a knife takes to grow into the fan. */
-    private static final float GROW_TICKS = 3f;
-    /** A remote player's fan fills over this many ticks, the charge it cannot read. */
+    /** The hand's blob against a flying blob's size, as the charge begins and once it is full. */
+    static final float BLOB_SMALLEST = 0.25f;
+    static final float BLOB_FULLEST = 0.8f;
+    /** A remote player's blob fills over this many ticks, the charge it cannot read. */
     private static final float REMOTE_FULL_TICKS = 30f;
-    /** The fan's place: shoulder height, ahead of the chest and toward the opposite shoulder. */
-    private static final double SHOULDER_HEIGHT = 1.38;
+    /** The hand's place in the world: chest height, ahead of the body, eased across from the glove side. */
+    private static final double CHEST_HEIGHT = 1.05;
     private static final double CROUCH_DROP = 0.3;
     private static final double AHEAD = 0.42;
-    private static final double ACROSS = 0.3;
+    private static final double GLOVE_SIDE = 0.35;
+    private static final double ACROSS = 0.45;
+    /** The first-person hand's place before the eye, where vanilla holds an item, a little above it. */
+    private static final float HAND_SIDE = 0.56f;
+    private static final float HAND_DOWN = -0.42f;
+    private static final float HAND_AHEAD = -0.8f;
     private static final float CHIME_VOLUME = 0.55f;
     private static final float CHIME_PITCH_LOW = 0.8f;
     private static final float CHIME_PITCH_SPAN = 1.2f;
     private static final float FULL_VOLUME = 0.8f;
     private static final float FULL_PITCH = 1.5f;
     private static final float RIGHT_ANGLE = 90f;
-    private static final double TO_RADIANS = Math.PI / 180.0;
-    private static final float HALF = 0.5f;
-    /** How far a fanned knife leans ahead of the chest, against its upright. */
-    private static final double LEAN_AHEAD = 0.25;
-    /** Ticks after one knife each next knife starts to grow into the fan. */
-    private static final float GROW_STAGGER = 0.5f;
+    private static final float MIRRORED = -1f;
 
-    /** The knives the local fan shows now, so a new one chimes. */
+    /** The charge steps the local hold has chimed, so a new one chimes. */
     private static int shownLocally;
     /** Whether the server has been told the local hold began. */
     private static boolean holdSent;
@@ -77,35 +76,31 @@ public final class ShardsCharge {
     }
 
     /**
-     * The knives a fan shows at a share of a full charge: one more as the
-     * charge grows, the release's count capped at what the fan shows.
+     * The step a charge has reached at a share of a full charge, one more as
+     * the release's fleck count grows, capped at the steps it chimes.
      *
      * @param charge the charge block
      * @param share  the share of a full charge, 0 to 1
-     * @return the knives shown, at least one
+     * @return the step, at least one
      */
     static int shownAt(Charge charge, float share) {
         return Math.min(MOST_SHOWN, charge.fleckCount(share));
     }
 
     /**
-     * Each fanned knife's heading in the fan's own plane: up and fanned out
-     * evenly, the first toward the glove side.
+     * The hand's blob at a share of a full charge: small as the charge
+     * begins, swelling to its fullest at full charge.
      *
-     * @param index the knife's place in the fan
-     * @param count the knives shown
-     * @return the knife's angle from upright, in degrees, positive toward the glove side
+     * @param share the share of a full charge, 0 to 1
+     * @return its size against a flying blob's
      */
-    static float fanAngle(int index, int count) {
-        if (count <= 1) {
-            return 0f;
-        }
-        return FAN_DEGREES * (HALF - (float) index / (count - 1));
+    static float blobScaleAt(float share) {
+        return BLOB_SMALLEST + (BLOB_FULLEST - BLOB_SMALLEST) * Math.clamp(share, 0f, 1f);
     }
 
     /**
      * Client tick: follows the local hold, posing the arm, telling the
-     * server as the hold begins and ends, and chiming each knife in.
+     * server as the hold begins and ends, and chiming each step in.
      *
      * @param event the client tick event
      */
@@ -192,8 +187,8 @@ public final class ShardsCharge {
     }
 
     /**
-     * Draws the fan of gathering knives at the opposite shoulder of every
-     * player whose arm is wound up.
+     * Draws the goo swelling in the hand of every player whose arm is wound
+     * up, but the local player's in first person, whose hand draws its own.
      *
      * @param event the level render stage event
      */
@@ -206,56 +201,100 @@ public final class ShardsCharge {
         float partial = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         double now = mc.level.getGameTime() + partial;
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        boolean firstPerson = mc.options.getCameraType().isFirstPerson();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        FlatQuadContext quads = new FlatQuadContext(event.getPoseStack().last(),
-                buffers.getBuffer(GooRenderTypes.CRYSTAL_SHARD_TYPE));
+        PoseStack pose = event.getPoseStack();
         for (Player player : mc.level.players()) {
             AbilityPoses.Posed posed = AbilityPoses.posedAt(player.getId());
-            if (posed != null && posed.kind() == ArmPoseKind.WIND_UP) {
-                double age = now - posed.since();
-                emitFan(quads, player, posed.gloveRight(), shownFor(player, mc.player, age), age, partial, camera);
+            if (woundInTheWorld(posed, firstPerson && player == mc.player)) {
+                drawWorldBlob(pose, buffers, new WoundHand(player, mc.player, posed), now, partial, camera);
             }
         }
-        buffers.endBatch(GooRenderTypes.CRYSTAL_SHARD_TYPE);
+        buffers.endBatch();
+    }
+
+    private static boolean woundInTheWorld(AbilityPoses.Posed posed, boolean ownFirstPerson) {
+        return posed != null && posed.kind() == ArmPoseKind.WIND_UP && !ownFirstPerson;
     }
 
     /**
-     * The knives a player's fan shows: the local player's from the charge
-     * it holds, another's from how long its arm has been wound up.
+     * A wound-up player's hand to draw the goo in.
      *
-     * @param player the player whose fan it is
+     * @param player the player
      * @param local  the local player
-     * @param age    ticks the player's arm has been wound up
-     * @return the knives shown
+     * @param posed  the player's wind-up
      */
-    private static float shownFor(Player player, LocalPlayer local, double age) {
-        if (player == local) {
-            Charge charge = localCharge(local);
-            String ability = selectedAbility(local);
-            return charge == null ? 0 : shownAt(charge,
-                    GloveThrowSender.selectedDelivery(ability).chargeShare(GloveUseTracker.heldTicks()));
-        }
-        return Math.max(1, Math.round(MOST_SHOWN * Math.min(1f, (float) age / REMOTE_FULL_TICKS)));
+    private record WoundHand(Player player, LocalPlayer local, AbilityPoses.Posed posed) {
     }
 
-    private static void emitFan(FlatQuadContext quads, Player player, boolean gloveRight, float shown, double age,
-                                float partial, Vec3 camera) {
+    private static void drawWorldBlob(PoseStack pose, MultiBufferSource buffers, WoundHand wound, double now,
+                                      float partial, Vec3 camera) {
+        double age = now - wound.posed().since();
+        float eased = AbilityPoses.heldAt(ArmPoseKind.WIND_UP, age, 0f).weight();
+        Vec3 hand = handAt(wound.player(), wound.posed().gloveRight(), eased, partial);
+        pose.pushPose();
+        pose.translate(hand.x - camera.x, hand.y - camera.y, hand.z - camera.z);
+        GooFlightRenderer.renderBlob(pose, buffers, GooTypes.CRYSTAL, (float) now,
+                blobScaleAt(shareFor(wound.player(), wound.local(), age)));
+        pose.popPose();
+    }
+
+    /**
+     * Draws the goo swelling in the local glove hand in first person, in the
+     * hand's own pose as the wind-up moved it.
+     *
+     * @param event      the hand render event
+     * @param gloveRight whether the glove is in the right hand
+     * @param now        the game time with its partial tick
+     */
+    static void drawHandBlob(RenderHandEvent event, boolean gloveRight, double now) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null) {
+            return;
+        }
+        PoseStack pose = event.getPoseStack();
+        pose.pushPose();
+        pose.translate((gloveRight ? 1f : MIRRORED) * HAND_SIDE, HAND_DOWN, HAND_AHEAD);
+        MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
+        GooFlightRenderer.renderBlob(pose, buffers, GooTypes.CRYSTAL, (float) now,
+                blobScaleAt(shareFor(player, player, 0)));
+        buffers.endBatch();
+        pose.popPose();
+    }
+
+    /**
+     * Where a wound-up player's glove hand is: before the chest, eased from
+     * the glove side across toward the other.
+     *
+     * @param player     the player
+     * @param gloveRight whether the glove is in the right hand
+     * @param eased      how far the wind-up has eased the hand across, 0 to 1
+     * @param partial    the partial tick
+     * @return the hand's place in the world
+     */
+    private static Vec3 handAt(Player player, boolean gloveRight, float eased, float partial) {
         float bodyYaw = Mth.rotLerp(partial, player.yBodyRotO, player.yBodyRot);
         Vec3 ahead = Vec3.directionFromRotation(0f, bodyYaw);
         Vec3 glove = Vec3.directionFromRotation(0f, bodyYaw + (gloveRight ? RIGHT_ANGLE : -RIGHT_ANGLE));
-        Vec3 base = player.getPosition(partial).add(0, SHOULDER_HEIGHT - (player.isCrouching() ? CROUCH_DROP : 0), 0)
-                .add(ahead.scale(AHEAD)).subtract(glove.scale(ACROSS));
-        int count = Math.max(1, (int) shown);
-        for (int index = 0; index < count; index++) {
-            double angle = fanAngle(index, count) * TO_RADIANS;
-            Vec3 heading = new Vec3(0, Math.cos(angle), 0).add(glove.scale(Math.sin(angle)))
-                    .add(ahead.scale(LEAN_AHEAD)).normalize();
-            float grow = Math.clamp((float) age / GROW_TICKS - index * GROW_STAGGER, 0f, 1f);
-            float scale = FAN_SCALE * grow;
-            if (scale > 0f) {
-                Vec3 point = base.add(heading.scale((GlassKunai.POINT_LENGTH + GlassKunai.HEEL_LENGTH) * scale));
-                GlassKunai.emit(quads, point.subtract(camera), heading, 0f, scale);
-            }
+        return player.getPosition(partial).add(0, CHEST_HEIGHT - (player.isCrouching() ? CROUCH_DROP : 0), 0)
+                .add(ahead.scale(AHEAD)).add(glove.scale(GLOVE_SIDE - ACROSS * eased));
+    }
+
+    /**
+     * The share of a full charge a player's hand shows: the local player's
+     * from the charge it holds, another's from how long its arm has been wound up.
+     *
+     * @param player the player whose hand it is
+     * @param local  the local player
+     * @param age    ticks the player's arm has been wound up
+     * @return the share, 0 to 1
+     */
+    private static float shareFor(Player player, LocalPlayer local, double age) {
+        if (player == local) {
+            String ability = selectedAbility(local);
+            return localCharge(local) == null ? 0f
+                    : GloveThrowSender.selectedDelivery(ability).chargeShare(GloveUseTracker.heldTicks());
         }
+        return Math.min(1f, (float) age / REMOTE_FULL_TICKS);
     }
 }

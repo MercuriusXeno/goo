@@ -24,31 +24,32 @@ import java.util.Map;
  * The poses abilities hold the glove arm in on this client, in place of the
  * swing: each player's pose with the game time it began, laid over the
  * arm vanilla posed on the player's model, and over the glove hand in
- * first person. A slinging charge draws the glove hand across to the
- * opposite shoulder while it is held, then flings the arm out to the glove
- * side on release and lets it fall back.
+ * first person. A slinging charge eases the glove hand left across the
+ * chest while it is held, subtly and never up to the shoulder, reaching its
+ * furthest at full charge, then backhands the arm out to the glove side
+ * from wherever it got to on release and lets it fall back.
  * decision shards-sling-then-morph-to-flechettes
+ * decision ability-json-names-its-arm-pose
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class AbilityPoses {
 
-    /** Ticks the wind-up takes to draw the hand to the shoulder. */
-    static final float WIND_UP_TICKS = 4f;
+    /** Ticks the wind-up takes to ease the hand across the chest: Shards' full charge. */
+    static final float WIND_UP_TICKS = 30f;
     /** Ticks the fling takes to sweep the arm out. */
     static final float FLING_OUT_TICKS = 3f;
     /** Ticks the arm holds flung out. */
     static final float FLING_HOLD_TICKS = 3f;
     /** Ticks the arm takes to fall back to vanilla's pose after the fling. */
     static final float FLING_RETURN_TICKS = 5f;
-    /** The arm drawn across the chest, the hand at the opposite shoulder: raised forward and turned inward. */
-    static final Angles WOUND = new Angles(-1.75f, -1.0f);
+    /** The arm eased across the chest, the hand at chest height before the body: raised a little and turned in. */
+    static final Angles WOUND = new Angles(-1.05f, -0.55f);
     /** The arm flung out to the glove side, a little above level. */
     static final Angles FLUNG = new Angles(-1.65f, 0.95f);
-    /** The first-person hand's shift toward the opposite shoulder while wound up, in screen blocks. */
-    private static final float HAND_ACROSS = 0.42f;
-    private static final float HAND_UP = 0.12f;
-    private static final float HAND_IN_DEGREES = 38f;
-    private static final float HAND_TILT_DEGREES = 18f;
+    /** The first-person hand's shift left across the chest while wound up, in screen blocks, and no higher. */
+    private static final float HAND_ACROSS = 0.26f;
+    private static final float HAND_IN_DEGREES = 20f;
+    private static final float HAND_TILT_DEGREES = 6f;
     /** The first-person hand's shift out to the glove side while flung. */
     private static final float HAND_OUT = 0.18f;
     private static final float HAND_OUT_DEGREES = -30f;
@@ -94,30 +95,34 @@ public final class AbilityPoses {
      * @param kind       the pose
      * @param since      the game time it began
      * @param gloveRight whether the glove is in the right hand
+     * @param from       how far the wind-up before it had eased, 0 to 1; a fling starts there
      */
-    record Posed(ArmPoseKind kind, double since, boolean gloveRight) {
+    record Posed(ArmPoseKind kind, double since, boolean gloveRight, float from) {
     }
 
     /**
-     * Where a pose holds the arm an age into it: the wind-up draws the hand
-     * to the shoulder and holds it there; the fling sweeps from the shoulder
-     * out, holds, and falls back, after which it is over.
+     * Where a pose holds the arm an age into it: the wind-up eases the hand
+     * across the chest over the charge and holds it there; the fling
+     * backhands from where the wind-up got to out, holds, and falls back,
+     * after which it is over.
      *
      * @param kind the pose
      * @param age  ticks since it began
+     * @param from how far the wind-up before it had eased, 0 to 1
      * @return the arm's hold, at weight 0 once the pose is over
      */
-    static Held heldAt(ArmPoseKind kind, double age) {
+    static Held heldAt(ArmPoseKind kind, double age, float from) {
         return switch (kind) {
             case WIND_UP -> new Held(WOUND, smooth((float) age / WIND_UP_TICKS));
-            case FLING -> flingAt((float) age);
+            case FLING -> flingAt((float) age, from);
             case NONE -> new Held(WOUND, 0f);
         };
     }
 
-    private static Held flingAt(float age) {
+    private static Held flingAt(float age, float from) {
         if (age < FLING_OUT_TICKS) {
-            return new Held(WOUND.lerp(smooth(age / FLING_OUT_TICKS), FLUNG), 1f);
+            float out = smooth(age / FLING_OUT_TICKS);
+            return new Held(WOUND.lerp(out, FLUNG), Mth.lerp(out, from, 1f));
         }
         float holding = age - FLING_OUT_TICKS - FLING_HOLD_TICKS;
         return new Held(FLUNG, 1f - smooth(holding / FLING_RETURN_TICKS));
@@ -155,8 +160,21 @@ public final class AbilityPoses {
         }
         Posed held = POSES.get(entityId);
         if (held == null || held.kind() != kind) {
-            POSES.put(entityId, new Posed(kind, mc.level.getGameTime(), gloveRight));
+            long now = mc.level.getGameTime();
+            POSES.put(entityId, new Posed(kind, now, gloveRight, easedFrom(held, now)));
         }
+    }
+
+    /**
+     * How far a pose had eased the arm by a moment, where a pose taking over
+     * from it starts.
+     *
+     * @param held the pose held until now, or null
+     * @param now  the game time
+     * @return its weight then, 0 for none
+     */
+    static float easedFrom(Posed held, double now) {
+        return held == null ? 0f : heldAt(held.kind(), now - held.since(), held.from()).weight();
     }
 
     /**
@@ -198,7 +216,7 @@ public final class AbilityPoses {
             return;
         }
         double age = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false) - posed.since();
-        Held held = heldAt(posed.kind(), age);
+        Held held = heldAt(posed.kind(), age, posed.from());
         ModelPart arm = posed.gloveRight() ? model.rightArm : model.leftArm;
         float mirror = posed.gloveRight() ? 1f : MIRRORED;
         arm.xRot = Mth.lerp(held.weight(), arm.xRot, held.angles().xRot());
@@ -207,9 +225,9 @@ public final class AbilityPoses {
     }
 
     /**
-     * Moves the local player's glove hand in first person: across toward
-     * the opposite shoulder while wound up, out to the glove side as it
-     * flings; and drops the poses that are over.
+     * Moves the local player's glove hand in first person: left across the
+     * chest while wound up, with the goo swelling in it, out to the glove
+     * side as it flings; and drops the poses that are over.
      *
      * @param event the hand render event
      */
@@ -225,6 +243,9 @@ public final class AbilityPoses {
         Posed posed = POSES.get(player.getId());
         if (posed != null && armOf(player, event.getHand()) == gloveArm(posed)) {
             moveHand(event.getPoseStack(), posed, now - posed.since());
+            if (posed.kind() == ArmPoseKind.WIND_UP) {
+                ShardsCharge.drawHandBlob(event, posed.gloveRight(), now);
+            }
         }
     }
 
@@ -236,12 +257,12 @@ public final class AbilityPoses {
      * @param age   ticks since it began
      */
     private static void moveHand(PoseStack pose, Posed posed, double age) {
-        Held held = heldAt(posed.kind(), age);
+        Held held = heldAt(posed.kind(), age, posed.from());
         float side = posed.gloveRight() ? 1f : MIRRORED;
         boolean flinging = posed.kind() == ArmPoseKind.FLING;
         float out = flinging ? held.weight() * outShare(age) : 0f;
         float wound = flinging ? held.weight() - out : held.weight();
-        pose.translate(side * (-HAND_ACROSS * wound + HAND_OUT * out), HAND_UP * wound, 0f);
+        pose.translate(side * (-HAND_ACROSS * wound + HAND_OUT * out), 0f, 0f);
         pose.mulPose(Axis.YP.rotationDegrees(side * (HAND_IN_DEGREES * wound + HAND_OUT_DEGREES * out)));
         pose.mulPose(Axis.ZP.rotationDegrees(side * HAND_TILT_DEGREES * wound));
     }

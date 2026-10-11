@@ -42,6 +42,17 @@ class GlassKnivesTest {
     }
 
     @Test
+    void aKnifeFliesAsAGooFleckThenTurnsToGlassBeforeItLands() {
+        assertEquals(0f, GlassKnives.glassAt(0, 20), 1e-6f);
+        assertEquals(0f, GlassKnives.glassAt(GlassKnives.FLECK_TICKS, 20), 1e-6f);
+        assertEquals(0.5f, GlassKnives.glassAt(GlassKnives.FLECK_TICKS + GlassKnives.MORPH_TICKS / 2, 20), 1e-6f);
+        assertEquals(1f, GlassKnives.glassAt(GlassKnives.FLECK_TICKS + GlassKnives.MORPH_TICKS, 20), 1e-6f);
+        assertEquals(0f, GlassKnives.glassAt(1.9, 4), 1e-6f, "a short flight flies half its way as a fleck");
+        assertTrue(GlassKnives.glassAt(2.5, 4) > 0f);
+        assertEquals(1f, GlassKnives.glassAt(4, 4), 1e-6f, "a knife lands as glass");
+    }
+
+    @Test
     void aKunaisFrameLiesSquareToItsHeading() {
         Vec3 heading = new Vec3(0.3, -0.4, 0.8).normalize();
         Vec3[] frame = GlassKunai.frame(heading, 0.7f);
