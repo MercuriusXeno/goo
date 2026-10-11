@@ -33,8 +33,11 @@ import java.util.Set;
  */
 public final class DrinkTree {
 
-    /** Blocks past a join over which the trunk swells to carry the stream joining it. */
-    static final double MERGE = 0.6;
+    /**
+     * Blocks each way about a join over which the trunk swells to carry the stream joining it, the ride over which
+     * that stream hands its own width to the trunk, so the two make one neck.
+     */
+    static final double MERGE = DrinkStream.RIDE;
     /** The goo volume of a block whose stream has scale 1, in mB. */
     static final double BASE_VOLUME = 1000;
     /** The root of the count of streams a trunk's width grows by: the fourth, so a trunk never fattens far. */
@@ -533,7 +536,26 @@ public final class DrinkTree {
         double taper = Math.pow(Math.min(1, sum.presence()), 1 / TRUNK_ROOT);
         double growth = Math.pow(Math.max(1, sum.presence()), 1 / TRUNK_ROOT);
         double full = mean * taper * growth;
-        return THREAD + (full - THREAD) * widthHeldAt(stream, share);
+        return (THREAD + (full - THREAD) * widthHeldAt(stream, share)) * handoverAt(stream, share);
+    }
+
+    /**
+     * How much of its width a tributary still has of its own at a share of
+     * its path: all of it until the last {@link DrinkStream#RIDE} before its
+     * join, over which it rides the trunk's spine and hands its width to the
+     * trunk's swell, none at the join, so the join is one neck and no valley
+     * runs along two tubes side by side; a stream running to the glove keeps
+     * all of its own.
+     *
+     * @param stream the stream
+     * @param share  the share of its path
+     * @return 1 for all its width, 0 for none
+     */
+    static double handoverAt(Stream stream, double share) {
+        if (stream.trunk() == null) {
+            return 1;
+        }
+        return DrinkStream.smoothRamp(0, DrinkStream.RIDE, (1 - share) * stream.path().length());
     }
 
     /**
