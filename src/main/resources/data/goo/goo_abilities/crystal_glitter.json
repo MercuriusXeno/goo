@@ -6,7 +6,7 @@
   "cost": 200,
   "delivery": { "kind": "self", "ticks_per_charge": 20 },
   "behaviors": [
-    { "type": "detect_ore", "tag": "goo:gem_ores", "radius": 24, "growth": 1, "every": 32, "life": 100 }
+    { "type": "detect_ore", "tag": "goo:gem_ores", "radius": 64, "growth": 1, "life": 100 }
   ],
   "tags": ["self"]
 }

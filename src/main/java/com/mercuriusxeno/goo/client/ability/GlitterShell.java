@@ -24,11 +24,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Glitter's sphere on the caster's client: each ping's front grows from
- * where the caster stood as a loose band of glitter, sparse tiny stars
- * scattered at random over the sphere and a little either side of it, each
- * mostly dark and flashing briefly, its prismatic hue drifting, fading once
- * the front reaches its radius; a faint ghost skin marks the front, and a
+ * Glitter's sphere on the caster's client: while the channel is held its
+ * front grows from where the hold began as a loose band of glitter, sparse
+ * tiny stars scattered at random over the sphere and a little either side
+ * of it, each mostly dark and flashing briefly, its prismatic hue drifting;
+ * once the hold's ticks stop arriving the front stops where it stands and
+ * the band fades (operator ruling 2026-10-10: holding it down makes it go
+ * farther); a faint ghost skin marks the front, and a
  * thin pale line runs where it cuts the floors and walls, smooth rather
  * than Scry's lit faces (operator ruling 2026-10-10: chaotic, sparse, varied in
  * distance, small, dim and prismatic, never a grid).
@@ -39,8 +41,10 @@ public final class GlitterShell {
 
     /** Glints scattered over one ping's band, sparse so the band reads as glitter rather than a mesh. */
     static final int GLINTS = 260;
-    /** Ticks the band takes to fade once its front reaches its radius. */
+    /** Ticks the band takes to fade once the hold ends. */
     static final float FADE_TICKS = 8f;
+    /** Ticks after the last held tick arrived that the hold still counts as held, through network jitter. */
+    static final float HELD_GAP_TICKS = 3f;
     /** How far a glint lies off the front, as a share of the radius, either way. */
     static final double DEPTH_SCATTER = 0.18;
     /** Every glint flashes this bright at most, dim so the band glitters rather than glares. */
@@ -113,19 +117,67 @@ public final class GlitterShell {
     }
 
     /**
-     * One ping's band, with the block faces near its front that the front
-     * may cut, found as the front reaches them.
-     *
-     * @param center    the band's center
-     * @param growth    blocks the front grows each tick
-     * @param radius    the blocks the front reaches
-     * @param startedAt the game time the ping began
-     * @param glints    its glints
-     * @param faces     the faces open to air the front may still cut
-     * @param scanned   the radius out to which faces have been found, one value
+     * One hold's band, with the block faces near its front that the front
+     * may cut, found as the front reaches them, and the front's radius as
+     * the last held tick reported it.
      */
-    private record Ping(Vec3 center, double growth, int radius, long startedAt, List<Glint> glints,
-                        List<Face> faces, double[] scanned) {
+    private static final class Ping {
+        private final Vec3 origin;
+        private final Vec3 center;
+        private final double growth;
+        private final int radius;
+        private final List<Glint> glints;
+        private final List<Face> faces;
+        private double scanned;
+        private double front;
+        private long heardAt;
+
+        Ping(OreRevealPayload payload, long now, List<Glint> glints) {
+            this.origin = payload.origin();
+            this.center = payload.origin().add(0, BODY_CENTER, 0);
+            this.growth = payload.growth();
+            this.radius = payload.radius();
+            this.glints = glints;
+            this.faces = new ArrayList<>();
+            hear(payload, now);
+        }
+
+        void hear(OreRevealPayload payload, long now) {
+            front = payload.front();
+            heardAt = now;
+        }
+
+        boolean continues(OreRevealPayload payload, long now) {
+            return now - heardAt <= HELD_GAP_TICKS && origin.equals(payload.origin());
+        }
+
+        double frontNow(double now) {
+            return frontAt(front, now - heardAt, growth, radius);
+        }
+
+        float strengthNow(double now) {
+            return strengthAt(now - heardAt);
+        }
+
+        Vec3 center() {
+            return center;
+        }
+
+        List<Glint> glints() {
+            return glints;
+        }
+
+        List<Face> faces() {
+            return faces;
+        }
+
+        double scanned() {
+            return scanned;
+        }
+
+        void scannedTo(double reach) {
+            scanned = reach;
+        }
     }
 
     /**
@@ -139,15 +191,21 @@ public final class GlitterShell {
     }
 
     /**
-     * Starts a ping's band.
+     * Follows a held tick: moves the front of the hold's band out, or
+     * starts a band for a new hold.
      *
-     * @param payload the ping
+     * @param payload the held tick
      * @param now     the game time it arrived at
      */
-    public static void start(OreRevealPayload payload, long now) {
+    public static void follow(OreRevealPayload payload, long now) {
+        for (Ping ping : PINGS) {
+            if (ping.continues(payload, now)) {
+                ping.hear(payload, now);
+                return;
+            }
+        }
         long seed = Double.doubleToLongBits(payload.origin().x) * SEED_MIX + now;
-        PINGS.add(new Ping(payload.origin().add(0, BODY_CENTER, 0), payload.growth(), payload.radius(), now,
-                glints(GLINTS, seed), new ArrayList<>(), new double[1]));
+        PINGS.add(new Ping(payload, now, glints(GLINTS, seed)));
     }
 
     /** Drops every band, as a disconnect does. */
@@ -180,29 +238,29 @@ public final class GlitterShell {
     }
 
     /**
-     * The front's radius a while into the ping.
+     * The front's radius a while after the last held tick reported it:
+     * carried on through the tick to come, so it grows smoothly while held,
+     * and stopped there when no further tick comes.
      *
-     * @param age    ticks since the ping began
-     * @param growth blocks the front grows each tick
-     * @param radius the blocks the front reaches
+     * @param front  the radius the last held tick reported
+     * @param since  ticks since that tick arrived
+     * @param growth blocks the front grows each held tick
+     * @param radius the radius the front reaches at most
      * @return the radius, held at the reach once reached
      */
-    static double frontRadius(double age, double growth, int radius) {
-        return Math.clamp(age * growth, 0, radius);
+    static double frontAt(double front, double since, double growth, int radius) {
+        return Math.min(radius, front + Math.clamp(since, 0, 1) * growth);
     }
 
     /**
-     * How strongly the band shows a while into the ping: whole while the
-     * front grows, fading to nothing over the ticks after it reaches its radius.
+     * How strongly the band shows a while after the last held tick arrived:
+     * whole while the hold lasts, fading to nothing once the ticks stop.
      *
-     * @param age    ticks since the ping began
-     * @param growth blocks the front grows each tick
-     * @param radius the blocks the front reaches
+     * @param since ticks since the last held tick arrived
      * @return the strength in [0, 1]
      */
-    static float strength(double age, double growth, int radius) {
-        double reached = radius / Math.max(growth, Double.MIN_VALUE);
-        return (float) Math.clamp(1 - (age - reached) / FADE_TICKS, 0, 1);
+    static float strengthAt(double since) {
+        return (float) Math.clamp(1 - (since - HELD_GAP_TICKS) / FADE_TICKS, 0, 1);
     }
 
     /**
@@ -246,13 +304,13 @@ public final class GlitterShell {
             return;
         }
         double now = mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        PINGS.removeIf(ping -> strength(now - ping.startedAt(), ping.growth(), ping.radius()) <= 0f);
+        PINGS.removeIf(ping -> ping.strengthNow(now) <= 0f);
         Camera camera = mc.gameRenderer.getMainCamera();
         PoseStack.Pose pose = event.getPoseStack().last();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.GLOW_SHELL_TYPE);
         for (Ping ping : PINGS) {
-            findFaces(mc.level, ping, frontRadius(now - ping.startedAt(), ping.growth(), ping.radius()));
+            findFaces(mc.level, ping, ping.frontNow(now));
             drawPing(pose, consumer, camera, ping, now);
         }
         buffers.endBatch(GooRenderTypes.GLOW_SHELL_TYPE);
@@ -269,23 +327,22 @@ public final class GlitterShell {
     private static void findFaces(ClientLevel level, Ping ping, double radius) {
         ping.faces().removeIf(face -> face.farthest() < radius);
         double reach = radius + FACE_REACH;
-        if (reach <= ping.scanned()[0]) {
+        if (reach <= ping.scanned()) {
             return;
         }
-        for (BlockPos pos : ScryReveal.shell(ping.center(), ping.scanned()[0], reach)) {
+        for (BlockPos pos : ScryReveal.shell(ping.center(), ping.scanned(), reach)) {
             for (Direction side : ScryReveal.exposedFaces(at -> level.getBlockState(at).isAir(), pos)) {
                 if (ping.faces().size() < MOST_FACES) {
                     ping.faces().add(new Face(pos, side, SurfaceArcs.farthest(ping.center(), pos, side)));
                 }
             }
         }
-        ping.scanned()[0] = reach;
+        ping.scannedTo(reach);
     }
 
     private static void drawPing(PoseStack.Pose pose, VertexConsumer consumer, Camera camera, Ping ping, double now) {
-        double age = now - ping.startedAt();
-        float strength = strength(age, ping.growth(), ping.radius());
-        double radius = frontRadius(age, ping.growth(), ping.radius());
+        float strength = ping.strengthNow(now);
+        double radius = ping.frontNow(now);
         if (strength <= 0f || radius <= 0) {
             return;
         }

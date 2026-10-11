@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.AbilityMath;
 import com.mercuriusxeno.goo.ability.crystal.OreVeins;
 import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.network.OreRevealPayload;
@@ -10,35 +9,32 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Glitter's ore sense: on the first tick of each ping of a held channel it
- * walks the sphere around the caster for blocks of a tag, groups touching
- * blocks of one ore into veins, and sends the caster each vein with the
- * tick the ping's front reaches it, for the client to draw the front as
- * its sparkle shell:
- * {@code detect_ore tag=goo:gem_ores radius=24 growth=1 every=32 life=100}.
+ * Glitter's ore sense: while the channel is held its front grows from where
+ * the hold began, a little further each held tick up to its reach, and
+ * stops where it stands once the hold ends. Each tick it walks only the
+ * band of blocks the front crossed, finds the gem ore veins first reached
+ * there, and sends the caster the front's radius with those veins, for the
+ * client to draw the front as its sparkle shell:
+ * {@code detect_ore tag=goo:gem_ores radius=64 growth=1 life=100}.
  * decision glitter-sphere-icons-gem-ore-groups
  *
  * @param tag    the block tag the sense finds
- * @param radius the sphere's radius in blocks
- * @param growth blocks the front grows each tick
- * @param every  ticks between pings
+ * @param radius the radius in blocks the front reaches at most
+ * @param growth blocks the front grows each held tick
  * @param life   ticks each vein's ore shows through walls once revealed
  */
-public record DetectOreStep(TagKey<Block> tag, int radius, double growth, int every, int life) implements Step {
+public record DetectOreStep(TagKey<Block> tag, int radius, double growth, int life) implements Step {
 
     private static final String NAME = "detect_ore";
 
@@ -47,7 +43,6 @@ public record DetectOreStep(TagKey<Block> tag, int radius, double growth, int ev
             TagKey.codec(Registries.BLOCK).fieldOf("tag").forGetter(DetectOreStep::tag),
             Codec.INT.fieldOf("radius").forGetter(DetectOreStep::radius),
             Codec.DOUBLE.fieldOf("growth").forGetter(DetectOreStep::growth),
-            Codec.INT.fieldOf("every").forGetter(DetectOreStep::every),
             Codec.INT.fieldOf("life").forGetter(DetectOreStep::life)
     ).apply(inst, DetectOreStep::new));
 
@@ -61,59 +56,45 @@ public record DetectOreStep(TagKey<Block> tag, int radius, double growth, int ev
 
     @Override
     public boolean tick(StepContext context) {
-        int held = context.hostAs(ChannelHost.class).channelAim().map(ChannelAim::held)
-                .orElse(ChannelAim.FIRST_TICK);
-        if (!pingsOn(held)) {
+        ChannelHost channel = context.hostAs(ChannelHost.class);
+        int held = channel.channelAim().map(ChannelAim::held).orElse(ChannelAim.FIRST_TICK);
+        if (held < ChannelAim.FIRST_TICK) {
             return true;
         }
         LivingEntity caster = context.hostAs(TargetHost.class).target();
-        EntityVisuals.sendToSelf(caster, revealAround(caster));
+        Vec3 origin = channel.holdMarks().anchorAt(caster.position());
+        EntityVisuals.sendToSelf(caster, revealAt(caster.level(), origin, held));
         return true;
     }
 
     /**
-     * The veins one ping around the caster finds, each with the tick the
-     * front reaches it: what the ping sends the caster's client.
+     * One held tick of the sense: the front's radius after the tick and the
+     * veins it first reached on it.
      *
-     * @param caster the channeling caster
-     * @return the reveal
+     * @param level  the level the sense walks
+     * @param origin where the hold began
+     * @param held   the hold's tick count, 1 on its first tick
+     * @return the reveal to send the caster
      */
-    public OreRevealPayload revealAround(LivingEntity caster) {
-        Vec3 origin = caster.position();
-        List<OreVeins.Vein> veins = OreVeins.group(found(caster.level(), BlockPos.containing(origin)));
-        List<Integer> reveal = veins.stream().map(vein -> revealTick(vein.centroid().distanceTo(origin))).toList();
-        return new OreRevealPayload(origin, growth, radius, veins, reveal, life);
+    public OreRevealPayload revealAt(Level level, Vec3 origin, int held) {
+        double inner = frontAt(held - 1);
+        double outer = frontAt(held);
+        List<OreVeins.Vein> veins = OreVeins.firstReachedIn(BlockPos.containing(origin), inner, outer, radius,
+                pos -> {
+                    BlockState state = level.getBlockState(pos);
+                    return state.is(tag) ? BuiltInRegistries.BLOCK.getKey(state.getBlock()) : null;
+                });
+        return new OreRevealPayload(origin, growth, outer, radius, veins, life);
     }
 
     /**
-     * Whether a tick of the hold starts a ping.
+     * The front's radius after a number of held ticks.
      *
-     * @param heldTicks the hold's age, 1 on its first tick
-     * @return true on the first tick and every {@code every} ticks after
+     * @param held the hold's tick count, 0 before it begins
+     * @return the radius, held at the reach once reached
      */
-    boolean pingsOn(int heldTicks) {
-        return Math.floorMod(heldTicks - 1, Math.max(1, every)) == 0;
-    }
-
-    /**
-     * The tick after the ping began that the front reaches a distance.
-     *
-     * @param distance blocks from the ping's center
-     * @return the tick, 0 at the center
-     */
-    int revealTick(double distance) {
-        return (int) Math.ceil(distance / growth);
-    }
-
-    private Map<BlockPos, Identifier> found(Level level, BlockPos center) {
-        Map<BlockPos, Identifier> found = new HashMap<>();
-        AbilityMath.forEachInSphere(center, radius, pos -> {
-            BlockState state = level.getBlockState(pos);
-            if (state.is(tag)) {
-                found.put(pos.immutable(), BuiltInRegistries.BLOCK.getKey(state.getBlock()));
-            }
-        });
-        return found;
+    double frontAt(int held) {
+        return Math.clamp(held * growth, 0, radius);
     }
 
     @Override
