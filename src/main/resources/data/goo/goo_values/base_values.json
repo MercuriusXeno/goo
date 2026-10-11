@@ -41,6 +41,7 @@
         "glow": {"glow":"$base"},
         "ender": {"ender":"$base"},
         "pulse": {"pulse":"$base"},
+        "weird": {"weird":"$base"},
         "spawn_egg": {"vital": "$life", "aeon": "2 $life"},
         "rare": {"aeon": "$base"},
         "sherd": {"aeon": "$base", "rock": "$base"},
@@ -546,9 +547,7 @@
             "red_mushroom_block",
             "brown_mushroom_block",
             "mushroom_stem",
-            "warped_wart_block",
-            "sculk",
-            "sculk_vein"
+            "warped_wart_block"
         ],
         "froglights": [
             "pearlescent_froglight",
@@ -664,8 +663,10 @@
     "#shrooms": "$shroom",
     "#plain_shroom_blocks": "$shroom",
     "#nether_shroom_plants": "$shroom + $nether",
-    "sculk_shrieker": "$shroom + $magic",
-    "sculk_catalyst": "$shroom + $rare",
+    "sculk": "$shroom + $weird",
+    "sculk_vein": "$shroom + $weird",
+    "sculk_shrieker": "$shroom + $magic + $weird",
+    "sculk_catalyst": "$shroom + $rare + $weird",
     "shroomlight": "$shroom + $glow",
     "mycelium": "$mundane_block + $shroom",
 
@@ -779,7 +780,7 @@
     "nether_wart": {"nether": "$base", "hex": "$medium", "shroom": "$low"},
     "ender_pearl": {"ender": "$high", "vital": "$base"},
     "mossy_cobblestone": "moss_block + $mundane_block",
-    "slime_ball": {"vital": "$low", "hex": "$low"},
+    "slime_ball": {"vital": "$low", "hex": "$low", "weird": "$low"},
     "flint": {"rock":"$base"},
 
     "glowstone_dust": "$glow",
@@ -828,7 +829,7 @@
 
     "#leaves": "$stick",
     "nether_star": {"glow":"$ultra","nether":"$ultra"},
-    "sculk_sensor": {"shroom":"$high","pulse":"$high","hex":"$high"},
+    "sculk_sensor": {"shroom":"$high","pulse":"$high","hex":"$high","weird":"$high"},
     "prismarine_crystals": {"glow":"$base","crystal":"$base"},
     "prismarine_shard": {"crystal": "$base", "vital": "$base"},
     "creeper_head": {"vital":"$base","hex":"$base","nether":"$base","blaze":"$base"},
