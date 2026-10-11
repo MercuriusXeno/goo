@@ -1,14 +1,15 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import java.util.List;
 import java.util.Set;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.mockito.ArgumentMatchers.any;
+import java.util.stream.Stream;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -30,12 +31,17 @@ class MobProgramTest {
         return AbilityJson.decode(name);
     }
 
+    /** Every shipped ability wearing the mob badge (decision tests-read-the-inventory-from-loaded-json). */
+    static Stream<AbilityDefinition> shippedMobAbilities() {
+        return AbilityJson.files().stream().map(AbilityJson::decode)
+                .filter(definition -> definition.badge() == AbilityBadge.MOB);
+    }
+
     @ParameterizedTest
-    @ValueSource(strings = {"metal_javelin", "crystal_shards", "leaf_vines", "zoo_allure",
-        "blaze_ignite", "frost_snap", "typhoon_float", "hex_charm",
-        "ender_zone", "aeon_stasis"})
-    void everyMobAbilityIsAProgramThatLoadsForTheStruckEntityHost(String name) {
-        assertDoesNotThrow(() -> ProgramBehavior.forHost(ability(name).behaviors(), HostKind.ENTITY), name);
+    @MethodSource("shippedMobAbilities")
+    void everyMobAbilityIsAProgramThatLoadsForTheStruckEntityHost(AbilityDefinition definition) {
+        assertDoesNotThrow(() -> ProgramBehavior.forHost(definition.behaviors(), HostKind.ENTITY),
+                definition.id().toString());
     }
 
     @Test
