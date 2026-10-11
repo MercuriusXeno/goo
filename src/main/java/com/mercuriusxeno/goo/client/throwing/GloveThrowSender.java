@@ -147,7 +147,7 @@ public final class GloveThrowSender {
         Vec3 origin = lineOrigin();
         if (connection != null) {
             connection.send(new ServerboundCustomPayloadPacket(
-                    held(GooTypes.id(gooType), abilityId, origin, cursorPoint(player))));
+                    held(GooTypes.id(gooType), abilityId, origin, heldAimPoint(player, abilityId))));
         }
         VitalityVisual.drawFog(player, abilityId, selectedArea(abilityId), origin);
         WindLines.blow(player, abilityId, selectedArea(abilityId), origin);
@@ -183,6 +183,22 @@ public final class GloveThrowSender {
         return plane == null ? GooStreamPayload.unplaned(gooTypeId, abilityId, origin, aimPoint)
                 : new GooStreamPayload(gooTypeId, abilityId, origin, aimPoint, plane.block(),
                         plane.face().get3DDataValue());
+    }
+
+    /**
+     * The point a held tick aims at: the mob the aim assist outlines, for an
+     * ability that locks on, else the point under the crosshair.
+     * decision sunbeam-lands-with-impact-and-aim
+     *
+     * @param player    the local player
+     * @param abilityId the selected ability id string
+     * @return the aimed world point
+     */
+    private static Vec3 heldAimPoint(Player player, String abilityId) {
+        ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
+        boolean locksOn = ability != null && ability.tags().contains(AbilityTags.LOCKS_ON);
+        Vec3 lockedMob = AimTracker.currentTarget() instanceof TargetResult.EntityTarget locked ? locked.point() : null;
+        return ChannelAim.heldAimPoint(locksOn, lockedMob, cursorPoint(player));
     }
 
     /**
