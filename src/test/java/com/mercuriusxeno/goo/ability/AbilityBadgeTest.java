@@ -24,7 +24,7 @@ class AbilityBadgeTest {
     private static final int SHIPPED_SELF_BADGES = 6;
     private static final int SHIPPED_BREW_BADGES = 17;
     private static final int SHIPPED_CHANNELED_BADGES = 24;
-    private static final int SHIPPED_FREE_BADGES = 5;
+    private static final int SHIPPED_FREE_BADGES = 6;
     private static final int SHIPPED_TAP_BADGES = 12;
     private static final int SHIPPED_PRISM_BADGES = 9;
     /**
@@ -37,12 +37,12 @@ class AbilityBadgeTest {
             "frost_glacial", "leaf_verdant", "ender_oculus", "glow_reflector", "aeon_timekeeper", "typhoon_lift");
     /** The self + brew abilities, which wear brew on their self delivery (decision self-brew-goos-eat-before-the-effect). */
     private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "ender_shifter", "leaf_barkskin",
-            "rock_stoneskin", "vital_nourish", "shroom_sight", "nether_undead", "pulse_extender", "frost_iceborn",
+            "rock_stoneskin", "jelly_gluttony", "shroom_sight", "nether_undead", "pulse_extender", "frost_iceborn",
             "hex_lifetap", "glow_lux", "aeon_haste", "typhoon_airborn", "xeno_eldritch", "crystal_scales",
             "unstable_charged", "kinetic_telekinesis");
     /** The shipped free abilities (decisions badge-vocabulary-gains-free-prism-tap-brew, zap-ticks-the-device-and-stuns). */
     private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "shroom_colonize",
-            "pulse_zap", "frost_orb", "leaf_reap");
+            "pulse_zap", "frost_orb", "leaf_reap", "jelly_feed");
     /**
      * Self deliveries wearing the channeled badge (decisions flatten-disc-cursor-breaks-above-the-plane,
      * unmake-waves-dissolve-by-crucible-cost).
