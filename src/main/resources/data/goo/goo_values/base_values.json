@@ -779,7 +779,7 @@
     "nether_wart": {"nether": "$base", "hex": "$medium", "shroom": "$low"},
     "ender_pearl": {"ender": "$high", "vital": "$base"},
     "mossy_cobblestone": "moss_block + $mundane_block",
-    "slime_ball": {"vital": "$low", "hex": "$low"},
+    "slime_ball": {"vital": "$low", "hex": "$low", "kinetic": "$low"},
     "flint": {"rock":"$base"},
 
     "glowstone_dust": "$glow",
@@ -809,8 +809,8 @@
     "dragon_head": {"ender":"$ultra", "vital":"$high", "aeon":"$high"},
     "dragon_egg": {"ender":"$ultra", "vital":"$high", "aeon":"$high"},
 
-    "gunpowder": {"unstable": "$medium", "blaze": "$base"},
-    "tnt": {"unstable": "$high", "rock": "$base"},
+    "gunpowder": {"unstable": "$medium", "blaze": "$base", "kinetic": "$low"},
+    "tnt": {"unstable": "$high", "rock": "$base", "kinetic": "$medium"},
     "fire_charge": {"unstable": "$medium", "blaze": "$medium"},
     "obsidian": {"rock": "$medium", "crystal":"$base"},
     "crying_obsidian": "obsidian + $magic",
