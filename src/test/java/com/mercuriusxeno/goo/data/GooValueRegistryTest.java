@@ -2409,4 +2409,30 @@ class GooValueRegistryTest {
             assertFalse(registry.table().isRestricted(id("minecraft:coal_ore")));
         }
     }
+
+    // ── Shipped base values ────────────────────────────────────────────
+
+    @Nested
+    class ShippedBaseValues {
+
+        private static final String SHIPPED_BASE_VALUES = "/data/goo/goo_values/base_values.json";
+
+        /**
+         * The shipped slime ball and gunpowder each resolve a kinetic share.
+         * decision kinetic-ships-from-slime-and-gunpowder
+         */
+        @Test
+        void slimeBallAndGunpowderResolveKinetic() throws IOException {
+            try (java.io.InputStream in = GooValueRegistryTest.class.getResourceAsStream(SHIPPED_BASE_VALUES)) {
+                assertNotNull(in, "base_values.json missing on the classpath");
+                parseBaseValuesFromStream(in);
+            }
+            copyBaseToEffective();
+            for (String item : List.of("minecraft:slime_ball", "minecraft:gunpowder")) {
+                GooValue value = registry.table().lookup(id(item));
+                assertNotNull(value, item);
+                assertTrue(value.get(GooTypes.KINETIC) > 0, item + " resolves no kinetic");
+            }
+        }
+    }
 }
