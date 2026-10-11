@@ -9,9 +9,9 @@ import com.mercuriusxeno.goo.ability.program.LifetapStep;
 import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
 import com.mercuriusxeno.goo.ability.program.LuxStep;
 import com.mercuriusxeno.goo.ability.program.NourishStep;
+import com.mercuriusxeno.goo.ability.program.ShifterStep;
 import com.mercuriusxeno.goo.ability.program.SightStep;
 import com.mercuriusxeno.goo.ability.program.Step;
-import com.mercuriusxeno.goo.ability.program.TeleportitisStep;
 import com.mercuriusxeno.goo.ability.program.UndeadStep;
 import com.mojang.serialization.Codec;
 import io.netty.buffer.ByteBuf;
@@ -38,8 +38,8 @@ public enum LaidState {
     LUX,
     /** Counting as undead (decision undead-nether-hearts-burn-in-sunlight). */
     UNDEAD,
-    /** Teleportitis (decision teleportitis-blinks-along-the-cursor-on-hit). */
-    TELEPORTITIS,
+    /** Shifter (decision shifter-blinks-along-the-cursor-on-hit). */
+    SHIFTER,
     /** The Extender's mark, laid by an extender step (decision extender-multiplies-the-next-self-duration). */
     EXTENDER,
     /** A lifetap (decision lifetap-trades-regen-for-leech). */
@@ -82,7 +82,7 @@ public enum LaidState {
             Map.entry(SightStep.class, SIGHT),
             Map.entry(LuxStep.class, LUX),
             Map.entry(UndeadStep.class, UNDEAD),
-            Map.entry(TeleportitisStep.class, TELEPORTITIS),
+            Map.entry(ShifterStep.class, SHIFTER),
             Map.entry(ExtenderStep.class, EXTENDER),
             Map.entry(LifetapStep.class, LIFETAP),
             Map.entry(HasteStep.class, HASTE),
