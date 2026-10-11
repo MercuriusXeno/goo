@@ -275,7 +275,7 @@ public final class HeldEffectsEvents {
 
     /**
      * Clears the states an ended effect laid on the player's senses and
-     * draws: its sight, its shifter and its lifetap.
+     * draws: its sight, its shifter, its Lux, its lifetap and its charge.
      *
      * @param player the player
      * @param lays   the states the ended effect laid
@@ -289,7 +289,7 @@ public final class HeldEffectsEvents {
     }
 
     /**
-     * Clears the player state an ability's own step laid: shifter, Lux, a lifetap, the eldritch state.
+     * Clears the player state an ability's own step laid: shifter, Lux, the charge, a lifetap, the eldritch state.
      *
      * @param player the player
      * @param lays   the state the effect laid
@@ -302,6 +302,10 @@ public final class HeldEffectsEvents {
         if (lays.contains(LaidState.LUX)) {
             // lux-night-vision-without-particles: Lux and the night vision it kept up end with its held effect
             LuxEvents.end(player);
+        }
+        if (lays.contains(LaidState.CHARGED)) {
+            // charged-scales-channel-params-by-json: the charge ends with its held effect, dry, pressed or expired
+            player.setData(GooAttachments.CHARGED, false);
         }
         if (lays.contains(LaidState.LIFETAP)) {
             // lifetap-trades-regen-for-leech: the leech ends with its held effect

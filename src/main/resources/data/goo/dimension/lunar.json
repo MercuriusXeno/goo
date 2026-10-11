@@ -1,0 +1,17 @@
+{
+  "type": "goo:lunar",
+  "generator": {
+    "type": "minecraft:flat",
+    "settings": {
+      "biome": "goo:lunar",
+      "features": true,
+      "lakes": false,
+      "layers": [
+        { "block": "minecraft:bedrock", "height": 1 },
+        { "block": "minecraft:tuff", "height": 59 },
+        { "block": "minecraft:gravel", "height": 4 }
+      ],
+      "structure_overrides": []
+    }
+  }
+}

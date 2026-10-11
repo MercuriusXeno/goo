@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.network;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -23,6 +25,8 @@ public final class StreamHolds {
     private static final int LATEST_CONTINUING_GAP = 2;
 
     private final Map<UUID, Hold> holds = new HashMap<>();
+    /** The players whose current hold has paid the reagents its ability consumes. */
+    private final Set<UUID> paidHolds = new HashSet<>();
 
     /**
      * Counts one stream tick for the player; a new hold starts with fresh marks.
@@ -40,6 +44,9 @@ public final class StreamHolds {
         boolean continues = last != null && tick - last.tick() <= LATEST_CONTINUING_GAP;
         Hold next = continues ? new Hold(tick, last.held() + 1, last.marks())
                 : new Hold(tick, 1, new HoldMarks());
+        if (!continues) {
+            paidHolds.remove(player);
+        }
         holds.put(player, next);
         return next.held();
     }
@@ -55,9 +62,30 @@ public final class StreamHolds {
         return hold != null ? hold.marks() : new HoldMarks();
     }
 
+    /**
+     * Records that the player's current hold paid its reagents, once on its
+     * first tick (decision ability-json-names-its-reagent).
+     *
+     * @param player the holding player
+     */
+    public void markPaid(UUID player) {
+        paidHolds.add(player);
+    }
+
+    /**
+     * Whether the player's current hold paid its reagents.
+     *
+     * @param player the holding player
+     * @return true once the hold's first tick took them
+     */
+    public boolean paid(UUID player) {
+        return paidHolds.contains(player);
+    }
+
     /** Drops every hold, as a server stop does. */
     public void clear() {
         holds.clear();
+        paidHolds.clear();
     }
 
     /**

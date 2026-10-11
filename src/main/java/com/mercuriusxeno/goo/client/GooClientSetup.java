@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.nether.HiveSwarm;
 import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
+import com.mercuriusxeno.goo.client.ability.AbilityPoses;
 import com.mercuriusxeno.goo.client.ability.Afterimages;
 import com.mercuriusxeno.goo.client.ability.AilmentOverlayLayer;
 import com.mercuriusxeno.goo.client.ability.BeatRings;
@@ -14,8 +15,11 @@ import com.mercuriusxeno.goo.client.ability.BlockTransforms;
 import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
 import com.mercuriusxeno.goo.client.ability.EldritchSight;
 import com.mercuriusxeno.goo.client.ability.EncasementLayer;
+import com.mercuriusxeno.goo.client.ability.FallingShards;
 import com.mercuriusxeno.goo.client.ability.FrozenPoses;
 import com.mercuriusxeno.goo.client.ability.GhostTrails;
+import com.mercuriusxeno.goo.client.ability.GlassKnives;
+import com.mercuriusxeno.goo.client.ability.GlitterShell;
 import com.mercuriusxeno.goo.client.ability.GrabFlail;
 import com.mercuriusxeno.goo.client.ability.LiftWind;
 import com.mercuriusxeno.goo.client.ability.MobAilments;
@@ -23,6 +27,7 @@ import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
 import com.mercuriusxeno.goo.client.ability.MobCoats;
 import com.mercuriusxeno.goo.client.ability.MobShells;
 import com.mercuriusxeno.goo.client.ability.NovaRings;
+import com.mercuriusxeno.goo.client.ability.PrismFormingSounds;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
 import com.mercuriusxeno.goo.client.ability.SignalRings;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
@@ -47,6 +52,7 @@ import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
+import com.mercuriusxeno.goo.client.overlay.OreSightings;
 import com.mercuriusxeno.goo.client.overlay.TickSplashes;
 import com.mercuriusxeno.goo.client.particle.*;
 import com.mercuriusxeno.goo.client.radial.CutItemRenderer;
@@ -217,6 +223,8 @@ public final class GooClientSetup {
         event.registerEntityRenderer(GooEntities.COMPRESSION_SPHERE.get(), CompressionSphereRenderer::new);
         // orb-carries-a-swirling-nova: RollingGooRenderer draws the ball and its swirl from the level stage
         event.registerEntityRenderer(GooEntities.ROLLING_GOO.get(), NoopRenderer::new);
+        // meteo-needs-a-clear-sky: the meteor shows as the flame trail the server sends
+        event.registerEntityRenderer(GooEntities.METEOR.get(), NoopRenderer::new);
     }
 
     /**
@@ -459,6 +467,7 @@ public final class GooClientSetup {
         MobAilments.CLIENT.clear();
         FrozenPoses.CLIENT.clear();
         NovaRings.CLIENT.clear();
+        clearCrystalVisuals();
         WindLines.CLIENT.clear();
         UpdraftWind.clear();
         LiftWind.clear();
@@ -469,6 +478,16 @@ public final class GooClientSetup {
         GhostTrails.CLIENT.clear();
         ViewportRipples.CLIENT.clear();
         ThrowFreezeState.clear();
+    }
+
+    /** Clears Crystal's shards, glass knives, ore sightings, glitter shells, arm poses and forming prisms. */
+    private static void clearCrystalVisuals() {
+        FallingShards.CLIENT.clear();
+        OreSightings.CLIENT.clear();
+        GlitterShell.clear();
+        GlassKnives.clear();
+        AbilityPoses.clear();
+        PrismFormingSounds.CLIENT.clear();
     }
 
     /**

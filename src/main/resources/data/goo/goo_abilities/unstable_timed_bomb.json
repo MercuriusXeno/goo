@@ -6,7 +6,13 @@
   "cost": 1000,
   "delivery": { "kind": "arc" },
   "behaviors": [
-    { "type": "explode", "power": 2.0 }
+    {
+      "type": "linger",
+      "steps": [
+        { "type": "wait", "ticks": 100 },
+        { "type": "explode", "power": 2.0 }
+      ]
+    }
   ],
   "tags": ["explosive", "delayed"]
 }

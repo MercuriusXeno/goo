@@ -54,6 +54,18 @@ public final class GooNetworking {
      */
     private static void registerAbilityVisualPayloads(PayloadRegistrar r) {
         r.playToClient(ChainBurnoutPayload.TYPE, ChainBurnoutPayload.STREAM_CODEC);
+        r.playToClient(LurkerPulsePayload.TYPE, LurkerPulsePayload.STREAM_CODEC);
+        r.playToClient(UnmakePayload.TYPE, UnmakePayload.STREAM_CODEC);
+        r.playToClient(DrinkPayload.TYPE, DrinkPayload.STREAM_CODEC);
+        r.playToClient(UnmadePayload.TYPE, UnmadePayload.STREAM_CODEC);
+        registerClientEffectPayloads(r);
+    }
+
+    /** Registers the client-bound payloads of the mob and self effects' visuals.
+     *
+     * @param r the payload registrar
+     */
+    private static void registerClientEffectPayloads(PayloadRegistrar r) {
         r.playToClient(MobHitPayload.TYPE, MobHitPayload.STREAM_CODEC);
         r.playToClient(AilmentPayload.TYPE, AilmentPayload.STREAM_CODEC);
         registerAbilityOwnVisualPayloads(r);
@@ -83,6 +95,10 @@ public final class GooNetworking {
         r.playToClient(NovaRingPayload.TYPE, NovaRingPayload.STREAM_CODEC);
         r.playToClient(ReapSwellPayload.TYPE, ReapSwellPayload.STREAM_CODEC);
         r.playToClient(TickAimPayload.TYPE, TickAimPayload.STREAM_CODEC);
+        r.playToClient(ShardFallPayload.TYPE, ShardFallPayload.STREAM_CODEC);
+        r.playToClient(OreRevealPayload.TYPE, OreRevealPayload.STREAM_CODEC);
+        r.playToClient(GlassKnifePayload.TYPE, GlassKnifePayload.STREAM_CODEC);
+        r.playToClient(ArmPosePayload.TYPE, ArmPosePayload.STREAM_CODEC);
     }
 
     /** Registers server-bound payloads.
@@ -98,6 +114,7 @@ public final class GooNetworking {
         r.playToServer(GooDragCastPayload.TYPE, GooDragCastPayload.STREAM_CODEC, GooDragCastHandler::handle);
         r.playToServer(GooSpirePayload.TYPE, GooSpirePayload.STREAM_CODEC, GooSpireHandler::handle);
         r.playToServer(GooChargePayload.TYPE, GooChargePayload.STREAM_CODEC, GooThrowHandler::handleCharge);
+        r.playToServer(ChargeHoldPayload.TYPE, ChargeHoldPayload.STREAM_CODEC, GooThrowHandler::handleChargeHold);
         r.playToServer(GloveSelectPayload.TYPE, GloveSelectPayload.STREAM_CODEC, GloveSelectHandler::handle);
     }
 }

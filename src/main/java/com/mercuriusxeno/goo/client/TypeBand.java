@@ -72,6 +72,18 @@ public record TypeBand(ResourceKey<GooTypeDefinition> type, float lo, float hi, 
      * @return the band as packed lightmap coordinates
      */
     public int packed() {
-        return Math.clamp(Math.round(share() * SHARE_UNITS), 0, SHARE_UNITS) | seed() << SEED_SHIFT;
+        return pack(share(), seed());
+    }
+
+    /**
+     * Packs a share and a seed as {@link #packed()} does, for a surface whose
+     * share changes along it (decision unmake-waves-dissolve-by-crucible-cost).
+     *
+     * @param share the layer's conditional share, 0 to 1
+     * @param seed  the type's noise seed
+     * @return the band as packed lightmap coordinates
+     */
+    public static int pack(double share, int seed) {
+        return (int) Math.clamp(Math.round(share * SHARE_UNITS), 0, SHARE_UNITS) | seed << SEED_SHIFT;
     }
 }

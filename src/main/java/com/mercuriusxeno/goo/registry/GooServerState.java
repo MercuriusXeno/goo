@@ -2,9 +2,12 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.ability.frost.GlacialFields;
 import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
+import com.mercuriusxeno.goo.ability.program.Drinks;
+import com.mercuriusxeno.goo.ability.program.UnmakeDrops;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
 import com.mercuriusxeno.goo.block.tap.TapDripCounts;
 import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
+import com.mercuriusxeno.goo.network.FleckLaunches;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
 import com.mercuriusxeno.goo.network.StreamHolds;
 import net.minecraft.server.MinecraftServer;
@@ -20,8 +23,11 @@ import org.jspecify.annotations.Nullable;
 public final class GooServerState {
 
     private final GooEffectScheduler gooEffects = new GooEffectScheduler();
+    private final FleckLaunches fleckLaunches = new FleckLaunches();
     private final TapDripScheduler tapDrips = new TapDripScheduler();
     private final TapDripCounts tapDripCounts = new TapDripCounts();
+    private final UnmakeDrops unmakeDrops = new UnmakeDrops();
+    private final Drinks drinks = new Drinks();
     private final BlockExposures blockExposures = new BlockExposures();
     private final AbilityBlockFallScheduler markerFalls = new AbilityBlockFallScheduler();
     private final StreamHolds streamHolds = new StreamHolds();
@@ -56,10 +62,36 @@ public final class GooServerState {
     }
 
     /**
+     * @return the slung flecks yet to leave the hand
+     */
+    public FleckLaunches fleckLaunches() {
+        return fleckLaunches;
+    }
+
+    /**
      * @return the tap drips in flight
      */
     public TapDripScheduler tapDrips() {
         return tapDrips;
+    }
+
+    /**
+     * The goo unmade blocks and mobs leave, held back while their remains
+     * morph (decision unmake-waves-dissolve-by-crucible-cost).
+     *
+     * @return the held drops
+     */
+    public UnmakeDrops unmakeDrops() {
+        return unmakeDrops;
+    }
+
+    /**
+     * Returns every player's Unmake drink (decision unmake-waves-dissolve-by-crucible-cost).
+     *
+     * @return the drinks
+     */
+    public Drinks drinks() {
+        return drinks;
     }
 
     /**
@@ -112,6 +144,9 @@ public final class GooServerState {
      */
     public void drainArrived(MinecraftServer server) {
         int currentTick = server.getTickCount();
+        if (fleckLaunches.hasPending()) {
+            fleckLaunches.drainArrived(currentTick);
+        }
         if (gooEffects.hasPending()) {
             gooEffects.drainArrivedEffects(currentTick);
         }
@@ -119,6 +154,8 @@ public final class GooServerState {
             markerFalls.drainArrivedFalls(currentTick);
         }
         tapDrips.drainArrived(server);
+        drinks.tick(server);
+        unmakeDrops.dropArrived(currentTick);
         blockExposures.decay(server);
     }
 
@@ -127,11 +164,14 @@ public final class GooServerState {
      */
     public void clear() {
         gooEffects.clear();
+        fleckLaunches.clear();
         tapDrips.clear();
         tapDripCounts.clear();
         blockExposures.clear();
         markerFalls.clear();
         streamHolds.clear();
+        unmakeDrops.clear();
+        drinks.clear();
         glacialFields.clear();
     }
 }

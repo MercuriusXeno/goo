@@ -257,7 +257,8 @@ public final class TapDripTests {
         helper.setBlock(coveredLanding, Blocks.STONE);
         helper.setBlock(coveredLanding.above(), GooBlocks.TAP.get());
         for (BlockPos landing : List.of(openLanding, coveredLanding)) {
-            new TapHost(helper.getLevel(), helper.absolutePos(landing), Direction.UP).placeBlock(GLASS, Map.of());
+            new TapHost(helper.getLevel(), helper.absolutePos(landing.above()), helper.absolutePos(landing),
+                    Direction.UP).placeBlock(GLASS, Map.of());
         }
 
         helper.assertBlockPresent(Blocks.GLASS, openLanding.above());

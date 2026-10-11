@@ -123,6 +123,15 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("jump_source", () -> AttachmentType.builder(() -> Vec3.ZERO).build());
 
     /**
+     * Whether a player stands Charged, laid by the charged step as its held
+     * effect starts and cleared when that effect ends, saved with the player
+     * (decision charged-scales-channel-params-by-json).
+     */
+    public static final Supplier<AttachmentType<Boolean>> CHARGED =
+            ATTACHMENT_TYPES.register("charged",
+                    () -> AttachmentType.builder(() -> false).serialize(Codec.BOOL.fieldOf("standing")).build());
+
+    /**
      * The Lux a player holds, keeping night vision up and glistening the mob
      * under the crosshair while it stands (decision lux-night-vision-without-particles).
      */
