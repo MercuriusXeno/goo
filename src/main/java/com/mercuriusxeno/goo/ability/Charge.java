@@ -21,6 +21,9 @@ import net.minecraft.network.codec.StreamCodec;
  */
 public record Charge(int maxTicks, int flecks, double spreadDegrees, int sweepTicks) {
 
+    /** The share of the full cone a release with no charge still scatters across. */
+    static final double NARROWEST = 0.5;
+
     /** A delivery that does not charge. */
     public static final Charge NONE = new Charge(0, 0, 0, 0);
 
@@ -71,24 +74,14 @@ public record Charge(int maxTicks, int flecks, double spreadDegrees, int sweepTi
     }
 
     /**
-     * The cone a release at a share of the charge fans across.
+     * The cone a release at a share of the charge rains across: half the
+     * full cone at no charge, so even a quick release scatters, opening to
+     * the whole cone at a full charge.
      *
      * @param share the share of a full charge the hold reached, 0 to 1
      * @return the cone, edge to edge, in degrees
      */
     public double spreadDegrees(float share) {
-        return spreadDegrees * share;
-    }
-
-    /**
-     * The tick after the release a fleck leaves the hand, so the flecks
-     * leave one after another across the sweep.
-     *
-     * @param index the fleck's place in the sweep, 0 first
-     * @param count the flecks in the sweep
-     * @return ticks after the release, 0 for the first fleck
-     */
-    public int launchDelay(int index, int count) {
-        return count <= 1 ? 0 : Math.round((float) sweepTicks * index / (count - 1));
+        return spreadDegrees * (NARROWEST + (1 - NARROWEST) * share);
     }
 }

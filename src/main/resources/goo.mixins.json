@@ -16,6 +16,7 @@
     "ClientPacketListenerGooMixin",
     "MinecraftCrystalPickMixin",
     "MinecraftDevBranchTitleMixin",
-    "GooQuickCraftScreenMixin"
+    "GooQuickCraftScreenMixin",
+    "PlayerModelAbilityPoseMixin"
   ]
 }

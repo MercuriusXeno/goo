@@ -1,8 +1,8 @@
 {
   "type": "minecraft:function",
-  "function": "goo:shards_release_hits_a_row",
+  "function": "goo:shards_rain_lays_into_an_area",
   "environment": "minecraft:default",
-  "structure": "goo:test_bay",
+  "structure": "goo:light_bay",
   "max_ticks": 100,
   "setup_ticks": 0,
   "required": true

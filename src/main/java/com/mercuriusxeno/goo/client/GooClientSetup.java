@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.nether.HiveSwarm;
 import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
+import com.mercuriusxeno.goo.client.ability.AbilityPoses;
 import com.mercuriusxeno.goo.client.ability.Afterimages;
 import com.mercuriusxeno.goo.client.ability.AilmentOverlayLayer;
 import com.mercuriusxeno.goo.client.ability.BlockTransforms;
@@ -15,6 +16,7 @@ import com.mercuriusxeno.goo.client.ability.EncasementLayer;
 import com.mercuriusxeno.goo.client.ability.FallingShards;
 import com.mercuriusxeno.goo.client.ability.FrozenPoses;
 import com.mercuriusxeno.goo.client.ability.GhostTrails;
+import com.mercuriusxeno.goo.client.ability.GlassKnives;
 import com.mercuriusxeno.goo.client.ability.GlitterShell;
 import com.mercuriusxeno.goo.client.ability.MobAilments;
 import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
@@ -457,9 +459,7 @@ public final class GooClientSetup {
         MobAilments.CLIENT.clear();
         FrozenPoses.CLIENT.clear();
         NovaRings.CLIENT.clear();
-        FallingShards.CLIENT.clear();
-        OreIcons.CLIENT.clear();
-        GlitterShell.clear();
+        clearCrystalVisuals();
         WindLines.CLIENT.clear();
         BlockTransforms.CLIENT.clear();
         Afterimages.CLIENT.clear();
@@ -468,6 +468,15 @@ public final class GooClientSetup {
         GhostTrails.CLIENT.clear();
         ViewportRipples.CLIENT.clear();
         ThrowFreezeState.clear();
+    }
+
+    /** Clears Crystal's shards, glass knives, ore icons, glitter shells and arm poses. */
+    private static void clearCrystalVisuals() {
+        FallingShards.CLIENT.clear();
+        OreIcons.CLIENT.clear();
+        GlitterShell.clear();
+        GlassKnives.clear();
+        AbilityPoses.clear();
     }
 
     /**

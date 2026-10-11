@@ -81,7 +81,7 @@ public final class GooTestFunctions {
     private static final String GLOVE_TYPE_ONLY_REFUSED = "glove_type_only_refused";
     private static final String GLOVE_GATED_SELECTION_REFUSED = "glove_gated_selection_refused";
     private static final String RAZOR_HIDDEN_UNTIL_GLASS_AND_SAND = "razor_hidden_until_glass_and_sand";
-    private static final String SHARDS_RELEASE_HITS_A_ROW = "shards_release_hits_a_row";
+    private static final String SHARDS_RAIN_LAYS_INTO_AN_AREA = "shards_rain_lays_into_an_area";
     private static final String SHARDS_TAP_DAMAGES_PER_COUNT = "shards_tap_damages_per_count";
     private static final String GLITTER_REVEALS_DIAMOND_AND_LAPIS = "glitter_reveals_diamond_and_lapis";
     private static final String GLOVE_SHIFT_RECOLLECTS_MARKER = "glove_shift_recollects_marker";
@@ -705,7 +705,7 @@ public final class GooTestFunctions {
         reg(r, GLOVE_TYPE_ONLY_REFUSED, GloveSelectTests::typeOnlySelectionRefused);
         reg(r, GLOVE_GATED_SELECTION_REFUSED, GloveSelectTests::gatedSelectionRefusedWithoutTheRecipe);
         reg(r, RAZOR_HIDDEN_UNTIL_GLASS_AND_SAND, GloveSelectTests::razorHiddenUntilGlassAndSand);
-        reg(r, SHARDS_RELEASE_HITS_A_ROW, ShardsSlingTests::releaseHitsARow);
+        reg(r, SHARDS_RAIN_LAYS_INTO_AN_AREA, ShardsSlingTests::shardsRainLaysIntoAnArea);
         reg(r, SHARDS_TAP_DAMAGES_PER_COUNT, ShardsTapTests::shardsTapDamagesPerCount);
         reg(r, GLITTER_REVEALS_DIAMOND_AND_LAPIS, GlitterChannelTests::glitterRevealsDiamondAndLapis);
         reg(r, GLOVE_SHIFT_RECOLLECTS_MARKER, GloveRecollectTests::shiftClickRecollectsMarker);

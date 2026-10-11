@@ -130,7 +130,7 @@ public record Delivery(DeliveryKind kind, double blocksPerTick, double range, do
             StreamSound.CODEC.codec().optionalFieldOf("sound").forGetter(Delivery::sound),
             // nova-ring-grows-with-the-hold
             Charge.CODEC.optionalFieldOf("charge", Charge.NONE).forGetter(Delivery::charge),
-            // shards-sling-then-morph-to-flechettes
+            // traveling-form-transforms-in-flight
             TravelForm.CODEC.optionalFieldOf("form", TravelForm.BLOB).forGetter(Delivery::form)
     ).apply(inst, Delivery::new));
 
