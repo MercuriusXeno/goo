@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.held;
 
+import com.mercuriusxeno.goo.ability.program.AirbornStep;
 import com.mercuriusxeno.goo.ability.program.ExtenderStep;
 import com.mercuriusxeno.goo.ability.program.HasteStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
@@ -7,10 +8,10 @@ import com.mercuriusxeno.goo.ability.program.LifetapStep;
 import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
 import com.mercuriusxeno.goo.ability.program.LuxStep;
 import com.mercuriusxeno.goo.ability.program.NourishStep;
+import com.mercuriusxeno.goo.ability.program.ShifterStep;
 import com.mercuriusxeno.goo.ability.program.SightStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.TelekinesisStep;
-import com.mercuriusxeno.goo.ability.program.TeleportitisStep;
 import com.mercuriusxeno.goo.ability.program.UndeadStep;
 import com.mojang.serialization.Codec;
 import io.netty.buffer.ByteBuf;
@@ -37,14 +38,16 @@ public enum LaidState {
     LUX,
     /** Counting as undead (decision undead-nether-hearts-burn-in-sunlight). */
     UNDEAD,
-    /** Teleportitis (decision teleportitis-blinks-along-the-cursor-on-hit). */
-    TELEPORTITIS,
+    /** Shifter (decision shifter-blinks-along-the-cursor-on-hit). */
+    SHIFTER,
     /** The Extender's mark, laid by an extender step (decision extender-multiplies-the-next-self-duration). */
     EXTENDER,
     /** A lifetap (decision lifetap-trades-regen-for-leech). */
     LIFETAP,
     /** Haste's golden overlay (decision haste-stacks-speed-under-the-golden-overlay). */
     HASTE,
+    /** Air control (decision airborn-steerable-levitation-and-soft-falls). */
+    AIRBORN,
     /** Telekinesis's raised reach (decision telekinesis-enacts-at-extended-reach). */
     TELEKINESIS;
 
@@ -73,17 +76,18 @@ public enum LaidState {
     }
 
     /** The state each kind of step lays. */
-    private static final Map<Class<? extends Step>, LaidState> LAID_BY = Map.of(
-            HeartOverlayStep.class, HEART_OVERLAY,
-            NourishStep.class, NOURISH,
-            SightStep.class, SIGHT,
-            LuxStep.class, LUX,
-            UndeadStep.class, UNDEAD,
-            TeleportitisStep.class, TELEPORTITIS,
-            ExtenderStep.class, EXTENDER,
-            LifetapStep.class, LIFETAP,
-            HasteStep.class, HASTE,
-            TelekinesisStep.class, TELEKINESIS);
+    private static final Map<Class<? extends Step>, LaidState> LAID_BY = Map.ofEntries(
+            Map.entry(HeartOverlayStep.class, HEART_OVERLAY),
+            Map.entry(NourishStep.class, NOURISH),
+            Map.entry(SightStep.class, SIGHT),
+            Map.entry(LuxStep.class, LUX),
+            Map.entry(UndeadStep.class, UNDEAD),
+            Map.entry(ShifterStep.class, SHIFTER),
+            Map.entry(ExtenderStep.class, EXTENDER),
+            Map.entry(LifetapStep.class, LIFETAP),
+            Map.entry(HasteStep.class, HASTE),
+            Map.entry(AirbornStep.class, AIRBORN),
+            Map.entry(TelekinesisStep.class, TELEKINESIS));
 
     private static Stream<Step> withDescendants(Step step) {
         return Stream.concat(Stream.of(step), step.children().flatMap(LaidState::withDescendants));

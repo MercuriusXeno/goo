@@ -2410,8 +2410,6 @@ class GooValueRegistryTest {
         }
     }
 
-    // ── Shipped base values ────────────────────────────────────────────
-
     @Nested
     class ShippedBaseValues {
 
@@ -2424,7 +2422,7 @@ class GooValueRegistryTest {
         @Test
         void slimeBallAndGunpowderResolveKinetic() throws IOException {
             try (java.io.InputStream in = GooValueRegistryTest.class.getResourceAsStream(SHIPPED_BASE_VALUES)) {
-                assertNotNull(in, "base_values.json missing on the classpath");
+                assertNotNull(in, SHIPPED_BASE_VALUES);
                 parseBaseValuesFromStream(in);
             }
             copyBaseToEffective();
@@ -2432,6 +2430,26 @@ class GooValueRegistryTest {
                 GooValue value = registry.table().lookup(id(item));
                 assertNotNull(value, item);
                 assertTrue(value.get(GooTypes.KINETIC) > 0, item + " resolves no kinetic");
+            }
+        }
+
+        /**
+         * The shipped base_values.json values gold, emeralds, diamonds and
+         * honey in opulent.
+         * decision opulent-ships-from-things-of-worth
+         */
+        @Test
+        void goldEmeraldDiamondAndHoneyResolveOpulent() throws IOException {
+            try (java.io.InputStream in = GooValueRegistryTest.class.getResourceAsStream(SHIPPED_BASE_VALUES)) {
+                assertNotNull(in, SHIPPED_BASE_VALUES);
+                parseBaseValuesFromStream(in);
+            }
+            copyBaseToEffective();
+            for (String item : List.of("minecraft:gold_ingot", "minecraft:emerald", "minecraft:diamond",
+                    "minecraft:honey_bottle")) {
+                GooValue value = registry.table().lookup(id(item));
+                assertNotNull(value, item);
+                assertTrue(value.get(GooTypes.OPULENT) > 0, item + " carries no opulent: " + value);
             }
         }
     }
