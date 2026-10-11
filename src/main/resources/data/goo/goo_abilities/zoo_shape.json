@@ -1,0 +1,27 @@
+{
+  "gooType": "zoo",
+  "displayName": "goo.ability.zoo.shape",
+  "badge": "mob",
+  "order": 20,
+  "cost": 2000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    {
+      "type": "target",
+      "where": ["mob"],
+      "steps": [
+        {
+          "type": "transmute_slime",
+          "goo": "zoo",
+          "hostile": false,
+          "morph_ticks": 20,
+          "steps": [
+            { "type": "sound", "id": "minecraft:entity.slime.squish", "source": "players", "volume": 0.9, "pitch": 0.7 },
+            { "type": "sound", "id": "minecraft:entity.evoker.prepare_summon", "source": "players", "volume": 0.8, "pitch": 1.2 }
+          ]
+        }
+      ]
+    }
+  ],
+  "tags": ["entity"]
+}

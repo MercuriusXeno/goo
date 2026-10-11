@@ -15,10 +15,10 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /**
- * Spawn's pool: every mob type the biome at a cell spawns naturally, of
- * every category, that fits the cell, light level ignored; one comes up at
- * random, each type as likely as any other.
- * spawn-goo-morphs-into-the-mob-it-births
+ * A natural pool: every mob type the biome at a cell spawns naturally, of
+ * the categories asked, that fits the cell, light level ignored; one comes
+ * up at random, each type as likely as any other.
+ * spawn-hostile-shape-peaceful-from-a-slime
  */
 public final class NaturalSpawns {
 
@@ -39,21 +39,26 @@ public final class NaturalSpawns {
     }
 
     /**
-     * Draws a type the biome at the cell spawns naturally and that fits the
-     * cell: placed as its kind spawns (on ground, in water) with room for
-     * its body, day or night.
+     * Draws a type the biome at the cell spawns naturally in one of the
+     * categories asked, that the caller allows and that fits the cell:
+     * placed as its kind spawns (on ground, in water) with room for its
+     * body, day or night.
      *
-     * @param level  the level
-     * @param cell   the cell the mob would stand in
-     * @param random the draw
+     * @param level      the level
+     * @param cell       the cell the mob would stand in
+     * @param random     the draw
+     * @param categories the categories the draw takes from
+     * @param allowed    the types the caller allows
      * @return the type, or empty where nothing the biome spawns fits
      */
-    public static Optional<EntityType<?>> drawAt(ServerLevel level, BlockPos cell, RandomSource random) {
+    public static Optional<EntityType<?>> drawAt(ServerLevel level, BlockPos cell, RandomSource random,
+                                                 Predicate<MobCategory> categories,
+                                                 Predicate<EntityType<?>> allowed) {
         MobSpawnSettings settings = level.getBiome(cell).value().getMobSettings();
-        Stream<EntityType<?>> listed = Arrays.stream(MobCategory.values())
+        Stream<EntityType<?>> listed = Arrays.stream(MobCategory.values()).filter(categories)
                 .flatMap(category -> settings.getMobs(category).unwrap().stream())
                 .map(weighted -> weighted.value().type());
-        List<EntityType<?>> pool = pool(listed, type -> fits(level, cell, type));
+        List<EntityType<?>> pool = pool(listed, type -> allowed.test(type) && fits(level, cell, type));
         return pool.isEmpty() ? Optional.empty() : Optional.of(pool.get(random.nextInt(pool.size())));
     }
 
