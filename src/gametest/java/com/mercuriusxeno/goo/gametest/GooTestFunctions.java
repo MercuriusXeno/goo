@@ -389,6 +389,8 @@ public final class GooTestFunctions {
     private static final String MACHINE_CANISTER_BREAK_RELEASES_GASKET = "machine_canister_break_releases_gasket";
     private static final String MACHINE_CANISTER_FLUID = "machine_canister_fluid";
     private static final String MACHINE_CANISTER_ROUTING = "machine_canister_routing";
+    private static final String MACHINE_HUB_MIXED_EXTRACT = "machine_hub_mixed_extract";
+    private static final String MACHINE_MIXED_CANISTER_SOURCE = "machine_mixed_canister_source";
     private static final String MACHINE_CANISTER_ROUNDTRIP = "machine_canister_roundtrip";
     private static final String MACHINE_REACTOR_WITHOUT_INPUTS = "machine_reactor_without_inputs";
     private static final String MACHINE_REACTOR_BREAK_RELEASES_GASKET = "machine_reactor_break_releases_gasket";
@@ -489,6 +491,8 @@ public final class GooTestFunctions {
     private static final String CONVOKE_PULLS = "convoke_pulls_a_chunk_mob";
     private static final String CONVOKE_LINGERS = "convoke_lingers_without_a_mob";
     private static final String CONVOKE_TAP = "convoke_tap_at_full_chance";
+    private static final String DIVE_LANDS = "dive_lands_in_the_cave_below";
+    private static final String CHURN_SWAPS = "churn_swaps_the_layers";
     private static final String END_LAYS = "end_lays_a_temporary_portal";
     private static final String BLINK_SNAPS_TO_OCULUS = "blink_snaps_to_oculus";
     private static final String OCULUS_COSTS_A_TENTH = "oculus_blink_costs_a_tenth";
@@ -973,6 +977,8 @@ public final class GooTestFunctions {
         reg(r, MACHINE_CANISTER_BREAK_RELEASES_GASKET, MachineTests::canisterBreakReleasesSlotGasket);
         reg(r, MACHINE_CANISTER_FLUID, MachineTests::canisterFluidInsertExtract);
         reg(r, MACHINE_CANISTER_ROUTING, MachineTests::canisterFluidRouting);
+        reg(r, MACHINE_HUB_MIXED_EXTRACT, MachineTests::hubExtractsOneTypeFromAMixedCanister);
+        reg(r, MACHINE_MIXED_CANISTER_SOURCE, MachineTests::mixedCanisterIsAGooSourceForEachType);
         reg(r, MACHINE_CANISTER_ROUNDTRIP, MachineTests::canisterSurvivesRoundTrip);
         reg(r, MACHINE_REACTOR_WITHOUT_INPUTS, MachineTests::reactorWithoutInputsMakesNothing);
         reg(r, MACHINE_REACTOR_BREAK_RELEASES_GASKET, MachineTests::reactorBreakReleasesOutputGasket);
@@ -1074,6 +1080,8 @@ public final class GooTestFunctions {
         reg(r, CONVOKE_PULLS, ConvokeTests::convokePullsAChunkMob);
         reg(r, CONVOKE_LINGERS, ConvokeTests::convokeLingersWithoutAMob);
         reg(r, CONVOKE_TAP, ConvokeTests::convokeTapAtFullChance);
+        reg(r, DIVE_LANDS, DiveTests::diveLandsInTheCaveBelow);
+        reg(r, CHURN_SWAPS, ChurnTests::churnSwapsTheLayers);
         reg(r, END_LAYS, EndGateTests::endLaysATemporaryPortal);
         reg(r, BLINK_SNAPS_TO_OCULUS, OculusTests::blinkSnapsToOculus);
         reg(r, OCULUS_COSTS_A_TENTH, OculusTests::oculusBlinkCostsATenth);
