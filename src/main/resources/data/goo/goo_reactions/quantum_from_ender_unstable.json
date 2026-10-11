@@ -1,0 +1,10 @@
+{
+  "inputs": [
+    {"goo": "goo:ender", "amount": 2},
+    {"goo": "goo:unstable", "amount": 2}
+  ],
+  "outputs": [
+    {"goo": "goo:quantum", "amount": 1}
+  ],
+  "rate": 1
+}

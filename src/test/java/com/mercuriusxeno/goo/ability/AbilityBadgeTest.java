@@ -19,27 +19,29 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AbilityBadgeTest {
 
-    private static final int SHIPPED_MOB_BADGES = 15;
-    private static final int SHIPPED_WORLD_BADGES = 19;
-    private static final int SHIPPED_SELF_BADGES = 6;
-    private static final int SHIPPED_BREW_BADGES = 18;
+    private static final int SHIPPED_MOB_BADGES = 17;
+    private static final int SHIPPED_WORLD_BADGES = 20;
+    private static final int SHIPPED_SELF_BADGES = 7;
+    private static final int SHIPPED_BREW_BADGES = 19;
     private static final int SHIPPED_CHANNELED_BADGES = 25;
     private static final int SHIPPED_FREE_BADGES = 7;
     private static final int SHIPPED_TAP_BADGES = 12;
-    private static final int SHIPPED_PRISM_BADGES = 9;
+    private static final int SHIPPED_PRISM_BADGES = 10;
     /**
      * The prism combos (decisions prism-hosts-the-combos, hive-prism-pillar-eats-the-living,
      * glacial-prism-holds-the-area-frozen,
      * verdant-prism-greens-blocks-slowly, oculus-prism-becomes-a-hovering-eye,
-     * reflector-rails-carry-the-brightest-light, timekeeper-prism-banks-ticks-forward-only).
+     * reflector-rails-carry-the-brightest-light, timekeeper-prism-banks-ticks-forward-only,
+     * quantum-anchors-link-two-points).
      */
     private static final List<String> SHIPPED_PRISMS = List.of("nether_hive", "pulse_metronome", "pulse_relay",
-            "frost_glacial", "leaf_verdant", "ender_oculus", "glow_reflector", "aeon_timekeeper", "typhoon_lift");
+            "frost_glacial", "leaf_verdant", "ender_oculus", "glow_reflector", "aeon_timekeeper", "typhoon_lift",
+            "quantum_anchor");
     /** The self + brew abilities, which wear brew on their self delivery (decision self-brew-goos-eat-before-the-effect). */
     private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "ender_shifter", "leaf_barkskin",
             "rock_stoneskin", "jelly_gluttony", "shroom_sight", "nether_undead", "pulse_extender", "frost_iceborn",
             "hex_lifetap", "glow_lux", "aeon_haste", "typhoon_airborn", "xeno_eldritch", "crystal_scales",
-            "unstable_charged", "kinetic_telekinesis", "yore_ancient");
+            "unstable_charged", "kinetic_telekinesis", "yore_ancient", "quantum_phase");
     /** The shipped free abilities (decisions badge-vocabulary-gains-free-prism-tap-brew, zap-ticks-the-device-and-stuns). */
     private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "shroom_colonize",
             "pulse_zap", "frost_orb", "leaf_reap", "jelly_feed", "weird_slime");

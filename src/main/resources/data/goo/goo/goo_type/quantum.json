@@ -1,0 +1,23 @@
+{
+  "light_level": 8,
+  "saturation_fill": 0.5,
+  "wheel": "6A5ACD",
+  "bright": "9282F5",
+  "highlight": "7969DC",
+  "edge": "8878EB",
+  "density": 1000,
+  "viscosity": 1000,
+  "temperature": 300,
+  "extinguishes": false,
+  "levity": 1.0,
+  "base_flight_time": 3,
+  "map_color": "color_purple",
+  "textures": {
+    "goo_tiny": "goo:item/quantum_goo_tiny",
+    "goo_small": "goo:item/quantum_goo_small",
+    "goo_base": "goo:item/quantum_goo_base",
+    "goo_large": "goo:item/quantum_goo_large",
+    "fluid_still": "goo:fluid/quantum_fluid",
+    "fluid_flowing": "goo:fluid/quantum_fluid"
+  }
+}

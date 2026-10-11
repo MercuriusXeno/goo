@@ -198,6 +198,8 @@ class RadialWheelRendererTest {
                 Map.entry("crystal_prism", "Prism"), Map.entry("deep_churn", "Churn"), Map.entry("deep_convoke", "Convoke"), Map.entry("deep_dive", "Dive"),
                 Map.entry("astral_gate", "Astral Gate"), Map.entry("astral_meteo", "Meteo"),
                 Map.entry("ender_zone", "Zone"), Map.entry("ender_shifter", "Shifter"), Map.entry("ender_end", "End"), Map.entry("ender_oculus", "Oculus"),
+                Map.entry("quantum_phase", "Phase"), Map.entry("quantum_phase_shift", "Phase Shift"), Map.entry("quantum_hole", "Hole"), Map.entry("quantum_anchor", "Anchor"),
+                Map.entry("quantum_swap", "Swap"), Map.entry("quantum_link", "Shared Fate"),
                 Map.entry("frost_snap", "Snap"), Map.entry("frost_nova", "Nova"), Map.entry("frost_cold", "Cold"), Map.entry("frost_orb", "Orb"), Map.entry("frost_glacial", "Glacial"), Map.entry("frost_iceborn", "Iceborn"), Map.entry("glow_crystal", "Bulb"),
                 Map.entry("glow_sunbeam", "Sunbeam"), Map.entry("hex_charm", "Charm"), Map.entry("hex_enchant", "Enchant"), Map.entry("hex_fuse", "Fuse"), Map.entry("hex_lifetap", "Lifetap"), Map.entry("hex_drain", "Drain"),
                 Map.entry("leaf_vines", "Vines"), Map.entry("leaf_bloom", "Bloom"), Map.entry("leaf_growth", "Growth"), Map.entry("leaf_reap", "Reap"), Map.entry("leaf_bio", "Bio"), Map.entry("leaf_verdant", "Verdant"),

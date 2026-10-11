@@ -1,0 +1,13 @@
+{
+  "gooType": "quantum",
+  "displayName": "goo.ability.quantum.phase",
+  "badge": "brew",
+  "order": 0,
+  "upkeep": 1,
+  "delivery": { "kind": "self" },
+  "behaviors": [
+    { "type": "phase" },
+    { "type": "sound", "id": "minecraft:block.respawn_anchor.deplete", "at": "target", "source": "players", "volume": 0.8, "pitch": 1.6 }
+  ],
+  "tags": ["self"]
+}
