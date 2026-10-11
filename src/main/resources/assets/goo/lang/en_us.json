@@ -163,8 +163,6 @@
   "goo.ability.hex.charm": "Charm",
   "goo.ability.hex.enchant": "Enchant",
   "goo.ability.hex.fuse": "Fuse",
-  "goo.ability.hex.spawn": "Spawn",
-  "goo.ability.hex.spawn_tap": "Spawn",
   "goo.ability.hex.agitator": "Agitator",
   "goo.ability.hex.lifetap": "Lifetap",
   "goo.ability.hex.drain": "Drain",
@@ -212,5 +210,7 @@
   "goo.ability.vital.vitality_tap": "Vitality",
   "goo.ability.vital.reserve": "Reserve",
   "goo.ability.vital.nourish": "Nourish",
-  "goo.ability.zoo.allure": "Allure"
+  "goo.ability.zoo.allure": "Allure",
+  "goo.ability.zoo.shape": "Shape",
+  "goo.ability.zoo.spawn": "Spawn"
 }
