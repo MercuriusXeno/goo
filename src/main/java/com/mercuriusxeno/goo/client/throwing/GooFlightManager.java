@@ -1,13 +1,16 @@
 package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.client.ability.SignalRings;
 import com.mercuriusxeno.goo.client.ability.ZapBolts;
 import com.mercuriusxeno.goo.network.GooFlightPayload;
+import com.mercuriusxeno.goo.network.GooThrowHandler;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
@@ -59,6 +62,11 @@ public final class GooFlightManager {
         if (ZapBolts.strikesAsLightning(type, payload.delivery())) {
             // zap-ticks-the-device-and-stuns
             ZapBolts.strike(start, throwEnd);
+            Direction face = GooThrowHandler.directionFromOrdinal(payload.targetFace());
+            if (targetEntityId < 0 && face != null) {
+                // zap-disperses-into-signal
+                SignalRings.disperseAt(payload.targetPos(), face, payload.abilityId());
+            }
             return;
         }
         int travelTicks = payload.travelTicks();

@@ -62,7 +62,7 @@ class TapGasketIntakeTest {
     @Test
     void anIntakeHoldingPartOfADripAsksTheRest() {
         TapGasketIntake intake = spy(intake(TapDripGrade.FOUR_PER_TICK, new AtomicBoolean(true)));
-        doReturn(1).when(intake).getAmount();
+        doReturn(1).when(intake).totalVolume();
 
         assertEquals(OptionalInt.of(TapDripGrade.FOUR_PER_TICK.dripVolume() - 1), intake.statedDemand(anyGoo));
     }

@@ -186,7 +186,7 @@ public final class HubItemClickTests {
     private static void assertCanister(GameTestHelper helper, ItemStack canister,
             ResourceKey<GooTypeDefinition> type, int amount) {
         CanisterFluidContent content = CanisterItem.getFluidContent(canister);
-        helper.assertValueEqual(content.getGooType(), type, CANISTER_TYPE);
-        helper.assertValueEqual(content.amount(), amount, CANISTER_AMOUNT);
+        helper.assertValueEqual(content.dominantGooType(), type, CANISTER_TYPE);
+        helper.assertValueEqual(content.totalVolume(), amount, CANISTER_AMOUNT);
     }
 }

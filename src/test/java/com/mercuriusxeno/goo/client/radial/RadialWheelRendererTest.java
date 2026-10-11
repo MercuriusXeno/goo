@@ -170,8 +170,8 @@ class RadialWheelRendererTest {
                 Map.entry("leaf_barkskin", "Barkskin"), Map.entry("metal_spikes", "Urchin"),
                 Map.entry("metal_javelin", "Dart"), Map.entry("nether_black_hole", "Anti"),
                 Map.entry("nether_decay", "Decay"), Map.entry("nether_hive", "Hive"), Map.entry("nether_undead", "Undead"),
-                Map.entry("pulse_zap", "Zap"), Map.entry("pulse_signal", "Signal"),
-                Map.entry("pulse_pulser", "Pulser"), Map.entry("pulse_thumper", "Thumper"),
+                Map.entry("pulse_zap", "Zap"),
+                Map.entry("pulse_pulser", "Pulser"),
                 Map.entry("pulse_metronome", "Metronome"), Map.entry("pulse_relay", "Relay"),
                 Map.entry("pulse_extender", "Extender"),
                 Map.entry("rock_bore", "Bore"), Map.entry("rock_crush", "Crush"), Map.entry("rock_flatten", "Flatten"),
@@ -187,7 +187,8 @@ class RadialWheelRendererTest {
                 Map.entry("typhoon_updraft", "Updraft"), Map.entry("typhoon_lift", "Lift"),
                 Map.entry("unstable_explode", "Blast"), Map.entry("vital_clone", "Clone"),
                 Map.entry("jelly_heal", "Vitality"), Map.entry("jelly_reserve", "Reserve"), Map.entry("jelly_feed", "Feed"),
-                Map.entry("jelly_gluttony", "Gluttony"));
+                Map.entry("jelly_gluttony", "Gluttony"), Map.entry("xeno_eldritch", "Eldritch Sight"),
+                Map.entry("xeno_mutate", "Mutate"));
 
         private static JsonObject englishLang() throws IOException {
             try (InputStream stream = RadialWheelRendererTest.class.getClassLoader().getResourceAsStream(LANG_RESOURCE)) {

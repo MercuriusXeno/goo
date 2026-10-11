@@ -153,8 +153,8 @@ public final class LabSupplyTests {
         Set<String> canisterTypes = new HashSet<>();
         for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
             ItemStack stack = inventory.getItem(slot);
-            if (stack.getItem() instanceof CanisterItem && CanisterItem.getFluidContent(stack).amount() > 0) {
-                canisterTypes.add(String.valueOf(CanisterItem.getFluidContent(stack).getGooType().identifier()));
+            if (stack.getItem() instanceof CanisterItem && CanisterItem.getFluidContent(stack).totalVolume() > 0) {
+                canisterTypes.add(String.valueOf(CanisterItem.getFluidContent(stack).dominantGooType().identifier()));
             }
         }
         helper.assertTrue(canisterTypes.equals(Set.copyOf(LabStock.gooTypeIds(helper.getLevel()))), KIT_CANISTERS);
