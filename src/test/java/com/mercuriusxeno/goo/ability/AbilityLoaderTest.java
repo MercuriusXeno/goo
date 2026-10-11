@@ -2,8 +2,6 @@ package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.AfterimageStep;
-import com.mercuriusxeno.goo.ability.program.AilmentKind;
-import com.mercuriusxeno.goo.ability.program.AilmentOverlayStep;
 import com.mercuriusxeno.goo.ability.program.BranchStep;
 import com.mercuriusxeno.goo.ability.program.CharmStep;
 import com.mercuriusxeno.goo.ability.program.Expr;
@@ -62,7 +60,6 @@ import static org.mockito.Mockito.when;
 class AbilityLoaderTest {
 
     private static final String DIRECTORY = "goo_abilities";
-    private static final Identifier GLOWING = Identifier.parse("minecraft:glowing");
     private static final int CHARM_ROLLS = 1000;
     private static final int RARE_CHARMS = 50;
     private static final double ZOMBIE_MAX_HEALTH = 20;
@@ -271,23 +268,6 @@ class AbilityLoaderTest {
     private static SoundStep firstSound(String name) {
         return AbilityJson.decode(name).behaviors().stream().filter(SoundStep.class::isInstance)
                 .map(SoundStep.class::cast).findFirst().orElseThrow();
-    }
-
-    /**
-     * Hex charm shows its ailment through the overlay step and applies no
-     * vanilla glowing; stasis keeps its shimmer through StasisEvents
-     * (decision ailment-overlay-shader-per-ailment).
-     */
-    @ParameterizedTest
-    @CsvSource({"hex_charm, HEX"})
-    void ailmentAbilitiesWearTheOverlayInPlaceOfGlowing(String name, AilmentKind kind) {
-        List<Step> steps = AbilityJson.decode(name).behaviors().stream()
-                .flatMap(AbilityLoaderTest::stepTree).toList();
-
-        assertEquals(List.of(kind), steps.stream().filter(AilmentOverlayStep.class::isInstance)
-                .map(step -> ((AilmentOverlayStep) step).kind()).toList(), name);
-        assertTrue(steps.stream().filter(PotionStep.class::isInstance)
-                .noneMatch(step -> GLOWING.equals(((PotionStep) step).effect())), name + " still applies glowing");
     }
 
     /**

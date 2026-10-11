@@ -171,7 +171,7 @@ class StepCodecTest {
             Map.entry("hit_or_miss", new HitOrMissStep(
                     List.of(new RootStep(Expr.literal(60), Expr.literal(4), Expr.literal(1), Expr.literal(1.5))),
                     List.of(new LingerStep(List.of(LeafSteps.DISCARD.step(Unit.INSTANCE)))))),
-            Map.entry("charm", new CharmStep(Expr.literal(6000))),
+            Map.entry("charm", new CharmStep()),
             Map.entry("enchant_book", LeafSteps.ENCHANT_BOOK.step(Unit.INSTANCE)),
             Map.entry("fuse_books", new FuseBooksStep(Optional.of(new SoundCue(
                     Identifier.withDefaultNamespace("block.fire.extinguish"), SoundKind.PLAYERS, 0.4f, 1.6f)))),
