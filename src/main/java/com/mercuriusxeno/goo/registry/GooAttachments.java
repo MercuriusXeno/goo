@@ -19,6 +19,7 @@ import com.mercuriusxeno.goo.ability.rewind.Rewinding;
 import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.spray.Spored;
 import com.mercuriusxeno.goo.ability.world.TimeVeiled;
+import com.mercuriusxeno.goo.ability.zoo.Rallied;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
 import com.mojang.serialization.Codec;
@@ -244,6 +245,15 @@ public final class GooAttachments {
      * the charmed heart over its head.
      * charm-glisten-and-icon-over-the-head
      */
+    /**
+     * The rally a peaceful mob holds: the caster it fights for, the game
+     * time it fades at and its strike damage, saved with the mob.
+     * zoo-rally-arms-the-peaceful
+     */
+    public static final Supplier<AttachmentType<Rallied>> RALLIED =
+            ATTACHMENT_TYPES.register("rallied",
+                    () -> AttachmentType.builder(() -> Rallied.NONE).serialize(Rallied.CODEC).build());
+
     public static final Supplier<AttachmentType<Charmed>> CHARMED =
             ATTACHMENT_TYPES.register("charmed",
                     () -> AttachmentType.builder(() -> Charmed.NONE)

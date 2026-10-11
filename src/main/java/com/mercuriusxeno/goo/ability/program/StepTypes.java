@@ -131,6 +131,7 @@ public final class StepTypes {
         register(LeafSteps.ENCHANT_BOOK.type());
         register(FuseBooksStep.TYPE);
         register(SlimeTransmuteStep.TYPE);
+        register(RallyStep.TYPE);
         register(AgitateStep.TYPE);
         register(LifetapStep.TYPE);
         register(LeechStep.TYPE);
