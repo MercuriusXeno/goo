@@ -123,6 +123,7 @@ class StreamHoldsTest {
         }
     }
 
+    /** Each block a stream holds counts its own hold (decision unmake-waves-dissolve-by-crucible-cost). */
     @Nested
     class ShareAt {
 

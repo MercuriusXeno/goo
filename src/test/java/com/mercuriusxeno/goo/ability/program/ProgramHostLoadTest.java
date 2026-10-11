@@ -212,8 +212,9 @@ class ProgramHostLoadTest {
     @Test
     void eachKindProvidesTheCapabilityInterfacesItsHostImplements() {
         assertEquals(EnumSet.complementOf(EnumSet.of(HostCapability.TARGET, HostCapability.LINGER, HostCapability.CHANNEL,
-                        HostCapability.BREAK_BLOCKS, HostCapability.DRIP, HostCapability.COLONIZE,
-                        HostCapability.FLOOR_SCAN, HostCapability.END_GATE, HostCapability.ASTRAL_GATE, HostCapability.METEOR, HostCapability.POWER_PULSE,
+                        HostCapability.BREAK_BLOCKS, HostCapability.DRIP, HostCapability.UNMAKE, HostCapability.SIPHON,
+                        HostCapability.COLONIZE, HostCapability.FLOOR_SCAN, HostCapability.END_GATE,
+                        HostCapability.ASTRAL_GATE, HostCapability.METEOR, HostCapability.POWER_PULSE,
                         HostCapability.TOGGLE_DEVICE, HostCapability.EXTEND_EFFECTS, HostCapability.TICK_BLOCK,
                         HostCapability.SHARD_FALL, HostCapability.RAISE_GROUND)),
                 HostKind.MARKER.capabilities());
@@ -225,8 +226,8 @@ class ProgramHostLoadTest {
         assertEquals(Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN),
                 HostKind.ENTITY.capabilities());
         assertEquals(Set.of(HostCapability.EXPLODE, HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK,
-                HostCapability.BREAK_BLOCKS, HostCapability.DRIP, HostCapability.CONVOKE, HostCapability.TOGGLE_DEVICE,
-                HostCapability.FROST, HostCapability.TICK_BLOCK, HostCapability.SHARD_FALL),
+                HostCapability.BREAK_BLOCKS, HostCapability.DRIP, HostCapability.UNMAKE, HostCapability.CONVOKE,
+                HostCapability.TOGGLE_DEVICE, HostCapability.FROST, HostCapability.TICK_BLOCK, HostCapability.SHARD_FALL),
                 HostKind.TAP.capabilities());
         assertEquals(Set.of(HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK),
                 HostKind.SURFACE.capabilities());
