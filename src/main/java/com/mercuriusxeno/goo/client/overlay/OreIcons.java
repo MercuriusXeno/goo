@@ -126,6 +126,19 @@ public final class OreIcons {
         return icons;
     }
 
+    /**
+     * The veins whose icons begin to show after one moment and by another,
+     * where each bursts into sparkles.
+     *
+     * @param after the moment the last check ran, exclusive
+     * @param upTo  the moment now, inclusive
+     * @return each such vein's centroid
+     */
+    public List<Vec3> burstsBetween(double after, double upTo) {
+        return shown.stream().filter(entry -> entry.appearAt() > after && entry.appearAt() <= upTo)
+                .map(entry -> entry.vein().centroid()).toList();
+    }
+
     /** Drops every icon, as a disconnect does. */
     public void clear() {
         shown.clear();

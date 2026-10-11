@@ -223,28 +223,17 @@ class AbilityLoaderTest {
     }
 
     /**
-     * Crystal's Prism names the nether quartz it consumes beside its goo
-     * cost, and an ability naming no reagent consumes nothing
-     * (decision ability-json-names-its-reagent).
+     * Crystal's Prism and Glitter take no item cost (operator ruling
+     * 2026-10-10), and an ability naming no reagent consumes nothing
+     * (decisions ability-json-names-its-reagent, glitter-sphere-icons-gem-ore-groups).
      */
     @Test
-    void prismConsumesANetherQuartzAndAnUnnamedReagentIsNone() {
+    void prismAndGlitterConsumeNothing() {
         Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
 
-        assertEquals(List.of(Identifier.withDefaultNamespace("quartz")),
-                scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_prism")).consumes());
-        assertEquals(List.of(), scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_cloud")).consumes());
-    }
-
-    /**
-     * Crystal's Glitter consumes a lapis lazuli beside its goo
-     * (decisions glitter-sphere-icons-gem-ore-groups, ability-json-names-its-reagent).
-     */
-    @Test
-    void glitterConsumesALapisLazuli() {
-        assertEquals(List.of(Identifier.withDefaultNamespace("lapis_lazuli")),
-                scanShipped(AbilityJson.files()).get(Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_glitter"))
-                        .consumes());
+        for (String path : List.of("crystal_prism", "crystal_glitter", "crystal_cloud")) {
+            assertEquals(List.of(), scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, path)).consumes(), path);
+        }
     }
 
     /**

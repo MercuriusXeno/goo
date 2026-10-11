@@ -15,6 +15,7 @@ import com.mercuriusxeno.goo.client.ability.EncasementLayer;
 import com.mercuriusxeno.goo.client.ability.FallingShards;
 import com.mercuriusxeno.goo.client.ability.FrozenPoses;
 import com.mercuriusxeno.goo.client.ability.GhostTrails;
+import com.mercuriusxeno.goo.client.ability.GlitterShell;
 import com.mercuriusxeno.goo.client.ability.MobAilments;
 import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
 import com.mercuriusxeno.goo.client.ability.MobCoats;
@@ -458,6 +459,7 @@ public final class GooClientSetup {
         NovaRings.CLIENT.clear();
         FallingShards.CLIENT.clear();
         OreIcons.CLIENT.clear();
+        GlitterShell.clear();
         WindLines.CLIENT.clear();
         BlockTransforms.CLIENT.clear();
         Afterimages.CLIENT.clear();

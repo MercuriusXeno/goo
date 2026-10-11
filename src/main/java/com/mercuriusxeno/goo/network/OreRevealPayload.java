@@ -12,15 +12,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Server-to-caster payload: the gem ore veins one Glitter ping found, each
+ * Server-to-caster payload: one Glitter ping, the sphere the caster's
+ * client draws as its sparkle shell and the gem ore veins it found, each
  * revealed the tick the sphere's front reaches it and shown for the ping's
  * life (decision glitter-sphere-icons-gem-ore-groups).
  *
+ * @param origin the ping's center, where the caster stood
+ * @param growth blocks the front grows each tick
+ * @param radius the blocks the front reaches
  * @param veins  the veins found
  * @param reveal for each vein, the ticks after the ping began that the front reaches it
  * @param life   the ticks each icon shows once revealed
  */
-public record OreRevealPayload(List<OreVeins.Vein> veins, List<Integer> reveal, int life)
+public record OreRevealPayload(Vec3 origin, double growth, int radius, List<OreVeins.Vein> veins,
+                               List<Integer> reveal, int life)
         implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
@@ -37,6 +42,11 @@ public record OreRevealPayload(List<OreVeins.Vein> veins, List<Integer> reveal, 
     }
 
     private static void encode(FriendlyByteBuf buf, OreRevealPayload payload) {
+        buf.writeDouble(payload.origin.x);
+        buf.writeDouble(payload.origin.y);
+        buf.writeDouble(payload.origin.z);
+        buf.writeDouble(payload.growth);
+        buf.writeVarInt(payload.radius);
         buf.writeVarInt(payload.veins.size());
         for (int index = 0; index < payload.veins.size(); index++) {
             OreVeins.Vein vein = payload.veins.get(index);
@@ -51,6 +61,9 @@ public record OreRevealPayload(List<OreVeins.Vein> veins, List<Integer> reveal, 
     }
 
     private static OreRevealPayload decode(FriendlyByteBuf buf) {
+        Vec3 origin = new Vec3(buf.readDouble(), buf.readDouble(), buf.readDouble());
+        double growth = buf.readDouble();
+        int radius = buf.readVarInt();
         int size = buf.readVarInt();
         List<OreVeins.Vein> veins = new ArrayList<>(size);
         List<Integer> reveal = new ArrayList<>(size);
@@ -59,6 +72,6 @@ public record OreRevealPayload(List<OreVeins.Vein> veins, List<Integer> reveal, 
                     new Vec3(buf.readDouble(), buf.readDouble(), buf.readDouble()), buf.readVarInt()));
             reveal.add(buf.readVarInt());
         }
-        return new OreRevealPayload(veins, reveal, buf.readVarInt());
+        return new OreRevealPayload(origin, growth, radius, veins, reveal, buf.readVarInt());
     }
 }

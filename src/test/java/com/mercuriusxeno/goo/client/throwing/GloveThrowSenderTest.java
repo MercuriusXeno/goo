@@ -51,14 +51,14 @@ class GloveThrowSenderTest {
     // decision ability-json-names-its-reagent
     @Test
     void aMissingReagentRefusesTheThrowTheGooCovers() {
-        AbilityDefinition definition = AbilityJson.decode("crystal_prism");
-        ClientAbility prism = new ClientAbility(definition.id(), definition.displayName(), definition.icon(),
+        AbilityDefinition definition = AbilityJson.decode("hex_spawn");
+        ClientAbility spawn = new ClientAbility(definition.id(), definition.displayName(), definition.icon(),
                 definition.order(), definition.tags(), definition.behaviors(), definition.cost(),
                 definition.delivery(), definition.badge(), definition.requires(), definition.area(),
                 definition.indicator(), definition.consumes());
 
-        assertFalse(GloveThrowSender.affordsThrow(prism, amount -> true, item -> false));
-        assertTrue(GloveThrowSender.affordsThrow(prism, amount -> true, definition.consumes()::contains));
+        assertFalse(GloveThrowSender.affordsThrow(spawn, amount -> true, item -> false));
+        assertTrue(GloveThrowSender.affordsThrow(spawn, amount -> true, definition.consumes()::contains));
     }
 
     /**

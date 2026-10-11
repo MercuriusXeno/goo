@@ -14,7 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * A revealed vein's icon shows from the tick the front reaches it, pops in,
  * shrinks away at its life's end, keeps showing when a later ping finds it
- * again, and projects onto the gui through the camera
+ * again, bursts once as it begins to show, and projects onto the gui
+ * through the camera
  * (decision glitter-sphere-icons-gem-ore-groups).
  */
 class OreIconsTest {
@@ -46,6 +47,17 @@ class OreIconsTest {
         assertEquals(1, OreIcons.CLIENT.iconsAt(40).size());
         assertEquals(1f, OreIcons.CLIENT.iconsAt(40).getFirst().scale(), TOLERANCE);
         assertEquals(1f, OreIcons.CLIENT.iconsAt(115).getFirst().scale(), TOLERANCE);
+    }
+
+    @Test
+    void aVeinBurstsOnlyInTheTickItsIconBeginsToShowAndNotAgainWhenFoundAgain() {
+        OreIcons.CLIENT.reveal(0, List.of(VEIN), List.of(10), 100);
+
+        assertTrue(OreIcons.CLIENT.burstsBetween(8, 9).isEmpty());
+        assertEquals(List.of(VEIN.centroid()), OreIcons.CLIENT.burstsBetween(9, 10));
+        assertTrue(OreIcons.CLIENT.burstsBetween(10, 11).isEmpty());
+        OreIcons.CLIENT.reveal(32, List.of(VEIN), List.of(10), 100);
+        assertTrue(OreIcons.CLIENT.burstsBetween(32, 50).isEmpty());
     }
 
     @Test

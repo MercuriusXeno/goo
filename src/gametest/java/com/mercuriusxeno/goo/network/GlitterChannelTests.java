@@ -6,21 +6,22 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.crystal.OreVeins;
 import com.mercuriusxeno.goo.ability.program.DetectOreStep;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Gametests for Crystal's Glitter: a held Glitter takes one lapis lazuli
- * for its hold, and its ping finds the gem ore veins buried around the
- * caster, each at its centroid.
+ * Gametests for Crystal's Glitter: a caster holding no lapis channels
+ * Glitter, since it takes no item cost (operator ruling 2026-10-10), and
+ * its ping finds the gem ore veins buried around the caster, each at its
+ * centroid, centering its shell where the caster stands.
  * decision glitter-sphere-icons-gem-ore-groups
  */
 public final class GlitterChannelTests {
@@ -34,11 +35,11 @@ public final class GlitterChannelTests {
     private static final BlockPos DIAMOND_B = new BlockPos(4, 0, 2);
     /** One lapis ore buried in the floor across the bay. */
     private static final BlockPos LAPIS = new BlockPos(4, 0, 5);
-    private static final int LAPIS_HELD = 2;
     private static final int HOLD_TICKS = 3;
     private static final double TOLERANCE = 1e-6;
     private static final String ABILITY_REQUIRED = "Ability registry must hold crystal_glitter";
-    private static final String ONE_LAPIS = "A hold should take one lapis lazuli, %s left of %s";
+    private static final String SHOULD_SPEND = "A hold should spend crystal goo with no lapis held, %d of %d left";
+    private static final String SHELL_AT_CASTER = "The ping's shell should center where the caster stands, at %s";
     private static final String NO_SENSE = "crystal_glitter should name a detect_ore step";
     private static final String SHOULD_FIND = "The ping should find the %s vein of %s at %s, found %s";
 
@@ -46,9 +47,9 @@ public final class GlitterChannelTests {
     }
 
     /**
-     * A mock player holds Glitter for three ticks over a floor with a two
-     * block diamond vein and a lapis ore buried in it: the hold takes one
-     * lapis, and its ping names both veins at their centroids.
+     * A mock player holding no lapis holds Glitter for three ticks over a
+     * floor with a two block diamond vein and a lapis ore buried in it: the
+     * hold spends goo, and its ping names both veins at their centroids.
      *
      * @param helper the gametest helper
      */
@@ -61,21 +62,23 @@ public final class GlitterChannelTests {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.CRYSTAL);
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STAND_POS));
         caster.setPos(stand.x, stand.y, stand.z);
-        caster.getInventory().add(new ItemStack(Items.LAPIS_LAZULI, LAPIS_HELD));
         KnownRecipes.teachRequires(caster, glitter);
         GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.CRYSTAL), CRYSTAL_GLITTER.toString(),
                 caster.getEyePosition(), caster.getEyePosition(), helper.absolutePos(STAND_POS.below()),
                 Direction.UP.get3DDataValue());
+        int gooBefore = GooSourceScanner.aggregateAvailable(caster).getOrDefault(GooTypes.CRYSTAL, 0);
         for (int held = 1; held <= HOLD_TICKS; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(caster, tick));
         }
         helper.runAfterDelay(HOLD_TICKS + 1, () -> {
-            int left = caster.getInventory().countItem(Items.LAPIS_LAZULI);
-            helper.assertTrue(left == LAPIS_HELD - 1, String.format(ONE_LAPIS, left, LAPIS_HELD));
+            int gooAfter = GooSourceScanner.aggregateAvailable(caster).getOrDefault(GooTypes.CRYSTAL, 0);
+            helper.assertTrue(caster.getInventory().countItem(Items.LAPIS_LAZULI) == 0 && gooAfter < gooBefore,
+                    String.format(SHOULD_SPEND, gooAfter, gooBefore));
             DetectOreStep sense = glitter.behaviors().stream().filter(DetectOreStep.class::isInstance)
                     .map(DetectOreStep.class::cast).findFirst().orElse(null);
             helper.assertTrue(sense != null, NO_SENSE);
             OreRevealPayload reveal = sense.revealAround(caster);
+            helper.assertTrue(reveal.origin().equals(caster.position()), String.format(SHELL_AT_CASTER, reveal.origin()));
             assertFound(helper, reveal, DIAMOND_ORE, 2,
                     Vec3.atCenterOf(helper.absolutePos(DIAMOND_A)).add(0, 0, 0.5));
             assertFound(helper, reveal, LAPIS_ORE, 1, Vec3.atCenterOf(helper.absolutePos(LAPIS)));
