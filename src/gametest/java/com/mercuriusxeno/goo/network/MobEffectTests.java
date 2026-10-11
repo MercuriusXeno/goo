@@ -23,6 +23,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.Slime;
+import net.minecraft.world.entity.animal.cow.Cow;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.util.ProblemReporter;
@@ -106,6 +107,7 @@ public final class MobEffectTests {
     private static final String MOB_HAS_MAX_HEALTH = "The mob carries a max health attribute";
     private static final String ABILITY_UNSTABLE_EXPLODE = "goo:unstable_explode";
     private static final String ABILITY_HEX_CHARM = "goo:hex_charm";
+    private static final String ABILITY_ZOO_ALLURE = "goo:zoo_allure";
     private static final String ABILITY_BLAZE_IGNITE = "goo:blaze_ignite";
     private static final String ABILITY_CRYSTAL_FLECHETTES = "goo:crystal_flechettes";
     private static final String ABILITY_ENDER_ZONE = "goo:ender_zone";
@@ -117,6 +119,7 @@ public final class MobEffectTests {
     private static final String SHOULD_WARP = "The cursed zombie should warp away from the player standing on it";
     private static final String SHOULD_BE_EXILED = "A second Zone should exile the cursed zombie";
     private static final String SHOULD_RESIST = "A mob over the max health cap should resist the curse";
+    private static final String SHOULD_BE_IN_LOVE = "A cow struck by Allure should be in love";
     /** Beside the cow, inside unstable_explode.json's blast of power 3. */
     private static final BlockPos BLAST_DIRT_POS = SPAWN_POS.south();
     /** The damage crystal_flechettes.json's first damage step names. */
@@ -201,6 +204,21 @@ public final class MobEffectTests {
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, mob, ABILITY_CRYSTAL_FLECHETTES);
             helper.assertTrue(mob.getHealth() <= before - FLECHETTE_DAMAGE, SHOULD_TAKE_DAMAGE);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Allure courts the struck animal: a grown cow hit by the blob is in love
+     * (decision allure-courts-the-struck-animal).
+     *
+     * @param helper the gametest helper
+     */
+    public static void allureCourtsTheStruckAnimal(GameTestHelper helper) {
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, cow, ABILITY_ZOO_ALLURE);
+            helper.assertTrue(cow.isInLove(), SHOULD_BE_IN_LOVE);
             helper.succeed();
         });
     }

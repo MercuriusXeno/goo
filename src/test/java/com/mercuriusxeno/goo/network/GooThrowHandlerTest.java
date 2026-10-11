@@ -57,7 +57,7 @@ class GooThrowHandlerTest {
     @Test
     void spawnThrownByAPlayerHoldingNothingPassesTheReagentCheck() {
         // ability-json-names-its-reagent
-        List<Identifier> spawnReagents = AbilityJson.decode("hex_spawn").consumes();
+        List<Identifier> spawnReagents = AbilityJson.decode("zoo_spawn").consumes();
 
         assertTrue(ReagentScanner.holdsEvery(spawnReagents, reagent -> false));
     }
