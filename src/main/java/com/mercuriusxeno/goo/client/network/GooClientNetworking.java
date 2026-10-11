@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.client.ability.AbilityPoses;
+import com.mercuriusxeno.goo.client.ability.GlassKnives;
 import com.mercuriusxeno.goo.client.ability.LeechWisps;
 import com.mercuriusxeno.goo.client.ability.ReapSwells;
 import com.mercuriusxeno.goo.client.ability.ScrySweep;
@@ -11,12 +13,14 @@ import com.mercuriusxeno.goo.client.overlay.TickAim;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.AfterimagePayload;
 import com.mercuriusxeno.goo.network.AilmentPayload;
+import com.mercuriusxeno.goo.network.ArmPosePayload;
 import com.mercuriusxeno.goo.network.BlockAfterimagePayload;
 import com.mercuriusxeno.goo.network.BlockExposurePayload;
 import com.mercuriusxeno.goo.network.BlockTransformPayload;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.network.DripHealedPayload;
 import com.mercuriusxeno.goo.network.GhostTrailPayload;
+import com.mercuriusxeno.goo.network.GlassKnifePayload;
 import com.mercuriusxeno.goo.network.GooFlightPayload;
 import com.mercuriusxeno.goo.network.GooValueSyncPayload;
 import com.mercuriusxeno.goo.network.KnownItemLearnedPayload;
@@ -26,8 +30,10 @@ import com.mercuriusxeno.goo.network.MobHitPayload;
 import com.mercuriusxeno.goo.network.ModelShrinkPayload;
 import com.mercuriusxeno.goo.network.NovaRingPayload;
 import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
+import com.mercuriusxeno.goo.network.OreRevealPayload;
 import com.mercuriusxeno.goo.network.ReapSwellPayload;
 import com.mercuriusxeno.goo.network.ScryPayload;
+import com.mercuriusxeno.goo.network.ShardFallPayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.network.SunbeamPayload;
 import com.mercuriusxeno.goo.network.TickAimPayload;
@@ -103,5 +109,9 @@ public final class GooClientNetworking {
         event.register(NovaRingPayload.TYPE, NovaRingHandler::handle);
         event.register(ReapSwellPayload.TYPE, ReapSwells::handle);
         event.register(TickAimPayload.TYPE, TickAim::handle);
+        event.register(ShardFallPayload.TYPE, ShardFallHandler::handle);
+        event.register(OreRevealPayload.TYPE, OreRevealHandler::handle);
+        event.register(GlassKnifePayload.TYPE, GlassKnives::onPayload);
+        event.register(ArmPosePayload.TYPE, AbilityPoses::onPayload);
     }
 }

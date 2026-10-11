@@ -27,7 +27,7 @@ class GooTypesTest {
             GooTypes.REGISTRY, Identifier.fromNamespaceAndPath("gootest", "seventeenth"));
     private static final List<String> BUNDLED_IDS = List.of(
             "aeon", "blaze", "crystal", "deep", "ender", "frost", "glow", "hex", "infinity", "leaf",
-            "metal", "nether", "opulent", "pulse", "rock", "shroom", "typhoon", "unstable", "vital", "xeno");
+            "metal", "nether", "opulent", "pulse", "rock", "shroom", "typhoon", "unstable", "vital", "xeno", "zoo");
 
     /**
      * The registry key is goo:goo_type.
