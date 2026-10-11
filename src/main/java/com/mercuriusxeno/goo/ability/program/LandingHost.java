@@ -49,7 +49,7 @@ import java.util.OptionalDouble;
 public record LandingHost(ServerLevel level, BlockPos cell, Direction face, boolean waterlogged,
                           ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 anchor, double size)
         implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
-        ColonizeHost, FloorScanHost, GateHost, PowerPulseHost, MobSpawnHost, FrostHost {
+        ColonizeHost, FloorScanHost, GateHost, PowerPulseHost, MobSpawnHost, FrostHost, TimedBlockHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -127,6 +127,12 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
         level.setBlock(cell, StatePropertyWriter.write(found.defaultBlockState(), values), Block.UPDATE_ALL);
     }
 
+
+    @Override
+    public void placeForTicks(Block block, int ticks) {
+        level.setBlock(cell, block.defaultBlockState(), Block.UPDATE_ALL);
+        level.scheduleTick(cell, block, ticks);
+    }
 
     @Override
     public void linger(List<Step> steps) {

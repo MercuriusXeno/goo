@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:weird_pad_breaks_the_fall",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 300,
+  "setup_ticks": 0,
+  "required": true
+}

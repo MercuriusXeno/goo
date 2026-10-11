@@ -1,0 +1,11 @@
+{
+  "gooType": "weird",
+  "displayName": "goo.ability.weird.bounce",
+  "badge": "world",
+  "order": 1,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "bounce_pad", "ticks": 200 }
+  ]
+}
