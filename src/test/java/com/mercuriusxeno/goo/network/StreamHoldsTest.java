@@ -40,6 +40,18 @@ class StreamHoldsTest {
             assertEquals(1, holds.advance(PLAYER, 104));
         }
 
+        /** A hold's paid reagents last the hold, and a new hold pays again (decision ability-json-names-its-reagent). */
+        @Test
+        void aHoldStaysPaidUntilANewHoldStarts() {
+            StreamHolds holds = new StreamHolds();
+            holds.advance(PLAYER, 100);
+            holds.markPaid(PLAYER);
+            holds.advance(PLAYER, 101);
+            assertTrue(holds.paid(PLAYER));
+            holds.advance(PLAYER, 110);
+            assertFalse(holds.paid(PLAYER));
+        }
+
         /** A client's stream ticks jitter against the server's: one can land a tick late. */
         @Test
         void oneLateTickContinuesTheHold() {

@@ -47,6 +47,8 @@ public final class StepTypes {
         register(NovaStep.TYPE);
         register(FreezeBlocksStep.TYPE);
         register(DripsStep.TYPE);
+        register(ShardFallStep.TYPE);
+        register(DetectOreStep.TYPE);
         register(WindStep.TYPE);
         register(BreakBlocksStep.TYPE);
         register(TravelingStep.TYPE);
@@ -57,7 +59,6 @@ public final class StepTypes {
         register(LeafSteps.REWIND_HOLD.type());
         register(RegressStep.TYPE);
         register(TickBlockStep.TYPE);
-        register(DripsStep.TYPE);
         register(BankTicksStep.TYPE);
         register(WithdrawBankStep.TYPE);
         register(SlowTimeStep.TYPE);
