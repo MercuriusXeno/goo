@@ -85,6 +85,18 @@ public final class GooTypes {
     public static final ResourceKey<GooTypeDefinition> XENO = bundled("xeno");
 
     /**
+     * Whether a holder keeps goo of the type forever: infinity is never
+     * extracted, drained, drawn or spent.
+     * decision infinity-sources-whatever-shares-its-vessel
+     *
+     * @param key a goo type's key, or null for a fluid that is not goo
+     * @return true for infinity
+     */
+    public static boolean isUnspendable(@Nullable ResourceKey<GooTypeDefinition> key) {
+        return INFINITY.equals(key);
+    }
+
+    /**
      * Every type the mod ships as JSON, in constant order.
      */
     public static final List<ResourceKey<GooTypeDefinition>> BUNDLED = List.of(

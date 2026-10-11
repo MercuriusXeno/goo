@@ -12,6 +12,7 @@ import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.fluid.FluidStacksResourceHandler;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
+import net.neoforged.neoforge.transfer.transaction.TransactionContext;
 import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
 import java.util.List;
@@ -153,6 +154,21 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
         }
         ResourceKey<GooTypeDefinition> type = GooFluids.keyOf(resource);
         return type != null && GooTypes.indexOf(type) == index;
+    }
+
+    /**
+     * Takes goo out of a tank, save infinity, which never leaves.
+     * decision infinity-sources-whatever-shares-its-vessel
+     *
+     * @param index       the tank index
+     * @param resource    the fluid resource
+     * @param amount      the mB requested
+     * @param transaction the caller's transaction
+     * @return the mB removed
+     */
+    @Override
+    public int extract(int index, FluidResource resource, int amount, TransactionContext transaction) {
+        return GooTypes.isUnspendable(GooFluids.keyOf(resource)) ? 0 : super.extract(index, resource, amount, transaction);
     }
 
     /**

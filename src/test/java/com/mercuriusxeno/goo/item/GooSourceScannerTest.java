@@ -85,6 +85,22 @@ class GooSourceScannerTest {
         verify(vatItem, never()).drawGoo(any(), any(), anyInt());
     }
 
+    /**
+     * Infinity in a carrier is neither counted as available nor drawn.
+     * decision infinity-sources-whatever-shares-its-vessel
+     */
+    @Test
+    void infinityIsNeitherAvailableNorDrawn() {
+        ItemStack canister = carrierStack(CanisterItem.class);
+        GooCarrierItem carrier = (GooCarrierItem) canister.getItem();
+        doReturn(Map.of(ROCK, HELD, GooTypes.INFINITY, HELD)).when(carrier).gooContents(canister);
+        Player player = playerHolding(canister);
+
+        assertAll(() -> assertEquals(Map.of(ROCK, HELD), GooSourceScanner.aggregateAvailable(player)),
+                () -> assertFalse(GooSourceScanner.hasEnough(player, GooTypes.INFINITY, 1)),
+                () -> assertEquals(0, GooSourceScanner.deplete(player, GooTypes.INFINITY, 1)));
+    }
+
     private static ItemStack carrierStack(Class<? extends Item> type) {
         Item item = mock(type, withSettings().defaultAnswer(CALLS_REAL_METHODS));
         GooCarrierItem carrier = (GooCarrierItem) item;

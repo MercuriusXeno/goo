@@ -179,6 +179,18 @@ public record CanisterFluidContent(List<Portion> portions) {
     }
 
     /**
+     * The volume of one fluid that may leave the canister: all of it, save
+     * infinity, which never leaves.
+     * decision infinity-sources-whatever-shares-its-vessel
+     *
+     * @param resource the fluid resource
+     * @return the volume (mB) an extract may take
+     */
+    public int releasableVolumeOf(FluidResource resource) {
+        return GooTypes.isUnspendable(GooFluids.keyOf(resource)) ? 0 : volumeOf(resource);
+    }
+
+    /**
      * The volume of one goo type.
      *
      * @param type the goo type

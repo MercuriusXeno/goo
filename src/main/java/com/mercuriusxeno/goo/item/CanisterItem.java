@@ -270,7 +270,7 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
      */
     public static int removeFluid(ItemStack stack, FluidResource fluid, int amount) {
         CanisterFluidContent current = getFluidContent(stack);
-        int removed = Math.min(amount, current.volumeOf(fluid));
+        int removed = Math.min(amount, current.releasableVolumeOf(fluid));
         if (removed > 0) {
             setFluidContent(stack, current.withRemoved(fluid, removed));
         }
