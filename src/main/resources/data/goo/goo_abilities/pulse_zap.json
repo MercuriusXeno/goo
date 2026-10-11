@@ -8,6 +8,7 @@
   "delivery": { "kind": "beam", "blocks_per_tick": 64 },
   "behaviors": [
     { "type": "power_pulse" },
+    { "type": "signal_wave", "range": 8, "cone": 40 },
     {
       "type": "entities",
       "radius": 2,

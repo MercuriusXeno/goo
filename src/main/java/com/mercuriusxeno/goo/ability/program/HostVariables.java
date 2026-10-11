@@ -48,6 +48,16 @@ public final class HostVariables {
      * read on the player releasing it (decision nova-ring-grows-with-the-hold).
      */
     public static final String CHARGE = "charge";
+    /**
+     * The age in ticks of the hold a ray's impact lands on, 1 on its first
+     * tick (decision sunbeam-lands-with-impact-and-aim).
+     */
+    public static final String HELD = "held";
+    /**
+     * One when a ray's impact lands on a tick that hits, zero between hits
+     * (decision sunbeam-lands-with-impact-and-aim).
+     */
+    public static final String HIT = "hit";
 
     /**
      * The separator of a namespaced id, which marks a variable name as a
