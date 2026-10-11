@@ -215,7 +215,7 @@ class ProgramHostLoadTest {
                         HostCapability.BREAK_BLOCKS, HostCapability.DRIP, HostCapability.COLONIZE,
                         HostCapability.FLOOR_SCAN, HostCapability.END_GATE, HostCapability.POWER_PULSE,
                         HostCapability.TOGGLE_DEVICE, HostCapability.EXTEND_EFFECTS, HostCapability.TICK_BLOCK,
-                        HostCapability.RAISE_GROUND)),
+                        HostCapability.SHARD_FALL, HostCapability.RAISE_GROUND)),
                 HostKind.MARKER.capabilities());
         assertEquals(Set.of(HostCapability.PLACED_FACE, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
                 HostCapability.PLACE_BLOCK, HostCapability.LINGER, HostCapability.BREAK_BLOCKS, HostCapability.COLONIZE,
@@ -226,7 +226,7 @@ class ProgramHostLoadTest {
                 HostKind.ENTITY.capabilities());
         assertEquals(Set.of(HostCapability.EXPLODE, HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK,
                 HostCapability.BREAK_BLOCKS, HostCapability.DRIP, HostCapability.CONVOKE, HostCapability.TOGGLE_DEVICE,
-                HostCapability.FROST, HostCapability.TICK_BLOCK),
+                HostCapability.FROST, HostCapability.TICK_BLOCK, HostCapability.SHARD_FALL),
                 HostKind.TAP.capabilities());
         assertEquals(Set.of(HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK),
                 HostKind.SURFACE.capabilities());
