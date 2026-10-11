@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.network.BioTests;
 import com.mercuriusxeno.goo.network.BlockLandingTests;
 import com.mercuriusxeno.goo.network.BoreStreamTests;
 import com.mercuriusxeno.goo.network.BrewEffectTests;
+import com.mercuriusxeno.goo.network.ChargedTests;
 import com.mercuriusxeno.goo.network.ChronosphereTests;
 import com.mercuriusxeno.goo.network.ColonizeTests;
 import com.mercuriusxeno.goo.network.DecayStreamTests;
@@ -18,6 +19,7 @@ import com.mercuriusxeno.goo.network.ExtenderTests;
 import com.mercuriusxeno.goo.network.FlattenChannelTests;
 import com.mercuriusxeno.goo.network.FrostAbilityTests;
 import com.mercuriusxeno.goo.network.FungalShiftTests;
+import com.mercuriusxeno.goo.network.GlitterChannelTests;
 import com.mercuriusxeno.goo.network.GloveSelectTests;
 import com.mercuriusxeno.goo.network.GrowthStreamTests;
 import com.mercuriusxeno.goo.network.HeartOverlayTests;
@@ -38,6 +40,8 @@ import com.mercuriusxeno.goo.network.OculusTests;
 import com.mercuriusxeno.goo.network.PetrifyStreamTests;
 import com.mercuriusxeno.goo.network.PulserTapTests;
 import com.mercuriusxeno.goo.network.PulserTests;
+import com.mercuriusxeno.goo.network.GrabChannelTests;
+import com.mercuriusxeno.goo.network.TelekinesisTests;
 import com.mercuriusxeno.goo.network.RadiantChannelTests;
 import com.mercuriusxeno.goo.network.AncientTests;
 import com.mercuriusxeno.goo.network.ExpireTests;
@@ -45,13 +49,16 @@ import com.mercuriusxeno.goo.network.RelayTests;
 import com.mercuriusxeno.goo.network.RepelTests;
 import com.mercuriusxeno.goo.network.ReserveTests;
 import com.mercuriusxeno.goo.network.RewindStreamTests;
+import com.mercuriusxeno.goo.network.ScalesTests;
 import com.mercuriusxeno.goo.network.ScryChannelTests;
 import com.mercuriusxeno.goo.network.SelfDeliveryTests;
+import com.mercuriusxeno.goo.network.ShardsSlingTests;
 import com.mercuriusxeno.goo.network.SpireTests;
 import com.mercuriusxeno.goo.network.StreamDeliveryTests;
 import com.mercuriusxeno.goo.network.SunbeamChannelTests;
 import com.mercuriusxeno.goo.network.TouchDeliveryTests;
 import com.mercuriusxeno.goo.network.UndeadTests;
+import com.mercuriusxeno.goo.network.UnmakeTests;
 import com.mercuriusxeno.goo.network.UpdraftTests;
 import com.mercuriusxeno.goo.network.VinesTests;
 import com.mercuriusxeno.goo.network.ZapTests;
@@ -87,6 +94,10 @@ public final class GooTestFunctions {
     private static final String VALUES_FRESH_AFTER_STOP = "values_fresh_after_stop";
     private static final String GLOVE_TYPE_ONLY_REFUSED = "glove_type_only_refused";
     private static final String GLOVE_GATED_SELECTION_REFUSED = "glove_gated_selection_refused";
+    private static final String RAZOR_HIDDEN_UNTIL_GLASS_AND_SAND = "razor_hidden_until_glass_and_sand";
+    private static final String SHARDS_RAIN_LAYS_INTO_AN_AREA = "shards_rain_lays_into_an_area";
+    private static final String SHARDS_TAP_DAMAGES_PER_COUNT = "shards_tap_damages_per_count";
+    private static final String GLITTER_REVEALS_DIAMOND_AND_LAPIS = "glitter_reveals_diamond_and_lapis";
     private static final String GLOVE_SHIFT_RECOLLECTS_MARKER = "glove_shift_recollects_marker";
     private static final String GLOVE_RECOLLECT_PAYS_CHARGES_LEFT = "glove_recollect_pays_charges_left";
     private static final String GLOVE_RECOLLECT_OF_SPENT_TRAP_PAYS_NOTHING = "glove_recollect_of_spent_trap_pays_nothing";
@@ -181,6 +192,18 @@ public final class GooTestFunctions {
     private static final String LAB_FORGET_RETURNS_TO_NOTHING = "lab_forget_returns_to_nothing";
     private static final String LAB_KIT_TEACHES_NOTHING = "lab_kit_teaches_nothing";
     private static final String LAB_KIT_UNTOUCHED_PLAYER_KNOWS_NOTHING = "lab_kit_untouched_player_knows_nothing";
+    private static final String BLAST_HIDDEN_UNTIL_GUNPOWDER = "blast_hidden_until_gunpowder";
+    private static final String LURKER_PULSES_THEN_EXPLODES = "lurker_pulses_then_explodes";
+    private static final String LURKER_ANSWERS_A_PLAYER = "lurker_answers_a_player";
+    private static final String UNMAKE_DRINKS_A_COLUMN_NOT_THE_WALL = "unmake_drinks_a_column_not_the_wall";
+    private static final String UNMAKE_FINISHES_WHAT_IT_STARTS = "unmake_finishes_what_it_starts";
+    private static final String UNMAKE_FINISHES_AFTER_RELEASE = "unmake_finishes_after_release";
+    private static final String UNMAKE_LEAVES_MOBS_ALONE = "unmake_leaves_mobs_alone";
+    private static final String UNMAKE_OVERFLOW_DROPS_AT_FEET = "unmake_overflow_drops_at_feet";
+    private static final String UNMAKE_TAP_DISSOLVES_BELOW = "unmake_tap_dissolves_below";
+    private static final String CHARGED_LENGTHENS_THE_STREAM = "charged_lengthens_the_stream";
+    private static final String CHARGED_ENDS_WHEN_UNSTABLE_RUNS_DRY = "charged_ends_when_unstable_runs_dry";
+    private static final String UNSTABLE_BREW_CHARGES_FOR_AN_HOUR = "unstable_brew_charges_for_an_hour";
 
     // --- GasketPusher ---
     private static final String PUSHER_EMPTY_RESERVOIR = "pusher_empty_reservoir";
@@ -247,6 +270,10 @@ public final class GooTestFunctions {
     private static final String BLAST_CRATER_INSIDE_SPHERE = "blast_crater_inside_sphere";
     private static final String BLAST_DROPS_EVERY_DIRT = "blast_drops_every_dirt";
     private static final String BLAST_SPARES_ITEMS = "blast_spares_items";
+    private static final String BLAST_DRAG_EXPLODES_AT_THE_PIN = "blast_drag_explodes_at_the_pin";
+    private static final String BLAST_DRAG_PRICES_BY_VOLUME = "blast_drag_prices_by_volume";
+    private static final String BLAST_DRAG_CAPS_AT_THE_HOLDINGS = "blast_drag_caps_at_the_holdings";
+    private static final String BLAST_DRAG_NEEDS_GUNPOWDER = "blast_drag_needs_gunpowder";
     private static final String FX_CLOUD_BLOCK_GOES = "fx_cloud_block_goes";
     private static final String FX_TRAP_BLOCK_GOES = "fx_trap_block_goes";
     private static final String FX_CRYSTAL_GROWS = "fx_crystal_grows";
@@ -314,7 +341,6 @@ public final class GooTestFunctions {
     private static final String PL_OTHER_ABILITY_THROW_LEAVES_MARKER = "pl_other_ability_throw_leaves_marker";
     private static final String PL_SECOND_THROW_COSTS_THE_SAME = "pl_second_throw_costs_the_same";
     private static final String PRISM_GROWS_ON_THE_FACE = "prism_grows_on_the_face";
-    private static final String PRISM_REFUSED_WITHOUT_QUARTZ = "prism_refused_without_quartz";
     private static final String PRISM_COMBO_RUNS_THE_TYPE_PRISM_ABILITY = "prism_combo_runs_the_type_prism_ability";
     private static final String HIVE_EATS_THE_APPROACHER = "hive_eats_the_approacher";
     private static final String PRISM_COMBO_RUNS_ON_PRISM_BEHAVIORS = "prism_combo_runs_on_prism_behaviors";
@@ -384,6 +410,9 @@ public final class GooTestFunctions {
     private static final String IX_VAT_STREAM_HOLDS = "ix_vat_stream_holds";
     private static final String IX_CRUCIBLE_TOPS_UP_CANISTER = "ix_crucible_tops_up_canister";
     private static final String IX_VAT_UNPACKS_EVERY_TYPE = "ix_vat_unpacks_every_type";
+    private static final String INFINITY_FEEDS_THE_VAT = "infinity_feeds_the_vat";
+    private static final String INFINITY_FEEDS_THE_CRUCIBLE = "infinity_feeds_the_crucible";
+    private static final String INFINITY_FEEDS_THE_CANISTER_SLOT = "infinity_feeds_the_canister_slot";
 
     // --- Machines ---
     private static final String MACHINE_CANISTER_INSERT = "machine_canister_insert";
@@ -497,9 +526,18 @@ public final class GooTestFunctions {
     private static final String DIVE_LANDS = "dive_lands_in_the_cave_below";
     private static final String CHURN_SWAPS = "churn_swaps_the_layers";
     private static final String END_LAYS = "end_lays_a_temporary_portal";
+    private static final String ASTRAL_GATE_ROUND_TRIP = "astral_gate_round_trip";
+    private static final String METEO_STRIKES = "meteo_strikes_under_clear_sky";
+    private static final String METEO_FIZZLES = "meteo_fizzles_under_a_roof";
     private static final String BLINK_SNAPS_TO_OCULUS = "blink_snaps_to_oculus";
     private static final String OCULUS_COSTS_A_TENTH = "oculus_blink_costs_a_tenth";
     private static final String FLATTEN_BREAKS_ABOVE_THE_PLANE = "flatten_breaks_above_the_plane";
+    private static final String GRAB_SUSPENDS_THE_ZOMBIE = "grab_suspends_the_zombie";
+    private static final String GRAB_PITCH_DRAWS_CLOSER = "grab_pitch_draws_closer";
+    private static final String GRAB_THROWS_ALONG_THE_LOOK = "grab_throws_along_the_look";
+    private static final String GRAB_THROWS_AN_ITEM = "grab_throws_an_item";
+    private static final String TELEKINESIS_BREAKS_BEYOND_REACH = "telekinesis_breaks_beyond_reach";
+    private static final String TELEKINESIS_HITS_BEYOND_REACH = "telekinesis_hits_beyond_reach";
     private static final String FLATTEN_SHAVES_A_WALL = "flatten_shaves_a_wall";
     private static final String SCRY_GLISTENS_THE_HIDDEN_ZOMBIE = "scry_glistens_the_hidden_zombie";
     private static final String BORE_CUTS_A_TUNNEL = "bore_cuts_a_tunnel";
@@ -526,7 +564,6 @@ public final class GooTestFunctions {
     private static final String REFLECTORS_LINK_LIGHT_AND_BURN = "reflectors_link_light_and_burn";
     private static final String RADIANT_TAP_SKIPS_A_LIT_ROOM = "radiant_tap_skips_a_lit_room";
     private static final String VITALITY_HEALS = "vitality_heals_cow_and_caster";
-    private static final String MOB_CRYSTAL = "mob_crystal_flechettes";
     private static final String VINES_ROOT_AND_THORN = "vines_root_and_thorn";
     private static final String BLOOM_PLANTS = "bloom_plants_water_wall_and_ground";
     private static final String GROWTH_MATURES_WHEAT = "growth_matures_wheat";
@@ -559,6 +596,8 @@ public final class GooTestFunctions {
     private static final String ICEBORN_FREEZES_SURROUNDINGS = "iceborn_freezes_surroundings";
     private static final String ICEBORN_THAWS_ON_FIRE = "iceborn_thaws_on_fire";
     private static final String BREW_FROST_ICEBORN = "brew_frost_iceborn_for_an_hour";
+    private static final String BREW_CRYSTAL_SCALES = "brew_crystal_scales_for_an_hour";
+    private static final String SCALES_ABSORBS_BEFORE_HEALTH = "scales_absorbs_before_health";
     private static final String FLOAT_LEVITATES_A_ZOMBIE = "float_levitates_a_zombie";
     private static final String SUNBEAM_REFRACTS_TO_THREE = "sunbeam_refracts_to_three";
     private static final String RADIANT_LIGHTS_A_DARK_ROOM = "radiant_lights_a_dark_room";
@@ -731,6 +770,10 @@ public final class GooTestFunctions {
         reg(r, TYPES_MARKER_RELOADS, GooTypeRegistryTests::abilityBlockReloadsType);
         reg(r, GLOVE_TYPE_ONLY_REFUSED, GloveSelectTests::typeOnlySelectionRefused);
         reg(r, GLOVE_GATED_SELECTION_REFUSED, GloveSelectTests::gatedSelectionRefusedWithoutTheRecipe);
+        reg(r, RAZOR_HIDDEN_UNTIL_GLASS_AND_SAND, GloveSelectTests::razorHiddenUntilGlassAndSand);
+        reg(r, SHARDS_RAIN_LAYS_INTO_AN_AREA, ShardsSlingTests::shardsRainLaysIntoAnArea);
+        reg(r, SHARDS_TAP_DAMAGES_PER_COUNT, ShardsTapTests::shardsTapDamagesPerCount);
+        reg(r, GLITTER_REVEALS_DIAMOND_AND_LAPIS, GlitterChannelTests::glitterRevealsDiamondAndLapis);
         reg(r, GLOVE_SHIFT_RECOLLECTS_MARKER, GloveRecollectTests::shiftClickRecollectsMarker);
         reg(r, GLOVE_RECOLLECT_PAYS_CHARGES_LEFT, GloveRecollectTests::recollectPaysTheChargesLeft);
         reg(r, GLOVE_RECOLLECT_OF_SPENT_TRAP_PAYS_NOTHING, GloveRecollectTests::recollectOfASpentTrapPaysNothing);
@@ -851,7 +894,6 @@ public final class GooTestFunctions {
         reg(r, FX_OTHER_ABILITY_MARKS_CRYSTAL, EffectExecutorTests::otherAbilityMarksCrystal);
         reg(r, FX_NO_ABILITY_LANDS_NOTHING, BlockLandingTests::noAbilityLandsNothing);
         reg(r, PRISM_GROWS_ON_THE_FACE, PrismTests::prismGrowsOnTheFace);
-        reg(r, PRISM_REFUSED_WITHOUT_QUARTZ, PrismTests::prismRefusedWithoutQuartz);
         reg(r, PRISM_COMBO_RUNS_THE_TYPE_PRISM_ABILITY, PrismComboTests::comboRunsTheTypePrismAbility);
         reg(r, HIVE_EATS_THE_APPROACHER, HiveTests::hiveEatsTheApproacher);
         reg(r, PRISM_COMBO_RUNS_ON_PRISM_BEHAVIORS, PrismComboTests::comboRunsOnPrismBehaviors);
@@ -866,6 +908,10 @@ public final class GooTestFunctions {
         reg(r, BLAST_CRATER_INSIDE_SPHERE, GooExplosionTests::blastCraterStaysInsideItsSphere);
         reg(r, BLAST_DROPS_EVERY_DIRT, GooExplosionTests::blastDropsEveryDirtItBreaks);
         reg(r, BLAST_SPARES_ITEMS, GooExplosionTests::blastSparesItemsInItsSphere);
+        reg(r, BLAST_DRAG_EXPLODES_AT_THE_PIN, BlastDragTests::blastDragExplodesAtThePinAtTheDraggedRadius);
+        reg(r, BLAST_DRAG_PRICES_BY_VOLUME, BlastDragTests::blastDragPricesByVolume);
+        reg(r, BLAST_DRAG_CAPS_AT_THE_HOLDINGS, BlastDragTests::blastDragCapsAtTheHoldings);
+        reg(r, BLAST_DRAG_NEEDS_GUNPOWDER, BlastDragTests::blastDragNeedsGunpowder);
         reg(r, FX_CLOUD_BLOCK_GOES, EffectExecutorTests::crystalCloudBlockGoesWithItsProgram);
         reg(r, FX_TRAP_BLOCK_GOES, EffectExecutorTests::metalTrapBlockGoesWithItsProgram);
     }
@@ -901,6 +947,9 @@ public final class GooTestFunctions {
         reg(r, IX_VAT_STREAM_HOLDS, VatStreamTests::gooClickHoldsStream);
         reg(r, IX_CRUCIBLE_TOPS_UP_CANISTER, DrainIntoInventoryTests::crucibleTopsUpCarriedCanister);
         reg(r, IX_VAT_UNPACKS_EVERY_TYPE, DrainIntoInventoryTests::vatUnpacksEveryTypeIntoInventory);
+        reg(r, INFINITY_FEEDS_THE_VAT, InfinityTests::infinityFeedsTheVat);
+        reg(r, INFINITY_FEEDS_THE_CRUCIBLE, InfinityTests::infinityFeedsTheCrucible);
+        reg(r, INFINITY_FEEDS_THE_CANISTER_SLOT, InfinityTests::infinityFeedsTheCanisterSlot);
     }
 
     private static void registerCrucibleTests(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> r) {
@@ -1087,10 +1136,19 @@ public final class GooTestFunctions {
         reg(r, DIVE_LANDS, DiveTests::diveLandsInTheCaveBelow);
         reg(r, CHURN_SWAPS, ChurnTests::churnSwapsTheLayers);
         reg(r, END_LAYS, EndGateTests::endLaysATemporaryPortal);
+        reg(r, ASTRAL_GATE_ROUND_TRIP, AstralGateTests::astralGateRoundTrip);
+        reg(r, METEO_STRIKES, MeteoTests::meteoStrikesUnderClearSky);
+        reg(r, METEO_FIZZLES, MeteoTests::meteoFizzlesUnderARoof);
         reg(r, BLINK_SNAPS_TO_OCULUS, OculusTests::blinkSnapsToOculus);
         reg(r, OCULUS_COSTS_A_TENTH, OculusTests::oculusBlinkCostsATenth);
         reg(r, FLATTEN_BREAKS_ABOVE_THE_PLANE, FlattenChannelTests::flattenBreaksAboveThePlane);
         reg(r, FLATTEN_SHAVES_A_WALL, FlattenChannelTests::flattenShavesAWall);
+        reg(r, GRAB_SUSPENDS_THE_ZOMBIE, GrabChannelTests::grabSuspendsTheZombie);
+        reg(r, GRAB_PITCH_DRAWS_CLOSER, GrabChannelTests::grabPitchDrawsCloser);
+        reg(r, GRAB_THROWS_ALONG_THE_LOOK, GrabChannelTests::grabThrowsAlongTheLook);
+        reg(r, GRAB_THROWS_AN_ITEM, GrabChannelTests::grabThrowsAnItem);
+        reg(r, TELEKINESIS_BREAKS_BEYOND_REACH, TelekinesisTests::telekinesisBreaksBeyondReach);
+        reg(r, TELEKINESIS_HITS_BEYOND_REACH, TelekinesisTests::telekinesisHitsBeyondReach);
         reg(r, SCRY_GLISTENS_THE_HIDDEN_ZOMBIE, ScryChannelTests::scryGlistensTheHiddenZombie);
         reg(r, BORE_CUTS_A_TUNNEL, BoreStreamTests::boreCutsATunnel);
         reg(r, STONESKIN_ROUTES_HITS, StoneskinRoutingTests::stoneskinRoutesHitsBySource);
@@ -1116,7 +1174,6 @@ public final class GooTestFunctions {
         reg(r, REFLECTORS_LINK_LIGHT_AND_BURN, ReflectorTests::reflectorsLinkLightAndBurn);
         reg(r, RADIANT_TAP_SKIPS_A_LIT_ROOM, RadiantTapTests::radiantTapSkipsALitRoom);
         reg(r, VITALITY_HEALS, StreamDeliveryTests::vitalityHealsCowAndCaster);
-        reg(r, MOB_CRYSTAL, MobEffectTests::crystalFlechettes);
         reg(r, VINES_ROOT_AND_THORN, VinesTests::vinesRootAndThorn);
         reg(r, BLOOM_PLANTS, BloomTests::bloomPlantsWaterWallAndGround);
         reg(r, GROWTH_MATURES_WHEAT, GrowthStreamTests::growthMaturesWheat);
@@ -1149,6 +1206,8 @@ public final class GooTestFunctions {
         reg(r, ICEBORN_FREEZES_SURROUNDINGS, FrostAbilityTests::icebornFreezesSurroundings);
         reg(r, ICEBORN_THAWS_ON_FIRE, FrostAbilityTests::icebornThawsOnFire);
         reg(r, BREW_FROST_ICEBORN, BrewEffectTests::frostBrewIcebornForAnHour);
+        reg(r, BREW_CRYSTAL_SCALES, BrewEffectTests::crystalBrewScalesForAnHour);
+        reg(r, SCALES_ABSORBS_BEFORE_HEALTH, ScalesTests::scalesAbsorbsBeforeHealth);
         reg(r, FLOAT_LEVITATES_A_ZOMBIE, MobEffectTests::floatLevitatesAZombie);
         reg(r, SUNBEAM_REFRACTS_TO_THREE, SunbeamChannelTests::sunbeamRefractsToThree);
         reg(r, RADIANT_LIGHTS_A_DARK_ROOM, RadiantChannelTests::radiantLightsADarkRoom);
@@ -1221,6 +1280,18 @@ public final class GooTestFunctions {
         reg(r, LAB_FORGET_RETURNS_TO_NOTHING, LabKitKnowledgeTests::forgetReturnsToKnowingNothing);
         reg(r, LAB_KIT_TEACHES_NOTHING, LabKitKnowledgeTests::kitTeachesNothing);
         reg(r, LAB_KIT_UNTOUCHED_PLAYER_KNOWS_NOTHING, LabKitKnowledgeTests::untouchedPlayerKnowsNothing);
+        reg(r, BLAST_HIDDEN_UNTIL_GUNPOWDER, BlastGateTests::blastHiddenUntilGunpowder);
+        reg(r, LURKER_PULSES_THEN_EXPLODES, LurkerTests::lurkerPulsesThenExplodes);
+        reg(r, LURKER_ANSWERS_A_PLAYER, LurkerTests::lurkerAnswersAPlayer);
+        reg(r, UNMAKE_DRINKS_A_COLUMN_NOT_THE_WALL, UnmakeTests::unmakeDrinksAColumnNotTheWall);
+        reg(r, UNMAKE_FINISHES_WHAT_IT_STARTS, UnmakeTests::unmakeFinishesWhatItStarts);
+        reg(r, UNMAKE_FINISHES_AFTER_RELEASE, UnmakeTests::unmakeFinishesAfterRelease);
+        reg(r, UNMAKE_LEAVES_MOBS_ALONE, UnmakeTests::unmakeLeavesMobsAlone);
+        reg(r, UNMAKE_OVERFLOW_DROPS_AT_FEET, UnmakeTests::unmakeOverflowDropsAtFeet);
+        reg(r, UNMAKE_TAP_DISSOLVES_BELOW, UnmakeTapTests::unmakeTapDissolvesBelow);
+        reg(r, CHARGED_LENGTHENS_THE_STREAM, ChargedTests::chargedLengthensTheStream);
+        reg(r, CHARGED_ENDS_WHEN_UNSTABLE_RUNS_DRY, ChargedTests::chargedEndsWhenUnstableRunsDry);
+        reg(r, UNSTABLE_BREW_CHARGES_FOR_AN_HOUR, BrewEffectTests::unstableBrewChargesForAnHour);
     }
 
     /**

@@ -250,4 +250,15 @@ class CrystallizerPhasesTest {
             assertEquals(0, CrystallizerPhases.demand(500, null, true));
         }
     }
+
+    /**
+     * Infinity never grows, so a canister holding more infinity than blaze grows its blaze.
+     * decision infinity-sources-whatever-shares-its-vessel
+     */
+    @Test
+    void infinityIsNeverTheGoo() {
+        assertEquals(new Held(GooTypes.BLAZE, 10),
+                CrystallizerPhases.heldIn(java.util.Map.of(GooTypes.INFINITY, 1_000, GooTypes.BLAZE, 10)));
+        assertFalse(CrystallizerPhases.heldIn(java.util.Map.of(GooTypes.INFINITY, 1_000)).holdsGoo());
+    }
 }

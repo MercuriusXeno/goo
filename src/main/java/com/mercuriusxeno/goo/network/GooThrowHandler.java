@@ -5,11 +5,14 @@ import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.AbilityTags;
+import com.mercuriusxeno.goo.ability.ArmPoseKind;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.aging.Aging;
 import com.mercuriusxeno.goo.ability.aging.AgingTable;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
+import com.mercuriusxeno.goo.ability.program.TargetGatedStep;
+import com.mercuriusxeno.goo.ability.world.MeteorSky;
 import com.mercuriusxeno.goo.entity.RollingGoo;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -97,7 +100,9 @@ public final class GooThrowHandler {
     }
 
     /**
-     * Fires a charged ability the player let go, when it may.
+     * Fires a charged ability the player let go, when it may: a self ability
+     * on the player, a thrown one as a rain of glass knives.
+     * decision shards-sling-then-morph-to-flechettes
      *
      * @param player  the releasing player
      * @param payload the charge payload
@@ -109,8 +114,45 @@ public final class GooThrowHandler {
         }
         AbilityDefinition ability = usableAbility(player, payload.abilityId(), gooType);
         if (ability != null && holdsReagents(player, ability)) {
-            GooSelfHandler.release(player, gooType, ability, payload.heldTicks());
+            fireCharge(player, gooType, ability, payload.heldTicks());
         }
+    }
+
+    /**
+     * Fires a released charge by its delivery: on the player for a self
+     * ability, as a rain of glass knives for a thrown one that slings.
+     *
+     * @param player    the releasing player
+     * @param gooType   the ability's goo type
+     * @param ability   the charged ability
+     * @param heldTicks the ticks the use key was held
+     */
+    private static void fireCharge(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
+                                   AbilityDefinition ability, int heldTicks) {
+        if (ability.delivery().kind() == DeliveryKind.SELF) {
+            GooSelfHandler.release(player, gooType, ability, heldTicks);
+        } else if (ability.delivery().charge().slings()) {
+            KnifeRainSling.sling(player, gooType, ability, heldTicks);
+        }
+    }
+
+    /**
+     * Handles a player beginning or ending a slinging charge's hold: the
+     * players watching draw the glove arm wound up to the opposite shoulder
+     * while it is held, and let it fall when it ends.
+     * decision shards-sling-then-morph-to-flechettes
+     *
+     * @param payload the hold payload
+     * @param context the network context
+     */
+    public static void handleChargeHold(ChargeHoldPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (context.player() instanceof ServerPlayer player && validateGlove(player)) {
+                EntityVisuals.sendToTrackers(player, new ArmPosePayload(player.getId(),
+                        payload.holding() ? ArmPoseKind.WIND_UP : ArmPoseKind.NONE,
+                        KnifeRainSling.gloveOnTheRight(player)));
+            }
+        });
     }
 
     /**
@@ -120,8 +162,10 @@ public final class GooThrowHandler {
      * ability aimed at an entity within reach touches it at once instead,
      * and a self ability runs on the player: on command, or after the eat
      * for a self + brew ability. A throw naming no ability the player may
-     * use, or consuming an item the player lacks, is refused whole, draining nothing.
+     * use, or consuming an item the player lacks, is refused whole, draining nothing,
+     * and so is one whose ability refuses the aimed cell, which fizzles there.
      * decision mob-ability-touches-at-reach
+     * decision meteo-needs-a-clear-sky
      * decision self-delivery-runs-on-player
      * decision self-brew-goos-eat-before-the-effect
      * decision ability-hidden-until-recipes-known
@@ -141,9 +185,68 @@ public final class GooThrowHandler {
             }
             return;
         }
-        if (throwable(player, ability)) {
+        if (cleared(player, payload, ability)) {
             deliver(player, payload, gooType, ability);
         }
+    }
+
+    /**
+     * Whether a throw goes ahead: the ability is throwable and its aimed cell
+     * does not make it fizzle.
+     *
+     * @param player  the throwing player
+     * @param payload the throw payload data
+     * @param ability the thrown ability
+     * @return true when the throw is delivered
+     */
+    private static boolean cleared(ServerPlayer player, GooThrowPayload payload, AbilityDefinition ability) {
+        return throwable(player, ability) && !fizzlesAtTarget(player, payload, ability);
+    }
+
+    /**
+     * Fizzles a throw at its aimed cell when a step of its ability refuses
+     * that cell, before anything is paid.
+     * decision meteo-needs-a-clear-sky
+     *
+     * @param player  the throwing player
+     * @param payload the throw payload data
+     * @param ability the thrown ability
+     * @return true when the throw fizzled
+     */
+    private static boolean fizzlesAtTarget(ServerPlayer player, GooThrowPayload payload, AbilityDefinition ability) {
+        BlockPos cell = aimedCell(payload);
+        boolean refused = refusesTarget(player.level(), cell, ability);
+        if (refused) {
+            MeteorSky.fizzle(player.level(), cell);
+        }
+        return refused;
+    }
+
+    /**
+     * The cell a throw at a block lands in: the one in front of the struck face.
+     *
+     * @param payload the throw payload data
+     * @return the cell in front of the face, or above the block for a payload naming no face
+     */
+    static BlockPos aimedCell(GooThrowPayload payload) {
+        Direction face = directionFromOrdinal(payload.targetFace());
+        return payload.targetPos().relative(face == null ? Direction.UP : face);
+    }
+
+    /**
+     * Whether a step of the ability refuses the aimed cell, so the throw
+     * fizzles before it is paid for; Meteo refuses a cell with no clear path
+     * to the sky.
+     * decision meteo-needs-a-clear-sky
+     *
+     * @param level   the level thrown in
+     * @param cell    the cell the throw would land in
+     * @param ability the thrown ability
+     * @return true when a step refuses the cell
+     */
+    static boolean refusesTarget(ServerLevel level, BlockPos cell, AbilityDefinition ability) {
+        return ability.behaviors().stream().anyMatch(step -> step instanceof TargetGatedStep gated
+                && !gated.admitsTarget(level, cell));
     }
 
     /**
