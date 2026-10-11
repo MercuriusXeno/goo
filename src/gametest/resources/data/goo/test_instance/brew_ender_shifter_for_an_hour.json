@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:dragon_gate_lays_a_temporary_portal",
+  "function": "goo:brew_ender_shifter_for_an_hour",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 20,
+  "max_ticks": 40,
   "setup_ticks": 0,
   "required": true
 }
