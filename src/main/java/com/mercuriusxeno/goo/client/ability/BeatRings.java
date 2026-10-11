@@ -17,19 +17,19 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Thumper's pulse mark: each time a thumper blob gives power, red shock
- * rings leave the blob flat against the face it sits on, expanding and
- * fading over half a second.
- * thumper-blob-pulses-periodically-then-fades
+ * Metronome's beat mark: each time the prism gives power, red shock rings
+ * leave its base flat against the face it sits on, expanding and fading
+ * over half a second.
+ * metronome-prism-pulses-at-the-learned-rate
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
-public final class ThumpRings {
+public final class BeatRings {
 
-    /** Seconds a thump's rings stand, from the pulse until they fade out. */
+    /** Seconds a beat's rings stand, from the pulse until they fade out. */
     static final double LIFETIME_SECONDS = 0.5;
-    /** A ring's radius as it leaves the blob, in blocks. */
+    /** A ring's radius as it leaves the prism, in blocks. */
     static final double START_RADIUS = 0.2;
-    /** A ring's radius as it fades out, in blocks: the reach of the blob's power to the blocks beside it. */
+    /** A ring's radius as it fades out, in blocks: the reach of the prism's power to the blocks beside it. */
     static final double END_RADIUS = 1.0;
     /** The second ring trails the first by this share of the lifetime. */
     private static final double TRAIL_SHARE = 0.3;
@@ -37,67 +37,67 @@ public final class ThumpRings {
     private static final int RING_RGB = 0xE0301E;
     private static final float PEAK_ALPHA = 230f;
     private static final float WIDTH_SCALE = 2f;
-    /** How far the rings stand off the face, so they sit on the blob rather than in the block. */
+    /** How far the rings stand off the face, so they sit on the prism rather than in the block. */
     private static final double FACE_LIFT = 0.12;
     private static final double BLOCK_CENTER = 0.5;
     private static final double NANOS_PER_SECOND = 1_000_000_000.0;
 
-    /** Each pulsing blob's last pulse, kept until its rings fade. */
-    private static final Map<BlockPos, Thump> THUMPS = new ConcurrentHashMap<>();
+    /** Each beating prism's last pulse, kept until its rings fade. */
+    private static final Map<BlockPos, Beat> BEATS = new ConcurrentHashMap<>();
 
-    private ThumpRings() {
+    private BeatRings() {
     }
 
     /**
-     * One pulse a blob gave.
+     * One beat a prism gave.
      *
-     * @param face        the face the blob sits on
-     * @param bornSeconds the real-time clock at the pulse
+     * @param face        the face the prism sits on
+     * @param bornSeconds the real-time clock at the beat
      */
-    record Thump(Direction face, double bornSeconds) {
+    record Beat(Direction face, double bornSeconds) {
     }
 
     /**
-     * Notes a blob's powered state as the renderer reads it: a blob found
-     * powered with no thump standing starts one.
+     * Notes a prism's powered state as the renderer reads it: a prism found
+     * powered with no beat standing starts one.
      *
-     * @param pos     the blob's block
-     * @param face    the face the blob sits on
-     * @param powered whether the blob gives power now
+     * @param pos     the prism's block
+     * @param face    the face the prism sits on
+     * @param powered whether the prism gives power now
      */
     public static void see(BlockPos pos, Direction face, boolean powered) {
         if (powered) {
             double now = nowSeconds();
-            THUMPS.compute(pos.immutable(), (key, thump) -> thump == null || startsAnew(now - thump.bornSeconds())
-                    ? new Thump(face, now) : thump);
+            BEATS.compute(pos.immutable(), (key, beat) -> beat == null || startsAnew(now - beat.bornSeconds())
+                    ? new Beat(face, now) : beat);
         }
     }
 
     /**
-     * Whether a powered blob starts a new thump: once the last one's rings
-     * have faded, so one pulse, read on many frames, thumps once.
+     * Whether a powered prism starts a new beat: once the last one's rings
+     * have faded, so one pulse, read on many frames, rings once.
      *
-     * @param sinceLast seconds since the blob's last thump
-     * @return true when the last thump has faded
+     * @param sinceLast seconds since the prism's last beat
+     * @return true when the last beat has faded
      */
     static boolean startsAnew(double sinceLast) {
         return sinceLast >= LIFETIME_SECONDS;
     }
 
-    /** Drops every thump, as a disconnect does. */
+    /** Drops every beat, as a disconnect does. */
     public static void clear() {
-        THUMPS.clear();
+        BEATS.clear();
     }
 
     /**
-     * Draws each standing thump after the translucent blocks and drops the faded ones.
+     * Draws each standing beat after the translucent blocks and drops the faded ones.
      *
      * @param event the level render stage event
      */
     @SubscribeEvent
     public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
         Minecraft mc = Minecraft.getInstance();
-        if (THUMPS.isEmpty() || mc.level == null) {
+        if (BEATS.isEmpty() || mc.level == null) {
             return;
         }
         double now = nowSeconds();
@@ -105,13 +105,13 @@ public final class ThumpRings {
         LineContext lines = new LineContext(event.getPoseStack().last(), buffers.getBuffer(GooRenderTypes.LINES_GLOW));
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
         float width = mc.getWindow().getAppropriateLineWidth() * WIDTH_SCALE;
-        THUMPS.forEach((pos, thump) -> {
-            double share = (now - thump.bornSeconds()) / LIFETIME_SECONDS;
+        BEATS.forEach((pos, beat) -> {
+            double share = (now - beat.bornSeconds()) / LIFETIME_SECONDS;
             if (share >= 1 + TRAIL_SHARE) {
-                THUMPS.remove(pos, thump);
+                BEATS.remove(pos, beat);
             } else {
-                drawRing(lines, pos, thump.face(), share, camera, width);
-                drawRing(lines, pos, thump.face(), share - TRAIL_SHARE, camera, width);
+                drawRing(lines, pos, beat.face(), share, camera, width);
+                drawRing(lines, pos, beat.face(), share - TRAIL_SHARE, camera, width);
             }
         });
         buffers.endBatch(GooRenderTypes.LINES_GLOW);
@@ -130,7 +130,7 @@ public final class ThumpRings {
     }
 
     /**
-     * A ring's opacity along its life: full as it leaves the blob, fading
+     * A ring's opacity along its life: full as it leaves the prism, fading
      * steadily to nothing; unseen before it starts.
      *
      * @param share the share of the ring's life, 0 at the pulse
@@ -141,7 +141,7 @@ public final class ThumpRings {
     }
 
     /**
-     * A ring's radius along its life: small at the blob, expanding out.
+     * A ring's radius along its life: small at the prism, expanding out.
      *
      * @param share the share of the ring's life, 0 at the pulse
      * @return the radius in blocks

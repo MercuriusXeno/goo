@@ -48,6 +48,13 @@ public final class AbilityTags {
      */
     public static final String DRAG_SIZED = "drag_sized";
 
+    /**
+     * A held ability whose aim follows the mob the aim assist locks and
+     * outlines, as a thrown blob's does, rather than the bare crosshair
+     * (decision sunbeam-lands-with-impact-and-aim).
+     */
+    public static final String LOCKS_ON = "locks_on";
+
     private AbilityTags() {
     }
 }

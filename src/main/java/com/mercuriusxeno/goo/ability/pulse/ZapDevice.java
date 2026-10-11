@@ -1,8 +1,13 @@
 package com.mercuriusxeno.goo.ability.pulse;
 
+import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.ButtonBlock;
@@ -19,12 +24,14 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * How Zap ticks the block its blob landed on, one row per kind of device:
- * a lever, button, door, trapdoor or fence gate toggles as a hand would, a
- * repeater fires one pulse, and any other block takes a full-power source in
- * the landing cell for a moment, so Zap is a one-pulse redstone block on
- * whatever it hits.
+ * How Zap ticks the redstone device its blob landed on, one row per kind of
+ * device: a lever, button, door, trapdoor or fence gate toggles as a hand
+ * would, a repeater fires one pulse, and a redstone receiver in the
+ * {@code goo:zap_receivers} tag takes a full-power source in the landing cell
+ * for a moment. Any other block is no device, and the Zap disperses into the
+ * Signal wave there instead.
  * zap-ticks-the-device-and-stuns
+ * zap-disperses-into-signal
  */
 public enum ZapDevice {
     /** A lever flips. */
@@ -74,7 +81,7 @@ public enum ZapDevice {
         }
     },
     /**
-     * Any other block takes a full-power source in the empty landing cell
+     * A redstone receiver takes a full-power source in the empty landing cell
      * beside it, which powers the dust, lamp, piston or dispenser it touches
      * and removes itself; a cell holding anything takes none.
      */
@@ -88,8 +95,16 @@ public enum ZapDevice {
     };
 
     /**
-     * The block classes with a row of their own; every other block takes the
-     * power source. No block descends from two of them, so the order they
+     * The redstone receivers a Zap powers through the power source: dust,
+     * lamps, pistons and the like, which read power and take no hand
+     * (decision zap-disperses-into-signal).
+     */
+    public static final TagKey<Block> RECEIVERS =
+            TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(Goo.MODID, "zap_receivers"));
+
+    /**
+     * The block classes with a row of their own; every other block falls
+     * under the power source. No block descends from two of them, so the order they
      * are read in decides nothing.
      */
     private static final List<Row> TOGGLES = List.of(
@@ -132,10 +147,46 @@ public enum ZapDevice {
     }
 
     /**
+     * The block a Zap landed on: the landing cell's own block where the blob
+     * landed in place, the struck block where it landed in the empty cell
+     * beside it.
+     *
+     * @param level the level
+     * @param cell  the cell the blob landed in
+     * @param face  the struck block's face the blob landed on
+     * @return the landed-on block
+     */
+    public static BlockPos landedOn(BlockGetter level, BlockPos cell, Direction face) {
+        return level.getBlockState(cell).isAir() ? cell.relative(face.getOpposite()) : cell;
+    }
+
+    /**
+     * Whether a Zap ticks the block as a redstone device rather than
+     * dispersing into the Signal wave (decision zap-disperses-into-signal).
+     *
+     * @param state the landed-on block's state
+     * @return true for a block with a row of its own or a redstone receiver
+     */
+    public static boolean ticks(BlockState state) {
+        return ticks(of(state.getBlock().getClass()), state.is(RECEIVERS));
+    }
+
+    /**
+     * Whether a Zap ticks a block, read off its row and the receiver tag.
+     *
+     * @param row      the block's row
+     * @param receiver whether the block stands in {@link #RECEIVERS}
+     * @return true for a row of its own, or the power source's row on a receiver
+     */
+    static boolean ticks(ZapDevice row, boolean receiver) {
+        return row != POWER_SOURCE || receiver;
+    }
+
+    /**
      * The device a hand could toggle standing at a block, named by the block
      * that toggles it: a door's lower half for either half, so a wave
-     * crossing both halves toggles the door once. Signal's wave toggles these
-     * and nothing else (decision signal-wave-toggles-each-device-once).
+     * crossing both halves toggles the door once. Zap's Signal wave toggles
+     * these and nothing else (decision zap-disperses-into-signal).
      *
      * @param level the level
      * @param pos   the block
