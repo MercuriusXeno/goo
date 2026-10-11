@@ -2402,4 +2402,30 @@ class GooValueRegistryTest {
             assertFalse(registry.table().isRestricted(id("minecraft:coal_ore")));
         }
     }
+
+    @Nested
+    class ShippedOpulentSources {
+
+        private static final String SHIPPED_BASE_VALUES = "/data/goo/goo_values/base_values.json";
+
+        /**
+         * The shipped base_values.json values gold, emeralds, diamonds and
+         * honey in opulent.
+         * decision opulent-ships-from-things-of-worth
+         */
+        @Test
+        void goldEmeraldDiamondAndHoneyResolveOpulent() throws IOException {
+            try (java.io.InputStream in = GooValueRegistryTest.class.getResourceAsStream(SHIPPED_BASE_VALUES)) {
+                assertNotNull(in, SHIPPED_BASE_VALUES);
+                parseBaseValuesFromStream(in);
+            }
+            copyBaseToEffective();
+            for (String item : List.of("minecraft:gold_ingot", "minecraft:emerald", "minecraft:diamond",
+                    "minecraft:honey_bottle")) {
+                GooValue value = registry.table().lookup(id(item));
+                assertNotNull(value, item);
+                assertTrue(value.get(GooTypes.OPULENT) > 0, item + " carries no opulent: " + value);
+            }
+        }
+    }
 }
