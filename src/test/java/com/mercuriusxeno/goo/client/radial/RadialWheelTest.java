@@ -22,6 +22,8 @@ class RadialWheelTest {
     private static final int TYPES = 26;
     private static final int OPEN_TYPE = 3;
     private static final int ABILITIES = 4;
+    /** Fourteen 30-degree petals would take more than the whole ring. */
+    private static final int MORE_ABILITIES_THAN_FIT = 14;
     private static final int NEIGHBORS = 2 * RadialWheel.NEIGHBORS_A_SIDE;
     /** The fewest types a wheel hides none of while one is open: the open type and six either side. */
     private static final int WINDOW_TYPES = NEIGHBORS + 1;
@@ -127,6 +129,38 @@ class RadialWheelTest {
             assertAll(abilities.stream().map(petal -> (Executable)
                     () -> assertEquals(Math.toRadians(30.0), petal.arc(), EPSILON)));
             assertEquals(TWO_PI - ABILITIES * Math.toRadians(30.0), neighbors, EPSILON);
+        }
+
+        /** decision neighbors-fisheye-from-the-open-type */
+        @Test
+        void neighborsNarrowWithDistanceAndMatchAcrossTheOpenType() {
+            List<RadialWheel.PetalArc> petals = opened(ABILITIES).layout();
+
+            double nearest = typePetal(petals, stepsFrom(OPEN_TYPE, 1)).arc();
+            assertTrue(nearest >= TYPE_ARC, "nearest " + nearest);
+            assertAll(IntStream.rangeClosed(1, RadialWheel.NEIGHBORS_A_SIDE).boxed().map(steps -> (Executable) () -> {
+                double clockwise = typePetal(petals, stepsFrom(OPEN_TYPE, steps)).arc();
+                assertEquals(clockwise, typePetal(petals, stepsFrom(OPEN_TYPE, -steps)).arc(), EPSILON,
+                        "pair " + steps);
+                if (steps < RadialWheel.NEIGHBORS_A_SIDE) {
+                    assertTrue(clockwise > typePetal(petals, stepsFrom(OPEN_TYPE, steps + 1)).arc(),
+                            "step " + steps + " wider than the next");
+                }
+            }));
+        }
+
+        /** decision neighbors-fisheye-from-the-open-type */
+        @Test
+        void moreAbilitiesThanFitShrinkEvenlyAndTheNarrowestNeighborKeepsThreeDegrees() {
+            RadialWheel wheel = opened(MORE_ABILITIES_THAN_FIT);
+            List<RadialWheel.PetalArc> abilities = abilityPetals(wheel);
+            double card = abilities.getFirst().arc();
+
+            assertTrue(card < RadialWheel.ABILITY_ARC, "card " + card);
+            assertAll(abilities.stream().map(petal -> (Executable) () -> assertEquals(card, petal.arc(), EPSILON)));
+            assertEquals(Math.toRadians(3.0), typePetals(wheel).stream()
+                    .mapToDouble(RadialWheel.PetalArc::arc).min().orElseThrow(), EPSILON);
+            assertEquals(TWO_PI, wheel.layout().stream().mapToDouble(RadialWheel.PetalArc::arc).sum(), EPSILON);
         }
 
         /** decision open-type-keeps-six-neighbors-a-side */
@@ -327,7 +361,7 @@ class RadialWheelTest {
             moveTo(wheel, cursor, PETAL);
 
             assertEquals(WIDE_TYPE, wheel.selectedType());
-            assertEquals(0, wheel.hoveredAbility(), "the cursor lies inside the first ability unturned");
+            assertEquals(0, wheel.hoveredAbility(), "the ring turns the first ability under the cursor");
             assertEquals(cursor - (unturned + RadialWheel.ABILITY_ARC / 2), wheel.rotation(), EPSILON);
             assertHoveredCenteredOn(wheel, cursor);
         }
@@ -509,6 +543,33 @@ class RadialWheelTest {
             assertTrue(hiding > 0.0 && hiding < 1.0, "hiding " + hiding);
             assertEquals(0.4, typePetal(landed, farthest).presence(), EPSILON);
             assertTrue(landed.stream().noneMatch(petal -> petal.type() == hidden), "the hidden type has no petal");
+        }
+
+        /** decision neighbors-fisheye-from-the-open-type */
+        @Test
+        void aNeighborWalkReshapesTheFisheyeThroughTheEase() {
+            RadialWheel wheel = opened(ABILITIES);
+            int next = stepsFrom(OPEN_TYPE, 1);
+            int growing = stepsFrom(OPEN_TYPE, 2);
+            int shrinking = stepsFrom(OPEN_TYPE, -1);
+            double growingBefore = typePetal(wheel.layout(), growing).arc();
+            double shrinkingBefore = typePetal(wheel.layout(), shrinking).arc();
+
+            moveTo(wheel, typePetal(wheel.layout(), next).center(), PETAL);
+            double growingAfter = typePetal(wheel.layout(), growing).arc();
+            double shrinkingAfter = typePetal(wheel.layout(), shrinking).arc();
+            tick(wheel, MID_TICKS);
+            List<RadialWheel.PetalArc> midway = wheel.displayedLayout(0.0f);
+            double growingMid = typePetal(midway, growing).arc();
+            double shrinkingMid = typePetal(midway, shrinking).arc();
+            settle(wheel);
+
+            assertEquals(next, wheel.selectedType());
+            assertTrue(growingMid > growingBefore && growingMid < growingAfter, "growing " + growingMid);
+            assertTrue(shrinkingMid < shrinkingBefore && shrinkingMid > shrinkingAfter, "shrinking " + shrinkingMid);
+            double widest = typePetals(wheel).stream().mapToDouble(RadialWheel.PetalArc::arc).max().orElseThrow();
+            assertEquals(widest, typePetal(wheel.layout(), stepsFrom(next, 1)).arc(), EPSILON);
+            assertEquals(widest, typePetal(wheel.layout(), OPEN_TYPE).arc(), EPSILON);
         }
 
         @Test

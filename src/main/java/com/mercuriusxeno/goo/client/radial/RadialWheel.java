@@ -300,7 +300,9 @@ public final class RadialWheel {
 
     /**
      * A visible neighbor's share of the ring the abilities leave, relative
-     * to the others'; a hidden type takes none.
+     * to the others': the next and last types weigh most and each step
+     * farther from the open type weighs one less, so the petals narrow with
+     * distance; a hidden type takes none.
      * decision neighbors-fisheye-from-the-open-type
      *
      * @param open the open type
@@ -308,7 +310,10 @@ public final class RadialWheel {
      * @return the weight, zero for the open type and a hidden one
      */
     private double neighborWeight(int open, int type) {
-        return type != open && presenceAround(open, type) > 0 ? 1.0 : 0.0;
+        if (type == open || presenceAround(open, type) <= 0) {
+            return 0.0;
+        }
+        return NEIGHBORS_A_SIDE + 1.0 - distance(open, type);
     }
 
     /**
