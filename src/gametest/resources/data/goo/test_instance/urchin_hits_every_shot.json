@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:urchin_hits_every_shot",
+  "environment": "goo:field_effect_metal",
+  "structure": "goo:test_bay",
+  "max_ticks": 400,
+  "setup_ticks": 0,
+  "required": true
+}
