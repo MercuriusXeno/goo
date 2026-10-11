@@ -73,9 +73,14 @@ public final class EffectExecutorTests {
     private static final int WALL_Y_MAX = 3;
     private static final int WALL_Z_MAX = 2;
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
-    private static final String ABILITY_BLAST = "goo:unstable_explode";
+    /** The gametests' own thrown blast, today's Blast before it was drag-sized, for the landing machinery. */
+    private static final String ABILITY_BLAST = "goo:test_blast";
     private static final String ABILITY_TIMED_BOMB = "goo:unstable_timed_bomb";
-    private static final String ABILITY_PROXIMITY_MINE = "goo:unstable_proximity_mine";
+    /** Countdown's fuse, five seconds (decision countdown-fuses-five-seconds). */
+    private static final int COUNTDOWN_FUSE_TICKS = 100;
+    /** Ticks either side of the fuse the test checks the marker at. */
+    private static final int FUSE_MARGIN_TICKS = 5;
+    private static final String ABILITY_LURKER = "goo:unstable_lurker";
     private static final String ABILITY_GLOW_CRYSTAL = "goo:glow_crystal";
     /** Ticks an armed mine idles before the test spawns a target. */
     private static final int MINE_IDLE_TICKS = 5;
@@ -494,28 +499,30 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * Timed bomb as a program: it explodes at the splat like blast, until
-     * unstable-abilities decides its fate.
+     * Countdown as a program: its blob stands through a five-second fuse,
+     * then explodes (decision countdown-fuses-five-seconds).
      *
      * @param helper the gametest helper
      */
     public static void programTimedBomb(GameTestHelper helper) {
         placeMarkerWithAbility(helper, GooTypes.UNSTABLE, ABILITY_TIMED_BOMB);
-        helper.runAfterDelay(TICK_AFTER_LANDING, () -> {
+        helper.runAfterDelay(COUNTDOWN_FUSE_TICKS - FUSE_MARGIN_TICKS,
+                () -> helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS));
+        helper.runAfterDelay(COUNTDOWN_FUSE_TICKS + FUSE_MARGIN_TICKS, () -> {
             assertExploded(helper);
             helper.succeed();
         });
     }
 
     /**
-     * Proximity mine as a program: armed at the splat, the marker idles on
-     * its await_entity step until a living entity enters the radius, then
-     * the explode step fires.
+     * Lurker as a program: armed at the splat, the marker idles on its
+     * watch step until something living enters the trigger radius, then its await and
+     * explode steps fire.
      *
      * @param helper the gametest helper
      */
     public static void programProximityMine(GameTestHelper helper) {
-        placeMarkerWithAbility(helper, GooTypes.UNSTABLE, ABILITY_PROXIMITY_MINE);
+        placeMarkerWithAbility(helper, GooTypes.UNSTABLE, ABILITY_LURKER);
         helper.runAfterDelay(MINE_IDLE_TICKS, () -> {
             helper.assertBlockPresent(GooBlocks.ABILITY_BLOCK.get(), MARKER_POS);
             helper.spawnWithNoFreeWill(EntityType.PIG, MINE_TARGET_POS);
@@ -962,14 +969,14 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * An unstable_proximity_mine blob is awaiting an entity the tick after
+     * An unstable_lurker blob is awaiting an entity the tick after
      * it lands.
      *
      * @param helper the gametest helper
      */
     public static void mineAwaitsAfterLanding(GameTestHelper helper) {
         discardLeftoverEntities(helper);
-        landBlob(helper, GooTypes.UNSTABLE, ABILITY_PROXIMITY_MINE);
+        landBlob(helper, GooTypes.UNSTABLE, ABILITY_LURKER);
         helper.runAfterDelay(TICK_AFTER_LANDING, () -> {
             helper.assertTrue(landedMarker(helper).getBehavior().stepIndex() == 0, NOT_RUNNING);
             removeMarkerAndSucceed(helper);

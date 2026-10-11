@@ -93,7 +93,7 @@ public final class ConvokeTests {
         BranchStep certain = new BranchStep(Expr.literal(1), roll.then(), roll.otherwise());
         // The far chunk's entities reach the level's entity scan some ticks after it is forced loaded.
         helper.runAfterDelay(PERIOD, () -> {
-            new ProgramBehavior(List.of(certain)).tick(new TapHost(level, floor, Direction.UP));
+            new ProgramBehavior(List.of(certain)).tick(new TapHost(level, floor.above(), floor, Direction.UP));
             Vec3 underTap = Vec3.atBottomCenterOf(floor.above());
             boolean arrived = cow.position().distanceTo(underTap) < ARRIVED_WITHIN;
             Vec3 stands = cow.position();

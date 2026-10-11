@@ -17,6 +17,7 @@
     "LivingEntityRendererPhaseMixin",
     "MinecraftCrystalPickMixin",
     "MinecraftDevBranchTitleMixin",
-    "GooQuickCraftScreenMixin"
+    "GooQuickCraftScreenMixin",
+    "PlayerModelAbilityPoseMixin"
   ]
 }

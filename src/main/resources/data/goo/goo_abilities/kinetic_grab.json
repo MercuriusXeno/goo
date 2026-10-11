@@ -1,0 +1,12 @@
+{
+  "gooType": "kinetic",
+  "displayName": "goo.ability.kinetic.grab",
+  "badge": "channeled",
+  "order": 10,
+  "cost": 500,
+  "delivery": { "kind": "self", "ticks_per_charge": 20 },
+  "behaviors": [
+    { "type": "grab", "range": 8, "near": 2, "far": 4, "throw_speed": 1.5 }
+  ],
+  "tags": ["self"]
+}
