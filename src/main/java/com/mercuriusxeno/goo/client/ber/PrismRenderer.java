@@ -1,17 +1,14 @@
 package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
-import com.mercuriusxeno.goo.ability.program.AgitationState;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CrystalClusterSubmitter;
 import com.mercuriusxeno.goo.client.PrismCrystal;
-import com.mercuriusxeno.goo.client.ability.AgitatorWisps;
 import com.mercuriusxeno.goo.client.ability.ThumpRings;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
-import com.mercuriusxeno.goo.client.ber.style.AgitatorPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.OculusLids;
 import com.mercuriusxeno.goo.client.ber.style.OculusStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyle;
@@ -81,7 +78,6 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         extractGlow(prism, state, partialTick, cameraPos);
         extractBank(prism, state);
         extractPulse(prism, state);
-        extractAgitation(prism, state, partialTick);
         extractOculus(prism, state, partialTick, cameraPos);
     }
 
@@ -130,24 +126,6 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         if (PulsePrismStyle.METRONOME_COMBO.equals(state.combo)) {
             // metronome-prism-pulses-at-the-learned-rate: each beat sends a red ring out from the prism's base
             ThumpRings.see(prism.getBlockPos(), state.facing, state.power > 0);
-        }
-    }
-
-    /**
-     * Reads an agitator's beat off its synced countdown.
-     * agitator-prism-quickens-until-a-spawn
-     *
-     * @param prism       the prism
-     * @param state       its render state
-     * @param partialTick the frame's partial tick
-     */
-    private static void extractAgitation(PrismBlockEntity prism, PrismRenderState state, float partialTick) {
-        AgitationState agitation = prism.programState().agitation();
-        state.beat = agitation.interval() > 0
-                ? AgitatorPrismStyle.beat(agitation.interval() - agitation.countdown() + partialTick)
-                : 0f;
-        if (AgitatorPrismStyle.COMBO.equals(state.combo)) {
-            AgitatorWisps.report(prism.getBlockPos(), agitation.countdown());
         }
     }
 

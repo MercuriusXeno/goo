@@ -550,7 +550,6 @@ public final class GooTestFunctions {
     private static final String FUSE_WITHOUT_PAIR = "fuse_without_pair_costs_nothing";
     private static final String SPAWN_BIRTHS_A_MOB = "spawn_births_a_natural_mob";
     private static final String SPAWN_TAP_AT_FULL_CHANCE = "spawn_tap_at_full_chance";
-    private static final String AGITATOR_SPAWNS_IN_THE_DARK = "agitator_spawns_in_the_dark";
     private static final String LIFETAP_NO_REGEN_LEECH_ON_HIT = "lifetap_no_regen_leech_on_hit";
     private static final String HEX_BREW_LIFETAPS = "hex_brew_lifetaps_for_an_hour";
     private static final String DRAIN_HEALS_THE_CASTER = "drain_heals_the_caster";
@@ -1116,7 +1115,6 @@ public final class GooTestFunctions {
         reg(r, FUSE_WITHOUT_PAIR, HexSelfTests::fuseWithoutPairCostsNothing);
         reg(r, SPAWN_BIRTHS_A_MOB, HexSpawnTests::spawnBirthsANaturalMob);
         reg(r, SPAWN_TAP_AT_FULL_CHANCE, HexSpawnTests::spawnTapAtFullChance);
-        reg(r, AGITATOR_SPAWNS_IN_THE_DARK, AgitatorTests::agitatorSpawnsInTheDark);
         reg(r, LIFETAP_NO_REGEN_LEECH_ON_HIT, HexSelfTests::lifetapNoRegenLeechOnHit);
         reg(r, HEX_BREW_LIFETAPS, BrewEffectTests::hexBrewLifetapsForAnHour);
         reg(r, DRAIN_HEALS_THE_CASTER, HexSelfTests::drainHealsTheCaster);

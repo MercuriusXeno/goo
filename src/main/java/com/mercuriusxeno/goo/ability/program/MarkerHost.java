@@ -41,7 +41,7 @@ import java.util.function.Consumer;
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
         FieldEffectHost, PhasedHost, HoardHost, StateWriteHost, LevelHost, ConvokeHost, PowerEmitHost,
-        BeatHost, RelayHost, AgitateHost, FrostHost, GreeningHost, TickBankHost, TimeVeilHost {
+        BeatHost, RelayHost, FrostHost, GreeningHost, TickBankHost, TimeVeilHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
     /** The power a block gives at full strength. */
@@ -78,11 +78,6 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     @Override
     public Vec3 center() {
         return Vec3.atCenterOf(pos);
-    }
-
-    @Override
-    public AgitationState agitation() {
-        return be.programState().agitation();
     }
 
     @Override
