@@ -492,7 +492,8 @@ public final class GooEffectScheduler {
         if (def == null) {
             return;
         }
-        AbilityImpact.land(pe.level, pe.targetPos, pe.gooType, pe.targetFace, def, pe.point);
+        AbilityImpact.land(pe.level, pe.targetPos, pe.gooType, pe.targetFace, def, pe.point, 0,
+                pe.thrower == null ? null : pe.thrower.getUUID());
     }
 
     /**

@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
 import com.mercuriusxeno.goo.gametest.SurvivalPlayers;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -118,7 +119,7 @@ public final class EldritchTests {
         Zombie zombie = EntityType.ZOMBIE.create(helper.getLevel(), EntitySpawnReason.COMMAND);
         zombie.setNoAi(true);
         zombie.setPos(helper.getBounds().getCenter());
-        zombie.setData(GooAttachments.OUT_OF_PHASE, outOfPhase);
+        zombie.setData(GooAttachments.OUT_OF_PHASE, outOfPhase ? OutOfPhase.held() : OutOfPhase.NONE);
         helper.getLevel().addFreshEntity(zombie);
         return zombie;
     }

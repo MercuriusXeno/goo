@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:phased_pair_hurt_each_other",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 160,
+  "setup_ticks": 0,
+  "required": true
+}

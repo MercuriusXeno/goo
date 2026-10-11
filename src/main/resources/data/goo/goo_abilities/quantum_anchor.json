@@ -1,0 +1,13 @@
+{
+  "gooType": "quantum",
+  "displayName": "goo.ability.quantum.anchor",
+  "badge": "prism",
+  "order": 60,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "sound", "id": "minecraft:block.respawn_anchor.charge", "at": "host", "source": "blocks", "volume": 1, "pitch": 1.2 },
+    { "type": "quantum_anchor" }
+  ],
+  "tags": []
+}

@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.colonize.ShroomNetwork;
 import com.mercuriusxeno.goo.ability.gate.AstralGateOpening;
 import com.mercuriusxeno.goo.ability.gate.EndGateOpening;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
+import com.mercuriusxeno.goo.ability.quantum.PortableHole;
 import com.mercuriusxeno.goo.ability.world.MeteorSky;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
@@ -54,7 +55,7 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
                           ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 anchor, double size)
         implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
         ColonizeHost, FloorScanHost, GateHost, PowerPulseHost, MobSpawnHost, FrostHost, MeteorHost, AgingHost,
-        TimedBlockHost {
+        TimedBlockHost, PhaseBlocksHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -106,6 +107,16 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     @Override
     public boolean openEndGate(int lifetime) {
         return EndGateOpening.open(level, cell.relative(face.getOpposite()), face, lifetime);
+    }
+
+    /**
+     * Phases the struck block and the blocks behind it, running into the struck face.
+     * portable-hole-phases-blocks-for-a-while
+     */
+    @Override
+    public int phaseBlocks(int depth, int radius, int lifetime) {
+        return PortableHole.open(level, cell.relative(face.getOpposite()), face.getOpposite(), depth, radius,
+                lifetime);
     }
 
     /**

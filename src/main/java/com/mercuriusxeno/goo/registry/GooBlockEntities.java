@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlockEntity;
 import com.mercuriusxeno.goo.block.gate.EndGateBlockEntity;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
+import com.mercuriusxeno.goo.block.quantum.PhasedBlockEntity;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
 import com.mercuriusxeno.goo.block.statue.StatueBlockEntity;
 import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
@@ -89,6 +90,11 @@ public class GooBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<EndGateBlockEntity>> END_GATE =
             BLOCK_ENTITIES.register("end_gate",
                     () -> new BlockEntityType<>(EndGateBlockEntity::new, GooBlocks.END_GATE.get()));
+
+    /** A block out of phase (decision portable-hole-phases-blocks-for-a-while). */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PhasedBlockEntity>> PHASED_BLOCK =
+            BLOCK_ENTITIES.register("phased_block",
+                    () -> new BlockEntityType<>(PhasedBlockEntity::new, GooBlocks.PHASED_BLOCK.get()));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ChoralGasketBlockEntity>> CHORAL_GASKET =
             BLOCK_ENTITIES.register("choral_gasket",

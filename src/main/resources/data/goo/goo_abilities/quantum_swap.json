@@ -1,0 +1,13 @@
+{
+  "gooType": "quantum",
+  "displayName": "goo.ability.quantum.swap",
+  "badge": "self",
+  "order": 30,
+  "cost": 1000,
+  "delivery": { "kind": "self" },
+  "behaviors": [
+    { "type": "quantum_swap" },
+    { "type": "sound", "id": "minecraft:block.respawn_anchor.set_spawn", "at": "target", "source": "players", "volume": 0.8, "pitch": 1.4 }
+  ],
+  "tags": ["self"]
+}
