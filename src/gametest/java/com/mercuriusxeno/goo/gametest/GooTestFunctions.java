@@ -474,6 +474,7 @@ public final class GooTestFunctions {
     private static final String CONVOKE_LINGERS = "convoke_lingers_without_a_mob";
     private static final String CONVOKE_TAP = "convoke_tap_at_full_chance";
     private static final String DRAGON_GATE_LAYS = "dragon_gate_lays_a_temporary_portal";
+    private static final String ASTRAL_GATE_ROUND_TRIP = "astral_gate_round_trip";
     private static final String BLINK_SNAPS_TO_OCULUS = "blink_snaps_to_oculus";
     private static final String OCULUS_COSTS_A_TENTH = "oculus_blink_costs_a_tenth";
     private static final String FLATTEN_BREAKS_ABOVE_THE_PLANE = "flatten_breaks_above_the_plane";
@@ -1040,6 +1041,7 @@ public final class GooTestFunctions {
         reg(r, CONVOKE_LINGERS, ConvokeTests::convokeLingersWithoutAMob);
         reg(r, CONVOKE_TAP, ConvokeTests::convokeTapAtFullChance);
         reg(r, DRAGON_GATE_LAYS, DragonGateTests::dragonGateLaysATemporaryPortal);
+        reg(r, ASTRAL_GATE_ROUND_TRIP, AstralGateTests::astralGateRoundTrip);
         reg(r, BLINK_SNAPS_TO_OCULUS, OculusTests::blinkSnapsToOculus);
         reg(r, OCULUS_COSTS_A_TENTH, OculusTests::oculusBlinkCostsATenth);
         reg(r, FLATTEN_BREAKS_ABOVE_THE_PLANE, FlattenChannelTests::flattenBreaksAboveThePlane);

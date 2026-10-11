@@ -13,4 +13,14 @@ public interface GateHost extends StepHost {
      * @return true once the pair stands open
      */
     boolean openDragonGate(int lifetime);
+
+    /**
+     * Opens Astral's gate pair over the struck surface and the lunar or
+     * solar dimension's arrival floor.
+     * decision astral-visits-lunar-and-solar-dimensions
+     *
+     * @param lifetime the ticks the pair stands
+     * @return true once the pair stands open
+     */
+    boolean openAstralGate(int lifetime);
 }

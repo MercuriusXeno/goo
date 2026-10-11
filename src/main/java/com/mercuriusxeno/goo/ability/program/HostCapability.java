@@ -105,6 +105,11 @@ public enum HostCapability {
      */
     DRAGON_GATE(GateHost.class),
     /**
+     * A struck surface Astral's gate can open over (decision
+     * astral-visits-lunar-and-solar-dimensions).
+     */
+    ASTRAL_GATE(GateHost.class),
+    /**
      * The world around a lasting host to green tick after tick (decision
      * verdant-prism-greens-blocks-slowly).
      */
