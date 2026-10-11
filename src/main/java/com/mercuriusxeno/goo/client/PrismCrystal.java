@@ -47,6 +47,11 @@ public final class PrismCrystal {
     private static final double SQUARE_SIDE = Math.PI / 2;
     private static final double SQUARE_CORNER = Math.PI / 4;
     private static final double HALF_TURN = 0.5;
+    /**
+     * The four-sided column's corner radius: its half-width is the hexagon's
+     * half-width across its flats, the narrower side of the voxel shape.
+     */
+    private static final double SQUARE_CORNER_RADIUS = PrismColumn.RADIUS * Math.cos(Math.PI / 6) * Math.sqrt(2);
     /** The morph's rings, from the base's center up to the top's center. */
     private static final int BASE_CENTER = 0;
     private static final int BOTTOM_RIM = 1;
@@ -93,8 +98,9 @@ public final class PrismCrystal {
     /**
      * The column part way from six sides to four, in model pixels on
      * {@link CrystalCluster}'s base point along +y: each rim point slides from the
-     * hexagon to the square of the same corner radius, the shaft and the point
-     * keeping their heights. One of the model transformations
+     * hexagon to a square whose sides face the hexagon's flats and corners, as
+     * wide as the hexagon across its flats, so the square stands inside the
+     * column's voxel shape; the shaft and the point keep their heights. One of the model transformations
      * (decision model-transformation-is-one-animation).
      *
      * @param fold how far the column has folded, 0 for six sides, 1 for four
@@ -107,7 +113,7 @@ public final class PrismCrystal {
         for (int slice = 0; slice <= RIM_SLICES; slice++) {
             double angle = Math.TAU * slice / RIM_SLICES;
             double hexagon = prism.radius() * rimShare(angle, HEXAGON_SIDE, 0);
-            double square = prism.radius() * rimShare(angle, SQUARE_SIDE, 0);
+            double square = SQUARE_CORNER_RADIUS * rimShare(angle, SQUARE_SIDE, SQUARE_CORNER);
             rings[BASE_CENTER][slice] = morphPoint(angle, 0, 0, 0, 0, fold);
             rings[BOTTOM_RIM][slice] = morphPoint(angle, hexagon, 0, square, 0, fold);
             rings[TOP_RIM][slice] = morphPoint(angle, hexagon, shaft, square, shaft, fold);
