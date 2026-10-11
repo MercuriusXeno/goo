@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
+import com.mercuriusxeno.goo.ability.xeno.EldritchEvents;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooMobEffects;
@@ -273,7 +274,7 @@ public final class HeldEffectsEvents {
     }
 
     /**
-     * Clears the player state an ability's own step laid: teleportitis, Lux, a lifetap.
+     * Clears the player state an ability's own step laid: teleportitis, Lux, a lifetap, the eldritch state.
      *
      * @param player the player
      * @param lays   the state the effect laid
@@ -290,6 +291,10 @@ public final class HeldEffectsEvents {
         if (lays.contains(LaidState.LIFETAP)) {
             // lifetap-trades-regen-for-leech: the leech ends with its held effect
             player.setData(GooAttachments.LIFETAP, Lifetap.NONE);
+        }
+        if (lays.contains(LaidState.ELDRITCH)) {
+            // eldritch-sight-reveals-the-out-of-phase: the eldritch state ends with its held effect
+            EldritchEvents.end(player);
         }
     }
 }
