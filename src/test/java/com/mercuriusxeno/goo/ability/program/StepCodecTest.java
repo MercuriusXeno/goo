@@ -174,6 +174,7 @@ class StepCodecTest {
             Map.entry("charm", new CharmStep(Expr.literal(6000))),
             Map.entry("phase", new PhaseStep(Optional.of(Expr.literal(600)))),
             Map.entry("quantum_anchor", new QuantumAnchorStep()),
+            Map.entry("quantum_swap", new QuantumSwapStep()),
             Map.entry("phase_blocks", new PhaseBlocksStep(Expr.literal(3), Expr.literal(1), Expr.literal(200))),
             Map.entry("enchant_book", LeafSteps.ENCHANT_BOOK.step(Unit.INSTANCE)),
             Map.entry("fuse_books", new FuseBooksStep(Optional.of(new SoundCue(

@@ -3,19 +3,26 @@ package com.mercuriusxeno.goo.registry;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
 import com.mercuriusxeno.goo.entity.RollingGoo;
+import com.mercuriusxeno.goo.entity.SwapBody;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 /**
  * Entity type registry. World effects stand as blocks; an entity is
  * registered here only where a thing moves on its own: a goo rolling through
- * the air (decision orb-carries-a-swirling-nova), and the orb a black hole
- * leaves (decision black-hole-leaves-a-compression-sphere).
+ * the air (decision orb-carries-a-swirling-nova), the orb a black hole
+ * leaves (decision black-hole-leaves-a-compression-sphere), and a quantum
+ * swap body (decision swap-body-stands-until-reverted).
  */
+@EventBusSubscriber(modid = Goo.MODID)
 public final class GooEntities {
 
     public static final DeferredRegister<EntityType<?>> ENTITIES =
@@ -28,6 +35,11 @@ public final class GooEntities {
     private static final float SPHERE_SIZE = 0.25f;
     private static final int SPHERE_TRACKING_CHUNKS = 6;
     private static final int SPHERE_UPDATE_TICKS = 20;
+    private static final float PLAYER_WIDTH = 0.6f;
+    private static final float PLAYER_HEIGHT = 1.8f;
+    private static final float PLAYER_EYE_HEIGHT = 1.62f;
+    private static final int SWAP_BODY_TRACKING_CHUNKS = 10;
+    private static final int SWAP_BODY_UPDATE_TICKS = 2;
 
     /**
      * A goo rolling through the air in a straight line, such as frost's Orb
@@ -54,6 +66,30 @@ public final class GooEntities {
             .noLootTable()
             .build(ResourceKey.create(Registries.ENTITY_TYPE, id)));
 
+    /**
+     * A quantum swap body: an inert figure wearing its owner's skin
+     * (decision swap-body-stands-until-reverted), sized as a player.
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<SwapBody>> SWAP_BODY =
+        ENTITIES.register("swap_body", id -> EntityType.Builder.<SwapBody>of(SwapBody::build, MobCategory.MISC)
+            .sized(PLAYER_WIDTH, PLAYER_HEIGHT)
+            .eyeHeight(PLAYER_EYE_HEIGHT)
+            .noLootTable()
+            .clientTrackingRange(SWAP_BODY_TRACKING_CHUNKS)
+            .updateInterval(SWAP_BODY_UPDATE_TICKS)
+            .build(ResourceKey.create(Registries.ENTITY_TYPE, id)));
+
     private GooEntities() {
+    }
+
+    /**
+     * Gives the swap body the attributes every living thing carries, without
+     * which it cannot stand.
+     *
+     * @param event the attribute creation event
+     */
+    @SubscribeEvent
+    public static void onAttributeCreation(EntityAttributeCreationEvent event) {
+        event.put(SWAP_BODY.get(), LivingEntity.createLivingAttributes().build());
     }
 }

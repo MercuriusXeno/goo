@@ -1,6 +1,7 @@
 {
   "itemGroup.goo": "Goo",
   "entity.goo.compression_sphere": "Compression Sphere",
+  "entity.goo.swap_body": "Swap Body",
 
   "key.category.goo.glove": "Goo",
   "key.goo.glove_menu": "Goo glove menu",
@@ -149,6 +150,7 @@
   "goo.ability.quantum.phase_shift": "Phase Shift",
   "goo.ability.quantum.hole": "Hole",
   "goo.ability.quantum.anchor": "Anchor",
+  "goo.ability.quantum.swap": "Swap",
   "goo.ability.frost.snap": "Snap",
   "goo.ability.frost.nova": "Nova",
   "goo.ability.frost.nova_tap": "Nova",

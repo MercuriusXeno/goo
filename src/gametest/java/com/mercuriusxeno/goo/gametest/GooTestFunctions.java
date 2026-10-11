@@ -44,6 +44,7 @@ import com.mercuriusxeno.goo.network.RewindStreamTests;
 import com.mercuriusxeno.goo.network.ScryChannelTests;
 import com.mercuriusxeno.goo.network.UndeadTests;
 import com.mercuriusxeno.goo.network.StreamDeliveryTests;
+import com.mercuriusxeno.goo.network.SwapBodyTests;
 import com.mercuriusxeno.goo.network.SunbeamChannelTests;
 import com.mercuriusxeno.goo.network.TouchDeliveryTests;
 import com.mercuriusxeno.goo.network.ZapTests;
@@ -564,6 +565,7 @@ public final class GooTestFunctions {
     private static final String PHASED_PAIR_HURT = "phased_pair_hurt_each_other";
     private static final String HOLE_WALKS_THROUGH = "hole_walks_through_and_restores";
     private static final String ANCHORS_BOTH_WAYS = "anchors_teleport_both_ways";
+    private static final String SWAP_BODY_ROUND_TRIP = "swap_body_round_trip";
     private static final String REWIND_ADULT_TO_BABY = "rewind_adult_to_baby";
     private static final String REWIND_BABY_TO_EGG = "rewind_baby_to_egg";
     private static final String REWIND_LEAVES_BLOCKS = "rewind_leaves_blocks";
@@ -1134,6 +1136,7 @@ public final class GooTestFunctions {
         reg(r, PHASED_PAIR_HURT, PhaseTests::phasedPairHurtEachOther);
         reg(r, HOLE_WALKS_THROUGH, PortableHoleTests::holeWalksThroughAndRestores);
         reg(r, ANCHORS_BOTH_WAYS, AnchorTests::anchorsTeleportBothWays);
+        reg(r, SWAP_BODY_ROUND_TRIP, SwapBodyTests::swapBodyRoundTrip);
         reg(r, REWIND_ADULT_TO_BABY, RewindStreamTests::rewindAdultToBaby);
         reg(r, REWIND_BABY_TO_EGG, RewindStreamTests::rewindBabyToEgg);
         reg(r, REWIND_LEAVES_BLOCKS, RewindStreamTests::rewindLeavesBlocks);

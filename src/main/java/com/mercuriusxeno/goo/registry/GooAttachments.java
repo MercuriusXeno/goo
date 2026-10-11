@@ -16,6 +16,7 @@ import com.mercuriusxeno.goo.ability.program.Lux;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.pulse.Stunned;
 import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
+import com.mercuriusxeno.goo.ability.quantum.SwapBodyRef;
 import com.mercuriusxeno.goo.ability.rewind.Rewinding;
 import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.spray.Spored;
@@ -298,6 +299,16 @@ public final class GooAttachments {
     public static final Supplier<AttachmentType<Optional<GlobalPos>>> ANCHOR_ARRIVAL =
             ATTACHMENT_TYPES.register("anchor_arrival",
                     () -> AttachmentType.<Optional<GlobalPos>>builder(Optional::empty).build());
+
+    /**
+     * The swap body a player has standing, saved with the player while one stands.
+     * swap-body-stands-until-reverted
+     */
+    public static final Supplier<AttachmentType<Optional<SwapBodyRef>>> SWAP_BODY =
+            ATTACHMENT_TYPES.register("swap_body",
+                    () -> AttachmentType.<Optional<SwapBodyRef>>builder(Optional::empty)
+                            .serialize(SwapBodyRef.CODEC.optionalFieldOf("ref"), Optional::isPresent)
+                            .build());
 
     private GooAttachments() {
     }
