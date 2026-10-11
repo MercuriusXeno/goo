@@ -98,33 +98,16 @@ public class TapBlockEntityRenderer
     private static void extractCanisterContents(ItemStack canister, TapRenderState state) {
         state.slot.compression = GooEnchantments.getCompressionLevel(canister);
         CanisterFluidContent content = CanisterItem.getFluidContent(canister);
-        if (content.isEmpty()) {
-            clearContents(state);
-        } else {
-            extractNonEmptyContents(content, state);
-        }
+        state.slot.showContent(content, ContainerCapacity.canisterCapacity(state.slot.compression));
     }
 
     /**
-     * Populates goo type and fill ratio from non-empty canister contents.
-     *
-     * @param content the non-empty canister fluid content
-     * @param state   the render state to populate
-     */
-    private static void extractNonEmptyContents(CanisterFluidContent content, TapRenderState state) {
-        int capacity = ContainerCapacity.canisterCapacity(state.slot.compression);
-        state.slot.type = content.dominantGooType();
-        state.slot.fill = Math.min(1f, (float) content.totalVolume() / capacity);
-    }
-
-    /**
-     * Resets goo type and fill to empty defaults.
+     * Resets the slot's fluid fields to an empty canister's.
      *
      * @param state the render state to clear
      */
     private static void clearContents(TapRenderState state) {
-        state.slot.type = null;
-        state.slot.fill = 0f;
+        state.slot.showContent(CanisterFluidContent.EMPTY, 0);
     }
 
     /**

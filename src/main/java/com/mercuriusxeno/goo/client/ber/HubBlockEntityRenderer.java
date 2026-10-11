@@ -105,7 +105,7 @@ public class HubBlockEntityRenderer
     }
 
     /**
-     * Extracts dominant goo type and fill fraction for a single hub slot.
+     * Extracts every fluid a single hub slot holds and its fill fraction.
      *
      * @param be the block entity instance
      * @param state the block state
@@ -113,26 +113,8 @@ public class HubBlockEntityRenderer
      */
     private static void extractSlotFluid(HubBlockEntity be, HubRenderState state, int slot) {
         CanisterFluidContent content = be.getSlotFluidContent(slot);
-        if (content.isEmpty()) {
-            state.slots[slot].type = null;
-            state.slots[slot].fill = 0f;
-            return;
-        }
-        populateFilledSlot(be, state, slot, content);
-    }
-
-    /**
-     * Populates render state for a slot with goo contents.
-     * @param be the block entity instance
-     * @param state the render state snapshot
-     * @param slot the slot index
-     * @param content the non-empty fluid content for this slot
-     */
-    private static void populateFilledSlot(HubBlockEntity be, HubRenderState state,
-            int slot, CanisterFluidContent content) {
         int capacity = ContainerCapacity.canisterCapacity(GooEnchantments.getCompressionLevel(be.getCanister(slot)));
-        state.slots[slot].type = content.dominantGooType();
-        state.slots[slot].fill = Math.min(1f, (float) content.totalVolume() / capacity);
+        state.slots[slot].showContent(content, capacity);
     }
 
     /**

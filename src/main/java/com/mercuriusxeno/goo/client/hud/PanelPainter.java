@@ -254,6 +254,17 @@ public final class PanelPainter {
     }
 
     /**
+     * Builds the text row of a container's total against its capacity.
+     *
+     * @param total    the volume every type holds together
+     * @param capacity the container's capacity
+     * @return the row
+     */
+    public static PanelRow fillRow(long total, long capacity) {
+        return PanelRow.header(GooFormat.formatFill(total, capacity), TEXT_COLOR);
+    }
+
+    /**
      * Builds a goo type icon row with white text.
      *
      * @param type the goo type
