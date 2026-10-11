@@ -15,7 +15,6 @@ import com.mercuriusxeno.goo.ability.program.PotionStep;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.SoundStep;
-import com.mercuriusxeno.goo.ability.program.SpawnRandomStep;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
 import com.mercuriusxeno.goo.ability.program.TomeKind;
 import com.mercuriusxeno.goo.ability.program.TomeStep;
@@ -94,7 +93,6 @@ class AbilityLoaderTest {
             Map.entry("hex_charm", List.of("honey_bottle", "cake", "cookie")),
             Map.entry("hex_enchant", List.of("book", "lapis_lazuli")),
             Map.entry("hex_fuse", List.of("bookshelf", "lapis_lazuli")),
-            Map.entry("hex_spawn", List.of("sculk")),
             Map.entry("hex_lifetap", List.of("soul_sand")),
             Map.entry("hex_drain", List.of("soul_sand")),
             Map.entry("unstable_explode", List.of("gunpowder")),
@@ -123,7 +121,7 @@ class AbilityLoaderTest {
             Map.entry("typhoon_repel", List.of("wind_charge")),
             Map.entry("typhoon_updraft", List.of("breeze_rod")),
             Map.entry("rock_bore", List.of("stone", "cobblestone")),
-            Map.entry("rock_crush", List.of("gravel", "sand")),
+            Map.entry("rock_spire", List.of("gravel", "sand")),
             Map.entry("rock_flatten", List.of("dirt")),
             Map.entry("glow_scry", List.of("spyglass")),
             Map.entry("glow_lux", List.of("carrot")),
@@ -335,17 +333,6 @@ class AbilityLoaderTest {
         assertEquals(List.of(GooTypes.HEX), afterimageTypes(enchant.behaviors()));
     }
 
-    /**
-     * Hex's tap conjures on one drip in twenty, its chance in its JSON
-     * (decision spawn-drip-rolls-a-fresh-spawn).
-     */
-    @Test
-    void hexSpawnTapRollsFivePercent() {
-        SpawnRandomStep spawn = AbilityJson.decode("hex_spawn_tap").behaviors().stream()
-                .filter(SpawnRandomStep.class::isInstance).map(SpawnRandomStep.class::cast).findFirst().orElseThrow();
-
-        assertEquals(TAP_SPAWN_CHANCE, spawn.chance().evaluate(Variables.NONE));
-    }
 
     /**
      * Enchant and Fuse each play their tome once their own step has acted

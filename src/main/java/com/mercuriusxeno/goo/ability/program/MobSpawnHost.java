@@ -5,10 +5,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * A host a mob can be conjured at: the cell the mob stands in, and the
- * point the goo morphs into it from. A blob's landing conjures in the cell
- * it landed in; a tap's drip conjures in the cell below the tap.
- * spawn-goo-morphs-into-the-mob-it-births
+ * A host a mob can be born at: the cell the mob stands in, and the point the
+ * goo morphs into it from. Weird's Slime births its slime in the cell its
+ * blob landed in.
+ * slime-creates-slimes-at-will
  */
 public interface MobSpawnHost extends StepHost {
 

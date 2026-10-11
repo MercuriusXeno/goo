@@ -145,10 +145,6 @@ public enum HostCapability {
      */
     EXTEND_EFFECTS(EffectExtendHost.class),
     /**
-     * A cell a conjured mob stands in, and the point the goo morphs into it
-     * from (decision spawn-goo-morphs-into-the-mob-it-births).
-     */
-    SPAWN_MOB(MobSpawnHost.class),
     /**
      * The level and the point frost spreads out of (decisions
      * nova-ring-grows-with-the-hold, nova-drip-pulses-a-short-lasting-freeze).
@@ -173,7 +169,17 @@ public enum HostCapability {
      * A cell where a block stands for a set time (decision
      * weird-bounces-and-softens-harm).
      */
-    TIMED_BLOCK(TimedBlockHost.class);
+    TIMED_BLOCK(TimedBlockHost.class),
+    /**
+     * A cell a born mob stands in, and the point the goo morphs into it
+     * from (decision slime-creates-slimes-at-will).
+     */
+    SPAWN_MOB(MobSpawnHost.class),
+    /**
+     * The ground a Spire lifts, the footprint and rise its submit planned
+     * (decision spire-rips-walls-and-platforms).
+     */
+    RAISE_GROUND(RaiseGroundHost.class);
 
     private final Class<? extends StepHost> hostType;
 
