@@ -29,7 +29,7 @@ import static org.mockito.Mockito.mockStatic;
 /**
  * Where a Dragon Gate's square lies, where it sets travellers down, and how a
  * server's open pairs are kept and closed on their clocks
- * (decision dragon-gate-banishes-blocks-and-opens-a-portal).
+ * (decision end-clears-blocks-and-opens-a-portal).
  */
 class DragonGatesTest {
 

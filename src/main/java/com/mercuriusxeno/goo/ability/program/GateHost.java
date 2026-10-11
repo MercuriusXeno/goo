@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 /**
  * A landing that can open a Dragon Gate over the surface its blob struck.
- * Decision dragon-gate-banishes-blocks-and-opens-a-portal.
+ * Decision end-clears-blocks-and-opens-a-portal.
  */
 public interface GateHost extends StepHost {
 

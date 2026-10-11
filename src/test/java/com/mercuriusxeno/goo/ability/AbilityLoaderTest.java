@@ -85,7 +85,7 @@ class AbilityLoaderTest {
     /** The items each gated ability requires, as the task's how maps the operator's lists. */
     private static final Map<String, List<String>> GATES = Map.ofEntries(
             Map.entry("ender_blink", List.of("ender_pearl")),
-            Map.entry("ender_banish", List.of("popped_chorus_fruit")),
+            Map.entry("ender_zone", List.of("popped_chorus_fruit")),
             Map.entry("ender_teleportitis", List.of("chorus_fruit")),
             Map.entry("ender_convoke", List.of("sculk_shrieker")),
             Map.entry("ender_dragon_gate", List.of("dragon_breath")),

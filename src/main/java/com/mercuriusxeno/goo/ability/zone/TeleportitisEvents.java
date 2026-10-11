@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.ability.banish;
+package com.mercuriusxeno.goo.ability.zone;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;

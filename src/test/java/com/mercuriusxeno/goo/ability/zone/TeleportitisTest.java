@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.ability.banish;
+package com.mercuriusxeno.goo.ability.zone;
 
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;

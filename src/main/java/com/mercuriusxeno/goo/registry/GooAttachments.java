@@ -1,8 +1,6 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.banish.Banished;
-import com.mercuriusxeno.goo.ability.banish.Teleportitis;
 import com.mercuriusxeno.goo.ability.frost.Frozen;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
@@ -19,6 +17,8 @@ import com.mercuriusxeno.goo.ability.rewind.Rewinding;
 import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.spray.Spored;
 import com.mercuriusxeno.goo.ability.world.TimeVeiled;
+import com.mercuriusxeno.goo.ability.zone.Teleportitis;
+import com.mercuriusxeno.goo.ability.zone.ZoneCurse;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
 import com.mojang.serialization.Codec;
@@ -205,14 +205,14 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> TimeVeiled.NONE).serialize(TimeVeiled.CODEC).build());
 
     /**
-     * The teleportitis curse Banish leaves on a mob, saved with the mob while
+     * The teleportitis curse Zone leaves on a mob, saved with the mob while
      * it stands.
-     * banish-curses-with-ender-shimmer
+     * zone-curses-with-ender-shimmer
      */
-    public static final Supplier<AttachmentType<Banished>> BANISHED =
-            ATTACHMENT_TYPES.register("banished",
-                    () -> AttachmentType.builder(() -> Banished.NONE)
-                            .serialize(Banished.CODEC, Banished::stands)
+    public static final Supplier<AttachmentType<ZoneCurse>> ZONE_CURSE =
+            ATTACHMENT_TYPES.register("zone_curse",
+                    () -> AttachmentType.builder(() -> ZoneCurse.NONE)
+                            .serialize(ZoneCurse.CODEC, ZoneCurse::stands)
                             .build());
 
     /**

@@ -17,7 +17,7 @@ import java.util.Optional;
  * The Dragon Gate pairs open on a server, saved in the overworld's data so a
  * pair closes on its clock however long its chunks stood unloaded or the
  * server stood stopped.
- * Decision dragon-gate-banishes-blocks-and-opens-a-portal.
+ * Decision end-clears-blocks-and-opens-a-portal.
  */
 public class DragonGates extends SavedData {
 

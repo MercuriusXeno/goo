@@ -10,7 +10,7 @@ import java.util.stream.Stream;
  * end portal over the struck surface, partnered with a mirror on the End's
  * platform, both changing back to the blocks they covered after the
  * lifetime. Dragon Gate is {@code dragon_gate lifetime=1200}.
- * Decision dragon-gate-banishes-blocks-and-opens-a-portal.
+ * Decision end-clears-blocks-and-opens-a-portal.
  *
  * @param lifetime the ticks the pair stands, evaluated when the step runs
  */

@@ -80,7 +80,7 @@ public class GooBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<WispBlockEntity>> WISP =
             BLOCK_ENTITIES.register("wisp",
                     () -> new BlockEntityType<>(WispBlockEntity::new, GooBlocks.WISP.get()));
-    /** A Dragon Gate cell (decision dragon-gate-banishes-blocks-and-opens-a-portal). */
+    /** A Dragon Gate cell (decision end-clears-blocks-and-opens-a-portal). */
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DragonGateBlockEntity>> DRAGON_GATE =
             BLOCK_ENTITIES.register("dragon_gate",
                     () -> new BlockEntityType<>(DragonGateBlockEntity::new, GooBlocks.DRAGON_GATE.get()));

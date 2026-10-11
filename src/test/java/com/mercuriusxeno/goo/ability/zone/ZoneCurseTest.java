@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.ability.banish;
+package com.mercuriusxeno.goo.ability.zone;
 
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.program.BranchStep;
@@ -14,18 +14,18 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The teleportitis curse Banish leaves (decision banish-curses-with-ender-shimmer):
+ * The teleportitis curse Zone leaves (decision zone-curses-with-ender-shimmer):
  * which mobs resist it, and whether it stands.
  */
-class BanishedTest {
+class ZoneCurseTest {
 
     private static final double ZOMBIE_MAX_HEALTH = 20;
     private static final double CAP_MAX_HEALTH = 100;
     private static final double RAVAGER_PLUS_MAX_HEALTH = 150;
 
-    /** The condition ender_banish.json's branch curses under. */
+    /** The condition ender_zone.json's branch curses under. */
     private static double cursesAt(double maxHealth) {
-        BranchStep resist = flatten(AbilityJson.decode("ender_banish").behaviors().stream())
+        BranchStep resist = flatten(AbilityJson.decode("ender_zone").behaviors().stream())
                 .filter(BranchStep.class::isInstance).map(BranchStep.class::cast).findFirst().orElseThrow();
         Variables mob = name -> HostVariables.MAX_HEALTH.equals(name) ? OptionalDouble.of(maxHealth)
                 : OptionalDouble.empty();
@@ -57,7 +57,7 @@ class BanishedTest {
 
     @Test
     void noCurseStandsOnAnUncursedMob() {
-        assertFalse(Banished.NONE.stands());
-        assertTrue(new Banished(6, 32).stands());
+        assertFalse(ZoneCurse.NONE.stands());
+        assertTrue(new ZoneCurse(6, 32).stands());
     }
 }

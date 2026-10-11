@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:banish_warps_then_exiles",
+  "function": "goo:zone_resisted_by_high_health",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 200,
+  "max_ticks": 5,
   "setup_ticks": 0,
   "required": true
 }

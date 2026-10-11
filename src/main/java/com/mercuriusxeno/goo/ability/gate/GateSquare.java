@@ -13,7 +13,7 @@ import java.util.List;
  * struck block, so it overlaps each of the block's eight neighbours on that
  * face by half a block. It is held by a thin layer in the three by three
  * open cells in front of the face, each cell holding its share of the square.
- * Decision dragon-gate-banishes-blocks-and-opens-a-portal.
+ * Decision end-clears-blocks-and-opens-a-portal.
  */
 public final class GateSquare {
 

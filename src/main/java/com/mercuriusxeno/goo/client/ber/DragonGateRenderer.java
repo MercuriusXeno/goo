@@ -22,7 +22,7 @@ import org.jspecify.annotations.Nullable;
  * Draws a Dragon Gate cell's share of the gate's two by two square as the
  * End portal's starfield, a flat quad lying on the outer side of the cell's
  * layer, seen from either side.
- * Decision dragon-gate-banishes-blocks-and-opens-a-portal.
+ * Decision end-clears-blocks-and-opens-a-portal.
  */
 public class DragonGateRenderer implements BlockEntityRenderer<DragonGateBlockEntity, DragonGateRenderer.State> {
 

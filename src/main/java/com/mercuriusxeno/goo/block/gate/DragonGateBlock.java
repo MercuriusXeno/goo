@@ -39,7 +39,7 @@ import org.jspecify.annotations.Nullable;
  * world to the End's platform and back, instantly as the End's own portal
  * does. Nothing collides with it, nothing mines it, and it drops nothing;
  * its gate closes on the gate's clock.
- * Decision dragon-gate-banishes-blocks-and-opens-a-portal.
+ * Decision end-clears-blocks-and-opens-a-portal.
  */
 public class DragonGateBlock extends BaseEntityBlock implements Portal {
 

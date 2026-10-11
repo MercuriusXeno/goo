@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.ability.banish;
+package com.mercuriusxeno.goo.ability.zone;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
@@ -21,15 +21,15 @@ import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Runs the teleportitis Banish leaves on a mob: each tick a player stands
+ * Runs the teleportitis Zone leaves on a mob: each tick a player stands
  * within the curse's radius, the mob warps to a random spot the way chorus
  * fruit throws its eater, an afterimage left where it stood and where it
- * lands. A second Banish exiles the cursed mob from existence. The cursed
- * mob wears the banish shimmer, refreshed while the curse stands.
- * Decision banish-curses-with-ender-shimmer.
+ * lands. A second Zone exiles the cursed mob from existence. The cursed
+ * mob wears the zone shimmer, refreshed while the curse stands.
+ * Decision zone-curses-with-ender-shimmer.
  */
 @EventBusSubscriber(modid = Goo.MODID)
-public final class BanishEvents {
+public final class ZoneEvents {
 
     /** Rolls a warp tries before giving up for the tick, as chorus fruit does. */
     static final int WARP_TRIES = 16;
@@ -41,7 +41,7 @@ public final class BanishEvents {
     static final int AFTERIMAGE_LIFE_TICKS = 12;
     private static final double HALF = 0.5;
 
-    private BanishEvents() {
+    private ZoneEvents() {
     }
 
     /**
@@ -53,7 +53,7 @@ public final class BanishEvents {
     @SubscribeEvent
     public static void onEntityTick(EntityTickEvent.Post event) {
         if (event.getEntity() instanceof LivingEntity mob && mob.level() instanceof ServerLevel level) {
-            Banished curse = curseOf(mob);
+            ZoneCurse curse = curseOf(mob);
             if (curse != null) {
                 runCurse(level, mob, curse);
             }
@@ -67,9 +67,9 @@ public final class BanishEvents {
      * @param mob   the cursed mob
      * @param curse its curse
      */
-    private static void runCurse(ServerLevel level, LivingEntity mob, Banished curse) {
+    private static void runCurse(ServerLevel level, LivingEntity mob, ZoneCurse curse) {
         if (level.getGameTime() % SHIMMER_REFRESH_TICKS == 0) {
-            EntityVisuals.sendToWatchers(mob, new AilmentPayload(mob.getId(), AilmentKind.BANISH, SHIMMER_TICKS));
+            EntityVisuals.sendToWatchers(mob, new AilmentPayload(mob.getId(), AilmentKind.ZONE, SHIMMER_TICKS));
         }
         Player near = level.getNearestPlayer(mob, curse.radius());
         if (near != null) {
@@ -85,7 +85,7 @@ public final class BanishEvents {
      * @param curse  its curse
      * @param player the player it neared
      */
-    static void repel(ServerLevel level, LivingEntity mob, Banished curse, Player player) {
+    static void repel(ServerLevel level, LivingEntity mob, ZoneCurse curse, Player player) {
         Vec3 stood = mob.position();
         if (warpAway(level, mob, curse, player)) {
             leaveAfterimage(level, mob, stood);
@@ -115,7 +115,7 @@ public final class BanishEvents {
      * @param player the player it neared
      * @return true once the mob stands somewhere else
      */
-    private static boolean warpAway(ServerLevel level, LivingEntity mob, Banished curse, Player player) {
+    private static boolean warpAway(ServerLevel level, LivingEntity mob, ZoneCurse curse, Player player) {
         RandomSource random = mob.getRandom();
         for (int tryIndex = 0; tryIndex < WARP_TRIES; tryIndex++) {
             Vec3 roll = rollSpot(level, mob.position(), curse.range(), random);
@@ -165,8 +165,8 @@ public final class BanishEvents {
      * @param entity the entity
      * @return its curse, or null where none stands
      */
-    public static @Nullable Banished curseOf(LivingEntity entity) {
-        Banished curse = entity.hasData(GooAttachments.BANISHED) ? entity.getData(GooAttachments.BANISHED) : null;
+    public static @Nullable ZoneCurse curseOf(LivingEntity entity) {
+        ZoneCurse curse = entity.hasData(GooAttachments.ZONE_CURSE) ? entity.getData(GooAttachments.ZONE_CURSE) : null;
         return curse != null && curse.stands() ? curse : null;
     }
 }

@@ -101,7 +101,7 @@ public enum HostCapability {
     CONVOKE(ConvokeHost.class),
     /**
      * A struck surface a Dragon Gate can open over (decision
-     * dragon-gate-banishes-blocks-and-opens-a-portal).
+     * end-clears-blocks-and-opens-a-portal).
      */
     DRAGON_GATE(GateHost.class),
     /**
