@@ -28,6 +28,8 @@ import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.storage.TagValueInput;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for the {@code goo:goo_type} datapack registry: the bundled
@@ -35,7 +37,25 @@ import java.util.List;
  * server copies into its world (build.gradle passes {@code --packs}) adds a
  * type the registry and the {@code /goo types} listing both hold.
  */
+@RegistersGameTests
 public final class GooTypeRegistryTests {
+    private static final String TYPES_BUNDLED_RESOLVE = "types_bundled_resolve";
+    private static final String TYPES_DATAPACK_LISTED = "types_datapack_listed";
+    private static final String TYPES_MARKER_RELOADS = "types_marker_reloads";
+    private static final String TYPES_GLOVE_RELOADS = "types_glove_reloads";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, TYPES_BUNDLED_RESOLVE, GooTypeRegistryTests::bundledTypesResolve);
+        GooTestFunctions.registerTest(registrar, TYPES_DATAPACK_LISTED, GooTypeRegistryTests::datapackTypeListed);
+        GooTestFunctions.registerTest(registrar, TYPES_MARKER_RELOADS, GooTypeRegistryTests::abilityBlockReloadsType);
+        GooTestFunctions.registerTest(registrar, TYPES_GLOVE_RELOADS, GooTypeRegistryTests::gloveSelectionReloadsType);
+    }
+
 
     /**
      * Namespace of the test-resources datapack under src/test/resources/datapacks.

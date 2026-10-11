@@ -73,11 +73,13 @@ public enum HostKind {
     FOOTPRINT("raised footprint", FootprintHost.class, Set.of());
 
     private final String label;
+    private final Class<? extends StepHost> hostType;
     private final Set<HostCapability> capabilities;
     private final Set<String> variables;
 
     HostKind(String label, Class<? extends StepHost> hostType, Set<String> variables) {
         this.label = label;
+        this.hostType = hostType;
         this.capabilities = HostCapability.providedBy(hostType);
         this.variables = variables;
     }
@@ -89,6 +91,15 @@ public enum HostKind {
      */
     public String label() {
         return label;
+    }
+
+    /**
+     * Returns the host type whose capability interfaces name what this host provides.
+     *
+     * @return the host type
+     */
+    public Class<? extends StepHost> hostType() {
+        return hostType;
     }
 
     /**

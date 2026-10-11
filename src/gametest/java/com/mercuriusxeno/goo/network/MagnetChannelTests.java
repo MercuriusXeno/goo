@@ -5,7 +5,9 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.crystal.OreVeins;
 import com.mercuriusxeno.goo.ability.program.DetectOreStep;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -15,8 +17,10 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Gametests for Metal's Magnet: Glitter's growing ore sense over the metal
@@ -25,7 +29,10 @@ import java.util.List;
  * centroid, the same reveal Glitter sends for gems.
  * decision magnet-sphere-icons-metal-ores
  */
+@RegistersGameTests
 public final class MagnetChannelTests {
+
+    private static final String MAGNET_REVEALS_IRON_AND_DEBRIS = "magnet_reveals_iron_and_debris";
 
     private static final Identifier METAL_MAGNET = Identifier.fromNamespaceAndPath(Goo.MODID, "metal_magnet");
     private static final Identifier IRON_ORE = Identifier.withDefaultNamespace("iron_ore");
@@ -46,6 +53,16 @@ public final class MagnetChannelTests {
     private static final String SHOULD_FIND = "The reveal should find the %s vein of %s at %s, found %s";
 
     private MagnetChannelTests() {
+    }
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, MAGNET_REVEALS_IRON_AND_DEBRIS,
+                MagnetChannelTests::magnetRevealsIronAndDebris);
     }
 
     /**

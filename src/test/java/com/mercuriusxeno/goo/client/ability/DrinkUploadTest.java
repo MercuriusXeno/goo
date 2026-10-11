@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.SiphonRule;
-import com.mercuriusxeno.goo.client.GooRenderUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
@@ -16,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * A drink's upload cuts space into one-block regions and gives every region
  * some body's field reaches one block: the bodies reaching it as runs per
- * stream, the rings those runs need, each stream's coat and frame, boxes
+ * stream, the rings those runs need, each stream's light and two colors, boxes
  * named apart from segments, caps dropping whole streams or entries and
  * counting them, all packed camera-relative
  * (decision unmake-waves-dissolve-by-crucible-cost).
@@ -30,12 +29,10 @@ class DrinkUploadTest {
     private static final Vec3 MIDDLE = new Vec3(0, 0.5, 0.5);
     private static final Vec3 GLOVE = new Vec3(1.5, 2.2, 3.1);
     private static final Vec3 CAMERA = new Vec3(10, 20, 30);
-    private static final GooRenderUtil.UvRect SPRITE = new GooRenderUtil.UvRect(0.1f, 0.2f, 0.3f, 0.4f);
     private static final int BLOCK_LIGHT = 160;
     private static final int SKY_LIGHT = 240;
-    private static final DrinkUpload.Coat COAT = new DrinkUpload.Coat(0xFF8040C0, SPRITE, BLOCK_LIGHT, SKY_LIGHT,
-            List.of(new DrinkUpload.Layer(0xFFFFFFFF, SPRITE, 0f, 0.75f, 3)));
-    private static final DrinkUpload.Coat OTHER = new DrinkUpload.Coat(0xFF00FF00, SPRITE, 0, 0, List.of());
+    private static final DrinkUpload.Coat COAT = new DrinkUpload.Coat(0xFF8040C0, 0xFF336699, BLOCK_LIGHT, SKY_LIGHT);
+    private static final DrinkUpload.Coat OTHER = new DrinkUpload.Coat(0xFF00FF00, 0xFFFF0000, 0, 0);
     private static final int PAIR = 2;
 
     private static List<DrinkTree.Stream> streams(int count) {
@@ -184,7 +181,7 @@ class DrinkUploadTest {
     class Streams {
 
         @Test
-        void twoStreamsInOneRegionAreTwoRunsWithTheirOwnCoatsAndFrames() {
+        void twoStreamsInOneRegionAreTwoRunsWithTheirOwnCoats() {
             List<DrinkTree.Stream> streams = streams(2);
             DrinkField.Skeleton mine = chain(streams.get(0), MIDDLE, 2, RADIUS);
             DrinkField.Skeleton other = chain(streams.get(1), MIDDLE.add(UP.scale(0.3)), 2, RADIUS);
@@ -196,14 +193,14 @@ class DrinkUploadTest {
             assertEquals(List.of(DrinkUpload.RUN_START, DrinkUpload.RUN_START | 2), entriesOf(bytes),
                     "the second stream's segment is its first local one after the first stream's two rings");
             int second = DrinkUpload.STREAMS_AT + DrinkUpload.STREAM_VEC4S * DrinkUpload.VEC4;
-            assertEquals(0x80 / 255f, floatAt(bytes, DrinkUpload.STREAMS_AT + DrinkUpload.TINT_SLOT * DrinkUpload.VEC4),
-                    DELTA, "the first coat's red");
-            assertEquals(0, floatAt(bytes, second + DrinkUpload.TINT_SLOT * DrinkUpload.VEC4), DELTA,
-                    "the second coat has no red");
-            assertEquals(1, floatAt(bytes, second + DrinkUpload.TINT_SLOT * DrinkUpload.VEC4 + Float.BYTES), DELTA,
-                    "and is whole green");
-            Vec3 side = DrinkStream.sideOf(other.stream().path());
-            assertEquals(side.x, floatAt(bytes, second + DrinkUpload.SIDE_SLOT * DrinkUpload.VEC4), DELTA);
+            assertEquals(0x80 / 255f, floatAt(bytes, DrinkUpload.STREAMS_AT
+                    + DrinkUpload.BLOCK_COLOR_SLOT * DrinkUpload.VEC4), DELTA, "the first coat's block red");
+            assertEquals(0, floatAt(bytes, second + DrinkUpload.BLOCK_COLOR_SLOT * DrinkUpload.VEC4), DELTA,
+                    "the second coat's block has no red");
+            assertEquals(1, floatAt(bytes, second + DrinkUpload.BLOCK_COLOR_SLOT * DrinkUpload.VEC4 + Float.BYTES),
+                    DELTA, "and is whole green");
+            assertEquals(1, floatAt(bytes, second + DrinkUpload.GOO_COLOR_SLOT * DrinkUpload.VEC4), DELTA,
+                    "the second coat's goo is whole red");
             assertEquals(1, floatAt(bytes, DrinkUpload.REGION_AT + (PAIR + 1) * Float.BYTES), DELTA, "the depth flag");
             assertEquals(-CAMERA.x, floatAt(bytes, DrinkUpload.REGION_AT), DELTA, "the region's low corner");
         }
@@ -266,8 +263,9 @@ class DrinkUploadTest {
         }
     }
 
+    /** decision unmake-skin-is-a-solid-sampled-color */
     @Test
-    void theBlockPacksTheCoatTheLayersAndTheCameraRelativeRings() {
+    void theBlockPacksTheLightTheTwoColorsAndTheCameraRelativeRings() {
         DrinkField.Skeleton lone = chain(streams(1).getFirst(), new Vec3(1.2, 2.5, 3.5), 2, RADIUS);
 
         ByteBuffer bytes = regionAt(DrinkUpload.of(List.of(lone), coats(1), CAMERA, false), 1, 2, 3).bytes();
@@ -276,12 +274,14 @@ class DrinkUploadTest {
         int coat = DrinkUpload.STREAMS_AT + DrinkUpload.COAT_SLOT * DrinkUpload.VEC4;
         assertEquals(BLOCK_LIGHT, floatAt(bytes, coat), DELTA);
         assertEquals(SKY_LIGHT, floatAt(bytes, coat + Float.BYTES), DELTA);
-        assertEquals(1, floatAt(bytes, coat + PAIR * Float.BYTES), DELTA, "one layer");
-        assertEquals(0.3f, floatAt(bytes, DrinkUpload.STREAMS_AT + DrinkUpload.SPRITE_SLOT * DrinkUpload.VEC4
-                + PAIR * Float.BYTES), DELTA);
-        int share = DrinkUpload.STREAMS_AT + DrinkUpload.LAYER_SHARE_SLOT * DrinkUpload.VEC4;
-        assertEquals(0.75f, floatAt(bytes, share + Float.BYTES), DELTA);
-        assertEquals(3, floatAt(bytes, share + PAIR * Float.BYTES), DELTA, "the layer's seed");
+        int block = DrinkUpload.STREAMS_AT + DrinkUpload.BLOCK_COLOR_SLOT * DrinkUpload.VEC4;
+        assertEquals(0x80 / 255f, floatAt(bytes, block), DELTA, "the block color's red");
+        assertEquals(0x40 / 255f, floatAt(bytes, block + Float.BYTES), DELTA, "its green");
+        assertEquals(0xC0 / 255f, floatAt(bytes, block + PAIR * Float.BYTES), DELTA, "its blue");
+        int goo = DrinkUpload.STREAMS_AT + DrinkUpload.GOO_COLOR_SLOT * DrinkUpload.VEC4;
+        assertEquals(0x33 / 255f, floatAt(bytes, goo), DELTA, "the goo color's red");
+        assertEquals(0x66 / 255f, floatAt(bytes, goo + Float.BYTES), DELTA, "its green");
+        assertEquals(0x99 / 255f, floatAt(bytes, goo + PAIR * Float.BYTES), DELTA, "its blue");
         assertEquals(1.2 - CAMERA.x, floatAt(bytes, DrinkUpload.RINGS_AT), DELTA);
         assertEquals(2.5 - CAMERA.y, floatAt(bytes, DrinkUpload.RINGS_AT + Float.BYTES), DELTA);
         assertEquals(RADIUS, floatAt(bytes, DrinkUpload.RINGS_AT + (PAIR + 1) * Float.BYTES), DELTA);

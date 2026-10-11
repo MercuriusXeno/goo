@@ -7,13 +7,27 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.level.block.Blocks;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for nether decay's tap: nether drips landing on stone leave it
  * stone short of the JSON's drip count and cobblestone at it, by the decay
  * map the channeled Decay reads (decision decay-drip-degrades-the-block-below).
  */
+@RegistersGameTests
 public final class DecayTapTests {
+    private static final String DECAY_TAP_DEGRADES_BELOW = "decay_tap_degrades_below";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, DECAY_TAP_DEGRADES_BELOW, DecayTapTests::decayTapDegradesBelow);
+    }
+
 
     /** nether_decay_tap.json's drip count. */
     private static final int DRIPS = 8;

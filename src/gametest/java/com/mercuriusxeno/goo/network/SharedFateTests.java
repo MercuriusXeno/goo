@@ -14,13 +14,29 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametest for Quantum's shared fate: a player's link struck on two cows in
  * turn pairs them, so hurting one lowers the other's health, and a potion
  * effect on one lands on both (decision shared-fate-pools-health-and-status).
  */
+@RegistersGameTests
 public final class SharedFateTests {
+    private static final String SHARED_FATE_MIRRORS = "shared_fate_mirrors_health_and_effects";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, SHARED_FATE_MIRRORS, SharedFateTests::sharedFateMirrorsHealthAndEffects);
+    }
+
 
     private static final String LINK = "goo:quantum_link";
     private static final BlockPos FIRST_COW = new BlockPos(2, 1, 2);

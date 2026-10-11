@@ -12,12 +12,26 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametest for the shared in-world goo insert over real stacks and a recording sink
  * (decision block-insert-shared).
  */
+@RegistersGameTests
 public final class GooInsertTests {
+    private static final String IX_GOO_INSERT_SHARED = "ix_goo_insert_shared";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, IX_GOO_INSERT_SHARED, GooInsertTests::pourDepletesByAccepted);
+    }
+
 
     private static final ResourceKey<GooTypeDefinition> ROCK = GooTypes.ROCK;
     private static final int GOO_COUNT = 5;

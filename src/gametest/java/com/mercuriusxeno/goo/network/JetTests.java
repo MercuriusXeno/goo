@@ -9,6 +9,10 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametest for typhoon Jet held through the real stream delivery: each held
@@ -16,7 +20,19 @@ import net.minecraft.world.phys.Vec3;
  * cost (decision jet-pushes-along-the-look-while-held). The mock player has
  * no client moving it, so the test reads the velocity the jet sets.
  */
+@RegistersGameTests
 public final class JetTests {
+    private static final String JET_FLIES_WHILE_HELD = "jet_flies_while_held";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, JET_FLIES_WHILE_HELD, JetTests::jetFliesWhileHeld);
+    }
+
 
     private static final Identifier TYPHOON_JET = Identifier.parse("goo:typhoon_jet");
     private static final int HOLD_TICKS = 20;

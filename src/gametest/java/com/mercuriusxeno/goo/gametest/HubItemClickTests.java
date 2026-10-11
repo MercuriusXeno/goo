@@ -25,12 +25,32 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for thousands and gooStacks clicked onto a hub item in inventory
  * (decision hub-item-goo-insert).
  */
+@RegistersGameTests
 public final class HubItemClickTests {
+    private static final String IX_HUB_ITEM_GOO_INSERT = "ix_hub_item_goo_insert";
+    private static final String IX_HUB_ITEM_GOO_INSERT_REMAINDER = "ix_hub_item_goo_insert_remainder";
+    private static final String IX_HUB_ITEM_INSERT_REFUSED = "ix_hub_item_insert_refused";
+    private static final String IX_HUB_ITEM_DRAINS_NOTHING = "ix_hub_item_drains_nothing";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, IX_HUB_ITEM_GOO_INSERT, HubItemClickTests::gooInsertFillsCanisterAndPlaces);
+        GooTestFunctions.registerTest(registrar, IX_HUB_ITEM_GOO_INSERT_REMAINDER, HubItemClickTests::gooInsertKeepsRemainder);
+        GooTestFunctions.registerTest(registrar, IX_HUB_ITEM_INSERT_REFUSED, HubItemClickTests::insertRefusedLeavesStacks);
+        GooTestFunctions.registerTest(registrar, IX_HUB_ITEM_DRAINS_NOTHING, HubItemClickTests::secondaryClickDrainsNothing);
+    }
+
 
     private static final BlockPos FLOOR_POS = new BlockPos(1, 1, 1);
     private static final BlockPos HUB_POS = FLOOR_POS.above();

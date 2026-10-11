@@ -14,6 +14,8 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametest for Deep's dive: a player standing on the roof of a sealed stone
@@ -22,7 +24,19 @@ import net.minecraft.world.level.levelgen.Heightmap;
  * a chunk of its own far from every other test, so no other test's enclosed
  * air is within the dive's reach.
  */
+@RegistersGameTests
 public final class DiveTests {
+    private static final String DIVE_LANDS = "dive_lands_in_the_cave_below";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, DIVE_LANDS, DiveTests::diveLandsInTheCaveBelow);
+    }
+
 
     private static final Identifier DEEP_DIVE = Identifier.parse("goo:deep_dive");
     /** How far off the bay on each horizontal axis the scene's chunk lies, past the convoke tests' chunks. */

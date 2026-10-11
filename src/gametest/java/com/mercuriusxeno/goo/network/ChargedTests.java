@@ -22,6 +22,10 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Charged: blaze spitfire held at a zombie beyond its six-block
@@ -31,7 +35,21 @@ import net.minecraft.world.phys.Vec3;
  * charge clearing and the stream's cone back at its base reach
  * (decision charged-scales-channel-params-by-json).
  */
+@RegistersGameTests
 public final class ChargedTests {
+    private static final String CHARGED_LENGTHENS_THE_STREAM = "charged_lengthens_the_stream";
+    private static final String CHARGED_ENDS_WHEN_UNSTABLE_RUNS_DRY = "charged_ends_when_unstable_runs_dry";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, CHARGED_LENGTHENS_THE_STREAM, ChargedTests::chargedLengthensTheStream);
+        GooTestFunctions.registerTest(registrar, CHARGED_ENDS_WHEN_UNSTABLE_RUNS_DRY, ChargedTests::chargedEndsWhenUnstableRunsDry);
+    }
+
 
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
     /** Eight blocks east of the player: past spitfire's six, inside its charged nine. */

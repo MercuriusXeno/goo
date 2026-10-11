@@ -17,6 +17,10 @@ import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametest for the share of a hit Stoneskin's stone hearts take, routed by
@@ -26,7 +30,21 @@ import net.minecraft.world.level.GameType;
  * armor lands whole (decision stoneskin-stone-hearts-block-regeneration).
  * It sits in the hearts package to reach the package-private routing.
  */
+@RegistersGameTests
 public final class StoneskinRoutingTests {
+    private static final String STONESKIN_ROUTES_HITS = "stoneskin_routes_hits_by_source";
+    private static final String STONESKIN_ENDS_KEEPING_HEALTH = "stoneskin_ends_leaving_health_as_it_stood";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, STONESKIN_ROUTES_HITS, StoneskinRoutingTests::stoneskinRoutesHitsBySource);
+        GooTestFunctions.registerTest(registrar, STONESKIN_ENDS_KEEPING_HEALTH, StoneskinRoutingTests::stoneskinEndsLeavingHealthAsItStood);
+    }
+
 
     private static final BlockPos PICK_ZOMBIE = new BlockPos(1, 1, 1);
     private static final BlockPos BARE_ZOMBIE = new BlockPos(3, 1, 3);

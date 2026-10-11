@@ -17,13 +17,29 @@ import net.minecraft.world.item.enchantment.Enchantments;
 import net.neoforged.neoforge.registries.DeferredItem;
 import java.util.ArrayList;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for the exorite-unenchantable decision: no exorite piece and not
  * the exo gauntlet is enchantable at the table, and an anvil refuses an
  * enchanted book on an exorite piece that it applies to a netherite one.
  */
+@RegistersGameTests
 public final class ExoriteEnchantingTests {
+    private static final String EXORITE_NOT_ENCHANTABLE = "exorite_not_enchantable";
+    private static final String EXORITE_ANVIL_REFUSES_BOOK = "exorite_anvil_refuses_book";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, EXORITE_NOT_ENCHANTABLE, ExoriteEnchantingTests::notEnchantable);
+        GooTestFunctions.registerTest(registrar, EXORITE_ANVIL_REFUSES_BOOK, ExoriteEnchantingTests::anvilRefusesBook);
+    }
+
 
     private static final String REMOVAL = "removal";
     private static final int ANVIL_LEFT = 0;

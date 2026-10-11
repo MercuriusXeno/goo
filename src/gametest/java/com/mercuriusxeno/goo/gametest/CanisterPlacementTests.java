@@ -17,12 +17,36 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for where a canister item places a new canister block: on a top face covering the
  * central 12x12 pixels, and nowhere else (decision canister-support-is-rigid-top-face).
  */
+@RegistersGameTests
 public final class CanisterPlacementTests {
+    private static final String IX_CANISTER_VAT_TOP_PLACES = "ix_canister_vat_top_places";
+    private static final String IX_CANISTER_STONE_TOP_PLACES = "ix_canister_stone_top_places";
+    private static final String IX_CANISTER_CRUCIBLE_TOP_REFUSES = "ix_canister_crucible_top_refuses";
+    private static final String IX_CANISTER_SIGN_TOP_REFUSES = "ix_canister_sign_top_refuses";
+    private static final String IX_CANISTER_SNEAK_VAT_TOP_PLACES = "ix_canister_sneak_vat_top_places";
+    private static final String IX_CANISTER_HUB_ATTACH_SPOT = "ix_canister_hub_attach_spot";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, IX_CANISTER_VAT_TOP_PLACES, CanisterPlacementTests::vatTopTakesCanister);
+        GooTestFunctions.registerTest(registrar, IX_CANISTER_STONE_TOP_PLACES, CanisterPlacementTests::stoneTopTakesCanister);
+        GooTestFunctions.registerTest(registrar, IX_CANISTER_CRUCIBLE_TOP_REFUSES, CanisterPlacementTests::crucibleTopRefusesCanister);
+        GooTestFunctions.registerTest(registrar, IX_CANISTER_SIGN_TOP_REFUSES, CanisterPlacementTests::signTopRefusesCanister);
+        GooTestFunctions.registerTest(registrar, IX_CANISTER_SNEAK_VAT_TOP_PLACES, CanisterPlacementTests::sneakClickVatTopTakesCanister);
+        GooTestFunctions.registerTest(registrar, IX_CANISTER_HUB_ATTACH_SPOT, CanisterPlacementTests::hubAttachSpotTakesCanisterAbove);
+    }
+
 
     private static final BlockPos SUPPORT_POS = new BlockPos(1, 1, 1);
     private static final BlockPos CANISTER_POS = SUPPORT_POS.above();

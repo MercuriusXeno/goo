@@ -6,7 +6,6 @@
 #moj_import <minecraft:projection.glsl>
 #moj_import <minecraft:globals.glsl>
 #moj_import <minecraft:sample_lightmap.glsl>
-#moj_import "mingle_noise.glsl"
 
 // One region of an Unmake drink, drawn by marching the drink's field
 // (decision unmake-waves-dissolve-by-crucible-cost): inside the region's box
@@ -19,23 +18,21 @@
 // field so skin two streams share is one smooth shape, painted as the skins
 // of the two streams most present there blended by their presence so a
 // tributary folding into its trunk shows no seam, lit by the lightmap and
-// the cardinal lights, textured
-// along the liquid and round the nearest segment or over the block's world
-// axes in its own stream's coat, a block of sprite to a block of skin along
-// and round, the arc round measured at the skin's own distance from the
-// spine so a fat trunk does not stretch it: the block's own texture crossfading into
-// the block's goo types, mingled among themselves, by the point's share of
-// the route, none at the block and all at the hand; its depth is written so
-// the world occludes it. The constants mirror DrinkField, DrinkStream and
-// DrinkUpload, which DrinkShaderTest checks.
+// the cardinal lights; its depth is written so the world occludes it.
+// No texture anywhere (decision unmake-skin-is-a-solid-sampled-color): each
+// stream's skin is one solid color, its block's sampled color at the block
+// crossfading to its goo's color at the hand by the point's share of the
+// route, so there is nothing to stretch. The hit glistens with a specular
+// highlight and a rim brightening so the blob reads as a lit 3D liquid
+// (decision unmake-metaball-glistens-and-shades). The constants mirror
+// DrinkField, DrinkUpload and DrinkShaderTest, which checks them.
 
-uniform sampler2D Sampler0;
 uniform sampler2D Sampler2;
 
 layout(std140) uniform DrinkRegion {
     vec4 Region;
     vec4 Counts;
-    vec4 Streams[256];
+    vec4 Streams[80];
     ivec4 Table[256];
     vec4 Boxes[16];
     vec4 Rings[448];
@@ -48,20 +45,13 @@ out vec4 fragColor;
 const float DEPTH = 0.05;
 const float REACH = 0.24;
 const float FULL_RADIUS = 0.1;
-const float THINNEST = 0.02;
-const float TEXTURE_PERIOD = 2.0;
 const float REGION_SPAN = 1.0;
-const int STREAM_VEC4S = 16;
+const int STREAM_VEC4S = 5;
 const int COAT_SLOT = 0;
-const int TINT_SLOT = 1;
-const int SPRITE_SLOT = 2;
-const int SIDE_SLOT = 3;
-const int ACROSS_SLOT = 4;
-const int LAYER_TINT_SLOT = 5;
-const int LAYER_SPRITE_SLOT = 8;
-const int LAYER_SHARE_SLOT = 11;
-const int RUN_LOW_SLOT = 14;
-const int RUN_HIGH_SLOT = 15;
+const int BLOCK_COLOR_SLOT = 1;
+const int GOO_COLOR_SLOT = 2;
+const int RUN_LOW_SLOT = 3;
+const int RUN_HIGH_SLOT = 4;
 const int RUN_START = 65536;
 const int BOX_BASE = 4096;
 const int MAX_STEPS = 96;
@@ -72,6 +62,10 @@ const int REFINE_STEPS = 6;
 const float NORMAL_STEP = 0.004;
 const float FAR = 1.0e9;
 const float STRAIGHT = 1.0e-6;
+const float GLISTEN_POWER = 48.0;
+const float GLISTEN_STRENGTH = 0.35;
+const float RIM_POWER = 3.0;
+const float RIM_STRENGTH = 0.25;
 
 float falloff(float signedDistance) {
     float t = clamp((signedDistance + DEPTH) / (DEPTH + REACH), 0.0, 1.0);
@@ -203,84 +197,32 @@ bool slab(vec3 lo, vec3 hi, vec3 rd, out float tEnter, out float tExit) {
     return tExit > max(tEnter, 0.0);
 }
 
-// The sprite's share at a place in blocks, a block of sprite to a block of
-// skin, one sprite mirrored against the next so it tiles with no seam.
-float textureAt(float along) {
-    float laid = along / TEXTURE_PERIOD;
-    float wrapped = laid - floor(laid);
-    return 1.0 - abs(2.0 * wrapped - 1.0);
-}
-
-vec2 uvOf(vec4 sprite, vec2 place) {
-    return sprite.xy + (sprite.zw - sprite.xy) * vec2(textureAt(place.x), textureAt(place.y));
-}
-
-// A point's place on a stream's texture: along the liquid at its foot on the
-// segment, in blocks of material, and round the spine by arc length at the
-// skin's own distance from the spine, not the ring's radius, so the texture
-// is not stretched round a trunk fatter than its ring; route is the foot's
-// share of the block's route, 0 at the block and 1 at the hand.
-vec2 placeOnSegment(int segment, int stream, vec3 p, out float route) {
+// A point's share of the block's route at its foot on a segment, 0 at the
+// block and 1 at the hand.
+float routeOnSegment(int segment, vec3 p) {
     vec4 a = Rings[2 * segment];
     vec4 b = Rings[2 * segment + 2];
-    vec4 ma = Rings[2 * segment + 1];
-    vec4 mb = Rings[2 * segment + 3];
     vec3 line = b.xyz - a.xyz;
     float len2 = dot(line, line);
     float t = len2 == 0.0 ? 0.0 : clamp(dot(p - a.xyz, line) / len2, 0.0, 1.0);
-    vec3 offset = p - (a.xyz + line * t);
-    float angle = atan(dot(offset, streamSlot(stream, ACROSS_SLOT).xyz), dot(offset, streamSlot(stream, SIDE_SLOT).xyz));
-    float surface = max(THINNEST, length(offset));
-    route = mix(ma.y, mb.y, t);
-    return vec2(mix(ma.x, mb.x, t), angle * surface);
+    return mix(Rings[2 * segment + 1].y, Rings[2 * segment + 3].y, t);
 }
 
-vec2 placeOnBlock(vec3 world, vec3 n) {
-    vec3 a = abs(n);
-    if (a.y >= a.x && a.y >= a.z) {
-        return world.xz;
-    }
-    return a.x >= a.z ? world.zy : world.xy;
-}
-
-// The block's goo types mingled among themselves: each type's blotches cover
-// its share of what the types before it left, so together they cover the
-// skin whole; a block with no goo type keeps the color handed in.
-vec4 mingled(vec4 color, int stream, vec3 world, vec2 place) {
-    int layers = int(streamSlot(stream, COAT_SLOT).z);
-    for (int l = 0; l < layers; l++) {
-        vec4 share = streamSlot(stream, LAYER_SHARE_SLOT + l);
-        float conditional = share.y > 0.0 ? (share.y - share.x) / share.y : 0.0;
-        float opacity = mingleOpacity(world, GameTime, conditional, share.z);
-        vec4 goo = texture(Sampler0, uvOf(streamSlot(stream, LAYER_SPRITE_SLOT + l), place))
-            * vec4(streamSlot(stream, LAYER_TINT_SLOT + l).rgb, 1.0);
-        color.rgb = mix(color.rgb, goo.rgb, opacity * goo.a);
-    }
-    return color;
-}
-
-// One stream's skin at a hit: its own texture on its nearest body, along the
-// liquid and round it or over the block's world axes, crossfading into its
-// goo by the route, in its own light.
-vec4 skinOf(int stream, vec3 p, vec3 world, vec3 n) {
+// One stream's skin at a hit: its block's color crossfading to its goo's
+// color by the route share of its nearest body, the standing block wearing
+// the block's color whole, in its own light.
+vec4 skinOf(int stream, vec3 p) {
     int body = nearestBodyOf(p, stream);
-    bool onBlock = body >= BOX_BASE;
-    float route = 0.0;
-    vec2 place = onBlock ? placeOnBlock(world, n) : placeOnSegment(body, stream, p, route);
+    float route = body >= BOX_BASE ? 0.0 : routeOnSegment(body, p);
     vec4 coat = streamSlot(stream, COAT_SLOT);
-    vec4 color = texture(Sampler0, uvOf(streamSlot(stream, SPRITE_SLOT), place))
-        * vec4(streamSlot(stream, TINT_SLOT).rgb, 1.0);
-    // The block's texture crossfades into its goo along the whole route: none at the block, all at the hand.
-    if (!onBlock) {
-        color = mix(color, mingled(color, stream, world, place), route);
-    }
+    vec4 color = vec4(mix(streamSlot(stream, BLOCK_COLOR_SLOT).rgb, streamSlot(stream, GOO_COLOR_SLOT).rgb, route), 1.0);
     return color * sample_lightmap(Sampler2, ivec2(int(coat.x), int(coat.y)));
 }
 
 // The skin at a hit: the skins of the two streams most present there, blended
 // by their presence, so where a tributary folds into its trunk the skin
 // passes smoothly from one to the other with no seam where a pick would flip.
-vec4 skinAtHit(vec3 p, vec3 world, vec3 n, int streams) {
+vec4 skinAtHit(vec3 p, int streams) {
     int first = 0;
     float firstField = -1.0;
     int second = 0;
@@ -297,10 +239,22 @@ vec4 skinAtHit(vec3 p, vec3 world, vec3 n, int streams) {
             secondField = f;
         }
     }
-    vec4 color = skinOf(first, p, world, n);
+    vec4 color = skinOf(first, p);
     if (secondField > 0.0) {
-        color = mix(color, skinOf(second, p, world, n), secondField / (firstField + secondField));
+        color = mix(color, skinOf(second, p), secondField / (firstField + secondField));
     }
+    return color;
+}
+
+// The solid skin shaded as a lit liquid (decision unmake-metaball-glistens-and-shades):
+// a white-leaning Blinn-Phong highlight from each cardinal light and a rim
+// brightening where the surface turns away from the eye, so the blob reads as
+// round wet volume rather than a flat disc. n and view are in view space.
+vec4 glisten(vec4 color, vec3 n, vec3 view) {
+    float shine = pow(max(dot(n, normalize(Light0_Direction + view)), 0.0), GLISTEN_POWER)
+        + pow(max(dot(n, normalize(Light1_Direction + view)), 0.0), GLISTEN_POWER);
+    float rim = pow(1.0 - max(dot(n, view), 0.0), RIM_POWER);
+    color.rgb += vec3(shine * GLISTEN_STRENGTH + rim * RIM_STRENGTH);
     return color;
 }
 
@@ -349,9 +303,10 @@ void main() {
     }
     vec3 p = rd * inside;
     vec3 n = normalAt(p, streams);
-    vec3 world = p + vec3(CameraBlockPos) - CameraOffset;
-    vec4 color = skinAtHit(p, world, n, streams);
-    color = minecraft_mix_light(Light0_Direction, Light1_Direction, normalize(mat3(ModelViewMat) * n), color);
+    vec3 viewNormal = normalize(mat3(ModelViewMat) * n);
+    vec3 toEye = normalize(mat3(ModelViewMat) * -p);
+    vec4 color = glisten(skinAtHit(p, streams), viewNormal, toEye);
+    color = minecraft_mix_light(Light0_Direction, Light1_Direction, viewNormal, color);
     color.a = 1.0;
     fragColor = apply_fog(color, fog_spherical_distance(p), fog_cylindrical_distance(p), FogEnvironmentalStart,
         FogEnvironmentalEnd, FogRenderDistanceStart, FogRenderDistanceEnd, FogColor);

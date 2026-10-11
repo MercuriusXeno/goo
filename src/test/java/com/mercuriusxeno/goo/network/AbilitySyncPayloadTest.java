@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.network;
 
-import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
@@ -12,10 +11,10 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import java.util.List;
+import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
@@ -29,19 +28,28 @@ class AbilitySyncPayloadTest {
                 name, "", order, 0, Delivery.ARC, List.of(), List.of(tag), AbilityBadge.WORLD, List.of());
     }
 
-    /** The sync codec carries each cost formula to the client whole (decision unaffordable-click-does-nothing). */
-    @ParameterizedTest
-    @ValueSource(strings = {"crystal_cloud", "unstable_timed_bomb", "unstable_lurker"})
-    void costRoundTripsThroughTheSyncCodec(String name) {
-        AbilityDefinition definition = AbilityJson.decode(name);
+    /**
+     * Every shipped ability the glove offers, every one but a tap's drip
+     * (decision tests-read-the-inventory-from-loaded-json).
+     */
+    static Stream<AbilityDefinition> shippedGloveAbilities() {
+        return AbilityJson.files().stream().map(AbilityJson::decode)
+                .filter(definition -> !definition.hasTag(AbilityTags.TAP));
+    }
+
+    private static AbilitySyncPayload.Entry roundTrip(AbilityDefinition definition) {
         AbilitySyncPayload sent = new AbilitySyncPayload(
                 AbilitySyncPayload.gloveEntries(definition.gooType(), List.of(definition)));
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-
         AbilitySyncPayload.STREAM_CODEC.encode(buf, sent);
-        AbilitySyncPayload received = AbilitySyncPayload.STREAM_CODEC.decode(buf);
+        return AbilitySyncPayload.STREAM_CODEC.decode(buf).entries().getFirst();
+    }
 
-        assertEquals(definition.cost(), received.entries().getFirst().cost());
+    /** The sync codec carries each cost formula to the client whole (decision unaffordable-click-does-nothing). */
+    @ParameterizedTest
+    @MethodSource("shippedGloveAbilities")
+    void costRoundTripsThroughTheSyncCodec(AbilityDefinition definition) {
+        assertEquals(definition.cost(), roundTrip(definition).cost(), definition.id().toString());
     }
 
     /** The sync codec carries each badge kind to the client unchanged (decision badge-marks-the-target-kind). */
@@ -61,13 +69,8 @@ class AbilitySyncPayloadTest {
     @Test
     void requiresRoundTripsThroughTheSyncCodec() {
         AbilityDefinition definition = AbilityJson.decode("hex_charm");
-        AbilitySyncPayload sent = new AbilitySyncPayload(
-                AbilitySyncPayload.gloveEntries(definition.gooType(), List.of(definition)));
-        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
 
-        AbilitySyncPayload.STREAM_CODEC.encode(buf, sent);
-
-        assertEquals(definition.requires(), AbilitySyncPayload.STREAM_CODEC.decode(buf).entries().getFirst().requires());
+        assertEquals(definition.requires(), roundTrip(definition).requires());
     }
 
     /**
@@ -76,20 +79,9 @@ class AbilitySyncPayloadTest {
      * razor's derived sphere among them (decision every-instant-aoe-shows-its-indicator-while-held).
      */
     @ParameterizedTest
-    @CsvSource({"unstable_explode, NONE, 0.0, 0.0", "unstable_lurker, SPHERE, 3.3333333333333335, 0.0",
-            "blaze_spitfire, CONE, 6.0, 20.0", "ender_blink, NONE, 0.0, 0.0",
-            "crystal_cloud, SPHERE, 4.5, 0.0"})
-    void eachShippedAreaRoundTripsThroughTheSyncCodec(String name, AbilityArea.Shape shape, double size,
-                                                       double angle) {
-        AbilityDefinition definition = AbilityJson.decode(name);
-        AbilitySyncPayload sent = new AbilitySyncPayload(
-                AbilitySyncPayload.gloveEntries(definition.gooType(), List.of(definition)));
-        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-
-        AbilitySyncPayload.STREAM_CODEC.encode(buf, sent);
-
-        assertEquals(new AbilityArea(shape, size, angle),
-                AbilitySyncPayload.STREAM_CODEC.decode(buf).entries().getFirst().area());
+    @MethodSource("shippedGloveAbilities")
+    void eachShippedAreaRoundTripsThroughTheSyncCodec(AbilityDefinition definition) {
+        assertEquals(definition.area(), roundTrip(definition).area(), definition.id().toString());
     }
 
     @Test

@@ -35,12 +35,41 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import net.neoforged.neoforge.registries.RegisterEvent;
 
 /**
  * Gametests for the gasket registry following a gasket through every host
  * (decision diagnose-then-fix-gasket-registry-holes).
  */
+@RegistersGameTests
 public final class GasketRegistryTests {
+    private static final String TAP_ATTACHMENT_LOADS = "tap_attachment_loads";
+    private static final String HUB_SLOT_GASKET_REGISTERED = "hub_slot_gasket_registered";
+    private static final String BREAK_POPS_GASKET_CRUCIBLE = "break_pops_gasket_crucible";
+    private static final String BREAK_POPS_GASKET_VAT = "break_pops_gasket_vat";
+    private static final String BREAK_POPS_GASKET_TAP = "break_pops_gasket_tap";
+    private static final String BREAK_POPS_GASKET_HUB = "break_pops_gasket_hub";
+    private static final String REMOVAL_POPS_GASKET_EVERY_MACHINE = "removal_pops_gasket_every_machine";
+    private static final String BREAK_RELEASES_STANDING_GASKET = "break_releases_standing_gasket";
+    private static final String PLACED_HUB_REGISTERS_CANISTER = "placed_hub_registers_canister";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, TAP_ATTACHMENT_LOADS, GasketRegistryTests::tapAttachmentLoads);
+        GooTestFunctions.registerTest(registrar, HUB_SLOT_GASKET_REGISTERED, GasketRegistryTests::hubSlotGasketRegistered);
+        GooTestFunctions.registerTest(registrar, BREAK_POPS_GASKET_CRUCIBLE, GasketRegistryTests::breakPopsGasketCrucible);
+        GooTestFunctions.registerTest(registrar, BREAK_POPS_GASKET_VAT, GasketRegistryTests::breakPopsGasketVat);
+        GooTestFunctions.registerTest(registrar, BREAK_POPS_GASKET_TAP, GasketRegistryTests::breakPopsGasketTap);
+        GooTestFunctions.registerTest(registrar, BREAK_POPS_GASKET_HUB, GasketRegistryTests::breakPopsGasketHub);
+        GooTestFunctions.registerTest(registrar, REMOVAL_POPS_GASKET_EVERY_MACHINE, GasketRegistryTests::removalPopsGasketEveryMachine);
+        GooTestFunctions.registerTest(registrar, BREAK_RELEASES_STANDING_GASKET, GasketRegistryTests::breakReleasesStandingGasket);
+        GooTestFunctions.registerTest(registrar, PLACED_HUB_REGISTERS_CANISTER, GasketRegistryTests::placedHubRegistersCarriedCanister);
+    }
+
 
     private static final BlockPos BE_POS = new BlockPos(1, 1, 1);
     private static final int RELOAD_SETTLE_TICKS = 2;

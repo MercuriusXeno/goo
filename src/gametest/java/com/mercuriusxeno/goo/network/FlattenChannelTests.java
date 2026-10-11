@@ -18,6 +18,10 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametest for rock flatten: holding the channel at a dirt mound breaks the
@@ -28,7 +32,21 @@ import java.util.List;
  * and leaves the wall and what is behind it
  * (decision flatten-disc-cursor-breaks-above-the-plane).
  */
+@RegistersGameTests
 public final class FlattenChannelTests {
+    private static final String FLATTEN_BREAKS_ABOVE_THE_PLANE = "flatten_breaks_above_the_plane";
+    private static final String FLATTEN_SHAVES_A_WALL = "flatten_shaves_a_wall";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, FLATTEN_BREAKS_ABOVE_THE_PLANE, FlattenChannelTests::flattenBreaksAboveThePlane);
+        GooTestFunctions.registerTest(registrar, FLATTEN_SHAVES_A_WALL, FlattenChannelTests::flattenShavesAWall);
+    }
+
 
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
     /** The ground block the cursor rests on as the hold begins: the swath starts above it. */

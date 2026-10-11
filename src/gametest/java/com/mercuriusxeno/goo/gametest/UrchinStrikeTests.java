@@ -18,8 +18,10 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Gametests for Metal's Urchin: every spear the trap shoots at a walking
@@ -29,7 +31,10 @@ import java.util.List;
  * off the spear on every shot.
  * decision urchin-rests-bristled-and-spears
  */
+@RegistersGameTests
 public final class UrchinStrikeTests {
+
+    private static final String URCHIN_HITS_EVERY_SHOT = "urchin_hits_every_shot";
 
     private static final Identifier METAL_SPIKES = Identifier.parse("goo:metal_spikes");
     private static final BlockPos MARKER_POS = new BlockPos(3, 1, 3);
@@ -53,6 +58,15 @@ public final class UrchinStrikeTests {
     private static final String TOO_FEW_SHOTS = "Urchin shot %d of ten times at the walking zombie: %s";
 
     private UrchinStrikeTests() {
+    }
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, URCHIN_HITS_EVERY_SHOT, UrchinStrikeTests::urchinHitsEveryShot);
     }
 
     /**

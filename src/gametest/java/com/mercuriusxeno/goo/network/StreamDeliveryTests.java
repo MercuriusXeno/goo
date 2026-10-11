@@ -21,6 +21,10 @@ import net.minecraft.world.entity.animal.cow.Cow;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametest for the stream delivery: holding blaze spitfire at a zombie runs
@@ -29,7 +33,21 @@ import net.minecraft.world.phys.Vec3;
  * (decision stream-delivery-held-cone); holding jelly heal at a hurt cow heals
  * the cow and the caster both and courts no cow (decision nourish-and-healing-ship-on-jelly).
  */
+@RegistersGameTests
 public final class StreamDeliveryTests {
+    private static final String STREAM_BLAZE_SPITFIRE = "stream_blaze_spitfire";
+    private static final String VITALITY_HEALS = "vitality_heals_cow_and_caster";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, STREAM_BLAZE_SPITFIRE, StreamDeliveryTests::blazeSpitfire);
+        GooTestFunctions.registerTest(registrar, VITALITY_HEALS, StreamDeliveryTests::vitalityHealsCowAndCaster);
+    }
+
 
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
     /** Four blocks east of the player. */

@@ -1,59 +1,36 @@
 package com.mercuriusxeno.goo.ability;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 import com.mojang.serialization.JsonOps;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import java.io.IOException;
+import java.io.Reader;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.EnumSet;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * An ability's badge reads only from the fixed vocabulary, and every shipped ability
- * declares mob exactly where it targets entities (decision badge-marks-the-target-kind).
+ * declares mob exactly where it targets entities (decision badge-marks-the-target-kind),
+ * graded from each loaded definition's own fields rather than a list of names
+ * (decision tests-read-the-inventory-from-loaded-json).
  */
 class AbilityBadgeTest {
 
-    private static final int SHIPPED_MOB_BADGES = 17;
-    private static final int SHIPPED_WORLD_BADGES = 20;
-    private static final int SHIPPED_SELF_BADGES = 7;
-    private static final int SHIPPED_BREW_BADGES = 19;
-    private static final int SHIPPED_CHANNELED_BADGES = 26;
-    private static final int SHIPPED_FREE_BADGES = 7;
-    private static final int SHIPPED_TAP_BADGES = 12;
-    private static final int SHIPPED_PRISM_BADGES = 10;
-    /**
-     * The prism combos (decisions prism-hosts-the-combos, hive-prism-pillar-eats-the-living,
-     * glacial-prism-holds-the-area-frozen,
-     * verdant-prism-greens-blocks-slowly, oculus-prism-becomes-a-hovering-eye,
-     * reflector-rails-carry-the-brightest-light, timekeeper-prism-banks-ticks-forward-only,
-     * quantum-anchors-link-two-points).
-     */
-    private static final List<String> SHIPPED_PRISMS = List.of("nether_hive", "pulse_metronome", "pulse_relay",
-            "frost_glacial", "leaf_verdant", "ender_oculus", "glow_reflector", "aeon_timekeeper", "typhoon_lift",
-            "quantum_anchor");
-    /** The self + brew abilities, which wear brew on their self delivery (decision self-brew-goos-eat-before-the-effect). */
-    private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "ender_shifter", "leaf_barkskin",
-            "rock_stoneskin", "jelly_gluttony", "shroom_sight", "nether_undead", "pulse_extender", "frost_iceborn",
-            "hex_lifetap", "glow_lux", "aeon_haste", "typhoon_airborn", "xeno_eldritch", "crystal_scales",
-            "unstable_charged", "kinetic_telekinesis", "yore_ancient", "quantum_phase");
-    /** The shipped free abilities (decisions badge-vocabulary-gains-free-prism-tap-brew, zap-ticks-the-device-and-stuns). */
-    private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "shroom_colonize",
-            "pulse_zap", "frost_orb", "leaf_reap", "jelly_feed", "weird_slime");
-    /**
-     * Self deliveries wearing the channeled badge (decisions flatten-disc-cursor-breaks-above-the-plane,
-     * unmake-waves-dissolve-by-crucible-cost, magnet-sphere-icons-metal-ores).
-     */
-    private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten", "frost_nova", "glow_scry",
-            "glow_sunbeam", "glow_radiant", "typhoon_jet", "crystal_glitter", "metal_magnet", "unstable_unmake",
-            "kinetic_grab");
-    /** Thrown deliveries wearing the channeled badge (decision shards-sling-then-morph-to-flechettes). */
-    private static final List<String> SHIPPED_THROWN_CHANNELS = List.of("crystal_shards");
+    /** The delivery field a held channel writes; its codec default hides whether the JSON wrote it. */
+    private static final String TICKS_PER_CHARGE_FIELD = "ticks_per_charge";
 
     @ParameterizedTest
     @CsvSource({"world, WORLD", "mob, MOB", "self, SELF", "channeled, CHANNELED", "brew, BREW",
@@ -94,54 +71,48 @@ class AbilityBadgeTest {
     }
 
     /**
-     * The badge a shipped ability wears: its delivery's own badge for a self
-     * or a stream (decision one-proving-ability-per-kind), brew for a self +
-     * brew ability, free for Blast, tap for a tap's drip ability, prism for
-     * a prism combo such as Hive, channeled for a thrown channel such as Shards, and for any
-     * other thrown ability, mob where it targets entities and world elsewhere.
+     * The badges a shipped ability may wear, read from its own fields: tap for a tap-tagged
+     * drip, channeled for a stream or for any delivery that charges or writes a hold's ticks
+     * per charge, brew for a self delivery paying upkeep, self for any other self delivery,
+     * and for a thrown ability mob where it targets entities and world elsewhere. Free and
+     * prism are carried by the badge alone, since no field marks them, so a thrown ability
+     * wearing either passes on its badge.
      *
      * @param definition the shipped ability
-     * @return the badge it should wear
+     * @param delivery   the ability's delivery block as written in its JSON
+     * @return the badges it may wear
      */
-    private static AbilityBadge expectedBadge(AbilityDefinition definition) {
-        if (SHIPPED_FREE.contains(definition.id().getPath())) {
-            return AbilityBadge.FREE;
-        }
-        if (SHIPPED_PRISMS.contains(definition.id().getPath())) {
-            return AbilityBadge.PRISM;
-        }
+    private static Set<AbilityBadge> allowedBadges(AbilityDefinition definition, JsonObject delivery) {
         if (definition.hasTag(AbilityTags.TAP)) {
-            return AbilityBadge.TAP;
+            return EnumSet.of(AbilityBadge.TAP);
         }
-        if (SHIPPED_THROWN_CHANNELS.contains(definition.id().getPath())) {
-            return AbilityBadge.CHANNELED;
-        }
+        boolean holds = definition.delivery().charges() || delivery.has(TICKS_PER_CHARGE_FIELD);
         return switch (definition.delivery().kind()) {
-            case SELF -> selfBadge(definition.id().getPath());
-            case STREAM -> AbilityBadge.CHANNELED;
-            default -> definition.hasTag(AbilityTags.ENTITY) ? AbilityBadge.MOB : AbilityBadge.WORLD;
+            case STREAM -> EnumSet.of(AbilityBadge.CHANNELED);
+            // self-effects-trickle-until-ended
+            case SELF -> EnumSet.of(definition.upkeep() > AbilityDefinition.NO_UPKEEP ? AbilityBadge.BREW
+                    : holds ? AbilityBadge.CHANNELED : AbilityBadge.SELF);
+            default -> holds ? EnumSet.of(AbilityBadge.CHANNELED)
+                    : EnumSet.of(definition.hasTag(AbilityTags.ENTITY) ? AbilityBadge.MOB : AbilityBadge.WORLD,
+                            AbilityBadge.FREE, AbilityBadge.PRISM);
         };
     }
 
-    private static AbilityBadge selfBadge(String path) {
-        if (SHIPPED_SELF_CHANNELS.contains(path)) {
-            return AbilityBadge.CHANNELED;
+    private static JsonObject writtenDelivery(Path file) {
+        try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+            JsonElement delivery = JsonParser.parseReader(reader).getAsJsonObject().get("delivery");
+            return delivery != null && delivery.isJsonObject() ? delivery.getAsJsonObject() : new JsonObject();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
-        return SHIPPED_BREWS.contains(path) ? AbilityBadge.BREW : AbilityBadge.SELF;
     }
 
     @Test
     void shippedAbilitiesWearMobExactlyWhereTheyTargetEntities() {
-        Map<String, AbilityDefinition> shipped = AbilityJson.files().stream()
-                .map(AbilityJson::decode)
-                .collect(Collectors.toMap(definition -> definition.id().getPath(), Function.identity()));
-
-        shipped.values().forEach(definition -> assertEquals(
-                expectedBadge(definition), definition.badge(), definition.id().toString()));
-        assertEquals(Map.of(AbilityBadge.MOB, (long) SHIPPED_MOB_BADGES, AbilityBadge.WORLD, (long) SHIPPED_WORLD_BADGES,
-                        AbilityBadge.SELF, (long) SHIPPED_SELF_BADGES, AbilityBadge.BREW, (long) SHIPPED_BREW_BADGES,
-                        AbilityBadge.CHANNELED, (long) SHIPPED_CHANNELED_BADGES, AbilityBadge.FREE, (long) SHIPPED_FREE_BADGES,
-                        AbilityBadge.TAP, (long) SHIPPED_TAP_BADGES, AbilityBadge.PRISM, (long) SHIPPED_PRISM_BADGES),
-                shipped.values().stream().collect(Collectors.groupingBy(AbilityDefinition::badge, Collectors.counting())));
+        for (Path file : AbilityJson.files()) {
+            AbilityDefinition definition = AbilityJson.decode(file);
+            assertTrue(allowedBadges(definition, writtenDelivery(file)).contains(definition.badge()),
+                    definition.id() + " wears " + definition.badge());
+        }
     }
 }

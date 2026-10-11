@@ -21,6 +21,10 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.NetherWartBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Mycosis tending fungi: a held stream random-ticks the nether
@@ -30,7 +34,25 @@ import net.minecraft.world.phys.Vec3;
  * breeze held on the same wart leaves it as planted.
  * mycosis-grows-and-reaps-nether-wart
  */
+@RegistersGameTests
 public final class MycosisFungiTests {
+    private static final String MYCOSIS_REAPS_WART = "mycosis_grows_and_reaps_nether_wart";
+    private static final String MYCOSIS_GROWS_BUDS = "mycosis_grows_fungal_buds";
+    private static final String MYCOSIS_BUD_PACE = "mycosis_buds_ripen_at_warts_pace";
+    private static final String GROWTH_SPARES_WART_FUNCTION = "growth_leaves_nether_wart_alone";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, MYCOSIS_REAPS_WART, MycosisFungiTests::mycosisGrowsAndReapsNetherWart);
+        GooTestFunctions.registerTest(registrar, MYCOSIS_GROWS_BUDS, MycosisFungiTests::mycosisGrowsFungalBuds);
+        GooTestFunctions.registerTest(registrar, MYCOSIS_BUD_PACE, MycosisFungiTests::mycosisBudsRipenAtWartsPace);
+        GooTestFunctions.registerTest(registrar, GROWTH_SPARES_WART_FUNCTION, MycosisFungiTests::growthLeavesNetherWartAlone);
+    }
+
 
     private static final BlockPos STAND_POS = new BlockPos(0, 1, 2);
     /** Three blocks east of the player, at its height. */

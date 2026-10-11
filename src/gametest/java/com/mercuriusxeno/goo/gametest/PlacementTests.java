@@ -15,12 +15,38 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.block.Blocks;
 import java.util.Map;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for EffectBlockPlacement on the ability path: an ability goo
  * lands through ChainPlacementRules and stands or stacks its ability block.
  */
+@RegistersGameTests
 public final class PlacementTests {
+    private static final String PL_DOUBLE_STACK = "pl_double_hit_stacks";
+    private static final String PL_SIDEWAYS_NEIGHBOR = "pl_sideways_neighbor";
+    private static final String PL_OTHER_TYPES = "pl_other_types_place";
+    private static final String PL_ABILITY_HIT_BLOCK = "pl_ability_hit_block";
+    private static final String PL_ABILITY_WATERLOG = "pl_ability_waterlog";
+    private static final String PL_ABILITY_LAVA = "pl_ability_lava";
+    private static final String PL_ABILITY_SAME_STACK = "pl_ability_same_stack";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, PL_DOUBLE_STACK, PlacementTests::secondThrowLandsBesideTheFirst);
+        GooTestFunctions.registerTest(registrar, PL_SIDEWAYS_NEIGHBOR, PlacementTests::sidewaysMarkerSurvivesNeighborChange);
+        GooTestFunctions.registerTest(registrar, PL_OTHER_TYPES, PlacementTests::otherTypesPlaceMarker);
+        GooTestFunctions.registerTest(registrar, PL_ABILITY_HIT_BLOCK, PlacementTests::abilityTakesReplaceableHitBlock);
+        GooTestFunctions.registerTest(registrar, PL_ABILITY_WATERLOG, PlacementTests::abilityWaterlogsInWater);
+        GooTestFunctions.registerTest(registrar, PL_ABILITY_LAVA, PlacementTests::abilityRefusesLava);
+        GooTestFunctions.registerTest(registrar, PL_ABILITY_SAME_STACK, PlacementTests::otherAbilityLandsBesideAStandingMarker);
+    }
+
 
     private static final BlockPos WALL_POS = new BlockPos(1, 1, 1);
     private static final BlockPos AIR_POS = new BlockPos(1, 1, 2);

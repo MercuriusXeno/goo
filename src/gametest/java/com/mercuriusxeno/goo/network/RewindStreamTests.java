@@ -23,6 +23,10 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for yore Rewind: a mock player aims at an ordinary penned pig at
@@ -34,7 +38,23 @@ import java.util.List;
  * rewind-shrinks-adult-to-baby-to-egg
  * rewind-ships-on-yore
  */
+@RegistersGameTests
 public final class RewindStreamTests {
+    private static final String REWIND_ADULT_TO_BABY = "rewind_adult_to_baby";
+    private static final String REWIND_BABY_TO_EGG = "rewind_baby_to_egg";
+    private static final String REWIND_LEAVES_BLOCKS = "rewind_leaves_blocks";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, REWIND_ADULT_TO_BABY, RewindStreamTests::rewindAdultToBaby);
+        GooTestFunctions.registerTest(registrar, REWIND_BABY_TO_EGG, RewindStreamTests::rewindBabyToEgg);
+        GooTestFunctions.registerTest(registrar, REWIND_LEAVES_BLOCKS, RewindStreamTests::rewindLeavesBlocks);
+    }
+
 
     private static final BlockPos STAND_POS = new BlockPos(0, 1, 2);
     /** Three blocks east of the player, at its height, on a floor the test lays. */

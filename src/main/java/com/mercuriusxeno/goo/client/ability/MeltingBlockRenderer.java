@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.GooSubmitter;
-import com.mercuriusxeno.goo.client.ber.MeltMesh;
+import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.ber.MeltMeshGoo;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -11,11 +11,16 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.util.ARGB;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -23,15 +28,19 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
+import org.joml.Vector3fc;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Draws what Unmake leaves on screen outside the melting block's own
  * renderer: the goo spreading over a block that melts without the sag, a
- * block holding contents or one under a tap; and the remains of anything
- * unmade, a blob of the goo they hold, drawn as the
- * crucible draws its goo, shrinking and rounding into the goo item where the
- * item then drops.
+ * block holding contents or one under a tap, in one solid color with no
+ * texture; and the remains of anything unmade, a blob of the goo they hold,
+ * drawn as the crucible draws its goo, shrinking and rounding into the goo
+ * item where the item then drops.
  * decision unmake-waves-dissolve-by-crucible-cost
+ * decision unmake-skin-is-a-solid-sampled-color
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class MeltingBlockRenderer {
@@ -54,6 +63,10 @@ public final class MeltingBlockRenderer {
     private static final float SMOOTH_BASE = 3f;
     /** The cubic smoothstep's slope term. */
     private static final float SMOOTH_SLOPE = 2f;
+    /** How far the goo film stands off the block's faces, so it never fights them. */
+    private static final float FILM_LIFT = 0.006f;
+    private static final long MODEL_SEED = 42L;
+
     private MeltingBlockRenderer() {
     }
 
@@ -70,7 +83,7 @@ public final class MeltingBlockRenderer {
             return;
         }
         float now = level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        MeltingBlocks.CLIENT.worked(now).forEach((pos, melted) -> submitSpread(event, level, pos, melted, now));
+        MeltingBlocks.CLIENT.worked(now).forEach((pos, melted) -> submitSpread(event, level, pos, melted));
         for (MorphingRemains.Morph morph : MorphingRemains.CLIENT.morphs(now)) {
             submitMorph(event, level, morph);
         }
@@ -78,28 +91,72 @@ public final class MeltingBlockRenderer {
 
     /**
      * Submits the goo spreading over a worked block that melts without the
-     * sag: one holding contents, or one under a tap.
+     * sag, one holding contents or one under a tap: a film over its model in
+     * the goo's one solid color, its types' tints blended by volume, thickening
+     * as the block melts.
      *
      * @param event  the custom geometry submit event
      * @param level  the client level
      * @param pos    the block
      * @param melted the share melted
-     * @param now    the game time including the partial tick
      */
-    private static void submitSpread(SubmitCustomGeometryEvent event, ClientLevel level, BlockPos pos, float melted,
-                                     float now) {
+    private static void submitSpread(SubmitCustomGeometryEvent event, ClientLevel level, BlockPos pos, float melted) {
         BlockState state = level.getBlockState(pos);
         if (state.is(GooBlocks.MELTING_BLOCK.get()) || state.isAir()) {
             return;
         }
-        MeltMesh.Melt melt = new MeltMesh.Melt(state, level, pos, MeltMeshGoo.of(state), melted, now, false);
+        MingledGoo goo = MeltMeshGoo.of(state);
+        if (goo.types().isEmpty()) {
+            return;
+        }
+        int color = ARGB.color(Math.round(GOO_ALPHA * melted), DrinkRenderer.gooColorOf(goo));
+        List<BakedQuad> quads = quadsOf(state, level, pos);
         Vec3 corner = Vec3.atLowerCornerOf(pos).subtract(event.getLevelRenderState().cameraRenderState.pos);
         PoseStack poseStack = event.getPoseStack();
         poseStack.pushPose();
         poseStack.translate(corner.x, corner.y, corner.z);
-        GooSubmitter.submitBody(poseStack, event.getSubmitNodeCollector(), LevelRenderer.getLightCoords(level, pos),
-                ctx -> MeltMesh.emit(ctx, melt));
+        GooSubmitter.submitFilm(poseStack, event.getSubmitNodeCollector(), LevelRenderer.getLightCoords(level, pos),
+                ctx -> quads.forEach(quad -> emitFilm(ctx, quad, color)));
         poseStack.popPose();
+    }
+
+    /**
+     * Every quad of a block's model where it stands, each face's then the free ones.
+     *
+     * @param state the block
+     * @param level the level it stands in
+     * @param pos   where it stands
+     * @return its quads
+     */
+    private static List<BakedQuad> quadsOf(BlockState state, ClientLevel level, BlockPos pos) {
+        List<BlockStateModelPart> parts = new ArrayList<>();
+        Minecraft.getInstance().getModelManager().getBlockStateModelSet().get(state)
+                .collectParts(level, pos, state, RandomSource.create(MODEL_SEED), parts);
+        List<BakedQuad> quads = new ArrayList<>();
+        for (BlockStateModelPart part : parts) {
+            for (Direction side : Direction.values()) {
+                quads.addAll(part.getQuads(side));
+            }
+            quads.addAll(part.getQuads(null));
+        }
+        return quads;
+    }
+
+    /**
+     * Emits one face of the goo film: the quad's own corners lifted off it, in the goo's solid color.
+     *
+     * @param ctx   the render context
+     * @param quad  a quad of the block's model
+     * @param color the goo's color, its alpha how far the goo has spread
+     */
+    private static void emitFilm(RenderContext ctx, BakedQuad quad, int color) {
+        Vec3 normal = Vec3.atLowerCornerOf(quad.direction().getUnitVec3i());
+        for (int corner = 0; corner < BakedQuad.VERTEX_COUNT; corner++) {
+            Vector3fc at = quad.position(corner);
+            ctx.vertexColored(color, at.x() + (float) normal.x * FILM_LIFT, at.y() + (float) normal.y * FILM_LIFT,
+                    at.z() + (float) normal.z * FILM_LIFT, 0f, 0f, (float) normal.x, (float) normal.y,
+                    (float) normal.z);
+        }
     }
 
     /**

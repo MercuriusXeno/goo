@@ -6,7 +6,8 @@
   "upkeep": 1,
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "extender" }
+    { "type": "extender" },
+    { "type": "sound", "id": "minecraft:block.comparator.click", "at": "target", "source": "players", "volume": 1, "pitch": 1.4 }
   ],
   "tags": ["self"]
 }

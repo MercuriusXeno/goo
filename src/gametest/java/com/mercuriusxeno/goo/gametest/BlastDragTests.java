@@ -20,6 +20,8 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for Blast cast by its drag: the release explodes at once at the
@@ -30,7 +32,25 @@ import net.minecraft.world.phys.Vec3;
  * spends nothing and explodes nothing
  * (decisions blast-is-drag-sized-like-the-black-hole, blast-keeps-its-explosion-gated-on-gunpowder).
  */
+@RegistersGameTests
 public final class BlastDragTests {
+    private static final String BLAST_DRAG_EXPLODES_AT_THE_PIN = "blast_drag_explodes_at_the_pin";
+    private static final String BLAST_DRAG_PRICES_BY_VOLUME = "blast_drag_prices_by_volume";
+    private static final String BLAST_DRAG_CAPS_AT_THE_HOLDINGS = "blast_drag_caps_at_the_holdings";
+    private static final String BLAST_DRAG_NEEDS_GUNPOWDER = "blast_drag_needs_gunpowder";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, BLAST_DRAG_EXPLODES_AT_THE_PIN, BlastDragTests::blastDragExplodesAtThePinAtTheDraggedRadius);
+        GooTestFunctions.registerTest(registrar, BLAST_DRAG_PRICES_BY_VOLUME, BlastDragTests::blastDragPricesByVolume);
+        GooTestFunctions.registerTest(registrar, BLAST_DRAG_CAPS_AT_THE_HOLDINGS, BlastDragTests::blastDragCapsAtTheHoldings);
+        GooTestFunctions.registerTest(registrar, BLAST_DRAG_NEEDS_GUNPOWDER, BlastDragTests::blastDragNeedsGunpowder);
+    }
+
 
     private static final Identifier BLAST = Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_explode");
     private static final int FLOOR_SPAN = 16;

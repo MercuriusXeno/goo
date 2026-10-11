@@ -22,6 +22,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Leaf Vines: a blob striking a mob roots it, holding it
@@ -31,7 +35,23 @@ import net.minecraft.world.phys.Vec3;
  * sit in the scheduler's package because the scheduler is package-private.
  * vines-unpack-root-and-thorn
  */
+@RegistersGameTests
 public final class VinesTests {
+    private static final String VINES_ROOT_AND_THORN = "vines_root_and_thorn";
+    private static final String VINES_BURN_AND_BREAK = "vines_burn_and_break";
+    private static final String VINES_TRAP_ON_THE_GROUND = "vines_trap_on_the_ground";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, VINES_ROOT_AND_THORN, VinesTests::vinesRootAndThorn);
+        GooTestFunctions.registerTest(registrar, VINES_BURN_AND_BREAK, VinesTests::vinesBurnAndBreak);
+        GooTestFunctions.registerTest(registrar, VINES_TRAP_ON_THE_GROUND, VinesTests::vinesTrapOnTheGround);
+    }
+
 
     private static final String ABILITY_VINES = "goo:leaf_vines";
     private static final String ABILITIES_REQUIRED = "Ability registry must hold leaf_vines";

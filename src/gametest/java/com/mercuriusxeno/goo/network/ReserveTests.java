@@ -12,6 +12,10 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.GameType;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Jelly Reserve held through the real stream delivery on a
@@ -21,7 +25,25 @@ import net.minecraft.world.level.GameType;
  * and a reserve stands beside Barkskin's bark without either ending the other
  * (decisions reserve-hearts-sit-behind-the-bar and reserve-channels-on-jelly).
  */
+@RegistersGameTests
 public final class ReserveTests {
+    private static final String RESERVE_DRAINS_FIRST = "reserve_drains_first";
+    private static final String RESERVE_DRAINS_WHILE_HELD = "reserve_drains_while_held";
+
+    private static final String RESERVE_BANKS_SHANKS = "reserve_banks_shanks";
+    private static final String RESERVE_COEXISTS_WITH_BARKSKIN = "reserve_coexists_with_barkskin";
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, RESERVE_DRAINS_FIRST, ReserveTests::reserveDrainsFirst);
+        GooTestFunctions.registerTest(registrar, RESERVE_DRAINS_WHILE_HELD, ReserveTests::reserveDrainsWhileHeld);
+        GooTestFunctions.registerTest(registrar, RESERVE_BANKS_SHANKS, ReserveTests::reserveBanksShanks);
+        GooTestFunctions.registerTest(registrar, RESERVE_COEXISTS_WITH_BARKSKIN, ReserveTests::reserveCoexistsWithBarkskin);
+    }
+
 
     private static final Identifier JELLY_RESERVE = Identifier.parse("goo:jelly_reserve");
     private static final Identifier LEAF_BARKSKIN = Identifier.parse("goo:leaf_barkskin");

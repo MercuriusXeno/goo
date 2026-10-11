@@ -21,13 +21,31 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Zoo's Spawn and Shape: a blob on a slime consumes it and
  * a mob of the biome, hostile or peaceful, stands where it stood
  * (decision spawn-hostile-shape-peaceful-from-a-slime).
  */
+@RegistersGameTests
 public final class ZooSpawnTests {
+    private static final String SPAWN_TURNS_A_SLIME_HOSTILE = "spawn_turns_a_slime_hostile";
+    private static final String SHAPE_TURNS_A_SLIME_PEACEFUL = "shape_turns_a_slime_peaceful";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, SPAWN_TURNS_A_SLIME_HOSTILE, ZooSpawnTests::spawnTurnsASlimeHostile);
+        GooTestFunctions.registerTest(registrar, SHAPE_TURNS_A_SLIME_PEACEFUL, ZooSpawnTests::shapeTurnsASlimePeaceful);
+    }
+
 
     private static final BlockPos SLIME_POS = new BlockPos(2, 1, 2);
     private static final Identifier ZOO_SPAWN = Identifier.fromNamespaceAndPath(Goo.MODID, "zoo_spawn");

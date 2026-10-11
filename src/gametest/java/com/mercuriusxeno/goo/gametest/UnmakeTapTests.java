@@ -22,6 +22,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import java.util.HashMap;
 import java.util.Map;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametest for Unmake's tap: an unstable tap over cobblestone leaves it
@@ -29,7 +31,19 @@ import java.util.Map;
  * on that last drip melts it into the full goo the crucible would give.
  * decision unmake-drip-dissolves-the-block-below
  */
+@RegistersGameTests
 public final class UnmakeTapTests {
+    private static final String UNMAKE_TAP_DISSOLVES_BELOW = "unmake_tap_dissolves_below";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, UNMAKE_TAP_DISSOLVES_BELOW, UnmakeTapTests::unmakeTapDissolvesBelow);
+    }
+
 
     private static final BlockPos TAP_POS = new BlockPos(1, 2, 1);
     private static final BlockPos BELOW_POS = TAP_POS.below();

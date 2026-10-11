@@ -19,6 +19,10 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametest for rock bore: streaming bore east into stone cuts a one-block
@@ -29,7 +33,23 @@ import java.util.List;
  * with no knockback, and a cow behind obsidian on the eye line takes none
  * (decisions bore-breaks-a-15-degree-cone, bore-vortex-with-a-worldspace-shake).
  */
+@RegistersGameTests
 public final class BoreStreamTests {
+    private static final String BORE_CUTS_A_TUNNEL = "bore_cuts_a_tunnel";
+    private static final String BORE_STRIKES_A_MOB = "bore_strikes_a_mob_in_the_tunnel";
+    private static final String BORE_SPARES_A_WALLED_MOB = "bore_spares_a_mob_behind_a_wall";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, BORE_CUTS_A_TUNNEL, BoreStreamTests::boreCutsATunnel);
+        GooTestFunctions.registerTest(registrar, BORE_STRIKES_A_MOB, BoreStreamTests::boreStrikesAMobInTheTunnel);
+        GooTestFunctions.registerTest(registrar, BORE_SPARES_A_WALLED_MOB, BoreStreamTests::boreSparesAMobBehindAWall);
+    }
+
 
     private static final BlockPos STAND_POS = new BlockPos(0, 1, 2);
     /** The row the eye line runs along: a standing player's eye sits in the block above its feet. */

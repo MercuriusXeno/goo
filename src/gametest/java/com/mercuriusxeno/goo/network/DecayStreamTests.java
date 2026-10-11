@@ -18,6 +18,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for nether decay: a held stream of gnats paints the stone it
@@ -26,7 +30,29 @@ import net.minecraft.world.phys.Vec3;
  * after release, and within one hold steps no further than cobblestone
  * (decision decay-gnats-degrade-each-block-once).
  */
+@RegistersGameTests
 public final class DecayStreamTests {
+    private static final String DECAY_DEGRADES_ONCE = "decay_degrades_once_per_activation";
+    private static final String DECAY_PAINTED_STEPS_UNAIMED = "decay_painted_block_steps_unaimed";
+    private static final String DECAY_PAST_HALF_FINISHES = "decay_past_half_finishes_after_release";
+    private static final String DECAY_BITES_THE_MOB = "decay_bites_the_mob_and_spares_the_blocks";
+    private static final String DECAY_PAINTS_CROSSHAIR = "decay_paints_the_crosshair_block_off_center";
+    private static final String DECAY_STEPS_THROUGH_A_BITE = "decay_painted_block_steps_through_a_bite";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, DECAY_DEGRADES_ONCE, DecayStreamTests::decayDegradesOncePerActivation);
+        GooTestFunctions.registerTest(registrar, DECAY_PAINTED_STEPS_UNAIMED, DecayStreamTests::decayPaintedBlockStepsUnaimed);
+        GooTestFunctions.registerTest(registrar, DECAY_PAST_HALF_FINISHES, DecayStreamTests::decayPastHalfFinishesAfterRelease);
+        GooTestFunctions.registerTest(registrar, DECAY_BITES_THE_MOB, DecayStreamTests::decayBitesTheMobAndSparesTheBlocks);
+        GooTestFunctions.registerTest(registrar, DECAY_PAINTS_CROSSHAIR, DecayStreamTests::decayPaintsTheCrosshairBlockOffCenter);
+        GooTestFunctions.registerTest(registrar, DECAY_STEPS_THROUGH_A_BITE, DecayStreamTests::decayPaintedBlockStepsThroughABite);
+    }
+
 
     private static final BlockPos STAND_POS = new BlockPos(0, 1, 2);
     /** Three blocks east of the player, at its height, on a block the test lays. */
