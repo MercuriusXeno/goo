@@ -60,6 +60,7 @@ import com.mercuriusxeno.goo.network.SunbeamChannelTests;
 import com.mercuriusxeno.goo.network.TouchDeliveryTests;
 import com.mercuriusxeno.goo.network.UndeadTests;
 import com.mercuriusxeno.goo.network.UnmakeTests;
+import com.mercuriusxeno.goo.network.WeirdTests;
 import com.mercuriusxeno.goo.network.UpdraftTests;
 import com.mercuriusxeno.goo.network.ZapTests;
 import net.minecraft.core.registries.Registries;
@@ -696,6 +697,7 @@ public final class GooTestFunctions {
             registerBrewingTests(registrar);
             registerCrystallizerTests(registrar);
             registerGasketDemandTests(registrar);
+            WeirdTests.register((name, fn) -> reg(registrar, name, fn));
         });
     }
 

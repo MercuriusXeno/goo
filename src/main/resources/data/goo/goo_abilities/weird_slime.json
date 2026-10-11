@@ -1,0 +1,11 @@
+{
+  "gooType": "weird",
+  "displayName": "goo.ability.weird.slime",
+  "badge": "free",
+  "order": 3,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "spawn_slime", "goo": "weird", "size": 1 }
+  ]
+}

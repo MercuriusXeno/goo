@@ -201,6 +201,16 @@ public enum HostCapability {
      */
     TIME_VEIL(TimeVeilHost.class),
     /**
+     * A cell where a block stands for a set time (decision
+     * weird-bounces-and-softens-harm).
+     */
+    TIMED_BLOCK(TimedBlockHost.class),
+    /**
+     * A cell a born mob stands in, and the point the goo morphs into it
+     * from (decision slime-creates-slimes-at-will).
+     */
+    SPAWN_MOB(MobSpawnHost.class),
+    /**
      * The ground a Spire lifts, the footprint and rise its submit planned
      * (decision spire-rips-walls-and-platforms).
      */
