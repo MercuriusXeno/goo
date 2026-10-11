@@ -560,6 +560,8 @@ public final class GooTestFunctions {
     private static final String BANISH_RESISTED_BY_HIGH_HEALTH = "banish_resisted_by_high_health";
     private static final String MOB_UNSTABLE = "mob_unstable_explode";
     private static final String STASIS_HOLDS_UNTIL_STRUCK = "stasis_holds_until_struck";
+    private static final String AGING_COAL_BECOMES_DIAMOND = "aging_coal_becomes_diamond";
+    private static final String AGING_SURVIVES_RELOAD = "aging_survives_reload";
     private static final String ANCIENT_SURVIVES_LETHAL_DAMAGE = "ancient_survives_lethal_damage";
     private static final String YORE_BREW_ANCIENT = "yore_brew_ancient_for_an_hour";
     private static final String EXPIRE_KILLS_THE_STRUCK_ZOMBIE = "expire_kills_the_struck_zombie";
@@ -1130,6 +1132,8 @@ public final class GooTestFunctions {
         reg(r, BANISH_RESISTED_BY_HIGH_HEALTH, MobEffectTests::banishResistedByHighHealth);
         reg(r, MOB_UNSTABLE, MobEffectTests::unstableExplode);
         reg(r, STASIS_HOLDS_UNTIL_STRUCK, MobEffectTests::stasisHoldsUntilStruck);
+        reg(r, AGING_COAL_BECOMES_DIAMOND, AgingTests::agingCoalBecomesDiamond);
+        reg(r, AGING_SURVIVES_RELOAD, AgingTests::agingSurvivesReload);
         reg(r, ANCIENT_SURVIVES_LETHAL_DAMAGE, AncientTests::ancientSurvivesLethalDamage);
         reg(r, YORE_BREW_ANCIENT, AncientTests::yoreBrewAncientForAnHour);
         reg(r, EXPIRE_KILLS_THE_STRUCK_ZOMBIE, ExpireTests::expireKillsTheStruckZombie);

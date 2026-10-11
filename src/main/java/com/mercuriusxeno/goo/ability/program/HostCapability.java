@@ -115,6 +115,11 @@ public enum HostCapability {
      */
     POWER_PULSE(PowerPulseHost.class),
     /**
+     * A landing that can start aging the block it landed on (decision
+     * old-blob-ages-valuables-slowly).
+     */
+    AGING(AgingHost.class),
+    /**
      * A host that can toggle the redstone device where it acts, as a hand
      * would (decision pulser-drip-toggles-the-block-below).
      */

@@ -7,6 +7,9 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
+import com.mercuriusxeno.goo.ability.aging.Aging;
+import com.mercuriusxeno.goo.ability.aging.AgingTable;
+import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.entity.RollingGoo;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -35,6 +38,8 @@ public final class GooThrowHandler {
 
     /** Cost of one throw (1 goo = 1,000 mB). */
     public static final int THROW_COST = 1000;
+    /** The cost of a refused throw, more than any inventory holds. */
+    public static final int REFUSED = Integer.MAX_VALUE;
     /** Maximum throw range in blocks. */
     public static final double MAX_RANGE = 64.0;
     private static final double MAX_RANGE_SQUARED = MAX_RANGE * MAX_RANGE;
@@ -224,7 +229,7 @@ public final class GooThrowHandler {
         Vec3 capped = capToRange(eye, payload.targetPoint(), MAX_RANGE);
         GooThrowPayload aimed = capped.equals(payload.targetPoint()) ? payload : payload.aimedAt(capped);
         int cost = resolveThrowCost(player, aimed, gooType);
-        if (!validateSupply(player, gooType, cost)) { return; }
+        if (refuses(player, aimed, cost) || !validateSupply(player, gooType, cost)) { return; }
         depleteAndThrow(player, aimed, gooType, eye.distanceToSqr(capped), cost);
     }
 
@@ -293,7 +298,7 @@ public final class GooThrowHandler {
             ResourceKey<GooTypeDefinition> gooType) {
         if (!validateRange(player, payload)) { return; }
         int cost = resolveThrowCost(player, payload, gooType);
-        if (!validateSupply(player, gooType, cost)) { return; }
+        if (refuses(player, payload, cost) || !validateSupply(player, gooType, cost)) { return; }
         double distSq = targetDistanceSquared(player, payload);
         depleteAndThrow(player, payload, gooType, distSq, cost);
     }
@@ -350,7 +355,26 @@ public final class GooThrowHandler {
         return false;
     }
 
+    /**
+     * Whether a throw's price refuses it, fizzling where it was aimed: an
+     * aging throw at a block the aging table names not
+     * (decision old-blob-ages-valuables-slowly).
+     *
+     * @param player  the throwing player
+     * @param payload the throw payload
+     * @param cost    the resolved cost
+     * @return true when the throw is refused
+     */
+    private static boolean refuses(ServerPlayer player, GooThrowPayload payload, int cost) {
+        if (cost != REFUSED) { return false; }
+        Aging.fizzle(player.level(), payload.targetPos());
+        return true;
+    }
+
     /** Resolves the throw cost from the ability definition, falling back to THROW_COST.
+     * An aging throw costs the aging table's price for the block it is aimed
+     * at, and {@link #REFUSED} where the table names none, which no
+     * inventory can pay (decision old-blob-ages-valuables-slowly).
      *
      * @param player  the throwing player
      * @param payload the throw payload
@@ -360,7 +384,22 @@ public final class GooThrowHandler {
     static int resolveThrowCost(ServerPlayer player, GooThrowPayload payload,
             ResourceKey<GooTypeDefinition> gooType) {
         AbilityDefinition def = thrownAbility(player.level(), payload.abilityId(), gooType);
-        return def == null ? THROW_COST : def.cost();
+        if (def == null) { return THROW_COST; }
+        if (ages(def)) {
+            return AgingTable.priceOf(player.level().getBlockState(payload.targetPos())).orElse(REFUSED);
+        }
+        return def.cost();
+    }
+
+    /**
+     * Whether an ability's program starts an aging, so its price is the
+     * aging table's.
+     *
+     * @param def the ability
+     * @return true for an aging ability
+     */
+    static boolean ages(AbilityDefinition def) {
+        return def.behaviors().stream().anyMatch(step -> step.type() == LeafSteps.AGE.type());
     }
 
     /**
