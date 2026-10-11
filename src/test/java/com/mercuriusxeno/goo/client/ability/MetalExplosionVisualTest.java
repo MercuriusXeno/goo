@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.platform.CompareOp;
 import java.util.List;
 import net.minecraft.core.Direction;
@@ -77,24 +78,23 @@ class MetalExplosionVisualTest {
     }
 
     /**
-     * Metal's held ghost: every spike out to the dome's radius, at the held opacity
-     * (decision held-visual-ghosts-the-landing-in-two-passes).
+     * Metal's held ghost: the landing flare's size at the held opacity, the
+     * dome showing the reach (decisions held-visual-ghosts-the-landing-in-two-passes,
+     * urchin-rests-bristled-and-spears).
      */
     @Test
-    void heldUrchinReachesTheDomeRadiusAtTheHeldOpacity() {
+    void heldUrchinMatchesTheLandingFlareAtTheHeldOpacity() {
         float opacity = 0.4f;
-        MetalExplosionVisual.Urchin urchin = MetalExplosionVisual.heldUrchin(HeldGhost.outwardTo(3.75f), Direction.UP,
-                opacity, 0);
-        assertEquals(3.75f, urchin.length(), 0f);
+        MetalExplosionVisual.Urchin urchin = MetalExplosionVisual.heldUrchin(Direction.UP, opacity, 0);
+        assertEquals(MetalExplosionVisual.SPIKE_REACH, urchin.length(), 0f);
         assertEquals(NetherDiscMesh.toByte(opacity), urchin.alpha());
-        assertEquals(0.06f * 3.75f, urchin.baseRadius(), 1e-6f);
+        assertEquals(MetalExplosionVisual.bristled(Direction.UP, 0f, 1f).baseRadius(), urchin.baseRadius(), 0f);
     }
 
     @Test
     void heldUrchinsBandSweepsWithTheClock() {
-        HeldGhost ghost = HeldGhost.outwardTo(3.75f);
-        int start = MetalExplosionVisual.heldUrchin(ghost, Direction.UP, 1f, 0).progressByte();
-        int half = MetalExplosionVisual.heldUrchin(ghost, Direction.UP, 1f,
+        int start = MetalExplosionVisual.heldUrchin(Direction.UP, 1f, 0).progressByte();
+        int half = MetalExplosionVisual.heldUrchin(Direction.UP, 1f,
                 MetalExplosionVisual.HELD_SWEEP_SECONDS / 2).progressByte();
         assertEquals(0, start);
         assertEquals(NetherDiscMesh.toByte(0.5f), half);
@@ -105,5 +105,16 @@ class MetalExplosionVisualTest {
         PipelineShaders.assertExist(GooRenderTypes.METAL_EXPLOSION_THROUGH_BLOCKS);
         assertEquals(CompareOp.ALWAYS_PASS,
                 GooRenderTypes.METAL_EXPLOSION_THROUGH_BLOCKS.getDepthStencilState().depthTest());
+    }
+
+    /**
+     * Urchin's spines and spears write depth over the metal shader, so the
+     * translucent goo blob drawn after them stays behind the parts in front
+     * of it (decision urchin-rests-bristled-and-spears).
+     */
+    @Test
+    void urchinChromeWritesDepthOverTheMetalShader() {
+        PipelineShaders.assertExist(GooRenderTypes.METAL_CHROME);
+        assertEquals(DepthStencilState.DEFAULT, GooRenderTypes.METAL_CHROME.getDepthStencilState());
     }
 }

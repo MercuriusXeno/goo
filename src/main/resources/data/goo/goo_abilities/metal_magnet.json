@@ -1,0 +1,12 @@
+{
+  "gooType": "metal",
+  "displayName": "goo.ability.metal.magnet",
+  "badge": "channeled",
+  "order": 30,
+  "cost": 200,
+  "delivery": { "kind": "self", "ticks_per_charge": 20 },
+  "behaviors": [
+    { "type": "detect_ore", "tag": "goo:metal_ores", "radius": 64, "growth": 1, "life": 100 }
+  ],
+  "tags": ["self"]
+}
