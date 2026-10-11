@@ -1,0 +1,14 @@
+{
+  "gooType": "jelly",
+  "displayName": "goo.ability.jelly.feed",
+  "badge": "free",
+  "order": 40,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "area": { "shape": "sphere", "size": 12.0 },
+  "behaviors": [
+    { "type": "feed", "radius": 12, "fight_ticks": 100 },
+    { "type": "sound", "id": "minecraft:entity.generic.eat", "at": "host", "source": "players", "volume": 0.8, "pitch": 1.2 }
+  ],
+  "tags": ["entity"]
+}

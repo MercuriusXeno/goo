@@ -1,6 +1,6 @@
 {
-  "gooType": "vital",
-  "displayName": "goo.ability.vital.reserve",
+  "gooType": "jelly",
+  "displayName": "goo.ability.jelly.reserve",
   "badge": "channeled",
   "order": 20,
   "cost": 1000,
