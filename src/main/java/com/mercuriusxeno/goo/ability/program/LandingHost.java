@@ -1,7 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.colonize.ShroomNetwork;
-import com.mercuriusxeno.goo.ability.gate.DragonGateOpening;
+import com.mercuriusxeno.goo.ability.gate.EndGateOpening;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.block.ability.AbilityBlock;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
@@ -99,8 +99,8 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
      * decision end-clears-blocks-and-opens-a-portal
      */
     @Override
-    public boolean openDragonGate(int lifetime) {
-        return DragonGateOpening.open(level, cell.relative(face.getOpposite()), face, lifetime);
+    public boolean openEndGate(int lifetime) {
+        return EndGateOpening.open(level, cell.relative(face.getOpposite()), face, lifetime);
     }
 
     /**

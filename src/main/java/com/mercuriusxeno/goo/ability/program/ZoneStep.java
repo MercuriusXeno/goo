@@ -12,7 +12,7 @@ import java.util.stream.Stream;
 
 /**
  * Casts Zone on the host's target and finishes: the first Zone curses it with
- * teleportitis, so it warps away each time it comes within the radius of a
+ * a warp curse, so it warps away each time it comes within the radius of a
  * player; a Zone on a target already cursed exiles it from existence.
  * Zone is {@code zone radius=6 range=32}.
  * Decision zone-curses-with-ender-shimmer.

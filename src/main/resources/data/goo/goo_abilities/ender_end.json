@@ -1,13 +1,13 @@
 {
   "gooType": "ender",
-  "displayName": "goo.ability.ender.dragon_gate",
+  "displayName": "goo.ability.ender.end",
   "badge": "world",
   "order": 50,
   "cost": 4000,
   "requires": ["minecraft:dragon_breath"],
   "delivery": { "kind": "arc" },
   "behaviors": [
-    { "type": "dragon_gate", "lifetime": 1200 }
+    { "type": "end", "lifetime": 1200 }
   ],
   "tags": ["portal"]
 }

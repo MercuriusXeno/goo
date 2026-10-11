@@ -21,7 +21,7 @@ import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Runs the teleportitis Zone leaves on a mob: each tick a player stands
+ * Runs the warp curse Zone leaves on a mob: each tick a player stands
  * within the curse's radius, the mob warps to a random spot the way chorus
  * fruit throws its eater, an afterimage left where it stood and where it
  * lands. A second Zone exiles the cursed mob from existence. The cursed

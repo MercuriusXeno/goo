@@ -5,7 +5,7 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 /**
- * The teleportitis curse Zone leaves on a mob, saved with it: how near a
+ * The warp curse Zone leaves on a mob, saved with it: how near a
  * player it may come before it warps, and how far each warp throws it. A
  * second Zone on the cursed mob exiles it from existence.
  * Decision zone-curses-with-ender-shimmer.

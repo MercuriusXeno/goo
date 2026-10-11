@@ -27,11 +27,11 @@ import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mockStatic;
 
 /**
- * Where a Dragon Gate's square lies, where it sets travellers down, and how a
+ * Where an End gate's square lies, where it sets travellers down, and how a
  * server's open pairs are kept and closed on their clocks
  * (decision end-clears-blocks-and-opens-a-portal).
  */
-class DragonGatesTest {
+class EndGatesTest {
 
     private static final BlockPos CENTER = new BlockPos(10, 64, -5);
     private static final int CELLS = 9;
@@ -97,10 +97,10 @@ class DragonGatesTest {
 
         @Test
         void eachGateCarriesTravellersToTheOther() {
-            DragonGates gates = new DragonGates();
+            EndGates gates = new EndGates();
             GatePatch near = patchAt(Level.OVERWORLD, CENTER);
             GatePatch far = patchAt(Level.END, new BlockPos(100, 48, 0));
-            gates.open(new DragonGates.Pair(near, far, CLOSES_AT));
+            gates.open(new EndGates.Pair(near, far, CLOSES_AT));
             assertEquals(Optional.of(far), gates.partnerOf(Level.OVERWORLD, CENTER.above().east()));
             assertEquals(Optional.of(near), gates.partnerOf(Level.END, new BlockPos(100, 49, 1)));
             assertEquals(Optional.empty(), gates.partnerOf(Level.END, CENTER));
@@ -108,8 +108,8 @@ class DragonGatesTest {
 
         @Test
         void aPairClosesOnItsClock() {
-            DragonGates gates = new DragonGates();
-            gates.open(new DragonGates.Pair(patchAt(Level.OVERWORLD, CENTER),
+            EndGates gates = new EndGates();
+            gates.open(new EndGates.Pair(patchAt(Level.OVERWORLD, CENTER),
                     patchAt(Level.END, new BlockPos(100, 48, 0)), CLOSES_AT));
             assertTrue(gates.takeExpired(CLOSES_AT - 1).isEmpty());
             assertEquals(1, gates.takeExpired(CLOSES_AT).size());
@@ -118,12 +118,12 @@ class DragonGatesTest {
 
         @Test
         void aPairSurvivesBeingSaved() {
-            DragonGates gates = new DragonGates();
-            DragonGates.Pair pair = new DragonGates.Pair(patchAt(Level.OVERWORLD, CENTER),
+            EndGates gates = new EndGates();
+            EndGates.Pair pair = new EndGates.Pair(patchAt(Level.OVERWORLD, CENTER),
                     patchAt(Level.END, new BlockPos(100, 48, 0)), CLOSES_AT);
             gates.open(pair);
-            DragonGates loaded = DragonGates.CODEC.parse(JsonOps.INSTANCE,
-                    DragonGates.CODEC.encodeStart(JsonOps.INSTANCE, gates).getOrThrow()).getOrThrow();
+            EndGates loaded = EndGates.CODEC.parse(JsonOps.INSTANCE,
+                    EndGates.CODEC.encodeStart(JsonOps.INSTANCE, gates).getOrThrow()).getOrThrow();
             assertEquals(List.of(pair), loaded.pairs());
         }
     }

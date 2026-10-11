@@ -100,10 +100,10 @@ public enum HostCapability {
      */
     CONVOKE(ConvokeHost.class),
     /**
-     * A struck surface a Dragon Gate can open over (decision
+     * A struck surface an End gate can open over (decision
      * end-clears-blocks-and-opens-a-portal).
      */
-    DRAGON_GATE(GateHost.class),
+    END_GATE(GateHost.class),
     /**
      * The world around a lasting host to green tick after tick (decision
      * verdant-prism-greens-blocks-slowly).
