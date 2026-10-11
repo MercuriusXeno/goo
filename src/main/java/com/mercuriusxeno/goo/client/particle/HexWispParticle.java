@@ -17,10 +17,7 @@ import java.util.function.Supplier;
  * it spawned, darting and slowing as the nether's gnats do, then curls toward
  * a target it reads again every tick along a bent path, swaying across it,
  * its sway dying out as it lands. Each wisp draws its own shade, size, pace
- * and sway, so a cloud of them never moves as one. An orbiting wisp instead
- * circles a center for its life, bobbing and darting, fading in and out:
- * the cloud around an agitator prism
- * (decision agitator-prism-quickens-until-a-spawn).
+ * and sway, so a cloud of them never moves as one.
  * lifetap-trades-regen-for-leech
  * drain-field-heals-with-the-lifetap-visuals
  */
@@ -51,8 +48,6 @@ public final class HexWispParticle extends SingleQuadParticle {
     private static final double SWAYS_VARIANCE = 2.0;
     private static final double FULL_TURN = Math.PI * 2;
     private static final double HALF = 0.5;
-    /** How many times an orbiting wisp bobs each turn it circles. */
-    private static final double BOBS_PER_TURN = 3;
     private static final int RED = 0;
     private static final int GREEN = 1;
     private static final int BLUE = 2;
@@ -70,19 +65,6 @@ public final class HexWispParticle extends SingleQuadParticle {
     private Supplier<Vec3> target;
     private @Nullable HomingPath path;
     private int flightAge;
-    private @Nullable Orbit orbit;
-
-    /**
-     * A circle a wisp rides around a center.
-     *
-     * @param center    the point it circles
-     * @param radius    how far from the center it rides, in blocks
-     * @param angle     where on the circle it starts, in radians
-     * @param turnSpeed how far it turns each tick, in radians
-     * @param bobReach  how far it bobs up and down, in blocks
-     */
-    private record Orbit(Vec3 center, double radius, double angle, double turnSpeed, double bobReach) {
-    }
 
     private HexWispParticle(ClientLevel level, double x, double y, double z, SpriteSet sprites) {
         super(level, x, y, z, sprites.get(0, 1));
@@ -126,21 +108,6 @@ public final class HexWispParticle extends SingleQuadParticle {
         this.lifetime = delay + scatterFor + this.flightTicks;
     }
 
-    /**
-     * Sets the wisp circling a center for its life instead of flying home.
-     *
-     * @param center    the point it circles
-     * @param radius    how far from the center it rides, in blocks
-     * @param angle     where on the circle it starts, in radians
-     * @param turnSpeed how far it turns each tick, in radians, either way
-     * @param bobReach  how far it bobs up and down, in blocks
-     * @param life      the ticks it circles
-     */
-    public void circle(Vec3 center, double radius, double angle, double turnSpeed, double bobReach, int life) {
-        this.orbit = new Orbit(center, radius, angle, turnSpeed, bobReach);
-        this.lifetime = life;
-    }
-
     @Override
     public void tick() {
         this.xo = this.x;
@@ -154,12 +121,6 @@ public final class HexWispParticle extends SingleQuadParticle {
             return;
         }
         int shown = this.age - delayTicks;
-        if (orbit != null) {
-            orbitTick();
-            this.alpha = ALPHA * Math.min(1f, shown / FADE_IN_TICKS)
-                    * Mth.clamp((this.lifetime - this.age) / FADE_IN_TICKS, 0f, 1f);
-            return;
-        }
         if (shown <= scatterTicks) {
             scatterTick();
         } else {
@@ -173,14 +134,6 @@ public final class HexWispParticle extends SingleQuadParticle {
         this.yd = this.yd * SCATTER_DRAG + dart();
         this.zd = this.zd * SCATTER_DRAG + dart();
         this.setPos(this.x + this.xd, this.y + this.yd, this.z + this.zd);
-    }
-
-    private void orbitTick() {
-        double turned = orbit.angle() + orbit.turnSpeed() * this.age;
-        double bob = Math.sin(turned * BOBS_PER_TURN + swayPhase) * orbit.bobReach();
-        this.setPos(orbit.center().x + Math.cos(turned) * orbit.radius() + dart(),
-                orbit.center().y + bob + dart(),
-                orbit.center().z + Math.sin(turned) * orbit.radius() + dart());
     }
 
     private double dart() {
