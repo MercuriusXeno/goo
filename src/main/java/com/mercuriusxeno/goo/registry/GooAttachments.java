@@ -4,12 +4,12 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.banish.Banished;
 import com.mercuriusxeno.goo.ability.banish.Teleportitis;
 import com.mercuriusxeno.goo.ability.frost.Frozen;
+import com.mercuriusxeno.goo.ability.gluttony.Gluttony;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.ability.hex.Charmed;
 import com.mercuriusxeno.goo.ability.hex.Lifetap;
 import com.mercuriusxeno.goo.ability.nether.Undead;
-import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.petrify.Petrification;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
 import com.mercuriusxeno.goo.ability.program.Lux;
@@ -72,14 +72,14 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The nourishment Nourish leaves on a player, a food point every interval
-     * until it expires, saved with the player while it stands.
-     * nourish-restores-hunger-over-time
+     * The gluttony Gluttony leaves on a player, a point every interval until
+     * it expires and the overheal and overhunger it banks, saved with the player while it stands.
+     * gluttony-overheals-and-overhungers
      */
-    public static final Supplier<AttachmentType<Nourish>> NOURISH =
-            ATTACHMENT_TYPES.register("nourish",
-                    () -> AttachmentType.builder(() -> Nourish.NONE)
-                            .serialize(Nourish.CODEC, Nourish::stands)
+    public static final Supplier<AttachmentType<Gluttony>> GLUTTONY =
+            ATTACHMENT_TYPES.register("gluttony",
+                    () -> AttachmentType.builder(() -> Gluttony.NONE)
+                            .serialize(Gluttony.CODEC, Gluttony::stands)
                             .build());
 
     /**

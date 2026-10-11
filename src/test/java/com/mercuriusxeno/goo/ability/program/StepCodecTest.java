@@ -151,7 +151,7 @@ class StepCodecTest {
             Map.entry("stun", LeafSteps.STUN.step(Expr.literal(60))),
             Map.entry("signal_wave", new SignalWaveStep(Expr.literal(0.5))),
             Map.entry("pulser_toggle", new PulserToggleStep(Expr.literal(4))),
-            Map.entry("nourish", new NourishStep(Expr.literal(80))),
+            Map.entry("gluttony", new GluttonyStep(Expr.literal(80), Expr.literal(20), Expr.literal(20))),
             Map.entry("reserve_drain", new ReserveDrainStep(Expr.literal(0.05), Expr.literal(0.5), Expr.literal(10),
                     Expr.literal(0.5))),
             Map.entry("banish", new BanishStep(Expr.literal(6), Expr.literal(32))),
@@ -246,8 +246,9 @@ class StepCodecTest {
         // self-effects-trickle-until-ended: the brew alone names a duration
         assertEquals(new HeartOverlayStep(HeartKind.KINDLE),
                 decode("{\"type\": \"heart_overlay\", \"kind\": \"kindle\"}").getOrThrow());
-        assertEquals(new NourishStep(Expr.literal(80)),
-                decode("{\"type\": \"nourish\", \"interval\": 80}").getOrThrow());
+        assertEquals(new GluttonyStep(Expr.literal(80), Expr.literal(20), Expr.literal(16)),
+                decode("{\"type\": \"gluttony\", \"interval\": 80, \"max_overheal\": 20, \"max_overhunger\": 16}")
+                        .getOrThrow());
     }
 
     @Test

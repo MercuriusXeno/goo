@@ -186,7 +186,7 @@ class RadialWheelRendererTest {
                 Map.entry("ender_blink", "Blink"), Map.entry("typhoon_propel", "Propel"),
                 Map.entry("unstable_explode", "Blast"), Map.entry("vital_clone", "Clone"),
                 Map.entry("jelly_heal", "Vitality"), Map.entry("vital_reserve", "Reserve"),
-                Map.entry("vital_nourish", "Nourish"));
+                Map.entry("jelly_gluttony", "Gluttony"));
 
         private static JsonObject englishLang() throws IOException {
             try (InputStream stream = RadialWheelRendererTest.class.getClassLoader().getResourceAsStream(LANG_RESOURCE)) {

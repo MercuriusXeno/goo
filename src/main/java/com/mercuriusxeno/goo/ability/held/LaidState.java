@@ -1,12 +1,12 @@
 package com.mercuriusxeno.goo.ability.held;
 
 import com.mercuriusxeno.goo.ability.program.ExtenderStep;
+import com.mercuriusxeno.goo.ability.program.GluttonyStep;
 import com.mercuriusxeno.goo.ability.program.HasteStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
 import com.mercuriusxeno.goo.ability.program.LifetapStep;
 import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
 import com.mercuriusxeno.goo.ability.program.LuxStep;
-import com.mercuriusxeno.goo.ability.program.NourishStep;
 import com.mercuriusxeno.goo.ability.program.SightStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.TeleportitisStep;
@@ -28,8 +28,8 @@ import java.util.stream.Stream;
 public enum LaidState {
     /** A heart overlay over the health bar, laid by a heart_overlay step. */
     HEART_OVERLAY,
-    /** Nourishment, laid by a nourish step. */
-    NOURISH,
+    /** Gluttony and its banks, laid by a gluttony step (decision gluttony-overheals-and-overhungers). */
+    GLUTTONY,
     /** Fungal sight (decision sight-lengthens-shift-and-outlines-fungus). */
     SIGHT,
     /** Lux's night vision and gaze glisten (decision lux-night-vision-without-particles). */
@@ -72,7 +72,7 @@ public enum LaidState {
     /** The state each kind of step lays. */
     private static final Map<Class<? extends Step>, LaidState> LAID_BY = Map.of(
             HeartOverlayStep.class, HEART_OVERLAY,
-            NourishStep.class, NOURISH,
+            GluttonyStep.class, GLUTTONY,
             SightStep.class, SIGHT,
             LuxStep.class, LUX,
             UndeadStep.class, UNDEAD,

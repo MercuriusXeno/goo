@@ -169,6 +169,7 @@
   "goo.ability.hex.lifetap": "Lifetap",
   "goo.ability.hex.drain": "Drain",
   "goo.ability.jelly.heal": "Vitality",
+  "goo.ability.jelly.gluttony": "Gluttony",
   "goo.ability.leaf.barkskin": "Barkskin",
   "goo.ability.leaf.vines": "Vines",
   "goo.ability.leaf.bloom": "Bloom",
@@ -211,6 +212,5 @@
   "goo.ability.unstable.timed_bomb": "Countdown",
   "goo.ability.vital.clone": "Clone",
   "goo.ability.vital.vitality_tap": "Vitality",
-  "goo.ability.vital.reserve": "Reserve",
-  "goo.ability.vital.nourish": "Nourish"
+  "goo.ability.vital.reserve": "Reserve"
 }

@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:brew_vital_nourishes_for_an_hour",
+  "function": "goo:brew_jelly_gluttony_for_an_hour",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
   "max_ticks": 40,

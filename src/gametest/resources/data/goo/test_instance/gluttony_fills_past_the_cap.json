@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:nourish_refills_hunger",
+  "function": "goo:gluttony_fills_past_the_cap",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
   "max_ticks": 600,
