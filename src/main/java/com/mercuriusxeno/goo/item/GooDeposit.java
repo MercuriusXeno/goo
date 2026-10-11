@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -102,7 +103,8 @@ public final class GooDeposit {
 
     /**
      * Drains every type a container holds through the depositor, drawing from the
-     * container only what found a home.
+     * container only what found a home. Infinity stays in the container
+     * (decision infinity-sources-whatever-shares-its-vessel).
      *
      * @param held      the container's volume per type
      * @param drawer    removes goo from the container
@@ -113,6 +115,9 @@ public final class GooDeposit {
                                          GooDrawer drawer, Depositor depositor) {
         boolean moved = false;
         for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : held.entrySet()) {
+            if (GooTypes.isUnspendable(entry.getKey())) {
+                continue;
+            }
             int volume = entry.getValue();
             int placed = volume - depositor.deposit(entry.getKey(), volume);
             if (placed > 0) {

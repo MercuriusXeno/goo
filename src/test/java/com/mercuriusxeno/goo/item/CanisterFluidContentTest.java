@@ -46,6 +46,21 @@ class CanisterFluidContentTest {
         goo.close();
     }
 
+    /**
+     * An extract may take all of a held fluid save infinity, which never leaves;
+     * CanisterItem.removeFluid and the item capability both read this.
+     * decision infinity-sources-whatever-shares-its-vessel
+     */
+    @Test
+    void infinityIsNeverReleasable() {
+        FluidResource infinity = goo.resource(GooTypes.INFINITY);
+        CanisterFluidContent held = CanisterFluidContent.EMPTY.withCappedAdd(infinity, 1, CAPACITY)
+                .withCappedAdd(blaze, FIRST_VOLUME, CAPACITY);
+
+        assertEquals(0, held.releasableVolumeOf(infinity));
+        assertEquals(FIRST_VOLUME, held.releasableVolumeOf(blaze));
+    }
+
     @Nested
     class SharedCapacity {
 

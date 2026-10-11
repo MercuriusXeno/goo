@@ -228,7 +228,7 @@ public class CanisterSlotFluidHandler extends SnapshotJournal<CanisterFluidConte
         if (amount <= 0 || resource.isEmpty()) {
             return 0;
         }
-        int taken = Math.min(amount, content.volumeOf(resource));
+        int taken = Math.min(amount, content.releasableVolumeOf(resource));
         if (taken > 0) {
             updateSnapshots(transaction);
             content = content.withRemoved(resource, taken);

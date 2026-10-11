@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.item.GooCarrierItem.DepletionPass;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -60,8 +61,10 @@ public final class GooSourceScanner {
     }
 
     /**
-     * Aggregates available mB per goo type across all inventory sources.
+     * Aggregates available mB per goo type across all inventory sources,
+     * leaving out infinity, which is never spent.
      * Used by radial menu to show throwable quantities.
+     * decision infinity-sources-whatever-shares-its-vessel
      *
      * @param player the player whose inventory to scan
      * @return map of goo type to total available mB
@@ -73,7 +76,11 @@ public final class GooSourceScanner {
             ItemStack stack = inv.getItem(slot);
             GooCarrierItem carrier = carrierOf(stack);
             if (carrier != null) {
-                carrier.gooContents(stack).forEach((type, volume) -> totals.merge(type, volume, Integer::sum));
+                carrier.gooContents(stack).forEach((type, volume) -> {
+                    if (!GooTypes.isUnspendable(type)) {
+                        totals.merge(type, volume, Integer::sum);
+                    }
+                });
             }
         }
         return totals;
@@ -82,7 +89,8 @@ public final class GooSourceScanner {
     /**
      * Depletes the specified amount of goo from the player's inventory, pass by
      * pass in {@link DepletionPass} order. Returns the amount actually depleted,
-     * less than requested when the inventory runs short.
+     * less than requested when the inventory runs short; infinity depletes
+     * nothing (decision infinity-sources-whatever-shares-its-vessel).
      *
      * @param player the player whose inventory to deplete from
      * @param type   the goo type to deplete
@@ -90,7 +98,7 @@ public final class GooSourceScanner {
      * @return actual mB depleted
      */
     public static int deplete(Player player, ResourceKey<GooTypeDefinition> type, int amount) {
-        if (amount <= 0) {
+        if (amount <= 0 || GooTypes.isUnspendable(type)) {
             return 0;
         }
         Inventory inv = player.getInventory();
@@ -172,6 +180,9 @@ public final class GooSourceScanner {
     public static boolean hasEnough(Player player, ResourceKey<GooTypeDefinition> type, int amount) {
         if (amount <= 0) {
             return true;
+        }
+        if (GooTypes.isUnspendable(type)) {
+            return false;
         }
         Inventory inv = player.getInventory();
         int found = 0;
