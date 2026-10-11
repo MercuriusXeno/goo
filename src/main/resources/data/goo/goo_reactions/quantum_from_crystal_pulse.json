@@ -1,0 +1,10 @@
+{
+  "inputs": [
+    {"goo": "goo:crystal", "amount": 4},
+    {"goo": "goo:pulse", "amount": 4}
+  ],
+  "outputs": [
+    {"goo": "goo:quantum", "amount": 1}
+  ],
+  "rate": 1
+}

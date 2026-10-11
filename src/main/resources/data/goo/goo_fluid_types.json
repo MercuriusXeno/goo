@@ -251,6 +251,29 @@
     ]
   },
   {
+    "id": "quantum",
+    "seed": 40977,
+    "genParams": {
+      "viscosity": 1.0,
+      "decayRate": 0.07,
+      "ignitionChance": 0.01,
+      "ignitionStrength": 1.6,
+      "potHeatRate": 0.02,
+      "potInfluence": 0.65,
+      "neighborhoodReach": 1
+    },
+    "frametime": 2,
+    "shadowHue": 0.7,
+    "palette": [
+      { "position": 0.0, "color": "#1A1048" },
+      { "position": 0.2, "color": "#30207C" },
+      { "position": 0.4, "color": "#5040B0" },
+      { "position": 0.6, "color": "#7A68E0" },
+      { "position": 0.8, "color": "#60C8F0" },
+      { "position": 1.0, "color": "#D8F4FF" }
+    ]
+  },
+  {
     "id": "rock",
     "seed": 40966,
     "genParams": {

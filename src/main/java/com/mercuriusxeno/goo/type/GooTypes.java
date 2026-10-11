@@ -66,6 +66,7 @@ public final class GooTypes {
     public static final ResourceKey<GooTypeDefinition> METAL = bundled("metal");
     public static final ResourceKey<GooTypeDefinition> NETHER = bundled("nether");
     public static final ResourceKey<GooTypeDefinition> PULSE = bundled("pulse");
+    public static final ResourceKey<GooTypeDefinition> QUANTUM = bundled("quantum");
     public static final ResourceKey<GooTypeDefinition> ROCK = bundled("rock");
     public static final ResourceKey<GooTypeDefinition> SHROOM = bundled("shroom");
     public static final ResourceKey<GooTypeDefinition> TYPHOON = bundled("typhoon");
@@ -77,7 +78,7 @@ public final class GooTypes {
      */
     public static final List<ResourceKey<GooTypeDefinition>> BUNDLED = List.of(
             AEON, BLAZE, CRYSTAL, ENDER, FROST, GLOW, HEX, LEAF,
-            METAL, NETHER, PULSE, ROCK, SHROOM, TYPHOON, UNSTABLE, VITAL);
+            METAL, NETHER, PULSE, QUANTUM, ROCK, SHROOM, TYPHOON, UNSTABLE, VITAL);
 
     /**
      * A type key as its short id: the bare path for a bundled type, the
