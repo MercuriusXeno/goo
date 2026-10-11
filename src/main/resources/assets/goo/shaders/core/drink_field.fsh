@@ -22,8 +22,10 @@
 // No texture anywhere (decision unmake-skin-is-a-solid-sampled-color): each
 // stream's skin is one solid color, its block's sampled color at the block
 // crossfading to its goo's color at the hand by the point's share of the
-// route, so there is nothing to stretch. The constants mirror DrinkField and
-// DrinkUpload, which DrinkShaderTest checks.
+// route, so there is nothing to stretch. The hit glistens with a specular
+// highlight and a rim brightening so the blob reads as a lit 3D liquid
+// (decision unmake-metaball-glistens-and-shades). The constants mirror
+// DrinkField, DrinkUpload and DrinkShaderTest, which checks them.
 
 uniform sampler2D Sampler2;
 
@@ -60,6 +62,10 @@ const int REFINE_STEPS = 6;
 const float NORMAL_STEP = 0.004;
 const float FAR = 1.0e9;
 const float STRAIGHT = 1.0e-6;
+const float GLISTEN_POWER = 48.0;
+const float GLISTEN_STRENGTH = 0.35;
+const float RIM_POWER = 3.0;
+const float RIM_STRENGTH = 0.25;
 
 float falloff(float signedDistance) {
     float t = clamp((signedDistance + DEPTH) / (DEPTH + REACH), 0.0, 1.0);
@@ -240,6 +246,18 @@ vec4 skinAtHit(vec3 p, int streams) {
     return color;
 }
 
+// The solid skin shaded as a lit liquid (decision unmake-metaball-glistens-and-shades):
+// a white-leaning Blinn-Phong highlight from each cardinal light and a rim
+// brightening where the surface turns away from the eye, so the blob reads as
+// round wet volume rather than a flat disc. n and view are in view space.
+vec4 glisten(vec4 color, vec3 n, vec3 view) {
+    float shine = pow(max(dot(n, normalize(Light0_Direction + view)), 0.0), GLISTEN_POWER)
+        + pow(max(dot(n, normalize(Light1_Direction + view)), 0.0), GLISTEN_POWER);
+    float rim = pow(1.0 - max(dot(n, view), 0.0), RIM_POWER);
+    color.rgb += vec3(shine * GLISTEN_STRENGTH + rim * RIM_STRENGTH);
+    return color;
+}
+
 void main() {
     vec3 rd = normalize(rayPoint);
     rd += vec3(lessThan(abs(rd), vec3(STRAIGHT))) * STRAIGHT;
@@ -285,8 +303,10 @@ void main() {
     }
     vec3 p = rd * inside;
     vec3 n = normalAt(p, streams);
-    vec4 color = skinAtHit(p, streams);
-    color = minecraft_mix_light(Light0_Direction, Light1_Direction, normalize(mat3(ModelViewMat) * n), color);
+    vec3 viewNormal = normalize(mat3(ModelViewMat) * n);
+    vec3 toEye = normalize(mat3(ModelViewMat) * -p);
+    vec4 color = glisten(skinAtHit(p, streams), viewNormal, toEye);
+    color = minecraft_mix_light(Light0_Direction, Light1_Direction, viewNormal, color);
     color.a = 1.0;
     fragColor = apply_fog(color, fog_spherical_distance(p), fog_cylindrical_distance(p), FogEnvironmentalStart,
         FogEnvironmentalEnd, FogRenderDistanceStart, FogRenderDistanceEnd, FogColor);
