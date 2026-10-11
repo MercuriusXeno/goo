@@ -72,7 +72,7 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
     private static float computeFillFraction(ItemStack stack, CanisterFluidContent content) {
         int compression = com.mercuriusxeno.goo.registry.GooEnchantments.getCompressionLevel(stack);
         int capacity = ContainerCapacity.canisterCapacity(compression);
-        return Math.min(1f, (float) content.amount() / capacity);
+        return Math.min(1f, (float) content.totalVolume() / capacity);
     }
 
     /**
@@ -260,9 +260,9 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
             return new GooData(null, null, 0f, hasTop, hasBottom);
         }
         float fill = computeFillFraction(stack, content);
-        ResourceKey<GooTypeDefinition> gooType = content.getGooType();
+        ResourceKey<GooTypeDefinition> gooType = content.dominantGooType();
         Fluid vanillaFluid =
-                gooType == null ? content.fluid() : null;
+                gooType == null ? content.dominantFluid() : null;
         return new GooData(gooType, vanillaFluid, fill, hasTop, hasBottom);
     }
 

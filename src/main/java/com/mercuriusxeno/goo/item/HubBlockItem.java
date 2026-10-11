@@ -137,8 +137,7 @@ public class HubBlockItem extends BlockItem implements GooCarrierItem {
 
         @Override
         public boolean holds(ResourceKey<GooTypeDefinition> type) {
-            CanisterFluidContent content = CanisterItem.getFluidContent(stack);
-            return !content.isEmpty() && type.equals(content.getGooType());
+            return CanisterItem.getFluidContent(stack).volumeOf(type) > 0;
         }
 
         @Override

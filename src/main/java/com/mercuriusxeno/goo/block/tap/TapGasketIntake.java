@@ -45,6 +45,6 @@ public final class TapGasketIntake extends CanisterSlotFluidHandler implements G
         if (!asking.getAsBoolean()) {
             return OptionalInt.of(0);
         }
-        return OptionalInt.of(Math.max(0, dripVolume.getAsInt() - getAmount()));
+        return OptionalInt.of(Math.max(0, dripVolume.getAsInt() - totalVolume()));
     }
 }

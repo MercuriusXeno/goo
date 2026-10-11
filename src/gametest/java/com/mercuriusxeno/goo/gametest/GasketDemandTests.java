@@ -178,7 +178,7 @@ public final class GasketDemandTests {
             }
         });
         helper.runAfterDelay(MEASURED_TICKS, () -> {
-            helper.assertValueEqual(tap.getFluidContent().amount(), 0, "tap canister after the run");
+            helper.assertValueEqual(tap.getFluidContent().totalVolume(), 0, "tap canister after the run");
             int asked = VAT_GOO - vat.getContents().getVolume(GooTypes.BLAZE);
             int afterCanister = VALVE_DRIPS - CANISTER_DRIPS;
             helper.assertTrue(Math.abs(asked - afterCanister) <= VALVE.dripVolume(),
@@ -250,7 +250,7 @@ public final class GasketDemandTests {
                 new GasketPartner(helper.absolutePos(CHAIN_VAT_POS), GooConstants.NO_SLOT));
         assertCrystallizerDrawsThrough(helper, middleBottom, CanisterBlock.CENTER_SLOT,
                 outlet -> middle.setPartner(GasketRole.TRANSMITTER, CanisterBlock.CENTER_SLOT, outlet),
-                () -> middle.getSlotFluidContent(CanisterBlock.CENTER_SLOT).amount());
+                () -> middle.getSlotFluidContent(CanisterBlock.CENTER_SLOT).totalVolume());
     }
 
     /**
@@ -388,7 +388,7 @@ public final class GasketDemandTests {
                                       @Nullable UUID topGasket, @Nullable UUID bottomGasket) {
         ItemStack canister = new ItemStack(GooItems.CANISTER.get());
         if (volume > 0) {
-            CanisterItem.setFluidContent(canister, new CanisterFluidContent(GooFluids.resource(type), volume));
+            CanisterItem.setFluidContent(canister, CanisterFluidContent.of(GooFluids.resource(type), volume));
         }
         CanisterMetadata meta = CanisterItem.getMetadata(canister);
         if (topGasket != null) {

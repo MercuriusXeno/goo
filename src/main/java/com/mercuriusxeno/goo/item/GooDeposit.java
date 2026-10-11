@@ -235,8 +235,7 @@ public final class GooDeposit {
         public boolean takes(ResourceKey<GooTypeDefinition> type) {
             ItemStack stack = stack();
             if (stack.getItem() instanceof CanisterItem) {
-                CanisterFluidContent content = CanisterItem.getFluidContent(stack);
-                return !content.isEmpty() && Objects.equals(content.getGooType(), type);
+                return CanisterItem.getFluidContent(stack).volumeOf(type) > 0;
             }
             return !(stack.getItem() instanceof GooItem) || Objects.equals(GooStacks.keyOf(stack), type);
         }

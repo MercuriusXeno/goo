@@ -70,8 +70,7 @@ public final class GooSourceScannerTests {
     private static int carriedVolume(ItemStack hub, ResourceKey<GooTypeDefinition> type) {
         return hub.getOrDefault(GooDataComponents.HUB_CANISTERS.get(), List.<ItemStack>of()).stream()
                 .map(CanisterItem::getFluidContent)
-                .filter(content -> type.equals(content.getGooType()))
-                .mapToInt(content -> content.amount())
+                .mapToInt(content -> content.volumeOf(type))
                 .sum();
     }
 }

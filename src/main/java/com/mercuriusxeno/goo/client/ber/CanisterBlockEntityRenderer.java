@@ -138,10 +138,10 @@ public class CanisterBlockEntityRenderer
     private static void populateFilledSlot(CanisterBlockEntity be,
             CanisterRenderState state, int slot, CanisterFluidContent content) {
         int cap = ContainerCapacity.canisterCapacity(GooEnchantments.getCompressionLevel(be.getCanister(slot)));
-        state.slots[slot].type = content.getGooType();
-        state.slots[slot].fluid = content.getGooType() == null
-                ? content.fluid() : Fluids.EMPTY;
-        state.slots[slot].fill = logFill(content.amount(), cap);
+        state.slots[slot].type = content.dominantGooType();
+        state.slots[slot].fluid = content.dominantGooType() == null
+                ? content.dominantFluid() : Fluids.EMPTY;
+        state.slots[slot].fill = logFill(content.totalVolume(), cap);
     }
 
     /**

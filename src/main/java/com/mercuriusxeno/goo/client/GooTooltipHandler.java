@@ -267,7 +267,7 @@ public final class GooTooltipHandler {
         }
         CanisterFluidContent content = stack.get(GooDataComponents.CANISTER_FLUID_CONTENT.get());
         if (isEmptyCanister(content)) {
-            return content.getGooType();
+            return content.dominantGooType();
         }
         return null;
     }
@@ -284,7 +284,7 @@ public final class GooTooltipHandler {
         }
         CanisterFluidContent content = stack.get(GooDataComponents.CANISTER_FLUID_CONTENT.get());
         if (isEmptyCanister(content)) {
-            return content.amount();
+            return content.volumeOf(content.dominantResource());
         }
         return 0;
     }
@@ -383,19 +383,19 @@ public final class GooTooltipHandler {
     }
 
     /**
-     * Appends a single-fluid tooltip line for canister items.
-     * Handles both goo fluids (icon + amount) and vanilla fluids (text label + amount).
+     * Appends the fluid tooltip lines for canister items: a row per goo type
+     * (icon + amount), or the vanilla fluid's text label + amount.
      *
      * @param elements the tooltip element list
      * @param content  the canister fluid content
      */
     private static void appendCanisterFluidComponent(
             List<Either<FormattedText, TooltipComponent>> elements, CanisterFluidContent content) {
-        ResourceKey<GooTypeDefinition> gooType = content.getGooType();
-        if (gooType != null) {
-            appendGooRows(elements, Map.of(gooType, content.amount()));
+        Map<ResourceKey<GooTypeDefinition>, Integer> gooVolumes = content.gooVolumes();
+        if (gooVolumes.isEmpty()) {
+            appendVanillaFluidRow(elements, content.dominantFluid(), content.totalVolume());
         } else {
-            appendVanillaFluidRow(elements, content.fluid(), content.amount());
+            appendGooRows(elements, gooVolumes);
         }
     }
 

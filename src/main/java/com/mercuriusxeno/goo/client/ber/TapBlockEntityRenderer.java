@@ -113,8 +113,8 @@ public class TapBlockEntityRenderer
      */
     private static void extractNonEmptyContents(CanisterFluidContent content, TapRenderState state) {
         int capacity = ContainerCapacity.canisterCapacity(state.slot.compression);
-        state.slot.type = content.getGooType();
-        state.slot.fill = Math.min(1f, (float) content.amount() / capacity);
+        state.slot.type = content.dominantGooType();
+        state.slot.fill = Math.min(1f, (float) content.totalVolume() / capacity);
     }
 
     /**

@@ -65,7 +65,7 @@ public final class DrainIntoInventoryTests {
         BlockPos abs = helper.absolutePos(BE_POS);
         helper.useBlock(BE_POS, player, new BlockHitResult(Vec3.atCenterOf(abs), Direction.UP, abs, false));
 
-        helper.assertValueEqual(CanisterItem.getFluidContent(canister).amount(), capacity, CANISTER_FULL);
+        helper.assertValueEqual(CanisterItem.getFluidContent(canister).totalVolume(), capacity, CANISTER_FULL);
         helper.assertValueEqual(gooVolume(player.getInventory(), ROCK), CRUCIBLE_ROCK - CANISTER_ROOM,
                 GOO_HOLDS_REST);
         helper.assertTrue(crucible.getReservoir().isEmpty(), CRUCIBLE_EMPTY);
