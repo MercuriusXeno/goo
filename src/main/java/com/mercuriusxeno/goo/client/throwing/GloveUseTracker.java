@@ -105,6 +105,12 @@ public final class GloveUseTracker {
      * @param hand the hand holding the glove
      */
     public static void pressGlove(InteractionHand hand) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player != null && SpireCast.selected(player)) {
+            // spire-rips-walls-and-platforms: a footprint cast holds its own presses, never a throw
+            SpireCast.press(player, hand);
+            return;
+        }
         if (!PRESS.isArmed()) {
             pressHand = hand;
             Minecraft mc = Minecraft.getInstance();
@@ -233,7 +239,7 @@ public final class GloveUseTracker {
 
             @Override
             public void swing() {
-                player.swing(pressHand);
+                swingUnlessSlinging(player);
             }
 
             @Override
@@ -264,6 +270,32 @@ public final class GloveUseTracker {
         GloveSelection selection = GloveThrowSender.heldSelection(player);
         return selection != null && SelfEatRoute.eats(GloveThrowSender.selectedDelivery(selection.abilityId()),
                 GloveThrowSender.selectedBadge(selection.abilityId()));
+    }
+
+    /**
+     * Swings the glove arm on a throw, except for a slinging charge, whose
+     * release flings the arm in its own pose
+     * (decision shards-sling-then-morph-to-flechettes).
+     *
+     * @param player the local player
+     */
+    private static void swingUnlessSlinging(LocalPlayer player) {
+        if (!selectedSlings(player)) {
+            player.swing(pressHand);
+        }
+    }
+
+    /**
+     * Whether the held glove's selection charges and slings on release, so
+     * its arm takes the wind-up and fling pose in place of the swing
+     * (decision shards-sling-then-morph-to-flechettes).
+     *
+     * @param player the local player
+     * @return true for a slinging selection
+     */
+    public static boolean selectedSlings(LocalPlayer player) {
+        GloveSelection selection = GloveThrowSender.heldSelection(player);
+        return selection != null && GloveThrowSender.selectedDelivery(selection.abilityId()).charge().slings();
     }
 
     /**

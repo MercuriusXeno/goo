@@ -37,6 +37,8 @@ import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -137,6 +139,35 @@ class RadialWheelRendererTest {
                         pngDimensions(resource), resource);
             }));
         }
+
+        /** Each Rock ability draws an icon of its own, never one shared placeholder (decision rock-abilities-get-icons). */
+        @Test
+        void everyRockAbilityDrawsAnIconOfItsOwn() throws IOException {
+            Map<String, String> abilityByIcon = new HashMap<>();
+            for (ClientAbility ability : shippedAbilities()) {
+                if (!ability.id().getPath().startsWith(ROCK_PREFIX)) {
+                    continue;
+                }
+                Identifier icon = RadialWheelRenderer.resolveAbilityIcon(ability);
+                String resource = ASSETS_ROOT + icon.getNamespace() + "/" + icon.getPath();
+                assertEquals(List.of(RadialWheelRenderer.ABILITY_ICON_SIZE, RadialWheelRenderer.ABILITY_ICON_SIZE),
+                        pngDimensions(resource), resource);
+                String shared = abilityByIcon.put(HexFormat.of().formatHex(pngBytes(resource)), ability.id().getPath());
+                assertNull(shared, ability.id() + " draws the same icon as " + shared);
+            }
+            assertEquals(ROCK_ABILITIES, abilityByIcon.size());
+        }
+    }
+
+    private static final String ROCK_PREFIX = "rock_";
+    /** Flatten, Bore, Petrify, Stoneskin and Spire. */
+    private static final int ROCK_ABILITIES = 5;
+
+    private static byte[] pngBytes(String resource) throws IOException {
+        try (InputStream stream = RadialWheelRendererTest.class.getClassLoader().getResourceAsStream(resource)) {
+            assertNotNull(stream, resource + " is not on the classpath");
+            return stream.readAllBytes();
+        }
     }
 
     private static final int IHDR_WIDTH_OFFSET = 16;
@@ -161,11 +192,12 @@ class RadialWheelRendererTest {
                 Map.entry("aeon_tick", "Tick"), Map.entry("aeon_timekeeper", "Timekeeper"),
                 Map.entry("aeon_chronosphere", "Chronosphere"), Map.entry("aeon_haste", "Haste"),
                 Map.entry("blaze_ignite", "Scorch"),
-                Map.entry("crystal_cloud", "Razor"), Map.entry("crystal_flechettes", "Shards"),
+                Map.entry("crystal_cloud", "Razor"), Map.entry("crystal_shards", "Shards"),
+                Map.entry("crystal_glitter", "Glitter"), Map.entry("crystal_scales", "Scales"),
                 Map.entry("crystal_prism", "Prism"), Map.entry("deep_churn", "Churn"), Map.entry("deep_convoke", "Convoke"), Map.entry("deep_dive", "Dive"),
                 Map.entry("ender_zone", "Zone"), Map.entry("ender_shifter", "Shifter"), Map.entry("ender_end", "End"), Map.entry("ender_oculus", "Oculus"),
                 Map.entry("frost_snap", "Snap"), Map.entry("frost_nova", "Nova"), Map.entry("frost_cold", "Cold"), Map.entry("frost_orb", "Orb"), Map.entry("frost_glacial", "Glacial"), Map.entry("frost_iceborn", "Iceborn"), Map.entry("glow_crystal", "Bulb"),
-                Map.entry("glow_sunbeam", "Sunbeam"), Map.entry("hex_charm", "Charm"), Map.entry("hex_enchant", "Enchant"), Map.entry("hex_fuse", "Fuse"), Map.entry("hex_spawn", "Spawn"), Map.entry("hex_lifetap", "Lifetap"), Map.entry("hex_drain", "Drain"),
+                Map.entry("glow_sunbeam", "Sunbeam"), Map.entry("hex_charm", "Charm"), Map.entry("hex_enchant", "Enchant"), Map.entry("hex_fuse", "Fuse"), Map.entry("hex_lifetap", "Lifetap"), Map.entry("hex_drain", "Drain"),
                 Map.entry("leaf_vines", "Vines"), Map.entry("leaf_bloom", "Bloom"), Map.entry("leaf_growth", "Growth"), Map.entry("leaf_reap", "Reap"), Map.entry("leaf_bio", "Bio"), Map.entry("leaf_verdant", "Verdant"),
                 Map.entry("leaf_barkskin", "Barkskin"), Map.entry("metal_spikes", "Urchin"),
                 Map.entry("metal_javelin", "Dart"), Map.entry("nether_black_hole", "Anti"),
@@ -174,7 +206,7 @@ class RadialWheelRendererTest {
                 Map.entry("pulse_pulser", "Pulser"),
                 Map.entry("pulse_metronome", "Metronome"), Map.entry("pulse_relay", "Relay"),
                 Map.entry("pulse_extender", "Extender"),
-                Map.entry("rock_bore", "Bore"), Map.entry("rock_crush", "Crush"), Map.entry("rock_flatten", "Flatten"),
+                Map.entry("rock_bore", "Bore"), Map.entry("rock_spire", "Spire"), Map.entry("rock_flatten", "Flatten"),
                 Map.entry("glow_scry", "Scry"), Map.entry("glow_lux", "Lux"), Map.entry("glow_radiant", "Radiant"), Map.entry("glow_reflector", "Reflector"),
                 Map.entry("rock_petrify", "Petrify"),
                 Map.entry("rock_stoneskin", "Stoneskin"),
@@ -185,7 +217,7 @@ class RadialWheelRendererTest {
                 Map.entry("blaze_spitfire", "Spitfire"), Map.entry("blaze_kindle", "Kindle"),
                 Map.entry("ender_blink", "Blink"), Map.entry("typhoon_jet", "Jet"), Map.entry("typhoon_airborn", "Airborn"), Map.entry("typhoon_repel", "Repel"),
                 Map.entry("typhoon_updraft", "Updraft"), Map.entry("typhoon_lift", "Lift"),
-                Map.entry("unstable_explode", "Blast"), Map.entry("vital_clone", "Clone"),
+                Map.entry("unstable_explode", "Blast"), Map.entry("zoo_allure", "Allure"), Map.entry("zoo_spawn", "Spawn"), Map.entry("zoo_shape", "Shape"), Map.entry("zoo_rally", "Rally"),
                 Map.entry("jelly_heal", "Vitality"), Map.entry("jelly_reserve", "Reserve"), Map.entry("jelly_feed", "Feed"),
                 Map.entry("jelly_gluttony", "Gluttony"), Map.entry("xeno_eldritch", "Eldritch Sight"),
                 Map.entry("xeno_mutate", "Mutate"));

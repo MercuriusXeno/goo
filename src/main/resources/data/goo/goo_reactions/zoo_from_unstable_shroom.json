@@ -1,0 +1,10 @@
+{
+  "inputs": [
+    {"goo": "goo:unstable", "amount": 1},
+    {"goo": "goo:shroom", "amount": 1}
+  ],
+  "outputs": [
+    {"goo": "goo:zoo", "amount": 2}
+  ],
+  "rate": 1
+}

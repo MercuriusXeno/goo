@@ -13,6 +13,7 @@ import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.AABB;
@@ -35,8 +36,6 @@ public class FeedPile extends Entity {
     public static final double REACH = 1.5;
     /** Hostiles that must reach the feed together before they fight over it. */
     private static final int FIGHTERS_TO_FIGHT = 2;
-    /** Ticks between the feed drawing the mobs about it toward it. */
-    static final int LURE_INTERVAL = 10;
     /** The speed a lured mob walks toward the feed at, its navigation's own multiple. */
     private static final double LURE_SPEED = 1.0;
     /** Ticks the feed lies before it spoils, a few minutes. */
@@ -114,9 +113,7 @@ public class FeedPile extends Entity {
             return;
         }
         long now = server.getGameTime();
-        if (tickCount % LURE_INTERVAL == 0) {
-            lure();
-        }
+        lure();
         if (now >= fightUntil) {
             endFight();
             obtain(server, now);
@@ -125,10 +122,23 @@ public class FeedPile extends Entity {
 
     private void lure() {
         for (Mob mob : level().getEntitiesOfClass(Mob.class, getBoundingBox().inflate(radius), Mob::isAlive)) {
-            if (mob instanceof PathfinderMob && mob.getTarget() == null && !mob.isNoAi()) {
+            if (mob instanceof PathfinderMob && mob.getTarget() == null && !mob.isNoAi() && !headsHere(mob)) {
                 mob.getNavigation().moveTo(this, LURE_SPEED);
             }
         }
+    }
+
+    /**
+     * Whether a mob's path already ends at the feed, so the lure leaves it be;
+     * a path another goal laid since, a player tempting it or a stroll, is
+     * taken back.
+     *
+     * @param mob a mob within the feed's radius
+     * @return true when its path ends within reach of the feed
+     */
+    private boolean headsHere(Mob mob) {
+        Path path = mob.getNavigation().getPath();
+        return path != null && !path.isDone() && path.getTarget().closerThan(blockPosition(), REACH);
     }
 
     private void obtain(ServerLevel server, long now) {
