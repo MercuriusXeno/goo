@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.ExplosionMode;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.Step;
+import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -46,6 +47,15 @@ class AbilityDefinitionTest {
         AbilityArea written = new AbilityArea(AbilityArea.Shape.CONE, JSON_SIZE, CONE_ANGLE);
         List<Step> explodes = List.of(new ExplodeStep(Expr.literal(EXPLOSION_POWER), ExplosionMode.TNT));
         assertEquals(written, AbilityDefinition.previewAtMaxReach(written, explodes));
+    }
+
+    @Test
+    void spawnConsumesNoItemAndStaysGatedBehindSculk() {
+        // ability-json-names-its-reagent
+        // spawn-goo-morphs-into-the-mob-it-births
+        AbilityDefinition spawn = AbilityJson.decode("hex_spawn");
+        assertEquals(List.of(), spawn.consumes());
+        assertEquals(List.of(Identifier.withDefaultNamespace("sculk")), spawn.requires());
     }
 
     /** An instant area throw writing no area draws the sphere its program reaches. */

@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.network.SunbeamPayload;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -38,9 +39,10 @@ import java.util.stream.Stream;
  * @param where   the filters a struck mob must pass; empty keeps any living entity
  * @param refract how a prism the ray strikes splits it
  * @param steps   the child steps run on each mob a hit lands on
+ * @param impact  the steps run where the ray lands each tick of the hold, on the mob or block face it strikes
  */
-public record RayStep(double range, int every, List<EntityFilter> where, Refraction refract, List<Step> steps)
-        implements Step {
+public record RayStep(double range, int every, List<EntityFilter> where, Refraction refract, List<Step> steps,
+                      List<Step> impact) implements Step {
 
     private static final String NAME = "ray";
     private static final String FIELD_RANGE = "range";
@@ -48,6 +50,7 @@ public record RayStep(double range, int every, List<EntityFilter> where, Refract
     private static final String FIELD_WHERE = "where";
     private static final String FIELD_REFRACT = "refract";
     private static final String FIELD_STEPS = "steps";
+    private static final String FIELD_IMPACT = "impact";
     /** How far out of the prism a refracted beam's sight line starts, so the prism's own shape never blocks it. */
     private static final double OUT_OF_THE_PRISM = 0.6;
     private static final double HALF = 0.5;
@@ -62,7 +65,9 @@ public record RayStep(double range, int every, List<EntityFilter> where, Refract
             Codec.intRange(1, Integer.MAX_VALUE).fieldOf(FIELD_EVERY).forGetter(RayStep::every),
             EntityFilter.CODEC.listOf().optionalFieldOf(FIELD_WHERE, List.of()).forGetter(RayStep::where),
             Refraction.CODEC.fieldOf(FIELD_REFRACT).forGetter(RayStep::refract),
-            Codec.lazyInitialized(() -> StepTypes.LIST_CODEC).fieldOf(FIELD_STEPS).forGetter(RayStep::steps)
+            Codec.lazyInitialized(() -> StepTypes.LIST_CODEC).fieldOf(FIELD_STEPS).forGetter(RayStep::steps),
+            Codec.lazyInitialized(() -> StepTypes.LIST_CODEC).optionalFieldOf(FIELD_IMPACT, List.of())
+                    .forGetter(RayStep::impact)
     ).apply(inst, RayStep::new));
 
     /**
@@ -86,7 +91,10 @@ public record RayStep(double range, int every, List<EntityFilter> where, Refract
         Vec3 eye = channel.eye();
         Vec3 reach = eye.add(aim.get().aimPoint().subtract(eye).normalize().scale(range));
         HitResult hit = cast(level, caster, eye, reach);
-        List<Vec3> refracted = land(level, caster, hit, hitsOn(aim.get().held()));
+        int held = aim.get().held();
+        boolean hits = hitsOn(held);
+        List<Vec3> refracted = land(level, caster, hit, hits);
+        impactAt(level, eye, hit, held, hits);
         EntityVisuals.sendToWatchers(caster, new SunbeamPayload(caster.getId(), hit.getLocation(), refracted));
         return true;
     }
@@ -113,6 +121,42 @@ public record RayStep(double range, int every, List<EntityFilter> where, Refract
             return refractFrom(level, caster, Vec3.atCenterOf(block.getBlockPos()), hits);
         }
         return List.of();
+    }
+
+    /**
+     * Runs the impact steps where the ray lands, on the mob or block face it
+     * strikes, each tick of the hold; a ray striking nothing within its range
+     * lands nowhere.
+     * decision sunbeam-lands-with-impact-and-aim
+     *
+     * @param level the server level
+     * @param eye   the channeling player's eye
+     * @param hit   what the ray struck
+     * @param held  the hold's age in ticks
+     * @param hits  whether this tick hits
+     */
+    private void impactAt(ServerLevel level, Vec3 eye, HitResult hit, int held, boolean hits) {
+        if (impact.isEmpty() || hit.getType() == HitResult.Type.MISS) {
+            return;
+        }
+        new ProgramBehavior(impact).tick(new ImpactHost(level, hit.getLocation(), faceStruck(eye, hit),
+                held, hits));
+    }
+
+    /**
+     * The face the ray strikes: a block's own face, or for a mob the side
+     * turned toward the caster.
+     *
+     * @param eye the channeling player's eye
+     * @param hit what the ray struck
+     * @return the struck face
+     */
+    static Direction faceStruck(Vec3 eye, HitResult hit) {
+        if (hit instanceof BlockHitResult block) {
+            return block.getDirection();
+        }
+        Vec3 back = eye.subtract(hit.getLocation());
+        return Direction.getApproximateNearest(back.x, back.y, back.z);
     }
 
     /**
@@ -212,12 +256,13 @@ public record RayStep(double range, int every, List<EntityFilter> where, Refract
 
     @Override
     public Stream<Step> children() {
-        return steps.stream();
+        return Stream.concat(steps.stream(), impact.stream());
     }
 
     @Override
     public Stream<HostedStep> hostedChildren(HostKind host) {
-        return steps.stream().map(child -> new HostedStep(child, HostKind.ENTITY));
+        return Stream.concat(steps.stream().map(child -> new HostedStep(child, HostKind.ENTITY)),
+                impact.stream().map(child -> new HostedStep(child, HostKind.IMPACT)));
     }
 
     /**

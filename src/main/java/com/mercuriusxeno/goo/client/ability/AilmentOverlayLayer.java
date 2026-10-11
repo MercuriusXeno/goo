@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
@@ -19,6 +20,7 @@ import net.minecraft.util.ARGB;
 import net.minecraft.util.context.ContextKey;
 import net.minecraft.world.entity.Entity;
 import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * A status ailment as a render layer: one layer on every living entity
@@ -84,7 +86,8 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
 
     /**
      * Stamps the ailments the entity wears onto its render state, each with
-     * its strength this frame, read by the layer when it draws.
+     * its strength this frame, read by the layer when it draws; a charmed
+     * mob wears the hex glisten from its synced charm.
      *
      * @param entity the entity
      * @param state  its render state
@@ -92,9 +95,29 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
     public static void stampAilments(Entity entity, EntityRenderState state) {
         long tick = entity.level().getGameTime();
         float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        state.setRenderData(AILMENTS, MobAilments.CLIENT.ailmentsOf(entity.getId(), tick).stream()
-                .map(worn -> new StampedAilment(worn.kind(), MobAilments.strength(worn.ticksLeft() - partialTick)))
-                .toList());
+        List<StampedAilment> worn = MobAilments.CLIENT.ailmentsOf(entity.getId(), tick).stream()
+                .map(ailment -> new StampedAilment(ailment.kind(),
+                        MobAilments.strength(ailment.ticksLeft() - partialTick)))
+                .toList();
+        state.setRenderData(AILMENTS, withCharmGlisten(worn, entity.hasData(GooAttachments.CHARMED)));
+    }
+
+    /**
+     * The ailments a frame draws once the charm is counted: a charmed mob
+     * wears the hex glisten whole for as long as the charm holds, in place
+     * of any timed hex overlay it wears.
+     * charm-holds-until-struck
+     *
+     * @param worn    the timed ailments the entity wears
+     * @param charmed whether the entity holds a charm
+     * @return the ailments to draw
+     */
+    static List<StampedAilment> withCharmGlisten(List<StampedAilment> worn, boolean charmed) {
+        if (!charmed) {
+            return worn;
+        }
+        return Stream.concat(worn.stream().filter(ailment -> ailment.kind() != AilmentKind.HEX),
+                Stream.of(new StampedAilment(AilmentKind.HEX, 1f))).toList();
     }
 
     /**
