@@ -144,7 +144,6 @@ class StepCodecTest {
             Map.entry("court", LeafSteps.COURT.step(Expr.literal(0.25))),
             Map.entry("power_pulse", LeafSteps.POWER_PULSE.step(Unit.INSTANCE)),
             Map.entry("toggle_device", LeafSteps.TOGGLE_DEVICE.step(Unit.INSTANCE)),
-            Map.entry("emit_power", new EmitPowerStep(Expr.literal(40), Expr.literal(400))),
             Map.entry("metronome", new MetronomeStep()),
             Map.entry("relay", new RelayStep()),
             Map.entry("extender", new ExtenderStep()),

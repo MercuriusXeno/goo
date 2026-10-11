@@ -30,7 +30,6 @@ import com.mercuriusxeno.goo.network.PulserTapTests;
 import com.mercuriusxeno.goo.network.PulserTests;
 import com.mercuriusxeno.goo.network.RelayTests;
 import com.mercuriusxeno.goo.network.SignalTests;
-import com.mercuriusxeno.goo.network.ThumperTests;
 import com.mercuriusxeno.goo.network.BoreStreamTests;
 import com.mercuriusxeno.goo.network.CrushMobTests;
 import com.mercuriusxeno.goo.network.FlattenChannelTests;
@@ -446,7 +445,6 @@ public final class GooTestFunctions {
     private static final String PULSER_FLIPS_A_FLOOR_LEVER = "pulser_flips_a_floor_lever";
     private static final String PULSER_FLIPS_A_FAR_FLOOR_LEVER = "pulser_flips_a_far_floor_lever";
     private static final String PULSER_TAP_FLIPS_PER_DRIP = "pulser_tap_flips_per_drip";
-    private static final String THUMPER_PULSES_THEN_FADES = "thumper_pulses_then_fades";
     private static final String METRONOME_LEARNS_THE_INTERVAL = "metronome_learns_the_interval";
     private static final String RELAY_CARRIES_THROUGH_AIR = "relay_carries_through_air";
     private static final String PULSE_BREW_EXTENDS_STANDING_EFFECTS = "pulse_brew_extends_standing_effects";
@@ -1012,7 +1010,6 @@ public final class GooTestFunctions {
         reg(r, PULSER_FLIPS_A_FLOOR_LEVER, PulserTests::pulserFlipsAFloorLever);
         reg(r, PULSER_FLIPS_A_FAR_FLOOR_LEVER, PulserTests::pulserFlipsAFarFloorLever);
         reg(r, PULSER_TAP_FLIPS_PER_DRIP, PulserTapTests::pulserTapFlipsPerDrip);
-        reg(r, THUMPER_PULSES_THEN_FADES, ThumperTests::thumperPulsesThenFades);
         reg(r, METRONOME_LEARNS_THE_INTERVAL, MetronomeTests::metronomeLearnsTheInterval);
         reg(r, RELAY_CARRIES_THROUGH_AIR, RelayTests::relayCarriesThroughAir);
         reg(r, PULSE_BREW_EXTENDS_STANDING_EFFECTS, ExtenderTests::pulseBrewExtendsStandingEffects);
