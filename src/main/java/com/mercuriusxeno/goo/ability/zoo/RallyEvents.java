@@ -91,7 +91,8 @@ public final class RallyEvents {
     private static void replaceModifier(@Nullable AttributeInstance attribute, Identifier id, double share) {
         if (attribute != null) {
             attribute.removeModifier(id);
-            attribute.addTransientModifier(new AttributeModifier(id, share,
+            // zoo-rally-arms-the-peaceful: permanent, so the buff saves with the rally it belongs to
+            attribute.addPermanentModifier(new AttributeModifier(id, share,
                     AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
         }
     }

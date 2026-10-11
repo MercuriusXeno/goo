@@ -7,10 +7,16 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.ProblemReporter;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.cow.Cow;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.level.storage.TagValueOutput;
 
 /**
  * Gametests for Zoo's Rally: a peaceful mob near the caster takes the rally
@@ -32,6 +38,11 @@ public final class RallyTests {
     private static final float LEAST_STRIKE = 5f;
     /** A cow's max health of ten, lifted by zoo_rally.json's health share of 1.5. */
     private static final float RALLIED_COW_MAX_HEALTH = 25f;
+
+    private static final String RELOADED_LOST = "The saved cow should load back as a mob";
+    private static final String RELOADED_UNRALLIED = "The reloaded cow should still hold the rally";
+    private static final String RELOADED_UNBUFFED =
+            "The reloaded cow's max health should still be zoo_rally.json's 2.5 times, stands %s";
 
     private RallyTests() {
     }
@@ -61,5 +72,50 @@ public final class RallyTests {
             helper.assertTrue(zombie.getMaxHealth() - zombie.getHealth() >= LEAST_STRIKE, ZOMBIE_UNHURT);
             helper.getLevel().getServer().getPlayerList().remove(caster);
         });
+    }
+
+    /**
+     * A rallied cow saved the way a chunk unload saves it and loaded back
+     * keeps the rally and its buff for the rally's whole time
+     * (decision zoo-rally-arms-the-peaceful).
+     *
+     * @param helper the gametest helper
+     */
+    public static void rallySurvivesAReload(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        SelfDeliveryTests.invoke(caster, GooTypes.ZOO, ZOO_RALLY);
+        Mob[] reloaded = new Mob[1];
+        helper.succeedWhen(() -> {
+            if (reloaded[0] == null) {
+                helper.assertTrue(cow.hasData(GooAttachments.RALLIED), COW_NOT_RALLIED);
+                reloaded[0] = reload(helper, cow);
+            }
+            helper.assertTrue(reloaded[0].hasData(GooAttachments.RALLIED), RELOADED_UNRALLIED);
+            helper.assertTrue(reloaded[0].getMaxHealth() == RALLIED_COW_MAX_HEALTH,
+                    String.format(RELOADED_UNBUFFED, reloaded[0].getMaxHealth()));
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+        });
+    }
+
+    /**
+     * Saves a mob the way a chunk unload saves it, discards it and loads the
+     * save back into the level.
+     *
+     * @param helper the gametest helper
+     * @param mob    the mob saved
+     * @return the mob loaded from the save
+     */
+    private static Mob reload(GameTestHelper helper, Mob mob) {
+        TagValueOutput saved = TagValueOutput.createWithContext(ProblemReporter.DISCARDING,
+                helper.getLevel().registryAccess());
+        mob.save(saved);
+        mob.discard();
+        Entity loaded = EntityType.loadEntityRecursive(TagValueInput.create(ProblemReporter.DISCARDING,
+                helper.getLevel().registryAccess(), saved.buildResult()), helper.getLevel(), EntitySpawnReason.LOAD,
+                entity -> entity);
+        helper.assertTrue(loaded instanceof Mob, RELOADED_LOST);
+        helper.getLevel().addFreshEntity(loaded);
+        return (Mob) loaded;
     }
 }
