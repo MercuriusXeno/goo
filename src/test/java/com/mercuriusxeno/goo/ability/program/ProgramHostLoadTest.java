@@ -4,7 +4,10 @@ import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -189,12 +192,6 @@ class ProgramHostLoadTest {
                 List.of(new DamageStep(expr("tick + 1"), DamageKind.MAGIC)), HostKind.ENTITY));
     }
 
-    private static final Map<HostKind, Class<? extends StepHost>> HOST_TYPES = Map.of(
-            HostKind.MARKER, MarkerHost.class, HostKind.ENTITY, EntityHost.class, HostKind.TAP, TapHost.class,
-            HostKind.LANDING, LandingHost.class, HostKind.PLAYER, PlayerHost.class,
-            HostKind.SURFACE, SurfaceHost.class, HostKind.FLIGHT, FlightHost.class, HostKind.IMPACT, ImpactHost.class,
-            HostKind.FOOTPRINT, FootprintHost.class);
-
     /**
      * A step needing exactly one capability, standing in for whichever
      * real step needs it.
@@ -209,30 +206,47 @@ class ProgramHostLoadTest {
         return step;
     }
 
+    /**
+     * A kind provides exactly the capabilities whose interface its host type implements,
+     * read here by walking the host type's own interface hierarchy
+     * (decision host-capabilities-asserted-from-host-records).
+     */
+    @ParameterizedTest
+    @EnumSource(HostKind.class)
+    void eachKindProvidesTheCapabilityInterfacesItsHostImplements(HostKind kind) {
+        Set<Class<?>> implemented = supertypesOf(kind.hostType());
+        Set<HostCapability> expected = EnumSet.noneOf(HostCapability.class);
+        for (HostCapability capability : HostCapability.values()) {
+            if (implemented.contains(capability.hostType())) {
+                expected.add(capability);
+            }
+        }
+        assertEquals(expected, kind.capabilities(), kind.toString());
+    }
+
+    private static Set<Class<?>> supertypesOf(Class<?> type) {
+        Set<Class<?>> found = new HashSet<>();
+        Deque<Class<?>> pending = new ArrayDeque<>(List.of(type));
+        while (!pending.isEmpty()) {
+            Class<?> next = pending.pop();
+            if (found.add(next)) {
+                pending.addAll(List.of(next.getInterfaces()));
+                if (next.getSuperclass() != null) {
+                    pending.add(next.getSuperclass());
+                }
+            }
+        }
+        return found;
+    }
+
+    /** The per-kind facts the refusal tests depend on. */
     @Test
-    void eachKindProvidesTheCapabilityInterfacesItsHostImplements() {
-        assertEquals(EnumSet.complementOf(EnumSet.of(HostCapability.TARGET, HostCapability.LINGER, HostCapability.CHANNEL,
-                        HostCapability.BREAK_BLOCKS, HostCapability.DRIP, HostCapability.UNMAKE, HostCapability.SIPHON,
-                        HostCapability.COLONIZE, HostCapability.FLOOR_SCAN, HostCapability.END_GATE,
-                        HostCapability.ASTRAL_GATE, HostCapability.METEOR, HostCapability.POWER_PULSE,
-                        HostCapability.TOGGLE_DEVICE, HostCapability.EXTEND_EFFECTS, HostCapability.TICK_BLOCK,
-                        HostCapability.SHARD_FALL, HostCapability.RAISE_GROUND)),
-                HostKind.MARKER.capabilities());
-        assertEquals(Set.of(HostCapability.PLACED_FACE, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
-                HostCapability.PLACE_BLOCK, HostCapability.LINGER, HostCapability.BREAK_BLOCKS, HostCapability.COLONIZE,
-                HostCapability.FLOOR_SCAN, HostCapability.END_GATE, HostCapability.ASTRAL_GATE, HostCapability.METEOR, HostCapability.POWER_PULSE,
-                HostCapability.FROST),
-                HostKind.LANDING.capabilities());
-        assertEquals(Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN),
-                HostKind.ENTITY.capabilities());
-        assertEquals(Set.of(HostCapability.EXPLODE, HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK,
-                HostCapability.BREAK_BLOCKS, HostCapability.DRIP, HostCapability.UNMAKE, HostCapability.CONVOKE,
-                HostCapability.TOGGLE_DEVICE, HostCapability.FROST, HostCapability.TICK_BLOCK, HostCapability.SHARD_FALL),
-                HostKind.TAP.capabilities());
-        assertEquals(Set.of(HostCapability.ENTITY_SCAN, HostCapability.PLACE_BLOCK),
-                HostKind.SURFACE.capabilities());
-        assertEquals(Set.of(HostCapability.ENTITY_SCAN, HostCapability.FROST), HostKind.FLIGHT.capabilities());
-        assertEquals(Set.of(HostCapability.ENTITY_SCAN), HostKind.IMPACT.capabilities());
+    void theKindsTheRefusalsReadProvideAndLackWhatTheyNeed() {
+        assertTrue(HostKind.ENTITY.capabilities().contains(HostCapability.TARGET));
+        assertFalse(HostKind.ENTITY.capabilities().contains(HostCapability.TICKING));
+        assertTrue(HostKind.MARKER.capabilities().containsAll(Set.of(HostCapability.TICKING, HostCapability.PLACED_FACE)));
+        assertFalse(HostKind.MARKER.capabilities().contains(HostCapability.TARGET));
+        assertFalse(HostKind.LANDING.capabilities().contains(HostCapability.TARGET));
     }
 
     @ParameterizedTest
@@ -240,7 +254,7 @@ class ProgramHostLoadTest {
     void aStepLoadsExactlyWhereTheHostImplementsTheInterfaceItNeeds(HostCapability needed) {
         for (HostKind kind : HostKind.values()) {
             List<Step> steps = List.of(needing(needed));
-            if (needed.hostType().isAssignableFrom(HOST_TYPES.get(kind))) {
+            if (needed.hostType().isAssignableFrom(kind.hostType())) {
                 assertDoesNotThrow(() -> ProgramBehavior.forHost(steps, kind), kind + " " + needed);
             } else {
                 ProgramLoadException refusal = assertThrows(ProgramLoadException.class,
