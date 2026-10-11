@@ -1021,13 +1021,18 @@ class RadialWheelRendererTest {
         private static final float QUARTER_PERIOD = PetalPulse.PERIOD_TICKS / 4f;
 
         private RadialWheelRenderer.Frame frame(Set<Identifier> active) {
+            return frame(active, 1000);
+        }
+
+        private RadialWheelRenderer.Frame frame(Set<Identifier> active, int blazeHeld) {
             List<ResourceKey<GooTypeDefinition>> types = List.of(GooTypes.BLAZE, GooTypes.LEAF);
             List<List<OfferedAbility>> abilities = List.of(
                     List.of(new OfferedAbility(new ClientAbility(BLAZE_KINDLE, "ability.goo.kindle", "", 0, List.of(),
                             List.of(), 0, Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW, List.of()), List.of())),
                     List.of());
             return new RadialWheelRenderer.Frame(new RadialWheel(types.size(), type -> 1), types, abilities,
-                    Map.of(GooTypes.BLAZE, 1000, GooTypes.LEAF, 1000), 0, 0, 100, null, 0f, active, QUARTER_PERIOD);
+                    Map.of(GooTypes.BLAZE, blazeHeld, GooTypes.LEAF, 1000), 0, 0, 100, null, 0f, active,
+                    QUARTER_PERIOD);
         }
 
         @Test
@@ -1038,9 +1043,16 @@ class RadialWheelRendererTest {
         }
 
         @Test
-        void aTypeHoldingNothingRests() {
+        void aTypeHoldingNoActiveEffectRests() {
             assertEquals(RadialWheelRenderer.computeOverlayTint(false, false),
                     RadialWheelRenderer.typePetalTint(frame(Set.of()), BLAZE));
+        }
+
+        /** decision wheel-shows-only-held-types-with-abilities: no shown type is unheld, so none dims. */
+        @Test
+        void aTypeHeldAtZeroRestsUndimmed() {
+            assertEquals(RadialWheelRenderer.computeOverlayTint(false, false),
+                    RadialWheelRenderer.typePetalTint(frame(Set.of(), 0), BLAZE));
         }
     }
 

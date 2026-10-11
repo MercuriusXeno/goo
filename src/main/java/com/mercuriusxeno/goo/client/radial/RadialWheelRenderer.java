@@ -205,11 +205,12 @@ final class RadialWheelRenderer {
     }
 
     /**
-     * The tint a type petal blits under: hovered while selected, dimmed while
-     * the player holds none of it, and pulsing while the type is not expanded
-     * and the player holds an effect of one of its abilities, so the effect
-     * shows under a type the player has not opened.
+     * The tint a type petal blits under: hovered while selected, and pulsing
+     * while the type is not expanded and the player holds an effect of one
+     * of its abilities, so the effect shows under a type the player has not
+     * opened. Every shown type is held, so none dims.
      * wheel-pulses-the-active-effect
+     * decision wheel-shows-only-held-types-with-abilities
      *
      * @param frame what the frame draws from
      * @param type  the type's index
@@ -217,10 +218,9 @@ final class RadialWheelRenderer {
      */
     static int typePetalTint(Frame frame, int type) {
         boolean selected = type == frame.wheel().selectedType();
-        boolean disabled = frame.available().getOrDefault(frame.types().get(type), 0) <= 0;
         boolean holdsEffect = frame.abilities().get(type).stream()
                 .anyMatch(offered -> frame.active().contains(offered.ability().id()));
-        return tint(selected, disabled, !selected && holdsEffect, frame.gameTime());
+        return tint(selected, false, !selected && holdsEffect, frame.gameTime());
     }
 
     /**

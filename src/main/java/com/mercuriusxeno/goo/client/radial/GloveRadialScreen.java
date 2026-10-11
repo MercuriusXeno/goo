@@ -41,6 +41,7 @@ import java.util.stream.Collectors;
  * decision radial-selects-on-g-release
  * decision mid-animation-input-does-nothing
  * decision locked-petal-stays-on-the-wheel
+ * decision wheel-shows-only-held-types-with-abilities
  */
 public final class GloveRadialScreen extends Screen {
 
@@ -53,9 +54,11 @@ public final class GloveRadialScreen extends Screen {
 
     private GloveRadialScreen(Map<ResourceKey<GooTypeDefinition>, Integer> available) {
         super(Component.empty());
-        this.types = GooTypes.order();
         ClientAbilities synced = ClientAbilities.current();
         KnownItems known = ClientKnownItems.current();
+        // wheel-shows-only-held-types-with-abilities
+        this.types = RadialWheel.shownTypes(GooTypes.order(), type -> synced.offeredForType(type, known),
+                type -> available.getOrDefault(type, 0));
         this.abilities = types.stream().map(type -> synced.offeredForType(type, known)).toList();
         this.available = available;
         this.wheel = new RadialWheel(types.size(), type -> abilities.get(type).size());

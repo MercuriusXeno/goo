@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -193,6 +194,39 @@ class RadialWheelTest {
             assertEquals(NEIGHBORS, others.size());
             assertAll(others.stream().map(petal -> (Executable)
                     () -> assertEquals(1.0, petal.presence(), EPSILON, "type " + petal.type())));
+        }
+    }
+
+    /** The wheel shows only types the player holds with abilities to offer (decision wheel-shows-only-held-types-with-abilities). */
+    @Nested
+    class ShownTypes {
+
+        private static final String NO_ABILITIES = "no_abilities";
+        private static final String UNHELD = "unheld";
+        private static final String ALL_LOCKED = "all_locked";
+        private static final String ORDINARY = "ordinary";
+
+        @Test
+        void onlyHeldTypesOfferingAnAbilityShowLockedOnesIncluded() {
+            Map<String, List<String>> offered = Map.of(NO_ABILITIES, List.of(), UNHELD, List.of("throw"),
+                    ALL_LOCKED, List.of("locked"), ORDINARY, List.of("throw"));
+            Map<String, Integer> held = Map.of(NO_ABILITIES, 10, UNHELD, 0, ALL_LOCKED, 10, ORDINARY, 10);
+
+            List<String> shown = RadialWheel.shownTypes(List.of(NO_ABILITIES, UNHELD, ALL_LOCKED, ORDINARY),
+                    offered::get, held::get);
+
+            assertEquals(List.of(ALL_LOCKED, ORDINARY), shown);
+        }
+
+        @Test
+        void aWheelOverNoTypesTakesEveryInputAndCancels() {
+            RadialWheel wheel = new RadialWheel(0, type -> 0);
+
+            moveTo(wheel, 0.0, PETAL);
+            wheel.scroll(-1);
+            wheel.tick();
+
+            assertEquals(RadialWheel.Outcome.CANCEL, wheel.click());
         }
     }
 
