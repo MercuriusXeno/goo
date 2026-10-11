@@ -152,7 +152,7 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     }
 
     /**
-     * Gives full power or none (decision thumper-blob-pulses-periodically-then-fades).
+     * Gives full power or none (decision metronome-prism-pulses-at-the-learned-rate).
      */
     @Override
     public void emitPower(boolean on) {
@@ -161,21 +161,14 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
 
     /**
      * Sets the power the marker block gives, so the blocks beside it read it
-     * through its signal: an ability block's powered state, on for any power,
-     * or a prism's power level (decision relay-prism-carries-the-signal-through-air).
+     * through the prism's power level (decision relay-prism-carries-the-signal-through-air).
      *
      * @param power the power, 0 to 15
      */
     private void setPowerLevel(int power) {
         BlockState state = level.getBlockState(pos);
-        BlockState after = state;
-        if (state.hasProperty(BlockStateProperties.POWERED)) {
-            after = state.setValue(BlockStateProperties.POWERED, power > 0);
-        } else if (state.hasProperty(BlockStateProperties.POWER)) {
-            after = state.setValue(BlockStateProperties.POWER, power);
-        }
-        if (after != state) {
-            level.setBlock(pos, after, Block.UPDATE_ALL);
+        if (state.hasProperty(BlockStateProperties.POWER) && state.getValue(BlockStateProperties.POWER) != power) {
+            level.setBlock(pos, state.setValue(BlockStateProperties.POWER, power), Block.UPDATE_ALL);
         }
     }
 
