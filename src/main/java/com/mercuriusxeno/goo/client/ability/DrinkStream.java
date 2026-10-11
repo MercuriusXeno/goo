@@ -63,11 +63,9 @@ public final class DrinkStream {
      */
     static final double ARRIVAL_REACH = 1.5;
     /**
-     * The largest a sprite is laid on the skin, in blocks, both along and round: the sprite's cell is half the
-     * skin's circumference up to this, so two sprites wrap a thin stream with no seam and its texels stay square.
+     * Blocks of skin the texture repeats over, a block of sprite to a block of skin and one sprite mirrored against
+     * the next so it tiles with no seam; a sprite sized to the stream's girth read as ribbed rather than liquid.
      */
-    static final double CELL = 1;
-    /** Sprites the texture repeats over, one mirrored against the next so it tiles with no seam. */
     static final double TEXTURE_PERIOD = 2;
     /** The thinnest a stream reads its texture round, in blocks, so the arc coordinate never collapses. */
     static final double THINNEST = 0.02;
@@ -333,16 +331,15 @@ public final class DrinkStream {
 
     /**
      * Where on the sprite a point of the skin is along one of its two
-     * coordinates, the point's place measured in sprites: one sprite mirrored
+     * coordinates: a block of sprite to a block of skin, one sprite mirrored
      * against the next so it tiles with no seam along the liquid and wraps
-     * round a stream with none, the sprite's cell the skin's girth sets, so it
-     * never stretches however the surface bends or thins.
+     * round a stream with none, so it never stretches however the surface bends.
      *
-     * @param sprites the point's coordinate, in sprites: along the liquid, round the stream, or along a world axis
+     * @param along the point's coordinate, in blocks: along the liquid, round the stream, or along a world axis
      * @return the sprite's share along that coordinate, 0 to 1
      */
-    public static float textureAt(double sprites) {
-        return mirrored(sprites / TEXTURE_PERIOD);
+    public static float textureAt(double along) {
+        return mirrored(along / TEXTURE_PERIOD);
     }
 
     /**

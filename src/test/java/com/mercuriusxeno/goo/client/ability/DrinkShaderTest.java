@@ -50,7 +50,6 @@ class DrinkShaderTest {
         assertEquals(DrinkField.REACH, constant(fragment, "REACH"), DELTA);
         assertEquals(DrinkField.FULL_RADIUS, constant(fragment, "FULL_RADIUS"), DELTA);
         assertEquals(DrinkStream.THINNEST, constant(fragment, "THINNEST"), DELTA);
-        assertEquals(DrinkStream.CELL, constant(fragment, "CELL"), DELTA);
         assertEquals(DrinkStream.TEXTURE_PERIOD, constant(fragment, "TEXTURE_PERIOD"), DELTA);
         assertEquals(DrinkUpload.RUN_START, constant(fragment, "RUN_START"), DELTA);
         assertEquals(DrinkUpload.BOX_BASE, constant(fragment, "BOX_BASE"), DELTA);
@@ -93,8 +92,11 @@ class DrinkShaderTest {
         assertTrue(fragment.contains("vec3 n = normalAt(p, streams);"),
                 "the normal reads the whole field, so skin two streams share is one smooth shape");
         assertTrue(fragment.contains("route = mix(ma.y, mb.y, t);"), "the hit reads its share of the route");
-        assertTrue(fragment.contains("color = mix(color, mingled(color, stream, world, place, density), route);"),
+        assertTrue(fragment.contains("color = mix(color, mingled(color, stream, world, place), route);"),
                 "the block's texture crossfades into its mingled goo by the route share, none at the block, all at the hand");
+        assertTrue(fragment.contains("float surface = max(THINNEST, length(offset));")
+                && fragment.contains("return vec2(mix(ma.x, mb.x, t), angle * surface);"),
+                "the way round is arc length at the skin's own distance from the spine, a block of sprite to a block");
     }
 
     @Test
@@ -108,22 +110,6 @@ class DrinkShaderTest {
                 "blended with the second's by their presence, so no seam where a pick would flip");
         assertTrue(fragment.contains("int body = nearestBodyOf(p, stream);"),
                 "each stream's skin is read on its own nearest body");
-    }
-
-    @Test
-    void theSpriteIsSizedToTheSkinsGirthAndLaidAlongAtThePace() throws IOException {
-        String fragment = source(FRAGMENT);
-
-        assertTrue(fragment.contains("float surface = max(THINNEST, length(offset));"),
-                "the girth is the hit's own distance from the spine, not the ring's radius");
-        assertTrue(fragment.contains("float cell = min(CELL, PI * surface);"),
-                "the sprite's cell is half the circumference, a block at most");
-        assertTrue(fragment.contains("density = mix(ma.w, mb.w, t) / cell;"),
-                "the sprites to a block of material are the pace over the cell");
-        assertTrue(fragment.contains("return vec2(mix(ma.x, mb.x, t), angle * surface / cell);"),
-                "the way round is measured in sprites");
-        assertTrue(fragment.contains("return mix(wide, fine, density - coarse);"),
-                "the sprite is laid at the whole densities either side and mixed");
     }
 
     @Test
