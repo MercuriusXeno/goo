@@ -5,7 +5,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.Function;
 import java.util.function.IntUnaryOperator;
+import java.util.function.ToIntFunction;
 
 /**
  * The glove's one radial wheel as pure layout and state: one ring of petals
@@ -96,6 +98,23 @@ public final class RadialWheel {
         for (int type = 0; type < typeCount; type++) {
             liftTicks[type] = new int[abilityCount.applyAsInt(type)];
         }
+    }
+
+    /**
+     * The types the wheel shows, in list order: each offering at least one
+     * ability, locked or not, and held above zero.
+     * decision wheel-shows-only-held-types-with-abilities
+     *
+     * @param order    every type in list order
+     * @param offered  the abilities a type offers, locked ones included
+     * @param holdings the amount the player holds of a type
+     * @param <T>      the type's key
+     * @return the shown types
+     */
+    static <T> List<T> shownTypes(List<T> order, Function<T, List<?>> offered, ToIntFunction<T> holdings) {
+        return order.stream()
+                .filter(type -> !offered.apply(type).isEmpty() && holdings.applyAsInt(type) > 0)
+                .toList();
     }
 
     /**
