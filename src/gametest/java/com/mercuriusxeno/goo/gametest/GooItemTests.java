@@ -28,6 +28,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import java.util.Collection;
 import java.util.Objects;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for the generic goo items (decision generic-goo-items): a goo
@@ -36,7 +38,23 @@ import java.util.Objects;
  * for every type the registry holds, a datapack's included
  * (decision thousands-become-gooStacks).
  */
+@RegistersGameTests
 public final class GooItemTests {
+    private static final String ITEM_THROWN_GOO_OWN_TYPE = "item_thrown_goo_own_type";
+    private static final String ITEM_TAB_DATAPACK_TYPE = "item_tab_datapack_type";
+    private static final String EXO_GAUNTLET_KEEPS_BENEFITS = "exo_gauntlet_keeps_benefits";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, ITEM_THROWN_GOO_OWN_TYPE, GooItemTests::thrownGooLandOwnType);
+        GooTestFunctions.registerTest(registrar, ITEM_TAB_DATAPACK_TYPE, GooItemTests::creativeTabOffersDatapackType);
+        GooTestFunctions.registerTest(registrar, EXO_GAUNTLET_KEEPS_BENEFITS, GooItemTests::exoGauntletKeepsBenefits);
+    }
+
 
     private static final BlockPos CRYSTAL_WALL = new BlockPos(1, 1, 1);
     private static final BlockPos METAL_WALL = new BlockPos(3, 1, 1);

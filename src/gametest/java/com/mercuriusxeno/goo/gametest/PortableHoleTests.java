@@ -19,6 +19,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for Quantum's portable hole: thrown at a stone wall, it phases a
@@ -26,7 +28,19 @@ import java.util.List;
  * steps back into phase, pushing a cow left in the hole clear
  * (decision portable-hole-phases-blocks-for-a-while).
  */
+@RegistersGameTests
 public final class PortableHoleTests {
+    private static final String HOLE_WALKS_THROUGH = "hole_walks_through_and_restores";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, HOLE_WALKS_THROUGH, PortableHoleTests::holeWalksThroughAndRestores);
+    }
+
 
     private static final Identifier QUANTUM_HOLE = Identifier.parse("goo:quantum_hole");
     /** The wall block the blob strikes on its north face, the hole's centre. */

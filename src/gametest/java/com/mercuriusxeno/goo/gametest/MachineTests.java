@@ -28,12 +28,54 @@ import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 import org.slf4j.Logger;
 import java.util.UUID;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for machine block entities. Exercises placement, slot lifecycle,
  * tick loops, and serialization on real BEs without stubs or mocks.
  */
+@RegistersGameTests
 public final class MachineTests {
+    private static final String MACHINE_CANISTER_INSERT = "machine_canister_insert";
+    private static final String MACHINE_CANISTER_REMOVE = "machine_canister_remove";
+    private static final String MACHINE_CANISTER_TICK = "machine_canister_tick";
+    private static final String MACHINE_CANISTER_BREAK_RELEASES_GASKET = "machine_canister_break_releases_gasket";
+    private static final String MACHINE_CANISTER_FLUID = "machine_canister_fluid";
+    private static final String MACHINE_CANISTER_ROUTING = "machine_canister_routing";
+    private static final String MACHINE_HUB_MIXED_EXTRACT = "machine_hub_mixed_extract";
+    private static final String MACHINE_MIXED_CANISTER_SOURCE = "machine_mixed_canister_source";
+    private static final String MACHINE_CANISTER_ROUNDTRIP = "machine_canister_roundtrip";
+    private static final String MACHINE_REACTOR_WITHOUT_INPUTS = "machine_reactor_without_inputs";
+    private static final String MACHINE_REACTOR_BREAK_RELEASES_GASKET = "machine_reactor_break_releases_gasket";
+    private static final String MACHINE_REACTOR_REACTION = "machine_reactor_reaction";
+    private static final String MACHINE_REACTOR_PULSE_FROM_NETHER_GLOW = "machine_reactor_pulse_from_nether_glow";
+    private static final String MACHINE_REACTOR_REDSTONE = "machine_reactor_redstone";
+    private static final String MACHINE_PLEXER_WITHOUT_GOO = "machine_plexer_without_goo";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, MACHINE_CANISTER_INSERT, MachineTests::canisterInsertCreatesHandler);
+        GooTestFunctions.registerTest(registrar, MACHINE_CANISTER_REMOVE, MachineTests::canisterRemoveClearsHandler);
+        GooTestFunctions.registerTest(registrar, MACHINE_CANISTER_TICK, MachineTests::canisterTicksWithSlot);
+        GooTestFunctions.registerTest(registrar, MACHINE_CANISTER_BREAK_RELEASES_GASKET, MachineTests::canisterBreakReleasesSlotGasket);
+        GooTestFunctions.registerTest(registrar, MACHINE_CANISTER_FLUID, MachineTests::canisterFluidInsertExtract);
+        GooTestFunctions.registerTest(registrar, MACHINE_CANISTER_ROUTING, MachineTests::canisterFluidRouting);
+        GooTestFunctions.registerTest(registrar, MACHINE_HUB_MIXED_EXTRACT, MachineTests::hubExtractsOneTypeFromAMixedCanister);
+        GooTestFunctions.registerTest(registrar, MACHINE_MIXED_CANISTER_SOURCE, MachineTests::mixedCanisterIsAGooSourceForEachType);
+        GooTestFunctions.registerTest(registrar, MACHINE_CANISTER_ROUNDTRIP, MachineTests::canisterSurvivesRoundTrip);
+        GooTestFunctions.registerTest(registrar, MACHINE_REACTOR_WITHOUT_INPUTS, MachineTests::reactorWithoutInputsMakesNothing);
+        GooTestFunctions.registerTest(registrar, MACHINE_REACTOR_BREAK_RELEASES_GASKET, MachineTests::reactorBreakReleasesOutputGasket);
+        GooTestFunctions.registerTest(registrar, MACHINE_REACTOR_REACTION, MachineTests::reactorProcessesReaction);
+        GooTestFunctions.registerTest(registrar, MACHINE_REACTOR_PULSE_FROM_NETHER_GLOW, MachineTests::reactorMakesPulseFromNetherGlow);
+        GooTestFunctions.registerTest(registrar, MACHINE_REACTOR_REDSTONE, MachineTests::reactorRedstoneHalts);
+        GooTestFunctions.registerTest(registrar, MACHINE_PLEXER_WITHOUT_GOO, MachineTests::plexerWithoutGooMakesNothing);
+    }
+
 
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final BlockPos BE_POS = new BlockPos(1, 1, 1);

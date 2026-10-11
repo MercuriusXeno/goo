@@ -8,6 +8,10 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.GameType;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametest for Gluttony through the glove: a hungry, hurt player eats the
@@ -16,7 +20,19 @@ import net.minecraft.world.level.GameType;
  * for the upkeep, and the overheal leaves with it once it runs dry
  * (decisions gluttony-overheals-and-overhungers and self-effects-trickle-until-ended).
  */
+@RegistersGameTests
 public final class GluttonyTests {
+    private static final String GLUTTONY_FILLS_PAST_THE_CAP = "gluttony_fills_past_the_cap";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, GLUTTONY_FILLS_PAST_THE_CAP, GluttonyTests::gluttonyFillsPastTheCap);
+    }
+
 
     private static final Identifier JELLY_GLUTTONY = Identifier.parse("goo:jelly_gluttony");
     /** Three short of a full bar and below natural regeneration's eighteen, so only Gluttony feeds or heals. */

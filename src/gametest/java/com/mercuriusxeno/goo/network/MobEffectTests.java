@@ -39,6 +39,10 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
 import java.util.Set;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for the mob abilities: each test spawns a mob, lands a goo of
@@ -48,7 +52,49 @@ import java.util.Set;
  * graded in MobProgramTest. They sit in the scheduler's package because
  * the scheduler is package-private.
  */
+@RegistersGameTests
 public final class MobEffectTests {
+    private static final String MOB_METAL = "mob_metal_javelin";
+    private static final String ALLURE_COURTS = "allure_courts_the_struck_animal";
+    private static final String MOB_BLAZE = "mob_blaze_ignite";
+    private static final String MOB_FROST = "mob_frost_snap";
+    private static final String SNAP_ENCASES_THEN_THAWS = "snap_encases_then_thaws";
+    private static final String FLOAT_LEVITATES_A_ZOMBIE = "float_levitates_a_zombie";
+    private static final String CHARM_TURNS_ZOMBIE = "charm_turns_zombie_on_skeleton";
+    private static final String CHARMED_SLIME_SPARES = "charmed_slime_spares_its_charmer";
+    private static final String CHARM_HAS_NO_EXPIRY = "charm_has_no_expiry";
+    private static final String CHARM_BREAKS_ON_THE_CHARMERS_HIT = "charm_breaks_on_the_charmers_hit";
+    private static final String CHARM_SURVIVES_ANOTHER_HIT = "charm_survives_another_hit";
+    private static final String ZONE_WARPS_THEN_EXILES = "zone_warps_then_exiles";
+    private static final String ZONE_RESISTED_BY_HIGH_HEALTH = "zone_resisted_by_high_health";
+    private static final String MOB_UNSTABLE = "mob_unstable_explode";
+    private static final String STASIS_HOLDS_UNTIL_STRUCK = "stasis_holds_until_struck";
+    private static final String MOB_AEON_BABY_FORM_FILTER = "mob_aeon_baby_form_filter";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, MOB_METAL, MobEffectTests::metalJavelin);
+        GooTestFunctions.registerTest(registrar, ALLURE_COURTS, MobEffectTests::allureCourtsTheStruckAnimal);
+        GooTestFunctions.registerTest(registrar, MOB_BLAZE, MobEffectTests::blazeIgnite);
+        GooTestFunctions.registerTest(registrar, MOB_FROST, MobEffectTests::frostSnap);
+        GooTestFunctions.registerTest(registrar, SNAP_ENCASES_THEN_THAWS, MobEffectTests::snapEncasesThenThaws);
+        GooTestFunctions.registerTest(registrar, FLOAT_LEVITATES_A_ZOMBIE, MobEffectTests::floatLevitatesAZombie);
+        GooTestFunctions.registerTest(registrar, CHARM_TURNS_ZOMBIE, MobEffectTests::charmTurnsZombieOnSkeleton);
+        GooTestFunctions.registerTest(registrar, CHARMED_SLIME_SPARES, MobEffectTests::charmedSlimeSparesItsCharmer);
+        GooTestFunctions.registerTest(registrar, CHARM_HAS_NO_EXPIRY, MobEffectTests::charmHasNoExpiry);
+        GooTestFunctions.registerTest(registrar, CHARM_BREAKS_ON_THE_CHARMERS_HIT, MobEffectTests::charmBreaksOnTheCharmersHit);
+        GooTestFunctions.registerTest(registrar, CHARM_SURVIVES_ANOTHER_HIT, MobEffectTests::charmSurvivesAnotherHit);
+        GooTestFunctions.registerTest(registrar, ZONE_WARPS_THEN_EXILES, MobEffectTests::zoneWarpsThenExiles);
+        GooTestFunctions.registerTest(registrar, ZONE_RESISTED_BY_HIGH_HEALTH, MobEffectTests::zoneResistedByHighHealth);
+        GooTestFunctions.registerTest(registrar, MOB_UNSTABLE, MobEffectTests::unstableExplode);
+        GooTestFunctions.registerTest(registrar, STASIS_HOLDS_UNTIL_STRUCK, MobEffectTests::stasisHoldsUntilStruck);
+        GooTestFunctions.registerTest(registrar, MOB_AEON_BABY_FORM_FILTER, MobEffectTests::aeonBabyFormFilter);
+    }
+
 
     /**
      * Clear of the barrier shell the framework wraps the one-block empty

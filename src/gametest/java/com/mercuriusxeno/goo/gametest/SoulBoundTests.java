@@ -16,6 +16,8 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.gamerules.GameRules;
 import net.neoforged.neoforge.registries.DeferredItem;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for soul-bound items (decision exorite-kept-through-death):
@@ -23,7 +25,23 @@ import java.util.List;
  * soul-bound stack skips the death drop and returns to its slot on respawn
  * while an unbound stack drops.
  */
+@RegistersGameTests
 public final class SoulBoundTests {
+    private static final String SOUL_BOUND_TAG_HOLDS_EXORITE = "soul_bound_tag_holds_exorite";
+    private static final String SOUL_BOUND_SURVIVES_DEATH = "soul_bound_survives_death";
+    private static final String KNOWN_ITEMS_SURVIVE_DEATH = "known_items_survive_death";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, SOUL_BOUND_TAG_HOLDS_EXORITE, SoulBoundTests::tagHoldsExorite);
+        GooTestFunctions.registerTest(registrar, SOUL_BOUND_SURVIVES_DEATH, SoulBoundTests::survivesDeath);
+        GooTestFunctions.registerTest(registrar, KNOWN_ITEMS_SURVIVE_DEATH, SoulBoundTests::knownItemsSurviveDeath);
+    }
+
 
     private static final String REMOVAL = "removal";
     private static final BlockPos PLAYER_POS = new BlockPos(1, 1, 1);

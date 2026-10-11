@@ -18,6 +18,8 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for nether's hive combo through the real landing path: a nether
@@ -25,7 +27,19 @@ import net.minecraft.world.phys.Vec3;
  * radius and leaves a creeper outside it whole
  * (decision hive-prism-pillar-eats-the-living).
  */
+@RegistersGameTests
 public final class HiveTests {
+    private static final String HIVE_EATS_THE_APPROACHER = "hive_eats_the_approacher";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, HIVE_EATS_THE_APPROACHER, HiveTests::hiveEatsTheApproacher);
+    }
+
 
     private static final BlockPos FLOOR_POS = new BlockPos(1, 1, 1);
     private static final BlockPos PRISM_POS = FLOOR_POS.above();

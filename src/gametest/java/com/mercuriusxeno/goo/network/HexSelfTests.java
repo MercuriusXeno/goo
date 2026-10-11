@@ -31,12 +31,36 @@ import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for hex's self abilities, invoked from the glove the way a
  * real invocation reaches the server.
  */
+@RegistersGameTests
 public final class HexSelfTests {
+    private static final String ENCHANT_GIVES_BOOK = "enchant_gives_one_level_one_book";
+    private static final String FUSE_TWO_SHARPNESS_ONE = "fuse_two_sharpness_one";
+    private static final String FUSE_WITHOUT_PAIR = "fuse_without_pair_costs_nothing";
+    private static final String LIFETAP_NO_REGEN_LEECH_ON_HIT = "lifetap_no_regen_leech_on_hit";
+    private static final String DRAIN_HEALS_THE_CASTER = "drain_heals_the_caster";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, ENCHANT_GIVES_BOOK, HexSelfTests::enchantGivesOneLevelOneBook);
+        GooTestFunctions.registerTest(registrar, FUSE_TWO_SHARPNESS_ONE, HexSelfTests::fuseTwoSharpnessOne);
+        GooTestFunctions.registerTest(registrar, FUSE_WITHOUT_PAIR, HexSelfTests::fuseWithoutPairCostsNothing);
+        GooTestFunctions.registerTest(registrar, LIFETAP_NO_REGEN_LEECH_ON_HIT, HexSelfTests::lifetapNoRegenLeechOnHit);
+        GooTestFunctions.registerTest(registrar, DRAIN_HEALS_THE_CASTER, HexSelfTests::drainHealsTheCaster);
+    }
+
 
     private static final Identifier HEX_ENCHANT = Identifier.parse("goo:hex_enchant");
     private static final String ABILITY_REQUIRED = "The hex enchant ability should be loaded";

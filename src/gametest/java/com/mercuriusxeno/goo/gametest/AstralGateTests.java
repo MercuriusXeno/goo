@@ -19,6 +19,8 @@ import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
 import java.util.Optional;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for Astral's gate: thrown at a stone wall by the overworld's
@@ -26,7 +28,19 @@ import java.util.Optional;
  * stepping through stands in goo:lunar and comes back through the same pair
  * (decision astral-visits-lunar-and-solar-dimensions).
  */
+@RegistersGameTests
 public final class AstralGateTests {
+    private static final String ASTRAL_GATE_ROUND_TRIP = "astral_gate_round_trip";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, ASTRAL_GATE_ROUND_TRIP, AstralGateTests::astralGateRoundTrip);
+    }
+
 
     private static final Identifier ASTRAL_GATE = Identifier.parse("goo:astral_gate");
     /** The wall block the blob strikes on its south face, the gate's centre. */

@@ -21,13 +21,29 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for the empty spawner recipe (decision
  * spawner-recipe-takes-exorite): eight exorite bars in a ring craft one
  * spawner, and a spawner with no mob takes one from a spawn egg.
  */
+@RegistersGameTests
 public final class SpawnerRecipeTests {
+    private static final String SPAWNER_CRAFTED_FROM_EXORITE_BARS = "spawner_crafted_from_exorite_bars";
+    private static final String EMPTY_SPAWNER_TAKES_EGG = "empty_spawner_takes_egg";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, SPAWNER_CRAFTED_FROM_EXORITE_BARS, SpawnerRecipeTests::craftedFromExoriteBars);
+        GooTestFunctions.registerTest(registrar, EMPTY_SPAWNER_TAKES_EGG, SpawnerRecipeTests::emptySpawnerTakesEgg);
+    }
+
 
     private static final String REMOVAL = "removal";
     private static final int GRID_SIDE = 3;

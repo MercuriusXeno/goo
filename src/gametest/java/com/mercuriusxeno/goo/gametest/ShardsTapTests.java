@@ -9,13 +9,27 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Blocks;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for Crystal's tap: every crystal_shards_tap.json drip count
  * drops one glass shard onto the mob standing under the tap.
  * decision shards-drip-falls-as-a-glass-shard
  */
+@RegistersGameTests
 public final class ShardsTapTests {
+    private static final String SHARDS_TAP_DAMAGES_PER_COUNT = "shards_tap_damages_per_count";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, SHARDS_TAP_DAMAGES_PER_COUNT, ShardsTapTests::shardsTapDamagesPerCount);
+    }
+
 
     private static final BlockPos LANDING = new BlockPos(2, 0, 2);
     private static final int TAP_HEIGHT = 4;

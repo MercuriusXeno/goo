@@ -21,6 +21,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.stream.Stream;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Parses the tracked Goo Lab template at {@code dev/lab/} through the game's
@@ -30,7 +32,19 @@ import java.util.stream.Stream;
  * system property; the test reads a temporary copy, since opening a save
  * writes a session lock into it.
  */
+@RegistersGameTests
 public final class LabTemplateTests {
+    private static final String LAB_TEMPLATE_LOADS = "lab_template_loads";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, LAB_TEMPLATE_LOADS, LabTemplateTests::templateLoads);
+    }
+
 
     /**
      * System property the gameTestServer run sets to the template folder.

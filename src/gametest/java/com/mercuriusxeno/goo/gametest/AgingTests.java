@@ -17,6 +17,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for Yore's aging blob: a blob landing on a coal block marks it
@@ -27,7 +29,21 @@ import net.minecraft.world.level.chunk.LevelChunk;
  * once rather than over days of game time.
  * old-blob-ages-valuables-slowly
  */
+@RegistersGameTests
 public final class AgingTests {
+    private static final String AGING_COAL_BECOMES_DIAMOND = "aging_coal_becomes_diamond";
+    private static final String AGING_SURVIVES_RELOAD = "aging_survives_reload";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, AGING_COAL_BECOMES_DIAMOND, AgingTests::agingCoalBecomesDiamond);
+        GooTestFunctions.registerTest(registrar, AGING_SURVIVES_RELOAD, AgingTests::agingSurvivesReload);
+    }
+
 
     private static final BlockPos COAL_POS = new BlockPos(2, 1, 2);
     private static final Identifier YORE_AGE = Identifier.parse("goo:yore_age");

@@ -9,6 +9,10 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametest for the server's half of typhoon Airborn held from the glove: while
@@ -18,7 +22,19 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
  * mock player lacks; AirbornMotionTest covers them. The mock player has no
  * connection ticking it, so the test ticks it as the connection would.
  */
+@RegistersGameTests
 public final class AirbornTests {
+    private static final String AIRBORN_HOLDS_JUMP = "airborn_holds_jump_and_soft_falls";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, AIRBORN_HOLDS_JUMP, AirbornTests::airbornHoldsJumpAndSoftFalls);
+    }
+
 
     private static final Identifier TYPHOON_AIRBORN = Identifier.parse("goo:typhoon_airborn");
     /** typhoon_airborn.json's jump boost. */

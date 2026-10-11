@@ -10,6 +10,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.level.GameType;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for yore Ancient: a survival player under Ancient, from the
@@ -18,7 +22,21 @@ import net.minecraft.world.level.GameType;
  * beside it.
  * ancient-makes-the-player-immortal
  */
+@RegistersGameTests
 public final class AncientTests {
+    private static final String ANCIENT_SURVIVES_LETHAL_DAMAGE = "ancient_survives_lethal_damage";
+    private static final String YORE_BREW_ANCIENT = "yore_brew_ancient_for_an_hour";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, ANCIENT_SURVIVES_LETHAL_DAMAGE, AncientTests::ancientSurvivesLethalDamage);
+        GooTestFunctions.registerTest(registrar, YORE_BREW_ANCIENT, AncientTests::yoreBrewAncientForAnHour);
+    }
+
 
     private static final Identifier YORE_ANCIENT = Identifier.parse("goo:yore_ancient");
     /** Far past a full bar of health. */

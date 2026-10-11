@@ -15,13 +15,37 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for canister block interactions via mock player.
  * Exercises CanisterBlockHandlers, CanisterBlock.useItemOn,
  * and the full insertion/pickup interaction paths.
  */
+@RegistersGameTests
 public final class CanisterInteractionTests {
+    private static final String IX_CANISTER_PLAIN_INSERT = "ix_canister_plain_insert";
+    private static final String IX_CANISTER_BUCKET_FILL = "ix_canister_bucket_fill";
+    private static final String IX_CANISTER_GASKET_INSTALL = "ix_canister_gasket_install";
+    private static final String IX_CANISTER_CLICK_PICKUP = "ix_canister_click_pickup";
+    private static final String IX_CANISTER_LAST_PICKUP = "ix_canister_last_pickup";
+    private static final String IX_CANISTER_EMPTY_HAND = "ix_canister_empty_hand";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, IX_CANISTER_PLAIN_INSERT, CanisterInteractionTests::plainClickInserts);
+        GooTestFunctions.registerTest(registrar, IX_CANISTER_BUCKET_FILL, CanisterInteractionTests::bucketFillsAimedCanister);
+        GooTestFunctions.registerTest(registrar, IX_CANISTER_GASKET_INSTALL, CanisterInteractionTests::gasketClickInstallsOnAimedCanister);
+        GooTestFunctions.registerTest(registrar, IX_CANISTER_CLICK_PICKUP, CanisterInteractionTests::clickPicksUp);
+        GooTestFunctions.registerTest(registrar, IX_CANISTER_LAST_PICKUP, CanisterInteractionTests::lastPickupRemovesBlock);
+        GooTestFunctions.registerTest(registrar, IX_CANISTER_EMPTY_HAND, CanisterInteractionTests::emptyHandPicksUp);
+    }
+
 
     private static final BlockPos BE_POS = new BlockPos(1, 1, 1);
     private static final int CENTER_SLOT = 4;

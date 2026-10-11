@@ -13,6 +13,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for typhoon Repel streamed through the real stream delivery: its
@@ -21,7 +25,21 @@ import net.minecraft.world.phys.Vec3;
  * standing under Airborn at Repel's own strength, Airborn's boost being for
  * a player's own Jet alone (decision airborn-steerable-levitation-and-soft-falls).
  */
+@RegistersGameTests
 public final class RepelTests {
+    private static final String REPEL_FLINGS_A_ZOMBIE = "repel_flings_a_zombie";
+    private static final String REPEL_SPARES_AIRBORN_BOOST = "repel_pushes_an_airborn_player_at_its_own_strength";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, REPEL_FLINGS_A_ZOMBIE, RepelTests::repelFlingsAZombie);
+        GooTestFunctions.registerTest(registrar, REPEL_SPARES_AIRBORN_BOOST, RepelTests::repelPushesAnAirbornPlayerAtItsOwnStrength);
+    }
+
 
     private static final Identifier TYPHOON_REPEL = Identifier.parse("goo:typhoon_repel");
     private static final BlockPos STREAMER_POS = new BlockPos(0, 1, 2);

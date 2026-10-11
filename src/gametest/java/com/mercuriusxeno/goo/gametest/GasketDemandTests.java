@@ -41,6 +41,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.IntSupplier;
+import net.neoforged.neoforge.registries.RegisterEvent;
 
 /**
  * Receivers on the gasket network state their demand and their partner sends it
@@ -49,7 +50,31 @@ import java.util.function.IntSupplier;
  * and a canister or vat between a source and a crystallizer asks its own rest plus the
  * crystallizer's pace upstream (decision relay-adds-dependent-ask-to-own).
  */
+@RegistersGameTests
 public final class GasketDemandTests {
+    private static final String GASKET_DEMAND_VAT_FILLS_HUB = "gasket_demand_vat_fills_hub";
+    private static final String GASKET_DEMAND_VAT_FEEDS_TAP = "gasket_demand_vat_feeds_tap";
+    private static final String GASKET_DEMAND_TAP_CANISTER_FIRST = "gasket_demand_tap_canister_first";
+    private static final String GASKET_DEMAND_TAP_TYPES_BY_TURNS = "gasket_demand_tap_types_by_turns";
+    private static final String GASKET_DEMAND_CRYSTALLIZER_CHAIN = "gasket_demand_crystallizer_chain";
+    private static final String GASKET_DEMAND_CRYSTALLIZER_VAT_CHAIN = "gasket_demand_crystallizer_vat_chain";
+    private static final String GASKET_DEMAND_HUB_SHARES = "gasket_demand_hub_shares";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, GASKET_DEMAND_VAT_FILLS_HUB, GasketDemandTests::vatFillsHubAtItsRestingDemand);
+        GooTestFunctions.registerTest(registrar, GASKET_DEMAND_VAT_FEEDS_TAP, GasketDemandTests::vatFeedsTapAtTheValveRate);
+        GooTestFunctions.registerTest(registrar, GASKET_DEMAND_TAP_CANISTER_FIRST, GasketDemandTests::tapDrainsItsCanisterBeforeAskingTheVat);
+        GooTestFunctions.registerTest(registrar, GASKET_DEMAND_TAP_TYPES_BY_TURNS, GasketDemandTests::vatFeedsTapBothTypesByTurns);
+        GooTestFunctions.registerTest(registrar, GASKET_DEMAND_CRYSTALLIZER_CHAIN, GasketDemandTests::crystallizerDrawsItsPaceThroughACanister);
+        GooTestFunctions.registerTest(registrar, GASKET_DEMAND_CRYSTALLIZER_VAT_CHAIN, GasketDemandTests::crystallizerDrawsItsPaceThroughAVat);
+        GooTestFunctions.registerTest(registrar, GASKET_DEMAND_HUB_SHARES, GasketDemandTests::hubGivesEachCanisterItsOwnDemand);
+    }
+
 
     private static final BlockPos VAT_POS = new BlockPos(3, 1, 1);
     private static final BlockPos RECEIVER_POS = new BlockPos(1, 1, 1);

@@ -18,6 +18,10 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for glow's Lux as a held effect through the glove: eaten, it
@@ -26,7 +30,21 @@ import net.minecraft.world.phys.Vec3;
  * mob under the crosshair within 32 blocks in clear line (decisions
  * lux-night-vision-without-particles, self-effects-trickle-until-ended).
  */
+@RegistersGameTests
 public final class LuxTests {
+    private static final String LUX_SEES_IN_THE_DARK_UNTIL_ENDED = "lux_sees_in_the_dark_until_ended";
+    private static final String LUX_GAZE_PICKS = "lux_gaze_picks_the_mob_in_clear_line_within_reach";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, LUX_SEES_IN_THE_DARK_UNTIL_ENDED, LuxTests::luxSeesInTheDarkUntilEnded);
+        GooTestFunctions.registerTest(registrar, LUX_GAZE_PICKS, LuxTests::luxGazePicksTheMobInClearLineWithinReach);
+    }
+
 
     private static final Identifier GLOW_LUX = Identifier.parse("goo:glow_lux");
     private static final String SHOULD_HOLD = "Once the eat finishes the player should hold Lux";

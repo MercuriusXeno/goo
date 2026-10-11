@@ -13,6 +13,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import java.util.Collection;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests that knowledge comes on request: {@code /goo lab learn} teaches every
@@ -20,7 +22,25 @@ import java.util.Collection;
  * returns the player to knowing nothing, and the kit teaches nothing.
  * decision lab-kit-teaches-every-recipe
  */
+@RegistersGameTests
 public final class LabKitKnowledgeTests {
+    private static final String LAB_LEARN_TEACHES_EVERY_ABILITY = "lab_learn_teaches_every_ability";
+    private static final String LAB_FORGET_RETURNS_TO_NOTHING = "lab_forget_returns_to_nothing";
+    private static final String LAB_KIT_TEACHES_NOTHING = "lab_kit_teaches_nothing";
+    private static final String LAB_KIT_UNTOUCHED_PLAYER_KNOWS_NOTHING = "lab_kit_untouched_player_knows_nothing";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, LAB_LEARN_TEACHES_EVERY_ABILITY, LabKitKnowledgeTests::learnTeachesEveryAbility);
+        GooTestFunctions.registerTest(registrar, LAB_FORGET_RETURNS_TO_NOTHING, LabKitKnowledgeTests::forgetReturnsToKnowingNothing);
+        GooTestFunctions.registerTest(registrar, LAB_KIT_TEACHES_NOTHING, LabKitKnowledgeTests::kitTeachesNothing);
+        GooTestFunctions.registerTest(registrar, LAB_KIT_UNTOUCHED_PLAYER_KNOWS_NOTHING, LabKitKnowledgeTests::untouchedPlayerKnowsNothing);
+    }
+
 
     private static final String REMOVAL = "removal";
     private static final String NO_ABILITIES = "The gametest server should load abilities to unlock";

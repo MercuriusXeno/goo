@@ -14,6 +14,8 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for the exorite durability floor (decision
@@ -21,7 +23,25 @@ import java.util.List;
  * durability, a broken piece works as a bare hand and says so in its
  * tooltip, and exorite on an anvil makes it work again.
  */
+@RegistersGameTests
 public final class ExoriteDurabilityTests {
+    private static final String EXORITE_SURVIVES_ZERO_DURABILITY = "exorite_survives_zero_durability";
+    private static final String EXORITE_BROKEN_ACTS_AS_HAND = "exorite_broken_acts_as_hand";
+    private static final String EXORITE_BROKEN_TOOLTIP = "exorite_broken_tooltip";
+    private static final String EXORITE_ANVIL_REPAIR = "exorite_anvil_repair";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, EXORITE_SURVIVES_ZERO_DURABILITY, ExoriteDurabilityTests::survivesZeroDurability);
+        GooTestFunctions.registerTest(registrar, EXORITE_BROKEN_ACTS_AS_HAND, ExoriteDurabilityTests::brokenActsAsHand);
+        GooTestFunctions.registerTest(registrar, EXORITE_BROKEN_TOOLTIP, ExoriteDurabilityTests::brokenTooltip);
+        GooTestFunctions.registerTest(registrar, EXORITE_ANVIL_REPAIR, ExoriteDurabilityTests::anvilRepair);
+    }
+
 
     private static final String REMOVAL = "removal";
     private static final int OVERKILL_DAMAGE = 10;

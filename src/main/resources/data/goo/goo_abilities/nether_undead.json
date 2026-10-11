@@ -8,7 +8,8 @@
   "delivery": { "kind": "self" },
   "behaviors": [
     { "type": "heart_overlay", "kind": "undead" },
-    { "type": "undead", "sun_damage": 1 }
+    { "type": "undead", "sun_damage": 1 },
+    { "type": "sound", "id": "minecraft:entity.zombie.ambient", "at": "target", "source": "players", "volume": 1, "pitch": 0.8 }
   ],
   "tags": ["self"]
 }

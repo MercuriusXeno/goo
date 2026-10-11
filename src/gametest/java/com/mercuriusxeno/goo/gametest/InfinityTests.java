@@ -19,6 +19,8 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.function.Supplier;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * A vessel holding 1 mB of infinity and some blaze gains blaze each tick while
@@ -26,7 +28,23 @@ import java.util.function.Supplier;
  * takes the infinity out.
  * decision infinity-sources-whatever-shares-its-vessel
  */
+@RegistersGameTests
 public final class InfinityTests {
+    private static final String INFINITY_FEEDS_THE_VAT = "infinity_feeds_the_vat";
+    private static final String INFINITY_FEEDS_THE_CRUCIBLE = "infinity_feeds_the_crucible";
+    private static final String INFINITY_FEEDS_THE_CANISTER_SLOT = "infinity_feeds_the_canister_slot";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, INFINITY_FEEDS_THE_VAT, InfinityTests::infinityFeedsTheVat);
+        GooTestFunctions.registerTest(registrar, INFINITY_FEEDS_THE_CRUCIBLE, InfinityTests::infinityFeedsTheCrucible);
+        GooTestFunctions.registerTest(registrar, INFINITY_FEEDS_THE_CANISTER_SLOT, InfinityTests::infinityFeedsTheCanisterSlot);
+    }
+
 
     private static final BlockPos BE_POS = new BlockPos(1, 1, 1);
     private static final ResourceKey<GooTypeDefinition> INFINITY = GooTypes.INFINITY;

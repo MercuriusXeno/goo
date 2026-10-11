@@ -22,13 +22,31 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametest for the glove's shift-click recollect on a ability block, which
  * is a pickup and survives the removal of shift as a targeting mode
  * (decision shift-never-changes-target).
  */
+@RegistersGameTests
 public final class GloveRecollectTests {
+    private static final String GLOVE_SHIFT_RECOLLECTS_MARKER = "glove_shift_recollects_marker";
+    private static final String GLOVE_RECOLLECT_PAYS_CHARGES_LEFT = "glove_recollect_pays_charges_left";
+    private static final String GLOVE_RECOLLECT_OF_SPENT_TRAP_PAYS_NOTHING = "glove_recollect_of_spent_trap_pays_nothing";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, GLOVE_SHIFT_RECOLLECTS_MARKER, GloveRecollectTests::shiftClickRecollectsMarker);
+        GooTestFunctions.registerTest(registrar, GLOVE_RECOLLECT_PAYS_CHARGES_LEFT, GloveRecollectTests::recollectPaysTheChargesLeft);
+        GooTestFunctions.registerTest(registrar, GLOVE_RECOLLECT_OF_SPENT_TRAP_PAYS_NOTHING, GloveRecollectTests::recollectOfASpentTrapPaysNothing);
+    }
+
 
     private static final String REMOVAL = "removal";
     private static final BlockPos MARKER_POS = new BlockPos(1, 1, 1);

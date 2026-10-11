@@ -14,6 +14,10 @@ import net.minecraft.world.level.block.RedstoneLampBlock;
 import net.minecraft.world.level.block.state.properties.AttachFace;
 import java.util.ArrayList;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametest for Metronome: a metronome prism hearing two lever pulls 20 ticks
@@ -21,7 +25,21 @@ import java.util.List;
  * ticks apart set it lighting every 10.
  * metronome-prism-pulses-at-the-learned-rate
  */
+@RegistersGameTests
 public final class MetronomeTests {
+    private static final String METRONOME_LEARNS_FROM_ZAPS = "metronome_learns_from_zaps";
+    private static final String METRONOME_LEARNS_THE_INTERVAL = "metronome_learns_the_interval";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, METRONOME_LEARNS_FROM_ZAPS, MetronomeTests::metronomeLearnsFromZaps);
+        GooTestFunctions.registerTest(registrar, METRONOME_LEARNS_THE_INTERVAL, MetronomeTests::metronomeLearnsTheInterval);
+    }
+
 
     /** Marks a pending effect aimed at a block rather than an entity. */
     private static final int NO_ENTITY = -1;

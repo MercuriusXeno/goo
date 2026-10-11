@@ -16,6 +16,10 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for xeno's Eldritch Sight: an out-of-phase zombie takes a
@@ -24,7 +28,21 @@ import org.jspecify.annotations.Nullable;
  * in-phase zombie does not.
  * eldritch-sight-reveals-the-out-of-phase
  */
+@RegistersGameTests
 public final class EldritchTests {
+    private static final String ELDRITCH_PLAYER_IS_SEEN = "eldritch_player_is_seen";
+    private static final String PLAIN_PLAYER_IS_UNSEEN = "plain_player_is_unseen";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, ELDRITCH_PLAYER_IS_SEEN, EldritchTests::eldritchPlayerIsSeen);
+        GooTestFunctions.registerTest(registrar, PLAIN_PLAYER_IS_UNSEEN, EldritchTests::plainPlayerIsUnseen);
+    }
+
 
     /** Goo the players carry, in thousands: enough for the eat and its upkeep. */
     private static final int HELD_GOO = 2;

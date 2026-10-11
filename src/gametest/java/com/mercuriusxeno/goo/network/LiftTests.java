@@ -13,6 +13,10 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for typhoon Lift on a prism: what stands on the block above the
@@ -20,7 +24,21 @@ import net.minecraft.world.phys.Vec3;
  * sneaking in the shaft sinks gently instead
  * (decision lift-prism-levitates-the-block-above).
  */
+@RegistersGameTests
 public final class LiftTests {
+    private static final String LIFT_RAISES = "lift_raises_what_stands_above";
+    private static final String LIFT_SINKS = "lift_sinks_a_sneaking_rider";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, LIFT_RAISES, LiftTests::liftRaisesWhatStandsAbove);
+        GooTestFunctions.registerTest(registrar, LIFT_SINKS, LiftTests::liftSinksASneakingRider);
+    }
+
 
     private static final Identifier TYPHOON_LIFT = Identifier.parse("goo:typhoon_lift");
     private static final BlockPos PRISM_POS = new BlockPos(2, 1, 2);

@@ -12,6 +12,10 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.cow.Cow;
 import net.minecraft.world.phys.AABB;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Jelly Feed through {@link GooEffectScheduler#applyEffect}: a
@@ -20,7 +24,25 @@ import java.util.List;
  * the bay to eat it, and two zombies reaching a feed together turn on each other
  * over it (decision feed-blob-feeds-and-draws-mobs).
  */
+@RegistersGameTests
 public final class FeedTests {
+    private static final String FEED_COURTS_A_COW = "feed_courts_a_cow";
+    private static final String FEED_GROWS_A_CALF = "feed_grows_a_calf";
+    private static final String FEED_ON_THE_GROUND_STARTS_A_FIGHT = "feed_on_the_ground_starts_a_fight";
+    private static final String FEED_ON_THE_GROUND_DRAWS_A_MOB = "feed_on_the_ground_draws_a_mob";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, FEED_COURTS_A_COW, FeedTests::feedCourtsACow);
+        GooTestFunctions.registerTest(registrar, FEED_GROWS_A_CALF, FeedTests::feedGrowsACalf);
+        GooTestFunctions.registerTest(registrar, FEED_ON_THE_GROUND_STARTS_A_FIGHT, FeedTests::feedOnTheGroundStartsAFight);
+        GooTestFunctions.registerTest(registrar, FEED_ON_THE_GROUND_DRAWS_A_MOB, FeedTests::feedOnTheGroundDrawsAMob);
+    }
+
 
     private static final String FEED = "goo:jelly_feed";
     private static final int NO_ENTITY = -1;

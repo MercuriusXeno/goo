@@ -41,6 +41,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
 import java.util.function.Consumer;
+import net.neoforged.neoforge.registries.RegisterEvent;
 
 /**
  * Gametests for ability blocks. Each test stands a marker initialized
@@ -49,7 +50,71 @@ import java.util.function.Consumer;
  * AbilityBlockEntity tick lifecycle, the programs the abilities
  * declare, the fall and the goo landing on a block.
  */
+@RegistersGameTests
 public final class EffectExecutorTests {
+    private static final String FX_METAL = "fx_metal_runs";
+    private static final String FX_CRYSTAL = "fx_crystal_runs";
+    private static final String FX_NETHER = "fx_nether_implodes";
+    private static final String FX_BLACK_HOLE_HOLDS_ITS_PLACE = "fx_black_hole_holds_its_place";
+    private static final String FX_UNSTABLE = "fx_unstable_explodes";
+    private static final String FX_PROGRAM_GLOW_WALL = "fx_program_glow_wall";
+    private static final String FX_PROGRAM_GLOW_FLOOR = "fx_program_glow_floor";
+    private static final String FX_PROGRAM_INSTANT = "fx_program_instant_detonation";
+    private static final String FX_PROGRAM_TIMED = "fx_program_timed_bomb";
+    private static final String FX_PROGRAM_MINE = "fx_program_proximity_mine";
+    private static final String FX_PROGRAM_METAL_SPIKES = "fx_program_metal_spikes";
+    private static final String FX_PROGRAM_CRYSTAL_CLOUD = "fx_program_crystal_cloud";
+    private static final String BLACK_HOLE_LEAVES_A_SPHERE = "black_hole_leaves_a_sphere";
+    private static final String BLACK_HOLE_CUTS_PLAYERS = "black_hole_cuts_players_to_half_a_heart";
+    private static final String COMPRESSION_SPHERE_SPILLS_ON_TOUCH = "compression_sphere_spills_on_touch";
+    private static final String FX_LANDED_CRYSTAL_CLOUD = "fx_landed_crystal_cloud_live";
+    private static final String FX_CRYSTAL_CLOUD_SHREDS_PLAYER = "fx_crystal_cloud_shreds_walking_player";
+    private static final String FX_LANDED_METAL_SPIKES = "fx_landed_metal_spikes_live";
+    private static final String FX_LANDED_BLACK_HOLE = "fx_landed_black_hole_gathers";
+    private static final String FX_LANDED_BLAST = "fx_landed_blast_explodes";
+    private static final String FX_LANDED_MINE = "fx_landed_mine_awaits";
+    private static final String FX_LANDED_GLOW_CRYSTAL = "fx_landed_glow_crystal_stands";
+    private static final String FX_FALLEN_MARKER_KEEPS_ABILITY = "fx_fallen_marker_keeps_ability";
+    private static final String FX_CRYSTAL_GROWS = "fx_crystal_grows";
+    private static final String FX_OTHER_ABILITY_MARKS_CRYSTAL = "fx_other_ability_marks_crystal";
+    private static final String FX_CLOUD_BLOCK_GOES = "fx_cloud_block_goes";
+    private static final String FX_TRAP_BLOCK_GOES = "fx_trap_block_goes";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, FX_METAL, EffectExecutorTests::metalRuns);
+        GooTestFunctions.registerTest(registrar, FX_CRYSTAL, EffectExecutorTests::crystalRuns);
+        GooTestFunctions.registerTest(registrar, FX_NETHER, EffectExecutorTests::netherImplodes);
+        GooTestFunctions.registerTest(registrar, FX_BLACK_HOLE_HOLDS_ITS_PLACE, EffectExecutorTests::blackHoleHoldsItsPlace);
+        GooTestFunctions.registerTest(registrar, FX_UNSTABLE, EffectExecutorTests::unstableExplodes);
+        GooTestFunctions.registerTest(registrar, FX_PROGRAM_GLOW_WALL, EffectExecutorTests::programGlowWall);
+        GooTestFunctions.registerTest(registrar, FX_PROGRAM_GLOW_FLOOR, EffectExecutorTests::programGlowFloor);
+        GooTestFunctions.registerTest(registrar, FX_PROGRAM_INSTANT, EffectExecutorTests::programInstantDetonation);
+        GooTestFunctions.registerTest(registrar, FX_PROGRAM_TIMED, EffectExecutorTests::programTimedBomb);
+        GooTestFunctions.registerTest(registrar, FX_PROGRAM_MINE, EffectExecutorTests::programProximityMine);
+        GooTestFunctions.registerTest(registrar, FX_PROGRAM_METAL_SPIKES, EffectExecutorTests::programMetalSpikes);
+        GooTestFunctions.registerTest(registrar, FX_PROGRAM_CRYSTAL_CLOUD, EffectExecutorTests::programCrystalCloud);
+        GooTestFunctions.registerTest(registrar, BLACK_HOLE_LEAVES_A_SPHERE, EffectExecutorTests::blackHoleLeavesASphere);
+        GooTestFunctions.registerTest(registrar, BLACK_HOLE_CUTS_PLAYERS, EffectExecutorTests::blackHoleCutsPlayersToHalfAHeart);
+        GooTestFunctions.registerTest(registrar, COMPRESSION_SPHERE_SPILLS_ON_TOUCH, EffectExecutorTests::compressionSphereSpillsOnTouch);
+        GooTestFunctions.registerTest(registrar, FX_LANDED_CRYSTAL_CLOUD, EffectExecutorTests::crystalCloudLiveAfterLanding);
+        GooTestFunctions.registerTest(registrar, FX_CRYSTAL_CLOUD_SHREDS_PLAYER, EffectExecutorTests::crystalCloudShredsAWalkingPlayer);
+        GooTestFunctions.registerTest(registrar, FX_LANDED_METAL_SPIKES, EffectExecutorTests::metalSpikesLiveAfterLanding);
+        GooTestFunctions.registerTest(registrar, FX_LANDED_BLACK_HOLE, EffectExecutorTests::blackHoleGathersAfterLanding);
+        GooTestFunctions.registerTest(registrar, FX_LANDED_BLAST, EffectExecutorTests::blastExplodesAfterLanding);
+        GooTestFunctions.registerTest(registrar, FX_LANDED_MINE, EffectExecutorTests::mineAwaitsAfterLanding);
+        GooTestFunctions.registerTest(registrar, FX_LANDED_GLOW_CRYSTAL, EffectExecutorTests::glowCrystalStandsAfterLanding);
+        GooTestFunctions.registerTest(registrar, FX_FALLEN_MARKER_KEEPS_ABILITY, EffectExecutorTests::fallenMarkerKeepsAbility);
+        GooTestFunctions.registerTest(registrar, FX_CRYSTAL_GROWS, EffectExecutorTests::crystalNeverGrowsOnALaterHit);
+        GooTestFunctions.registerTest(registrar, FX_OTHER_ABILITY_MARKS_CRYSTAL, EffectExecutorTests::otherAbilityMarksCrystal);
+        GooTestFunctions.registerTest(registrar, FX_CLOUD_BLOCK_GOES, EffectExecutorTests::crystalCloudBlockGoesWithItsProgram);
+        GooTestFunctions.registerTest(registrar, FX_TRAP_BLOCK_GOES, EffectExecutorTests::metalTrapBlockGoesWithItsProgram);
+    }
+
 
     /** Marker placed here, facing NORTH into the stone wall. */
     private static final BlockPos MARKER_POS = new BlockPos(3, 1, 3);
