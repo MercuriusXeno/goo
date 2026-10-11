@@ -1,8 +1,12 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.item.ReagentScanner;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -48,5 +52,20 @@ class GooThrowHandlerTest {
         assertTrue(GooThrowHandler.aimsNoMob(AbilityBadge.MOB, false));
         assertFalse(GooThrowHandler.aimsNoMob(AbilityBadge.MOB, true));
         assertFalse(GooThrowHandler.aimsNoMob(AbilityBadge.WORLD, false));
+    }
+
+    @Test
+    void spawnThrownByAPlayerHoldingNothingPassesTheReagentCheck() {
+        // ability-json-names-its-reagent
+        List<Identifier> spawnReagents = AbilityJson.decode("zoo_spawn").consumes();
+
+        assertTrue(ReagentScanner.holdsEvery(spawnReagents, reagent -> false));
+    }
+
+    @Test
+    void enchantThrownByAPlayerHoldingNoBookFailsTheReagentCheck() {
+        List<Identifier> enchantReagents = AbilityJson.decode("hex_enchant").consumes();
+
+        assertFalse(ReagentScanner.holdsEvery(enchantReagents, reagent -> false));
     }
 }
