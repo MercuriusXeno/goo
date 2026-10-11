@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * A revealed vein's ore blocks show through walls from the tick the front
  * reaches it, fade in, fade away at its life's end, keep showing when a
- * later ping finds the vein again, and burst once as they begin to show
+ * later hold finds the vein again, and burst once as they begin to show
  * (decision glitter-sphere-icons-gem-ore-groups).
  */
 class OreSightingsTest {
@@ -31,7 +31,7 @@ class OreSightingsTest {
 
     @Test
     void aVeinsBlocksShowOnlyOnceTheFrontReachesItAndFadeAwayAtItsEnd() {
-        OreSightings.CLIENT.reveal(0, List.of(VEIN), List.of(10), 100);
+        OreSightings.CLIENT.reveal(10, List.of(VEIN), 100);
 
         assertTrue(OreSightings.CLIENT.showingAt(9).isEmpty());
         assertEquals(0.5f, OreSightings.CLIENT.showingAt(12).getFirst().shown(), TOLERANCE);
@@ -44,8 +44,8 @@ class OreSightingsTest {
 
     @Test
     void aVeinFoundAgainKeepsShowingUntilItsNewLifeEnds() {
-        OreSightings.CLIENT.reveal(0, List.of(VEIN), List.of(10), 100);
-        OreSightings.CLIENT.reveal(32, List.of(VEIN), List.of(10), 100);
+        OreSightings.CLIENT.reveal(10, List.of(VEIN), 100);
+        OreSightings.CLIENT.reveal(42, List.of(VEIN), 100);
 
         assertEquals(BLOCKS.size(), OreSightings.CLIENT.showingAt(40).size());
         assertEquals(1f, OreSightings.CLIENT.showingAt(40).getFirst().shown(), TOLERANCE);
@@ -54,12 +54,12 @@ class OreSightingsTest {
 
     @Test
     void aVeinBurstsOnlyInTheTickItBeginsToShowAndNotAgainWhenFoundAgain() {
-        OreSightings.CLIENT.reveal(0, List.of(VEIN), List.of(10), 100);
+        OreSightings.CLIENT.reveal(10, List.of(VEIN), 100);
 
         assertTrue(OreSightings.CLIENT.burstsBetween(8, 9).isEmpty());
         assertEquals(List.of(VEIN.centroid()), OreSightings.CLIENT.burstsBetween(9, 10));
         assertTrue(OreSightings.CLIENT.burstsBetween(10, 11).isEmpty());
-        OreSightings.CLIENT.reveal(32, List.of(VEIN), List.of(10), 100);
+        OreSightings.CLIENT.reveal(42, List.of(VEIN), 100);
         assertTrue(OreSightings.CLIENT.burstsBetween(32, 50).isEmpty());
     }
 }

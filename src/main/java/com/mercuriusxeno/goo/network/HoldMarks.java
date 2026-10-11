@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.network;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -18,6 +20,7 @@ public final class HoldMarks {
 
     private final Map<BlockPos, Block> painted = new HashMap<>();
     private final Set<BlockPos> stepped = new HashSet<>();
+    private @Nullable Vec3 anchor;
 
     /**
      * Paints a block, unless the hold already painted or stepped it.
@@ -55,6 +58,22 @@ public final class HoldMarks {
      */
     public void unpaint(BlockPos pos) {
         painted.remove(pos);
+    }
+
+    /**
+     * Where the hold is anchored: the point given on the first ask, kept
+     * for the rest of the hold, so a sense growing from where the hold began
+     * stays centered there as the player moves
+     * (decision glitter-sphere-icons-gem-ore-groups).
+     *
+     * @param here the point to anchor at, where none is anchored yet
+     * @return the hold's anchor
+     */
+    public Vec3 anchorAt(Vec3 here) {
+        if (anchor == null) {
+            anchor = here;
+        }
+        return anchor;
     }
 
     /**

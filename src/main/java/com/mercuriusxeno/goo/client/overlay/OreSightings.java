@@ -10,7 +10,7 @@ import java.util.List;
  * The gem ore veins Glitter has revealed on this client: each vein's blocks
  * show through walls from the tick the sphere's front reaches it to the end
  * of its life, fading in and fading away at its end, and a vein a later
- * ping finds again keeps showing rather than blinking out.
+ * hold finds again keeps showing rather than blinking out.
  * decision glitter-sphere-icons-gem-ore-groups
  */
 public final class OreSightings {
@@ -65,24 +65,22 @@ public final class OreSightings {
     }
 
     /**
-     * Takes one ping's veins: each shows from the tick the front reaches it
-     * for its life; a vein already showing keeps showing until then.
+     * Takes the veins the front has just reached: each shows from now for
+     * its life; a vein already showing keeps showing until then.
      *
-     * @param now    the game time the ping arrived at
-     * @param veins  the veins the ping found
-     * @param reveal for each vein, the ticks after the ping the front reaches it
-     * @param life   the ticks each shows once revealed
+     * @param now   the game time the front reached them
+     * @param veins the veins the front reached
+     * @param life  the ticks each shows once revealed
      */
-    public void reveal(long now, List<OreVeins.Vein> veins, List<Integer> reveal, int life) {
-        for (int index = 0; index < veins.size(); index++) {
-            OreVeins.Vein vein = veins.get(index);
-            double appearAt = now + reveal.get(index);
+    public void reveal(long now, List<OreVeins.Vein> veins, int life) {
+        for (OreVeins.Vein vein : veins) {
+            double appearAt = now;
             int earlier = sightingOf(vein, now);
             if (earlier >= 0) {
                 appearAt = Math.min(appearAt, seen.get(earlier).appearAt());
                 seen.remove(earlier);
             }
-            seen.add(new Seen(vein, appearAt, now + reveal.get(index) + life));
+            seen.add(new Seen(vein, appearAt, now + life));
         }
     }
 

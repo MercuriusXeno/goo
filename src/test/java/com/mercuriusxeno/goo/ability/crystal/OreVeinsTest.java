@@ -40,4 +40,23 @@ class OreVeinsTest {
 
         assertEquals(3, veins.size());
     }
+
+    @Test
+    void aGrowingFrontFindsEachVeinWholeInTheBandReachingItsNearestBlock() {
+        Map<BlockPos, Identifier> ores = Map.of(
+                new BlockPos(3, 0, 0), DIAMOND, new BlockPos(4, 0, 0), DIAMOND, new BlockPos(5, 0, 0), DIAMOND,
+                new BlockPos(0, 9, 0), LAPIS);
+
+        List<OreVeins.Vein> first = OreVeins.firstReachedIn(BlockPos.ZERO, 0, 2, 20, ores::get);
+        List<OreVeins.Vein> reaching = OreVeins.firstReachedIn(BlockPos.ZERO, 2, 3, 20, ores::get);
+        List<OreVeins.Vein> passing = OreVeins.firstReachedIn(BlockPos.ZERO, 3, 5, 20, ores::get);
+
+        assertTrue(first.isEmpty(), "no vein lies inside the front's first band");
+        assertEquals(1, reaching.size());
+        assertEquals(3, reaching.getFirst().count(), "the vein shows whole, past the front too");
+        assertEquals(4.5, reaching.getFirst().centroid().x, TOLERANCE);
+        assertTrue(passing.isEmpty(), "a vein already found is not found again");
+        assertEquals(List.of(LAPIS), OreVeins.firstReachedIn(BlockPos.ZERO, 8, 9, 20, ores::get).stream()
+                .map(OreVeins.Vein::ore).toList());
+    }
 }

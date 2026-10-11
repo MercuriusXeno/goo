@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Glitter's band of glitter: its glints scatter at random over the whole
  * sphere at varied depths about the front, flash dim and brief, drift
- * through the prism, and the band fades once the front reaches its reach
+ * through the prism, and the front grows only while held, fading once the hold ends
  * (decision glitter-sphere-icons-gem-ore-groups).
  */
 class GlitterShellTest {
@@ -67,11 +67,13 @@ class GlitterShellTest {
     }
 
     @Test
-    void theFrontStopsAtItsReachAndTheBandFadesAfter() {
-        assertEquals(15, GlitterShell.frontRadius(10, 1.5, 24), TOLERANCE);
-        assertEquals(24, GlitterShell.frontRadius(40, 1, 24), TOLERANCE);
-        assertEquals(1f, GlitterShell.strength(24, 1, 24), 1e-6f);
-        assertEquals(0.5f, GlitterShell.strength(24 + GlitterShell.FADE_TICKS / 2, 1, 24), 1e-6f);
-        assertEquals(0f, GlitterShell.strength(24 + GlitterShell.FADE_TICKS, 1, 24), 1e-6f);
+    void theFrontGrowsOnlyAsHeldTicksReportItAndTheBandFadesOnceTheyStop() {
+        assertEquals(10.5, GlitterShell.frontAt(10, 0.5, 1, 64), TOLERANCE);
+        assertEquals(11, GlitterShell.frontAt(10, 1, 1, 64), TOLERANCE);
+        assertEquals(11, GlitterShell.frontAt(10, 30, 1, 64), TOLERANCE, "the front stops once no tick comes");
+        assertEquals(64, GlitterShell.frontAt(64, 1, 1, 64), TOLERANCE);
+        assertEquals(1f, GlitterShell.strengthAt(GlitterShell.HELD_GAP_TICKS), 1e-6f);
+        assertEquals(0.5f, GlitterShell.strengthAt(GlitterShell.HELD_GAP_TICKS + GlitterShell.FADE_TICKS / 2), 1e-6f);
+        assertEquals(0f, GlitterShell.strengthAt(GlitterShell.HELD_GAP_TICKS + GlitterShell.FADE_TICKS), 1e-6f);
     }
 }

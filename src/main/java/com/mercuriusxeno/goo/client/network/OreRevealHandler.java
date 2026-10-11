@@ -7,8 +7,8 @@ import net.minecraft.client.Minecraft;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 /**
- * Client-side handler for a Glitter ping: its sparkle shell grows, and its
- * veins show as the shell's front reaches them.
+ * Client-side handler for a held tick of Glitter: its sparkle shell's
+ * front moves out, and the veins the front reached show.
  * decision glitter-sphere-icons-gem-ore-groups
  */
 public final class OreRevealHandler {
@@ -26,8 +26,8 @@ public final class OreRevealHandler {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level != null) {
                 long now = mc.level.getGameTime();
-                GlitterShell.start(payload, now);
-                OreSightings.CLIENT.reveal(now, payload.veins(), payload.reveal(), payload.life());
+                GlitterShell.follow(payload, now);
+                OreSightings.CLIENT.reveal(now, payload.veins(), payload.life());
             }
         });
     }
