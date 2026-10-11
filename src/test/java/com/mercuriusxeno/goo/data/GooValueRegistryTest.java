@@ -2409,4 +2409,51 @@ class GooValueRegistryTest {
             assertFalse(registry.table().isRestricted(id("minecraft:coal_ore")));
         }
     }
+
+    // ── Bundled yore terms ──────────────────────────────────────────────
+
+    /**
+     * The shipped base values give yore to old, hard-to-come-by things and
+     * nothing mundane (decision old-ships-from-scutes-diamonds-and-scrap).
+     */
+    @Nested
+    class BundledYoreTerms {
+
+        private static final String BASE_VALUES = "/data/goo/goo_values/base_values.json";
+
+        /**
+         * Loads the base_values.json the mod ships.
+         */
+        @BeforeEach
+        void loadBundledBaseValues() throws IOException {
+            try (java.io.InputStream bundled = GooValueRegistryTest.class.getResourceAsStream(BASE_VALUES)) {
+                assertNotNull(bundled, BASE_VALUES);
+                parseBaseValuesFromStream(bundled);
+            }
+            copyBaseToEffective();
+        }
+
+        /**
+         * Diamond, netherite scrap, turtle scute and a spawn egg each carry yore.
+         */
+        @Test
+        void oldThingsResolveYore() {
+            for (String item : List.of("minecraft:diamond", "minecraft:netherite_scrap",
+                    "minecraft:turtle_scute", "minecraft:armadillo_scute", "minecraft:allay_spawn_egg")) {
+                GooValue value = registry.table().lookup(id(item));
+                assertNotNull(value, item);
+                assertTrue(value.get(GooTypes.YORE) > 0, item);
+            }
+        }
+
+        /**
+         * Dirt carries no yore.
+         */
+        @Test
+        void dirtResolvesNoYore() {
+            GooValue dirt = registry.table().lookup(id("minecraft:dirt"));
+            assertNotNull(dirt);
+            assertEquals(0, dirt.get(GooTypes.YORE));
+        }
+    }
 }

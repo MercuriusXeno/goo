@@ -363,5 +363,28 @@
       { "position": 0.8, "color": "#FF70A0" },
       { "position": 1.0, "color": "#FFA0C0" }
     ]
+  },
+  {
+    "id": "yore",
+    "seed": 41003,
+    "genParams": {
+      "viscosity": 2.2,
+      "decayRate": 0.02,
+      "ignitionChance": 0.004,
+      "ignitionStrength": 0.9,
+      "potHeatRate": 0.008,
+      "potInfluence": 0.85,
+      "neighborhoodReach": 1
+    },
+    "frametime": 4,
+    "shadowHue": 0.1,
+    "palette": [
+      { "position": 0.0, "color": "#4A3418" },
+      { "position": 0.2, "color": "#7A5A2C" },
+      { "position": 0.4, "color": "#A87A40" },
+      { "position": 0.6, "color": "#C49A5C" },
+      { "position": 0.8, "color": "#DCCBA4" },
+      { "position": 1.0, "color": "#EEE6D2" }
+    ]
   }
 ]
