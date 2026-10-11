@@ -72,6 +72,7 @@
   "goo.type.unstable": "Unstable",
   "goo.type.vital": "Vital",
   "goo.type.xeno": "Xeno",
+  "goo.type.zoo": "Zoo",
   "goo.type.untyped": "Untyped",
 
   "item.minecraft.potion.effect.aeon_goo": "Potion of Timecurve",
@@ -93,6 +94,7 @@
   "item.minecraft.potion.effect.unstable_goo": "Potion of Instability",
   "item.minecraft.potion.effect.vital_goo": "Potion of Nourishment",
   "item.minecraft.potion.effect.xeno_goo": "Potion of Eldritch Sight",
+  "item.minecraft.potion.effect.zoo_goo": "Potion of the Wild",
 
   "effect.goo.aeon_brew": "Aeon Brew",
   "effect.goo.blaze_brew": "Blaze Brew",
@@ -115,6 +117,7 @@
   "effect.goo.unstable_brew": "Unstable Brew",
   "effect.goo.vital_brew": "Vital Brew",
   "effect.goo.xeno_brew": "Xeno Brew",
+  "effect.goo.zoo_brew": "Zoo Brew",
 
   "item.goo.partially_melted_item": "Partially Melted Item",
 
@@ -171,8 +174,6 @@
   "goo.ability.hex.charm": "Charm",
   "goo.ability.hex.enchant": "Enchant",
   "goo.ability.hex.fuse": "Fuse",
-  "goo.ability.hex.spawn": "Spawn",
-  "goo.ability.hex.spawn_tap": "Spawn",
   "goo.ability.hex.lifetap": "Lifetap",
   "goo.ability.hex.drain": "Drain",
   "goo.ability.leaf.barkskin": "Barkskin",
@@ -217,11 +218,14 @@
   "goo.ability.unstable.explode": "Blast",
   "goo.ability.unstable.proximity_mine": "Claymore",
   "goo.ability.unstable.timed_bomb": "Countdown",
-  "goo.ability.vital.clone": "Clone",
   "goo.ability.vital.vitality": "Vitality",
   "goo.ability.vital.vitality_tap": "Vitality",
   "goo.ability.vital.reserve": "Reserve",
   "goo.ability.vital.nourish": "Nourish",
   "goo.ability.xeno.eldritch": "Eldritch Sight",
-  "goo.ability.xeno.mutate": "Mutate"
+  "goo.ability.xeno.mutate": "Mutate",
+  "goo.ability.zoo.allure": "Allure",
+  "goo.ability.zoo.rally": "Rally",
+  "goo.ability.zoo.shape": "Shape",
+  "goo.ability.zoo.spawn": "Spawn"
 }
