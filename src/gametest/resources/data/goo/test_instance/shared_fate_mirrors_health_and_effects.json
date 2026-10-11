@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:shared_fate_mirrors_health_and_effects",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 40,
+  "setup_ticks": 0,
+  "required": true
+}
