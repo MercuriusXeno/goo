@@ -363,5 +363,27 @@
       { "position": 0.8, "color": "#FF70A0" },
       { "position": 1.0, "color": "#FFA0C0" }
     ]
+  },
+  {
+    "id": "zoo",
+    "seed": 40977,
+    "genParams": {
+      "viscosity": 1.2,
+      "decayRate": 0.045,
+      "ignitionChance": 0.01,
+      "ignitionStrength": 1.3,
+      "potHeatRate": 0.022,
+      "potInfluence": 0.75,
+      "neighborhoodReach": 1
+    },
+    "frametime": 3,
+    "shadowHue": 0.08,
+    "palette": [
+      { "position": 0.0, "color": "#5A3418" },
+      { "position": 0.3, "color": "#8A5428" },
+      { "position": 0.6, "color": "#B5793A" },
+      { "position": 0.85, "color": "#D8A060" },
+      { "position": 1.0, "color": "#F0CC90" }
+    ]
   }
 ]

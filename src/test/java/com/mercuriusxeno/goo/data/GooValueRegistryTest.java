@@ -2409,4 +2409,32 @@ class GooValueRegistryTest {
             assertFalse(registry.table().isRestricted(id("minecraft:coal_ore")));
         }
     }
+
+    /**
+     * The shipped base values give Zoo the animal items Vital held
+     * (decision zoo-ships-from-animal-items).
+     */
+    @Nested
+    class ShippedAnimalValues {
+
+        private static final String SHIPPED_BASE_VALUES = "/data/goo/goo_values/base_values.json";
+
+        /**
+         * A spawn egg, leather and bone each resolve a zoo value equal to the vital value they carry.
+         */
+        @Test
+        void animalItemsResolveZoo() throws IOException {
+            try (java.io.InputStream shipped = GooValueRegistryTest.class.getResourceAsStream(SHIPPED_BASE_VALUES)) {
+                assertNotNull(shipped, SHIPPED_BASE_VALUES);
+                parseBaseValuesFromStream(shipped);
+            }
+            copyBaseToEffective();
+            for (String item : List.of("minecraft:cow_spawn_egg", "minecraft:leather", "minecraft:bone")) {
+                GooValue value = registry.table().lookup(id(item));
+                assertNotNull(value, item);
+                assertTrue(value.get(GooTypes.ZOO) > 0, item + " resolves no zoo");
+                assertEquals(value.get(GooTypes.VITAL), value.get(GooTypes.ZOO), item);
+            }
+        }
+    }
 }
