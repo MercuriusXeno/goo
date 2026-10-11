@@ -34,6 +34,12 @@ public final class MoteCloudGhost implements HeldGhostVisual {
     /** Jelly's amber crumb cloud. */
     public static final MoteCloudGhost JELLY = new MoteCloudGhost(GooTypes.JELLY, 0xF0A040);
 
+    /**
+     * Weird's magenta cloud about Magma's reach.
+     * weird-bounces-and-softens-harm
+     */
+    public static final MoteCloudGhost WEIRD = new MoteCloudGhost(GooTypes.WEIRD, 0xFF33CC);
+
     /** Motes in the cloud. */
     static final int MOTES = 600;
     /** The shallowest a mote sits, as a share of the reach. */
