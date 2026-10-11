@@ -90,7 +90,17 @@ public record SpireLift(SpireFootprint footprint, List<BlockPos> columns, int co
      * @return deepslate below Y 0, stone at and above it
      */
     public static BlockState refillAt(int y) {
-        return (y < DEEPSLATE_BELOW_Y ? Blocks.DEEPSLATE : Blocks.STONE).defaultBlockState();
+        return (refillsDeepslateAt(y) ? Blocks.DEEPSLATE : Blocks.STONE).defaultBlockState();
+    }
+
+    /**
+     * Whether the ground refills with deepslate at a height rather than stone.
+     *
+     * @param y the height
+     * @return true below Y 0
+     */
+    public static boolean refillsDeepslateAt(int y) {
+        return y < DEEPSLATE_BELOW_Y;
     }
 
     /**
