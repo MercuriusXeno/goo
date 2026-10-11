@@ -85,6 +85,11 @@ public enum HostCapability {
      */
     DRIP(DripHost.class),
     /**
+     * A tap's spigot a glass shard falls from, onto the first mob under it
+     * (decision shards-drip-falls-as-a-glass-shard).
+     */
+    SHARD_FALL(ShardFallHost.class),
+    /**
      * The host's own block, whose properties can change in place (decision
      * bulb-one-model-max-light-beacon-combo).
      */
