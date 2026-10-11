@@ -107,6 +107,28 @@ class DrinkTreeTest {
                     "a block streaming this frame but not yet built flows everywhere, so the first frame's blocks join");
             assertFalse(test.at(gone, 0), "a block no longer streaming flows nowhere, so its tributaries re-root");
         }
+
+        @Test
+        void aTrunkWhoseOwnLiquidHasPassedStillCarriesWhatJoinsItSoItsTributariesStay() {
+            double passed = END;
+            List<DrinkTree.Stream> streams = treeAt(passed);
+            while (streams.getFirst().flowingAt(streams.get(1).joinShare() * streams.getFirst().path().length())) {
+                passed += 1;
+                streams = treeAt(passed);
+            }
+            DrinkTree.Stream trunk = streams.getFirst();
+            DrinkTree.Stream tributary = streams.get(1);
+            double joinAt = tributary.joinShare() * trunk.path().length();
+            DrinkLayout.Flowing test = DrinkTree.flowingOf(Map.of(NEAR.pos(), trunk, FAR.pos(), tributary),
+                    Set.of(NEAR.pos(), FAR.pos()));
+
+            assertFalse(trunk.flowingAt(joinAt), "the trunk's own tail is past the join");
+            assertTrue(tributary.flowingAt(tributary.path().length()), "the tributary's liquid still reaches its join");
+            assertTrue(trunk.carriesAt(joinAt), "so the trunk still carries at the join");
+            assertFalse(trunk.carriesAt(joinAt / TWO), "and nothing before it, where no liquid is left");
+            assertTrue(test.at(NEAR.pos(), joinAt), "the layout keeps the tributary on its trunk");
+            assertFalse(treeAt(END + THOUSAND).getFirst().carriesAt(joinAt), "once nothing flows it carries nothing");
+        }
     }
 
     @Nested
