@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.ability.gate;
 
-import com.mercuriusxeno.goo.block.gate.DragonGateBlock;
+import com.mercuriusxeno.goo.block.gate.EndGateBlock;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -22,14 +22,14 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Opens and closes Dragon Gate pairs: lays the gate's thin layer in the open
+ * Opens and closes End gate pairs: lays the gate's thin layer in the open
  * cells in front of the struck face and its mirror on the End platform's
  * floor, changing no block the gate lies against, and on the pair's clock
  * clears both layers. A burst of the End's particles and the portal's sounds
  * mark each opening and closing.
- * Decision dragon-gate-banishes-blocks-and-opens-a-portal.
+ * Decision end-clears-blocks-and-opens-a-portal.
  */
-public final class DragonGateOpening {
+public final class EndGateOpening {
 
     /** The End platform's floor centre, under the spot the End's portal sets players down. */
     static final BlockPos PLATFORM_FLOOR = ServerLevel.END_SPAWN_POINT.below(2);
@@ -39,7 +39,7 @@ public final class DragonGateOpening {
     private static final double BURST_SPREAD = 1.2;
     private static final double BURST_SPEED = 0.6;
 
-    private DragonGateOpening() {
+    private EndGateOpening() {
     }
 
     /**
@@ -66,7 +66,7 @@ public final class DragonGateOpening {
             return false;
         }
         long closesAt = level.getServer().overworld().getGameTime() + lifetime;
-        DragonGates.get(level).open(new DragonGates.Pair(near.get(), far.get(), closesAt));
+        EndGates.get(level).open(new EndGates.Pair(near.get(), far.get(), closesAt));
         mark(level, near.get(), ParticleTypes.REVERSE_PORTAL, SoundEvents.END_PORTAL_SPAWN);
         mark(end, far.get(), ParticleTypes.REVERSE_PORTAL, SoundEvents.END_PORTAL_SPAWN);
         return true;
@@ -83,7 +83,7 @@ public final class DragonGateOpening {
     private static @Nullable ServerLevel mirrorLevel(ServerLevel level) {
         ServerLevel end = level.getServer().getLevel(Level.END);
         boolean free = end != null && level.dimension() != Level.END
-                && !end.getBlockState(PLATFORM_FLOOR.above()).is(GooBlocks.DRAGON_GATE.get());
+                && !end.getBlockState(PLATFORM_FLOOR.above()).is(GooBlocks.END_GATE.get());
         return free ? end : null;
     }
 
@@ -95,7 +95,7 @@ public final class DragonGateOpening {
      * @param now    the overworld game time
      */
     public static void closeExpired(MinecraftServer server, long now) {
-        for (DragonGates.Pair pair : DragonGates.get(server.overworld()).takeExpired(now)) {
+        for (EndGates.Pair pair : EndGates.get(server.overworld()).takeExpired(now)) {
             restore(server, pair.near());
             restore(server, pair.far());
         }
@@ -134,8 +134,8 @@ public final class DragonGateOpening {
      * @return the block state
      */
     private static BlockState gateCell(Direction face, GateSquare.Cell cell) {
-        return GooBlocks.DRAGON_GATE.get().defaultBlockState().setValue(DragonGateBlock.FACING, face)
-                .setValue(DragonGateBlock.ACROSS, cell.across()).setValue(DragonGateBlock.ALONG, cell.along());
+        return GooBlocks.END_GATE.get().defaultBlockState().setValue(EndGateBlock.FACING, face)
+                .setValue(EndGateBlock.ACROSS, cell.across()).setValue(EndGateBlock.ALONG, cell.along());
     }
 
     /**
@@ -151,7 +151,7 @@ public final class DragonGateOpening {
             return;
         }
         for (GatePatch.Covered cell : patch.covered()) {
-            if (level.getBlockState(cell.pos()).is(GooBlocks.DRAGON_GATE.get())) {
+            if (level.getBlockState(cell.pos()).is(GooBlocks.END_GATE.get())) {
                 level.setBlock(cell.pos(), cell.state(), Block.UPDATE_ALL);
             }
         }

@@ -6,11 +6,11 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
- * A Dragon Gate cell's block entity, which carries the cell to its renderer
+ * An End gate cell's block entity, which carries the cell to its renderer
  * so it draws its share of the gate's starfield square.
- * Decision dragon-gate-banishes-blocks-and-opens-a-portal.
+ * Decision end-clears-blocks-and-opens-a-portal.
  */
-public class DragonGateBlockEntity extends BlockEntity {
+public class EndGateBlockEntity extends BlockEntity {
 
     /**
      * Creates the gate cell's block entity.
@@ -18,7 +18,7 @@ public class DragonGateBlockEntity extends BlockEntity {
      * @param pos   the cell
      * @param state the gate block's state
      */
-    public DragonGateBlockEntity(BlockPos pos, BlockState state) {
-        super(GooBlockEntities.DRAGON_GATE.get(), pos, state);
+    public EndGateBlockEntity(BlockPos pos, BlockState state) {
+        super(GooBlockEntities.END_GATE.get(), pos, state);
     }
 }

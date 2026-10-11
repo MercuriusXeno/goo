@@ -2,11 +2,11 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.banish.BanishEvents;
+import com.mercuriusxeno.goo.ability.hex.CharmEvents;
 import com.mercuriusxeno.goo.ability.program.EntityFilter;
 import com.mercuriusxeno.goo.ability.program.EntityScan;
 import com.mercuriusxeno.goo.ability.stasis.StasisEvents;
-import com.mercuriusxeno.goo.ability.hex.CharmEvents;
+import com.mercuriusxeno.goo.ability.zone.ZoneEvents;
 import com.mercuriusxeno.goo.gametest.SurvivalPlayers;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -109,14 +109,14 @@ public final class MobEffectTests {
     private static final String ABILITY_VITAL_CLONE = "goo:vital_clone";
     private static final String ABILITY_BLAZE_IGNITE = "goo:blaze_ignite";
     private static final String ABILITY_CRYSTAL_FLECHETTES = "goo:crystal_flechettes";
-    private static final String ABILITY_ENDER_BANISH = "goo:ender_banish";
-    /** Above ender_banish.json's radius of six, so the player sets nothing off until the test walks it in. */
+    private static final String ABILITY_ENDER_ZONE = "goo:ender_zone";
+    /** Above ender_zone.json's radius of six, so the player sets nothing off until the test walks it in. */
     private static final double PLAYER_OUT_OF_REACH_ABOVE = 20.0;
-    /** Over ender_banish.json's resist cap of a hundred max health. */
+    /** Over ender_zone.json's resist cap of a hundred max health. */
     private static final double RESISTING_MAX_HEALTH = 200.0;
-    private static final String SHOULD_BE_CURSED = "The zombie should carry the curse after the first Banish";
+    private static final String SHOULD_BE_CURSED = "The zombie should carry the curse after the first Zone";
     private static final String SHOULD_WARP = "The cursed zombie should warp away from the player standing on it";
-    private static final String SHOULD_BE_EXILED = "A second Banish should exile the cursed zombie";
+    private static final String SHOULD_BE_EXILED = "A second Zone should exile the cursed zombie";
     private static final String SHOULD_RESIST = "A mob over the max health cap should resist the curse";
     private static final String CHICKEN_HAS_MAX_HEALTH = "A chicken carries a max health attribute";
     private static final String SHOULD_HAVE_A_CLONE = "A second chicken should stand beside the target";
@@ -453,48 +453,48 @@ public final class MobEffectTests {
 
     /**
     /**
-     * Banish's first hit curses a zombie: a player walked onto it sets off a
-     * warp away, and a second Banish hit exiles it from existence
-     * (decision banish-curses-with-ender-shimmer).
+     * Zone's first hit curses a zombie: a player walked onto it sets off a
+     * warp away, and a second Zone hit exiles it from existence
+     * (decision zone-curses-with-ender-shimmer).
      *
      * @param helper the gametest helper
      */
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    public static void banishWarpsThenExiles(GameTestHelper helper) {
+    public static void zoneWarpsThenExiles(GameTestHelper helper) {
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         player.setPos(zombie.getX(), zombie.getY() + PLAYER_OUT_OF_REACH_ABOVE, zombie.getZ());
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, zombie, ABILITY_ENDER_BANISH);
-            helper.assertTrue(BanishEvents.curseOf(zombie) != null, SHOULD_BE_CURSED);
+            strike(helper, zombie, ABILITY_ENDER_ZONE);
+            helper.assertTrue(ZoneEvents.curseOf(zombie) != null, SHOULD_BE_CURSED);
             Vec3 home = zombie.position();
             player.setPos(home);
             // The assertion runs each tick until the warp lands, then brings the zombie home, where the
-            // test's chunks keep it ticking, and lands the second Banish on it.
+            // test's chunks keep it ticking, and lands the second Zone on it.
             helper.succeedWhen(() -> {
                 helper.assertFalse(zombie.position().equals(home), SHOULD_WARP);
                 player.setPos(home.add(0, PLAYER_OUT_OF_REACH_ABOVE, 0));
                 zombie.teleportTo(home.x, home.y, home.z);
-                strike(helper, zombie, ABILITY_ENDER_BANISH);
+                strike(helper, zombie, ABILITY_ENDER_ZONE);
                 helper.assertTrue(zombie.isRemoved(), SHOULD_BE_EXILED);
             });
         });
     }
 
     /**
-     * A zombie whose max health stands over ender_banish.json's cap of a
+     * A zombie whose max health stands over ender_zone.json's cap of a
      * hundred resists the curse.
      *
      * @param helper the gametest helper
      */
-    public static void banishResistedByHighHealth(GameTestHelper helper) {
+    public static void zoneResistedByHighHealth(GameTestHelper helper) {
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
         AttributeInstance maxHealth = zombie.getAttribute(Attributes.MAX_HEALTH);
         helper.assertTrue(maxHealth != null, MOB_HAS_MAX_HEALTH);
         maxHealth.setBaseValue(RESISTING_MAX_HEALTH);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, zombie, ABILITY_ENDER_BANISH);
-            helper.assertTrue(BanishEvents.curseOf(zombie) == null, SHOULD_RESIST);
+            strike(helper, zombie, ABILITY_ENDER_ZONE);
+            helper.assertTrue(ZoneEvents.curseOf(zombie) == null, SHOULD_RESIST);
             helper.succeed();
         });
     }
