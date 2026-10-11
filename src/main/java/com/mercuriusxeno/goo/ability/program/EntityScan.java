@@ -11,6 +11,7 @@ import net.minecraft.world.entity.animal.frog.Frog;
 import net.minecraft.world.entity.animal.nautilus.ZombieNautilus;
 import net.minecraft.world.entity.animal.parrot.Parrot;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.monster.Zoglin;
 import net.minecraft.world.entity.monster.piglin.Piglin;
 import net.minecraft.world.entity.monster.zombie.Zombie;
@@ -192,6 +193,8 @@ public final class EntityScan {
         table.put(EntityFilter.NOT_BABY,
                 (entity, self) -> !(entity instanceof LivingEntity living && living.isBaby()));
         table.put(EntityFilter.HAS_SPAWN_EGG, (entity, self) -> SpawnEggItem.byId(entity.getType()).isPresent());
+        table.put(EntityFilter.PEACEFUL, (entity, self) -> entity instanceof Mob
+                && entity.getType().getCategory().isFriendly() && !(entity instanceof Enemy));
         table.put(EntityFilter.VULNERABLE,
                 (entity, self) -> entity instanceof LivingEntity living && living.invulnerableTime == 0);
     }

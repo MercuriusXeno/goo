@@ -31,7 +31,9 @@ public enum AilmentKind {
     /** Telekinesis: the kinetic shimmer, fainter, on the player and the arm (decision telekinesis-enacts-at-extended-reach). */
     TELEKINESIS(0xFF7A1A, AilmentPattern.SHIMMER, 0.2f),
     /** Xeno's mutation: sickly green veins writhing over the mob while it stays mutated (decision xeno-blob-mutates-the-struck). */
-    MUTATED(0xA8CC48, AilmentPattern.WRITHE, 0.6f);
+    MUTATED(0xA8CC48, AilmentPattern.WRITHE, 0.6f),
+    /** Zoo's rally: a tawny glisten over the armed mob (decision zoo-rally-arms-the-peaceful). */
+    ZOO(0xD89858, AilmentPattern.GLINT, 0.5f);
 
     /** Codec for the kind as an ability JSON writes it, in lower case. */
     public static final Codec<AilmentKind> CODEC = LowerCaseEnumCodec.of(AilmentKind.class, "ailment kind");
