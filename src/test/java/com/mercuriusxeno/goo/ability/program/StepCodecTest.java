@@ -49,6 +49,7 @@ class StepCodecTest {
             Map.entry("freeze_blocks", new FreezeBlocksStep(Expr.literal(2))),
             Map.entry("cool_lava", new CoolLavaStep(Expr.literal(3))),
             Map.entry("bounce_pad", new BouncePadStep(Expr.literal(200))),
+            Map.entry("wobble", new WobbleStep(Expr.literal(600))),
             Map.entry("drips", new DripsStep(6, List.of(new FreezeBlocksStep(Expr.literal(2))))),
             Map.entry("wind", new WindStep(true)),
             Map.entry("glacial", new GlacialStep(5)),

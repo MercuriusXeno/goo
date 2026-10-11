@@ -29,6 +29,10 @@ const int PATTERN_FACETS = 1;
 const int PATTERN_SHIMMER = 2;
 const int PATTERN_STONE = 3;
 const int PATTERN_FROST = 4;
+const int PATTERN_WOBBLE = 5;
+// Bubbles drifting in Weird's gel, and how fast they drift.
+const float GEL_CELLS = 14.0;
+const float GEL_CYCLES_PER_DAY = 300.0;
 
 const float TAU = 6.2831853;
 // GameTime is the fraction of a 24000-tick day: 300 cycles a day is one every 80 ticks.
@@ -97,6 +101,10 @@ void main() {
         float crystals = smoothstep(0.55, 0.8, mingleValueNoise(vec3(skinCoord * FROST_CELLS, 0.0)));
         vec4 frost = vec4(mix(tint, vec3(1.0), crystals * 0.6), (0.35 + 0.5 * crystals) * strength);
         color = minecraft_mix_light(Light0_Direction, Light1_Direction, normalize(skinNormal), frost) * lightMapColor;
+    } else if (pattern == PATTERN_WOBBLE) {
+        float bubbles = smoothstep(0.6, 0.85, mingleValueNoise(vec3(skinCoord * GEL_CELLS, GameTime * GEL_CYCLES_PER_DAY)));
+        vec4 gel = vec4(mix(tint, vec3(1.0), bubbles * 0.5), (0.4 + 0.3 * bubbles) * strength);
+        color = minecraft_mix_light(Light0_Direction, Light1_Direction, normalize(skinNormal), gel) * lightMapColor;
     } else {
         float shine;
         if (pattern == PATTERN_FACETS) {

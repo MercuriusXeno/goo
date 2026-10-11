@@ -8,7 +8,11 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.pig.Pig;
+import net.minecraft.world.entity.monster.zombie.Zombie;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.Vec3;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -36,6 +40,10 @@ public final class WeirdTests {
     private static final String NOT_LAUNCHED = "A pig falling onto the pad should leave it moving upward";
     private static final String HURT = "A pig falling onto the pad should keep its full health, has ";
     private static final String PAD_STANDS = "The bounce pad should be gone once its time has passed";
+    private static final String WOBBLE = "goo:weird_wobble";
+    private static final String SOFTEN_TRADES_DAMAGE = "weird_soften_trades_damage_for_knockback";
+    private static final String HURT_BY_SOFTENED = "A softened zombie's hit should leave the player's health full, has ";
+    private static final String NOT_KNOCKED = "A softened zombie's hit should knock the player back";
 
     private WeirdTests() {
     }
@@ -48,6 +56,27 @@ public final class WeirdTests {
     public static void register(BiConsumer<String, Consumer<GameTestHelper>> reg) {
         reg.accept(TURNS_LAVA_TO_MAGMA, WeirdTests::weirdTurnsLavaToMagma);
         reg.accept(PAD_BREAKS_THE_FALL, WeirdTests::weirdPadBreaksTheFall);
+        reg.accept(SOFTEN_TRADES_DAMAGE, WeirdTests::weirdSoftenTradesDamageForKnockback);
+    }
+
+    /**
+     * A zombie struck by a Weird Wobble blob strikes a survival player: the
+     * player keeps its full health and is knocked back instead.
+     *
+     * @param helper the gametest helper
+     */
+    public static void weirdSoftenTradesDamageForKnockback(GameTestHelper helper) {
+        helper.setBlock(POOL_FLOOR, Blocks.STONE);
+        Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, POOL_FLOOR.above());
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        player.setPos(helper.absoluteVec(Vec3.atBottomCenterOf(POOL_FLOOR.above().east())));
+        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.WEIRD,
+                zombie.getId(), zombie.blockPosition(), Direction.UP, WOBBLE));
+        player.setDeltaMovement(Vec3.ZERO);
+        zombie.doHurtTarget(helper.getLevel(), player);
+        helper.assertTrue(player.getHealth() == player.getMaxHealth(), HURT_BY_SOFTENED + player.getHealth());
+        helper.assertTrue(player.getDeltaMovement().horizontalDistance() > 0, NOT_KNOCKED);
+        helper.succeed();
     }
 
     /**

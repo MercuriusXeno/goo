@@ -16,5 +16,10 @@ public enum AilmentPattern {
     /** A rough opaque stone crust over the whole model. */
     STONE,
     /** Pale frost crystals rimming the model. */
-    FROST
+    FROST,
+    /**
+     * A translucent gel shell that wobbles and stretches over the model
+     * (decision weird-bounces-and-softens-harm).
+     */
+    WOBBLE
 }

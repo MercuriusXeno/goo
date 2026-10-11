@@ -18,6 +18,7 @@ import com.mercuriusxeno.goo.ability.pulse.Stunned;
 import com.mercuriusxeno.goo.ability.rewind.Rewinding;
 import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.spray.Spored;
+import com.mercuriusxeno.goo.ability.weird.Wobbled;
 import com.mercuriusxeno.goo.ability.world.TimeVeiled;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
@@ -249,6 +250,17 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> Charmed.NONE)
                             .serialize(Charmed.CODEC)
                             .sync(GooAttachments::syncsToWatcher, Charmed.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The wobble a mob holds and when it fades, saved with the mob while it
+     * stands; its attacks knock back rather than harm.
+     * weird-bounces-and-softens-harm
+     */
+    public static final Supplier<AttachmentType<Wobbled>> WOBBLED =
+            ATTACHMENT_TYPES.register("wobbled",
+                    () -> AttachmentType.builder(() -> Wobbled.NONE)
+                            .serialize(Wobbled.CODEC, wobbled -> wobbled.expiresAt() > 0L)
                             .build());
 
     /**
