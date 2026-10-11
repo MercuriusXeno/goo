@@ -69,8 +69,7 @@ class MarkerOrbVisualTest {
     /** The layer's lateral half-size by the resting arithmetic, before any pose scale. */
     private static float restingHalf(OrbCase orb) {
         if (isGlow(orb.shape())) {
-            GlowCrystalBlock.CrystalSize size = GlowCrystalBlock.CrystalSize.TINY;
-            return (float) ((size.max - size.min) / 2);
+            return (float) (GlowCrystalBlock.lateralExtent() / 2);
         }
         float core = MarkerOrbVisual.CORE_BASE;
         return orb.shell() ? core + MarkerOrbVisual.SHELL_MARGIN : core;
@@ -88,7 +87,7 @@ class MarkerOrbVisualTest {
     private static float outwardDepth(OrbCase orb) {
         return switch (orb.shape()) {
             case GOO -> restingHalf(orb) * orb.modifier();
-            case GLOW_BUMP -> (float) GlowCrystalBlock.BUMP_DEPTH;
+            case GLOW_BUMP -> (float) GlowCrystalBlock.DEPTH;
         };
     }
 

@@ -31,16 +31,20 @@ import com.mercuriusxeno.goo.client.ability.ZapBolts;
 import com.mercuriusxeno.goo.client.ber.*;
 import com.mercuriusxeno.goo.client.ber.style.AgitatorPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlacialPrismStyle;
+import com.mercuriusxeno.goo.client.ber.style.GlowBeaconStyle;
+import com.mercuriusxeno.goo.client.ber.style.GlowReflectorStyle;
 import com.mercuriusxeno.goo.client.ber.style.HivePrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.OculusStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyles;
 import com.mercuriusxeno.goo.client.ber.style.PulsePrismStyle;
+import com.mercuriusxeno.goo.client.ber.style.TimekeeperPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.VerdantPrismStyle;
 import com.mercuriusxeno.goo.client.entity.CompressionSphereRenderer;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.overlay.AimTracker;
+import com.mercuriusxeno.goo.client.overlay.TickSplashes;
 import com.mercuriusxeno.goo.client.particle.*;
 import com.mercuriusxeno.goo.client.radial.CutItemRenderer;
 import com.mercuriusxeno.goo.client.sound.FadingLoops;
@@ -138,6 +142,8 @@ public final class GooClientSetup {
     public static void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
         registerMachineRenderers(event);
         registerEffectRenderers(event);
+        // timekeeper-prism-banks-ticks-forward-only
+        PrismComboStyles.register(TimekeeperPrismStyle.COMBO, new TimekeeperPrismStyle());
         // verdant-prism-greens-blocks-slowly: a verdant prism draws its crystal leaf-green
         PrismComboStyles.register(VerdantPrismStyle.COMBO, new VerdantPrismStyle());
         // agitator-prism-quickens-until-a-spawn
@@ -195,6 +201,9 @@ public final class GooClientSetup {
         event.registerBlockEntityRenderer(GooBlockEntities.ABILITY_BLOCK.get(),
                 AbilityBlockRenderer::new);
         event.registerBlockEntityRenderer(GooBlockEntities.PRISM.get(), PrismRenderer::new);
+        event.registerBlockEntityRenderer(GooBlockEntities.WISP.get(), WispRenderer::new);
+        PrismComboStyles.register(GlowBeaconStyle.COMBO, new GlowBeaconStyle());
+        PrismComboStyles.register(GlowReflectorStyle.COMBO, new GlowReflectorStyle());
         PrismComboStyles.register(HivePrismStyle.COMBO, new HivePrismStyle());
         event.registerBlockEntityRenderer(GooBlockEntities.DRAGON_GATE.get(), DragonGateRenderer::new);
         // oculus-prism-becomes-a-hovering-eye: an oculus prism draws as the hovering eye
@@ -451,6 +460,7 @@ public final class GooClientSetup {
         BlockTransforms.CLIENT.clear();
         Afterimages.CLIENT.clear();
         Transformations.CLIENT.clear();
+        TickSplashes.CLIENT.clear();
         GhostTrails.CLIENT.clear();
         ViewportRipples.CLIENT.clear();
         ThrowFreezeState.clear();

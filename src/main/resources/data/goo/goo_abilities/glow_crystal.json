@@ -11,12 +11,12 @@
     {
       "type": "place_block",
       "block": "goo:glow_crystal",
-      "state": {
-        "facing": "face",
-        "shape": "bump",
-        "size": "tiny"
-      }
+      "state": { "facing": "face" }
     }
+  ],
+  "on_prism": [
+    { "type": "set_state", "state": { "lit": "true" } },
+    { "type": "sound", "id": "minecraft:block.beacon.activate", "at": "host", "source": "blocks", "volume": 1, "pitch": 1.2 }
   ],
   "tags": ["place_block", "instant"]
 }

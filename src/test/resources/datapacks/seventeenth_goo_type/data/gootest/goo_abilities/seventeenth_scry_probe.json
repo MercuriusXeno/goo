@@ -1,0 +1,18 @@
+{
+  "gooType": "gootest:seventeenth",
+  "displayName": "goo.ability.gootest.seventeenth_scry_probe",
+  "badge": "channeled",
+  "order": 40,
+  "cost": 1000,
+  "delivery": { "kind": "self", "ticks_per_charge": 20 },
+  "behaviors": [
+    {
+      "type": "scry",
+      "growth": 1,
+      "reach": 48,
+      "where": ["living"],
+      "steps": [ { "type": "damage", "amount": 3, "source": "magic" } ]
+    }
+  ],
+  "tags": ["self"]
+}

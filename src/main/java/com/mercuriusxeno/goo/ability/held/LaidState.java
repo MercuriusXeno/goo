@@ -2,9 +2,11 @@ package com.mercuriusxeno.goo.ability.held;
 
 import com.mercuriusxeno.goo.ability.program.AirbornStep;
 import com.mercuriusxeno.goo.ability.program.ExtenderStep;
+import com.mercuriusxeno.goo.ability.program.HasteStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
 import com.mercuriusxeno.goo.ability.program.LifetapStep;
 import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
+import com.mercuriusxeno.goo.ability.program.LuxStep;
 import com.mercuriusxeno.goo.ability.program.NourishStep;
 import com.mercuriusxeno.goo.ability.program.SightStep;
 import com.mercuriusxeno.goo.ability.program.Step;
@@ -31,6 +33,8 @@ public enum LaidState {
     NOURISH,
     /** Fungal sight (decision sight-lengthens-shift-and-outlines-fungus). */
     SIGHT,
+    /** Lux's night vision and gaze glisten (decision lux-night-vision-without-particles). */
+    LUX,
     /** Counting as undead (decision undead-nether-hearts-burn-in-sunlight). */
     UNDEAD,
     /** Teleportitis (decision teleportitis-blinks-along-the-cursor-on-hit). */
@@ -39,6 +43,8 @@ public enum LaidState {
     EXTENDER,
     /** A lifetap (decision lifetap-trades-regen-for-leech). */
     LIFETAP,
+    /** Haste's golden overlay (decision haste-stacks-speed-under-the-golden-overlay). */
+    HASTE,
     /** Air control (decision airborn-steerable-levitation-and-soft-falls). */
     AIRBORN;
 
@@ -71,10 +77,12 @@ public enum LaidState {
             HeartOverlayStep.class, HEART_OVERLAY,
             NourishStep.class, NOURISH,
             SightStep.class, SIGHT,
+            LuxStep.class, LUX,
             UndeadStep.class, UNDEAD,
             TeleportitisStep.class, TELEPORTITIS,
             ExtenderStep.class, EXTENDER,
             LifetapStep.class, LIFETAP,
+            HasteStep.class, HASTE,
             AirbornStep.class, AIRBORN);
 
     private static Stream<Step> withDescendants(Step step) {

@@ -54,11 +54,13 @@ public final class BrewEffectTests {
     private static final float AIRBORN_JET_BOOST = 1.5f;
     private static final String SHOULD_BE_AIRBORN =
             "The typhoon brew should grant Airborn at jet boost %.1f until %d, granted %.1f until %d";
+    private static final String SHOULD_LUX = "The glow brew should grant Lux until %d, granted until %d";
     /** hex_lifetap.json's fraction. */
     private static final float LIFETAP_FRACTION = 0.3f;
     private static final String SHOULD_LIFETAP = "The hex brew should lifetap at %.2f until %d, granted %.2f until %d";
     private static final String SHOULD_SEE = "The shroom brew should grant sight at %.1f until %d, granted %.1f until %d";
     private static final String SHOULD_SHOW_NO_PARTICLES = "A brew should show its icon and no particles, stands %s";
+    private static final String SHOULD_HASTE = "The aeon brew should raise speed and mining speed for %d ticks, stands %s";
     private static final String SHOULD_NOURISH = "The vital brew should nourish until %d, nourishes until %d";
     private static final String SHOULD_RUN_NOTHING = "A brew of a type with no brew ability should lay nothing, laid %s";
     private static final String SHOULD_HOLD_PREPAID = "The blaze brew should hold Kindle prepaid until %d, held %s";
@@ -246,6 +248,54 @@ public final class BrewEffectTests {
     }
 
     /**
+     * Drinking the glow brew grants Lux for an hour, draining no goo
+     * (decisions lux-night-vision-without-particles, brew-runs-the-crawl-prepaid-on-a-shown-clock).
+     *
+     * @param helper the gametest helper
+     */
+    public static void glowBrewLuxForAnHour(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.GLOW);
+        int heldBefore = held(player, GooTypes.GLOW);
+        long now = player.level().getGameTime();
+
+        drink(player, GooTypes.GLOW);
+
+        long expiresAt = player.getData(GooAttachments.LUX).expiresAt();
+        int drained = heldBefore - held(player, GooTypes.GLOW);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        long expected = now + GooPotions.BREW_DURATION;
+        helper.assertTrue(expiresAt == expected, String.format(SHOULD_LUX, expected, expiresAt));
+        helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
+        helper.succeed();
+    }
+
+    /**
+     * Drinking the aeon brew hastes the player for an hour: the aeon brew is
+     * the one effect it wears, for the brew's duration with no particles,
+     * and it moves and mines faster, draining no goo
+     * (decision haste-stacks-speed-under-the-golden-overlay).
+     *
+     * @param helper the gametest helper
+     */
+    public static void aeonBrewHastesForAnHour(GameTestHelper helper) {
+        ServerPlayer player = drinker(helper, GooTypes.AEON);
+        int heldBefore = held(player, GooTypes.AEON);
+
+        drink(player, GooTypes.AEON);
+
+        MobEffectInstance brew = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.AEON));
+        String wrongEffects = HasteChecks.onlyTheAeonBrew(player);
+        boolean hasted = HasteChecks.hasted(player);
+        int drained = heldBefore - held(player, GooTypes.AEON);
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(wrongEffects.isEmpty(), wrongEffects);
+        helper.assertTrue(hasted && brew != null && brew.getDuration() == GooPotions.BREW_DURATION,
+                String.format(SHOULD_HASTE, GooPotions.BREW_DURATION, brew));
+        helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
+        helper.succeed();
+    }
+
+    /**
      * Drinking the ender brew grants teleportitis at ender_teleportitis.json's
      * distance for an hour, draining no goo
      * (decision teleportitis-blinks-along-the-cursor-on-hit).
@@ -363,18 +413,18 @@ public final class BrewEffectTests {
     }
 
     /**
-     * Drinking the aeon brew, a type with no brew ability yet, holds the
+     * Drinking the metal brew, a type with no brew ability yet, holds the
      * effect and lays no hearts.
      *
      * @param helper the gametest helper
      */
     public static void brewWithoutAnAbilityRunsNothing(GameTestHelper helper) {
-        ServerPlayer player = drinker(helper, GooTypes.AEON);
-        drink(player, GooTypes.AEON);
+        ServerPlayer player = drinker(helper, GooTypes.METAL);
+        drink(player, GooTypes.METAL);
         HeartOverlay overlay = player.getData(GooAttachments.HEART_OVERLAY);
-        MobEffectInstance standing = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.AEON));
+        MobEffectInstance standing = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.METAL));
         helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(standing != null, String.format(SHOULD_HOLD_EFFECT, GooTypes.AEON.identifier(),
+        helper.assertTrue(standing != null, String.format(SHOULD_HOLD_EFFECT, GooTypes.METAL.identifier(),
                 GooPotions.BREW_DURATION, standing));
         helper.assertFalse(overlay.stands(), String.format(SHOULD_RUN_NOTHING, overlay));
         helper.succeed();

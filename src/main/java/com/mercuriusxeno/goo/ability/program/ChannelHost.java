@@ -20,8 +20,10 @@ public interface ChannelHost extends BlockBreakHost {
      * A sprayed program's top-level steps split by the pass they run in:
      * those needing the channel run once a tick over the cone's blocks, and
      * the rest run on each living thing the spray reaches, a stream's cone
-     * and a spored corpse's burst alike.
+     * and a spored corpse's burst alike. A step ticking the aimed block runs
+     * in the block pass too.
      * mycosis-grows-and-reaps-nether-wart
+     * tick-channel-marches-squares-on-the-face
      *
      * @param behaviors the program's top-level steps
      * @param blockPass true for the block pass's steps, false for the entity pass's
@@ -29,8 +31,13 @@ public interface ChannelHost extends BlockBreakHost {
      */
     static List<Step> passSteps(List<Step> behaviors, boolean blockPass) {
         return behaviors.stream()
-                .filter(step -> step.requires().contains(HostCapability.CHANNEL) == blockPass)
+                .filter(step -> runsInBlockPass(step) == blockPass)
                 .toList();
+    }
+
+    private static boolean runsInBlockPass(Step step) {
+        Set<HostCapability> needs = step.requires();
+        return needs.contains(HostCapability.CHANNEL) || needs.contains(HostCapability.TICK_BLOCK);
     }
 
     /**

@@ -74,6 +74,18 @@ class MobAilmentsTest {
             assertTrue(ailments.ailmentsOf(MOB, LAND_TICK).isEmpty(), "an ended ailment was kept");
         }
 
+        // stasis-holds-mob-with-golden-shimmer
+        @Test
+        void aLandingOfNoDurationEndsTheAilmentAtOnce() {
+            MobAilments ailments = hexedAt(LAND_TICK);
+            ailments.afflict(MOB, AilmentKind.STASIS, LAND_TICK, DURATION);
+
+            ailments.afflict(MOB, AilmentKind.STASIS, LAND_TICK + 1, 0);
+
+            assertEquals(List.of(new MobAilments.Worn(AilmentKind.HEX, DURATION - 1)),
+                    ailments.ailmentsOf(MOB, LAND_TICK + 1));
+        }
+
         @Test
         void overlayIsWholeUntilTheFadeThenFallsToNothing() {
             assertEquals(1f, MobAilments.strength(DURATION));

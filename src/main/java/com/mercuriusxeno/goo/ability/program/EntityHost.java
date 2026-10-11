@@ -25,11 +25,25 @@ import java.util.function.Consumer;
  * @param level   the server level
  * @param target  the struck entity
  * @param thrower the entity that threw the goo, or null when unknown
+ * @param share   the share of the hit the target takes, one for a direct hit
  */
-public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entity thrower)
+public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entity thrower, double share)
         implements TargetHost, ExplodeHost, EntityScanHost {
 
     private static final double BODY_CENTER = 0.5;
+    /** The share a direct hit takes: all of it. */
+    public static final double WHOLE_HIT = 1;
+
+    /**
+     * The host of a direct hit, which takes the whole of it.
+     *
+     * @param level   the server level
+     * @param target  the struck entity
+     * @param thrower the entity that threw, or null
+     */
+    public EntityHost(ServerLevel level, LivingEntity target, @Nullable Entity thrower) {
+        this(level, target, thrower, WHOLE_HIT);
+    }
 
     @Override
     public HostKind kind() {
@@ -53,7 +67,21 @@ public record EntityHost(ServerLevel level, LivingEntity target, @Nullable Entit
             case HostVariables.MAX_HEALTH -> OptionalDouble.of(target.getMaxHealth());
             case HostVariables.DISTANCE -> OptionalDouble.of(distanceFromThrower());
             case HostVariables.UNDEAD -> flag(target.isInvertedHealAndHarm());
+            default -> readOther(name);
+        };
+    }
+
+    /**
+     * Reads the variables past the target's health and kind: whether it
+     * sprints, the share of the hit it takes, and its counters.
+     *
+     * @param name the variable name
+     * @return the value, or empty for a name bound to none
+     */
+    private OptionalDouble readOther(String name) {
+        return switch (name) {
             case HostVariables.SPRINTING -> flag(isSprintingPlayer());
+            case HostVariables.SHARE -> OptionalDouble.of(share);
             default -> readCounter(name);
         };
     }

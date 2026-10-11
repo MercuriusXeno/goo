@@ -44,15 +44,24 @@ public final class MobAilments {
     }
 
     /**
-     * An entity starts wearing an ailment, or wears it longer.
+     * An entity starts wearing an ailment, or wears it longer; a landing of
+     * no duration ends the ailment at once, as a stasis mob struck free does.
+     * stasis-holds-mob-with-golden-shimmer
      *
      * @param entityId      the entity's id
      * @param kind          the ailment
      * @param tick          the game tick it lands
-     * @param durationTicks how long it lasts
+     * @param durationTicks how long it lasts, zero to end it
      */
     public void afflict(int entityId, AilmentKind kind, long tick, int durationTicks) {
         dropEnded(tick);
+        if (durationTicks <= 0) {
+            Map<AilmentKind, Long> worn = endTicks.get(entityId);
+            if (worn != null) {
+                worn.remove(kind);
+            }
+            return;
+        }
         endTicks.computeIfAbsent(entityId, id -> new EnumMap<>(AilmentKind.class))
                 .merge(kind, tick + durationTicks, Math::max);
     }

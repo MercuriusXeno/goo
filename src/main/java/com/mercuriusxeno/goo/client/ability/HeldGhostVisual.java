@@ -32,6 +32,17 @@ public interface HeldGhostVisual {
     }
 
     /**
+     * The ghost a cast sized by its drag holds: by default its dome at the
+     * radius dragged, its rings traveling outward to it.
+     *
+     * @param radius the radius the drag sets, in blocks
+     * @return the ghost
+     */
+    default HeldGhost sizedGhost(float radius) {
+        return HeldGhost.outwardTo(radius);
+    }
+
+    /**
      * @return the layers the ghost draws, in order, each in both passes
      */
     List<HeldLayer> heldLayers();

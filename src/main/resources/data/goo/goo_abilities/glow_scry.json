@@ -1,0 +1,22 @@
+{
+  "gooType": "glow",
+  "displayName": "goo.ability.glow.scry",
+  "badge": "channeled",
+  "order": 20,
+  "cost": 200,
+  "requires": ["minecraft:spyglass"],
+  "delivery": { "kind": "self", "ticks_per_charge": 20 },
+  "behaviors": [
+    {
+      "type": "scry",
+      "growth": 1,
+      "reach": 96,
+      "fade": 20,
+      "where": ["living"],
+      "steps": [
+        { "type": "ailment_overlay", "kind": "glow", "duration": 200 }
+      ]
+    }
+  ],
+  "tags": ["self"]
+}
