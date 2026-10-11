@@ -1,0 +1,19 @@
+{
+  "gooType": "typhoon",
+  "displayName": "goo.ability.typhoon.updraft",
+  "badge": "world",
+  "order": 30,
+  "cost": 1000,
+  "requires": ["minecraft:breeze_rod"],
+  "delivery": { "kind": "arc" },
+  "area": { "shape": "column", "size": 8.0, "width": 1.0 },
+  "behaviors": [
+    {
+      "type": "linger",
+      "steps": [
+        { "type": "updraft", "radius": 1, "height": 8, "speed": 0.4, "duration": 200 }
+      ]
+    }
+  ],
+  "tags": []
+}
