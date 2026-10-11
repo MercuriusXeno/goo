@@ -158,6 +158,7 @@ class StepCodecTest {
             Map.entry("teleportitis", new TeleportitisStep(Expr.literal(8))),
             Map.entry("convoke", new ConvokeStep(GooTypes.DEEP, Expr.literal(20))),
             Map.entry("dive", new DiveStep(Expr.literal(16))),
+            Map.entry("churn", new ChurnStep(Expr.literal(12))),
             Map.entry("dragon_gate", new DragonGateStep(Expr.literal(1200))),
             Map.entry("bloom", new BloomStep(Expr.literal(4), Expr.literal(8), Expr.literal(64))),
             Map.entry("tick_plants", new TickPlantsStep()),

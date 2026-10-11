@@ -100,6 +100,11 @@ public enum HostCapability {
      */
     CONVOKE(ConvokeHost.class),
     /**
+     * A column under the landed block that can churn (decision
+     * churn-rotates-a-plus-shaped-column).
+     */
+    CHURN(ChurnHost.class),
+    /**
      * A struck surface a Dragon Gate can open over (decision
      * dragon-gate-banishes-blocks-and-opens-a-portal).
      */
