@@ -545,6 +545,9 @@ public final class GooTestFunctions {
     private static final String SUNBEAM_BURNS_THE_UNDEAD_IT_STRIKES = "sunbeam_burns_the_undead_it_strikes";
     private static final String CHARM_TURNS_ZOMBIE = "charm_turns_zombie_on_skeleton";
     private static final String CHARMED_SLIME_SPARES = "charmed_slime_spares_its_charmer";
+    private static final String CHARM_HAS_NO_EXPIRY = "charm_has_no_expiry";
+    private static final String CHARM_BREAKS_ON_THE_CHARMERS_HIT = "charm_breaks_on_the_charmers_hit";
+    private static final String CHARM_SURVIVES_ANOTHER_HIT = "charm_survives_another_hit";
     private static final String ENCHANT_GIVES_BOOK = "enchant_gives_one_level_one_book";
     private static final String FUSE_TWO_SHARPNESS_ONE = "fuse_two_sharpness_one";
     private static final String FUSE_WITHOUT_PAIR = "fuse_without_pair_costs_nothing";
@@ -1110,6 +1113,9 @@ public final class GooTestFunctions {
         reg(r, SUNBEAM_BURNS_THE_UNDEAD_IT_STRIKES, SunbeamChannelTests::sunbeamBurnsTheUndeadItStrikes);
         reg(r, CHARM_TURNS_ZOMBIE, MobEffectTests::charmTurnsZombieOnSkeleton);
         reg(r, CHARMED_SLIME_SPARES, MobEffectTests::charmedSlimeSparesItsCharmer);
+        reg(r, CHARM_HAS_NO_EXPIRY, MobEffectTests::charmHasNoExpiry);
+        reg(r, CHARM_BREAKS_ON_THE_CHARMERS_HIT, MobEffectTests::charmBreaksOnTheCharmersHit);
+        reg(r, CHARM_SURVIVES_ANOTHER_HIT, MobEffectTests::charmSurvivesAnotherHit);
         reg(r, ENCHANT_GIVES_BOOK, HexSelfTests::enchantGivesOneLevelOneBook);
         reg(r, FUSE_TWO_SHARPNESS_ONE, HexSelfTests::fuseTwoSharpnessOne);
         reg(r, FUSE_WITHOUT_PAIR, HexSelfTests::fuseWithoutPairCostsNothing);
