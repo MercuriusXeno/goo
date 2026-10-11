@@ -1,0 +1,23 @@
+{
+  "light_level": 0,
+  "saturation_fill": 0.5,
+  "wheel": "B5793A",
+  "bright": "E0A060",
+  "highlight": "CC8C4C",
+  "edge": "D89858",
+  "density": 1000,
+  "viscosity": 1000,
+  "temperature": 300,
+  "extinguishes": false,
+  "levity": 1.0,
+  "base_flight_time": 3,
+  "map_color": "color_brown",
+  "textures": {
+    "goo_tiny": "goo:item/zoo_goo_tiny",
+    "goo_small": "goo:item/zoo_goo_small",
+    "goo_base": "goo:item/zoo_goo_base",
+    "goo_large": "goo:item/zoo_goo_large",
+    "fluid_still": "goo:fluid/zoo_fluid",
+    "fluid_flowing": "goo:fluid/zoo_fluid"
+  }
+}
