@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.AfterimageStep;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
 import com.mercuriusxeno.goo.ability.program.AilmentOverlayStep;
+import com.mercuriusxeno.goo.ability.program.AirbornStep;
 import com.mercuriusxeno.goo.ability.program.BranchStep;
 import com.mercuriusxeno.goo.ability.program.CharmStep;
 import com.mercuriusxeno.goo.ability.program.Expr;
@@ -148,6 +149,17 @@ class AbilityLoaderTest {
             Identifier fileId = AbilityJson.idOf(file.getFileName().toString());
             assertEquals(fileId, scanned.get(fileId).id(), file.getFileName().toString());
         }
+    }
+
+    // decision airborn-steerable-levitation-and-soft-falls
+    @Test
+    void typhoonAirbornNamesItsGlideSpeedAndSteer() {
+        AirbornStep airborn = AbilityJson.decode("typhoon_airborn").behaviors().stream()
+                .filter(AirbornStep.class::isInstance).map(AirbornStep.class::cast).findFirst().orElseThrow();
+
+        assertEquals(Expr.literal(1.2), airborn.glideSpeed());
+        assertEquals(Expr.literal(0.05), airborn.glideSteer());
+        assertEquals(Expr.literal(1.5), airborn.jetBoost());
     }
 
     // decision splat-runs-the-program-no-fuse

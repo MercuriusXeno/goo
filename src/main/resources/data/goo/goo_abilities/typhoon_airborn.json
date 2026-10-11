@@ -6,7 +6,8 @@
   "upkeep": 1,
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "airborn", "air_speed": 0.35, "air_steer": 0.15, "fall_cap": 0.4, "jump_boost": 0.5, "jet_boost": 1.5 },
+    { "type": "airborn", "air_speed": 0.35, "air_steer": 0.15, "fall_cap": 0.4, "jump_boost": 0.5, "jet_boost": 1.5,
+      "glide_speed": 1.2, "glide_steer": 0.05 },
     { "type": "sound", "id": "minecraft:entity.breeze.inhale", "at": "target", "source": "players", "volume": 0.8, "pitch": 1 }
   ],
   "tags": ["self"]
