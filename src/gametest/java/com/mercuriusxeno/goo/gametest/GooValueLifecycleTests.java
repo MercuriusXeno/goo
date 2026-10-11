@@ -7,13 +7,27 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.Items;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * The goo value registry lives for its server's life: a stop drops it, and
  * the next start stands a fresh one that reads values again
  * (decision type-package-and-per-server-holders).
  */
+@RegistersGameTests
 public final class GooValueLifecycleTests {
+    private static final String VALUES_FRESH_AFTER_STOP = "values_fresh_after_stop";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, VALUES_FRESH_AFTER_STOP, GooValueLifecycleTests::freshRegistryReadsAfterStop);
+    }
+
 
     private static final String STOPPED_KEPT_VALUES = "A stopped server should answer no goo values";
     private static final String START_REUSED_REGISTRY = "A start should stand a fresh registry, not the stopped one";

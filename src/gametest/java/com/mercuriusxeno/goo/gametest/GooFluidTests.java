@@ -16,6 +16,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.material.FluidState;
 import net.neoforged.neoforge.fluids.FluidType;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for the one generic goo fluid (decision generic-goo-fluids): a
@@ -23,7 +25,21 @@ import net.neoforged.neoforge.fluids.FluidType;
  * two types side by side stay themselves, and the fluid type's positional
  * density, viscosity, temperature and extinguishing read the stamped type.
  */
+@RegistersGameTests
 public final class GooFluidTests {
+    private static final String FLUID_TYPES_SIDE_BY_SIDE = "fluid_types_side_by_side";
+    private static final String FLUID_FIELDS_STAMPED = "fluid_fields_stamped";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, FLUID_TYPES_SIDE_BY_SIDE, GooFluidTests::placedTypesStaySideBySide);
+        GooTestFunctions.registerTest(registrar, FLUID_FIELDS_STAMPED, GooFluidTests::fluidFieldsReadStampedType);
+    }
+
 
     private static final BlockPos BLAZE_POS = new BlockPos(1, 2, 1);
     private static final BlockPos FROST_POS = BLAZE_POS.east();

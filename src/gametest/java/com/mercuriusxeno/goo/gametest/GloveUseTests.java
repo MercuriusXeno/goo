@@ -6,12 +6,26 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametest for the glove's right click entering no visible using state
  * (decision use-animation-only-when-goo-throws).
  */
+@RegistersGameTests
 public final class GloveUseTests {
+    private static final String GLOVE_CLICK_NO_USING_STATE = "glove_click_no_using_state";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, GLOVE_CLICK_NO_USING_STATE, GloveUseTests::rightClickEntersNoUsingState);
+    }
+
 
     private static final String REMOVAL = "removal";
     private static final String USING = "A right click with the glove should leave the player out of the using state";

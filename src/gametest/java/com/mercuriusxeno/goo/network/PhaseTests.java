@@ -12,6 +12,10 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Phase keeps the phased on their own plane: a zombie's hit on a phased
@@ -19,7 +23,21 @@ import net.minecraft.world.entity.Mob;
  * while a phased player's hit on a zombie the phase shift struck lands.
  * phase-shares-a-plane-between-the-phased
  */
+@RegistersGameTests
 public final class PhaseTests {
+    private static final String PHASED_PLAYER_IGNORED = "phased_player_ignored_by_zombie";
+    private static final String PHASED_PAIR_HURT = "phased_pair_hurt_each_other";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, PHASED_PLAYER_IGNORED, PhaseTests::phasedPlayerIgnoredByZombie);
+        GooTestFunctions.registerTest(registrar, PHASED_PAIR_HURT, PhaseTests::phasedPairHurtEachOther);
+    }
+
 
     private static final Identifier PHASE = Identifier.parse("goo:quantum_phase");
     private static final String PHASE_SHIFT = "goo:quantum_phase_shift";

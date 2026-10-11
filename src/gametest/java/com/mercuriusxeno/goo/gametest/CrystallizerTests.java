@@ -57,6 +57,7 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.Set;
 import java.util.UUID;
+import net.neoforged.neoforge.registries.RegisterEvent;
 
 /**
  * Gametests for the crystallizer (decision crystallizer-emits-chrysm): two
@@ -66,7 +67,66 @@ import java.util.UUID;
  * canister block on a crystallizer takes canisters only in the crystallizer's two
  * slots, laid out at the crystallizer's own centers.
  */
+@RegistersGameTests
 public final class CrystallizerTests {
+    private static final String CRYSTALLIZER_CRYSTAL_FIRST = "crystallizer_crystal_first_then_ender";
+    private static final String CRYSTALLIZER_EITHER_SLOT = "crystallizer_either_slot_holds_crystal";
+    private static final String CRYSTALLIZER_TWO_CRYSTAL = "crystallizer_two_crystal_grow_crystal";
+    private static final String CRYSTALLIZER_TAKES_ONLY_TWO_SLOTS = "crystallizer_takes_only_two_slots";
+    private static final String CRYSTALLIZER_CANISTERS_AT_ITS_CENTERS = "crystallizer_canisters_at_its_centers";
+    private static final String CRYSTALLIZER_ADVANCES_TO_BUDDING_CHRYSM = "crystallizer_advances_to_budding_chrysm";
+    private static final String CRYSTALLIZER_SMALL_DIAL_HOLDS = "crystallizer_small_dial_holds";
+    private static final String CRYSTALLIZER_DIAL_WRAPS = "crystallizer_dial_wraps";
+    private static final String CRYSTALLIZER_PAUSES_WITHOUT_CRYSTAL = "crystallizer_pauses_without_crystal";
+    private static final String CRYSTALLIZER_PART_GROWN_NOT_CLICKABLE = "crystallizer_part_grown_not_clickable";
+    private static final String CRYSTALLIZER_DIAL_KEEPS_GROWING = "crystallizer_dial_keeps_growing";
+    private static final String CRYSTALLIZER_OFF_PAUSES = "crystallizer_off_pauses";
+    private static final String CRYSTALLIZER_HANDS_THE_EXCESS = "crystallizer_hands_the_excess";
+    private static final String CRYSTALLIZER_ANY_ITEM_TAKES = "crystallizer_any_item_takes";
+    private static final String CRYSTALLIZER_PASSES_OTHER_CLICKS = "crystallizer_passes_other_clicks";
+    private static final String CRYSTALLIZER_CANISTER_SOUNDS = "crystallizer_canister_sounds";
+    private static final String CRYSTALLIZER_POUR_AIMED_ONLY = "crystallizer_pour_aimed_only";
+    private static final String CRYSTALLIZER_ONE_GROWING_GOO = "crystallizer_one_growing_goo";
+    private static final String CRYSTALLIZER_GASKET_FILLS_CANISTER = "crystallizer_gasket_fills_canister";
+    private static final String CRYSTALLIZER_CLICK_CRYSTAL = "crystallizer_click_crystal";
+    private static final String CRYSTALLIZER_EVEN_PACE = "crystallizer_even_pace";
+    private static final String CRYSTALLIZER_STANDING_AIM_TAKES = "crystallizer_standing_aim_takes_";
+    private static final String CRYSTALLIZER_OFF_CRYSTALLIZES_NOTHING = "crystallizer_off_crystallizes_nothing";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, CRYSTALLIZER_CRYSTAL_FIRST, CrystallizerTests::crystalFirstThenEnder);
+        GooTestFunctions.registerTest(registrar, CRYSTALLIZER_EITHER_SLOT, CrystallizerTests::eitherSlotHoldsTheCrystal);
+        GooTestFunctions.registerTest(registrar, CRYSTALLIZER_TWO_CRYSTAL, CrystallizerTests::twoCrystalCanistersGrowCrystal);
+        GooTestFunctions.registerTest(registrar, CRYSTALLIZER_TAKES_ONLY_TWO_SLOTS, CrystallizerTests::canisterBlockAboveTakesOnlyTheTwoSlots);
+        GooTestFunctions.registerTest(registrar, CRYSTALLIZER_CANISTERS_AT_ITS_CENTERS, CrystallizerTests::canisterBlockOnCrystallizerStandsAtItsCenters);
+        GooTestFunctions.registerTest(registrar, CRYSTALLIZER_ADVANCES_TO_BUDDING_CHRYSM, CrystallizerTests::advancesToBuddingChrysm);
+        GooTestFunctions.registerTest(registrar, CRYSTALLIZER_SMALL_DIAL_HOLDS, CrystallizerTests::smallDialHoldsAtChrysm);
+        GooTestFunctions.registerTest(registrar, CRYSTALLIZER_DIAL_WRAPS, CrystallizerTests::dialClickWrapsFromLargeToSmall);
+        GooTestFunctions.registerTest(registrar, CRYSTALLIZER_PAUSES_WITHOUT_CRYSTAL, CrystallizerTests::pausesWithoutCrystal);
+        GooTestFunctions.registerTest(registrar, CRYSTALLIZER_PART_GROWN_NOT_CLICKABLE, CrystallizerTests::partGrownCrystalIsNotClickable);
+        GooTestFunctions.registerTest(registrar, CRYSTALLIZER_DIAL_KEEPS_GROWING, CrystallizerTests::dialStepKeepsAGrowingCrystal);
+        GooTestFunctions.registerTest(registrar, CRYSTALLIZER_OFF_PAUSES, CrystallizerTests::offPausesAGrowingCrystal);
+        GooTestFunctions.registerTest(registrar, CRYSTALLIZER_HANDS_THE_EXCESS, CrystallizerTests::clickHandsTheDialsTierAndTheExcess);
+        GooTestFunctions.registerTest(registrar, CRYSTALLIZER_ANY_ITEM_TAKES, CrystallizerTests::anyHeldItemTakesTheCrystal);
+        GooTestFunctions.registerTest(registrar, CRYSTALLIZER_PASSES_OTHER_CLICKS, CrystallizerTests::clicksItDoesNotOwnPass);
+        GooTestFunctions.registerTest(registrar, CRYSTALLIZER_CANISTER_SOUNDS, CrystallizerTests::eachCanisterPlacedPlaysASound);
+        GooTestFunctions.registerTest(registrar, CRYSTALLIZER_POUR_AIMED_ONLY, CrystallizerTests::aPourFillsOnlyTheAimedCanister);
+        GooTestFunctions.registerTest(registrar, CRYSTALLIZER_ONE_GROWING_GOO, CrystallizerTests::oneCanisterHoldsTheGrowingGoo);
+        GooTestFunctions.registerTest(registrar, CRYSTALLIZER_GASKET_FILLS_CANISTER, CrystallizerTests::gasketFillsTheIngredientCanister);
+        GooTestFunctions.registerTest(registrar, CRYSTALLIZER_CLICK_CRYSTAL, CrystallizerTests::clickingTheCrystalTakesTheChrysm);
+        GooTestFunctions.registerTest(registrar, CRYSTALLIZER_EVEN_PACE, CrystallizerTests::crystallizesAtAnEvenPace);
+        for (ChrysmTier tier : ChrysmTier.values()) {
+            GooTestFunctions.registerTest(registrar, CRYSTALLIZER_STANDING_AIM_TAKES + tier.registryPath(),
+                    helper -> standingAimTakesTheCrystal(helper, tier));
+        }
+        GooTestFunctions.registerTest(registrar, CRYSTALLIZER_OFF_CRYSTALLIZES_NOTHING, CrystallizerTests::offCrystallizesNothing);
+    }
+
 
     private static final BlockPos SENDER_POS = new BlockPos(1, 1, 1);
     private static final BlockPos CRYSTALLIZER_POS = new BlockPos(3, 1, 1);

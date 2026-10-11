@@ -12,12 +12,26 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for the glove's goo scan over the inventory: a hub item carrying filled
  * canisters is a goo source (decision diagnose-then-fix-overlay-and-scan).
  */
+@RegistersGameTests
 public final class GooSourceScannerTests {
+    private static final String IX_HUB_ITEM_IS_GOO_SOURCE = "ix_hub_item_is_goo_source";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, IX_HUB_ITEM_IS_GOO_SOURCE, GooSourceScannerTests::hubItemIsAGooSource);
+    }
+
 
     private static final ResourceKey<GooTypeDefinition> ROCK = GooTypes.ROCK;
     private static final ResourceKey<GooTypeDefinition> NETHER = GooTypes.NETHER;

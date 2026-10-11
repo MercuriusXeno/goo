@@ -20,6 +20,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for the attack key: a press with a glove, a mob ability and an
@@ -29,7 +33,23 @@ import org.jspecify.annotations.Nullable;
  * (decision attack-key-touches-plus-punches). The target is a villager,
  * which wears no armor to shave the melee hit.
  */
+@RegistersGameTests
 public final class AttackTouchTests {
+    private static final String MOB_METAL_TOUCH_THEN_MELEE = "mob_metal_javelin_touch_then_melee";
+    private static final String MOB_METAL_MELEE_THEN_TOUCH = "mob_metal_javelin_melee_then_touch";
+    private static final String MOB_ATTACK_STAYS_VANILLA = "mob_attack_stays_vanilla";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, MOB_METAL_TOUCH_THEN_MELEE, AttackTouchTests::touchThenMeleeLandInFull);
+        GooTestFunctions.registerTest(registrar, MOB_METAL_MELEE_THEN_TOUCH, AttackTouchTests::meleeThenTouchLandInFull);
+        GooTestFunctions.registerTest(registrar, MOB_ATTACK_STAYS_VANILLA, AttackTouchTests::attackStaysVanilla);
+    }
+
 
     private static final BlockPos MOB_POS = new BlockPos(3, 1, 3);
     /** Two blocks west of the mob, inside a player's reach of three. */

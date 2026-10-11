@@ -9,6 +9,8 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.PointedDripstoneBlock;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for rock petrify's tap: drips landing on gravel build progress
@@ -17,7 +19,21 @@ import net.minecraft.world.level.block.PointedDripstoneBlock;
  * a dripstone block grow a pointed dripstone tip under it
  * (decision petrify-drip-calcifies-and-grows-dripstone).
  */
+@RegistersGameTests
 public final class PetrifyTapTests {
+    private static final String PETRIFY_TAP_CALCIFIES = "petrify_tap_calcifies";
+    private static final String PETRIFY_TAP_GROWS_DRIPSTONE = "petrify_tap_grows_dripstone";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, PETRIFY_TAP_CALCIFIES, PetrifyTapTests::petrifyTapCalcifies);
+        GooTestFunctions.registerTest(registrar, PETRIFY_TAP_GROWS_DRIPSTONE, PetrifyTapTests::petrifyTapGrowsDripstone);
+    }
+
 
     /** rock_petrify_tap.json's drip count. */
     private static final int DRIPS = 8;

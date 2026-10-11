@@ -23,6 +23,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import java.util.Optional;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for the oculus prism as a blink node: a player looking at an
@@ -30,7 +34,21 @@ import java.util.Optional;
  * or not, and every blink to an oculus costs a tenth of its price
  * (decision oculus-prism-becomes-a-hovering-eye).
  */
+@RegistersGameTests
 public final class OculusTests {
+    private static final String BLINK_SNAPS_TO_OCULUS = "blink_snaps_to_oculus";
+    private static final String OCULUS_COSTS_A_TENTH = "oculus_blink_costs_a_tenth";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, BLINK_SNAPS_TO_OCULUS, OculusTests::blinkSnapsToOculus);
+        GooTestFunctions.registerTest(registrar, OCULUS_COSTS_A_TENTH, OculusTests::oculusBlinkCostsATenth);
+    }
+
 
     private static final Identifier ENDER_BLINK = Identifier.parse("goo:ender_blink");
     private static final Identifier ENDER_OCULUS = Identifier.parse("goo:ender_oculus");

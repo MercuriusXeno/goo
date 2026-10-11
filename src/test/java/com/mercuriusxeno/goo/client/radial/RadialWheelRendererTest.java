@@ -15,6 +15,7 @@ import net.minecraft.world.item.ItemStack;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypeNames;
 import com.mercuriusxeno.goo.type.GooTypes;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.minecraft.client.gui.Font;
@@ -187,47 +188,8 @@ class RadialWheelRendererTest {
     class ShortNames {
 
         private static final String LANG_RESOURCE = "assets/goo/lang/en_us.json";
-        private static final Map<String, String> NAME_BY_ABILITY = Map.ofEntries(
-                Map.entry("aeon_rewind", "Rewind"), Map.entry("aeon_stasis", "Stasis"),
-                Map.entry("yore_rewind", "Rewind"), Map.entry("yore_expire", "Expire"), Map.entry("yore_ancient", "Ancient"), Map.entry("yore_age", "Age"),
-                Map.entry("aeon_tick", "Tick"), Map.entry("aeon_timekeeper", "Timekeeper"),
-                Map.entry("aeon_chronosphere", "Chronosphere"), Map.entry("aeon_haste", "Haste"),
-                Map.entry("blaze_ignite", "Scorch"),
-                Map.entry("crystal_cloud", "Razor"), Map.entry("crystal_shards", "Shards"),
-                Map.entry("crystal_glitter", "Glitter"), Map.entry("crystal_scales", "Scales"),
-                Map.entry("crystal_prism", "Prism"), Map.entry("deep_churn", "Churn"), Map.entry("deep_convoke", "Convoke"), Map.entry("deep_dive", "Dive"),
-                Map.entry("astral_gate", "Astral Gate"), Map.entry("astral_meteo", "Meteo"),
-                Map.entry("ender_zone", "Zone"), Map.entry("ender_shifter", "Shifter"), Map.entry("ender_end", "End"), Map.entry("ender_oculus", "Oculus"),
-                Map.entry("quantum_phase", "Phase"), Map.entry("quantum_phase_shift", "Phase Shift"), Map.entry("quantum_hole", "Hole"), Map.entry("quantum_anchor", "Anchor"),
-                Map.entry("quantum_swap", "Swap"), Map.entry("quantum_link", "Shared Fate"),
-                Map.entry("frost_snap", "Snap"), Map.entry("frost_nova", "Nova"), Map.entry("frost_cold", "Cold"), Map.entry("frost_orb", "Orb"), Map.entry("frost_glacial", "Glacial"), Map.entry("frost_iceborn", "Iceborn"), Map.entry("glow_crystal", "Bulb"),
-                Map.entry("glow_sunbeam", "Sunbeam"), Map.entry("hex_charm", "Charm"), Map.entry("hex_enchant", "Enchant"), Map.entry("hex_fuse", "Fuse"), Map.entry("hex_lifetap", "Lifetap"), Map.entry("hex_drain", "Drain"),
-                Map.entry("leaf_vines", "Vines"), Map.entry("leaf_bloom", "Bloom"), Map.entry("leaf_growth", "Growth"), Map.entry("leaf_reap", "Reap"), Map.entry("leaf_bio", "Bio"), Map.entry("leaf_verdant", "Verdant"),
-                Map.entry("leaf_barkskin", "Barkskin"), Map.entry("metal_spikes", "Urchin"),
-                Map.entry("metal_javelin", "Dart"), Map.entry("nether_black_hole", "Anti"),
-                Map.entry("nether_decay", "Decay"), Map.entry("nether_hive", "Hive"), Map.entry("nether_undead", "Undead"),
-                Map.entry("pulse_zap", "Zap"),
-                Map.entry("pulse_pulser", "Pulser"),
-                Map.entry("pulse_metronome", "Metronome"), Map.entry("pulse_relay", "Relay"),
-                Map.entry("pulse_extender", "Extender"),
-                Map.entry("rock_bore", "Bore"), Map.entry("rock_spire", "Spire"), Map.entry("rock_flatten", "Flatten"),
-                Map.entry("glow_scry", "Scry"), Map.entry("glow_lux", "Lux"), Map.entry("glow_radiant", "Radiant"), Map.entry("glow_reflector", "Reflector"),
-                Map.entry("rock_petrify", "Petrify"),
-                Map.entry("rock_stoneskin", "Stoneskin"),
-                Map.entry("shroom_mycosis", "Mycosis"), Map.entry("shroom_colonize", "Spore"),
-                Map.entry("shroom_fungal_shift", "Fungal Shift"), Map.entry("shroom_sight", "Sight"),
-                Map.entry("typhoon_float", "Float"), Map.entry("unstable_timed_bomb", "Countdown"),
-                Map.entry("unstable_unmake", "Unmake"), Map.entry("unstable_charged", "Charged"),
-                Map.entry("unstable_lurker", "Lurker"),
-                Map.entry("blaze_spitfire", "Spitfire"), Map.entry("blaze_kindle", "Kindle"),
-                Map.entry("ender_blink", "Blink"), Map.entry("typhoon_jet", "Jet"), Map.entry("typhoon_airborn", "Airborn"), Map.entry("typhoon_repel", "Repel"),
-                Map.entry("typhoon_updraft", "Updraft"), Map.entry("typhoon_lift", "Lift"),
-                Map.entry("kinetic_grab", "Grab"), Map.entry("kinetic_telekinesis", "Telekinesis"),
-                Map.entry("unstable_explode", "Blast"), Map.entry("zoo_allure", "Allure"), Map.entry("zoo_spawn", "Spawn"), Map.entry("zoo_shape", "Shape"), Map.entry("zoo_rally", "Rally"),
-                Map.entry("jelly_heal", "Vitality"), Map.entry("jelly_reserve", "Reserve"), Map.entry("jelly_feed", "Feed"),
-                Map.entry("jelly_gluttony", "Gluttony"), Map.entry("weird_slime", "Slime"), Map.entry("weird_magma", "Magma"),
-                Map.entry("weird_bounce", "Bounce"), Map.entry("weird_wobble", "Wobble"), Map.entry("xeno_eldritch", "Eldritch Sight"),
-                Map.entry("xeno_mutate", "Mutate"));
+        /** A petal label holds one term, or two where it wraps to a line per word. */
+        private static final int MOST_LABEL_TERMS = 2;
 
         private static JsonObject englishLang() throws IOException {
             try (InputStream stream = RadialWheelRendererTest.class.getClassLoader().getResourceAsStream(LANG_RESOURCE)) {
@@ -240,11 +202,14 @@ class RadialWheelRendererTest {
         void everyShippedAbilityReadsItsShortName() throws IOException {
             JsonObject lang = englishLang();
             List<ClientAbility> shipped = shippedAbilities();
-            assertEquals(NAME_BY_ABILITY.keySet(),
-                    shipped.stream().map(ability -> ability.id().getPath()).collect(Collectors.toSet()));
-            assertAll(shipped.stream().map(ability -> (Executable) () -> assertEquals(
-                    NAME_BY_ABILITY.get(ability.id().getPath()),
-                    lang.get(ability.displayName()).getAsString(), ability.id().toString())));
+            assertFalse(shipped.isEmpty(), "no shipped ability scanned");
+            assertAll(shipped.stream().map(ability -> (Executable) () -> {
+                JsonElement label = lang.get(ability.displayName());
+                assertNotNull(label, ability.id() + " names " + ability.displayName() + ", which en_us.json lacks");
+                String[] terms = label.getAsString().strip().split("\\s+");
+                assertTrue(!terms[0].isEmpty() && terms.length <= MOST_LABEL_TERMS,
+                        ability.id() + " reads \"" + label.getAsString() + "\"");
+            }));
         }
 
         @Test

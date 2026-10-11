@@ -15,13 +15,16 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
-import java.util.function.BiConsumer;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import java.util.function.Consumer;
 
 /**
  * Gametests for Weird's abilities, each cast through the real landing path.
  * weird-bounces-and-softens-harm
  */
+@RegistersGameTests
 public final class WeirdTests {
 
     /** Marks a pending effect aimed at a block rather than an entity. */
@@ -54,15 +57,15 @@ public final class WeirdTests {
     }
 
     /**
-     * Registers Weird's gametests under their function names.
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
      *
-     * @param reg takes a function name and its test
+     * @param registrar the test function registrar
      */
-    public static void register(BiConsumer<String, Consumer<GameTestHelper>> reg) {
-        reg.accept(TURNS_LAVA_TO_MAGMA, WeirdTests::weirdTurnsLavaToMagma);
-        reg.accept(PAD_BREAKS_THE_FALL, WeirdTests::weirdPadBreaksTheFall);
-        reg.accept(SOFTEN_TRADES_DAMAGE, WeirdTests::weirdSoftenTradesDamageForKnockback);
-        reg.accept(SLIME_BLOB_MAKES_A_SLIME, WeirdTests::slimeBlobMakesASlime);
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, TURNS_LAVA_TO_MAGMA, WeirdTests::weirdTurnsLavaToMagma);
+        GooTestFunctions.registerTest(registrar, PAD_BREAKS_THE_FALL, WeirdTests::weirdPadBreaksTheFall);
+        GooTestFunctions.registerTest(registrar, SOFTEN_TRADES_DAMAGE, WeirdTests::weirdSoftenTradesDamageForKnockback);
+        GooTestFunctions.registerTest(registrar, SLIME_BLOB_MAKES_A_SLIME, WeirdTests::slimeBlobMakesASlime);
     }
 
     /**

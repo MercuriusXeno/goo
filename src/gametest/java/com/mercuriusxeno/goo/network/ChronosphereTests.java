@@ -28,6 +28,10 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for aeon's Chronosphere, cast the way a drag's release casts it,
@@ -39,7 +43,25 @@ import net.minecraft.world.phys.Vec3;
  * paced off loads back with its AI on.
  * chronosphere-hastes-players-slows-mobs
  */
+@RegistersGameTests
 public final class ChronosphereTests {
+    private static final String CHRONOSPHERE_SLOWS = "chronosphere_slows_mobs_and_projectiles";
+    private static final String CHRONOSPHERE_SPARES_PLAYERS = "chronosphere_spares_players";
+    private static final String CHRONOSPHERE_DRAGGED_RADIUS = "chronosphere_opens_at_the_dragged_radius";
+    private static final String VEILED_MOB_RELOADS_WITH_ITS_AI = "veiled_mob_reloads_with_its_ai";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, CHRONOSPHERE_SLOWS, ChronosphereTests::chronosphereSlowsMobsAndProjectiles);
+        GooTestFunctions.registerTest(registrar, CHRONOSPHERE_SPARES_PLAYERS, ChronosphereTests::chronosphereSparesPlayers);
+        GooTestFunctions.registerTest(registrar, CHRONOSPHERE_DRAGGED_RADIUS, ChronosphereTests::chronosphereOpensAtTheDraggedRadius);
+        GooTestFunctions.registerTest(registrar, VEILED_MOB_RELOADS_WITH_ITS_AI, ChronosphereTests::veiledMobReloadsWithItsAi);
+    }
+
 
     private static final BlockPos FLOOR_POS = new BlockPos(2, 0, 2);
     private static final BlockPos COW_START = new BlockPos(1, 1, 1);

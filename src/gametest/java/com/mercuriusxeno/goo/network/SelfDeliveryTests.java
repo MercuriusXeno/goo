@@ -37,6 +37,10 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import java.util.Optional;
 import java.util.UUID;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for the self delivery through the real throw path. A self
@@ -51,7 +55,39 @@ import java.util.UUID;
  * effect, paying its upkeep each tick after, until invoked again or dry
  * (decision self-effects-trickle-until-ended).
  */
+@RegistersGameTests
 public final class SelfDeliveryTests {
+    private static final String SELF_ENDER_BLINK = "self_ender_blink";
+    private static final String BLINK_ONTO_A_PILLAR = "blink_onto_a_pillar_costs_by_distance";
+    private static final String SELF_GATED_BLINK_REFUSED = "self_gated_blink_refused";
+    private static final String SELF_KINDLE_EATS_FIRST = "self_kindle_eats_before_the_embers";
+    private static final String SELF_KINDLE_RELEASED_RUNS_NOTHING = "self_kindle_released_runs_nothing";
+    private static final String SELF_KINDLE_HELD_PAYS_UPKEEP = "self_kindle_held_pays_upkeep_each_tick";
+    private static final String SELF_KINDLE_INVOKED_AGAIN_ENDS = "self_kindle_invoked_again_ends";
+    private static final String SELF_KINDLE_ENDS_WHEN_DRY = "self_kindle_ends_when_dry";
+    private static final String SELF_SIGHT_EATS = "self_sight_eats_before_the_sight";
+    private static final String SIGHT_ENDS_WHEN_DRY = "sight_ends_when_shroom_runs_dry";
+    private static final String HASTE_HOLDS_WITHOUT_PARTICLES = "haste_holds_without_particles";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, SELF_ENDER_BLINK, SelfDeliveryTests::enderBlink);
+        GooTestFunctions.registerTest(registrar, BLINK_ONTO_A_PILLAR, SelfDeliveryTests::blinkOntoAPillarCostsByDistance);
+        GooTestFunctions.registerTest(registrar, SELF_GATED_BLINK_REFUSED, SelfDeliveryTests::gatedBlinkRefusedWithoutTheRecipe);
+        GooTestFunctions.registerTest(registrar, SELF_KINDLE_EATS_FIRST, SelfDeliveryTests::kindleEatsBeforeTheEmbers);
+        GooTestFunctions.registerTest(registrar, SELF_KINDLE_RELEASED_RUNS_NOTHING, SelfDeliveryTests::kindleLetGoMidEatRunsNothing);
+        GooTestFunctions.registerTest(registrar, SELF_KINDLE_HELD_PAYS_UPKEEP, SelfDeliveryTests::kindleHeldPaysUpkeepEachTick);
+        GooTestFunctions.registerTest(registrar, SELF_KINDLE_INVOKED_AGAIN_ENDS, SelfDeliveryTests::kindleInvokedAgainEnds);
+        GooTestFunctions.registerTest(registrar, SELF_KINDLE_ENDS_WHEN_DRY, SelfDeliveryTests::kindleEndsWhenDry);
+        GooTestFunctions.registerTest(registrar, SELF_SIGHT_EATS, SelfDeliveryTests::sightEatsBeforeTheSight);
+        GooTestFunctions.registerTest(registrar, SIGHT_ENDS_WHEN_DRY, SelfDeliveryTests::sightEndsWhenShroomRunsDry);
+        GooTestFunctions.registerTest(registrar, HASTE_HOLDS_WITHOUT_PARTICLES, SelfDeliveryTests::hasteHoldsWithoutParticles);
+    }
+
 
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
     private static final int NO_ENTITY = -1;

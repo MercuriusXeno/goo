@@ -32,6 +32,8 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.DeferredItem;
 import java.util.Collection;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for the exorite tier. The upgrade template (decision
@@ -41,7 +43,33 @@ import java.util.List;
  * exorite-tool-and-armor-set) is registered, smithed from netherite with
  * that template, and repaired by exorite.
  */
+@RegistersGameTests
 public final class ExoriteTests {
+    private static final String EXORITE_TEMPLATE_REGISTERED = "exorite_template_registered";
+    private static final String EXORITE_TEMPLATE_IN_ANCIENT_CITY_LOOT = "exorite_template_in_ancient_city_loot";
+    private static final String EXORITE_TEMPLATE_DUPLICATES = "exorite_template_duplicates";
+    private static final String EXORITE_SET_REGISTERED = "exorite_set_registered";
+    private static final String EXORITE_SET_SMITHING = "exorite_set_smithing";
+    private static final String EXORITE_SET_REPAIRS = "exorite_set_repairs";
+    private static final String EXORITE_ARMOR_STATS = "exorite_armor_stats";
+    private static final String EXO_GAUNTLET_SMITHING = "exo_gauntlet_smithing";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, EXORITE_TEMPLATE_REGISTERED, ExoriteTests::templateRegistered);
+        GooTestFunctions.registerTest(registrar, EXORITE_TEMPLATE_IN_ANCIENT_CITY_LOOT, ExoriteTests::templateInAncientCityLoot);
+        GooTestFunctions.registerTest(registrar, EXORITE_TEMPLATE_DUPLICATES, ExoriteTests::templateDuplicates);
+        GooTestFunctions.registerTest(registrar, EXORITE_SET_REGISTERED, ExoriteTests::setRegistered);
+        GooTestFunctions.registerTest(registrar, EXORITE_SET_SMITHING, ExoriteTests::setSmithing);
+        GooTestFunctions.registerTest(registrar, EXORITE_SET_REPAIRS, ExoriteTests::setRepairs);
+        GooTestFunctions.registerTest(registrar, EXORITE_ARMOR_STATS, ExoriteTests::armorOutranksNetherite);
+        GooTestFunctions.registerTest(registrar, EXO_GAUNTLET_SMITHING, ExoriteTests::exoGauntletSmithing);
+    }
+
 
     private static final String TEMPLATE_ID = "goo:exorite_upgrade_smithing_template";
     /**

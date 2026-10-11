@@ -13,6 +13,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.VineBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluids;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for Leaf Bloom: blobs landing in a dirt field beside a pond and
@@ -21,7 +23,19 @@ import net.minecraft.world.level.material.Fluids;
  * kind belongs to.
  * bloom-places-buds-by-biome-and-surface
  */
+@RegistersGameTests
 public final class BloomTests {
+    private static final String BLOOM_PLANTS = "bloom_plants_water_wall_and_ground";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, BLOOM_PLANTS, BloomTests::bloomPlantsWaterWallAndGround);
+    }
+
 
     private static final Identifier BLOOM = Identifier.fromNamespaceAndPath(Goo.MODID, "leaf_bloom");
     private static final String ABILITY_REQUIRED = "Ability registry must hold leaf_bloom";

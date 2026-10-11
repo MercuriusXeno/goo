@@ -12,6 +12,10 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametest for Quantum's swap: the first cast leaves a body where the player
@@ -19,7 +23,19 @@ import java.util.List;
  * spot and with the health it held, and a fresh body stands where they were
  * (decision swap-body-stands-until-reverted).
  */
+@RegistersGameTests
 public final class SwapBodyTests {
+    private static final String SWAP_BODY_ROUND_TRIP = "swap_body_round_trip";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, SWAP_BODY_ROUND_TRIP, SwapBodyTests::swapBodyRoundTrip);
+    }
+
 
     private static final Identifier SWAP = Identifier.parse("goo:quantum_swap");
     private static final BlockPos FIRST = new BlockPos(1, 1, 3);

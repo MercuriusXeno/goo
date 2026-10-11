@@ -17,6 +17,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SugarCaneBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for Leaf Verdant: leaf goo landing on a prism makes it verdant,
@@ -24,7 +26,21 @@ import net.minecraft.world.level.block.state.BlockState;
  * lily pad, and sugar cane in its reach is nudged along.
  * verdant-prism-greens-blocks-slowly
  */
+@RegistersGameTests
 public final class VerdantTests {
+    private static final String VERDANT_GREENS = "verdant_greens_cobble_and_water";
+    private static final String VERDANT_SURVIVES_A_RELOAD = "verdant_survives_a_reload";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, VERDANT_GREENS, VerdantTests::verdantGreensCobbleAndWater);
+        GooTestFunctions.registerTest(registrar, VERDANT_SURVIVES_A_RELOAD, VerdantTests::verdantSurvivesAReload);
+    }
+
 
     private static final Identifier VERDANT = Identifier.fromNamespaceAndPath(Goo.MODID, "leaf_verdant");
     private static final String ABILITY_REQUIRED = "Ability registry must hold leaf_verdant";

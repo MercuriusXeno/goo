@@ -14,6 +14,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for a free ability thrown through the real throw path at a point
@@ -21,7 +23,21 @@ import net.minecraft.world.phys.Vec3;
  * beyond the range throws to the range's end rather than being refused
  * (decision aim-point-follows-the-cursor).
  */
+@RegistersGameTests
 public final class FreeAimTests {
+    private static final String FREE_BLAST_AT_AIR_POINT = "free_blast_at_air_point";
+    private static final String FREE_BLAST_AT_SKY = "free_blast_at_sky";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, FREE_BLAST_AT_AIR_POINT, FreeAimTests::blastExplodesAtThePointInOpenAir);
+        GooTestFunctions.registerTest(registrar, FREE_BLAST_AT_SKY, FreeAimTests::blastAimedAtTheSkyThrowsToTheRangesEnd);
+    }
+
 
     /** The gametests' own thrown blast, today's Blast before it was drag-sized, for the free aim path. */
     private static final Identifier BLAST = Identifier.fromNamespaceAndPath(Goo.MODID, "test_blast");

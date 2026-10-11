@@ -14,6 +14,8 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Blocks;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for Crystal's Prism through the real throw path: a throw at a
@@ -21,7 +23,19 @@ import net.minecraft.world.level.block.Blocks;
  * since Prism takes no item cost (operator ruling 2026-10-10).
  * decision prism-blob-becomes-a-milky-quartz-crystal
  */
+@RegistersGameTests
 public final class PrismTests {
+    private static final String PRISM_GROWS_ON_THE_FACE = "prism_grows_on_the_face";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, PRISM_GROWS_ON_THE_FACE, PrismTests::prismGrowsOnTheFace);
+    }
+
 
     private static final BlockPos FLOOR_POS = new BlockPos(1, 1, 1);
     private static final Identifier CRYSTAL_PRISM = Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_prism");

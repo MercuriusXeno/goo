@@ -11,6 +11,8 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * A blob landing inside an L-shaped fence corner, on the side of one arm that
@@ -18,7 +20,19 @@ import net.minecraft.world.phys.Vec3;
  * gone. The struck face looks onto the other arm's fence block, so the cell
  * beyond the face takes no blob.
  */
+@RegistersGameTests
 public final class FenceCornerLandingTests {
+    private static final String BLAST_INSIDE_A_FENCE_CORNER = "blast_lands_inside_a_fence_corner";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, BLAST_INSIDE_A_FENCE_CORNER, FenceCornerLandingTests::blastLandsInsideAFenceCorner);
+    }
+
 
     /** The gametests' own thrown blast, today's Blast before it was drag-sized, for the landing machinery. */
     private static final Identifier BLAST = Identifier.fromNamespaceAndPath(Goo.MODID, "test_blast");

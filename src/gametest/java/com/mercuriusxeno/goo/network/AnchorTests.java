@@ -13,13 +13,29 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import java.util.Optional;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametest for Quantum's anchors: a player's two anchor casts pair the two
  * prisms, and a player stepping onto either arrives beside the other, both
  * ways (decision quantum-anchors-link-two-points).
  */
+@RegistersGameTests
 public final class AnchorTests {
+    private static final String ANCHORS_BOTH_WAYS = "anchors_teleport_both_ways";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, ANCHORS_BOTH_WAYS, AnchorTests::anchorsTeleportBothWays);
+    }
+
 
     private static final String ANCHOR = "goo:quantum_anchor";
     private static final int NO_ENTITY = -1;

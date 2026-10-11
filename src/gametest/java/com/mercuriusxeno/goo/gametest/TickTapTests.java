@@ -12,13 +12,27 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for aeon Tick's tap: every aeon drip landing on a melting crucible
  * ticks it faster, aeon_tick_tap.json's extra ticks a drip.
  * tick-drip-splashes-a-small-tick-effect
  */
+@RegistersGameTests
 public final class TickTapTests {
+    private static final String TICK_TAP_TICKS_EVERY_DRIP = "tick_tap_ticks_every_drip";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, TICK_TAP_TICKS_EVERY_DRIP, TickTapTests::tickTapTicksEveryDrip);
+    }
+
 
     private static final BlockPos CRUCIBLE_POS = CrucibleSpawns.CRUCIBLE_POS;
     /** Heat for an hour of melting, so the crucible never runs cold. */

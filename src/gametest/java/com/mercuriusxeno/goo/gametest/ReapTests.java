@@ -19,6 +19,8 @@ import net.minecraft.world.level.block.SweetBerryBushBlock;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for Leaf Reap: a blob struck into a field of ripe wheat beside a
@@ -27,7 +29,21 @@ import java.util.List;
  * falls back to age one.
  * reap-breeze-harvests-and-replants
  */
+@RegistersGameTests
 public final class ReapTests {
+    private static final String REAP_HARVESTS = "reap_harvests_and_replants";
+    private static final String REAP_SETTLES_SEEDS = "reap_settles_seeds_against_the_replant";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, REAP_HARVESTS, ReapTests::reapHarvestsAndReplants);
+        GooTestFunctions.registerTest(registrar, REAP_SETTLES_SEEDS, ReapTests::reapSettlesSeedsAgainstTheReplant);
+    }
+
 
     private static final Identifier REAP = Identifier.fromNamespaceAndPath(Goo.MODID, "leaf_reap");
     private static final String ABILITY_REQUIRED = "Ability registry must hold leaf_reap";

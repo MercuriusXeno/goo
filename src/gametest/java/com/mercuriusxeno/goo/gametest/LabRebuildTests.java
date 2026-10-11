@@ -13,13 +13,27 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametest for {@code /goo lab rebuild}'s routine: an altered lab returns to
  * its plan in place and the world outside the lab bounds stays as it was
  * (decision lab-save-is-disposable).
  */
+@RegistersGameTests
 public final class LabRebuildTests {
+    private static final String LAB_REBUILD = "lab_rebuild";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, LAB_REBUILD, LabRebuildTests::rebuild);
+    }
+
 
     /**
      * Blocks from the foundation, the bounds' lowest layer, up past the floor to the walkway air.

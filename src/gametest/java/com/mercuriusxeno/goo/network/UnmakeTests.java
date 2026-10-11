@@ -33,6 +33,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Unmake's drink: a hold down a cobblestone column at mid
@@ -47,7 +51,27 @@ import java.util.Map;
  * mob at the cursor is left alone.
  * decision unmake-waves-dissolve-by-crucible-cost
  */
+@RegistersGameTests
 public final class UnmakeTests {
+    private static final String UNMAKE_DRINKS_A_COLUMN_NOT_THE_WALL = "unmake_drinks_a_column_not_the_wall";
+    private static final String UNMAKE_FINISHES_WHAT_IT_STARTS = "unmake_finishes_what_it_starts";
+    private static final String UNMAKE_FINISHES_AFTER_RELEASE = "unmake_finishes_after_release";
+    private static final String UNMAKE_LEAVES_MOBS_ALONE = "unmake_leaves_mobs_alone";
+    private static final String UNMAKE_OVERFLOW_DROPS_AT_FEET = "unmake_overflow_drops_at_feet";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, UNMAKE_DRINKS_A_COLUMN_NOT_THE_WALL, UnmakeTests::unmakeDrinksAColumnNotTheWall);
+        GooTestFunctions.registerTest(registrar, UNMAKE_FINISHES_WHAT_IT_STARTS, UnmakeTests::unmakeFinishesWhatItStarts);
+        GooTestFunctions.registerTest(registrar, UNMAKE_FINISHES_AFTER_RELEASE, UnmakeTests::unmakeFinishesAfterRelease);
+        GooTestFunctions.registerTest(registrar, UNMAKE_LEAVES_MOBS_ALONE, UnmakeTests::unmakeLeavesMobsAlone);
+        GooTestFunctions.registerTest(registrar, UNMAKE_OVERFLOW_DROPS_AT_FEET, UnmakeTests::unmakeOverflowDropsAtFeet);
+    }
+
 
     private static final Identifier UNMAKE = Identifier.parse("goo:unstable_unmake");
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);

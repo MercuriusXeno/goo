@@ -13,6 +13,10 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.block.Blocks;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Colonize: a blob landing on a shroom network spreads that
@@ -21,7 +25,25 @@ import net.minecraft.world.level.block.Blocks;
  * lands at its feet, growing no network where there is none
  * (decision colonize-blob-grows-the-network).
  */
+@RegistersGameTests
 public final class ColonizeTests {
+    private static final String COLONIZE_SPREADS_NYLIUM = "colonize_spreads_nylium";
+    private static final String COLONIZE_BUDS_OFF_THE_NETWORK = "colonize_buds_off_the_network";
+    private static final String SPORE_STRUCK_ON_A_MOB = "spore_struck_on_a_mob";
+    private static final String SPORE_BUDS_NONE_BESIDE = "spore_buds_none_beside_a_mushroom";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, COLONIZE_SPREADS_NYLIUM, ColonizeTests::colonizeSpreadsNylium);
+        GooTestFunctions.registerTest(registrar, COLONIZE_BUDS_OFF_THE_NETWORK, ColonizeTests::colonizeBudsOffTheNetwork);
+        GooTestFunctions.registerTest(registrar, SPORE_STRUCK_ON_A_MOB, ColonizeTests::sporeStruckOnAMob);
+        GooTestFunctions.registerTest(registrar, SPORE_BUDS_NONE_BESIDE, ColonizeTests::sporeBudsNoneBesideAMushroom);
+    }
+
 
     /** Marks a pending effect aimed at a block rather than an entity. */
     private static final int NO_ENTITY = -1;
