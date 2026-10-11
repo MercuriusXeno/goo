@@ -158,7 +158,7 @@ class RadialWheelRendererTest {
         private static final String LANG_RESOURCE = "assets/goo/lang/en_us.json";
         private static final Map<String, String> NAME_BY_ABILITY = Map.ofEntries(
                 Map.entry("aeon_rewind", "Rewind"), Map.entry("aeon_stasis", "Stasis"),
-                Map.entry("yore_rewind", "Rewind"),
+                Map.entry("yore_rewind", "Rewind"), Map.entry("yore_expire", "Expire"),
                 Map.entry("aeon_tick", "Tick"), Map.entry("aeon_timekeeper", "Timekeeper"),
                 Map.entry("aeon_chronosphere", "Chronosphere"), Map.entry("aeon_haste", "Haste"),
                 Map.entry("blaze_ignite", "Scorch"),

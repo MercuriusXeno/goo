@@ -38,6 +38,7 @@ import com.mercuriusxeno.goo.network.DecayStreamTests;
 import com.mercuriusxeno.goo.network.PetrifyStreamTests;
 import com.mercuriusxeno.goo.network.ChronosphereTests;
 import com.mercuriusxeno.goo.network.RadiantChannelTests;
+import com.mercuriusxeno.goo.network.ExpireTests;
 import com.mercuriusxeno.goo.network.RewindStreamTests;
 import com.mercuriusxeno.goo.network.ScryChannelTests;
 import com.mercuriusxeno.goo.network.UndeadTests;
@@ -558,6 +559,8 @@ public final class GooTestFunctions {
     private static final String BANISH_RESISTED_BY_HIGH_HEALTH = "banish_resisted_by_high_health";
     private static final String MOB_UNSTABLE = "mob_unstable_explode";
     private static final String STASIS_HOLDS_UNTIL_STRUCK = "stasis_holds_until_struck";
+    private static final String EXPIRE_KILLS_THE_STRUCK_ZOMBIE = "expire_kills_the_struck_zombie";
+    private static final String EXPIRE_SPARES_A_BOSS = "expire_spares_a_boss";
     private static final String REWIND_ADULT_TO_BABY = "rewind_adult_to_baby";
     private static final String REWIND_BABY_TO_EGG = "rewind_baby_to_egg";
     private static final String REWIND_LEAVES_BLOCKS = "rewind_leaves_blocks";
@@ -1124,6 +1127,8 @@ public final class GooTestFunctions {
         reg(r, BANISH_RESISTED_BY_HIGH_HEALTH, MobEffectTests::banishResistedByHighHealth);
         reg(r, MOB_UNSTABLE, MobEffectTests::unstableExplode);
         reg(r, STASIS_HOLDS_UNTIL_STRUCK, MobEffectTests::stasisHoldsUntilStruck);
+        reg(r, EXPIRE_KILLS_THE_STRUCK_ZOMBIE, ExpireTests::expireKillsTheStruckZombie);
+        reg(r, EXPIRE_SPARES_A_BOSS, ExpireTests::expireSparesABoss);
         reg(r, REWIND_ADULT_TO_BABY, RewindStreamTests::rewindAdultToBaby);
         reg(r, REWIND_BABY_TO_EGG, RewindStreamTests::rewindBabyToEgg);
         reg(r, REWIND_LEAVES_BLOCKS, RewindStreamTests::rewindLeavesBlocks);
