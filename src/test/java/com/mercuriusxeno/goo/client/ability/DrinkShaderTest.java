@@ -7,14 +7,16 @@ import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The drink field shader marches the same field DrinkField states and reads
  * the block DrinkUpload packs: its constants equal the Java's and its uniform
- * arrays are as long as the upload's caps (decision
- * unmake-waves-dissolve-by-crucible-cost). Read through the classpath.
+ * arrays are as long as the upload's caps, and its skin is two solid colors
+ * with no texture (decisions unmake-waves-dissolve-by-crucible-cost and
+ * unmake-skin-is-a-solid-sampled-color). Read through the classpath.
  */
 class DrinkShaderTest {
 
@@ -49,20 +51,13 @@ class DrinkShaderTest {
         assertEquals(DrinkField.DEPTH, constant(fragment, "DEPTH"), DELTA);
         assertEquals(DrinkField.REACH, constant(fragment, "REACH"), DELTA);
         assertEquals(DrinkField.FULL_RADIUS, constant(fragment, "FULL_RADIUS"), DELTA);
-        assertEquals(DrinkStream.THINNEST, constant(fragment, "THINNEST"), DELTA);
-        assertEquals(DrinkStream.TEXTURE_PERIOD, constant(fragment, "TEXTURE_PERIOD"), DELTA);
         assertEquals(DrinkUpload.RUN_START, constant(fragment, "RUN_START"), DELTA);
         assertEquals(DrinkUpload.BOX_BASE, constant(fragment, "BOX_BASE"), DELTA);
         assertEquals(DrinkUpload.REGION, constant(fragment, "REGION_SPAN"), DELTA);
         assertEquals(DrinkUpload.STREAM_VEC4S, constant(fragment, "STREAM_VEC4S"), DELTA);
         assertEquals(DrinkUpload.COAT_SLOT, constant(fragment, "COAT_SLOT"), DELTA);
-        assertEquals(DrinkUpload.TINT_SLOT, constant(fragment, "TINT_SLOT"), DELTA);
-        assertEquals(DrinkUpload.SPRITE_SLOT, constant(fragment, "SPRITE_SLOT"), DELTA);
-        assertEquals(DrinkUpload.SIDE_SLOT, constant(fragment, "SIDE_SLOT"), DELTA);
-        assertEquals(DrinkUpload.ACROSS_SLOT, constant(fragment, "ACROSS_SLOT"), DELTA);
-        assertEquals(DrinkUpload.LAYER_TINT_SLOT, constant(fragment, "LAYER_TINT_SLOT"), DELTA);
-        assertEquals(DrinkUpload.LAYER_SPRITE_SLOT, constant(fragment, "LAYER_SPRITE_SLOT"), DELTA);
-        assertEquals(DrinkUpload.LAYER_SHARE_SLOT, constant(fragment, "LAYER_SHARE_SLOT"), DELTA);
+        assertEquals(DrinkUpload.BLOCK_COLOR_SLOT, constant(fragment, "BLOCK_COLOR_SLOT"), DELTA);
+        assertEquals(DrinkUpload.GOO_COLOR_SLOT, constant(fragment, "GOO_COLOR_SLOT"), DELTA);
         assertEquals(DrinkUpload.RUN_LOW_SLOT, constant(fragment, "RUN_LOW_SLOT"), DELTA);
         assertEquals(DrinkUpload.RUN_HIGH_SLOT, constant(fragment, "RUN_HIGH_SLOT"), DELTA);
         assertEquals(DrinkUpload.MOST_STREAMS * DrinkUpload.STREAM_VEC4S, arrayLength(fragment, "Streams"));
@@ -84,19 +79,30 @@ class DrinkShaderTest {
     }
 
     @Test
-    void aStepReadsOnlyTheRunsWithinReachAndTheSkinCrossfadesToGooAlongTheRoute() throws IOException {
+    void aStepReadsOnlyTheRunsWithinReach() throws IOException {
         String fragment = source(FRAGMENT);
 
         assertTrue(fragment.contains("gap = min(gap, outside);"),
                 "a run whose box the point is outside is skipped, its box the gap to jump");
         assertTrue(fragment.contains("vec3 n = normalAt(p, streams);"),
                 "the normal reads the whole field, so skin two streams share is one smooth shape");
-        assertTrue(fragment.contains("route = mix(ma.y, mb.y, t);"), "the hit reads its share of the route");
-        assertTrue(fragment.contains("color = mix(color, mingled(color, stream, world, place), route);"),
-                "the block's texture crossfades into its mingled goo by the route share, none at the block, all at the hand");
-        assertTrue(fragment.contains("float surface = max(THINNEST, length(offset));")
-                && fragment.contains("return vec2(mix(ma.x, mb.x, t), angle * surface);"),
-                "the way round is arc length at the skin's own distance from the spine, a block of sprite to a block");
+    }
+
+    /** decision unmake-skin-is-a-solid-sampled-color */
+    @Test
+    void theSkinIsTheBlockColorMixedToTheGooColorByTheRouteWithNoTexture() throws IOException {
+        String fragment = source(FRAGMENT);
+
+        assertTrue(fragment.contains("return mix(Rings[2 * segment + 1].y, Rings[2 * segment + 3].y, t);"),
+                "the hit reads its share of the route from its segment's rings");
+        assertTrue(fragment.contains("float route = body >= BOX_BASE ? 0.0 : routeOnSegment(body, p);"),
+                "the standing block is at route 0, wearing the block's color whole");
+        assertTrue(fragment.contains("vec4 color = vec4(mix(streamSlot(stream, BLOCK_COLOR_SLOT).rgb, "
+                        + "streamSlot(stream, GOO_COLOR_SLOT).rgb, route), 1.0);"),
+                "the block's color mixes to the goo's color by the route share, 0 at the block and 1 at the hand");
+        assertFalse(fragment.contains("texture(Sampler0"), "the skin samples no texture");
+        assertFalse(fragment.contains("Sampler0"), "no texture is even declared");
+        assertFalse(fragment.contains("mingle_noise"), "the mingle noise left with the textures");
     }
 
     @Test
@@ -104,9 +110,9 @@ class DrinkShaderTest {
         String fragment = source(FRAGMENT);
 
         assertTrue(fragment.contains("float f = runOnly(p, s);"), "each stream's presence at the hit is its own field");
-        assertTrue(fragment.contains("vec4 color = skinOf(first, p, world, n);"), "the most present stream's skin");
+        assertTrue(fragment.contains("vec4 color = skinOf(first, p);"), "the most present stream's skin");
         assertTrue(fragment.contains(
-                "color = mix(color, skinOf(second, p, world, n), secondField / (firstField + secondField));"),
+                "color = mix(color, skinOf(second, p), secondField / (firstField + secondField));"),
                 "blended with the second's by their presence, so no seam where a pick would flip");
         assertTrue(fragment.contains("int body = nearestBodyOf(p, stream);"),
                 "each stream's skin is read on its own nearest body");
