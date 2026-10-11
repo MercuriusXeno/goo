@@ -39,7 +39,7 @@ import java.util.stream.Stream;
  * @param where   the filters a struck mob must pass; empty keeps any living entity
  * @param refract how a prism the ray strikes splits it
  * @param steps   the child steps run on each mob a hit lands on
- * @param impact  the steps run where the ray lands on a hit tick, on the mob or block face it strikes
+ * @param impact  the steps run where the ray lands each tick of the hold, on the mob or block face it strikes
  */
 public record RayStep(double range, int every, List<EntityFilter> where, Refraction refract, List<Step> steps,
                       List<Step> impact) implements Step {
@@ -91,11 +91,10 @@ public record RayStep(double range, int every, List<EntityFilter> where, Refract
         Vec3 eye = channel.eye();
         Vec3 reach = eye.add(aim.get().aimPoint().subtract(eye).normalize().scale(range));
         HitResult hit = cast(level, caster, eye, reach);
-        boolean hits = hitsOn(aim.get().held());
+        int held = aim.get().held();
+        boolean hits = hitsOn(held);
         List<Vec3> refracted = land(level, caster, hit, hits);
-        if (hits) {
-            impactAt(level, eye, hit);
-        }
+        impactAt(level, eye, hit, held, hits);
         EntityVisuals.sendToWatchers(caster, new SunbeamPayload(caster.getId(), hit.getLocation(), refracted));
         return true;
     }
@@ -126,18 +125,22 @@ public record RayStep(double range, int every, List<EntityFilter> where, Refract
 
     /**
      * Runs the impact steps where the ray lands, on the mob or block face it
-     * strikes; a ray striking nothing within its range lands nowhere.
+     * strikes, each tick of the hold; a ray striking nothing within its range
+     * lands nowhere.
      * decision sunbeam-lands-with-impact-and-aim
      *
      * @param level the server level
      * @param eye   the channeling player's eye
      * @param hit   what the ray struck
+     * @param held  the hold's age in ticks
+     * @param hits  whether this tick hits
      */
-    private void impactAt(ServerLevel level, Vec3 eye, HitResult hit) {
+    private void impactAt(ServerLevel level, Vec3 eye, HitResult hit, int held, boolean hits) {
         if (impact.isEmpty() || hit.getType() == HitResult.Type.MISS) {
             return;
         }
-        new ProgramBehavior(impact).tick(new ImpactHost(level, hit.getLocation(), faceStruck(eye, hit)));
+        new ProgramBehavior(impact).tick(new ImpactHost(level, hit.getLocation(), faceStruck(eye, hit),
+                held, hits));
     }
 
     /**
