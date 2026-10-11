@@ -555,7 +555,7 @@ public final class GooThrowHandler {
      * @param ordinal the direction ordinal from the payload
      * @return the corresponding direction, or null if invalid
      */
-    static Direction directionFromOrdinal(int ordinal) {
+    public static @Nullable Direction directionFromOrdinal(int ordinal) {
         Direction[] dirs = Direction.values();
         if (ordinal >= 0 && ordinal < dirs.length) {
             return dirs[ordinal];

@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:thumper_pulses_then_fades",
+  "function": "goo:zap_on_a_wall_toggles_behind_it",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 500,
+  "max_ticks": 20,
   "setup_ticks": 0,
   "required": true
 }
