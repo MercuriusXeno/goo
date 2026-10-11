@@ -34,7 +34,7 @@ import org.jspecify.annotations.Nullable;
  * <p>Active visualizers:
  * <ul>
  *   <li>{@link MarkerOrbVisual} - the slime-like orb while the program runs</li>
- *   <li>{@link MetalSpikeVisual} - cone spikes from the marker to tracked entities</li>
+ *   <li>{@link MetalSpikeVisual} - Urchin's resting bristle and its telescoping spears</li>
  *   <li>{@link CrystalCloudVisual} - the shard cloud a crystal marker stands</li>
  *   <li>{@link ChronosphereVisual} - the golden veil an aeon chronosphere stands</li>
  *   <li>{@link NetherHoleStyles#active()} - the swappable nether black-hole style</li>
@@ -167,9 +167,7 @@ public class AbilityBlockRenderer
         if (state.crystalActive) {
             CrystalCloudVisual.submit(state, poseStack, nodeCollector);
         }
-        if (!state.spikeAnims.isEmpty()) {
-            MetalSpikeVisual.submit(state, poseStack, nodeCollector);
-        }
+        MetalSpikeVisual.submit(state, poseStack, nodeCollector);
         ChronosphereVisual.submit(state, poseStack, nodeCollector);
     }
 }

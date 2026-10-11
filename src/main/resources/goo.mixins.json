@@ -9,7 +9,8 @@
     "LivingEntityUndeadMixin",
     "MinecraftServerGooStateMixin",
     "GooQuickCraftMixin",
-    "ReloadableServerResourcesGooMixin"
+    "ReloadableServerResourcesGooMixin",
+    "WorldDimensionsGooStableMixin"
   ],
   "client": [
     "ClientLevelGooValuesMixin",

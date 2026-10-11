@@ -5,61 +5,52 @@ import com.mercuriusxeno.goo.ability.program.FieldEffectStep;
 import com.mercuriusxeno.goo.ability.program.FieldStrike;
 import com.mercuriusxeno.goo.ability.program.Variables;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
-import com.mercuriusxeno.goo.client.ClientGooTypes;
-import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
-import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.ber.AbilityBlockRenderState;
-import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.util.ARGB;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
+import org.joml.Vector3f;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 /**
- * Metal spike trap visual: extends goo-textured cone spikes from the
- * ability block orb out to each struck entity. The spikes are the strikes
- * in flight of the metal_spikes field effect, read from the marker's
- * {@link FieldEffectState}; each animates independently through windup,
- * extension, and retract phases around the tick it lands.
+ * Urchin's trap visual: the trap rests as its goo blob once the landing
+ * flare retracts, and each strike in flight bristles the landing's chrome
+ * spines out as it arms and shoots a telescoping spear ({@link UrchinSpear})
+ * at its mob, the spines retracting with the spear. The strikes are the
+ * metal_spikes field effect's, read from the marker's
+ * {@link FieldEffectState}; each spear aims at its mob's interpolated body
+ * center while the client holds the mob, so it stands in the mob on the
+ * tick the damage lands.
+ * urchin-rests-bristled-and-spears
  */
 public final class MetalSpikeVisual {
 
-    /** Half-block offset for face and edge positioning. */
-    private static final float HALF = 0.5f;
-
-    /** Spike cone base radius in blocks (30% thicker than original). */
-    private static final float SPIKE_BASE_RADIUS = 0.104f;
-    /** Number of triangular faces on the spike cone. */
-    private static final int SPIKE_SIDES = 3;
-    /** Alpha for spike cone color. */
-    private static final int SPIKE_ALPHA = 0xCC;
-    /** Epsilon for near-zero spike length checks. */
-    private static final float SPIKE_EPSILON = 1e-4f;
-    /** Overshoot past the entity center so the spike pierces through. */
-    private static final float SPIKE_OVERSHOOT = 1.0f;
-    /** Ticks before the strike lands that the spike starts to emerge. */
-    private static final int EMERGE_LEAD = 2;
-    /** Ticks the spike holds at full extension after it lands. */
-    static final int HOLD_TICKS = 3;
     /** How far the windup shake swings the orb either side of resting size, at its peak. */
     static final float SHAKE_AMPLITUDE = 0.15f;
     /** Ticks per cycle of the windup shake. */
     static final float SHAKE_PERIOD = 1.5f;
     private static final double TWO_PI = 2 * Math.PI;
+    /** Half a mob's height, where its body center stands above its feet. */
+    private static final float HALF = 0.5f;
+    /** Game ticks the bristle's specular band takes over one show's sweeps, the held ghost's two seconds. */
+    private static final float SWEEP_TICKS = 40f;
 
     private MetalSpikeVisual() {
     }
 
     /**
-     * Populates {@code state} with the metal trap's spikes in flight, read
-     * from the marker's field-effect state, and their timing, read off the
+     * Populates {@code state} with the metal trap's bristle and its spears
+     * in flight, read from the marker's field-effect state, their aims
+     * from the mobs the client holds, and their timing from the
      * field-effect step of the marker's synced ability; a marker of another
-     * type draws no spikes.
+     * type draws neither.
      *
      * @param be    the ability block block entity
      * @param state the render state to populate
@@ -70,39 +61,34 @@ public final class MetalSpikeVisual {
         boolean metal = GooTypes.METAL.equals(be.getGooType()) && be.getBehavior() != null && step.isPresent();
         Variables variables = Variables.NONE;
         state.spikeAnims = metal ? field.strikes() : List.of();
+        state.spikeAims = aimsOf(be.getLevel(), state.spikeAnims, Vec3.atLowerCornerOf(be.getBlockPos()),
+                state.partialTick);
         state.spikeStrikeTick = step.map(trap -> trap.strikeTick().evaluateInt(variables)).orElse(0);
         state.spikeLength = step.map(trap -> trap.strikeTicks().evaluateInt(variables)).orElse(0);
+        state.urchinBristle = (float) state.spikeAnims.stream().mapToDouble(strike -> UrchinSpear.bristleShare(
+                strike.age(), state.partialTick, state.spikeStrikeTick, state.spikeLength)).max().orElse(0);
     }
 
     /**
-     * Computes the spike extension fraction for rendering, phased around
-     * the tick the strike lands: no spike through the windup, extending
-     * over the {@code EMERGE_LEAD} ticks before landing, holding for
-     * {@code HOLD_TICKS} after, then retracting to the end of its length.
+     * Each strike's aim, block-local: its mob's body center at the partial
+     * tick where the level holds the mob, the strike's synced point where
+     * it does not.
      *
-     * @param age         the spike's age in ticks
-     * @param partialTick the partial tick for smooth interpolation
-     * @param strikeTick  the age at which the spike lands
-     * @param length      how many ticks the spike stays in flight
-     * @return extension fraction in [0, 1]
+     * @param level       the client level, or null
+     * @param strikes     the strikes in flight
+     * @param corner      the marker block's lower corner
+     * @param partialTick the partial tick
+     * @return the aims, parallel to the strikes
      */
-    static float extensionFraction(int age, float partialTick, int strikeTick, int length) {
-        float t = age + partialTick;
-        int emerge = strikeTick - EMERGE_LEAD;
-        int retract = strikeTick + HOLD_TICKS;
-        if (t < emerge) {
-            return 0f;
+    private static List<Vector3f> aimsOf(Level level, List<FieldStrike> strikes, Vec3 corner, float partialTick) {
+        List<Vector3f> aims = new ArrayList<>(strikes.size());
+        for (FieldStrike strike : strikes) {
+            Entity mob = level == null ? null : level.getEntity(strike.entityId());
+            Vec3 aim = mob == null ? new Vec3(strike.x(), strike.y(), strike.z())
+                    : mob.getPosition(partialTick).add(0, mob.getBbHeight() * HALF, 0);
+            aims.add(aim.subtract(corner).toVector3f());
         }
-        if (t < strikeTick) {
-            return (t - emerge) / EMERGE_LEAD;
-        }
-        if (t < retract) {
-            return 1f;
-        }
-        if (t < length) {
-            return 1f - (t - retract) / (length - retract);
-        }
-        return 0f;
+        return List.copyOf(aims);
     }
 
     /**
@@ -128,85 +114,32 @@ public final class MetalSpikeVisual {
     }
 
     /**
-     * Renders goo-textured cone spikes from the orb center toward each
-     * tracked entity, with per-entity animation phasing.
+     * Submits the bristling spines and a spear for each strike in flight,
+     * all on Metal's depth-writing chrome.
      *
      * @param state         the render state
      * @param poseStack     the pose stack
      * @param nodeCollector the node collector
      */
-    public static void submit(AbilityBlockRenderState state,
-                              PoseStack poseStack, SubmitNodeCollector nodeCollector) {
-        int color = ARGB.color(SPIKE_ALPHA, ClientGooTypes.highlight(state.gooType));
-        GooRenderUtil.UvRect uv = lookupSpriteUv(state.gooType);
-        Direction face = state.placedFace;
-        float cx = HALF - face.getStepX() * HALF;
-        float cy = HALF - face.getStepY() * HALF;
-        float cz = HALF - face.getStepZ() * HALF;
-
-        GooSubmitter.submitFluid(poseStack, nodeCollector, ctx -> {
-            for (FieldStrike spike : state.spikeAnims) {
-                emitSingleSpike(ctx, spike, state, cx, cy, cz, color, uv);
-            }
-        });
-    }
-
-    /**
-     * Looks up the fluid sprite and wraps its UV bounds.
-     *
-     * @param type the goo type to look up
-     * @return the UV rectangle for the fluid sprite
-     */
-    private static GooRenderUtil.UvRect lookupSpriteUv(ResourceKey<GooTypeDefinition> type) {
-        return GooSubmitter.spriteUv(GooRenderUtil.lookupFluidSprite(type));
-    }
-
-    /**
-     * Emits a single spike cone toward a tracked entity position.
-     *
-     * @param ctx   the render context
-     * @param spike the spike in flight, aimed at the point it captured
-     * @param state the ability block render state
-     * @param cx    orb center X
-     * @param cy    orb center Y
-     * @param cz    orb center Z
-     * @param color packed ARGB spike color
-     * @param uv    fluid sprite UV rectangle
-     */
-    private static void emitSingleSpike(RenderContext ctx, FieldStrike spike,
-                                        AbilityBlockRenderState state, float cx, float cy, float cz,
-                                        int color, GooRenderUtil.UvRect uv) {
-        float dx = spike.x() - state.blockPos.getX() - cx;
-        float dy = spike.y() - state.blockPos.getY() - cy;
-        float dz = spike.z() - state.blockPos.getZ() - cz;
-        float len = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
-        if (len < SPIKE_EPSILON) {
+    public static void submit(AbilityBlockRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector) {
+        if (state.spikeAnims.isEmpty()) {
             return;
         }
-        float ext = extensionFraction(spike.age(), state.partialTick, state.spikeStrikeTick, state.spikeLength);
-        float tipDist = (len + SPIKE_OVERSHOOT) * ext;
-        emitSpikeCone(ctx, cx, cy, cz, dx / len, dy / len, dz / len, tipDist, color, uv);
-    }
-
-    /**
-     * Emits a 3-sided cone from the base point toward the direction.
-     *
-     * @param ctx    the render context
-     * @param bx     base center X
-     * @param by     base center Y
-     * @param bz     base center Z
-     * @param dirX   normalized direction X
-     * @param dirY   normalized direction Y
-     * @param dirZ   normalized direction Z
-     * @param length the cone length
-     * @param color  the ARGB color
-     * @param uv     the fluid sprite UV rectangle
-     */
-    private static void emitSpikeCone(RenderContext ctx,
-                                      float bx, float by, float bz,
-                                      float dirX, float dirY, float dirZ,
-                                      float length, int color, GooRenderUtil.UvRect uv) {
-        ConeGeometry.Cone cone = new ConeGeometry.Cone(bx, by, bz, dirX, dirY, dirZ, length, SPIKE_BASE_RADIUS);
-        ConeGeometry.emitCone(ctx, cone, ConeGeometry.computeBasis(dirX, dirY, dirZ), SPIKE_SIDES, color, uv);
+        float sweep = Mth.frac(state.gameTime / SWEEP_TICKS);
+        int sweepByte = NetherDiscMesh.toByte(sweep);
+        Vector3f base = MetalExplosionVisual.basePoint(state.placedFace);
+        GooSubmitter.submitChrome(poseStack, nodeCollector, (pose, c) -> {
+            if (state.urchinBristle > 0f) {
+                MetalExplosionVisual.bristled(state.placedFace, sweep, state.urchinBristle).emit(pose, c);
+            }
+            for (int i = 0; i < state.spikeAnims.size(); i++) {
+                FieldStrike strike = state.spikeAnims.get(i);
+                Vector3f aim = state.spikeAims.get(i);
+                float reach = aim.distance(base) + UrchinSpear.OVERSHOOT;
+                float tip = UrchinSpear.tipDistance(strike.age(), state.partialTick, state.spikeStrikeTick,
+                        state.spikeLength, reach);
+                UrchinSpear.emit(pose, c, base, aim, tip, sweepByte);
+            }
+        });
     }
 }
