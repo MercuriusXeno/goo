@@ -25,6 +25,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 /**
@@ -93,8 +94,28 @@ public final class AbilityImpact {
      */
     public static void land(ServerLevel level, BlockPos pos, ResourceKey<GooTypeDefinition> type,
                             Direction face, AbilityDefinition ability, @Nullable Vec3 point, double size) {
+        land(level, pos, type, face, ability, point, size, null);
+    }
+
+    /**
+     * Lands an ability on a block for the player whose goo it was, whom a
+     * prism's combo records as its caster
+     * (decision quantum-anchors-link-two-points).
+     *
+     * @param level   the server level
+     * @param pos     the struck block
+     * @param type    the goo type thrown
+     * @param face    the struck face
+     * @param ability the ability the goo names
+     * @param point   the aimed point the ability resolves at, or null for the cell's center
+     * @param size    the cast's size in blocks, zero for a throw
+     * @param caster  the player whose goo landed, or null for none
+     */
+    public static void land(ServerLevel level, BlockPos pos, ResourceKey<GooTypeDefinition> type,
+                            Direction face, AbilityDefinition ability, @Nullable Vec3 point, double size,
+                            @Nullable UUID caster) {
         if (level.getBlockEntity(pos) instanceof PrismBlockEntity prism && !ticksAComboPrism(prism, ability)) {
-            landOnPrism(level, prism, type, ability);
+            landOnPrism(level, prism, type, ability, caster);
             return;
         }
         Optional<LandingSpot> spot = point == null ? LandingSpot.resolve(level, pos, face)
@@ -136,9 +157,10 @@ public final class AbilityImpact {
      * @param prism   the struck prism
      * @param type    the goo type thrown
      * @param ability the ability the goo names
+     * @param caster  the player whose goo landed, or null for none
      */
     private static void landOnPrism(ServerLevel level, PrismBlockEntity prism, ResourceKey<GooTypeDefinition> type,
-                                    AbilityDefinition ability) {
+                                    AbilityDefinition ability, @Nullable UUID caster) {
         // timekeeper-prism-banks-ticks-forward-only: goo of a banking prism's own type feeds its bank
         if (prism.feed(type, ability.cost())) {
             return;
@@ -148,7 +170,7 @@ public final class AbilityImpact {
             return;
         }
         try {
-            prism.runCombo(type, source.id().toString(), PrismCombos.comboSteps(source));
+            prism.runCombo(type, source.id().toString(), PrismCombos.comboSteps(source), caster);
         } catch (ProgramLoadException e) {
             Goo.LOGGER.error(LOG_COMBO_REFUSED, source.id(), e.getMessage());
         }
