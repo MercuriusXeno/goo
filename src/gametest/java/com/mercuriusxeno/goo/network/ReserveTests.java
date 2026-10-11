@@ -10,6 +10,10 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.GameType;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Vital Reserve held through the real stream delivery on a
@@ -17,7 +21,21 @@ import net.minecraft.world.level.GameType;
  * the bar while held, stops on release, and the reserve takes hits before
  * health (decision reserve-hearts-sit-behind-the-bar).
  */
+@RegistersGameTests
 public final class ReserveTests {
+    private static final String RESERVE_DRAINS_FIRST = "reserve_drains_first";
+    private static final String RESERVE_DRAINS_WHILE_HELD = "reserve_drains_while_held";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, RESERVE_DRAINS_FIRST, ReserveTests::reserveDrainsFirst);
+        GooTestFunctions.registerTest(registrar, RESERVE_DRAINS_WHILE_HELD, ReserveTests::reserveDrainsWhileHeld);
+    }
+
 
     private static final Identifier VITAL_RESERVE = Identifier.parse("goo:vital_reserve");
     /** Four thousand mB more vital, enough for every held tick these tests stream. */

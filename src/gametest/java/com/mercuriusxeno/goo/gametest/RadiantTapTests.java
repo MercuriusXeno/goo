@@ -8,13 +8,29 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.level.block.Blocks;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for glow's Radiant drip: one glow drip landing on the floor of
  * a sealed dark room leaves a wisp in the air above it; in a room lit past
  * the threshold it leaves none (decision radiant-drip-places-a-wisp).
  */
+@RegistersGameTests
 public final class RadiantTapTests {
+    private static final String RADIANT_TAP_WISPS_IN_THE_DARK = "radiant_tap_wisps_in_the_dark";
+    private static final String RADIANT_TAP_SKIPS_A_LIT_ROOM = "radiant_tap_skips_a_lit_room";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, RADIANT_TAP_WISPS_IN_THE_DARK, RadiantTapTests::radiantTapWispsInTheDark);
+        GooTestFunctions.registerTest(registrar, RADIANT_TAP_SKIPS_A_LIT_ROOM, RadiantTapTests::radiantTapSkipsALitRoom);
+    }
+
 
     /** The room's walls, floor and roof span 0 to 4 across and 0 to 4 up; its air is inside. */
     private static final int ROOM_EDGE = 4;

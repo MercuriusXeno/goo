@@ -20,6 +20,8 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for Goo's explosion through the landing path: Blast landed at its
@@ -29,7 +31,23 @@ import net.minecraft.world.phys.Vec3;
  * preview-sphere-is-max-reach, explosion-drops-whole-and-spares-items,
  * blast-is-drag-sized-like-the-black-hole).
  */
+@RegistersGameTests
 public final class GooExplosionTests {
+    private static final String BLAST_CRATER_INSIDE_SPHERE = "blast_crater_inside_sphere";
+    private static final String BLAST_DROPS_EVERY_DIRT = "blast_drops_every_dirt";
+    private static final String BLAST_SPARES_ITEMS = "blast_spares_items";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, BLAST_CRATER_INSIDE_SPHERE, GooExplosionTests::blastCraterStaysInsideItsSphere);
+        GooTestFunctions.registerTest(registrar, BLAST_DROPS_EVERY_DIRT, GooExplosionTests::blastDropsEveryDirtItBreaks);
+        GooTestFunctions.registerTest(registrar, BLAST_SPARES_ITEMS, GooExplosionTests::blastSparesItemsInItsSphere);
+    }
+
 
     private static final Identifier BLAST = Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_explode");
     private static final int FLOOR_SPAN = 16;

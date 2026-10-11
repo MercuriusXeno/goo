@@ -15,6 +15,8 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.level.block.Blocks;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for prism combos through the real landing path: a goo landing on
@@ -24,7 +26,25 @@ import net.minecraft.world.level.block.Blocks;
  * second combo. The test datapack's seventeenth type carries the probes.
  * decision prism-hosts-the-combos
  */
+@RegistersGameTests
 public final class PrismComboTests {
+    private static final String PRISM_COMBO_RUNS_THE_TYPE_PRISM_ABILITY = "prism_combo_runs_the_type_prism_ability";
+    private static final String PRISM_COMBO_RUNS_ON_PRISM_BEHAVIORS = "prism_combo_runs_on_prism_behaviors";
+    private static final String PRISM_WITHOUT_COMBO_STAYS = "prism_without_combo_stays";
+    private static final String COMBINED_PRISM_REFUSES_SECOND = "combined_prism_refuses_second";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, PRISM_COMBO_RUNS_THE_TYPE_PRISM_ABILITY, PrismComboTests::comboRunsTheTypePrismAbility);
+        GooTestFunctions.registerTest(registrar, PRISM_COMBO_RUNS_ON_PRISM_BEHAVIORS, PrismComboTests::comboRunsOnPrismBehaviors);
+        GooTestFunctions.registerTest(registrar, PRISM_WITHOUT_COMBO_STAYS, PrismComboTests::prismWithoutComboStays);
+        GooTestFunctions.registerTest(registrar, COMBINED_PRISM_REFUSES_SECOND, PrismComboTests::combinedPrismRefusesSecond);
+    }
+
 
     private static final BlockPos FLOOR_POS = new BlockPos(1, 1, 1);
     private static final BlockPos PRISM_POS = FLOOR_POS.above();

@@ -19,6 +19,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.portal.TeleportTransition;
 import java.util.List;
 import java.util.Optional;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for End: thrown at a stone wall, it lays a two by two
@@ -26,7 +28,19 @@ import java.util.Optional;
  * platform, and on the pair's clock both vanish
  * (decision end-clears-blocks-and-opens-a-portal).
  */
+@RegistersGameTests
 public final class EndGateTests {
+    private static final String END_LAYS = "end_lays_a_temporary_portal";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, END_LAYS, EndGateTests::endLaysATemporaryPortal);
+    }
+
 
     private static final Identifier ENDER_END = Identifier.parse("goo:ender_end");
     /** The wall block the blob strikes on its south face, the gate's centre. */

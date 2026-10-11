@@ -22,6 +22,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametest for a goo thrown through the real throw path at a standing marker
@@ -29,7 +31,19 @@ import net.minecraft.world.level.block.Blocks;
  * its own throw beside the marker, which runs on as it stood (decision
  * splat-runs-the-program-no-fuse).
  */
+@RegistersGameTests
 public final class StackKeyTests {
+    private static final String PL_OTHER_ABILITY_THROW_LEAVES_MARKER = "pl_other_ability_throw_leaves_marker";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, PL_OTHER_ABILITY_THROW_LEAVES_MARKER, StackKeyTests::secondThrowLandsItsOwnMarker);
+    }
+
 
     private static final String REMOVAL = "removal";
     private static final BlockPos MARKER_POS = new BlockPos(1, 2, 1);

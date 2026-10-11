@@ -18,13 +18,31 @@ import net.minecraft.world.level.block.FarmlandBlock;
 import net.minecraft.world.level.block.VineBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for leaf growth: a held stream random-ticks the plants in its
  * cone, so wheat planted three blocks ahead of the player ripens within the
  * hold, and a vine there spreads (decision growth-breeze-ticks-plants).
  */
+@RegistersGameTests
 public final class GrowthStreamTests {
+    private static final String GROWTH_MATURES_WHEAT = "growth_matures_wheat";
+    private static final String GROWTH_SPREADS_A_VINE = "growth_spreads_a_vine";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, GROWTH_MATURES_WHEAT, GrowthStreamTests::growthMaturesWheat);
+        GooTestFunctions.registerTest(registrar, GROWTH_SPREADS_A_VINE, GrowthStreamTests::growthSpreadsAVine);
+    }
+
 
     private static final BlockPos STAND_POS = new BlockPos(0, 1, 2);
     /** Three blocks east of the player, at its height, on farmland the test lays. */

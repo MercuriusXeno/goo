@@ -19,13 +19,29 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for Meteo: under a clear sky its meteor falls and blasts a
  * crater at the target; under a roof the throw fizzles before it is paid
  * for, taking no goo and calling no meteor (decision meteo-needs-a-clear-sky).
  */
+@RegistersGameTests
 public final class MeteoTests {
+    private static final String METEO_STRIKES = "meteo_strikes_under_clear_sky";
+    private static final String METEO_FIZZLES = "meteo_fizzles_under_a_roof";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, METEO_STRIKES, MeteoTests::meteoStrikesUnderClearSky);
+        GooTestFunctions.registerTest(registrar, METEO_FIZZLES, MeteoTests::meteoFizzlesUnderARoof);
+    }
+
 
     private static final Identifier ASTRAL_METEO = Identifier.fromNamespaceAndPath(Goo.MODID, "astral_meteo");
     /** The ground block the meteor strikes on its top face. */

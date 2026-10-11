@@ -28,6 +28,10 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for drinking a goo brew: the potion's effect lands on a survival
@@ -36,7 +40,57 @@ import java.util.List;
  * nothing, and every bundled type's potion carries its own brew effect
  * (decision brew-grants-the-self-ability-for-an-hour).
  */
+@RegistersGameTests
 public final class BrewEffectTests {
+    private static final String BREW_TYPHOON_AIRBORN = "brew_typhoon_airborn_for_an_hour";
+    private static final String BREW_EVERY_POTION_CARRIES = "brew_every_potion_carries_its_effect";
+    private static final String BREW_BLAZE_KINDLES = "brew_blaze_kindles_for_an_hour";
+    private static final String BREW_LEAF_BARKS = "brew_leaf_barks_for_an_hour";
+    private static final String BREW_VITAL_NOURISHES = "brew_vital_nourishes_for_an_hour";
+    private static final String BREW_WITHOUT_ABILITY = "brew_without_an_ability_runs_nothing";
+    private static final String BREW_ROCK_STONESKINS = "brew_rock_stoneskins_for_an_hour";
+    private static final String BREW_NETHER_UNDEAD = "brew_nether_undead_for_an_hour";
+    private static final String BREW_BLAZE_HOLDS_PREPAID = "brew_blaze_holds_kindle_prepaid";
+    private static final String BREW_REPLACED_ENDS_EFFECT = "brew_replaced_ends_its_effect";
+    private static final String BREW_SHROOM_SIGHTS = "brew_shroom_sights_for_an_hour";
+    private static final String BREW_GLOW_LUX = "brew_glow_lux_for_an_hour";
+    private static final String BREW_ENDER_SHIFTER = "brew_ender_shifter_for_an_hour";
+    private static final String SHIFTER_BLINKS = "shifter_blinks_instead_of_damage";
+    private static final String SHIFTER_VOID = "shifter_void_returns_to_safe_ground";
+    private static final String BREW_FROST_ICEBORN = "brew_frost_iceborn_for_an_hour";
+    private static final String BREW_CRYSTAL_SCALES = "brew_crystal_scales_for_an_hour";
+    private static final String HEX_BREW_LIFETAPS = "hex_brew_lifetaps_for_an_hour";
+    private static final String AEON_BREW_HASTES = "aeon_brew_hastes_for_an_hour";
+    private static final String UNSTABLE_BREW_CHARGES_FOR_AN_HOUR = "unstable_brew_charges_for_an_hour";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, BREW_TYPHOON_AIRBORN, BrewEffectTests::typhoonBrewAirbornForAnHour);
+        GooTestFunctions.registerTest(registrar, BREW_EVERY_POTION_CARRIES, BrewEffectTests::everyPotionCarriesItsBrewEffect);
+        GooTestFunctions.registerTest(registrar, BREW_BLAZE_KINDLES, BrewEffectTests::blazeBrewKindlesForAnHour);
+        GooTestFunctions.registerTest(registrar, BREW_LEAF_BARKS, BrewEffectTests::leafBrewBarksForAnHour);
+        GooTestFunctions.registerTest(registrar, BREW_VITAL_NOURISHES, BrewEffectTests::vitalBrewNourishesForAnHour);
+        GooTestFunctions.registerTest(registrar, BREW_WITHOUT_ABILITY, BrewEffectTests::brewWithoutAnAbilityRunsNothing);
+        GooTestFunctions.registerTest(registrar, BREW_ROCK_STONESKINS, BrewEffectTests::rockBrewStoneskinsForAnHour);
+        GooTestFunctions.registerTest(registrar, BREW_NETHER_UNDEAD, BrewEffectTests::netherBrewUndeadForAnHour);
+        GooTestFunctions.registerTest(registrar, BREW_BLAZE_HOLDS_PREPAID, BrewEffectTests::blazeBrewHoldsKindlePrepaid);
+        GooTestFunctions.registerTest(registrar, BREW_REPLACED_ENDS_EFFECT, BrewEffectTests::replacedBrewEndsItsEffect);
+        GooTestFunctions.registerTest(registrar, BREW_SHROOM_SIGHTS, BrewEffectTests::shroomBrewSightForAnHour);
+        GooTestFunctions.registerTest(registrar, BREW_GLOW_LUX, BrewEffectTests::glowBrewLuxForAnHour);
+        GooTestFunctions.registerTest(registrar, BREW_ENDER_SHIFTER, BrewEffectTests::enderBrewShifterForAnHour);
+        GooTestFunctions.registerTest(registrar, SHIFTER_BLINKS, BrewEffectTests::shifterBlinksInsteadOfDamage);
+        GooTestFunctions.registerTest(registrar, SHIFTER_VOID, BrewEffectTests::shifterVoidReturnsToSafeGround);
+        GooTestFunctions.registerTest(registrar, BREW_FROST_ICEBORN, BrewEffectTests::frostBrewIcebornForAnHour);
+        GooTestFunctions.registerTest(registrar, BREW_CRYSTAL_SCALES, BrewEffectTests::crystalBrewScalesForAnHour);
+        GooTestFunctions.registerTest(registrar, HEX_BREW_LIFETAPS, BrewEffectTests::hexBrewLifetapsForAnHour);
+        GooTestFunctions.registerTest(registrar, AEON_BREW_HASTES, BrewEffectTests::aeonBrewHastesForAnHour);
+        GooTestFunctions.registerTest(registrar, UNSTABLE_BREW_CHARGES_FOR_AN_HOUR, BrewEffectTests::unstableBrewChargesForAnHour);
+    }
+
 
     /** One heart of shield, which a brew primes before its crawl reaches the rest. */
     private static final int PRIMED_HALVES = HeartOverlay.FULL_SHIELD;

@@ -10,6 +10,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CropBlock;
 import net.minecraft.world.level.block.FarmlandBlock;
 import net.minecraft.world.level.block.SugarCaneBlock;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for Growth's tap: drips landing beside plants tick them only once
@@ -18,7 +20,19 @@ import net.minecraft.world.level.block.SugarCaneBlock;
  * the fourth ages it once. Wheat on the same pulses grows.
  * growth-drip-pulses-plants-below
  */
+@RegistersGameTests
 public final class GrowthTapTests {
+    private static final String GROWTH_TAP_COUNTS_DRIPS = "growth_tap_counts_drips";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, GROWTH_TAP_COUNTS_DRIPS, GrowthTapTests::growthTapCountsDrips);
+    }
+
 
     /** leaf_growth_tap.json's drip count. */
     private static final int DRIPS = 4;

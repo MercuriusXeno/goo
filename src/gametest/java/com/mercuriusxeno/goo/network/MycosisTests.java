@@ -24,6 +24,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Mycosis: its stream poisons what it reaches with Goo's spore
@@ -32,7 +36,25 @@ import net.minecraft.world.phys.Vec3;
  * poisons the zombie it lands under (decisions mycosis-spore-stream-buds-and-poisons
  * and mycosis-drip-sprays-spores-below).
  */
+@RegistersGameTests
 public final class MycosisTests {
+    private static final String MYCOSIS_SPREADS_ON_DEATH = "mycosis_spreads_on_death";
+    private static final String MYCOSIS_PLACES_BUDS = "mycosis_places_buds";
+    private static final String MYCOSIS_BUDS_AT_THE_FEET = "mycosis_buds_at_the_feet";
+    private static final String MYCOSIS_TAP_POISONS_BELOW = "mycosis_tap_poisons_below";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, MYCOSIS_SPREADS_ON_DEATH, MycosisTests::mycosisSpreadsOnDeath);
+        GooTestFunctions.registerTest(registrar, MYCOSIS_PLACES_BUDS, MycosisTests::mycosisPlacesBuds);
+        GooTestFunctions.registerTest(registrar, MYCOSIS_BUDS_AT_THE_FEET, MycosisTests::mycosisBudsAtTheFeet);
+        GooTestFunctions.registerTest(registrar, MYCOSIS_TAP_POISONS_BELOW, MycosisTests::mycosisTapPoisonsBelow);
+    }
+
 
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
     /** Four blocks east of the player, inside the cone. */

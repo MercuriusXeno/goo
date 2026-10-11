@@ -10,6 +10,8 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametest for the glove's melee damage: a player holding the exo gauntlet
@@ -17,7 +19,19 @@ import net.minecraft.world.phys.Vec3;
  * (decision glove-damage-by-tier). The target is a villager, which wears no
  * armor to shave the hit.
  */
+@RegistersGameTests
 public final class GloveDamageTests {
+    private static final String MOB_EXO_GAUNTLET_HIT = "mob_exo_gauntlet_hit";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, MOB_EXO_GAUNTLET_HIT, GloveDamageTests::exoGauntletHitsForSeven);
+    }
+
 
     private static final BlockPos MOB_POS = new BlockPos(3, 1, 3);
     private static final BlockPos PLAYER_POS = MOB_POS.west(2);

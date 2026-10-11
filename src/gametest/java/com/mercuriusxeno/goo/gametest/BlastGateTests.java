@@ -10,12 +10,26 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Items;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametest that Blast reaches the glove only for a player who knows gunpowder.
  * decision blast-keeps-its-explosion-gated-on-gunpowder
  */
+@RegistersGameTests
 public final class BlastGateTests {
+    private static final String BLAST_HIDDEN_UNTIL_GUNPOWDER = "blast_hidden_until_gunpowder";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, BLAST_HIDDEN_UNTIL_GUNPOWDER, BlastGateTests::blastHiddenUntilGunpowder);
+    }
+
 
     private static final String REMOVAL = "removal";
     private static final String BLAST_ID = Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_explode").toString();

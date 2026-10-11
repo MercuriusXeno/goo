@@ -22,6 +22,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for the convoke blob: landed on a floor, it pulls a mob from its
@@ -31,7 +33,23 @@ import java.util.List;
  * chunk, so each test lays its scene in a chunk of its own far from every
  * other test, held loaded while it runs.
  */
+@RegistersGameTests
 public final class ConvokeTests {
+    private static final String CONVOKE_PULLS = "convoke_pulls_a_chunk_mob";
+    private static final String CONVOKE_LINGERS = "convoke_lingers_without_a_mob";
+    private static final String CONVOKE_TAP = "convoke_tap_at_full_chance";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, CONVOKE_PULLS, ConvokeTests::convokePullsAChunkMob);
+        GooTestFunctions.registerTest(registrar, CONVOKE_LINGERS, ConvokeTests::convokeLingersWithoutAMob);
+        GooTestFunctions.registerTest(registrar, CONVOKE_TAP, ConvokeTests::convokeTapAtFullChance);
+    }
+
 
     private static final Identifier DEEP_CONVOKE = Identifier.parse("goo:deep_convoke");
     /** How far off its own bay each test lays its chunk, past every other test, and apart from each other. */

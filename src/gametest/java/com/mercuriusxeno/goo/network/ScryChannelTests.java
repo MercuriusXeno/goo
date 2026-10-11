@@ -21,6 +21,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametest for Scry's sweep through the real channel path: a mock player
@@ -29,7 +33,19 @@ import net.minecraft.world.phys.Vec3;
  * wall the player cannot see through, striking it once as it crosses
  * (decision scry-sphere-reveals-faces-and-glistens-mobs).
  */
+@RegistersGameTests
 public final class ScryChannelTests {
+    private static final String SCRY_GLISTENS_THE_HIDDEN_ZOMBIE = "scry_glistens_the_hidden_zombie";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, SCRY_GLISTENS_THE_HIDDEN_ZOMBIE, ScryChannelTests::scryGlistensTheHiddenZombie);
+    }
+
 
     private static final BlockPos STAND_POS = new BlockPos(1, 1, 3);
     /** The wall's column, between the player and the zombie, three blocks high and the bay's width. */

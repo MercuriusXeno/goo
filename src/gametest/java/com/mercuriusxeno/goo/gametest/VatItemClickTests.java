@@ -15,12 +15,30 @@ import net.minecraft.world.inventory.ClickAction;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * Gametests for thousands and gooStacks clicked onto a vat item in inventory
  * (decisions vat-item-insert-shared, vat-item-drain-shared and vat-click-unpacks-into-inventory).
  */
+@RegistersGameTests
 public final class VatItemClickTests {
+    private static final String IX_VAT_ITEM_GOO_INSERT = "ix_vat_item_goo_insert";
+    private static final String IX_VAT_ITEM_GOO_INSERT_REMAINDER = "ix_vat_item_goo_insert_remainder";
+    private static final String IX_VAT_ITEM_DRAIN = "ix_vat_item_drain";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, IX_VAT_ITEM_GOO_INSERT, VatItemClickTests::gooInsertFillsVatAndFullRefuses);
+        GooTestFunctions.registerTest(registrar, IX_VAT_ITEM_GOO_INSERT_REMAINDER, VatItemClickTests::gooInsertKeepsRemainder);
+        GooTestFunctions.registerTest(registrar, IX_VAT_ITEM_DRAIN, VatItemClickTests::secondaryClickUnpacksEveryType);
+    }
+
 
     private static final ResourceKey<GooTypeDefinition> ROCK = GooTypes.ROCK;
     private static final ResourceKey<GooTypeDefinition> NETHER = GooTypes.NETHER;

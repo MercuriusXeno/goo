@@ -10,6 +10,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
 
 /**
  * The compression sphere's hoard keeps whole stacks as it fills, and its
@@ -17,7 +19,21 @@ import java.util.List;
  * black-hole-leaves-a-compression-sphere). An item stack needs the item
  * components a loaded server binds, so these run as gametests.
  */
+@RegistersGameTests
 public final class CompressedHoardTests {
+    private static final String HOARD_KEEPS_WHOLE_STACKS = "hoard_keeps_whole_stacks";
+    private static final String HOARD_CODEC_READS_BACK = "hoard_codec_reads_back_its_stacks";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, HOARD_KEEPS_WHOLE_STACKS, CompressedHoardTests::hoardKeepsWholeStacks);
+        GooTestFunctions.registerTest(registrar, HOARD_CODEC_READS_BACK, CompressedHoardTests::hoardCodecReadsBackItsStacks);
+    }
+
 
     private static final int OVER_ONE_STACK = 70;
     private static final int FULL_STACK = 64;

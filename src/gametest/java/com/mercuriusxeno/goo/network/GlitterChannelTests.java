@@ -18,6 +18,10 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
+import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.function.Consumer;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametests for Crystal's Glitter: a caster holding no lapis channels
@@ -29,7 +33,19 @@ import java.util.List;
  * down should make it go farther).
  * decision glitter-sphere-icons-gem-ore-groups
  */
+@RegistersGameTests
 public final class GlitterChannelTests {
+    private static final String GLITTER_REVEALS_DIAMOND_AND_LAPIS = "glitter_reveals_diamond_and_lapis";
+
+    /**
+     * Registers this class's gametest functions, found and called by GooTestFunctions.
+     *
+     * @param registrar the test function registrar
+     */
+    public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
+        GooTestFunctions.registerTest(registrar, GLITTER_REVEALS_DIAMOND_AND_LAPIS, GlitterChannelTests::glitterRevealsDiamondAndLapis);
+    }
+
 
     private static final Identifier CRYSTAL_GLITTER = Identifier.fromNamespaceAndPath(Goo.MODID, "crystal_glitter");
     private static final Identifier DIAMOND_ORE = Identifier.withDefaultNamespace("diamond_ore");
