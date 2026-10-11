@@ -569,6 +569,7 @@ public final class GooTestFunctions {
     private static final String SPAWN_TURNS_A_SLIME_HOSTILE = "spawn_turns_a_slime_hostile";
     private static final String SHAPE_TURNS_A_SLIME_PEACEFUL = "shape_turns_a_slime_peaceful";
     private static final String RALLY_COW_ATTACKS_THE_ZOMBIE = "rally_cow_attacks_the_zombie";
+    private static final String RALLY_SURVIVES_A_RELOAD = "rally_survives_a_reload";
     private static final String LIFETAP_NO_REGEN_LEECH_ON_HIT = "lifetap_no_regen_leech_on_hit";
     private static final String HEX_BREW_LIFETAPS = "hex_brew_lifetaps_for_an_hour";
     private static final String DRAIN_HEALS_THE_CASTER = "drain_heals_the_caster";
@@ -1145,6 +1146,7 @@ public final class GooTestFunctions {
         reg(r, SPAWN_TURNS_A_SLIME_HOSTILE, ZooSpawnTests::spawnTurnsASlimeHostile);
         reg(r, SHAPE_TURNS_A_SLIME_PEACEFUL, ZooSpawnTests::shapeTurnsASlimePeaceful);
         reg(r, RALLY_COW_ATTACKS_THE_ZOMBIE, RallyTests::rallyCowAttacksTheZombie);
+        reg(r, RALLY_SURVIVES_A_RELOAD, RallyTests::rallySurvivesAReload);
         reg(r, LIFETAP_NO_REGEN_LEECH_ON_HIT, HexSelfTests::lifetapNoRegenLeechOnHit);
         reg(r, HEX_BREW_LIFETAPS, BrewEffectTests::hexBrewLifetapsForAnHour);
         reg(r, DRAIN_HEALS_THE_CASTER, HexSelfTests::drainHealsTheCaster);
