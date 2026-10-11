@@ -125,7 +125,7 @@ class AbilityLoaderTest {
             Map.entry("typhoon_repel", List.of("wind_charge")),
             Map.entry("typhoon_updraft", List.of("breeze_rod")),
             Map.entry("rock_bore", List.of("stone", "cobblestone")),
-            Map.entry("rock_crush", List.of("gravel", "sand")),
+            Map.entry("rock_spire", List.of("gravel", "sand")),
             Map.entry("rock_flatten", List.of("dirt")),
             Map.entry("glow_scry", List.of("spyglass")),
             Map.entry("glow_lux", List.of("carrot")),
