@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.entity;
 
 import com.mercuriusxeno.goo.ability.program.ExplosionMode;
 import com.mercuriusxeno.goo.ability.program.GooExplosion;
+import com.mercuriusxeno.goo.ability.world.MeteorFall;
 import com.mercuriusxeno.goo.registry.GooEntities;
 import com.mojang.serialization.Codec;
 import net.minecraft.core.particles.ParticleTypes;
@@ -23,8 +24,6 @@ import net.minecraft.world.phys.Vec3;
  */
 public class Meteor extends Entity {
 
-    /** Blocks above the target a meteor appears at, capped at the world's top. */
-    static final int FALL_HEIGHT = 48;
     private static final String TAG_TARGET = "Target";
     private static final String TAG_START = "Start";
     private static final String TAG_POWER = "Power";
@@ -63,24 +62,11 @@ public class Meteor extends Entity {
     public static void call(ServerLevel level, Vec3 at, float power, int fallTicks) {
         Meteor meteor = new Meteor(GooEntities.METEOR.get(), level);
         meteor.target = at;
-        meteor.start = new Vec3(at.x, Math.min(level.getMaxY(), at.y + FALL_HEIGHT), at.z);
+        meteor.start = MeteorFall.startAbove(at, level.getMaxY());
         meteor.power = power;
         meteor.fallTicks = Math.max(1, fallTicks);
         meteor.setPos(meteor.start);
         level.addFreshEntity(meteor);
-    }
-
-    /**
-     * Where a meteor stands a share of the way through its fall.
-     *
-     * @param start  where it appeared
-     * @param target where it strikes
-     * @param age    the ticks it has fallen
-     * @param ticks  the ticks its fall lasts
-     * @return the point on the straight line from start to target
-     */
-    static Vec3 fallPosition(Vec3 start, Vec3 target, int age, int ticks) {
-        return start.lerp(target, Math.min(1.0, (double) age / ticks));
     }
 
     @Override
@@ -95,7 +81,7 @@ public class Meteor extends Entity {
             return;
         }
         age++;
-        setPos(fallPosition(start, target, age, fallTicks));
+        setPos(MeteorFall.positionAt(start, target, age, fallTicks));
         server.sendParticles(ParticleTypes.FLAME, getX(), getY(), getZ(), TRAIL_PARTICLES,
                 TRAIL_SPREAD, TRAIL_SPREAD, TRAIL_SPREAD, TRAIL_SPEED);
         server.sendParticles(ParticleTypes.END_ROD, getX(), getY(), getZ(), TRAIL_PARTICLES,
