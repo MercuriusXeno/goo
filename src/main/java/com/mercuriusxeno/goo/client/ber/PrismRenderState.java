@@ -79,6 +79,4 @@ public class PrismRenderState extends BlockEntityRenderState {
 
     /** Seconds since the prism last gave a pulse of power, for a metronome's strobe. */
     public double sinceBeat = Double.MAX_VALUE;
-    /** How strongly an agitator's beat shows this frame, 0 to 1; 0 for any other prism. */
-    public float beat;
 }
