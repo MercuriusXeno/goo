@@ -39,6 +39,7 @@ import com.mercuriusxeno.goo.client.ber.style.PulsePrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.TimekeeperPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.VerdantPrismStyle;
 import com.mercuriusxeno.goo.client.entity.CompressionSphereRenderer;
+import com.mercuriusxeno.goo.client.entity.FeedPileRenderer;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
@@ -213,6 +214,7 @@ public final class GooClientSetup {
         PrismComboStyles.register(GlacialPrismStyle.COMBO, new GlacialPrismStyle());
         event.registerBlockEntityRenderer(GooBlockEntities.STATUE.get(), StatueRenderer::new);
         event.registerEntityRenderer(GooEntities.COMPRESSION_SPHERE.get(), CompressionSphereRenderer::new);
+        event.registerEntityRenderer(GooEntities.FEED_PILE.get(), FeedPileRenderer::new);
         // orb-carries-a-swirling-nova: RollingGooRenderer draws the ball and its swirl from the level stage
         event.registerEntityRenderer(GooEntities.ROLLING_GOO.get(), NoopRenderer::new);
     }
