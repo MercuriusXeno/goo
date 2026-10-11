@@ -18,7 +18,11 @@ import java.util.stream.Stream;
  * whose {@code interval} divides the field's tick count, each strike
  * spending one charge when its {@code spend_chance} roll passes (decision
  * metal-spends-charge-by-chance). When no charge remains and no strike is in flight it runs the
- * teardown once and finishes after {@code contract_ticks}.
+ * teardown once and finishes after {@code contract_ticks}. The {@code expand}
+ * steps run on the marker on the field's first tick, as it opens, and the
+ * {@code ambient} steps run on the marker on each tick its
+ * {@code ambient_chance} roll passes while charges last, so a field can
+ * sound as it stands (decision razor-keeps-its-look-gated-on-glass).
  *
  * <p>The strike body and {@code interval} run on a host bound to the
  * selected entity, so the body holds entity effect steps and the interval
@@ -46,10 +50,14 @@ import java.util.stream.Stream;
  * @param timing      how long the field takes to expand and to contract
  * @param strike      the steps run on the struck entity when a strike lands
  * @param teardown    the steps run on the marker once the budget is spent
+ * @param expand      the steps run on the marker on the field's first tick
+ * @param ambient     the steps run on the marker on a tick whose roll passes the ambient chance
+ * @param ambientChance the chance in [0, 1] each tick that the ambient steps run while charges last
  */
 public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldown, Expr interval,
                               Expr charges, Expr spendChance, Expr strikeTick, Expr strikeTicks,
-                              FieldTiming timing, List<Step> strike, List<Step> teardown) implements Step {
+                              FieldTiming timing, List<Step> strike, List<Step> teardown, List<Step> expand,
+                              List<Step> ambient, Expr ambientChance) implements Step {
 
     private static final String NAME = "field_effect";
     private static final String FIELD_RADIUS = "radius";
@@ -62,6 +70,9 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
     private static final String FIELD_STRIKE_TICKS = "strike_ticks";
     private static final String FIELD_STRIKE = "strike";
     private static final String FIELD_TEARDOWN = "teardown";
+    private static final String FIELD_EXPAND = "expand";
+    private static final String FIELD_AMBIENT = "ambient";
+    private static final String FIELD_AMBIENT_CHANCE = "ambient_chance";
 
     /**
      * Codec for the step's params. The child list codecs are read lazily
@@ -79,8 +90,35 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
             FieldTiming.CODEC.forGetter(FieldEffectStep::timing),
             Codec.lazyInitialized(() -> StepTypes.LIST_CODEC).fieldOf(FIELD_STRIKE).forGetter(FieldEffectStep::strike),
             Codec.lazyInitialized(() -> StepTypes.LIST_CODEC).optionalFieldOf(FIELD_TEARDOWN, List.of())
-                    .forGetter(FieldEffectStep::teardown)
+                    .forGetter(FieldEffectStep::teardown),
+            Codec.lazyInitialized(() -> StepTypes.LIST_CODEC).optionalFieldOf(FIELD_EXPAND, List.of())
+                    .forGetter(FieldEffectStep::expand),
+            Codec.lazyInitialized(() -> StepTypes.LIST_CODEC).optionalFieldOf(FIELD_AMBIENT, List.of())
+                    .forGetter(FieldEffectStep::ambient),
+            Expr.CODEC.optionalFieldOf(FIELD_AMBIENT_CHANCE, Expr.literal(0)).forGetter(FieldEffectStep::ambientChance)
     ).apply(inst, FieldEffectStep::new));
+
+    /**
+     * A field effect that runs nothing as it opens and nothing as it stands.
+     *
+     * @param radius      the selection radius in blocks
+     * @param where       the filters an entity must pass to be struck
+     * @param cooldown    ticks after a strike starts before the next may start
+     * @param interval    the tick period on which a selected entity may be struck
+     * @param charges     the charges the throw buys
+     * @param spendChance the chance in [0, 1] that a strike spends a charge
+     * @param strikeTick  the strike age at which the strike body lands
+     * @param strikeTicks how many ticks a strike stays in flight
+     * @param timing      how long the field takes to expand and to contract
+     * @param strike      the steps run on the struck entity when a strike lands
+     * @param teardown    the steps run on the marker once the budget is spent
+     */
+    public FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldown, Expr interval, Expr charges,
+                           Expr spendChance, Expr strikeTick, Expr strikeTicks, FieldTiming timing,
+                           List<Step> strike, List<Step> teardown) {
+        this(radius, where, cooldown, interval, charges, spendChance, strikeTick, strikeTicks, timing, strike,
+                teardown, List.of(), List.of(), Expr.literal(0));
+    }
 
     /**
      * A field effect spending a charge on every strike.
@@ -118,6 +156,7 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
         FieldEffectState state = context.hostAs(FieldEffectHost.class).fieldEffect();
         EntityScanHost scan = context.hostAs(EntityScanHost.class);
         state.countTick();
+        sound(context, state);
         advanceStrikes(context, scan, state);
         if (state.cooldown() > 0) {
             state.setCooldown(state.cooldown() - 1);
@@ -128,6 +167,35 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
         }
         state.recordCharges(chargesLeft(context, state));
         return tearDownWhenSpent(context, state);
+    }
+
+    /**
+     * Runs the expand steps on the field's first tick, and the ambient steps
+     * on a tick whose roll passes the ambient chance while charges last.
+     *
+     * @param context the marker's tick context
+     * @param state   the field-effect state
+     */
+    private void sound(StepContext context, FieldEffectState state) {
+        if (state.fieldTicks() == 1 && !expand.isEmpty()) {
+            runOnMarker(context, expand);
+        }
+        if (!ambient.isEmpty() && chargesLeft(context, state) > 0
+                && context.hostAs(FieldEffectHost.class).rollFraction() < ambientChance.evaluate(context)) {
+            runOnMarker(context, ambient);
+        }
+    }
+
+    /**
+     * Runs marker steps once, their framed sounds held by the marker's
+     * program so a sound framed after this tick still plays.
+     *
+     * @param context the marker's tick context
+     * @param steps   the steps
+     */
+    private static void runOnMarker(StepContext context, List<Step> steps) {
+        HeldCues cues = context.heldCues();
+        (cues == null ? new ProgramBehavior(steps) : new ProgramBehavior(steps, cues)).tick(context.host());
     }
 
     /**
@@ -221,7 +289,7 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
             return false;
         }
         if (state.teardownTicks() == 0) {
-            new ProgramBehavior(teardown).tick(context.host());
+            runOnMarker(context, teardown);
         }
         state.setTeardownTicks(state.teardownTicks() + 1);
         return state.teardownTicks() > timing.contractTicks().evaluateInt(context);
@@ -253,7 +321,7 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
      */
     private Stream<Expr> markerExpressions() {
         return Stream.of(radius, cooldown, charges, spendChance, strikeTick, strikeTicks,
-                timing.expandTicks(), timing.contractTicks());
+                timing.expandTicks(), timing.contractTicks(), ambientChance);
     }
 
     @Override
@@ -270,13 +338,13 @@ public record FieldEffectStep(Expr radius, List<EntityFilter> where, Expr cooldo
 
     @Override
     public Stream<Step> children() {
-        return Stream.concat(strike.stream(), teardown.stream());
+        return Stream.of(strike, teardown, expand, ambient).flatMap(List::stream);
     }
 
     @Override
     public Stream<HostedStep> hostedChildren(HostKind host) {
         return Stream.concat(strike.stream().map(child -> new HostedStep(child, HostKind.ENTITY)),
-                teardown.stream().map(child -> new HostedStep(child, host)));
+                Stream.of(teardown, expand, ambient).flatMap(List::stream).map(child -> new HostedStep(child, host)));
     }
 
     @Override

@@ -85,6 +85,11 @@ class FieldEffectStepTest {
     private static final int SPRINT_WINDOW = 4;
     private static final int CLOUD_ANIMATION_TICKS = 10;
     private static final float FRACTION_TOLERANCE = 1e-5f;
+    /** The tick after the cloud opens that its second chime rings. */
+    private static final int EXPAND_CHIME_FRAME = 4;
+    /** Rolls either side of the cloud's ambient chance. */
+    private static final double ROLL_MISSES_THE_TINKLE = 0.5;
+    private static final double ROLL_PASSES_THE_TINKLE = 0.05;
     private static final Identifier PROBE_SOUND = Identifier.parse("goo:test.strike_landed");
     /** The sound each strike body plays at its target in place of its damage. */
     private static final Step PROBE_STEP = new SoundStep(PROBE_SOUND, FxAnchor.TARGET, SoundKind.HOSTILE,
@@ -423,6 +428,28 @@ class FieldEffectStepTest {
         assertFalse(program.isActive());
         verify(host, times(1)).spawnParticles(argThat(burst -> "poof".equals(burst.particle().getPath())));
         verify(host, times(1)).playSound(argThat(cue -> "block.fire.extinguish".equals(cue.sound().getPath())));
+    }
+
+    // razor-keeps-its-look-gated-on-glass: the cloud sounds as it opens and tinkles as it stands
+    @Test
+    void theCrystalFieldChimesAsItOpensAndTinklesOnARollWhileItStands() {
+        MarkerHost host = marker(List.of());
+        when(host.rollFraction()).thenReturn(ROLL_MISSES_THE_TINKLE);
+        ProgramBehavior program = ProgramBehavior.forHost(program(CRYSTAL_CLOUD), HostKind.MARKER);
+
+        program.tick(host);
+        verify(host, times(1)).playSound(argThat(cue -> "block.amethyst_cluster.place".equals(cue.sound().getPath())));
+        tick(program, host, EXPAND_CHIME_FRAME + 1);
+        verify(host, times(1)).playSound(argThat(cue -> isChime(cue) && cue.volume() == 1f));
+        verify(host, never()).playSound(argThat(cue -> isChime(cue) && cue.volume() < 1f));
+
+        when(host.rollFraction()).thenReturn(ROLL_PASSES_THE_TINKLE);
+        program.tick(host);
+        verify(host, times(1)).playSound(argThat(cue -> isChime(cue) && cue.volume() < 1f));
+    }
+
+    private static boolean isChime(SoundCue cue) {
+        return "block.amethyst_block.chime".equals(cue.sound().getPath());
     }
 
     @Test

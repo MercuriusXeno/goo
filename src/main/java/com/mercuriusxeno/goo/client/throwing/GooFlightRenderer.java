@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.throwing;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.TravelForm;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
@@ -8,7 +9,6 @@ import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.ability.ConeGeometry;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
@@ -103,25 +103,9 @@ public final class GooFlightRenderer {
 
 
     /**
-     * Short-range threshold: metal spine starts fully formed below this.
+     * Short-range threshold: a travel form starts fully formed below this.
      */
     private static final float SHORT_RANGE_THRESHOLD = 1.5f;
-    /**
-     * Front spear cone length in blocks.
-     */
-    private static final float DART_FRONT_LENGTH = 2.5f;
-    /**
-     * Front spear cone base radius (narrow, needlelike).
-     */
-    private static final float DART_FRONT_RADIUS = 0.05f;
-    /**
-     * Rear spear butt length in blocks.
-     */
-    private static final float DART_REAR_LENGTH = 0.5f;
-    /**
-     * Rear spear butt base radius.
-     */
-    private static final float DART_REAR_RADIUS = 0.09f;
     /**
      * Number of triangular faces on dart cones.
      */
@@ -195,8 +179,8 @@ public final class GooFlightRenderer {
         }
 
         translateToFlight(ctx, pos);
-        if (flight.gooType == GooTypes.METAL && flight.targetEntityId >= 0) {
-            renderMetalSpineLayers(ctx, flight, vel);
+        if (flight.delivery.form().morphs()) {
+            renderMorphLayers(ctx, flight, vel);
         } else {
             renderFlightLayers(ctx, flight.gooType, vel);
         }
@@ -631,16 +615,18 @@ public final class GooFlightRenderer {
     }
 
     /**
-     * Renders a metal goo flight that morphs into a dart spine in flight.
-     * The goo shrinks as the spine grows, fully morphed at the share of the
-     * flight the ability's delivery names (decisions
-     * traveling-form-transforms-in-flight, dart-transform-point-is-ability-data).
+     * Renders a goo flight that morphs into its delivery's travel form in
+     * flight, the metal javelin's dart or a crystal shard's flechette. The
+     * goo shrinks as the form grows, fully morphed at the share of the flight
+     * the ability's delivery names (decisions
+     * traveling-form-transforms-in-flight, dart-transform-point-is-ability-data,
+     * shards-sling-then-morph-to-flechettes).
      *
      * @param ctx    the per-frame render context
-     * @param flight the metal flight
+     * @param flight the morphing flight
      * @param vel    the velocity vector
      */
-    private static void renderMetalSpineLayers(FlightFrame ctx,
+    private static void renderMorphLayers(FlightFrame ctx,
                                                GooFlightManager.GooFlight flight, Vec3 vel) {
         float progress = Math.min(1f,
                 (flight.ticksElapsed + ctx.partialTick) / flight.travelTicks);
@@ -659,7 +645,7 @@ public final class GooFlightRenderer {
         }
 
         if (morphFrac > 0f) {
-            emitMetalSpine(ctx.poseStack, ctx.buffers, type, vel, morphFrac);
+            emitTravelForm(ctx.poseStack, ctx.buffers, type, flight.delivery.form(), vel, morphFrac);
         }
 
         renderTail(ctx.poseStack, ctx.buffers, type, vel, ctx.gameTime);
@@ -684,18 +670,21 @@ public final class GooFlightRenderer {
     }
 
     /**
-     * Emits the metal spine geometry: a long pointy front dart and a
-     * stubby rear pyramid, both oriented along the velocity vector.
-     * Uses the goo fluid texture for a metallic appearance.
+     * Emits a travel form's geometry: a pointed front cone and a stubby rear
+     * cone, both oriented along the velocity vector, sized by the form and
+     * grown by the morph. Uses the goo fluid texture, so the form wears its
+     * goo's look.
      *
      * @param poseStack the pose stack
      * @param buffers   the buffer source
      * @param type      the goo type (for texture lookup)
+     * @param form      the travel form drawn
      * @param vel       the velocity direction
      * @param morphFrac morph progress [0, 1]
      */
-    private static void emitMetalSpine(PoseStack poseStack, MultiBufferSource buffers,
-                                       ResourceKey<GooTypeDefinition> type, Vec3 vel, float morphFrac) {
+    private static void emitTravelForm(PoseStack poseStack, MultiBufferSource buffers,
+                                       ResourceKey<GooTypeDefinition> type, TravelForm form, Vec3 vel,
+                                       float morphFrac) {
         GooRenderUtil.UvRect uv = spriteToUv(type);
         VertexConsumer c = buffers.getBuffer(
                 GooSubmitter.renderType());
@@ -708,12 +697,12 @@ public final class GooFlightRenderer {
         float[] basis = ConeGeometry.computeBasis(dx, dy, dz);
 
         emitDartCone(pose, c, dx, dy, dz,
-                DART_FRONT_LENGTH * morphFrac,
-                DART_FRONT_RADIUS * morphFrac,
+                form.frontLength() * morphFrac,
+                form.frontRadius() * morphFrac,
                 basis, uv);
         emitDartCone(pose, c, -dx, -dy, -dz,
-                DART_REAR_LENGTH * morphFrac,
-                DART_REAR_RADIUS * morphFrac,
+                form.rearLength() * morphFrac,
+                form.rearRadius() * morphFrac,
                 basis, uv);
     }
 
