@@ -20,8 +20,6 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.biome.MobSpawnSettings;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
@@ -44,7 +42,6 @@ public final class HexSpawnTests {
     private static final double SEARCH_REACH = 2.0;
 
     private static final String ABILITY_REQUIRED = "Ability registry must hold hex_spawn";
-    private static final String EGG_TAKEN = "The throw should take the one egg, %d remain";
     private static final String NO_NATURAL_MOB = "A mob the landing biome spawns naturally should stand at the landing";
 
     private static final int MORPH_TICKS = 20;
@@ -98,7 +95,7 @@ public final class HexSpawnTests {
     }
 
     /**
-     * A hex_spawn throw at a stone floor takes the thrower's egg and births a
+     * A hex_spawn throw at a stone floor by a thrower holding only its glove and goo births a
      * living mob of a type the landing biome spawns naturally, standing at
      * the landing.
      *
@@ -110,7 +107,6 @@ public final class HexSpawnTests {
         helper.setBlock(FLOOR_POS, Blocks.STONE);
         ServerPlayer player = StackKeyTests.makeThrower(helper, GooTypes.HEX);
         KnownRecipes.teachRequires(player, spawn);
-        player.getInventory().add(new ItemStack(Items.EGG));
         BlockPos landing = helper.absolutePos(FLOOR_POS.above());
         Set<EntityType<?>> natural = naturalSpawnsAt(helper, landing);
 
@@ -118,8 +114,6 @@ public final class HexSpawnTests {
                 helper.absolutePos(FLOOR_POS), Direction.UP.ordinal(), false, HEX_SPAWN.toString(),
                 player.getEyePosition()));
 
-        int eggs = player.getInventory().countItem(Items.EGG);
-        helper.assertTrue(eggs == 0, String.format(EGG_TAKEN, eggs));
         helper.succeedWhen(() -> {
             List<LivingEntity> born = helper.getLevel().getEntitiesOfClass(LivingEntity.class,
                     new AABB(landing).inflate(SEARCH_REACH), living -> !(living instanceof Player));

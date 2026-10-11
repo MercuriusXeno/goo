@@ -16,7 +16,7 @@ import java.util.stream.Stream;
 /**
  * Adds a status effect to the host's target and finishes. The effect is
  * named by id and resolved when the step runs, so the step decodes without a
- * registry behind it; typhoon levitate is
+ * registry behind it, as
  * {@code potion effect=minecraft:levitation duration=100 amplifier=1}.
  *
  * @param effect    the status effect id

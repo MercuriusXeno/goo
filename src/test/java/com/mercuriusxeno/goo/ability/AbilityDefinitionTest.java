@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.ability.program.ExplosionMarch;
 import com.mercuriusxeno.goo.ability.program.ExplosionMode;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.Step;
+import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -48,6 +49,15 @@ class AbilityDefinitionTest {
         assertEquals(written, AbilityDefinition.previewAtMaxReach(written, explodes));
     }
 
+    @Test
+    void spawnConsumesNoItemAndStaysGatedBehindSculk() {
+        // ability-json-names-its-reagent
+        // spawn-goo-morphs-into-the-mob-it-births
+        AbilityDefinition spawn = AbilityJson.decode("hex_spawn");
+        assertEquals(List.of(), spawn.consumes());
+        assertEquals(List.of(Identifier.withDefaultNamespace("sculk")), spawn.requires());
+    }
+
     /** An instant area throw writing no area draws the sphere its program reaches. */
     @Nested
     class DerivedFromTheProgram {
@@ -64,7 +74,7 @@ class AbilityDefinitionTest {
         }
 
         @ParameterizedTest
-        @CsvSource({"crystal_cloud, 4.5", "metal_spikes, 3.75", "rock_crush, 2.0",
+        @CsvSource({"crystal_cloud, 4.5", "metal_spikes, 3.75",
                 "shroom_colonize, 3.0"})
         void fieldThrowDrawsASphereAtItsWidestRadius(String name, double radius) {
             assertEquals(new AbilityArea(AbilityArea.Shape.SPHERE, radius, 0), AbilityJson.decode(name).area());

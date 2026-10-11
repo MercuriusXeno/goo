@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:lift_sinks_a_sneaking_rider",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 40,
+  "setup_ticks": 0,
+  "required": true
+}

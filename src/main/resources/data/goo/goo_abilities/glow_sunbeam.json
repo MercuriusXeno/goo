@@ -18,8 +18,26 @@
         { "type": "particles", "id": "minecraft:crit", "at": "target", "count": 10, "spread": 0.5, "speed": 0.1 },
         { "type": "target", "where": ["undead"], "steps": [ { "type": "ignite", "seconds": 1 } ] },
         { "type": "ailment_overlay", "kind": "glow", "duration": 200 }
+      ],
+      "impact": [
+        { "type": "particles", "id": "minecraft:end_rod", "count": "1 + at_least(held - 2 * floor(held / 2), 1)", "spread": 0.15, "speed": 0.12 },
+        {
+          "type": "branch",
+          "when": "at_least(held - 3 * floor(held / 3), 2)",
+          "then": [
+            { "type": "particles", "id": "minecraft:small_flame", "count": 1, "spread": 0.1, "speed": 0.02 },
+            { "type": "particles", "id": "minecraft:white_smoke", "count": 1, "spread": 0.1, "speed": 0.01 }
+          ]
+        },
+        {
+          "type": "branch",
+          "when": "hit",
+          "then": [
+            { "type": "sound", "id": "minecraft:block.beacon.power_select", "source": "players", "volume": 0.6, "pitch": 1.8 }
+          ]
+        }
       ]
     }
   ],
-  "tags": ["self"]
+  "tags": ["self", "locks_on"]
 }

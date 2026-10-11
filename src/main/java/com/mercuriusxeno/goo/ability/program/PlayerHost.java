@@ -204,6 +204,16 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     }
 
     @Override
+    public void liftEntitiesInColumn(double radius, double height, double speed) {
+        asEntity().liftEntitiesInColumn(radius, height, speed);
+    }
+
+    @Override
+    public void rideShaftAbove(int cap, double rise, double sink) {
+        asEntity().rideShaftAbove(cap, rise, sink);
+    }
+
+    @Override
     public void spawnParticles(ParticleBurst burst) {
         asEntity().spawnParticles(burst);
     }
@@ -263,18 +273,6 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     @Override
     public Entity breaker() {
         return player;
-    }
-
-    /**
-     * Toggles the device once in the player's stream hold, its door read by
-     * its lower half so both halves count as one
-     * (decision signal-wave-toggles-each-device-once).
-     */
-    @Override
-    public void toggleOnceThisHold(BlockPos pos) {
-        ZapDevice.handDevice(level, pos)
-                .filter(device -> GooServerState.of(level.getServer()).streamHolds().touchOnce(player.getUUID(), device))
-                .ifPresent(device -> ZapDevice.toggleByHand(level, device));
     }
 
     /**

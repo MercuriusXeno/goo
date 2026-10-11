@@ -100,10 +100,15 @@ public enum HostCapability {
      */
     CONVOKE(ConvokeHost.class),
     /**
-     * A struck surface a Dragon Gate can open over (decision
-     * dragon-gate-banishes-blocks-and-opens-a-portal).
+     * A column under the landed block that can churn (decision
+     * churn-rotates-a-plus-shaped-column).
      */
-    DRAGON_GATE(GateHost.class),
+    CHURN(ChurnHost.class),
+    /**
+     * A struck surface an End gate can open over (decision
+     * end-clears-blocks-and-opens-a-portal).
+     */
+    END_GATE(GateHost.class),
     /**
      * The world around a lasting host to green tick after tick (decision
      * verdant-prism-greens-blocks-slowly).
@@ -121,7 +126,7 @@ public enum HostCapability {
     TOGGLE_DEVICE(DeviceToggleHost.class),
     /**
      * A host whose own block can give redstone power to its neighbors
-     * (decision thumper-blob-pulses-periodically-then-fades).
+     * (decision metronome-prism-pulses-at-the-learned-rate).
      */
     EMIT_POWER(PowerEmitHost.class),
     /**
@@ -145,11 +150,6 @@ public enum HostCapability {
      */
     SPAWN_MOB(MobSpawnHost.class),
     /**
-     * An agitator's countdown kept across ticks (decision
-     * agitator-prism-quickens-until-a-spawn).
-     */
-    AGITATE(AgitateHost.class),
-    /**
      * The level and the point frost spreads out of (decisions
      * nova-ring-grows-with-the-hold, nova-drip-pulses-a-short-lasting-freeze).
      */
@@ -168,7 +168,12 @@ public enum HostCapability {
      * A sphere around the anchor to slow time in, the chronosphere's marker
      * (decision chronosphere-hastes-players-slows-mobs).
      */
-    TIME_VEIL(TimeVeilHost.class);
+    TIME_VEIL(TimeVeilHost.class),
+    /**
+     * The ground a Spire lifts, the footprint and rise its submit planned
+     * (decision spire-rips-walls-and-platforms).
+     */
+    RAISE_GROUND(RaiseGroundHost.class);
 
     private final Class<? extends StepHost> hostType;
 

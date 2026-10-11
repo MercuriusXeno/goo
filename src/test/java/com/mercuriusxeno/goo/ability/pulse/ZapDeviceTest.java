@@ -12,17 +12,22 @@ import net.minecraft.world.level.block.RepeaterBlock;
 import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.WeatheringCopperDoorBlock;
 import net.minecraft.world.level.block.piston.PistonBaseBlock;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Covers Zap's device table: which row ticks each kind of block, read by
- * class so no registry boots.
+ * class so no registry boots, and which blocks a Zap ticks rather than
+ * dispersing into the Signal wave.
  * zap-ticks-the-device-and-stuns
+ * zap-disperses-into-signal
  */
 class ZapDeviceTest {
 
@@ -46,5 +51,21 @@ class ZapDeviceTest {
     @MethodSource("rows")
     void eachBlockFallsUnderItsRow(Class<? extends Block> block, ZapDevice row) {
         assertEquals(row, ZapDevice.of(block), block.getSimpleName());
+    }
+
+    @Test
+    void aBlockWithARowOfItsOwnTicks() {
+        assertTrue(ZapDevice.ticks(ZapDevice.LEVER, false));
+        assertTrue(ZapDevice.ticks(ZapDevice.REPEATER, false));
+    }
+
+    @Test
+    void aReceiverTakesThePowerSource() {
+        assertTrue(ZapDevice.ticks(ZapDevice.POWER_SOURCE, true));
+    }
+
+    @Test
+    void aPlainBlockDisperses() {
+        assertFalse(ZapDevice.ticks(ZapDevice.POWER_SOURCE, false));
     }
 }
