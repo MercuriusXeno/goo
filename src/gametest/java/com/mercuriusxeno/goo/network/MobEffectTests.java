@@ -17,6 +17,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -83,7 +84,10 @@ public final class MobEffectTests {
     private static final String SHOULD_TAKE_JAVELIN_DAMAGE = "Target should have taken the javelin's damage";
     private static final String ABILITIES_REQUIRED = "Ability registry must be loaded";
     private static final String ABILITY_METAL_JAVELIN = "goo:metal_javelin";
-    private static final String ABILITY_TYPHOON_LEVITATE = "goo:typhoon_levitate";
+    private static final String ABILITY_TYPHOON_FLOAT = "goo:typhoon_float";
+    private static final String LEVITATION_SHOULD_HIDE_PARTICLES = "Float's levitation should show no particles";
+    private static final String FLOAT_SHOULD_END_WITH_LEVITATION = "The zombie's float should end when its levitation does";
+    private static final String FLOAT_SHOULD_CLEAR_WITH_LEVITATION = "Removing the levitation should clear the float";
     private static final String ABILITY_FROST_SNAP = "goo:frost_snap";
     private static final String ABILITY_PULSE_SHORT_CIRCUIT = "goo:pulse_short_circuit";
     private static final String ABILITY_AEON_STASIS = "goo:aeon_stasis";
@@ -298,15 +302,24 @@ public final class MobEffectTests {
     }
 
     /**
-     * Typhoon levitate is a program of one potion step: levitation.
+     * Typhoon float lifts a zombie with levitation that shows no particles,
+     * marks it floating until the levitation's last tick, and drops the mark
+     * when the levitation is removed (decision float-blob-levitates-the-mob).
      *
      * @param helper the gametest helper
      */
-    public static void typhoonLevitate(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
+    public static void floatLevitatesAZombie(GameTestHelper helper) {
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_TYPHOON_LEVITATE);
-            helper.assertTrue(mob.hasEffect(MobEffects.LEVITATION), SHOULD_HAVE_LEVITATION);
+            strike(helper, zombie, ABILITY_TYPHOON_FLOAT);
+            MobEffectInstance levitation = zombie.getEffect(MobEffects.LEVITATION);
+            helper.assertTrue(levitation != null, SHOULD_HAVE_LEVITATION);
+            helper.assertFalse(levitation.isVisible(), LEVITATION_SHOULD_HIDE_PARTICLES);
+            long endsAt = helper.getLevel().getGameTime() + levitation.getDuration();
+            helper.assertTrue(zombie.hasData(GooAttachments.FLOATING)
+                    && zombie.getData(GooAttachments.FLOATING).expiresAt() == endsAt, FLOAT_SHOULD_END_WITH_LEVITATION);
+            zombie.removeEffect(MobEffects.LEVITATION);
+            helper.assertFalse(zombie.hasData(GooAttachments.FLOATING), FLOAT_SHOULD_CLEAR_WITH_LEVITATION);
             helper.succeed();
         });
     }
