@@ -37,7 +37,7 @@ class GooTypesTest {
             GooTypes.REGISTRY, Identifier.fromNamespaceAndPath("gootest", "seventeenth"));
     private static final List<String> BUNDLED_IDS = List.of(
             "aeon", "blaze", "crystal", "ender", "frost", "glow", "hex", "leaf",
-            "metal", "nether", "pulse", "rock", "shroom", "typhoon", "unstable", "vital", "weird");
+            "metal", "nether", "opulent", "pulse", "rock", "shroom", "typhoon", "unstable", "vital", "weird");
     private static final String TYPE_JSON = "/data/goo/goo/goo_type/%s.json";
     private static final String TEXTURES = "textures";
     private static final String TEXTURE_PNG = "/assets/%s/textures/%s.png";
