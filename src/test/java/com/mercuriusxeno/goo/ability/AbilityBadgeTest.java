@@ -19,12 +19,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AbilityBadgeTest {
 
-    private static final int SHIPPED_MOB_BADGES = 16;
-    private static final int SHIPPED_WORLD_BADGES = 18;
+    private static final int SHIPPED_MOB_BADGES = 17;
+    private static final int SHIPPED_WORLD_BADGES = 20;
     private static final int SHIPPED_SELF_BADGES = 7;
     private static final int SHIPPED_BREW_BADGES = 19;
     private static final int SHIPPED_CHANNELED_BADGES = 25;
-    private static final int SHIPPED_FREE_BADGES = 6;
+    private static final int SHIPPED_FREE_BADGES = 7;
     private static final int SHIPPED_TAP_BADGES = 12;
     private static final int SHIPPED_PRISM_BADGES = 10;
     /**
@@ -44,7 +44,7 @@ class AbilityBadgeTest {
             "unstable_charged", "kinetic_telekinesis", "yore_ancient", "quantum_phase");
     /** The shipped free abilities (decisions badge-vocabulary-gains-free-prism-tap-brew, zap-ticks-the-device-and-stuns). */
     private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "shroom_colonize",
-            "pulse_zap", "frost_orb", "leaf_reap", "jelly_feed");
+            "pulse_zap", "frost_orb", "leaf_reap", "jelly_feed", "weird_slime");
     /**
      * Self deliveries wearing the channeled badge (decisions flatten-disc-cursor-breaks-above-the-plane,
      * unmake-waves-dissolve-by-crucible-cost).

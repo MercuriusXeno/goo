@@ -54,7 +54,8 @@ import java.util.OptionalDouble;
 public record LandingHost(ServerLevel level, BlockPos cell, Direction face, boolean waterlogged,
                           ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 anchor, double size)
         implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
-        ColonizeHost, FloorScanHost, GateHost, PowerPulseHost, FrostHost, MeteorHost, AgingHost, PhaseBlocksHost {
+        ColonizeHost, FloorScanHost, GateHost, PowerPulseHost, MobSpawnHost, FrostHost, MeteorHost, AgingHost,
+        TimedBlockHost, PhaseBlocksHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -71,6 +72,16 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     /** The point the throw landed at, where a landing nova spreads from (decision orb-carries-a-swirling-nova). */
     @Override
     public Vec3 frostCenter() {
+        return anchor;
+    }
+
+    @Override
+    public BlockPos spawnCell() {
+        return cell;
+    }
+
+    @Override
+    public Vec3 morphFrom() {
         return anchor;
     }
 
@@ -158,6 +169,12 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
         level.setBlock(cell, StatePropertyWriter.write(found.defaultBlockState(), values), Block.UPDATE_ALL);
     }
 
+
+    @Override
+    public void placeForTicks(Block block, int ticks) {
+        level.setBlock(cell, block.defaultBlockState(), Block.UPDATE_ALL);
+        level.scheduleTick(cell, block, ticks);
+    }
 
     @Override
     public void linger(List<Step> steps) {
