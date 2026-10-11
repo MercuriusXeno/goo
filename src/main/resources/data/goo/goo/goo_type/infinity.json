@@ -1,0 +1,23 @@
+{
+  "light_level": 10,
+  "saturation_fill": 0.5,
+  "wheel": "C8B8F0",
+  "bright": "F4ECFF",
+  "highlight": "DCCCFA",
+  "edge": "ECE0FF",
+  "density": 1000,
+  "viscosity": 2000,
+  "temperature": 300,
+  "extinguishes": false,
+  "levity": 1.0,
+  "base_flight_time": 3,
+  "map_color": "color_magenta",
+  "textures": {
+    "goo_tiny": "goo:item/infinity_goo_tiny",
+    "goo_small": "goo:item/infinity_goo_small",
+    "goo_base": "goo:item/infinity_goo_base",
+    "goo_large": "goo:item/infinity_goo_large",
+    "fluid_still": "goo:fluid/infinity_fluid",
+    "fluid_flowing": "goo:fluid/infinity_fluid"
+  }
+}
