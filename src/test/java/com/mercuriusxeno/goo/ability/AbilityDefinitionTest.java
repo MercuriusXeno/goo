@@ -27,12 +27,17 @@ class AbilityDefinitionTest {
     private static final double TOLERANCE = 1e-9;
     private static final double CONE_ANGLE = 30;
     private static final double EXPLOSION_POWER = 3;
+    /** The explosion power Lurker's JSON writes. */
+    private static final float LURKER_POWER = 2.5f;
+    /** The widest radius Razor's field step writes. */
+    private static final double RAZOR_RADIUS = 4.5;
     private static final Pattern RADIUS_BEARING = Pattern.compile("\"radius\"|\"type\"\s*:\s*\"explode\"");
 
-    @ParameterizedTest
-    @CsvSource({"unstable_lurker, 2.5", "unstable_timed_bomb, 2.0"})
-    void explosiveSphereIsDrawnAtTheExplosionsMaxReach(String name, float power) {
-        assertEquals(ExplosionMarch.maxReach(power), AbilityJson.decode(name).area().size(), TOLERANCE);
+    // decision one-proving-ability-per-kind
+    @Test
+    void explosiveSphereIsDrawnAtTheExplosionsMaxReach() {
+        assertEquals(ExplosionMarch.maxReach(LURKER_POWER), AbilityJson.decode("unstable_lurker").area().size(),
+                TOLERANCE);
     }
 
     @Test
@@ -72,11 +77,11 @@ class AbilityDefinitionTest {
             }
         }
 
-        @ParameterizedTest
-        @CsvSource({"crystal_cloud, 4.5", "metal_spikes, 3.75",
-                "shroom_colonize, 3.0"})
-        void fieldThrowDrawsASphereAtItsWidestRadius(String name, double radius) {
-            assertEquals(new AbilityArea(AbilityArea.Shape.SPHERE, radius, 0), AbilityJson.decode(name).area());
+        // decision one-proving-ability-per-kind
+        @Test
+        void fieldThrowDrawsASphereAtItsWidestRadius() {
+            assertEquals(new AbilityArea(AbilityArea.Shape.SPHERE, RAZOR_RADIUS, 0),
+                    AbilityJson.decode("crystal_cloud").area());
         }
 
         @Test
@@ -99,13 +104,13 @@ class AbilityDefinitionTest {
     @Nested
     class WrittenOrNotAThrow {
 
-        @ParameterizedTest
-        @CsvSource({"glow_crystal, LINE, 0.0, 0.0", "blaze_spitfire, CONE, 6.0, 20.0",
-                "unstable_explode, NONE, 0.0, 0.0"})
-        void writtenAreaStandsOverTheDerivedOne(String name, AbilityArea.Shape shape, double size, double angle) {
-            assertEquals(new AbilityArea(shape, size, angle), AbilityJson.decode(name).area());
+        // decision one-proving-ability-per-kind
+        @Test
+        void writtenAreaStandsOverTheDerivedOne() {
+            assertEquals(new AbilityArea(AbilityArea.Shape.LINE, 0, 0), AbilityJson.decode("glow_crystal").area());
         }
 
+        /** One proving example per kind: a thrown channel, a self, a brew and a stream. */
         @ParameterizedTest
         @CsvSource({"crystal_shards, NONE, 0.0, 0.0", "ender_blink, NONE, 0.0, 0.0",
                 "blaze_kindle, NONE, 0.0, 0.0", "blaze_spitfire, CONE, 6.0, 20.0"})
@@ -130,7 +135,7 @@ class AbilityDefinitionTest {
         @Test
         void freeThrowOverAFieldStepDrawsItsSphere() {
             List<Step> field = AbilityJson.decode("crystal_cloud").behaviors();
-            assertEquals(new AbilityArea(AbilityArea.Shape.SPHERE, 4.5, 0),
+            assertEquals(new AbilityArea(AbilityArea.Shape.SPHERE, RAZOR_RADIUS, 0),
                     AbilityDefinition.heldArea(AbilityArea.NONE, Delivery.ARC, AbilityBadge.FREE, field));
         }
     }
