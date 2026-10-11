@@ -16,5 +16,7 @@ public enum AilmentPattern {
     /** A rough opaque stone crust over the whole model. */
     STONE,
     /** Pale frost crystals rimming the model. */
-    FROST
+    FROST,
+    /** Veins writhing and coiling over the model (decision xeno-blob-mutates-the-struck). */
+    WRITHE
 }

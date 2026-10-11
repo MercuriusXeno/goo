@@ -1,0 +1,29 @@
+{
+  "gooType": "xeno",
+  "displayName": "goo.ability.xeno.mutate",
+  "badge": "mob",
+  "order": 0,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    {
+      "type": "target",
+      "where": ["mob", "not_boss"],
+      "steps": [
+        {
+          "type": "mutate",
+          "table": [
+            { "kind": "size", "amount": 0.5 },
+            { "kind": "size", "amount": -0.4 },
+            { "kind": "speed", "amount": 0.5 },
+            { "kind": "speed", "amount": -0.4 },
+            { "kind": "health", "amount": 10 },
+            { "kind": "drop", "item": "minecraft:spider_eye" }
+          ]
+        },
+        { "type": "sound", "id": "minecraft:entity.slime.squish", "at": "target", "source": "hostile", "volume": 1, "pitch": 0.5 }
+      ]
+    }
+  ],
+  "tags": ["entity"]
+}

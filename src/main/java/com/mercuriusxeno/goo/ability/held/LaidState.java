@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.held;
 
 import com.mercuriusxeno.goo.ability.program.AirbornStep;
+import com.mercuriusxeno.goo.ability.program.EldritchStep;
 import com.mercuriusxeno.goo.ability.program.ExtenderStep;
 import com.mercuriusxeno.goo.ability.program.HasteStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
@@ -46,7 +47,9 @@ public enum LaidState {
     /** Haste's golden overlay (decision haste-stacks-speed-under-the-golden-overlay). */
     HASTE,
     /** Air control (decision airborn-steerable-levitation-and-soft-falls). */
-    AIRBORN;
+    AIRBORN,
+    /** The eldritch state (decision eldritch-sight-reveals-the-out-of-phase). */
+    ELDRITCH;
 
     /** Codec for the saved state. */
     public static final Codec<LaidState> CODEC = LowerCaseEnumCodec.of(LaidState.class, "laid state");
@@ -73,17 +76,18 @@ public enum LaidState {
     }
 
     /** The state each kind of step lays. */
-    private static final Map<Class<? extends Step>, LaidState> LAID_BY = Map.of(
-            HeartOverlayStep.class, HEART_OVERLAY,
-            NourishStep.class, NOURISH,
-            SightStep.class, SIGHT,
-            LuxStep.class, LUX,
-            UndeadStep.class, UNDEAD,
-            ShifterStep.class, SHIFTER,
-            ExtenderStep.class, EXTENDER,
-            LifetapStep.class, LIFETAP,
-            HasteStep.class, HASTE,
-            AirbornStep.class, AIRBORN);
+    private static final Map<Class<? extends Step>, LaidState> LAID_BY = Map.ofEntries(
+            Map.entry(HeartOverlayStep.class, HEART_OVERLAY),
+            Map.entry(NourishStep.class, NOURISH),
+            Map.entry(SightStep.class, SIGHT),
+            Map.entry(LuxStep.class, LUX),
+            Map.entry(UndeadStep.class, UNDEAD),
+            Map.entry(ShifterStep.class, SHIFTER),
+            Map.entry(ExtenderStep.class, EXTENDER),
+            Map.entry(LifetapStep.class, LIFETAP),
+            Map.entry(HasteStep.class, HASTE),
+            Map.entry(AirbornStep.class, AIRBORN),
+            Map.entry(EldritchStep.class, ELDRITCH));
 
     private static Stream<Step> withDescendants(Step step) {
         return Stream.concat(Stream.of(step), step.children().flatMap(LaidState::withDescendants));

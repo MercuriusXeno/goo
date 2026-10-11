@@ -70,6 +70,7 @@
   "goo.type.typhoon": "Typhoon",
   "goo.type.unstable": "Unstable",
   "goo.type.vital": "Vital",
+  "goo.type.xeno": "Xeno",
   "goo.type.untyped": "Untyped",
 
   "item.minecraft.potion.effect.aeon_goo": "Potion of Timecurve",
@@ -89,6 +90,7 @@
   "item.minecraft.potion.effect.typhoon_goo": "Potion of Air Control",
   "item.minecraft.potion.effect.unstable_goo": "Potion of Instability",
   "item.minecraft.potion.effect.vital_goo": "Potion of Nourishment",
+  "item.minecraft.potion.effect.xeno_goo": "Potion of Eldritch Sight",
 
   "effect.goo.aeon_brew": "Aeon Brew",
   "effect.goo.blaze_brew": "Blaze Brew",
@@ -109,6 +111,7 @@
   "effect.goo.typhoon_brew": "Typhoon Brew",
   "effect.goo.unstable_brew": "Unstable Brew",
   "effect.goo.vital_brew": "Vital Brew",
+  "effect.goo.xeno_brew": "Xeno Brew",
 
   "item.goo.partially_melted_item": "Partially Melted Item",
 
@@ -213,5 +216,7 @@
   "goo.ability.vital.vitality": "Vitality",
   "goo.ability.vital.vitality_tap": "Vitality",
   "goo.ability.vital.reserve": "Reserve",
-  "goo.ability.vital.nourish": "Nourish"
+  "goo.ability.vital.nourish": "Nourish",
+  "goo.ability.xeno.eldritch": "Eldritch Sight",
+  "goo.ability.xeno.mutate": "Mutate"
 }

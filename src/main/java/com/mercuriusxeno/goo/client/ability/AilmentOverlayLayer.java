@@ -40,6 +40,9 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
     public static final ContextKey<List<StampedAilment>> AILMENTS =
             new ContextKey<>(Identifier.fromNamespaceAndPath(Goo.MODID, "ailments"));
 
+    /** The strength an ailment with no timer draws at. */
+    private static final float FULL_STRENGTH = 1f;
+
     /** A color channel's full value. */
     private static final int MAX_CHANNEL = 255;
 
@@ -87,7 +90,8 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
     /**
      * Stamps the ailments the entity wears onto its render state, each with
      * its strength this frame, read by the layer when it draws; a charmed
-     * mob wears the hex glisten from its synced charm.
+     * mob wears the hex glisten from its synced charm, and a mutated mob
+     * wears the writhe at full strength for as long as it stays mutated.
      *
      * @param entity the entity
      * @param state  its render state
@@ -99,7 +103,15 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
                 .map(ailment -> new StampedAilment(ailment.kind(),
                         MobAilments.strength(ailment.ticksLeft() - partialTick)))
                 .toList();
-        state.setRenderData(AILMENTS, withCharmGlisten(worn, entity.hasData(GooAttachments.CHARMED)));
+        List<StampedAilment> glistened = withCharmGlisten(worn, entity.hasData(GooAttachments.CHARMED));
+        // xeno-blob-mutates-the-struck: the writhe stands with the saved mutations, not on a timer
+        Stream<StampedAilment> mutated = isMutated(entity)
+                ? Stream.of(new StampedAilment(AilmentKind.MUTATED, FULL_STRENGTH)) : Stream.empty();
+        state.setRenderData(AILMENTS, Stream.concat(glistened.stream(), mutated).toList());
+    }
+
+    private static boolean isMutated(Entity entity) {
+        return entity.hasData(GooAttachments.MUTATIONS) && !entity.getData(GooAttachments.MUTATIONS).isEmpty();
     }
 
     /**

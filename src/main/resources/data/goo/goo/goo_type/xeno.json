@@ -1,0 +1,23 @@
+{
+  "light_level": 8,
+  "saturation_fill": 0.5,
+  "wheel": "6E8F3A",
+  "bright": "96B762",
+  "highlight": "7D9E49",
+  "edge": "8CAD58",
+  "density": 1000,
+  "viscosity": 2000,
+  "temperature": 300,
+  "extinguishes": false,
+  "levity": 1.0,
+  "base_flight_time": 3,
+  "map_color": "warped_nylium",
+  "textures": {
+    "goo_tiny": "goo:item/xeno_goo_tiny",
+    "goo_small": "goo:item/xeno_goo_small",
+    "goo_base": "goo:item/xeno_goo_base",
+    "goo_large": "goo:item/xeno_goo_large",
+    "fluid_still": "goo:fluid/xeno_fluid",
+    "fluid_flowing": "goo:fluid/xeno_fluid"
+  }
+}
