@@ -1,13 +1,17 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
+import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Covers Spawn's conjure roll: a chance of zero never lands, a whole
- * chance always does, and a part chance lands below its share.
+ * chance always does, and a part chance lands below its share; and the
+ * morph reaches the watchers before the conjured mob does.
  */
 class SpawnRandomStepTest {
 
@@ -32,5 +36,14 @@ class SpawnRandomStepTest {
     void aPartChanceLandsBelowItsShare() {
         assertTrue(SpawnRandomStep.rolls(TAP_CHANCE, 0.04f));
         assertFalse(SpawnRandomStep.rolls(TAP_CHANCE, 0.05f));
+    }
+
+    @Test
+    void theTransformationGoesOutBeforeTheMobIsAdded() {
+        List<String> sent = new ArrayList<>();
+
+        SpawnRandomStep.spawnAnnounced("mob", () -> sent.add("transformation"), mob -> sent.add(mob + " spawn"));
+
+        assertEquals(List.of("transformation", "mob spawn"), sent);
     }
 }

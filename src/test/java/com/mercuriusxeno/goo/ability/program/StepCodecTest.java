@@ -55,8 +55,6 @@ class StepCodecTest {
                     Identifier.fromNamespaceAndPath("goo", "foliage")))),
             Map.entry("set_ai", LeafSteps.SET_AI.step(false)),
             Map.entry("set_invulnerable", LeafSteps.SET_INVULNERABLE.step(true)),
-            Map.entry("clone_entity", new CloneEntityStep(Expr.parse("100 / pow(max_health, 0.6)").getOrThrow(),
-                    GooTypes.VITAL)),
             Map.entry("drop_item", new DropItemStep(Identifier.parse("minecraft:cobblestone"),
                     Expr.parse("1 + random(3)").getOrThrow())),
             Map.entry("ignite", LeafSteps.IGNITE.step(Expr.literal(10))),

@@ -20,6 +20,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.EventHooks;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 /**
@@ -49,8 +50,8 @@ public record SpawnRandomStep(ResourceKey<GooTypeDefinition> goo, int morphTicks
     private static final String FIELD_CHANCE = "chance";
     /** A whole chance, in percent: the throw always conjures. */
     private static final float PERCENT = 100;
-    /** The morph's length where the JSON names none, the clone's hop. */
-    private static final int DEFAULT_MORPH_TICKS = 16;
+    /** Game ticks a goo morph takes where the JSON names none. */
+    static final int DEFAULT_MORPH_TICKS = 16;
     /** A whole turn, in degrees, over which the conjured mob's facing is drawn. */
     private static final float FULL_TURN_DEGREES = 360f;
 
@@ -111,7 +112,7 @@ public record SpawnRandomStep(ResourceKey<GooTypeDefinition> goo, int morphTicks
         // spawn-goo-morphs-into-the-mob-it-births: the splat morphs in place, no hop
         TransformationPayload morph = new TransformationPayload(goo, morphFrom, morphFrom, entity.getId(),
                 morphTicks);
-        CloneEntityStep.spawnAnnounced(entity, () -> BlockVisuals.sendToWatchers(level, cell, morph),
+        spawnAnnounced(entity, () -> BlockVisuals.sendToWatchers(level, cell, morph),
                 level::addFreshEntity);
         if (entity instanceof LivingEntity living && !steps.isEmpty()) {
             new ProgramBehavior(steps).tick(new EntityHost(level, living, null));
@@ -127,6 +128,23 @@ public record SpawnRandomStep(ResourceKey<GooTypeDefinition> goo, int morphTicks
      */
     static boolean rolls(float chancePercent, float roll) {
         return roll * PERCENT < chancePercent;
+    }
+
+    /**
+     * Announces a mob's transformation, then adds the mob to the level.
+     * Adding it sends its spawn to the watchers at once, so the
+     * transformation goes first: the client keys it by the mob's id, which
+     * the mob holds from construction, and draws the mob at nothing from its
+     * first frame (decision model-transformation-is-one-animation).
+     *
+     * @param mob      the mob, its id and position set
+     * @param announce sends the transformation to the watchers
+     * @param add      adds the mob to the level, which sends its spawn to the watchers at once
+     * @param <E>      the mob's type
+     */
+    static <E> void spawnAnnounced(E mob, Runnable announce, Consumer<E> add) {
+        announce.run();
+        add.accept(mob);
     }
 
     @Override

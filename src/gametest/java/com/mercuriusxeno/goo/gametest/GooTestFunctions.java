@@ -521,7 +521,7 @@ public final class GooTestFunctions {
     private static final String GROWTH_SPARES_WART = "growth_leaves_nether_wart_alone";
     private static final String VINES_BURN_AND_BREAK = "vines_burn_and_break";
     private static final String VINES_TRAP_ON_THE_GROUND = "vines_trap_on_the_ground";
-    private static final String MOB_VITAL = "mob_vital_clone";
+    private static final String ALLURE_COURTS = "allure_courts_the_struck_animal";
     private static final String MOB_BLAZE = "mob_blaze_ignite";
     private static final String MOB_FROST = "mob_frost_snap";
     private static final String SNAP_ENCASES_THEN_THAWS = "snap_encases_then_thaws";
@@ -1087,7 +1087,7 @@ public final class GooTestFunctions {
         reg(r, GROWTH_SPARES_WART, MycosisFungiTests::growthLeavesNetherWartAlone);
         reg(r, VINES_BURN_AND_BREAK, VinesTests::vinesBurnAndBreak);
         reg(r, VINES_TRAP_ON_THE_GROUND, VinesTests::vinesTrapOnTheGround);
-        reg(r, MOB_VITAL, MobEffectTests::vitalClone);
+        reg(r, ALLURE_COURTS, MobEffectTests::allureCourtsTheStruckAnimal);
         reg(r, MOB_BLAZE, MobEffectTests::blazeIgnite);
         reg(r, MOB_FROST, MobEffectTests::frostSnap);
         reg(r, SNAP_ENCASES_THEN_THAWS, MobEffectTests::snapEncasesThenThaws);
