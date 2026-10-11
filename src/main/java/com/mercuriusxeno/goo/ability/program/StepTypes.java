@@ -63,6 +63,7 @@ public final class StepTypes {
         register(WithdrawBankStep.TYPE);
         register(SlowTimeStep.TYPE);
         register(HasteStep.TYPE);
+        register(AncientStep.TYPE);
         register(DropItemStep.TYPE);
         register(LeafSteps.IGNITE.type());
         register(EntitiesStep.TYPE);
@@ -110,6 +111,7 @@ public final class StepTypes {
         register(LeafSteps.HEAL.type());
         register(LeafSteps.COURT.type());
         register(LeafSteps.POWER_PULSE.type());
+        register(LeafSteps.AGE.type());
         register(LeafSteps.TOGGLE_DEVICE.type());
         register(MetronomeStep.TYPE);
         register(RelayStep.TYPE);

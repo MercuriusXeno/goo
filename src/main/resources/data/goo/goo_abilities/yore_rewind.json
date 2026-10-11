@@ -1,0 +1,45 @@
+{
+  "gooType": "yore",
+  "displayName": "goo.ability.yore.rewind",
+  "badge": "channeled",
+  "order": 20,
+  "cost": 1000,
+  "requires": ["minecraft:clock"],
+  "delivery": {
+    "kind": "stream", "range": 8, "cone": 10, "ticks_per_charge": 20,
+    "particle": "minecraft:wax_on",
+    "sound": { "id": "minecraft:block.beacon.ambient", "every": 20, "volume": 0.5, "pitch_spread": 0.1 }
+  },
+  "behaviors": [
+    {
+      "type": "target",
+      "where": ["mob", "not_boss", "has_spawn_egg"],
+      "steps": [
+        { "type": "rewind_hold" },
+        { "type": "ailment_overlay", "kind": "stasis", "duration": 12 },
+        { "type": "counter", "id": "goo:ritual", "add": 1.25 },
+        { "type": "particles", "id": "minecraft:wax_on", "at": "target", "count": 2, "spread": 0.4, "lift": 0.5 },
+        {
+          "type": "branch",
+          "when": "at_least(goo:ritual - 5 * floor(goo:ritual / 5), 3.75)",
+          "then": [
+            { "type": "sound", "id": "minecraft:block.comparator.click", "at": "target", "source": "players", "volume": 0.9, "pitch": "0.7 + goo:ritual / 80" }
+          ]
+        },
+        {
+          "type": "branch",
+          "when": "at_least(goo:ritual, 100)",
+          "then": [
+            { "type": "regress", "ticks": 20 },
+            { "type": "counter", "id": "goo:ritual", "set": 0 },
+            { "type": "particles", "id": "minecraft:end_rod", "at": "target", "count": 30, "spread": 0.5, "speed": 0.08, "lift": 0.5 },
+            { "type": "particles", "id": "minecraft:wax_on", "at": "target", "count": 40, "spread": 0.7, "speed": 0.5, "lift": 0.5 },
+            { "type": "sound", "id": "minecraft:block.bell.resonate", "at": "target", "source": "players", "volume": 1.0, "pitch": 1.6 },
+            { "type": "sound", "id": "minecraft:entity.illusioner.mirror_move", "at": "target", "source": "players", "volume": 1.0, "pitch": 0.8 }
+          ]
+        }
+      ]
+    }
+  ],
+  "tags": ["stream"]
+}

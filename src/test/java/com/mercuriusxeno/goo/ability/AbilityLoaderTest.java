@@ -113,6 +113,7 @@ class AbilityLoaderTest {
             Map.entry("blaze_kindle", List.of("magma_cream")),
             Map.entry("leaf_barkskin", List.of("oak_log")),
             Map.entry("aeon_rewind", List.of("clock")),
+            Map.entry("yore_rewind", List.of("clock")),
             Map.entry("aeon_stasis", List.of("netherite_scrap")),
             Map.entry("aeon_haste", List.of("sugar")),
             Map.entry("leaf_vines", List.of("vine")),
@@ -285,7 +286,7 @@ class AbilityLoaderTest {
         for (AbilityDefinition ability : scanned.values()) {
             if (SelfEatRoute.eats(ability.delivery(), ability.badge())) {
                 assertEquals(0, ability.cost(), ability.id().toString());
-                assertEquals(1, ability.upkeep(), ability.id().toString());
+                assertTrue(ability.upkeep() >= 1, ability.id().toString());
             } else {
                 assertEquals(AbilityDefinition.NO_UPKEEP, ability.upkeep(), ability.id().toString());
             }

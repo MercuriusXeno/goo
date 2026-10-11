@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.held;
 
 import com.mercuriusxeno.goo.ability.program.AirbornStep;
+import com.mercuriusxeno.goo.ability.program.AncientStep;
 import com.mercuriusxeno.goo.ability.program.ChargedStep;
 import com.mercuriusxeno.goo.ability.program.EldritchStep;
 import com.mercuriusxeno.goo.ability.program.ExtenderStep;
@@ -55,7 +56,9 @@ public enum LaidState {
     /** The eldritch state (decision eldritch-sight-reveals-the-out-of-phase). */
     ELDRITCH,
     /** Charged, laid by a charged step (decision charged-scales-channel-params-by-json). */
-    CHARGED;
+    CHARGED,
+    /** Ancient's floor of half a heart and its aged overlay (decision ancient-makes-the-player-immortal). */
+    ANCIENT;
 
     /** Codec for the saved state. */
     public static final Codec<LaidState> CODEC = LowerCaseEnumCodec.of(LaidState.class, "laid state");
@@ -95,7 +98,8 @@ public enum LaidState {
             Map.entry(AirbornStep.class, AIRBORN),
             Map.entry(TelekinesisStep.class, TELEKINESIS),
             Map.entry(EldritchStep.class, ELDRITCH),
-            Map.entry(ChargedStep.class, CHARGED));
+            Map.entry(ChargedStep.class, CHARGED),
+            Map.entry(AncientStep.class, ANCIENT));
 
     private static Stream<Step> withDescendants(Step step) {
         return Stream.concat(Stream.of(step), step.children().flatMap(LaidState::withDescendants));
