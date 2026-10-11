@@ -9,11 +9,13 @@ import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -257,8 +259,8 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
      * decision convoke-blob-throbs-until-a-mob-arrives
      */
     @Override
-    public boolean convokeFromChunk() {
-        return ChunkConvoke.convoke(level, Vec3.atBottomCenterOf(pos));
+    public boolean convokeFromChunk(ResourceKey<GooTypeDefinition> goo) {
+        return ChunkConvoke.convoke(level, Vec3.atBottomCenterOf(pos), goo);
     }
 
     @Override

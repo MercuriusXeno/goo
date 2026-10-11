@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.type.GooTypes;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -44,7 +45,7 @@ class ConvokeTapProgramTest {
         for (int drip = 0; drip < DRIPS; drip++) {
             new ProgramBehavior(List.of(losing)).tick(host);
         }
-        verify(host, never()).convokeFromChunk();
+        verify(host, never()).convokeFromChunk(GooTypes.ENDER);
     }
 
     @Test
@@ -53,6 +54,6 @@ class ConvokeTapProgramTest {
         when(host.kind()).thenReturn(HostKind.TAP);
         BranchStep certain = new BranchStep(Expr.literal(1), roll().then(), roll().otherwise());
         new ProgramBehavior(List.of(certain)).tick(host);
-        verify(host).convokeFromChunk();
+        verify(host).convokeFromChunk(GooTypes.ENDER);
     }
 }
