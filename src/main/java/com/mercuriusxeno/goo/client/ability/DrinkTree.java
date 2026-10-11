@@ -20,7 +20,8 @@ import java.util.Set;
  * swelling in over a short length either side of its join, so the two meet
  * like metaballs touching and a trunk grows gently however many feed it,
  * and every stream's width falls straight to a thread over the last two
- * fifths of its route, so the trunk enters the palm no wider than a thread.
+ * fifths of its route, reaching it half a block before the glove and running
+ * into the palm at that one width, so the trunk enters the palm as a hair.
  * The liquid's
  * pace is set by the goo massing where it flows: a lone block's stream runs
  * at the base pace and a trunk fed by many runs faster by the square root of
@@ -42,10 +43,15 @@ public final class DrinkTree {
     static final double BASE_VOLUME = 1000;
     /** The root of the count of streams a trunk's width grows by: the fourth, so a trunk never fattens far. */
     static final double TRUNK_ROOT = 4;
-    /** The share of a stream's route past which its width falls, straight, from its full width to the thread at the palm. */
+    /** The share of a stream's route past which its width falls, straight, from its full width to the thread. */
     static final double TAPER_FROM = 0.6;
     /** The radius of the thread the trunk is as it enters the palm, in blocks: the thinnest the skin reads round. */
     static final double THREAD = DrinkStream.THINNEST;
+    /**
+     * Blocks before the glove the stream is the thread from, running into the palm's blob at that one width: a cone
+     * thinnest only at the blob's middle, hidden inside it, met the blob as a blunt knob.
+     */
+    static final double THREAD_RUN = 0.5;
     /** Ticks a block's goo takes to weigh wholly on the pace of the trunks it feeds, so the pace glides rather than jumps. */
     static final double MASS_RAMP = 10;
     /** Stations along one block of path the liquid's travel time is summed at. */
@@ -520,8 +526,9 @@ public final class DrinkTree {
      * equal streams make about 1.7 times one, a stream swelling in counts in
      * proportion, and a trunk whose own liquid has passed is still as wide as
      * what flows through it; past {@link #TAPER_FROM} of the route the whole
-     * width falls in a straight line to a {@link #THREAD} at the palm, so the
-     * stream enters the hand as a thread and never blocks the view there.
+     * width falls in a straight line to a {@link #THREAD} reached
+     * {@link #THREAD_RUN} before the palm and held into it, so the stream
+     * enters the hand as a hair and never blocks the view there.
      *
      * @param stream the stream
      * @param share  the share of its path
@@ -561,17 +568,28 @@ public final class DrinkTree {
     /**
      * How much of its full width a stream keeps at a share of its path: all of
      * it to {@link #TAPER_FROM} of its whole route to the glove, then falling
-     * in a straight line to none at the glove, where it is the thread; a
-     * tributary's own path ends at its join, so it keeps the share its join's
-     * place on its route leaves it.
+     * in a straight line to none where the thread starts, and none from there
+     * to the glove; a tributary's own path ends at its join, so it keeps the
+     * share its join's place on its route leaves it.
      *
      * @param stream the stream
      * @param share  the share of its path
      * @return 1 for the whole width, 0 for the thread
      */
     static double widthHeldAt(Stream stream, double share) {
-        double route = share * stream.path().length() / stream.routeLength();
-        return 1 - Math.clamp((route - TAPER_FROM) / (1 - TAPER_FROM), 0, 1);
+        double taperFrom = TAPER_FROM * stream.routeLength();
+        double distance = share * stream.path().length();
+        return 1 - Math.clamp((distance - taperFrom) / (threadFrom(stream) - taperFrom), 0, 1);
+    }
+
+    /**
+     * @param stream the stream
+     * @return blocks along its route from which it is the thread: {@link #THREAD_RUN} before the glove, or on a route
+     *         too short for that, halfway from where the taper starts to the glove, so the fall is never a cliff
+     */
+    static double threadFrom(Stream stream) {
+        double route = stream.routeLength();
+        return Math.max(route - THREAD_RUN, (TAPER_FROM * route + route) * HALF);
     }
 
     /**

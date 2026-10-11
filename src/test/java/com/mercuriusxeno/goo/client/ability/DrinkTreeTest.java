@@ -386,32 +386,57 @@ class DrinkTreeTest {
         }
 
         @Test
-        void everyStreamFallsStraightToAThreadOverTheLastTwoFifthsOfItsRoute() {
+        void everyStreamFallsStraightToAThreadHalfABlockBeforeTheGloveAndRunsAsThatHairIntoThePalm() {
             List<DrinkTree.Stream> streams = treeAt(START + tree().get(1).routeLength() / DrinkStream.FLOW);
             DrinkTree.Stream trunk = streams.getFirst();
             DrinkTree.Stream tributary = streams.get(1);
             double taperFrom = DrinkTree.TAPER_FROM;
-            double midway = (1 + taperFrom) / TWO;
+            double route = trunk.routeLength();
+            double threadFrom = 1 - DrinkTree.THREAD_RUN / route;
+            double midway = (threadFrom + taperFrom) / TWO;
             DrinkTree.Flow full = DrinkTree.flowOf(trunk, trunk, taperFrom).plus(DrinkTree.flowOf(tributary, trunk,
                     taperFrom));
             DrinkTree.Flow mid = DrinkTree.flowOf(trunk, trunk, midway).plus(DrinkTree.flowOf(tributary, trunk, midway));
             double joinShare = tributary.path().length() / tributary.routeLength();
+            double tributaryThreadFrom = DrinkTree.threadFrom(tributary) / tributary.routeLength();
 
             assertEquals(0.6, taperFrom, DELTA, "the taper starts three fifths of the way to the hand");
+            assertEquals(0.5, DrinkTree.THREAD_RUN, DELTA, "the thread runs the last half block into the palm");
+            assertTrue(route > DrinkTree.THREAD_RUN / (1 - taperFrom), "a route long enough for the whole run");
+            assertEquals(threadFrom * route, DrinkTree.threadFrom(trunk), DELTA, "the thread from a run before the glove");
             assertEquals(1, DrinkTree.widthHeldAt(trunk, taperFrom / TWO), DELTA, "the whole width early on");
             assertEquals(1, DrinkTree.widthHeldAt(trunk, taperFrom), DELTA, "and still where the taper starts");
             assertEquals(0.5, DrinkTree.widthHeldAt(trunk, midway), DELTA, "half of it midway down the taper");
-            assertEquals(0.75, DrinkTree.widthHeldAt(trunk, taperFrom + (1 - taperFrom) / 4), DELTA, "straight");
+            assertEquals(0.75, DrinkTree.widthHeldAt(trunk, taperFrom + (threadFrom - taperFrom) / 4), DELTA,
+                    "straight");
+            assertEquals(0, DrinkTree.widthHeldAt(trunk, threadFrom), DELTA, "none where the thread starts");
+            assertEquals(0, DrinkTree.widthHeldAt(trunk, (threadFrom + 1) / TWO), DELTA, "none down the run");
             assertEquals(0, DrinkTree.widthHeldAt(trunk, 1), DELTA, "none at the glove");
-            assertEquals(1 - Math.clamp((joinShare - taperFrom) / (1 - taperFrom), 0, 1),
+            assertEquals(1 - Math.clamp((joinShare - taperFrom) / (tributaryThreadFrom - taperFrom), 0, 1),
                     DrinkTree.widthHeldAt(tributary, 1), DELTA,
                     "a tributary's end keeps the width its join's share of its own route leaves it");
             assertEquals(widthOf(full), DrinkTree.radiusAt(trunk, taperFrom), DELTA, "the fourth root to the taper");
             assertEquals((DrinkTree.THREAD + widthOf(mid)) / TWO, DrinkTree.radiusAt(trunk, midway), DELTA,
                     "halfway between the full width and the thread midway down the taper");
-            assertEquals(DrinkTree.THREAD, DrinkTree.radiusAt(trunk, 1), DELTA, "a thread at the glove");
+            assertEquals(DrinkTree.THREAD, DrinkTree.radiusAt(trunk, threadFrom), DELTA, "the thread a run before");
+            assertEquals(DrinkTree.THREAD, DrinkTree.radiusAt(trunk, 1), DELTA, "and still the thread at the glove");
             assertEquals(DrinkStream.THINNEST, DrinkTree.THREAD, DELTA, "the thread is the thinnest the skin reads round");
             assertTrue(DrinkTree.THREAD < DrinkStream.WAIST / 4, "a thread is far thinner than one stream's waist");
+        }
+
+        @Test
+        void aBlockRightByTheHandFallsToTheThreadOverTheFirstHalfOfWhatItsTaperLeaves() {
+            DrinkTree.Block beside = block(new BlockPos(1, 2, 3), 1);
+            DrinkTree.Stream stream = DrinkTree.build(List.of(beside), layoutOf(beside), GLOVE, PULL, NOW).getFirst();
+            double route = stream.routeLength();
+            double taperFrom = DrinkTree.TAPER_FROM * route;
+
+            assertTrue(route - DrinkTree.THREAD_RUN < taperFrom, "too short a route for the whole run past the taper");
+            assertEquals((taperFrom + route) / TWO, DrinkTree.threadFrom(stream), DELTA,
+                    "so the thread starts halfway from the taper to the glove");
+            assertEquals(0.5, DrinkTree.widthHeldAt(stream, (DrinkTree.TAPER_FROM + DrinkTree.threadFrom(stream) / route)
+                    / TWO), DELTA, "half the width midway down that fall, not a cliff");
+            assertEquals(0, DrinkTree.widthHeldAt(stream, DrinkTree.threadFrom(stream) / route), DELTA);
         }
 
         @Test
