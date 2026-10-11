@@ -1,0 +1,23 @@
+{
+  "light_level": 10,
+  "saturation_fill": 0.5,
+  "wheel": "A8BCE0",
+  "bright": "F2F6FF",
+  "highlight": "C4CEDC",
+  "edge": "DCE6F8",
+  "density": 1000,
+  "viscosity": 1000,
+  "temperature": 250,
+  "extinguishes": false,
+  "levity": 1.0,
+  "base_flight_time": 3,
+  "map_color": "snow",
+  "textures": {
+    "goo_tiny": "goo:item/astral_goo_tiny",
+    "goo_small": "goo:item/astral_goo_small",
+    "goo_base": "goo:item/astral_goo_base",
+    "goo_large": "goo:item/astral_goo_large",
+    "fluid_still": "goo:fluid/astral_fluid",
+    "fluid_flowing": "goo:fluid/astral_fluid"
+  }
+}
