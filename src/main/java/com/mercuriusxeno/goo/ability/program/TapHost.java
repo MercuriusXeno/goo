@@ -41,7 +41,7 @@ import java.util.function.Consumer;
  */
 public record TapHost(ServerLevel level, BlockPos tapPos, BlockPos landing, Direction face)
         implements ExplodeHost, AnchoredWorldHost, PlaceBlockHost, EntityScanHost, DripHost, ConvokeHost,
-        DeviceToggleHost, MobSpawnHost, FrostHost, TickBlockHost, ShardFallHost {
+        DeviceToggleHost, FrostHost, TickBlockHost, ShardFallHost {
 
     private static final double HALF = 0.5;
     /** Half the width of the column a shard falls down, narrower than a block. */
@@ -75,21 +75,6 @@ public record TapHost(ServerLevel level, BlockPos tapPos, BlockPos landing, Dire
         return faceCenter(landing, face);
     }
 
-    /**
-     * The cell beyond the struck face, where a drip conjures its mob.
-     * spawn-drip-rolls-a-fresh-spawn
-     *
-     * @return the cell
-     */
-    @Override
-    public BlockPos spawnCell() {
-        return landing.relative(face);
-    }
-
-    @Override
-    public Vec3 morphFrom() {
-        return anchor();
-    }
 
     @Override
     public Vec3 frostCenter() {

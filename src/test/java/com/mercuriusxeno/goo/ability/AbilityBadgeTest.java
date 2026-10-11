@@ -19,13 +19,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AbilityBadgeTest {
 
-    private static final int SHIPPED_MOB_BADGES = 11;
+    private static final int SHIPPED_MOB_BADGES = 13;
     private static final int SHIPPED_WORLD_BADGES = 14;
-    private static final int SHIPPED_SELF_BADGES = 5;
+    private static final int SHIPPED_SELF_BADGES = 6;
     private static final int SHIPPED_BREW_BADGES = 15;
-    private static final int SHIPPED_CHANNELED_BADGES = 23;
+    private static final int SHIPPED_CHANNELED_BADGES = 22;
     private static final int SHIPPED_FREE_BADGES = 5;
-    private static final int SHIPPED_TAP_BADGES = 12;
+    private static final int SHIPPED_TAP_BADGES = 11;
     private static final int SHIPPED_PRISM_BADGES = 9;
     /**
      * The prism combos (decisions prism-hosts-the-combos, hive-prism-pillar-eats-the-living,
@@ -45,11 +45,8 @@ class AbilityBadgeTest {
     /** Self deliveries wearing the channeled badge (decision flatten-disc-cursor-breaks-above-the-plane). */
     private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten", "frost_nova", "glow_scry",
             "glow_sunbeam", "glow_radiant", "typhoon_jet", "crystal_glitter");
-    /**
-     * Thrown deliveries wearing the channeled badge (decisions spawn-goo-morphs-into-the-mob-it-births,
-     * shards-sling-then-morph-to-flechettes).
-     */
-    private static final List<String> SHIPPED_THROWN_CHANNELS = List.of("hex_spawn", "crystal_shards");
+    /** Thrown deliveries wearing the channeled badge (decision shards-sling-then-morph-to-flechettes). */
+    private static final List<String> SHIPPED_THROWN_CHANNELS = List.of("crystal_shards");
 
     @ParameterizedTest
     @CsvSource({"world, WORLD", "mob, MOB", "self, SELF", "channeled, CHANNELED", "brew, BREW",
@@ -93,7 +90,7 @@ class AbilityBadgeTest {
      * The badge a shipped ability wears: its delivery's own badge for a self
      * or a stream (decision one-proving-ability-per-kind), brew for a self +
      * brew ability, free for Blast, tap for a tap's drip ability, prism for
-     * a prism combo such as Hive, channeled for a thrown channel such as Spawn, and for any
+     * a prism combo such as Hive, channeled for a thrown channel such as Shards, and for any
      * other thrown ability, mob where it targets entities and world elsewhere.
      *
      * @param definition the shipped ability
