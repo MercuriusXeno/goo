@@ -22,10 +22,10 @@ class AbilityBadgeTest {
     private static final int SHIPPED_MOB_BADGES = 13;
     private static final int SHIPPED_WORLD_BADGES = 16;
     private static final int SHIPPED_SELF_BADGES = 6;
-    private static final int SHIPPED_BREW_BADGES = 15;
-    private static final int SHIPPED_CHANNELED_BADGES = 22;
+    private static final int SHIPPED_BREW_BADGES = 16;
+    private static final int SHIPPED_CHANNELED_BADGES = 23;
     private static final int SHIPPED_FREE_BADGES = 5;
-    private static final int SHIPPED_TAP_BADGES = 11;
+    private static final int SHIPPED_TAP_BADGES = 12;
     private static final int SHIPPED_PRISM_BADGES = 9;
     /**
      * The prism combos (decisions prism-hosts-the-combos, hive-prism-pillar-eats-the-living,
@@ -38,13 +38,17 @@ class AbilityBadgeTest {
     /** The self + brew abilities, which wear brew on their self delivery (decision self-brew-goos-eat-before-the-effect). */
     private static final List<String> SHIPPED_BREWS = List.of("blaze_kindle", "ender_shifter", "leaf_barkskin",
             "rock_stoneskin", "vital_nourish", "shroom_sight", "nether_undead", "pulse_extender", "frost_iceborn",
-            "hex_lifetap", "glow_lux", "aeon_haste", "typhoon_airborn", "xeno_eldritch", "crystal_scales");
+            "hex_lifetap", "glow_lux", "aeon_haste", "typhoon_airborn", "xeno_eldritch", "crystal_scales",
+            "unstable_charged");
     /** The shipped free abilities (decisions badge-vocabulary-gains-free-prism-tap-brew, zap-ticks-the-device-and-stuns). */
     private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "shroom_colonize",
             "pulse_zap", "frost_orb", "leaf_reap");
-    /** Self deliveries wearing the channeled badge (decision flatten-disc-cursor-breaks-above-the-plane). */
+    /**
+     * Self deliveries wearing the channeled badge (decisions flatten-disc-cursor-breaks-above-the-plane,
+     * unmake-waves-dissolve-by-crucible-cost).
+     */
     private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten", "frost_nova", "glow_scry",
-            "glow_sunbeam", "glow_radiant", "typhoon_jet", "crystal_glitter");
+            "glow_sunbeam", "glow_radiant", "typhoon_jet", "crystal_glitter", "unstable_unmake");
     /** Thrown deliveries wearing the channeled badge (decision shards-sling-then-morph-to-flechettes). */
     private static final List<String> SHIPPED_THROWN_CHANNELS = List.of("crystal_shards");
 

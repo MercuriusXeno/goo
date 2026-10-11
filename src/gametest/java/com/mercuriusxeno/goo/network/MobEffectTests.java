@@ -105,7 +105,8 @@ public final class MobEffectTests {
     /** The farthest a mob in stasis may drift and still count as standing put. */
     private static final double STASIS_MOST_DRIFT = 0.01;
     private static final String MOB_HAS_MAX_HEALTH = "The mob carries a max health attribute";
-    private static final String ABILITY_UNSTABLE_EXPLODE = "goo:unstable_explode";
+    /** The gametests' own thrown blast, today's Blast before it was drag-sized, struck at a mob. */
+    private static final String ABILITY_UNSTABLE_EXPLODE = "goo:test_blast";
     private static final String ABILITY_HEX_CHARM = "goo:hex_charm";
     private static final String ABILITY_ZOO_ALLURE = "goo:zoo_allure";
     private static final String ABILITY_BLAZE_IGNITE = "goo:blaze_ignite";
@@ -119,7 +120,7 @@ public final class MobEffectTests {
     private static final String SHOULD_BE_EXILED = "A second Zone should exile the cursed zombie";
     private static final String SHOULD_RESIST = "A mob over the max health cap should resist the curse";
     private static final String SHOULD_BE_IN_LOVE = "A cow struck by Allure should be in love";
-    /** Beside the cow, inside unstable_explode.json's blast of power 3. */
+    /** Beside the cow, inside test_blast.json's blast of power 3. */
     private static final BlockPos BLAST_DIRT_POS = SPAWN_POS.south();
     private static final String LIVING_SHOULD_NOT_BURN = "A cow is not undead and should not burn";
     private static final String UNDEAD_SHOULD_BURN = "A zombie is undead and should burn";

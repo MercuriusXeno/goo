@@ -1,8 +1,12 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
+import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.item.GooContents;
+import com.mercuriusxeno.goo.network.ChunkWatchers;
 import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.network.ShardFallPayload;
+import com.mercuriusxeno.goo.network.UnmakePayload;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
@@ -16,7 +20,9 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.PointedDripstoneBlock;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -40,7 +46,7 @@ import java.util.function.Consumer;
  * @param face    the landing block's face the drip struck
  */
 public record TapHost(ServerLevel level, BlockPos tapPos, BlockPos landing, Direction face)
-        implements ExplodeHost, AnchoredWorldHost, PlaceBlockHost, EntityScanHost, DripHost, ConvokeHost,
+        implements ExplodeHost, AnchoredWorldHost, PlaceBlockHost, EntityScanHost, DripHost, UnmakeHost, ConvokeHost,
         DeviceToggleHost, FrostHost, TickBlockHost, ShardFallHost {
 
     private static final double HALF = 0.5;
@@ -103,7 +109,8 @@ public record TapHost(ServerLevel level, BlockPos tapPos, BlockPos landing, Dire
 
     @Override
     public int countDrip() {
-        return GooServerState.of(level.getServer()).tapDripCounts().countDrip(level.dimension(), landing);
+        return GooServerState.of(level.getServer()).tapDripCounts()
+                .countDrip(level.dimension(), landing, level.getBlockState(landing));
     }
 
     @Override
@@ -235,4 +242,41 @@ public record TapHost(ServerLevel level, BlockPos tapPos, BlockPos landing, Dire
         BlockAnchoredActions.placeBeyondFace(level, landing, face, block, state);
     }
 
+    /**
+     * A drip works the block it landed on
+     * (decision unmake-drip-dissolves-the-block-below).
+     */
+    @Override
+    public List<BlockPos> unmadeBlocks() {
+        return List.of(landing);
+    }
+
+    @Override
+    public @Nullable GooValue unmadeValue(BlockPos pos) {
+        return ValuedBlocks.valueAt(level, pos);
+    }
+
+    /**
+     * Counts this drip against the block it landed on, on the same tally a
+     * petrifying drip counts on (decision unmake-drip-dissolves-the-block-below).
+     */
+    @Override
+    public int countUnmakeWork(BlockPos pos, int needed) {
+        return countDrip();
+    }
+
+    @Override
+    public void showUnmaking(BlockPos pos, float fraction) {
+        ChunkWatchers.send(level, pos, new UnmakePayload(pos, fraction));
+    }
+
+    /**
+     * Removes the block; its remains morph into the goo item, which drops once the morph ends.
+     */
+    @Override
+    public void unmake(BlockPos pos, GooContents yield) {
+        level.removeBlock(pos, false);
+        resetDrips();
+        GooServerState.of(level.getServer()).unmakeDrops().unmade(level, Vec3.atBottomCenterOf(pos), 1f, yield);
+    }
 }

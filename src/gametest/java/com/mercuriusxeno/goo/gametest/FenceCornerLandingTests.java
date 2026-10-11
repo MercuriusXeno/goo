@@ -20,12 +20,13 @@ import net.minecraft.world.phys.Vec3;
  */
 public final class FenceCornerLandingTests {
 
-    private static final Identifier BLAST = Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_explode");
+    /** The gametests' own thrown blast, today's Blast before it was drag-sized, for the landing machinery. */
+    private static final Identifier BLAST = Identifier.fromNamespaceAndPath(Goo.MODID, "test_blast");
     /** The corner post, an arm running east and an arm running south. */
     private static final BlockPos CORNER = new BlockPos(2, 1, 2);
     /** On the south side of the east arm, inside the corner's own block. */
     private static final Vec3 INSIDE_THE_CORNER = new Vec3(2.8, 1.6, 2.5625);
-    private static final String ABILITY_REQUIRED = "Ability registry must hold unstable_explode";
+    private static final String ABILITY_REQUIRED = "Ability registry must hold test_blast";
     private static final String SHOULD_EXPLODE = "A blob landing inside a fence corner should explode, the corner stands";
 
     private FenceCornerLandingTests() {

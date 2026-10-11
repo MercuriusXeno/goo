@@ -54,6 +54,18 @@ public final class GooNetworking {
      */
     private static void registerAbilityVisualPayloads(PayloadRegistrar r) {
         r.playToClient(ChainBurnoutPayload.TYPE, ChainBurnoutPayload.STREAM_CODEC);
+        r.playToClient(LurkerPulsePayload.TYPE, LurkerPulsePayload.STREAM_CODEC);
+        r.playToClient(UnmakePayload.TYPE, UnmakePayload.STREAM_CODEC);
+        r.playToClient(DrinkPayload.TYPE, DrinkPayload.STREAM_CODEC);
+        r.playToClient(UnmadePayload.TYPE, UnmadePayload.STREAM_CODEC);
+        registerClientEffectPayloads(r);
+    }
+
+    /** Registers the client-bound payloads of the mob and self effects' visuals.
+     *
+     * @param r the payload registrar
+     */
+    private static void registerClientEffectPayloads(PayloadRegistrar r) {
         r.playToClient(MobHitPayload.TYPE, MobHitPayload.STREAM_CODEC);
         r.playToClient(AilmentPayload.TYPE, AilmentPayload.STREAM_CODEC);
         registerAbilityOwnVisualPayloads(r);
