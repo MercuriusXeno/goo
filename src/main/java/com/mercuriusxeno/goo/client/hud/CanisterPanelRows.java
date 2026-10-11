@@ -28,7 +28,7 @@ final class CanisterPanelRows {
         GooContents goo = toGooContents(data.content());
         List<PanelRow> rows = rows(data.label(), data.compression(), goo);
         if (goo.isEmpty() && !data.content().isEmpty()) {
-            rows.add(PanelPainter.fluidRow(data.content().fluid(), data.content().amount()));
+            rows.add(PanelPainter.fluidRow(data.content().dominantFluid(), data.content().totalVolume()));
         }
         return rows;
     }
@@ -53,19 +53,13 @@ final class CanisterPanelRows {
     }
 
     /**
-     * Converts single-fluid canister content to GooContents.
+     * Converts canister content to GooContents, every goo type it holds.
      *
-     * @param content the single-fluid canister content
-     * @return GooContents wrapping the content, or EMPTY when it holds no goo
+     * @param content the canister content
+     * @return GooContents of its goo, or EMPTY when it holds no goo
      */
     private static GooContents toGooContents(CanisterFluidContent content) {
-        if (content.isEmpty()) {
-            return GooContents.EMPTY;
-        }
-        ResourceKey<GooTypeDefinition> type = content.getGooType();
-        if (type == null) {
-            return GooContents.EMPTY;
-        }
-        return new GooContents(Map.of(type, content.amount()));
+        Map<ResourceKey<GooTypeDefinition>, Integer> volumes = content.gooVolumes();
+        return volumes.isEmpty() ? GooContents.EMPTY : new GooContents(volumes);
     }
 }

@@ -209,8 +209,8 @@ public class ReactorBlockEntityRenderer
             state.slot.fill = 0f;
         } else {
             int cap = ContainerCapacity.canisterCapacity(state.slot.compression);
-            state.slot.type = content.getGooType();
-            state.slot.fill = Math.min(1f, (float) content.amount() / cap);
+            state.slot.type = content.dominantGooType();
+            state.slot.fill = Math.min(1f, (float) content.totalVolume() / cap);
         }
     }
 
