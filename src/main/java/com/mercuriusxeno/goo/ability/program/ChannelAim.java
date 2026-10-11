@@ -37,6 +37,9 @@ public record ChannelAim(Vec3 aimPoint, @Nullable FacePlane plane, double coneDe
         this(aimPoint, plane, coneDegrees, held, true);
     }
 
+    /** The age a hold reads on its first counted tick. */
+    public static final int FIRST_TICK = 1;
+
     /** How far past the aim point, along the line from the eye, the aimed block is read. */
     private static final double INTO_THE_FACE = 0.01;
     /** How many blocks out from the face the swath reaches. */

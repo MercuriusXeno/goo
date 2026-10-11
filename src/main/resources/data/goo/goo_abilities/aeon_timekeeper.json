@@ -1,0 +1,12 @@
+{
+  "gooType": "aeon",
+  "displayName": "goo.ability.aeon.timekeeper",
+  "badge": "prism",
+  "order": 50,
+  "cost": 1000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "bank_ticks", "per_tick": 1, "spend_per_tick": 40 }
+  ],
+  "tags": []
+}

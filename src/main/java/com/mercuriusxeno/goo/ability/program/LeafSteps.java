@@ -2,6 +2,8 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.hex.RandomEnchantment;
 import com.mercuriusxeno.goo.ability.pulse.StunEvents;
+import com.mercuriusxeno.goo.ability.rewind.RewindEvents;
+import com.mercuriusxeno.goo.ability.stasis.StasisEvents;
 import com.mojang.datafixers.util.Unit;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
@@ -97,6 +99,33 @@ public final class LeafSteps {
     public static final LeafStepType<Boolean> SET_INVULNERABLE = StepType.of("set_invulnerable", ENABLED, TARGET,
             (enabled, context) -> {
                 context.hostAs(TargetHost.class).target().setInvulnerable(enabled);
+                return true;
+            });
+
+    /**
+     * Holds the host's target in stasis until it is struck; a target that is
+     * not a mob is left alone. Aeon stasis is {@code stasis} under
+     * {@code target where=[mob, not_boss]}.
+     * stasis-holds-mob-with-golden-shimmer
+     */
+    public static final LeafStepType<Unit> STASIS = StepType.of("stasis", NO_PARAMS, TARGET, (none, context) -> {
+        if (context.hostAs(TargetHost.class).target() instanceof Mob mob) {
+            StasisEvents.hold(mob);
+        }
+        return true;
+    });
+
+    /**
+     * Freezes the host's target while Rewind's stream holds it, the freeze
+     * ending a few ticks after the stream lets go; a target that is not a
+     * mob is left alone.
+     * rewind-fills-while-held
+     */
+    public static final LeafStepType<Unit> REWIND_HOLD = StepType.of("rewind_hold", NO_PARAMS, TARGET,
+            (none, context) -> {
+                if (context.hostAs(TargetHost.class).target() instanceof Mob mob) {
+                    RewindEvents.hold(mob, mob.level().getGameTime());
+                }
                 return true;
             });
 

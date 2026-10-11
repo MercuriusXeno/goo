@@ -229,6 +229,7 @@ public final class HeldEffectsEvents {
         for (HeldEffects.Held effect : ended) {
             clearBodyStates(player, effect.lays());
             clearMindStates(player, effect.lays());
+            clearMotionStates(player, effect.lays());
             // brew-runs-the-crawl-prepaid-on-a-shown-clock: the effect list's entry ends with the effect
             player.removeEffect(GooMobEffects.BREW_EFFECTS.get(effect.gooType()));
         }
@@ -236,7 +237,7 @@ public final class HeldEffectsEvents {
 
     /**
      * Clears the states an ended effect laid on the player's body: its heart
-     * overlay, its nourishment and its counting as undead.
+     * overlay, its nourishment, its counting as undead and its haste overlay.
      *
      * @param player the player
      * @param lays   the states the ended effect laid
@@ -252,6 +253,19 @@ public final class HeldEffectsEvents {
             // undead-nether-hearts-burn-in-sunlight: the player counts as undead no longer
             player.setData(GooAttachments.UNDEAD, Undead.NONE);
         }
+        if (lays.contains(LaidState.HASTE)) {
+            // haste-stacks-speed-under-the-golden-overlay: the golden overlay ends with the held effect
+            Haste.clear(player);
+        }
+    }
+
+    /**
+     * Clears the state an ended effect laid on how the player moves: its air control.
+     *
+     * @param player the player
+     * @param lays   the states the ended effect laid
+     */
+    private static void clearMotionStates(ServerPlayer player, Set<LaidState> lays) {
         if (lays.contains(LaidState.AIRBORN)) {
             // airborn-steerable-levitation-and-soft-falls: the air control ends with its held effect
             player.setData(GooAttachments.AIRBORN, Airborn.NONE);
@@ -270,9 +284,23 @@ public final class HeldEffectsEvents {
             // sight-lengthens-shift-and-outlines-fungus: the sight ends with its held effect
             player.setData(GooAttachments.SIGHT, Sight.NONE);
         }
+        clearAbilityState(player, lays);
+    }
+
+    /**
+     * Clears the player state an ability's own step laid: teleportitis, Lux, a lifetap.
+     *
+     * @param player the player
+     * @param lays   the state the effect laid
+     */
+    private static void clearAbilityState(ServerPlayer player, Set<LaidState> lays) {
         if (lays.contains(LaidState.TELEPORTITIS)) {
             // teleportitis-blinks-along-the-cursor-on-hit: the teleportitis ends with its held effect
             player.setData(GooAttachments.TELEPORTITIS, Teleportitis.NONE);
+        }
+        if (lays.contains(LaidState.LUX)) {
+            // lux-night-vision-without-particles: Lux and the night vision it kept up end with its held effect
+            LuxEvents.end(player);
         }
         if (lays.contains(LaidState.LIFETAP)) {
             // lifetap-trades-regen-for-leech: the leech ends with its held effect

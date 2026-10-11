@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.block.ability.GlowCrystalBlock;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -17,16 +16,16 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * GlowExplosionVisual's timing, its reach for the one crystal size a throw
- * lands, on screen, and the shader pair its pipeline names.
+ * GlowExplosionVisual's timing, its reach over Bulb's one crystal, on screen, and the shader pair its pipeline names.
  */
 class GlowExplosionVisualTest {
 
     private static final float TOLERANCE = 1e-5f;
     private static final Direction FACE = Direction.EAST;
     private static final long START = 1_000L;
-    private static final float DOME_LIFT = -0.5f;
     private static final float BLOCK_CENTER = 0.5f;
+    /** How far out along each axis a whole sphere reaches, as a share of its radius. */
+    private static final float WHOLE_SPHERE_SHARE = 0.9f;
 
     @Test
     void domeRisesToItsReachFastThenSlow() {
@@ -37,11 +36,10 @@ class GlowExplosionVisualTest {
         assertTrue(early > late, "the dome does not ease out");
     }
 
-    // decision place-block-ability-grows-block
+    // decision bulb-one-model-max-light-beacon-combo
     @Test
-    void domeReachesTheOneCrystalsShareOfTheLargeCrystalsReach() {
-        float share = extent(GlowCrystalBlock.CrystalSize.TINY) / extent(GlowCrystalBlock.CrystalSize.LARGE);
-        assertEquals(1.25f * share, GlowExplosionVisual.domeRadius(1f), TOLERANCE);
+    void domeReachesItsFullReachOverTheOneCrystal() {
+        assertEquals(1.25f, GlowExplosionVisual.domeRadius(1f), TOLERANCE);
     }
 
     @Test
@@ -64,7 +62,28 @@ class GlowExplosionVisualTest {
         GlowExplosionVisual.INSTANCE.render(burnout(),
                 new BurnoutFrame(new PoseStack(), buffers, Vec3.ZERO, gameTime));
 
-        assertEquals(GlowExplosionVisual.domeReach(), farthestFromDomeCenter(consumer.vertices()), TOLERANCE);
+        assertEquals(GlowExplosionVisual.DOME_REACH, farthestFromDomeCenter(consumer.vertices()), TOLERANCE);
+    }
+
+    // decision burnouts-are-whole-spheres
+    @Test
+    void aWallLandingBurnsOutAsAWholeSphereAboutTheCell() {
+        RecordingVertexConsumer consumer = new RecordingVertexConsumer();
+        MultiBufferSource.BufferSource buffers = mock(MultiBufferSource.BufferSource.class);
+        when(buffers.getBuffer(any())).thenReturn(consumer);
+        float gameTime = START + GlowExplosionVisual.DURATION_TICKS;
+
+        GlowExplosionVisual.INSTANCE.render(burnout(),
+                new BurnoutFrame(new PoseStack(), buffers, Vec3.ZERO, gameTime));
+
+        float reach = GlowExplosionVisual.DOME_REACH * WHOLE_SPHERE_SHARE;
+        List<RecordingVertexConsumer.Vertex> vertices = consumer.vertices();
+        assertTrue(vertices.stream().anyMatch(v -> v.y() > BLOCK_CENTER + reach), "nothing above the cell");
+        assertTrue(vertices.stream().anyMatch(v -> v.y() < BLOCK_CENTER - reach), "nothing below the cell");
+        assertTrue(vertices.stream().anyMatch(v -> v.x() > BLOCK_CENTER + reach), "nothing east of the cell");
+        assertTrue(vertices.stream().anyMatch(v -> v.x() < BLOCK_CENTER - reach), "nothing west of the cell");
+        assertTrue(vertices.stream().anyMatch(v -> v.z() > BLOCK_CENTER + reach), "nothing south of the cell");
+        assertTrue(vertices.stream().anyMatch(v -> v.z() < BLOCK_CENTER - reach), "nothing north of the cell");
     }
 
     @Test
@@ -78,18 +97,14 @@ class GlowExplosionVisualTest {
     }
 
     private static float farthestFromDomeCenter(List<RecordingVertexConsumer.Vertex> vertices) {
-        float cx = BLOCK_CENTER + FACE.getStepX() * DOME_LIFT;
-        float cy = BLOCK_CENTER + FACE.getStepY() * DOME_LIFT;
-        float cz = BLOCK_CENTER + FACE.getStepZ() * DOME_LIFT;
+        float cx = BLOCK_CENTER;
+        float cy = BLOCK_CENTER;
+        float cz = BLOCK_CENTER;
         double farthest = 0;
         for (RecordingVertexConsumer.Vertex v : vertices) {
             farthest = Math.max(farthest, Math.sqrt((v.x() - cx) * (v.x() - cx) + (v.y() - cy) * (v.y() - cy)
                     + (v.z() - cz) * (v.z() - cz)));
         }
         return (float) farthest;
-    }
-
-    private static float extent(GlowCrystalBlock.CrystalSize size) {
-        return (float) (size.max - size.min);
     }
 }

@@ -12,14 +12,18 @@ import com.mercuriusxeno.goo.ability.nether.Undead;
 import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.petrify.Petrification;
 import com.mercuriusxeno.goo.ability.program.EntityCounters;
+import com.mercuriusxeno.goo.ability.program.Lux;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.pulse.Stunned;
+import com.mercuriusxeno.goo.ability.rewind.Rewinding;
 import com.mercuriusxeno.goo.ability.root.Rooted;
 import com.mercuriusxeno.goo.ability.spray.Spored;
 import com.mercuriusxeno.goo.ability.typhoon.Airborn;
 import com.mercuriusxeno.goo.ability.typhoon.Floating;
+import com.mercuriusxeno.goo.ability.world.TimeVeiled;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
+import com.mojang.serialization.Codec;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.attachment.AttachmentType;
@@ -113,6 +117,14 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("jump_source", () -> AttachmentType.builder(() -> Vec3.ZERO).build());
 
     /**
+     * The Lux a player holds, keeping night vision up and glistening the mob
+     * under the crosshair while it stands (decision lux-night-vision-without-particles).
+     */
+    public static final Supplier<AttachmentType<Lux>> LUX =
+            ATTACHMENT_TYPES.register("lux",
+                    () -> AttachmentType.builder(() -> Lux.NONE).serialize(Lux.CODEC).build());
+
+    /**
      * The spores a mob carries, bursting another spray from its corpse when
      * it dies before they fade, saved with the mob (decision
      * mycosis-spore-stream-buds-and-poisons).
@@ -163,6 +175,36 @@ public final class GooAttachments {
                             .serialize(Petrification.CODEC, Petrification::started)
                             .sync(GooAttachments::syncsToWatcher, Petrification.STREAM_CODEC)
                             .build());
+
+    /**
+     * Marks a mob held in stasis until it is struck, saved with the mob so
+     * the hold outlasts a reload; a freed mob drops the attachment.
+     * stasis-holds-mob-with-golden-shimmer
+     */
+    public static final Supplier<AttachmentType<Boolean>> STASIS =
+            ATTACHMENT_TYPES.register("stasis",
+                    () -> AttachmentType.builder(() -> Boolean.FALSE)
+                            .serialize(Codec.BOOL.fieldOf("held"), Boolean::booleanValue)
+                            .build());
+
+    /**
+     * A mob Rewind's stream holds: frozen until shortly after the stream lets
+     * go, or shrinking into its egg, saved with the mob so a reload mid-hold
+     * still frees it.
+     * rewind-fills-while-held
+     */
+    public static final Supplier<AttachmentType<Rewinding>> REWINDING =
+            ATTACHMENT_TYPES.register("rewinding",
+                    () -> AttachmentType.builder(() -> Rewinding.NONE).serialize(Rewinding.CODEC).build());
+
+    /**
+     * A mob a chronosphere's AI pacing holds, saved with the mob so a reload
+     * mid-veil hands back the AI state it had before the veil.
+     * chronosphere-hastes-players-slows-mobs
+     */
+    public static final Supplier<AttachmentType<TimeVeiled>> TIME_VEILED =
+            ATTACHMENT_TYPES.register("time_veiled",
+                    () -> AttachmentType.builder(() -> TimeVeiled.NONE).serialize(TimeVeiled.CODEC).build());
 
     /**
      * The teleportitis curse Banish leaves on a mob, saved with the mob while

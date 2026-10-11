@@ -99,7 +99,7 @@ class AbilityLoaderTest {
             Map.entry("hex_drain", List.of("soul_sand")),
             Map.entry("unstable_explode", List.of("gunpowder")),
             Map.entry("unstable_proximity_mine", List.of("tnt")),
-            Map.entry("glow_laser", List.of("spectral_arrow")),
+            Map.entry("glow_sunbeam", List.of("spectral_arrow")),
             Map.entry("glow_crystal", List.of("glowstone")),
             Map.entry("crystal_cloud", List.of("glass", "sand")),
             Map.entry("crystal_flechettes", List.of("amethyst_shard")),
@@ -111,7 +111,9 @@ class AbilityLoaderTest {
             Map.entry("blaze_ignite", List.of("flint")),
             Map.entry("blaze_kindle", List.of("magma_cream")),
             Map.entry("leaf_barkskin", List.of("oak_log")),
-            Map.entry("aeon_time_stop", List.of("clock")),
+            Map.entry("aeon_rewind", List.of("clock")),
+            Map.entry("aeon_stasis", List.of("netherite_scrap")),
+            Map.entry("aeon_haste", List.of("sugar")),
             Map.entry("leaf_vines", List.of("vine")),
             Map.entry("leaf_growth", List.of("bone_meal")),
             Map.entry("leaf_reap", List.of("wheat", "wheat_seeds")),
@@ -123,6 +125,8 @@ class AbilityLoaderTest {
             Map.entry("rock_bore", List.of("stone", "cobblestone")),
             Map.entry("rock_crush", List.of("gravel", "sand")),
             Map.entry("rock_flatten", List.of("dirt")),
+            Map.entry("glow_scry", List.of("spyglass")),
+            Map.entry("glow_lux", List.of("carrot")),
             Map.entry("rock_petrify", List.of("pointed_dripstone")),
             Map.entry("rock_stoneskin", List.of("deepslate")),
             Map.entry("pulse_zap", List.of("redstone")),
@@ -296,12 +300,12 @@ class AbilityLoaderTest {
     }
 
     /**
-     * Hex charm and aeon's stasis show their ailment through the overlay
-     * step, and neither applies vanilla glowing any more
+     * Hex charm shows its ailment through the overlay step and applies no
+     * vanilla glowing; stasis keeps its shimmer through StasisEvents
      * (decision ailment-overlay-shader-per-ailment).
      */
     @ParameterizedTest
-    @CsvSource({"hex_charm, HEX", "aeon_time_stop, STASIS"})
+    @CsvSource({"hex_charm, HEX"})
     void ailmentAbilitiesWearTheOverlayInPlaceOfGlowing(String name, AilmentKind kind) {
         List<Step> steps = AbilityJson.decode(name).behaviors().stream()
                 .flatMap(AbilityLoaderTest::stepTree).toList();

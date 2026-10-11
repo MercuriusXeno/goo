@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.program.CalcifyStep;
 import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.PetrifyStep;
 import com.mercuriusxeno.goo.ability.program.Step;
+import com.mercuriusxeno.goo.ability.program.TickBlockStep;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
 import java.util.List;
@@ -24,6 +25,15 @@ class GooStreamHandlerTest {
     void channelStepsRunInTheBlockPassAndTheRestInTheEntityPass() {
         List<Step> program = List.of(PETRIFY, CALCIFY);
         assertEquals(List.of(CALCIFY), GooStreamHandler.channelSteps(program, true));
+        assertEquals(List.of(PETRIFY), GooStreamHandler.channelSteps(program, false));
+    }
+
+    // tick-channel-marches-squares-on-the-face
+    @Test
+    void tickBlockRunsInTheBlockPassOnTheAimedMachine() {
+        Step tick = new TickBlockStep(4);
+        List<Step> program = List.of(PETRIFY, tick);
+        assertEquals(List.of(tick), GooStreamHandler.channelSteps(program, true));
         assertEquals(List.of(PETRIFY), GooStreamHandler.channelSteps(program, false));
     }
 }

@@ -23,7 +23,9 @@ public enum AilmentKind {
     /** Petrify: a stone encasement. */
     PETRIFY(0x8C8A86, AilmentPattern.STONE),
     /** Frozen: frost. */
-    FROZEN(0xC4ECFF, AilmentPattern.FROST);
+    FROZEN(0xC4ECFF, AilmentPattern.FROST),
+    /** Glow's glisten: Scry's sweep marks a mob in glow yellow (decision scry-sphere-reveals-faces-and-glistens-mobs). */
+    GLOW(0xFFE628, AilmentPattern.GLINT, 0.4f);
 
     /** Codec for the kind as an ability JSON writes it, in lower case. */
     public static final Codec<AilmentKind> CODEC = LowerCaseEnumCodec.of(AilmentKind.class, "ailment kind");

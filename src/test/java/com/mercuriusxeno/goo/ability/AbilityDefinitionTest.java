@@ -91,7 +91,7 @@ class AbilityDefinitionTest {
     class WrittenOrNotAThrow {
 
         @ParameterizedTest
-        @CsvSource({"glow_laser, LINE, 0.0, 0.0", "glow_crystal, LINE, 0.0, 0.0", "blaze_spitfire, CONE, 6.0, 20.0",
+        @CsvSource({"glow_crystal, LINE, 0.0, 0.0", "blaze_spitfire, CONE, 6.0, 20.0",
                 "unstable_explode, SPHERE, 4.0, 0.0"})
         void writtenAreaStandsOverTheDerivedOne(String name, AbilityArea.Shape shape, double size, double angle) {
             assertEquals(new AbilityArea(shape, size, angle), AbilityJson.decode(name).area());

@@ -192,7 +192,7 @@ public final class MarkerOrbVisual {
      */
     private static float orbDepth(OrbShape shape, float half) {
         return switch (shape) {
-            case GLOW_BUMP -> (float) GlowCrystalBlock.BUMP_DEPTH;
+            case GLOW_BUMP -> (float) GlowCrystalBlock.DEPTH;
             case GOO -> half;
         };
     }
@@ -257,8 +257,7 @@ public final class MarkerOrbVisual {
      * @return the crystal half-size in block units
      */
     static float computeGlowCoreHalf() {
-        GlowCrystalBlock.CrystalSize cs = GlowCrystalBlock.CrystalSize.TINY;
-        return (float) ((cs.max - cs.min) / CRYSTAL_HALF_DIVISOR);
+        return (float) (GlowCrystalBlock.lateralExtent() / CRYSTAL_HALF_DIVISOR);
     }
 
     /**

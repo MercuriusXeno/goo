@@ -41,7 +41,8 @@ public final class TransformationRenderer {
         if (!(state instanceof LivingEntityRenderState living)) {
             return;
         }
-        float scale = Transformations.CLIENT.modelScaleOf(entity.getId(), gameTime(Minecraft.getInstance()));
+        float scale = Transformations.CLIENT.modelScaleOf(entity.getId(), living.isBaby,
+                gameTime(Minecraft.getInstance()));
         living.scale *= scale;
         living.shadowRadius *= scale;
     }

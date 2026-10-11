@@ -1,0 +1,192 @@
+package com.mercuriusxeno.goo.client.ability;
+
+import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.network.ScryPayload;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.util.ARGB;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * The caster's side of Scry: each radius the server sends grows a sphere of
+ * glow light around the player, and every face open to air that the front
+ * crosses flashes and then shows through walls while the hold lasts, fading
+ * about a second after it lets go, the whole reading as a sonar sweep.
+ * decision scry-sphere-reveals-faces-and-glistens-mobs
+ */
+@EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
+public final class ScrySweep {
+
+    /** The most blocks one sweep keeps; past it the front reveals no more. */
+    static final int MOST_BLOCKS = 12_288;
+    private static final int GLOW_RGB = 0xFFE628;
+    /** The sphere shell's alpha at full strength, low since it adds onto the whole view. */
+    private static final int SPHERE_ALPHA = 28;
+    /** A settled face's alpha at full strength. */
+    private static final int FACE_ALPHA = 46;
+    /** How much brighter a face shows the tick the front crosses it, as a share of its settled alpha. */
+    private static final float FLASH_GAIN = 3f;
+    private static final int OPAQUE = 255;
+    /** How far a face quad stands off its block, so it never sinks into the face it marks. */
+    private static final float FACE_LIFT = 0.002f;
+    /** A ping's sphere centers at the caster's body, this far above where the caster stood. */
+    private static final double BODY_CENTER = 0.9;
+
+    private static final List<RevealedBlock> revealed = new ArrayList<>();
+    private static float radius;
+    private static Vec3 origin = Vec3.ZERO;
+    private static float pingFade = 1f;
+    private static long lastRadiusAt = Long.MIN_VALUE;
+
+    private ScrySweep() {
+    }
+
+    /**
+     * Handles a ping's radius on the client thread: a new ping, or one after a
+     * let-go, starts over from its own origin, and the front reveals the
+     * faces it crossed within its reach since the last radius.
+     *
+     * @param payload the radius payload
+     * @param context the network context
+     */
+    public static void onPayload(ScryPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.level != null && mc.player != null) {
+                advance(mc.level, payload, mc.level.getGameTime());
+            }
+        });
+    }
+
+    private static void advance(ClientLevel level, ScryPayload ping, long now) {
+        Vec3 center = ping.origin().add(0, BODY_CENTER, 0);
+        float next = ping.radius();
+        if (startsOver(now, next, center)) {
+            revealed.clear();
+            radius = 0f;
+        }
+        origin = center;
+        pingFade = ScryReveal.pingFade(next, ping.reach(), ping.fade());
+        for (BlockPos pos : ScryReveal.shell(center, Math.min(radius, ping.reach()), Math.min(next, ping.reach()))) {
+            List<Direction> sides = ScryReveal.exposedFaces(at -> level.getBlockState(at).isAir(), pos);
+            if (!sides.isEmpty() && revealed.size() < MOST_BLOCKS) {
+                // the reveal traces the block's own shape, so slabs, stairs and fences show as they stand
+                List<AABB> boxes = level.getBlockState(pos).getShape(level, pos).toAabbs();
+                revealed.add(new RevealedBlock(pos, boxes, sides, now));
+            }
+        }
+        radius = next;
+        lastRadiusAt = now;
+    }
+
+    /**
+     * Whether a radius starts the sweep over: the hold was let go, or a new
+     * ping began, its radius back down or its origin moved.
+     *
+     * @param now    the game time
+     * @param next   the radius that arrived
+     * @param center the ping's center
+     * @return true when the revealed faces clear for a fresh ping
+     */
+    private static boolean startsOver(long now, float next, Vec3 center) {
+        return now - lastRadiusAt > ScryReveal.RELEASE_GRACE_TICKS || next < radius || !center.equals(origin);
+    }
+
+    /**
+     * Draws the sphere and the revealed faces once the world has drawn,
+     * while the sweep still shows.
+     *
+     * @param event the level render stage event
+     */
+    @SubscribeEvent
+    public static void onAfterTranslucentBlocks(RenderLevelStageEvent.AfterTranslucentBlocks event) {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (player == null || mc.level == null || lastRadiusAt == Long.MIN_VALUE) {
+            return;
+        }
+        long now = mc.level.getGameTime();
+        float strength = ScryReveal.fade(now - lastRadiusAt) * pingFade;
+        if (strength <= 0f) {
+            revealed.clear();
+            lastRadiusAt = Long.MIN_VALUE;
+            return;
+        }
+        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        PoseStack.Pose pose = event.getPoseStack().last();
+        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        ColorSphere.emit(pose, buffers.getBuffer(GooRenderTypes.GLOW_SHELL_TYPE), origin.subtract(camera), radius,
+                ARGB.color(Math.round(SPHERE_ALPHA * strength), GLOW_RGB));
+        buffers.endBatch(GooRenderTypes.GLOW_SHELL_TYPE);
+        drawRevealed(pose, buffers, camera, now, strength);
+    }
+
+    private static void drawRevealed(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
+                                     long now, float strength) {
+        VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.SCRY_FACES_TYPE);
+        for (RevealedBlock block : revealed) {
+            float flash = 1f + FLASH_GAIN * ScryReveal.flash(now - block.revealedAt());
+            int color = ARGB.color(Math.min(OPAQUE, Math.round(FACE_ALPHA * flash * strength)), GLOW_RGB);
+            Vec3 corner = Vec3.atLowerCornerOf(block.pos()).subtract(camera);
+            for (AABB box : block.boxes()) {
+                for (Direction side : block.sides()) {
+                    emitBoxFace(pose, consumer, box.move(corner), side, color);
+                }
+            }
+        }
+        buffers.endBatch(GooRenderTypes.SCRY_FACES_TYPE);
+    }
+
+    /**
+     * Emits one side of a box as a quad standing just off it.
+     *
+     * @param pose     the pose
+     * @param consumer the vertex consumer
+     * @param box      the box, camera-relative
+     * @param side     the side to draw
+     * @param color    the packed ARGB color
+     */
+    static void emitBoxFace(PoseStack.Pose pose, VertexConsumer consumer, AABB box, Direction side, int color) {
+        Direction.Axis axis = side.getAxis();
+        double plane = side.getAxisDirection() == Direction.AxisDirection.POSITIVE
+                ? box.max(axis) + FACE_LIFT : box.min(axis) - FACE_LIFT;
+        Direction.Axis first = axis == Direction.Axis.X ? Direction.Axis.Y : Direction.Axis.X;
+        Direction.Axis second = axis == Direction.Axis.Z ? Direction.Axis.Y : Direction.Axis.Z;
+        double[][] corners = {{box.min(first), box.min(second)}, {box.max(first), box.min(second)},
+                {box.max(first), box.max(second)}, {box.min(first), box.max(second)}};
+        for (double[] corner : corners) {
+            double[] xyz = new double[Direction.Axis.values().length];
+            xyz[axis.ordinal()] = plane;
+            xyz[first.ordinal()] = corner[0];
+            xyz[second.ordinal()] = corner[1];
+            consumer.addVertex(pose, (float) xyz[Direction.Axis.X.ordinal()], (float) xyz[Direction.Axis.Y.ordinal()],
+                    (float) xyz[Direction.Axis.Z.ordinal()]).setColor(color);
+        }
+    }
+
+    /**
+     * A block the front revealed: its shape's boxes and the sides of it open to air.
+     *
+     * @param pos        the block
+     * @param boxes      its voxel shape's boxes, block-local
+     * @param sides      the sides open to air
+     * @param revealedAt the game time the front crossed it
+     */
+    record RevealedBlock(BlockPos pos, List<AABB> boxes, List<Direction> sides, long revealedAt) {
+    }
+}
