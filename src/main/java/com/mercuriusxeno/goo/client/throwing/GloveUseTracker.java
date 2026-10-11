@@ -105,6 +105,12 @@ public final class GloveUseTracker {
      * @param hand the hand holding the glove
      */
     public static void pressGlove(InteractionHand hand) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player != null && SpireCast.selected(player)) {
+            // spire-rips-walls-and-platforms: a footprint cast holds its own presses, never a throw
+            SpireCast.press(player, hand);
+            return;
+        }
         if (!PRESS.isArmed()) {
             pressHand = hand;
             Minecraft mc = Minecraft.getInstance();
