@@ -386,5 +386,29 @@
       { "position": 0.8, "color": "#FF70A0" },
       { "position": 1.0, "color": "#FFA0C0" }
     ]
+  },
+  {
+    "id": "xeno",
+    "seed": 40991,
+    "genParams": {
+      "viscosity": 1.6,
+      "decayRate": 0.04,
+      "ignitionChance": 0.01,
+      "ignitionStrength": 1.8,
+      "potHeatRate": 0.02,
+      "potInfluence": 0.75,
+      "neighborhoodReach": 2
+    },
+    "frametime": 3,
+    "shadowHue": 0.8,
+    "palette": [
+      { "position": 0.0, "color": "#1A0830" },
+      { "position": 0.2, "color": "#3C1660" },
+      { "position": 0.4, "color": "#5E2A80" },
+      { "position": 0.55, "color": "#4E6A30" },
+      { "position": 0.75, "color": "#7EA034" },
+      { "position": 0.9, "color": "#A8CC48" },
+      { "position": 1.0, "color": "#D4F47C" }
+    ]
   }
 ]
