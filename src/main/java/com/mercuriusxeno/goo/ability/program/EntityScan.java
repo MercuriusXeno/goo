@@ -246,7 +246,7 @@ public final class EntityScan {
      * @param entity the candidate
      * @return true for a boss
      */
-    private static boolean isBoss(Entity entity) {
+    static boolean isBoss(Entity entity) {
         EntityType<?> type = entity.getType();
         return type == EntityType.WITHER || type == EntityType.ENDER_DRAGON;
     }

@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:grab_throws_along_the_look",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 60,
+  "setup_ticks": 0,
+  "required": true
+}
