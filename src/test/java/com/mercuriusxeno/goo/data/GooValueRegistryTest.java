@@ -2409,4 +2409,33 @@ class GooValueRegistryTest {
             assertFalse(registry.table().isRestricted(id("minecraft:coal_ore")));
         }
     }
+
+    @Nested
+    class ShippedValues {
+
+        private static final String SHIPPED_BASE_VALUES = "/data/goo/goo_values/base_values.json";
+
+        /**
+         * No shipped item value resolves to quantum, after the post-conversions
+         * run; recipes only sum their inputs, so no derived item carries it either.
+         * decision quantum-ships-from-goo-ratios
+         */
+        @Test
+        void noShippedItemResolvesQuantum() throws IOException {
+            try (var stream = GooValueRegistryTest.class.getResourceAsStream(SHIPPED_BASE_VALUES)) {
+                assertNotNull(stream, SHIPPED_BASE_VALUES);
+                parseBaseValuesFromStream(stream);
+            }
+            copyBaseToEffective();
+
+            Map<Identifier, GooValue> effective = registry.table().getEffectiveValues();
+            assertTrue(effective.values().stream().anyMatch(value -> value.get(GooTypes.ENDER) > 0),
+                    "shipped values carry ender, so the scan reads real data");
+            List<Identifier> quantumItems = effective.entrySet().stream()
+                    .filter(entry -> entry.getValue().get(GooTypes.QUANTUM) > 0)
+                    .map(Map.Entry::getKey)
+                    .toList();
+            assertEquals(List.of(), quantumItems);
+        }
+    }
 }
