@@ -29,7 +29,9 @@ public enum AilmentKind {
     /** Grab's hold: a faint kinetic orange shimmer, and the flail its pose stamp reads (decision grab-holds-and-throws-a-physics-body). */
     GRABBED(0xFF7A1A, AilmentPattern.SHIMMER, 0.35f),
     /** Telekinesis: the kinetic shimmer, fainter, on the player and the arm (decision telekinesis-enacts-at-extended-reach). */
-    TELEKINESIS(0xFF7A1A, AilmentPattern.SHIMMER, 0.2f);
+    TELEKINESIS(0xFF7A1A, AilmentPattern.SHIMMER, 0.2f),
+    /** Xeno's mutation: sickly green veins writhing over the mob while it stays mutated (decision xeno-blob-mutates-the-struck). */
+    MUTATED(0xA8CC48, AilmentPattern.WRITHE, 0.6f);
 
     /** Codec for the kind as an ability JSON writes it, in lower case. */
     public static final Codec<AilmentKind> CODEC = LowerCaseEnumCodec.of(AilmentKind.class, "ailment kind");
