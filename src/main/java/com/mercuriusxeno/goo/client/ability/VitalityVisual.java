@@ -25,12 +25,13 @@ import java.util.stream.Stream;
 
 /**
  * What a player sees while Vitality is held: a soft undulating fog filling
- * the cone from the glove along the aim, motes of vital goo homing from the
- * glove onto each thing being healed, and pink healing stars on it, like
+ * the cone from the glove along the aim, motes of jelly goo homing from the
+ * glove onto each thing being healed, and amber healing stars on it, like
  * bonemeal's green ones. The fog stands in for any wireframe area indicator
  * (decision right-click-held-previews-release-throws); the server names
  * what each tick healed.
  * vitality-waves-regenerate-and-court
+ * nourish-and-healing-ship-on-jelly
  */
 public final class VitalityVisual {
 
@@ -135,7 +136,7 @@ public final class VitalityVisual {
 
     /**
      * Plays a healed tick on the client: goo homes from the caster's glove
-     * onto each healed thing, and pink stars rise on it.
+     * onto each healed thing, and amber stars rise on it.
      *
      * @param payload the healed tick
      * @param context the network context
@@ -145,7 +146,7 @@ public final class VitalityVisual {
     }
 
     /**
-     * Plays a vital tap's healed drip on the client: pink stars rise on the
+     * Plays a vital tap's healed drip on the client: amber stars rise on the
      * healed thing, as on what the channel heals; a tap has no glove for goo
      * to home from.
      * vitality-drip-heals-below

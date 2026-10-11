@@ -8,11 +8,11 @@ import net.minecraft.util.RandomSource;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A soft puff of vital fog: a wide, faint radial glow that drifts with the
+ * A soft puff of jelly fog: a wide, faint radial glow that drifts with the
  * velocity it was given, swelling as it goes and fading in then out, so many
- * of them overlapping read as one fog rather than as dots. Vitality fills
+ * of them overlapping read as one fog rather than as dots. Jelly heal fills
  * its cone with them while held.
- * vitality-waves-regenerate-and-court
+ * nourish-and-healing-ship-on-jelly
  */
 public final class VitalFogParticle extends DriftingGlowParticle {
 
@@ -20,9 +20,9 @@ public final class VitalFogParticle extends DriftingGlowParticle {
     private static final float SWELL = 1.5f;
     /** Peak opacity, faint so overlapping puffs build to a fog. */
     private static final float PEAK_ALPHA = 0.12f;
-    /** A wide puff in vital pink, opening unseen and fading in. */
+    /** A wide puff in jelly amber, opening unseen and fading in. */
     private static final Look PUFF = new Look(0.92f, 0.01f, 18, 10, 0.35f, 0.2f,
-            new float[] {1.0f, 0.5f, 0.65f}, 0f);
+            new float[] {1.0f, 0.7f, 0.3f}, 0f);
 
     private VitalFogParticle(ClientLevel level, double[] position, double[] velocity, SpriteSet sprites) {
         super(level, position, velocity, sprites, PUFF);

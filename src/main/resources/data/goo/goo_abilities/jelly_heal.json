@@ -1,14 +1,13 @@
 {
-  "gooType": "vital",
-  "displayName": "goo.ability.vital.vitality",
+  "gooType": "jelly",
+  "displayName": "goo.ability.jelly.heal",
   "badge": "channeled",
   "order": 10,
   "cost": 1000,
   "delivery": { "kind": "stream", "range": 6, "cone": 50, "ticks_per_charge": 20 },
   "area": { "shape": "cone", "size": 6.0, "angle": 50.0 },
   "behaviors": [
-    { "type": "heal", "amount": 0.1 },
-    { "type": "court", "chance": 0.25 }
+    { "type": "heal", "amount": 0.1 }
   ],
   "tags": ["stream", "self"]
 }
