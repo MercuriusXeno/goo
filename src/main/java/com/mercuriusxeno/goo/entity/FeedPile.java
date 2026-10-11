@@ -32,7 +32,7 @@ import java.util.Set;
 public class FeedPile extends Entity {
 
     /** Blocks from the feed a mob reaches it within. */
-    static final double REACH = 1.5;
+    public static final double REACH = 1.5;
     /** Hostiles that must reach the feed together before they fight over it. */
     private static final int FIGHTERS_TO_FIGHT = 2;
     /** Ticks between the feed drawing the mobs about it toward it. */

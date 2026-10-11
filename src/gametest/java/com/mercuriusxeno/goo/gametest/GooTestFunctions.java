@@ -432,6 +432,7 @@ public final class GooTestFunctions {
     private static final String FEED_COURTS_A_COW = "feed_courts_a_cow";
     private static final String FEED_GROWS_A_CALF = "feed_grows_a_calf";
     private static final String FEED_ON_THE_GROUND_STARTS_A_FIGHT = "feed_on_the_ground_starts_a_fight";
+    private static final String FEED_ON_THE_GROUND_DRAWS_A_MOB = "feed_on_the_ground_draws_a_mob";
     private static final String RESERVE_COEXISTS_WITH_BARKSKIN = "reserve_coexists_with_barkskin";
     private static final String SELF_BARKSKIN_FIRE = "self_barkskin_fire_burns_through_arrow_breaks_bark";
     private static final String SELF_BARKSKIN_BARE_STAYS_HELD = "self_barkskin_bare_stays_held_and_regrows";
@@ -1021,6 +1022,7 @@ public final class GooTestFunctions {
         reg(r, FEED_COURTS_A_COW, FeedTests::feedCourtsACow);
         reg(r, FEED_GROWS_A_CALF, FeedTests::feedGrowsACalf);
         reg(r, FEED_ON_THE_GROUND_STARTS_A_FIGHT, FeedTests::feedOnTheGroundStartsAFight);
+        reg(r, FEED_ON_THE_GROUND_DRAWS_A_MOB, FeedTests::feedOnTheGroundDrawsAMob);
         reg(r, RESERVE_COEXISTS_WITH_BARKSKIN, ReserveTests::reserveCoexistsWithBarkskin);
         reg(r, SELF_BARKSKIN_FIRE, BarkskinTests::fireBurnsThroughArrowBreaksBark);
         reg(r, SELF_BARKSKIN_BARE_STAYS_HELD, BarkskinTests::bareBarkskinStaysHeldAndRegrows);
