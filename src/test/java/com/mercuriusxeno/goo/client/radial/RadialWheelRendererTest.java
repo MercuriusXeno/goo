@@ -221,10 +221,9 @@ class RadialWheelRendererTest {
                 Map.entry("typhoon_updraft", "Updraft"), Map.entry("typhoon_lift", "Lift"),
                 Map.entry("kinetic_grab", "Grab"), Map.entry("kinetic_telekinesis", "Telekinesis"),
                 Map.entry("unstable_explode", "Blast"), Map.entry("zoo_allure", "Allure"), Map.entry("zoo_spawn", "Spawn"), Map.entry("zoo_shape", "Shape"), Map.entry("zoo_rally", "Rally"),
-                Map.entry("weird_slime", "Slime"),
-                Map.entry("vital_vitality", "Vitality"), Map.entry("vital_reserve", "Reserve"),
-                Map.entry("vital_nourish", "Nourish"), Map.entry("weird_magma", "Magma"), Map.entry("weird_bounce", "Bounce"),
-                Map.entry("weird_wobble", "Wobble"), Map.entry("xeno_eldritch", "Eldritch Sight"),
+                Map.entry("jelly_heal", "Vitality"), Map.entry("jelly_reserve", "Reserve"), Map.entry("jelly_feed", "Feed"),
+                Map.entry("jelly_gluttony", "Gluttony"), Map.entry("weird_slime", "Slime"), Map.entry("weird_magma", "Magma"),
+                Map.entry("weird_bounce", "Bounce"), Map.entry("weird_wobble", "Wobble"), Map.entry("xeno_eldritch", "Eldritch Sight"),
                 Map.entry("xeno_mutate", "Mutate"));
 
         private static JsonObject englishLang() throws IOException {

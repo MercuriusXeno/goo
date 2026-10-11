@@ -36,7 +36,7 @@ class GooTypesTest {
     private static final ResourceKey<GooTypeDefinition> SEVENTEENTH = ResourceKey.create(
             GooTypes.REGISTRY, Identifier.fromNamespaceAndPath("gootest", "seventeenth"));
     private static final List<String> BUNDLED_IDS = List.of(
-            "aeon", "astral", "blaze", "crystal", "deep", "ender", "frost", "glow", "hex", "infinity", "kinetic", "leaf",
+            "aeon", "astral", "blaze", "crystal", "deep", "ender", "frost", "glow", "hex", "infinity", "jelly", "kinetic", "leaf",
             "metal", "nether", "opulent", "pulse", "rock", "shroom", "typhoon", "unstable", "vital", "weird", "xeno", "zoo");
     private static final String TYPE_JSON = "/data/goo/goo/goo_type/%s.json";
     private static final String TEXTURES = "textures";

@@ -1,12 +1,12 @@
 {
-  "gooType": "vital",
-  "displayName": "goo.ability.vital.nourish",
+  "gooType": "jelly",
+  "displayName": "goo.ability.jelly.gluttony",
   "badge": "brew",
   "order": 30,
   "upkeep": 1,
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "nourish", "interval": 80 },
+    { "type": "gluttony", "interval": 80, "max_overheal": 20, "max_overhunger": 20 },
     { "type": "sound", "id": "minecraft:block.amethyst_block.chime", "at": "target", "source": "players", "volume": 0.8, "pitch": 1.3 }
   ],
   "tags": ["self"]
