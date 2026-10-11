@@ -120,18 +120,37 @@ public final class GooRenderTypes {
      * depth tested with depth write off, both faces drawn; its twin passes every
      * depth test so the shell shows through blocks.
      */
-    public static final RenderPipeline SPORE_SHELL = sporeShellPipeline("spore_shell",
-            DepthStencilState.DEFAULT.depthTest());
+    public static final RenderPipeline SPORE_SHELL = colorShellPipeline("spore_shell",
+            DepthStencilState.DEFAULT.depthTest(), BlendFunction.TRANSLUCENT);
 
     /** The spore shell's twin that ignores depth. */
-    public static final RenderPipeline SPORE_SHELL_THROUGH_BLOCKS = sporeShellPipeline(
-            "spore_shell" + THROUGH_BLOCKS_SUFFIX, CompareOp.ALWAYS_PASS);
+    public static final RenderPipeline SPORE_SHELL_THROUGH_BLOCKS = colorShellPipeline(
+            "spore_shell" + THROUGH_BLOCKS_SUFFIX, CompareOp.ALWAYS_PASS, BlendFunction.TRANSLUCENT);
 
     /** RenderType for shroom's held spore shell over blocks. */
     public static final RenderType SPORE_SHELL_TYPE = burnoutType(SPORE_SHELL);
 
     /** RenderType for shroom's held spore shell through blocks. */
     public static final RenderType SPORE_SHELL_THROUGH_BLOCKS_TYPE = burnoutType(SPORE_SHELL_THROUGH_BLOCKS);
+
+    /**
+     * Glow's shell of light, Scry's sphere and Radiant's wisps (decisions
+     * scry-sphere-reveals-faces-and-glistens-mobs, radiant-wisps-where-light-is-low):
+     * plain colored quads added onto the world, depth tested with depth write
+     * off and both faces drawn, so a caster inside the sphere sees its shell.
+     */
+    public static final RenderPipeline GLOW_SHELL = colorShellPipeline("glow_shell",
+            DepthStencilState.DEFAULT.depthTest(), BlendFunction.LIGHTNING);
+
+    /** Scry's revealed faces: added onto the world through every depth test, so they show through walls. */
+    public static final RenderPipeline SCRY_FACES = colorShellPipeline("scry_faces",
+            CompareOp.ALWAYS_PASS, BlendFunction.LIGHTNING);
+
+    /** RenderType for glow's shell of light. */
+    public static final RenderType GLOW_SHELL_TYPE = burnoutType(GLOW_SHELL);
+
+    /** RenderType for Scry's revealed faces. */
+    public static final RenderType SCRY_FACES_TYPE = burnoutType(SCRY_FACES);
 
     /**
      * Nether black-hole pipeline: POSITION_COLOR billboard quad with a custom
@@ -347,6 +366,38 @@ public final class GooRenderTypes {
 
     /** RenderType that draws glow goo's burnout explosion. */
     public static final RenderType GLOW_EXPLOSION_TYPE = burnoutType(GLOW_EXPLOSION);
+
+    /**
+     * Bulb's prism beacon (decision bulb-one-model-max-light-beacon-combo):
+     * vanilla's beacon beam shader blended additively, depth tested with depth
+     * write off and both faces drawn, so its layers stack into a bloom.
+     */
+    public static final RenderPipeline GLOW_BEAM = RenderPipeline.builder(RenderPipelines.BEACON_BEAM_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "glow_beam"))
+            .withColorTargetState(new ColorTargetState(BlendFunction.LIGHTNING))
+            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+            .withCull(false)
+            .build();
+
+    /** Per-texture memoized render types on the glow beam pipeline. */
+    private static final java.util.function.Function<Identifier, RenderType> GLOW_BEAM_FACTORY =
+            net.minecraft.util.Util.memoize(texture -> RenderType.create(
+                    "goo_glow_beam",
+                    RenderSetup.builder(GLOW_BEAM)
+                            .withTexture("Sampler0", texture)
+                            .sortOnUpload()
+                            .createRenderSetup()
+            ));
+
+    /**
+     * The glow beam render type over a beam texture.
+     *
+     * @param texture the beam texture
+     * @return the render type
+     */
+    public static RenderType glowBeam(Identifier texture) {
+        return GLOW_BEAM_FACTORY.apply(texture);
+    }
 
     /**
      * Nether black-hole accretion-disk pipeline: third render pass that
@@ -818,6 +869,33 @@ public final class GooRenderTypes {
     public static final RenderType BORE_VORTEX_TYPE = burnoutType(BORE_VORTEX);
 
     /**
+     * Tick's face overlay pipeline (decision tick-channel-marches-squares-on-the-face):
+     * one quad on the aimed face drawn through {@code goo_tick_face.vsh / .fsh},
+     * golden squares marching out from the face's middle at the tick rate.
+     */
+    public static final RenderPipeline TICK_FACE = burnoutPipeline("goo_tick_face", BlendFunction.TRANSLUCENT);
+
+    /** The tick face overlay render type. */
+    public static final RenderType TICK_FACE_TYPE = burnoutType(TICK_FACE);
+
+    /**
+     * Chronosphere's veil pipeline (decision chronosphere-hastes-players-slows-mobs):
+     * the sphere drawn through {@code goo_chronosphere.vsh / .fsh}, a glassy gold
+     * veil with a glowing rim, falling bands and clock-hour meridians.
+     */
+    public static final RenderPipeline CHRONOSPHERE = burnoutPipeline("goo_chronosphere", BlendFunction.TRANSLUCENT);
+
+    /** The chronosphere veil render type. */
+    public static final RenderType CHRONOSPHERE_TYPE = burnoutType(CHRONOSPHERE);
+
+    /** The chronosphere veil through blocks, for the held ghost while the drag sizes it. */
+    public static final RenderPipeline CHRONOSPHERE_THROUGH_BLOCKS = throughBlocksPipeline("goo_chronosphere",
+            BlendFunction.TRANSLUCENT);
+
+    /** The chronosphere veil's through-blocks render type. */
+    public static final RenderType CHRONOSPHERE_THROUGH_BLOCKS_TYPE = burnoutType(CHRONOSPHERE_THROUGH_BLOCKS);
+
+    /**
      * Ghost trail pipeline (decision ghost-trail-spans-the-blink): an entity's
      * body drawn again through {@code goo_ghost.vsh / .fsh} as a translucent
      * echo in the goo type's color, its skin read for the cutout and the
@@ -967,17 +1045,18 @@ public final class GooRenderTypes {
 
     /**
      * A plain colored quad pipeline through vanilla's position-color shader,
-     * translucent with depth write off, both faces drawn.
+     * blended with depth write off, both faces drawn.
      *
      * @param location  the pipeline's name
      * @param depthTest the depth comparison its fragments pass
+     * @param blend     how its fragments blend onto the world
      * @return the pipeline
      */
-    private static RenderPipeline sporeShellPipeline(String location, CompareOp depthTest) {
+    private static RenderPipeline colorShellPipeline(String location, CompareOp depthTest, BlendFunction blend) {
         return RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
                 .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + location))
                 .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
-                .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+                .withColorTargetState(new ColorTargetState(blend))
                 .withDepthStencilState(new DepthStencilState(depthTest, false))
                 .withCull(false)
                 .build();
@@ -1067,13 +1146,7 @@ public final class GooRenderTypes {
         registerMobLayerPipelines(event);
         registerLeafPipelines(event);
         registerLinePipelines(event);
-        event.registerPipeline(NETHER_BLACKHOLE);
-        event.registerPipeline(NETHER_CORONA);
-        event.registerPipeline(NETHER_BLACKHOLE_HELD);
-        event.registerPipeline(NETHER_BLACKHOLE_THROUGH_BLOCKS);
-        event.registerPipeline(NETHER_CORONA_THROUGH_BLOCKS);
-        event.registerPipeline(NETHER_DISK);
-        event.registerPipeline(NETHER_CUBE_EDGE);
+        registerNetherPipelines(event);
         event.registerPipeline(VORONOI_FISSURE);
         event.registerPipeline(CRYSTAL_SHARD);
         event.registerPipeline(GOO_FLUID);
@@ -1082,19 +1155,42 @@ public final class GooRenderTypes {
         event.registerPipeline(BLOCK_MINGLE);
         event.registerPipeline(PETRIFY_FOG);
         event.registerPipeline(BORE_VORTEX);
-        registerAbilityPipelines(event);
+        event.registerPipeline(TICK_FACE);
+        event.registerPipeline(CHRONOSPHERE);
+        event.registerPipeline(CHRONOSPHERE_THROUGH_BLOCKS);
+        registerOverlayPipelines(event);
     }
 
     /**
-     * Registers the ability effects' pipelines: the afterimage ripples, the ghost and the drink field.
+     * Registers the overlay pipelines: the goo ripple masks and edge, the
+     * ghost, Bulb's glow beam, the glow shell, Scry's faces and Unmake's drink field.
      *
      * @param event the event instance
      */
-    private static void registerAbilityPipelines(RegisterRenderPipelinesEvent event) {
+    private static void registerOverlayPipelines(RegisterRenderPipelinesEvent event) {
         GOO_RIPPLE_MASKS.forEach(event::registerPipeline);
         event.registerPipeline(GOO_RIPPLE_EDGE);
         event.registerPipeline(GOO_GHOST);
+        event.registerPipeline(GLOW_BEAM);
+        event.registerPipeline(GLOW_SHELL);
+        event.registerPipeline(SCRY_FACES);
         event.registerPipeline(DRINK_FIELD);
+    }
+
+    /**
+     * Registers the nether black hole's pipelines: its body, corona, disk and
+     * cube edges, and their held and through-blocks twins.
+     *
+     * @param event the event instance
+     */
+    private static void registerNetherPipelines(RegisterRenderPipelinesEvent event) {
+        event.registerPipeline(NETHER_BLACKHOLE);
+        event.registerPipeline(NETHER_CORONA);
+        event.registerPipeline(NETHER_BLACKHOLE_HELD);
+        event.registerPipeline(NETHER_BLACKHOLE_THROUGH_BLOCKS);
+        event.registerPipeline(NETHER_CORONA_THROUGH_BLOCKS);
+        event.registerPipeline(NETHER_DISK);
+        event.registerPipeline(NETHER_CUBE_EDGE);
     }
 
     /**

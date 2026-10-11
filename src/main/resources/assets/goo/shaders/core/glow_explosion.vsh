@@ -3,11 +3,10 @@
 #moj_import <minecraft:projection.glsl>
 #moj_import <minecraft:dynamictransforms.glsl>
 
-// Glow goo's burnout explosion (decision elemental-explosion-per-type).
-// GlowExplosionVisual packs the vertex color: red is the explosion's
-// progress, green the placed face's ordinal (Direction order: down, up,
-// north, south, west, east), blue the bloom's brightness. The normal is
-// the unit direction from the dome's center.
+// Glow goo's burnout explosion (decisions elemental-explosion-per-type,
+// burnouts-are-whole-spheres). GlowExplosionVisual packs the vertex color:
+// red is the explosion's progress, blue the bloom's brightness. The normal
+// is the unit direction from the sphere's center.
 
 in vec3 Position;
 in vec4 Color;
@@ -17,23 +16,12 @@ out vec3 surfaceDir;
 out float progress;
 out float opacity;
 out float brightness;
-flat out vec3 faceUp;
-
-vec3 faceStep(int ordinal) {
-    if (ordinal == 0) return vec3(0.0, -1.0, 0.0);
-    if (ordinal == 1) return vec3(0.0, 1.0, 0.0);
-    if (ordinal == 2) return vec3(0.0, 0.0, -1.0);
-    if (ordinal == 3) return vec3(0.0, 0.0, 1.0);
-    if (ordinal == 4) return vec3(-1.0, 0.0, 0.0);
-    return vec3(1.0, 0.0, 0.0);
-}
 
 void main() {
     gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
     surfaceDir = Normal;
     progress = Color.r;
-    // Alpha is the dome's opacity.
+    // Alpha is the sphere's opacity.
     opacity = Color.a;
     brightness = Color.b;
-    faceUp = faceStep(int(Color.g * 255.0 + 0.5));
 }

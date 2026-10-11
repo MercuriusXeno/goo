@@ -75,14 +75,11 @@ public final class SelfDeliveryTests {
     private static final double LANDING_TOLERANCE = 0.05;
     private static final String SHOULD_LAND_ON_TOP = "The blink should land on the pillar's top at %s, landed at %s";
     private static final String SHOULD_PRICE_THE_TRIP = "The trip should cost %d mB, more than the flat %d";
-    private static final Identifier TYPHOON_PROPEL = Identifier.parse("goo:typhoon_propel");
-    /** The strength typhoon_propel.json's push step names. */
-    private static final double PROPEL_STRENGTH = 1.5;
-    /** Pitch forty-five degrees above level. */
-    private static final float LOOKING_UP = -45f;
-    private static final float BUILT_UP_FALL = 10f;
     private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
     private static final Identifier SHROOM_SIGHT = Identifier.parse("goo:shroom_sight");
+    private static final Identifier AEON_HASTE = Identifier.parse("goo:aeon_haste");
+    private static final String SHOULD_HASTE_HELD = "Held Haste should raise the player's speed and mining speed";
+    private static final String SHOULD_END_HASTE = "Invoking Haste again should end it, its effect and both speeds";
     private static final String SHOULD_SEE = "Once the eat finishes the player should hold fungal sight";
     private static final String SHOULD_SEE_PAID = "Sight should stand through tick %d, which the shroom pays for";
     private static final String SHOULD_END_SIGHT_DRY = "Sight should end and clear once shroom runs dry";
@@ -107,8 +104,6 @@ public final class SelfDeliveryTests {
     private static final String SHOULD_RUN_ON_COMMAND = "A self-badged ability should run on command, not eat";
     private static final String SHOULD_BLINK_EAST = "The player should move past %.1f and no farther than %.1f east the tick it blinks, moved %.3f";
     private static final String SHOULD_DRAIN_COST = "The cast should drain the stack-zero cost of %d mB, drained %d";
-    private static final String SHOULD_PROPEL = "The player's motion should read %s, read %s";
-    private static final String SHOULD_CLEAR_FALL = "Propulsion should clear the fall, read %.1f";
     private static final String SHOULD_START_EATING = "Invoking a self + brew ability should start the player eating";
     private static final String SHOULD_LAY_NOTHING_MID_EAT = "Mid-eat no ember should stand, %d halves stand";
     private static final String SHOULD_DRAIN_NOTHING_MID_EAT = "Mid-eat no goo should drain, drained %d";
@@ -205,34 +200,6 @@ public final class SelfDeliveryTests {
         helper.assertTrue(after.distanceTo(top) < LANDING_TOLERANCE, String.format(SHOULD_LAND_ON_TOP, top, after));
         helper.assertTrue(drained == priced, String.format(SHOULD_DRAIN_COST, priced, drained));
         helper.assertTrue(priced > blink.cost(), String.format(SHOULD_PRICE_THE_TRIP, priced, blink.cost()));
-        helper.succeed();
-    }
-
-    /**
-     * A mock player looking up and east invokes typhoon propulsion, and its
-     * motion reads the push strength along its look with its fall cleared in
-     * that tick, with no eat started.
-     *
-     * @param helper the gametest helper
-     */
-    public static void typhoonPropel(GameTestHelper helper) {
-        AbilityDefinition propel = requireAbility(helper, TYPHOON_PROPEL);
-        ServerPlayer player = invoker(helper, GooTypes.TYPHOON, TYPHOON_PROPEL);
-        KnownRecipes.teachRequires(player, propel);
-        player.setYRot(FACING_EAST);
-        player.setXRot(LOOKING_UP);
-        player.fallDistance = BUILT_UP_FALL;
-        Vec3 expected = player.getLookAngle().scale(PROPEL_STRENGTH);
-
-        invoke(player, GooTypes.TYPHOON, TYPHOON_PROPEL);
-
-        boolean using = player.isUsingItem();
-        Vec3 motion = player.getDeltaMovement();
-        double fall = player.fallDistance;
-        helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertFalse(using, SHOULD_RUN_ON_COMMAND);
-        helper.assertTrue(motion.distanceTo(expected) < MOVE_TOLERANCE, String.format(SHOULD_PROPEL, expected, motion));
-        helper.assertTrue(fall == 0, String.format(SHOULD_CLEAR_FALL, fall));
         helper.succeed();
     }
 
@@ -541,6 +508,32 @@ public final class SelfDeliveryTests {
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
         player.getInventory().add(GooStacks.createForOutput(gooType, HELD_GOO * GooStacks.THOUSAND));
         return player;
+    }
+
+    /**
+     * A survival player eats Haste from the glove: the aeon brew is the one
+     * effect it wears, iconed and without particles, and it moves and mines
+     * faster for as long as Haste is held; invoking it again ends it, the
+     * effect goes and both speeds fall back (decisions
+     * self-effects-trickle-until-ended and
+     * haste-stacks-speed-under-the-golden-overlay).
+     *
+     * @param helper the gametest helper
+     */
+    public static void hasteHoldsWithoutParticles(GameTestHelper helper) {
+        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.AEON, AEON_HASTE);
+        boolean held = player.getData(GooAttachments.HELD_EFFECTS).holds(AEON_HASTE);
+        String wrongEffects = HasteChecks.onlyTheAeonBrew(player);
+        boolean hasted = HasteChecks.hasted(player);
+        invoke(player, GooTypes.AEON, AEON_HASTE);
+        boolean heldAfter = player.getData(GooAttachments.HELD_EFFECTS).holds(AEON_HASTE);
+        boolean hastedAfter = HasteChecks.hasted(player) || !player.getActiveEffects().isEmpty();
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        helper.assertTrue(held, SHOULD_BE_HELD);
+        helper.assertTrue(wrongEffects.isEmpty(), wrongEffects);
+        helper.assertTrue(hasted, SHOULD_HASTE_HELD);
+        helper.assertFalse(heldAfter || hastedAfter, SHOULD_END_HASTE);
+        helper.succeed();
     }
 
     /**

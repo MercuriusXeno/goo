@@ -22,7 +22,7 @@ public enum HostKind {
      */
     ENTITY("struck entity", EntityHost.class,
             Set.of(HostVariables.HEALTH, HostVariables.MAX_HEALTH, HostVariables.DISTANCE,
-                    HostVariables.UNDEAD, HostVariables.SPRINTING)),
+                    HostVariables.UNDEAD, HostVariables.SPRINTING, HostVariables.SHARE)),
     /**
      * The block a tap's drip lands on: the world around its top face, the
      * entities standing there and the block above it to write, acted on in

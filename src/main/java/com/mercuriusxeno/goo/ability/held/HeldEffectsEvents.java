@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.ability.held;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
-import com.mercuriusxeno.goo.ability.banish.Teleportitis;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.hex.Lifetap;
 import com.mercuriusxeno.goo.ability.nether.Undead;
@@ -10,6 +9,8 @@ import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
+import com.mercuriusxeno.goo.ability.typhoon.Airborn;
+import com.mercuriusxeno.goo.ability.zone.Shifter;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooMobEffects;
@@ -228,6 +229,7 @@ public final class HeldEffectsEvents {
         for (HeldEffects.Held effect : ended) {
             clearBodyStates(player, effect.lays());
             clearMindStates(player, effect.lays());
+            clearMotionStates(player, effect.lays());
             // brew-runs-the-crawl-prepaid-on-a-shown-clock: the effect list's entry ends with the effect
             player.removeEffect(GooMobEffects.BREW_EFFECTS.get(effect.gooType()));
         }
@@ -235,7 +237,7 @@ public final class HeldEffectsEvents {
 
     /**
      * Clears the states an ended effect laid on the player's body: its heart
-     * overlay, its nourishment and its counting as undead.
+     * overlay, its nourishment, its counting as undead and its haste overlay.
      *
      * @param player the player
      * @param lays   the states the ended effect laid
@@ -251,11 +253,28 @@ public final class HeldEffectsEvents {
             // undead-nether-hearts-burn-in-sunlight: the player counts as undead no longer
             player.setData(GooAttachments.UNDEAD, Undead.NONE);
         }
+        if (lays.contains(LaidState.HASTE)) {
+            // haste-stacks-speed-under-the-golden-overlay: the golden overlay ends with the held effect
+            Haste.clear(player);
+        }
+    }
+
+    /**
+     * Clears the state an ended effect laid on how the player moves: its air control.
+     *
+     * @param player the player
+     * @param lays   the states the ended effect laid
+     */
+    private static void clearMotionStates(ServerPlayer player, Set<LaidState> lays) {
+        if (lays.contains(LaidState.AIRBORN)) {
+            // airborn-steerable-levitation-and-soft-falls: the air control ends with its held effect
+            player.setData(GooAttachments.AIRBORN, Airborn.NONE);
+        }
     }
 
     /**
      * Clears the states an ended effect laid on the player's senses and
-     * draws: its sight, its teleportitis, its lifetap and its charge.
+     * draws: its sight, its shifter, its Lux, its lifetap and its charge.
      *
      * @param player the player
      * @param lays   the states the ended effect laid
@@ -265,13 +284,27 @@ public final class HeldEffectsEvents {
             // sight-lengthens-shift-and-outlines-fungus: the sight ends with its held effect
             player.setData(GooAttachments.SIGHT, Sight.NONE);
         }
+        clearAbilityState(player, lays);
+    }
+
+    /**
+     * Clears the player state an ability's own step laid: shifter, Lux, a lifetap, the charge.
+     *
+     * @param player the player
+     * @param lays   the state the effect laid
+     */
+    private static void clearAbilityState(ServerPlayer player, Set<LaidState> lays) {
+        if (lays.contains(LaidState.SHIFTER)) {
+            // shifter-blinks-along-the-cursor-on-hit: the shifter ends with its held effect
+            player.setData(GooAttachments.SHIFTER, Shifter.NONE);
+        }
+        if (lays.contains(LaidState.LUX)) {
+            // lux-night-vision-without-particles: Lux and the night vision it kept up end with its held effect
+            LuxEvents.end(player);
+        }
         if (lays.contains(LaidState.CHARGED)) {
             // charged-scales-channel-params-by-json: the charge ends with its held effect, dry, pressed or expired
             player.setData(GooAttachments.CHARGED, false);
-        }
-        if (lays.contains(LaidState.TELEPORTITIS)) {
-            // teleportitis-blinks-along-the-cursor-on-hit: the teleportitis ends with its held effect
-            player.setData(GooAttachments.TELEPORTITIS, Teleportitis.NONE);
         }
         if (lays.contains(LaidState.LIFETAP)) {
             // lifetap-trades-regen-for-leech: the leech ends with its held effect

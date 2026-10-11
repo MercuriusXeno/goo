@@ -32,11 +32,11 @@ public interface HeldGhostVisual {
     }
 
     /**
-     * The ghost a sized ability of this type holds at the radius its drag
-     * sets. By default the dome is that radius and the rings travel outward to
-     * it, as Blast's do (decision blast-is-drag-sized-like-the-black-hole).
+     * The ghost a cast sized by its drag holds: by default its dome at the
+     * radius dragged, its rings traveling outward to it, as Blast's do
+     * (decision blast-is-drag-sized-like-the-black-hole).
      *
-     * @param radius the radius dragged, in blocks
+     * @param radius the radius the drag sets, in blocks
      * @return the ghost
      */
     default HeldGhost sizedGhost(float radius) {
