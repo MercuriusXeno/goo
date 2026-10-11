@@ -213,13 +213,18 @@ class ProgramHostLoadTest {
     void eachKindProvidesTheCapabilityInterfacesItsHostImplements() {
         assertEquals(EnumSet.complementOf(EnumSet.of(HostCapability.TARGET, HostCapability.LINGER, HostCapability.CHANNEL,
                         HostCapability.BREAK_BLOCKS, HostCapability.DRIP, HostCapability.COLONIZE,
+<<<<<<< HEAD
                         HostCapability.FLOOR_SCAN, HostCapability.DRAGON_GATE, HostCapability.POWER_PULSE,
                         HostCapability.TOGGLE_DEVICE, HostCapability.EXTEND_EFFECTS, HostCapability.SPAWN_MOB, HostCapability.TICK_BLOCK,
                         HostCapability.RAISE_GROUND)),
+=======
+                        HostCapability.FLOOR_SCAN, HostCapability.END_GATE, HostCapability.POWER_PULSE,
+                        HostCapability.TOGGLE_DEVICE, HostCapability.EXTEND_EFFECTS, HostCapability.SPAWN_MOB, HostCapability.TICK_BLOCK)),
+>>>>>>> origin/26.1
                 HostKind.MARKER.capabilities());
         assertEquals(Set.of(HostCapability.PLACED_FACE, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
                 HostCapability.PLACE_BLOCK, HostCapability.LINGER, HostCapability.BREAK_BLOCKS, HostCapability.COLONIZE,
-                HostCapability.FLOOR_SCAN, HostCapability.DRAGON_GATE, HostCapability.POWER_PULSE, HostCapability.SPAWN_MOB,
+                HostCapability.FLOOR_SCAN, HostCapability.END_GATE, HostCapability.POWER_PULSE, HostCapability.SPAWN_MOB,
                 HostCapability.FROST),
                 HostKind.LANDING.capabilities());
         assertEquals(Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN),
