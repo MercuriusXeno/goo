@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.fluid.GooBucketItem;
 import com.mercuriusxeno.goo.item.*;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
+import com.mercuriusxeno.goo.registry.GooEnchantments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.datafixers.util.Either;
 import net.minecraft.ChatFormatting;
@@ -267,7 +268,7 @@ public final class GooTooltipHandler {
         }
         CanisterFluidContent content = stack.get(GooDataComponents.CANISTER_FLUID_CONTENT.get());
         if (isEmptyCanister(content)) {
-            return content.getGooType();
+            return content.dominantGooType();
         }
         return null;
     }
@@ -284,7 +285,7 @@ public final class GooTooltipHandler {
         }
         CanisterFluidContent content = stack.get(GooDataComponents.CANISTER_FLUID_CONTENT.get());
         if (isEmptyCanister(content)) {
-            return content.amount();
+            return content.volumeOf(content.dominantResource());
         }
         return 0;
     }
@@ -336,7 +337,8 @@ public final class GooTooltipHandler {
         }
         CanisterFluidContent canisterContent = stack.get(GooDataComponents.CANISTER_FLUID_CONTENT.get());
         if (isEmptyCanister(canisterContent)) {
-            appendCanisterFluidComponent(elements, canisterContent);
+            appendCanisterRows(elements, canisterContent,
+                    ContainerCapacity.canisterCapacity(GooEnchantments.getCompressionLevel(stack)));
             return true;
         }
         return false;
@@ -383,20 +385,25 @@ public final class GooTooltipHandler {
     }
 
     /**
-     * Appends a single-fluid tooltip line for canister items.
-     * Handles both goo fluids (icon + amount) and vanilla fluids (text label + amount).
+     * Appends the fluid tooltip lines for canister items: a row per goo type
+     * (icon + amount), dominant first, or the vanilla fluid's text label +
+     * amount, then the total against capacity
+     * (decision canisters-hold-more-than-one-goo-type).
      *
      * @param elements the tooltip element list
      * @param content  the canister fluid content
+     * @param capacity the canister's capacity in mB
      */
-    private static void appendCanisterFluidComponent(
-            List<Either<FormattedText, TooltipComponent>> elements, CanisterFluidContent content) {
-        ResourceKey<GooTypeDefinition> gooType = content.getGooType();
-        if (gooType != null) {
-            appendGooRows(elements, Map.of(gooType, content.amount()));
+    static void appendCanisterRows(List<Either<FormattedText, TooltipComponent>> elements,
+            CanisterFluidContent content, int capacity) {
+        Map<ResourceKey<GooTypeDefinition>, Integer> gooVolumes = content.gooVolumesDominantFirst();
+        if (gooVolumes.isEmpty()) {
+            appendVanillaFluidRow(elements, content.dominantFluid(), content.totalVolume());
         } else {
-            appendVanillaFluidRow(elements, content.fluid(), content.amount());
+            appendGooRows(elements, gooVolumes);
         }
+        elements.add(Either.left(Component.literal(GooFormat.formatFill(content.totalVolume(), capacity))
+                .withStyle(ChatFormatting.GRAY)));
     }
 
     /**

@@ -108,7 +108,7 @@ public class CanisterBlockEntityRenderer
     }
 
     /**
-     * Extracts dominant goo type and fill fraction for a single slot.
+     * Extracts every fluid a single slot holds and its fill fraction.
      *
      * @param be the block entity instance
      * @param state the block state
@@ -117,44 +117,8 @@ public class CanisterBlockEntityRenderer
     private static void extractSlotFluid(CanisterBlockEntity be,
             CanisterRenderState state, int slot) {
         CanisterFluidContent content = be.getSlotFluidContent(slot);
-        if (content.isEmpty()) {
-            state.slots[slot].type = null;
-            state.slots[slot].fluid = Fluids.EMPTY;
-            state.slots[slot].fill = 0f;
-        } else {
-            populateFilledSlot(be, state, slot, content);
-        }
-    }
-
-    /**
-     * Populates render state for a slot with fluid contents.
-     * For goo fluids, sets slotType. For vanilla fluids, sets slotFluid.
-     *
-     * @param be the block entity instance
-     * @param state the render state snapshot
-     * @param slot the slot index
-     * @param content the non-empty fluid content for this slot
-     */
-    private static void populateFilledSlot(CanisterBlockEntity be,
-            CanisterRenderState state, int slot, CanisterFluidContent content) {
         int cap = ContainerCapacity.canisterCapacity(GooEnchantments.getCompressionLevel(be.getCanister(slot)));
-        state.slots[slot].type = content.getGooType();
-        state.slots[slot].fluid = content.getGooType() == null
-                ? content.fluid() : Fluids.EMPTY;
-        state.slots[slot].fill = logFill(content.amount(), cap);
-    }
-
-    /**
-     * Computes fill fraction as total volume divided by capacity.
-     * Clamped to [0, 1].
-     *
-     * @param amount the current amount
-     * @param capacity the maximum capacity
-     * @return the result
-     */
-    private static float logFill(int amount, int capacity) {
-        if (amount <= 0 || capacity <= 0) { return 0f; }
-        return Math.min(1f, (float) amount / capacity);
+        state.slots[slot].showContent(content, cap);
     }
 
     /**

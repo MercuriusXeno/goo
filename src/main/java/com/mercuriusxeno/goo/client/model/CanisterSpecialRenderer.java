@@ -1,14 +1,19 @@
 package com.mercuriusxeno.goo.client.model;
 
 import com.mercuriusxeno.goo.block.canister.CanisterGeometry;
+import com.mercuriusxeno.goo.client.BandedSurfaceSubmitter;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
+import com.mercuriusxeno.goo.client.TypeBand;
+import com.mercuriusxeno.goo.client.TypeBands;
 import com.mercuriusxeno.goo.client.ber.CanisterSlotRenderer;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
+import com.mercuriusxeno.goo.item.GooContents;
+import com.mercuriusxeno.goo.registry.GooEnchantments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.serialization.MapCodec;
@@ -22,6 +27,8 @@ import net.minecraft.world.level.material.Fluid;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -63,19 +70,6 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
     }
 
     /**
-     * Computes the fill fraction [0,1] for the canister's current contents.
-     *
-     * @param stack   the canister item stack
-     * @param content the fluid content to compute fill from
-     * @return fill fraction clamped to [0,1]
-     */
-    private static float computeFillFraction(ItemStack stack, CanisterFluidContent content) {
-        int compression = com.mercuriusxeno.goo.registry.GooEnchantments.getCompressionLevel(stack);
-        int capacity = ContainerCapacity.canisterCapacity(compression);
-        return Math.min(1f, (float) content.amount() / capacity);
-    }
-
-    /**
      * Submits fluid geometry only when the data contains a non-empty fill.
      * The fluid takes the submitter's lightmap rule rather than the item's
      * packed light, so it reads bright in the dark as the placed canister does.
@@ -90,7 +84,9 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
         if (data == null || data.fill() <= 0f) {
             return;
         }
-        if (data.gooType() != null) {
+        if (data.bands().size() > 1) {
+            submitMingledFluid(GooSubmitter.bandedSurfaces(poseStack, nodeCollector), data);
+        } else if (data.gooType() != null) {
             submitFluid(poseStack, nodeCollector, data.gooType(), data.fill());
         } else if (data.vanillaFluid() != null) {
             submitVanillaFluid(poseStack, nodeCollector, data.vanillaFluid(), data.fill());
@@ -211,6 +207,22 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
     }
 
     /**
+     * Submits the fill once per type band through the vat's banded submitter,
+     * each layer lifted outward of the one below, so a canister holding several
+     * goo types mingles them by noise (decision noise-mingled-type-textures).
+     *
+     * @param submitter submits one band's surface on that band type's sprite
+     * @param data      the goo data, holding more than one band
+     */
+    private static void submitMingledFluid(BandedSurfaceSubmitter submitter, GooData data) {
+        CuboidBounds b = fluidBounds(data.fill());
+        for (TypeBand band : data.bands()) {
+            submitter.submit(band, (ctx, sprite) ->
+                    FluidFaceEmitter.emitFluidFaces(ctx, b.liftedOutward(band.lift()), sprite, ctx.color()));
+        }
+    }
+
+    /**
      * Submits vanilla fluid (water/lava) surface geometry inside the canister
      * body through the shared submitter, on the still sprite and tint the
      * submitter resolves for the fluid.
@@ -253,17 +265,33 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
     @Override
     public @Nullable GooData extractArgument(ItemStack stack) {
         CanisterMetadata meta = CanisterItem.getMetadata(stack);
-        boolean hasTop = meta.topGasketId() != null;
-        boolean hasBottom = meta.bottomGasketId() != null;
-        CanisterFluidContent content = CanisterItem.getFluidContent(stack);
-        if (content.isEmpty()) {
-            return new GooData(null, null, 0f, hasTop, hasBottom);
+        int capacity = ContainerCapacity.canisterCapacity(GooEnchantments.getCompressionLevel(stack));
+        return dataOf(CanisterItem.getFluidContent(stack), capacity,
+                meta.topGasketId() != null, meta.bottomGasketId() != null);
+    }
+
+    /**
+     * Builds the render data from every fluid a canister holds: the dominant
+     * goo type or vanilla fluid, the total fill against capacity, and a band
+     * per goo type through the vat's band builder
+     * (decisions canisters-hold-more-than-one-goo-type and noise-mingled-type-textures).
+     *
+     * @param content   the canister's content
+     * @param capacity  the canister's capacity in mB
+     * @param hasTop    whether a choral gasket is installed on top
+     * @param hasBottom whether a choral gasket is installed on bottom
+     * @return the render data
+     */
+    static GooData dataOf(CanisterFluidContent content, int capacity, boolean hasTop, boolean hasBottom) {
+        if (content.isEmpty() || capacity <= 0) {
+            return new GooData(null, null, 0f, hasTop, hasBottom, List.of());
         }
-        float fill = computeFillFraction(stack, content);
-        ResourceKey<GooTypeDefinition> gooType = content.getGooType();
-        Fluid vanillaFluid =
-                gooType == null ? content.fluid() : null;
-        return new GooData(gooType, vanillaFluid, fill, hasTop, hasBottom);
+        float fill = Math.min(1f, (float) content.totalVolume() / capacity);
+        ResourceKey<GooTypeDefinition> gooType = content.dominantGooType();
+        Fluid vanillaFluid = gooType == null ? content.dominantFluid() : null;
+        Map<ResourceKey<GooTypeDefinition>, Integer> goo = content.gooVolumes();
+        List<TypeBand> bands = goo.isEmpty() ? List.of() : TypeBands.over(new GooContents(goo));
+        return new GooData(gooType, vanillaFluid, fill, hasTop, hasBottom, bands);
     }
 
     /**
@@ -318,10 +346,12 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
      * @param fill            the fill fraction [0, 1]
      * @param hasTopGasket    whether a choral gasket is installed on top
      * @param hasBottomGasket whether a choral gasket is installed on bottom
+     * @param bands           one band per goo type held; more than one draws the mingled fill
      */
     public record GooData(@Nullable ResourceKey<GooTypeDefinition> gooType,
                           @Nullable Fluid vanillaFluid,
-                          float fill, boolean hasTopGasket, boolean hasBottomGasket) {
+                          float fill, boolean hasTopGasket, boolean hasBottomGasket,
+                          List<TypeBand> bands) {
     }
 
     /**

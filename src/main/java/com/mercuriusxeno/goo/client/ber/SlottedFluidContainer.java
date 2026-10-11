@@ -1,8 +1,11 @@
 package com.mercuriusxeno.goo.client.ber;
 
+import com.mercuriusxeno.goo.client.BandedSurfaceSubmitter;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
+import com.mercuriusxeno.goo.client.TypeBand;
+import com.mercuriusxeno.goo.client.model.FluidFaceEmitter;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -41,11 +44,11 @@ public final class SlottedFluidContainer {
                                     SlotState[] slots,
                                     SlotFluidGeometry.SlotGeometry geom, float[][] centers,
                                     boolean supportsVanilla) {
-        if (!hasAnyFluid(slots, supportsVanilla)) {
-            return;
+        if (hasAnySingleFluid(slots, supportsVanilla)) {
+            GooSubmitter.submitFluid(poseStack, nodeCollector,
+                    ctx -> renderAllFluids(ctx, slots, geom, centers, supportsVanilla));
         }
-        GooSubmitter.submitFluid(poseStack, nodeCollector,
-                ctx -> renderAllFluids(ctx, slots, geom, centers, supportsVanilla));
+        submitMingledFluids(GooSubmitter.bandedSurfaces(poseStack, nodeCollector), slots, geom, centers);
     }
 
     private static void renderAllFluids(RenderContext ctx, SlotState[] slots,
@@ -53,30 +56,63 @@ public final class SlottedFluidContainer {
                                         boolean supportsVanilla) {
         for (int i = 0; i < slots.length; i++) {
             SlotState s = slots[i];
-            if (s.fill <= 0f) {
+            if (!drawsOneSurface(s, supportsVanilla)) {
                 continue;
             }
             if (s.type != null) {
                 renderGooSurface(ctx, centers[i], s.type, s.fill, geom);
-            } else if (supportsVanilla && s.fluid != Fluids.EMPTY) {
+            } else {
                 renderVanillaSurface(ctx, centers[i], s.fluid, s.fill, geom);
             }
         }
     }
 
-    private static boolean hasAnyFluid(SlotState[] slots, boolean supportsVanilla) {
+    private static boolean hasAnySingleFluid(SlotState[] slots, boolean supportsVanilla) {
         for (SlotState s : slots) {
-            if (s.fill <= 0f) {
-                continue;
-            }
-            if (s.type != null) {
-                return true;
-            }
-            if (supportsVanilla && s.fluid != Fluids.EMPTY) {
+            if (drawsOneSurface(s, supportsVanilla)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * Whether a slot draws one whole surface: filled, holding one goo type, or a
+     * vanilla fluid where the host shows one.
+     *
+     * @param s               the slot snapshot
+     * @param supportsVanilla true if the host shows a slot's vanilla fluid
+     * @return true when the slot draws in the single-surface pass
+     */
+    private static boolean drawsOneSurface(SlotState s, boolean supportsVanilla) {
+        if (s.fill <= 0f || s.mingles()) {
+            return false;
+        }
+        return s.type != null || supportsVanilla && s.fluid != Fluids.EMPTY;
+    }
+
+    /**
+     * Submits each slot holding several goo types once per type band through the
+     * vat's banded submitter, every layer lifted outward of the one below, so the
+     * column mingles the types by noise (decision noise-mingled-type-textures).
+     *
+     * @param submitter submits one band's surface on that band type's sprite
+     * @param slots     per-slot snapshots
+     * @param geom      shared slot geometry
+     * @param centers   per-slot XZ block-coord centers (parallel to {@code slots})
+     */
+    static void submitMingledFluids(BandedSurfaceSubmitter submitter, SlotState[] slots,
+                                    SlotFluidGeometry.SlotGeometry geom, float[][] centers) {
+        for (int i = 0; i < slots.length; i++) {
+            SlotState s = slots[i];
+            if (s.fill > 0f && s.mingles()) {
+                CuboidBounds b = SlotFluidGeometry.computeBounds(geom, centers[i][0], centers[i][1], s.fill);
+                for (TypeBand band : s.bands) {
+                    submitter.submit(band, (ctx, sprite) ->
+                            FluidFaceEmitter.emitFluidFaces(ctx, b.liftedOutward(band.lift()), sprite, ctx.color()));
+                }
+            }
+        }
     }
 
     private static void renderGooSurface(RenderContext ctx, float[] center,

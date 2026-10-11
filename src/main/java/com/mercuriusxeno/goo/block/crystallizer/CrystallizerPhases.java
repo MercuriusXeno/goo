@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.Nullable;
+import java.util.Map;
 
 /**
  * The crystallizer's arithmetic over plain values, so a unit test reaches it
@@ -52,6 +53,26 @@ public final class CrystallizerPhases {
         boolean holdsGoo() {
             return volume > 0 && type != null;
         }
+    }
+
+    /**
+     * What a canister holding several goo types counts as: the goo it would grow,
+     * the most voluminous type other than crystal, or its crystal where it holds
+     * nothing else, so a catalyst canister always reads its crystal volume
+     * (decision canisters-hold-more-than-one-goo-type).
+     *
+     * @param volumes each goo type the canister holds with its volume
+     * @return what it holds, in plain values
+     */
+    public static Held heldIn(Map<ResourceKey<GooTypeDefinition>, Integer> volumes) {
+        Held grower = Held.NOTHING;
+        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : volumes.entrySet()) {
+            if (!CATALYST.equals(entry.getKey()) && entry.getValue() > grower.volume()) {
+                grower = new Held(entry.getKey(), entry.getValue());
+            }
+        }
+        int crystal = volumes.getOrDefault(CATALYST, 0);
+        return grower.holdsGoo() || crystal <= 0 ? grower : new Held(CATALYST, crystal);
     }
 
     /**

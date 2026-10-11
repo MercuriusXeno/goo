@@ -1,10 +1,16 @@
 package com.mercuriusxeno.goo.client.ber;
 
+import com.mercuriusxeno.goo.client.TypeBand;
+import com.mercuriusxeno.goo.client.TypeBands;
+import com.mercuriusxeno.goo.item.CanisterFluidContent;
+import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import org.jspecify.annotations.Nullable;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Per-slot render snapshot for slot-arrayed machines (Hub, Canister) and
@@ -33,6 +39,11 @@ public final class SlotState {
     public Fluid fluid = Fluids.EMPTY;
     /** Fill fraction in [0, 1]. */
     public float fill;
+    /**
+     * One band per goo type the canister holds, in the vat's band order; more
+     * than one draws the mingled surface (decision noise-mingled-type-textures).
+     */
+    public List<TypeBand> bands = List.of();
     /** Compression level of the inserted canister (Tap / Reactor only). */
     public int compression;
     /** True if a top gasket cap is installed. */
@@ -45,4 +56,28 @@ public final class SlotState {
     public Fluid streamFluid = Fluids.EMPTY;
     /** Stream rate in mB/tick. */
     public float streamRate;
+
+    /**
+     * Fills the slot's fluid fields from every fluid its canister holds: the
+     * dominant goo type or vanilla fluid, the total fill against capacity, and
+     * a band per goo type through the vat's band builder
+     * (decisions canisters-hold-more-than-one-goo-type and noise-mingled-type-textures).
+     *
+     * @param content  the canister's content
+     * @param capacity the canister's capacity in mB
+     */
+    public void showContent(CanisterFluidContent content, int capacity) {
+        type = content.dominantGooType();
+        fluid = type == null && !content.isEmpty() ? content.dominantFluid() : Fluids.EMPTY;
+        fill = capacity <= 0 ? 0f : Math.clamp((float) content.totalVolume() / capacity, 0f, 1f);
+        Map<ResourceKey<GooTypeDefinition>, Integer> goo = content.gooVolumes();
+        bands = goo.isEmpty() ? List.of() : TypeBands.over(new GooContents(goo));
+    }
+
+    /**
+     * @return true when the slot holds more than one goo type, so its surface mingles
+     */
+    public boolean mingles() {
+        return bands.size() > 1;
+    }
 }

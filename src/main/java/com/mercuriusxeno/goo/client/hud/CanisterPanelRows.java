@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
+import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooContents;
+import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.Nullable;
@@ -10,8 +12,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Supplies the canister HUD panel's rows: label, upgrade level, then the goo
- * type row or the vanilla fluid row (decision one-panel-painter-takes-rows).
+ * Supplies the canister HUD panel's rows: label, upgrade level, then a row per
+ * goo type, dominant first, or the vanilla fluid row, then the total against
+ * capacity (decisions one-panel-painter-takes-rows and canisters-hold-more-than-one-goo-type).
  */
 final class CanisterPanelRows {
 
@@ -25,10 +28,16 @@ final class CanisterPanelRows {
      * @return the rows top to bottom
      */
     static List<PanelRow> rows(CanisterHudRenderer.SlotData data) {
-        GooContents goo = toGooContents(data.content());
-        List<PanelRow> rows = rows(data.label(), data.compression(), goo);
-        if (goo.isEmpty() && !data.content().isEmpty()) {
-            rows.add(PanelPainter.fluidRow(data.content().fluid(), data.content().amount()));
+        CanisterFluidContent content = data.content();
+        List<PanelRow> rows = rows(data.label(), data.compression(), GooContents.EMPTY);
+        Map<ResourceKey<GooTypeDefinition>, Integer> goo = content.gooVolumesDominantFirst();
+        goo.forEach((type, volume) -> rows.add(PanelPainter.gooRow(type, GooFormat.formatAmount(volume))));
+        if (goo.isEmpty() && !content.isEmpty()) {
+            rows.add(PanelPainter.fluidRow(content.dominantFluid(), content.totalVolume()));
+        }
+        if (!content.isEmpty()) {
+            rows.add(PanelPainter.fillRow(content.totalVolume(),
+                    ContainerCapacity.canisterCapacity(data.compression())));
         }
         return rows;
     }
@@ -50,22 +59,5 @@ final class CanisterPanelRows {
             headers.add(PanelPainter.upgradeRow(compression));
         }
         return PanelPainter.rows(headers, goo);
-    }
-
-    /**
-     * Converts single-fluid canister content to GooContents.
-     *
-     * @param content the single-fluid canister content
-     * @return GooContents wrapping the content, or EMPTY when it holds no goo
-     */
-    private static GooContents toGooContents(CanisterFluidContent content) {
-        if (content.isEmpty()) {
-            return GooContents.EMPTY;
-        }
-        ResourceKey<GooTypeDefinition> type = content.getGooType();
-        if (type == null) {
-            return GooContents.EMPTY;
-        }
-        return new GooContents(Map.of(type, content.amount()));
     }
 }
