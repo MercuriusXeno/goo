@@ -66,6 +66,7 @@ public final class GooTypes {
     public static final ResourceKey<GooTypeDefinition> LEAF = bundled("leaf");
     public static final ResourceKey<GooTypeDefinition> METAL = bundled("metal");
     public static final ResourceKey<GooTypeDefinition> NETHER = bundled("nether");
+    public static final ResourceKey<GooTypeDefinition> OPULENT = bundled("opulent");
     public static final ResourceKey<GooTypeDefinition> PULSE = bundled("pulse");
     public static final ResourceKey<GooTypeDefinition> ROCK = bundled("rock");
     public static final ResourceKey<GooTypeDefinition> SHROOM = bundled("shroom");
@@ -77,8 +78,8 @@ public final class GooTypes {
      * Every type the mod ships as JSON, in constant order.
      */
     public static final List<ResourceKey<GooTypeDefinition>> BUNDLED = List.of(
-            AEON, BLAZE, CRYSTAL, ENDER, FROST, GLOW, HEX, KINETIC,
-            LEAF, METAL, NETHER, PULSE, ROCK, SHROOM, TYPHOON, UNSTABLE, VITAL);
+            AEON, BLAZE, CRYSTAL, ENDER, FROST, GLOW, HEX, KINETIC, LEAF,
+            METAL, NETHER, OPULENT, PULSE, ROCK, SHROOM, TYPHOON, UNSTABLE, VITAL);
 
     /**
      * A type key as its short id: the bare path for a bundled type, the
