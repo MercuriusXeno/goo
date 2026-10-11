@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:anchors_teleport_both_ways",
+  "environment": "minecraft:default",
+  "structure": "goo:light_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}

@@ -18,6 +18,7 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
@@ -28,6 +29,7 @@ import net.minecraft.world.level.storage.ValueOutput;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * The prism's block entity: the marker anchor a combo's program runs on, and
@@ -50,6 +52,7 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     private static final String TAG_BANK_STANDING = "BankStanding";
     private static final String TAG_BANK_SPEND = "BankSpend";
     private static final String TAG_COMBO_SINCE = "ComboSince";
+    private static final String TAG_CASTER = "ComboCaster";
     private static final String TAG_PREVIOUS_EDGE = "BeatPreviousEdge";
     private static final String TAG_LAST_EDGE = "BeatLastEdge";
     private static final String TAG_HEARD = "BeatHeard";
@@ -60,6 +63,7 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     private TickBank bank = TickBank.NONE;
     /** The game time the combo took, which its transformation plays from. */
     private long comboSince;
+    private @Nullable UUID caster;
     /** The combo's program while it runs; null once it ends or before any combo. */
     private @Nullable ProgramBehavior behavior;
     /** Whether the prism's combo made it a reflector (decision reflector-rails-carry-the-brightest-light). */
@@ -145,17 +149,41 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
      * @return true when the combo took, false when the prism already held one
      */
     public boolean runCombo(ResourceKey<GooTypeDefinition> type, String comboId, List<Step> steps) {
+        return runCombo(type, comboId, steps, null);
+    }
+
+    /**
+     * Runs a combo on the prism, recording the player whose goo landed, so a
+     * combo that pairs prisms by their caster can read who cast it
+     * (decision quantum-anchors-link-two-points).
+     *
+     * @param type    the goo type that landed
+     * @param comboId the id of the ability whose program is the combo
+     * @param steps   the combo's program
+     * @param caster  the player whose goo landed, or null for none
+     * @return true when the combo took, false when the prism already held one
+     */
+    public boolean runCombo(ResourceKey<GooTypeDefinition> type, String comboId, List<Step> steps,
+                            @Nullable UUID caster) {
         if (hasCombo() || !(level instanceof ServerLevel server)) {
             return false;
         }
         gooType = type;
         combo = comboId;
+        this.caster = caster;
         comboSince = server.getGameTime();
         listOculus();
         behavior = ProgramBehavior.forHost(steps, HostKind.MARKER);
         behavior.onSplat(server, worldPosition, this);
         settle();
         return true;
+    }
+
+    /**
+     * @return the player whose goo set the prism's combo, or null for none
+     */
+    public @Nullable UUID caster() {
+        return caster;
     }
 
     /**
@@ -442,6 +470,7 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         bank = new TickBank(input.getLongOr(TAG_BANK_FED, 0L), input.getLongOr(TAG_BANK_STANDING, 0L),
                 input.getIntOr(TAG_BANK_SPEND, 0));
         comboSince = input.getLongOr(TAG_COMBO_SINCE, 0L);
+        caster = input.read(TAG_CASTER, UUIDUtil.CODEC).orElse(null);
         listOculus();
         programState.load(input);
         beat = new RedstoneBeat(input.getLongOr(TAG_PREVIOUS_EDGE, RedstoneBeat.NEVER),
@@ -482,6 +511,9 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
         output.putLong(TAG_BANK_STANDING, bank.standing());
         output.putInt(TAG_BANK_SPEND, bank.spendPerTick());
         output.putLong(TAG_COMBO_SINCE, comboSince);
+        if (caster != null) {
+            output.store(TAG_CASTER, UUIDUtil.CODEC, caster);
+        }
         programState.save(output);
         output.putLong(TAG_PREVIOUS_EDGE, beat.previousEdge());
         output.putLong(TAG_LAST_EDGE, beat.lastEdge());
