@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
@@ -19,6 +20,7 @@ import net.minecraft.util.ARGB;
 import net.minecraft.util.context.ContextKey;
 import net.minecraft.world.entity.Entity;
 import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * A status ailment as a render layer: one layer on every living entity
@@ -37,6 +39,9 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
     /** The render data carrying the ailments an entity wears this frame, each with its strength. */
     public static final ContextKey<List<StampedAilment>> AILMENTS =
             new ContextKey<>(Identifier.fromNamespaceAndPath(Goo.MODID, "ailments"));
+
+    /** The strength an ailment with no timer draws at. */
+    private static final float FULL_STRENGTH = 1f;
 
     /** A color channel's full value. */
     private static final int MAX_CHANNEL = 255;
@@ -84,7 +89,8 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
 
     /**
      * Stamps the ailments the entity wears onto its render state, each with
-     * its strength this frame, read by the layer when it draws.
+     * its strength this frame, read by the layer when it draws; a mutated
+     * mob wears the writhe at full strength for as long as it stays mutated.
      *
      * @param entity the entity
      * @param state  its render state
@@ -92,9 +98,16 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
     public static void stampAilments(Entity entity, EntityRenderState state) {
         long tick = entity.level().getGameTime();
         float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        state.setRenderData(AILMENTS, MobAilments.CLIENT.ailmentsOf(entity.getId(), tick).stream()
-                .map(worn -> new StampedAilment(worn.kind(), MobAilments.strength(worn.ticksLeft() - partialTick)))
-                .toList());
+        Stream<StampedAilment> timed = MobAilments.CLIENT.ailmentsOf(entity.getId(), tick).stream()
+                .map(worn -> new StampedAilment(worn.kind(), MobAilments.strength(worn.ticksLeft() - partialTick)));
+        // xeno-blob-mutates-the-struck: the writhe stands with the saved mutations, not on a timer
+        Stream<StampedAilment> mutated = isMutated(entity)
+                ? Stream.of(new StampedAilment(AilmentKind.MUTATED, FULL_STRENGTH)) : Stream.empty();
+        state.setRenderData(AILMENTS, Stream.concat(timed, mutated).toList());
+    }
+
+    private static boolean isMutated(Entity entity) {
+        return entity.hasData(GooAttachments.MUTATIONS) && !entity.getData(GooAttachments.MUTATIONS).isEmpty();
     }
 
     /**

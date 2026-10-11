@@ -29,6 +29,7 @@ const int PATTERN_FACETS = 1;
 const int PATTERN_SHIMMER = 2;
 const int PATTERN_STONE = 3;
 const int PATTERN_FROST = 4;
+const int PATTERN_WRITHE = 5;
 
 const float TAU = 6.2831853;
 // GameTime is the fraction of a 24000-tick day: 300 cycles a day is one every 80 ticks.
@@ -48,6 +49,11 @@ const float SHIMMER_CYCLES_PER_DAY = 900.0;
 // Noise cells of the stone grain and of the frost crystals.
 const float STONE_CELLS = 18.0;
 const float FROST_CELLS = 30.0;
+// Veins of the Xeno writhe across the skin's coordinates, the noise that bends them, how far, and how fast.
+const float WRITHE_CELLS = 14.0;
+const float WRITHE_WARP_CELLS = 5.0;
+const float WRITHE_WARP = 2.5;
+const float WRITHE_CYCLES_PER_DAY = 400.0;
 
 vec2 turned(vec2 uv, float angle) {
     float c = cos(angle);
@@ -84,6 +90,16 @@ float shimmerField(vec2 uv, float time) {
     return smoothstep(0.62, 0.85, churn);
 }
 
+// Veins sliding over the skin, bent by churning noise so they twist and coil (decision xeno-blob-mutates-the-struck).
+float writheField(vec2 uv, float time) {
+    float churn = time * WRITHE_CYCLES_PER_DAY;
+    vec2 bend = vec2(mingleValueNoise(vec3(uv * WRITHE_WARP_CELLS, churn)),
+            mingleValueNoise(vec3(uv * WRITHE_WARP_CELLS + 17.0, churn)));
+    vec2 bent = uv * WRITHE_CELLS + bend * WRITHE_WARP;
+    float vein = abs(sin(bent.x + 1.5 * sin(bent.y * 0.7 + churn * TAU)));
+    return 1.0 - smoothstep(0.0, 0.35, vein);
+}
+
 void main() {
     float strength = ailmentColor.a;
     vec3 tint = ailmentColor.rgb;
@@ -103,6 +119,8 @@ void main() {
             shine = facetField(skinCoord, GameTime);
         } else if (pattern == PATTERN_SHIMMER) {
             shine = shimmerField(skinCoord, GameTime);
+        } else if (pattern == PATTERN_WRITHE) {
+            shine = writheField(skinCoord, GameTime);
         } else {
             shine = glintField(skinCoord, GameTime);
         }
