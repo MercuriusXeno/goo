@@ -1,0 +1,21 @@
+{
+  "gooType": "yore",
+  "displayName": "goo.ability.yore.expire",
+  "badge": "mob",
+  "order": 10,
+  "cost": 4000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    {
+      "type": "target",
+      "where": ["mob", "not_boss"],
+      "steps": [
+        { "type": "particles", "id": "minecraft:white_ash", "at": "target", "count": 60, "spread": 0.6, "speed": 0.05, "lift": 0.5 },
+        { "type": "particles", "id": "minecraft:smoke", "at": "target", "count": 20, "spread": 0.4, "speed": 0.02, "lift": 0.5 },
+        { "type": "sound", "id": "minecraft:entity.wither.death", "at": "target", "source": "players", "volume": 0.4, "pitch": 1.8 },
+        { "type": "damage", "amount": 1000000, "source": "expire", "knockback": false }
+      ]
+    }
+  ],
+  "tags": ["entity"]
+}

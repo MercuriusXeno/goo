@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:expire_kills_the_struck_zombie",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 10,
+  "setup_ticks": 0,
+  "required": true
+}

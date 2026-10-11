@@ -76,6 +76,7 @@
   "goo.type.unstable": "Unstable",
   "goo.type.vital": "Vital",
   "goo.type.xeno": "Xeno",
+  "goo.type.yore": "Yore",
   "goo.type.zoo": "Zoo",
   "goo.type.untyped": "Untyped",
 
@@ -102,6 +103,7 @@
   "item.minecraft.potion.effect.unstable_goo": "Potion of Instability",
   "item.minecraft.potion.effect.vital_goo": "Potion of Nourishment",
   "item.minecraft.potion.effect.xeno_goo": "Potion of Eldritch Sight",
+  "item.minecraft.potion.effect.yore_goo": "Potion of Antiquity",
   "item.minecraft.potion.effect.zoo_goo": "Potion of the Wild",
 
   "effect.goo.aeon_brew": "Aeon Brew",
@@ -129,6 +131,7 @@
   "effect.goo.unstable_brew": "Unstable Brew",
   "effect.goo.vital_brew": "Vital Brew",
   "effect.goo.xeno_brew": "Xeno Brew",
+  "effect.goo.yore_brew": "Yore Brew",
   "effect.goo.zoo_brew": "Zoo Brew",
 
   "item.goo.partially_melted_item": "Partially Melted Item",
@@ -148,6 +151,12 @@
   "goo.ability.aeon.chronosphere": "Chronosphere",
   "goo.ability.aeon.haste": "Haste",
   "goo.ability.aeon.rewind": "Rewind",
+  "goo.ability.yore.rewind": "Rewind",
+  "goo.ability.yore.expire": "Expire",
+  "goo.ability.yore.ancient": "Ancient",
+  "goo.ability.yore.age": "Age",
+  "death.attack.goo.expire": "%1$s expired",
+  "death.attack.goo.expire.player": "%1$s was expired by %2$s",
   "goo.ability.aeon.stasis": "Stasis",
   "goo.ability.aeon.tick": "Tick",
   "goo.ability.aeon.tick_tap": "Tick",
