@@ -4,6 +4,9 @@ import com.mercuriusxeno.goo.client.tooltip.GooValueTooltipComponent;
 import com.mercuriusxeno.goo.client.tooltip.VanillaFluidTooltipComponent;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.KnownItems;
+import com.mercuriusxeno.goo.item.CanisterFluidContent;
+import com.mercuriusxeno.goo.item.GooFormat;
+import com.mercuriusxeno.goo.item.StampedGoo;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.datafixers.util.Either;
 import net.minecraft.network.chat.Component;
@@ -35,6 +38,7 @@ class GooTooltipHandlerTest {
     private static final String TITLE = "Title line";
     private static final int CONTENT_AMOUNT = 1000;
     private static final int CONTAINER_AMOUNT = 5;
+    private static final int CANISTER_CAPACITY = 16_000;
 
     @Nested
     class KnownValues {
@@ -111,6 +115,21 @@ class GooTooltipHandlerTest {
             GooTooltipHandler.appendVanillaFluidRow(elements, water, CONTENT_AMOUNT);
 
             assertEquals(List.of(TITLE, new VanillaFluidTooltipComponent(water, CONTENT_AMOUNT)), shapes(elements));
+        }
+
+        @Test
+        void canisterRowsListTheDominantTypeFirstThenTheTotalAgainstCapacity() {
+            try (StampedGoo goo = new StampedGoo()) {
+                CanisterFluidContent content = CanisterFluidContent.of(goo.resource(GooTypes.ROCK), CONTAINER_AMOUNT)
+                        .withVolume(goo.resource(GooTypes.NETHER), CONTENT_AMOUNT);
+
+                GooTooltipHandler.appendCanisterRows(elements, content, CANISTER_CAPACITY);
+
+                assertEquals(List.of(TITLE,
+                        new GooValueTooltipComponent(GooTypes.NETHER, CONTENT_AMOUNT),
+                        new GooValueTooltipComponent(GooTypes.ROCK, CONTAINER_AMOUNT),
+                        GooFormat.formatFill(CONTENT_AMOUNT + CONTAINER_AMOUNT, CANISTER_CAPACITY)), shapes(elements));
+            }
         }
 
         /** Each element as its text line's string or its component, so a blank line reads as "". */
