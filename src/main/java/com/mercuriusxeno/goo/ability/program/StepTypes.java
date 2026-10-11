@@ -62,7 +62,6 @@ public final class StepTypes {
         register(WithdrawBankStep.TYPE);
         register(SlowTimeStep.TYPE);
         register(HasteStep.TYPE);
-        register(CloneEntityStep.TYPE);
         register(DropItemStep.TYPE);
         register(LeafSteps.IGNITE.type());
         register(EntitiesStep.TYPE);
@@ -138,7 +137,8 @@ public final class StepTypes {
         register(CharmStep.TYPE);
         register(LeafSteps.ENCHANT_BOOK.type());
         register(FuseBooksStep.TYPE);
-        register(SpawnRandomStep.TYPE);
+        register(SlimeTransmuteStep.TYPE);
+        register(RallyStep.TYPE);
         register(LifetapStep.TYPE);
         register(LeechStep.TYPE);
         register(TomeStep.TYPE);
