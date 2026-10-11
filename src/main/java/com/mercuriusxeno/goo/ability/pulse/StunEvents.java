@@ -70,9 +70,9 @@ public final class StunEvents {
      * Makes a mob forget what it was doing: its target, the mob that hurt
      * it, its path, and the memories its brain hunts by.
      *
-     * @param mob the stunned mob
+     * @param mob the stunned or held mob
      */
-    private static void forget(Mob mob) {
+    public static void forget(Mob mob) {
         mob.setTarget(null);
         mob.setLastHurtByMob(null);
         mob.setAggressive(false);

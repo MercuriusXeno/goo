@@ -5,8 +5,8 @@
 // crackling and flickering with animated noise, and a shockwave ring
 // running out ahead of it. Both fade to nothing as progress reaches 1.
 // LIGHTNING blend (SRC_ALPHA, ONE), so alpha scales what is added. A held
-// ghost's fireball holds unfaded with no flash, crackling on the game clock
-// (decision held-visual-ghosts-the-landing-in-two-passes).
+// ghost's fireball holds unfaded with no flash and evenly bright, crackling
+// on the game clock (decision held-visual-ghosts-the-landing-in-two-passes).
 
 in vec3 viewPos;
 in vec3 viewNormal;
@@ -65,7 +65,9 @@ void main() {
 
     vec3 color = mix(CORE_COLOR, RIM_COLOR, smoothstep(0.1, 0.9, rim + (1.0 - fade) * 0.5));
     color += flash * vec3(0.3);
-    float strength = mix(0.35 + 0.65 * rim, 1.0, flash);
+    // A held ghost glows evenly, so whatever of it is not behind a wall reads at its pass's
+    // full opacity; the landing's fireball keeps its rim-weighted glow.
+    float strength = held > 0.5 ? 1.0 : mix(0.35 + 0.65 * rim, 1.0, flash);
     float alpha = fade * flicker * strength * (0.55 + 0.45 * crackle);
     fragColor = vec4(color, clamp(alpha, 0.0, 1.0) * opacity);
 }

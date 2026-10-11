@@ -20,6 +20,7 @@ import com.mercuriusxeno.goo.client.ability.FrozenPoses;
 import com.mercuriusxeno.goo.client.ability.GhostTrails;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
 import com.mercuriusxeno.goo.client.ability.GlitterShell;
+import com.mercuriusxeno.goo.client.ability.GrabFlail;
 import com.mercuriusxeno.goo.client.ability.LiftWind;
 import com.mercuriusxeno.goo.client.ability.MobAilments;
 import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
@@ -305,8 +306,8 @@ public final class GooClientSetup {
     /**
      * Registers the render state modifiers that stamp each entity's goo state
      * onto its render state: the glove's target outline, the goo coat, the
-     * ailments, the stone and frost encasements, the frozen pose and the
-     * transformation and the eldritch phase, in that order.
+     * ailments, the stone and frost encasements, the frozen pose, the grab
+     * flail, the vine tangle, the transformation and the eldritch phase, in that order.
      *
      * @param event the event instance
      */
@@ -321,6 +322,7 @@ public final class GooClientSetup {
                 EncasementLayer::stampPetrify,
                 EncasementLayer::stampFrozen,
                 FrozenPoses::stampFrozenPose,
+                GrabFlail::stampFlail,
                 VineTangleLayer::stampTangle,
                 TransformationRenderer::stampTransformation,
                 EldritchSight::stampPhase);

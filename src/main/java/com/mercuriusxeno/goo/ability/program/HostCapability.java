@@ -60,6 +60,21 @@ public enum HostCapability {
      */
     LINGER(LingerHost.class),
     /**
+     * A standing block that watches the entities around it and pulses to
+     * its viewers (decision lurker-blob-brightens-then-detonates).
+     */
+    WATCH(WatchHost.class),
+    /**
+     * A tap holding the block under it that an unmake works on
+     * (decision unmake-drip-dissolves-the-block-below).
+     */
+    UNMAKE(UnmakeHost.class),
+    /**
+     * A held channel that drinks the face under its cursor into the glove
+     * (decision unmake-waves-dissolve-by-crucible-cost).
+     */
+    SIPHON(SiphonHost.class),
+    /**
      * A landing where a blob can grow a shroom network
      * (decision colonize-blob-grows-the-network).
      */

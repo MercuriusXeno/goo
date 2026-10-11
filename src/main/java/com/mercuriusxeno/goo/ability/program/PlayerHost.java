@@ -4,9 +4,14 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.pulse.ExtenderEvents;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
+import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooDeposit;
+import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.HoldMarks;
+import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooServerState;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -14,10 +19,12 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -41,6 +48,9 @@ import java.util.function.Consumer;
  * A blink runs on this host carrying the face plane its press pinned
  * (decision blink-lands-safely-costed-by-distance).
  *
+ * Unmake's held channel drinks the blocks before the eye through this host
+ * (decision unmake-waves-dissolve-by-crucible-cost).
+ *
  * @param level         the server level
  * @param player        the invoking player
  * @param brewDuration  the drunk brew's duration in ticks, empty for a glove invocation
@@ -50,7 +60,8 @@ import java.util.function.Consumer;
  */
 public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt brewDuration,
                          Optional<ChannelAim> channelAim, float charge, Optional<ChannelAim.FacePlane> blinkPin)
-        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, EffectExtendHost, FrostHost, TickBlockHost {
+        implements TargetHost, ExplodeHost, EntityScanHost, ChannelHost, EffectExtendHost, FrostHost, SiphonHost,
+        TickBlockHost {
 
     /** The share of the player's height Nova emanates from. */
     private static final double HALF_HEIGHT = 0.5;
@@ -294,6 +305,64 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
                 .distinct().toList();
         Goo.LOGGER.debug(LOG_TOGGLES, devices.size(), cells.size());
         devices.forEach(device -> ZapDevice.toggleByHand(level, device));
+    }
+
+    @Override
+    public void holdDrink() {
+        drinks().hold(player);
+    }
+
+    /**
+     * The standing blocks the drink picks from the eye toward the cursor,
+     * nearest first: the cone's and the aim line's own; none outside a held
+     * channel (decision unmake-waves-dissolve-by-crucible-cost).
+     */
+    @Override
+    public List<BlockPos> siphonCone(double radius) {
+        return channelAim().map(aim -> SiphonRule.blocksToDrink(eye(), aim.aimPoint(), radius).stream()
+                .filter(pos -> !level.getBlockState(pos).isAir())
+                .toList()).orElse(List.of());
+    }
+
+    /**
+     * The goo a block holds, for one the drink can take: not one already
+     * liquifying, and not one no hand can break.
+     */
+    @Override
+    public @Nullable GooValue siphonValue(BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        Drinks.Drink drink = drinks().of(player);
+        if (state.is(GooBlocks.MELTING_BLOCK.get()) || state.getDestroySpeed(level, pos) < 0
+                || drink != null && drink.siphoning(pos)) {
+            return null;
+        }
+        return ValuedBlocks.valueAt(level, pos);
+    }
+
+    @Override
+    public boolean burnUnstable(int amount) {
+        if (!GooSourceScanner.hasEnough(player, GooTypes.UNSTABLE, amount)) {
+            return false;
+        }
+        GooSourceScanner.deplete(player, GooTypes.UNSTABLE, amount);
+        return true;
+    }
+
+    @Override
+    public void siphon(BlockPos pos, GooContents goo, int ticks) {
+        Drinks.Drink drink = drinks().of(player);
+        if (drink == null) {
+            return;
+        }
+        long now = level.getGameTime();
+        long start = now + SiphonRule.INJECT_TICKS;
+        long end = start + ticks;
+        long payAt = end + SiphonRule.travelTicks(Vec3.atCenterOf(pos).distanceTo(player.getEyePosition()));
+        drink.start(pos, new Drinks.Siphon(goo, now, start, end, payAt));
+    }
+
+    private Drinks drinks() {
+        return GooServerState.of(level.getServer()).drinks();
     }
 
     @Override
