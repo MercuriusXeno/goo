@@ -1,0 +1,13 @@
+{
+  "gooType": "quantum",
+  "displayName": "goo.ability.quantum.hole",
+  "badge": "world",
+  "order": 10,
+  "cost": 2000,
+  "delivery": { "kind": "arc" },
+  "area": { "shape": "line", "size": 3.0 },
+  "behaviors": [
+    { "type": "phase_blocks", "depth": 3, "radius": 1, "lifetime": 200 },
+    { "type": "sound", "id": "minecraft:block.respawn_anchor.deplete", "at": "host", "source": "blocks", "volume": 1.0, "pitch": 1.2 }
+  ]
+}

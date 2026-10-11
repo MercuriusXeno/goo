@@ -134,6 +134,7 @@ public final class StepTypes {
         register(EndStep.TYPE);
         register(AstralGateStep.TYPE);
         register(MeteorStep.TYPE);
+        register(PhaseBlocksStep.TYPE);
         register(RootStep.TYPE);
         register(HitOrMissStep.TYPE);
         register(BloomStep.TYPE);
@@ -145,6 +146,10 @@ public final class StepTypes {
         register(HastenRegrowStep.TYPE);
         register(ReapStep.TYPE);
         register(CharmStep.TYPE);
+        register(PhaseStep.TYPE);
+        register(QuantumAnchorStep.TYPE);
+        register(QuantumSwapStep.TYPE);
+        register(QuantumLinkStep.TYPE);
         register(LeafSteps.ENCHANT_BOOK.type());
         register(FuseBooksStep.TYPE);
         register(SlimeTransmuteStep.TYPE);

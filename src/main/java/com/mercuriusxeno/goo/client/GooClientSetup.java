@@ -13,6 +13,7 @@ import com.mercuriusxeno.goo.client.ability.AilmentOverlayLayer;
 import com.mercuriusxeno.goo.client.ability.BeatRings;
 import com.mercuriusxeno.goo.client.ability.BlockTransforms;
 import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
+import com.mercuriusxeno.goo.client.ability.ClientSwapBody;
 import com.mercuriusxeno.goo.client.ability.EldritchSight;
 import com.mercuriusxeno.goo.client.ability.EncasementLayer;
 import com.mercuriusxeno.goo.client.ability.FallingShards;
@@ -27,6 +28,7 @@ import com.mercuriusxeno.goo.client.ability.MobCoatLayer;
 import com.mercuriusxeno.goo.client.ability.MobCoats;
 import com.mercuriusxeno.goo.client.ability.MobShells;
 import com.mercuriusxeno.goo.client.ability.NovaRings;
+import com.mercuriusxeno.goo.client.ability.PhaseLook;
 import com.mercuriusxeno.goo.client.ability.PrismFormingSounds;
 import com.mercuriusxeno.goo.client.ability.RelayLasers;
 import com.mercuriusxeno.goo.client.ability.SignalRings;
@@ -62,6 +64,7 @@ import com.mercuriusxeno.goo.client.throwing.GooFlightManager;
 import com.mercuriusxeno.goo.client.throwing.GooSizeProperty;
 import com.mercuriusxeno.goo.client.throwing.GooVolumeDecorator;
 import com.mercuriusxeno.goo.client.throwing.ThrowFreezeState;
+import com.mercuriusxeno.goo.entity.SwapBody;
 import com.mercuriusxeno.goo.item.gasket.TunerAwaitState;
 import com.mercuriusxeno.goo.registry.*;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -71,7 +74,9 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.renderer.block.FluidModel;
 import net.minecraft.client.renderer.entity.EntityRenderer;
+import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.NoopRenderer;
+import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.resources.Identifier;
@@ -214,6 +219,7 @@ public final class GooClientSetup {
         PrismComboStyles.register(GlowReflectorStyle.COMBO, new GlowReflectorStyle());
         PrismComboStyles.register(HivePrismStyle.COMBO, new HivePrismStyle());
         event.registerBlockEntityRenderer(GooBlockEntities.END_GATE.get(), EndGateRenderer::new);
+        event.registerBlockEntityRenderer(GooBlockEntities.PHASED_BLOCK.get(), PhasedBlockRenderer::new);
         // oculus-prism-becomes-a-hovering-eye: an oculus prism draws as the hovering eye
         PrismComboStyles.register(OculusNodes.OCULUS, new OculusStyle());
         // metronome-prism-pulses-at-the-learned-rate, relay-prism-carries-the-signal-through-air
@@ -225,6 +231,9 @@ public final class GooClientSetup {
         event.registerEntityRenderer(GooEntities.FEED_PILE.get(), FeedPileRenderer::new);
         // orb-carries-a-swirling-nova: RollingGooRenderer draws the ball and its swirl from the level stage
         event.registerEntityRenderer(GooEntities.ROLLING_GOO.get(), NoopRenderer::new);
+        // swap-body-stands-until-reverted: a client body wears its owner's skin, drawn by the player renderer
+        ClientSwapBody.install();
+        event.registerEntityRenderer(GooEntities.SWAP_BODY.get(), swapBodyRenderer());
         // meteo-needs-a-clear-sky: the meteor shows as the flame trail the server sends
         event.registerEntityRenderer(GooEntities.METEOR.get(), NoopRenderer::new);
     }
@@ -306,9 +315,19 @@ public final class GooClientSetup {
     }
 
     /**
+     * The player renderer over a swap body, which the client builds as a body wearing its owner's skin.
+     *
+     * @return the renderer provider
+     */
+    @SuppressWarnings({SUPPRESS_UNCHECKED, "rawtypes"})
+    private static EntityRendererProvider<SwapBody> swapBodyRenderer() {
+        return context -> (EntityRenderer) new AvatarRenderer<ClientSwapBody>(context, false);
+    }
+
+    /**
      * Registers the render state modifiers that stamp each entity's goo state
      * onto its render state: the glove's target outline, the goo coat, the
-     * ailments, the stone and frost encasements, the frozen pose, the grab
+     * ailments, the phase, the stone and frost encasements, the frozen pose, the grab
      * flail, the vine tangle, the transformation and the eldritch phase, in that order.
      *
      * @param event the event instance
@@ -321,6 +340,7 @@ public final class GooClientSetup {
                 AimTracker::modifyEntityRenderState,
                 MobCoatLayer::stampCoat,
                 AilmentOverlayLayer::stampAilments,
+                PhaseLook::stampPhase,
                 EncasementLayer::stampPetrify,
                 EncasementLayer::stampFrozen,
                 FrozenPoses::stampFrozenPose,
