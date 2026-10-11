@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.SpireLift;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
@@ -26,8 +25,9 @@ import java.util.List;
 /**
  * Gametest for rock's Spire, submitted the way the second right click
  * submits it: a 3x1 footprint at rise 4 stands a 3x1x4 wall of the ground's
- * own blocks in their order, refills the column it left with the mundane
- * block of each cell's depth, and spends the rock goo value of that refill.
+ * own blocks in their order, refills the column it left with deepslate,
+ * the gametest bay standing below Y 0, and spends the rock goo value of
+ * that refill.
  * decision spire-rips-walls-and-platforms
  */
 public final class SpireTests {
@@ -48,6 +48,8 @@ public final class SpireTests {
     private static final String ABILITY_REQUIRED = "goo:rock_spire must be loaded";
     private static final String WALL_WRONG = "The wall at %s should hold %s, holds %s";
     private static final String REFILL_WRONG = "The lifted ground at %s should refill with %s, holds %s";
+    private static final String BAY_ABOVE_DEEPSLATE =
+            "The bay should stand below Y 0, where the lifted ground refills with deepslate";
     private static final String UNPRICED = "Stone and deepslate should carry a rock goo value for Spire to spend";
     private static final String CHARGED_WRONG = "The lift should spend %d mB of rock goo, spent %d";
 
@@ -73,9 +75,9 @@ public final class SpireTests {
                 BlockPos risen = new BlockPos(x, CORNER.getY() + RISE - depth, CORNER.getZ());
                 assertHolds(helper, risen, GROUND.get(depth).defaultBlockState(), WALL_WRONG);
                 BlockPos refilled = new BlockPos(x, CORNER.getY() - depth, CORNER.getZ());
-                BlockState refill = SpireLift.refillAt(helper.absolutePos(refilled).getY());
-                assertHolds(helper, refilled, refill, REFILL_WRONG);
-                expected += rockValue(helper, refill);
+                helper.assertTrue(helper.absolutePos(refilled).getY() < 0, BAY_ABOVE_DEEPSLATE);
+                assertHolds(helper, refilled, Blocks.DEEPSLATE.defaultBlockState(), REFILL_WRONG);
+                expected += rockValue(helper, Blocks.DEEPSLATE.defaultBlockState());
             }
         }
         helper.assertTrue(expected > 0, UNPRICED);
