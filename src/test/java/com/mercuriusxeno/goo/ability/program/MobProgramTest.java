@@ -8,12 +8,10 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.util.List;
 import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -26,7 +24,6 @@ import static org.mockito.Mockito.when;
  */
 class MobProgramTest {
 
-    private static final double FLECHETTE_SPLASH_RADIUS = 3;
     private static final double IGNITE_SPLASH_RADIUS = 2.5;
 
     private static AbilityDefinition ability(String name) {
@@ -34,17 +31,11 @@ class MobProgramTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"metal_javelin", "crystal_flechettes", "leaf_vines", "zoo_allure",
+    @ValueSource(strings = {"metal_javelin", "crystal_shards", "leaf_vines", "zoo_allure",
         "blaze_ignite", "frost_snap", "typhoon_float", "hex_charm",
         "ender_zone", "aeon_stasis"})
     void everyMobAbilityIsAProgramThatLoadsForTheStruckEntityHost(String name) {
         assertDoesNotThrow(() -> ProgramBehavior.forHost(ability(name).behaviors(), HostKind.ENTITY), name);
-    }
-
-    @Test
-    void crystalFlechettesSplashesLivingBesideTheTargetWithinThree() {
-        verify(tickSplash("crystal_flechettes")).forEachEntityWithin(eq(SelectionShape.SPHERE), eq(FLECHETTE_SPLASH_RADIUS),
-                eq(Set.of(EntityFilter.LIVING, EntityFilter.NOT_TARGET)), any());
     }
 
     @Test

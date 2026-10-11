@@ -1,0 +1,12 @@
+{
+  "gooType": "crystal",
+  "displayName": "goo.ability.crystal.glitter",
+  "badge": "channeled",
+  "order": 30,
+  "cost": 200,
+  "delivery": { "kind": "self", "ticks_per_charge": 20 },
+  "behaviors": [
+    { "type": "detect_ore", "tag": "goo:gem_ores", "radius": 64, "growth": 1, "life": 100 }
+  ],
+  "tags": ["self"]
+}

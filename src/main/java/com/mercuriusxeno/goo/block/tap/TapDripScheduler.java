@@ -175,7 +175,7 @@ public final class TapDripScheduler {
         List<LivingEntity> reachable = drip.level().getEntitiesOfClass(LivingEntity.class,
                 new AABB(drip.landingPos()).inflate(HEAL_WATCH_BLOCKS), LivingEntity::isAlive);
         List<Integer> healed = HEALS.healedAmong(reachable,
-                () -> runProgram(ability, new TapHost(drip.level(), drip.landingPos(), drip.face())));
+                () -> runProgram(ability, new TapHost(drip.level(), drip.tapPos(), drip.landingPos(), drip.face())));
         for (LivingEntity living : reachable) {
             if (healed.contains(living.getId())) {
                 EntityVisuals.sendToWatchers(living, new DripHealedPayload(living.getId()));
