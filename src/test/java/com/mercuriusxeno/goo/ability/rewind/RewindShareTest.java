@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * aeon_rewind.json's ritual per held tick: every mob fills at one flat rate,
+ * yore_rewind.json's ritual per held tick: every mob fills at one flat rate,
  * about four seconds of holding, whatever its health; a clock ticks on
  * every fourth held tick; the ritual regresses the mob at a hundred
  * (decisions rewind-fills-while-held, rewind-shrinks-adult-to-baby-to-egg).
@@ -35,7 +35,7 @@ class RewindShareTest {
     private static final String RITUAL = "goo:ritual";
 
     private static TargetStep target() {
-        return AbilityJson.decode("aeon_rewind").behaviors().stream().filter(TargetStep.class::isInstance)
+        return AbilityJson.decode("yore_rewind").behaviors().stream().filter(TargetStep.class::isInstance)
                 .map(TargetStep.class::cast).findFirst().orElseThrow();
     }
 
