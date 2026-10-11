@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:sunbeam_impact_fires_at_the_hit",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 40,
+  "setup_ticks": 0,
+  "required": true
+}
