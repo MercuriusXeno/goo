@@ -2,8 +2,6 @@ package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.AfterimageStep;
-import com.mercuriusxeno.goo.ability.program.AilmentKind;
-import com.mercuriusxeno.goo.ability.program.AilmentOverlayStep;
 import com.mercuriusxeno.goo.ability.program.AirbornStep;
 import com.mercuriusxeno.goo.ability.program.BranchStep;
 import com.mercuriusxeno.goo.ability.program.CharmStep;
@@ -64,7 +62,6 @@ import static org.mockito.Mockito.when;
 class AbilityLoaderTest {
 
     private static final String DIRECTORY = "goo_abilities";
-    private static final Identifier GLOWING = Identifier.parse("minecraft:glowing");
     private static final int CHARM_ROLLS = 1000;
     private static final int RARE_CHARMS = 50;
     private static final double ZOMBIE_MAX_HEALTH = 20;
@@ -87,10 +84,10 @@ class AbilityLoaderTest {
     /** The items each gated ability requires, as the task's how maps the operator's lists. */
     private static final Map<String, List<String>> GATES = Map.ofEntries(
             Map.entry("ender_blink", List.of("ender_pearl")),
-            Map.entry("ender_banish", List.of("popped_chorus_fruit")),
-            Map.entry("ender_teleportitis", List.of("chorus_fruit")),
+            Map.entry("ender_zone", List.of("popped_chorus_fruit")),
+            Map.entry("ender_shifter", List.of("chorus_fruit")),
             Map.entry("ender_convoke", List.of("sculk_shrieker")),
-            Map.entry("ender_dragon_gate", List.of("dragon_breath")),
+            Map.entry("ender_end", List.of("dragon_breath")),
             Map.entry("ender_oculus", List.of("ender_eye")),
             Map.entry("hex_charm", List.of("honey_bottle", "cake", "cookie")),
             Map.entry("hex_enchant", List.of("book", "lapis_lazuli")),
@@ -309,23 +306,6 @@ class AbilityLoaderTest {
     private static SoundStep firstSound(String name) {
         return AbilityJson.decode(name).behaviors().stream().filter(SoundStep.class::isInstance)
                 .map(SoundStep.class::cast).findFirst().orElseThrow();
-    }
-
-    /**
-     * Hex charm shows its ailment through the overlay step and applies no
-     * vanilla glowing; stasis keeps its shimmer through StasisEvents
-     * (decision ailment-overlay-shader-per-ailment).
-     */
-    @ParameterizedTest
-    @CsvSource({"hex_charm, HEX"})
-    void ailmentAbilitiesWearTheOverlayInPlaceOfGlowing(String name, AilmentKind kind) {
-        List<Step> steps = AbilityJson.decode(name).behaviors().stream()
-                .flatMap(AbilityLoaderTest::stepTree).toList();
-
-        assertEquals(List.of(kind), steps.stream().filter(AilmentOverlayStep.class::isInstance)
-                .map(step -> ((AilmentOverlayStep) step).kind()).toList(), name);
-        assertTrue(steps.stream().filter(PotionStep.class::isInstance)
-                .noneMatch(step -> GLOWING.equals(((PotionStep) step).effect())), name + " still applies glowing");
     }
 
     /**

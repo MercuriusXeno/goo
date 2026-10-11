@@ -2,11 +2,11 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.banish.BanishEvents;
+import com.mercuriusxeno.goo.ability.hex.CharmEvents;
 import com.mercuriusxeno.goo.ability.program.EntityFilter;
 import com.mercuriusxeno.goo.ability.program.EntityScan;
 import com.mercuriusxeno.goo.ability.stasis.StasisEvents;
-import com.mercuriusxeno.goo.ability.hex.CharmEvents;
+import com.mercuriusxeno.goo.ability.zone.ZoneEvents;
 import com.mercuriusxeno.goo.gametest.SurvivalPlayers;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -25,7 +25,12 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.util.ProblemReporter;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -63,6 +68,14 @@ public final class MobEffectTests {
     private static final String CHARMED_SLIME_SHOULD_SPARE = "A charmed slime's hit should land nothing on its charmer";
     private static final String WILD_SLIME_SHOULD_HURT = "An uncharmed slime's hit should hurt the player";
     private static final float SLIME_HIT = 4f;
+    /** A hit too light to kill the zombie, so the charm, not the mob, is what ends. */
+    private static final float LIGHT_HIT = 1f;
+    /** Ticks the charm is held before the save, long past any timed ailment's fade. */
+    private static final int CHARM_HOLD_TICKS = 100;
+    private static final String CHARM_SHOULD_HOLD = "The charm should hold with no expiry";
+    private static final String CHARM_SHOULD_RELOAD = "The reloaded zombie should hold the charm for its charmer";
+    private static final String CHARMERS_HIT_SHOULD_BREAK = "The charmer's hit should end the charm";
+    private static final String OTHER_HIT_SHOULD_LEAVE = "A hit from another mob should leave the charm";
     private static final String SHOULD_NOT_GLOW = "Target should wear the ailment overlay, not vanilla glowing";
     private static final String SHOULD_TAKE_DAMAGE = "Target should have taken damage";
     private static final String SHOULD_BE_ON_FIRE = "Target should be on fire";
@@ -96,14 +109,14 @@ public final class MobEffectTests {
     private static final String ABILITY_VITAL_CLONE = "goo:vital_clone";
     private static final String ABILITY_BLAZE_IGNITE = "goo:blaze_ignite";
     private static final String ABILITY_CRYSTAL_FLECHETTES = "goo:crystal_flechettes";
-    private static final String ABILITY_ENDER_BANISH = "goo:ender_banish";
-    /** Above ender_banish.json's radius of six, so the player sets nothing off until the test walks it in. */
+    private static final String ABILITY_ENDER_ZONE = "goo:ender_zone";
+    /** Above ender_zone.json's radius of six, so the player sets nothing off until the test walks it in. */
     private static final double PLAYER_OUT_OF_REACH_ABOVE = 20.0;
-    /** Over ender_banish.json's resist cap of a hundred max health. */
+    /** Over ender_zone.json's resist cap of a hundred max health. */
     private static final double RESISTING_MAX_HEALTH = 200.0;
-    private static final String SHOULD_BE_CURSED = "The zombie should carry the curse after the first Banish";
+    private static final String SHOULD_BE_CURSED = "The zombie should carry the curse after the first Zone";
     private static final String SHOULD_WARP = "The cursed zombie should warp away from the player standing on it";
-    private static final String SHOULD_BE_EXILED = "A second Banish should exile the cursed zombie";
+    private static final String SHOULD_BE_EXILED = "A second Zone should exile the cursed zombie";
     private static final String SHOULD_RESIST = "A mob over the max health cap should resist the curse";
     private static final String CHICKEN_HAS_MAX_HEALTH = "A chicken carries a max health attribute";
     private static final String SHOULD_HAVE_A_CLONE = "A second chicken should stand beside the target";
@@ -345,6 +358,76 @@ public final class MobEffectTests {
     }
 
     /**
+     * A charm holds with no expiry: the zombie still holds it after the
+     * hold, and a save loaded back holds it for the same charmer
+     * (decision charm-holds-until-struck).
+     *
+     * @param helper the gametest helper
+     */
+    public static void charmHasNoExpiry(GameTestHelper helper) {
+        ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, zombie, ABILITY_HEX_CHARM, charmer);
+            helper.runAfterDelay(CHARM_HOLD_TICKS, () -> {
+                helper.assertTrue(zombie.hasData(GooAttachments.CHARMED), CHARM_SHOULD_HOLD);
+                TagValueOutput saved = TagValueOutput.createWithContext(ProblemReporter.DISCARDING,
+                        helper.getLevel().registryAccess());
+                zombie.save(saved);
+                zombie.discard();
+                Entity loaded = EntityType.loadEntityRecursive(TagValueInput.create(ProblemReporter.DISCARDING,
+                        helper.getLevel().registryAccess(), saved.buildResult()), helper.getLevel(),
+                        EntitySpawnReason.LOAD, entity -> entity);
+                helper.assertTrue(loaded != null && loaded.hasData(GooAttachments.CHARMED)
+                        && loaded.getData(GooAttachments.CHARMED).charmer().equals(charmer.getUUID()),
+                        CHARM_SHOULD_RELOAD);
+                helper.getLevel().getServer().getPlayerList().remove(charmer);
+                helper.succeed();
+            });
+        });
+    }
+
+    /**
+     * The charmer's own hit on a charmed zombie ends the charm
+     * (decision charm-holds-until-struck).
+     *
+     * @param helper the gametest helper
+     */
+    public static void charmBreaksOnTheCharmersHit(GameTestHelper helper) {
+        ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, zombie, ABILITY_HEX_CHARM, charmer);
+            helper.assertTrue(zombie.hasData(GooAttachments.CHARMED), ZOMBIE_SHOULD_BE_CHARMED);
+            zombie.hurtServer(helper.getLevel(), zombie.damageSources().playerAttack(charmer), LIGHT_HIT);
+            helper.assertFalse(zombie.hasData(GooAttachments.CHARMED), CHARMERS_HIT_SHOULD_BREAK);
+            helper.getLevel().getServer().getPlayerList().remove(charmer);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A hit on a charmed zombie from another mob leaves the charm standing
+     * (decision charm-holds-until-struck).
+     *
+     * @param helper the gametest helper
+     */
+    public static void charmSurvivesAnotherHit(GameTestHelper helper) {
+        ServerPlayer charmer = SurvivalPlayers.placeIn(helper);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
+        Mob skeleton = helper.spawnWithNoFreeWill(EntityType.SKELETON, BYSTANDER_POS);
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            strike(helper, zombie, ABILITY_HEX_CHARM, charmer);
+            float before = zombie.getHealth();
+            zombie.hurtServer(helper.getLevel(), zombie.damageSources().mobAttack(skeleton), LIGHT_HIT);
+            helper.assertTrue(zombie.getHealth() < before && zombie.hasData(GooAttachments.CHARMED),
+                    OTHER_HIT_SHOULD_LEAVE);
+            helper.getLevel().getServer().getPlayerList().remove(charmer);
+            helper.succeed();
+        });
+    }
+
+    /**
      * A charmed slime's touch, which hurts any player it bumps whatever it
      * targets, lands nothing on its charmer, while an uncharmed slime's
      * lands in full (decision charm-glisten-and-icon-over-the-head).
@@ -370,48 +453,48 @@ public final class MobEffectTests {
 
     /**
     /**
-     * Banish's first hit curses a zombie: a player walked onto it sets off a
-     * warp away, and a second Banish hit exiles it from existence
-     * (decision banish-curses-with-ender-shimmer).
+     * Zone's first hit curses a zombie: a player walked onto it sets off a
+     * warp away, and a second Zone hit exiles it from existence
+     * (decision zone-curses-with-ender-shimmer).
      *
      * @param helper the gametest helper
      */
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
-    public static void banishWarpsThenExiles(GameTestHelper helper) {
+    public static void zoneWarpsThenExiles(GameTestHelper helper) {
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         player.setPos(zombie.getX(), zombie.getY() + PLAYER_OUT_OF_REACH_ABOVE, zombie.getZ());
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, zombie, ABILITY_ENDER_BANISH);
-            helper.assertTrue(BanishEvents.curseOf(zombie) != null, SHOULD_BE_CURSED);
+            strike(helper, zombie, ABILITY_ENDER_ZONE);
+            helper.assertTrue(ZoneEvents.curseOf(zombie) != null, SHOULD_BE_CURSED);
             Vec3 home = zombie.position();
             player.setPos(home);
             // The assertion runs each tick until the warp lands, then brings the zombie home, where the
-            // test's chunks keep it ticking, and lands the second Banish on it.
+            // test's chunks keep it ticking, and lands the second Zone on it.
             helper.succeedWhen(() -> {
                 helper.assertFalse(zombie.position().equals(home), SHOULD_WARP);
                 player.setPos(home.add(0, PLAYER_OUT_OF_REACH_ABOVE, 0));
                 zombie.teleportTo(home.x, home.y, home.z);
-                strike(helper, zombie, ABILITY_ENDER_BANISH);
+                strike(helper, zombie, ABILITY_ENDER_ZONE);
                 helper.assertTrue(zombie.isRemoved(), SHOULD_BE_EXILED);
             });
         });
     }
 
     /**
-     * A zombie whose max health stands over ender_banish.json's cap of a
+     * A zombie whose max health stands over ender_zone.json's cap of a
      * hundred resists the curse.
      *
      * @param helper the gametest helper
      */
-    public static void banishResistedByHighHealth(GameTestHelper helper) {
+    public static void zoneResistedByHighHealth(GameTestHelper helper) {
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, SPAWN_POS);
         AttributeInstance maxHealth = zombie.getAttribute(Attributes.MAX_HEALTH);
         helper.assertTrue(maxHealth != null, MOB_HAS_MAX_HEALTH);
         maxHealth.setBaseValue(RESISTING_MAX_HEALTH);
         helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, zombie, ABILITY_ENDER_BANISH);
-            helper.assertTrue(BanishEvents.curseOf(zombie) == null, SHOULD_RESIST);
+            strike(helper, zombie, ABILITY_ENDER_ZONE);
+            helper.assertTrue(ZoneEvents.curseOf(zombie) == null, SHOULD_RESIST);
             helper.succeed();
         });
     }
