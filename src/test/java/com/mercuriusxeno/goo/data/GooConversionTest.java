@@ -1,9 +1,23 @@
 package com.mercuriusxeno.goo.data;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import com.mojang.serialization.JsonOps;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -418,6 +432,65 @@ class GooConversionTest {
             // Mismatch: 1 source, 2 targets. No copy happens.
             assertTrue(effective.get(id("b")).isEmpty());
             assertTrue(effective.get(id("c")).isEmpty());
+        }
+    }
+
+    // ── Shipped quantum reactions ─────────────────────────────────────────
+
+    @Nested
+    class QuantumReactions {
+
+        private static final String REACTION_PATH = "/data/goo/goo_reactions/%s.json";
+
+        /**
+         * Each shipped quantum reaction yields quantum alone, in less volume
+         * than it consumes, so quantum comes only in small amounts from goo.
+         * decision quantum-ships-from-goo-ratios
+         */
+        @ParameterizedTest
+        @ValueSource(strings = {
+                "quantum_from_ender_unstable", "quantum_from_aeon_ender",
+                "quantum_from_crystal_pulse", "quantum_from_typhoon_metal"})
+        void quantumReactionYieldsLessThanItConsumes(String name) throws IOException {
+            JsonObject reaction = loadReaction(name);
+            JsonArray inputs = reaction.getAsJsonArray("inputs");
+            JsonArray outputs = reaction.getAsJsonArray("outputs");
+
+            int consumed = totalAmount(inputs);
+            int produced = totalAmount(outputs) * reaction.get("rate").getAsInt();
+            assertEquals(List.of(GooTypes.QUANTUM), gooTypesOf(outputs), name);
+            assertEquals(inputs.size(), gooTypesOf(inputs).size(), name + " consumes goo alone");
+            assertTrue(produced < consumed, name + " yields " + produced + " from " + consumed);
+        }
+
+        // GooReaction's codec reaches BuiltInRegistries, which a unit test cannot initialize,
+        // so the test reads the JSON fields the codec reads.
+        private JsonObject loadReaction(String name) throws IOException {
+            String path = REACTION_PATH.formatted(name);
+            try (InputStream stream = GooConversionTest.class.getResourceAsStream(path)) {
+                assertNotNull(stream, path);
+                return JsonParser.parseReader(new InputStreamReader(stream, StandardCharsets.UTF_8))
+                        .getAsJsonObject();
+            }
+        }
+
+        private int totalAmount(JsonArray entries) {
+            int total = 0;
+            for (JsonElement entry : entries) {
+                total += entry.getAsJsonObject().get("amount").getAsInt();
+            }
+            return total;
+        }
+
+        private List<ResourceKey<GooTypeDefinition>> gooTypesOf(JsonArray entries) {
+            List<ResourceKey<GooTypeDefinition>> types = new ArrayList<>();
+            for (JsonElement entry : entries) {
+                JsonElement goo = entry.getAsJsonObject().get(GooReaction.FluidEntry.GOO);
+                if (goo != null) {
+                    types.add(GooTypes.KEY_CODEC.parse(JsonOps.INSTANCE, goo).getOrThrow());
+                }
+            }
+            return types;
         }
     }
 }

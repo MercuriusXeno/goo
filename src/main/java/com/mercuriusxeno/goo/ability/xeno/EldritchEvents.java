@@ -14,8 +14,7 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 /**
  * Holds the out-of-phase and the plain apart: an out-of-phase mob takes no
  * player for its target unless that player is eldritch, and a player's
- * eldritch state ends the tick it fades. Until the quantum-goo thread's
- * phased attachment merges, goo's own out-of-phase flag marks the
+ * eldritch state ends the tick it fades. Quantum's phase marks the
  * out-of-phase.
  * eldritch-sight-reveals-the-out-of-phase
  */
@@ -65,10 +64,11 @@ public final class EldritchEvents {
 
     /**
      * @param entity an entity
-     * @return whether it carries goo's out-of-phase flag
+     * @return whether it stands out of phase, read from Quantum's phase on either side
      */
     public static boolean isOutOfPhase(Entity entity) {
-        return entity.hasData(GooAttachments.OUT_OF_PHASE) && entity.getData(GooAttachments.OUT_OF_PHASE);
+        return entity.hasData(GooAttachments.OUT_OF_PHASE)
+                && entity.getData(GooAttachments.OUT_OF_PHASE).standsAt(entity.level().getGameTime());
     }
 
     /**

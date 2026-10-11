@@ -130,6 +130,11 @@ public enum HostCapability {
      */
     END_GATE(GateHost.class),
     /**
+     * A struck surface whose blocks can go out of phase (decision
+     * portable-hole-phases-blocks-for-a-while).
+     */
+    PHASE_BLOCKS(PhaseBlocksHost.class),
+    /**
      * A struck surface Astral's gate can open over (decision
      * astral-visits-lunar-and-solar-dimensions).
      */

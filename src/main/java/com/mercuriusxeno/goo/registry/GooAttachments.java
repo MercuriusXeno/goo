@@ -16,6 +16,9 @@ import com.mercuriusxeno.goo.ability.program.EntityCounters;
 import com.mercuriusxeno.goo.ability.program.Lux;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.pulse.Stunned;
+import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
+import com.mercuriusxeno.goo.ability.quantum.SharedFate;
+import com.mercuriusxeno.goo.ability.quantum.SwapBodyRef;
 import com.mercuriusxeno.goo.ability.reserve.Reserve;
 import com.mercuriusxeno.goo.ability.rewind.Rewinding;
 import com.mercuriusxeno.goo.ability.root.Rooted;
@@ -32,7 +35,7 @@ import com.mercuriusxeno.goo.ability.zoo.Rallied;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
 import com.mojang.serialization.Codec;
-import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.attachment.AttachmentType;
@@ -41,6 +44,8 @@ import net.neoforged.neoforge.network.payload.SyncAttachmentsPayload;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.NeoForgeRegistries;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
@@ -186,18 +191,6 @@ public final class GooAttachments {
                             .sync(GooAttachments::syncsToWatcher, Mutations.STREAM_CODEC)
                             .build());
 
-    /**
-     * Goo's own out-of-phase flag, saved with the entity and synced to its
-     * watchers, standing in until the quantum-goo thread's phased attachment
-     * merges.
-     * eldritch-sight-reveals-the-out-of-phase
-     */
-    public static final Supplier<AttachmentType<Boolean>> OUT_OF_PHASE =
-            ATTACHMENT_TYPES.register("out_of_phase",
-                    () -> AttachmentType.builder(() -> Boolean.FALSE)
-                            .serialize(Codec.BOOL.fieldOf("out_of_phase"), Boolean::booleanValue)
-                            .sync(GooAttachments::syncsToWatcher, ByteBufCodecs.BOOL)
-                            .build());
 
     /**
      * The spores a mob carries, bursting another spray from its corpse when
@@ -388,6 +381,60 @@ public final class GooAttachments {
                             .build());
 
     /**
+     * An entity's standing out of phase and when it fades, saved with the
+     * entity while laid and synced to every client drawing it, which draws it
+     * translucent and grey. A plain attachment any ability may lay, which
+     * Eldritch sight reads too (decision eldritch-sight-reveals-the-out-of-phase).
+     * phase-shares-a-plane-between-the-phased
+     */
+    public static final Supplier<AttachmentType<OutOfPhase>> OUT_OF_PHASE =
+            ATTACHMENT_TYPES.register("out_of_phase",
+                    () -> AttachmentType.builder(() -> OutOfPhase.NONE)
+                            .serialize(OutOfPhase.CODEC, OutOfPhase::laid)
+                            .sync(GooAttachments::syncsToWatcher, OutOfPhase.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The quantum anchor a player last arrived at, held until they step away
+     * from it, so arriving never carries them straight back. Not saved.
+     * quantum-anchors-link-two-points
+     */
+    public static final Supplier<AttachmentType<Optional<GlobalPos>>> ANCHOR_ARRIVAL =
+            ATTACHMENT_TYPES.register("anchor_arrival",
+                    () -> AttachmentType.<Optional<GlobalPos>>builder(Optional::empty).build());
+
+    /**
+     * The swap body a player has standing, saved with the player while one stands.
+     * swap-body-stands-until-reverted
+     */
+    public static final Supplier<AttachmentType<Optional<SwapBodyRef>>> SWAP_BODY =
+            ATTACHMENT_TYPES.register("swap_body",
+                    () -> AttachmentType.<Optional<SwapBodyRef>>builder(Optional::empty)
+                            .serialize(SwapBodyRef.CODEC.optionalFieldOf("ref"), Optional::isPresent)
+                            .build());
+
+    /**
+     * A creature's shared fate with its partner, saved while laid and synced to
+     * every client drawing it, which draws the thread between the pair.
+     * shared-fate-pools-health-and-status
+     */
+    public static final Supplier<AttachmentType<SharedFate>> SHARED_FATE =
+            ATTACHMENT_TYPES.register("shared_fate",
+                    () -> AttachmentType.builder(() -> SharedFate.NONE)
+                            .serialize(SharedFate.CODEC, SharedFate::laid)
+                            .sync(GooAttachments::syncsToWatcher, SharedFate.STREAM_CODEC)
+                            .build());
+
+    /**
+     * The creature a player's shared-fate link struck first, waiting for its
+     * pair. Not saved.
+     * shared-fate-pools-health-and-status
+     */
+    public static final Supplier<AttachmentType<Optional<UUID>>> FATE_WAITING =
+            ATTACHMENT_TYPES.register("fate_waiting",
+                    () -> AttachmentType.<Optional<UUID>>builder(Optional::empty).build());
+
+    /**
      * The float Float leaves on a mob while its levitation lasts, saved with
      * the mob and synced to every client drawing it, which pulses the mint
      * platform under its feet.
@@ -412,7 +459,6 @@ public final class GooAttachments {
                             .serialize(Airborn.CODEC, airborn -> airborn.expiresAt() > 0L)
                             .sync(GooAttachments::syncsToOwner, Airborn.STREAM_CODEC)
                             .build());
-
     private GooAttachments() {
     }
 

@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.ability.nether.Undead;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
+import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
 import com.mercuriusxeno.goo.ability.typhoon.Airborn;
 import com.mercuriusxeno.goo.ability.xeno.EldritchEvents;
 import com.mercuriusxeno.goo.ability.zone.Shifter;
@@ -326,6 +327,10 @@ public final class HeldEffectsEvents {
         if (lays.contains(LaidState.LIFETAP)) {
             // lifetap-trades-regen-for-leech: the leech ends with its held effect
             player.setData(GooAttachments.LIFETAP, Lifetap.NONE);
+        }
+        if (lays.contains(LaidState.PHASE)) {
+            // phase-shares-a-plane-between-the-phased: the player steps back into phase with its held effect
+            player.setData(GooAttachments.OUT_OF_PHASE, OutOfPhase.NONE);
         }
         if (lays.contains(LaidState.TELEKINESIS)) {
             // telekinesis-enacts-at-extended-reach: the reach returns to its own with the held effect
