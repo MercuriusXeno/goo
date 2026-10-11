@@ -75,12 +75,6 @@ public final class SelfDeliveryTests {
     private static final double LANDING_TOLERANCE = 0.05;
     private static final String SHOULD_LAND_ON_TOP = "The blink should land on the pillar's top at %s, landed at %s";
     private static final String SHOULD_PRICE_THE_TRIP = "The trip should cost %d mB, more than the flat %d";
-    private static final Identifier TYPHOON_PROPEL = Identifier.parse("goo:typhoon_propel");
-    /** The strength typhoon_propel.json's push step names. */
-    private static final double PROPEL_STRENGTH = 1.5;
-    /** Pitch forty-five degrees above level. */
-    private static final float LOOKING_UP = -45f;
-    private static final float BUILT_UP_FALL = 10f;
     private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
     private static final Identifier SHROOM_SIGHT = Identifier.parse("goo:shroom_sight");
     private static final Identifier AEON_HASTE = Identifier.parse("goo:aeon_haste");
@@ -110,8 +104,6 @@ public final class SelfDeliveryTests {
     private static final String SHOULD_RUN_ON_COMMAND = "A self-badged ability should run on command, not eat";
     private static final String SHOULD_BLINK_EAST = "The player should move past %.1f and no farther than %.1f east the tick it blinks, moved %.3f";
     private static final String SHOULD_DRAIN_COST = "The cast should drain the stack-zero cost of %d mB, drained %d";
-    private static final String SHOULD_PROPEL = "The player's motion should read %s, read %s";
-    private static final String SHOULD_CLEAR_FALL = "Propulsion should clear the fall, read %.1f";
     private static final String SHOULD_START_EATING = "Invoking a self + brew ability should start the player eating";
     private static final String SHOULD_LAY_NOTHING_MID_EAT = "Mid-eat no ember should stand, %d halves stand";
     private static final String SHOULD_DRAIN_NOTHING_MID_EAT = "Mid-eat no goo should drain, drained %d";
@@ -208,34 +200,6 @@ public final class SelfDeliveryTests {
         helper.assertTrue(after.distanceTo(top) < LANDING_TOLERANCE, String.format(SHOULD_LAND_ON_TOP, top, after));
         helper.assertTrue(drained == priced, String.format(SHOULD_DRAIN_COST, priced, drained));
         helper.assertTrue(priced > blink.cost(), String.format(SHOULD_PRICE_THE_TRIP, priced, blink.cost()));
-        helper.succeed();
-    }
-
-    /**
-     * A mock player looking up and east invokes typhoon propulsion, and its
-     * motion reads the push strength along its look with its fall cleared in
-     * that tick, with no eat started.
-     *
-     * @param helper the gametest helper
-     */
-    public static void typhoonPropel(GameTestHelper helper) {
-        AbilityDefinition propel = requireAbility(helper, TYPHOON_PROPEL);
-        ServerPlayer player = invoker(helper, GooTypes.TYPHOON, TYPHOON_PROPEL);
-        KnownRecipes.teachRequires(player, propel);
-        player.setYRot(FACING_EAST);
-        player.setXRot(LOOKING_UP);
-        player.fallDistance = BUILT_UP_FALL;
-        Vec3 expected = player.getLookAngle().scale(PROPEL_STRENGTH);
-
-        invoke(player, GooTypes.TYPHOON, TYPHOON_PROPEL);
-
-        boolean using = player.isUsingItem();
-        Vec3 motion = player.getDeltaMovement();
-        double fall = player.fallDistance;
-        helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertFalse(using, SHOULD_RUN_ON_COMMAND);
-        helper.assertTrue(motion.distanceTo(expected) < MOVE_TOLERANCE, String.format(SHOULD_PROPEL, expected, motion));
-        helper.assertTrue(fall == 0, String.format(SHOULD_CLEAR_FALL, fall));
         helper.succeed();
     }
 

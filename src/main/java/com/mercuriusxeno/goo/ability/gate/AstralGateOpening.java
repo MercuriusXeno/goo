@@ -13,7 +13,7 @@ import net.minecraft.world.level.Level;
  * Opens Astral's gate: a pair whose near gate lies on the struck face and
  * whose mirror lies on the arrival floor of the lunar dimension by the
  * overworld's night and of the solar dimension by its day. Travellers return
- * through the same pair, which closes on its clock as a Dragon Gate pair does.
+ * through the same pair, which closes on its clock as an End gate pair does.
  * decision astral-visits-lunar-and-solar-dimensions
  */
 public final class AstralGateOpening {
@@ -55,7 +55,7 @@ public final class AstralGateOpening {
         }
         ServerLevel mirror = level.getServer().getLevel(destinationAt(level.getOverworldClockTime()));
         return mirror != null
-                && DragonGateOpening.openPair(level, surface, face, lifetime, mirror, ARRIVAL_FLOOR);
+                && EndGateOpening.openPair(level, surface, face, lifetime, mirror, ARRIVAL_FLOOR);
     }
 
     /**
