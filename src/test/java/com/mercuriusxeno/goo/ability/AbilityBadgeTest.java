@@ -20,11 +20,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AbilityBadgeTest {
 
     private static final int SHIPPED_MOB_BADGES = 12;
-    private static final int SHIPPED_WORLD_BADGES = 15;
+    private static final int SHIPPED_WORLD_BADGES = 16;
     private static final int SHIPPED_SELF_BADGES = 5;
     private static final int SHIPPED_BREW_BADGES = 14;
     private static final int SHIPPED_CHANNELED_BADGES = 21;
-    private static final int SHIPPED_FREE_BADGES = 6;
+    private static final int SHIPPED_FREE_BADGES = 5;
     private static final int SHIPPED_TAP_BADGES = 11;
     private static final int SHIPPED_PRISM_BADGES = 9;
     /**
@@ -40,7 +40,7 @@ class AbilityBadgeTest {
             "rock_stoneskin", "vital_nourish", "shroom_sight", "nether_undead", "pulse_extender", "frost_iceborn",
             "hex_lifetap", "glow_lux", "aeon_haste", "typhoon_airborn", "xeno_eldritch");
     /** The shipped free abilities (decisions badge-vocabulary-gains-free-prism-tap-brew, zap-ticks-the-device-and-stuns). */
-    private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "rock_crush", "shroom_colonize",
+    private static final List<String> SHIPPED_FREE = List.of("unstable_explode", "shroom_colonize",
             "pulse_zap", "frost_orb", "leaf_reap");
     /** Self deliveries wearing the channeled badge (decision flatten-disc-cursor-breaks-above-the-plane). */
     private static final List<String> SHIPPED_SELF_CHANNELS = List.of("rock_flatten", "frost_nova", "glow_scry",
