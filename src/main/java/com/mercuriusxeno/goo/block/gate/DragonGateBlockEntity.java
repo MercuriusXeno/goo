@@ -8,7 +8,7 @@ import net.minecraft.world.level.block.state.BlockState;
 /**
  * A Dragon Gate cell's block entity, which carries the cell to its renderer
  * so it draws its share of the gate's starfield square.
- * Decision dragon-gate-banishes-blocks-and-opens-a-portal.
+ * Decision end-clears-blocks-and-opens-a-portal.
  */
 public class DragonGateBlockEntity extends BlockEntity {
 

@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.ability.held;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
-import com.mercuriusxeno.goo.ability.banish.Teleportitis;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.ability.hex.Lifetap;
 import com.mercuriusxeno.goo.ability.nether.Undead;
@@ -10,6 +9,7 @@ import com.mercuriusxeno.goo.ability.nourish.Nourish;
 import com.mercuriusxeno.goo.ability.program.PlayerHost;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
+import com.mercuriusxeno.goo.ability.zone.Teleportitis;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooMobEffects;

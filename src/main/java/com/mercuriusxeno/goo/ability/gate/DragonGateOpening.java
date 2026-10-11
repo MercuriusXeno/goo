@@ -27,7 +27,7 @@ import java.util.Optional;
  * floor, changing no block the gate lies against, and on the pair's clock
  * clears both layers. A burst of the End's particles and the portal's sounds
  * mark each opening and closing.
- * Decision dragon-gate-banishes-blocks-and-opens-a-portal.
+ * Decision end-clears-blocks-and-opens-a-portal.
  */
 public final class DragonGateOpening {
 

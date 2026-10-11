@@ -24,7 +24,7 @@ import java.util.Optional;
  * Gametests for Dragon Gate: thrown at a stone wall, it lays a two by two
  * gate on the wall's face, changing no block, and a mirror on the End's
  * platform, and on the pair's clock both vanish
- * (decision dragon-gate-banishes-blocks-and-opens-a-portal).
+ * (decision end-clears-blocks-and-opens-a-portal).
  */
 public final class DragonGateTests {
 

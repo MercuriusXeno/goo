@@ -171,7 +171,7 @@ public class GooBlocks {
     /**
      * Dragon Gate: an end portal laid over a block for a while, carrying what
      * steps in to its partner gate; unbreakable, uncollidable and dropping
-     * nothing (decision dragon-gate-banishes-blocks-and-opens-a-portal).
+     * nothing (decision end-clears-blocks-and-opens-a-portal).
      */
     public static final DeferredBlock<DragonGateBlock> DRAGON_GATE = BLOCKS.registerBlock(
             "dragon_gate", DragonGateBlock::new,

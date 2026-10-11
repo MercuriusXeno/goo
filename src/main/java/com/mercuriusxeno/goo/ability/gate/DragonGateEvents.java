@@ -10,7 +10,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
  * Closes each Dragon Gate pair on its clock: once a second the server puts
  * back the blocks every expired pair covered, loading their chunks as it
  * writes them.
- * Decision dragon-gate-banishes-blocks-and-opens-a-portal.
+ * Decision end-clears-blocks-and-opens-a-portal.
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class DragonGateEvents {

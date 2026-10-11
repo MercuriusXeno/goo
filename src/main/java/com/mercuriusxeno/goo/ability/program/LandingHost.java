@@ -96,7 +96,7 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
 
     /**
      * Opens the gate over the block the blob struck, the one behind the cell.
-     * decision dragon-gate-banishes-blocks-and-opens-a-portal
+     * decision end-clears-blocks-and-opens-a-portal
      */
     @Override
     public boolean openDragonGate(int lifetime) {

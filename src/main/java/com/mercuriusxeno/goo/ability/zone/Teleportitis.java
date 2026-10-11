@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.ability.banish;
+package com.mercuriusxeno.goo.ability.zone;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
