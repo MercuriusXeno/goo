@@ -93,7 +93,7 @@ public class GooParticles {
         PARTICLE_TYPES.register("restore_mote", () -> new SimpleParticleType(false));
 
     /**
-     * The vital mote: a mote of vital goo homing on a target the client
+     * The homing mote: a mote of jelly goo homing on a target the client
      * reads each tick: Reserve's life drawn into the glove, and Vitality's
      * goo homing from the glove onto each thing it heals.
      * reserve-hearts-sit-behind-the-bar
@@ -119,7 +119,7 @@ public class GooParticles {
         PARTICLE_TYPES.register("hex_glyph", () -> new SimpleParticleType(false));
 
     /**
-     * The vital fog: a faint pink puff, many of which fill Vitality's cone
+     * The fog: a faint pink puff, many of which fill Vitality's cone
      * while held.
      * vitality-waves-regenerate-and-court
      */
@@ -127,7 +127,7 @@ public class GooParticles {
         PARTICLE_TYPES.register("vital_fog", () -> new SimpleParticleType(false));
 
     /**
-     * The vital star: bonemeal's star in vital pink, played where Vitality heals.
+     * The healing star: bonemeal's star in pink, played where Vitality heals.
      * vitality-waves-regenerate-and-court
      */
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> VITAL_STAR =

@@ -91,7 +91,7 @@ final class GooValueTokenValidator {
     /**
      * Validates a $-prefixed constant token, stripping dot-notation suffixes for lookup.
      *
-     * @param token the constant token (e.g. "$food.vital")
+     * @param token the constant token (e.g. "$food.jelly")
      * @param knownConstants known constant names
      * @param context the item key for error messages
      * @param warnings accumulator for validation warnings

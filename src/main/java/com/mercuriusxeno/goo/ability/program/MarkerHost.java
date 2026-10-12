@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.pulse.RedstoneBeat;
 import com.mercuriusxeno.goo.ability.pulse.RelayNetwork;
-import com.mercuriusxeno.goo.ability.world.TimeVeil;
 import com.mercuriusxeno.goo.block.ability.MarkerAnchor;
 import com.mercuriusxeno.goo.block.ability.MarkerProgramState;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
@@ -44,7 +43,7 @@ import java.util.function.Consumer;
 public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
         implements PlacedFaceHost, TickingHost, ExplodeHost, EntityScanHost, PlaceBlockHost,
         FieldEffectHost, PhasedHost, WatchHost, HoardHost, StateWriteHost, LevelHost, ConvokeHost, PowerEmitHost,
-        BeatHost, RelayHost, FrostHost, GreeningHost, TickBankHost, TimeVeilHost, ChurnHost {
+        BeatHost, RelayHost, FrostHost, GreeningHost, ChurnHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
     /** The power a block gives at full strength. */
@@ -86,16 +85,6 @@ public record MarkerHost(ServerLevel level, BlockPos pos, MarkerAnchor be)
     @Override
     public Direction placedFace() {
         return be.getPlacedFace();
-    }
-
-    @Override
-    public void bankTicks(int perTick, int spending) {
-        be.bankTicks(perTick, spending);
-    }
-
-    @Override
-    public void slowWithin(double radius, double slow) {
-        TimeVeil.slowWithin(level, Vec3.atCenterOf(pos), radius, slow);
     }
 
     /**
