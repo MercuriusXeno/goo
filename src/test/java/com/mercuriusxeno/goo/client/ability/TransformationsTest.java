@@ -26,7 +26,7 @@ class TransformationsTest {
     private static final float EPSILON = 1e-4f;
 
     private static Transformations.Transformation cloneOf() {
-        return new Transformations.Transformation(GooTypes.VITAL, STRUCK, CLONE_AT, CLONE, START, TICKS);
+        return new Transformations.Transformation(GooTypes.WEIRD, STRUCK, CLONE_AT, CLONE, START, TICKS);
     }
 
     private static float at(float share) {
@@ -156,7 +156,7 @@ class TransformationsTest {
         @Test
         void anEntityTransformationLeavesEveryBlockFull() {
             Transformations transformations = new Transformations();
-            transformations.add(GooTypes.VITAL, STRUCK, CLONE_AT, CLONE, START, TICKS);
+            transformations.add(GooTypes.WEIRD, STRUCK, CLONE_AT, CLONE, START, TICKS);
 
             assertEquals(1f, transformations.modelScaleAt(BlockPos.ZERO, START), EPSILON);
         }
@@ -164,7 +164,7 @@ class TransformationsTest {
         @Test
         void aTransformationIsDroppedOnceTheModelIsWhole() {
             Transformations transformations = new Transformations();
-            transformations.add(GooTypes.VITAL, STRUCK, CLONE_AT, CLONE, START, TICKS);
+            transformations.add(GooTypes.WEIRD, STRUCK, CLONE_AT, CLONE, START, TICKS);
 
             assertEquals(1, transformations.live(START + TICKS - 1).size());
             assertTrue(transformations.live(START + TICKS).isEmpty());
@@ -173,7 +173,7 @@ class TransformationsTest {
         @Test
         void clearDropsEveryTransformation() {
             Transformations transformations = new Transformations();
-            transformations.add(GooTypes.VITAL, STRUCK, CLONE_AT, CLONE, START, TICKS);
+            transformations.add(GooTypes.WEIRD, STRUCK, CLONE_AT, CLONE, START, TICKS);
 
             transformations.clear();
 

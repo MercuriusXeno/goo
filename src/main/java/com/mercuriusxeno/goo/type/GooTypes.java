@@ -80,7 +80,6 @@ public final class GooTypes {
     public static final ResourceKey<GooTypeDefinition> SHROOM = bundled("shroom");
     public static final ResourceKey<GooTypeDefinition> TYPHOON = bundled("typhoon");
     public static final ResourceKey<GooTypeDefinition> UNSTABLE = bundled("unstable");
-    public static final ResourceKey<GooTypeDefinition> VITAL = bundled("vital");
     public static final ResourceKey<GooTypeDefinition> WEIRD = bundled("weird");
     /**
      * Xeno ships with no item value until its source is designed.
@@ -107,7 +106,7 @@ public final class GooTypes {
      */
     public static final List<ResourceKey<GooTypeDefinition>> BUNDLED = List.of(
             ASTRAL, BLAZE, CRYSTAL, DEEP, ENDER, FROST, GLOW, HEX, INFINITY, JELLY, KINETIC, LEAF,
-            METAL, NETHER, OPULENT, PULSE, QUANTUM, ROCK, SHROOM, TYPHOON, UNSTABLE, VITAL, WEIRD, XENO, YORE, ZOO);
+            METAL, NETHER, OPULENT, PULSE, QUANTUM, ROCK, SHROOM, TYPHOON, UNSTABLE, WEIRD, XENO, YORE, ZOO);
 
     /**
      * A type key as its short id: the bare path for a bundled type, the
