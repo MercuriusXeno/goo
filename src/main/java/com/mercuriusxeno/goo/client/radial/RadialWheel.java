@@ -40,6 +40,8 @@ public final class RadialWheel {
     static final int BOTTOM = 1;
     /** The two ways round a ring, which halve the farthest any type stands from another. */
     private static final int WAYS_ROUND = 2;
+    /** Where an open half's unturned ring starts: at 12, its types running clockwise round to 12. */
+    private static final double RING_START = 0.0;
     /** How many halves the types split into. */
     private static final int HALVES = 2;
     /** The last letter a type's name starts with to belong to the top half. */
@@ -67,8 +69,6 @@ public final class RadialWheel {
     static final double NEIGHBOR_MIN_ARC = Math.toRadians(10.0);
     /** Halvings the squeeze's search takes, well past a double's precision. */
     private static final int SQUEEZE_STEPS = 60;
-    /** How much less turn a landing must take than the ring stands at before the ring springs to it. */
-    private static final double SPRING_SLACK = 1e-9;
     /** How many types either side of the open type stay on the ring. */
     static final int NEIGHBORS_A_SIDE = 6;
     /** The most types a wheel holds with none hidden while one is open: the open type and its neighbors. */
@@ -153,27 +153,6 @@ public final class RadialWheel {
      */
     public static int halfOfName(String name) {
         return !name.isEmpty() && Character.toLowerCase(name.charAt(0)) <= LAST_TOP_LETTER ? TOP : BOTTOM;
-    }
-
-    /**
-     * The angle a half centers on.
-     *
-     * @param half the half
-     * @return 0 for the top, pi for the bottom
-     */
-    private static double centerOf(int half) {
-        return half == TOP ? 0.0 : Math.PI;
-    }
-
-    /**
-     * Where an open half's unturned ring starts: half a turn round from its
-     * center, so the half's types center on its side.
-     *
-     * @param half the half
-     * @return the angle in radians
-     */
-    private static double ringStart(int half) {
-        return centerOf(half) - Math.PI;
     }
 
     /**
@@ -404,8 +383,8 @@ public final class RadialWheel {
         for (int type = 0; type < selectedType; type++) {
             before += widths[type];
         }
-        double abilitiesCenter = ringStart(openHalf) + before + widths[selectedType] * HALF;
-        double satAt = ringStart(openHalf) + (placeInHalf[selectedType] + HALF) * restArc(selectedType);
+        double abilitiesCenter = RING_START + before + widths[selectedType] * HALF;
+        double satAt = RING_START + (placeInHalf[selectedType] + HALF) * restArc(selectedType);
         return Math.IEEEremainder(satAt - abilitiesCenter, TWO_PI);
     }
 
@@ -541,8 +520,8 @@ public final class RadialWheel {
      */
     private List<PetalArc> petalsOf(RingEase.Pose pose, CardLength cardLength) {
         List<PetalArc> petals = new ArrayList<>();
-        // open-half-spans-270-degrees: each half's ring runs from its own window's start
-        double[] starts = {ringStart(TOP) + pose.rotation(), ringStart(BOTTOM) + pose.rotation()};
+        // open-half-spans-270-degrees: each half's ring runs clockwise from 12, the other half's types at no width
+        double[] starts = {RING_START + pose.rotation(), RING_START + pose.rotation()};
         for (int type = 0; type < typeCount; type++) {
             double openness = pose.openness()[type];
             double width = pose.widths()[type];
@@ -728,30 +707,18 @@ public final class RadialWheel {
     }
 
     /**
-     * The cursor on a petal: another type's petal opens that type; an
-     * ability of the open type hovers it, and crossing onto it from another
-     * springs the ring to center it on the cursor only where that turn
-     * relieves the ring's tension, bringing it nearer rest; otherwise the
-     * ring stands where it is.
+     * The cursor on a petal: another type's petal opens that type, and an
+     * ability of the open type hovers it with the ring holding still.
      * decision ring-rotates-to-keep-the-cursor-inside
      *
      * @param petal the petal under the cursor
      */
     private void landOn(PetalArc petal) {
-        if (!petal.isAbility()) {
-            if (petal.type() != selectedType) {
-                openType(petal.type());
-            }
-            return;
+        if (petal.isAbility()) {
+            hoveredAbility = petal.ability();
+        } else if (petal.type() != selectedType) {
+            openType(petal.type());
         }
-        if (petal.ability() != hoveredAbility) {
-            double turn = Math.IEEEremainder(cursorAngle - petal.center(), TWO_PI);
-            if (Math.abs(rotation + turn) < Math.abs(rotation) - SPRING_SLACK) {
-                rotation += turn;
-                ease.retarget(targetPose());
-            }
-        }
-        hoveredAbility = petal.ability();
     }
 
     /**
