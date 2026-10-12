@@ -9,20 +9,19 @@ import java.util.function.IntUnaryOperator;
 import java.util.function.ToIntFunction;
 
 /**
- * The glove's one radial wheel as pure layout and state. At rest it shows
- * no type petal: between the hub and the type ring stand two half petals,
- * A..M over the top half and N..Z over the bottom, each type belonging to
- * the half its name's first letter falls in. The cursor on a half opens it:
- * that half's types form a ring shown through a 270 degree window centered
- * on the half's side, and the other half's petal holds the 90 degrees left,
- * pinned, hiding whatever of the ring turns behind it. With no type open
- * the half's types share the window evenly. Hovering a type (or scrolling to
- * it) opens it with no click: its petal is replaced in the ring by its
- * ability petals, and the six nearest types of its half either side stand
- * beside them, narrowing and fading with distance, while the rest hide; the
- * abilities share what the neighbors leave. The ring turns the least it must
- * to keep the cursor inside the open type's abilities. The cursor in the hub
- * returns the wheel to the two halves.
+ * The glove's one radial wheel as pure layout and state. At rest two side
+ * pickers stand between the hub and the type ring, A..M on the right and
+ * N..Z on the left, each type belonging to the side its name's first letter
+ * falls in, and every type shows clockwise from 12: A..M down the right,
+ * N..Z back up the left. The cursor on a side's picker or any of its type
+ * petals opens that side: the pickers go, and the side's types fill the
+ * whole ring clockwise from 12, reaching in to the hub. Hovering a type (or
+ * scrolling to it) opens it with no click: its petal is replaced in the ring
+ * by its ability petals, its neighbors squeezing and fading with distance.
+ * The ring rests with the open type's abilities centered where its petal
+ * sat, and opening one turns the ring only to land the cursor on the ability
+ * that brings the type's center nearest rest. The cursor in the hub returns
+ * the wheel to rest.
  * decision abilities-replace-the-hovered-type
  * decision open-type-keeps-thirteen-fading-to-twenty-percent
  * decision fisheye-halves-its-max-and-floors-at-ten-degrees
@@ -34,29 +33,24 @@ import java.util.function.ToIntFunction;
  */
 public final class RadialWheel {
 
-    /** The A..M half, centered on the top. */
-    static final int TOP = 0;
-    /** The N..Z half, centered on the bottom. */
-    static final int BOTTOM = 1;
+    /** The A..M side, on the right. */
+    static final int RIGHT = 0;
+    /** The N..Z side, on the left. */
+    static final int LEFT = 1;
     /** The two ways round a ring, which halve the farthest any type stands from another. */
     private static final int WAYS_ROUND = 2;
-    /** Where an open half's unturned ring starts: at 12, its types running clockwise round to 12. */
+    /** Where a ring starts: at 12, its types running clockwise. */
     private static final double RING_START = 0.0;
-    /** How many halves the types split into. */
+    /** How many sides the types split into. */
     private static final int HALVES = 2;
-    /** The last letter a type's name starts with to belong to the top half. */
-    private static final char LAST_TOP_LETTER = 'm';
-    /** Each half petal's arc while neither is open. */
-    static final double HALF_REST_ARC = Math.PI;
-    /** The open half's arc: the window its types show through. */
-    static final double HALF_OPEN_ARC = Math.toRadians(270.0);
-    /** The other half's arc while one is open, pinned on its own side. */
-    static final double HALF_HELD_ARC = Math.toRadians(90.0);
-    /** Where the type petals start, as a fraction of the wheel's radius: the half petals stand between it and the hub. */
+    /** The last letter a type's name starts with to belong to the right side. */
+    private static final char LAST_RIGHT_LETTER = 'm';
+    /** Each side picker's arc: half a turn, A..M from 12 round to 6, N..Z from 6 round to 12. */
+    static final double SIDE_ARC = Math.PI;
+    /** Where the type petals start at rest, as a fraction of the wheel's radius, the side pickers inside them. */
     static final double TYPE_INNER_FRACTION = 0.4;
-    /** The gap between a half petal's outer edge and the type ring, as a fraction of the wheel's radius. */
+    /** The gap between a side picker's outer edge and the type ring, as a fraction of the wheel's radius. */
     static final double BAND_GAP = 0.02;
-
     /** The wheel's diameter as a fraction of the smaller screen dimension. */
     static final double SCREEN_FRACTION = 0.98;
     /** The hub's radius as a fraction of the wheel's: the cursor inside it returns the wheel to rest. */
@@ -121,7 +115,7 @@ public final class RadialWheel {
      *
      * @param typeCount    the number of type petals
      * @param abilityCount the number of abilities a type index opens to
-     * @param halfOf       the half a type index belongs to, {@link #TOP} or {@link #BOTTOM}
+     * @param halfOf       the half a type index belongs to, {@link #RIGHT} or {@link #LEFT}
      */
     public RadialWheel(int typeCount, IntUnaryOperator abilityCount, IntUnaryOperator halfOf) {
         this.typeCount = typeCount;
@@ -133,7 +127,7 @@ public final class RadialWheel {
             halfOfType[type] = halfOf.applyAsInt(type);
             placeInHalf[type] = sizes[halfOfType[type]]++;
         }
-        this.members = new int[][]{new int[sizes[TOP]], new int[sizes[BOTTOM]]};
+        this.members = new int[][]{new int[sizes[RIGHT]], new int[sizes[LEFT]]};
         for (int type = 0; type < typeCount; type++) {
             members[halfOfType[type]][placeInHalf[type]] = type;
         }
@@ -145,37 +139,44 @@ public final class RadialWheel {
     }
 
     /**
-     * The half a type's name puts it in: A..M the top, the rest the bottom.
+     * The side a type's name puts it in: A..M the right, the rest the left.
      * decision halves-arc-petals-at-rest
      *
      * @param name the type's name
-     * @return {@link #TOP} or {@link #BOTTOM}
+     * @return {@link #RIGHT} or {@link #LEFT}
      */
     public static int halfOfName(String name) {
-        return !name.isEmpty() && Character.toLowerCase(name.charAt(0)) <= LAST_TOP_LETTER ? TOP : BOTTOM;
+        return !name.isEmpty() && Character.toLowerCase(name.charAt(0)) <= LAST_RIGHT_LETTER ? RIGHT : LEFT;
     }
 
     /**
-     * The half petal an angle falls on as the target holds them: the top
-     * within half its arc of the top, else the bottom.
+     * The side picker an angle falls on: the right from 12 round to 6, the left from 6 round to 12.
      * decision halves-arc-petals-at-rest
      *
      * @param angle the angle
-     * @return {@link #TOP} or {@link #BOTTOM}
+     * @return {@link #RIGHT} or {@link #LEFT}
      */
-    private int halfUnder(double angle) {
-        return Math.abs(Math.IEEEremainder(angle, TWO_PI)) <= topArcTarget() * HALF ? TOP : BOTTOM;
+    private static int sideAt(double angle) {
+        return wrap(angle) < SIDE_ARC ? RIGHT : LEFT;
     }
 
     /**
-     * The top half petal's target arc: half a turn at rest, the window while open, the held arc while the bottom is.
+     * How much of the side pickers the target shows.
      *
-     * @return the arc in radians
+     * @return 1 at rest, 0 with a side open
      */
-    private double topArcTarget() {
-        return openHalf == NONE ? HALF_REST_ARC : openHalf == TOP ? HALF_OPEN_ARC : HALF_HELD_ARC;
+    private double pickersTarget() {
+        return openHalf == NONE ? 1.0 : 0.0;
     }
 
+    /**
+     * Where the N..Z side's ring starts: 6 o'clock at rest, after A..M, and 12 with that side open.
+     *
+     * @return the angle in radians
+     */
+    private double leftStartTarget() {
+        return openHalf == LEFT ? RING_START : RING_START + SIDE_ARC;
+    }
     /**
      * The types the wheel shows, in list order: each offering at least one
      * ability, locked or not, and held above zero.
@@ -221,33 +222,44 @@ public final class RadialWheel {
     }
 
     /**
-     * The target's two half petals: half a turn each at rest, the open one
-     * over its 270 degree window and the other pinned over the 90 left.
+     * The target's two side pickers, A..M from 12 round to 6 and N..Z from 6 round to 12, shown at rest only.
      * decision halves-arc-petals-at-rest
-     * decision open-half-spans-270-degrees
      *
-     * @return the top half's petal, then the bottom's
+     * @return the right picker, then the left, empty with a side open
      */
     List<HalfPetal> halves() {
-        return halvesOf(topArcTarget());
+        return halvesOf(pickersTarget());
     }
 
     /**
-     * The half petals as drawn this frame, easing with the ring.
+     * The side pickers as drawn this frame, shrinking into the hub as a side opens.
      * decision petal-moves-animate
      *
      * @param partialTick the fraction of a tick since the last one
-     * @return the top half's petal, then the bottom's
+     * @return the right picker, then the left, empty once they have gone
      */
     List<HalfPetal> displayedHalves(float partialTick) {
-        return halvesOf(ease.displayed(partialTick).topArc());
+        return halvesOf(ease.displayed(partialTick).pickers());
     }
 
-    private static List<HalfPetal> halvesOf(double topArc) {
-        return List.of(new HalfPetal(TOP, -topArc * HALF, topArc),
-                new HalfPetal(BOTTOM, topArc * HALF, TWO_PI - topArc));
+    private static List<HalfPetal> halvesOf(double pickers) {
+        if (pickers <= VISIBLE) {
+            return List.of();
+        }
+        double outer = HUB_FRACTION + (TYPE_INNER_FRACTION - BAND_GAP - HUB_FRACTION) * pickers;
+        return List.of(new HalfPetal(RIGHT, RING_START, SIDE_ARC, outer),
+                new HalfPetal(LEFT, RING_START + SIDE_ARC, SIDE_ARC, outer));
     }
 
+    /**
+     * Where the type petals start for an amount of picker showing: out past the pickers at rest, at the hub once they go.
+     *
+     * @param pickers how much of the side pickers shows
+     * @return the inner radius as a fraction of the wheel's
+     */
+    private static double typeInner(double pickers) {
+        return HUB_FRACTION + (TYPE_INNER_FRACTION - HUB_FRACTION) * pickers;
+    }
     /**
      * The target ring's petals in clockwise order from the rotation: one per
      * type at rest, or with the open type's petal replaced by its ability
@@ -330,7 +342,7 @@ public final class RadialWheel {
     }
 
     /**
-     * The target pose. At rest no type petal shows. With a half open and no
+     * The target pose. At rest every type shows on its side. With a side open and no
      * type fanned out, the half's types share the whole ring evenly, closed
      * and full. With a type fanned out, its slot is as wide as its abilities
      * and fully open, and each other type of its half takes its squeezed arc
@@ -357,7 +369,8 @@ public final class RadialWheel {
                     : neighborArc(fanned, type, arcs.squeeze());
         }
         openness[fanned] = 1.0;
-        return new RingEase.Pose(centering(widths) + rotation, widths, openness, presence, topArcTarget());
+        return new RingEase.Pose(centering(widths) + rotation, widths, openness, presence, pickersTarget(),
+                leftStartTarget());
     }
 
     /**
@@ -389,8 +402,9 @@ public final class RadialWheel {
     }
 
     /**
-     * The pose with no type fanned out: no type petal at rest; with a half
-     * open, its types sharing the whole ring evenly, closed and full.
+     * The pose with no type fanned out: at rest every type closed and full,
+     * each side's types sharing its half turn evenly; with a side open, its
+     * types sharing the whole ring evenly and the other side's gone.
      * decision halves-arc-petals-at-rest
      * decision open-half-spans-270-degrees
      *
@@ -399,12 +413,15 @@ public final class RadialWheel {
     private RingEase.Pose closedPose() {
         double[] widths = new double[typeCount];
         double[] presence = new double[typeCount];
-        int[] shown = openHalf == NONE ? new int[0] : members[openHalf];
-        for (int type : shown) {
-            widths[type] = TWO_PI / shown.length;
-            presence[type] = 1.0;
+        for (int type = 0; type < typeCount; type++) {
+            int side = halfOfType[type];
+            if (openHalf == NONE || openHalf == side) {
+                widths[type] = (openHalf == NONE ? SIDE_ARC : TWO_PI) / members[side].length;
+                presence[type] = 1.0;
+            }
         }
-        return new RingEase.Pose(rotation, widths, new double[typeCount], presence, topArcTarget());
+        return new RingEase.Pose(rotation, widths, new double[typeCount], presence, pickersTarget(),
+                leftStartTarget());
     }
 
     /**
@@ -520,18 +537,19 @@ public final class RadialWheel {
      */
     private List<PetalArc> petalsOf(RingEase.Pose pose, CardLength cardLength) {
         List<PetalArc> petals = new ArrayList<>();
-        // open-half-spans-270-degrees: each half's ring runs clockwise from 12, the other half's types at no width
-        double[] starts = {RING_START + pose.rotation(), RING_START + pose.rotation()};
+        // halves-arc-petals-at-rest: A..M runs clockwise from 12, N..Z from where A..M ends, or from 12 when open
+        double[] starts = {RING_START + pose.rotation(), pose.leftStart() + pose.rotation()};
+        double inner = typeInner(pose.pickers());
         for (int type = 0; type < typeCount; type++) {
             double openness = pose.openness()[type];
             double width = pose.widths()[type];
             double length = 1.0 - (1.0 - TYPE_BASE_LENGTH) * openness;
             double presence = pose.presence()[type];
             double start = starts[halfOfType[type]];
-            PetalMask.Petal base = new PetalMask.Petal(start, width, TYPE_INNER_FRACTION, length);
+            PetalMask.Petal base = new PetalMask.Petal(start, width, inner, length);
             addCards(petals, type, new Slot(start, openness, base), cardLength);
             if (width > 0) {
-                petals.add(new PetalArc(type, NONE, start, width, length, null, openness, presence));
+                petals.add(new PetalArc(type, NONE, start, width, length, null, openness, presence, inner));
             }
             starts[halfOfType[type]] += width;
         }
@@ -645,13 +663,11 @@ public final class RadialWheel {
     }
 
     /**
-     * Moves the cursor: the hub returns the wheel to the two halves; at rest
-     * the cursor anywhere else opens the half it points into. With a half
-     * open, the band between the hub and the type ring is the half petals'
-     * own hit region, the held half's petal opening that half; out on the
-     * ring, all the way round, an ability petal of the open type hovers it
-     * and another type's petal opens that type, the ring turning to keep the
-     * cursor inside its abilities, and the gap the ring leaves holds what is open.
+     * Moves the cursor: the hub returns the wheel to rest; at rest the
+     * cursor on a side's picker or any of its type petals opens that side.
+     * With a side open, the cursor anywhere outside the hub reads the ring:
+     * an ability petal of the open type hovers it, and another type's petal
+     * opens that type.
      * decision abilities-replace-the-hovered-type
      * decision ring-rotates-to-keep-the-cursor-inside
      * decision halves-arc-petals-at-rest
@@ -665,26 +681,20 @@ public final class RadialWheel {
         if (typeCount == 0) {
             return;
         }
-        double distance = Math.hypot(dx, dy);
-        if (distance < HUB_FRACTION * outerRadius) {
+        if (Math.hypot(dx, dy) < HUB_FRACTION * outerRadius) {
             returnToRest();
             return;
         }
         cursorAngle = angleOf(dx, dy);
         if (openHalf == NONE) {
-            openHalf(halfUnder(cursorAngle));
-        } else if (distance < TYPE_INNER_FRACTION * outerRadius) {
-            int half = halfUnder(cursorAngle);
-            if (half != openHalf) {
-                openHalf(half);
-            }
+            openHalf(sideAt(cursorAngle));
         } else {
             moveOnTheRing();
         }
     }
 
     /**
-     * The cursor on the open half's ring hovers or opens the petal under it.
+     * The cursor on the open side's ring hovers or opens the petal under it.
      * decision ring-rotates-to-keep-the-cursor-inside
      */
     private void moveOnTheRing() {
@@ -693,7 +703,7 @@ public final class RadialWheel {
     }
 
     /**
-     * Opens a half with no type open, its ring unturned, closing whatever was open.
+     * Opens a side with no type open, its ring unturned, the pickers going.
      * decision open-half-spans-270-degrees
      *
      * @param half the half to open
@@ -936,23 +946,42 @@ public final class RadialWheel {
      * @param arc     the petal's span in radians
      * @param length  the petal's outer radius as a fraction of the wheel's, short of 1 while it recedes
      * @param root    the type petal an ability petal starts out from, or null for a type petal,
-     *                which starts at the hub
+     *                which starts at its inner radius
      * @param openness how far the petal's type is open, 0 closed to 1 fanned, which the
      *                 ability petal's content slides in by
      * @param presence how much of the petal shows, 0 hidden to 1 full, which its fill and icon fade by
+     * @param inner    where a type petal starts, as a fraction of the wheel's radius: past the side pickers
+     *                 at rest, at the hub with a side open
      */
     record PetalArc(int type, int ability, double start, double arc, double length,
-                    PetalMask.@Nullable Petal root, double openness, double presence) {
+                    PetalMask.@Nullable Petal root, double openness, double presence, double inner) {
 
         /**
-         * The petal's shape: from the hub for a type petal, from exactly where
+         * A petal starting past the side pickers, where the type ring stands at rest.
+         *
+         * @param type     the type index
+         * @param ability  the ability index, or {@link #NONE}
+         * @param start    the start angle
+         * @param arc      the span
+         * @param length   the outer radius
+         * @param root     the type petal an ability petal starts out from, or null
+         * @param openness how far the type is open
+         * @param presence how much of the petal shows
+         */
+        PetalArc(int type, int ability, double start, double arc, double length, PetalMask.@Nullable Petal root,
+                 double openness, double presence) {
+            this(type, ability, start, arc, length, root, openness, presence, TYPE_INNER_FRACTION);
+        }
+
+        /**
+         * The petal's shape: from its inner radius for a type petal, from exactly where
          * its type petal ends for an ability petal.
          * decision petal-moves-animate
          *
          * @return the shape
          */
         PetalMask.Petal shape() {
-            return new PetalMask.Petal(start, arc, root == null ? TYPE_INNER_FRACTION : root.outer(), length, root);
+            return new PetalMask.Petal(start, arc, root == null ? inner : root.outer(), length, root);
         }
 
 
@@ -976,22 +1005,23 @@ public final class RadialWheel {
     }
 
     /**
-     * One half petal, in the band between the hub and the type ring.
+     * One side picker, in the band between the hub and the type ring.
      * decision halves-arc-petals-at-rest
      *
-     * @param half  {@link #TOP} for A..M, {@link #BOTTOM} for N..Z
-     * @param start the petal's start angle, clockwise from the top
-     * @param arc   the petal's span in radians
+     * @param half  {@link #RIGHT} for A..M, {@link #LEFT} for N..Z
+     * @param start the picker's start angle, clockwise from the top
+     * @param arc   the picker's span in radians
+     * @param outer how far out it reaches, as a fraction of the wheel's radius, shrinking into the hub as a side opens
      */
-    record HalfPetal(int half, double start, double arc) {
+    record HalfPetal(int half, double start, double arc, double outer) {
 
         /**
-         * The petal's shape: from the hub out to just short of the type ring.
+         * The picker's shape: from the hub out to its reach.
          *
          * @return the shape
          */
         PetalMask.Petal shape() {
-            return new PetalMask.Petal(start, arc, HUB_FRACTION, TYPE_INNER_FRACTION - BAND_GAP);
+            return new PetalMask.Petal(start, arc, HUB_FRACTION, outer);
         }
 
         /**
@@ -1007,7 +1037,7 @@ public final class RadialWheel {
     /**
      * The open half.
      *
-     * @return {@link #TOP}, {@link #BOTTOM}, or {@link #NONE} at rest
+     * @return {@link #RIGHT}, {@link #LEFT}, or {@link #NONE} at rest
      */
     public int openHalf() {
         return openHalf;

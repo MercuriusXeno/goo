@@ -43,23 +43,25 @@ class RadialWheelTest {
     private static final double BAND = (RadialWheel.HUB_FRACTION + RadialWheel.TYPE_INNER_FRACTION) / 2 * RADIUS;
     private static final double HUB = RadialWheel.HUB_FRACTION / 2 * RADIUS;
     private static final double TWO_PI = 2.0 * Math.PI;
-    /** Each type's share of the open half's window while no type is open. */
-    private static final double HALF_TYPE_ARC = RadialWheel.HALF_OPEN_ARC / TYPES;
+    /** Each type's share of the open side's ring while no type is open. */
+    private static final double HALF_TYPE_ARC = TWO_PI / TYPES;
     private static final double EPSILON = 1e-9;
-    private static final double TOP = 0.0;
-    private static final double BOTTOM = Math.PI;
+    /** Three o'clock, the middle of the A..M side. */
+    private static final double RIGHT_SIDE = Math.PI / 2;
+    /** Nine o'clock, the middle of the N..Z side. */
+    private static final double LEFT_SIDE = 3 * Math.PI / 2;
 
-    /** A wheel of the shipped type count, every type in the A..M half, each opening to the same abilities. */
+    /** A wheel of the shipped type count, every type on the A..M side, each opening to the same abilities. */
     private static RadialWheel wheel(int abilities) {
-        return new RadialWheel(TYPES, type -> abilities, type -> RadialWheel.TOP);
+        return new RadialWheel(TYPES, type -> abilities, type -> RadialWheel.RIGHT);
     }
 
-    /** The first type of the N..Z half in the two-half wheel. */
+    /** The first type of the N..Z side in the two-side wheel. */
     private static final int FIRST_BOTTOM = TYPES / 2;
 
-    /** Two abilities a type, the first half of the list A..M and the rest N..Z. */
+    /** Two abilities a type, the first half of the list on the A..M side and the rest on N..Z. */
     private static RadialWheel wheelOverBothHalves() {
-        return new RadialWheel(TYPES, type -> 2, type -> type < FIRST_BOTTOM ? RadialWheel.TOP : RadialWheel.BOTTOM);
+        return new RadialWheel(TYPES, type -> 2, type -> type < FIRST_BOTTOM ? RadialWheel.RIGHT : RadialWheel.LEFT);
     }
 
     /** Moves the cursor to a clockwise angle from the top at a distance from the center. */
@@ -67,10 +69,10 @@ class RadialWheelTest {
         wheel.moveCursor(Math.sin(angle) * distance, -Math.cos(angle) * distance, RADIUS);
     }
 
-    /** Moves the cursor onto the top half petal, then onto a type's petal in the open half. */
+    /** Moves the cursor onto the right side picker, then onto a type's petal on the open side. */
     private static void hoverType(RadialWheel wheel, int type) {
         if (wheel.openHalf() == RadialWheel.NONE) {
-            moveTo(wheel, TOP, BAND);
+            moveTo(wheel, RIGHT_SIDE, BAND);
         }
         moveTo(wheel, typePetal(wheel.layout(), type).center(), PETAL);
     }
@@ -125,28 +127,36 @@ class RadialWheelTest {
 
         /** decision halves-arc-petals-at-rest */
         @Test
-        void restShowsNoTypePetalOnlyTwoHalfPetalsInTheBandOutsideTheHub() {
-            RadialWheel wheel = wheel(ABILITIES);
+        void restShowsTwoSidePickersAndEveryTypeClockwiseFromTwelveOnItsSide() {
+            RadialWheel wheel = wheelOverBothHalves();
             List<RadialWheel.HalfPetal> halves = wheel.halves();
+            List<RadialWheel.PetalArc> petals = wheel.layout();
 
-            assertTrue(wheel.layout().isEmpty(), "a type petal shows at rest");
             assertEquals(2, halves.size());
             assertAll(halves.stream().map(half -> (Executable) () -> {
-                assertEquals(Math.PI, half.arc(), EPSILON, "half " + half.half());
+                assertEquals(Math.PI, half.arc(), EPSILON, "side " + half.half());
                 assertEquals(RadialWheel.HUB_FRACTION, half.shape().inner(), EPSILON);
                 assertTrue(half.shape().outer() < RadialWheel.TYPE_INNER_FRACTION, "outer " + half.shape().outer());
             }));
-            assertEquals(TOP, Math.IEEEremainder(halves.get(RadialWheel.TOP).center(), TWO_PI), EPSILON);
-            assertEquals(BOTTOM, halves.get(RadialWheel.BOTTOM).center(), EPSILON);
+            assertEquals(RIGHT_SIDE, halves.get(RadialWheel.RIGHT).center(), EPSILON);
+            assertEquals(LEFT_SIDE, halves.get(RadialWheel.LEFT).center(), EPSILON);
+            assertEquals(IntStream.range(0, TYPES).boxed().toList(),
+                    petals.stream().map(RadialWheel.PetalArc::type).toList(), "every type, A..M then N..Z clockwise");
+            assertAll(petals.stream().map(petal -> (Executable) () -> {
+                double side = petal.type() < FIRST_BOTTOM ? 0.0 : Math.PI;
+                assertTrue(petal.start() >= side - EPSILON && petal.start() + petal.arc() <= side + Math.PI + EPSILON,
+                        petal + " off its side");
+                assertEquals(RadialWheel.TYPE_INNER_FRACTION, petal.shape().inner(), EPSILON, "outside the pickers");
+            }));
         }
 
         /** decision halves-arc-petals-at-rest */
         @Test
         void aTypeBelongsToTheHalfItsNamesFirstLetterFallsIn() {
             assertAll(Stream.of("aeon", "Mire", "molten").map(name -> (Executable) () ->
-                    assertEquals(RadialWheel.TOP, RadialWheel.halfOfName(name), name)));
+                    assertEquals(RadialWheel.RIGHT, RadialWheel.halfOfName(name), name)));
             assertAll(Stream.of("nether", "Vital", "zephyr").map(name -> (Executable) () ->
-                    assertEquals(RadialWheel.BOTTOM, RadialWheel.halfOfName(name), name)));
+                    assertEquals(RadialWheel.LEFT, RadialWheel.halfOfName(name), name)));
         }
 
         @Test
@@ -165,7 +175,7 @@ class RadialWheelTest {
 
         /** A half of thirteen types, the shipped size, every type opening to the same abilities, one open. */
         private static RadialWheel halfOfThirteen(int abilities) {
-            RadialWheel wheel = new RadialWheel(WINDOW_TYPES, type -> abilities, type -> RadialWheel.TOP);
+            RadialWheel wheel = new RadialWheel(WINDOW_TYPES, type -> abilities, type -> RadialWheel.RIGHT);
             hoverType(wheel, WINDOW_TYPES / 2);
             settle(wheel);
             return wheel;
@@ -202,7 +212,7 @@ class RadialWheelTest {
         void anOpenHalfsTypesFillTheWholeRingEvenly() {
             RadialWheel wheel = wheelOverBothHalves();
 
-            moveTo(wheel, TOP, BAND);
+            moveTo(wheel, RIGHT_SIDE, BAND);
 
             assertAll(wheel.layout().stream().map(petal -> (Executable) () ->
                     assertEquals(TWO_PI / FIRST_BOTTOM, petal.arc(), EPSILON, petal.toString())));
@@ -236,7 +246,7 @@ class RadialWheelTest {
         @Test
         void abilitiesFittingTheirRestSlotShareItAndLeaveTheNeighborsAtRest() {
             int types = 4;
-            RadialWheel wheel = new RadialWheel(types, type -> 2, type -> RadialWheel.TOP);
+            RadialWheel wheel = new RadialWheel(types, type -> 2, type -> RadialWheel.RIGHT);
             hoverType(wheel, 1);
 
             assertAll(abilityPetals(wheel).stream().map(petal -> (Executable)
@@ -275,7 +285,7 @@ class RadialWheelTest {
         /** decision open-type-keeps-thirteen-fading-to-twenty-percent */
         @Test
         void aWheelTheWindowHoldsWholeKeepsEveryTypeFull() {
-            RadialWheel wheel = new RadialWheel(WINDOW_TYPES, type -> ABILITIES, type -> RadialWheel.TOP);
+            RadialWheel wheel = new RadialWheel(WINDOW_TYPES, type -> ABILITIES, type -> RadialWheel.RIGHT);
             hoverType(wheel, WINDOW_TYPES / 2);
 
             List<RadialWheel.PetalArc> others = typePetals(wheel);
@@ -309,7 +319,7 @@ class RadialWheelTest {
 
         @Test
         void aWheelOverNoTypesTakesEveryInputAndCancels() {
-            RadialWheel wheel = new RadialWheel(0, type -> 0, type -> RadialWheel.TOP);
+            RadialWheel wheel = new RadialWheel(0, type -> 0, type -> RadialWheel.RIGHT);
 
             moveTo(wheel, 0.0, PETAL);
             wheel.scroll(-1);
@@ -323,102 +333,94 @@ class RadialWheelTest {
     class Transitions {
 
         /**
-         * Asserts a half open: its types in list order filling the whole ring
-         * evenly clockwise from 12, its half petal at 270 degrees and the
-         * other half petal on the 90 left.
+         * Asserts a side open: its types in list order filling the whole ring
+         * evenly clockwise from 12, reaching in to the hub, the side pickers gone.
          */
         private static void assertHalfOpen(RadialWheel wheel, int half, int firstType, int types) {
-            double center = half == RadialWheel.TOP ? TOP : BOTTOM;
             List<RadialWheel.PetalArc> petals = wheel.layout();
-            RadialWheel.HalfPetal held = wheel.halves().get(1 - half);
 
             assertEquals(half, wheel.openHalf());
             assertEquals(IntStream.range(firstType, firstType + types).boxed().toList(),
                     petals.stream().map(RadialWheel.PetalArc::type).toList());
             assertEquals(TWO_PI, petals.stream().mapToDouble(RadialWheel.PetalArc::arc).sum(), EPSILON);
             assertEquals(0.0, Math.IEEEremainder(petals.getFirst().start(), TWO_PI), EPSILON, "the first type starts at 12");
-            assertEquals(RadialWheel.HALF_OPEN_ARC, wheel.halves().get(half).arc(), EPSILON);
-            assertEquals(RadialWheel.HALF_HELD_ARC, held.arc(), EPSILON);
-            assertEquals(0.0, Math.IEEEremainder(held.center() - center - Math.PI, TWO_PI), EPSILON);
+            assertTrue(wheel.halves().isEmpty(), "the side pickers have gone");
+            assertAll(petals.stream().map(petal -> (Executable) () -> assertEquals(RadialWheel.HUB_FRACTION,
+                    petal.shape().inner(), EPSILON, petal + " reaches in to the hub")));
         }
 
         /** decision open-half-spans-270-degrees */
         @Test
-        void cursorOnTheTopHalfFillsTheRingWithItsTypesClockwiseFromTwelve() {
+        void cursorOnTheRightPickerFillsTheRingWithAToMClockwiseFromTwelve() {
             RadialWheel wheel = wheelOverBothHalves();
 
-            moveTo(wheel, TOP, BAND);
+            moveTo(wheel, RIGHT_SIDE, BAND);
 
-            assertHalfOpen(wheel, RadialWheel.TOP, 0, FIRST_BOTTOM);
+            assertHalfOpen(wheel, RadialWheel.RIGHT, 0, FIRST_BOTTOM);
         }
 
         /** decision open-half-spans-270-degrees */
         @Test
-        void cursorOnTheBottomHalfFillsTheRingWithItsTypesClockwiseFromTwelve() {
+        void cursorOnTheLeftPickerFillsTheRingWithNToZClockwiseFromTwelve() {
             RadialWheel wheel = wheelOverBothHalves();
 
-            moveTo(wheel, BOTTOM, BAND);
+            moveTo(wheel, LEFT_SIDE, BAND);
 
-            assertHalfOpen(wheel, RadialWheel.BOTTOM, FIRST_BOTTOM, TYPES - FIRST_BOTTOM);
-        }
-
-        /** decision open-half-spans-270-degrees */
-        @Test
-        void cursorOnTheHeldHalfPetalOpensThatHalf() {
-            RadialWheel wheel = wheelOverBothHalves();
-            moveTo(wheel, TOP, BAND);
-            moveTo(wheel, typePetal(wheel.layout(), 2).center(), PETAL);
-
-            moveTo(wheel, BOTTOM, BAND);
-
-            assertEquals(RadialWheel.NONE, wheel.selectedType());
-            assertHalfOpen(wheel, RadialWheel.BOTTOM, FIRST_BOTTOM, TYPES - FIRST_BOTTOM);
-        }
-
-        /** decision open-half-spans-270-degrees: the held half's petal is its own hit region, the ring stays whole */
-        @Test
-        void cursorOnTheRingOutsideTheHeldHalfsPetalStillOpensTheNeighborThere() {
-            RadialWheel wheel = opened(ABILITIES);
-            RadialWheel.PetalArc overHeld = typePetals(wheel).stream()
-                    .filter(petal -> Math.abs(Math.IEEEremainder(petal.center() - BOTTOM, TWO_PI))
-                            < RadialWheel.HALF_HELD_ARC / 2)
-                    .findFirst().orElseThrow();
-
-            moveTo(wheel, overHeld.center(), PETAL);
-
-            assertEquals(RadialWheel.TOP, wheel.openHalf());
-            assertEquals(overHeld.type(), wheel.selectedType());
+            assertHalfOpen(wheel, RadialWheel.LEFT, FIRST_BOTTOM, TYPES - FIRST_BOTTOM);
         }
 
         /** decision halves-arc-petals-at-rest */
         @Test
-        void cursorInTheHubFromAnOpenHalfReturnsToTheTwoHalves() {
+        void cursorOnASidesTypePetalAtRestOpensThatSide() {
             RadialWheel wheel = wheelOverBothHalves();
-            moveTo(wheel, BOTTOM, BAND);
+            double leftType = typePetal(wheel.layout(), FIRST_BOTTOM + 2).center();
 
-            moveTo(wheel, BOTTOM, HUB);
+            moveTo(wheel, leftType, PETAL);
 
-            assertEquals(RadialWheel.NONE, wheel.openHalf());
-            assertTrue(wheel.layout().isEmpty());
-            assertAll(wheel.halves().stream().map(half -> (Executable) () ->
-                    assertEquals(Math.PI, half.arc(), EPSILON)));
+            assertEquals(RadialWheel.NONE, wheel.selectedType());
+            assertHalfOpen(wheel, RadialWheel.LEFT, FIRST_BOTTOM, TYPES - FIRST_BOTTOM);
         }
 
         /** decision open-half-spans-270-degrees */
         @Test
-        void aTypeOpenedInsideAHalfFansItsAbilitiesAndKeepsItsNeighborsInThatHalf() {
+        void withASideOpenTheOldPickerBandReadsTheRing() {
             RadialWheel wheel = wheelOverBothHalves();
-            moveTo(wheel, TOP, BAND);
+            moveTo(wheel, RIGHT_SIDE, BAND);
+            RadialWheel.PetalArc petal = typePetal(wheel.layout(), 3);
+
+            moveTo(wheel, petal.center(), BAND);
+
+            assertEquals(RadialWheel.RIGHT, wheel.openHalf());
+            assertEquals(3, wheel.selectedType());
+        }
+
+        /** decision halves-arc-petals-at-rest */
+        @Test
+        void cursorInTheHubFromAnOpenSideReturnsToRest() {
+            RadialWheel wheel = wheelOverBothHalves();
+            moveTo(wheel, LEFT_SIDE, BAND);
+
+            moveTo(wheel, LEFT_SIDE, HUB);
+
+            assertEquals(RadialWheel.NONE, wheel.openHalf());
+            assertEquals(TYPES, wheel.layout().size());
+            assertEquals(2, wheel.halves().size());
+        }
+
+        /** decision open-half-spans-270-degrees */
+        @Test
+        void aTypeOpenedInsideASideFansItsAbilitiesAndKeepsItsNeighborsOnThatSide() {
+            RadialWheel wheel = wheelOverBothHalves();
+            moveTo(wheel, RIGHT_SIDE, BAND);
 
             moveTo(wheel, typePetal(wheel.layout(), FIRST_BOTTOM / 2).center(), PETAL);
 
             assertEquals(FIRST_BOTTOM / 2, wheel.selectedType());
             assertEquals(2, abilityPetals(wheel).size());
             assertTrue(typePetals(wheel).stream().allMatch(petal -> petal.type() < FIRST_BOTTOM),
-                    "a type of the other half stands on the ring");
-            assertEquals(RadialWheel.HALF_HELD_ARC, wheel.halves().get(RadialWheel.BOTTOM).arc(), EPSILON);
+                    "a type of the other side stands on the ring");
+            assertTrue(wheel.halves().isEmpty());
         }
-
         @Test
         void cursorOnATypesPetalAtRestOpensIt() {
             RadialWheel wheel = opened(ABILITIES);
@@ -473,8 +475,8 @@ class RadialWheelTest {
 
             assertEquals(RadialWheel.NONE, wheel.selectedType());
             assertEquals(RadialWheel.NONE, wheel.openHalf());
-            assertTrue(wheel.layout().isEmpty(), "the wheel returns to the two halves");
-            assertEquals(Math.PI, wheel.halves().getFirst().arc(), EPSILON);
+            assertEquals(TYPES, wheel.layout().size(), "every type back on its side");
+            assertEquals(2, wheel.halves().size(), "the side pickers back");
             assertEquals(RadialWheel.Outcome.CANCEL, wheel.click());
         }
 
@@ -529,7 +531,7 @@ class RadialWheelTest {
         /** The wide type opens to six abilities, its neighbors to one, every other type to four. */
         private static RadialWheel wheelWithAWideType() {
             return new RadialWheel(TYPES, type -> type == WIDE_TYPE ? WIDE_ABILITIES
-                    : Math.abs(type - WIDE_TYPE) == 1 ? 1 : ABILITIES, type -> RadialWheel.TOP);
+                    : Math.abs(type - WIDE_TYPE) == 1 ? 1 : ABILITIES, type -> RadialWheel.RIGHT);
         }
 
         private static RadialWheel wideTypeOpen() {
@@ -655,8 +657,8 @@ class RadialWheelTest {
 
         @Test
         void atRestAnOpenTypesAbilitiesFanOutCenteredWhereItsPetalSat() {
-            RadialWheel wheel = new RadialWheel(WINDOW_TYPES, type -> ABILITIES, type -> RadialWheel.TOP);
-            moveTo(wheel, TOP, BAND);
+            RadialWheel wheel = new RadialWheel(WINDOW_TYPES, type -> ABILITIES, type -> RadialWheel.RIGHT);
+            moveTo(wheel, RIGHT_SIDE, BAND);
             int type = 2;
             double sat = typePetal(wheel.layout(), type).center();
 
@@ -671,10 +673,9 @@ class RadialWheelTest {
 
         @Test
         void crossingAbilitiesAtRestLeavesTheRingUnturned() {
-            RadialWheel wheel = new RadialWheel(TYPES, type -> ABILITIES, type -> RadialWheel.TOP);
+            RadialWheel wheel = new RadialWheel(TYPES, type -> ABILITIES, type -> RadialWheel.RIGHT);
             wheel.scroll(-1);
             settle(wheel);
-            moveTo(wheel, TOP, BAND);
             moveTo(wheel, abilityPetal(wheel, 1).center(), PETAL);
 
             moveTo(wheel, abilityPetal(wheel, 2).center(), PETAL);
@@ -683,17 +684,6 @@ class RadialWheelTest {
             assertEquals(0.0, wheel.rotation(), EPSILON);
         }
 
-        /** decision open-half-spans-270-degrees */
-        @Test
-        void theRingTurnsWhileTheHeldHalfStaysPinned() {
-            RadialWheel wheel = farNeighborOpen();
-
-            assertTrue(Math.abs(wheel.rotation()) > EPSILON, "the cursor turned the ring");
-            assertEquals(RadialWheel.TOP, wheel.openHalf());
-            RadialWheel.HalfPetal held = wheel.halves().get(RadialWheel.BOTTOM);
-            assertEquals(RadialWheel.HALF_HELD_ARC, held.arc(), EPSILON);
-            assertEquals(BOTTOM, held.center(), EPSILON);
-        }
 
         @Test
         void hubResetsTheRotationToRest() {
@@ -716,10 +706,10 @@ class RadialWheelTest {
 
         private static final int MID_TICKS = RingEase.DURATION_TICKS / 2;
 
-        /** The top half opened and landed, then a type opened under the cursor, its fan just starting. */
+        /** The right side opened and landed, then a type opened under the cursor, its fan just starting. */
         private static RadialWheel freshlyOpened() {
             RadialWheel wheel = wheel(ABILITIES);
-            moveTo(wheel, TOP, BAND);
+            moveTo(wheel, RIGHT_SIDE, BAND);
             settle(wheel);
             hoverType(wheel, OPEN_TYPE);
             return wheel;
@@ -931,7 +921,7 @@ class RadialWheelTest {
 
         /** Types 0 and 2 onward open to two abilities each; type 1 opens to none. */
         private static RadialWheel wheelWithAnEmptyType() {
-            return new RadialWheel(TYPES, type -> type == EMPTY_TYPE ? 0 : 2, type -> RadialWheel.TOP);
+            return new RadialWheel(TYPES, type -> type == EMPTY_TYPE ? 0 : 2, type -> RadialWheel.RIGHT);
         }
 
         /** The open type and hovered ability, the ring at rest. */
@@ -1007,32 +997,32 @@ class RadialWheelTest {
 
         /** decision open-half-spans-270-degrees */
         @Test
-        void scrollDownPastTheLastTopAbilityOpensTheBottomHalfOnItsFirstType() {
+        void scrollDownPastTheLastAToMAbilityOpensTheNToZSideOnItsFirstType() {
             RadialWheel wheel = wheelOverBothHalves();
             while (wheel.selectedType() != FIRST_BOTTOM - 1 || wheel.hoveredAbility() != 1) {
                 wheel.scroll(-1);
             }
-            assertEquals(RadialWheel.TOP, wheel.openHalf());
+            assertEquals(RadialWheel.RIGHT, wheel.openHalf());
 
             wheel.scroll(-1);
 
             assertHovering(wheel, FIRST_BOTTOM, 0);
-            assertEquals(RadialWheel.BOTTOM, wheel.openHalf());
-            assertEquals(RadialWheel.HALF_OPEN_ARC, wheel.halves().get(RadialWheel.BOTTOM).arc(), EPSILON);
+            assertEquals(RadialWheel.LEFT, wheel.openHalf());
+            assertTrue(wheel.halves().isEmpty(), "the side pickers have gone");
         }
 
         /** decision open-half-spans-270-degrees */
         @Test
-        void scrollDownPastTheLastBottomAbilityWrapsToTheTopHalfsFirstType() {
+        void scrollDownPastTheLastNToZAbilityWrapsToTheAToMSidesFirstType() {
             RadialWheel wheel = wheelOverBothHalves();
             wheel.scroll(1);
             assertHovering(wheel, TYPES - 1, 1);
-            assertEquals(RadialWheel.BOTTOM, wheel.openHalf());
+            assertEquals(RadialWheel.LEFT, wheel.openHalf());
 
             wheel.scroll(-1);
 
             assertHovering(wheel, 0, 0);
-            assertEquals(RadialWheel.TOP, wheel.openHalf());
+            assertEquals(RadialWheel.RIGHT, wheel.openHalf());
         }
     }
 }

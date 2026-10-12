@@ -25,8 +25,8 @@ import java.util.Set;
 import java.util.stream.IntStream;
 
 /**
- * Draws the glove's radial wheel from a {@link RadialWheel}: the two half
- * petals around the hub reading A..M and N..Z, and the open half's ring of
+ * Draws the glove's radial wheel from a {@link RadialWheel}: at rest the two
+ * side pickers around the hub reading A..M and N..Z, and the ring of
  * petals out to the rim, whole all the way round, type petals with
  * their icon alone and the open type's ability petals with icon, name and
  * cost, or on a locked one its required items alone with the learned ones
@@ -51,8 +51,8 @@ final class RadialWheelRenderer {
     private static final int HALF_REST_COLOR = 0x55FFFFFF;
     private static final int HALF_OPEN_COLOR = 0x88FFFFFF;
     private static final int HALF_EDGE_COLOR = 0xCCFFFFFF;
-    private static final String TOP_HALF_LABEL = "A..M";
-    private static final String BOTTOM_HALF_LABEL = "N..Z";
+    private static final String RIGHT_SIDE_LABEL = "A..M";
+    private static final String LEFT_SIDE_LABEL = "N..Z";
     private static final int COLOR_WHITE = 0xFFFFFFFF;
     private static final int HOVER_TEXT_COLOR = 0xFFFFFF00;
     /** The color a disabled petal's words draw in. */
@@ -180,7 +180,7 @@ final class RadialWheelRenderer {
     }
 
     /**
-     * Draws the two half petals, the open one brighter.
+     * Draws the side pickers while they show, the opening one brighter.
      * decision halves-arc-petals-at-rest
      *
      * @param graphics the GUI graphics extractor
@@ -216,11 +216,11 @@ final class RadialWheelRenderer {
      * The letter range a half petal reads.
      * decision halves-arc-petals-at-rest
      *
-     * @param half {@link RadialWheel#TOP} or {@link RadialWheel#BOTTOM}
+     * @param half {@link RadialWheel#RIGHT} or {@link RadialWheel#LEFT}
      * @return "A..M" or "N..Z"
      */
     static String halfLabel(int half) {
-        return half == RadialWheel.TOP ? TOP_HALF_LABEL : BOTTOM_HALF_LABEL;
+        return half == RadialWheel.RIGHT ? RIGHT_SIDE_LABEL : LEFT_SIDE_LABEL;
     }
 
     /**
@@ -318,7 +318,7 @@ final class RadialWheelRenderer {
      */
     static int[] lengthCenter(Frame frame, RadialWheel.PetalArc petal) {
         PetalMask.Point center = PetalMask.Point.polar(petal.center(),
-                (RadialWheel.TYPE_INNER_FRACTION + petal.length()) / HALF);
+                (petal.inner() + petal.length()) / HALF);
         return new int[]{frame.centerX() + (int) Math.round(center.x() * frame.radius()),
                 frame.centerY() + (int) Math.round(center.y() * frame.radius())};
     }

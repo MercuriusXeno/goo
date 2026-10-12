@@ -95,9 +95,12 @@ final class RingEase {
      * @param widths   each type's slot width in radians
      * @param openness each type's openness, 0 to 1
      * @param presence each type's presence, 0 hidden to 1 full
-     * @param topArc   the A..M half petal's arc, centered on the top; the N..Z half holds the rest of the turn
+     * @param pickers  how much of the side pickers shows, 1 at rest to 0 with a side open, the type
+     *                 petals reaching in to the hub as they go
+     * @param leftStart where the N..Z side's ring starts: 6 o'clock at rest, 12 with that side open
      */
-    record Pose(double rotation, double[] widths, double[] openness, double[] presence, double topArc) {
+    record Pose(double rotation, double[] widths, double[] openness, double[] presence, double pickers,
+                double leftStart) {
 
         /**
          * The pose a fraction of the way to another.
@@ -109,18 +112,17 @@ final class RingEase {
         Pose toward(Pose target, double fraction) {
             return new Pose(mix(rotation, target.rotation(), fraction), mix(widths, target.widths(), fraction),
                     mix(openness, target.openness(), fraction), mix(presence, target.presence(), fraction),
-                    mix(topArc, target.topArc(), fraction));
+                    mix(pickers, target.pickers(), fraction), mix(leftStart, target.leftStart(), fraction));
         }
 
         /**
-         * This pose turned by an angle; the half petals stay pinned.
-         * decision open-half-spans-270-degrees
+         * This pose turned by an angle.
          *
          * @param turn the angle to add, clockwise
          * @return the turned pose
          */
         Pose turnedBy(double turn) {
-            return new Pose(rotation + turn, widths, openness, presence, topArc);
+            return new Pose(rotation + turn, widths, openness, presence, pickers, leftStart);
         }
 
         private static double mix(double from, double to, double fraction) {
