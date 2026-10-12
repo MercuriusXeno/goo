@@ -3,9 +3,11 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
 import com.mercuriusxeno.goo.ability.program.AilmentPattern;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -14,6 +16,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.function.ToIntFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -28,6 +31,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AilmentOverlayLayerTest {
 
     private static final int RGB_MASK = 0xFFFFFF;
+    /** Stands in for the client's goo type registry: every type reads this one color. */
+    private static final ToIntFunction<ResourceKey<GooTypeDefinition>> TYPE_COLOR = key -> 0x123456;
 
     private static String shaderSource(Identifier shader, String extension) throws IOException {
         String path = "/assets/" + shader.getNamespace() + "/shaders/" + shader.getPath() + extension;
@@ -111,10 +116,11 @@ class AilmentOverlayLayerTest {
         @ParameterizedTest
         @EnumSource(AilmentKind.class)
         void layerColorIsTheAilmentsRgbUnderItsStrength(AilmentKind kind) {
-            assertEquals(Math.round(kind.opacity() * 0xFF), AilmentOverlayLayer.overlayColor(kind, 1f) >>> 24);
-            assertEquals(kind.rgb(), AilmentOverlayLayer.overlayColor(kind, 0f));
-            assertEquals(Math.round(kind.opacity() * 0x80), AilmentOverlayLayer.overlayColor(kind, 0.5f) >>> 24);
-            assertEquals(kind.rgb(), AilmentOverlayLayer.overlayColor(kind, 0.5f) & RGB_MASK);
+            int rgb = kind.rgb(TYPE_COLOR);
+            assertEquals(Math.round(kind.opacity() * 0xFF), AilmentOverlayLayer.overlayColor(kind, 1f, TYPE_COLOR) >>> 24);
+            assertEquals(rgb, AilmentOverlayLayer.overlayColor(kind, 0f, TYPE_COLOR));
+            assertEquals(Math.round(kind.opacity() * 0x80), AilmentOverlayLayer.overlayColor(kind, 0.5f, TYPE_COLOR) >>> 24);
+            assertEquals(rgb, AilmentOverlayLayer.overlayColor(kind, 0.5f, TYPE_COLOR) & RGB_MASK);
         }
 
         /** Hex's glisten draws lighter than the stasis shimmer at the same strength. */
@@ -126,8 +132,8 @@ class AilmentOverlayLayerTest {
 
         /** Scry's glisten draws lighter still, since it marks every mob in its sphere at once. */
         @Test
-        void glowGlistenDrawsLighterThanHex() {
-            assertTrue(AilmentOverlayLayer.overlayColor(AilmentKind.GLOW, 1f) >>> 24
+        void scryGlistenDrawsLighterThanHex() {
+            assertTrue(AilmentOverlayLayer.overlayColor(AilmentKind.ASTRAL, 1f, TYPE_COLOR) >>> 24
                     < AilmentOverlayLayer.overlayColor(AilmentKind.HEX, 1f) >>> 24);
         }
     }
