@@ -43,14 +43,50 @@ final class PetalPainter {
         PetalMask.Petal shape = petal.shape();
         Matrix3x2f pose = new Matrix3x2f(graphics.pose());
         ScreenRectangle scissor = graphics.peekScissorStack();
-        List<PetalRenderState.ScreenVertex> fill = toScreen(frame, PetalMesh.fill(shape), face.sprite());
+        List<PetalRenderState.ScreenVertex> fill = toScreen(frame, hide(frame, PetalMesh.fill(shape)), face.sprite());
         graphics.submitGuiElementRenderState(new PetalRenderState(RenderPipelines.GUI_TEXTURED, face.texture(), pose,
                 fill, ARGB.multiply(face.tint(), overlay), scissor, bounds(fill, pose, scissor)));
         List<PetalRenderState.ScreenVertex> edge = toScreen(frame,
-                PetalMesh.edge(shape, PetalMesh.EDGE_THICKNESS, !petal.isAbility()), face.sprite());
+                hide(frame, PetalMesh.edge(shape, PetalMesh.EDGE_THICKNESS, !petal.isAbility())), face.sprite());
         graphics.submitGuiElementRenderState(new PetalRenderState(RenderPipelines.GUI, TextureSetup.noTexture(), pose,
                 edge, RadialWheelRenderer.faded(face.edgeColor(), petal.presence()), scissor,
                 bounds(edge, pose, scissor)));
+    }
+
+    /**
+     * Submits a half petal in one plain color with its edge on top.
+     * decision halves-arc-petals-at-rest
+     *
+     * @param graphics  the GUI graphics extractor
+     * @param frame     what the frame draws from
+     * @param half      the half petal
+     * @param fillColor the ARGB color its face draws in
+     * @param edgeColor the ARGB color its edge draws in
+     */
+    static void paintHalf(GuiGraphicsExtractor graphics, RadialWheelRenderer.Frame frame, RadialWheel.HalfPetal half,
+                          int fillColor, int edgeColor) {
+        PetalMask.Petal shape = half.shape();
+        Matrix3x2f pose = new Matrix3x2f(graphics.pose());
+        ScreenRectangle scissor = graphics.peekScissorStack();
+        List<PetalRenderState.ScreenVertex> fill = toScreen(frame, PetalMesh.fill(shape), WHOLE_TEXTURE);
+        graphics.submitGuiElementRenderState(new PetalRenderState(RenderPipelines.GUI, TextureSetup.noTexture(), pose,
+                fill, fillColor, scissor, bounds(fill, pose, scissor)));
+        List<PetalRenderState.ScreenVertex> edge = toScreen(frame,
+                PetalMesh.edge(shape, PetalMesh.EDGE_THICKNESS, true), WHOLE_TEXTURE);
+        graphics.submitGuiElementRenderState(new PetalRenderState(RenderPipelines.GUI, TextureSetup.noTexture(), pose,
+                edge, edgeColor, scissor, bounds(edge, pose, scissor)));
+    }
+
+    /**
+     * Cuts away whatever of the shown half's ring lies behind the held half petal.
+     * decision open-half-spans-270-degrees
+     *
+     * @param frame what the frame draws from
+     * @param quads the quads to cut
+     * @return the quads' parts outside the held half's sector
+     */
+    private static List<PetalMesh.Quad> hide(RadialWheelRenderer.Frame frame, List<PetalMesh.Quad> quads) {
+        return PetalMesh.outside(quads, frame.wheel().hiddenSector(frame.partialTick()));
     }
 
     /**
@@ -69,8 +105,8 @@ final class PetalPainter {
     static void paintSprite(GuiGraphicsExtractor graphics, RadialWheelRenderer.Frame frame, PetalMask.Petal petal,
                             TextureSetup texture, int[] center, int size, int color) {
         double radius = frame.radius();
-        List<PetalMesh.Quad> quads = PetalMesh.clipSquare(petal, (center[0] - frame.centerX()) / radius,
-                (center[1] - frame.centerY()) / radius, size * HALF / radius);
+        List<PetalMesh.Quad> quads = hide(frame, PetalMesh.clipSquare(petal, (center[0] - frame.centerX()) / radius,
+                (center[1] - frame.centerY()) / radius, size * HALF / radius));
         if (quads.isEmpty()) {
             return;
         }
@@ -113,8 +149,9 @@ final class PetalPainter {
                                                       RadialWheelRenderer.ItemIcon icon) {
         double radius = frame.radius();
         double half = RadialWheelRenderer.ITEM_ICON_SIZE * HALF;
-        return toScreen(frame, PetalMesh.clipSquare(icon.face(), (icon.rect().left() + half - frame.centerX()) / radius,
-                (icon.rect().top() + half - frame.centerY()) / radius, half / radius), WHOLE_TEXTURE);
+        return toScreen(frame, hide(frame, PetalMesh.clipSquare(icon.face(),
+                (icon.rect().left() + half - frame.centerX()) / radius,
+                (icon.rect().top() + half - frame.centerY()) / radius, half / radius)), WHOLE_TEXTURE);
     }
 
     /**
@@ -133,7 +170,7 @@ final class PetalPainter {
         double radius = frame.radius();
         List<PetalMask.Point> polygon = corners.stream().map(corner -> new PetalMask.Point(
                 (corner[0] - frame.centerX()) / radius, (corner[1] - frame.centerY()) / radius)).toList();
-        List<PetalRenderState.ScreenVertex> vertices = toScreen(frame, PetalMesh.clipConvex(petal, polygon),
+        List<PetalRenderState.ScreenVertex> vertices = toScreen(frame, hide(frame, PetalMesh.clipConvex(petal, polygon)),
                 WHOLE_TEXTURE);
         if (vertices.isEmpty()) {
             return;

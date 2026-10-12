@@ -25,13 +25,16 @@ import java.util.Set;
 import java.util.stream.IntStream;
 
 /**
- * Draws the glove's radial wheel from a {@link RadialWheel}: one ring of
- * petals from the hub to the rim, type petals with their icon alone and the
- * open type's ability petals with icon, name and cost, or on a locked one its
- * required items alone with the learned ones slashed, the open type's name
- * and holdings in the hub.
+ * Draws the glove's radial wheel from a {@link RadialWheel}: the two half
+ * petals around the hub reading A..M and N..Z, and the open half's ring of
+ * petals out to the rim, cut away behind the held half, type petals with
+ * their icon alone and the open type's ability petals with icon, name and
+ * cost, or on a locked one its required items alone with the learned ones
+ * slashed, the open type's name and holdings in the hub.
  * decision abilities-replace-the-hovered-type
  * decision locked-petal-lists-the-unlearned-items
+ * decision halves-arc-petals-at-rest
+ * decision open-half-spans-270-degrees
  */
 final class RadialWheelRenderer {
 
@@ -44,6 +47,12 @@ final class RadialWheelRenderer {
     private static final int REST_SHADE = 0xCC;
     private static final int DISABLED_SHADE = (int) (0xFF * DISABLED_DIM);
     private static final int HUB_COLOR = 0x44FFFFFF;
+    /** The face of a half petal at rest or held, and of the open one. */
+    private static final int HALF_REST_COLOR = 0x55FFFFFF;
+    private static final int HALF_OPEN_COLOR = 0x88FFFFFF;
+    private static final int HALF_EDGE_COLOR = 0xCCFFFFFF;
+    private static final String TOP_HALF_LABEL = "A..M";
+    private static final String BOTTOM_HALF_LABEL = "N..Z";
     private static final int COLOR_WHITE = 0xFFFFFFFF;
     private static final int HOVER_TEXT_COLOR = 0xFFFFFF00;
     /** The color a disabled petal's words draw in. */
@@ -136,8 +145,10 @@ final class RadialWheelRenderer {
      */
     static List<ItemIcon> render(GuiGraphicsExtractor graphics, Font font, Frame frame) {
         blitMask(graphics, frame, frame.look().hubMask(), HUB_COLOR);
+        List<RadialWheel.HalfPetal> halves = frame.wheel().displayedHalves(frame.partialTick());
+        renderHalves(graphics, frame, halves);
         List<Words> words = new ArrayList<>();
-        for (RadialWheel.PetalArc petal : frame.wheel().displayedLayout(frame.partialTick())) {
+        for (RadialWheel.PetalArc petal : frame.wheel().shownLayout(frame.partialTick())) {
             if (petal.isAbility()) {
                 words.add(renderAbility(graphics, frame, petal));
             } else {
@@ -151,8 +162,83 @@ final class RadialWheelRenderer {
             required.addAll(ability.required());
         }
         slashLearnedItems(graphics, frame, required);
+        labelHalves(graphics, font, frame, halves);
         renderCenterLabel(graphics, font, frame);
         return required;
+    }
+
+    /**
+     * Draws the two half petals, the open one brighter.
+     * decision halves-arc-petals-at-rest
+     *
+     * @param graphics the GUI graphics extractor
+     * @param frame    what the frame draws from
+     * @param halves   the half petals on display
+     */
+    private static void renderHalves(GuiGraphicsExtractor graphics, Frame frame, List<RadialWheel.HalfPetal> halves) {
+        for (RadialWheel.HalfPetal half : halves) {
+            boolean open = half.half() == frame.wheel().openHalf();
+            PetalPainter.paintHalf(graphics, frame, half, open ? HALF_OPEN_COLOR : HALF_REST_COLOR, HALF_EDGE_COLOR);
+        }
+    }
+
+    /**
+     * Draws each half petal's letter range on it, with the words over every petal.
+     * decision halves-arc-petals-at-rest
+     *
+     * @param graphics the GUI graphics extractor
+     * @param font     the font
+     * @param frame    what the frame draws from
+     * @param halves   the half petals on display
+     */
+    private static void labelHalves(GuiGraphicsExtractor graphics, Font font, Frame frame,
+                                    List<RadialWheel.HalfPetal> halves) {
+        for (RadialWheel.HalfPetal half : halves) {
+            int[] center = halfLabelCenter(frame, half);
+            outlinedText(graphics, font, Component.literal(halfLabel(half.half())), center[0],
+                    center[1] - font.lineHeight / HALF, COLOR_WHITE);
+        }
+    }
+
+    /**
+     * The letter range a half petal reads.
+     * decision halves-arc-petals-at-rest
+     *
+     * @param half {@link RadialWheel#TOP} or {@link RadialWheel#BOTTOM}
+     * @return "A..M" or "N..Z"
+     */
+    static String halfLabel(int half) {
+        return half == RadialWheel.TOP ? TOP_HALF_LABEL : BOTTOM_HALF_LABEL;
+    }
+
+    /**
+     * The screen point a half petal's letter range centers on: its middle
+     * angle, halfway across the band.
+     * decision halves-arc-petals-at-rest
+     *
+     * @param frame what the frame draws from
+     * @param half  the half petal
+     * @return the point's x and y
+     */
+    static int[] halfLabelCenter(Frame frame, RadialWheel.HalfPetal half) {
+        PetalMask.Petal shape = half.shape();
+        PetalMask.Point center = PetalMask.Point.polar(half.center(), (shape.inner() + shape.outer()) / HALF);
+        return new int[]{frame.centerX() + (int) Math.round(center.x() * frame.radius()),
+                frame.centerY() + (int) Math.round(center.y() * frame.radius())};
+    }
+
+    /**
+     * Whether a screen point lies behind the held half petal, so what draws there is hidden.
+     * decision open-half-spans-270-degrees
+     *
+     * @param frame what the frame draws from
+     * @param point the point's x and y
+     * @return true behind the held half
+     */
+    private static boolean isHidden(Frame frame, int[] point) {
+        RadialWheel.Sector hidden = frame.wheel().hiddenSector(frame.partialTick());
+        return hidden != null && hidden.contains(RadialWheel.angleOf(point[0] - frame.centerX(),
+                point[1] - frame.centerY()));
     }
 
     /**
@@ -166,8 +252,11 @@ final class RadialWheelRenderer {
     private static void renderType(GuiGraphicsExtractor graphics, Frame frame, RadialWheel.PetalArc petal) {
         ResourceKey<GooTypeDefinition> key = frame.types().get(petal.type());
         PetalPainter.paint(graphics, frame, frame.look().fluidFace(key), petal, typePetalTint(frame, petal));
-        blitIcon(graphics, new Icon(typeIcon(key), TYPE_ICON_SIZE), lengthCenter(frame, petal),
-                typeIconColor(petal));
+        int[] iconCenter = lengthCenter(frame, petal);
+        // open-half-spans-270-degrees: an icon behind the held half stays hidden
+        if (!isHidden(frame, iconCenter)) {
+            blitIcon(graphics, new Icon(typeIcon(key), TYPE_ICON_SIZE), iconCenter, typeIconColor(petal));
+        }
     }
 
     /**
@@ -234,7 +323,7 @@ final class RadialWheelRenderer {
      */
     static int[] lengthCenter(Frame frame, RadialWheel.PetalArc petal) {
         PetalMask.Point center = PetalMask.Point.polar(petal.center(),
-                (RadialWheel.HUB_FRACTION + petal.length()) / HALF);
+                (RadialWheel.TYPE_INNER_FRACTION + petal.length()) / HALF);
         return new int[]{frame.centerX() + (int) Math.round(center.x() * frame.radius()),
                 frame.centerY() + (int) Math.round(center.y() * frame.radius())};
     }
@@ -264,14 +353,21 @@ final class RadialWheelRenderer {
         PetalPainter.paint(graphics, frame, frame.look().fluidFace(key), petal,
                 tint(hovered, dimmed, frame.active().contains(ability.id()), frame.gameTime()));
         int[] restingTip = tipCenter(frame, petal);
+        // open-half-spans-270-degrees: words behind the held half stay hidden
+        if (isHidden(frame, restingTip)) {
+            return new Words(List.of(), null, restingTip, textColorOf(dimmed, hovered), List.of());
+        }
         if (offered.locked()) {
             return new Words(List.of(), null, restingTip, DISABLED_TEXT_COLOR, requiredIcons(frame, petal, offered));
         }
         // icons-slide-in-from-behind-the-tip: the icon rides in while the words stay on the resting tip
         blitAbilityIcon(graphics, frame, petal, ability, dimmed ? computeOverlayTint(false, true) : COLOR_WHITE);
-        int textColor = dimmed ? DISABLED_TEXT_COLOR : hovered ? HOVER_TEXT_COLOR : COLOR_WHITE;
         return new Words(splitNameLines(buildLabel(ability).getString()), Component.literal(slotLabels.costLabel()),
-                restingTip, textColor, List.of());
+                restingTip, textColorOf(dimmed, hovered), List.of());
+    }
+
+    private static int textColorOf(boolean dimmed, boolean hovered) {
+        return dimmed ? DISABLED_TEXT_COLOR : hovered ? HOVER_TEXT_COLOR : COLOR_WHITE;
     }
 
     /**
