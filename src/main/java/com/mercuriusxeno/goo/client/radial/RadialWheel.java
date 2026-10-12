@@ -13,14 +13,14 @@ import java.util.function.ToIntFunction;
  * The glove's one radial wheel as pure layout and state: one ring of petals
  * from the hub to the rim. At rest it holds one petal per type, each a full
  * type arc. Hovering a type (or scrolling to it) opens it with no click: its
- * petal is replaced in the same ring by its ability petals at their goal
- * size, and the five nearest types either side take what remains, the far
- * three fading, while the rest hide. The ring turns the least it must to
- * keep the cursor inside the open type's abilities. The cursor in the hub
- * returns the wheel to rest, unturned.
+ * petal is replaced in the same ring by its ability petals, and the six
+ * nearest types either side stand beside them, narrowing and fading with
+ * distance, while the rest hide; the abilities share what the neighbors
+ * leave. The ring turns the least it must to keep the cursor inside the
+ * open type's abilities. The cursor in the hub returns the wheel to rest, unturned.
  * decision abilities-replace-the-hovered-type
- * decision open-type-keeps-six-neighbors-a-side
- * decision neighbors-fisheye-from-the-open-type
+ * decision open-type-keeps-thirteen-fading-to-twenty-percent
+ * decision fisheye-halves-its-max-and-floors-at-ten-degrees
  * decision ring-rotates-to-keep-the-cursor-inside
  *
  * <p>Angles run clockwise from the top, the way the petal masks are drawn.
@@ -35,14 +35,19 @@ public final class RadialWheel {
     static final int NONE = -1;
     /** The arc each ability petal of the open type takes while the ring has room for it. */
     static final double ABILITY_ARC = Math.toRadians(30.0);
-    /** The narrowest arc a visible neighbor keeps when the open type holds more abilities than fit. */
-    static final double NEIGHBOR_MIN_ARC = Math.toRadians(3.0);
+    /**
+     * The next and last neighbor's arc while the abilities have room: half
+     * the 55 degrees the old six-to-one weights gave it beside one ability.
+     */
+    static final double NEIGHBOR_MAX_ARC = Math.toRadians(27.5);
+    /** The narrowest arc a visible neighbor keeps: the sixth's, and every neighbor's once the abilities crowd them. */
+    static final double NEIGHBOR_MIN_ARC = Math.toRadians(10.0);
     /** How many types either side of the open type stay on the ring. */
-    static final int NEIGHBORS_A_SIDE = 5;
+    static final int NEIGHBORS_A_SIDE = 6;
     /** The most types a wheel holds with none hidden while one is open: the open type and its neighbors. */
     private static final int WINDOW_TYPES = NEIGHBORS_A_SIDE + 1 + NEIGHBORS_A_SIDE;
-    /** Each neighbor's presence by its distance from the open type, nearest first. */
-    private static final double[] NEIGHBOR_PRESENCE = {1.0, 1.0, 0.8, 0.6, 0.4};
+    /** The farthest neighbor's presence, the floor the fade steps down to. */
+    static final double NEIGHBOR_MIN_PRESENCE = 0.2;
 
     private static final double TWO_PI = 2.0 * Math.PI;
     private static final double HALF = 0.5;
@@ -250,9 +255,9 @@ public final class RadialWheel {
     /**
      * The target pose: at rest every type a full type arc at full presence;
      * with a type fanned out, its slot as wide as its abilities and fully
-     * open, each neighbor its share of what remains at its presence, and
-     * every type past the window no width and no presence.
-     * decision open-type-keeps-six-neighbors-a-side
+     * open, each neighbor its arc by distance at its presence, and every
+     * type past the window no width and no presence.
+     * decision open-type-keeps-thirteen-fading-to-twenty-percent
      *
      * @return the target pose
      */
@@ -268,7 +273,7 @@ public final class RadialWheel {
         for (int type = 0; type < typeCount; type++) {
             presence[type] = type == fanned ? 1.0 : presenceAround(fanned, type);
             widths[type] = type == fanned ? abilityCount.applyAsInt(type) * arcs.ability()
-                    : arcs.neighborRoom() * neighborWeight(fanned, type) / arcs.weightSum();
+                    : neighborArc(fanned, type, arcs.nearest());
         }
         openness[fanned] = 1.0;
         return new RingEase.Pose(rotation, widths, openness, presence);
@@ -300,10 +305,10 @@ public final class RadialWheel {
 
     /**
      * A type's presence while another is open: on a wheel the window holds
-     * whole every type stays at full presence; otherwise the two nearest
-     * either side stand full, the next three fade to 80%, 60% and 40%, and
-     * the rest hide.
-     * decision open-type-keeps-six-neighbors-a-side
+     * whole every type stays at full presence; otherwise the next and last
+     * stand full, each step farther fades by an even step to 20% at the
+     * sixth, and the rest hide.
+     * decision open-type-keeps-thirteen-fading-to-twenty-percent
      *
      * @param open the open type
      * @param type the other type
@@ -314,25 +319,46 @@ public final class RadialWheel {
             return 1.0;
         }
         int steps = distance(open, type);
-        return steps <= NEIGHBORS_A_SIDE ? NEIGHBOR_PRESENCE[steps - 1] : 0.0;
+        return steps <= NEIGHBORS_A_SIDE ? 1.0 - (1.0 - NEIGHBOR_MIN_PRESENCE) * stepsOut(steps) : 0.0;
     }
 
     /**
-     * A visible neighbor's share of the ring the abilities leave, relative
-     * to the others': the next and last types weigh most and each step
-     * farther from the open type weighs one less, so the petals narrow with
-     * distance; a hidden type takes none.
-     * decision neighbors-fisheye-from-the-open-type
+     * How far through the window a distance stands.
+     *
+     * @param steps the distance from the open type, 1 to the window's edge
+     * @return 0 at the next and last neighbor to 1 at the sixth
+     */
+    private static double stepsOut(int steps) {
+        return (steps - 1.0) / (NEIGHBORS_A_SIDE - 1);
+    }
+
+    /**
+     * Whether a type stands on the ring beside the open type.
      *
      * @param open the open type
      * @param type the other type
-     * @return the weight, zero for the open type and a hidden one
+     * @return true for a neighbor the window keeps
      */
-    private double neighborWeight(int open, int type) {
-        if (type == open || presenceAround(open, type) <= 0) {
+    private boolean isVisibleNeighbor(int open, int type) {
+        return type != open && presenceAround(open, type) > 0;
+    }
+
+    /**
+     * A visible neighbor's arc, set in degrees by its distance rather than
+     * shared by weight: the nearest arc at the next and last neighbor,
+     * narrowing by even steps to the floor at the sixth; a hidden type takes none.
+     * decision fisheye-halves-its-max-and-floors-at-ten-degrees
+     *
+     * @param open    the open type
+     * @param type    the other type
+     * @param nearest the next and last neighbor's arc
+     * @return the arc in radians
+     */
+    private double neighborArc(int open, int type, double nearest) {
+        if (!isVisibleNeighbor(open, type)) {
             return 0.0;
         }
-        return NEIGHBORS_A_SIDE + 1.0 - distance(open, type);
+        return nearest - (nearest - NEIGHBOR_MIN_ARC) * stepsOut(distance(open, type));
     }
 
     /**
@@ -388,42 +414,46 @@ public final class RadialWheel {
     }
 
     /**
-     * Sizes the ring around an open type: each ability takes its goal arc
-     * and the visible neighbors take what remains; a type holding more
-     * abilities than fit shrinks them evenly so the narrowest neighbor keeps
-     * its minimum, and with no neighbor the abilities take the whole ring.
-     * decision neighbors-fisheye-from-the-open-type
+     * Sizes the ring around an open type. The neighbors' arcs run from the
+     * nearest arc down to the floor, and the abilities share evenly what
+     * they leave. Where that would hold an ability under its goal arc, the
+     * nearest arc drops toward the floor, flattening the steps, until the
+     * abilities reach their goal; with every neighbor at the floor, the
+     * abilities share what remains, under their goal.
+     * decision fisheye-halves-its-max-and-floors-at-ten-degrees
      *
      * @param open the open type, holding at least one ability
-     * @return the arc of each ability and the ring the neighbors share
+     * @return the arc of each ability and the next and last neighbor's arc
      */
     private Arcs arcsWithOpenType(int open) {
         int abilities = abilityCount.applyAsInt(open);
-        double weightSum = 0.0;
-        double narrowest = Double.POSITIVE_INFINITY;
+        int visible = 0;
+        double stepsBelowNearest = 0.0;
         for (int type = 0; type < typeCount; type++) {
-            double weight = neighborWeight(open, type);
-            if (weight > 0) {
-                weightSum += weight;
-                narrowest = Math.min(narrowest, weight);
+            if (isVisibleNeighbor(open, type)) {
+                visible++;
+                stepsBelowNearest += 1.0 - stepsOut(distance(open, type));
             }
         }
-        if (weightSum == 0) {
-            return new Arcs(TWO_PI / abilities, 0.0, 1.0);
+        double atFloor = visible * NEIGHBOR_MIN_ARC;
+        double nearest = NEIGHBOR_MAX_ARC;
+        double neighbors = atFloor + (nearest - NEIGHBOR_MIN_ARC) * stepsBelowNearest;
+        double crowded = TWO_PI - abilities * ABILITY_ARC;
+        if (neighbors > crowded) {
+            double rise = stepsBelowNearest > 0 ? Math.max(0.0, (crowded - atFloor) / stepsBelowNearest) : 0.0;
+            nearest = NEIGHBOR_MIN_ARC + rise;
+            neighbors = atFloor + rise * stepsBelowNearest;
         }
-        double neighborFloor = NEIGHBOR_MIN_ARC * weightSum / narrowest;
-        double ability = Math.min(ABILITY_ARC, (TWO_PI - neighborFloor) / abilities);
-        return new Arcs(ability, TWO_PI - abilities * ability, weightSum);
+        return new Arcs((TWO_PI - neighbors) / abilities, nearest);
     }
 
     /**
      * One open type's ring sizes.
      *
-     * @param ability      the arc of each ability petal
-     * @param neighborRoom the ring the visible neighbors share
-     * @param weightSum    the neighbors' weights summed, which each one's share divides by
+     * @param ability the arc of each ability petal
+     * @param nearest the next and last neighbor's arc, which the others step down from
      */
-    private record Arcs(double ability, double neighborRoom, double weightSum) {
+    private record Arcs(double ability, double nearest) {
     }
 
     /**

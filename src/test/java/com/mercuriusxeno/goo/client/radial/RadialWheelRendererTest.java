@@ -827,7 +827,7 @@ class RadialWheelRendererTest {
             assertTrue(calls.indexOf("text") > lastShape, "a word drew before shape " + lastShape);
         }
 
-        /** decisions petals-render-the-live-fluid, wedges-take-a-solid-edge, open-type-keeps-six-neighbors-a-side */
+        /** decisions petals-render-the-live-fluid, wedges-take-a-solid-edge, open-type-keeps-thirteen-fading-to-twenty-percent */
         @Test
         void petalEdgeStripDrawsUntexturedInTheEdgeColorFadedByPresence() {
             List<PetalRenderState> edges = submittedArguments(renderFrame(openWheel()),
@@ -1056,7 +1056,7 @@ class RadialWheelRendererTest {
         }
     }
 
-    /** A far neighbor's fill and icon fade by its presence (decision open-type-keeps-six-neighbors-a-side). */
+    /** A far neighbor's fill and icon fade by its presence (decision open-type-keeps-thirteen-fading-to-twenty-percent). */
     @Nested
     class NeighborFade {
 

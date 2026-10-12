@@ -172,7 +172,7 @@ final class RadialWheelRenderer {
 
     /**
      * The tint a type petal's fill blits under, faded by the petal's presence.
-     * decision open-type-keeps-six-neighbors-a-side
+     * decision open-type-keeps-thirteen-fading-to-twenty-percent
      *
      * @param frame what the frame draws from
      * @param petal the type's petal
@@ -184,7 +184,7 @@ final class RadialWheelRenderer {
 
     /**
      * The color a type petal's icon draws under: full white faded by the petal's presence.
-     * decision open-type-keeps-six-neighbors-a-side
+     * decision open-type-keeps-thirteen-fading-to-twenty-percent
      *
      * @param petal the type's petal
      * @return the packed ARGB color

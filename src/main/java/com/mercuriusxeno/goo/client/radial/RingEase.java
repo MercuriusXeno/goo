@@ -89,7 +89,7 @@ final class RingEase {
      * The ring as its rotation and, per type, the width of the slot it holds,
      * how far open it is, 0 showing the type's own petal at full length and
      * 1 its ability petals fanned across the slot, and how present it is.
-     * decision open-type-keeps-six-neighbors-a-side
+     * decision open-type-keeps-thirteen-fading-to-twenty-percent
      *
      * @param rotation the angle the first slot starts at, clockwise from the top
      * @param widths   each type's slot width in radians

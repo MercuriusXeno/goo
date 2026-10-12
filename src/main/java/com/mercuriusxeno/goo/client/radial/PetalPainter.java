@@ -30,7 +30,7 @@ final class PetalPainter {
     /**
      * Submits a petal's fill under the hover, rest or disabled tint, then its
      * edge, faded by the petal's presence.
-     * decision open-type-keeps-six-neighbors-a-side
+     * decision open-type-keeps-thirteen-fading-to-twenty-percent
      *
      * @param graphics the GUI graphics extractor
      * @param frame    what the frame draws from
