@@ -2,8 +2,10 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.program.AilmentKind;
+import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.registry.GooAttachments;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
@@ -16,10 +18,12 @@ import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.context.ContextKey;
 import net.minecraft.world.entity.Entity;
 import java.util.List;
+import java.util.function.ToIntFunction;
 import java.util.stream.Stream;
 
 /**
@@ -141,7 +145,22 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
      * @return the ARGB color
      */
     static int overlayColor(AilmentKind kind, float strength) {
-        return ARGB.color(Math.round(strength * kind.opacity() * MAX_CHANNEL), kind.rgb());
+        return overlayColor(kind, strength, ClientGooTypes::highlight);
+    }
+
+    /**
+     * The overlay color with the goo type colors read through the resolver
+     * given, so a type-tinted kind such as Scry's astral glisten takes its
+     * type's color (decision scry-ships-on-astral).
+     *
+     * @param kind      the ailment
+     * @param strength  how strongly it draws, 0 to 1
+     * @param typeColor answers a goo type's color
+     * @return the ARGB color
+     */
+    static int overlayColor(AilmentKind kind, float strength,
+                            ToIntFunction<ResourceKey<GooTypeDefinition>> typeColor) {
+        return ARGB.color(Math.round(strength * kind.opacity() * MAX_CHANNEL), kind.rgb(typeColor));
     }
 
     /**

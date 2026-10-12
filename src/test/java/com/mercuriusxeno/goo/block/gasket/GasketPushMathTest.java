@@ -54,18 +54,18 @@ class GasketPushMathTest {
     void multiTypeMixedAcceptance() {
         GooContents reservoir = new GooContents(Map.of(
                 GooTypes.ROCK, 400,
-                GooTypes.VITAL, 600
+                GooTypes.JELLY, 600
         ));
         GasketPushMath.PushResult result = GasketPushMath.computePush(
                 reservoir, (type, vol) -> {
                     if (type == GooTypes.ROCK) return vol;       // fully accepted
-                    if (type == GooTypes.VITAL) return 200;     // partially accepted
+                    if (type == GooTypes.JELLY) return 200;     // partially accepted
                     return 0;
                 });
         assertEquals(400, result.accepted().getVolume(GooTypes.ROCK));
-        assertEquals(200, result.accepted().getVolume(GooTypes.VITAL));
+        assertEquals(200, result.accepted().getVolume(GooTypes.JELLY));
         assertEquals(0, result.remaining().getVolume(GooTypes.ROCK));
-        assertEquals(400, result.remaining().getVolume(GooTypes.VITAL));
+        assertEquals(400, result.remaining().getVolume(GooTypes.JELLY));
     }
 
     /**

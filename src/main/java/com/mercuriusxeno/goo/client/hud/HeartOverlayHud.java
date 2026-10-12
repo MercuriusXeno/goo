@@ -137,7 +137,7 @@ public final class HeartOverlayHud {
     /**
      * Paints the half hearts leaving the bar for the reserve row, over
      * everything vanilla drew: each fades from vanilla's red half into the
-     * reserve's vital half as it arcs to its reserve slot.
+     * reserve's own half as it arcs to its reserve slot.
      * reserve-hearts-sit-behind-the-bar
      *
      * @param graphics         the gui graphics
@@ -315,7 +315,7 @@ public final class HeartOverlayHud {
     }
 
     /**
-     * The sprite a reserve slot draws behind the bar: the reserve's own vital
+     * The sprite a reserve slot draws behind the bar: the reserve's own
      * heart, whole or half by the halves banked there.
      *
      * @param reserveHalves the half hearts banked in the slot

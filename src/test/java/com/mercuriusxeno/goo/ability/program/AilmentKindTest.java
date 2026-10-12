@@ -17,7 +17,7 @@ class AilmentKindTest {
 
     @Test
     void tableCarriesEveryAilmentTheListsName() {
-        Set<AilmentKind> named = EnumSet.of(AilmentKind.STASIS, AilmentKind.HASTE, AilmentKind.SCALES,
+        Set<AilmentKind> named = EnumSet.of(AilmentKind.STASIS, AilmentKind.SCALES,
                 AilmentKind.ZONE, AilmentKind.HEX, AilmentKind.PETRIFY, AilmentKind.FROZEN);
 
         assertTrue(EnumSet.allOf(AilmentKind.class).containsAll(named));
@@ -28,10 +28,9 @@ class AilmentKindTest {
     }
 
     @Test
-    void stasisAndHasteShareTheGoldenGlint() {
+    void stasisIsAGoldenGlint() {
         assertEquals(AilmentPattern.GLINT, AilmentKind.STASIS.pattern());
-        assertEquals(AilmentPattern.GLINT, AilmentKind.HASTE.pattern());
-        assertTrue(isGolden(AilmentKind.STASIS.rgb()) && isGolden(AilmentKind.HASTE.rgb()));
+        assertTrue(isGolden(AilmentKind.STASIS.rgb()));
     }
 
     @Test

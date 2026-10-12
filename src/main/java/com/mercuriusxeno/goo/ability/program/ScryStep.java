@@ -2,9 +2,12 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.network.ScryPayload;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
@@ -15,27 +18,30 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 /**
- * Glow's Scry: while held, it pings. Each ping is a sphere of light growing
+ * Astral's Scry: while held, it pings. Each ping is a sphere of light growing
  * from where the caster stood as it began, a number of blocks each tick, up
  * to its reach and then on past it while it fades, before the next ping
  * starts from wherever the caster stands then. The child steps run on every
  * living entity the front crosses within the reach, seen or behind walls.
- * The caster's client is sent the ping's origin and radius each tick, and
- * draws the sphere and the faces it reveals. Scry is
- * {@code scry growth=1 reach=96 fade=20} with a glow {@code ailment_overlay}
- * as its child (operator rulings 2026-10-09).
+ * The caster's client is sent the ping's origin, radius and goo type each
+ * tick, and draws the sphere and the faces it reveals in that type's colors.
+ * Scry is {@code scry goo=astral growth=1 reach=96 fade=20} with an astral
+ * {@code ailment_overlay} as its child (operator rulings 2026-10-09).
  * decision scry-sphere-reveals-faces-and-glistens-mobs
+ * decision scry-ships-on-astral
  *
+ * @param goo    the goo type whose colors tint the sphere and the revealed faces
  * @param growth blocks the radius grows each tick of the hold
  * @param reach  how far the front reaches before it fades, in blocks
  * @param fade   how far past the reach the front travels while it fades, in blocks
  * @param where  the filters an entity must pass; empty keeps any living entity
  * @param steps  the child steps run once on each entity the front crosses
  */
-public record ScryStep(double growth, double reach, double fade, List<EntityFilter> where, List<Step> steps)
-        implements Step {
+public record ScryStep(ResourceKey<GooTypeDefinition> goo, double growth, double reach, double fade,
+                       List<EntityFilter> where, List<Step> steps) implements Step {
 
     private static final String NAME = "scry";
+    private static final String FIELD_GOO = "goo";
     private static final String FIELD_GROWTH = "growth";
     private static final String FIELD_REACH = "reach";
     private static final String FIELD_FADE = "fade";
@@ -49,6 +55,7 @@ public record ScryStep(double growth, double reach, double fade, List<EntityFilt
      * because {@link StepTypes} registers this type while building it.
      */
     public static final MapCodec<ScryStep> CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
+            GooTypes.ID_CODEC.fieldOf(FIELD_GOO).forGetter(ScryStep::goo),
             Codec.DOUBLE.fieldOf(FIELD_GROWTH).forGetter(ScryStep::growth),
             Codec.DOUBLE.fieldOf(FIELD_REACH).forGetter(ScryStep::reach),
             Codec.DOUBLE.optionalFieldOf(FIELD_FADE, 0.0).forGetter(ScryStep::fade),
@@ -85,7 +92,7 @@ public record ScryStep(double growth, double reach, double fade, List<EntityFilt
                         new ProgramBehavior(steps).tick(selected);
                     }
                 });
-        EntityVisuals.sendToSelf(caster, new ScryPayload(origin, (float) radius, (float) reach, (float) fade));
+        EntityVisuals.sendToSelf(caster, new ScryPayload(origin, (float) radius, (float) reach, (float) fade, goo));
         return true;
     }
 
