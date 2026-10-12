@@ -575,7 +575,7 @@ class RadialWheelTest {
             moveTo(wheel, cursor, PETAL);
 
             assertEquals(WIDE_TYPE + FAR, wheel.selectedType());
-            assertTrue(Math.abs(wheel.rotation()) > RadialWheel.ABILITY_ARC, "the ring turns well away from rest");
+            assertTrue(Math.abs(wheel.rotation()) > EPSILON, "the squeezed neighbor sat elsewhere at rest");
             assertHoveredCenteredOn(wheel, cursor);
             assertLandedNearestRest(wheel, cursor);
         }
@@ -587,31 +587,15 @@ class RadialWheelTest {
         }
 
         @Test
-        void crossingWhereCenteringTheNextAbilityRelievesTensionSpringsItUnderTheCursor() {
+        void sweepingBackTheWayCenteringRelievesTensionSpringsTheRingTowardRest() {
             RadialWheel wheel = farNeighborOpen();
             double tension = wheel.rotation();
-            int crossed = wheel.hoveredAbility();
-            moveTo(wheel, justAcross(wheel, -Math.signum(tension)), PETAL);
-            double cursor = justAcross(wheel, Math.signum(tension));
+            sweepAcross(wheel, -Math.signum(tension));
 
-            moveTo(wheel, cursor, PETAL);
+            List<Integer> hovered = sweepAcross(wheel, Math.signum(tension));
 
-            assertEquals(crossed, wheel.hoveredAbility());
+            assertTrue(hovered.size() > 1, "the sweep crossed an ability: " + hovered);
             assertTrue(Math.abs(wheel.rotation()) < Math.abs(tension), wheel.rotation() + " from " + tension);
-            assertHoveredCenteredOn(wheel, cursor);
-            assertTrue(wheel.isAnimating(), "the ring springs, easing");
-        }
-
-        @Test
-        void crossingWhereCenteringTheNextAbilityWouldAddTensionLeavesTheRingWhereItStands() {
-            RadialWheel wheel = farNeighborOpen();
-            double tension = wheel.rotation();
-            int crossed = wheel.hoveredAbility() - (int) Math.signum(tension);
-
-            moveTo(wheel, justAcross(wheel, -Math.signum(tension)), PETAL);
-
-            assertEquals(crossed, wheel.hoveredAbility());
-            assertEquals(tension, wheel.rotation(), EPSILON);
         }
 
         @Test
@@ -667,6 +651,22 @@ class RadialWheelTest {
                 assertEquals(IntStream.iterate(from, ability -> ability + (int) direction)
                         .limit(Math.abs(last - from) + 1).boxed().toList(), hovered, "sweeping " + direction);
             }));
+        }
+
+        @Test
+        void atRestAnOpenTypesAbilitiesFanOutCenteredWhereItsPetalSat() {
+            RadialWheel wheel = new RadialWheel(WINDOW_TYPES, type -> ABILITIES, type -> RadialWheel.TOP);
+            moveTo(wheel, TOP, BAND);
+            int type = 2;
+            double sat = typePetal(wheel.layout(), type).center();
+
+            moveTo(wheel, sat, PETAL);
+
+            List<RadialWheel.PetalArc> abilities = abilityPetals(wheel);
+            double middle = (abilities.getFirst().start() + abilities.getLast().start() + abilities.getLast().arc()) / 2;
+            assertEquals(0.0, Math.IEEEremainder(middle - wheel.rotation() - sat, TWO_PI), EPSILON);
+            assertTrue(Math.abs(wheel.rotation()) <= RadialWheel.ABILITY_ARC / 2 + EPSILON,
+                    "opening under the cursor turns at most half an ability: " + wheel.rotation());
         }
 
         @Test
@@ -934,14 +934,11 @@ class RadialWheelTest {
             return new RadialWheel(TYPES, type -> type == EMPTY_TYPE ? 0 : 2, type -> RadialWheel.TOP);
         }
 
-        /** The open type's abilities, centered on its half's middle. */
+        /** The open type and hovered ability, the ring at rest. */
         private static void assertHovering(RadialWheel wheel, int type, int ability) {
             assertEquals(type, wheel.selectedType(), "type");
             assertEquals(ability, wheel.hoveredAbility(), "ability");
-            List<RadialWheel.PetalArc> abilities = abilityPetals(wheel);
-            double middle = (abilities.getFirst().start() + abilities.getLast().start() + abilities.getLast().arc()) / 2;
-            double center = wheel.openHalf() == RadialWheel.TOP ? TOP : BOTTOM;
-            assertEquals(0.0, Math.IEEEremainder(middle - center, TWO_PI), EPSILON, "abilities centered on the half");
+            assertEquals(0.0, wheel.rotation(), EPSILON, "the ring at rest");
         }
 
         @Test
