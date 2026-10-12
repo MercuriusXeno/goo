@@ -70,7 +70,7 @@ import static org.mockito.Mockito.when;
 class RadialWheelRendererTest {
 
     private static final String ASSETS_ROOT = "assets/";
-    private static final String TEXTURE_PATH = "textures/goo/ability/unstable_timed_bomb.png";
+    private static final String TEXTURE_PATH = "textures/goo/ability/unstable_lurker.png";
 
     private static ClientAbility clientAbilityOf(AbilityDefinition definition) {
         return new ClientAbility(definition.id(), definition.displayName(), definition.icon(),
@@ -106,8 +106,8 @@ class RadialWheelRendererTest {
     }
 
     private static ClientAbility abilityWithIcon(String icon) {
-        return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_timed_bomb"),
-                "ability.goo.unstable_timed_bomb", icon, 0, List.of(), List.of(), 0, Delivery.ARC, AbilityBadge.WORLD, List.of());
+        return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_lurker"),
+                "ability.goo.unstable_lurker", icon, 0, List.of(), List.of(), 0, Delivery.ARC, AbilityBadge.WORLD, List.of());
     }
 
     /** The badge, not the label, marks the target kind (decision badge-marks-the-target-kind). */

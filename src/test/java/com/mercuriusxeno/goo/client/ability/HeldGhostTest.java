@@ -65,7 +65,7 @@ class HeldGhostTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"unstable_timed_bomb, 2.0", "unstable_lurker, 2.5"})
+    @CsvSource({"unstable_lurker, 2.5"})
     void fireballRingsOutwardToItsBlastReach(String name, float power) {
         HeldGhost ghost = ghostOf(UnstableExplosionVisual.INSTANCE, name);
         float reach = (float) ExplosionMarch.maxReach(power);
