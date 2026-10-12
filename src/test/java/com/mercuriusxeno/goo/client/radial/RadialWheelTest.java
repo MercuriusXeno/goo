@@ -324,7 +324,7 @@ class RadialWheelTest {
 
         /**
          * Asserts a half open: its types in list order filling the whole ring
-         * evenly, centered on its side, its half petal at 270 degrees and the
+         * evenly clockwise from 12, its half petal at 270 degrees and the
          * other half petal on the 90 left.
          */
         private static void assertHalfOpen(RadialWheel wheel, int half, int firstType, int types) {
@@ -336,7 +336,7 @@ class RadialWheelTest {
             assertEquals(IntStream.range(firstType, firstType + types).boxed().toList(),
                     petals.stream().map(RadialWheel.PetalArc::type).toList());
             assertEquals(TWO_PI, petals.stream().mapToDouble(RadialWheel.PetalArc::arc).sum(), EPSILON);
-            assertEquals(0.0, Math.IEEEremainder(petals.getFirst().start() - (center - Math.PI), TWO_PI), EPSILON);
+            assertEquals(0.0, Math.IEEEremainder(petals.getFirst().start(), TWO_PI), EPSILON, "the first type starts at 12");
             assertEquals(RadialWheel.HALF_OPEN_ARC, wheel.halves().get(half).arc(), EPSILON);
             assertEquals(RadialWheel.HALF_HELD_ARC, held.arc(), EPSILON);
             assertEquals(0.0, Math.IEEEremainder(held.center() - center - Math.PI, TWO_PI), EPSILON);
@@ -344,7 +344,7 @@ class RadialWheelTest {
 
         /** decision open-half-spans-270-degrees */
         @Test
-        void cursorOnTheTopHalfFillsTheRingWithItsTypesCenteredOnTheTop() {
+        void cursorOnTheTopHalfFillsTheRingWithItsTypesClockwiseFromTwelve() {
             RadialWheel wheel = wheelOverBothHalves();
 
             moveTo(wheel, TOP, BAND);
@@ -354,7 +354,7 @@ class RadialWheelTest {
 
         /** decision open-half-spans-270-degrees */
         @Test
-        void cursorOnTheBottomHalfFillsTheRingWithItsTypesCenteredOnTheBottom() {
+        void cursorOnTheBottomHalfFillsTheRingWithItsTypesClockwiseFromTwelve() {
             RadialWheel wheel = wheelOverBothHalves();
 
             moveTo(wheel, BOTTOM, BAND);
@@ -587,15 +587,15 @@ class RadialWheelTest {
         }
 
         @Test
-        void sweepingBackTheWayCenteringRelievesTensionSpringsTheRingTowardRest() {
+        void sweepingEitherWayAcrossTheAbilitiesHoldsTheRingStill() {
             RadialWheel wheel = farNeighborOpen();
-            double tension = wheel.rotation();
-            sweepAcross(wheel, -Math.signum(tension));
+            double turned = wheel.rotation();
 
-            List<Integer> hovered = sweepAcross(wheel, Math.signum(tension));
+            List<Integer> back = sweepAcross(wheel, -1.0);
+            List<Integer> forth = sweepAcross(wheel, 1.0);
 
-            assertTrue(hovered.size() > 1, "the sweep crossed an ability: " + hovered);
-            assertTrue(Math.abs(wheel.rotation()) < Math.abs(tension), wheel.rotation() + " from " + tension);
+            assertTrue(back.size() + forth.size() > 2, "the sweeps crossed an ability: " + back + forth);
+            assertEquals(turned, wheel.rotation(), EPSILON);
         }
 
         @Test
