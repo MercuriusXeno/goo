@@ -53,8 +53,8 @@ public enum EntityFilter {
      */
     MOVING,
     /**
-     * Keeps mobs that can be a baby; aeon's ritual regresses such an adult
-     * to a baby before its egg (decision aeon-mob-ritual-drops-spawn-egg).
+     * Keeps mobs that can be a baby; Rewind regresses such an adult to a
+     * baby before its egg (decision rewind-shrinks-adult-to-baby-to-egg).
      */
     HAS_BABY_FORM,
     /**

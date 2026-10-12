@@ -12,10 +12,10 @@ import java.util.stream.Stream;
 
 /**
  * Adds to or sets a named counter the host's target keeps between hits,
- * and finishes; an expression reads the counter back by its id, so aeon's
- * ritual writes {@code counter id=goo:ritual add="100 / pow(max_health, 0.6)"},
+ * and finishes; an expression reads the counter back by its id, so Rewind's
+ * ritual writes {@code counter id=goo:ritual add=1.25},
  * tests {@code goo:ritual}, and restarts it with {@code counter set=0}
- * (decision aeon-mob-ritual-drops-spawn-egg). A step names exactly one of
+ * (decision rewind-fills-while-held). A step names exactly one of
  * {@code add} and {@code set}.
  *
  * @param id  the counter id
