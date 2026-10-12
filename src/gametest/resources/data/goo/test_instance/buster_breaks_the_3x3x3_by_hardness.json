@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:charged_ends_when_unstable_runs_dry",
+  "function": "goo:buster_breaks_the_3x3x3_by_hardness",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 60,
+  "max_ticks": 20,
   "setup_ticks": 0,
   "required": true
 }
