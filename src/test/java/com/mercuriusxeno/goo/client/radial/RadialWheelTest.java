@@ -142,7 +142,7 @@ class RadialWheelTest {
             assertAll(abilities.stream().map(petal -> (Executable) () -> {
                 assertEquals(OPEN_TYPE, petal.type());
                 assertEquals(RadialWheel.ABILITY_ARC, petal.arc(), EPSILON);
-                assertEquals(RadialWheel.ABILITY_INNER_FRACTION, petal.shape().inner(), EPSILON, "tucked under the types");
+                assertEquals(RadialWheel.ABILITY_INNER_FRACTION, petal.shape().inner(), EPSILON, "reaching in behind the types");
             }));
             for (int i = 1; i < abilities.size(); i++) {
                 assertEquals(abilities.get(i - 1).start() + abilities.get(i - 1).arc(), abilities.get(i).start(),
@@ -152,13 +152,13 @@ class RadialWheelTest {
 
         /** decision abilities-replace-the-hovered-type */
         @Test
-        void abilitiesDrawFirstTuckedUnderTheTypePetalsTips() {
+        void abilitiesDrawFirstReachingInBehindTheTypePetals() {
             List<RadialWheel.PetalArc> drawn = opened(ABILITIES).displayedLayout(0.0f);
             int lastAbility = IntStream.range(0, drawn.size()).filter(i -> drawn.get(i).isAbility()).max().orElseThrow();
             int firstType = IntStream.range(0, drawn.size()).filter(i -> !drawn.get(i).isAbility()).min().orElseThrow();
 
             assertTrue(lastAbility < firstType, "a type petal drew under an ability");
-            assertTrue(RadialWheel.ABILITY_INNER_FRACTION < RadialWheel.TYPE_BAND_FRACTION, "tucked under the tips");
+            assertEquals(RadialWheel.HUB_FRACTION, RadialWheel.ABILITY_INNER_FRACTION, EPSILON, "all the way in, behind the types");
         }
 
         /** decision abilities-replace-the-hovered-type */
