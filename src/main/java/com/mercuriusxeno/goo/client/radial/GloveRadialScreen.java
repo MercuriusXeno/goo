@@ -12,7 +12,6 @@ import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.GloveSelectPayload;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import com.mercuriusxeno.goo.type.GooTypeNames;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -33,8 +32,8 @@ import java.util.stream.Collectors;
 
 /**
  * The glove's one radial wheel, open while the glove menu key is held:
- * hovering the A..M or N..Z half petal opens that half's types over 270
- * degrees, hovering or scrolling to a type replaces its petal with its abilities,
+ * hovering or scrolling to a type drops the types into the neutral zone and
+ * fans its abilities out in the outer ring,
  * releasing the key over an ability writes it to the glove and closes, and
  * releasing it over nothing, over a locked ability, while the petals still
  * move, or pressing Escape, closes with the glove unchanged. A mouse click
@@ -45,7 +44,6 @@ import java.util.stream.Collectors;
  * decision locked-petal-stays-on-the-wheel
  * decision wheel-shows-only-held-types-with-abilities
  * decision halves-arc-petals-at-rest
- * decision open-half-spans-270-degrees
  */
 public final class GloveRadialScreen extends Screen {
 
@@ -65,9 +63,7 @@ public final class GloveRadialScreen extends Screen {
                 type -> available.getOrDefault(type, 0));
         this.abilities = types.stream().map(type -> synced.offeredForType(type, known)).toList();
         this.available = available;
-        // halves-arc-petals-at-rest: a type's half is the first letter of the name the player reads
-        this.wheel = new RadialWheel(types.size(), type -> abilities.get(type).size(), type -> RadialWheel.halfOfName(
-                Component.translatable(GooTypeNames.translationKey(types.get(type))).getString()));
+        this.wheel = new RadialWheel(types.size(), type -> abilities.get(type).size());
     }
 
     /**

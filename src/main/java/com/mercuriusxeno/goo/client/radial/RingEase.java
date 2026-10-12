@@ -1,18 +1,18 @@
 package com.mercuriusxeno.goo.client.radial;
 
 /**
- * Eases the ring's displayed pose toward its target over a short duration
- * on the client tick: each type's slot width, how far open and how present
- * each type is and the ring's rotation interpolate together, so opening a type plays like a
- * fan of cards and closing plays it in reverse. A new target restarts the
- * ease from the pose on display.
+ * Eases the wheel's displayed pose toward its target over a short duration
+ * on the client tick: how far a type has opened, the types dropping into the
+ * shrinking neutral zone, and how far each type's abilities have fanned out
+ * interpolate together, so opening a type plays like a fan of cards and
+ * closing plays it in reverse. A new target restarts the ease from the pose
+ * on display.
  * decision petal-moves-animate
  */
 final class RingEase {
 
     /** Client ticks a petal move takes to land. */
     static final int DURATION_TICKS = 4;
-    private static final double TWO_PI = 2.0 * Math.PI;
     private static final double SMOOTHSTEP_RISE = 3.0;
     private static final double SMOOTHSTEP_EASE = 2.0;
 
@@ -31,29 +31,14 @@ final class RingEase {
     }
 
     /**
-     * Starts an ease from the pose on display to a new target, turning the
-     * target's rotation by whole turns to the one nearest the displayed
-     * rotation, so the ring takes the short way round.
+     * Starts an ease from the pose on display to a new target.
      *
      * @param target the pose to land on
      */
     void retarget(Pose target) {
         from = displayed(0.0f);
-        double turns = Math.rint((from.rotation() - target.rotation()) / TWO_PI);
-        to = target.turnedBy(turns * TWO_PI);
+        to = target;
         ticks = 0;
-    }
-
-    /**
-     * Turns the whole ring, the pose on display and the target alike, with
-     * no ease, so the ring follows the cursor while the fan keeps playing.
-     * decision ring-rotates-to-keep-the-cursor-inside
-     *
-     * @param turn the angle to add, clockwise
-     */
-    void turnBy(double turn) {
-        from = from.turnedBy(turn);
-        to = to.turnedBy(turn);
     }
 
     /** Advances the ease one client tick, holding once it lands. */
@@ -86,21 +71,16 @@ final class RingEase {
     }
 
     /**
-     * The ring as its rotation and, per type, the width of the slot it holds,
-     * how far open it is, 0 showing the type's own petal at full length and
-     * 1 its ability petals fanned across the slot, and how present it is.
-     * decision open-type-keeps-thirteen-fading-to-twenty-percent
+     * The wheel as how far a type has opened, 0 with the types out at the tips
+     * and the neutral zone wide to 1 with the types dropped into the neutral
+     * zone, and per type how far its abilities have fanned out.
+     * decision abilities-replace-the-hovered-type
      *
-     * @param rotation the angle the first slot starts at, clockwise from the top
-     * @param widths   each type's slot width in radians
-     * @param openness each type's openness, 0 to 1
-     * @param presence each type's presence, 0 hidden to 1 full
-     * @param pickers  how much of the side pickers shows, 1 at rest to 0 with a side open, the type
-     *                 petals reaching in to the hub as they go
-     * @param leftStart where the N..Z side's ring starts: 6 o'clock at rest, 12 with that side open
+     * @param dropped  how far the types have dropped into the neutral zone, 0 to 1
+     * @param rotation the angle the open type's ability fan is turned by from resting centered on its petal
+     * @param openness each type's openness, 0 closed to 1 fanned
      */
-    record Pose(double rotation, double[] widths, double[] openness, double[] presence, double pickers,
-                double leftStart) {
+    record Pose(double dropped, double rotation, double[] openness) {
 
         /**
          * The pose a fraction of the way to another.
@@ -110,31 +90,15 @@ final class RingEase {
          * @return the interpolated pose
          */
         Pose toward(Pose target, double fraction) {
-            return new Pose(mix(rotation, target.rotation(), fraction), mix(widths, target.widths(), fraction),
-                    mix(openness, target.openness(), fraction), mix(presence, target.presence(), fraction),
-                    mix(pickers, target.pickers(), fraction), mix(leftStart, target.leftStart(), fraction));
-        }
-
-        /**
-         * This pose turned by an angle.
-         *
-         * @param turn the angle to add, clockwise
-         * @return the turned pose
-         */
-        Pose turnedBy(double turn) {
-            return new Pose(rotation + turn, widths, openness, presence, pickers, leftStart);
+            double[] mixed = new double[openness.length];
+            for (int i = 0; i < openness.length; i++) {
+                mixed[i] = mix(openness[i], target.openness()[i], fraction);
+            }
+            return new Pose(mix(dropped, target.dropped(), fraction), mix(rotation, target.rotation(), fraction), mixed);
         }
 
         private static double mix(double from, double to, double fraction) {
             return from + (to - from) * fraction;
-        }
-
-        private static double[] mix(double[] from, double[] to, double fraction) {
-            double[] mixed = new double[from.length];
-            for (int i = 0; i < from.length; i++) {
-                mixed[i] = mix(from[i], to[i], fraction);
-            }
-            return mixed;
         }
     }
 }

@@ -25,16 +25,14 @@ import java.util.Set;
 import java.util.stream.IntStream;
 
 /**
- * Draws the glove's radial wheel from a {@link RadialWheel}: at rest the two
- * side pickers around the hub reading A..M and N..Z, and the ring of
- * petals out to the rim, whole all the way round, type petals with
+ * Draws the glove's radial wheel from a {@link RadialWheel}: the neutral zone
+ * at its size this frame, the type petals and the open type's ability petals, type petals with
  * their icon alone and the open type's ability petals with icon, name and
  * cost, or on a locked one its required items alone with the learned ones
  * slashed, the open type's name and holdings in the hub.
  * decision abilities-replace-the-hovered-type
  * decision locked-petal-lists-the-unlearned-items
  * decision halves-arc-petals-at-rest
- * decision open-half-spans-270-degrees
  */
 final class RadialWheelRenderer {
 
@@ -47,12 +45,6 @@ final class RadialWheelRenderer {
     private static final int REST_SHADE = 0xCC;
     private static final int DISABLED_SHADE = (int) (0xFF * DISABLED_DIM);
     private static final int HUB_COLOR = 0x44FFFFFF;
-    /** The face of a half petal at rest or held, and of the open one. */
-    private static final int HALF_REST_COLOR = 0x55FFFFFF;
-    private static final int HALF_OPEN_COLOR = 0x88FFFFFF;
-    private static final int HALF_EDGE_COLOR = 0xCCFFFFFF;
-    private static final String RIGHT_SIDE_LABEL = "A..M";
-    private static final String LEFT_SIDE_LABEL = "N..Z";
     private static final int COLOR_WHITE = 0xFFFFFFFF;
     private static final int HOVER_TEXT_COLOR = 0xFFFFFF00;
     /** The color a disabled petal's words draw in. */
@@ -156,9 +148,7 @@ final class RadialWheelRenderer {
      * @return every required item icon the locked petals drew, for the cursor to name
      */
     static List<ItemIcon> render(GuiGraphicsExtractor graphics, Font font, Frame frame) {
-        blitMask(graphics, frame, frame.look().hubMask(), HUB_COLOR);
-        List<RadialWheel.HalfPetal> halves = frame.wheel().displayedHalves(frame.partialTick());
-        renderHalves(graphics, frame, halves);
+        blitHub(graphics, frame);
         List<Words> words = new ArrayList<>();
         for (RadialWheel.PetalArc petal : frame.wheel().displayedLayout(frame.partialTick())) {
             if (petal.isAbility()) {
@@ -174,71 +164,27 @@ final class RadialWheelRenderer {
             required.addAll(ability.required());
         }
         slashLearnedItems(graphics, frame, required);
-        labelHalves(graphics, font, frame, halves);
         renderCenterLabel(graphics, font, frame);
         return required;
     }
 
     /**
-     * Draws the side pickers while they show, the opening one brighter.
+     * Draws the neutral zone at its size this frame: the hub's mask, baked at
+     * the rest size, scaled down about the center as the types drop in.
      * decision halves-arc-petals-at-rest
      *
      * @param graphics the GUI graphics extractor
      * @param frame    what the frame draws from
-     * @param halves   the half petals on display
      */
-    private static void renderHalves(GuiGraphicsExtractor graphics, Frame frame, List<RadialWheel.HalfPetal> halves) {
-        for (RadialWheel.HalfPetal half : halves) {
-            boolean open = half.half() == frame.wheel().openHalf();
-            PetalPainter.paintHalf(graphics, frame, half, open ? HALF_OPEN_COLOR : HALF_REST_COLOR, HALF_EDGE_COLOR);
-        }
+    private static void blitHub(GuiGraphicsExtractor graphics, Frame frame) {
+        double scale = frame.wheel().displayedHubRadius(frame.partialTick()) / RadialWheel.HUB_REST_FRACTION;
+        int reach = (int) Math.round(frame.radius() * scale);
+        int size = reach * HALF;
+        graphics.blit(RenderPipelines.GUI_TEXTURED, frame.look().hubMask(), frame.centerX() - reach,
+                frame.centerY() - reach, 0.0f, 0.0f, size, size,
+                RadialTextures.TEX_SIZE, RadialTextures.TEX_SIZE, RadialTextures.TEX_SIZE, RadialTextures.TEX_SIZE,
+                HUB_COLOR);
     }
-
-    /**
-     * Draws each half petal's letter range on it, with the words over every petal.
-     * decision halves-arc-petals-at-rest
-     *
-     * @param graphics the GUI graphics extractor
-     * @param font     the font
-     * @param frame    what the frame draws from
-     * @param halves   the half petals on display
-     */
-    private static void labelHalves(GuiGraphicsExtractor graphics, Font font, Frame frame,
-                                    List<RadialWheel.HalfPetal> halves) {
-        for (RadialWheel.HalfPetal half : halves) {
-            int[] center = halfLabelCenter(frame, half);
-            outlinedText(graphics, font, Component.literal(halfLabel(half.half())), center[0],
-                    center[1] - font.lineHeight / HALF, COLOR_WHITE);
-        }
-    }
-
-    /**
-     * The letter range a half petal reads.
-     * decision halves-arc-petals-at-rest
-     *
-     * @param half {@link RadialWheel#RIGHT} or {@link RadialWheel#LEFT}
-     * @return "A..M" or "N..Z"
-     */
-    static String halfLabel(int half) {
-        return half == RadialWheel.RIGHT ? RIGHT_SIDE_LABEL : LEFT_SIDE_LABEL;
-    }
-
-    /**
-     * The screen point a half petal's letter range centers on: its middle
-     * angle, halfway across the band.
-     * decision halves-arc-petals-at-rest
-     *
-     * @param frame what the frame draws from
-     * @param half  the half petal
-     * @return the point's x and y
-     */
-    static int[] halfLabelCenter(Frame frame, RadialWheel.HalfPetal half) {
-        PetalMask.Petal shape = half.shape();
-        PetalMask.Point center = PetalMask.Point.polar(half.center(), (shape.inner() + shape.outer()) / HALF);
-        return new int[]{frame.centerX() + (int) Math.round(center.x() * frame.radius()),
-                frame.centerY() + (int) Math.round(center.y() * frame.radius())};
-    }
-
     /**
      * Draws a type's petal with its icon alone, shrunken or at rest.
      * decision abilities-replace-the-hovered-type
@@ -762,13 +708,6 @@ final class RadialWheelRenderer {
                 frame.centerX(), frame.centerY() + LABEL_GAP, textColor);
     }
 
-    private static void blitMask(GuiGraphicsExtractor graphics, Frame frame, Identifier mask, int color) {
-        int size = frame.radius() * HALF;
-        graphics.blit(RenderPipelines.GUI_TEXTURED, mask, frame.centerX() - frame.radius(),
-                frame.centerY() - frame.radius(), 0.0f, 0.0f, size, size,
-                RadialTextures.TEX_SIZE, RadialTextures.TEX_SIZE, RadialTextures.TEX_SIZE, RadialTextures.TEX_SIZE,
-                color);
-    }
 
     /**
      * An icon texture and its square size, drawn at the size its source is.

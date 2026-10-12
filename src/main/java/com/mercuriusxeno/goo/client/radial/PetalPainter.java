@@ -54,30 +54,6 @@ final class PetalPainter {
     }
 
     /**
-     * Submits a half petal in one plain color with its edge on top.
-     * decision halves-arc-petals-at-rest
-     *
-     * @param graphics  the GUI graphics extractor
-     * @param frame     what the frame draws from
-     * @param half      the half petal
-     * @param fillColor the ARGB color its face draws in
-     * @param edgeColor the ARGB color its edge draws in
-     */
-    static void paintHalf(GuiGraphicsExtractor graphics, RadialWheelRenderer.Frame frame, RadialWheel.HalfPetal half,
-                          int fillColor, int edgeColor) {
-        PetalMask.Petal shape = half.shape();
-        Matrix3x2f pose = new Matrix3x2f(graphics.pose());
-        ScreenRectangle scissor = graphics.peekScissorStack();
-        List<PetalRenderState.ScreenVertex> fill = toScreen(frame, PetalMesh.fill(shape), WHOLE_TEXTURE);
-        graphics.submitGuiElementRenderState(new PetalRenderState(RenderPipelines.GUI, TextureSetup.noTexture(), pose,
-                fill, fillColor, scissor, bounds(fill, pose, scissor)));
-        List<PetalRenderState.ScreenVertex> edge = toScreen(frame,
-                PetalMesh.edge(shape, PetalMesh.EDGE_THICKNESS, true), WHOLE_TEXTURE);
-        graphics.submitGuiElementRenderState(new PetalRenderState(RenderPipelines.GUI, TextureSetup.noTexture(), pose,
-                edge, edgeColor, scissor, bounds(edge, pose, scissor)));
-    }
-
-    /**
      * Submits a square sprite cut at a petal's border, so only the part of
      * it lying under the petal's face shows; nothing when none of it does.
      * decision icons-slide-in-from-behind-the-tip
