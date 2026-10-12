@@ -729,8 +729,9 @@ public final class RadialWheel {
     /**
      * The cursor on a petal: another type's petal opens that type; an
      * ability of the open type hovers it, and crossing onto it from another
-     * springs the ring back toward rest wherever some ability can sit under
-     * the cursor with less turn than the ring stands at.
+     * springs the ring to center it on the cursor only where that turn
+     * relieves the ring's tension, bringing it nearer rest; otherwise the
+     * ring stands where it is.
      * decision ring-rotates-to-keep-the-cursor-inside
      *
      * @param petal the petal under the cursor
@@ -743,12 +744,10 @@ public final class RadialWheel {
             return;
         }
         if (petal.ability() != hoveredAbility) {
-            Landing nearestRest = landingNearestRest();
-            if (Math.abs(nearestRest.turn()) < Math.abs(rotation) - SPRING_SLACK) {
-                rotation = nearestRest.turn();
-                hoveredAbility = nearestRest.ability();
+            double turn = Math.IEEEremainder(cursorAngle - petal.center(), TWO_PI);
+            if (Math.abs(rotation + turn) < Math.abs(rotation) - SPRING_SLACK) {
+                rotation += turn;
                 ease.retarget(targetPose());
-                return;
             }
         }
         hoveredAbility = petal.ability();
