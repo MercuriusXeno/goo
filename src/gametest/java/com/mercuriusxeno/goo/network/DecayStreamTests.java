@@ -78,7 +78,7 @@ public final class DecayStreamTests {
     private static final String ABILITY_REQUIRED = "Ability registry must hold nether_decay";
     private static final String SHOULD_BITE = "Decay's swarm should bite the zombie in its cone";
     private static final String SHOULD_BITE_AT_HIVES_RATE = "Decay's swarm bit %.2f health, Hive's rate gives %.2f";
-    /** nether_hive.json's bite, 2 every 4 ticks, as health a tick. */
+    /** The hive's bite in nether_decay.json's on_prism, 2 every 4 ticks, as health a tick. */
     private static final float HIVE_RATE = 2f / 4f;
     private static final float HEALTH_SLACK = 0.01f;
     /** A zombie stands two blocks out, in the cone the player aims at the stone three out. */

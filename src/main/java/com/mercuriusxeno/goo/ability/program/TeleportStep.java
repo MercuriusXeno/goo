@@ -132,10 +132,11 @@ public record TeleportStep(TeleportMode mode, Expr range, Expr nodeRange, Expr n
     }
 
     /**
-     * Where this step's blink puts an entity: beside the oculus the look
-     * snaps to where it finds one, a pinned face or not, else where the
-     * blink lands.
+     * Where this step's blink puts an entity: nowhere, spent into the bare
+     * prism the look ends on in range; beside the oculus the look snaps to
+     * where it finds one, a pinned face or not; else where the blink lands.
      * Decision oculus-prism-becomes-a-hovering-eye.
+     * Decision blink-at-a-prism-spends-into-an-oculus.
      *
      * @param blinker the entity blinking
      * @param feet    where the entity's feet stand
@@ -146,10 +147,17 @@ public record TeleportStep(TeleportMode mode, Expr range, Expr nodeRange, Expr n
      */
     public Optional<BlinkLanding> landing(Entity blinker, Vec3 feet, Vec3 look, double reach,
             Optional<ChannelAim.FacePlane> pin) {
+        Vec3 eye = feet.add(0, blinker.getEyeHeight(), 0);
+        // blink-at-a-prism-spends-into-an-oculus: a look ending on a bare prism spends the blink into it
+        Optional<BlinkLanding> converting = BlinkResolver.conversion(new LevelBlinkSpace(blinker.level(), blinker),
+                feet, eye, look, reach);
+        if (converting.isPresent()) {
+            return converting;
+        }
         double snapRange = nodeRange.evaluate(Variables.NONE);
         // The oculus wins over a pressed face: a press on any face in range pins it, which would never snap.
         Optional<BlinkLanding> snapped = snapRange <= 0 ? Optional.empty()
-                : OculusNodes.onLook(blinker.level(), feet.add(0, blinker.getEyeHeight(), 0), look, snapRange,
+                : OculusNodes.onLook(blinker.level(), eye, look, snapRange,
                         nodeCone.evaluate(Variables.NONE))
                         .flatMap(node -> BlinkResolver.toNode(new LevelBlinkSpace(blinker.level(), blinker), feet,
                                 node, BlinkBody.of(blinker)));

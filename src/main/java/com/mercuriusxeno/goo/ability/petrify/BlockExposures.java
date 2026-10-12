@@ -125,6 +125,43 @@ public final class BlockExposures {
     }
 
     /**
+     * Sets a block's exposure to a share outright, for a look that follows a
+     * count kept elsewhere rather than building tick on tick; a share of
+     * zero or less clears it. A charging prism's decay look follows its charge.
+     * channeled-hosts-convert-prisms-over-the-hold
+     *
+     * @param level  the server level
+     * @param pos    the block
+     * @param toward the state the clients mingle in
+     * @param share  the share to show, 0 to 1
+     * @param tint   the RGB the clients tint it by
+     */
+    public void setShare(ServerLevel level, BlockPos pos, BlockState toward, float share, int tint) {
+        Exposed key = new Exposed(level.dimension(), pos.immutable());
+        if (share <= 0f) {
+            if (exposures.remove(key) != null) {
+                send(level, pos, toward, 0f, tint);
+            }
+            return;
+        }
+        float shown = Math.min(1f, share);
+        exposures.put(key, new Exposure(toward, shown, level.getGameTime(), 0f, tint));
+        send(level, pos, toward, shown, tint);
+    }
+
+    /**
+     * The tint a block's exposure carries.
+     *
+     * @param level the server level
+     * @param pos   the block
+     * @return the RGB, {@link #UNTINTED} where nothing exposes the block
+     */
+    public int tintAt(ServerLevel level, BlockPos pos) {
+        Exposure exposure = exposures.get(new Exposed(level.dimension(), pos));
+        return exposure == null ? UNTINTED : exposure.tint();
+    }
+
+    /**
      * Leaves a block's built share to finish on its own: from now it builds
      * the rate each tick, whatever reaches it, and steps once full
      * (decision decay-gnats-degrade-each-block-once).

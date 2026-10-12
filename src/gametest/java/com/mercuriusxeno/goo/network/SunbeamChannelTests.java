@@ -3,7 +3,9 @@ package com.mercuriusxeno.goo.network;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.AbilityTags;
+import com.mercuriusxeno.goo.ability.PrismCombos;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
+import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.gametest.PacketRecorder;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -48,6 +50,7 @@ public final class SunbeamChannelTests {
     private static final String SUNBEAM_BURNS_THE_UNDEAD_IT_STRIKES = "sunbeam_burns_the_undead_it_strikes";
     private static final String SUNBEAM_HITS_THE_AIMED_ZOMBIE = "sunbeam_hits_the_aimed_zombie";
     private static final String SUNBEAM_IMPACT_FIRES_AT_THE_HIT = "sunbeam_impact_fires_at_the_hit";
+    private static final String SUNBEAM_CONVERTS_A_BARE_PRISM = "sunbeam_converts_a_bare_prism";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -59,6 +62,7 @@ public final class SunbeamChannelTests {
         GooTestFunctions.registerTest(registrar, SUNBEAM_BURNS_THE_UNDEAD_IT_STRIKES, SunbeamChannelTests::sunbeamBurnsTheUndeadItStrikes);
         GooTestFunctions.registerTest(registrar, SUNBEAM_HITS_THE_AIMED_ZOMBIE, SunbeamChannelTests::sunbeamHitsTheAimedZombie);
         GooTestFunctions.registerTest(registrar, SUNBEAM_IMPACT_FIRES_AT_THE_HIT, SunbeamChannelTests::sunbeamImpactFiresAtTheHit);
+        GooTestFunctions.registerTest(registrar, SUNBEAM_CONVERTS_A_BARE_PRISM, SunbeamChannelTests::sunbeamConvertsABarePrism);
     }
 
 
@@ -90,6 +94,11 @@ public final class SunbeamChannelTests {
     private static final String SUM_TOO_LOW = "The split hits should sum past one direct hit of %s, they summed %s";
     private static final String WHOLE_HIT = "The struck zombie should lose at least one whole undead hit of %s, it lost %s";
     private static final String NOT_BURNING = "The struck zombie is undead and should burn";
+    private static final String COMBO_CHANGED = "Refracting should leave the prism's combo as it stood";
+    /** Zap, whose relay is the combo the refracting prism holds. */
+    private static final Identifier RELAY_HOST = Identifier.parse("goo:pulse_zap");
+    private static final String RELAY_REQUIRED = "The prism should take Zap's relay combo";
+    private static final String NOT_CONVERTED = "A full Sunbeam hold should make the prism a reflector, held '%s'";
 
     private SunbeamChannelTests() {
     }
@@ -104,6 +113,11 @@ public final class SunbeamChannelTests {
     public static void sunbeamRefractsToThree(GameTestHelper helper) {
         helper.setBlock(PRISM_POS.below(), Blocks.STONE);
         helper.setBlock(PRISM_POS, GooBlocks.PRISM.get());
+        // channeled-hosts-convert-prisms-over-the-hold: only a prism holding a combo refracts Sunbeam
+        PrismBlockEntity prism = helper.getBlockEntity(PRISM_POS, PrismBlockEntity.class);
+        AbilityDefinition zap = AbilityRegistry.of(helper.getLevel()).getAbility(RELAY_HOST);
+        helper.assertTrue(zap != null && prism.runCombo(GooTypes.PULSE, RELAY_HOST.toString(),
+                PrismCombos.comboSteps(zap)), RELAY_REQUIRED);
         List<Zombie> zombies = AROUND_THE_PRISM.stream().map(pos -> helmeted(helper, pos)).toList();
         List<Float> before = zombies.stream().map(Zombie::getHealth).toList();
         ServerPlayer player = holdAt(helper, Vec3.atCenterOf(helper.absolutePos(PRISM_POS)));
@@ -116,6 +130,7 @@ public final class SunbeamChannelTests {
                 sum += lost;
             }
             helper.assertTrue(sum > UNDEAD_HIT, String.format(SUM_TOO_LOW, UNDEAD_HIT, sum));
+            helper.assertTrue(RELAY_HOST.toString().equals(prism.getCombo()), COMBO_CHANGED);
             helper.succeed();
         });
     }
@@ -250,6 +265,32 @@ public final class SunbeamChannelTests {
                 player.getEyePosition(), aim, helper.absolutePos(STAND_POS.below()), Direction.UP.get3DDataValue());
         helper.runAfterDelay(1, () -> GooStreamHandler.streamTick(player, tick));
         return player;
+    }
+
+    /**
+     * A mock player holds Sunbeam on a bare prism for one charge's ticks: the
+     * prism converts into the reflector combo, Sunbeam's on_prism reaction.
+     * channeled-hosts-convert-prisms-over-the-hold
+     *
+     * @param helper the gametest helper
+     */
+    public static void sunbeamConvertsABarePrism(GameTestHelper helper) {
+        helper.setBlock(PRISM_POS.below(), Blocks.STONE);
+        helper.setBlock(PRISM_POS, GooBlocks.PRISM.get());
+        ServerPlayer player = standWithGlove(helper, STAND_POS);
+        int hold = AbilityRegistry.of(helper.getLevel()).getAbility(SUNBEAM).delivery().ticksPerCharge();
+        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.GLOW), SUNBEAM.toString(),
+                player.getEyePosition(), Vec3.atCenterOf(helper.absolutePos(PRISM_POS)),
+                helper.absolutePos(STAND_POS.below()), Direction.UP.get3DDataValue());
+        for (int held = 1; held <= hold; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
+        }
+        helper.runAfterDelay(hold + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            String combo = helper.getBlockEntity(PRISM_POS, PrismBlockEntity.class).getCombo();
+            helper.assertTrue(SUNBEAM.toString().equals(combo), String.format(NOT_CONVERTED, combo));
+            helper.succeed();
+        });
     }
 
     /**
