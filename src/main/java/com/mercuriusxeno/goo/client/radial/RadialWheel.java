@@ -16,7 +16,8 @@ import java.util.function.ToIntFunction;
  * the open type's abilities fan in the outer ring, centered on its petal,
  * each at most 30 degrees, tucked under the type petals' tips. Nothing ever
  * turns. Past either end of the fan the cursor winds on to the neighboring
- * type; back over the type band or the hub it returns the wheel to rest.
+ * type; back inside the neutral zone's rest edge, the one boundary that also
+ * opens a type, it returns the wheel to rest.
  * decision abilities-replace-the-hovered-type
  * decision ring-rotates-to-keep-the-cursor-inside
  * decision halves-arc-petals-at-rest
@@ -318,8 +319,8 @@ public final class RadialWheel {
     /**
      * Moves the cursor. At rest the neutral zone holds nothing and the cursor
      * out on a type's petal opens that type. With a type open the cursor back
-     * over the type band or the hub returns the wheel to rest, and out past
-     * the band it hovers the ability under it, or past either end of the fan
+     * inside the neutral zone's rest edge returns the wheel to rest, and outside it
+     * it hovers the ability under it, or past either end of the fan
      * winds on to the neighboring type.
      * decision abilities-replace-the-hovered-type
      * decision halves-arc-petals-at-rest
@@ -332,21 +333,22 @@ public final class RadialWheel {
         if (typeCount == 0) {
             return;
         }
-        double distance = Math.hypot(dx, dy) / outerRadius;
+        // halves-arc-petals-at-rest: one boundary, the neutral zone's rest edge, both opens and closes a type
+        boolean outside = Math.hypot(dx, dy) / outerRadius >= TYPE_INNER_FRACTION;
         double angle = angleOf(dx, dy);
         if (!isOpen()) {
-            if (distance >= TYPE_INNER_FRACTION) {
+            if (outside) {
                 openUnder(typeAt(angle), angle);
             }
-        } else if (distance < TYPE_BAND_FRACTION) {
-            returnToRest();
-        } else {
+        } else if (outside) {
             hoverAt(angle);
+        } else {
+            returnToRest();
         }
     }
 
     /**
-     * The cursor out past the type band with a type open: it hovers the
+     * The cursor outside the neutral zone's rest edge with a type open: it hovers the
      * ability under it, and past either end of the fan winds on to the
      * neighboring type that way, clockwise to the next and counterclockwise
      * to the last; a type with no abilities has no fan to wind past.

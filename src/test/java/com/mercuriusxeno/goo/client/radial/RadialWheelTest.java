@@ -227,6 +227,25 @@ class RadialWheelTest {
             assertFalse(wheel.isOpen());
         }
 
+        /** decision halves-arc-petals-at-rest: one boundary opens and closes, so nothing flutters across it */
+        @Test
+        void theBoundaryThatOpensATypeIsTheOneThatClosesIt() {
+            RadialWheel wheel = wheel(ABILITIES);
+            double justOutside = (RadialWheel.TYPE_INNER_FRACTION + 0.01) * RADIUS;
+            double justInside = (RadialWheel.TYPE_INNER_FRACTION - 0.01) * RADIUS;
+
+            moveTo(wheel, typeCenter(OPEN_TYPE), justOutside);
+            assertTrue(wheel.isOpen(), "just past the neutral zone opens the type");
+            moveTo(wheel, typeCenter(OPEN_TYPE), justOutside);
+            assertTrue(wheel.isOpen(), "the same spot keeps it open");
+            assertTrue(wheel.hoveredAbility() != RadialWheel.NONE, "the same spot hovers an ability");
+
+            moveTo(wheel, typeCenter(OPEN_TYPE), justInside);
+            assertFalse(wheel.isOpen(), "just inside closes it");
+            moveTo(wheel, typeCenter(OPEN_TYPE), justInside);
+            assertFalse(wheel.isOpen(), "the same spot keeps it closed");
+        }
+
         @Test
         void cursorOnATypesPetalTipOpensIt() {
             RadialWheel wheel = opened(ABILITIES);
