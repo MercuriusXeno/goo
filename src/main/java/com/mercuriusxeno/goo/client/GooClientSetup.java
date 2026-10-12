@@ -50,6 +50,7 @@ import com.mercuriusxeno.goo.client.ber.style.PulsePrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.TimekeeperPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.VerdantPrismStyle;
 import com.mercuriusxeno.goo.client.entity.CompressionSphereRenderer;
+import com.mercuriusxeno.goo.client.entity.EldritchMonstrosityRenderer;
 import com.mercuriusxeno.goo.client.entity.FeedPileRenderer;
 import com.mercuriusxeno.goo.client.model.*;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
@@ -236,6 +237,8 @@ public final class GooClientSetup {
         event.registerEntityRenderer(GooEntities.SWAP_BODY.get(), swapBodyRenderer());
         // meteo-needs-a-clear-sky: the meteor shows as the flame trail the server sends
         event.registerEntityRenderer(GooEntities.METEOR.get(), NoopRenderer::new);
+        // monstrosities-harvest-under-quantum
+        event.registerEntityRenderer(GooEntities.ELDRITCH_MONSTROSITY.get(), EldritchMonstrosityRenderer::new);
     }
 
     /**
