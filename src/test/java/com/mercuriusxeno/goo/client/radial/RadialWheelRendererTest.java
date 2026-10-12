@@ -959,11 +959,11 @@ class RadialWheelRendererTest {
 
         /**
          * At rest the frame draws every type petal and no word, the neutral
-         * zone's mask at twice the hub's reach; with a type open, at the hub's.
+         * zone's mask at half the wheel's reach; with a type open, at the hub's.
          * decision halves-arc-petals-at-rest
          */
         @Test
-        void theNeutralZoneDrawsTwiceTheHubAtRestAndTheHubWithATypeOpen() {
+        void theNeutralZoneDrawsHalfTheWheelAtRestAndTheHubWithATypeOpen() {
             RadialWheel rest = new RadialWheel(TYPES, type -> ABILITIES);
             GuiGraphicsExtractor restFrame = renderFrame(rest);
             GuiGraphicsExtractor openFrame = renderFrame(openWheel());
@@ -971,7 +971,8 @@ class RadialWheelRendererTest {
             assertTrue(wordsDrawn(restFrame, color -> true).isEmpty(), "a word drew at rest");
             assertEquals(TYPES, rest.displayedLayout(0.0f).size());
             assertEquals(2 * RADIUS, (int) hubBlit(restFrame).getArgument(6));
-            assertEquals(2 * RADIUS / 2, (int) hubBlit(openFrame).getArgument(6));
+            assertEquals((int) Math.round(RADIUS * RadialWheel.HUB_FRACTION / RadialWheel.HUB_REST_FRACTION) * 2,
+                    (int) hubBlit(openFrame).getArgument(6));
         }
 
         /**
@@ -999,25 +1000,32 @@ class RadialWheelRendererTest {
 
         /** decision abilities-replace-the-hovered-type */
         @Test
-        void typeIconSitsDeadCenterAlongItsPetal() {
-            RadialWheel wheel = openWheel();
-            GuiGraphicsExtractor graphics = renderFrame(wheel);
+        void typeIconSitsDeadCenterAlongItsPetalAtRestAndAtItsTipInTheInnerRing() {
+            RadialWheel rest = new RadialWheel(TYPES, type -> ABILITIES);
+            RadialWheel open = openWheel();
+            GuiGraphicsExtractor restGraphics = renderFrame(rest);
+            GuiGraphicsExtractor openGraphics = renderFrame(open);
             int half = TYPE_ICON_SIZE / 2;
 
-            assertAll(typePetalsOf(wheel).stream()
-                    .map(petal -> (Executable) () -> {
-                        String icon = "type_" + petal.type() + ".png";
-                        var iconBlit = mockingDetails(graphics).getInvocations().stream()
-                                .filter(call -> call.getMethod().getName().equals("blit")
-                                        && call.getArgument(1).toString().endsWith(icon))
-                                .findFirst().orElseThrow();
-                        double along = (petal.inner() + petal.length()) / 2 * RADIUS;
-                        double expectedX = CENTER_X + Math.sin(petal.center()) * along;
-                        double expectedY = CENTER_Y - Math.cos(petal.center()) * along;
-                        assertTrue(Math.hypot((int) iconBlit.getArgument(2) + half - expectedX,
-                                (int) iconBlit.getArgument(3) + half - expectedY) <= TIP_TOLERANCE,
-                                petal + " icon off its length's center");
-                    }));
+            assertAll(typePetalsOf(rest).stream().map(petal -> (Executable) () -> {
+                double along = (petal.inner() + petal.length()) / 2;
+                assertIconAt(restGraphics, petal, PetalMask.Point.polar(petal.center(), along), half);
+            }));
+            assertAll(typePetalsOf(open).stream().map(petal -> (Executable) ()
+                    -> assertIconAt(openGraphics, petal, petal.shape().tipCenter(), half)));
+        }
+
+        /** Asserts a type petal's icon blitted centered on a point of the wheel. */
+        private static void assertIconAt(GuiGraphicsExtractor graphics, RadialWheel.PetalArc petal,
+                                         PetalMask.Point expected, int half) {
+            String icon = "type_" + petal.type() + ".png";
+            var iconBlit = mockingDetails(graphics).getInvocations().stream()
+                    .filter(call -> call.getMethod().getName().equals("blit")
+                            && call.getArgument(1).toString().endsWith(icon))
+                    .findFirst().orElseThrow();
+            assertTrue(Math.hypot((int) iconBlit.getArgument(2) + half - (CENTER_X + expected.x() * RADIUS),
+                    (int) iconBlit.getArgument(3) + half - (CENTER_Y + expected.y() * RADIUS)) <= TIP_TOLERANCE,
+                    petal + " icon off its place");
         }
 
         /** decision abilities-replace-the-hovered-type */

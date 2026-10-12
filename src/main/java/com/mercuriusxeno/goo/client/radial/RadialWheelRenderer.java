@@ -252,19 +252,26 @@ final class RadialWheelRenderer {
     }
 
     /**
-     * The screen point dead center along a type petal's length, on its
-     * center line halfway from the hub to its end, at rest or receded.
+     * The screen point a type petal's icon centers on: dead center along its
+     * length at rest out at the tips, sliding out to the center of its round
+     * tip as the types drop into the inner ring.
      * decision abilities-replace-the-hovered-type
+     * decision open-half-spans-270-degrees
      *
      * @param frame what the frame draws from
      * @param petal the type petal
      * @return the point's x and y
      */
     static int[] lengthCenter(Frame frame, RadialWheel.PetalArc petal) {
-        PetalMask.Point center = PetalMask.Point.polar(petal.center(),
-                (petal.inner() + petal.length()) / HALF);
-        return new int[]{frame.centerX() + (int) Math.round(center.x() * frame.radius()),
-                frame.centerY() + (int) Math.round(center.y() * frame.radius())};
+        double hub = frame.wheel().displayedHubRadius(frame.partialTick());
+        double dropped = (RadialWheel.HUB_REST_FRACTION - hub)
+                / (RadialWheel.HUB_REST_FRACTION - RadialWheel.HUB_FRACTION);
+        PetalMask.Point middle = PetalMask.Point.polar(petal.center(), (petal.inner() + petal.length()) / HALF);
+        PetalMask.Point tip = petal.shape().tipCenter();
+        double x = middle.x() + (tip.x() - middle.x()) * dropped;
+        double y = middle.y() + (tip.y() - middle.y()) * dropped;
+        return new int[]{frame.centerX() + (int) Math.round(x * frame.radius()),
+                frame.centerY() + (int) Math.round(y * frame.radius())};
     }
 
     /**
