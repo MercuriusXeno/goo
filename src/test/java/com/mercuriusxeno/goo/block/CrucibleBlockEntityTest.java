@@ -46,12 +46,12 @@ class CrucibleBlockEntityTest {
         GooValue value = new GooValue(Map.of(
                 GooTypes.ROCK, 100,
                 GooTypes.METAL, 250,
-                GooTypes.VITAL, 50
+                GooTypes.JELLY, 50
         ));
         GooContents result = value.toGooContents();
         assertEquals(100, result.getVolume(GooTypes.ROCK));
         assertEquals(250, result.getVolume(GooTypes.METAL));
-        assertEquals(50, result.getVolume(GooTypes.VITAL));
+        assertEquals(50, result.getVolume(GooTypes.JELLY));
         assertEquals(3, result.typeCount());
     }
 
@@ -82,7 +82,7 @@ class CrucibleBlockEntityTest {
         GooContents gc = new GooContents(Map.of(
                 GooTypes.ROCK, 100,
                 GooTypes.METAL, 500,
-                GooTypes.VITAL, 200
+                GooTypes.JELLY, 200
         ));
         assertEquals(GooTypes.METAL, gc.largestType());
     }
@@ -105,10 +105,10 @@ class CrucibleBlockEntityTest {
     @Test
     void mergeWithSumsMatchingTypes() {
         GooContents a = new GooContents(Map.of(GooTypes.ROCK, 100, GooTypes.METAL, 50));
-        GooContents b = new GooContents(Map.of(GooTypes.ROCK, 200, GooTypes.VITAL, 75));
+        GooContents b = new GooContents(Map.of(GooTypes.ROCK, 200, GooTypes.JELLY, 75));
         GooContents result = a.mergeWith(b);
         assertEquals(300, result.getVolume(GooTypes.ROCK));
         assertEquals(50, result.getVolume(GooTypes.METAL));
-        assertEquals(75, result.getVolume(GooTypes.VITAL));
+        assertEquals(75, result.getVolume(GooTypes.JELLY));
     }
 }

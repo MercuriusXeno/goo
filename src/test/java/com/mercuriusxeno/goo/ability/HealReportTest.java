@@ -2,14 +2,12 @@ package com.mercuriusxeno.goo.ability;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.mercuriusxeno.goo.ability.program.Step;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-/** A stream tick and a vital drip report each living thing whose health their program raised, the list the healing stars play on, and the vital tap sprays none of the rejected restore motes (decisions vitality-waves-regenerate-and-court, vitality-drip-heals-below). */
+/** A stream tick and a tap's drip report each living thing whose health their program raised, the list the healing stars play on (decisions vitality-waves-regenerate-and-court, vitality-drip-heals-below). */
 class HealReportTest {
 
     private static final int COW_ID = 7;
@@ -72,16 +70,5 @@ class HealReportTest {
         void aDripHealingNothingReportsNothing() {
             assertEquals(List.of(), REPORT.healedAmong(List.of(new Creature(PIG_ID, 10f)), () -> { }));
         }
-    }
-
-    @Test
-    void theVitalTapSpraysNoRejectedRestoreMotes() {
-        AbilityDefinition tap = AbilityJson.decode("vital_vitality_tap");
-        assertEquals(List.of(), tap.behaviors().stream().flatMap(HealReportTest::withDescendants)
-                .filter(step -> step.toString().contains("restore_mote")).toList());
-    }
-
-    private static Stream<Step> withDescendants(Step step) {
-        return Stream.concat(Stream.of(step), step.children().flatMap(HealReportTest::withDescendants));
     }
 }

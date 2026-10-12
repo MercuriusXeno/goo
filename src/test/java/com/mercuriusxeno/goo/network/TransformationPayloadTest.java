@@ -17,7 +17,7 @@ class TransformationPayloadTest {
 
     @Test
     void aTransformationRoundTripsThroughTheStreamCodec() {
-        TransformationPayload sent = new TransformationPayload(GooTypes.VITAL, new Vec3(1.5, 64, -3.25),
+        TransformationPayload sent = new TransformationPayload(GooTypes.JELLY, new Vec3(1.5, 64, -3.25),
                 new Vec3(2.75, 64, -2), 4242, 16);
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
 
