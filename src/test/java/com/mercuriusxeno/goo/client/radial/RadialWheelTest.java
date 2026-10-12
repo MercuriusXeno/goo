@@ -83,7 +83,7 @@ class RadialWheelTest {
     }
 
     private static void settle(RadialWheel wheel) {
-        tick(wheel, Math.max(RingEase.DURATION_TICKS, RadialWheel.GRACE_TICKS));
+        tick(wheel, RingEase.DURATION_TICKS);
     }
 
     private static void tick(RadialWheel wheel, int ticks) {
@@ -154,69 +154,110 @@ class RadialWheelTest {
             List<RadialWheel.PetalArc> petals = wheel.layout();
 
             assertEquals(ABILITIES, abilityPetals(wheel).size());
-            assertEquals(NEIGHBORS, typePetals(wheel).size());
+            assertEquals(TYPES - 1, typePetals(wheel).size());
             assertTrue(typePetals(wheel).stream().noneMatch(petal -> petal.type() == OPEN_TYPE));
-            assertEquals(Math.toRadians(225.0) + ABILITIES * RadialWheel.ABILITY_ARC,
-                    petals.stream().mapToDouble(RadialWheel.PetalArc::arc).sum(), EPSILON);
             for (int i = 1; i < petals.size(); i++) {
                 RadialWheel.PetalArc previous = petals.get(i - 1);
                 assertEquals(previous.start() + previous.arc(), petals.get(i).start(), EPSILON);
             }
         }
 
-        /** Asserts each neighbor either side of the open type at its arc by distance, nearest first, in degrees. */
-        private static void assertNeighborArcs(List<RadialWheel.PetalArc> petals, double... degreesBySteps) {
-            assertAll(IntStream.rangeClosed(1, degreesBySteps.length).boxed().flatMap(steps -> Stream.of(
-                    (Executable) () -> assertEquals(Math.toRadians(degreesBySteps[steps - 1]),
-                            typePetal(petals, stepsFrom(OPEN_TYPE, steps)).arc(), EPSILON, "cw " + steps),
-                    () -> assertEquals(Math.toRadians(degreesBySteps[steps - 1]),
-                            typePetal(petals, stepsFrom(OPEN_TYPE, -steps)).arc(), EPSILON, "ccw " + steps))));
+        /** A half of thirteen types, the shipped size, every type opening to the same abilities, one open. */
+        private static RadialWheel halfOfThirteen(int abilities) {
+            RadialWheel wheel = new RadialWheel(WINDOW_TYPES, type -> abilities, type -> RadialWheel.TOP);
+            hoverType(wheel, WINDOW_TYPES / 2);
+            settle(wheel);
+            return wheel;
+        }
+
+        /**
+         * Asserts the ring full, no type petal wider than its rest share, no
+         * ability wider than 30 degrees, and the neighbors narrowing, or
+         * holding, with distance either way down to no less than 10 degrees.
+         */
+        private static void assertFilledAndNoWiderThanAtRest(RadialWheel wheel, int types) {
+            int open = wheel.selectedType();
+            double rest = TWO_PI / types;
+            List<RadialWheel.PetalArc> petals = wheel.layout();
+            assertEquals(TWO_PI, petals.stream().mapToDouble(RadialWheel.PetalArc::arc).sum(), EPSILON, "ring full");
+            assertAll(petals.stream().map(petal -> (Executable) () -> {
+                if (petal.isAbility()) {
+                    assertTrue(petal.arc() <= Math.max(RadialWheel.ABILITY_ARC, rest) + EPSILON, petal + " too wide");
+                } else {
+                    assertTrue(petal.arc() <= rest + EPSILON, petal + " wider than at rest");
+                    assertTrue(petal.arc() >= Math.min(RadialWheel.NEIGHBOR_MIN_ARC, rest) - EPSILON, petal + " too narrow");
+                }
+            }));
+            for (int steps = 1; steps < types / 2; steps++) {
+                int cw = Math.floorMod(open + steps, types);
+                int farther = Math.floorMod(open + steps + 1, types);
+                assertTrue(typePetal(petals, cw).arc() >= typePetal(petals, farther).arc() - EPSILON,
+                        "step " + steps + " narrower than the next");
+            }
+        }
+
+        /** decision open-half-spans-270-degrees */
+        @Test
+        void anOpenHalfsTypesFillTheWholeRingEvenly() {
+            RadialWheel wheel = wheelOverBothHalves();
+
+            moveTo(wheel, TOP, BAND);
+
+            assertAll(wheel.layout().stream().map(petal -> (Executable) () ->
+                    assertEquals(TWO_PI / FIRST_BOTTOM, petal.arc(), EPSILON, petal.toString())));
+            assertEquals(TWO_PI, wheel.layout().stream().mapToDouble(RadialWheel.PetalArc::arc).sum(), EPSILON);
         }
 
         /** decision fisheye-halves-its-max-and-floors-at-ten-degrees */
         @Test
-        void neighborsStepEvenlyFromHalfTheOldNearestToTenDegreesAndOneAbilityMaxesOutAtThirty() {
-            RadialWheel wheel = opened(1);
-
-            assertNeighborArcs(wheel.layout(), 27.5, 24.0, 20.5, 17.0, 13.5, 10.0);
-            assertEquals(RadialWheel.ABILITY_ARC, abilityPetal(wheel, 0).arc(), EPSILON);
+        void anOpenTypeFillsTheRingWithNoPetalWiderThanAtRest() {
+            assertAll(IntStream.of(1, ABILITIES, SIX_ABILITIES, TWELVE_ABILITIES).mapToObj(abilities ->
+                    (Executable) () -> assertFilledAndNoWiderThanAtRest(halfOfThirteen(abilities), WINDOW_TYPES)));
+            assertFilledAndNoWiderThanAtRest(opened(ABILITIES), TYPES);
         }
 
         /** decision fisheye-halves-its-max-and-floors-at-ten-degrees */
         @Test
-        void abilitiesTheRingHasRoomForMaxOutAtThirtyDegreesEach() {
-            RadialWheel wheel = opened(ABILITIES);
-            double neighbors = typePetals(wheel).stream().mapToDouble(RadialWheel.PetalArc::arc).sum();
+        void abilitiesOutgrowingTheirRestSlotTakeThirtyDegreesAndSqueezeTheNeighborsFarthestMost() {
+            RadialWheel wheel = halfOfThirteen(ABILITIES);
+            int open = wheel.selectedType();
+            List<RadialWheel.PetalArc> petals = wheel.layout();
 
-            assertEquals(Math.toRadians(225.0), neighbors, EPSILON);
             assertAll(abilityPetals(wheel).stream().map(petal -> (Executable)
                     () -> assertEquals(RadialWheel.ABILITY_ARC, petal.arc(), EPSILON)));
+            double nearest = typePetal(petals, open + 1).arc();
+            double farthest = typePetal(petals, open + WINDOW_TYPES / 2).arc();
+            assertTrue(nearest < TWO_PI / WINDOW_TYPES && farthest < nearest, nearest + " then " + farthest);
+            assertEquals(nearest, typePetal(petals, open - 1).arc(), EPSILON, "the squeeze matches either side");
         }
 
         /** decision fisheye-halves-its-max-and-floors-at-ten-degrees */
         @Test
-        void abilitiesShortOfThirtyDegreesFlattenTheStepsTowardTenFirst() {
-            RadialWheel wheel = opened(SIX_ABILITIES);
+        void abilitiesFittingTheirRestSlotShareItAndLeaveTheNeighborsAtRest() {
+            int types = 4;
+            RadialWheel wheel = new RadialWheel(types, type -> 2, type -> RadialWheel.TOP);
+            hoverType(wheel, 1);
 
-            assertNeighborArcs(wheel.layout(), 20.0, 18.0, 16.0, 14.0, 12.0, 10.0);
             assertAll(abilityPetals(wheel).stream().map(petal -> (Executable)
-                    () -> assertEquals(RadialWheel.ABILITY_ARC, petal.arc(), EPSILON)));
+                    () -> assertEquals(TWO_PI / types / 2, petal.arc(), EPSILON)));
+            assertAll(typePetals(wheel).stream().map(petal -> (Executable)
+                    () -> assertEquals(TWO_PI / types, petal.arc(), EPSILON)));
         }
 
         /** decision fisheye-halves-its-max-and-floors-at-ten-degrees */
         @Test
         void moreAbilitiesThanFitHoldEveryNeighborAtTenDegreesAndShareTheRestEvenly() {
-            RadialWheel wheel = opened(TWELVE_ABILITIES);
+            RadialWheel wheel = halfOfThirteen(TWELVE_ABILITIES);
 
-            assertNeighborArcs(wheel.layout(), 10.0, 10.0, 10.0, 10.0, 10.0, 10.0);
+            assertAll(typePetals(wheel).stream().map(petal -> (Executable)
+                    () -> assertEquals(RadialWheel.NEIGHBOR_MIN_ARC, petal.arc(), EPSILON)));
             assertAll(abilityPetals(wheel).stream().map(petal -> (Executable)
                     () -> assertEquals(Math.toRadians(20.0), petal.arc(), EPSILON)));
-            assertEquals(TWO_PI, wheel.layout().stream().mapToDouble(RadialWheel.PetalArc::arc).sum(), EPSILON);
         }
 
         /** decision open-type-keeps-thirteen-fading-to-twenty-percent */
         @Test
-        void sixNeighborsASideStayFadingEvenlyToTwentyPercentAndTheRestHide() {
+        void sixNeighborsASideFadeEvenlyToTwentyPercentAndTheRestStayAtTwenty() {
             RadialWheel wheel = opened(ABILITIES);
             List<RadialWheel.PetalArc> petals = wheel.layout();
             double[] presenceBySteps = {1.0, 0.84, 0.68, 0.52, 0.36, 0.2};
@@ -226,13 +267,10 @@ class RadialWheelTest {
                             typePetal(petals, stepsFrom(OPEN_TYPE, steps)).presence(), EPSILON, "cw " + steps),
                     () -> assertEquals(presenceBySteps[steps - 1],
                             typePetal(petals, stepsFrom(OPEN_TYPE, -steps)).presence(), EPSILON, "ccw " + steps))));
-            Set<Integer> shown = typePetals(wheel).stream().map(RadialWheel.PetalArc::type).collect(Collectors.toSet());
-            assertEquals(NEIGHBORS, shown.size());
             assertAll(IntStream.rangeClosed(RadialWheel.NEIGHBORS_A_SIDE + 1, TYPES - RadialWheel.NEIGHBORS_A_SIDE - 1)
-                    .mapToObj(steps -> (Executable) () -> assertFalse(shown.contains(stepsFrom(OPEN_TYPE, steps)),
-                            "type " + steps + " steps away hides")));
+                    .mapToObj(steps -> (Executable) () -> assertEquals(RadialWheel.NEIGHBOR_MIN_PRESENCE,
+                            typePetal(petals, stepsFrom(OPEN_TYPE, steps)).presence(), EPSILON, "type " + steps)));
         }
-
         /** decision open-type-keeps-thirteen-fading-to-twenty-percent */
         @Test
         void aWheelTheWindowHoldsWholeKeepsEveryTypeFull() {
@@ -283,7 +321,11 @@ class RadialWheelTest {
     @Nested
     class Transitions {
 
-        /** Asserts a half open: its types sharing the 270 degrees centered on its side, the other half on the 90 left. */
+        /**
+         * Asserts a half open: its types in list order filling the whole ring
+         * evenly, centered on its side, its half petal at 270 degrees and the
+         * other half petal on the 90 left.
+         */
         private static void assertHalfOpen(RadialWheel wheel, int half, int firstType, int types) {
             double center = half == RadialWheel.TOP ? TOP : BOTTOM;
             List<RadialWheel.PetalArc> petals = wheel.layout();
@@ -292,13 +334,8 @@ class RadialWheelTest {
             assertEquals(half, wheel.openHalf());
             assertEquals(IntStream.range(firstType, firstType + types).boxed().toList(),
                     petals.stream().map(RadialWheel.PetalArc::type).toList());
-            assertEquals(RadialWheel.HALF_OPEN_ARC, petals.stream().mapToDouble(RadialWheel.PetalArc::arc).sum(), EPSILON);
-            assertEquals(center - RadialWheel.HALF_OPEN_ARC / 2, petals.getFirst().start(), EPSILON);
-            assertAll(petals.stream().map(petal -> (Executable) () -> {
-                double from = Math.IEEEremainder(petal.start() - center, TWO_PI);
-                assertTrue(from >= -RadialWheel.HALF_OPEN_ARC / 2 - EPSILON
-                        && from + petal.arc() <= RadialWheel.HALF_OPEN_ARC / 2 + EPSILON, petal + " leaves the 270");
-            }));
+            assertEquals(TWO_PI, petals.stream().mapToDouble(RadialWheel.PetalArc::arc).sum(), EPSILON);
+            assertEquals(0.0, Math.IEEEremainder(petals.getFirst().start() - (center - Math.PI), TWO_PI), EPSILON);
             assertEquals(RadialWheel.HALF_OPEN_ARC, wheel.halves().get(half).arc(), EPSILON);
             assertEquals(RadialWheel.HALF_HELD_ARC, held.arc(), EPSILON);
             assertEquals(0.0, Math.IEEEremainder(held.center() - center - Math.PI, TWO_PI), EPSILON);
@@ -306,7 +343,7 @@ class RadialWheelTest {
 
         /** decision open-half-spans-270-degrees */
         @Test
-        void cursorOnTheTopHalfSpreadsItsTypesOver270DegreesCenteredOnTheTop() {
+        void cursorOnTheTopHalfFillsTheRingWithItsTypesCenteredOnTheTop() {
             RadialWheel wheel = wheelOverBothHalves();
 
             moveTo(wheel, TOP, BAND);
@@ -316,7 +353,7 @@ class RadialWheelTest {
 
         /** decision open-half-spans-270-degrees */
         @Test
-        void cursorOnTheBottomHalfSpreadsItsTypesOver270DegreesCenteredOnTheBottom() {
+        void cursorOnTheBottomHalfFillsTheRingWithItsTypesCenteredOnTheBottom() {
             RadialWheel wheel = wheelOverBothHalves();
 
             moveTo(wheel, BOTTOM, BAND);
@@ -341,15 +378,15 @@ class RadialWheelTest {
         @Test
         void cursorOnTheRingOutsideTheHeldHalfsPetalStillOpensTheNeighborThere() {
             RadialWheel wheel = opened(ABILITIES);
-            int farthest = stepsFrom(OPEN_TYPE, RadialWheel.NEIGHBORS_A_SIDE);
-            double angle = typePetal(wheel.layout(), farthest).center();
-            assertTrue(Math.abs(Math.IEEEremainder(angle - BOTTOM, TWO_PI)) < RadialWheel.HALF_HELD_ARC / 2,
-                    "the neighbor stands over the held half");
+            RadialWheel.PetalArc overHeld = typePetals(wheel).stream()
+                    .filter(petal -> Math.abs(Math.IEEEremainder(petal.center() - BOTTOM, TWO_PI))
+                            < RadialWheel.HALF_HELD_ARC / 2)
+                    .findFirst().orElseThrow();
 
-            moveTo(wheel, angle, PETAL);
+            moveTo(wheel, overHeld.center(), PETAL);
 
             assertEquals(RadialWheel.TOP, wheel.openHalf());
-            assertEquals(farthest, wheel.selectedType());
+            assertEquals(overHeld.type(), wheel.selectedType());
         }
 
         /** decision halves-arc-petals-at-rest */
@@ -413,18 +450,17 @@ class RadialWheelTest {
 
         /** decision open-type-keeps-thirteen-fading-to-twenty-percent */
         @Test
-        void openingTheFarthestNeighborReformsTheWindowAroundIt() {
+        void openingTheFarthestNeighborReformsTheFadeAroundIt() {
             RadialWheel wheel = opened(ABILITIES);
             int farthest = stepsFrom(OPEN_TYPE, RadialWheel.NEIGHBORS_A_SIDE);
 
             moveTo(wheel, typePetal(wheel.layout(), farthest).center(), PETAL);
 
             assertEquals(farthest, wheel.selectedType());
-            Set<Integer> expected = IntStream.rangeClosed(1, RadialWheel.NEIGHBORS_A_SIDE).boxed()
-                    .flatMap(steps -> Stream.of(stepsFrom(farthest, steps), stepsFrom(farthest, -steps)))
-                    .collect(Collectors.toSet());
-            assertEquals(expected, typePetals(wheel).stream().map(RadialWheel.PetalArc::type)
-                    .collect(Collectors.toSet()));
+            List<RadialWheel.PetalArc> petals = wheel.layout();
+            assertEquals(TYPES - 1, typePetals(wheel).size());
+            assertEquals(1.0, typePetal(petals, stepsFrom(farthest, 1)).presence(), EPSILON);
+            assertEquals(RadialWheel.NEIGHBOR_MIN_PRESENCE, typePetal(petals, OPEN_TYPE).presence(), EPSILON);
         }
 
         @Test
@@ -471,18 +507,23 @@ class RadialWheelTest {
     }
 
     /**
-     * Leaving the open type's abilities opens the adjacent type with its
-     * abilities under the cursor, the ring turning the least it must and then
-     * centering the landed ability on the cursor, and following the cursor
-     * through a short grace window (decision ring-rotates-to-keep-the-cursor-inside).
+     * The ring rests with the open type's abilities centered on its half and
+     * turns only to put an ability's middle under the cursor: opening a type
+     * lands the cursor in the ability the least turn from rest brings there,
+     * and crossing between abilities springs the ring back toward rest
+     * whenever some ability can sit under the cursor with less turn, never
+     * winding it further (decision ring-rotates-to-keep-the-cursor-inside).
      */
     @Nested
     class Rotation {
 
         private static final int WIDE_TYPE = 13;
         private static final int WIDE_ABILITIES = 6;
-        private static final double FOLLOW = Math.toRadians(10.0);
         private static final double JUST_PAST = Math.toRadians(1.0);
+        /** A neighbor far enough round that opening it turns the ring well away from rest. */
+        private static final int FAR = 3;
+        private static final double SWEEP_STEP = Math.toRadians(1.0);
+        private static final int SWEEP_STEPS = 90;
 
         /** The wide type opens to six abilities, its neighbors to one, every other type to four. */
         private static RadialWheel wheelWithAWideType() {
@@ -497,21 +538,19 @@ class RadialWheelTest {
             return wheel;
         }
 
-        private static void assertCursorInsideWithTheMargin(RadialWheel wheel, double cursor) {
-            RadialWheel.PetalArc hovered = abilityPetal(wheel, wheel.hoveredAbility());
-            double fromStart = wrap(cursor - hovered.start());
-            double toEnd = wrap(hovered.start() + hovered.arc() - cursor);
-            assertTrue(fromStart >= RadialWheel.CURSOR_MARGIN - EPSILON, "start margin " + fromStart);
-            assertTrue(toEnd >= RadialWheel.CURSOR_MARGIN - EPSILON, "end margin " + toEnd);
-        }
-
         private static void assertHoveredCenteredOn(RadialWheel wheel, double cursor) {
             assertEquals(0.0, Math.IEEEremainder(abilityPetal(wheel, wheel.hoveredAbility()).center() - cursor, TWO_PI),
                     EPSILON);
         }
 
-        private static double wrap(double angle) {
-            return ((angle % TWO_PI) + TWO_PI) % TWO_PI;
+        /** Asserts no ability of the open type could sit under the cursor with less turn from rest than the ring stands at. */
+        private static void assertLandedNearestRest(RadialWheel wheel, double cursor) {
+            double turned = wheel.rotation();
+            assertAll(abilityPetals(wheel).stream().map(petal -> (Executable) () -> {
+                double unturned = petal.center() - turned;
+                assertTrue(Math.abs(turned) <= Math.abs(Math.IEEEremainder(cursor - unturned, TWO_PI)) + EPSILON,
+                        "ability " + petal.ability() + " lands with less turn than " + turned);
+            }));
         }
 
         /** Where the open type's abilities start, as turned. */
@@ -519,108 +558,83 @@ class RadialWheelTest {
             return abilityPetal(wheel, 0).start();
         }
 
-        /** Where the open type's abilities end, as turned. */
-        private static double spanEnd(RadialWheel wheel) {
-            RadialWheel.PetalArc last = abilityPetal(wheel, abilityPetals(wheel).size() - 1);
-            return last.start() + last.arc();
-        }
-
-        /** Where the open type's abilities start with the ring unturned: the layout's start less its turn. */
-        private static double unturnedSpanStart(RadialWheel wheel) {
-            return spanStart(wheel) - wheel.rotation();
+        /** The wide type open, then the cursor onto a far neighbor, which opens turned well away from rest. */
+        private static RadialWheel farNeighborOpen() {
+            RadialWheel wheel = wideTypeOpen();
+            moveTo(wheel, typePetal(wheel.layout(), WIDE_TYPE + FAR).center(), PETAL);
+            settle(wheel);
+            return wheel;
         }
 
         @Test
-        void wideTypeOpensTurnedTheLeastThatCentersItsLandedAbility() {
-            RadialWheel wheel = wheelWithAWideType();
+        void openingATypeLandsTheCursorInTheAbilityTheLeastTurnFromRestBringsThere() {
+            RadialWheel wheel = wideTypeOpen();
+            double cursor = typePetal(wheel.layout(), WIDE_TYPE + FAR).center();
+
+            moveTo(wheel, cursor, PETAL);
+
+            assertEquals(WIDE_TYPE + FAR, wheel.selectedType());
+            assertTrue(Math.abs(wheel.rotation()) > RadialWheel.ABILITY_ARC, "the ring turns well away from rest");
+            assertHoveredCenteredOn(wheel, cursor);
+            assertLandedNearestRest(wheel, cursor);
+        }
+
+        @Test
+        void crossingTowardRestSpringsTheRingBackAndCentersTheAbilityThatLetsIt() {
+            RadialWheel wheel = farNeighborOpen();
+            double tension = wheel.rotation();
+            RadialWheel.PetalArc hovered = abilityPetal(wheel, wheel.hoveredAbility());
+            double cursor = hovered.center() - Math.signum(tension) * (hovered.arc() / 2 + JUST_PAST);
+
+            moveTo(wheel, cursor, PETAL);
+
+            assertTrue(Math.abs(wheel.rotation()) < Math.abs(tension), wheel.rotation() + " from " + tension);
+            assertHoveredCenteredOn(wheel, cursor);
+            assertLandedNearestRest(wheel, cursor);
+            assertTrue(wheel.isAnimating(), "the ring springs, easing");
+        }
+
+        @Test
+        void sweepingTheCursorEitherWayAcrossTheAbilitiesNeverWindsTheRingFurtherFromRest() {
+            RadialWheel wheel = farNeighborOpen();
+            int open = wheel.selectedType();
+            double cursor = abilityPetal(wheel, wheel.hoveredAbility()).center();
+
+            for (double direction : new double[]{1.0, -1.0, 1.0}) {
+                for (int step = 0; step < SWEEP_STEPS; step++) {
+                    double next = cursor + direction * SWEEP_STEP;
+                    RadialWheel.PetalArc under = RadialWheel.petalAt(wheel.layout(), next);
+                    if (!under.isAbility()) {
+                        break;
+                    }
+                    double before = Math.abs(wheel.rotation());
+                    moveTo(wheel, next, PETAL);
+                    cursor = next;
+                    assertEquals(open, wheel.selectedType());
+                    assertTrue(Math.abs(wheel.rotation()) <= before + EPSILON,
+                            "wound from " + before + " to " + wheel.rotation());
+                }
+            }
+        }
+
+        @Test
+        void crossingAbilitiesAtRestLeavesTheRingUnturned() {
+            RadialWheel wheel = new RadialWheel(TYPES, type -> ABILITIES, type -> RadialWheel.TOP);
+            wheel.scroll(-1);
+            settle(wheel);
             moveTo(wheel, TOP, BAND);
-            double cursor = typePetal(wheel.layout(), WIDE_TYPE).center();
+            moveTo(wheel, abilityPetal(wheel, 1).center(), PETAL);
 
-            moveTo(wheel, cursor, PETAL);
+            moveTo(wheel, abilityPetal(wheel, 2).center(), PETAL);
 
-            assertEquals(WIDE_TYPE, wheel.selectedType());
-            assertTrue(wheel.hoveredAbility() != RadialWheel.NONE, "the cursor lands inside the centered abilities");
-            assertTrue(Math.abs(wheel.rotation()) <= RadialWheel.ABILITY_ARC / 2 + EPSILON,
-                    "the ring turns no further than centering the landed ability: " + wheel.rotation());
-            assertHoveredCenteredOn(wheel, cursor);
-        }
-
-        @Test
-        void leavingCounterclockwiseOpensThatNeighborUnderTheCursor() {
-            RadialWheel wheel = wideTypeOpen();
-            double cursor = spanStart(wheel) - JUST_PAST;
-
-            moveTo(wheel, cursor, PETAL);
-
-            assertEquals(WIDE_TYPE - 1, wheel.selectedType());
-            assertEquals(0, wheel.hoveredAbility());
-            assertCursorInsideWithTheMargin(wheel, cursor);
-        }
-
-        @Test
-        void leavingClockwiseOpensThatNeighborUnderTheCursor() {
-            RadialWheel wheel = wideTypeOpen();
-            double cursor = spanEnd(wheel) + JUST_PAST;
-
-            moveTo(wheel, cursor, PETAL);
-
-            assertEquals(WIDE_TYPE + 1, wheel.selectedType());
-            assertEquals(0, wheel.hoveredAbility());
-            assertCursorInsideWithTheMargin(wheel, cursor);
-        }
-
-        @Test
-        void ringTurnsTheLeastItMustThenCentersTheLandedAbility() {
-            RadialWheel wheel = wideTypeOpen();
-            double cursor = spanStart(wheel) - JUST_PAST;
-
-            moveTo(wheel, cursor, PETAL);
-            double unturned = unturnedSpanStart(wheel);
-
-            // the solve's endpoint, cursor - span start - margin, plus the turn from the
-            // landed ability's center (span start + solve + half an arc) to the cursor
-            double solve = cursor - unturned - RadialWheel.CURSOR_MARGIN;
-            double centering = cursor - (unturned + solve + abilityPetal(wheel, 0).arc() / 2);
-            assertEquals(solve + centering, wheel.rotation(), EPSILON);
-            assertHoveredCenteredOn(wheel, cursor);
-        }
-
-        @Test
-        void insideTheGraceWindowTheRingFollowsTheCursor() {
-            RadialWheel wheel = wideTypeOpen();
-            double landed = spanStart(wheel) - JUST_PAST;
-            moveTo(wheel, landed, PETAL);
-            double cursor = landed - FOLLOW;
-
-            moveTo(wheel, cursor, PETAL);
-
-            assertEquals(WIDE_TYPE - 1, wheel.selectedType());
-            assertEquals(0, wheel.hoveredAbility());
-            assertHoveredCenteredOn(wheel, cursor);
-        }
-
-        @Test
-        void afterTheGraceWindowTheSameMoveLeavesTheRingWhereItStands() {
-            RadialWheel wheel = wideTypeOpen();
-            double landed = spanStart(wheel) - JUST_PAST;
-            moveTo(wheel, landed, PETAL);
-            tick(wheel, RadialWheel.GRACE_TICKS);
-            double turned = wheel.rotation();
-
-            moveTo(wheel, landed - FOLLOW, PETAL);
-
-            assertEquals(WIDE_TYPE - 1, wheel.selectedType());
-            assertEquals(turned, wheel.rotation(), EPSILON);
+            assertEquals(2, wheel.hoveredAbility());
+            assertEquals(0.0, wheel.rotation(), EPSILON);
         }
 
         /** decision open-half-spans-270-degrees */
         @Test
         void theRingTurnsWhileTheHeldHalfStaysPinned() {
-            RadialWheel wheel = wideTypeOpen();
-            double cursor = spanStart(wheel) - JUST_PAST;
-
-            moveTo(wheel, cursor, PETAL);
-            settle(wheel);
+            RadialWheel wheel = farNeighborOpen();
 
             assertTrue(Math.abs(wheel.rotation()) > EPSILON, "the cursor turned the ring");
             assertEquals(RadialWheel.TOP, wheel.openHalf());
@@ -629,45 +643,9 @@ class RadialWheelTest {
             assertEquals(BOTTOM, held.center(), EPSILON);
         }
 
-        /** The ability one step from the hovered one, and the cursor just inside its edge toward the hovered one. */
-        private static double justInside(RadialWheel.PetalArc petal, boolean fromClockwise) {
-            return fromClockwise ? petal.start() + petal.arc() - JUST_PAST : petal.start() + JUST_PAST;
-        }
-
-        /** decision ring-rotates-to-keep-the-cursor-inside */
-        @Test
-        void crossingOntoAnAbilityTheRingIsPulledTowardSpringsItsMiddleOntoTheCursor() {
-            RadialWheel wheel = opened(ABILITIES);
-            double tension = wheel.rotation();
-            assertTrue(Math.abs(tension) > EPSILON, "the ring stands turned");
-            // a ring turned clockwise springs back counterclockwise: crossing counterclockwise enters from clockwise
-            int next = wheel.hoveredAbility() + (tension > 0 ? 1 : -1);
-            double cursor = justInside(abilityPetal(wheel, next), tension < 0);
-
-            moveTo(wheel, cursor, PETAL);
-
-            assertEquals(next, wheel.hoveredAbility());
-            assertHoveredCenteredOn(wheel, cursor);
-            assertTrue(wheel.isAnimating(), "the ring springs, easing");
-        }
-
-        /** decision ring-rotates-to-keep-the-cursor-inside */
-        @Test
-        void crossingOntoAnAbilityAgainstTheRingsPullLeavesTheRingWhereItStands() {
-            RadialWheel wheel = opened(ABILITIES);
-            double tension = wheel.rotation();
-            int next = wheel.hoveredAbility() + (tension > 0 ? -1 : 1);
-
-            moveTo(wheel, justInside(abilityPetal(wheel, next), tension > 0), PETAL);
-
-            assertEquals(next, wheel.hoveredAbility());
-            assertEquals(tension, wheel.rotation(), EPSILON);
-        }
-
         @Test
         void hubResetsTheRotationToRest() {
-            RadialWheel wheel = wideTypeOpen();
-            moveTo(wheel, spanStart(wheel) - JUST_PAST, PETAL);
+            RadialWheel wheel = farNeighborOpen();
 
             moveTo(wheel, 0.0, HUB);
 
@@ -675,7 +653,6 @@ class RadialWheelTest {
             assertFalse(wheel.isOpen());
         }
     }
-
     /**
      * Opening a type plays like a fan of cards: the type petal recedes
      * lengthwise and widens over the span, the full-size ability cards rotate
@@ -762,31 +739,32 @@ class RadialWheelTest {
 
         /** decision open-type-keeps-thirteen-fading-to-twenty-percent */
         @Test
-        void farNeighborsFadeAndFarTypesHideWithTheFan() {
+        void farNeighborsFadeWithTheFan() {
             RadialWheel wheel = freshlyOpened();
             int farthest = stepsFrom(OPEN_TYPE, RadialWheel.NEIGHBORS_A_SIDE);
-            int hidden = stepsFrom(OPEN_TYPE, TYPES / 2);
+            int across = stepsFrom(OPEN_TYPE, TYPES / 2);
 
             tick(wheel, MID_TICKS);
             List<RadialWheel.PetalArc> midway = wheel.displayedLayout(0.0f);
             double fading = typePetal(midway, farthest).presence();
-            double hiding = typePetal(midway, hidden).presence();
+            double fadingAcross = typePetal(midway, across).presence();
             tick(wheel, RingEase.DURATION_TICKS);
             List<RadialWheel.PetalArc> landed = wheel.displayedLayout(0.0f);
 
             assertTrue(fading > RadialWheel.NEIGHBOR_MIN_PRESENCE && fading < 1.0, "fading " + fading);
-            assertTrue(hiding > 0.0 && hiding < 1.0, "hiding " + hiding);
+            assertTrue(fadingAcross > RadialWheel.NEIGHBOR_MIN_PRESENCE && fadingAcross < 1.0, "across " + fadingAcross);
             assertEquals(RadialWheel.NEIGHBOR_MIN_PRESENCE, typePetal(landed, farthest).presence(), EPSILON);
-            assertTrue(landed.stream().noneMatch(petal -> petal.type() == hidden), "the hidden type has no petal");
+            assertEquals(RadialWheel.NEIGHBOR_MIN_PRESENCE, typePetal(landed, across).presence(), EPSILON);
         }
 
         /** decision fisheye-halves-its-max-and-floors-at-ten-degrees */
         @Test
         void aNeighborWalkReshapesTheFisheyeThroughTheEase() {
-            RadialWheel wheel = opened(ABILITIES);
-            int next = stepsFrom(OPEN_TYPE, 1);
-            int growing = stepsFrom(OPEN_TYPE, 2);
-            int shrinking = stepsFrom(OPEN_TYPE, -1);
+            RadialWheel wheel = Layout.halfOfThirteen(ABILITIES);
+            int open = wheel.selectedType();
+            int next = open + 1;
+            int growing = open + 2;
+            int shrinking = open - 1;
             double growingBefore = typePetal(wheel.layout(), growing).arc();
             double shrinkingBefore = typePetal(wheel.layout(), shrinking).arc();
 
@@ -803,8 +781,8 @@ class RadialWheelTest {
             assertTrue(growingMid > growingBefore && growingMid < growingAfter, "growing " + growingMid);
             assertTrue(shrinkingMid < shrinkingBefore && shrinkingMid > shrinkingAfter, "shrinking " + shrinkingMid);
             double widest = typePetals(wheel).stream().mapToDouble(RadialWheel.PetalArc::arc).max().orElseThrow();
-            assertEquals(widest, typePetal(wheel.layout(), stepsFrom(next, 1)).arc(), EPSILON);
-            assertEquals(widest, typePetal(wheel.layout(), OPEN_TYPE).arc(), EPSILON);
+            assertEquals(widest, typePetal(wheel.layout(), next + 1).arc(), EPSILON);
+            assertEquals(widest, typePetal(wheel.layout(), open).arc(), EPSILON);
         }
 
         @Test

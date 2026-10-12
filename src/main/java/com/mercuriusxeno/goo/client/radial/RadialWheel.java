@@ -38,6 +38,8 @@ public final class RadialWheel {
     static final int TOP = 0;
     /** The N..Z half, centered on the bottom. */
     static final int BOTTOM = 1;
+    /** The two ways round a ring, which halve the farthest any type stands from another. */
+    private static final int WAYS_ROUND = 2;
     /** How many halves the types split into. */
     private static final int HALVES = 2;
     /** The last letter a type's name starts with to belong to the top half. */
@@ -59,15 +61,14 @@ public final class RadialWheel {
     static final double HUB_FRACTION = 0.2;
     /** No type open, or no ability hovered. */
     static final int NONE = -1;
-    /** The arc each ability petal of the open type takes while the ring has room for it. */
+    /** The most each ability petal of the open type takes once the abilities outgrow the type's rest slot. */
     static final double ABILITY_ARC = Math.toRadians(30.0);
-    /**
-     * The next and last neighbor's arc while the abilities have room: half
-     * the 55 degrees the old six-to-one weights gave it beside one ability.
-     */
-    static final double NEIGHBOR_MAX_ARC = Math.toRadians(27.5);
-    /** The narrowest arc a visible neighbor keeps: the sixth's, and every neighbor's once the abilities crowd them. */
+    /** The narrowest arc a neighbor squeezes to: the farthest's at full squeeze. */
     static final double NEIGHBOR_MIN_ARC = Math.toRadians(10.0);
+    /** Halvings the squeeze's search takes, well past a double's precision. */
+    private static final int SQUEEZE_STEPS = 60;
+    /** How much less turn a landing must take than the ring stands at before the ring springs to it. */
+    private static final double SPRING_SLACK = 1e-9;
     /** How many types either side of the open type stay on the ring. */
     static final int NEIGHBORS_A_SIDE = 6;
     /** The most types a wheel holds with none hidden while one is open: the open type and its neighbors. */
@@ -79,12 +80,6 @@ public final class RadialWheel {
     private static final double HALF = 0.5;
     /** A scroll up steps the open type one petal counterclockwise. */
     private static final int STEP_BACK = -1;
-    /** How far inside the open type's abilities the ring turns the cursor, from either edge. */
-    static final double CURSOR_MARGIN = Math.toRadians(3.0);
-    /** Full turns either way the rotation's solve tries, enough to reach zero from any cursor and span. */
-    private static final int TURNS_TRIED = 2;
-    /** Client ticks the ring follows the cursor after a type opens: a tenth of a second. */
-    static final int GRACE_TICKS = 2;
     /**
      * How far out an open type's petal reaches, as a fraction of the wheel's
      * radius, standing as the base its ability petals grow out of.
@@ -118,8 +113,6 @@ public final class RadialWheel {
     private double rotation;
     /** The cursor's last angle outside the hub, or NaN while it has none. */
     private double cursorAngle = Double.NaN;
-    /** Client ticks left in the grace window after a type opened under the cursor. */
-    private int graceTicks;
     /** The picture's ease toward the target layout; the state above is the target. */
     private final RingEase ease;
 
@@ -173,13 +166,14 @@ public final class RadialWheel {
     }
 
     /**
-     * Where an open half's window starts: half the open arc counterclockwise of its center.
+     * Where an open half's unturned ring starts: half a turn round from its
+     * center, so the half's types center on its side.
      *
      * @param half the half
      * @return the angle in radians
      */
-    private static double windowStart(int half) {
-        return centerOf(half) - HALF_OPEN_ARC * HALF;
+    private static double ringStart(int half) {
+        return centerOf(half) - Math.PI;
     }
 
     /**
@@ -336,16 +330,13 @@ public final class RadialWheel {
         return type == selectedType && ability == hoveredAbility ? LIFT_TICKS : 0;
     }
 
-    /** Advances the petals' ease and the grace window one client tick. */
+    /** Advances the petals' ease one client tick. */
     public void tick() {
         ease.tick();
         for (int type = 0; type < typeCount; type++) {
             for (int ability = 0; ability < liftTicks[type].length; ability++) {
                 liftTicks[type][ability] += Integer.signum(liftTarget(type, ability) - liftTicks[type][ability]);
             }
-        }
-        if (graceTicks > 0) {
-            graceTicks--;
         }
     }
 
@@ -360,22 +351,12 @@ public final class RadialWheel {
     }
 
     /**
-     * Whether the ring still follows the cursor after a type opened.
-     * decision ring-rotates-to-keep-the-cursor-inside
-     *
-     * @return true inside the grace window
-     */
-    boolean isInGrace() {
-        return graceTicks > 0;
-    }
-
-    /**
      * The target pose. At rest no type petal shows. With a half open and no
-     * type fanned out, the half's types share its window evenly, closed and
-     * full. With a type fanned out, its slot is as wide as its abilities and
-     * fully open, each neighbor in its half takes its arc by distance at its
-     * presence, and every type past the neighbors, or in the other half,
-     * takes no width and no presence.
+     * type fanned out, the half's types share the whole ring evenly, closed
+     * and full. With a type fanned out, its slot is as wide as its abilities
+     * and fully open, and each other type of its half takes its squeezed arc
+     * at its presence, the ring filled; the other half's types take no width
+     * and no presence.
      * decision open-type-keeps-thirteen-fading-to-twenty-percent
      * decision halves-arc-petals-at-rest
      * decision open-half-spans-270-degrees
@@ -394,7 +375,7 @@ public final class RadialWheel {
         for (int type = 0; type < typeCount; type++) {
             presence[type] = type == fanned ? 1.0 : presenceAround(fanned, type);
             widths[type] = type == fanned ? abilityCount.applyAsInt(type) * arcs.ability()
-                    : neighborArc(fanned, type, arcs.nearest());
+                    : neighborArc(fanned, type, arcs.squeeze());
         }
         openness[fanned] = 1.0;
         return new RingEase.Pose(centering(widths) + rotation, widths, openness, presence, topArcTarget());
@@ -423,13 +404,13 @@ public final class RadialWheel {
         for (int type = 0; type < selectedType; type++) {
             before += widths[type];
         }
-        double abilitiesCenter = windowStart(openHalf) + before + widths[selectedType] * HALF;
+        double abilitiesCenter = ringStart(openHalf) + before + widths[selectedType] * HALF;
         return Math.IEEEremainder(centerOf(openHalf) - abilitiesCenter, TWO_PI);
     }
 
     /**
      * The pose with no type fanned out: no type petal at rest; with a half
-     * open, its types sharing the window evenly, closed and full.
+     * open, its types sharing the whole ring evenly, closed and full.
      * decision halves-arc-petals-at-rest
      * decision open-half-spans-270-degrees
      *
@@ -440,10 +421,21 @@ public final class RadialWheel {
         double[] presence = new double[typeCount];
         int[] shown = openHalf == NONE ? new int[0] : members[openHalf];
         for (int type : shown) {
-            widths[type] = HALF_OPEN_ARC / shown.length;
+            widths[type] = TWO_PI / shown.length;
             presence[type] = 1.0;
         }
         return new RingEase.Pose(rotation, widths, new double[typeCount], presence, topArcTarget());
+    }
+
+    /**
+     * A type's arc while its half is open and no type fanned out: the whole
+     * ring shared evenly, the most any type petal of that half ever takes.
+     *
+     * @param type the type
+     * @return the arc in radians
+     */
+    private double restArc(int type) {
+        return TWO_PI / members[halfOfType[type]].length;
     }
 
     /**
@@ -464,7 +456,7 @@ public final class RadialWheel {
      * A type's presence while another is open: none outside the open type's
      * half; on a half the neighbors hold whole every type stays at full
      * presence; otherwise the next and last stand full, each step farther
-     * fades by an even step to 20% at the sixth, and the rest hide.
+     * fades by an even step to 20% at the sixth, and the rest stay at 20%.
      * decision open-type-keeps-thirteen-fading-to-twenty-percent
      *
      * @param open the open type
@@ -478,8 +470,8 @@ public final class RadialWheel {
         if (members[halfOfType[open]].length <= WINDOW_TYPES) {
             return 1.0;
         }
-        int steps = distance(open, type);
-        return steps <= NEIGHBORS_A_SIDE ? 1.0 - (1.0 - NEIGHBOR_MIN_PRESENCE) * stepsOut(steps) : 0.0;
+        int steps = Math.min(distance(open, type), NEIGHBORS_A_SIDE);
+        return 1.0 - (1.0 - NEIGHBOR_MIN_PRESENCE) * stepsOut(steps);
     }
 
     /**
@@ -504,21 +496,34 @@ public final class RadialWheel {
     }
 
     /**
-     * A visible neighbor's arc, set in degrees by its distance rather than
-     * shared by weight: the nearest arc at the next and last neighbor,
-     * narrowing by even steps to the floor at the sixth; a hidden type takes none.
+     * How far round its half's ring the farthest type stands from the open type.
+     *
+     * @param open the open type
+     * @return the steps, the ring walked either way round
+     */
+    private int farthestDistance(int open) {
+        return members[halfOfType[open]].length / WAYS_ROUND;
+    }
+
+    /**
+     * A neighbor's arc: its rest arc, shrunk by the squeeze in proportion to
+     * its distance, so the next and last shrink least and the farthest
+     * most, never past the floor and never wider than at rest.
      * decision fisheye-halves-its-max-and-floors-at-ten-degrees
      *
      * @param open    the open type
      * @param type    the other type
-     * @param nearest the next and last neighbor's arc
-     * @return the arc in radians
+     * @param squeeze how far the ring squeezes its neighbors, 1 bringing the farthest to the floor
+     * @return the arc in radians, none outside the open type's half
      */
-    private double neighborArc(int open, int type, double nearest) {
+    private double neighborArc(int open, int type, double squeeze) {
         if (!isVisibleNeighbor(open, type)) {
             return 0.0;
         }
-        return nearest - (nearest - NEIGHBOR_MIN_ARC) * stepsOut(distance(open, type));
+        double rest = restArc(open);
+        double floor = Math.min(NEIGHBOR_MIN_ARC, rest);
+        double reach = distance(open, type) / (double) farthestDistance(open);
+        return Math.max(floor, rest - squeeze * reach * (rest - floor));
     }
 
     /**
@@ -536,7 +541,7 @@ public final class RadialWheel {
     private List<PetalArc> petalsOf(RingEase.Pose pose, CardLength cardLength) {
         List<PetalArc> petals = new ArrayList<>();
         // open-half-spans-270-degrees: each half's ring runs from its own window's start
-        double[] starts = {windowStart(TOP) + pose.rotation(), windowStart(BOTTOM) + pose.rotation()};
+        double[] starts = {ringStart(TOP) + pose.rotation(), ringStart(BOTTOM) + pose.rotation()};
         for (int type = 0; type < typeCount; type++) {
             double openness = pose.openness()[type];
             double width = pose.widths()[type];
@@ -576,47 +581,64 @@ public final class RadialWheel {
     }
 
     /**
-     * Sizes the ring around an open type. The neighbors' arcs run from the
-     * nearest arc down to the floor, and the abilities share evenly what
-     * they leave, each at most its goal arc, the rest of the ring left open
-     * opposite them. Where that would hold an ability under its goal arc,
-     * the nearest arc drops toward the floor, flattening the steps, until
-     * the abilities reach their goal; with every neighbor at the floor, the
-     * abilities share what remains, under their goal.
+     * Sizes the ring around an open type so it fills the whole turn with no
+     * petal wider than at rest. Abilities that fit in the type's own rest
+     * slot share it and the neighbors keep their rest arcs. Otherwise each
+     * ability takes its 30 degrees and the neighbors squeeze, the farthest
+     * most, until the ring is full; with every neighbor at the floor and
+     * still no room, the abilities share what remains, under 30 degrees.
      * decision fisheye-halves-its-max-and-floors-at-ten-degrees
      *
      * @param open the open type, holding at least one ability
-     * @return the arc of each ability and the next and last neighbor's arc
+     * @return the arc of each ability and the neighbors' squeeze
      */
     private Arcs arcsWithOpenType(int open) {
         int abilities = abilityCount.applyAsInt(open);
-        int visible = 0;
-        double stepsBelowNearest = 0.0;
-        for (int type = 0; type < typeCount; type++) {
-            if (isVisibleNeighbor(open, type)) {
-                visible++;
-                stepsBelowNearest += 1.0 - stepsOut(distance(open, type));
+        double rest = restArc(open);
+        if (abilities * ABILITY_ARC <= rest) {
+            return new Arcs(rest / abilities, 0.0);
+        }
+        double room = TWO_PI - abilities * ABILITY_ARC;
+        double fullSqueeze = farthestDistance(open);
+        double squeezed = neighborsAt(open, fullSqueeze);
+        if (squeezed >= room) {
+            return new Arcs((TWO_PI - squeezed) / abilities, fullSqueeze);
+        }
+        double low = 0.0;
+        double high = fullSqueeze;
+        for (int step = 0; step < SQUEEZE_STEPS; step++) {
+            double middle = (low + high) * HALF;
+            if (neighborsAt(open, middle) > room) {
+                low = middle;
+            } else {
+                high = middle;
             }
         }
-        double atFloor = visible * NEIGHBOR_MIN_ARC;
-        double nearest = NEIGHBOR_MAX_ARC;
-        double neighbors = atFloor + (nearest - NEIGHBOR_MIN_ARC) * stepsBelowNearest;
-        double crowded = TWO_PI - abilities * ABILITY_ARC;
-        if (neighbors > crowded) {
-            double rise = stepsBelowNearest > 0 ? Math.max(0.0, (crowded - atFloor) / stepsBelowNearest) : 0.0;
-            nearest = NEIGHBOR_MIN_ARC + rise;
-            neighbors = atFloor + rise * stepsBelowNearest;
+        return new Arcs(ABILITY_ARC, high);
+    }
+
+    /**
+     * The open type's neighbors' arcs summed at a squeeze.
+     *
+     * @param open    the open type
+     * @param squeeze the squeeze
+     * @return the sum in radians
+     */
+    private double neighborsAt(int open, double squeeze) {
+        double sum = 0.0;
+        for (int type = 0; type < typeCount; type++) {
+            sum += neighborArc(open, type, squeeze);
         }
-        return new Arcs(Math.min(ABILITY_ARC, (TWO_PI - neighbors) / abilities), nearest);
+        return sum;
     }
 
     /**
      * One open type's ring sizes.
      *
      * @param ability the arc of each ability petal
-     * @param nearest the next and last neighbor's arc, which the others step down from
+     * @param squeeze how far the neighbors shrink from their rest arcs
      */
-    private record Arcs(double ability, double nearest) {
+    private record Arcs(double ability, double squeeze) {
     }
 
     /**
@@ -682,15 +704,10 @@ public final class RadialWheel {
     }
 
     /**
-     * The cursor on the open half's ring: inside the grace window the ring
-     * follows it, else it hovers or opens the petal under it.
+     * The cursor on the open half's ring hovers or opens the petal under it.
      * decision ring-rotates-to-keep-the-cursor-inside
      */
     private void moveOnTheRing() {
-        if (isOpen() && isInGrace()) {
-            centerOnCursor();
-            return;
-        }
         layout().stream().filter(petal -> wrap(cursorAngle - petal.start()) < petal.arc())
                 .findFirst().ifPresent(this::landOn);
     }
@@ -706,41 +723,66 @@ public final class RadialWheel {
         selectedType = NONE;
         hoveredAbility = NONE;
         rotation = 0.0;
-        graceTicks = 0;
         ease.retarget(targetPose());
     }
 
     /**
-     * The cursor on a petal: an ability of the open type hovers it, another type's petal opens that type.
+     * The cursor on a petal: another type's petal opens that type; an
+     * ability of the open type hovers it, and crossing onto it from another
+     * springs the ring back toward rest wherever some ability can sit under
+     * the cursor with less turn than the ring stands at.
+     * decision ring-rotates-to-keep-the-cursor-inside
      *
      * @param petal the petal under the cursor
      */
     private void landOn(PetalArc petal) {
-        if (petal.isAbility()) {
-            if (hoveredAbility != NONE && petal.ability() != hoveredAbility) {
-                springTowardRest(petal);
+        if (!petal.isAbility()) {
+            if (petal.type() != selectedType) {
+                openType(petal.type());
             }
-            hoveredAbility = petal.ability();
-        } else if (petal.type() != selectedType) {
-            openType(petal.type());
+            return;
         }
+        if (petal.ability() != hoveredAbility) {
+            Landing nearestRest = landingNearestRest();
+            if (Math.abs(nearestRest.turn()) < Math.abs(rotation) - SPRING_SLACK) {
+                rotation = nearestRest.turn();
+                hoveredAbility = nearestRest.ability();
+                ease.retarget(targetPose());
+                return;
+            }
+        }
+        hoveredAbility = petal.ability();
     }
 
     /**
-     * The cursor crossing onto another ability while the ring stands turned:
-     * where centering that ability on the cursor turns the ring back toward
-     * its unturned rest, the direction its tension pulls, the ring springs
-     * there, easing, so the cursor sits in the petal's middle.
+     * Of the open type's abilities, the one whose middle the least turn from
+     * the unturned rest brings under the cursor, and that turn.
      * decision ring-rotates-to-keep-the-cursor-inside
      *
-     * @param petal the ability petal the cursor crossed onto
+     * @return the ability and the ring's rotation that centers it on the cursor
      */
-    private void springTowardRest(PetalArc petal) {
-        double turn = turnToCursor(petal);
-        if (rotation * turn < 0) {
-            rotation += turn;
-            ease.retarget(targetPose());
+    private Landing landingNearestRest() {
+        double turned = rotation;
+        rotation = 0.0;
+        List<PetalArc> unturned = layout();
+        rotation = turned;
+        Landing best = new Landing(NONE, Double.POSITIVE_INFINITY);
+        for (PetalArc petal : unturned) {
+            double turn = Math.IEEEremainder(cursorAngle - petal.center(), TWO_PI);
+            if (petal.isAbility() && Math.abs(turn) < Math.abs(best.turn())) {
+                best = new Landing(petal.ability(), turn);
+            }
         }
+        return best;
+    }
+
+    /**
+     * Where the cursor lands among the open type's abilities.
+     *
+     * @param ability the ability under the cursor
+     * @param turn    the ring's rotation that centers it there
+     */
+    private record Landing(int ability, double turn) {
     }
 
     /**
@@ -754,17 +796,16 @@ public final class RadialWheel {
         hoveredAbility = NONE;
         rotation = 0.0;
         cursorAngle = Double.NaN;
-        graceTicks = 0;
         if (wasOpen) {
             ease.retarget(targetPose());
         }
     }
 
     /**
-     * Opens a type and turns the ring the least it must to put the cursor
-     * inside the type's abilities, hovers the ability it lands on and turns
-     * that ability's center onto the cursor, opening the grace window. With
-     * no cursor angle the ring rests unturned.
+     * Opens a type, the cursor landing in whichever of its abilities the
+     * least turn from the unturned rest brings under it, that ability's
+     * middle on the cursor. With no cursor angle, or no ability, the ring
+     * rests unturned.
      * decision ring-rotates-to-keep-the-cursor-inside
      *
      * @param type the type to open
@@ -773,83 +814,12 @@ public final class RadialWheel {
         selectedType = type;
         hoveredAbility = NONE;
         rotation = 0.0;
-        if (!Double.isNaN(cursorAngle)) {
-            rotation = solveRotation(layout(), type, cursorAngle);
-            PetalArc petal = petalAt(layout(), cursorAngle);
-            hoveredAbility = petal.isAbility() ? petal.ability() : NONE;
-            rotation += turnToCursor(petal);
-            graceTicks = GRACE_TICKS;
+        if (!Double.isNaN(cursorAngle) && abilityCount.applyAsInt(type) > 0) {
+            Landing landing = landingNearestRest();
+            rotation = landing.turn();
+            hoveredAbility = landing.ability();
         }
         ease.retarget(targetPose());
-    }
-
-    /**
-     * Turns the whole ring, picture and target alike, so the hovered petal's
-     * center sits on the cursor: the grace window's follow.
-     * decision ring-rotates-to-keep-the-cursor-inside
-     */
-    private void centerOnCursor() {
-        PetalArc anchor = layout().stream()
-                .filter(petal -> petal.type() == selectedType && petal.ability() == hoveredAbility)
-                .findFirst().orElse(null);
-        if (anchor == null) {
-            return;
-        }
-        double turn = turnToCursor(anchor);
-        rotation += turn;
-        ease.turnBy(turn);
-    }
-
-    /**
-     * The shortest turn that brings a petal's center onto the cursor.
-     *
-     * @param petal the petal
-     * @return the turn in radians, within half a turn either way
-     */
-    private double turnToCursor(PetalArc petal) {
-        return Math.IEEEremainder(cursorAngle - petal.center(), TWO_PI);
-    }
-
-    /**
-     * The rotation nearest zero that puts an angle at least the margin
-     * inside a type's span of petals; a span narrower than two margins
-     * centers on the angle instead.
-     * decision ring-rotates-to-keep-the-cursor-inside
-     *
-     * @param unturned the layout at rotation zero
-     * @param type     the type whose span holds the angle
-     * @param angle    the angle the span must hold
-     * @return the rotation in radians
-     */
-    static double solveRotation(List<PetalArc> unturned, int type, double angle) {
-        List<PetalArc> span = unturned.stream().filter(petal -> petal.type() == type).toList();
-        double spanStart = span.getFirst().start();
-        double spanEnd = span.getLast().start() + span.getLast().arc();
-        double lowest = angle - spanEnd + CURSOR_MARGIN;
-        double highest = angle - spanStart - CURSOR_MARGIN;
-        if (lowest > highest) {
-            double centered = angle - (spanStart + spanEnd) * HALF;
-            return nearestToZero(centered, centered);
-        }
-        return nearestToZero(lowest, highest);
-    }
-
-    /**
-     * The value nearest zero in an interval of rotations, any whole turn of it.
-     *
-     * @param lowest  the interval's low end
-     * @param highest the interval's high end
-     * @return the rotation nearest zero
-     */
-    private static double nearestToZero(double lowest, double highest) {
-        double best = Double.POSITIVE_INFINITY;
-        for (int turn = -TURNS_TRIED; turn <= TURNS_TRIED; turn++) {
-            double nearest = Math.max(lowest + turn * TWO_PI, Math.min(highest + turn * TWO_PI, 0.0));
-            if (Math.abs(nearest) < Math.abs(best)) {
-                best = nearest;
-            }
-        }
-        return best;
     }
 
     /**
@@ -924,7 +894,6 @@ public final class RadialWheel {
         selectedType = type;
         hoveredAbility = ability;
         rotation = 0.0;
-        graceTicks = 0;
         if (changed) {
             ease.retarget(targetPose());
         }
