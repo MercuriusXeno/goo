@@ -75,12 +75,17 @@ final class RadialWheelRenderer {
      */
     static final double ENTRY_REACH = Math.hypot(ABILITY_ICON_SIZE + ABILITY_ICON_OFFSET, ABILITY_ICON_OFFSET) + 1;
     /**
-     * How far the prism badge sits from the ability's own badge, left toward
-     * the icon and down, so it peeks out from under the own badge: left
-     * rather than right, since the petal's face ends just past the own badge.
+     * How far left of the ability's own badge, toward the icon, the prism
+     * badge sits, so it peeks out from under the own badge: left rather than
+     * right, since the petal's face ends just past the own badge.
      * decision on-prism-reaction-wears-the-prism-badge
      */
-    static final int PRISM_BADGE_NUDGE = 3;
+    static final int PRISM_BADGE_NUDGE_LEFT = 4;
+    /**
+     * How far below the ability's own badge the prism badge sits.
+     * decision on-prism-reaction-wears-the-prism-badge
+     */
+    static final int PRISM_BADGE_NUDGE_DOWN = 2;
 
     private static final String TYPE_ICON_PREFIX = "textures/goo/type/";
     private static final String ABILITY_ICON_PREFIX = "textures/goo/ability/";
@@ -478,15 +483,15 @@ final class RadialWheelRenderer {
     }
 
     /**
-     * The point the prism badge centers on: {@link #PRISM_BADGE_NUDGE} left
-     * of and below the own badge's center.
+     * The point the prism badge centers on: {@link #PRISM_BADGE_NUDGE_LEFT}
+     * left of and {@link #PRISM_BADGE_NUDGE_DOWN} below the own badge's center.
      * decision on-prism-reaction-wears-the-prism-badge
      *
      * @param badgeCenter the own badge's center
      * @return the prism badge's center
      */
     static int[] prismBadgeUnder(int[] badgeCenter) {
-        return new int[]{badgeCenter[0] - PRISM_BADGE_NUDGE, badgeCenter[1] + PRISM_BADGE_NUDGE};
+        return new int[]{badgeCenter[0] - PRISM_BADGE_NUDGE_LEFT, badgeCenter[1] + PRISM_BADGE_NUDGE_DOWN};
     }
 
     /**

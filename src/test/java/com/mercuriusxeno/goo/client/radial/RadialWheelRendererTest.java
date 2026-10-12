@@ -705,7 +705,8 @@ class RadialWheelRendererTest {
                     renderFrame(wheel, NO_ABILITY, EVERY_ABILITY, radius), "submitGuiElementRenderState",
                     PetalRenderState.class);
             int size = RadialWheelRenderer.ABILITY_ICON_SIZE;
-            int nudge = RadialWheelRenderer.PRISM_BADGE_NUDGE;
+            int left = RadialWheelRenderer.PRISM_BADGE_NUDGE_LEFT;
+            int down = RadialWheelRenderer.PRISM_BADGE_NUDGE_DOWN;
             TextureSetup prismBadge = sprites.get(RadialWheelRenderer.badgeIcon(AbilityBadge.PRISM));
             TextureSetup worldBadge = sprites.get(RadialWheelRenderer.badgeIcon(AbilityBadge.WORLD));
 
@@ -719,8 +720,8 @@ class RadialWheelRendererTest {
                         assertTrue(ownState.textureSetup() == worldBadge, petal + " own badge after the icon");
                         float[] ownBox = boxOf(ownState);
                         float[] prismBox = boxOf(prismState);
-                        assertEquals(Math.round(ownBox[0]) - nudge, Math.round(prismBox[0]), petal + " prism badge's left");
-                        assertEquals(Math.round(ownBox[1]) + nudge, Math.round(prismBox[1]), petal + " prism badge's top");
+                        assertEquals(Math.round(ownBox[0]) - left, Math.round(prismBox[0]), petal + " prism badge's left");
+                        assertEquals(Math.round(ownBox[1]) + down, Math.round(prismBox[1]), petal + " prism badge's top");
                         assertEquals(size * size, areaOf(prismState), AREA_TOLERANCE, petal + " prism badge shown whole");
                     }));
         }
