@@ -13,10 +13,8 @@ import java.util.function.ToIntFunction;
  * Decision ailment-overlay-shader-per-ailment.
  */
 public enum AilmentKind {
-    /** Aeon's stasis: a golden shimmer. */
+    /** Rewind's stasis: a golden shimmer. */
     STASIS(0xFFD447, AilmentPattern.GLINT),
-    /** Haste: the stasis shimmer's golden look. */
-    HASTE(0xFFBF2E, AilmentPattern.GLINT),
     /** Scales: diamond blue, faceted rather than glinting. */
     SCALES(0x4AEDD9, AilmentPattern.FACETS),
     /** Zone: an ender shimmer. */
