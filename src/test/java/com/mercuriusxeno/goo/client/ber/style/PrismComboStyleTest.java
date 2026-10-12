@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ber.style;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.PrismCombos;
+import com.mercuriusxeno.goo.ability.program.ReflectorStep;
 import com.mercuriusxeno.goo.ability.program.RelayStep;
 import com.mercuriusxeno.goo.block.ability.PrismColumn;
 import com.mercuriusxeno.goo.block.crystallizer.CrystalCluster;
@@ -44,6 +45,20 @@ class PrismComboStyleTest {
         assertEquals(zap.id().toString(), PulsePrismStyle.RELAY_COMBO);
         assertTrue(PrismCombos.comboSteps(zap).stream().anyMatch(RelayStep.class::isInstance),
                 "pulse_zap's combo carries no relay step");
+    }
+
+    /**
+     * The four-sided reflector look keys off the combo Sunbeam converts a
+     * prism into, so a reflector grown by Sunbeam still folds to four sides.
+     * channeled-hosts-convert-prisms-over-the-hold
+     */
+    @Test
+    void theReflectorLookKeysOffTheComboSunbeamConverts() {
+        AbilityDefinition sunbeam = AbilityJson.decode("glow_sunbeam");
+
+        assertEquals(sunbeam.id().toString(), GlowReflectorStyle.COMBO);
+        assertTrue(PrismCombos.comboSteps(sunbeam).stream().anyMatch(ReflectorStep.class::isInstance),
+                "glow_sunbeam's combo carries no reflector step");
     }
 
     @Test

@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.program.DegradeStep;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
+import com.mercuriusxeno.goo.ability.program.RayStep;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -55,15 +56,51 @@ final class StreamPrismCharge {
         if (aimed.isEmpty() || bitesAMobFirst(player, apex, ability)) {
             return false;
         }
-        PrismBlockEntity prism = aimed.get();
-        int hold = ability.delivery().ticksPerCharge();
-        showCharging(player.level(), prism, apex, ability, hold);
+        showCharging(player.level(), aimed.get(), apex, ability, ability.delivery().ticksPerCharge());
+        convert(aimed.get(), player, gooType, ability);
+        return true;
+    }
+
+    /**
+     * Charges the bare prism a channel's ray strikes this tick, where the
+     * channel carries an on_prism reaction; the ray itself lands as it does
+     * on any block, refracting only at a prism already holding a combo.
+     *
+     * @param player   the channeling player
+     * @param aimPoint the point the hold aims at
+     * @param gooType  the channel's goo type
+     * @param ability  the channel ability
+     */
+    static void chargeByRay(ServerPlayer player, Vec3 aimPoint, ResourceKey<GooTypeDefinition> gooType,
+                            AbilityDefinition ability) {
+        if (ability.onPrism().isEmpty()) {
+            return;
+        }
+        ServerLevel level = player.level();
+        ability.behaviors().stream().filter(RayStep.class::isInstance).map(RayStep.class::cast)
+                .flatMap(ray -> ray.struckBlock(level, player, player.getEyePosition(), aimPoint).stream())
+                .findFirst()
+                .map(level::getBlockEntity).filter(PrismBlockEntity.class::isInstance).map(PrismBlockEntity.class::cast)
+                .filter(prism -> !prism.hasCombo())
+                .ifPresent(prism -> convert(prism, player, gooType, ability));
+    }
+
+    /**
+     * Charges a bare prism one tick toward the ability's on_prism combo,
+     * logging a combo the prism's host refuses.
+     *
+     * @param prism   the bare prism
+     * @param player  the holding player
+     * @param gooType the held ability's goo type
+     * @param ability the held ability
+     */
+    private static void convert(PrismBlockEntity prism, ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
+                                AbilityDefinition ability) {
         try {
-            prism.chargeConversion(gooType, ability, hold, player.getUUID());
+            prism.chargeConversion(gooType, ability, ability.delivery().ticksPerCharge(), player.getUUID());
         } catch (ProgramLoadException e) {
             Goo.LOGGER.error(LOG_COMBO_REFUSED, ability.id(), e.getMessage());
         }
-        return true;
     }
 
     /**

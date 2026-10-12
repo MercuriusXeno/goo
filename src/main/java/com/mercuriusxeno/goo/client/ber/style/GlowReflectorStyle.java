@@ -23,8 +23,11 @@ import net.minecraft.world.phys.Vec3;
  */
 public final class GlowReflectorStyle implements PrismComboStyle {
 
-    /** The id of the ability whose program makes the reflector. */
-    public static final String COMBO = "goo:glow_reflector";
+    /**
+     * The id of the ability whose on_prism reaction makes the reflector.
+     * channeled-hosts-convert-prisms-over-the-hold
+     */
+    public static final String COMBO = "goo:glow_sunbeam";
     /** A beam's width at the dimmest light, as a share of its width at the brightest. */
     static final float DIMMEST_WIDTH = 0.3f;
     private static final float BRIGHTEST = 15f;
