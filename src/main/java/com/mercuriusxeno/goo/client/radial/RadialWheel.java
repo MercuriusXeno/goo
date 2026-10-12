@@ -69,8 +69,10 @@ public final class RadialWheel {
     private int hoveredAbility = NONE;
     /** Per type and ability, the ticks its petal has grown toward the screen's edge. */
     private final int[][] liftTicks;
-    /** The picture's ease toward the target layout; the state above is the target. */
-    private final RingEase ease;
+    /** The ticks the types have dropped into the neutral zone, eased on their own clock. */
+    private int dropTicks;
+    /** Per type, the ticks its fan has opened, each folding or fanning on its own clock. */
+    private final int[] openTicks;
 
     /**
      * Creates the wheel at rest.
@@ -81,7 +83,7 @@ public final class RadialWheel {
     public RadialWheel(int typeCount, IntUnaryOperator abilityCount) {
         this.typeCount = typeCount;
         this.abilityCount = abilityCount;
-        this.ease = new RingEase(targetPose());
+        this.openTicks = new int[typeCount];
         this.liftTicks = new int[typeCount][];
         for (int type = 0; type < typeCount; type++) {
             liftTicks[type] = new int[abilityCount.applyAsInt(type)];
@@ -160,7 +162,7 @@ public final class RadialWheel {
      * @return the radius as a fraction of the wheel's
      */
     double displayedHubRadius(float partialTick) {
-        return hubRadius(ease.displayed(partialTick).dropped());
+        return hubRadius(displayedPose(partialTick).dropped());
     }
 
     /**
@@ -183,7 +185,7 @@ public final class RadialWheel {
      * @return the petals on display, in draw order
      */
     List<PetalArc> displayedLayout(float partialTick) {
-        return petalsOf(ease.displayed(partialTick),
+        return petalsOf(displayedPose(partialTick),
                 (type, ability) -> 1.0 + (HOVER_REACH - 1.0) * liftOf(type, ability, partialTick));
     }
 
@@ -206,9 +208,17 @@ public final class RadialWheel {
         return type == selectedType && ability == hoveredAbility ? LIFT_TICKS : 0;
     }
 
-    /** Advances the petals' ease one client tick. */
+    /**
+     * Advances every moving part one client tick toward its target: the
+     * drop, each type's fan and each ability's lift, each on its own clock,
+     * so opening one fan never restarts another's fold.
+     * decision petal-moves-animate
+     */
     public void tick() {
-        ease.tick();
+        dropTicks = RingEase.stepped(dropTicks, dropTarget());
+        for (int type = 0; type < typeCount; type++) {
+            openTicks[type] = RingEase.stepped(openTicks[type], openTarget(type));
+        }
         for (int type = 0; type < typeCount; type++) {
             for (int ability = 0; ability < liftTicks[type].length; ability++) {
                 liftTicks[type][ability] += Integer.signum(liftTarget(type, ability) - liftTicks[type][ability]);
@@ -223,7 +233,38 @@ public final class RadialWheel {
      * @return true until the ease lands
      */
     public boolean isAnimating() {
-        return ease.isRunning();
+        if (dropTicks != dropTarget()) {
+            return true;
+        }
+        for (int type = 0; type < typeCount; type++) {
+            if (openTicks[type] != openTarget(type)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private int dropTarget() {
+        return isOpen() ? RingEase.DURATION_TICKS : 0;
+    }
+
+    private int openTarget(int type) {
+        return type == selectedType ? RingEase.DURATION_TICKS : 0;
+    }
+
+    /**
+     * The pose as drawn this frame: the drop and each fan eased from its own tick count.
+     * decision petal-moves-animate
+     *
+     * @param partialTick the fraction of a tick since the last one
+     * @return the pose on display
+     */
+    private RingEase.Pose displayedPose(float partialTick) {
+        double[] openness = new double[typeCount];
+        for (int type = 0; type < typeCount; type++) {
+            openness[type] = RingEase.eased(openTicks[type], openTarget(type), partialTick);
+        }
+        return new RingEase.Pose(RingEase.eased(dropTicks, dropTarget(), partialTick), openness);
     }
 
     /**
@@ -434,12 +475,8 @@ public final class RadialWheel {
 
     /** Closes the open type, the types going back out to the tips and the neutral zone back out. */
     private void returnToRest() {
-        boolean wasOpen = isOpen();
         selectedType = NONE;
         hoveredAbility = NONE;
-        if (wasOpen) {
-            ease.retarget(targetPose());
-        }
     }
 
     /**
@@ -451,7 +488,6 @@ public final class RadialWheel {
     private void openType(int type) {
         selectedType = type;
         hoveredAbility = NONE;
-        ease.retarget(targetPose());
     }
 
     /**
