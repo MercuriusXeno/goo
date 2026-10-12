@@ -25,13 +25,14 @@ import java.util.Set;
 import java.util.stream.IntStream;
 
 /**
- * Draws the glove's radial wheel from a {@link RadialWheel}: one ring of
- * petals from the hub to the rim, type petals with their icon alone and the
- * open type's ability petals with icon, name and cost, or on a locked one its
- * required items alone with the learned ones slashed, the open type's name
- * and holdings in the hub.
+ * Draws the glove's radial wheel from a {@link RadialWheel}: the neutral zone
+ * at its size this frame, the type petals and the open type's ability petals, type petals with
+ * their icon alone and the open type's ability petals with icon, name and
+ * cost, or on a locked one its required items alone with the learned ones
+ * slashed, the open type's name and holdings in the hub.
  * decision abilities-replace-the-hovered-type
  * decision locked-petal-lists-the-unlearned-items
+ * decision halves-arc-petals-at-rest
  */
 final class RadialWheelRenderer {
 
@@ -59,7 +60,7 @@ final class RadialWheelRenderer {
     private static final int LABEL_GAP = 1;
     /** The side of the square an item icon draws in. */
     static final int ITEM_ICON_SIZE = 16;
-    /** How far apart, center to center along the petal, a locked petal's item icons stand. */
+    /** How far apart, center to center, neighboring item icons in a locked petal's cluster stand. */
     static final int ITEM_STRIDE = 18;
     /** The red a learned item's slash draws in. */
     static final int SLASH_COLOR = 0xFFE02020;
@@ -147,7 +148,7 @@ final class RadialWheelRenderer {
      * @return every required item icon the locked petals drew, for the cursor to name
      */
     static List<ItemIcon> render(GuiGraphicsExtractor graphics, Font font, Frame frame) {
-        blitMask(graphics, frame, frame.look().hubMask(), HUB_COLOR);
+        blitHub(graphics, frame);
         List<Words> words = new ArrayList<>();
         for (RadialWheel.PetalArc petal : frame.wheel().displayedLayout(frame.partialTick())) {
             if (petal.isAbility()) {
@@ -168,6 +169,23 @@ final class RadialWheelRenderer {
     }
 
     /**
+     * Draws the neutral zone at its size this frame: the hub's mask, baked at
+     * the rest size, scaled down about the center as the types drop in.
+     * decision halves-arc-petals-at-rest
+     *
+     * @param graphics the GUI graphics extractor
+     * @param frame    what the frame draws from
+     */
+    private static void blitHub(GuiGraphicsExtractor graphics, Frame frame) {
+        double scale = frame.wheel().displayedHubRadius(frame.partialTick()) / RadialWheel.HUB_REST_FRACTION;
+        int reach = (int) Math.round(frame.radius() * scale);
+        int size = reach * HALF;
+        graphics.blit(RenderPipelines.GUI_TEXTURED, frame.look().hubMask(), frame.centerX() - reach,
+                frame.centerY() - reach, 0.0f, 0.0f, size, size,
+                RadialTextures.TEX_SIZE, RadialTextures.TEX_SIZE, RadialTextures.TEX_SIZE, RadialTextures.TEX_SIZE,
+                HUB_COLOR);
+    }
+    /**
      * Draws a type's petal with its icon alone, shrunken or at rest.
      * decision abilities-replace-the-hovered-type
      *
@@ -184,7 +202,6 @@ final class RadialWheelRenderer {
 
     /**
      * The tint a type petal's fill blits under, faded by the petal's presence.
-     * decision open-type-keeps-six-neighbors-a-side
      *
      * @param frame what the frame draws from
      * @param petal the type's petal
@@ -196,7 +213,6 @@ final class RadialWheelRenderer {
 
     /**
      * The color a type petal's icon draws under: full white faded by the petal's presence.
-     * decision open-type-keeps-six-neighbors-a-side
      *
      * @param petal the type's petal
      * @return the packed ARGB color
@@ -236,19 +252,26 @@ final class RadialWheelRenderer {
     }
 
     /**
-     * The screen point dead center along a type petal's length, on its
-     * center line halfway from the hub to its end, at rest or receded.
+     * The screen point a type petal's icon centers on: dead center along its
+     * length at rest out at the tips, sliding out to the center of its round
+     * tip as the types drop into the inner ring.
      * decision abilities-replace-the-hovered-type
+     * decision open-half-spans-270-degrees
      *
      * @param frame what the frame draws from
      * @param petal the type petal
      * @return the point's x and y
      */
     static int[] lengthCenter(Frame frame, RadialWheel.PetalArc petal) {
-        PetalMask.Point center = PetalMask.Point.polar(petal.center(),
-                (RadialWheel.HUB_FRACTION + petal.length()) / HALF);
-        return new int[]{frame.centerX() + (int) Math.round(center.x() * frame.radius()),
-                frame.centerY() + (int) Math.round(center.y() * frame.radius())};
+        double hub = frame.wheel().displayedHubRadius(frame.partialTick());
+        double dropped = (RadialWheel.HUB_REST_FRACTION - hub)
+                / (RadialWheel.HUB_REST_FRACTION - RadialWheel.HUB_FRACTION);
+        PetalMask.Point middle = PetalMask.Point.polar(petal.center(), (petal.inner() + petal.length()) / HALF);
+        PetalMask.Point tip = petal.shape().tipCenter();
+        double x = middle.x() + (tip.x() - middle.x()) * dropped;
+        double y = middle.y() + (tip.y() - middle.y()) * dropped;
+        return new int[]{frame.centerX() + (int) Math.round(x * frame.radius()),
+                frame.centerY() + (int) Math.round(y * frame.radius())};
     }
 
     /**
@@ -281,14 +304,17 @@ final class RadialWheelRenderer {
         }
         // icons-slide-in-from-behind-the-tip: the icon rides in while the words stay on the resting tip
         blitAbilityIcon(graphics, frame, petal, ability, dimmed ? computeOverlayTint(false, true) : COLOR_WHITE);
-        int textColor = dimmed ? DISABLED_TEXT_COLOR : hovered ? HOVER_TEXT_COLOR : COLOR_WHITE;
         return new Words(splitNameLines(buildLabel(ability).getString()), Component.literal(slotLabels.costLabel()),
-                restingTip, textColor, List.of());
+                restingTip, textColorOf(dimmed, hovered), List.of());
+    }
+
+    private static int textColorOf(boolean dimmed, boolean hovered) {
+        return dimmed ? DISABLED_TEXT_COLOR : hovered ? HOVER_TEXT_COLOR : COLOR_WHITE;
     }
 
     /**
      * A locked petal's item icons, one per required item in the order the
-     * ability names them, laid along the petal's center line.
+     * ability names them, clustered toward the petal's end.
      * decision locked-petal-lists-the-unlearned-items
      *
      * @param frame   what the frame draws from
@@ -298,7 +324,7 @@ final class RadialWheelRenderer {
      */
     private static List<ItemIcon> requiredIcons(Frame frame, RadialWheel.PetalArc petal, OfferedAbility offered) {
         List<OfferedAbility.RequiredItem> required = offered.required();
-        List<ItemRect> rects = itemColumn(frame, petal, required.size());
+        List<ItemRect> rects = itemCluster(frame, petal, required.size());
         return IntStream.range(0, rects.size())
                 .mapToObj(index -> {
                     OfferedAbility.RequiredItem item = required.get(index);
@@ -357,30 +383,44 @@ final class RadialWheelRenderer {
     }
 
     /**
-     * Lays out a locked petal's items in a column along the petal's center
-     * line, one square per item at a fixed stride from the hub outward,
-     * the column centered halfway along the petal so every square stays
-     * inside it and the cursor over one keeps the petal hovered.
+     * Lays out a locked petal's items in a small cluster toward the petal's
+     * end, around one point on its center line: one item on the point, two
+     * side by side, three in a triangle, four in a square, and more on the
+     * corners of the regular polygon, neighbors one stride apart.
      * decision locked-petal-lists-the-unlearned-items
      *
      * @param frame what the frame draws from
      * @param petal the locked petal
-     * @param count how many items the column holds
-     * @return each item's square, from the hub outward
+     * @param count how many items the cluster holds
+     * @return each item's square, clockwise from the top
      */
-    static List<ItemRect> itemColumn(Frame frame, RadialWheel.PetalArc petal, int count) {
-        PetalMask.Petal shape = petal.shape();
-        double middle = (shape.inner() + shape.outer()) / HALF * frame.radius();
-        double firstOffset = (count - 1) * ITEM_STRIDE / (double) HALF;
+    static List<ItemRect> itemCluster(Frame frame, RadialWheel.PetalArc petal, int count) {
+        double spread = clusterRadius(count);
         PetalMask.Point along = PetalMask.Point.polar(petal.center(), 1.0);
-        // icons-slide-in-from-behind-the-tip: the column rides in by the icon's offset
-        double slide = slideDistance(frame, petal);
+        // icons-slide-in-from-behind-the-tip: the cluster rides in by the icon's offset
+        double distance = petal.shape().outer() * frame.radius() - spread - ITEM_ICON_SIZE
+                + slideDistance(frame, petal);
+        double centerX = frame.centerX() + along.x() * distance;
+        double centerY = frame.centerY() + along.y() * distance;
+        // straight up on screen, turned half a side for an even count so its top edge lies flat
+        double first = -Math.PI / HALF + (count % HALF == 0 ? Math.PI / count : 0.0);
         return IntStream.range(0, count).mapToObj(index -> {
-            double distance = middle - firstOffset + index * ITEM_STRIDE + slide;
-            int x = frame.centerX() + (int) Math.round(along.x() * distance);
-            int y = frame.centerY() + (int) Math.round(along.y() * distance);
+            double corner = first + HALF * Math.PI * index / count;
+            int x = (int) Math.round(centerX + Math.cos(corner) * spread);
+            int y = (int) Math.round(centerY + Math.sin(corner) * spread);
             return new ItemRect(x - ITEM_ICON_SIZE / HALF, y - ITEM_ICON_SIZE / HALF);
         }).toList();
+    }
+
+    /**
+     * How far a cluster's items stand from its center: none for one item,
+     * else the circumradius of the regular polygon whose sides are one stride.
+     *
+     * @param count how many items the cluster holds
+     * @return the distance in pixels
+     */
+    static double clusterRadius(int count) {
+        return count <= 1 ? 0.0 : ITEM_STRIDE / (HALF * Math.sin(Math.PI / count));
     }
 
     /**
@@ -673,13 +713,6 @@ final class RadialWheelRenderer {
                 frame.centerX(), frame.centerY() + LABEL_GAP, textColor);
     }
 
-    private static void blitMask(GuiGraphicsExtractor graphics, Frame frame, Identifier mask, int color) {
-        int size = frame.radius() * HALF;
-        graphics.blit(RenderPipelines.GUI_TEXTURED, mask, frame.centerX() - frame.radius(),
-                frame.centerY() - frame.radius(), 0.0f, 0.0f, size, size,
-                RadialTextures.TEX_SIZE, RadialTextures.TEX_SIZE, RadialTextures.TEX_SIZE, RadialTextures.TEX_SIZE,
-                color);
-    }
 
     /**
      * An icon texture and its square size, drawn at the size its source is.
