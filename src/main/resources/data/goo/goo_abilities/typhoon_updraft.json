@@ -15,5 +15,8 @@
       ]
     }
   ],
+  "on_prism": [
+    { "type": "lift", "rise": 0.3, "sink": 0.2, "cap": 32 }
+  ],
   "tags": []
 }
