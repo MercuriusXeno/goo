@@ -32,8 +32,8 @@ public final class RadialWheel {
     static final double SCREEN_FRACTION = 0.98;
     /** The hub's radius with a type open, as a fraction of the wheel's. */
     static final double HUB_FRACTION = 0.2;
-    /** The neutral zone's radius at rest, twice the hub's: the types stand outside it. */
-    static final double HUB_REST_FRACTION = 2 * HUB_FRACTION;
+    /** The neutral zone's radius at rest, half the wheel's: the types stand outside it. */
+    static final double HUB_REST_FRACTION = 0.5;
     /**
      * Where the outer ring starts, as a fraction of the wheel's radius: the
      * types' petal tips at rest, the open type's abilities with one open, and
@@ -351,7 +351,8 @@ public final class RadialWheel {
     /**
      * The cursor in the outer ring with a type open: it hovers the ability
      * under it, crossing onto it from another springing the fan where that
-     * eases it toward rest, or none over the empty ring.
+     * eases it toward rest, and past either end of the fan winds on to the
+     * neighboring type.
      * decision ring-rotates-to-keep-the-cursor-inside
      *
      * @param angle the cursor's angle
@@ -359,13 +360,33 @@ public final class RadialWheel {
     private void hoverAt(double angle) {
         PetalArc under = abilityAt(angle);
         if (under == null) {
-            hoveredAbility = NONE;
+            windPastTheFan(angle);
             return;
         }
         if (hoveredAbility != NONE && under.ability() != hoveredAbility) {
             springTowardRest(under, angle);
         }
         hoveredAbility = under.ability();
+    }
+
+    /**
+     * The cursor in the outer ring past either end of the open type's fan:
+     * it winds on to the neighboring type that way, clockwise to the next and
+     * counterclockwise to the last, opening it under the cursor; a type with
+     * no abilities has no fan to wind past, and the cursor hovers nothing.
+     * decision ring-rotates-to-keep-the-cursor-inside
+     *
+     * @param angle the cursor's angle
+     */
+    private void windPastTheFan(double angle) {
+        List<PetalArc> fan = layout().stream().filter(PetalArc::isAbility).toList();
+        hoveredAbility = NONE;
+        if (fan.isEmpty()) {
+            return;
+        }
+        double fanCenter = (fan.getFirst().start() + fan.getLast().start() + fan.getLast().arc()) * HALF;
+        int step = Math.IEEEremainder(angle - fanCenter, TWO_PI) > 0 ? 1 : STEP_BACK;
+        openUnder(Math.floorMod(selectedType + step, typeCount), angle);
     }
 
     /**
