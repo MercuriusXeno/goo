@@ -14,7 +14,7 @@ import java.util.function.ToIntFunction;
  * The cursor out on a type's petal opens it: the hub shrinks back to its own
  * size and the types drop into the band round it, keeping their angles, and
  * the open type's abilities fan in the outer ring, centered on its petal,
- * each at most 30 degrees, tucked under the type petals' tips. Nothing ever
+ * each at most 30 degrees, reaching in behind the type petals. Nothing ever
  * turns. Past either end of the fan the cursor winds on to the neighboring
  * type; back inside the neutral zone's rest edge, the one boundary that also
  * opens a type, it returns the wheel to rest.
@@ -36,10 +36,12 @@ public final class RadialWheel {
     static final double TYPE_INNER_FRACTION = HUB_REST_FRACTION;
     /** How far out the type petals reach once dropped round the hub, as a fraction of the wheel's radius. */
     static final double TYPE_BAND_FRACTION = 0.6;
-    /** How far under the dropped type petals' tips the ability petals start, as a fraction of the wheel's radius. */
-    static final double ABILITY_TUCK = 0.05;
-    /** Where the ability petals start, tucked under the dropped type petals' tips. */
-    static final double ABILITY_INNER_FRACTION = TYPE_BAND_FRACTION - ABILITY_TUCK;
+    /**
+     * Where the ability petals start: all the way in at the hub, behind the
+     * dropped type petals, so the gaps between the type petals' round tips
+     * show the ability petal behind them rather than empty space.
+     */
+    static final double ABILITY_INNER_FRACTION = HUB_FRACTION;
     /** No type open, or no ability hovered. */
     static final int NONE = -1;
     /** The most each ability petal of the open type takes. */
@@ -241,7 +243,7 @@ public final class RadialWheel {
     /**
      * Lays a pose out: each fanning type's ability cards in the outer ring,
      * centered on its petal, fanned out from stacked on that center as far as
-     * the type is open and tucked under the type petals' tips, then each
+     * the type is open and reaching in to the hub behind them, then each
      * type's petal across its even share of the ring over them, from the
      * neutral zone's edge out to the rim at rest and in the band round the
      * hub once dropped.
