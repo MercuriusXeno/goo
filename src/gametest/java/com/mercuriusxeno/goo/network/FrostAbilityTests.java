@@ -161,15 +161,18 @@ public final class FrostAbilityTests {
     private static final BlockPos GLACIAL_OUTSIDE_POS = new BlockPos(5, 1, 5);
     /** Still water in the floor two blocks from the prism, inside Glacial's reach. */
     private static final BlockPos GLACIAL_WATER_POS = new BlockPos(2, 0, 0);
-    private static final String GLACIAL_COMBO = "goo:frost_glacial";
-    private static final String FROST_SNAP_ID = "goo:frost_snap";
+    /** Cold, whose on_prism reaction is the glacial (decision channeled-hosts-convert-prisms-over-the-hold). */
+    private static final Identifier COLD = Identifier.parse("goo:frost_cold");
+    private static final String GLACIAL_COMBO = COLD.toString();
+    /** Three blocks south of the glacial prism, where the player holds Cold on it. */
+    private static final BlockPos GLACIAL_STAND_POS = new BlockPos(0, 1, 3);
     /** Half a zombie's gauge, thawing a hundredth a tick with no hold, gone in fifty ticks outside the field. */
     private static final float HALF_A_ZOMBIE = 10f;
     private static final FrostCurve FAST_THAW = new FrostCurve(0, 0.01f, 0.5f);
     private static final int GLACIAL_HOLD_TICKS = 200;
     /** Ticks past a reload, well past a lapsed field's two, by which a running prism has renewed it. */
     private static final int RELOAD_SETTLE_TICKS = 10;
-    private static final String SHOULD_BE_GLACIAL = "Frost landing on the prism should make it glacial, stands %s";
+    private static final String SHOULD_BE_GLACIAL = "Cold held on the prism should make it glacial, stands %s";
     private static final String SHOULD_HOLD_INSIDE = "The zombie inside the glacial field should hold its gauge, stands %s";
     private static final String SHOULD_RUN_AFTER_RELOAD =
             "A glacial prism loaded from its save should still run its combo, holds %s, program %s";
@@ -424,7 +427,7 @@ public final class FrostAbilityTests {
     }
 
     /**
-     * Frost landing on a prism makes it glacial: over 200 ticks a half frozen
+     * Cold held on a prism for its hold makes it glacial: over 200 ticks a half frozen
      * zombie beside it holds its gauge and the water beside it stands as
      * magicked ice, while its twin past the field thaws out.
      *
@@ -437,19 +440,18 @@ public final class FrostAbilityTests {
         Mob inside = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, GLACIAL_INSIDE_POS);
         Mob outside = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, GLACIAL_OUTSIDE_POS);
         float[] held = new float[1];
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            GooEffectScheduler arrivals = GooServerState.of(helper.getLevel().getServer()).gooEffects();
-            int now = helper.getLevel().getServer().getTickCount();
-            arrivals.enqueue(new GooEffectScheduler.PendingEffect(now, helper.getLevel(), null, GooTypes.FROST, -1,
-                    helper.absolutePos(GLACIAL_PRISM_POS), Direction.UP, FROST_SNAP_ID));
-            arrivals.drainArrivedEffects(now);
+        int converted = PrismChanneler.hold(helper, COLD) + 1;
+        ServerPlayer holder = PrismChanneler.holdOn(helper, GooTypes.FROST, COLD, GLACIAL_PRISM_POS,
+                GLACIAL_STAND_POS, converted - 1);
+        helper.runAfterDelay(converted, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(holder);
             String combo = helper.getBlockEntity(GLACIAL_PRISM_POS, PrismBlockEntity.class).getCombo();
             helper.assertTrue(GLACIAL_COMBO.equals(combo), String.format(SHOULD_BE_GLACIAL, combo));
             FrozenEvents.freeze(inside, HALF_A_ZOMBIE, FAST_THAW);
             FrozenEvents.freeze(outside, HALF_A_ZOMBIE, FAST_THAW);
             held[0] = inside.getData(GooAttachments.FROZEN).gauge();
         });
-        helper.runAfterDelay(SETTLE_TICKS + GLACIAL_HOLD_TICKS, () -> {
+        helper.runAfterDelay(converted + GLACIAL_HOLD_TICKS, () -> {
             float insideGauge = inside.getData(GooAttachments.FROZEN).gauge();
             float outsideGauge = outside.getData(GooAttachments.FROZEN).gauge();
             helper.assertTrue(insideGauge == held[0], String.format(SHOULD_HOLD_INSIDE, insideGauge));
@@ -545,12 +547,11 @@ public final class FrostAbilityTests {
         helper.setBlock(GLACIAL_PRISM_POS.below(), Blocks.STONE);
         helper.setBlock(GLACIAL_PRISM_POS, GooBlocks.PRISM.get());
         BlockPos prismAt = helper.absolutePos(GLACIAL_PRISM_POS);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            GooEffectScheduler arrivals = GooServerState.of(helper.getLevel().getServer()).gooEffects();
-            int now = helper.getLevel().getServer().getTickCount();
-            arrivals.enqueue(new GooEffectScheduler.PendingEffect(now, helper.getLevel(), null, GooTypes.FROST, -1,
-                    prismAt, Direction.UP, FROST_SNAP_ID));
-            arrivals.drainArrivedEffects(now);
+        int converted = PrismChanneler.hold(helper, COLD) + 1;
+        ServerPlayer holder = PrismChanneler.holdOn(helper, GooTypes.FROST, COLD, GLACIAL_PRISM_POS,
+                GLACIAL_STAND_POS, converted - 1);
+        helper.runAfterDelay(converted, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(holder);
             PrismBlockEntity before = helper.getBlockEntity(GLACIAL_PRISM_POS, PrismBlockEntity.class);
             CompoundTag saved = before.saveWithFullMetadata(helper.getLevel().registryAccess());
             BlockState state = helper.getLevel().getBlockState(prismAt);
@@ -558,7 +559,7 @@ public final class FrostAbilityTests {
             helper.assertTrue(reloaded != null, "the prism should load back from its save");
             helper.getLevel().setBlockEntity(reloaded);
         });
-        helper.runAfterDelay(SETTLE_TICKS + RELOAD_SETTLE_TICKS, () -> {
+        helper.runAfterDelay(converted + RELOAD_SETTLE_TICKS, () -> {
             PrismBlockEntity after = helper.getBlockEntity(GLACIAL_PRISM_POS, PrismBlockEntity.class);
             boolean holds = GooServerState.of(helper.getLevel().getServer()).glacialFields().holds(
                     helper.getLevel().dimension(), Vec3.atCenterOf(helper.absolutePos(GLACIAL_INSIDE_POS)),

@@ -9,6 +9,8 @@ import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
+import com.mercuriusxeno.goo.ability.DistancePrice;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.OfferedAbility;
 import net.minecraft.world.item.ItemStack;
@@ -32,6 +34,8 @@ import net.minecraft.util.ARGB;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -315,6 +319,16 @@ class RadialWheelRendererTest {
         private static final int NO_ABILITY = -1;
         /** The open type's ability a locked frame locks. */
         private static final int LOCKED_ABILITY = 1;
+        /** Stands for every ability of the open type, each given an on_prism reaction. */
+        private static final int EVERY_ABILITY = -2;
+        /** A 1080p screen's GUI width at GUI scale 3, and at GUI scale 4. */
+        private static final int SCALE_THREE_WIDTH = 640;
+        private static final int SCALE_FOUR_WIDTH = 480;
+        /** A 16:9 screen's height per width, as units of each. */
+        private static final int GUI_HEIGHT_PER_WIDTH = 9;
+        private static final int GUI_WIDTH_UNITS = 16;
+        /** How far, in square pixels, a whole badge's covered area may stray from its square: float rounding. */
+        private static final double AREA_TOLERANCE = 0.5;
         /** The items the locked ability requires: glass learned, sand and clay not. */
         private static final List<OfferedAbility.RequiredItem> REQUIRED = List.of(
                 new OfferedAbility.RequiredItem(Identifier.withDefaultNamespace("glass"), true),
@@ -397,11 +411,43 @@ class RadialWheelRendererTest {
          * @return the mocked graphics the frame drew to
          */
         private GuiGraphicsExtractor renderFrame(RadialWheel wheel, int lockedAbility) {
+            return renderFrame(wheel, lockedAbility, NO_ABILITY);
+        }
+
+        /**
+         * Renders the frame with one ability of the open type locked and one
+         * carrying an on_prism reaction.
+         *
+         * @param wheel         the wheel's state
+         * @param lockedAbility the open type's ability index to lock, or {@link #NO_ABILITY}
+         * @param prismAbility  the open type's ability index reacting to prisms, or {@link #NO_ABILITY}
+         * @return the mocked graphics the frame drew to
+         */
+        private GuiGraphicsExtractor renderFrame(RadialWheel wheel, int lockedAbility, int prismAbility) {
+            return renderFrame(wheel, lockedAbility, prismAbility, RADIUS);
+        }
+
+        /**
+         * Renders the frame at a wheel radius, with one ability of the open
+         * type locked and one, or every one, carrying an on_prism reaction.
+         *
+         * @param wheel         the wheel's state
+         * @param lockedAbility the open type's ability index to lock, or {@link #NO_ABILITY}
+         * @param prismAbility  the open type's ability index reacting to prisms, {@link #EVERY_ABILITY}
+         *                      for all of them, or {@link #NO_ABILITY}
+         * @param radius        the wheel's outer radius in pixels
+         * @return the mocked graphics the frame drew to
+         */
+        private GuiGraphicsExtractor renderFrame(RadialWheel wheel, int lockedAbility, int prismAbility, int radius) {
             List<List<OfferedAbility>> abilities = IntStream.range(0, TYPES)
                     .mapToObj(type -> IntStream.range(0, ABILITIES).mapToObj(ability -> new OfferedAbility(
                             new ClientAbility(
                             Identifier.fromNamespaceAndPath("gootest", "ability_" + type + "_" + ability),
-                            "ability.gootest.word", "", 0, List.of(), List.of(), 0, Delivery.ARC, AbilityBadge.WORLD, List.of()),
+                            "ability.gootest.word", "", 0, List.of(), List.of(), 0, Delivery.ARC, AbilityBadge.WORLD,
+                            List.of(), AbilityArea.NONE, IndicatorShowing.HELD, List.of(),
+                            AbilityDefinition.NO_UPKEEP, DistancePrice.NONE,
+                            type == OPEN_TYPE && (ability == prismAbility || prismAbility == EVERY_ABILITY)
+                                    ? List.of(mock(Step.class)) : List.of()),
                             type == OPEN_TYPE && ability == lockedAbility ? REQUIRED : List.of()))
                             .toList())
                     .toList();
@@ -409,13 +455,18 @@ class RadialWheelRendererTest {
             when(graphics.pose()).thenReturn(new Matrix3x2fStack(1));
             Font font = mock(Font.class);
             when(font.width(any(FormattedText.class))).thenReturn(WORD_WIDTH);
-            RadialWheelRenderer.render(graphics, font, frameOf(wheel, abilities));
+            RadialWheelRenderer.render(graphics, font, frameOf(wheel, abilities, radius));
             return graphics;
         }
 
         private RadialWheelRenderer.Frame frameOf(RadialWheel wheel, List<List<OfferedAbility>> abilities) {
+            return frameOf(wheel, abilities, RADIUS);
+        }
+
+        private RadialWheelRenderer.Frame frameOf(RadialWheel wheel, List<List<OfferedAbility>> abilities,
+                                                  int radius) {
             return new RadialWheelRenderer.Frame(wheel, types, abilities,
-                    Map.of(types.get(OPEN_TYPE), HOLDINGS), CENTER_X, CENTER_Y, RADIUS, fakeLook, 0.0f);
+                    Map.of(types.get(OPEN_TYPE), HOLDINGS), CENTER_X, CENTER_Y, radius, fakeLook, 0.0f);
         }
 
         /** Whether a screen point lies within a petal's angular span and between its inner and outer radius. */
@@ -653,6 +704,71 @@ class RadialWheelRendererTest {
                         assertTrue(words.getFirst().y() + LINE_HEIGHT <= iconY - half, petal + " name above");
                         assertTrue(words.getLast().y() >= iconY + half, petal + " cost below");
                     }));
+        }
+
+        /**
+         * Every ability carrying an on_prism reaction paints the prism badge
+         * underneath its own badge, before its icon and own badge and a hair
+         * off the own badge, whole on its petal at the wheel radius a GUI of
+         * scale 3 and of scale 4 draws on a 1080p screen.
+         * decision on-prism-reaction-wears-the-prism-badge
+         */
+        @ParameterizedTest
+        @ValueSource(ints = {SCALE_THREE_WIDTH, SCALE_FOUR_WIDTH})
+        void prismBadgeSitsWholeUnderTheOwnBadgeOnEveryPetal(int guiWidth) {
+            int radius = (int) RadialWheel.outerRadius(guiWidth, guiWidth * GUI_HEIGHT_PER_WIDTH / GUI_WIDTH_UNITS);
+            RadialWheel wheel = openWheel();
+            List<PetalRenderState> submitted = submittedArguments(
+                    renderFrame(wheel, NO_ABILITY, EVERY_ABILITY, radius), "submitGuiElementRenderState",
+                    PetalRenderState.class);
+            int size = RadialWheelRenderer.ABILITY_ICON_SIZE;
+            int left = RadialWheelRenderer.PRISM_BADGE_NUDGE_LEFT;
+            int down = RadialWheelRenderer.PRISM_BADGE_NUDGE_DOWN;
+            TextureSetup prismBadge = sprites.get(RadialWheelRenderer.badgeIcon(AbilityBadge.PRISM));
+            TextureSetup worldBadge = sprites.get(RadialWheelRenderer.badgeIcon(AbilityBadge.WORLD));
+
+            assertAll(wheel.displayedLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
+                    .map(petal -> (Executable) () -> {
+                        PetalRenderState iconState = spriteOf(submitted, iconOf(petal));
+                        int iconAt = submitted.indexOf(iconState);
+                        PetalRenderState prismState = submitted.get(iconAt - 1);
+                        PetalRenderState ownState = submitted.get(iconAt + 1);
+                        assertTrue(prismState.textureSetup() == prismBadge, petal + " prism badge before the icon");
+                        assertTrue(ownState.textureSetup() == worldBadge, petal + " own badge after the icon");
+                        float[] ownBox = boxOf(ownState);
+                        float[] prismBox = boxOf(prismState);
+                        assertEquals(Math.round(ownBox[0]) - left, Math.round(prismBox[0]), petal + " prism badge's left");
+                        assertEquals(Math.round(ownBox[1]) + down, Math.round(prismBox[1]), petal + " prism badge's top");
+                        assertEquals(size * size, areaOf(prismState), AREA_TOLERANCE, petal + " prism badge shown whole");
+                    }));
+        }
+
+        /**
+         * An ability carrying no on_prism reaction paints its own badge alone.
+         * decision on-prism-reaction-wears-the-prism-badge
+         */
+        @Test
+        void anAbilityWithoutAPrismReactionPaintsNoPrismBadge() {
+            renderFrame(openWheel(), NO_ABILITY, NO_ABILITY);
+
+            assertFalse(sprites.containsKey(RadialWheelRenderer.badgeIcon(AbilityBadge.PRISM)),
+                    "the frame bound the prism badge's sprite");
+        }
+
+        /** The screen area a submission's quads cover, each quad's corners in winding order. */
+        private static double areaOf(PetalRenderState state) {
+            List<PetalRenderState.ScreenVertex> corners = state.vertices();
+            double area = 0;
+            for (int quad = 0; quad + 3 < corners.size(); quad += 4) {
+                double twice = 0;
+                for (int corner = 0; corner < 4; corner++) {
+                    PetalRenderState.ScreenVertex from = corners.get(quad + corner);
+                    PetalRenderState.ScreenVertex to = corners.get(quad + (corner + 1) % 4);
+                    twice += from.x() * to.y() - to.x() * from.y();
+                }
+                area += Math.abs(twice) / 2;
+            }
+            return area;
         }
 
         /**
@@ -993,6 +1109,8 @@ class RadialWheelRendererTest {
                 int dy = corner / 2 == 0 ? -half : half;
                 assertFalse(insidePetal(center[0] + dx, center[1] + dy), "icon corner " + corner);
                 assertFalse(insidePetal(center[0] + dx + size, center[1] + dy), "badge corner " + corner);
+                int[] prism = RadialWheelRenderer.prismBadgeUnder(new int[]{center[0] + size, center[1]});
+                assertFalse(insidePetal(prism[0] + dx, prism[1] + dy), "prism badge corner " + corner);
             }));
         }
 
