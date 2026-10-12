@@ -10,5 +10,6 @@
     { "type": "push", "strength": 0.8, "steer": 0.2, "elytra_steer": 0.5 },
     { "type": "wind", "tailwind": { "range": 6, "cone": 30 } }
   ],
-  "tags": ["self"]
+  "tags": ["self"],
+  "pose": "held_out"
 }

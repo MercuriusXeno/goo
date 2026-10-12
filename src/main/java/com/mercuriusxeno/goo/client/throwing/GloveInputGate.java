@@ -191,13 +191,15 @@ public final class GloveInputGate {
     }
 
     private void tickStream(boolean useKeyDown, PressActions actions) {
-        if (!streaming) {
+        if (streaming) {
+            if (useKeyDown) {
+                actions.hold();
+            }
+        } else {
             streaming = true;
             if (actions.sendThrow(0)) {
                 actions.holdPose();
             }
-        } else if (useKeyDown) {
-            actions.hold();
         }
         if (!useKeyDown) {
             actions.dropPose();
