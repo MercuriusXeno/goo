@@ -77,10 +77,9 @@ final class RingEase {
      * decision abilities-replace-the-hovered-type
      *
      * @param dropped  how far the types have dropped into the neutral zone, 0 to 1
-     * @param rotation the angle the open type's ability fan is turned by from resting centered on its petal
      * @param openness each type's openness, 0 closed to 1 fanned
      */
-    record Pose(double dropped, double rotation, double[] openness) {
+    record Pose(double dropped, double[] openness) {
 
         /**
          * The pose a fraction of the way to another.
@@ -94,7 +93,7 @@ final class RingEase {
             for (int i = 0; i < openness.length; i++) {
                 mixed[i] = mix(openness[i], target.openness()[i], fraction);
             }
-            return new Pose(mix(dropped, target.dropped(), fraction), mix(rotation, target.rotation(), fraction), mixed);
+            return new Pose(mix(dropped, target.dropped(), fraction), mixed);
         }
 
         private static double mix(double from, double to, double fraction) {

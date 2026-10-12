@@ -10,16 +10,13 @@ import java.util.function.ToIntFunction;
 /**
  * The glove's one radial wheel as pure layout and state. At rest every type
  * shows as a petal tip round the rim, clockwise from 12 in list order, around
- * a neutral zone twice the hub's size, something chunky to mouse into.
- * The cursor out on a type's petal opens it: the types drop into a band
- * just outside a hub shrunk back to its own size, keeping their angles, and
- * the open type's abilities fan out in the outer ring, resting centered where
- * its petal sits, each at most 30 degrees, the rest of the outer ring empty.
- * Opening a type turns its fan only to land the cursor in the middle of the
- * ability that keeps the fan nearest rest, and crossing onto another ability
- * springs it under the cursor only where that eases the fan back toward
- * rest. The types never turn, so no turn carries the cursor past one. The
- * cursor back over the type band or the hub returns the wheel to rest.
+ * a neutral zone reaching half the wheel, something chunky to mouse into.
+ * The cursor out on a type's petal opens it: the hub shrinks back to its own
+ * size and the types drop into the band round it, keeping their angles, and
+ * the open type's abilities fan in the outer ring, centered on its petal,
+ * each at most 30 degrees, tucked under the type petals' tips. Nothing ever
+ * turns. Past either end of the fan the cursor winds on to the neighboring
+ * type; back over the type band or the hub it returns the wheel to rest.
  * decision abilities-replace-the-hovered-type
  * decision ring-rotates-to-keep-the-cursor-inside
  * decision halves-arc-petals-at-rest
@@ -34,12 +31,14 @@ public final class RadialWheel {
     static final double HUB_FRACTION = 0.2;
     /** The neutral zone's radius at rest, half the wheel's: the types stand outside it. */
     static final double HUB_REST_FRACTION = 0.5;
-    /**
-     * Where the outer ring starts, as a fraction of the wheel's radius: the
-     * types' petal tips at rest, the open type's abilities with one open, and
-     * the outer edge of the band the types drop into.
-     */
+    /** Where the type petals start at rest, at the neutral zone's edge, as a fraction of the wheel's radius. */
     static final double TYPE_INNER_FRACTION = HUB_REST_FRACTION;
+    /** How far out the type petals reach once dropped round the hub, as a fraction of the wheel's radius. */
+    static final double TYPE_BAND_FRACTION = 0.6;
+    /** How far under the dropped type petals' tips the ability petals start, as a fraction of the wheel's radius. */
+    static final double ABILITY_TUCK = 0.05;
+    /** Where the ability petals start, tucked under the dropped type petals' tips. */
+    static final double ABILITY_INNER_FRACTION = TYPE_BAND_FRACTION - ABILITY_TUCK;
     /** No type open, or no ability hovered. */
     static final int NONE = -1;
     /** The most each ability petal of the open type takes. */
@@ -65,8 +64,6 @@ public final class RadialWheel {
     private final IntUnaryOperator abilityCount;
     private int selectedType = NONE;
     private int hoveredAbility = NONE;
-    /** The angle the open type's ability fan is turned by from resting centered on its petal, clockwise. */
-    private double rotation;
     /** Per type and ability, the ticks its petal has grown toward the screen's edge. */
     private final int[][] liftTicks;
     /** The picture's ease toward the target layout; the state above is the target. */
@@ -142,8 +139,8 @@ public final class RadialWheel {
     }
 
     /**
-     * The neutral zone's radius for how far the types have dropped: twice the
-     * hub's at rest, the hub's own with a type open.
+     * The neutral zone's radius for how far the types have dropped: half the
+     * wheel at rest, the hub's own with a type open.
      * decision halves-arc-petals-at-rest
      *
      * @param dropped how far the types have dropped, 0 to 1
@@ -164,9 +161,9 @@ public final class RadialWheel {
     }
 
     /**
-     * The target's petals: every type petal, then the open type's ability
-     * petals. The cursor reads this layout, so the wheel's state is settled
-     * the instant the target is and only the picture lags.
+     * The target's petals in draw order: the open type's ability petals,
+     * then every type petal over them. The cursor reads this layout, so the
+     * wheel's state is settled the instant the target is and only the picture lags.
      * decision petal-moves-animate
      *
      * @return the petals
@@ -180,7 +177,7 @@ public final class RadialWheel {
      * decision petal-moves-animate
      *
      * @param partialTick the fraction of a tick since the last one
-     * @return the petals on display
+     * @return the petals on display, in draw order
      */
     List<PetalArc> displayedLayout(float partialTick) {
         return petalsOf(ease.displayed(partialTick),
@@ -237,55 +234,56 @@ public final class RadialWheel {
         if (isOpen()) {
             openness[selectedType] = 1.0;
         }
-        return new RingEase.Pose(isOpen() ? 1.0 : 0.0, rotation, openness);
+        return new RingEase.Pose(isOpen() ? 1.0 : 0.0, openness);
     }
 
     /**
-     * Lays a pose out: each type's petal across its even share of the ring,
-     * from the neutral zone's edge out to the rim at rest and in the band
-     * between the hub and the outer ring once dropped, and each fanning
-     * type's ability cards in the outer ring, centered where its petal sits,
-     * fanned out from stacked on that center as far as the type is open.
+     * Lays a pose out: each fanning type's ability cards in the outer ring,
+     * centered on its petal, fanned out from stacked on that center as far as
+     * the type is open and tucked under the type petals' tips, then each
+     * type's petal across its even share of the ring over them, from the
+     * neutral zone's edge out to the rim at rest and in the band round the
+     * hub once dropped.
      * decision petal-moves-animate
      * decision abilities-replace-the-hovered-type
      *
      * @param pose       the pose
      * @param cardLength each ability petal's length, by type and ability index
-     * @return the type petals, then the ability cards
+     * @return the ability cards, then the type petals drawn over them
      */
     private List<PetalArc> petalsOf(RingEase.Pose pose, CardLength cardLength) {
         List<PetalArc> petals = new ArrayList<>();
+        for (int type = 0; type < typeCount; type++) {
+            addCards(petals, type, pose.openness()[type], cardLength);
+        }
         double arc = typeArc();
         double inner = hubRadius(pose.dropped());
-        double length = 1.0 - (1.0 - TYPE_INNER_FRACTION) * pose.dropped();
+        double length = 1.0 - (1.0 - TYPE_BAND_FRACTION) * pose.dropped();
         for (int type = 0; type < typeCount; type++) {
             double start = RING_START + type * arc;
             petals.add(new PetalArc(type, NONE, start, arc, length, null, pose.openness()[type], 1.0, inner));
         }
-        for (int type = 0; type < typeCount; type++) {
-            addCards(petals, type, pose.openness()[type], pose.rotation(), cardLength);
-        }
         return petals;
     }
 
-    private void addCards(List<PetalArc> petals, int type, double openness, double turned, CardLength cardLength) {
+    private void addCards(List<PetalArc> petals, int type, double openness, CardLength cardLength) {
         int abilities = abilityCount.applyAsInt(type);
         if (abilities == 0 || openness <= VISIBLE) {
             return;
         }
         double card = abilityArc(type);
-        double center = RING_START + (type + HALF) * typeArc() + turned;
+        double center = RING_START + (type + HALF) * typeArc();
         double span = abilities * card;
         for (int ability = 0; ability < abilities; ability++) {
             double fanned = (ability * card + card * HALF - span * HALF) * openness;
             petals.add(new PetalArc(type, ability, center - card * HALF + fanned, card,
-                    cardLength.of(type, ability), null, openness, 1.0, TYPE_INNER_FRACTION));
+                    cardLength.of(type, ability), null, openness, 1.0, ABILITY_INNER_FRACTION));
         }
     }
 
     /**
      * Each of a type's ability petals' arc: 30 degrees, or the whole ring shared evenly when that many do not fit.
-     * decision abilities-replace-the-hovered-type
+     * decision fisheye-halves-its-max-and-floors-at-ten-degrees
      *
      * @param type the type
      * @return the arc in radians
@@ -320,8 +318,9 @@ public final class RadialWheel {
     /**
      * Moves the cursor. At rest the neutral zone holds nothing and the cursor
      * out on a type's petal opens that type. With a type open the cursor back
-     * over the type band or the hub returns the wheel to rest, and out in the
-     * outer ring it hovers the ability under it, or none over the empty ring.
+     * over the type band or the hub returns the wheel to rest, and out past
+     * the band it hovers the ability under it, or past either end of the fan
+     * winds on to the neighboring type.
      * decision abilities-replace-the-hovered-type
      * decision halves-arc-petals-at-rest
      *
@@ -333,102 +332,55 @@ public final class RadialWheel {
         if (typeCount == 0) {
             return;
         }
-        boolean outside = Math.hypot(dx, dy) >= TYPE_INNER_FRACTION * outerRadius;
+        double distance = Math.hypot(dx, dy) / outerRadius;
         double angle = angleOf(dx, dy);
         if (!isOpen()) {
-            if (outside) {
+            if (distance >= TYPE_INNER_FRACTION) {
                 openUnder(typeAt(angle), angle);
             }
-            return;
-        }
-        if (outside) {
-            hoverAt(angle);
-        } else {
+        } else if (distance < TYPE_BAND_FRACTION) {
             returnToRest();
+        } else {
+            hoverAt(angle);
         }
     }
 
     /**
-     * The cursor in the outer ring with a type open: it hovers the ability
-     * under it, crossing onto it from another springing the fan where that
-     * eases it toward rest, and past either end of the fan winds on to the
-     * neighboring type.
+     * The cursor out past the type band with a type open: it hovers the
+     * ability under it, and past either end of the fan winds on to the
+     * neighboring type that way, clockwise to the next and counterclockwise
+     * to the last; a type with no abilities has no fan to wind past.
      * decision ring-rotates-to-keep-the-cursor-inside
      *
      * @param angle the cursor's angle
      */
     private void hoverAt(double angle) {
         PetalArc under = abilityAt(angle);
-        if (under == null) {
-            windPastTheFan(angle);
+        if (under != null) {
+            hoveredAbility = under.ability();
             return;
         }
-        if (hoveredAbility != NONE && under.ability() != hoveredAbility) {
-            springTowardRest(under, angle);
-        }
-        hoveredAbility = under.ability();
-    }
-
-    /**
-     * The cursor in the outer ring past either end of the open type's fan:
-     * it winds on to the neighboring type that way, clockwise to the next and
-     * counterclockwise to the last, opening it under the cursor; a type with
-     * no abilities has no fan to wind past, and the cursor hovers nothing.
-     * decision ring-rotates-to-keep-the-cursor-inside
-     *
-     * @param angle the cursor's angle
-     */
-    private void windPastTheFan(double angle) {
-        List<PetalArc> fan = layout().stream().filter(PetalArc::isAbility).toList();
         hoveredAbility = NONE;
+        List<PetalArc> fan = layout().stream().filter(PetalArc::isAbility).toList();
         if (fan.isEmpty()) {
             return;
         }
-        double fanCenter = (fan.getFirst().start() + fan.getLast().start() + fan.getLast().arc()) * HALF;
+        double fanCenter = RING_START + (selectedType + HALF) * typeArc();
         int step = Math.IEEEremainder(angle - fanCenter, TWO_PI) > 0 ? 1 : STEP_BACK;
         openUnder(Math.floorMod(selectedType + step, typeCount), angle);
     }
 
     /**
-     * The cursor crossing onto another ability: the fan springs to center it
-     * on the cursor only where that turn eases the fan back toward resting
-     * centered on its type's petal; otherwise the fan holds still.
-     * decision ring-rotates-to-keep-the-cursor-inside
-     *
-     * @param petal the ability petal crossed onto
-     * @param angle the cursor's angle
-     */
-    private void springTowardRest(PetalArc petal, double angle) {
-        double turn = Math.IEEEremainder(angle - petal.center(), TWO_PI);
-        if (Math.abs(rotation + turn) < Math.abs(rotation)) {
-            rotation += turn;
-            ease.retarget(targetPose());
-        }
-    }
-
-    /**
-     * Opens a type under the cursor, the fan turned so the cursor lands in
-     * the middle of whichever ability brings the fan's center nearest resting
-     * centered on the type's petal.
-     * decision ring-rotates-to-keep-the-cursor-inside
+     * Opens a type, its abilities centered on its petal, hovering whichever is under the cursor.
+     * decision abilities-replace-the-hovered-type
      *
      * @param type  the type to open
      * @param angle the cursor's angle
      */
     private void openUnder(int type, double angle) {
-        selectedType = type;
-        rotation = 0.0;
-        hoveredAbility = NONE;
-        double least = Double.POSITIVE_INFINITY;
-        for (PetalArc petal : layout()) {
-            double turn = Math.IEEEremainder(angle - petal.center(), TWO_PI);
-            if (petal.isAbility() && Math.abs(turn) < Math.abs(least)) {
-                least = turn;
-                hoveredAbility = petal.ability();
-            }
-        }
-        rotation = hoveredAbility == NONE ? 0.0 : least;
-        ease.retarget(targetPose());
+        openType(type);
+        PetalArc under = abilityAt(angle);
+        hoveredAbility = under == null ? NONE : under.ability();
     }
 
     /**
@@ -445,7 +397,7 @@ public final class RadialWheel {
      * The open type's ability petal an angle falls on.
      *
      * @param angle the angle
-     * @return the petal, or null over the empty ring
+     * @return the petal, or null past the fan
      */
     private @Nullable PetalArc abilityAt(double angle) {
         return layout().stream().filter(PetalArc::isAbility)
@@ -458,14 +410,13 @@ public final class RadialWheel {
         boolean wasOpen = isOpen();
         selectedType = NONE;
         hoveredAbility = NONE;
-        rotation = 0.0;
         if (wasOpen) {
             ease.retarget(targetPose());
         }
     }
 
     /**
-     * Opens a type with its fan at rest, centered on its petal: the types drop into the band.
+     * Opens a type: the types drop into the band and its abilities fan out centered on its petal.
      * decision abilities-replace-the-hovered-type
      *
      * @param type the type to open
@@ -473,7 +424,6 @@ public final class RadialWheel {
     private void openType(int type) {
         selectedType = type;
         hoveredAbility = NONE;
-        rotation = 0.0;
         ease.retarget(targetPose());
     }
 
@@ -515,7 +465,7 @@ public final class RadialWheel {
     }
 
     /**
-     * Opens a type with its fan at rest, unless already open, and hovers one of its abilities.
+     * Opens a type, unless already open, and hovers one of its abilities.
      *
      * @param type    the type
      * @param ability the ability to hover
@@ -567,15 +517,6 @@ public final class RadialWheel {
     }
 
     /**
-     * The angle the open type's ability fan is turned by from resting centered on its petal.
-     *
-     * @return the rotation in radians, clockwise; zero at rest
-     */
-    double rotation() {
-        return rotation;
-    }
-
-    /**
      * The open type.
      *
      * @return the type index, or {@link #NONE} at rest
@@ -624,7 +565,7 @@ public final class RadialWheel {
                     PetalMask.@Nullable Petal root, double openness, double presence, double inner) {
 
         /**
-         * A petal starting at the outer ring.
+         * A petal starting where the type petals start at rest.
          *
          * @param type     the type index
          * @param ability  the ability index, or {@link #NONE}

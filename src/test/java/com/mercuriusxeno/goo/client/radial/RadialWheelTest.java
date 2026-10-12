@@ -90,10 +90,6 @@ class RadialWheelTest {
         return (petals.getFirst().start() + petals.getLast().start() + petals.getLast().arc()) / 2;
     }
 
-    private static void assertHoveredCenteredOn(RadialWheel wheel, double cursor) {
-        assertEquals(0.0, Math.IEEEremainder(abilityPetal(wheel, wheel.hoveredAbility()).center() - cursor, TWO_PI),
-                EPSILON, "the hovered ability's middle on the cursor");
-    }
 
     @Nested
     class Layout {
@@ -132,7 +128,7 @@ class RadialWheelTest {
             assertAll(typePetals(wheel).stream().map(petal -> (Executable) () -> {
                 assertEquals(petal.type() * TYPE_ARC, petal.start(), EPSILON, "the types never turn");
                 assertEquals(RadialWheel.HUB_FRACTION, petal.shape().inner(), EPSILON);
-                assertEquals(RadialWheel.TYPE_INNER_FRACTION, petal.length(), EPSILON);
+                assertEquals(RadialWheel.TYPE_BAND_FRACTION, petal.length(), EPSILON);
             }));
         }
 
@@ -146,12 +142,23 @@ class RadialWheelTest {
             assertAll(abilities.stream().map(petal -> (Executable) () -> {
                 assertEquals(OPEN_TYPE, petal.type());
                 assertEquals(RadialWheel.ABILITY_ARC, petal.arc(), EPSILON);
-                assertEquals(RadialWheel.TYPE_INNER_FRACTION, petal.shape().inner(), EPSILON);
+                assertEquals(RadialWheel.ABILITY_INNER_FRACTION, petal.shape().inner(), EPSILON, "tucked under the types");
             }));
             for (int i = 1; i < abilities.size(); i++) {
                 assertEquals(abilities.get(i - 1).start() + abilities.get(i - 1).arc(), abilities.get(i).start(),
                         EPSILON, "fanned edge to edge");
             }
+        }
+
+        /** decision abilities-replace-the-hovered-type */
+        @Test
+        void abilitiesDrawFirstTuckedUnderTheTypePetalsTips() {
+            List<RadialWheel.PetalArc> drawn = opened(ABILITIES).displayedLayout(0.0f);
+            int lastAbility = IntStream.range(0, drawn.size()).filter(i -> drawn.get(i).isAbility()).max().orElseThrow();
+            int firstType = IntStream.range(0, drawn.size()).filter(i -> !drawn.get(i).isAbility()).min().orElseThrow();
+
+            assertTrue(lastAbility < firstType, "a type petal drew under an ability");
+            assertTrue(RadialWheel.ABILITY_INNER_FRACTION < RadialWheel.TYPE_BAND_FRACTION, "tucked under the tips");
         }
 
         /** decision abilities-replace-the-hovered-type */
@@ -165,12 +172,12 @@ class RadialWheelTest {
 
         /** decision ring-rotates-to-keep-the-cursor-inside */
         @Test
-        void atRestTheFanCentersWhereTheTypesPetalSits() {
+        void theFanCentersOnItsTypesPetal() {
             RadialWheel wheel = openedAt(ABILITIES, typeCenter(OPEN_TYPE) + TYPE_ARC / 3);
 
             assertEquals(OPEN_TYPE, wheel.selectedType());
-            assertEquals(0.0, Math.IEEEremainder(middleOf(abilityPetals(wheel)) - wheel.rotation()
-                    - typeCenter(OPEN_TYPE), TWO_PI), EPSILON);
+            assertEquals(0.0, Math.IEEEremainder(middleOf(abilityPetals(wheel)) - typeCenter(OPEN_TYPE), TWO_PI),
+                    EPSILON);
         }
     }
 
@@ -237,7 +244,6 @@ class RadialWheelTest {
                 moveTo(wheel, typeCenter(OPEN_TYPE + 2), distance);
 
                 assertFalse(wheel.isOpen());
-                assertEquals(0.0, wheel.rotation(), EPSILON);
                 assertTrue(abilityPetals(wheel).isEmpty());
                 assertEquals(RadialWheel.Outcome.CANCEL, wheel.click());
             }));
@@ -266,7 +272,6 @@ class RadialWheelTest {
 
                 assertEquals(Math.floorMod(OPEN_TYPE + step, TYPES), wheel.selectedType(), "winding " + step);
                 assertTrue(wheel.hoveredAbility() != RadialWheel.NONE, "the cursor lands in an ability");
-                assertHoveredCenteredOn(wheel, cursor);
             }));
         }
 
@@ -292,38 +297,29 @@ class RadialWheelTest {
     }
 
     /**
-     * The open type's fan rests centered where its petal sits and turns only
-     * to put an ability's middle under the cursor: opening lands the cursor
-     * in the ability nearest rest, and crossing onto another springs it under
-     * the cursor only where that eases the fan back toward rest
-     * (decision ring-rotates-to-keep-the-cursor-inside).
+     * The open type's fan sits centered on its petal and never turns: the
+     * cursor hovers whichever ability lies under it, sweeping either way
+     * reaches every ability in turn, and past either end the cursor winds on
+     * to the neighboring type (decision ring-rotates-to-keep-the-cursor-inside).
      */
     @Nested
-    class Rotation {
+    class Fan {
 
-        /** Asserts no ability of the open type could sit under the cursor with less turn from rest. */
-        private static void assertLandedNearestRest(RadialWheel wheel, double cursor) {
-            double turned = wheel.rotation();
-            assertAll(abilityPetals(wheel).stream().map(petal -> (Executable) () ->
-                    assertTrue(Math.abs(turned) <= Math.abs(Math.IEEEremainder(cursor - (petal.center() - turned),
-                            TWO_PI)) + EPSILON, "ability " + petal.ability() + " lands with less turn than " + turned)));
-        }
-
-        /** Sweeps the cursor a degree at a time one way across the open type's abilities, answering each it hovered. */
+        /** Sweeps the cursor a degree at a time one way across the open type's fan, answering each ability it hovered. */
         private static List<Integer> sweepAcross(RadialWheel wheel, double direction) {
             List<Integer> hovered = new ArrayList<>(List.of(wheel.hoveredAbility()));
             double cursor = abilityPetal(wheel, wheel.hoveredAbility()).center();
+            List<Double> fan = abilityPetals(wheel).stream().map(RadialWheel.PetalArc::start).toList();
             for (int step = 0; step < SWEEP_STEPS; step++) {
                 double next = cursor + direction * SWEEP_STEP;
-                double before = Math.abs(wheel.rotation());
                 // the sweep stops at the fan's edge, past which the cursor winds on to the next type
                 if (abilityPetals(wheel).stream().noneMatch(petal ->
                         Math.abs(Math.IEEEremainder(next - petal.center(), TWO_PI)) * 2 < petal.arc())) {
                     break;
                 }
                 moveTo(wheel, next, RIM);
-                assertTrue(Math.abs(wheel.rotation()) <= before + EPSILON,
-                        "wound from " + before + " to " + wheel.rotation());
+                assertEquals(fan, abilityPetals(wheel).stream().map(RadialWheel.PetalArc::start).toList(),
+                        "the fan never moves");
                 cursor = next;
                 if (wheel.hoveredAbility() != hovered.getLast()) {
                     hovered.add(wheel.hoveredAbility());
@@ -333,19 +329,21 @@ class RadialWheelTest {
         }
 
         @Test
-        void openingATypeLandsTheCursorInTheMiddleOfTheAbilityNearestRest() {
+        void openingATypeHoversTheAbilityUnderTheCursorTheFanCenteredOnItsPetal() {
             double cursor = typeCenter(OPEN_TYPE) + TYPE_ARC / 3;
             RadialWheel wheel = openedAt(ABILITIES, cursor);
+            RadialWheel.PetalArc hovered = abilityPetal(wheel, wheel.hoveredAbility());
 
-            assertTrue(Math.abs(wheel.rotation()) > EPSILON, "the fan turned to rest the cursor in an ability");
-            assertHoveredCenteredOn(wheel, cursor);
-            assertLandedNearestRest(wheel, cursor);
+            assertEquals(0.0, Math.IEEEremainder(middleOf(abilityPetals(wheel)) - typeCenter(OPEN_TYPE), TWO_PI),
+                    EPSILON);
+            assertTrue(Math.abs(Math.IEEEremainder(cursor - hovered.center(), TWO_PI)) * 2 < hovered.arc(),
+                    "the hovered ability lies under the cursor");
         }
 
         @Test
-        void sweepingEitherWayReachesEveryAbilityThatWayInTurnAndNeverWindsTheFanFurther() {
+        void sweepingEitherWayReachesEveryAbilityThatWayInTurnWithTheFanStill() {
             assertAll(DoubleStream.of(1.0, -1.0).mapToObj(direction -> (Executable) () -> {
-                RadialWheel wheel = openedAt(ABILITIES, typeCenter(OPEN_TYPE) + TYPE_ARC / 3);
+                RadialWheel wheel = opened(ABILITIES);
                 int from = wheel.hoveredAbility();
                 int last = direction > 0 ? ABILITIES - 1 : 0;
 
@@ -355,35 +353,7 @@ class RadialWheelTest {
                         .limit(Math.abs(last - from) + 1).boxed().toList(), hovered, "sweeping " + direction);
             }));
         }
-
-        @Test
-        void crossingWhereCenteringTheNextAbilityEasesTheFanTowardRestSpringsItUnderTheCursor() {
-            RadialWheel wheel = openedAt(ABILITIES, typeCenter(OPEN_TYPE) + TYPE_ARC / 3);
-            double tension = wheel.rotation();
-            RadialWheel.PetalArc hovered = abilityPetal(wheel, wheel.hoveredAbility());
-            // crossing the way the fan is turned enters the next ability past its middle, so centering it turns back
-            double cursor = hovered.center() + Math.signum(tension) * (hovered.arc() / 2 + JUST_PAST);
-            double before = Math.abs(tension);
-
-            moveTo(wheel, cursor, RIM);
-
-            assertTrue(Math.abs(wheel.rotation()) < before, wheel.rotation() + " from " + tension);
-            assertHoveredCenteredOn(wheel, cursor);
-        }
-
-        @Test
-        void crossingAbilitiesAtRestLeavesTheFanUnturned() {
-            RadialWheel wheel = opened(ABILITIES);
-            moveTo(wheel, abilityPetal(wheel, 1).center(), RIM);
-            double turned = wheel.rotation();
-
-            moveTo(wheel, abilityPetal(wheel, 2).center(), RIM);
-
-            assertEquals(2, wheel.hoveredAbility());
-            assertEquals(turned, wheel.rotation(), EPSILON);
-        }
     }
-
     /**
      * Opening a type plays like a fan of cards, the types dropping into the
      * band as the abilities fan out from stacked on the type's center;
@@ -484,7 +454,6 @@ class RadialWheelTest {
         private static void assertHovering(RadialWheel wheel, int type, int ability) {
             assertEquals(type, wheel.selectedType(), "type");
             assertEquals(ability, wheel.hoveredAbility(), "ability");
-            assertEquals(0.0, wheel.rotation(), EPSILON, "the fan at rest");
         }
 
         @Test
