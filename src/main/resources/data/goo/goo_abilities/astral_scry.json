@@ -1,6 +1,6 @@
 {
-  "gooType": "glow",
-  "displayName": "goo.ability.glow.scry",
+  "gooType": "astral",
+  "displayName": "goo.ability.astral.scry",
   "badge": "channeled",
   "order": 20,
   "cost": 200,
@@ -9,12 +9,13 @@
   "behaviors": [
     {
       "type": "scry",
+      "goo": "goo:astral",
       "growth": 1,
       "reach": 96,
       "fade": 20,
       "where": ["living"],
       "steps": [
-        { "type": "ailment_overlay", "kind": "glow", "duration": 200 }
+        { "type": "ailment_overlay", "kind": "astral", "duration": 200 }
       ]
     }
   ],

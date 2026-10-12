@@ -1,13 +1,14 @@
 {
-  "gooType": "gootest:seventeenth",
-  "displayName": "goo.ability.gootest.seventeenth_scry_probe",
+  "gooType": "goo:astral",
+  "displayName": "goo.ability.gootest.astral_scry_probe",
   "badge": "channeled",
-  "order": 40,
+  "order": 90,
   "cost": 1000,
   "delivery": { "kind": "self", "ticks_per_charge": 20 },
   "behaviors": [
     {
       "type": "scry",
+      "goo": "goo:astral",
       "growth": 1,
       "reach": 48,
       "where": ["living"],
