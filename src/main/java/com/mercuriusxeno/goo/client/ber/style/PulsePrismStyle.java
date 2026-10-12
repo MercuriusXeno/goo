@@ -24,8 +24,11 @@ public final class PulsePrismStyle implements PrismComboStyle {
 
     /** The id of the ability whose program is the metronome combo. */
     public static final String METRONOME_COMBO = "goo:pulse_metronome";
-    /** The id of the ability whose program is the relay combo. */
-    public static final String RELAY_COMBO = "goo:pulse_relay";
+    /**
+     * The id of the ability whose on_prism reaction is the relay combo.
+     * thrown-hosts-absorb-their-prism-combos
+     */
+    public static final String RELAY_COMBO = "goo:pulse_zap";
     /** The metronome's look: energized while a signal reaches it, and strobing on each beat. */
     public static final PulsePrismStyle METRONOME = new PulsePrismStyle(true, PrismCrystal.ColumnSides.SIX);
     /** The relay's look: energized while it carries a signal, four-sided. */
