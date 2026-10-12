@@ -30,7 +30,7 @@ class UnmakeStepTest {
 
     /** Cobblestone's value: one mundane block of rock. */
     private static final GooValue COBBLESTONE = new GooValue(Map.of(GooTypes.ROCK, 1152));
-    private static final GooValue DIAMONDISH = new GooValue(Map.of(GooTypes.CRYSTAL, 13824, GooTypes.AEON, 4608));
+    private static final GooValue DIAMONDISH = new GooValue(Map.of(GooTypes.CRYSTAL, 13824, GooTypes.YORE, 4608));
     /** The unstable fuel's melt exponent: an item melts in ceil(mB ^ 0.5) ticks. */
     private static final double UNSTABLE_EXPONENT = 0.5;
     /** The unstable crucible's ticks for cobblestone, ceil(sqrt(1152)). */

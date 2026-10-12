@@ -46,7 +46,7 @@ class GrabStepTest {
         @Test
         void unarmedPressOrAnotherAbilityPunches() {
             assertFalse(GrabStep.throwsOnAttack(false, List.of(GRAB)));
-            assertFalse(GrabStep.throwsOnAttack(true, List.of(new HasteStep())));
+            assertFalse(GrabStep.throwsOnAttack(true, List.of(new AncientStep())));
         }
     }
 }
