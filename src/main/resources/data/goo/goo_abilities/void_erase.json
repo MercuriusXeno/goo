@@ -1,0 +1,24 @@
+{
+  "gooType": "void",
+  "displayName": "goo.ability.void.erase",
+  "badge": "mob",
+  "order": 0,
+  "cost": 2000,
+  "requires": ["minecraft:recovery_compass"],
+  "consumes": ["minecraft:ender_pearl"],
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    {
+      "type": "target",
+      "where": ["mob", "not_boss"],
+      "steps": [
+        { "type": "afterimage", "goo": "void", "life": 16, "inward": true },
+        { "type": "particles", "id": "minecraft:portal", "at": "target", "count": 48, "spread": 0.6, "lift": 1, "speed": 1 },
+        { "type": "particles", "id": "minecraft:squid_ink", "at": "target", "count": 12, "spread": 0.4, "lift": 1, "speed": 0.02 },
+        { "type": "sound", "id": "minecraft:block.respawn_anchor.deplete", "at": "target", "source": "hostile", "volume": 1, "pitch": 0.6 },
+        { "type": "discard" }
+      ]
+    }
+  ],
+  "tags": ["entity"]
+}

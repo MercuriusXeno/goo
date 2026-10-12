@@ -23,4 +23,18 @@ class AfterimagePayloadTest {
 
         assertEquals(sent, AfterimagePayload.STREAM_CODEC.decode(buf));
     }
+
+    /**
+     * An inward echo arrives inward, so the client collapses it onto the body
+     * (decision void-blob-deletes-the-struck-mob).
+     */
+    @Test
+    void anInwardEchoRoundTripsInward() {
+        AfterimagePayload sent = new AfterimagePayload(4321, new Vec3(1.5, 64, -2.5), GooTypes.VOID, 16, true);
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+
+        AfterimagePayload.STREAM_CODEC.encode(buf, sent);
+
+        assertEquals(sent, AfterimagePayload.STREAM_CODEC.decode(buf));
+    }
 }

@@ -22,9 +22,22 @@ import org.jspecify.annotations.NonNull;
  * @param position  the world point the echo stands at
  * @param gooType   the goo type whose color the echo wears
  * @param lifeTicks the game ticks the echo takes to fade out
+ * @param inward    whether the silhouettes collapse onto the body rather than ripple out of it
  */
-public record AfterimagePayload(int entityId, Vec3 position, ResourceKey<GooTypeDefinition> gooType, int lifeTicks)
-        implements CustomPacketPayload {
+public record AfterimagePayload(int entityId, Vec3 position, ResourceKey<GooTypeDefinition> gooType, int lifeTicks,
+                                boolean inward) implements CustomPacketPayload {
+
+    /**
+     * An afterimage rippling out of the body, the shared effect's usual shape.
+     *
+     * @param entityId  the entity whose model and pose the echo takes
+     * @param position  the world point the echo stands at
+     * @param gooType   the goo type whose color the echo wears
+     * @param lifeTicks the game ticks the echo takes to fade out
+     */
+    public AfterimagePayload(int entityId, Vec3 position, ResourceKey<GooTypeDefinition> gooType, int lifeTicks) {
+        this(entityId, position, gooType, lifeTicks, false);
+    }
 
     /** Payload type ID for registration. */
     public static final Type<AfterimagePayload> TYPE =
@@ -44,10 +57,11 @@ public record AfterimagePayload(int entityId, Vec3 position, ResourceKey<GooType
         Vec3.STREAM_CODEC.encode(buf, payload.position);
         GooTypes.KEY_STREAM_CODEC.encode(buf, payload.gooType);
         buf.writeVarInt(payload.lifeTicks);
+        buf.writeBoolean(payload.inward);
     }
 
     private static AfterimagePayload decode(FriendlyByteBuf buf) {
         return new AfterimagePayload(buf.readVarInt(), Vec3.STREAM_CODEC.decode(buf),
-                GooTypes.KEY_STREAM_CODEC.decode(buf), buf.readVarInt());
+                GooTypes.KEY_STREAM_CODEC.decode(buf), buf.readVarInt(), buf.readBoolean());
     }
 }
