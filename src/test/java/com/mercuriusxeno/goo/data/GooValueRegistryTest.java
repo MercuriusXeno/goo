@@ -589,7 +589,7 @@ class GooValueRegistryTest {
         @Test
         void bucketReturnedSubtractsContainerValue() {
             setBaseValues(Map.of(
-                    id("minecraft:milk_bucket"), goo(GooTypes.VITAL, 30),
+                    id("minecraft:milk_bucket"), goo(GooTypes.JELLY, 30),
                     id("minecraft:bucket"), goo(GooTypes.METAL, 10)
             ));
             List<RecipeInput> recipes = List.of(
@@ -601,8 +601,8 @@ class GooValueRegistryTest {
             registry.deriveFromRecipeInputs(recipes, false);
             GooValue val = registry.table().lookup(id("output"));
             assertNotNull(val);
-            // 30 vital - 0 vital from bucket = 30 vital; 0 metal - 10 metal = no subtraction on missing type
-            assertEquals(30, val.get(GooTypes.VITAL));
+            // 30 jelly - 0 jelly from bucket = 30 jelly; 0 metal - 10 metal = no subtraction on missing type
+            assertEquals(30, val.get(GooTypes.JELLY));
             assertEquals(0, val.get(GooTypes.METAL)); // bucket's metal not in milk_bucket
         }
 
@@ -612,7 +612,7 @@ class GooValueRegistryTest {
         @Test
         void containerNoValueUsesFullCost() {
             setBaseValues(Map.of(
-                    id("minecraft:milk_bucket"), goo(GooTypes.VITAL, 30)
+                    id("minecraft:milk_bucket"), goo(GooTypes.JELLY, 30)
                     // no value for bucket
             ));
             List<RecipeInput> recipes = List.of(
@@ -624,7 +624,7 @@ class GooValueRegistryTest {
             registry.deriveFromRecipeInputs(recipes, false);
             GooValue val = registry.table().lookup(id("output"));
             assertNotNull(val);
-            assertEquals(30, val.get(GooTypes.VITAL));
+            assertEquals(30, val.get(GooTypes.JELLY));
         }
 
         /**
@@ -633,7 +633,7 @@ class GooValueRegistryTest {
         @Test
         void multipleContainerIngredients() {
             setBaseValues(Map.of(
-                    id("milk_bucket"), goo(GooTypes.VITAL, 20, GooTypes.METAL, 10),
+                    id("milk_bucket"), goo(GooTypes.JELLY, 20, GooTypes.METAL, 10),
                     id("bucket"), goo(GooTypes.METAL, 10)
             ));
             List<RecipeInput> recipes = List.of(
@@ -645,9 +645,9 @@ class GooValueRegistryTest {
             registry.deriveFromRecipeInputs(recipes, false);
             GooValue val = registry.table().lookup(id("cake"));
             assertNotNull(val);
-            // Each slot: 20 vital + 10 metal - 10 metal = 20 vital + 0 metal
-            // 3 slots: 60 vital
-            assertEquals(60, val.get(GooTypes.VITAL));
+            // Each slot: 20 jelly + 10 metal - 10 metal = 20 jelly + 0 metal
+            // 3 slots: 60 jelly
+            assertEquals(60, val.get(GooTypes.JELLY));
             assertEquals(0, val.get(GooTypes.METAL)); // bucket metal cancels ingredient metal
         }
 
@@ -1362,13 +1362,13 @@ class GooValueRegistryTest {
         }
 
         /**
-         * Additive conversion: +$waxed adds flat vital to copied copper items.
+         * Additive conversion: +$waxed adds flat jelly to copied copper items.
          */
         @Test
         void additiveConversionAddsFlatValue() throws IOException {
             loadJson("""
                     {
-                        "_constants": { "waxed": { "vital": 48 } },
+                        "_constants": { "waxed": { "jelly": 48 } },
                         "_groups": {
                             "copper": ["minecraft:copper_block", "minecraft:cut_copper"],
                             "waxed": ["minecraft:waxed_copper_block", "minecraft:waxed_cut_copper"]
@@ -1384,12 +1384,12 @@ class GooValueRegistryTest {
             GooValue waxedBlock = registry.table().lookup(id("minecraft:waxed_copper_block"));
             assertNotNull(waxedBlock);
             assertEquals(160, waxedBlock.get(GooTypes.METAL)); // copied from copper_block
-            assertEquals(48, waxedBlock.get(GooTypes.VITAL));   // added by +$waxed
+            assertEquals(48, waxedBlock.get(GooTypes.JELLY));   // added by +$waxed
 
             GooValue waxedCut = registry.table().lookup(id("minecraft:waxed_cut_copper"));
             assertNotNull(waxedCut);
             assertEquals(80, waxedCut.get(GooTypes.METAL));
-            assertEquals(48, waxedCut.get(GooTypes.VITAL));
+            assertEquals(48, waxedCut.get(GooTypes.JELLY));
         }
     }
 
@@ -1435,7 +1435,7 @@ class GooValueRegistryTest {
             loadJson("""
                     {
                         "minecraft:copper_block": { "metal": 1440, "pulse": 1440 },
-                        "minecraft:carved_pumpkin": { "leaf": 480, "vital": 120 },
+                        "minecraft:carved_pumpkin": { "leaf": 480, "jelly": 120 },
                         "minecraft:copper_golem": "minecraft:copper_block + minecraft:carved_pumpkin"
                     }
                     """);
@@ -1443,7 +1443,7 @@ class GooValueRegistryTest {
             assertEquals(1440, golem.get(GooTypes.METAL));
             assertEquals(1440, golem.get(GooTypes.PULSE));
             assertEquals(480, golem.get(GooTypes.LEAF));
-            assertEquals(120, golem.get(GooTypes.VITAL));
+            assertEquals(120, golem.get(GooTypes.JELLY));
         }
 
         /**
@@ -2057,14 +2057,14 @@ class GooValueRegistryTest {
         @Test
         void laterPackOverridesItem() {
             JsonObject base = json("""
-                    { "minecraft:stick": { "vital": 5 } }
+                    { "minecraft:stick": { "jelly": 5 } }
                     """);
             JsonObject overlay = json("""
-                    { "minecraft:stick": { "vital": 10 } }
+                    { "minecraft:stick": { "jelly": 10 } }
                     """);
             JsonObject merged = GooValueMerger.mergeBaseValueJsonLayers(List.of(base, overlay));
 
-            assertEquals(10, merged.getAsJsonObject("minecraft:stick").get("vital").getAsInt());
+            assertEquals(10, merged.getAsJsonObject("minecraft:stick").get("jelly").getAsInt());
         }
 
         /**
@@ -2073,7 +2073,7 @@ class GooValueRegistryTest {
         @Test
         void laterPackAddsNewItem() {
             JsonObject base = json("""
-                    { "minecraft:stick": { "vital": 5 } }
+                    { "minecraft:stick": { "jelly": 5 } }
                     """);
             JsonObject overlay = json("""
                     { "minecraft:coal": { "blaze": 20 } }
@@ -2110,7 +2110,7 @@ class GooValueRegistryTest {
             JsonObject base = json("""
                     {
                         "_groups": {
-                            "logs": { "value": { "vital": 10 }, "items": ["minecraft:oak_log"] },
+                            "logs": { "value": { "jelly": 10 }, "items": ["minecraft:oak_log"] },
                             "ores": { "value": "denied", "items": ["minecraft:iron_ore"] }
                         }
                     }
@@ -2118,7 +2118,7 @@ class GooValueRegistryTest {
             JsonObject overlay = json("""
                     {
                         "_groups": {
-                            "logs": { "value": { "vital": 20 }, "items": ["minecraft:birch_log"] }
+                            "logs": { "value": { "jelly": 20 }, "items": ["minecraft:birch_log"] }
                         }
                     }
                     """);
@@ -2127,7 +2127,7 @@ class GooValueRegistryTest {
             JsonObject groups = merged.getAsJsonObject("_groups");
             assertTrue(groups.has("ores"), "Preserved group from base");
             assertEquals(20, groups.getAsJsonObject("logs")
-                    .getAsJsonObject("value").get("vital").getAsInt(), "Overridden group");
+                    .getAsJsonObject("value").get("jelly").getAsInt(), "Overridden group");
         }
 
         /**
@@ -2138,13 +2138,13 @@ class GooValueRegistryTest {
             JsonObject layer = json("""
                     {
                         "_constants": { "base": 1000 },
-                        "minecraft:stick": { "vital": 5 }
+                        "minecraft:stick": { "jelly": 5 }
                     }
                     """);
             JsonObject merged = GooValueMerger.mergeBaseValueJsonLayers(List.of(layer));
 
             assertEquals(1000, merged.getAsJsonObject("_constants").get("base").getAsInt());
-            assertEquals(5, merged.getAsJsonObject("minecraft:stick").get("vital").getAsInt());
+            assertEquals(5, merged.getAsJsonObject("minecraft:stick").get("jelly").getAsInt());
         }
 
         /**
@@ -2645,30 +2645,68 @@ class GooValueRegistryTest {
     }
 
     /**
-     * The shipped base values give Zoo the animal items Vital held
-     * (decision zoo-ships-from-animal-items).
+     * The shipped base values give Zoo the animal items, Jelly the food and
+     * Yore the eggs, and no item resolves a type outside the bundled set.
+     * decision zoo-ships-from-animal-items
      */
     @Nested
     class ShippedAnimalValues {
 
         private static final String SHIPPED_BASE_VALUES = "/data/goo/goo_values/base_values.json";
 
-        /**
-         * A spawn egg, leather and bone each resolve a zoo value equal to the vital value they carry.
-         */
-        @Test
-        void animalItemsResolveZoo() throws IOException {
+        private Map<Identifier, GooValue> loadShipped() throws IOException {
             try (java.io.InputStream shipped = GooValueRegistryTest.class.getResourceAsStream(SHIPPED_BASE_VALUES)) {
                 assertNotNull(shipped, SHIPPED_BASE_VALUES);
                 parseBaseValuesFromStream(shipped);
             }
             copyBaseToEffective();
-            for (String item : List.of("minecraft:cow_spawn_egg", "minecraft:leather", "minecraft:bone")) {
+            return registry.table().getEffectiveValues();
+        }
+
+        /**
+         * A spawn egg, leather, bone, string and honeycomb each resolve zoo.
+         */
+        @Test
+        void animalItemsResolveZoo() throws IOException {
+            loadShipped();
+            for (String item : List.of("minecraft:cow_spawn_egg", "minecraft:leather", "minecraft:bone",
+                    "minecraft:string", "minecraft:honeycomb")) {
                 GooValue value = registry.table().lookup(id(item));
                 assertNotNull(value, item);
                 assertTrue(value.get(GooTypes.ZOO) > 0, item + " resolves no zoo");
-                assertEquals(value.get(GooTypes.VITAL), value.get(GooTypes.ZOO), item);
             }
+        }
+
+        /**
+         * Turtle eggs, sniffer eggs and frogspawn each carry an eighth of base in yore, as the scutes do.
+         */
+        @Test
+        void eggsResolveYoreLikeScutes() throws IOException {
+            loadShipped();
+            int scuteYore = registry.table().lookup(id("minecraft:turtle_scute")).get(GooTypes.YORE);
+            assertTrue(scuteYore > 0, "turtle_scute resolves no yore");
+            for (String egg : List.of("minecraft:turtle_egg", "minecraft:sniffer_egg", "minecraft:frogspawn")) {
+                GooValue value = registry.table().lookup(id(egg));
+                assertNotNull(value, egg);
+                assertEquals(scuteYore, value.get(GooTypes.YORE), egg);
+            }
+        }
+
+        /**
+         * Every type a shipped item resolves is a bundled type, so the
+         * deleted type, which GooTypes.BUNDLED no longer holds, values nothing.
+         */
+        @Test
+        void noShippedItemResolvesAnUnbundledType() throws IOException {
+            Map<Identifier, GooValue> effective = loadShipped();
+            assertTrue(effective.values().stream().anyMatch(value -> value.get(GooTypes.JELLY) > 0),
+                    "the shipped load valued no item in jelly");
+            List<String> unbundled = effective.entrySet().stream()
+                    .flatMap(entry -> entry.getValue().getAll().entrySet().stream()
+                            .filter(term -> term.getValue() != 0 && !GooTypes.BUNDLED.contains(term.getKey()))
+                            .map(term -> entry.getKey() + " " + term.getKey().identifier()))
+                    .toList();
+            assertEquals(List.of(), unbundled);
         }
     }
 }

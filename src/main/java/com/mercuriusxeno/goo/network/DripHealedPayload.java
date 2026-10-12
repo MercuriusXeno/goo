@@ -9,7 +9,7 @@ import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Server-to-client payload: a vital tap's drip healed this living thing, so
+ * Server-to-client payload: a healing tap's drip healed this living thing, so
  * the client raises the channel's pink healing stars on it. A tap has no
  * glove, so no goo homes. Sent to the players watching the healed thing and
  * to it when it is a player.

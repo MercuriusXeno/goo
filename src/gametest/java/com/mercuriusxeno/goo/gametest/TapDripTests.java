@@ -26,8 +26,6 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -60,7 +58,6 @@ public final class TapDripTests {
     private static final String TAP_DRIP_BOTTOMLESS = "tap_drip_bottomless";
     private static final String TAP_HOST_PLACES_ABOVE_LANDING = "tap_host_places_above_landing";
     private static final String TAP_DRIP_NO_ABILITY = "tap_drip_no_ability";
-    private static final String VITALITY_TAP_HEALS = "vitality_tap_heals_below";
     private static final String TAP_DRIP_SENDS_TAP_DRIP = "tap_drip_sends_tap_drip";
     private static final String TAP_VALVE_STEPS_FIVE_GRADES = "tap_valve_steps_five_grades";
     private static final String TAP_SNEAK_CLICK_STEPS_VALVE_BACK = "tap_sneak_click_steps_valve_back";
@@ -81,7 +78,6 @@ public final class TapDripTests {
         GooTestFunctions.registerTest(registrar, TAP_DRIP_BOTTOMLESS, TapDripTests::tapDripBottomless);
         GooTestFunctions.registerTest(registrar, TAP_HOST_PLACES_ABOVE_LANDING, TapDripTests::tapHostPlacesAboveLanding);
         GooTestFunctions.registerTest(registrar, TAP_DRIP_NO_ABILITY, TapDripTests::tapDripNoAbility);
-        GooTestFunctions.registerTest(registrar, VITALITY_TAP_HEALS, TapDripTests::vitalityTapHealsBelow);
         GooTestFunctions.registerTest(registrar, TAP_DRIP_SENDS_TAP_DRIP, TapDripTests::tapDripSendsTapDrip);
         GooTestFunctions.registerTest(registrar, TAP_VALVE_STEPS_FIVE_GRADES, TapDripTests::tapValveStepsFiveGrades);
         GooTestFunctions.registerTest(registrar, TAP_SNEAK_CLICK_STEPS_VALVE_BACK, TapDripTests::tapSneakClickStepsValveBack);
@@ -158,12 +154,6 @@ public final class TapDripTests {
     private static final String SENT_COUNT = "particles one tap drip sends";
     private static final String SENT_TYPE = "particle type one tap drip sends";
     private static final String SENT_GOO_TYPE = "goo type one tap drip's particle carries";
-    /** A cow stands at ten health, so four leaves it hurt with room for every drip to heal. */
-    private static final float HURT_COW_HEALTH = 4;
-    /** vital_vitality_tap.json's heal amount. */
-    private static final float HEAL_PER_DRIP = 1;
-    private static final String VITAL_DRIPS_LANDED = "a vital drip landed on the cow below the tap";
-    private static final String HEALED_COW = "cow health after every vital drip landed";
 
     private TapDripTests() {
     }
@@ -331,30 +321,6 @@ public final class TapDripTests {
             before.forEach((pos, state) -> helper.assertValueEqual(helper.getBlockState(pos), state, NEIGHBOR_STATE));
             helper.assertValueEqual(helper.getLevel().getEntities((Entity) null, around, entity -> true).size(), 0,
                     NO_ABILITY_ENTITIES);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * A vital tap two air blocks above stone drips on a hurt cow standing on
-     * the stone: the cow stands healthier by the heal amount
-     * vital_vitality_tap.json names for every drip that landed
-     * (decision vitality-drip-heals-below).
-     *
-     * @param helper the gametest helper
-     */
-    public static void vitalityTapHealsBelow(GameTestHelper helper) {
-        TapBlockEntity tap = filledTap(helper, HIGH_TAP_POS, true, AIR_GAP, GooTypes.VITAL);
-        Mob cow = helper.spawnWithNoFreeWill(EntityType.COW, HIGH_TAP_POS.below(AIR_GAP));
-        cow.setHealth(HURT_COW_HEALTH);
-        BlockPos tapAbs = helper.absolutePos(HIGH_TAP_POS);
-
-        helper.runAfterDelay(DRIPS * DRIP_INTERVAL + SETTLE_TICKS, () -> {
-            long inFlight = GooServerState.of(helper.getLevel().getServer()).tapDrips().pending().stream()
-                    .filter(drip -> drip.tapPos().equals(tapAbs)).count();
-            long landed = START_VOLUME - tap.getFluidContent().totalVolume() - inFlight;
-            helper.assertTrue(landed > 0, VITAL_DRIPS_LANDED);
-            helper.assertValueEqual(cow.getHealth(), HURT_COW_HEALTH + landed * HEAL_PER_DRIP, HEALED_COW);
             helper.succeed();
         });
     }
