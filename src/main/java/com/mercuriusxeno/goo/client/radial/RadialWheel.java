@@ -391,10 +391,10 @@ public final class RadialWheel {
     }
 
     /**
-     * The turn that centers the open type's abilities on its half while the
-     * ring is otherwise unturned, so the ring's least turn keeps the open
-     * type as central as the cursor allows.
-     * decision open-half-spans-270-degrees
+     * The turn that centers the open type's abilities on where its own petal
+     * sat in its half's even ring, so at rest a type fans out in place and
+     * the ring's tension is how far it has turned from there.
+     * decision ring-rotates-to-keep-the-cursor-inside
      *
      * @param widths each type's slot width
      * @return the turn in radians, within half a turn either way
@@ -405,7 +405,8 @@ public final class RadialWheel {
             before += widths[type];
         }
         double abilitiesCenter = ringStart(openHalf) + before + widths[selectedType] * HALF;
-        return Math.IEEEremainder(centerOf(openHalf) - abilitiesCenter, TWO_PI);
+        double satAt = ringStart(openHalf) + (placeInHalf[selectedType] + HALF) * restArc(selectedType);
+        return Math.IEEEremainder(satAt - abilitiesCenter, TWO_PI);
     }
 
     /**
@@ -827,8 +828,7 @@ public final class RadialWheel {
      * abilities it opens the next or previous type with abilities, wrapping
      * around the list, so the radial works on a controller, each type's half
      * opening as the step reaches it. A controller has no cursor for the
-     * ring to follow, so the ring turns the open type's abilities to the
-     * middle of its half's window, clear of the held half.
+     * ring to follow, so the ring rests, each type fanning out in place.
      * decision abilities-replace-the-hovered-type
      * decision open-half-spans-270-degrees
      *
@@ -881,7 +881,7 @@ public final class RadialWheel {
 
     /**
      * Opens a type's half and the type with one of its abilities hovered,
-     * the ring unturned, so the type's abilities center on the half's window.
+     * the ring at rest, so the type's abilities fan out where its petal sat.
      * decision open-half-spans-270-degrees
      *
      * @param type    the type to open
