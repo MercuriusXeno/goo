@@ -68,7 +68,7 @@ class GooValueTest {
      */
     @Test
     void singleTypeTotalGoo() {
-        GooValue val = goo(GooTypes.VITAL, 42);
+        GooValue val = goo(GooTypes.JELLY, 42);
         assertEquals(42, val.totalGoo());
     }
 
@@ -261,7 +261,7 @@ class GooValueTest {
      */
     @Test
     void multiplyByZeroReturnsEmpty() {
-        GooValue val = goo(GooTypes.VITAL, 100);
+        GooValue val = goo(GooTypes.JELLY, 100);
         assertTrue(val.multiply(0).isEmpty());
     }
 
@@ -386,7 +386,7 @@ class GooValueTest {
      */
     @Test
     void scaleByZeroReturnsEmpty() {
-        GooValue val = goo(GooTypes.VITAL, 100);
+        GooValue val = goo(GooTypes.JELLY, 100);
         GooValue result = val.scale(0.0);
         assertTrue(result.isEmpty());
     }
@@ -468,9 +468,9 @@ class GooValueTest {
      */
     @Test
     void toStringContainsTypeAndAmount() {
-        GooValue val = goo(GooTypes.VITAL, 5);
+        GooValue val = goo(GooTypes.JELLY, 5);
         String s = val.toString();
-        assertTrue(s.contains("vital"));
+        assertTrue(s.contains("jelly"));
         assertTrue(s.contains("5"));
     }
 }

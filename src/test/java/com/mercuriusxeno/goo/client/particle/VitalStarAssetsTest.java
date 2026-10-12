@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The healing star's sprite is goo's own grey copy of the bone-meal star,
- * so the vital pink the particle tints it with shows whole; vanilla's star
+ * so the pink the particle tints it with shows whole; vanilla's star
  * is drawn green with no red in it, which a tint can only darken
  * (decision vitality-waves-regenerate-and-court).
  */

@@ -146,7 +146,7 @@ public final class VitalityVisual {
     }
 
     /**
-     * Plays a vital tap's healed drip on the client: amber stars rise on the
+     * Plays a healing tap's healed drip on the client: amber stars rise on the
      * healed thing, as on what the channel heals; a tap has no glove for goo
      * to home from.
      * vitality-drip-heals-below

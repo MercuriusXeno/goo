@@ -222,7 +222,7 @@ public class GooValue {
     }
 
     /**
-     * Returns a human-readable summary like "metal: 480, vital: 120", or "none" if empty.
+     * Returns a human-readable summary like "metal: 480, jelly: 120", or "none" if empty.
      */
     @Override
     public String toString() {
