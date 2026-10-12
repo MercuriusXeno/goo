@@ -150,13 +150,14 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("jump_source", () -> AttachmentType.builder(() -> Vec3.ZERO).build());
 
     /**
-     * Whether a player stands Charged, laid by the charged step as its held
-     * effect starts and cleared when that effect ends, saved with the player
-     * (decision charged-scales-channel-params-by-json).
+     * The radius a busting player's melee hits blast at, laid by the buster step
+     * as its held effect starts and cleared to zero when that effect ends,
+     * saved with the player while it stands (decision buster-makes-tools-and-attacks-aoe).
      */
-    public static final Supplier<AttachmentType<Boolean>> CHARGED =
-            ATTACHMENT_TYPES.register("charged",
-                    () -> AttachmentType.builder(() -> false).serialize(Codec.BOOL.fieldOf("standing")).build());
+    public static final Supplier<AttachmentType<Float>> BUSTER_RADIUS =
+            ATTACHMENT_TYPES.register("buster_radius",
+                    () -> AttachmentType.builder(() -> 0f)
+                            .serialize(Codec.FLOAT.fieldOf("radius"), radius -> radius > 0f).build());
 
     /**
      * The Lux a player holds, keeping night vision up and glistening the mob
