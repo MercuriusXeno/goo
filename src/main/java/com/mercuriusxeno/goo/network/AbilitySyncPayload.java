@@ -37,7 +37,9 @@ import java.util.List;
  * (decision ability-json-names-its-reagent), and the upkeep a held self +
  * brew effect pays each tick (decision self-effects-trickle-until-ended),
  * and what a blink adds for its trip, so the HUD shows the live cost
- * (decision blink-lands-safely-costed-by-distance).
+ * (decision blink-lands-safely-costed-by-distance), and the on_prism
+ * reaction, so the wheel badges a prism effect
+ * (decision on-prism-reaction-wears-the-prism-badge).
  *
  * @param entries the list of ability descriptors
  */
@@ -90,7 +92,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
                         def.displayName(), def.icon(), def.order(), def.tags(),
                         def.behaviors(), def.cost(),
                         def.delivery(), def.badge(), def.requires(), def.area(), def.indicator(),
-                        def.consumes(), def.upkeep(), def.distancePrice()))
+                        def.consumes(), def.upkeep(), def.distancePrice(), def.onPrism()))
                 .toList();
     }
 
@@ -113,6 +115,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
             ITEMS_CODEC.encode(buf, e.consumes);
             buf.writeVarInt(e.upkeep);
             DistancePrice.STREAM_CODEC.encode(buf, e.distancePrice);
+            STEPS_CODEC.encode(buf, e.onPrism);
         }
     }
 
@@ -132,7 +135,8 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
                     STEPS_CODEC.decode(buf), buf.readVarInt(), Delivery.STREAM_CODEC.decode(buf),
                     AbilityBadge.STREAM_CODEC.decode(buf), ITEMS_CODEC.decode(buf),
                     AbilityArea.STREAM_CODEC.decode(buf), IndicatorShowing.STREAM_CODEC.decode(buf),
-                    ITEMS_CODEC.decode(buf), buf.readVarInt(), DistancePrice.STREAM_CODEC.decode(buf)));
+                    ITEMS_CODEC.decode(buf), buf.readVarInt(), DistancePrice.STREAM_CODEC.decode(buf),
+                    STEPS_CODEC.decode(buf)));
         }
         return new AbilitySyncPayload(entries);
     }
@@ -170,12 +174,43 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
      * @param consumes    the items a throw takes, one of each, beside its goo cost
      * @param upkeep      the mB a held self + brew effect pays each tick it stands
      * @param distancePrice what a blink adds to the cost for its trip
+     * @param onPrism     the steps a landing on a prism runs, empty for none, which the wheel
+     *                    marks with the prism badge (decision on-prism-reaction-wears-the-prism-badge)
      */
     public record Entry(String abilityId, String gooTypeId, String displayName,
                         String icon, int order, List<String> tags,
                         List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
                         List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
-                        List<Identifier> consumes, int upkeep, DistancePrice distancePrice) {
+                        List<Identifier> consumes, int upkeep, DistancePrice distancePrice,
+                        List<Step> onPrism) {
+
+        /**
+         * An entry reacting to no prism itself.
+         *
+         * @param abilityId   the ability resource id string
+         * @param gooTypeId   the goo type id string
+         * @param displayName the translation key
+         * @param icon        the icon texture path override
+         * @param order       the sort order within the type
+         * @param tags        categorical tags
+         * @param behaviors   the ability's step program
+         * @param cost        the mB a throw costs
+         * @param delivery    how the ability leaves the glove
+         * @param badge       the target kind the radial marks on the icon
+         * @param requires    the items a player must know before the radial offers it
+         * @param area        the area the glove draws while right click is held
+         * @param indicator   when the ability's indicator shows
+         * @param consumes    the items a throw takes, one of each
+         * @param upkeep      the mB a held self + brew effect pays each tick it stands
+         * @param distancePrice what a blink adds to the cost for its trip
+         */
+        public Entry(String abilityId, String gooTypeId, String displayName, String icon, int order,
+                     List<String> tags, List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
+                     List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
+                     List<Identifier> consumes, int upkeep, DistancePrice distancePrice) {
+            this(abilityId, gooTypeId, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires,
+                    area, indicator, consumes, upkeep, distancePrice, List.of());
+        }
 
         /**
          * An entry whose cost reads no trip.
