@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.ability.PrismCombos;
 import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
@@ -14,6 +15,7 @@ import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -32,12 +34,15 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
  * Gametests for the oculus prism as a blink node: a player looking at an
  * oculus well past Blink's range blinks to stand beside it, a pressed face
  * or not, and every blink to an oculus costs a tenth of its price
- * (decision oculus-prism-becomes-a-hovering-eye).
+ * (decision oculus-prism-becomes-a-hovering-eye); a blink at a bare prism
+ * spends itself into the prism, which becomes an oculus
+ * (decision blink-at-a-prism-spends-into-an-oculus).
  */
 @RegistersGameTests
 public final class OculusTests {
     private static final String BLINK_SNAPS_TO_OCULUS = "blink_snaps_to_oculus";
     private static final String OCULUS_COSTS_A_TENTH = "oculus_blink_costs_a_tenth";
+    private static final String BLINK_MAKES_AN_OCULUS = "blink_at_a_bare_prism_makes_an_oculus";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -47,11 +52,16 @@ public final class OculusTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, BLINK_SNAPS_TO_OCULUS, OculusTests::blinkSnapsToOculus);
         GooTestFunctions.registerTest(registrar, OCULUS_COSTS_A_TENTH, OculusTests::oculusBlinkCostsATenth);
+        GooTestFunctions.registerTest(registrar, BLINK_MAKES_AN_OCULUS, OculusTests::blinkAtABarePrismMakesAnOculus);
     }
 
 
     private static final Identifier ENDER_BLINK = Identifier.parse("goo:ender_blink");
-    private static final Identifier ENDER_OCULUS = Identifier.parse("goo:ender_oculus");
+    /** On the floor four blocks east of where the blinker stands, in Blink's range. */
+    private static final BlockPos BARE_PRISM_POS = new BlockPos(5, 1, 3);
+    private static final String SHOULD_STAY = "A blink spent into a prism should move nobody, stood %s, stands %s";
+    private static final String SHOULD_SPEND_THE_TRIP = "A blink into a prism should drain its trip's %d, drained %d";
+    private static final String SHOULD_BECOME_AN_OCULUS = "The prism should hold the oculus combo, held '%s'";
     /** Straight up over the player, past Blink's range of eight and inside its node range of forty-eight. */
     private static final int NODE_HEIGHT = 24;
     /** Enough ender goo for the trip up to the oculus. */
@@ -165,8 +175,41 @@ public final class OculusTests {
         level.setBlockAndUpdate(cell, GooBlocks.PRISM.get().defaultBlockState().setValue(PrismBlock.FACING, Direction.UP));
         PrismBlockEntity prism = (PrismBlockEntity) level.getBlockEntity(cell);
         helper.assertTrue(prism != null, "The prism should hold its block entity");
-        prism.runCombo(GooTypes.ENDER, OculusNodes.OCULUS, ability(helper, ENDER_OCULUS).behaviors());
+        prism.runCombo(GooTypes.ENDER, OculusNodes.OCULUS, PrismCombos.comboSteps(ability(helper, ENDER_BLINK)));
         return prism;
+    }
+
+    /**
+     * A player looking at a bare prism on the floor four blocks off blinks:
+     * the player stands where they stood, the ender drained is Blink's price
+     * for the trip to the prism, and the prism holds the oculus combo.
+     * blink-at-a-prism-spends-into-an-oculus
+     *
+     * @param helper the gametest helper
+     */
+    public static void blinkAtABarePrismMakesAnOculus(GameTestHelper helper) {
+        ServerPlayer player = blinker(helper);
+        helper.setBlock(BARE_PRISM_POS.below(), Blocks.STONE);
+        helper.setBlock(BARE_PRISM_POS, GooBlocks.PRISM.get().defaultBlockState().setValue(PrismBlock.FACING,
+                Direction.UP));
+        BlockPos prismAt = helper.absolutePos(BARE_PRISM_POS);
+        player.lookAt(EntityAnchorArgument.Anchor.EYES, Vec3.atCenterOf(prismAt));
+        Vec3 start = player.position();
+        AbilityDefinition blink = ability(helper, ENDER_BLINK);
+        int price = blink.distancePrice().priceOf(blink.cost(),
+                Optional.of(BlinkLanding.converting(start, start.distanceTo(Vec3.atCenterOf(prismAt)), prismAt)));
+        int heldBefore = held(player);
+
+        blink(player);
+
+        int drained = heldBefore - held(player);
+        Vec3 after = player.position();
+        helper.getLevel().getServer().getPlayerList().remove(player);
+        String combo = helper.getBlockEntity(BARE_PRISM_POS, PrismBlockEntity.class).getCombo();
+        helper.assertTrue(after.equals(start), String.format(SHOULD_STAY, start, after));
+        helper.assertTrue(drained == price, String.format(SHOULD_SPEND_THE_TRIP, price, drained));
+        helper.assertTrue(OculusNodes.OCULUS.equals(combo), String.format(SHOULD_BECOME_AN_OCULUS, combo));
+        helper.succeed();
     }
 
     /**

@@ -98,6 +98,24 @@ public final class BlinkResolver {
     }
 
     /**
+     * A blink spent into the bare prism the look ends on within range: the
+     * blinker moves nowhere and the trip priced runs to the prism's middle.
+     * blink-at-a-prism-spends-into-an-oculus
+     *
+     * @param space the world as the blink reads it
+     * @param feet  where the blinker's feet stand
+     * @param eye   the blinker's eye
+     * @param look  the unit look vector
+     * @param range the blink's range in blocks
+     * @return the converting landing, empty where the look ends on no bare prism in range
+     */
+    public static Optional<BlinkLanding> conversion(BlinkSpace space, Vec3 feet, Vec3 eye, Vec3 look,
+            double range) {
+        return space.barePrismOnLine(eye, eye.add(look.scale(range)))
+                .map(prism -> BlinkLanding.converting(feet, feet.distanceTo(Vec3.atCenterOf(prism)), prism));
+    }
+
+    /**
      * The face a press pins: the first block face the look crosses within the
      * blink's range.
      *

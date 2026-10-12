@@ -481,28 +481,6 @@
     ]
   },
   {
-    "id": "vital",
-    "seed": 40964,
-    "genParams": {
-      "viscosity": 1.1,
-      "decayRate": 0.05,
-      "ignitionChance": 0.012,
-      "ignitionStrength": 1.4,
-      "potHeatRate": 0.025,
-      "potInfluence": 0.7,
-      "neighborhoodReach": 1
-    },
-    "frametime": 2,
-    "shadowHue": 0.7,
-    "palette": [
-      { "position": 0.0, "color": "#B01040" },
-      { "position": 0.25, "color": "#E01858" },
-      { "position": 0.5, "color": "#FF3878" },
-      { "position": 0.8, "color": "#FF70A0" },
-      { "position": 1.0, "color": "#FFA0C0" }
-    ]
-  },
-  {
     "id": "weird",
     "seed": 40983,
     "genParams": {

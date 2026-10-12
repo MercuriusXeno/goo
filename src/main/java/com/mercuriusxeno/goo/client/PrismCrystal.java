@@ -158,6 +158,25 @@ public final class PrismCrystal {
     }
 
     /**
+     * The column wearing a charging stream's degrade look: its tint carried
+     * toward the degrade's color by the share charged, its opacity kept.
+     * channeled-hosts-convert-prisms-over-the-hold
+     *
+     * @param look  the column's look
+     * @param share how far the stream has charged the prism, 0 to 1
+     * @param tint  the RGB the degrade look tints toward
+     * @return the look, unchanged at no share
+     */
+    public static CrystalClusterSubmitter.Look decaying(CrystalClusterSubmitter.Look look, float share, int tint) {
+        if (share <= 0f) {
+            return look;
+        }
+        int toward = ARGB.color(ARGB.alpha(look.color()), tint);
+        return new CrystalClusterSubmitter.Look(look.uv(),
+                ARGB.srgbLerp(Math.clamp(share, 0f, 1f), look.color(), toward));
+    }
+
+    /**
      * The blob part way into the column, in model pixels on {@link CrystalCluster}'s base
      * point along +y: each point of the blob's cube slides to its place on the column.
      * Four rings run from the base's center through the bottom rim and the top rim to

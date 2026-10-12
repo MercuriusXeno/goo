@@ -118,14 +118,42 @@ public final class GooStreamHandler {
         if (held == 0) {
             return;
         }
-        if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge())) {
-            channelOnPlayer(player, new ChannelAim(payload.aimPoint(), payload.plane(), 0, held), ability);
-        } else {
-            strikeCone(player, payload.origin(), ability, held);
-        }
+        runHeldTick(player, payload, gooType, ability, held);
         // mycosis-spore-stream-buds-and-poisons
         ability.delivery().sound().filter(sound -> sound.playsOn(held))
                 .ifPresent(sound -> playStreamSound(player, sound));
+    }
+
+    /**
+     * Runs a paid tick of a held ability: a channel runs on the player, a
+     * stream converting a prism charges it, and any other stream strikes its cone.
+     *
+     * @param player  the holding player
+     * @param payload the held tick
+     * @param gooType the ability's goo type
+     * @param ability the held ability
+     * @param held    the hold's tick count, 1 on its first tick
+     */
+    private static void runHeldTick(ServerPlayer player, GooStreamPayload payload,
+                                    ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability, int held) {
+        if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge())) {
+            channelOnPlayer(player, new ChannelAim(payload.aimPoint(), payload.plane(), 0, held), ability);
+            StreamPrismCharge.chargeByRay(player, payload.aimPoint(), gooType, ability);
+        } else if (!StreamPrismCharge.charges(player, payload.origin(), gooType, ability)) {
+            strikeCone(player, payload.origin(), ability, held);
+        }
+    }
+
+    /**
+     * The glove hand a stream's cone opens from: the hand the client sent,
+     * kept within the player's reach.
+     *
+     * @param player the streaming player
+     * @param origin the glove hand the client sent
+     * @return the cone's apex
+     */
+    static Vec3 coneApex(ServerPlayer player, Vec3 origin) {
+        return ThrowArc.clampToReach(player.getEyePosition(), origin, ThrowArc.HAND_REACH * player.getScale());
     }
 
     /**
@@ -228,7 +256,7 @@ public final class GooStreamHandler {
     private static void strikeCone(ServerPlayer player, Vec3 origin, AbilityDefinition ability, int held) {
         ServerLevel level = player.level();
         Delivery delivery = ability.delivery();
-        Vec3 apex = ThrowArc.clampToReach(player.getEyePosition(), origin, ThrowArc.HAND_REACH * player.getScale());
+        Vec3 apex = coneApex(player, origin);
         Vec3 axis = player.getLookAngle();
         CastOn cast = new CastOn(level, player, ability.id());
         // decay-gnats-degrade-each-block-once: what the stream strikes follows the look; only its motes
@@ -470,7 +498,7 @@ public final class GooStreamHandler {
      * @param delivery the stream delivery
      * @param reach    how far the motes fly, in blocks
      */
-    private static void sprayParticles(ServerLevel level, Vec3 apex, Vec3 axis, Delivery delivery, double reach) {
+    static void sprayParticles(ServerLevel level, Vec3 apex, Vec3 axis, Delivery delivery, double reach) {
         RandomSource random = level.getRandom();
         double speed = reach * LAUNCH_SPEED_PER_BLOCK;
         delivery.particle().flatMap(SimpleParticles::resolve).ifPresent(particle -> {
