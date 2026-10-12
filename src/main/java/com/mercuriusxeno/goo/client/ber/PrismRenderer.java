@@ -77,7 +77,6 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
                 ClientGooTypes.color(blob.gooType()));
         state.combo = prism.getCombo();
         extractGlow(prism, state, partialTick, cameraPos);
-        extractBank(prism, state);
         extractPulse(prism, state);
         extractOculus(prism, state, partialTick, cameraPos);
         extractLift(prism, state);
@@ -112,19 +111,6 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         state.links = prism.getLinks().stream().map(link -> Vec3.atLowerCornerOf(link.subtract(prism.getBlockPos())))
                 .toList();
         state.linkLight = prism.getLinkLight();
-    }
-
-    /**
-     * Reads a timekeeper's bank: its charge and whether Tick spends it.
-     *
-     * @param prism the prism
-     * @param state the render state
-     */
-    private static void extractBank(PrismBlockEntity prism, PrismRenderState state) {
-        // timekeeper-prism-banks-ticks-forward-only: the shell reads the bank's charge and whether Tick spends it
-        state.bankTotal = prism.bank().total();
-        state.bankSpending = BankWatch.CLIENT.spending(prism.getBlockPos(), state.bankTotal,
-                prism.getLevel() == null ? 0L : prism.getLevel().getGameTime());
     }
 
     /**

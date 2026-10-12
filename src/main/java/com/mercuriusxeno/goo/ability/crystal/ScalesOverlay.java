@@ -19,7 +19,7 @@ import java.util.UUID;
 /**
  * Crystal Scales on a player's model: while the player's crystal hearts
  * stand, from the glove or the brew, every watcher draws the diamond-blue
- * faceted overlay over the player, a pattern apart from Stasis and Haste's
+ * faceted overlay over the player, a pattern apart from Stasis's
  * glint; it clears once the crystal hearts are gone.
  * decision scales-crystal-hearts-diamond-blue-overlay
  */

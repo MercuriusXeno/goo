@@ -15,10 +15,9 @@ import net.neoforged.neoforge.client.event.RenderArmEvent;
 import java.util.List;
 
 /**
- * The ailment overlay on the first-person arm: the player sees the golden
- * haste overlay on its own arm, as watchers see it on its whole model,
- * since the first-person hand draws without the model's layers.
- * haste-stacks-speed-under-the-golden-overlay
+ * The ailment overlay on the first-person arm: the player sees each ailment
+ * it wears on its own arm, as watchers see it on its whole model, since the
+ * first-person hand draws without the model's layers.
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class AilmentArmOverlay {

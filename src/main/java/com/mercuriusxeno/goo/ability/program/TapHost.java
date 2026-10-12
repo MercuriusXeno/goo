@@ -47,7 +47,7 @@ import java.util.function.Consumer;
  */
 public record TapHost(ServerLevel level, BlockPos tapPos, BlockPos landing, Direction face)
         implements ExplodeHost, AnchoredWorldHost, PlaceBlockHost, EntityScanHost, DripHost, UnmakeHost, ConvokeHost,
-        DeviceToggleHost, FrostHost, TickBlockHost, ShardFallHost {
+        DeviceToggleHost, FrostHost, ShardFallHost {
 
     private static final double HALF = 0.5;
     /** Half the width of the column a shard falls down, narrower than a block. */
@@ -133,20 +133,6 @@ public record TapHost(ServerLevel level, BlockPos tapPos, BlockPos landing, Dire
             level.setBlock(below, Blocks.POINTED_DRIPSTONE.defaultBlockState()
                     .setValue(PointedDripstoneBlock.TIP_DIRECTION, Direction.DOWN), Block.UPDATE_ALL);
         }
-    }
-
-    /**
-     * The block the drip landed on, which Tick's tap ticks faster.
-     * tick-drip-splashes-a-small-tick-effect
-     */
-    @Override
-    public Optional<BlockPos> tickedBlock() {
-        return Optional.of(landing);
-    }
-
-    @Override
-    public void tickBlock(BlockPos pos, int times) {
-        BlockTicking.tickBlockEntity(level, pos, times);
     }
 
     /**
