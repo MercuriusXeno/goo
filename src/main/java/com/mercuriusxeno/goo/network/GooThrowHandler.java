@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.AbilityTags;
-import com.mercuriusxeno.goo.ability.ArmPoseKind;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.aging.Aging;
@@ -137,19 +136,19 @@ public final class GooThrowHandler {
     }
 
     /**
-     * Handles a player beginning or ending a slinging charge's hold: the
-     * players watching draw the glove arm wound up to the opposite shoulder
-     * while it is held, and let it fall when it ends.
-     * decision shards-sling-then-morph-to-flechettes
+     * Handles the frame a player's glove arm took as a press held, let go or
+     * dropped: the players watching draw the same frame, the player's own
+     * client having posed it already.
+     * decision ability-json-names-its-arm-pose
+     * decision use-key-throw-swings-no-more
      *
-     * @param payload the hold payload
+     * @param payload the pose payload
      * @param context the network context
      */
-    public static void handleChargeHold(ChargeHoldPayload payload, IPayloadContext context) {
+    public static void handleGlovePose(GlovePosePayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (context.player() instanceof ServerPlayer player && validateGlove(player)) {
-                EntityVisuals.sendToTrackers(player, new ArmPosePayload(player.getId(),
-                        payload.holding() ? ArmPoseKind.WIND_UP : ArmPoseKind.NONE,
+                EntityVisuals.sendToTrackers(player, new ArmPosePayload(player.getId(), payload.frame(),
                         KnifeRainSling.gloveOnTheRight(player)));
             }
         });

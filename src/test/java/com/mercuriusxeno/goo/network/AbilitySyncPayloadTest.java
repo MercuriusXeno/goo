@@ -1,10 +1,14 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.AbilityTags;
+import com.mercuriusxeno.goo.ability.ArmPose;
 import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.DistancePrice;
+import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.type.GooTypes;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
@@ -63,6 +67,29 @@ class AbilitySyncPayloadTest {
         AbilitySyncPayload.STREAM_CODEC.encode(buf, sent);
 
         assertEquals(badge, AbilitySyncPayload.STREAM_CODEC.decode(buf).entries().getFirst().badge());
+    }
+
+    /**
+     * The sync codec carries each arm pose to the client, so every client draws
+     * the pose a glove's ability names (decision ability-json-names-its-arm-pose).
+     */
+    @ParameterizedTest
+    @EnumSource(ArmPose.class)
+    void poseRoundTripsThroughTheSyncCodec(ArmPose pose) {
+        AbilitySyncPayload sent = new AbilitySyncPayload(List.of(new AbilitySyncPayload.Entry("goo:rock_throw",
+                "rock", "rock_throw", "", 0, List.of(), List.of(), 0, Delivery.ARC, AbilityBadge.WORLD, List.of(),
+                AbilityArea.NONE, IndicatorShowing.HELD, List.of(), 0, DistancePrice.NONE, pose)));
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+
+        AbilitySyncPayload.STREAM_CODEC.encode(buf, sent);
+
+        assertEquals(pose, AbilitySyncPayload.STREAM_CODEC.decode(buf).entries().getFirst().pose());
+    }
+
+    /** Shards' shoulder cast reaches the client from its shipped JSON. */
+    @Test
+    void shardsPoseRoundTripsFromItsJson() {
+        assertEquals(ArmPose.SHOULDER_CAST, roundTrip(AbilityJson.decode("crystal_shards")).pose());
     }
 
     /** The sync codec carries the items an ability requires to the client (decision ability-hidden-until-recipes-known). */

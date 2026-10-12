@@ -9,8 +9,10 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -60,6 +62,49 @@ class AbilityDefinitionTest {
         AbilityDefinition spawn = AbilityJson.decode("zoo_spawn");
         assertEquals(List.of(), spawn.consumes());
         assertEquals(List.of(), spawn.requires());
+    }
+
+    /**
+     * The arm pose an ability's JSON names, or its delivery kind's default where
+     * it names none (decision ability-json-names-its-arm-pose).
+     */
+    @Nested
+    class ArmPoses {
+
+        private static AbilityDefinition decoded(String delivery, String poseField) {
+            return AbilityJson.decodeText("made_up", "{\"gooType\": \"rock\", \"displayName\": \"made_up\","
+                    + " \"cost\": 10, \"badge\": \"world\", \"behaviors\": [],"
+                    + " \"delivery\": {\"kind\": \"" + delivery + "\"}" + poseField + "}");
+        }
+
+        @ParameterizedTest
+        @CsvSource({"arc, THROWN", "beam, HELD_OUT", "stream, HELD_OUT", "self, HELD_UP"})
+        void anAbilityNamingNoPoseTakesItsDeliveryKindsDefault(String delivery, ArmPose expected) {
+            assertEquals(expected, decoded(delivery, "").pose());
+        }
+
+        @ParameterizedTest
+        @EnumSource(ArmPose.class)
+        void anAbilityNamingAPoseTakesIt(ArmPose named) {
+            String field = ", \"pose\": \"" + named.name().toLowerCase(Locale.ROOT) + "\"";
+            assertEquals(named, decoded("self", field).pose());
+        }
+
+        @Test
+        void theThrownDefaultHoldsOutAndFlingsForward() {
+            assertEquals(ArmPoseKind.HOLD_OUT, ArmPose.THROWN.holdFrame());
+            assertEquals(ArmPoseKind.THROW, ArmPose.THROWN.releaseFrame());
+            assertEquals(ArmPoseKind.NONE, ArmPose.HELD_OUT.releaseFrame());
+            assertEquals(ArmPoseKind.HOLD_UP, ArmPose.HELD_UP.holdFrame());
+        }
+
+        @Test
+        void shardsCastsFromTheShoulder() {
+            AbilityDefinition shards = AbilityJson.decode("crystal_shards");
+            assertEquals(ArmPose.SHOULDER_CAST, shards.pose());
+            assertEquals(ArmPoseKind.WIND_UP, shards.pose().holdFrame());
+            assertEquals(ArmPoseKind.FLING, shards.pose().releaseFrame());
+        }
     }
 
     /** An instant area throw writing no area draws the sphere its program reaches. */
