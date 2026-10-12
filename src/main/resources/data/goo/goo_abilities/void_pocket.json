@@ -1,0 +1,12 @@
+{
+  "gooType": "void",
+  "displayName": "goo.ability.void.pocket",
+  "badge": "world",
+  "order": 10,
+  "cost": 4000,
+  "delivery": { "kind": "arc" },
+  "behaviors": [
+    { "type": "void_pocket", "lifetime": 1200 }
+  ],
+  "tags": ["portal"]
+}

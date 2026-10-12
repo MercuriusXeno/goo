@@ -182,6 +182,7 @@ class StepCodecTest {
             Map.entry("churn", new ChurnStep(Expr.literal(12))),
             Map.entry("end", new EndStep(Expr.literal(1200))),
             Map.entry("astral_gate", new AstralGateStep(Expr.literal(1200))),
+            Map.entry("void_pocket", new VoidPocketStep(Expr.literal(1200))),
             Map.entry("meteor", new MeteorStep(Expr.literal(4), Expr.literal(60))),
             Map.entry("bloom", new BloomStep(Expr.literal(4), Expr.literal(8), Expr.literal(64))),
             Map.entry("tick_plants", new TickPlantsStep()),

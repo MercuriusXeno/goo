@@ -140,6 +140,11 @@ public enum HostCapability {
      */
     ASTRAL_GATE(GateHost.class),
     /**
+     * A struck surface Void's pocket gate can open over, for a caster the
+     * landing knows (decision void-opens-a-pocket-dimension).
+     */
+    VOID_POCKET(GateHost.class),
+    /**
      * A landing a meteor can be called down on (decision
      * meteo-needs-a-clear-sky).
      */
