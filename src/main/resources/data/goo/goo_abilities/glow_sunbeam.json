@@ -39,5 +39,6 @@
       ]
     }
   ],
-  "tags": ["self", "locks_on"]
+  "tags": ["self", "locks_on"],
+  "pose": "held_out"
 }

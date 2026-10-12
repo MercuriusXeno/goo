@@ -10,5 +10,6 @@
     { "type": "siphon", "radius": "charged_area * 3 - 3", "speed": "charged_speed" }
   ],
   "charged": { "area": 1.25, "speed": 2.0 },
-  "tags": ["self"]
+  "tags": ["self"],
+  "pose": "held_out"
 }

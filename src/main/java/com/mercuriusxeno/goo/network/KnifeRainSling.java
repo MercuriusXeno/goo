@@ -53,7 +53,6 @@ public final class KnifeRainSling {
     private static final float FLING_PITCH = 1.5f;
     private static final float CHIME_VOLUME = 1f;
     private static final float CHIME_PITCH = 1.3f;
-    private static final int NO_ENTITY = -1;
 
     private static final String LOG_NO_GOO = "Knife rain rejected: insufficient {} goo";
 

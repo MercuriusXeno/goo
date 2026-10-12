@@ -16,5 +16,6 @@
     { "type": "particles", "id": "goo:spore", "at": "target", "count": 96, "spread": 1, "lift": 1, "speed": 0.03 },
     { "type": "sound", "id": "minecraft:block.fungus.break", "at": "target", "source": "players", "volume": 1, "pitch": 0.8 }
   ],
-  "tags": ["self"]
+  "tags": ["self"],
+  "pose": "held_out"
 }
