@@ -30,8 +30,8 @@ class TypeBandsTest {
             Arguments.of(Map.of(GooTypes.BLAZE, 700), List.of(GooTypes.BLAZE)),
             Arguments.of(Map.of(GooTypes.BLAZE, 300, GooTypes.FROST, 900),
                 List.of(GooTypes.BLAZE, GooTypes.FROST)),
-            Arguments.of(Map.of(GooTypes.AEON, 100, GooTypes.BLAZE, 600, GooTypes.FROST, 300),
-                List.of(GooTypes.AEON, GooTypes.BLAZE, GooTypes.FROST)),
+            Arguments.of(Map.of(GooTypes.ASTRAL, 100, GooTypes.BLAZE, 600, GooTypes.FROST, 300),
+                List.of(GooTypes.ASTRAL, GooTypes.BLAZE, GooTypes.FROST)),
             Arguments.of(Map.of(GooTypes.GLOW, 500, GooTypes.CRYSTAL, 500),
                 List.of(GooTypes.CRYSTAL, GooTypes.GLOW)),
             Arguments.of(Map.of(GooTypes.ENDER, 2_000_000_000, GooTypes.BLAZE, 1),
@@ -40,9 +40,9 @@ class TypeBandsTest {
 
     @Test
     void dissolveBandsStandLargestFirst() {
-        GooContents contents = new GooContents(Map.of(GooTypes.AEON, 100, GooTypes.BLAZE, 300, GooTypes.FROST, 900));
+        GooContents contents = new GooContents(Map.of(GooTypes.ASTRAL, 100, GooTypes.BLAZE, 300, GooTypes.FROST, 900));
 
-        assertEquals(List.of(GooTypes.FROST, GooTypes.BLAZE, GooTypes.AEON),
+        assertEquals(List.of(GooTypes.FROST, GooTypes.BLAZE, GooTypes.ASTRAL),
             TypeBands.largestFirst(contents).stream().map(TypeBand::type).toList());
     }
 

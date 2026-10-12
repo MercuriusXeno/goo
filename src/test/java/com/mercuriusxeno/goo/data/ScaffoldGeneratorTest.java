@@ -218,7 +218,7 @@ class ScaffoldGeneratorTest {
                     recipe("minecraft:stick", 4, slot("minecraft:oak_planks"))
             );
             Map<Identifier, GooValue> baseValues = Map.of(
-                    id("minecraft:stick"), goo(GooTypes.VITAL, 10)
+                    id("minecraft:stick"), goo(GooTypes.JELLY, 10)
             );
 
             List<ScaffoldGenerator.Root> roots = findRecipeRoots(
@@ -242,7 +242,7 @@ class ScaffoldGeneratorTest {
                     recipe("minecraft:ladder", 3, slot("minecraft:stick"))
             );
             Map<Identifier, GooValue> baseValues = Map.of(
-                    id("minecraft:torch"), goo(GooTypes.VITAL, 10)
+                    id("minecraft:torch"), goo(GooTypes.JELLY, 10)
             );
 
             List<ScaffoldGenerator.Root> roots = findRecipeRoots(
@@ -264,7 +264,7 @@ class ScaffoldGeneratorTest {
                     recipe("minecraft:torch", 4, slot("minecraft:stick"), slot("minecraft:coal"))
             );
             Map<Identifier, GooValue> baseValues = Map.of(
-                    id("minecraft:stick"), goo(GooTypes.VITAL, 10),
+                    id("minecraft:stick"), goo(GooTypes.JELLY, 10),
                     id("minecraft:coal"), goo(GooTypes.ROCK, 20)
             );
 

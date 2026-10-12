@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.hex.CharmEvents;
 import com.mercuriusxeno.goo.ability.program.EntityFilter;
 import com.mercuriusxeno.goo.ability.program.EntityScan;
-import com.mercuriusxeno.goo.ability.stasis.StasisEvents;
 import com.mercuriusxeno.goo.ability.zone.ZoneEvents;
 import com.mercuriusxeno.goo.gametest.SurvivalPlayers;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
@@ -68,8 +67,7 @@ public final class MobEffectTests {
     private static final String ZONE_WARPS_THEN_EXILES = "zone_warps_then_exiles";
     private static final String ZONE_RESISTED_BY_HIGH_HEALTH = "zone_resisted_by_high_health";
     private static final String MOB_UNSTABLE = "mob_unstable_explode";
-    private static final String STASIS_HOLDS_UNTIL_STRUCK = "stasis_holds_until_struck";
-    private static final String MOB_AEON_BABY_FORM_FILTER = "mob_aeon_baby_form_filter";
+    private static final String HAS_BABY_FORM_FILTER = "has_baby_form_filter";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -91,8 +89,7 @@ public final class MobEffectTests {
         GooTestFunctions.registerTest(registrar, ZONE_WARPS_THEN_EXILES, MobEffectTests::zoneWarpsThenExiles);
         GooTestFunctions.registerTest(registrar, ZONE_RESISTED_BY_HIGH_HEALTH, MobEffectTests::zoneResistedByHighHealth);
         GooTestFunctions.registerTest(registrar, MOB_UNSTABLE, MobEffectTests::unstableExplode);
-        GooTestFunctions.registerTest(registrar, STASIS_HOLDS_UNTIL_STRUCK, MobEffectTests::stasisHoldsUntilStruck);
-        GooTestFunctions.registerTest(registrar, MOB_AEON_BABY_FORM_FILTER, MobEffectTests::aeonBabyFormFilter);
+        GooTestFunctions.registerTest(registrar, HAS_BABY_FORM_FILTER, MobEffectTests::hasBabyFormFilter);
     }
 
 
@@ -137,19 +134,6 @@ public final class MobEffectTests {
     private static final String FLOAT_SHOULD_CLEAR_WITH_LEVITATION = "Removing the levitation should clear the float";
     private static final String ABILITY_FROST_SNAP = "goo:frost_snap";
     private static final String ABILITY_PULSE_SHORT_CIRCUIT = "goo:pulse_short_circuit";
-    private static final String ABILITY_AEON_STASIS = "goo:aeon_stasis";
-    /** The ticks a stasis is watched before the hits land. */
-    private static final int STASIS_HOLD_TICKS = 100;
-    private static final float STASIS_HIT_DAMAGE = 4.0f;
-    private static final String SHOULD_STAY_IN_STASIS = "The zombie should stay in stasis until an attacker strikes it";
-    private static final String SHOULD_STAY_PUT = "The zombie in stasis should not have moved";
-    private static final String SHOULD_TAKE_NO_DAMAGE = "The zombie in stasis should take no damage";
-    private static final String SHOULD_SURVIVE_LANDING_PUNCH = "The punch landing the stasis should not free the mob";
-    private static final String SHOULD_DEAL_NOTHING_FROZEN = "A mob in stasis should deal no damage";
-    private static final String SHOULD_BE_FREED = "An attacker's strike should free the zombie";
-    private static final String SHOULD_HAVE_AI_AGAIN = "The freed zombie should have its AI back";
-    /** The farthest a mob in stasis may drift and still count as standing put. */
-    private static final double STASIS_MOST_DRIFT = 0.01;
     private static final String MOB_HAS_MAX_HEALTH = "The mob carries a max health attribute";
     /** The gametests' own thrown blast, today's Blast before it was drag-sized, struck at a mob. */
     private static final String ABILITY_UNSTABLE_EXPLODE = "goo:test_blast";
@@ -531,50 +515,12 @@ public final class MobEffectTests {
     }
 
     /**
-     * Aeon stasis freezes a zombie with its AI on: across a hundred ticks and
-     * a hit with no attacker it stays in stasis, AI-less, unmoved and
-     * unharmed; a strike from another zombie frees it, its AI back and its
-     * health untouched.
-     * stasis-holds-mob-with-golden-shimmer
-     *
-     * @param helper the gametest helper
-     */
-    public static void stasisHoldsUntilStruck(GameTestHelper helper) {
-        Mob mob = helper.spawn(EntityType.ZOMBIE, SPAWN_POS);
-        Mob attacker = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, BYSTANDER_POS);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_AEON_STASIS);
-            Vec3 frozenAt = mob.position();
-            float health = mob.getHealth();
-            // stasis-holds-mob-with-golden-shimmer: the punch that lands the blob arrives the same tick and frees nothing
-            mob.hurtServer(helper.getLevel(), helper.getLevel().damageSources().mobAttack(attacker), STASIS_HIT_DAMAGE);
-            helper.assertTrue(StasisEvents.held(mob), SHOULD_SURVIVE_LANDING_PUNCH);
-            float attackerHealth = attacker.getHealth();
-            attacker.hurtServer(helper.getLevel(), helper.getLevel().damageSources().mobAttack(mob), STASIS_HIT_DAMAGE);
-            helper.assertTrue(attacker.getHealth() == attackerHealth, SHOULD_DEAL_NOTHING_FROZEN);
-            helper.runAfterDelay(STASIS_HOLD_TICKS, () -> {
-                mob.hurtServer(helper.getLevel(), helper.getLevel().damageSources().generic(), STASIS_HIT_DAMAGE);
-                helper.assertTrue(StasisEvents.held(mob), SHOULD_STAY_IN_STASIS);
-                helper.assertTrue(mob.isNoAi(), SHOULD_HAVE_NO_AI);
-                helper.assertTrue(mob.position().distanceTo(frozenAt) < STASIS_MOST_DRIFT, SHOULD_STAY_PUT);
-                helper.assertTrue(mob.getHealth() == health, SHOULD_TAKE_NO_DAMAGE);
-                mob.hurtServer(helper.getLevel(), helper.getLevel().damageSources().mobAttack(attacker),
-                        STASIS_HIT_DAMAGE);
-                helper.assertFalse(StasisEvents.held(mob), SHOULD_BE_FREED);
-                helper.assertFalse(mob.isNoAi(), SHOULD_HAVE_AI_AGAIN);
-                helper.assertTrue(mob.getHealth() == health, SHOULD_TAKE_NO_DAMAGE);
-                helper.succeed();
-            });
-        });
-    }
-
-    /**
      * The has_baby_form filter keeps exactly the mobs the 26.1 tree lets
      * be a baby.
      *
      * @param helper the gametest helper
      */
-    public static void aeonBabyFormFilter(GameTestHelper helper) {
+    public static void hasBabyFormFilter(GameTestHelper helper) {
         Set<EntityFilter> hasBabyForm = Set.of(EntityFilter.HAS_BABY_FORM);
         for (EntityType<? extends Mob> type : List.of(EntityType.COW, EntityType.ZOMBIE, EntityType.PIGLIN,
                 EntityType.ZOGLIN)) {

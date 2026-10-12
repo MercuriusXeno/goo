@@ -18,7 +18,7 @@ public final class RestoreMoteParticle extends DriftingGlowParticle {
     /** Lift each tick on top of the spawn velocity, in blocks. */
     private static final double RISE_PER_TICK = 0.012;
     private static final float START_ALPHA = 0.85f;
-    /** A warm rose tint, lighter than vital goo's wheel color so the glow reads as healing, not blood. */
+    /** A warm rose tint, lighter than the healing mote's pink so the glow reads as healing, not blood. */
     private static final Look MOTE = new Look(0.9f, 0.02f, 18, 12, 0.06f, 0.04f,
             new float[] {1.0f, 0.62f, 0.6f}, START_ALPHA);
 

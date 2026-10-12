@@ -45,8 +45,7 @@ public final class MobAilments {
 
     /**
      * An entity starts wearing an ailment, or wears it longer; a landing of
-     * no duration ends the ailment at once, as a stasis mob struck free does.
-     * stasis-holds-mob-with-golden-shimmer
+     * no duration ends the ailment at once.
      *
      * @param entityId      the entity's id
      * @param kind          the ailment

@@ -74,7 +74,6 @@ class MobAilmentsTest {
             assertTrue(ailments.ailmentsOf(MOB, LAND_TICK).isEmpty(), "an ended ailment was kept");
         }
 
-        // stasis-holds-mob-with-golden-shimmer
         @Test
         void aLandingOfNoDurationEndsTheAilmentAtOnce() {
             MobAilments ailments = hexedAt(LAND_TICK);

@@ -37,24 +37,24 @@ class GooConversionTest {
     class FormulaParsing {
 
         /**
-         * Basic formula: "metal / 4 -> aeon / 2".
+         * Basic formula: "metal / 4 -> yore / 2".
          */
         @Test
         void parseBasicFormula() {
-            GooConversion.Formula f = GooConversion.parseFormula("metal / 4 -> aeon / 2");
+            GooConversion.Formula f = GooConversion.parseFormula("metal / 4 -> yore / 2");
             assertEquals(GooTypes.METAL, f.sourceType());
             assertEquals(4, f.sourceDivisor());
-            assertEquals(GooTypes.AEON, f.targetType());
+            assertEquals(GooTypes.YORE, f.targetType());
             assertEquals(2, f.targetDivisor());
         }
 
         /**
-         * Formula with divisor of 1: "vital / 1 -> nether / 2".
+         * Formula with divisor of 1: "zoo / 1 -> nether / 2".
          */
         @Test
         void parseDivisorOfOne() {
-            GooConversion.Formula f = GooConversion.parseFormula("vital / 1 -> nether / 2");
-            assertEquals(GooTypes.VITAL, f.sourceType());
+            GooConversion.Formula f = GooConversion.parseFormula("zoo / 1 -> nether / 2");
+            assertEquals(GooTypes.ZOO, f.sourceType());
             assertEquals(1, f.sourceDivisor());
             assertEquals(GooTypes.NETHER, f.targetType());
             assertEquals(2, f.targetDivisor());
@@ -81,14 +81,14 @@ class GooConversionTest {
         @Test
         void parseAdditiveFromTreeConstant() {
             Map<String, GooValue> treeConstants = Map.of(
-                    "waxed", goo(GooTypes.VITAL, 48));
+                    "waxed", goo(GooTypes.ZOO, 48));
             Map<String, String> entries = new LinkedHashMap<>();
             entries.put("waxed", "+$waxed");
             entries.put("#waxed_copper", "#copper @waxed");
 
             GooConversion.ParsedConversions parsed = GooConversion.parseBlock(entries, Map.of(), treeConstants);
             assertNotNull(parsed.additives().get("waxed"));
-            assertEquals(48, parsed.additives().get("waxed").get(GooTypes.VITAL));
+            assertEquals(48, parsed.additives().get("waxed").get(GooTypes.ZOO));
         }
 
         /**
@@ -97,11 +97,11 @@ class GooConversionTest {
         @Test
         void additiveAppliedToItem() {
             GooValue copper = goo(GooTypes.METAL, 160);
-            GooValue waxBonus = goo(GooTypes.VITAL, 48);
+            GooValue waxBonus = goo(GooTypes.ZOO, 48);
 
             GooValue result = copper.add(waxBonus, 1);
             assertEquals(160, result.get(GooTypes.METAL));
-            assertEquals(48, result.get(GooTypes.VITAL));
+            assertEquals(48, result.get(GooTypes.ZOO));
         }
 
         /**
@@ -110,11 +110,11 @@ class GooConversionTest {
         @Test
         void additiveWithMultiplier() {
             GooValue copper = goo(GooTypes.METAL, 160);
-            GooValue waxBonus = goo(GooTypes.VITAL, 48);
+            GooValue waxBonus = goo(GooTypes.ZOO, 48);
 
             GooValue result = copper.add(waxBonus, 2);
             assertEquals(160, result.get(GooTypes.METAL));
-            assertEquals(96, result.get(GooTypes.VITAL));
+            assertEquals(96, result.get(GooTypes.ZOO));
         }
     }
 
@@ -124,42 +124,42 @@ class GooConversionTest {
     class ApplicationMath {
 
         /**
-         * 1x oxidation on metal=160: removes 40, adds 20 aeon.
+         * 1x oxidation on metal=160: removes 40, adds 20 yore.
          */
         @Test
         void singleApplication() {
-            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> aeon / 2");
+            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> yore / 2");
             GooValue copper = goo(GooTypes.METAL, 160);
 
             GooValue result = GooConversion.apply(copper, oxidation, 1);
             assertEquals(120, result.get(GooTypes.METAL)); // 160 - 40
-            assertEquals(20, result.get(GooTypes.AEON));    // 40 / 2
+            assertEquals(20, result.get(GooTypes.YORE));    // 40 / 2
         }
 
         /**
-         * 2x oxidation on metal=160: removes 80, adds 40 aeon (simultaneous).
+         * 2x oxidation on metal=160: removes 80, adds 40 yore (simultaneous).
          */
         @Test
         void doubleApplicationSimultaneous() {
-            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> aeon / 2");
+            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> yore / 2");
             GooValue copper = goo(GooTypes.METAL, 160);
 
             GooValue result = GooConversion.apply(copper, oxidation, 2);
             assertEquals(80, result.get(GooTypes.METAL));  // 160 - 2*40
-            assertEquals(40, result.get(GooTypes.AEON));    // 2 * (40/2)
+            assertEquals(40, result.get(GooTypes.YORE));    // 2 * (40/2)
         }
 
         /**
-         * 3x oxidation on metal=160: removes 120, adds 60 aeon.
+         * 3x oxidation on metal=160: removes 120, adds 60 yore.
          */
         @Test
         void tripleApplicationSimultaneous() {
-            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> aeon / 2");
+            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> yore / 2");
             GooValue copper = goo(GooTypes.METAL, 160);
 
             GooValue result = GooConversion.apply(copper, oxidation, 3);
             assertEquals(40, result.get(GooTypes.METAL));  // 160 - 3*40
-            assertEquals(60, result.get(GooTypes.AEON));    // 3 * (40/2)
+            assertEquals(60, result.get(GooTypes.YORE));    // 3 * (40/2)
         }
 
         /**
@@ -167,12 +167,12 @@ class GooConversionTest {
          */
         @Test
         void otherTypesPreserved() {
-            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> aeon / 2");
+            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> yore / 2");
             GooValue copper = goo(GooTypes.METAL, 160, GooTypes.ROCK, 50);
 
             GooValue result = GooConversion.apply(copper, oxidation, 1);
             assertEquals(120, result.get(GooTypes.METAL));
-            assertEquals(20, result.get(GooTypes.AEON));
+            assertEquals(20, result.get(GooTypes.YORE));
             assertEquals(50, result.get(GooTypes.ROCK)); // untouched
         }
 
@@ -181,13 +181,13 @@ class GooConversionTest {
          */
         @Test
         void missingSourceTypeNoOp() {
-            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> aeon / 2");
+            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> yore / 2");
             GooValue noMetal = goo(GooTypes.ROCK, 100);
 
             GooValue result = GooConversion.apply(noMetal, oxidation, 1);
             assertEquals(100, result.get(GooTypes.ROCK));
             assertEquals(0, result.get(GooTypes.METAL));
-            assertEquals(0, result.get(GooTypes.AEON));
+            assertEquals(0, result.get(GooTypes.YORE));
         }
 
         /**
@@ -195,7 +195,7 @@ class GooConversionTest {
          */
         @Test
         void lossySourceDivisionThrows() {
-            GooConversion.Formula f = GooConversion.parseFormula("metal / 3 -> aeon / 1");
+            GooConversion.Formula f = GooConversion.parseFormula("metal / 3 -> yore / 1");
             GooValue copper = goo(GooTypes.METAL, 100); // 100/3 = 33.3
 
             assertThrows(ArithmeticException.class,
@@ -207,7 +207,7 @@ class GooConversionTest {
          */
         @Test
         void lossyTargetDivisionThrows() {
-            GooConversion.Formula f = GooConversion.parseFormula("metal / 4 -> aeon / 3");
+            GooConversion.Formula f = GooConversion.parseFormula("metal / 4 -> yore / 3");
             GooValue copper = goo(GooTypes.METAL, 160); // 40/3 = 13.3
 
             assertThrows(ArithmeticException.class,
@@ -226,7 +226,7 @@ class GooConversionTest {
         @Test
         void parseFullBlock() {
             Map<String, String> entries = new LinkedHashMap<>();
-            entries.put("oxidation", "metal / 4 -> aeon / 2");
+            entries.put("oxidation", "metal / 4 -> yore / 2");
             entries.put("exposed", "@oxidation");
             entries.put("weathered", "2 @oxidation");
             entries.put("oxidized", "3 @oxidation");
@@ -244,7 +244,7 @@ class GooConversionTest {
         @Test
         void deniedAssignmentSkipped() {
             Map<String, String> entries = new LinkedHashMap<>();
-            entries.put("oxidation", "metal / 4 -> aeon / 2");
+            entries.put("oxidation", "metal / 4 -> yore / 2");
             entries.put("exposed", "@oxidation");
             entries.put("#copper_stuff", "@exposed");
             entries.put("#iron_stuff", "denied");
@@ -278,7 +278,7 @@ class GooConversionTest {
         @Test
         void parseScaleWithChain() {
             Map<String, String> entries = new LinkedHashMap<>();
-            entries.put("decay", "leaf / 2 -> aeon / 4");
+            entries.put("decay", "leaf / 2 -> yore / 4");
             entries.put("#wood", "#logs * 3 / 4 @decay");
 
             GooConversion.ParsedConversions parsed = GooConversion.parseBlock(entries);
@@ -295,7 +295,7 @@ class GooConversionTest {
         @Test
         void deniedFormulaRemoved() {
             Map<String, String> entries = new LinkedHashMap<>();
-            entries.put("oxidation", "metal / 4 -> aeon / 2");
+            entries.put("oxidation", "metal / 4 -> yore / 2");
             entries.put("oxidation", "denied"); // override removes it
 
             GooConversion.ParsedConversions parsed = GooConversion.parseBlock(entries);
@@ -317,7 +317,7 @@ class GooConversionTest {
             effective.put(id("minecraft:weathered_copper"), goo(GooTypes.METAL, 160, GooTypes.ROCK, 50));
             effective.put(id("minecraft:weathered_cut_copper"), goo(GooTypes.METAL, 160));
 
-            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> aeon / 2");
+            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> yore / 2");
             GooConversion.Stack weatheredStack = new GooConversion.Stack("oxidation", 2);
             Map<String, GooConversion.Formula> formulas = Map.of("oxidation", oxidation);
 
@@ -331,7 +331,7 @@ class GooConversionTest {
 
             GooValue copper = effective.get(id("minecraft:weathered_copper"));
             assertEquals(80, copper.get(GooTypes.METAL));
-            assertEquals(40, copper.get(GooTypes.AEON));
+            assertEquals(40, copper.get(GooTypes.YORE));
             assertEquals(50, copper.get(GooTypes.ROCK));
         }
 
@@ -347,7 +347,7 @@ class GooConversionTest {
             effective.put(id("minecraft:exposed_copper"), GooValue.EMPTY);
             effective.put(id("minecraft:exposed_cut_copper"), GooValue.EMPTY);
 
-            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> aeon / 2");
+            GooConversion.Formula oxidation = GooConversion.parseFormula("metal / 4 -> yore / 2");
             Map<String, GooConversion.Formula> formulas = Map.of("oxidation", oxidation);
 
             java.util.List<Identifier> sources = java.util.List.of(
@@ -363,12 +363,12 @@ class GooConversionTest {
             // copper_block (160 metal) copied to exposed_copper, then 1x oxidation
             GooValue exposed = effective.get(id("minecraft:exposed_copper"));
             assertEquals(120, exposed.get(GooTypes.METAL)); // 160 - 40
-            assertEquals(20, exposed.get(GooTypes.AEON));    // 40 / 2
+            assertEquals(20, exposed.get(GooTypes.YORE));    // 40 / 2
 
             // cut_copper (80 metal) copied to exposed_cut_copper, then 1x oxidation
             GooValue exposedCut = effective.get(id("minecraft:exposed_cut_copper"));
             assertEquals(60, exposedCut.get(GooTypes.METAL)); // 80 - 20
-            assertEquals(10, exposedCut.get(GooTypes.AEON));   // 20 / 2
+            assertEquals(10, exposedCut.get(GooTypes.YORE));   // 20 / 2
         }
 
         /**
@@ -435,10 +435,10 @@ class GooConversionTest {
         }
     }
 
-    // ── Shipped quantum reactions ─────────────────────────────────────────
+    // ── Shipped reactions ─────────────────────────────────────────────────
 
     @Nested
-    class QuantumReactions {
+    class ShippedReactions {
 
         private static final String REACTION_PATH = "/data/goo/goo_reactions/%s.json";
 
@@ -449,7 +449,7 @@ class GooConversionTest {
          */
         @ParameterizedTest
         @ValueSource(strings = {
-                "quantum_from_ender_unstable", "quantum_from_aeon_ender",
+                "quantum_from_ender_unstable",
                 "quantum_from_crystal_pulse", "quantum_from_typhoon_metal"})
         void quantumReactionYieldsLessThanItConsumes(String name) throws IOException {
             JsonObject reaction = loadReaction(name);
@@ -461,6 +461,17 @@ class GooConversionTest {
             assertEquals(List.of(GooTypes.QUANTUM), gooTypesOf(outputs), name);
             assertEquals(inputs.size(), gooTypesOf(inputs).size(), name + " consumes goo alone");
             assertTrue(produced < consumed, name + " yields " + produced + " from " + consumed);
+        }
+
+        /**
+         * The metal reaction consumes crystal, rock and yore and yields metal.
+         */
+        @Test
+        void metalReactionConsumesYore() throws IOException {
+            JsonObject reaction = loadReaction("metal_from_crystal_rock_yore");
+            assertEquals(List.of(GooTypes.CRYSTAL, GooTypes.ROCK, GooTypes.YORE),
+                    gooTypesOf(reaction.getAsJsonArray("inputs")));
+            assertEquals(List.of(GooTypes.METAL), gooTypesOf(reaction.getAsJsonArray("outputs")));
         }
 
         // GooReaction's codec reaches BuiltInRegistries, which a unit test cannot initialize,

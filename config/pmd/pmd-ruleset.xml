@@ -139,7 +139,7 @@
 
     <!-- Mixin classes are mandated 'abstract' by the Mixin annotation processor
          even when they declare no abstract methods. -->
-    <rule ref="category/java/design.xml/AbstractClassWithoutAbstractMethod">
+    <rule ref="category/java/bestpractices.xml/AbstractClassWithoutAbstractMethod">
         <properties>
             <property name="violationSuppressXPath"
                 value="//ClassDeclaration[ends-with(@SimpleName, 'Mixin')]"/>
@@ -157,7 +157,7 @@
 
     <!-- Gametest dispatcher classes end in 'Tests' but are registered into the
          NeoForge TEST_FUNCTION registry by reference; they have no JUnit annotations. -->
-    <rule ref="category/java/bestpractices.xml/TestClassWithoutTestCases">
+    <rule ref="category/java/errorprone.xml/TestClassWithoutTestCases">
         <properties>
             <property name="violationSuppressRegex" value=".*gametest.*"/>
         </properties>

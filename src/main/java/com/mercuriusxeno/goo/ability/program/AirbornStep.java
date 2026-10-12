@@ -12,7 +12,7 @@ import java.util.stream.Stream;
 /**
  * Grants the host's target Airborn and finishes: steering in midair and
  * while levitating, a capped fall without fall damage, higher jumps, a
- * stronger Jet and a faster elytra glide. Cast from the glove it stands as a held effect, paying its
+ * stronger Tailwind and a faster elytra glide. Cast from the glove it stands as a held effect, paying its
  * upkeep until ended; drunk as a brew it stands for the brew's hour. Airborn
  * is {@code airborn air_speed=0.35 air_steer=0.15 fall_cap=0.4 jump_boost=0.5 jet_boost=1.5
  * glide_speed=1.2 glide_steer=0.05}.
@@ -22,7 +22,7 @@ import java.util.stream.Stream;
  * @param airSteer  the share of the way midair steering turns each tick
  * @param fallCap   the fastest the target falls, in blocks per tick
  * @param jumpBoost the share the target's jump strength grows by
- * @param jetBoost  what Jet's push strength is multiplied by
+ * @param jetBoost  what Tailwind's push strength is multiplied by
  * @param glideSpeed the speed an elytra glide is drawn toward along the look, in blocks per tick
  * @param glideSteer the share of the way a slower glide is drawn toward it each tick
  */
