@@ -92,6 +92,19 @@ class RadialWheelRendererTest {
                 .toList();
     }
 
+    /** A wheel with the cursor moved onto one type's petal tip, the fan landed. */
+    static RadialWheel openedWheel(int types, int abilities, int openType, int radius) {
+        RadialWheel wheel = new RadialWheel(types, type -> abilities);
+        double angle = wheel.layout().stream().filter(petal -> petal.type() == openType).findFirst().orElseThrow()
+                .center();
+        double reach = (RadialWheel.TYPE_INNER_FRACTION + 1.0) / 2 * radius;
+        wheel.moveCursor(Math.sin(angle) * reach, -Math.cos(angle) * reach, radius);
+        for (int tick = 0; tick < RingEase.DURATION_TICKS; tick++) {
+            wheel.tick();
+        }
+        return wheel;
+    }
+
     private static ClientAbility abilityWithIcon(String icon) {
         return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "unstable_lurker"),
                 "ability.goo.unstable_lurker", icon, 0, List.of(), List.of(), 0, Delivery.ARC, AbilityBadge.WORLD, List.of());
@@ -290,7 +303,7 @@ class RadialWheelRendererTest {
     class OpenTypeFrame {
 
         private static final int TYPES = 16;
-        private static final int OPEN_TYPE = 3;
+        private static final int OPEN_TYPE = 8;
         private static final int ABILITIES = 4;
         private static final int HOLDINGS = 1500;
         private static final int CENTER_X = 1200;
@@ -378,13 +391,7 @@ class RadialWheelRendererTest {
                 .toList();
 
         private RadialWheel openWheel() {
-            RadialWheel wheel = new RadialWheel(TYPES, type -> ABILITIES);
-            double angle = (OPEN_TYPE + 0.5) * wheel.typeArc();
-            wheel.moveCursor(Math.sin(angle) * RADIUS * 0.6, -Math.cos(angle) * RADIUS * 0.6, RADIUS);
-            for (int tick = 0; tick < RingEase.DURATION_TICKS; tick++) {
-                wheel.tick();
-            }
-            return wheel;
+            return openedWheel(TYPES, ABILITIES, OPEN_TYPE, RADIUS);
         }
 
         private GuiGraphicsExtractor renderFrame(RadialWheel wheel) {
@@ -583,8 +590,15 @@ class RadialWheelRendererTest {
             return Math.hypot(text.x() - CENTER_X, text.y() - CENTER_Y) < RadialWheel.HUB_FRACTION * RADIUS;
         }
 
+        /** Whether a word lies out on the outer ring, past the hub and the band the types drop into. */
+        private static boolean isOnTheRing(DrawnText text) {
+            return Math.hypot(text.x() - CENTER_X, text.y() - CENTER_Y) >= RadialWheel.TYPE_INNER_FRACTION * RADIUS;
+        }
+
+        /** The outer ring's petal under a word: an ability petal, the type petals standing in the band inside it. */
         private static RadialWheel.PetalArc petalUnder(RadialWheel wheel, DrawnText text) {
-            return RadialWheel.petalAt(wheel.layout(), RadialWheel.angleOf(text.x() - CENTER_X, text.y() - CENTER_Y));
+            return RadialWheel.petalAt(wheel.layout().stream().filter(RadialWheel.PetalArc::isAbility).toList(),
+                    RadialWheel.angleOf(text.x() - CENTER_X, text.y() - CENTER_Y));
         }
 
         @Test
@@ -602,7 +616,7 @@ class RadialWheelRendererTest {
         void eachAbilityPetalDrawsTwoLinesAndNoTypePetalDrawsText() {
             RadialWheel wheel = openWheel();
             Map<RadialWheel.PetalArc, Long> linesByPetal = renderTexts(wheel).stream()
-                    .filter(text -> !isInHub(text))
+                    .filter(OpenTypeFrame::isOnTheRing)
                     .collect(Collectors.groupingBy(text -> petalUnder(wheel, text), Collectors.counting()));
 
             assertTrue(linesByPetal.keySet().stream().allMatch(RadialWheel.PetalArc::isAbility),
@@ -789,16 +803,18 @@ class RadialWheelRendererTest {
                     "submitPictureInPictureRenderState", CutItemRenderState.class).stream()
                     .map(state -> new RadialWheelRenderer.ItemRect(state.x0(), state.y0()))
                     .toList();
-            List<PetalRenderState.ScreenVertex> slashCorners = submittedArguments(graphics,
+            List<PetalRenderState> slashes = submittedArguments(graphics,
                     "submitGuiElementRenderState", PetalRenderState.class).stream()
                     .filter(state -> state.color() == RadialWheelRenderer.SLASH_COLOR)
+                    .toList();
+            List<PetalRenderState.ScreenVertex> slashCorners = slashes.stream()
                     .flatMap(state -> state.vertices().stream())
                     .toList();
             String lockedIcon = "ability_" + locked.type() + "_" + locked.ability() + ".png";
 
             int[] lockedTip = RadialWheelRenderer.tipCenter(frameOf(wheel, List.of()), locked);
             assertTrue(wordsDrawn(graphics, color -> color != RadialWheelRenderer.OUTLINE_COLOR).stream()
-                    .filter(text -> !isInHub(text))
+                    .filter(OpenTypeFrame::isOnTheRing)
                     .noneMatch(text -> petalUnder(wheel, text).equals(locked) || text.x() == lockedTip[0]),
                     "a word drew on the locked petal");
             assertTrue(mockingDetails(graphics).getInvocations().stream()
@@ -807,40 +823,65 @@ class RadialWheelRendererTest {
             assertEquals(REQUIRED.size(), items.size());
             assertAll(IntStream.range(0, items.size()).mapToObj(index -> (Executable) () -> {
                 RadialWheelRenderer.ItemRect rect = items.get(index);
-                long slashed = slashCorners.stream().filter(cell -> onSquare(rect, cell)).count();
-                assertTrue(squareInsidePetal(locked, rect), rect + " leaves the petal");
-                assertEquals(REQUIRED.get(index).learned(), slashed > 0, rect + " slash");
+                // clustered squares' bounds may touch, so a slash belongs to the square holding all its corners
+                boolean slashed = slashes.stream().anyMatch(slash -> !slash.vertices().isEmpty()
+                        && slash.vertices().stream().allMatch(cell -> onSquare(rect, cell)));
+                assertEquals(REQUIRED.get(index).learned(), slashed, rect + " slash");
             }));
             assertTrue(slashCorners.stream().allMatch(cell -> items.stream()
                     .anyMatch(rect -> onSquare(rect, cell))), "a slash drew off its item");
         }
 
+        /** The mean of a cluster's item centers. */
+        private static double[] clusterCenter(List<double[]> centers) {
+            return new double[]{centers.stream().mapToDouble(c -> c[0]).average().orElseThrow(),
+                    centers.stream().mapToDouble(c -> c[1]).average().orElseThrow()};
+        }
+
         /**
-         * The item column runs along the petal's center line, strides evenly
-         * from the hub outward and centers halfway along the petal.
+         * The items cluster around one point on the petal's center line toward
+         * its end: one on the point, two side by side, three in a triangle
+         * pointing up, four in a square, every neighbor one stride apart.
          * decision locked-petal-lists-the-unlearned-items
          */
         @Test
-        void itemColumnRunsAlongThePetalsCenterLineCenteredOnItsLength() {
+        void itemsClusterTowardThePetalsEndInARegularPolygon() {
             RadialWheel wheel = openWheel();
             RadialWheelRenderer.Frame frame = frameOf(wheel, List.of());
+            RadialWheel.PetalArc petal = wheel.displayedLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
+                    .findFirst().orElseThrow();
+            double sinAngle = Math.sin(petal.center());
+            double cosAngle = Math.cos(petal.center());
+            int stride = RadialWheelRenderer.ITEM_STRIDE;
 
-            assertAll(wheel.displayedLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
-                    .map(petal -> (Executable) () -> {
-                        List<double[]> centers = RadialWheelRenderer.itemColumn(frame, petal, REQUIRED.size())
-                                .stream().map(OpenTypeFrame::centerOf).toList();
-                        double sinAngle = Math.sin(petal.center());
-                        double cosAngle = Math.cos(petal.center());
-                        double middle = (petal.shape().inner() + petal.shape().outer()) / 2 * RADIUS;
-                        List<Double> along = centers.stream()
-                                .map(c -> (c[0] - CENTER_X) * sinAngle - (c[1] - CENTER_Y) * cosAngle).toList();
-                        assertAll(centers.stream().map(c -> (Executable) () -> assertTrue(Math.abs(
-                                (c[0] - CENTER_X) * cosAngle + (c[1] - CENTER_Y) * sinAngle) <= COLUMN_TOLERANCE,
-                                petal + " item off the center line")));
-                        assertEquals(RadialWheelRenderer.ITEM_STRIDE, along.get(1) - along.get(0), COLUMN_TOLERANCE);
-                        assertEquals(RadialWheelRenderer.ITEM_STRIDE, along.get(2) - along.get(1), COLUMN_TOLERANCE);
-                        assertEquals(middle, along.get(1), COLUMN_TOLERANCE, petal + " column center");
-                    }));
+            assertAll(IntStream.rangeClosed(1, 5).mapToObj(count -> (Executable) () -> {
+                List<double[]> centers = RadialWheelRenderer.itemCluster(frame, petal, count).stream()
+                        .map(OpenTypeFrame::centerOf).toList();
+                double[] middle = clusterCenter(centers);
+                double along = (middle[0] - CENTER_X) * sinAngle - (middle[1] - CENTER_Y) * cosAngle;
+                double across = (middle[0] - CENTER_X) * cosAngle + (middle[1] - CENTER_Y) * sinAngle;
+                assertEquals(count, centers.size());
+                assertEquals(0.0, across, COLUMN_TOLERANCE, count + " off the center line");
+                assertEquals(petal.shape().outer() * RADIUS - RadialWheelRenderer.clusterRadius(count)
+                        - RadialWheelRenderer.ITEM_ICON_SIZE, along, COLUMN_TOLERANCE, count + " toward the end");
+                for (int index = 0; count > 1 && index < count; index++) {
+                    double[] here = centers.get(index);
+                    double[] next = centers.get((index + 1) % count);
+                    assertEquals(stride, Math.hypot(next[0] - here[0], next[1] - here[1]),
+                            COLUMN_TOLERANCE, count + " neighbors a stride apart");
+                }
+            }));
+            List<double[]> pair = RadialWheelRenderer.itemCluster(frame, petal, 2).stream()
+                    .map(OpenTypeFrame::centerOf).toList();
+            assertEquals(pair.get(0)[1], pair.get(1)[1], COLUMN_TOLERANCE, "two side by side");
+            List<double[]> triangle = RadialWheelRenderer.itemCluster(frame, petal, 3).stream()
+                    .map(OpenTypeFrame::centerOf).toList();
+            assertTrue(triangle.get(0)[1] < triangle.get(1)[1] && triangle.get(1)[1] == triangle.get(2)[1],
+                    "three in a triangle pointing up");
+            List<double[]> square = RadialWheelRenderer.itemCluster(frame, petal, 4).stream()
+                    .map(OpenTypeFrame::centerOf).toList();
+            assertEquals(square.get(0)[1], square.get(3)[1], COLUMN_TOLERANCE, "a square, its top row level");
+            assertEquals(square.get(1)[1], square.get(2)[1], COLUMN_TOLERANCE, "a square, its bottom row level");
         }
 
 
@@ -897,12 +938,59 @@ class RadialWheelRendererTest {
             assertTrue(mockingDetails(graphics).getInvocations().stream()
                     .noneMatch(call -> call.getMethod().getName().equals("blit")
                             && call.getArgument(1).toString().contains("/ability/")), "an ability icon blitted whole");
-            assertEquals(wheel.displayedLayout(0.0f).stream().filter(petal -> !petal.isAbility()).count(),
+            assertEquals(typePetalsOf(wheel).size(),
                     mockingDetails(graphics).getInvocations().stream()
                             .filter(call -> call.getMethod().getName().equals("blit")
                                     && call.getArgument(1).toString().contains("/type/")).count());
         }
 
+        /** Every type petal the frame draws. */
+        private static List<RadialWheel.PetalArc> typePetalsOf(RadialWheel wheel) {
+            return wheel.displayedLayout(0.0f).stream().filter(petal -> !petal.isAbility()).toList();
+        }
+
+        /** The hub mask's blit: where it draws and how big. */
+        private static org.mockito.invocation.Invocation hubBlit(GuiGraphicsExtractor graphics) {
+            return mockingDetails(graphics).getInvocations().stream()
+                    .filter(call -> call.getMethod().getName().equals("blit")
+                            && call.getArgument(1).toString().endsWith("hub"))
+                    .findFirst().orElseThrow();
+        }
+
+        /**
+         * At rest the frame draws every type petal and no word, the neutral
+         * zone's mask at half the wheel's reach; with a type open, at the hub's.
+         * decision halves-arc-petals-at-rest
+         */
+        @Test
+        void theNeutralZoneDrawsHalfTheWheelAtRestAndTheHubWithATypeOpen() {
+            RadialWheel rest = new RadialWheel(TYPES, type -> ABILITIES);
+            GuiGraphicsExtractor restFrame = renderFrame(rest);
+            GuiGraphicsExtractor openFrame = renderFrame(openWheel());
+
+            assertTrue(wordsDrawn(restFrame, color -> true).isEmpty(), "a word drew at rest");
+            assertEquals(TYPES, rest.displayedLayout(0.0f).size());
+            assertEquals(2 * RADIUS, (int) hubBlit(restFrame).getArgument(6));
+            assertEquals((int) Math.round(RADIUS * RadialWheel.HUB_FRACTION / RadialWheel.HUB_REST_FRACTION) * 2,
+                    (int) hubBlit(openFrame).getArgument(6));
+        }
+
+        /**
+         * With a type open the frame draws every type petal in the band and
+         * the open type's abilities: one fill per petal.
+         * decision abilities-replace-the-hovered-type
+         */
+        @Test
+        void anOpenFrameDrawsEveryTypeAndTheOpenTypesAbilities() {
+            RadialWheel wheel = openWheel();
+            List<RadialWheel.PetalArc> petals = wheel.displayedLayout(0.0f);
+            List<PetalRenderState> fills = submittedArguments(renderFrame(wheel), "submitGuiElementRenderState",
+                    PetalRenderState.class).stream().filter(this::isFill).toList();
+
+            assertEquals(TYPES + ABILITIES, petals.size());
+            assertEquals(petals.size(), fills.size());
+            assertTrue(fills.stream().noneMatch(fill -> fill.vertices().isEmpty()), "a petal drew nothing");
+        }
         private static org.mockito.invocation.Invocation iconBlit(GuiGraphicsExtractor graphics, String icon) {
             return mockingDetails(graphics).getInvocations().stream()
                     .filter(call -> call.getMethod().getName().equals("blit")
@@ -912,25 +1000,32 @@ class RadialWheelRendererTest {
 
         /** decision abilities-replace-the-hovered-type */
         @Test
-        void typeIconSitsDeadCenterAlongItsPetal() {
-            RadialWheel wheel = openWheel();
-            GuiGraphicsExtractor graphics = renderFrame(wheel);
+        void typeIconSitsDeadCenterAlongItsPetalAtRestAndAtItsTipInTheInnerRing() {
+            RadialWheel rest = new RadialWheel(TYPES, type -> ABILITIES);
+            RadialWheel open = openWheel();
+            GuiGraphicsExtractor restGraphics = renderFrame(rest);
+            GuiGraphicsExtractor openGraphics = renderFrame(open);
             int half = TYPE_ICON_SIZE / 2;
 
-            assertAll(wheel.displayedLayout(0.0f).stream().filter(petal -> !petal.isAbility())
-                    .map(petal -> (Executable) () -> {
-                        String icon = "type_" + petal.type() + ".png";
-                        var iconBlit = mockingDetails(graphics).getInvocations().stream()
-                                .filter(call -> call.getMethod().getName().equals("blit")
-                                        && call.getArgument(1).toString().endsWith(icon))
-                                .findFirst().orElseThrow();
-                        double along = (RadialWheel.HUB_FRACTION + petal.length()) / 2 * RADIUS;
-                        double expectedX = CENTER_X + Math.sin(petal.center()) * along;
-                        double expectedY = CENTER_Y - Math.cos(petal.center()) * along;
-                        assertTrue(Math.hypot((int) iconBlit.getArgument(2) + half - expectedX,
-                                (int) iconBlit.getArgument(3) + half - expectedY) <= TIP_TOLERANCE,
-                                petal + " icon off its length's center");
-                    }));
+            assertAll(typePetalsOf(rest).stream().map(petal -> (Executable) () -> {
+                double along = (petal.inner() + petal.length()) / 2;
+                assertIconAt(restGraphics, petal, PetalMask.Point.polar(petal.center(), along), half);
+            }));
+            assertAll(typePetalsOf(open).stream().map(petal -> (Executable) ()
+                    -> assertIconAt(openGraphics, petal, petal.shape().tipCenter(), half)));
+        }
+
+        /** Asserts a type petal's icon blitted centered on a point of the wheel. */
+        private static void assertIconAt(GuiGraphicsExtractor graphics, RadialWheel.PetalArc petal,
+                                         PetalMask.Point expected, int half) {
+            String icon = "type_" + petal.type() + ".png";
+            var iconBlit = mockingDetails(graphics).getInvocations().stream()
+                    .filter(call -> call.getMethod().getName().equals("blit")
+                            && call.getArgument(1).toString().endsWith(icon))
+                    .findFirst().orElseThrow();
+            assertTrue(Math.hypot((int) iconBlit.getArgument(2) + half - (CENTER_X + expected.x() * RADIUS),
+                    (int) iconBlit.getArgument(3) + half - (CENTER_Y + expected.y() * RADIUS)) <= TIP_TOLERANCE,
+                    petal + " icon off its place");
         }
 
         /** decision abilities-replace-the-hovered-type */
@@ -943,7 +1038,7 @@ class RadialWheelRendererTest {
             assertTrue(calls.indexOf("text") > lastShape, "a word drew before shape " + lastShape);
         }
 
-        /** decisions petals-render-the-live-fluid, wedges-take-a-solid-edge, open-type-keeps-six-neighbors-a-side */
+        /** decisions petals-render-the-live-fluid, wedges-take-a-solid-edge */
         @Test
         void petalEdgeStripDrawsUntexturedInTheEdgeColorFadedByPresence() {
             List<PetalRenderState> edges = submittedArguments(renderFrame(openWheel()),
@@ -969,7 +1064,7 @@ class RadialWheelRendererTest {
     class ContentSlide {
 
         private static final int TYPES = 16;
-        private static final int OPEN_TYPE = 5;
+        private static final int OPEN_TYPE = 8;
         private static final int ABILITIES = 3;
         private static final int CENTER_X = 400;
         private static final int CENTER_Y = 300;
@@ -985,13 +1080,7 @@ class RadialWheelRendererTest {
                 .filter(RadialWheel.PetalArc::isAbility).findFirst().orElseThrow();
 
         private static RadialWheel openWheel() {
-            RadialWheel opened = new RadialWheel(TYPES, type -> ABILITIES);
-            double angle = (OPEN_TYPE + 0.5) * opened.typeArc();
-            opened.moveCursor(Math.sin(angle) * RADIUS * 0.6, -Math.cos(angle) * RADIUS * 0.6, RADIUS);
-            for (int tick = 0; tick < RingEase.DURATION_TICKS; tick++) {
-                opened.tick();
-            }
-            return opened;
+            return openedWheel(TYPES, ABILITIES, OPEN_TYPE, RADIUS);
         }
 
         private RadialWheel.PetalArc at(double openness) {
@@ -1051,19 +1140,15 @@ class RadialWheelRendererTest {
         }
 
         @Test
-        void itemColumnRestsInPlaceFullyOpenAndRidesOutByTheIconsOffsetClosed() {
-            List<RadialWheelRenderer.ItemRect> resting = RadialWheelRenderer.itemColumn(frame, at(1.0),
+        void itemClusterRestsInPlaceFullyOpenAndRidesOutByTheIconsOffsetClosed() {
+            List<RadialWheelRenderer.ItemRect> resting = RadialWheelRenderer.itemCluster(frame, at(1.0),
                     REQUIRED_ITEMS);
-            List<RadialWheelRenderer.ItemRect> closed = RadialWheelRenderer.itemColumn(frame, at(0.0),
+            List<RadialWheelRenderer.ItemRect> closed = RadialWheelRenderer.itemCluster(frame, at(0.0),
                     REQUIRED_ITEMS);
             int[] iconClosed = RadialWheelRenderer.contentCenter(frame, at(0.0));
             int[] iconOpen = RadialWheelRenderer.contentCenter(frame, at(1.0));
             double iconOffset = along(iconClosed[0], iconClosed[1]) - along(iconOpen[0], iconOpen[1]);
-            double middle = (fanned.shape().inner() + fanned.shape().outer()) / 2 * RADIUS;
-            int half = RadialWheelRenderer.ITEM_ICON_SIZE / 2;
 
-            RadialWheelRenderer.ItemRect centerItem = resting.get(1);
-            assertEquals(middle, along(centerItem.left() + half, centerItem.top() + half), ROUNDING);
             assertAll(IntStream.range(0, REQUIRED_ITEMS).mapToObj(index -> (Executable) () -> {
                 RadialWheelRenderer.ItemRect from = resting.get(index);
                 RadialWheelRenderer.ItemRect to = closed.get(index);
@@ -1174,7 +1259,7 @@ class RadialWheelRendererTest {
         }
     }
 
-    /** A far neighbor's fill and icon fade by its presence (decision open-type-keeps-six-neighbors-a-side). */
+    /** A petal's fill and icon fade by its presence. */
     @Nested
     class NeighborFade {
 

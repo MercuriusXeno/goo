@@ -35,7 +35,7 @@ interface PetalLook {
 
         @Override
         public Identifier hubMask() {
-            return RadialTextures.getHubTexture(RadialWheel.HUB_FRACTION - HUB_GAP);
+            return RadialTextures.getHubTexture(RadialWheel.HUB_REST_FRACTION - HUB_GAP);
         }
 
         @Override
@@ -72,7 +72,8 @@ interface PetalLook {
     FluidFace fluidFace(ResourceKey<GooTypeDefinition> type);
 
     /**
-     * The hub circle's mask.
+     * The neutral zone's mask, baked at its rest size, which the renderer scales down as the types drop in.
+     * decision halves-arc-petals-at-rest
      *
      * @return the mask texture
      */

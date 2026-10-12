@@ -32,7 +32,8 @@ import java.util.stream.Collectors;
 
 /**
  * The glove's one radial wheel, open while the glove menu key is held:
- * hovering or scrolling to a type replaces its petal with its abilities,
+ * hovering or scrolling to a type drops the types into the neutral zone and
+ * fans its abilities out in the outer ring,
  * releasing the key over an ability writes it to the glove and closes, and
  * releasing it over nothing, over a locked ability, while the petals still
  * move, or pressing Escape, closes with the glove unchanged. A mouse click
@@ -42,6 +43,7 @@ import java.util.stream.Collectors;
  * decision mid-animation-input-does-nothing
  * decision locked-petal-stays-on-the-wheel
  * decision wheel-shows-only-held-types-with-abilities
+ * decision halves-arc-petals-at-rest
  */
 public final class GloveRadialScreen extends Screen {
 
