@@ -1,8 +1,10 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.network.ScryPayload;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
@@ -11,6 +13,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -21,20 +24,22 @@ import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.ToIntFunction;
 
 /**
  * The caster's side of Scry: each radius the server sends grows a sphere of
- * glow light around the player, and every face open to air that the front
- * crosses flashes and then shows through walls while the hold lasts, fading
- * about a second after it lets go, the whole reading as a sonar sweep.
+ * light around the player in the casting goo type's color, and every face
+ * open to air that the front crosses flashes and then shows through walls
+ * while the hold lasts, fading about a second after it lets go, the whole
+ * reading as a sonar sweep.
  * decision scry-sphere-reveals-faces-and-glistens-mobs
+ * decision scry-ships-on-astral
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class ScrySweep {
 
     /** The most blocks one sweep keeps; past it the front reveals no more. */
     static final int MOST_BLOCKS = 12_288;
-    private static final int GLOW_RGB = 0xFFE628;
     /** The sphere shell's alpha at full strength, low since it adds onto the whole view. */
     private static final int SPHERE_ALPHA = 28;
     /** A settled face's alpha at full strength. */
@@ -52,6 +57,8 @@ public final class ScrySweep {
     private static Vec3 origin = Vec3.ZERO;
     private static float pingFade = 1f;
     private static long lastRadiusAt = Long.MIN_VALUE;
+    /** The current ping's color, set by every radius before the sweep draws. */
+    private static int tintRgb;
 
     private ScrySweep() {
     }
@@ -81,7 +88,8 @@ public final class ScrySweep {
             radius = 0f;
         }
         origin = center;
-        pingFade = ScryReveal.pingFade(next, ping.reach(), ping.fade());
+        tintRgb = tint(ping.gooType(), ClientGooTypes::color);
+        pingFade =ScryReveal.pingFade(next, ping.reach(), ping.fade());
         for (BlockPos pos : ScryReveal.shell(center, Math.min(radius, ping.reach()), Math.min(next, ping.reach()))) {
             List<Direction> sides = ScryReveal.exposedFaces(at -> level.getBlockState(at).isAir(), pos);
             if (!sides.isEmpty() && revealed.size() < MOST_BLOCKS) {
@@ -92,6 +100,19 @@ public final class ScrySweep {
         }
         radius = next;
         lastRadiusAt = now;
+    }
+
+    /**
+     * The color the sphere and the revealed faces draw in: the casting goo
+     * type's color, so Astral's Scry reads in the astral type's colors and a
+     * datapack recoloring the type recolors the sweep.
+     *
+     * @param gooType   the goo type the ping names
+     * @param typeColor answers a goo type's color
+     * @return 0xRRGGBB
+     */
+    static int tint(ResourceKey<GooTypeDefinition> gooType, ToIntFunction<ResourceKey<GooTypeDefinition>> typeColor) {
+        return typeColor.applyAsInt(gooType);
     }
 
     /**
@@ -131,7 +152,7 @@ public final class ScrySweep {
         PoseStack.Pose pose = event.getPoseStack().last();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         ColorSphere.emit(pose, buffers.getBuffer(GooRenderTypes.GLOW_SHELL_TYPE), origin.subtract(camera), radius,
-                ARGB.color(Math.round(SPHERE_ALPHA * strength), GLOW_RGB));
+                ARGB.color(Math.round(SPHERE_ALPHA * strength), tintRgb));
         buffers.endBatch(GooRenderTypes.GLOW_SHELL_TYPE);
         drawRevealed(pose, buffers, camera, now, strength);
     }
@@ -141,7 +162,7 @@ public final class ScrySweep {
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.SCRY_FACES_TYPE);
         for (RevealedBlock block : revealed) {
             float flash = 1f + FLASH_GAIN * ScryReveal.flash(now - block.revealedAt());
-            int color = ARGB.color(Math.min(OPAQUE, Math.round(FACE_ALPHA * flash * strength)), GLOW_RGB);
+            int color = ARGB.color(Math.min(OPAQUE, Math.round(FACE_ALPHA * flash * strength)), tintRgb);
             Vec3 corner = Vec3.atLowerCornerOf(block.pos()).subtract(camera);
             for (AABB box : block.boxes()) {
                 for (Direction side : block.sides()) {

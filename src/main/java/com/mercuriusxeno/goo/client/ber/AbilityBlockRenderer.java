@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.block.ability.AbilityBlockEntity;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
-import com.mercuriusxeno.goo.client.ability.ChronosphereVisual;
 import com.mercuriusxeno.goo.client.ability.CrystalCloudVisual;
 import com.mercuriusxeno.goo.client.ability.LurkerPulses;
 import com.mercuriusxeno.goo.client.ability.MarkerOrbVisual;
@@ -36,7 +35,6 @@ import org.jspecify.annotations.Nullable;
  *   <li>{@link MarkerOrbVisual} - the slime-like orb while the program runs</li>
  *   <li>{@link MetalSpikeVisual} - Urchin's resting bristle and its telescoping spears</li>
  *   <li>{@link CrystalCloudVisual} - the shard cloud a crystal marker stands</li>
- *   <li>{@link ChronosphereVisual} - the golden veil an aeon chronosphere stands</li>
  *   <li>{@link NetherHoleStyles#active()} - the swappable nether black-hole style</li>
  *   <li>{@link VineTrapVisual} - the Vines trap's knot and tendrils on the ground</li>
  * </ul>
@@ -143,7 +141,6 @@ public class AbilityBlockRenderer
         state.lurkerGlow = LurkerPulses.CLIENT.glowAt(be.getBlockPos(), state.gameTime);
         MetalSpikeVisual.extract(be, state);
         CrystalCloudVisual.extract(be, state);
-        ChronosphereVisual.extract(be, state);
         NetherHoleStyles.active().extract(be, state);
         VineTrapVisual.extract(be, state);
         // updraft-blob-stands-a-column-of-wind
@@ -168,6 +165,5 @@ public class AbilityBlockRenderer
             CrystalCloudVisual.submit(state, poseStack, nodeCollector);
         }
         MetalSpikeVisual.submit(state, poseStack, nodeCollector);
-        ChronosphereVisual.submit(state, poseStack, nodeCollector);
     }
 }

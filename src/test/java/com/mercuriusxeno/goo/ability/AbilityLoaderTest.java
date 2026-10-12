@@ -155,13 +155,14 @@ class AbilityLoaderTest {
 
     // decision jet-pushes-along-the-look-while-held
     @Test
-    void typhoonJetReplacesPropelAsAChannelOnTheSelf() {
+    void typhoonTailwindReplacesPropelAsAChannelOnTheSelf() {
         Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
-        AbilityDefinition jet = scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, "typhoon_jet"));
+        AbilityDefinition tailwind = scanned.get(Identifier.fromNamespaceAndPath(Goo.MODID, "typhoon_tailwind"));
 
         assertFalse(scanned.containsKey(Identifier.fromNamespaceAndPath(Goo.MODID, "typhoon_propel")),
                 "typhoon_propel still loads");
-        assertTrue(HeldRoute.channelsOnSelf(jet.delivery(), jet.badge()), "typhoon_jet does not channel on the self");
+        assertTrue(HeldRoute.channelsOnSelf(tailwind.delivery(), tailwind.badge()),
+                "typhoon_tailwind does not channel on the self");
     }
 
     // decision splat-runs-the-program-no-fuse

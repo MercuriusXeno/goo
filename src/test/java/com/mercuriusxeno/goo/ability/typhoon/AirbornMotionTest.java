@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /**
  * Airborn's motion: midair input turns the horizontal velocity toward its
  * direction, levitation included, the ground and no input leave it be, a fall
- * stops at the cap, steering never brakes a faster flight, Jet pushes harder
+ * stops at the cap, steering never brakes a faster flight, Tailwind pushes harder
  * and an elytra glide is drawn faster only while Airborn stands (decision
  * airborn-steerable-levitation-and-soft-falls).
  */
@@ -91,10 +91,10 @@ class AirbornMotionTest {
     }
 
     @Nested
-    class Jet {
+    class Tailwind {
 
         private static final double JET_STRENGTH = 0.8;
-        /** typhoon_jet.json's steer share. */
+        /** typhoon_tailwind.json's steer share. */
         private static final double JET_STEER = 0.2;
         /** Vanilla's midair horizontal drag each tick. */
         private static final double AIR_DRAG = 0.91;
@@ -111,8 +111,8 @@ class AirbornMotionTest {
         }
 
         /**
-         * The speed a player holding Jet and forward settles at: each tick
-         * Jet's push steers the velocity toward the look, Airborn's steering
+         * The speed a player holding Tailwind and forward settles at: each tick
+         * Tailwind's push steers the velocity toward the look, Airborn's steering
          * runs where it stands, then the air drags it.
          */
         private static double steadyJetSpeed(double strength, Airborn airborn) {

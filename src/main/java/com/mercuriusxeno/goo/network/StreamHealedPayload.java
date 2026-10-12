@@ -12,7 +12,7 @@ import java.util.List;
 
 /**
  * Server-to-client payload: one tick of a held stream healed these living
- * things, so the client homes vital goo from the glove to each and plays
+ * things, so the client homes jelly goo from the glove to each and plays
  * pink healing stars on it. Sent to the players watching the caster and to
  * the caster itself.
  * vitality-waves-regenerate-and-court
