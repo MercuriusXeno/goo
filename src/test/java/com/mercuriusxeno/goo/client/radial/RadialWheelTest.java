@@ -227,23 +227,18 @@ class RadialWheelTest {
             assertFalse(wheel.isOpen());
         }
 
-        /** decision halves-arc-petals-at-rest: one boundary opens and closes, so nothing flutters across it */
+        /** decision halves-arc-petals-at-rest: the spot that opens a type at rest lands on its dropped petal, so nothing flutters */
         @Test
-        void theBoundaryThatOpensATypeIsTheOneThatClosesIt() {
+        void theSpotThatOpensATypeKeepsItOpenOnItsDroppedPetal() {
             RadialWheel wheel = wheel(ABILITIES);
             double justOutside = (RadialWheel.TYPE_INNER_FRACTION + 0.01) * RADIUS;
-            double justInside = (RadialWheel.TYPE_INNER_FRACTION - 0.01) * RADIUS;
 
             moveTo(wheel, typeCenter(OPEN_TYPE), justOutside);
-            assertTrue(wheel.isOpen(), "just past the neutral zone opens the type");
+            assertEquals(OPEN_TYPE, wheel.selectedType(), "just past the neutral zone opens the type");
             moveTo(wheel, typeCenter(OPEN_TYPE), justOutside);
-            assertTrue(wheel.isOpen(), "the same spot keeps it open");
-            assertTrue(wheel.hoveredAbility() != RadialWheel.NONE, "the same spot hovers an ability");
 
-            moveTo(wheel, typeCenter(OPEN_TYPE), justInside);
-            assertFalse(wheel.isOpen(), "just inside closes it");
-            moveTo(wheel, typeCenter(OPEN_TYPE), justInside);
-            assertFalse(wheel.isOpen(), "the same spot keeps it closed");
+            assertEquals(OPEN_TYPE, wheel.selectedType(), "the same spot keeps it open");
+            assertEquals(RadialWheel.NONE, wheel.hoveredAbility(), "on the type petal no ability is hovered");
         }
 
         @Test
@@ -254,20 +249,33 @@ class RadialWheelTest {
             assertTrue(wheel.isOpen());
         }
 
-        /** decision halves-arc-petals-at-rest */
+        /** decision abilities-replace-the-hovered-type */
         @Test
-        void cursorBackOverTheTypeBandOrTheHubReturnsToRest() {
-            assertAll(DoubleStream.of(BAND, HUB).mapToObj(distance -> (Executable) () -> {
-                RadialWheel wheel = opened(ABILITIES);
+        void mousingThroughTheDroppedTypePetalsOpensEachTypeInTurn() {
+            RadialWheel wheel = opened(ABILITIES);
 
-                moveTo(wheel, typeCenter(OPEN_TYPE + 2), distance);
+            for (int next = OPEN_TYPE + 1; next <= OPEN_TYPE + 3; next++) {
+                int type = next;
+                moveTo(wheel, typeCenter(type), BAND);
 
-                assertFalse(wheel.isOpen());
-                assertTrue(abilityPetals(wheel).isEmpty());
-                assertEquals(RadialWheel.Outcome.CANCEL, wheel.click());
-            }));
+                assertEquals(type, wheel.selectedType());
+                assertEquals(RadialWheel.NONE, wheel.hoveredAbility(), "on the type petal no ability is hovered");
+                assertTrue(abilityPetals(wheel).stream().allMatch(petal -> petal.type() == type),
+                        "the fan shows the type under the cursor");
+            }
         }
 
+        /** decision halves-arc-petals-at-rest */
+        @Test
+        void cursorInTheShrunkenHubReturnsToRest() {
+            RadialWheel wheel = opened(ABILITIES);
+
+            moveTo(wheel, typeCenter(OPEN_TYPE + 2), HUB);
+
+            assertFalse(wheel.isOpen());
+            assertTrue(abilityPetals(wheel).isEmpty());
+            assertEquals(RadialWheel.Outcome.CANCEL, wheel.click());
+        }
         @Test
         void cursorOnAnAbilityPetalHoversIt() {
             RadialWheel wheel = opened(ABILITIES);

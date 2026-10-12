@@ -15,9 +15,9 @@ import java.util.function.ToIntFunction;
  * size and the types drop into the band round it, keeping their angles, and
  * the open type's abilities fan in the outer ring, centered on its petal,
  * each at most 30 degrees, reaching in behind the type petals. Nothing ever
- * turns. Past either end of the fan the cursor winds on to the neighboring
- * type; back inside the neutral zone's rest edge, the one boundary that also
- * opens a type, it returns the wheel to rest.
+ * turns. Over the dropped type petals the cursor opens the type under it,
+ * mousing through the types; past either end of the fan it winds on to the
+ * neighboring type; in the shrunken hub it returns the wheel to rest.
  * decision abilities-replace-the-hovered-type
  * decision ring-rotates-to-keep-the-cursor-inside
  * decision halves-arc-petals-at-rest
@@ -320,10 +320,8 @@ public final class RadialWheel {
 
     /**
      * Moves the cursor. At rest the neutral zone holds nothing and the cursor
-     * out on a type's petal opens that type. With a type open the cursor back
-     * inside the neutral zone's rest edge returns the wheel to rest, and outside it
-     * it hovers the ability under it, or past either end of the fan
-     * winds on to the neighboring type.
+     * out on a type's petal opens that type; with a type open the cursor
+     * reads the hub, the dropped type petals and the fan beyond them.
      * decision abilities-replace-the-hovered-type
      * decision halves-arc-petals-at-rest
      *
@@ -335,17 +333,42 @@ public final class RadialWheel {
         if (typeCount == 0) {
             return;
         }
-        // halves-arc-petals-at-rest: one boundary, the neutral zone's rest edge, both opens and closes a type
-        boolean outside = Math.hypot(dx, dy) / outerRadius >= TYPE_INNER_FRACTION;
+        double distance = Math.hypot(dx, dy) / outerRadius;
         double angle = angleOf(dx, dy);
         if (!isOpen()) {
-            if (outside) {
-                openUnder(typeAt(angle), angle);
+            if (distance >= TYPE_INNER_FRACTION) {
+                openType(typeAt(angle));
+                moveOpen(distance, angle);
             }
-        } else if (outside) {
-            hoverAt(angle);
-        } else {
+            return;
+        }
+        moveOpen(distance, angle);
+    }
+
+    /**
+     * The cursor with a type open: in the shrunken hub it returns the wheel
+     * to rest; over the dropped type petals it opens the type under it, its
+     * fan showing with no ability hovered; out past their tips it hovers the
+     * ability under it, or winds on past either end of the fan. A type opened
+     * at rest lands the cursor on that same type's dropped petal, so nothing
+     * flutters across the opening edge.
+     * decision abilities-replace-the-hovered-type
+     * decision halves-arc-petals-at-rest
+     *
+     * @param distance the cursor's distance from the center, as a fraction of the wheel's radius
+     * @param angle    the cursor's angle
+     */
+    private void moveOpen(double distance, double angle) {
+        if (distance < HUB_FRACTION) {
             returnToRest();
+        } else if (distance < TYPE_BAND_FRACTION) {
+            int type = typeAt(angle);
+            if (type != selectedType) {
+                openType(type);
+            }
+            hoveredAbility = NONE;
+        } else {
+            hoverAt(angle);
         }
     }
 
