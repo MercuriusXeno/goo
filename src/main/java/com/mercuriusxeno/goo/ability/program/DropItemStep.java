@@ -19,8 +19,7 @@ import java.util.stream.Stream;
 
 /**
  * Spawns an item stack at the host's target and finishes. The item is
- * named by id and resolved when the step runs. The id {@code spawn_egg} names the target's own spawn egg, which aeon's
- * ritual drops (decision aeon-mob-ritual-drops-spawn-egg).
+ * named by id and resolved when the step runs. The id {@code spawn_egg} names the target's own spawn egg.
  *
  * @param item  the item id
  * @param count the stack size, evaluated when the step runs

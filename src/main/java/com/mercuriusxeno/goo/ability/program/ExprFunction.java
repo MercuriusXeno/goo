@@ -47,7 +47,7 @@ public enum ExprFunction {
     CHANCE(1, args -> ThreadLocalRandom.current().nextDouble() < args[0] ? 1 : 0),
     /**
      * {@code at_least(a, b)}: one when a is b or more, zero otherwise, so a
-     * branch tests a threshold (decision aeon-mob-ritual-drops-spawn-egg).
+     * branch tests a threshold (decision rewind-fills-while-held).
      */
     AT_LEAST(2, args -> args[0] >= args[1] ? 1 : 0);
 

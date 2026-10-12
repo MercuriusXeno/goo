@@ -55,7 +55,6 @@ public final class GooTypes {
     public static final StreamCodec<ByteBuf, ResourceKey<GooTypeDefinition>> KEY_STREAM_CODEC =
             ResourceKey.streamCodec(REGISTRY);
 
-    public static final ResourceKey<GooTypeDefinition> AEON = bundled("aeon");
     public static final ResourceKey<GooTypeDefinition> ASTRAL = bundled("astral");
     public static final ResourceKey<GooTypeDefinition> BLAZE = bundled("blaze");
     public static final ResourceKey<GooTypeDefinition> CRYSTAL = bundled("crystal");
@@ -106,7 +105,7 @@ public final class GooTypes {
      * Every type the mod ships as JSON, in constant order.
      */
     public static final List<ResourceKey<GooTypeDefinition>> BUNDLED = List.of(
-            AEON, ASTRAL, BLAZE, CRYSTAL, DEEP, ENDER, FROST, GLOW, HEX, INFINITY, JELLY, KINETIC, LEAF,
+            ASTRAL, BLAZE, CRYSTAL, DEEP, ENDER, FROST, GLOW, HEX, INFINITY, JELLY, KINETIC, LEAF,
             METAL, NETHER, OPULENT, PULSE, QUANTUM, ROCK, SHROOM, TYPHOON, UNSTABLE, WEIRD, XENO, YORE, ZOO);
 
     /**

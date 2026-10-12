@@ -9,7 +9,6 @@ import com.mercuriusxeno.goo.client.ability.ScrySweep;
 import com.mercuriusxeno.goo.client.ability.SunbeamVisual;
 import com.mercuriusxeno.goo.client.ability.Tomes;
 import com.mercuriusxeno.goo.client.ability.VitalityVisual;
-import com.mercuriusxeno.goo.client.overlay.TickAim;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.AfterimagePayload;
 import com.mercuriusxeno.goo.network.AilmentPayload;
@@ -38,7 +37,6 @@ import com.mercuriusxeno.goo.network.ScryPayload;
 import com.mercuriusxeno.goo.network.ShardFallPayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.network.SunbeamPayload;
-import com.mercuriusxeno.goo.network.TickAimPayload;
 import com.mercuriusxeno.goo.network.TomePayload;
 import com.mercuriusxeno.goo.network.TransformationPayload;
 import com.mercuriusxeno.goo.network.TunerFeedbackPayload;
@@ -112,8 +110,8 @@ public final class GooClientNetworking {
     }
 
     /**
-     * Registers the handlers for the abilities' own visuals: glow's Scry
-     * and Sunbeam, hex's leech and tomes, frost's Nova rings and
+     * Registers the handlers for the abilities' own visuals: astral's Scry,
+     * glow's Sunbeam, hex's leech and tomes, frost's Nova rings and
      * leaf's Reap swells.
      *
      * @param event the client payload handler registration event
@@ -125,7 +123,6 @@ public final class GooClientNetworking {
         event.register(TomePayload.TYPE, Tomes::handle);
         event.register(NovaRingPayload.TYPE, NovaRingHandler::handle);
         event.register(ReapSwellPayload.TYPE, ReapSwells::handle);
-        event.register(TickAimPayload.TYPE, TickAim::handle);
         event.register(ShardFallPayload.TYPE, ShardFallHandler::handle);
         event.register(OreRevealPayload.TYPE, OreRevealHandler::handle);
         event.register(GlassKnifePayload.TYPE, GlassKnives::onPayload);

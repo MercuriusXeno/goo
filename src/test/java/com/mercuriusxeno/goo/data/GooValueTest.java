@@ -145,13 +145,13 @@ class GooValueTest {
     void addWithNegativeSubtractsType() {
         GooValue copper = goo(GooTypes.METAL, 100, GooTypes.ROCK, 20);
         Map<ResourceKey<GooTypeDefinition>, Integer> exposedMap = new HashMap<>();
-        exposedMap.put(GooTypes.AEON, 32);
+        exposedMap.put(GooTypes.YORE, 32);
         exposedMap.put(GooTypes.METAL, -64);
         GooValue exposed = new GooValue(exposedMap);
 
         GooValue result = copper.add(exposed, 1);
         assertEquals(36, result.get(GooTypes.METAL));  // 100 - 64
-        assertEquals(32, result.get(GooTypes.AEON));    // 0 + 32
+        assertEquals(32, result.get(GooTypes.YORE));    // 0 + 32
         assertEquals(20, result.get(GooTypes.ROCK));    // unchanged
     }
 
@@ -176,14 +176,14 @@ class GooValueTest {
     void floorZeroClampsNegatives() {
         Map<ResourceKey<GooTypeDefinition>, Integer> map = new HashMap<>();
         map.put(GooTypes.METAL, -40);
-        map.put(GooTypes.AEON, 32);
+        map.put(GooTypes.YORE, 32);
         map.put(GooTypes.ROCK, 0);
         GooValue val = new GooValue(map);
 
         GooValue floored = val.floorZero();
         assertEquals(0, floored.get(GooTypes.METAL));
-        assertEquals(32, floored.get(GooTypes.AEON));
-        assertTrue(floored.getAll().containsKey(GooTypes.AEON));
+        assertEquals(32, floored.get(GooTypes.YORE));
+        assertTrue(floored.getAll().containsKey(GooTypes.YORE));
         assertFalse(floored.getAll().containsKey(GooTypes.METAL));
     }
 
@@ -428,7 +428,7 @@ class GooValueTest {
     @Test
     void negativeTypeDetected() {
         Map<ResourceKey<GooTypeDefinition>, Integer> map = new HashMap<>();
-        map.put(GooTypes.AEON, 32);
+        map.put(GooTypes.YORE, 32);
         map.put(GooTypes.METAL, -64);
         GooValue val = new GooValue(map);
         assertTrue(val.hasNegative());

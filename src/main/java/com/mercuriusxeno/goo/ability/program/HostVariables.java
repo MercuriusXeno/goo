@@ -71,7 +71,7 @@ public final class HostVariables {
     /**
      * Tells whether an expression's variable name reads a counter the
      * target keeps: a counter is named by its namespaced id, such as
-     * {@code goo:ritual} (decision aeon-mob-ritual-drops-spawn-egg).
+     * {@code goo:ritual} (decision rewind-fills-while-held).
      *
      * @param name the variable name
      * @return true for a counter id

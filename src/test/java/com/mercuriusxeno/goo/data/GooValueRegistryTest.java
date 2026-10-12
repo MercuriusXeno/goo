@@ -408,7 +408,7 @@ class GooValueRegistryTest {
         void negativeDerivationExcludedFromEffective() {
             Map<ResourceKey<GooTypeDefinition>, Integer> negMap = new HashMap<>();
             negMap.put(GooTypes.METAL, -10);
-            negMap.put(GooTypes.AEON, 5);
+            negMap.put(GooTypes.YORE, 5);
             GooValue negValue = new GooValue(negMap);
 
             Map<Identifier, GooValue> base = Map.of();
@@ -1141,7 +1141,7 @@ class GooValueRegistryTest {
                     {
                         "minecraft:copper_ingot": { "metal": 160, "rock": 40 },
                         "_conversions": {
-                            "oxidation": "metal / 4 -> aeon / 2",
+                            "oxidation": "metal / 4 -> yore / 2",
                             "exposed": "@oxidation",
                             "minecraft:copper_ingot": "@exposed"
                         }
@@ -1150,7 +1150,7 @@ class GooValueRegistryTest {
             GooValue val = registry.table().lookup(id("minecraft:copper_ingot"));
             assertNotNull(val);
             assertEquals(120, val.get(GooTypes.METAL)); // 160 - 40
-            assertEquals(20, val.get(GooTypes.AEON));    // 40 / 2
+            assertEquals(20, val.get(GooTypes.YORE));    // 40 / 2
             assertEquals(40, val.get(GooTypes.ROCK));    // untouched
         }
 
@@ -1163,7 +1163,7 @@ class GooValueRegistryTest {
                     {
                         "minecraft:copper_ingot": { "metal": 160 },
                         "_conversions": {
-                            "oxidation": "metal / 4 -> aeon / 2",
+                            "oxidation": "metal / 4 -> yore / 2",
                             "weathered": "2 @oxidation",
                             "minecraft:copper_ingot": "@weathered"
                         }
@@ -1172,7 +1172,7 @@ class GooValueRegistryTest {
             GooValue val = registry.table().lookup(id("minecraft:copper_ingot"));
             assertNotNull(val);
             assertEquals(80, val.get(GooTypes.METAL));  // 160 - 2*40
-            assertEquals(40, val.get(GooTypes.AEON));    // 2 * 20
+            assertEquals(40, val.get(GooTypes.YORE));    // 2 * 20
         }
 
         /**
@@ -1191,7 +1191,7 @@ class GooValueRegistryTest {
                         "minecraft:weathered_copper": { "metal": 160 },
                         "minecraft:weathered_cut_copper": { "metal": 160 },
                         "_conversions": {
-                            "oxidation": "metal / 4 -> aeon / 2",
+                            "oxidation": "metal / 4 -> yore / 2",
                             "weathered": "2 @oxidation",
                             "#weathered_copper": "@weathered"
                         }
@@ -1202,9 +1202,9 @@ class GooValueRegistryTest {
             assertNotNull(copper);
             assertNotNull(cut);
             assertEquals(80, copper.get(GooTypes.METAL));
-            assertEquals(40, copper.get(GooTypes.AEON));
+            assertEquals(40, copper.get(GooTypes.YORE));
             assertEquals(80, cut.get(GooTypes.METAL));
-            assertEquals(40, cut.get(GooTypes.AEON));
+            assertEquals(40, cut.get(GooTypes.YORE));
         }
 
         /**
@@ -1216,7 +1216,7 @@ class GooValueRegistryTest {
                     {
                         "minecraft:copper_ingot": { "metal": 160 },
                         "_conversions": {
-                            "oxidation": "metal / 4 -> aeon / 2",
+                            "oxidation": "metal / 4 -> yore / 2",
                             "oxidized": "3 @oxidation",
                             "minecraft:copper_ingot": "@oxidized"
                         }
@@ -1225,7 +1225,7 @@ class GooValueRegistryTest {
             GooValue val = registry.table().lookup(id("minecraft:copper_ingot"));
             assertNotNull(val);
             assertEquals(40, val.get(GooTypes.METAL));   // 160 - 3*40
-            assertEquals(60, val.get(GooTypes.AEON));     // 3 * 20
+            assertEquals(60, val.get(GooTypes.YORE));     // 3 * 20
         }
 
         /**
@@ -1238,12 +1238,12 @@ class GooValueRegistryTest {
                             {
                                 "minecraft:exposed_copper": { "metal": 160 },
                                 "_conversions": {
-                                    "oxidation": "metal / 4 -> aeon / 2",
+                                    "oxidation": "metal / 4 -> yore / 2",
                                     "minecraft:exposed_copper": "@oxidation"
                                 }
                             }
                             """.getBytes(StandardCharsets.UTF_8)));
-            // Pre-conversion modifies base: exposed_copper = {metal: 120, aeon: 20}
+            // Pre-conversion modifies base: exposed_copper = {metal: 120, yore: 20}
             // Recipe derives a slab from it
             List<RecipeInput> recipes = List.of(
                     recipe("minecraft:exposed_copper_slab", 2, slot("minecraft:exposed_copper"))
@@ -1252,7 +1252,7 @@ class GooValueRegistryTest {
             GooValue slab = registry.table().lookup(id("minecraft:exposed_copper_slab"));
             assertNotNull(slab);
             assertEquals(60, slab.get(GooTypes.METAL));  // 120 / 2
-            assertEquals(10, slab.get(GooTypes.AEON));    // 20 / 2
+            assertEquals(10, slab.get(GooTypes.YORE));    // 20 / 2
         }
 
         /**
@@ -1265,7 +1265,7 @@ class GooValueRegistryTest {
                             {
                                 "minecraft:copper_ingot": { "metal": 160 },
                                 "_post_conversions": {
-                                    "oxidation": "metal / 4 -> aeon / 2",
+                                    "oxidation": "metal / 4 -> yore / 2",
                                     "minecraft:copper_ingot": "@oxidation"
                                 }
                             }
@@ -1289,7 +1289,7 @@ class GooValueRegistryTest {
             GooValue ingot = registry.table().lookup(id("minecraft:copper_ingot"));
             assertNotNull(ingot);
             assertEquals(120, ingot.get(GooTypes.METAL)); // 160 - 40
-            assertEquals(20, ingot.get(GooTypes.AEON));    // 40 / 2
+            assertEquals(20, ingot.get(GooTypes.YORE));    // 40 / 2
         }
 
         /**
@@ -1306,7 +1306,7 @@ class GooValueRegistryTest {
                         "minecraft:copper_block": { "metal": 160 },
                         "minecraft:cut_copper": { "metal": 80 },
                         "_post_conversions": {
-                            "oxidation": "metal / 4 -> aeon / 2",
+                            "oxidation": "metal / 4 -> yore / 2",
                             "exposed": "@oxidation",
                             "#exposed": "#originals @exposed"
                         }
@@ -1316,13 +1316,13 @@ class GooValueRegistryTest {
             GooValue exposed = registry.table().lookup(id("minecraft:exposed_copper"));
             assertNotNull(exposed);
             assertEquals(120, exposed.get(GooTypes.METAL)); // 160 - 40
-            assertEquals(20, exposed.get(GooTypes.AEON));    // 40 / 2
+            assertEquals(20, exposed.get(GooTypes.YORE));    // 40 / 2
 
             // exposed_cut_copper gets cut_copper's value (80 metal), then 1x oxidation
             GooValue exposedCut = registry.table().lookup(id("minecraft:exposed_cut_copper"));
             assertNotNull(exposedCut);
             assertEquals(60, exposedCut.get(GooTypes.METAL)); // 80 - 20
-            assertEquals(10, exposedCut.get(GooTypes.AEON));   // 20 / 2
+            assertEquals(10, exposedCut.get(GooTypes.YORE));   // 20 / 2
         }
 
         /**
@@ -1339,7 +1339,7 @@ class GooValueRegistryTest {
                         },
                         "minecraft:copper_block": { "metal": 160 },
                         "_post_conversions": {
-                            "oxidation": "metal / 4 -> aeon / 2",
+                            "oxidation": "metal / 4 -> yore / 2",
                             "exposed_conv": "@oxidation",
                             "weathered_conv": "2 @oxidation",
                             "#exposed": "#originals @exposed_conv",
@@ -1347,18 +1347,18 @@ class GooValueRegistryTest {
                         }
                     }
                     """);
-            // exposed_copper: copy 160 metal, 1x oxidation -> 120 metal, 20 aeon
+            // exposed_copper: copy 160 metal, 1x oxidation -> 120 metal, 20 yore
             GooValue exposed = registry.table().lookup(id("minecraft:exposed_copper"));
             assertNotNull(exposed);
             assertEquals(120, exposed.get(GooTypes.METAL));
-            assertEquals(20, exposed.get(GooTypes.AEON));
+            assertEquals(20, exposed.get(GooTypes.YORE));
 
-            // weathered_copper: copy from exposed (120 metal, 20 aeon), 2x oxidation
+            // weathered_copper: copy from exposed (120 metal, 20 yore), 2x oxidation
             // 2 * (120/4) = 60 removed, 2 * (120/4/2) = 30 added
             GooValue weathered = registry.table().lookup(id("minecraft:weathered_copper"));
             assertNotNull(weathered);
             assertEquals(60, weathered.get(GooTypes.METAL));  // 120 - 60
-            assertEquals(50, weathered.get(GooTypes.AEON));    // 20 + 30
+            assertEquals(50, weathered.get(GooTypes.YORE));    // 20 + 30
         }
 
         /**
@@ -1704,7 +1704,7 @@ class GooValueRegistryTest {
         void implicitMultiplicationInAddition() throws IOException {
             loadJson("""
                     {
-                        "minecraft:lapis_lazuli": { "crystal": 20, "aeon": 10 },
+                        "minecraft:lapis_lazuli": { "crystal": 20, "yore": 10 },
                         "minecraft:obsidian": { "rock": 100 },
                         "minecraft:crying_obsidian": "obsidian + 4 lapis_lazuli"
                     }
@@ -1712,7 +1712,7 @@ class GooValueRegistryTest {
             GooValue val = registry.table().lookup(id("minecraft:crying_obsidian"));
             assertEquals(100, val.get(GooTypes.ROCK));
             assertEquals(80, val.get(GooTypes.CRYSTAL));
-            assertEquals(40, val.get(GooTypes.AEON));
+            assertEquals(40, val.get(GooTypes.YORE));
         }
 
         /**
@@ -1743,14 +1743,14 @@ class GooValueRegistryTest {
             loadJson("""
                     {
                         "_constants": { "drain": { "metal": 64 } },
-                        "minecraft:copper_ingot": { "metal": 200, "aeon": 30 },
+                        "minecraft:copper_ingot": { "metal": 200, "yore": 30 },
                         "minecraft:exposed_copper": "copper_ingot + -$drain"
                     }
                     """);
             GooValue val = registry.table().lookup(id("minecraft:exposed_copper"));
             assertNotNull(val);
             assertEquals(136, val.get(GooTypes.METAL)); // 200 - 64
-            assertEquals(30, val.get(GooTypes.AEON));   // unchanged
+            assertEquals(30, val.get(GooTypes.YORE));   // unchanged
         }
 
         /**
@@ -1760,7 +1760,7 @@ class GooValueRegistryTest {
         void treeConstantWithNegativeType() throws IOException {
             loadJson("""
                     {
-                        "_constants": { "exposed": { "aeon": 32, "metal": -64 } },
+                        "_constants": { "exposed": { "yore": 32, "metal": -64 } },
                         "minecraft:copper_ingot": { "metal": 200, "rock": 50 },
                         "minecraft:exposed_copper": "copper_ingot + $exposed"
                     }
@@ -1768,7 +1768,7 @@ class GooValueRegistryTest {
             GooValue val = registry.table().lookup(id("minecraft:exposed_copper"));
             assertNotNull(val);
             assertEquals(136, val.get(GooTypes.METAL)); // 200 - 64
-            assertEquals(32, val.get(GooTypes.AEON));   // 0 + 32
+            assertEquals(32, val.get(GooTypes.YORE));   // 0 + 32
             assertEquals(50, val.get(GooTypes.ROCK));   // unchanged
         }
 
@@ -2448,6 +2448,32 @@ class GooValueRegistryTest {
             assertNotNull(dirt);
             assertEquals(0, dirt.get(GooTypes.YORE));
         }
+
+        /**
+         * The old, hard-to-come-by items whose retired type's term moved carry yore.
+         */
+        @Test
+        void retiredTermsMoveToYore() {
+            for (String item : List.of("minecraft:heart_of_the_sea", "minecraft:echo_shard", "minecraft:elytra",
+                    "minecraft:dragon_egg", "minecraft:nautilus_shell", "minecraft:music_disc_13")) {
+                GooValue value = registry.table().lookup(id(item));
+                assertNotNull(value, item);
+                assertTrue(value.get(GooTypes.YORE) > 0, item + " carries no yore: " + value);
+            }
+        }
+
+        /**
+         * Every type a shipped item resolves is a bundled type, so no item
+         * resolves a retired type.
+         */
+        @Test
+        void noItemResolvesARetiredType() {
+            List<String> retired = registry.table().getEffectiveValues().entrySet().stream()
+                    .filter(entry -> !GooTypes.BUNDLED.containsAll(entry.getValue().getAll().keySet()))
+                    .map(entry -> entry.getKey() + " " + entry.getValue())
+                    .toList();
+            assertEquals(List.of(), retired);
+        }
     }
 
     // ── Shipped deep values ─────────────────────────────────────────────
@@ -2590,8 +2616,8 @@ class GooValueRegistryTest {
             copyBaseToEffective();
 
             Map<Identifier, GooValue> effective = registry.table().getEffectiveValues();
-            assertTrue(effective.values().stream().anyMatch(value -> value.get(GooTypes.AEON) > 0),
-                    "the shipped load valued no item in aeon");
+            assertTrue(effective.values().stream().anyMatch(value -> value.get(GooTypes.YORE) > 0),
+                    "the shipped load valued no item in yore");
             List<Identifier> carryingXeno = effective.entrySet().stream()
                     .filter(entry -> entry.getValue().get(GooTypes.XENO) != 0)
                     .map(Map.Entry::getKey)

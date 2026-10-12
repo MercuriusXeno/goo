@@ -10,7 +10,7 @@ import static org.mockito.Mockito.when;
 /**
  * A branch step runs its then list when its condition reads nonzero and
  * its otherwise list when it reads zero (decision
- * aeon-mob-ritual-drops-spawn-egg). The lists hold explode steps of two
+ * rewind-fills-while-held). The lists hold explode steps of two
  * powers, a world call the host mock records; an effect step's change to
  * the entity is proven by the mob gametests (decision step-tick-holds-effect).
  */
