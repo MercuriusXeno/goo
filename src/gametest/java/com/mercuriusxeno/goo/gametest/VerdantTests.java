@@ -1,11 +1,9 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.AbilityDefinition;
-import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
+import com.mercuriusxeno.goo.network.PrismChanneler;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -13,6 +11,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SugarCaneBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -21,8 +20,8 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
- * Gametests for Leaf Verdant: leaf goo landing on a prism makes it verdant,
- * and as it pulses, cobblestone around it turns mossy, open water gains a
+ * Gametests for Leaf Verdant: Growth held on a prism for its hold makes it
+ * verdant (decision channeled-hosts-convert-prisms-over-the-hold), and as it pulses, cobblestone around it turns mossy, open water gains a
  * lily pad, and sugar cane in its reach is nudged along.
  * verdant-prism-greens-blocks-slowly
  */
@@ -42,8 +41,11 @@ public final class VerdantTests {
     }
 
 
-    private static final Identifier VERDANT = Identifier.fromNamespaceAndPath(Goo.MODID, "leaf_verdant");
-    private static final String ABILITY_REQUIRED = "Ability registry must hold leaf_verdant";
+    /** Growth, whose on_prism reaction is the verdant (decision channeled-hosts-convert-prisms-over-the-hold). */
+    private static final Identifier GROWTH = Identifier.fromNamespaceAndPath(Goo.MODID, "leaf_growth");
+    /** On the cobble rows three blocks east of the prism, where the player holds Growth on it. */
+    private static final BlockPos STAND = new BlockPos(5, 1, 1);
+    private static final String SHOULD_CONVERT = "Growth held on the prism should make it verdant, held '%s'";
     private static final int BAY_EDGE = 5;
     /** The rows of the bay floor laid as cobblestone; the rows past them hold water. */
     private static final int COBBLE_ROWS_END = 2;
@@ -53,8 +55,8 @@ public final class VerdantTests {
     private static final BlockPos CANE = SAND.above();
     private static final String SHOULD_GREEN = "Verdant should mossy a cobblestone, lily the water and nudge the cane;"
             + " mossy %b, lily %b, cane %s";
-    /** The tick the verdant prism is saved and loaded back, after the combo took. */
-    private static final int RELOAD_AT = 3;
+    /** The ticks after the hold converts the prism that it is saved and loaded back. */
+    private static final int RELOAD_AFTER_CONVERSION = 3;
     private static final String RELOAD_REQUIRED = "the prism should load back from its save";
     private static final String SHOULD_RUN_AFTER_RELOAD = "Verdant should keep greening after a reload;"
             + " program %s, mossy %b";
@@ -79,10 +81,13 @@ public final class VerdantTests {
         helper.setBlock(SAND, Blocks.SAND);
         helper.setBlock(CANE, Blocks.SUGAR_CANE);
         helper.setBlock(PRISM, GooBlocks.PRISM.get().defaultBlockState().setValue(PrismBlock.FACING, Direction.UP));
-        AbilityDefinition verdant = AbilityRegistry.of(helper.getLevel()).getAbility(VERDANT);
-        helper.assertTrue(verdant != null, ABILITY_REQUIRED);
-        helper.runAfterDelay(1, () -> AbilityImpact.land(helper.getLevel(), helper.absolutePos(PRISM), GooTypes.LEAF,
-                Direction.UP, verdant));
+        int converted = PrismChanneler.hold(helper, GROWTH) + 1;
+        ServerPlayer holder = PrismChanneler.holdOn(helper, GooTypes.LEAF, GROWTH, PRISM, STAND, converted - 1);
+        helper.runAfterDelay(converted, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(holder);
+            String combo = helper.getBlockEntity(PRISM, PrismBlockEntity.class).getCombo();
+            helper.assertTrue(GROWTH.toString().equals(combo), String.format(SHOULD_CONVERT, combo));
+        });
         helper.succeedWhen(() -> {
             boolean mossy = anyAt(helper, 0, Blocks.MOSSY_COBBLESTONE.defaultBlockState());
             boolean lily = anyAt(helper, 1, Blocks.LILY_PAD.defaultBlockState());
@@ -108,12 +113,12 @@ public final class VerdantTests {
             }
         }
         helper.setBlock(PRISM, GooBlocks.PRISM.get().defaultBlockState().setValue(PrismBlock.FACING, Direction.UP));
-        AbilityDefinition verdant = AbilityRegistry.of(helper.getLevel()).getAbility(VERDANT);
-        helper.assertTrue(verdant != null, ABILITY_REQUIRED);
         BlockPos prismAt = helper.absolutePos(PRISM);
-        helper.runAfterDelay(1, () -> AbilityImpact.land(helper.getLevel(), prismAt, GooTypes.LEAF, Direction.UP,
-                verdant));
-        helper.runAfterDelay(RELOAD_AT, () -> {
+        int reloadAt = PrismChanneler.hold(helper, GROWTH) + RELOAD_AFTER_CONVERSION;
+        ServerPlayer holder = PrismChanneler.holdOn(helper, GooTypes.LEAF, GROWTH, PRISM, STAND,
+                PrismChanneler.hold(helper, GROWTH));
+        helper.runAfterDelay(reloadAt, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(holder);
             PrismBlockEntity before = helper.getBlockEntity(PRISM, PrismBlockEntity.class);
             CompoundTag saved = before.saveWithFullMetadata(helper.getLevel().registryAccess());
             BlockEntity reloaded = BlockEntity.loadStatic(prismAt, helper.getLevel().getBlockState(prismAt), saved,
@@ -124,7 +129,7 @@ public final class VerdantTests {
         helper.succeedWhen(() -> {
             PrismBlockEntity after = helper.getBlockEntity(PRISM, PrismBlockEntity.class);
             boolean mossy = anyAt(helper, 0, Blocks.MOSSY_COBBLESTONE.defaultBlockState());
-            helper.assertTrue(helper.getTick() > RELOAD_AT && after.getBehavior() != null && mossy,
+            helper.assertTrue(helper.getTick() > reloadAt && after.getBehavior() != null && mossy,
                     String.format(SHOULD_RUN_AFTER_RELOAD, after.getBehavior(), mossy));
         });
     }

@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:vitality_tap_heals_below",
+  "function": "goo:monstrosity_ignores_the_plain",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 100,
+  "max_ticks": 140,
   "setup_ticks": 0,
   "required": true
 }

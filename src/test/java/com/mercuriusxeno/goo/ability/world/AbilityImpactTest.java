@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.ability.program.Expr;
 import com.mercuriusxeno.goo.ability.program.FxAnchor;
 import com.mercuriusxeno.goo.ability.program.SoundKind;
 import com.mercuriusxeno.goo.ability.program.SoundStep;
+import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
@@ -148,5 +149,24 @@ class AbilityImpactTest {
         assertTrue(mockingDetails(level).getInvocations().stream()
                 .anyMatch(call -> "playSound".equals(call.getMethod().getName())), "the program did not run");
         verify(level, never()).setBlock(any(), any(), anyInt());
+    }
+
+    /**
+     * Zap, which carries the relay as its on_prism reaction, still ticks a
+     * prism already holding a combo as a redstone device rather than growing
+     * a second combo in it, and lands in a bare prism.
+     * zap-ticks-the-device-and-stuns
+     * thrown-hosts-absorb-their-prism-combos
+     */
+    @Test
+    void zapTicksAComboPrismAndLandsInABareOne() {
+        AbilityDefinition zap = AbilityJson.decode("pulse_zap");
+        PrismBlockEntity combined = mock(PrismBlockEntity.class);
+        when(combined.hasCombo()).thenReturn(true);
+        PrismBlockEntity bare = mock(PrismBlockEntity.class);
+
+        assertFalse(zap.onPrism().isEmpty(), "pulse_zap's on_prism relay");
+        assertTrue(AbilityImpact.ticksAComboPrism(combined, zap));
+        assertFalse(AbilityImpact.ticksAComboPrism(bare, zap));
     }
 }

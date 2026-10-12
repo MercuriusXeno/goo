@@ -18,8 +18,11 @@ import java.util.Optional;
  */
 public final class OculusNodes {
 
-    /** The id of the ability whose combo makes a prism an oculus. */
-    public static final String OCULUS = "goo:ender_oculus";
+    /**
+     * The id of the ability whose combo makes a prism an oculus: Blink, whose
+     * on_prism reaction it is (decision blink-at-a-prism-spends-into-an-oculus).
+     */
+    public static final String OCULUS = "goo:ender_blink";
     private static final double CELL_CENTER = 0.5;
 
     private OculusNodes() {

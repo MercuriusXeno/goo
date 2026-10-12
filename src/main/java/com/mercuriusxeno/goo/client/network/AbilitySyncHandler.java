@@ -99,15 +99,45 @@ public final class AbilitySyncHandler {
      *                    (decision self-effects-trickle-until-ended)
      * @param distancePrice what a blink adds to the cost for its trip
      *                    (decision blink-lands-safely-costed-by-distance)
+     * @param onPrism     the steps a landing on a prism runs, empty for none
+     *                    (decision on-prism-reaction-wears-the-prism-badge)
      */
     public record ClientAbility(Identifier id, String displayName, String icon,
                                 int order, List<String> tags,
                                 List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
                                 List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
-                                List<Identifier> consumes, int upkeep, DistancePrice distancePrice) {
+                                List<Identifier> consumes, int upkeep, DistancePrice distancePrice,
+                                List<Step> onPrism) {
 
         private static final int TICKS_PER_SECOND = 20;
         private static final String PER_SECOND = "/s";
+
+        /**
+         * A client ability reacting to no prism itself.
+         *
+         * @param id          the ability resource identifier
+         * @param displayName the translation key
+         * @param icon        the icon texture path override
+         * @param order       the sort order
+         * @param tags        categorical tags
+         * @param behaviors   the ability's step program
+         * @param cost        the mB a throw costs
+         * @param delivery    how the ability leaves the glove
+         * @param badge       the target kind the radial marks on the icon
+         * @param requires    the items the player must know before its radial petal unlocks
+         * @param area        the area the glove draws while right click is held
+         * @param indicator   when the ability's indicator shows
+         * @param consumes    the items a throw takes, one of each
+         * @param upkeep      the mB a held self + brew effect pays each tick it stands
+         * @param distancePrice what a blink adds to the cost for its trip
+         */
+        public ClientAbility(Identifier id, String displayName, String icon, int order, List<String> tags,
+                             List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
+                             List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
+                             List<Identifier> consumes, int upkeep, DistancePrice distancePrice) {
+            this(id, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires, area, indicator,
+                    consumes, upkeep, distancePrice, List.of());
+        }
 
         /**
          * A client ability whose cost reads no trip.
@@ -235,7 +265,30 @@ public final class AbilitySyncHandler {
             return new ClientAbility(Identifier.tryParse(entry.abilityId()), entry.displayName(), entry.icon(),
                     entry.order(), entry.tags(), entry.behaviors(),
                     entry.cost(), entry.delivery(), entry.badge(), entry.requires(), entry.area(),
-                    entry.indicator(), entry.consumes(), entry.upkeep(), entry.distancePrice());
+                    entry.indicator(), entry.consumes(), entry.upkeep(), entry.distancePrice(), entry.onPrism());
+        }
+
+        /**
+         * Whether the ability carries an on_prism reaction of its own, which
+         * the wheel marks with the prism badge beside its own.
+         * on-prism-reaction-wears-the-prism-badge
+         *
+         * @return true when a landing on a prism runs the ability's own reaction
+         */
+        public boolean reactsToPrisms() {
+            return !onPrism.isEmpty();
+        }
+
+        /**
+         * The program this ability runs as a prism's combo, as the server's
+         * PrismCombos.comboSteps reads it: a prism ability's own behaviors,
+         * or another ability's on_prism reaction.
+         * thrown-hosts-absorb-their-prism-combos
+         *
+         * @return the combo's program
+         */
+        public List<Step> comboSteps() {
+            return badge == AbilityBadge.PRISM ? behaviors : onPrism;
         }
 
         /**

@@ -18,7 +18,7 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametest for Relay: a lamp at one relay prism follows a lever at another
+ * Gametest for Relay, the combo Zap grows landing on a bare prism: a lamp at one relay prism follows a lever at another
  * 12 blocks away through air, and goes dark once a block stands between; a
  * relay standing diagonal to the sender never links, and a third relay linked
  * to the receiver alone lights its lamp too, two hops from the lever.
@@ -40,7 +40,8 @@ public final class RelayTests {
 
     /** Marks a pending effect aimed at a block rather than an entity. */
     private static final int NO_ENTITY = -1;
-    private static final String RELAY = "goo:pulse_relay";
+    /** Zap, whose on_prism reaction grows the relay (decision thrown-hosts-absorb-their-prism-combos). */
+    private static final String ZAP = "goo:pulse_zap";
     private static final BlockPos SENDER = new BlockPos(1, 1, 2);
     private static final BlockPos RECEIVER = SENDER.east(12);
     private static final BlockPos LEVER = SENDER.west();
@@ -59,7 +60,7 @@ public final class RelayTests {
     private static final int BLOCKED = LIT_CHECK + 1;
     /** Past the lamp's own delay in going dark. */
     private static final int DARK_CHECK = BLOCKED + 8;
-    private static final String COMBO_TOOK = "Both prisms should hold the relay combo";
+    private static final String COMBO_TOOK = "Both prisms should hold the relay combo Zap grows";
     private static final String UNLIT_BEFORE = "The lamp should stand unlit before the lever is pulled";
     private static final String LIT_THROUGH_AIR = "The lamp should light once the lever 12 blocks away is pulled";
     private static final String UNLIT_DIAGONALLY = "The lamp at the diagonal relay should stay unlit: relays link along an axis only";
@@ -95,8 +96,8 @@ public final class RelayTests {
         helper.setBlock(THIRD_LAMP, Blocks.REDSTONE_LAMP);
         helper.setBlock(LEVER, Blocks.LEVER.defaultBlockState().setValue(LeverBlock.FACE, AttachFace.FLOOR));
         helper.setBlock(LAMP, Blocks.REDSTONE_LAMP);
-        helper.assertTrue(helper.getBlockEntity(SENDER, PrismBlockEntity.class).hasCombo()
-                && helper.getBlockEntity(RECEIVER, PrismBlockEntity.class).hasCombo(), COMBO_TOOK);
+        helper.assertTrue(ZAP.equals(helper.getBlockEntity(SENDER, PrismBlockEntity.class).getCombo())
+                && ZAP.equals(helper.getBlockEntity(RECEIVER, PrismBlockEntity.class).getCombo()), COMBO_TOOK);
         helper.runAfterDelay(PULL, () -> {
             helper.assertFalse(lit(helper, LAMP), UNLIT_BEFORE);
             helper.pullLever(LEVER);
@@ -116,7 +117,7 @@ public final class RelayTests {
     private static void relayAt(GameTestHelper helper, BlockPos pos) {
         helper.setBlock(pos, GooBlocks.PRISM.get().defaultBlockState().setValue(PrismBlock.FACING, Direction.UP));
         GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.PULSE,
-                NO_ENTITY, helper.absolutePos(pos), Direction.UP, RELAY));
+                NO_ENTITY, helper.absolutePos(pos), Direction.UP, ZAP));
     }
 
     private static boolean lit(GameTestHelper helper, BlockPos lamp) {
