@@ -149,6 +149,7 @@ public final class GooStreamHandler {
                                     ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability, int held) {
         if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge())) {
             channelOnPlayer(player, new ChannelAim(payload.aimPoint(), payload.plane(), 0, held), ability);
+            StreamPrismCharge.chargeByRay(player, payload.aimPoint(), gooType, ability);
         } else if (!StreamPrismCharge.charges(player, payload.origin(), gooType, ability)) {
             strikeCone(player, payload.origin(), ability, held);
         }
