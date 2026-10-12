@@ -82,6 +82,11 @@ public final class GooTypes {
     public static final ResourceKey<GooTypeDefinition> TYPHOON = bundled("typhoon");
     public static final ResourceKey<GooTypeDefinition> UNSTABLE = bundled("unstable");
     public static final ResourceKey<GooTypeDefinition> VITAL = bundled("vital");
+    /**
+     * Void comes from no item: astral and deep react into it.
+     * decision void-ships-from-astral-and-deep
+     */
+    public static final ResourceKey<GooTypeDefinition> VOID = bundled("void");
     public static final ResourceKey<GooTypeDefinition> WEIRD = bundled("weird");
     /**
      * Xeno ships with no item value until its source is designed.
@@ -108,7 +113,7 @@ public final class GooTypes {
      */
     public static final List<ResourceKey<GooTypeDefinition>> BUNDLED = List.of(
             AEON, ASTRAL, BLAZE, CRYSTAL, DEEP, ENDER, FROST, GLOW, HEX, INFINITY, JELLY, KINETIC, LEAF,
-            METAL, NETHER, OPULENT, PULSE, QUANTUM, ROCK, SHROOM, TYPHOON, UNSTABLE, VITAL, WEIRD, XENO, YORE, ZOO);
+            METAL, NETHER, OPULENT, PULSE, QUANTUM, ROCK, SHROOM, TYPHOON, UNSTABLE, VITAL, VOID, WEIRD, XENO, YORE, ZOO);
 
     /**
      * A type key as its short id: the bare path for a bundled type, the

@@ -528,6 +528,29 @@
     ]
   },
   {
+    "id": "void",
+    "seed": 41009,
+    "genParams": {
+      "viscosity": 1.8,
+      "decayRate": 0.04,
+      "ignitionChance": 0.005,
+      "ignitionStrength": 1.2,
+      "potHeatRate": 0.012,
+      "potInfluence": 0.8,
+      "neighborhoodReach": 1
+    },
+    "frametime": 4,
+    "shadowHue": 0.75,
+    "palette": [
+      { "position": 0.0, "color": "#000000" },
+      { "position": 0.3, "color": "#06030C" },
+      { "position": 0.55, "color": "#120A20" },
+      { "position": 0.75, "color": "#22123A" },
+      { "position": 0.9, "color": "#341C56" },
+      { "position": 1.0, "color": "#4A2A78" }
+    ]
+  },
+  {
     "id": "weird",
     "seed": 40983,
     "genParams": {
