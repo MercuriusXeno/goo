@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -579,19 +580,38 @@ class RadialWheelTest {
             assertLandedNearestRest(wheel, cursor);
         }
 
+        /** The cursor just across the hovered ability's edge one way, onto the next ability that way. */
+        private static double justAcross(RadialWheel wheel, double direction) {
+            RadialWheel.PetalArc hovered = abilityPetal(wheel, wheel.hoveredAbility());
+            return hovered.center() + direction * (hovered.arc() / 2 + JUST_PAST);
+        }
+
         @Test
-        void crossingTowardRestSpringsTheRingBackAndCentersTheAbilityThatLetsIt() {
+        void crossingWhereCenteringTheNextAbilityRelievesTensionSpringsItUnderTheCursor() {
             RadialWheel wheel = farNeighborOpen();
             double tension = wheel.rotation();
-            RadialWheel.PetalArc hovered = abilityPetal(wheel, wheel.hoveredAbility());
-            double cursor = hovered.center() - Math.signum(tension) * (hovered.arc() / 2 + JUST_PAST);
+            int crossed = wheel.hoveredAbility();
+            moveTo(wheel, justAcross(wheel, -Math.signum(tension)), PETAL);
+            double cursor = justAcross(wheel, Math.signum(tension));
 
             moveTo(wheel, cursor, PETAL);
 
+            assertEquals(crossed, wheel.hoveredAbility());
             assertTrue(Math.abs(wheel.rotation()) < Math.abs(tension), wheel.rotation() + " from " + tension);
             assertHoveredCenteredOn(wheel, cursor);
-            assertLandedNearestRest(wheel, cursor);
             assertTrue(wheel.isAnimating(), "the ring springs, easing");
+        }
+
+        @Test
+        void crossingWhereCenteringTheNextAbilityWouldAddTensionLeavesTheRingWhereItStands() {
+            RadialWheel wheel = farNeighborOpen();
+            double tension = wheel.rotation();
+            int crossed = wheel.hoveredAbility() - (int) Math.signum(tension);
+
+            moveTo(wheel, justAcross(wheel, -Math.signum(tension)), PETAL);
+
+            assertEquals(crossed, wheel.hoveredAbility());
+            assertEquals(tension, wheel.rotation(), EPSILON);
         }
 
         @Test
@@ -615,6 +635,38 @@ class RadialWheelTest {
                             "wound from " + before + " to " + wheel.rotation());
                 }
             }
+        }
+
+        /** Sweeps the cursor one degree at a time one way across the open type's abilities, answering each it hovered. */
+        private static List<Integer> sweepAcross(RadialWheel wheel, double direction) {
+            List<Integer> hovered = new java.util.ArrayList<>(List.of(wheel.hoveredAbility()));
+            double cursor = abilityPetal(wheel, wheel.hoveredAbility()).center();
+            for (int step = 0; step < SWEEP_STEPS; step++) {
+                double next = cursor + direction * SWEEP_STEP;
+                if (!RadialWheel.petalAt(wheel.layout(), next).isAbility()) {
+                    break;
+                }
+                moveTo(wheel, next, PETAL);
+                cursor = next;
+                if (wheel.hoveredAbility() != hovered.getLast()) {
+                    hovered.add(wheel.hoveredAbility());
+                }
+            }
+            return hovered;
+        }
+
+        @Test
+        void sweepingEitherWayWhileTurnedReachesEveryAbilityThatWayInTurn() {
+            assertAll(DoubleStream.of(1.0, -1.0).mapToObj(direction -> (Executable) () -> {
+                RadialWheel wheel = farNeighborOpen();
+                int from = wheel.hoveredAbility();
+                int last = direction > 0 ? abilityPetals(wheel).size() - 1 : 0;
+
+                List<Integer> hovered = sweepAcross(wheel, direction);
+
+                assertEquals(IntStream.iterate(from, ability -> ability + (int) direction)
+                        .limit(Math.abs(last - from) + 1).boxed().toList(), hovered, "sweeping " + direction);
+            }));
         }
 
         @Test
