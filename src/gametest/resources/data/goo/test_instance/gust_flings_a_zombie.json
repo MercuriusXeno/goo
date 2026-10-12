@@ -1,8 +1,8 @@
 {
   "type": "minecraft:function",
-  "function": "goo:jet_flies_while_held",
+  "function": "goo:gust_flings_a_zombie",
   "environment": "minecraft:default",
-  "structure": "goo:test_bay",
+  "structure": "goo:light_bay",
   "max_ticks": 40,
   "setup_ticks": 0,
   "required": true

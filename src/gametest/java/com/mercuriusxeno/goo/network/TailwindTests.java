@@ -15,14 +15,14 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametest for typhoon Jet held through the real stream delivery: each held
+ * Gametest for typhoon Tailwind held through the real stream delivery: each held
  * tick drives the player along its look and drains one tick's share of the
  * cost (decision jet-pushes-along-the-look-while-held). The mock player has
- * no client moving it, so the test reads the velocity the jet sets.
+ * no client moving it, so the test reads the velocity Tailwind sets.
  */
 @RegistersGameTests
-public final class JetTests {
-    private static final String JET_FLIES_WHILE_HELD = "jet_flies_while_held";
+public final class TailwindTests {
+    private static final String TAILWIND_FLIES_WHILE_HELD = "tailwind_flies_while_held";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -30,42 +30,42 @@ public final class JetTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, JET_FLIES_WHILE_HELD, JetTests::jetFliesWhileHeld);
+        GooTestFunctions.registerTest(registrar, TAILWIND_FLIES_WHILE_HELD, TailwindTests::tailwindFliesWhileHeld);
     }
 
 
-    private static final Identifier TYPHOON_JET = Identifier.parse("goo:typhoon_jet");
+    private static final Identifier TYPHOON_TAILWIND = Identifier.parse("goo:typhoon_tailwind");
     private static final int HOLD_TICKS = 20;
     /** The yaw a player faces east, toward +x, at. */
     private static final float FACING_EAST = -90f;
     /** Pitch thirty degrees above level. */
     private static final float LOOKING_UP = -30f;
-    private static final String ABILITY_REQUIRED = "Ability registry must hold typhoon_jet";
+    private static final String ABILITY_REQUIRED = "Ability registry must hold typhoon_tailwind";
     private static final String SHOULD_FLY_ALONG_THE_LOOK =
             "Held tick %d should leave the player moving along its look %s faster than the tick before, "
                     + "read %s after %s";
     private static final String SHOULD_DRAIN_EACH_TICK = "%d held ticks should drain %d mB of typhoon, drained %d";
 
-    private JetTests() {
+    private TailwindTests() {
     }
 
     /**
-     * A mock player looking east and up holds Jet for twenty ticks: after
+     * A mock player looking east and up holds Tailwind for twenty ticks: after
      * every held tick its speed along its look has grown, and the hold has
      * drained twenty ticks' shares of typhoon.
      *
      * @param helper the gametest helper
      */
-    public static void jetFliesWhileHeld(GameTestHelper helper) {
-        AbilityDefinition jet = AbilityRegistry.of(helper.getLevel()).getAbility(TYPHOON_JET);
-        helper.assertTrue(jet != null, ABILITY_REQUIRED);
-        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.TYPHOON, TYPHOON_JET);
-        KnownRecipes.teachRequires(player, jet);
+    public static void tailwindFliesWhileHeld(GameTestHelper helper) {
+        AbilityDefinition tailwind = AbilityRegistry.of(helper.getLevel()).getAbility(TYPHOON_TAILWIND);
+        helper.assertTrue(tailwind != null, ABILITY_REQUIRED);
+        ServerPlayer player = SelfDeliveryTests.invoker(helper, GooTypes.TYPHOON, TYPHOON_TAILWIND);
+        KnownRecipes.teachRequires(player, tailwind);
         player.setYRot(FACING_EAST);
         player.setXRot(LOOKING_UP);
         Vec3 look = player.getLookAngle();
         int heldBefore = typhoon(player);
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.TYPHOON), TYPHOON_JET.toString(),
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.TYPHOON), TYPHOON_TAILWIND.toString(),
                 player.getEyePosition(), player.getEyePosition());
         for (int held = 1; held <= HOLD_TICKS; held++) {
             int heldTick = held;
@@ -79,7 +79,7 @@ public final class JetTests {
         }
         helper.runAfterDelay(HOLD_TICKS + 1, () -> {
             int drained = heldBefore - typhoon(player);
-            int expected = jet.cost() * HOLD_TICKS / jet.delivery().ticksPerCharge();
+            int expected = tailwind.cost() * HOLD_TICKS / tailwind.delivery().ticksPerCharge();
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertTrue(drained == expected, String.format(SHOULD_DRAIN_EACH_TICK, HOLD_TICKS, expected, drained));
             helper.succeed();
