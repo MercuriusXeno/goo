@@ -36,12 +36,6 @@ public final class RadialWheel {
     static final double TYPE_INNER_FRACTION = HUB_REST_FRACTION;
     /** How far out the type petals reach once dropped round the hub, as a fraction of the wheel's radius. */
     static final double TYPE_BAND_FRACTION = 0.6;
-    /**
-     * Where the ability petals start: all the way in at the hub, behind the
-     * dropped type petals, so the gaps between the type petals' round tips
-     * show the ability petal behind them rather than empty space.
-     */
-    static final double ABILITY_INNER_FRACTION = HUB_FRACTION;
     /** No type open, or no ability hovered. */
     static final int NONE = -1;
     /** The most each ability petal of the open type takes. */
@@ -297,11 +291,12 @@ public final class RadialWheel {
      */
     private List<PetalArc> petalsOf(RingEase.Pose pose, CardLength cardLength) {
         List<PetalArc> petals = new ArrayList<>();
+        // abilities-replace-the-hovered-type: the ability petals' tails ride with the type petals' bases
+        double inner = hubRadius(pose.dropped());
         for (int type = 0; type < typeCount; type++) {
-            addCards(petals, type, pose.openness()[type], cardLength);
+            addCards(petals, type, pose.openness()[type], inner, cardLength);
         }
         double arc = typeArc();
-        double inner = hubRadius(pose.dropped());
         double length = 1.0 - (1.0 - TYPE_BAND_FRACTION) * pose.dropped();
         for (int type = 0; type < typeCount; type++) {
             double start = RING_START + type * arc;
@@ -310,7 +305,7 @@ public final class RadialWheel {
         return petals;
     }
 
-    private void addCards(List<PetalArc> petals, int type, double openness, CardLength cardLength) {
+    private void addCards(List<PetalArc> petals, int type, double openness, double inner, CardLength cardLength) {
         int abilities = abilityCount.applyAsInt(type);
         if (abilities == 0 || openness <= VISIBLE) {
             return;
@@ -321,7 +316,7 @@ public final class RadialWheel {
         for (int ability = 0; ability < abilities; ability++) {
             double fanned = (ability * card + card * HALF - span * HALF) * openness;
             petals.add(new PetalArc(type, ability, center - card * HALF + fanned, card,
-                    cardLength.of(type, ability), null, openness, 1.0, ABILITY_INNER_FRACTION));
+                    cardLength.of(type, ability), null, openness, 1.0, inner));
         }
     }
 

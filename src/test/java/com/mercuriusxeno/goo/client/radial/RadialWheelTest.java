@@ -142,7 +142,7 @@ class RadialWheelTest {
             assertAll(abilities.stream().map(petal -> (Executable) () -> {
                 assertEquals(OPEN_TYPE, petal.type());
                 assertEquals(RadialWheel.ABILITY_ARC, petal.arc(), EPSILON);
-                assertEquals(RadialWheel.ABILITY_INNER_FRACTION, petal.shape().inner(), EPSILON, "reaching in behind the types");
+                assertEquals(RadialWheel.HUB_FRACTION, petal.shape().inner(), EPSILON, "reaching in behind the types");
             }));
             for (int i = 1; i < abilities.size(); i++) {
                 assertEquals(abilities.get(i - 1).start() + abilities.get(i - 1).arc(), abilities.get(i).start(),
@@ -158,7 +158,6 @@ class RadialWheelTest {
             int firstType = IntStream.range(0, drawn.size()).filter(i -> !drawn.get(i).isAbility()).min().orElseThrow();
 
             assertTrue(lastAbility < firstType, "a type petal drew under an ability");
-            assertEquals(RadialWheel.HUB_FRACTION, RadialWheel.ABILITY_INNER_FRACTION, EPSILON, "all the way in, behind the types");
         }
 
         /** decision abilities-replace-the-hovered-type */
@@ -420,6 +419,34 @@ class RadialWheelTest {
 
             assertTrue(hub > RadialWheel.HUB_FRACTION && hub < RadialWheel.HUB_REST_FRACTION, "hub " + hub);
             assertTrue(spread > 0 && spread < (ABILITIES - 1) * RadialWheel.ABILITY_ARC, "spread " + spread);
+        }
+
+        /** Asserts every ability petal on display starts where the type petals' bases stand. */
+        private void assertTailsOnTheTypeBases(RadialWheel wheel) {
+            List<RadialWheel.PetalArc> drawn = wheel.displayedLayout(0.0f);
+            double base = drawn.stream().filter(petal -> !petal.isAbility()).findFirst().orElseThrow().shape().inner();
+            assertTrue(drawn.stream().anyMatch(RadialWheel.PetalArc::isAbility), "a fan shows mid-ease");
+            assertAll(drawn.stream().filter(RadialWheel.PetalArc::isAbility).map(petal -> (Executable) ()
+                    -> assertEquals(base, petal.shape().inner(), EPSILON, petal + " tail off the type bases")));
+            assertEquals(base, wheel.displayedHubRadius(0.0f), EPSILON, "the type bases sit on the neutral zone's edge");
+        }
+
+        /** decision abilities-replace-the-hovered-type */
+        @Test
+        void theAbilityTailsRideWithTheTypeBasesOpeningAndClosing() {
+            RadialWheel wheel = wheel(ABILITIES);
+            moveTo(wheel, typeCenter(OPEN_TYPE), RIM);
+            for (int i = 0; i < MID_TICKS; i++) {
+                wheel.tick();
+            }
+            assertTailsOnTheTypeBases(wheel);
+
+            settle(wheel);
+            moveTo(wheel, 0.0, HUB);
+            for (int i = 0; i < MID_TICKS; i++) {
+                wheel.tick();
+            }
+            assertTailsOnTheTypeBases(wheel);
         }
 
         @Test
