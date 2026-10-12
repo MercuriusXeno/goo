@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Covers the one-ring radial wheel's layout and its state transitions from cursor, scroll and click events (decisions abilities-replace-the-hovered-type, open-type-keeps-six-neighbors-a-side, neighbors-fisheye-from-the-open-type). */
 class RadialWheelTest {
 
-    /** The shipped goo types, aeon gone. */
+    /** The shipped goo types. */
     private static final int TYPES = 26;
     private static final int OPEN_TYPE = 3;
     private static final int ABILITIES = 4;
