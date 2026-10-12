@@ -41,6 +41,12 @@ class RadialWheelTest {
     private static final double JUST_PAST = Math.toRadians(1.0);
     private static final double SWEEP_STEP = Math.toRadians(1.0);
     private static final int SWEEP_STEPS = 360;
+    /** Few shown types, the common case with only held types on the wheel. */
+    private static final int FEW_TYPES = 5;
+    /** Moves to one spot enough times to see a flip. */
+    private static final int REPEATS = 6;
+    /** Just past the neutral zone's rest edge, on a type's petal at rest and its dropped petal once open. */
+    private static final double JUST_PAST_NEUTRAL = 0.55 * RADIUS;
 
     private static RadialWheel wheel(int abilities) {
         return new RadialWheel(TYPES, type -> abilities);
@@ -262,6 +268,57 @@ class RadialWheelTest {
                 assertTrue(abilityPetals(wheel).stream().allMatch(petal -> petal.type() == type),
                         "the fan shows the type under the cursor");
             }
+        }
+
+        /** Five types of one ability each: every fan narrower than its type's petal. */
+        private static RadialWheel fewNarrowFans() {
+            return new RadialWheel(FEW_TYPES, type -> 1);
+        }
+
+        /** Moves the cursor to one spot repeatedly, answering the open type and hovered ability after each move. */
+        private static List<String> repeatedly(RadialWheel wheel, double angle, double distance) {
+            List<String> seen = new ArrayList<>();
+            for (int move = 0; move < REPEATS; move++) {
+                moveTo(wheel, angle, distance);
+                seen.add(wheel.selectedType() + "/" + wheel.hoveredAbility());
+            }
+            return seen;
+        }
+
+        /** decision halves-arc-petals-at-rest: a straight jump onto a tip opens the type under the cursor, and holds */
+        @Test
+        void aJumpOntoATipOpensTheTypeUnderTheCursorAndHoldsIt() {
+            RadialWheel wheel = fewNarrowFans();
+            double tip = Math.toRadians(76.0);
+
+            List<String> seen = repeatedly(wheel, tip, RIM);
+
+            assertEquals(1, wheel.selectedType(), "type 1's petal spans 72 to 144 degrees");
+            assertEquals(1, seen.stream().distinct().count(), "a stable selection across repeated moves: " + seen);
+        }
+
+        /** decision ring-rotates-to-keep-the-cursor-inside: outside both fans the open type holds */
+        @Test
+        void aCursorBetweenAFansEndAndTheNeighborsFanKeepsTheTypeOpenWithNoAbilityHovered() {
+            RadialWheel wheel = fewNarrowFans();
+            moveTo(wheel, Math.toRadians(108.0), JUST_PAST_NEUTRAL);
+            assertEquals(1, wheel.selectedType());
+
+            List<String> seen = repeatedly(wheel, Math.toRadians(125.0), RIM);
+
+            assertEquals(List.of("1/-1"), seen.stream().distinct().toList(), "no flip outside both fans: " + seen);
+        }
+
+        /** decision ring-rotates-to-keep-the-cursor-inside: winding lands in an ability, among narrow fans too */
+        @Test
+        void windingAmongNarrowFansLandsInTheNeighborsAbility() {
+            RadialWheel wheel = fewNarrowFans();
+            moveTo(wheel, Math.toRadians(108.0), JUST_PAST_NEUTRAL);
+            double neighborFan = Math.toRadians(180.0);
+
+            List<String> seen = repeatedly(wheel, neighborFan, RIM);
+
+            assertEquals(List.of("2/0"), seen.stream().distinct().toList(), "winds to type 2's ability and holds: " + seen);
         }
 
         /** decision petal-moves-animate: a closed fan folds away on its own clock, whatever opens after it */

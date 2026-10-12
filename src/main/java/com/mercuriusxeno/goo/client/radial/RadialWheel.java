@@ -373,8 +373,11 @@ public final class RadialWheel {
         double angle = angleOf(dx, dy);
         if (!isOpen()) {
             if (distance >= TYPE_INNER_FRACTION) {
-                openType(typeAt(angle));
-                moveOpen(distance, angle);
+                // halves-arc-petals-at-rest: the type under the cursor opens, and only an ability under it hovers
+                openUnder(typeAt(angle), angle);
+                if (distance < TYPE_BAND_FRACTION) {
+                    hoveredAbility = NONE;
+                }
             }
             return;
         }
@@ -409,10 +412,12 @@ public final class RadialWheel {
     }
 
     /**
-     * The cursor outside the neutral zone's rest edge with a type open: it hovers the
-     * ability under it, and past either end of the fan winds on to the
+     * The cursor past the dropped type petals with a type open: it hovers
+     * the ability under it; past either end of the fan it winds on to the
      * neighboring type that way, clockwise to the next and counterclockwise
-     * to the last; a type with no abilities has no fan to wind past.
+     * to the last, only where the neighbor's fan holds the cursor, and
+     * otherwise the open type holds with no ability hovered, so no move
+     * flips between two types.
      * decision ring-rotates-to-keep-the-cursor-inside
      *
      * @param angle the cursor's angle
@@ -424,13 +429,35 @@ public final class RadialWheel {
             return;
         }
         hoveredAbility = NONE;
-        List<PetalArc> fan = layout().stream().filter(PetalArc::isAbility).toList();
-        if (fan.isEmpty()) {
-            return;
+        int step = Math.IEEEremainder(angle - typeCenter(selectedType), TWO_PI) > 0 ? 1 : STEP_BACK;
+        int neighbor = Math.floorMod(selectedType + step, typeCount);
+        // ring-rotates-to-keep-the-cursor-inside: wind on only into a fan that holds the cursor, so nothing flips
+        if (fanHolds(neighbor, angle)) {
+            openUnder(neighbor, angle);
         }
-        double fanCenter = RING_START + (selectedType + HALF) * typeArc();
-        int step = Math.IEEEremainder(angle - fanCenter, TWO_PI) > 0 ? 1 : STEP_BACK;
-        openUnder(Math.floorMod(selectedType + step, typeCount), angle);
+    }
+
+    /**
+     * The middle of a type's petal, where its fan centers.
+     *
+     * @param type the type
+     * @return the angle in radians
+     */
+    private double typeCenter(int type) {
+        return RING_START + (type + HALF) * typeArc();
+    }
+
+    /**
+     * Whether a type's fan, open, would lie under an angle.
+     *
+     * @param type  the type
+     * @param angle the angle
+     * @return true inside its fan, false past it or for a type with no abilities
+     */
+    private boolean fanHolds(int type, double angle) {
+        int abilities = abilityCount.applyAsInt(type);
+        double halfSpan = abilities * (abilities == 0 ? 0.0 : abilityArc(type)) * HALF;
+        return Math.abs(Math.IEEEremainder(angle - typeCenter(type), TWO_PI)) < halfSpan;
     }
 
     /**
