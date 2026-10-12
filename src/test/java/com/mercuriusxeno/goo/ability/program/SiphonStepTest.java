@@ -103,7 +103,7 @@ class SiphonStepTest {
         }
 
         @Test
-        void aChargedSiphonDrinksEachBlockTwiceAsFast() {
+        void aSiphonAtSpeedTwoDrinksEachBlockTwiceAsFast() {
             SiphonHost host = facing(List.of(AIMED));
             when(host.siphonValue(AIMED)).thenReturn(COBBLESTONE);
             when(host.burnUnstable(anyInt())).thenReturn(true);
@@ -155,12 +155,12 @@ class SiphonStepTest {
         }
 
         @Test
-        void theConeIsOneBlockWideAtMidRangeAndTwoAndAHalfCharged() {
+        void theConeIsOneBlockWideAtMidRangeAndTwoAndAHalfAtRadiusThreeQuarters() {
             double narrow = Math.toRadians(SiphonRule.coneDegrees(0) / 2);
-            double charged = Math.toRadians(SiphonRule.coneDegrees(0.75) / 2);
+            double widened = Math.toRadians(SiphonRule.coneDegrees(0.75) / 2);
 
             assertEquals(0.5, Math.tan(narrow) * SiphonRule.MID_RANGE, DELTA);
-            assertEquals(1.25, Math.tan(charged) * SiphonRule.MID_RANGE, DELTA);
+            assertEquals(1.25, Math.tan(widened) * SiphonRule.MID_RANGE, DELTA);
             assertTrue(Math.tan(narrow) * SiphonRule.RANGE < 1, "the cone is under a block wide at its reach");
         }
 

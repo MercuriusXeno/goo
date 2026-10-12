@@ -10,8 +10,6 @@ import com.mercuriusxeno.goo.ability.StreamSound;
 import com.mercuriusxeno.goo.ability.program.BlockTicking;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.ChannelHost;
-import com.mercuriusxeno.goo.ability.program.ChargedMultipliers;
-import com.mercuriusxeno.goo.ability.program.ChargedStep;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
 import com.mercuriusxeno.goo.ability.program.FloorReach;
 import com.mercuriusxeno.goo.ability.program.HostKind;
@@ -76,8 +74,6 @@ public final class GooStreamHandler {
     private static final String LOG_HELD_TICK = "Held tick of {} for {}: hold tick {}";
     /** Particles sprayed along the cone each tick. */
     private static final int PARTICLES_PER_TICK = 6;
-    /** The widest a charged cone opens, a half turn. */
-    private static final double MAX_CONE_DEGREES = 180.0;
     /**
      * Launch speed per block of the stream's range: a mote slowing by a tenth
      * each tick carries ten times its launch speed, so it reaches the cone's end.
@@ -176,7 +172,7 @@ public final class GooStreamHandler {
      */
     private static void channelOnPlayer(ServerPlayer player, ChannelAim aim, AbilityDefinition ability) {
         runSteps(PlayerHost.channeling(player.level(), player, aim), HostKind.PLAYER, ability.behaviors(),
-                new CastOn(player.level(), player, ability.id(), chargedFor(player, ability)));
+                new CastOn(player.level(), player, ability.id()));
     }
 
     /**
@@ -309,11 +305,10 @@ public final class GooStreamHandler {
      */
     private static void strikeCone(ServerPlayer player, Vec3 origin, AbilityDefinition ability, int held) {
         ServerLevel level = player.level();
-        ChargedMultipliers charged = chargedFor(player, ability);
-        Delivery delivery = chargedDelivery(ability.delivery(), charged);
+        Delivery delivery = ability.delivery();
         Vec3 apex = ThrowArc.clampToReach(player.getEyePosition(), origin, ThrowArc.HAND_REACH * player.getScale());
         Vec3 axis = player.getLookAngle();
-        CastOn cast = new CastOn(level, player, ability.id(), charged);
+        CastOn cast = new CastOn(level, player, ability.id());
         // decay-gnats-degrade-each-block-once: what the stream strikes follows the look; only its motes
         // fly from the hand onto the point the crosshair lands on
         Vec3 target = crosshairTarget(player, delivery.range());
@@ -357,44 +352,13 @@ public final class GooStreamHandler {
 
     /**
      * One tick's cast of a stream or channel: where it runs, who holds it,
-     * which ability, and the Charged multipliers it carries.
+     * and which ability.
      *
      * @param level     the server level
      * @param player    the holding player
      * @param abilityId the ability's id, for a refusal's log
-     * @param charged   the cast's Charged multipliers, all 1 for an uncharged player
      */
-    private record CastOn(ServerLevel level, ServerPlayer player, Identifier abilityId, ChargedMultipliers charged) {
-    }
-
-    /**
-     * The Charged multipliers a player's hold of an ability carries: the
-     * ability's own while the player stands charged, else none
-     * (decision charged-scales-channel-params-by-json).
-     *
-     * @param player  the holding player
-     * @param ability the held ability
-     * @return the multipliers
-     */
-    private static ChargedMultipliers chargedFor(ServerPlayer player, AbilityDefinition ability) {
-        return ChargedStep.isCharged(player) ? ability.charged() : ChargedMultipliers.NONE;
-    }
-
-    /**
-     * The stream's delivery under Charged: its range and cone scaled by the
-     * area multiplier, the cone kept within a half turn
-     * (decision charged-scales-channel-params-by-json).
-     *
-     * @param delivery the ability's delivery
-     * @param charged  the cast's Charged multipliers
-     * @return the delivery the cone sprays
-     */
-    static Delivery chargedDelivery(Delivery delivery, ChargedMultipliers charged) {
-        if (charged.area() == 1.0) {
-            return delivery;
-        }
-        return delivery.withCone(delivery.range() * charged.area(),
-                Math.min(MAX_CONE_DEGREES, delivery.coneDegrees() * charged.area()));
+    private record CastOn(ServerLevel level, ServerPlayer player, Identifier abilityId) {
     }
 
     /**
@@ -489,8 +453,7 @@ public final class GooStreamHandler {
     }
 
     /**
-     * Runs a pass's steps on its host with the cast's Charged multipliers,
-     * logging a program the host refuses.
+     * Runs a pass's steps on its host, logging a program the host refuses.
      *
      * @param host  the pass's host
      * @param kind  the host's kind
@@ -499,7 +462,7 @@ public final class GooStreamHandler {
      */
     private static void runSteps(StepHost host, HostKind kind, List<Step> steps, CastOn cast) {
         try {
-            ProgramBehavior.forHost(steps, kind).tick(host, cast.charged());
+            ProgramBehavior.forHost(steps, kind).tick(host);
         } catch (ProgramLoadException e) {
             Goo.LOGGER.error(LOG_PROGRAM_REFUSED, cast.abilityId(), e.getMessage());
         }
@@ -544,7 +507,7 @@ public final class GooStreamHandler {
      * @param apex     the cone's apex
      * @param axis     the cone's axis
      * @param ability  the stream ability
-     * @param delivery the stream's delivery this tick, under Charged
+     * @param delivery the stream's delivery
      * @param held     the hold's tick count, which a wave front grows by
      * @return the living the entity pass strikes this tick
      */
