@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -105,6 +106,23 @@ class AbilityBadgeTest {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /**
+     * A prism card folded into its host's on_prism reaction loads no
+     * definition of its own, so the wheel holds no card for it, and the host
+     * carries the reaction in its place.
+     * decision thrown-hosts-absorb-their-prism-combos
+     *
+     * @param card the folded card's file name
+     * @param host the host ability's file name
+     */
+    @ParameterizedTest
+    @CsvSource({"typhoon_lift, typhoon_updraft"})
+    void aFoldedPrismCardLoadsNoDefinitionAndItsHostReacts(String card, String host) {
+        assertTrue(AbilityJson.files().stream().map(AbilityJson::decode)
+                .noneMatch(definition -> definition.id().getPath().equals(card)), card + " loads");
+        assertFalse(AbilityJson.decode(host).onPrism().isEmpty(), host + " carries no on_prism reaction");
     }
 
     @Test

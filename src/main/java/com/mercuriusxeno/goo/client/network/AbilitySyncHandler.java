@@ -280,6 +280,18 @@ public final class AbilitySyncHandler {
         }
 
         /**
+         * The program this ability runs as a prism's combo, as the server's
+         * PrismCombos.comboSteps reads it: a prism ability's own behaviors,
+         * or another ability's on_prism reaction.
+         * thrown-hosts-absorb-their-prism-combos
+         *
+         * @return the combo's program
+         */
+        public List<Step> comboSteps() {
+            return badge == AbilityBadge.PRISM ? behaviors : onPrism;
+        }
+
+        /**
          * Whether the player knows every item this ability requires, which
          * unlocks its radial petal (decision locked-petal-stays-on-the-wheel).
          *

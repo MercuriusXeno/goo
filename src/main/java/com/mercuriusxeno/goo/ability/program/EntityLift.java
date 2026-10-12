@@ -1,11 +1,13 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import java.util.function.IntPredicate;
 
 /**
@@ -58,7 +60,9 @@ final class EntityLift {
      */
     static void rideShaft(ServerLevel level, BlockPos floor, int cap, double rise, double sink) {
         int height = shaftHeight(level, floor, cap);
-        Vec3 base = Vec3.atBottomCenterOf(floor);
+        BlockPos below = floor.below();
+        double sunk = standingDepth(level.getBlockState(below).getCollisionShape(level, below));
+        Vec3 base = Vec3.atBottomCenterOf(floor).subtract(0, sunk, 0);
         AABB shaft = columnBox(base, SHAFT_HALF_WIDTH, height);
         for (Entity entity : level.getEntities((Entity) null, shaft, entity -> !entity.isSpectator())) {
             if (inColumn(entity.position(), base, SHAFT_HALF_WIDTH, height)) {
@@ -67,6 +71,20 @@ final class EntityLift {
                 entity.hurtMarked = true;
             }
         }
+    }
+
+    /**
+     * How far below the shaft's floor block an entity standing on the block
+     * under it has its feet: a prism's column stands short of a full block,
+     * so a rider on it stands inside the prism's own cell, and the shaft
+     * reaches down to that top to carry it.
+     * lift-prism-levitates-the-block-above
+     *
+     * @param belowShape the collision shape of the block under the shaft
+     * @return the depth in blocks, zero under a full or open block
+     */
+    static double standingDepth(VoxelShape belowShape) {
+        return belowShape.isEmpty() ? 0 : Math.max(0, 1 - belowShape.max(Direction.Axis.Y));
     }
 
     /**
