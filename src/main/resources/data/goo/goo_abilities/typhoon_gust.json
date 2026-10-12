@@ -1,6 +1,6 @@
 {
   "gooType": "typhoon",
-  "displayName": "goo.ability.typhoon.repel",
+  "displayName": "goo.ability.typhoon.gust",
   "badge": "channeled",
   "order": 20,
   "cost": 1000,
