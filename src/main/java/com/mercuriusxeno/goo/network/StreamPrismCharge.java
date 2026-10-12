@@ -135,8 +135,7 @@ final class StreamPrismCharge {
         if (!ability.hasTag(AbilityTags.MOB_FIRST)) {
             return false;
         }
-        Delivery delivery = GooStreamHandler.chargedDelivery(ability.delivery(),
-                GooStreamHandler.chargedFor(player, ability));
+        Delivery delivery = ability.delivery();
         return !GooStreamHandler.nearestMob(GooStreamHandler.livingInCone(player.level(), player, apex,
                 player.getLookAngle(), delivery), apex).isEmpty();
     }
