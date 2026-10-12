@@ -5,13 +5,11 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
-import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntityType;
@@ -28,10 +26,12 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametest for Scry's sweep through the real channel path: a mock player
- * holds the scry probe, whose sweep runs a damage step where glow's Scry
- * runs its glisten, and the front reaches a zombie standing behind a stone
- * wall the player cannot see through, striking it once as it crosses
- * (decision scry-sphere-reveals-faces-and-glistens-mobs).
+ * holding astral goo casts the astral scry probe, whose sweep runs a damage
+ * step where astral's Scry runs its glisten, and the front reaches a zombie
+ * standing behind a stone wall the player cannot see through, striking it
+ * once as it crosses.
+ * decision scry-sphere-reveals-faces-and-glistens-mobs
+ * decision scry-ships-on-astral
  */
 @RegistersGameTests
 public final class ScryChannelTests {
@@ -59,9 +59,7 @@ public final class ScryChannelTests {
     private static final float PROBE_DAMAGE = 3f;
     private static final float TOLERANCE = 0.01f;
     private static final String TEST_PACK = "gootest";
-    private static final ResourceKey<GooTypeDefinition> SEVENTEENTH =
-            ResourceKey.create(GooTypes.REGISTRY, Identifier.fromNamespaceAndPath(TEST_PACK, "seventeenth"));
-    private static final Identifier SCRY_PROBE = Identifier.fromNamespaceAndPath(TEST_PACK, "seventeenth_scry_probe");
+    private static final Identifier SCRY_PROBE = Identifier.fromNamespaceAndPath(TEST_PACK, "astral_scry_probe");
     private static final String ABILITY_REQUIRED = "Ability registry must hold the scry probe";
     private static final String NOT_SEEN = "The wall should hide the zombie from the player";
     private static final String STRUCK_ONCE = "The front should strike the hidden zombie once, for %s, it lost %s";
@@ -90,7 +88,7 @@ public final class ScryChannelTests {
         ServerPlayer player = scryer(helper);
         KnownRecipes.teachRequires(player, probe);
         helper.assertFalse(player.hasLineOfSight(zombie), NOT_SEEN);
-        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(SEVENTEENTH), SCRY_PROBE.toString(),
+        GooStreamPayload tick = new GooStreamPayload(GooTypes.id(GooTypes.ASTRAL), SCRY_PROBE.toString(),
                 player.getEyePosition(), player.getEyePosition(), helper.absolutePos(STAND_POS.below()),
                 Direction.UP.get3DDataValue());
         for (int held = 1; held <= HOLD_TICKS; held++) {
@@ -110,7 +108,7 @@ public final class ScryChannelTests {
         Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STAND_POS));
         player.setPos(stand.x, stand.y, stand.z);
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
-        player.getInventory().add(GooStacks.createForOutput(SEVENTEENTH, HELD_GOO * GooStacks.THOUSAND));
+        player.getInventory().add(GooStacks.createForOutput(GooTypes.ASTRAL,HELD_GOO * GooStacks.THOUSAND));
         return player;
     }
 }

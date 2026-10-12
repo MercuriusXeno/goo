@@ -1,6 +1,11 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.Codec;
+import net.minecraft.resources.ResourceKey;
+import java.util.Optional;
+import java.util.function.ToIntFunction;
 
 /**
  * A status ailment the overlay draws on a mob or player model, each with
@@ -24,8 +29,14 @@ public enum AilmentKind {
     PETRIFY(0x8C8A86, AilmentPattern.STONE),
     /** Frozen: frost. */
     FROZEN(0xC4ECFF, AilmentPattern.FROST),
-    /** Glow's glisten: Scry's sweep marks a mob in glow yellow (decision scry-sphere-reveals-faces-and-glistens-mobs). */
+    /** Glow's glisten: Sunbeam and Lux mark a mob in glow yellow. */
     GLOW(0xFFE628, AilmentPattern.GLINT, 0.4f),
+    /**
+     * Astral's glisten: Scry's sweep marks a mob in the astral type's color.
+     * decision scry-sphere-reveals-faces-and-glistens-mobs
+     * decision scry-ships-on-astral
+     */
+    ASTRAL(GooTypes.ASTRAL, AilmentPattern.GLINT, 0.4f),
     /** Weird's wobble: a magenta gel shell that jiggles and stretches (decision weird-bounces-and-softens-harm). */
     WOBBLE(0xFF33CC, AilmentPattern.WOBBLE, 0.6f),
     /** Grab's hold: a faint kinetic orange shimmer, and the flail its pose stamp reads (decision grab-holds-and-throws-a-physics-body). */
@@ -44,8 +55,11 @@ public enum AilmentKind {
 
     /** The opacity an ailment draws at unless it names its own. */
     private static final float FULL_OPACITY = 1f;
+    /** The color a type-tinted kind draws where its type resolves to no entry, matching untinted goo. */
+    private static final int UNRESOLVED_TINT = 0xFFFFFF;
 
     private final int rgb;
+    private final Optional<ResourceKey<GooTypeDefinition>> tintType;
     private final AilmentPattern pattern;
     private final float opacity;
 
@@ -54,14 +68,39 @@ public enum AilmentKind {
     }
 
     AilmentKind(int rgb, AilmentPattern pattern, float opacity) {
+        this(rgb, Optional.empty(), pattern, opacity);
+    }
+
+    AilmentKind(ResourceKey<GooTypeDefinition> tintType, AilmentPattern pattern, float opacity) {
+        this(UNRESOLVED_TINT, Optional.of(tintType), pattern, opacity);
+    }
+
+    AilmentKind(int rgb, Optional<ResourceKey<GooTypeDefinition>> tintType, AilmentPattern pattern, float opacity) {
         this.rgb = rgb;
+        this.tintType = tintType;
         this.pattern = pattern;
         this.opacity = opacity;
     }
 
-    /** @return the overlay's color, 0xRRGGBB */
+    /** @return the overlay's fixed color, 0xRRGGBB; a type-tinted kind answers white */
     public int rgb() {
         return rgb;
+    }
+
+    /** @return the goo type whose colors tint the overlay, empty for a kind with a fixed color */
+    public Optional<ResourceKey<GooTypeDefinition>> tintType() {
+        return tintType;
+    }
+
+    /**
+     * The overlay's color: the tint type's color where the kind names one,
+     * its fixed color otherwise, so a datapack recoloring the type recolors the overlay.
+     *
+     * @param typeColor answers a goo type's color, called only for a type-tinted kind
+     * @return 0xRRGGBB
+     */
+    public int rgb(ToIntFunction<ResourceKey<GooTypeDefinition>> typeColor) {
+        return tintType.map(typeColor::applyAsInt).orElse(rgb);
     }
 
     /** @return the field the overlay draws */
