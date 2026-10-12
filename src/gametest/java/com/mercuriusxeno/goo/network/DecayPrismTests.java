@@ -2,6 +2,9 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
+import com.mercuriusxeno.goo.ability.program.DegradeStep;
+import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
@@ -33,6 +36,7 @@ import java.util.function.Consumer;
 public final class DecayPrismTests {
     private static final String DECAY_CONVERTS = "decay_stream_converts_a_prism";
     private static final String DECAY_BITES_FIRST = "decay_bites_a_mob_before_charging_a_prism";
+    private static final String DECAY_EXPOSURE_FOLLOWS = "decay_exposure_follows_the_charge";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -42,6 +46,7 @@ public final class DecayPrismTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, DECAY_CONVERTS, DecayPrismTests::decayHeldConvertsAPrism);
         GooTestFunctions.registerTest(registrar, DECAY_BITES_FIRST, DecayPrismTests::decayBitesAMobBeforeCharging);
+        GooTestFunctions.registerTest(registrar, DECAY_EXPOSURE_FOLLOWS, DecayPrismTests::decayExposureFollowsTheCharge);
     }
 
 
@@ -55,6 +60,15 @@ public final class DecayPrismTests {
     private static final String SHOULD_CONVERT = "A full Decay hold should make the prism a hive, held '%s'";
     private static final String SHOULD_BITE = "Decay should bite the zombie in its cone";
     private static final String SHOULD_NOT_CHARGE = "A Decay biting a mob should charge no prism, charged %d";
+    /** The first run's ticks, short of the hold. */
+    private static final int FIRST_RUN = 8;
+    /** The second run's ticks, fewer than the first, so a look running ahead of the charge shows. */
+    private static final int SECOND_RUN = 5;
+    /** The ticks the look leaves the prism between runs. */
+    private static final int BREAK = 2;
+    private static final float SHARE_SLACK = 1e-4f;
+    private static final String SHOULD_FOLLOW = "The prism's decay look should stand at %.3f in maroon, stands %.3f tint %x";
+    private static final String SHOULD_CLEAR = "A converted prism should hold no decay look, holds %.3f";
 
     private DecayPrismTests() {
     }
@@ -123,12 +137,60 @@ public final class DecayPrismTests {
     }
 
     /**
+     * A player streams Decay at a bare prism, breaks the hold, streams a
+     * shorter run, breaks again, then holds to the conversion: after each run
+     * the prism's decay exposure stands at that run's ticks over the hold in
+     * nether maroon, restarting with the charge, and once the hive stands it
+     * holds none.
+     *
+     * @param helper the gametest helper
+     */
+    public static void decayExposureFollowsTheCharge(GameTestHelper helper) {
+        int hold = hold(helper);
+        ServerPlayer player = streamer(helper);
+        int secondFrom = FIRST_RUN + BREAK + 1;
+        int lastFrom = secondFrom + SECOND_RUN + BREAK;
+        streamFor(helper, player, 1, FIRST_RUN);
+        streamFor(helper, player, secondFrom, SECOND_RUN);
+        streamFor(helper, player, lastFrom, hold);
+        helper.runAfterDelay(FIRST_RUN + 1, () -> assertExposure(helper, FIRST_RUN / (float) hold));
+        helper.runAfterDelay(secondFrom + SECOND_RUN, () -> assertExposure(helper, SECOND_RUN / (float) hold));
+        helper.runAfterDelay(lastFrom + hold, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            String combo = helper.getBlockEntity(PRISM, PrismBlockEntity.class).getCombo();
+            float left = exposures(helper).shareAt(helper.getLevel(), helper.absolutePos(PRISM));
+            helper.assertTrue(DECAY.toString().equals(combo), String.format(SHOULD_CONVERT, combo));
+            helper.assertTrue(left == 0f, String.format(SHOULD_CLEAR, left));
+            helper.succeed();
+        });
+    }
+
+    private static void assertExposure(GameTestHelper helper, float expected) {
+        BlockPos prismAt = helper.absolutePos(PRISM);
+        float share = exposures(helper).shareAt(helper.getLevel(), prismAt);
+        int tint = exposures(helper).tintAt(helper.getLevel(), prismAt);
+        helper.assertTrue(Math.abs(share - expected) < SHARE_SLACK && tint == DegradeStep.NETHER_MAROON,
+                String.format(SHOULD_FOLLOW, expected, share, tint));
+    }
+
+    private static BlockExposures exposures(GameTestHelper helper) {
+        return GooServerState.of(helper.getLevel().getServer()).blockExposures();
+    }
+
+    /**
      * Sends one Decay stream tick a game tick, from the first, as a held glove does.
      */
     private static void streamFor(GameTestHelper helper, ServerPlayer player, int ticks) {
+        streamFor(helper, player, 1, ticks);
+    }
+
+    /**
+     * Sends one Decay stream tick a game tick for a run of ticks, as a held glove does.
+     */
+    private static void streamFor(GameTestHelper helper, ServerPlayer player, int from, int ticks) {
         GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.NETHER), DECAY.toString(),
                 player.getEyePosition(), player.getEyePosition());
-        for (int at = 1; at <= ticks; at++) {
+        for (int at = from; at < from + ticks; at++) {
             helper.runAfterDelay(at, () -> GooStreamHandler.streamTick(player, tick));
         }
     }

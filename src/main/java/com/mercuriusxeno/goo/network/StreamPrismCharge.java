@@ -56,8 +56,8 @@ final class StreamPrismCharge {
         if (aimed.isEmpty() || bitesAMobFirst(player, apex, ability)) {
             return false;
         }
-        showCharging(player.level(), aimed.get(), apex, ability, ability.delivery().ticksPerCharge());
         convert(aimed.get(), player, gooType, ability);
+        showCharging(player.level(), aimed.get(), apex, ability, ability.delivery().ticksPerCharge());
         return true;
     }
 
@@ -142,12 +142,13 @@ final class StreamPrismCharge {
     }
 
     /**
-     * Shows the prism charging: the stream's motes fly from the glove onto
-     * the prism's middle, and a stream that degrades blocks builds the prism's
-     * degrade look one share of the hold.
+     * Shows the prism after this tick's charge: the stream's motes fly from
+     * the glove onto the prism's middle, and a stream that degrades blocks
+     * sets the prism's degrade look to the share the charge has reached, so
+     * it restarts with a broken hold and clears once the prism converts.
      *
      * @param level   the server level
-     * @param prism   the charging prism
+     * @param prism   the charged prism
      * @param apex    the cone's apex
      * @param ability the stream ability
      * @param hold    the ticks the conversion takes
@@ -155,14 +156,26 @@ final class StreamPrismCharge {
     private static void showCharging(ServerLevel level, PrismBlockEntity prism, Vec3 apex, AbilityDefinition ability,
                                      int hold) {
         BlockPos pos = prism.getBlockPos();
-        Vec3 middle = Vec3.atCenterOf(pos);
         // the operator's ruling: the prism is the gnats' homing target until it converts fully
-        GooStreamHandler.sprayParticles(level, apex, GooStreamHandler.aimFrom(apex, middle, middle.subtract(apex)),
-                ability.delivery().withCone(ability.delivery().range(), 0), apex.distanceTo(middle));
+        GooStreamHandler.sprayParticles(level, apex, moteAxis(apex, pos),
+                ability.delivery().withCone(ability.delivery().range(), 0), apex.distanceTo(Vec3.atCenterOf(pos)));
         if (ability.behaviors().stream().anyMatch(DegradeStep.class::isInstance)) {
             // the operator's ruling: the decay animation plays on the prism while it charges
-            GooServerState.of(level.getServer()).blockExposures().expose(level, pos, prism.getBlockState(),
-                    1f / hold, DegradeStep.NETHER_MAROON);
+            float share = prism.hasCombo() ? 0f : prism.conversion().share(hold);
+            GooServerState.of(level.getServer()).blockExposures().setShare(level, pos, prism.getBlockState(), share,
+                    DegradeStep.NETHER_MAROON);
         }
+    }
+
+    /**
+     * The axis a charging prism's motes fly along: from the cone's apex to
+     * the prism's middle, straight up where the apex sits on it.
+     *
+     * @param apex  the cone's apex, the glove hand
+     * @param prism the charging prism's block
+     * @return the unit axis
+     */
+    static Vec3 moteAxis(Vec3 apex, BlockPos prism) {
+        return GooStreamHandler.aimFrom(apex, Vec3.atCenterOf(prism), new Vec3(0, 1, 0));
     }
 }
