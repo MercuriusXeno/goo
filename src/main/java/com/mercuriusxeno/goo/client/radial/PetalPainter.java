@@ -43,11 +43,11 @@ final class PetalPainter {
         PetalMask.Petal shape = petal.shape();
         Matrix3x2f pose = new Matrix3x2f(graphics.pose());
         ScreenRectangle scissor = graphics.peekScissorStack();
-        List<PetalRenderState.ScreenVertex> fill = toScreen(frame, hide(frame, PetalMesh.fill(shape)), face.sprite());
+        List<PetalRenderState.ScreenVertex> fill = toScreen(frame, PetalMesh.fill(shape), face.sprite());
         graphics.submitGuiElementRenderState(new PetalRenderState(RenderPipelines.GUI_TEXTURED, face.texture(), pose,
                 fill, ARGB.multiply(face.tint(), overlay), scissor, bounds(fill, pose, scissor)));
         List<PetalRenderState.ScreenVertex> edge = toScreen(frame,
-                hide(frame, PetalMesh.edge(shape, PetalMesh.EDGE_THICKNESS, !petal.isAbility())), face.sprite());
+                PetalMesh.edge(shape, PetalMesh.EDGE_THICKNESS, !petal.isAbility()), face.sprite());
         graphics.submitGuiElementRenderState(new PetalRenderState(RenderPipelines.GUI, TextureSetup.noTexture(), pose,
                 edge, RadialWheelRenderer.faded(face.edgeColor(), petal.presence()), scissor,
                 bounds(edge, pose, scissor)));
@@ -78,18 +78,6 @@ final class PetalPainter {
     }
 
     /**
-     * Cuts away whatever of the shown half's ring lies behind the held half petal.
-     * decision open-half-spans-270-degrees
-     *
-     * @param frame what the frame draws from
-     * @param quads the quads to cut
-     * @return the quads' parts outside the held half's sector
-     */
-    private static List<PetalMesh.Quad> hide(RadialWheelRenderer.Frame frame, List<PetalMesh.Quad> quads) {
-        return PetalMesh.outside(quads, frame.wheel().hiddenSector(frame.partialTick()));
-    }
-
-    /**
      * Submits a square sprite cut at a petal's border, so only the part of
      * it lying under the petal's face shows; nothing when none of it does.
      * decision icons-slide-in-from-behind-the-tip
@@ -105,8 +93,8 @@ final class PetalPainter {
     static void paintSprite(GuiGraphicsExtractor graphics, RadialWheelRenderer.Frame frame, PetalMask.Petal petal,
                             TextureSetup texture, int[] center, int size, int color) {
         double radius = frame.radius();
-        List<PetalMesh.Quad> quads = hide(frame, PetalMesh.clipSquare(petal, (center[0] - frame.centerX()) / radius,
-                (center[1] - frame.centerY()) / radius, size * HALF / radius));
+        List<PetalMesh.Quad> quads = PetalMesh.clipSquare(petal, (center[0] - frame.centerX()) / radius,
+                (center[1] - frame.centerY()) / radius, size * HALF / radius);
         if (quads.isEmpty()) {
             return;
         }
@@ -149,9 +137,8 @@ final class PetalPainter {
                                                       RadialWheelRenderer.ItemIcon icon) {
         double radius = frame.radius();
         double half = RadialWheelRenderer.ITEM_ICON_SIZE * HALF;
-        return toScreen(frame, hide(frame, PetalMesh.clipSquare(icon.face(),
-                (icon.rect().left() + half - frame.centerX()) / radius,
-                (icon.rect().top() + half - frame.centerY()) / radius, half / radius)), WHOLE_TEXTURE);
+        return toScreen(frame, PetalMesh.clipSquare(icon.face(), (icon.rect().left() + half - frame.centerX()) / radius,
+                (icon.rect().top() + half - frame.centerY()) / radius, half / radius), WHOLE_TEXTURE);
     }
 
     /**
@@ -170,7 +157,7 @@ final class PetalPainter {
         double radius = frame.radius();
         List<PetalMask.Point> polygon = corners.stream().map(corner -> new PetalMask.Point(
                 (corner[0] - frame.centerX()) / radius, (corner[1] - frame.centerY()) / radius)).toList();
-        List<PetalRenderState.ScreenVertex> vertices = toScreen(frame, hide(frame, PetalMesh.clipConvex(petal, polygon)),
+        List<PetalRenderState.ScreenVertex> vertices = toScreen(frame, PetalMesh.clipConvex(petal, polygon),
                 WHOLE_TEXTURE);
         if (vertices.isEmpty()) {
             return;

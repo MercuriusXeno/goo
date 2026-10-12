@@ -27,7 +27,7 @@ import java.util.stream.IntStream;
 /**
  * Draws the glove's radial wheel from a {@link RadialWheel}: the two half
  * petals around the hub reading A..M and N..Z, and the open half's ring of
- * petals out to the rim, cut away behind the held half, type petals with
+ * petals out to the rim, whole all the way round, type petals with
  * their icon alone and the open type's ability petals with icon, name and
  * cost, or on a locked one its required items alone with the learned ones
  * slashed, the open type's name and holdings in the hub.
@@ -160,7 +160,7 @@ final class RadialWheelRenderer {
         List<RadialWheel.HalfPetal> halves = frame.wheel().displayedHalves(frame.partialTick());
         renderHalves(graphics, frame, halves);
         List<Words> words = new ArrayList<>();
-        for (RadialWheel.PetalArc petal : frame.wheel().shownLayout(frame.partialTick())) {
+        for (RadialWheel.PetalArc petal : frame.wheel().displayedLayout(frame.partialTick())) {
             if (petal.isAbility()) {
                 words.add(renderAbility(graphics, frame, petal));
             } else {
@@ -240,20 +240,6 @@ final class RadialWheelRenderer {
     }
 
     /**
-     * Whether a screen point lies behind the held half petal, so what draws there is hidden.
-     * decision open-half-spans-270-degrees
-     *
-     * @param frame what the frame draws from
-     * @param point the point's x and y
-     * @return true behind the held half
-     */
-    private static boolean isHidden(Frame frame, int[] point) {
-        RadialWheel.Sector hidden = frame.wheel().hiddenSector(frame.partialTick());
-        return hidden != null && hidden.contains(RadialWheel.angleOf(point[0] - frame.centerX(),
-                point[1] - frame.centerY()));
-    }
-
-    /**
      * Draws a type's petal with its icon alone, shrunken or at rest.
      * decision abilities-replace-the-hovered-type
      *
@@ -264,11 +250,8 @@ final class RadialWheelRenderer {
     private static void renderType(GuiGraphicsExtractor graphics, Frame frame, RadialWheel.PetalArc petal) {
         ResourceKey<GooTypeDefinition> key = frame.types().get(petal.type());
         PetalPainter.paint(graphics, frame, frame.look().fluidFace(key), petal, typePetalTint(frame, petal));
-        int[] iconCenter = lengthCenter(frame, petal);
-        // open-half-spans-270-degrees: an icon behind the held half stays hidden
-        if (!isHidden(frame, iconCenter)) {
-            blitIcon(graphics, new Icon(typeIcon(key), TYPE_ICON_SIZE), iconCenter, typeIconColor(petal));
-        }
+        blitIcon(graphics, new Icon(typeIcon(key), TYPE_ICON_SIZE), lengthCenter(frame, petal),
+                typeIconColor(petal));
     }
 
     /**
@@ -365,10 +348,6 @@ final class RadialWheelRenderer {
         PetalPainter.paint(graphics, frame, frame.look().fluidFace(key), petal,
                 tint(hovered, dimmed, frame.active().contains(ability.id()), frame.gameTime()));
         int[] restingTip = tipCenter(frame, petal);
-        // open-half-spans-270-degrees: words behind the held half stay hidden
-        if (isHidden(frame, restingTip)) {
-            return new Words(List.of(), null, restingTip, textColorOf(dimmed, hovered), List.of());
-        }
         if (offered.locked()) {
             return new Words(List.of(), null, restingTip, DISABLED_TEXT_COLOR, requiredIcons(frame, petal, offered));
         }
