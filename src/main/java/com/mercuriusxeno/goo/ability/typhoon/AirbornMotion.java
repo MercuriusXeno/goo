@@ -7,7 +7,7 @@ import net.minecraft.world.phys.Vec3;
  * off the ground, movement input turns the horizontal velocity a share of the
  * way toward the input's direction at the air speed, levitation included, so
  * the player changes direction in the air with ease without being slowed; a
- * fall never passes the cap; Jet pushes harder; and an elytra glide is drawn
+ * fall never passes the cap; Tailwind pushes harder; and an elytra glide is drawn
  * along the look toward the glide speed.
  * airborn-steerable-levitation-and-soft-falls
  */
@@ -52,7 +52,7 @@ public final class AirbornMotion {
             return velocity;
         }
         Vec3 current = new Vec3(velocity.x, 0, velocity.z);
-        // airborn-steerable-levitation-and-soft-falls: faster flight, steering keeps Jet's speed rather than braking it
+        // airborn-steerable-levitation-and-soft-falls: faster flight, steering keeps Tailwind's speed rather than braking it
         double speed = Math.max(airborn.airSpeed(), current.length());
         Vec3 horizontal = current.lerp(heading.normalize().scale(speed), Math.clamp(airborn.airSteer(), 0f, 1f));
         return new Vec3(horizontal.x, velocity.y, horizontal.z);
@@ -102,7 +102,7 @@ public final class AirbornMotion {
     }
 
     /**
-     * Jet's push strength for a player: multiplied by Airborn's jet boost
+     * Tailwind's push strength for a player: multiplied by Airborn's jet boost
      * while it stands.
      *
      * @param strength the push's own strength

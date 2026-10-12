@@ -11,7 +11,7 @@ import net.minecraft.network.codec.StreamCodec;
  * The air control a player holds under Airborn until the game time it ends
  * at: the speed midair steering drives toward and the share of the way it
  * turns each tick, the fastest it falls, how much higher it jumps and how
- * much harder Jet pushes it, and the speed an elytra glide is drawn toward.
+ * much harder Tailwind pushes it, and the speed an elytra glide is drawn toward.
  * Saved with the player and synced to its client,
  * which steers and caps its fall, since the client moves the player.
  * airborn-steerable-levitation-and-soft-falls
@@ -20,7 +20,7 @@ import net.minecraft.network.codec.StreamCodec;
  * @param airSteer  the share of the way the horizontal velocity turns toward it each tick, 0 to 1
  * @param fallCap   the fastest the player falls, in blocks per tick
  * @param jumpBoost the share the player's jump strength grows by
- * @param jetBoost  what Jet's push strength is multiplied by
+ * @param jetBoost  what Tailwind's push strength is multiplied by
  * @param glideSpeed the speed an elytra glide is drawn toward along the look, in blocks per tick
  * @param glideSteer the share of the way a slower glide is drawn toward it each tick, 0 to 1
  * @param expiresAt the game time Airborn ends at; zero when none stands
