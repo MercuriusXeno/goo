@@ -32,6 +32,19 @@ public interface BlinkSpace {
     Optional<FaceHit> firstFace(Vec3 from, Vec3 to);
 
     /**
+     * The prism holding no combo a line ends on, a prism standing no
+     * collision and so read by its outline.
+     * blink-at-a-prism-spends-into-an-oculus
+     *
+     * @param from where the line starts
+     * @param to   where the line ends
+     * @return the bare prism's block, empty where the line first meets anything else or nothing
+     */
+    default Optional<BlockPos> barePrismOnLine(Vec3 from, Vec3 to) {
+        return Optional.empty();
+    }
+
+    /**
      * Where a line first crossed a block face.
      *
      * @param point the point on the face
