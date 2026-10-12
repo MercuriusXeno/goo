@@ -806,9 +806,11 @@ class RadialWheelRendererTest {
                     "submitPictureInPictureRenderState", CutItemRenderState.class).stream()
                     .map(state -> new RadialWheelRenderer.ItemRect(state.x0(), state.y0()))
                     .toList();
-            List<PetalRenderState.ScreenVertex> slashCorners = submittedArguments(graphics,
+            List<PetalRenderState> slashes = submittedArguments(graphics,
                     "submitGuiElementRenderState", PetalRenderState.class).stream()
                     .filter(state -> state.color() == RadialWheelRenderer.SLASH_COLOR)
+                    .toList();
+            List<PetalRenderState.ScreenVertex> slashCorners = slashes.stream()
                     .flatMap(state -> state.vertices().stream())
                     .toList();
             String lockedIcon = "ability_" + locked.type() + "_" + locked.ability() + ".png";
@@ -824,40 +826,65 @@ class RadialWheelRendererTest {
             assertEquals(REQUIRED.size(), items.size());
             assertAll(IntStream.range(0, items.size()).mapToObj(index -> (Executable) () -> {
                 RadialWheelRenderer.ItemRect rect = items.get(index);
-                long slashed = slashCorners.stream().filter(cell -> onSquare(rect, cell)).count();
-                assertTrue(squareInsidePetal(locked, rect), rect + " leaves the petal");
-                assertEquals(REQUIRED.get(index).learned(), slashed > 0, rect + " slash");
+                // clustered squares' bounds may touch, so a slash belongs to the square holding all its corners
+                boolean slashed = slashes.stream().anyMatch(slash -> !slash.vertices().isEmpty()
+                        && slash.vertices().stream().allMatch(cell -> onSquare(rect, cell)));
+                assertEquals(REQUIRED.get(index).learned(), slashed, rect + " slash");
             }));
             assertTrue(slashCorners.stream().allMatch(cell -> items.stream()
                     .anyMatch(rect -> onSquare(rect, cell))), "a slash drew off its item");
         }
 
+        /** The mean of a cluster's item centers. */
+        private static double[] clusterCenter(List<double[]> centers) {
+            return new double[]{centers.stream().mapToDouble(c -> c[0]).average().orElseThrow(),
+                    centers.stream().mapToDouble(c -> c[1]).average().orElseThrow()};
+        }
+
         /**
-         * The item column runs along the petal's center line, strides evenly
-         * from the hub outward and centers halfway along the petal.
+         * The items cluster around one point on the petal's center line toward
+         * its end: one on the point, two side by side, three in a triangle
+         * pointing up, four in a square, every neighbor one stride apart.
          * decision locked-petal-lists-the-unlearned-items
          */
         @Test
-        void itemColumnRunsAlongThePetalsCenterLineCenteredOnItsLength() {
+        void itemsClusterTowardThePetalsEndInARegularPolygon() {
             RadialWheel wheel = openWheel();
             RadialWheelRenderer.Frame frame = frameOf(wheel, List.of());
+            RadialWheel.PetalArc petal = wheel.displayedLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
+                    .findFirst().orElseThrow();
+            double sinAngle = Math.sin(petal.center());
+            double cosAngle = Math.cos(petal.center());
+            int stride = RadialWheelRenderer.ITEM_STRIDE;
 
-            assertAll(wheel.displayedLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
-                    .map(petal -> (Executable) () -> {
-                        List<double[]> centers = RadialWheelRenderer.itemColumn(frame, petal, REQUIRED.size())
-                                .stream().map(OpenTypeFrame::centerOf).toList();
-                        double sinAngle = Math.sin(petal.center());
-                        double cosAngle = Math.cos(petal.center());
-                        double middle = (petal.shape().inner() + petal.shape().outer()) / 2 * RADIUS;
-                        List<Double> along = centers.stream()
-                                .map(c -> (c[0] - CENTER_X) * sinAngle - (c[1] - CENTER_Y) * cosAngle).toList();
-                        assertAll(centers.stream().map(c -> (Executable) () -> assertTrue(Math.abs(
-                                (c[0] - CENTER_X) * cosAngle + (c[1] - CENTER_Y) * sinAngle) <= COLUMN_TOLERANCE,
-                                petal + " item off the center line")));
-                        assertEquals(RadialWheelRenderer.ITEM_STRIDE, along.get(1) - along.get(0), COLUMN_TOLERANCE);
-                        assertEquals(RadialWheelRenderer.ITEM_STRIDE, along.get(2) - along.get(1), COLUMN_TOLERANCE);
-                        assertEquals(middle, along.get(1), COLUMN_TOLERANCE, petal + " column center");
-                    }));
+            assertAll(IntStream.rangeClosed(1, 5).mapToObj(count -> (Executable) () -> {
+                List<double[]> centers = RadialWheelRenderer.itemCluster(frame, petal, count).stream()
+                        .map(OpenTypeFrame::centerOf).toList();
+                double[] middle = clusterCenter(centers);
+                double along = (middle[0] - CENTER_X) * sinAngle - (middle[1] - CENTER_Y) * cosAngle;
+                double across = (middle[0] - CENTER_X) * cosAngle + (middle[1] - CENTER_Y) * sinAngle;
+                assertEquals(count, centers.size());
+                assertEquals(0.0, across, COLUMN_TOLERANCE, count + " off the center line");
+                assertEquals(petal.shape().outer() * RADIUS - RadialWheelRenderer.clusterRadius(count)
+                        - RadialWheelRenderer.ITEM_ICON_SIZE, along, COLUMN_TOLERANCE, count + " toward the end");
+                for (int index = 0; count > 1 && index < count; index++) {
+                    double[] here = centers.get(index);
+                    double[] next = centers.get((index + 1) % count);
+                    assertEquals(stride, Math.hypot(next[0] - here[0], next[1] - here[1]),
+                            COLUMN_TOLERANCE, count + " neighbors a stride apart");
+                }
+            }));
+            List<double[]> pair = RadialWheelRenderer.itemCluster(frame, petal, 2).stream()
+                    .map(OpenTypeFrame::centerOf).toList();
+            assertEquals(pair.get(0)[1], pair.get(1)[1], COLUMN_TOLERANCE, "two side by side");
+            List<double[]> triangle = RadialWheelRenderer.itemCluster(frame, petal, 3).stream()
+                    .map(OpenTypeFrame::centerOf).toList();
+            assertTrue(triangle.get(0)[1] < triangle.get(1)[1] && triangle.get(1)[1] == triangle.get(2)[1],
+                    "three in a triangle pointing up");
+            List<double[]> square = RadialWheelRenderer.itemCluster(frame, petal, 4).stream()
+                    .map(OpenTypeFrame::centerOf).toList();
+            assertEquals(square.get(0)[1], square.get(3)[1], COLUMN_TOLERANCE, "a square, its top row level");
+            assertEquals(square.get(1)[1], square.get(2)[1], COLUMN_TOLERANCE, "a square, its bottom row level");
         }
 
 
@@ -1113,19 +1140,15 @@ class RadialWheelRendererTest {
         }
 
         @Test
-        void itemColumnRestsInPlaceFullyOpenAndRidesOutByTheIconsOffsetClosed() {
-            List<RadialWheelRenderer.ItemRect> resting = RadialWheelRenderer.itemColumn(frame, at(1.0),
+        void itemClusterRestsInPlaceFullyOpenAndRidesOutByTheIconsOffsetClosed() {
+            List<RadialWheelRenderer.ItemRect> resting = RadialWheelRenderer.itemCluster(frame, at(1.0),
                     REQUIRED_ITEMS);
-            List<RadialWheelRenderer.ItemRect> closed = RadialWheelRenderer.itemColumn(frame, at(0.0),
+            List<RadialWheelRenderer.ItemRect> closed = RadialWheelRenderer.itemCluster(frame, at(0.0),
                     REQUIRED_ITEMS);
             int[] iconClosed = RadialWheelRenderer.contentCenter(frame, at(0.0));
             int[] iconOpen = RadialWheelRenderer.contentCenter(frame, at(1.0));
             double iconOffset = along(iconClosed[0], iconClosed[1]) - along(iconOpen[0], iconOpen[1]);
-            double middle = (fanned.shape().inner() + fanned.shape().outer()) / 2 * RADIUS;
-            int half = RadialWheelRenderer.ITEM_ICON_SIZE / 2;
 
-            RadialWheelRenderer.ItemRect centerItem = resting.get(1);
-            assertEquals(middle, along(centerItem.left() + half, centerItem.top() + half), ROUNDING);
             assertAll(IntStream.range(0, REQUIRED_ITEMS).mapToObj(index -> (Executable) () -> {
                 RadialWheelRenderer.ItemRect from = resting.get(index);
                 RadialWheelRenderer.ItemRect to = closed.get(index);

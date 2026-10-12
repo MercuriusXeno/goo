@@ -68,7 +68,7 @@ final class RadialWheelRenderer {
     private static final int LABEL_GAP = 1;
     /** The side of the square an item icon draws in. */
     static final int ITEM_ICON_SIZE = 16;
-    /** How far apart, center to center along the petal, a locked petal's item icons stand. */
+    /** How far apart, center to center, neighboring item icons in a locked petal's cluster stand. */
     static final int ITEM_STRIDE = 18;
     /** The red a learned item's slash draws in. */
     static final int SLASH_COLOR = 0xFFE02020;
@@ -363,7 +363,7 @@ final class RadialWheelRenderer {
 
     /**
      * A locked petal's item icons, one per required item in the order the
-     * ability names them, laid along the petal's center line.
+     * ability names them, clustered toward the petal's end.
      * decision locked-petal-lists-the-unlearned-items
      *
      * @param frame   what the frame draws from
@@ -373,7 +373,7 @@ final class RadialWheelRenderer {
      */
     private static List<ItemIcon> requiredIcons(Frame frame, RadialWheel.PetalArc petal, OfferedAbility offered) {
         List<OfferedAbility.RequiredItem> required = offered.required();
-        List<ItemRect> rects = itemColumn(frame, petal, required.size());
+        List<ItemRect> rects = itemCluster(frame, petal, required.size());
         return IntStream.range(0, rects.size())
                 .mapToObj(index -> {
                     OfferedAbility.RequiredItem item = required.get(index);
@@ -432,30 +432,44 @@ final class RadialWheelRenderer {
     }
 
     /**
-     * Lays out a locked petal's items in a column along the petal's center
-     * line, one square per item at a fixed stride from the hub outward,
-     * the column centered halfway along the petal so every square stays
-     * inside it and the cursor over one keeps the petal hovered.
+     * Lays out a locked petal's items in a small cluster toward the petal's
+     * end, around one point on its center line: one item on the point, two
+     * side by side, three in a triangle, four in a square, and more on the
+     * corners of the regular polygon, neighbors one stride apart.
      * decision locked-petal-lists-the-unlearned-items
      *
      * @param frame what the frame draws from
      * @param petal the locked petal
-     * @param count how many items the column holds
-     * @return each item's square, from the hub outward
+     * @param count how many items the cluster holds
+     * @return each item's square, clockwise from the top
      */
-    static List<ItemRect> itemColumn(Frame frame, RadialWheel.PetalArc petal, int count) {
-        PetalMask.Petal shape = petal.shape();
-        double middle = (shape.inner() + shape.outer()) / HALF * frame.radius();
-        double firstOffset = (count - 1) * ITEM_STRIDE / (double) HALF;
+    static List<ItemRect> itemCluster(Frame frame, RadialWheel.PetalArc petal, int count) {
+        double spread = clusterRadius(count);
         PetalMask.Point along = PetalMask.Point.polar(petal.center(), 1.0);
-        // icons-slide-in-from-behind-the-tip: the column rides in by the icon's offset
-        double slide = slideDistance(frame, petal);
+        // icons-slide-in-from-behind-the-tip: the cluster rides in by the icon's offset
+        double distance = petal.shape().outer() * frame.radius() - spread - ITEM_ICON_SIZE
+                + slideDistance(frame, petal);
+        double centerX = frame.centerX() + along.x() * distance;
+        double centerY = frame.centerY() + along.y() * distance;
+        // straight up on screen, turned half a side for an even count so its top edge lies flat
+        double first = -Math.PI / HALF + (count % HALF == 0 ? Math.PI / count : 0.0);
         return IntStream.range(0, count).mapToObj(index -> {
-            double distance = middle - firstOffset + index * ITEM_STRIDE + slide;
-            int x = frame.centerX() + (int) Math.round(along.x() * distance);
-            int y = frame.centerY() + (int) Math.round(along.y() * distance);
+            double corner = first + HALF * Math.PI * index / count;
+            int x = (int) Math.round(centerX + Math.cos(corner) * spread);
+            int y = (int) Math.round(centerY + Math.sin(corner) * spread);
             return new ItemRect(x - ITEM_ICON_SIZE / HALF, y - ITEM_ICON_SIZE / HALF);
         }).toList();
+    }
+
+    /**
+     * How far a cluster's items stand from its center: none for one item,
+     * else the circumradius of the regular polygon whose sides are one stride.
+     *
+     * @param count how many items the cluster holds
+     * @return the distance in pixels
+     */
+    static double clusterRadius(int count) {
+        return count <= 1 ? 0.0 : ITEM_STRIDE / (HALF * Math.sin(Math.PI / count));
     }
 
     /**
