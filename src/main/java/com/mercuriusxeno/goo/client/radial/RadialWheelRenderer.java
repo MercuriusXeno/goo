@@ -68,14 +68,19 @@ final class RadialWheelRenderer {
     private static final int HALF = 2;
     /**
      * How far past the petal's outer radius a closed petal's icon centers:
-     * the reach from the icon's center to the prism badge's far corner, two
-     * icons right and half an icon up, plus a pixel, so no pixel of the icon
-     * or either badge lies inside the petal.
+     * the reach from the icon's center to the badge's far corner, one icon
+     * right and half an icon up, plus a pixel, so no pixel of either lies
+     * inside the petal; the prism badge tucked under the badge reaches no further.
      * decision icons-slide-in-from-behind-the-tip
+     */
+    static final double ENTRY_REACH = Math.hypot(ABILITY_ICON_SIZE + ABILITY_ICON_OFFSET, ABILITY_ICON_OFFSET) + 1;
+    /**
+     * How far the prism badge sits from the ability's own badge, left toward
+     * the icon and down, so it peeks out from under the own badge: left
+     * rather than right, since the petal's face ends just past the own badge.
      * decision on-prism-reaction-wears-the-prism-badge
      */
-    static final double ENTRY_REACH =
-            Math.hypot(2 * ABILITY_ICON_SIZE + ABILITY_ICON_OFFSET, ABILITY_ICON_OFFSET) + 1;
+    static final int PRISM_BADGE_NUDGE = 3;
 
     private static final String TYPE_ICON_PREFIX = "textures/goo/type/";
     private static final String ABILITY_ICON_PREFIX = "textures/goo/ability/";
@@ -441,9 +446,11 @@ final class RadialWheelRenderer {
 
     /**
      * Draws the ability's icon, then its badge untinted directly to the icon's
-     * right, where the words never clip it and it never covers the icon, and
-     * for an ability carrying an on_prism reaction the prism badge right of
-     * that, each cut at the petal's border so only the part under its face shows.
+     * right, where the words never clip it and it never covers the icon. An
+     * ability carrying an on_prism reaction first draws the prism badge a
+     * hair off the own badge, so the icon and the own badge cover it and it
+     * peeks out from underneath; each is cut at the petal's border so only
+     * the part under its face shows.
      * badge-marks-the-target-kind
      * decision on-prism-reaction-wears-the-prism-badge
      * decision icons-slide-in-from-behind-the-tip
@@ -457,16 +464,29 @@ final class RadialWheelRenderer {
     private static void blitAbilityIcon(GuiGraphicsExtractor graphics, Frame frame, RadialWheel.PetalArc petal,
                                         ClientAbility ability, int color) {
         int[] slot = contentCenter(frame, petal);
+        int[] badgeSlot = badgeBeside(slot);
         PetalMask.Petal shape = petal.shape();
+        if (ability.reactsToPrisms()) {
+            // the operator's ruling: the prism badge sits underneath the own badge, to the side a hair
+            PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(badgeIcon(AbilityBadge.PRISM)),
+                    prismBadgeUnder(badgeSlot), ABILITY_ICON_SIZE, COLOR_WHITE);
+        }
         PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(resolveAbilityIcon(ability)), slot,
                 ABILITY_ICON_SIZE, color);
-        int[] badgeSlot = badgeBeside(slot);
         PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(badgeIcon(ability.badge())),
                 badgeSlot, ABILITY_ICON_SIZE, COLOR_WHITE);
-        if (ability.reactsToPrisms()) {
-            PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(badgeIcon(AbilityBadge.PRISM)),
-                    badgeBeside(badgeSlot), ABILITY_ICON_SIZE, COLOR_WHITE);
-        }
+    }
+
+    /**
+     * The point the prism badge centers on: {@link #PRISM_BADGE_NUDGE} left
+     * of and below the own badge's center.
+     * decision on-prism-reaction-wears-the-prism-badge
+     *
+     * @param badgeCenter the own badge's center
+     * @return the prism badge's center
+     */
+    static int[] prismBadgeUnder(int[] badgeCenter) {
+        return new int[]{badgeCenter[0] - PRISM_BADGE_NUDGE, badgeCenter[1] + PRISM_BADGE_NUDGE};
     }
 
     /**
