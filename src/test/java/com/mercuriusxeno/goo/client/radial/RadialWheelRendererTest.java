@@ -503,7 +503,7 @@ class RadialWheelRendererTest {
         void itemStraddlingTheBorderCutsAtItAndStillNamesItselfAcrossItsSquare() {
             RadialWheel wheel = openWheel();
             RadialWheelRenderer.Frame frame = frameOf(wheel, List.of());
-            RadialWheel.PetalArc petal = wheel.shownLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
+            RadialWheel.PetalArc petal = wheel.displayedLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
                     .findFirst().orElseThrow();
             PetalMask.Point edge = PetalMask.Point.polar(petal.center(), petal.shape().outer());
             int half = RadialWheelRenderer.ITEM_ICON_SIZE / 2;
@@ -637,7 +637,7 @@ class RadialWheelRendererTest {
             List<PetalRenderState.ScreenVertex> corners = fills.stream()
                     .flatMap(fill -> fill.vertices().stream()).toList();
 
-            assertEquals(openWheel().shownLayout(0.0f).size(), fills.size());
+            assertEquals(openWheel().displayedLayout(0.0f).size(), fills.size());
             assertTrue(corners.stream().allMatch(corner -> corner.u() >= SPRITE.u0() && corner.u() <= SPRITE.u1()
                     && corner.v() >= SPRITE.v0() && corner.v() <= SPRITE.v1()), "a corner samples off the sprite");
             assertEquals(List.of(SPRITE.u0(), SPRITE.u1(), SPRITE.v0(), SPRITE.v1()), List.of(
@@ -682,7 +682,7 @@ class RadialWheelRendererTest {
                     PetalRenderState.class);
             TextureSetup badge = sprites.get(RadialWheelRenderer.badgeIcon(AbilityBadge.WORLD));
 
-            assertAll(wheel.shownLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
+            assertAll(wheel.displayedLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
                     .map(petal -> (Executable) () -> {
                         PetalMask.Point tip = petal.shape().tipCenter();
                         PetalRenderState iconState = spriteOf(submitted, iconOf(petal));
@@ -781,7 +781,7 @@ class RadialWheelRendererTest {
             RadialWheel wheel = openWheel();
             GuiGraphicsExtractor graphics = renderFrame(wheel, LOCKED_ABILITY);
             int disabledTint = RadialWheelRenderer.computeOverlayTint(false, true);
-            List<RadialWheel.PetalArc> petals = wheel.shownLayout(0.0f);
+            List<RadialWheel.PetalArc> petals = wheel.displayedLayout(0.0f);
             List<PetalRenderState> fills = submittedArguments(graphics, "submitGuiElementRenderState",
                     PetalRenderState.class).stream().filter(this::isFill).toList();
 
@@ -842,7 +842,7 @@ class RadialWheelRendererTest {
             RadialWheel wheel = openWheel();
             RadialWheelRenderer.Frame frame = frameOf(wheel, List.of());
 
-            assertAll(wheel.shownLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
+            assertAll(wheel.displayedLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
                     .map(petal -> (Executable) () -> {
                         List<double[]> centers = RadialWheelRenderer.itemColumn(frame, petal, REQUIRED.size())
                                 .stream().map(OpenTypeFrame::centerOf).toList();
@@ -899,7 +899,7 @@ class RadialWheelRendererTest {
             List<PetalRenderState> submitted = submittedArguments(graphics, "submitGuiElementRenderState",
                     PetalRenderState.class);
 
-            assertAll(wheel.shownLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
+            assertAll(wheel.displayedLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
                     .map(petal -> (Executable) () -> {
                         PetalRenderState icon = spriteOf(submitted, iconOf(petal));
                         int index = submitted.indexOf(icon);
@@ -914,22 +914,15 @@ class RadialWheelRendererTest {
             assertTrue(mockingDetails(graphics).getInvocations().stream()
                     .noneMatch(call -> call.getMethod().getName().equals("blit")
                             && call.getArgument(1).toString().contains("/ability/")), "an ability icon blitted whole");
-            assertEquals(typePetalsWithIconsOnShow(wheel).size(),
+            assertEquals(typePetalsOf(wheel).size(),
                     mockingDetails(graphics).getInvocations().stream()
                             .filter(call -> call.getMethod().getName().equals("blit")
                                     && call.getArgument(1).toString().contains("/type/")).count());
         }
 
-        /** The shown type petals whose icon center lies outside the held half's sector. */
-        private List<RadialWheel.PetalArc> typePetalsWithIconsOnShow(RadialWheel wheel) {
-            RadialWheel.Sector hidden = wheel.hiddenSector(0.0f);
-            RadialWheelRenderer.Frame frame = frameOf(wheel, List.of());
-            return wheel.shownLayout(0.0f).stream().filter(petal -> !petal.isAbility())
-                    .filter(petal -> {
-                        int[] center = RadialWheelRenderer.lengthCenter(frame, petal);
-                        return !hidden.contains(RadialWheel.angleOf(center[0] - CENTER_X, center[1] - CENTER_Y));
-                    })
-                    .toList();
+        /** Every type petal the frame draws. */
+        private static List<RadialWheel.PetalArc> typePetalsOf(RadialWheel wheel) {
+            return wheel.displayedLayout(0.0f).stream().filter(petal -> !petal.isAbility()).toList();
         }
 
         /** Two half petals, each a face and an edge, draw before the ring. */
@@ -955,33 +948,27 @@ class RadialWheelRendererTest {
                 assertTrue(half.shape().contains((label.x() - CENTER_X) / (double) RADIUS,
                         (label.y() - CENTER_Y) / (double) RADIUS), label + " off its half petal");
             }));
-            assertTrue(wheel.shownLayout(0.0f).isEmpty());
+            assertTrue(wheel.displayedLayout(0.0f).isEmpty());
         }
 
         /**
-         * No corner of anything the ring draws lies inside the held half's
-         * sector: what turns behind it is cut away.
+         * The ring draws whole all the way round, over the held half's side
+         * too: every petal of the layout submits its fill.
          * decision open-half-spans-270-degrees
          */
         @Test
-        void nothingTheRingDrawsReachesIntoTheHeldHalfsSector() {
+        void theRingDrawsWholeOverTheHeldHalfsSide() {
             RadialWheel wheel = openWheel();
-            RadialWheel.Sector hidden = wheel.hiddenSector(0.0f);
-            List<PetalRenderState> ring = submittedArguments(renderFrame(wheel), "submitGuiElementRenderState",
-                    PetalRenderState.class);
-            double slack = 1e-3;
+            List<RadialWheel.PetalArc> petals = wheel.displayedLayout(0.0f);
+            List<PetalRenderState> fills = submittedArguments(renderFrame(wheel), "submitGuiElementRenderState",
+                    PetalRenderState.class).stream().filter(this::isFill).toList();
+            double heldHalfArc = RadialWheel.HALF_HELD_ARC / 2;
 
-            assertTrue(wheel.layout().stream().anyMatch(petal -> hidden.contains(petal.center())),
-                    "the turned ring reaches behind the held half");
-            assertAll(ring.subList(HALF_STATES, ring.size()).stream().flatMap(state -> state.vertices().stream())
-                    .map(corner -> (Executable) () -> {
-                        double x = corner.x() - CENTER_X;
-                        double y = corner.y() - CENTER_Y;
-                        boolean deepInside = Math.hypot(x, y) > slack
-                                && new RadialWheel.Sector(hidden.start() + slack, hidden.arc() - 2 * slack)
-                                .contains(RadialWheel.angleOf(x, y));
-                        assertFalse(deepInside, corner + " inside the held half");
-                    }));
+            assertTrue(petals.stream().anyMatch(petal ->
+                            Math.abs(Math.IEEEremainder(petal.center() - Math.PI, 2 * Math.PI)) < heldHalfArc),
+                    "a petal stands over the held half");
+            assertEquals(petals.size(), fills.size());
+            assertTrue(fills.stream().noneMatch(fill -> fill.vertices().isEmpty()), "a petal drew nothing");
         }
 
         private static org.mockito.invocation.Invocation iconBlit(GuiGraphicsExtractor graphics, String icon) {
@@ -998,7 +985,7 @@ class RadialWheelRendererTest {
             GuiGraphicsExtractor graphics = renderFrame(wheel);
             int half = TYPE_ICON_SIZE / 2;
 
-            assertAll(typePetalsWithIconsOnShow(wheel).stream()
+            assertAll(typePetalsOf(wheel).stream()
                     .map(petal -> (Executable) () -> {
                         String icon = "type_" + petal.type() + ".png";
                         var iconBlit = mockingDetails(graphics).getInvocations().stream()
@@ -1030,7 +1017,7 @@ class RadialWheelRendererTest {
             List<PetalRenderState> edges = submittedArguments(renderFrame(openWheel()),
                     "submitGuiElementRenderState", PetalRenderState.class).stream()
                     .filter(state -> !state.isTextured()).skip(HALF_STATES).toList();
-            List<RadialWheel.PetalArc> petals = openWheel().shownLayout(0.0f);
+            List<RadialWheel.PetalArc> petals = openWheel().displayedLayout(0.0f);
 
             assertEquals(petals.size(), edges.size());
             assertAll(IntStream.range(0, edges.size()).mapToObj(index -> (Executable) () -> {

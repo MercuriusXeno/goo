@@ -156,7 +156,8 @@ class RadialWheelTest {
             assertEquals(ABILITIES, abilityPetals(wheel).size());
             assertEquals(NEIGHBORS, typePetals(wheel).size());
             assertTrue(typePetals(wheel).stream().noneMatch(petal -> petal.type() == OPEN_TYPE));
-            assertEquals(TWO_PI, petals.stream().mapToDouble(RadialWheel.PetalArc::arc).sum(), EPSILON);
+            assertEquals(Math.toRadians(225.0) + ABILITIES * RadialWheel.ABILITY_ARC,
+                    petals.stream().mapToDouble(RadialWheel.PetalArc::arc).sum(), EPSILON);
             for (int i = 1; i < petals.size(); i++) {
                 RadialWheel.PetalArc previous = petals.get(i - 1);
                 assertEquals(previous.start() + previous.arc(), petals.get(i).start(), EPSILON);
@@ -174,22 +175,22 @@ class RadialWheelTest {
 
         /** decision fisheye-halves-its-max-and-floors-at-ten-degrees */
         @Test
-        void neighborsStepEvenlyFromHalfTheOldNearestToTenDegreesAndOneAbilityTakesTheRest() {
+        void neighborsStepEvenlyFromHalfTheOldNearestToTenDegreesAndOneAbilityMaxesOutAtThirty() {
             RadialWheel wheel = opened(1);
 
             assertNeighborArcs(wheel.layout(), 27.5, 24.0, 20.5, 17.0, 13.5, 10.0);
-            assertEquals(Math.toRadians(135.0), abilityPetal(wheel, 0).arc(), EPSILON);
+            assertEquals(RadialWheel.ABILITY_ARC, abilityPetal(wheel, 0).arc(), EPSILON);
         }
 
         /** decision fisheye-halves-its-max-and-floors-at-ten-degrees */
         @Test
-        void abilitiesShareWhatTheNeighborsLeaveEvenly() {
+        void abilitiesTheRingHasRoomForMaxOutAtThirtyDegreesEach() {
             RadialWheel wheel = opened(ABILITIES);
             double neighbors = typePetals(wheel).stream().mapToDouble(RadialWheel.PetalArc::arc).sum();
 
             assertEquals(Math.toRadians(225.0), neighbors, EPSILON);
             assertAll(abilityPetals(wheel).stream().map(petal -> (Executable)
-                    () -> assertEquals(Math.toRadians(135.0) / ABILITIES, petal.arc(), EPSILON)));
+                    () -> assertEquals(RadialWheel.ABILITY_ARC, petal.arc(), EPSILON)));
         }
 
         /** decision fisheye-halves-its-max-and-floors-at-ten-degrees */
@@ -325,15 +326,30 @@ class RadialWheelTest {
 
         /** decision open-half-spans-270-degrees */
         @Test
-        void cursorOnTheHeldHalfsNinetyDegreesOpensThatHalf() {
+        void cursorOnTheHeldHalfPetalOpensThatHalf() {
             RadialWheel wheel = wheelOverBothHalves();
             moveTo(wheel, TOP, BAND);
             moveTo(wheel, typePetal(wheel.layout(), 2).center(), PETAL);
 
-            moveTo(wheel, BOTTOM, PETAL);
+            moveTo(wheel, BOTTOM, BAND);
 
             assertEquals(RadialWheel.NONE, wheel.selectedType());
             assertHalfOpen(wheel, RadialWheel.BOTTOM, FIRST_BOTTOM, TYPES - FIRST_BOTTOM);
+        }
+
+        /** decision open-half-spans-270-degrees: the held half's petal is its own hit region, the ring stays whole */
+        @Test
+        void cursorOnTheRingOutsideTheHeldHalfsPetalStillOpensTheNeighborThere() {
+            RadialWheel wheel = opened(ABILITIES);
+            int farthest = stepsFrom(OPEN_TYPE, RadialWheel.NEIGHBORS_A_SIDE);
+            double angle = typePetal(wheel.layout(), farthest).center();
+            assertTrue(Math.abs(Math.IEEEremainder(angle - BOTTOM, TWO_PI)) < RadialWheel.HALF_HELD_ARC / 2,
+                    "the neighbor stands over the held half");
+
+            moveTo(wheel, angle, PETAL);
+
+            assertEquals(RadialWheel.TOP, wheel.openHalf());
+            assertEquals(farthest, wheel.selectedType());
         }
 
         /** decision halves-arc-petals-at-rest */
@@ -397,10 +413,9 @@ class RadialWheelTest {
 
         /** decision open-type-keeps-thirteen-fading-to-twenty-percent */
         @Test
-        void openingAFarNeighborReformsTheNeighborsAroundIt() {
+        void openingTheFarthestNeighborReformsTheWindowAroundIt() {
             RadialWheel wheel = opened(ABILITIES);
-            // open-half-spans-270-degrees: the farthest neighbors turn behind the held half, the second shows
-            int farthest = stepsFrom(OPEN_TYPE, 2);
+            int farthest = stepsFrom(OPEN_TYPE, RadialWheel.NEIGHBORS_A_SIDE);
 
             moveTo(wheel, typePetal(wheel.layout(), farthest).center(), PETAL);
 
@@ -600,7 +615,7 @@ class RadialWheelTest {
 
         /** decision open-half-spans-270-degrees */
         @Test
-        void theTurnedRingStaysInsideItsHalfAndTheHeldHalfStaysPinned() {
+        void theRingTurnsWhileTheHeldHalfStaysPinned() {
             RadialWheel wheel = wideTypeOpen();
             double cursor = spanStart(wheel) - JUST_PAST;
 
@@ -612,7 +627,41 @@ class RadialWheelTest {
             RadialWheel.HalfPetal held = wheel.halves().get(RadialWheel.BOTTOM);
             assertEquals(RadialWheel.HALF_HELD_ARC, held.arc(), EPSILON);
             assertEquals(BOTTOM, held.center(), EPSILON);
-            assertTrue(wheel.hiddenSector(0.0f).contains(BOTTOM), "the held half hides the ring's far side");
+        }
+
+        /** The ability one step from the hovered one, and the cursor just inside its edge toward the hovered one. */
+        private static double justInside(RadialWheel.PetalArc petal, boolean fromClockwise) {
+            return fromClockwise ? petal.start() + petal.arc() - JUST_PAST : petal.start() + JUST_PAST;
+        }
+
+        /** decision ring-rotates-to-keep-the-cursor-inside */
+        @Test
+        void crossingOntoAnAbilityTheRingIsPulledTowardSpringsItsMiddleOntoTheCursor() {
+            RadialWheel wheel = opened(ABILITIES);
+            double tension = wheel.rotation();
+            assertTrue(Math.abs(tension) > EPSILON, "the ring stands turned");
+            // a ring turned clockwise springs back counterclockwise: crossing counterclockwise enters from clockwise
+            int next = wheel.hoveredAbility() + (tension > 0 ? 1 : -1);
+            double cursor = justInside(abilityPetal(wheel, next), tension < 0);
+
+            moveTo(wheel, cursor, PETAL);
+
+            assertEquals(next, wheel.hoveredAbility());
+            assertHoveredCenteredOn(wheel, cursor);
+            assertTrue(wheel.isAnimating(), "the ring springs, easing");
+        }
+
+        /** decision ring-rotates-to-keep-the-cursor-inside */
+        @Test
+        void crossingOntoAnAbilityAgainstTheRingsPullLeavesTheRingWhereItStands() {
+            RadialWheel wheel = opened(ABILITIES);
+            double tension = wheel.rotation();
+            int next = wheel.hoveredAbility() + (tension > 0 ? -1 : 1);
+
+            moveTo(wheel, justInside(abilityPetal(wheel, next), tension > 0), PETAL);
+
+            assertEquals(next, wheel.hoveredAbility());
+            assertEquals(tension, wheel.rotation(), EPSILON);
         }
 
         @Test

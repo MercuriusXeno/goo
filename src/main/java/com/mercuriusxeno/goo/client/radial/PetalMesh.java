@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.radial;
 
-import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -43,9 +42,6 @@ final class PetalMesh {
     private static final double TWO_PI = 2.0 * Math.PI;
     /** The fewest corners a piece needs to cover any area. */
     private static final int TRIANGLE = 3;
-    /** A quad's corners. */
-    private static final int CORNERS = 4;
-    private static final double HALF = 0.5;
 
     private PetalMesh() {
     }
@@ -268,98 +264,6 @@ final class PetalMesh {
             }
         }
         return kept;
-    }
-
-    /**
-     * The parts of quads lying outside a sector of at most half a turn, so
-     * whatever turns behind the held half petal is cut away. Each quad is
-     * kept on the far side of the sector's start edge, and its part on the
-     * near side is kept beyond the end edge; corners cut along an edge carry
-     * their sample point along it.
-     * decision open-half-spans-270-degrees
-     *
-     * @param quads  the quads, convex
-     * @param hidden the sector hidden, or null for none
-     * @return the kept pieces as quads, a triangle repeating its last corner
-     */
-    static List<Quad> outside(List<Quad> quads, RadialWheel.@Nullable Sector hidden) {
-        if (hidden == null || hidden.arc() <= 0) {
-            return quads;
-        }
-        double[] startSide = intoSector(hidden.start(), hidden);
-        double[] endSide = intoSector(hidden.start() + hidden.arc(), hidden);
-        List<Quad> kept = new ArrayList<>();
-        for (Quad quad : quads) {
-            List<Vertex> corners = distinctCorners(quad);
-            addFan(kept, keepBeyondLine(corners, startSide, false));
-            addFan(kept, keepBeyondLine(keepBeyondLine(corners, startSide, true), endSide, false));
-        }
-        return kept;
-    }
-
-    /**
-     * The normal of the line through the center along one of a sector's
-     * edges, pointing to the side the sector lies on.
-     *
-     * @param edge   the edge's angle
-     * @param sector the sector
-     * @return the normal's x and y
-     */
-    private static double[] intoSector(double edge, RadialWheel.Sector sector) {
-        PetalMask.Point along = PetalMask.Point.polar(edge, 1.0);
-        PetalMask.Point middle = PetalMask.Point.polar(sector.start() + sector.arc() * HALF, 1.0);
-        double[] normal = {-along.y(), along.x()};
-        double toward = Math.signum(normal[0] * middle.x() + normal[1] * middle.y());
-        return new double[]{normal[0] * toward, normal[1] * toward};
-    }
-
-    private static List<Vertex> distinctCorners(Quad quad) {
-        List<Vertex> corners = new ArrayList<>(CORNERS);
-        for (Vertex corner : quad.corners()) {
-            if (corners.isEmpty() || !corner.equals(corners.getLast())) {
-                corners.add(corner);
-            }
-        }
-        if (corners.size() > 1 && corners.getFirst().equals(corners.getLast())) {
-            corners.removeLast();
-        }
-        return corners;
-    }
-
-    /**
-     * The part of a convex polygon on one side of a line through the center.
-     *
-     * @param polygon the polygon's corners in order
-     * @param normal  the line's normal
-     * @param along   true to keep the side the normal points to, false the other
-     * @return the kept part's corners in order
-     */
-    private static List<Vertex> keepBeyondLine(List<Vertex> polygon, double[] normal, boolean along) {
-        List<Vertex> kept = new ArrayList<>();
-        double[] facing = along ? normal : new double[]{-normal[0], -normal[1]};
-        for (int i = 0; i < polygon.size(); i++) {
-            Vertex here = polygon.get(i);
-            Vertex next = polygon.get((i + 1) % polygon.size());
-            double hereSide = facing[0] * here.x() + facing[1] * here.y();
-            double nextSide = facing[0] * next.x() + facing[1] * next.y();
-            if (hereSide >= 0) {
-                kept.add(here);
-            }
-            if (hereSide * nextSide < 0) {
-                double fraction = hereSide / (hereSide - nextSide);
-                kept.add(new Vertex(here.x() + (next.x() - here.x()) * fraction,
-                        here.y() + (next.y() - here.y()) * fraction,
-                        here.u() + (next.u() - here.u()) * fraction,
-                        here.v() + (next.v() - here.v()) * fraction));
-            }
-        }
-        return kept;
-    }
-
-    private static void addFan(List<Quad> quads, List<Vertex> piece) {
-        for (int i = 1; i + 1 < piece.size(); i++) {
-            quads.add(new Quad(piece.getFirst(), piece.get(i), piece.get(i + 1), piece.get(i + 1)).wound());
-        }
     }
 
     private static double sideOf(PetalMask.Point from, PetalMask.Point to, PetalMask.Point point) {

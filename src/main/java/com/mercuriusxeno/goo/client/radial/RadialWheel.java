@@ -110,8 +110,6 @@ public final class RadialWheel {
     private final int[][] members;
     /** The open half, or {@link #NONE} at rest. */
     private int openHalf = NONE;
-    /** The half last opened, whose ring the held half still hides while it closes. */
-    private int shownHalf = NONE;
     private int selectedType = NONE;
     private int hoveredAbility = NONE;
     /** Per type and ability, the ticks its petal has grown toward the screen's edge. */
@@ -185,28 +183,15 @@ public final class RadialWheel {
     }
 
     /**
-     * Whether an angle falls inside an open half's window.
-     *
-     * @param half  the open half
-     * @param angle the angle
-     * @return true inside the 270 degrees, false on the held half's 90
-     */
-    private static boolean inWindow(int half, double angle) {
-        return Math.abs(Math.IEEEremainder(angle - centerOf(half), TWO_PI)) <= HALF_OPEN_ARC * HALF;
-    }
-
-    /**
-     * The half whose resting petal an angle falls on.
+     * The half petal an angle falls on as the target holds them: the top
+     * within half its arc of the top, else the bottom.
+     * decision halves-arc-petals-at-rest
      *
      * @param angle the angle
-     * @return {@link #TOP} within a quarter turn of the top, else {@link #BOTTOM}
+     * @return {@link #TOP} or {@link #BOTTOM}
      */
-    private static int halfAt(double angle) {
-        return Math.cos(angle) >= 0 ? TOP : BOTTOM;
-    }
-
-    private static int otherHalf(int half) {
-        return half == TOP ? BOTTOM : TOP;
+    private int halfUnder(double angle) {
+        return Math.abs(Math.IEEEremainder(angle, TWO_PI)) <= topArcTarget() * HALF ? TOP : BOTTOM;
     }
 
     /**
@@ -288,36 +273,6 @@ public final class RadialWheel {
     private static List<HalfPetal> halvesOf(double topArc) {
         return List.of(new HalfPetal(TOP, -topArc * HALF, topArc),
                 new HalfPetal(BOTTOM, topArc * HALF, TWO_PI - topArc));
-    }
-
-    /**
-     * The sector the held half covers this frame, behind which the shown
-     * half's ring hides; none before any half opened.
-     * decision open-half-spans-270-degrees
-     *
-     * @param partialTick the fraction of a tick since the last one
-     * @return the held half's sector, or null
-     */
-    @Nullable Sector hiddenSector(float partialTick) {
-        if (shownHalf == NONE) {
-            return null;
-        }
-        HalfPetal held = displayedHalves(partialTick).get(otherHalf(shownHalf));
-        return new Sector(held.start(), held.arc());
-    }
-
-    /**
-     * The ring's petals as drawn this frame, less those the held half wholly hides.
-     * decision open-half-spans-270-degrees
-     *
-     * @param partialTick the fraction of a tick since the last one
-     * @return the petals on show, in draw order
-     */
-    List<PetalArc> shownLayout(float partialTick) {
-        Sector hidden = hiddenSector(partialTick);
-        List<PetalArc> petals = displayedLayout(partialTick);
-        return hidden == null ? petals
-                : petals.stream().filter(petal -> !hidden.covers(petal.start(), petal.arc())).toList();
     }
 
     /**
@@ -623,9 +578,10 @@ public final class RadialWheel {
     /**
      * Sizes the ring around an open type. The neighbors' arcs run from the
      * nearest arc down to the floor, and the abilities share evenly what
-     * they leave. Where that would hold an ability under its goal arc, the
-     * nearest arc drops toward the floor, flattening the steps, until the
-     * abilities reach their goal; with every neighbor at the floor, the
+     * they leave, each at most its goal arc, the rest of the ring left open
+     * opposite them. Where that would hold an ability under its goal arc,
+     * the nearest arc drops toward the floor, flattening the steps, until
+     * the abilities reach their goal; with every neighbor at the floor, the
      * abilities share what remains, under their goal.
      * decision fisheye-halves-its-max-and-floors-at-ten-degrees
      *
@@ -651,7 +607,7 @@ public final class RadialWheel {
             nearest = NEIGHBOR_MIN_ARC + rise;
             neighbors = atFloor + rise * stepsBelowNearest;
         }
-        return new Arcs((TWO_PI - neighbors) / abilities, nearest);
+        return new Arcs(Math.min(ABILITY_ARC, (TWO_PI - neighbors) / abilities), nearest);
     }
 
     /**
@@ -688,11 +644,12 @@ public final class RadialWheel {
 
     /**
      * Moves the cursor: the hub returns the wheel to the two halves; at rest
-     * the cursor anywhere else opens the half it points into; with a half
-     * open, the cursor on the held half's 90 degrees opens that half, the
-     * band inside the type ring holds what is open, an ability petal of the
-     * open type hovers it, and another type's petal opens that type, the
-     * ring turning to keep the cursor inside its abilities.
+     * the cursor anywhere else opens the half it points into. With a half
+     * open, the band between the hub and the type ring is the half petals'
+     * own hit region, the held half's petal opening that half; out on the
+     * ring, all the way round, an ability petal of the open type hovers it
+     * and another type's petal opens that type, the ring turning to keep the
+     * cursor inside its abilities, and the gap the ring leaves holds what is open.
      * decision abilities-replace-the-hovered-type
      * decision ring-rotates-to-keep-the-cursor-inside
      * decision halves-arc-petals-at-rest
@@ -713,10 +670,13 @@ public final class RadialWheel {
         }
         cursorAngle = angleOf(dx, dy);
         if (openHalf == NONE) {
-            openHalf(halfAt(cursorAngle));
-        } else if (!inWindow(openHalf, cursorAngle)) {
-            openHalf(otherHalf(openHalf));
-        } else if (distance >= TYPE_INNER_FRACTION * outerRadius) {
+            openHalf(halfUnder(cursorAngle));
+        } else if (distance < TYPE_INNER_FRACTION * outerRadius) {
+            int half = halfUnder(cursorAngle);
+            if (half != openHalf) {
+                openHalf(half);
+            }
+        } else {
             moveOnTheRing();
         }
     }
@@ -731,10 +691,8 @@ public final class RadialWheel {
             centerOnCursor();
             return;
         }
-        List<PetalArc> petals = layout();
-        if (!petals.isEmpty()) {
-            landOn(petalAt(petals, cursorAngle));
-        }
+        layout().stream().filter(petal -> wrap(cursorAngle - petal.start()) < petal.arc())
+                .findFirst().ifPresent(this::landOn);
     }
 
     /**
@@ -745,7 +703,6 @@ public final class RadialWheel {
      */
     private void openHalf(int half) {
         openHalf = half;
-        shownHalf = half;
         selectedType = NONE;
         hoveredAbility = NONE;
         rotation = 0.0;
@@ -760,9 +717,29 @@ public final class RadialWheel {
      */
     private void landOn(PetalArc petal) {
         if (petal.isAbility()) {
+            if (hoveredAbility != NONE && petal.ability() != hoveredAbility) {
+                springTowardRest(petal);
+            }
             hoveredAbility = petal.ability();
         } else if (petal.type() != selectedType) {
             openType(petal.type());
+        }
+    }
+
+    /**
+     * The cursor crossing onto another ability while the ring stands turned:
+     * where centering that ability on the cursor turns the ring back toward
+     * its unturned rest, the direction its tension pulls, the ring springs
+     * there, easing, so the cursor sits in the petal's middle.
+     * decision ring-rotates-to-keep-the-cursor-inside
+     *
+     * @param petal the ability petal the cursor crossed onto
+     */
+    private void springTowardRest(PetalArc petal) {
+        double turn = turnToCursor(petal);
+        if (rotation * turn < 0) {
+            rotation += turn;
+            ease.retarget(targetPose());
         }
     }
 
@@ -944,7 +921,6 @@ public final class RadialWheel {
     private void openCentered(int type, int ability) {
         boolean changed = type != selectedType || rotation != 0.0;
         openHalf = halfOfType[type];
-        shownHalf = openHalf;
         selectedType = type;
         hoveredAbility = ability;
         rotation = 0.0;
@@ -1090,38 +1066,6 @@ public final class RadialWheel {
          */
         double center() {
             return start + arc * HALF;
-        }
-    }
-
-    /**
-     * A sector of the wheel from its center out, such as the one the held half hides.
-     * decision open-half-spans-270-degrees
-     *
-     * @param start the sector's start angle, clockwise from the top
-     * @param arc   the sector's span in radians
-     */
-    record Sector(double start, double arc) {
-
-        /**
-         * Whether an angle falls inside the sector.
-         *
-         * @param angle the angle, any turn
-         * @return true inside
-         */
-        boolean contains(double angle) {
-            return wrap(angle - start) < arc;
-        }
-
-        /**
-         * Whether a span of angles lies wholly inside the sector.
-         *
-         * @param spanStart the span's start angle
-         * @param spanArc   the span's width
-         * @return true when no part of the span falls outside
-         */
-        boolean covers(double spanStart, double spanArc) {
-            double offset = wrap(spanStart - start);
-            return offset + spanArc <= arc;
         }
     }
 
