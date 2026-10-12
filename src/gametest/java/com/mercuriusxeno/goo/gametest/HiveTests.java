@@ -1,14 +1,14 @@
 package com.mercuriusxeno.goo.gametest;
 
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.PrismCombos;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
-import com.mercuriusxeno.goo.network.GooEffectScheduler;
-import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.registry.GooBlocks;
-import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
@@ -22,10 +22,9 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
- * Gametests for nether's hive combo through the real landing path: a nether
- * goo landing on a prism makes it a hive, which eats a zombie standing in its
- * radius and leaves a creeper outside it whole
- * (decision hive-prism-pillar-eats-the-living).
+ * Gametests for nether's hive combo, the one a full Decay hold converts a
+ * prism into: a hive eats a zombie standing in its radius and leaves a creeper
+ * outside it whole (decision hive-prism-pillar-eats-the-living).
  */
 @RegistersGameTests
 public final class HiveTests {
@@ -47,11 +46,10 @@ public final class HiveTests {
     private static final BlockPos ZOMBIE_POS = PRISM_POS.east(2);
     /** Eight blocks from the prism, outside the radius. */
     private static final BlockPos CREEPER_POS = PRISM_POS.south(8);
-    private static final int NO_ENTITY = -1;
-    /** A zombie's twenty health at nether_hive.json's two every four ticks is forty ticks, and some. */
+    /** A zombie's twenty health at the hive's two every four ticks is forty ticks, and some. */
     private static final int EAT_TICKS = 60;
-    private static final String HIVE = "goo:nether_hive";
-    private static final String NETHER_LANDING = "goo:nether_black_hole";
+    /** Decay, whose on_prism reaction is the hive (decision channeled-hosts-convert-prisms-over-the-hold). */
+    private static final String HIVE = "goo:nether_decay";
     private static final String NOT_A_HIVE = "The prism should hold the hive combo, held '%s'";
     private static final String ZOMBIE_LIVES = "The hive should have eaten the zombie in its radius";
     private static final String CREEPER_HURT = "The hive should leave the creeper outside its radius whole";
@@ -76,10 +74,10 @@ public final class HiveTests {
         Mob creeper = standOnStone(helper, EntityType.CREEPER, CREEPER_POS);
         Player player = standPlayer(helper);
 
-        landNetherOnPrism(helper);
-
         PrismBlockEntity prism = helper.getBlockEntity(PRISM_POS, PrismBlockEntity.class);
-        helper.assertTrue(HIVE.equals(prism.getCombo()), String.format(NOT_A_HIVE, prism.getCombo()));
+        AbilityDefinition decay = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(HIVE));
+        helper.assertTrue(decay != null && prism.runCombo(GooTypes.NETHER, HIVE, PrismCombos.comboSteps(decay)),
+                String.format(NOT_A_HIVE, prism.getCombo()));
         helper.runAfterDelay(EAT_TICKS, () -> {
             helper.assertFalse(zombie.isAlive(), ZOMBIE_LIVES);
             helper.assertTrue(creeper.getHealth() == creeper.getMaxHealth(), CREEPER_HURT);
@@ -106,13 +104,5 @@ public final class HiveTests {
     private static Mob standOnStone(GameTestHelper helper, EntityType<? extends Mob> type, BlockPos pos) {
         helper.setBlock(pos.below(), Blocks.STONE);
         return helper.spawnWithNoFreeWill(type, pos);
-    }
-
-    private static void landNetherOnPrism(GameTestHelper helper) {
-        GooEffectScheduler arrivals = GooServerState.of(helper.getLevel().getServer()).gooEffects();
-        int arrivalTick = helper.getLevel().getServer().getTickCount();
-        arrivals.enqueue(new PendingEffect(arrivalTick, helper.getLevel(), null, GooTypes.NETHER, NO_ENTITY,
-                helper.absolutePos(PRISM_POS), Direction.UP, NETHER_LANDING));
-        arrivals.drainArrivedEffects(arrivalTick);
     }
 }

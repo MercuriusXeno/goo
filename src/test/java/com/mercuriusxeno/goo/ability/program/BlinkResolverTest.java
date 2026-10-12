@@ -34,6 +34,18 @@ class BlinkResolverTest {
 
         private static final double MARCH_STEP = 0.001;
         private final Set<BlockPos> solids = new HashSet<>();
+        /** A bare prism standing in the open, which a line ends on by its outline. */
+        private Optional<BlockPos> barePrism = Optional.empty();
+
+        CubeSpace barePrismAt(BlockPos prism) {
+            barePrism = Optional.of(prism);
+            return this;
+        }
+
+        @Override
+        public Optional<BlockPos> barePrismOnLine(Vec3 from, Vec3 to) {
+            return barePrism.filter(prism -> new AABB(prism).clip(from, to).isPresent());
+        }
 
         CubeSpace fill(int x0, int y0, int z0, int x1, int y1, int z1) {
             for (BlockPos pos : BlockPos.betweenClosed(x0, y0, z0, x1, y1, z1)) {
@@ -74,6 +86,45 @@ class BlinkResolverTest {
 
     private static Optional<BlinkLanding> freeAim(CubeSpace space, Vec3 look) {
         return BlinkResolver.resolve(space, FEET, look, RANGE, PLAYER, Optional.empty());
+    }
+
+    /**
+     * A look ending on a bare prism in range spends the blink into it, and a
+     * blink at an oculus snaps beside it as before.
+     * blink-at-a-prism-spends-into-an-oculus
+     */
+    @Nested
+    class SpentIntoAPrism {
+
+        private static final BlockPos PRISM = new BlockPos(4, 65, 0);
+        private static final Vec3 EYE = FEET.add(0, PLAYER.eyeHeight(), 0);
+
+        @Test
+        void aBarePrismInTheLookResolvesToAConversionWhereTheBlinkerStands() {
+            CubeSpace space = new CubeSpace().barePrismAt(PRISM);
+
+            BlinkLanding landing = BlinkResolver.conversion(space, FEET, EYE, EAST, RANGE).orElseThrow();
+
+            assertEquals(Optional.of(PRISM), landing.converts());
+            assertEquals(FEET, landing.feet());
+            assertEquals(FEET.distanceTo(Vec3.atCenterOf(PRISM)), landing.distance(), NEAR);
+            assertTrue(landing.node().isEmpty());
+        }
+
+        @Test
+        void aBarePrismPastTheRangeConvertsNothing() {
+            CubeSpace space = new CubeSpace().barePrismAt(PRISM.east((int) RANGE));
+
+            assertTrue(BlinkResolver.conversion(space, FEET, EYE, EAST, RANGE).isEmpty());
+        }
+
+        @Test
+        void anOculusResolvesToASnapBesideIt() {
+            BlinkLanding landing = BlinkResolver.toNode(new CubeSpace(), FEET, PRISM, PLAYER).orElseThrow();
+
+            assertEquals(Optional.of(PRISM), landing.node());
+            assertTrue(landing.converts().isEmpty());
+        }
     }
 
     @Nested

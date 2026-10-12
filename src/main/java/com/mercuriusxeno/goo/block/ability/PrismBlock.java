@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.block.ability;
 
+import com.mercuriusxeno.goo.ability.oculus.OculusNodes;
 import com.mercuriusxeno.goo.block.BlockEntityTicks;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.serialization.MapCodec;
@@ -71,7 +72,7 @@ public class PrismBlock extends BaseEntityBlock {
     private static final Map<Direction, VoxelShape> EYE_SHAPES = buildEyeShapes();
 
     /** The ability whose combo makes a prism an oculus (decision oculus-prism-becomes-a-hovering-eye). */
-    private static final String OCULUS = "goo:ender_oculus";
+    private static final String OCULUS = OculusNodes.OCULUS;
     /** One display tick in this many an oculus murmurs, about once every ten seconds. */
     private static final int OCULUS_MURMUR_ODDS = 200;
     private static final float OCULUS_MURMUR_VOLUME = 0.5f;

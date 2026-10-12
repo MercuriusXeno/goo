@@ -18,5 +18,8 @@
       ]
     }
   ],
+  "on_prism": [
+    { "type": "relay" }
+  ],
   "tags": []
 }

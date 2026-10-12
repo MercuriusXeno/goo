@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.CrystalClusterSubmitter;
 import com.mercuriusxeno.goo.client.PrismCrystal;
 import com.mercuriusxeno.goo.client.ability.BeatRings;
+import com.mercuriusxeno.goo.client.ability.BlockTransforms;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ability.UpdraftWind;
@@ -30,6 +31,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Draws the prism's milky quartz crystal, one pointed column standing out of
@@ -76,10 +78,26 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         state.blobLook = blob == null ? null : CrystalClusterSubmitter.lookOf(blob.gooType(),
                 ClientGooTypes.color(blob.gooType()));
         state.combo = prism.getCombo();
+        extractDecay(prism, state);
         extractGlow(prism, state, partialTick, cameraPos);
         extractPulse(prism, state);
         extractOculus(prism, state, partialTick, cameraPos);
         extractLift(prism, state);
+    }
+
+    /**
+     * Reads how far a degrading stream has charged the plain prism, the
+     * exposure the server builds on it while it charges.
+     * channeled-hosts-convert-prisms-over-the-hold
+     *
+     * @param prism the prism
+     * @param state the render state, its combo already read
+     */
+    private static void extractDecay(PrismBlockEntity prism, PrismRenderState state) {
+        Optional<BlockTransforms.Exposure> exposure = state.combo.isEmpty()
+                ? BlockTransforms.CLIENT.exposureAt(prism.getBlockPos()) : Optional.empty();
+        state.decayShare = exposure.map(BlockTransforms.Exposure::share).orElse(0f);
+        state.decayTint = exposure.map(BlockTransforms.Exposure::tint).orElse(0);
     }
 
     /**
@@ -235,7 +253,8 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
         PrismComboStyle style = PrismComboStyles.forCombo(state.combo);
         if (style == null) {
             PrismCrystal.standOnLandingFace(poseStack, state.facing);
-            submitPlain(state, look, poseStack, nodeCollector);
+            submitPlain(state, PrismCrystal.decaying(look, state.decayShare, state.decayTint), poseStack,
+                    nodeCollector);
         } else {
             scaleAboutBase(poseStack, state.facing, state.scale);
             style.submit(state, poseStack, nodeCollector);
