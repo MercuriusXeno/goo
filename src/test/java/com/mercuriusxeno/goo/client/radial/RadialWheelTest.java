@@ -265,6 +265,20 @@ class RadialWheelTest {
             }
         }
 
+        /** decision petal-moves-animate: a closed fan folds away on its own clock, whatever opens after it */
+        @Test
+        void aFanFoldsAwayWithinTheEaseEvenWhileTheCursorKeepsOpeningTypes() {
+            RadialWheel wheel = opened(ABILITIES);
+
+            for (int tick = 1; tick <= RingEase.DURATION_TICKS; tick++) {
+                moveTo(wheel, typeCenter(OPEN_TYPE + tick), BAND);
+                wheel.tick();
+            }
+
+            assertTrue(wheel.displayedLayout(0.0f).stream()
+                    .noneMatch(petal -> petal.isAbility() && petal.type() == OPEN_TYPE), "the first fan has folded away");
+        }
+
         /** decision halves-arc-petals-at-rest */
         @Test
         void cursorInTheShrunkenHubReturnsToRest() {
