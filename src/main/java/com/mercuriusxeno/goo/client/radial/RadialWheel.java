@@ -16,8 +16,9 @@ import java.util.function.ToIntFunction;
  * the open type's abilities fan in the outer ring, centered on its petal,
  * each at most 30 degrees, reaching in behind the type petals. Nothing ever
  * turns. Over the dropped type petals the cursor opens the type under it,
- * mousing through the types; past either end of the fan it winds on to the
- * neighboring type; in the shrunken hub it returns the wheel to rest.
+ * mousing through the types; out in the outer ring it only ever hovers the
+ * open type's abilities, holding that type past either end of the fan; in
+ * the shrunken hub it returns the wheel to rest.
  * decision abilities-replace-the-hovered-type
  * decision ring-rotates-to-keep-the-cursor-inside
  * decision halves-arc-petals-at-rest
@@ -388,7 +389,7 @@ public final class RadialWheel {
      * The cursor with a type open: in the shrunken hub it returns the wheel
      * to rest; over the dropped type petals it opens the type under it, its
      * fan showing with no ability hovered; out past their tips it hovers the
-     * ability under it, or winds on past either end of the fan. A type opened
+     * ability under it, or none past either end of the fan. A type opened
      * at rest lands the cursor on that same type's dropped petal, so nothing
      * flutters across the opening edge.
      * decision abilities-replace-the-hovered-type
@@ -413,51 +414,16 @@ public final class RadialWheel {
 
     /**
      * The cursor past the dropped type petals with a type open: it hovers
-     * the ability under it; past either end of the fan it winds on to the
-     * neighboring type that way, clockwise to the next and counterclockwise
-     * to the last, only where the neighbor's fan holds the cursor, and
-     * otherwise the open type holds with no ability hovered, so no move
-     * flips between two types.
-     * decision ring-rotates-to-keep-the-cursor-inside
+     * the ability under it, and past either end of the fan the open type
+     * holds with no ability hovered. The inner ring picks the type and the
+     * outer ring the ability.
+     * decision abilities-replace-the-hovered-type
      *
      * @param angle the cursor's angle
      */
     private void hoverAt(double angle) {
         PetalArc under = abilityAt(angle);
-        if (under != null) {
-            hoveredAbility = under.ability();
-            return;
-        }
-        hoveredAbility = NONE;
-        int step = Math.IEEEremainder(angle - typeCenter(selectedType), TWO_PI) > 0 ? 1 : STEP_BACK;
-        int neighbor = Math.floorMod(selectedType + step, typeCount);
-        // ring-rotates-to-keep-the-cursor-inside: wind on only into a fan that holds the cursor, so nothing flips
-        if (fanHolds(neighbor, angle)) {
-            openUnder(neighbor, angle);
-        }
-    }
-
-    /**
-     * The middle of a type's petal, where its fan centers.
-     *
-     * @param type the type
-     * @return the angle in radians
-     */
-    private double typeCenter(int type) {
-        return RING_START + (type + HALF) * typeArc();
-    }
-
-    /**
-     * Whether a type's fan, open, would lie under an angle.
-     *
-     * @param type  the type
-     * @param angle the angle
-     * @return true inside its fan, false past it or for a type with no abilities
-     */
-    private boolean fanHolds(int type, double angle) {
-        int abilities = abilityCount.applyAsInt(type);
-        double halfSpan = abilities * (abilities == 0 ? 0.0 : abilityArc(type)) * HALF;
-        return Math.abs(Math.IEEEremainder(angle - typeCenter(type), TWO_PI)) < halfSpan;
+        hoveredAbility = under == null ? NONE : under.ability();
     }
 
     /**

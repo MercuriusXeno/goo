@@ -297,7 +297,7 @@ class RadialWheelTest {
             assertEquals(1, seen.stream().distinct().count(), "a stable selection across repeated moves: " + seen);
         }
 
-        /** decision ring-rotates-to-keep-the-cursor-inside: outside both fans the open type holds */
+        /** decision abilities-replace-the-hovered-type: outside both fans the open type holds */
         @Test
         void aCursorBetweenAFansEndAndTheNeighborsFanKeepsTheTypeOpenWithNoAbilityHovered() {
             RadialWheel wheel = fewNarrowFans();
@@ -309,16 +309,16 @@ class RadialWheelTest {
             assertEquals(List.of("1/-1"), seen.stream().distinct().toList(), "no flip outside both fans: " + seen);
         }
 
-        /** decision ring-rotates-to-keep-the-cursor-inside: winding lands in an ability, among narrow fans too */
+        /** decision abilities-replace-the-hovered-type: past the fan the open type holds, whatever its neighbor's fan covers */
         @Test
-        void windingAmongNarrowFansLandsInTheNeighborsAbility() {
-            RadialWheel wheel = fewNarrowFans();
-            moveTo(wheel, Math.toRadians(108.0), JUST_PAST_NEUTRAL);
-            double neighborFan = Math.toRadians(180.0);
+        void pastTheFanIntoANeighborsWideFanTheOpenTypeHoldsWithNoAbilityHovered() {
+            RadialWheel wheel = new RadialWheel(4, type -> new int[]{7, 2, 3, 4}[type]);
+            moveTo(wheel, Math.toRadians(135.0), JUST_PAST_NEUTRAL);
+            assertEquals(1, wheel.selectedType());
 
-            List<String> seen = repeatedly(wheel, neighborFan, RIM);
+            List<String> seen = repeatedly(wheel, Math.toRadians(95.0), RIM);
 
-            assertEquals(List.of("2/0"), seen.stream().distinct().toList(), "winds to type 2's ability and holds: " + seen);
+            assertEquals(List.of("1/-1"), seen.stream().distinct().toList(), "only the inner ring picks a type: " + seen);
         }
 
         /** decision petal-moves-animate: a closed fan folds away on its own clock, whatever opens after it */
@@ -356,19 +356,18 @@ class RadialWheelTest {
             assertEquals(other, wheel.hoveredAbility());
         }
 
-        /** decision ring-rotates-to-keep-the-cursor-inside */
+        /** decision abilities-replace-the-hovered-type: the inner ring picks the type, the outer ring the ability */
         @Test
-        void leavingTheFanEitherWayWindsOnToTheNeighboringTypeWithTheCursorInAnAbility() {
+        void leavingTheFanEitherWayHoldsTheOpenTypeWithNoAbilityHovered() {
             assertAll(IntStream.of(1, -1).mapToObj(step -> (Executable) () -> {
                 RadialWheel wheel = opened(ABILITIES);
                 List<RadialWheel.PetalArc> fan = abilityPetals(wheel);
                 double cursor = step > 0 ? fan.getLast().start() + fan.getLast().arc() + JUST_PAST
                         : fan.getFirst().start() - JUST_PAST;
 
-                moveTo(wheel, cursor, RIM);
+                List<String> seen = repeatedly(wheel, cursor, RIM);
 
-                assertEquals(Math.floorMod(OPEN_TYPE + step, TYPES), wheel.selectedType(), "winding " + step);
-                assertTrue(wheel.hoveredAbility() != RadialWheel.NONE, "the cursor lands in an ability");
+                assertEquals(List.of(OPEN_TYPE + "/-1"), seen.stream().distinct().toList(), "past the fan " + step);
             }));
         }
 
@@ -396,8 +395,8 @@ class RadialWheelTest {
     /**
      * The open type's fan sits centered on its petal and never turns: the
      * cursor hovers whichever ability lies under it, sweeping either way
-     * reaches every ability in turn, and past either end the cursor winds on
-     * to the neighboring type (decision ring-rotates-to-keep-the-cursor-inside).
+     * reaches every ability in turn, and past either end the open type holds
+     * (decision ring-rotates-to-keep-the-cursor-inside).
      */
     @Nested
     class Fan {
@@ -409,7 +408,7 @@ class RadialWheelTest {
             List<Double> fan = abilityPetals(wheel).stream().map(RadialWheel.PetalArc::start).toList();
             for (int step = 0; step < SWEEP_STEPS; step++) {
                 double next = cursor + direction * SWEEP_STEP;
-                // the sweep stops at the fan's edge, past which the cursor winds on to the next type
+                // the sweep stops at the fan's edge, past which no ability lies under the cursor
                 if (abilityPetals(wheel).stream().noneMatch(petal ->
                         Math.abs(Math.IEEEremainder(next - petal.center(), TWO_PI)) * 2 < petal.arc())) {
                     break;
