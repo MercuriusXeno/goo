@@ -10,6 +10,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -2577,12 +2579,17 @@ class GooValueRegistryTest {
         private static final String SHIPPED_BASE_VALUES = "/data/goo/goo_values/base_values.json";
 
         /**
-         * The shipped base values give no item any xeno, while the same load
-         * still values items in the standing types.
+         * The shipped base values give no item any xeno or void, while the same
+         * load still values items in the standing types.
          * decision xeno-ships-as-a-type-with-no-source-yet
+         * decision void-ships-from-astral-and-deep
          */
-        @Test
-        void noShippedItemResolvesXeno() throws IOException {
+        @ParameterizedTest
+        @ValueSource(strings = {"xeno", "void"})
+        void noShippedItemResolvesATypeWithNoItemSource(String typeId) throws IOException {
+            ResourceKey<GooTypeDefinition> sourceless = GooTypes.BUNDLED.stream()
+                    .filter(key -> GooTypes.id(key).equals(typeId))
+                    .findFirst().orElseThrow();
             try (var shipped = GooValueRegistryTest.class.getResourceAsStream(SHIPPED_BASE_VALUES)) {
                 assertNotNull(shipped, SHIPPED_BASE_VALUES);
                 parseBaseValuesFromStream(shipped);
@@ -2592,11 +2599,11 @@ class GooValueRegistryTest {
             Map<Identifier, GooValue> effective = registry.table().getEffectiveValues();
             assertTrue(effective.values().stream().anyMatch(value -> value.get(GooTypes.AEON) > 0),
                     "the shipped load valued no item in aeon");
-            List<Identifier> carryingXeno = effective.entrySet().stream()
-                    .filter(entry -> entry.getValue().get(GooTypes.XENO) != 0)
+            List<Identifier> carryingSourceless = effective.entrySet().stream()
+                    .filter(entry -> entry.getValue().get(sourceless) != 0)
                     .map(Map.Entry::getKey)
                     .toList();
-            assertEquals(List.of(), carryingXeno);
+            assertEquals(List.of(), carryingSourceless);
         }
 
         /**
