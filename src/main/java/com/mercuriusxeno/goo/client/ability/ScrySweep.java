@@ -52,7 +52,7 @@ public final class ScrySweep {
     /** A ping's sphere centers at the caster's body, this far above where the caster stood. */
     private static final double BODY_CENTER = 0.9;
 
-    private static final List<RevealedBlock> revealed = new ArrayList<>();
+    private static final List<RevealedBlock> REVEALED = new ArrayList<>();
     private static float radius;
     private static Vec3 origin = Vec3.ZERO;
     private static float pingFade = 1f;
@@ -84,7 +84,7 @@ public final class ScrySweep {
         Vec3 center = ping.origin().add(0, BODY_CENTER, 0);
         float next = ping.radius();
         if (startsOver(now, next, center)) {
-            revealed.clear();
+            REVEALED.clear();
             radius = 0f;
         }
         origin = center;
@@ -92,10 +92,10 @@ public final class ScrySweep {
         pingFade =ScryReveal.pingFade(next, ping.reach(), ping.fade());
         for (BlockPos pos : ScryReveal.shell(center, Math.min(radius, ping.reach()), Math.min(next, ping.reach()))) {
             List<Direction> sides = ScryReveal.exposedFaces(at -> level.getBlockState(at).isAir(), pos);
-            if (!sides.isEmpty() && revealed.size() < MOST_BLOCKS) {
+            if (!sides.isEmpty() && REVEALED.size() < MOST_BLOCKS) {
                 // the reveal traces the block's own shape, so slabs, stairs and fences show as they stand
                 List<AABB> boxes = level.getBlockState(pos).getShape(level, pos).toAabbs();
-                revealed.add(new RevealedBlock(pos, boxes, sides, now));
+                REVEALED.add(new RevealedBlock(pos, boxes, sides, now));
             }
         }
         radius = next;
@@ -144,7 +144,7 @@ public final class ScrySweep {
         long now = mc.level.getGameTime();
         float strength = ScryReveal.fade(now - lastRadiusAt) * pingFade;
         if (strength <= 0f) {
-            revealed.clear();
+            REVEALED.clear();
             lastRadiusAt = Long.MIN_VALUE;
             return;
         }
@@ -160,7 +160,7 @@ public final class ScrySweep {
     private static void drawRevealed(PoseStack.Pose pose, MultiBufferSource.BufferSource buffers, Vec3 camera,
                                      long now, float strength) {
         VertexConsumer consumer = buffers.getBuffer(GooRenderTypes.SCRY_FACES_TYPE);
-        for (RevealedBlock block : revealed) {
+        for (RevealedBlock block : REVEALED) {
             float flash = 1f + FLASH_GAIN * ScryReveal.flash(now - block.revealedAt());
             int color = ARGB.color(Math.min(OPAQUE, Math.round(FACE_ALPHA * flash * strength)), tintRgb);
             Vec3 corner = Vec3.atLowerCornerOf(block.pos()).subtract(camera);

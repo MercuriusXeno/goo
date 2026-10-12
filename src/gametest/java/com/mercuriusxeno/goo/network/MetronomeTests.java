@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.PrismCombos;
 import com.mercuriusxeno.goo.block.ability.PrismBlock;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
@@ -8,6 +11,7 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LeverBlock;
 import net.minecraft.world.level.block.RedstoneLampBlock;
@@ -43,7 +47,8 @@ public final class MetronomeTests {
 
     /** Marks a pending effect aimed at a block rather than an entity. */
     private static final int NO_ENTITY = -1;
-    private static final String METRONOME = "goo:pulse_metronome";
+    /** Pulser, whose on_prism reaction is the metronome (decision channeled-hosts-convert-prisms-over-the-hold). */
+    private static final String METRONOME = "goo:pulse_pulser";
     private static final String ZAP = "goo:pulse_zap";
     private static final String STILL_A_METRONOME = "A Zap should leave the prism's metronome combo standing";
     private static final BlockPos PRISM = new BlockPos(2, 1, 2);
@@ -83,9 +88,7 @@ public final class MetronomeTests {
         helper.setBlock(PRISM, GooBlocks.PRISM.get().defaultBlockState().setValue(PrismBlock.FACING, Direction.UP));
         helper.setBlock(LEVER, Blocks.LEVER.defaultBlockState().setValue(LeverBlock.FACE, AttachFace.FLOOR));
         helper.setBlock(LAMP, Blocks.REDSTONE_LAMP);
-        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.PULSE,
-                NO_ENTITY, helper.absolutePos(PRISM), Direction.UP, METRONOME));
-        helper.assertTrue(helper.getBlockEntity(PRISM, PrismBlockEntity.class).hasCombo(), COMBO_TOOK);
+        standMetronome(helper);
         for (int pull : new int[] {FIRST_ON, FIRST_OFF, SECOND_ON, THIRD_OFF, THIRD_ON, FOURTH_OFF, FOURTH_ON}) {
             helper.runAfterDelay(pull, () -> helper.pullLever(LEVER));
         }
@@ -110,9 +113,7 @@ public final class MetronomeTests {
         helper.setBlock(LAMP.below(), Blocks.STONE);
         helper.setBlock(PRISM, GooBlocks.PRISM.get().defaultBlockState().setValue(PrismBlock.FACING, Direction.UP));
         helper.setBlock(LAMP, Blocks.REDSTONE_LAMP);
-        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.PULSE,
-                NO_ENTITY, helper.absolutePos(PRISM), Direction.UP, METRONOME));
-        helper.assertTrue(helper.getBlockEntity(PRISM, PrismBlockEntity.class).hasCombo(), COMBO_TOOK);
+        standMetronome(helper);
         for (int zap : new int[] {FIRST_ON, SECOND_ON}) {
             helper.runAfterDelay(zap, () -> GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(),
                     null, GooTypes.PULSE, NO_ENTITY, helper.absolutePos(PRISM), Direction.UP, ZAP)));
@@ -124,6 +125,18 @@ public final class MetronomeTests {
             assertBeats(helper, beats, FIRST_INTERVAL);
             helper.succeed();
         });
+    }
+
+    /**
+     * Converts the prism into a metronome as a full Pulser hold does, its
+     * combo the Pulser's on_prism reaction.
+     *
+     * @param helper the gametest helper
+     */
+    private static void standMetronome(GameTestHelper helper) {
+        AbilityDefinition pulser = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(METRONOME));
+        helper.assertTrue(pulser != null && helper.getBlockEntity(PRISM, PrismBlockEntity.class)
+                .runCombo(GooTypes.PULSE, METRONOME, PrismCombos.comboSteps(pulser)), COMBO_TOOK);
     }
 
     private static List<Integer> watchLamp(GameTestHelper helper, int from, int to) {

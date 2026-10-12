@@ -14,8 +14,11 @@ import net.minecraft.util.ARGB;
  */
 public final class GlacialPrismStyle implements PrismComboStyle {
 
-    /** The combo id a glacial prism carries, frost's prism ability. */
-    public static final String COMBO = "goo:frost_glacial";
+    /**
+     * The combo id a glacial prism carries: Cold, whose on_prism reaction is the glacial.
+     * channeled-hosts-convert-prisms-over-the-hold
+     */
+    public static final String COMBO = "goo:frost_cold";
 
     /** The deep glacier blue the column takes over its quartz. */
     static final int GLACIER_BLUE = 0x3F8FD8;
