@@ -112,8 +112,8 @@ public final class GooClientNetworking {
     }
 
     /**
-     * Registers the handlers for the abilities' own visuals: glow's Scry
-     * and Sunbeam, hex's leech and tomes, frost's Nova rings and
+     * Registers the handlers for the abilities' own visuals: astral's Scry,
+     * glow's Sunbeam, hex's leech and tomes, frost's Nova rings and
      * leaf's Reap swells.
      *
      * @param event the client payload handler registration event

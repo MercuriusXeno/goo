@@ -82,7 +82,7 @@ public final class GooNetworking {
 
     /**
      * Registers the client-bound payloads of the abilities' own visuals:
-     * glow's Scry and Sunbeam, hex's leech and tomes, frost's Nova
+     * astral's Scry, glow's Sunbeam, hex's leech and tomes, frost's Nova
      * rings and leaf's Reap swells.
      *
      * @param r the payload registrar
