@@ -9,6 +9,8 @@ import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
+import com.mercuriusxeno.goo.ability.DistancePrice;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.OfferedAbility;
 import net.minecraft.world.item.ItemStack;
@@ -297,6 +299,8 @@ class RadialWheelRendererTest {
         private static final int NO_ABILITY = -1;
         /** The open type's ability a locked frame locks. */
         private static final int LOCKED_ABILITY = 1;
+        /** The open type's ability a prism frame gives an on_prism reaction. */
+        private static final int PRISM_ABILITY = 2;
         /** The items the locked ability requires: glass learned, sand and clay not. */
         private static final List<OfferedAbility.RequiredItem> REQUIRED = List.of(
                 new OfferedAbility.RequiredItem(Identifier.withDefaultNamespace("glass"), true),
@@ -385,11 +389,27 @@ class RadialWheelRendererTest {
          * @return the mocked graphics the frame drew to
          */
         private GuiGraphicsExtractor renderFrame(RadialWheel wheel, int lockedAbility) {
+            return renderFrame(wheel, lockedAbility, NO_ABILITY);
+        }
+
+        /**
+         * Renders the frame with one ability of the open type locked and one
+         * carrying an on_prism reaction.
+         *
+         * @param wheel         the wheel's state
+         * @param lockedAbility the open type's ability index to lock, or {@link #NO_ABILITY}
+         * @param prismAbility  the open type's ability index reacting to prisms, or {@link #NO_ABILITY}
+         * @return the mocked graphics the frame drew to
+         */
+        private GuiGraphicsExtractor renderFrame(RadialWheel wheel, int lockedAbility, int prismAbility) {
             List<List<OfferedAbility>> abilities = IntStream.range(0, TYPES)
                     .mapToObj(type -> IntStream.range(0, ABILITIES).mapToObj(ability -> new OfferedAbility(
                             new ClientAbility(
                             Identifier.fromNamespaceAndPath("gootest", "ability_" + type + "_" + ability),
-                            "ability.gootest.word", "", 0, List.of(), List.of(), 0, Delivery.ARC, AbilityBadge.WORLD, List.of()),
+                            "ability.gootest.word", "", 0, List.of(), List.of(), 0, Delivery.ARC, AbilityBadge.WORLD,
+                            List.of(), AbilityArea.NONE, IndicatorShowing.HELD, List.of(),
+                            AbilityDefinition.NO_UPKEEP, DistancePrice.NONE,
+                            type == OPEN_TYPE && ability == prismAbility ? List.of(mock(Step.class)) : List.of()),
                             type == OPEN_TYPE && ability == lockedAbility ? REQUIRED : List.of()))
                             .toList())
                     .toList();
@@ -635,6 +655,41 @@ class RadialWheelRendererTest {
                         assertEquals(LINES_PER_ABILITY, words.size(), petal + " lines");
                         assertTrue(words.getFirst().y() + LINE_HEIGHT <= iconY - half, petal + " name above");
                         assertTrue(words.getLast().y() >= iconY + half, petal + " cost below");
+                    }));
+        }
+
+        /**
+         * An ability carrying an on_prism reaction paints its own badge and
+         * then the prism badge one icon further right; its siblings paint
+         * their own badge alone.
+         * decision on-prism-reaction-wears-the-prism-badge
+         */
+        @Test
+        void prismReactingAbilityPaintsThePrismBadgeBesideItsOwn() {
+            RadialWheel wheel = openWheel();
+            List<PetalRenderState> submitted = submittedArguments(renderFrame(wheel, NO_ABILITY, PRISM_ABILITY),
+                    "submitGuiElementRenderState", PetalRenderState.class);
+            int size = RadialWheelRenderer.ABILITY_ICON_SIZE;
+            TextureSetup worldBadge = sprites.get(RadialWheelRenderer.badgeIcon(AbilityBadge.WORLD));
+            PetalRenderState prismBadge = spriteOf(submitted,
+                    RadialWheelRenderer.badgeIcon(AbilityBadge.PRISM));
+
+            assertAll(wheel.displayedLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
+                    .map(petal -> (Executable) () -> {
+                        PetalRenderState iconState = spriteOf(submitted, iconOf(petal));
+                        int badgeAt = submitted.indexOf(iconState) + 1;
+                        assertTrue(submitted.get(badgeAt).textureSetup() == worldBadge, petal + " own badge first");
+                        PetalRenderState next = badgeAt + 1 < submitted.size() ? submitted.get(badgeAt + 1) : null;
+                        if (petal.ability() == PRISM_ABILITY) {
+                            assertTrue(next == prismBadge, petal + " prism badge second");
+                            float[] iconBox = boxOf(iconState);
+                            float[] prismBox = boxOf(prismBadge);
+                            assertEquals(Math.round(iconBox[0]) + 2 * size, Math.round(prismBox[0]),
+                                    petal + " prism badge's left edge");
+                            assertEquals(Math.round(iconBox[1]), Math.round(prismBox[1]), petal + " prism badge's row");
+                        } else {
+                            assertFalse(next == prismBadge, petal + " paints no prism badge");
+                        }
                     }));
         }
 
@@ -918,6 +973,7 @@ class RadialWheelRendererTest {
                 int dy = corner / 2 == 0 ? -half : half;
                 assertFalse(insidePetal(center[0] + dx, center[1] + dy), "icon corner " + corner);
                 assertFalse(insidePetal(center[0] + dx + size, center[1] + dy), "badge corner " + corner);
+                assertFalse(insidePetal(center[0] + dx + 2 * size, center[1] + dy), "prism badge corner " + corner);
             }));
         }
 

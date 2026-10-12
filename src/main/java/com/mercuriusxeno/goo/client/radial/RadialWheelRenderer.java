@@ -68,12 +68,14 @@ final class RadialWheelRenderer {
     private static final int HALF = 2;
     /**
      * How far past the petal's outer radius a closed petal's icon centers:
-     * the reach from the icon's center to the badge's far corner, one icon
-     * right and half an icon up, plus a pixel, so no pixel of either lies
-     * inside the petal.
+     * the reach from the icon's center to the prism badge's far corner, two
+     * icons right and half an icon up, plus a pixel, so no pixel of the icon
+     * or either badge lies inside the petal.
      * decision icons-slide-in-from-behind-the-tip
+     * decision on-prism-reaction-wears-the-prism-badge
      */
-    static final double ENTRY_REACH = Math.hypot(ABILITY_ICON_SIZE + ABILITY_ICON_OFFSET, ABILITY_ICON_OFFSET) + 1;
+    static final double ENTRY_REACH =
+            Math.hypot(2 * ABILITY_ICON_SIZE + ABILITY_ICON_OFFSET, ABILITY_ICON_OFFSET) + 1;
 
     private static final String TYPE_ICON_PREFIX = "textures/goo/type/";
     private static final String ABILITY_ICON_PREFIX = "textures/goo/ability/";
@@ -439,9 +441,11 @@ final class RadialWheelRenderer {
 
     /**
      * Draws the ability's icon, then its badge untinted directly to the icon's
-     * right, where the words never clip it and it never covers the icon, each
-     * cut at the petal's border so only the part under its face shows.
+     * right, where the words never clip it and it never covers the icon, and
+     * for an ability carrying an on_prism reaction the prism badge right of
+     * that, each cut at the petal's border so only the part under its face shows.
      * badge-marks-the-target-kind
+     * decision on-prism-reaction-wears-the-prism-badge
      * decision icons-slide-in-from-behind-the-tip
      *
      * @param graphics the GUI graphics extractor
@@ -456,16 +460,21 @@ final class RadialWheelRenderer {
         PetalMask.Petal shape = petal.shape();
         PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(resolveAbilityIcon(ability)), slot,
                 ABILITY_ICON_SIZE, color);
+        int[] badgeSlot = badgeBeside(slot);
         PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(badgeIcon(ability.badge())),
-                badgeBeside(slot), ABILITY_ICON_SIZE, COLOR_WHITE);
+                badgeSlot, ABILITY_ICON_SIZE, COLOR_WHITE);
+        if (ability.reactsToPrisms()) {
+            PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(badgeIcon(AbilityBadge.PRISM)),
+                    badgeBeside(badgeSlot), ABILITY_ICON_SIZE, COLOR_WHITE);
+        }
     }
 
     /**
-     * The point a badge centers on: one icon's width right of the ability
-     * icon's center, on its row, so the badge sits beside the icon edge to edge.
+     * The point a badge centers on: one icon's width right of the sprite
+     * before it, on its row, so the badge sits beside that sprite edge to edge.
      * badge-marks-the-target-kind
      *
-     * @param iconCenter the ability icon's center
+     * @param iconCenter the center of the sprite the badge follows
      * @return the badge's center
      */
     private static int[] badgeBeside(int[] iconCenter) {
