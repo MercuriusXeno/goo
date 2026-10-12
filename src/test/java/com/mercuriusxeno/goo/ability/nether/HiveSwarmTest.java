@@ -25,7 +25,8 @@ class HiveSwarmTest {
 
     private static final double DELTA = 1e-6;
     private static final long SEED = 7L;
-    private static final String HIVE = "/data/goo/goo_abilities/nether_hive.json";
+    /** Decay, whose on_prism reaction is the hive (decision channeled-hosts-convert-prisms-over-the-hold). */
+    private static final String HIVE = "/data/goo/goo_abilities/nether_decay.json";
     private static final int TICKS_TO_REST = 400;
 
     @Test
@@ -79,7 +80,7 @@ class HiveSwarmTest {
         try (InputStream in = HiveSwarmTest.class.getResourceAsStream(HIVE)) {
             assertNotNull(in, HIVE);
             JsonObject hive = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
-            double radius = hive.getAsJsonArray("behaviors").get(0).getAsJsonObject().get("radius").getAsDouble();
+            double radius = hive.getAsJsonArray("on_prism").get(0).getAsJsonObject().get("radius").getAsDouble();
             assertEquals(radius, HiveSwarm.REACH, DELTA);
         }
     }

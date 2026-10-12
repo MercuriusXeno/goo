@@ -118,7 +118,8 @@ class AbilityBadgeTest {
      * @param host the host ability's file name
      */
     @ParameterizedTest
-    @CsvSource({"typhoon_lift, typhoon_updraft", "pulse_relay, pulse_zap", "pulse_metronome, pulse_pulser"})
+    @CsvSource({"typhoon_lift, typhoon_updraft", "pulse_relay, pulse_zap", "pulse_metronome, pulse_pulser",
+            "nether_hive, nether_decay"})
     void aFoldedPrismCardLoadsNoDefinitionAndItsHostReacts(String card, String host) {
         assertTrue(AbilityJson.files().stream().map(AbilityJson::decode)
                 .noneMatch(definition -> definition.id().getPath().equals(card)), card + " loads");

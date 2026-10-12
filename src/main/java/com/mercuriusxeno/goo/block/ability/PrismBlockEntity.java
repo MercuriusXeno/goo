@@ -89,6 +89,13 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
     private PrismConversion conversion = PrismConversion.NONE;
 
     /**
+     * @return the bare prism's charge toward a channeled stream's combo
+     */
+    public PrismConversion conversion() {
+        return conversion;
+    }
+
+    /**
      * Charges the bare prism one tick toward the combo of the stream holding
      * on it, and converts it into that combo once the charge reaches the hold.
      * channeled-hosts-convert-prisms-over-the-hold

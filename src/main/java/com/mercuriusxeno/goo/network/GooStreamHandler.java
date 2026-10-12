@@ -149,44 +149,21 @@ public final class GooStreamHandler {
                                     ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability, int held) {
         if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge())) {
             channelOnPlayer(player, new ChannelAim(payload.aimPoint(), payload.plane(), 0, held), ability);
-        } else if (!chargesAPrism(player, gooType, ability)) {
+        } else if (!StreamPrismCharge.charges(player, payload.origin(), gooType, ability)) {
             strikeCone(player, payload.origin(), ability, held);
         }
     }
 
     /**
-     * Charges the bare prism a stream's look ends on, in place of running the
-     * stream's program there, where the stream carries an on_prism reaction:
-     * held for one charge's ticks unbroken, the prism converts into that
-     * reaction as its combo. A prism already holding a combo takes the stream
-     * as any block does.
-     * channeled-hosts-convert-prisms-over-the-hold
+     * The glove hand a stream's cone opens from: the hand the client sent,
+     * kept within the player's reach.
      *
-     * @param player  the streaming player
-     * @param gooType the stream's goo type
-     * @param ability the stream ability
-     * @return true when the tick charged a prism and the stream runs nothing else
+     * @param player the streaming player
+     * @param origin the glove hand the client sent
+     * @return the cone's apex
      */
-    private static boolean chargesAPrism(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
-                                         AbilityDefinition ability) {
-        if (ability.onPrism().isEmpty()) {
-            return false;
-        }
-        Vec3 eye = player.getEyePosition();
-        BlockHitResult hit = player.level().clip(new ClipContext(eye,
-                eye.add(player.getLookAngle().scale(ability.delivery().range())), ClipContext.Block.OUTLINE,
-                ClipContext.Fluid.NONE, player));
-        if (hit.getType() != HitResult.Type.BLOCK
-                || !(player.level().getBlockEntity(hit.getBlockPos()) instanceof PrismBlockEntity prism)
-                || prism.hasCombo()) {
-            return false;
-        }
-        try {
-            prism.chargeConversion(gooType, ability, ability.delivery().ticksPerCharge(), player.getUUID());
-        } catch (ProgramLoadException e) {
-            Goo.LOGGER.error(LOG_PROGRAM_REFUSED, ability.id(), e.getMessage());
-        }
-        return true;
+    static Vec3 coneApex(ServerPlayer player, Vec3 origin) {
+        return ThrowArc.clampToReach(player.getEyePosition(), origin, ThrowArc.HAND_REACH * player.getScale());
     }
 
     /**
@@ -361,7 +338,7 @@ public final class GooStreamHandler {
         ServerLevel level = player.level();
         ChargedMultipliers charged = chargedFor(player, ability);
         Delivery delivery = chargedDelivery(ability.delivery(), charged);
-        Vec3 apex = ThrowArc.clampToReach(player.getEyePosition(), origin, ThrowArc.HAND_REACH * player.getScale());
+        Vec3 apex = coneApex(player, origin);
         Vec3 axis = player.getLookAngle();
         CastOn cast = new CastOn(level, player, ability.id(), charged);
         // decay-gnats-degrade-each-block-once: what the stream strikes follows the look; only its motes
@@ -426,7 +403,7 @@ public final class GooStreamHandler {
      * @param ability the held ability
      * @return the multipliers
      */
-    private static ChargedMultipliers chargedFor(ServerPlayer player, AbilityDefinition ability) {
+    static ChargedMultipliers chargedFor(ServerPlayer player, AbilityDefinition ability) {
         return ChargedStep.isCharged(player) ? ability.charged() : ChargedMultipliers.NONE;
     }
 
@@ -635,7 +612,7 @@ public final class GooStreamHandler {
      * @param delivery the stream delivery
      * @param reach    how far the motes fly, in blocks
      */
-    private static void sprayParticles(ServerLevel level, Vec3 apex, Vec3 axis, Delivery delivery, double reach) {
+    static void sprayParticles(ServerLevel level, Vec3 apex, Vec3 axis, Delivery delivery, double reach) {
         RandomSource random = level.getRandom();
         double speed = reach * LAUNCH_SPEED_PER_BLOCK;
         delivery.particle().flatMap(SimpleParticles::resolve).ifPresent(particle -> {
