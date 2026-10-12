@@ -85,6 +85,32 @@ public class PrismBlockEntity extends GooSyncedBlockEntity implements MarkerAnch
      * ability can be read, so the program comes back on its first server tick.
      */
     private boolean resumesCombo;
+    /** A bare prism's charge toward a channeled stream's combo, unsaved: an unload breaks the hold. */
+    private PrismConversion conversion = PrismConversion.NONE;
+
+    /**
+     * Charges the bare prism one tick toward the combo of the stream holding
+     * on it, and converts it into that combo once the charge reaches the hold.
+     * channeled-hosts-convert-prisms-over-the-hold
+     *
+     * @param type   the stream's goo type
+     * @param source the stream ability, whose on_prism reaction is the combo
+     * @param hold   the ticks of unbroken stream the conversion takes
+     * @param caster the streaming player
+     * @return true when this tick converted the prism
+     */
+    public boolean chargeConversion(ResourceKey<GooTypeDefinition> type, AbilityDefinition source, int hold,
+                                    @Nullable UUID caster) {
+        if (hasCombo() || !(level instanceof ServerLevel server)) {
+            return false;
+        }
+        conversion = conversion.chargedBy(type, server.getGameTime());
+        if (!conversion.converts(hold)) {
+            return false;
+        }
+        conversion = PrismConversion.NONE;
+        return runCombo(type, source.id().toString(), PrismCombos.comboSteps(source), caster);
+    }
 
     /**
      * Creates the prism's block entity.

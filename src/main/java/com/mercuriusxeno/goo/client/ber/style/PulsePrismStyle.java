@@ -22,8 +22,11 @@ import net.minecraft.util.ARGB;
  */
 public final class PulsePrismStyle implements PrismComboStyle {
 
-    /** The id of the ability whose program is the metronome combo. */
-    public static final String METRONOME_COMBO = "goo:pulse_metronome";
+    /**
+     * The id of the ability whose on_prism reaction is the metronome combo.
+     * channeled-hosts-convert-prisms-over-the-hold
+     */
+    public static final String METRONOME_COMBO = "goo:pulse_pulser";
     /**
      * The id of the ability whose on_prism reaction is the relay combo.
      * thrown-hosts-absorb-their-prism-combos

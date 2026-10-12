@@ -129,14 +129,64 @@ public final class GooStreamHandler {
         if (held == 0) {
             return;
         }
-        if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge())) {
-            channelOnPlayer(player, new ChannelAim(payload.aimPoint(), payload.plane(), 0, held), ability);
-        } else {
-            strikeCone(player, payload.origin(), ability, held);
-        }
+        runHeldTick(player, payload, gooType, ability, held);
         // mycosis-spore-stream-buds-and-poisons
         ability.delivery().sound().filter(sound -> sound.playsOn(held))
                 .ifPresent(sound -> playStreamSound(player, sound));
+    }
+
+    /**
+     * Runs a paid tick of a held ability: a channel runs on the player, a
+     * stream converting a prism charges it, and any other stream strikes its cone.
+     *
+     * @param player  the holding player
+     * @param payload the held tick
+     * @param gooType the ability's goo type
+     * @param ability the held ability
+     * @param held    the hold's tick count, 1 on its first tick
+     */
+    private static void runHeldTick(ServerPlayer player, GooStreamPayload payload,
+                                    ResourceKey<GooTypeDefinition> gooType, AbilityDefinition ability, int held) {
+        if (HeldRoute.channelsOnSelf(ability.delivery(), ability.badge())) {
+            channelOnPlayer(player, new ChannelAim(payload.aimPoint(), payload.plane(), 0, held), ability);
+        } else if (!chargesAPrism(player, gooType, ability)) {
+            strikeCone(player, payload.origin(), ability, held);
+        }
+    }
+
+    /**
+     * Charges the bare prism a stream's look ends on, in place of running the
+     * stream's program there, where the stream carries an on_prism reaction:
+     * held for one charge's ticks unbroken, the prism converts into that
+     * reaction as its combo. A prism already holding a combo takes the stream
+     * as any block does.
+     * channeled-hosts-convert-prisms-over-the-hold
+     *
+     * @param player  the streaming player
+     * @param gooType the stream's goo type
+     * @param ability the stream ability
+     * @return true when the tick charged a prism and the stream runs nothing else
+     */
+    private static boolean chargesAPrism(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
+                                         AbilityDefinition ability) {
+        if (ability.onPrism().isEmpty()) {
+            return false;
+        }
+        Vec3 eye = player.getEyePosition();
+        BlockHitResult hit = player.level().clip(new ClipContext(eye,
+                eye.add(player.getLookAngle().scale(ability.delivery().range())), ClipContext.Block.OUTLINE,
+                ClipContext.Fluid.NONE, player));
+        if (hit.getType() != HitResult.Type.BLOCK
+                || !(player.level().getBlockEntity(hit.getBlockPos()) instanceof PrismBlockEntity prism)
+                || prism.hasCombo()) {
+            return false;
+        }
+        try {
+            prism.chargeConversion(gooType, ability, ability.delivery().ticksPerCharge(), player.getUUID());
+        } catch (ProgramLoadException e) {
+            Goo.LOGGER.error(LOG_PROGRAM_REFUSED, ability.id(), e.getMessage());
+        }
+        return true;
     }
 
     /**
