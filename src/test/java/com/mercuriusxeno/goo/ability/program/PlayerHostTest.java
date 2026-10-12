@@ -133,7 +133,7 @@ class PlayerHostTest {
     class Push {
 
         private static final double STRENGTH = 1.5;
-        /** typhoon_jet.json's push: its speed and the shares it steers by, without and with an elytra. */
+        /** typhoon_tailwind.json's push: its speed and the shares it steers by, without and with an elytra. */
         private static final double JET_STRENGTH = 0.8;
         private static final double JET_STEER = 0.2;
         private static final double JET_ELYTRA_STEER = 0.5;
@@ -231,10 +231,10 @@ class PlayerHostTest {
         }
 
         @Test
-        void playerHostProvidesTargetExplodeEntityScanChannelBlockBreaksEffectExtendsFrostSiphonAndBlockTicks() {
+        void playerHostProvidesTargetExplodeEntityScanChannelBlockBreaksEffectExtendsFrostAndSiphon() {
             assertEquals(Set.of(HostCapability.TARGET, HostCapability.EXPLODE, HostCapability.ENTITY_SCAN,
                             HostCapability.CHANNEL, HostCapability.BREAK_BLOCKS, HostCapability.EXTEND_EFFECTS,
-                            HostCapability.FROST, HostCapability.SIPHON, HostCapability.TICK_BLOCK),
+                            HostCapability.FROST, HostCapability.SIPHON),
                     HostKind.PLAYER.capabilities());
         }
     }

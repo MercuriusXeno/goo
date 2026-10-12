@@ -261,16 +261,12 @@ public final class HeldEffectsEvents {
 
     /**
      * Clears the overlays an ended effect laid on the player's model: its
-     * haste overlay, its ancient overlay and Buster's green.
+     * ancient overlay and Buster's green.
      *
      * @param player the player
      * @param lays   the states the ended effect laid
      */
     private static void clearOverlays(ServerPlayer player, Set<LaidState> lays) {
-        if (lays.contains(LaidState.HASTE)) {
-            // haste-stacks-speed-under-the-golden-overlay: the golden overlay ends with the held effect
-            Haste.clear(player);
-        }
         if (lays.contains(LaidState.ANCIENT)) {
             // ancient-makes-the-player-immortal: the aged overlay ends with the held effect
             Ancient.clear(player);

@@ -23,8 +23,8 @@ class GooTypesCommandTest {
      */
     @Test
     void sortedIdsOrdersAcrossNamespaces() {
-        List<String> ids = GooTypesCommand.sortedIds(Stream.of(GooTypes.ROCK, ADDON_TYPE, GooTypes.AEON));
-        assertEquals(List.of("goo:aeon", "goo:rock", "gootest:seventeenth"), ids);
+        List<String> ids = GooTypesCommand.sortedIds(Stream.of(GooTypes.ROCK, ADDON_TYPE, GooTypes.ASTRAL));
+        assertEquals(List.of("goo:astral", "goo:rock", "gootest:seventeenth"), ids);
     }
 
     /**
@@ -32,7 +32,7 @@ class GooTypesCommandTest {
      */
     @Test
     void formatListingCarriesCountAndIds() {
-        String line = GooTypesCommand.formatListing(List.of("goo:aeon", "gootest:seventeenth"));
-        assertEquals("Goo types (2): goo:aeon, gootest:seventeenth", line);
+        String line = GooTypesCommand.formatListing(List.of("goo:astral", "gootest:seventeenth"));
+        assertEquals("Goo types (2): goo:astral, gootest:seventeenth", line);
     }
 }

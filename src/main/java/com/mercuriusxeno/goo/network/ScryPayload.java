@@ -1,10 +1,13 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
 
@@ -12,15 +15,18 @@ import org.jspecify.annotations.NonNull;
  * Server-to-client payload: the caster's Scry ping this tick of the hold,
  * sent to the caster alone, whose client draws the sphere from the ping's
  * origin and reveals the air-exposed faces its front crosses, fading the
- * sphere as it travels past its reach.
+ * sphere as it travels past its reach, in the colors of the goo type it names.
  * decision scry-sphere-reveals-faces-and-glistens-mobs
+ * decision scry-ships-on-astral
  *
- * @param origin where the ping began
- * @param radius the sphere's radius in blocks
- * @param reach  how far the front reaches before it fades
- * @param fade   how far past the reach it travels while fading
+ * @param origin  where the ping began
+ * @param radius  the sphere's radius in blocks
+ * @param reach   how far the front reaches before it fades
+ * @param fade    how far past the reach it travels while fading
+ * @param gooType the goo type whose colors tint the sphere and the revealed faces
  */
-public record ScryPayload(Vec3 origin, float radius, float reach, float fade) implements CustomPacketPayload {
+public record ScryPayload(Vec3 origin, float radius, float reach, float fade,
+                          ResourceKey<GooTypeDefinition> gooType) implements CustomPacketPayload {
 
     /** Payload type ID for registration. */
     public static final Type<ScryPayload> TYPE = new Type<>(Identifier.fromNamespaceAndPath(Goo.MODID, "scry"));
@@ -41,10 +47,12 @@ public record ScryPayload(Vec3 origin, float radius, float reach, float fade) im
         buf.writeFloat(payload.radius);
         buf.writeFloat(payload.reach);
         buf.writeFloat(payload.fade);
+        GooTypes.KEY_STREAM_CODEC.encode(buf, payload.gooType);
     }
 
     private static ScryPayload decode(FriendlyByteBuf buf) {
         Vec3 origin = new Vec3(buf.readDouble(), buf.readDouble(), buf.readDouble());
-        return new ScryPayload(origin, buf.readFloat(), buf.readFloat(), buf.readFloat());
+        return new ScryPayload(origin, buf.readFloat(), buf.readFloat(), buf.readFloat(),
+                GooTypes.KEY_STREAM_CODEC.decode(buf));
     }
 }

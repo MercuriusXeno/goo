@@ -60,7 +60,6 @@ public final class BrewEffectTests {
     private static final String BREW_FROST_ICEBORN = "brew_frost_iceborn_for_an_hour";
     private static final String BREW_CRYSTAL_SCALES = "brew_crystal_scales_for_an_hour";
     private static final String HEX_BREW_LIFETAPS = "hex_brew_lifetaps_for_an_hour";
-    private static final String AEON_BREW_HASTES = "aeon_brew_hastes_for_an_hour";
     private static final String UNSTABLE_BREW_BUSTS_FOR_AN_HOUR = "unstable_brew_busts_for_an_hour";
 
     private static final String BREW_JELLY_GLUTTONY = "brew_jelly_gluttony_for_an_hour";
@@ -87,7 +86,6 @@ public final class BrewEffectTests {
         GooTestFunctions.registerTest(registrar, BREW_FROST_ICEBORN, BrewEffectTests::frostBrewIcebornForAnHour);
         GooTestFunctions.registerTest(registrar, BREW_CRYSTAL_SCALES, BrewEffectTests::crystalBrewScalesForAnHour);
         GooTestFunctions.registerTest(registrar, HEX_BREW_LIFETAPS, BrewEffectTests::hexBrewLifetapsForAnHour);
-        GooTestFunctions.registerTest(registrar, AEON_BREW_HASTES, BrewEffectTests::aeonBrewHastesForAnHour);
         GooTestFunctions.registerTest(registrar, UNSTABLE_BREW_BUSTS_FOR_AN_HOUR, BrewEffectTests::unstableBrewBustsForAnHour);
         GooTestFunctions.registerTest(registrar, BREW_JELLY_GLUTTONY, BrewEffectTests::jellyBrewGluttonyForAnHour);
     }
@@ -121,7 +119,6 @@ public final class BrewEffectTests {
     private static final String SHOULD_LIFETAP = "The hex brew should lifetap at %.2f until %d, granted %.2f until %d";
     private static final String SHOULD_SEE = "The shroom brew should grant sight at %.1f until %d, granted %.1f until %d";
     private static final String SHOULD_SHOW_NO_PARTICLES = "A brew should show its icon and no particles, stands %s";
-    private static final String SHOULD_HASTE = "The aeon brew should raise speed and mining speed for %d ticks, stands %s";
     private static final String SHOULD_GLUT = "The jelly brew should hold gluttony until %d, holds it until %d";
     private static final String SHOULD_RUN_NOTHING = "A brew of a type with no brew ability should lay nothing, laid %s";
     private static final String SHOULD_HOLD_PREPAID = "The blaze brew should hold Kindle prepaid until %d, held %s";
@@ -350,32 +347,6 @@ public final class BrewEffectTests {
         helper.getLevel().getServer().getPlayerList().remove(player);
         long expected = now + GooPotions.BREW_DURATION;
         helper.assertTrue(expiresAt == expected, String.format(SHOULD_LUX, expected, expiresAt));
-        helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
-        helper.succeed();
-    }
-
-    /**
-     * Drinking the aeon brew hastes the player for an hour: the aeon brew is
-     * the one effect it wears, for the brew's duration with no particles,
-     * and it moves and mines faster, draining no goo
-     * (decision haste-stacks-speed-under-the-golden-overlay).
-     *
-     * @param helper the gametest helper
-     */
-    public static void aeonBrewHastesForAnHour(GameTestHelper helper) {
-        ServerPlayer player = drinker(helper, GooTypes.AEON);
-        int heldBefore = held(player, GooTypes.AEON);
-
-        drink(player, GooTypes.AEON);
-
-        MobEffectInstance brew = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.AEON));
-        String wrongEffects = HasteChecks.onlyTheAeonBrew(player);
-        boolean hasted = HasteChecks.hasted(player);
-        int drained = heldBefore - held(player, GooTypes.AEON);
-        helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(wrongEffects.isEmpty(), wrongEffects);
-        helper.assertTrue(hasted && brew != null && brew.getDuration() == GooPotions.BREW_DURATION,
-                String.format(SHOULD_HASTE, GooPotions.BREW_DURATION, brew));
         helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
         helper.succeed();
     }
