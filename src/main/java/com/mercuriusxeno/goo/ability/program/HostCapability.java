@@ -191,21 +191,6 @@ public enum HostCapability {
      */
     FROST(FrostHost.class),
     /**
-     * A block to tick faster, the aimed machine a held stream ends on
-     * (decision tick-channel-marches-squares-on-the-face).
-     */
-    TICK_BLOCK(TickBlockHost.class),
-    /**
-     * An anchor that banks ticks, the timekeeper prism
-     * (decision timekeeper-prism-banks-ticks-forward-only).
-     */
-    TICK_BANK(TickBankHost.class),
-    /**
-     * A sphere around the anchor to slow time in, the chronosphere's marker
-     * (decision chronosphere-hastes-players-slows-mobs).
-     */
-    TIME_VEIL(TimeVeilHost.class),
-    /**
      * A cell where a block stands for a set time (decision
      * weird-bounces-and-softens-harm).
      */

@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.ability.program.BusterStep;
 import com.mercuriusxeno.goo.ability.program.EldritchStep;
 import com.mercuriusxeno.goo.ability.program.ExtenderStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
-import com.mercuriusxeno.goo.ability.program.HasteStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
 import com.mercuriusxeno.goo.ability.program.LifetapStep;
 import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
@@ -48,8 +47,6 @@ public enum LaidState {
     EXTENDER,
     /** A lifetap (decision lifetap-trades-regen-for-leech). */
     LIFETAP,
-    /** Haste's golden overlay (decision haste-stacks-speed-under-the-golden-overlay). */
-    HASTE,
     /** Air control (decision airborn-steerable-levitation-and-soft-falls). */
     AIRBORN,
     /** Telekinesis's raised reach (decision telekinesis-enacts-at-extended-reach). */
@@ -97,7 +94,6 @@ public enum LaidState {
             Map.entry(ShifterStep.class, SHIFTER),
             Map.entry(ExtenderStep.class, EXTENDER),
             Map.entry(LifetapStep.class, LIFETAP),
-            Map.entry(HasteStep.class, HASTE),
             Map.entry(AirbornStep.class, AIRBORN),
             Map.entry(TelekinesisStep.class, TELEKINESIS),
             Map.entry(EldritchStep.class, ELDRITCH),

@@ -7,7 +7,6 @@ import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.HealReport;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.StreamSound;
-import com.mercuriusxeno.goo.ability.program.BlockTicking;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
 import com.mercuriusxeno.goo.ability.program.ChannelHost;
 import com.mercuriusxeno.goo.ability.program.EntityHost;
@@ -22,10 +21,7 @@ import com.mercuriusxeno.goo.ability.program.SoundKind;
 import com.mercuriusxeno.goo.ability.program.SoundPlays;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepHost;
-import com.mercuriusxeno.goo.ability.program.TickBlockStep;
-import com.mercuriusxeno.goo.ability.program.WithdrawBankStep;
 import com.mercuriusxeno.goo.ability.spray.SprayPrograms;
-import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.registry.GooServerState;
@@ -33,7 +29,6 @@ import com.mercuriusxeno.goo.throwing.StreamCone;
 import com.mercuriusxeno.goo.throwing.ThrowArc;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
-import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
@@ -47,13 +42,11 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Server side of a stream delivery: each tick the glove's use stays down,
@@ -120,7 +113,7 @@ public final class GooStreamHandler {
             return;
         }
         AbilityDefinition ability = heldAbility(player, payload, gooType);
-        int held = ability == null ? 0 : heldShare(player, gooType, ability);
+        int held = ability == null ? 0 : drainShare(player, gooType, ability);
         Goo.LOGGER.debug(LOG_HELD_TICK, payload.abilityId(), player.getName().getString(), held);
         if (held == 0) {
             return;
@@ -191,9 +184,7 @@ public final class GooStreamHandler {
         if (held == 0 || !paysReagents(player, ability, held)) {
             return 0;
         }
-        // timekeeper-prism-banks-ticks-forward-only: withdrawing a timekeeper's bank costs nothing
-        int share = drawsFromABank(player, ability) ? 0
-                : StreamHolds.shareAt(ability.cost(), ability.delivery().ticksPerCharge(), held);
+        int share = StreamHolds.shareAt(ability.cost(), ability.delivery().ticksPerCharge(), held);
         if (!GooSourceScanner.hasEnough(player, gooType, share)) {
             return 0;
         }
@@ -222,75 +213,6 @@ public final class GooStreamHandler {
             holds.markPaid(player.getUUID());
         }
         return holds.paid(player.getUUID());
-    }
-
-    /**
-     * Drains this tick's share of a held ability, unless it is a tick stream
-     * aimed at nothing it ticks, which charges nothing and runs nothing
-     * (decision tick-channel-marches-squares-on-the-face).
-     *
-     * @param player  the streaming player
-     * @param gooType the ability's goo type
-     * @param ability the held ability
-     * @return the ticks the hold has run, zero when it stops
-     */
-    private static int heldShare(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
-                                 AbilityDefinition ability) {
-        if (ticksBlocks(ability)) {
-            Optional<BlockPos> ticked = tickAim(player, ability);
-            // tick-channel-marches-squares-on-the-face: the client highlights only the block the server ticks
-            TickAimPayload aim = new TickAimPayload(ticked);
-            if (player.connection.hasChannel(aim)) {
-                PacketDistributor.sendToPlayer(player, aim);
-            }
-            if (ticked.isEmpty()) {
-                return 0;
-            }
-        }
-        return drainShare(player, gooType, ability);
-    }
-
-    private static boolean ticksBlocks(AbilityDefinition ability) {
-        return ability.behaviors().stream().anyMatch(TickBlockStep.class::isInstance);
-    }
-
-    /**
-     * The block a tick stream's look ends on this tick, where Tick can hasten
-     * it; a stream aimed at nothing it ticks charges nothing and runs nothing
-     * (decision tick-channel-marches-squares-on-the-face).
-     *
-     * @param player  the streaming player
-     * @param ability the tick stream
-     * @return the block Tick hastens, empty where the look ends on none it can
-     */
-    public static Optional<BlockPos> tickAim(ServerPlayer player, AbilityDefinition ability) {
-        return aimedBlock(player, ability).filter(pos -> BlockTicking.canTick(player.level(), pos));
-    }
-
-    private static Optional<BlockPos> aimedBlock(ServerPlayer player,
-                                                                             AbilityDefinition ability) {
-        ChannelAim aim = new ChannelAim(player.getEyePosition().add(player.getLookAngle().scale(ability.delivery().range())),
-                null, ability.delivery().coneDegrees());
-        return PlayerHost.channeling(player.level(), player, aim).tickedBlock();
-    }
-
-    /**
-     * Whether a stream draws from a banking prism this tick: its program
-     * withdraws a bank and its look ends on a prism that banks ticks, so
-     * Rewind on a timekeeper gains more aeon than it costs
-     * (decision timekeeper-prism-banks-ticks-forward-only).
-     *
-     * @param player  the streaming player
-     * @param ability the stream ability
-     * @return true when the stream's share this tick is free
-     */
-    private static boolean drawsFromABank(ServerPlayer player, AbilityDefinition ability) {
-        if (ability.behaviors().stream().noneMatch(WithdrawBankStep.class::isInstance)) {
-            return false;
-        }
-        return aimedBlock(player, ability)
-                .map(pos -> player.level().getBlockEntity(pos) instanceof PrismBlockEntity prism && prism.banksTicks())
-                .orElse(false);
     }
 
     /**
