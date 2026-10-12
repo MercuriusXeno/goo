@@ -42,4 +42,15 @@ public record PrismConversion(@Nullable ResourceKey<GooTypeDefinition> type, int
     public boolean converts(int hold) {
         return charge >= hold;
     }
+
+    /**
+     * The share of the hold the charge has reached, which the prism's
+     * charging look shows.
+     *
+     * @param hold the ticks of unbroken stream the conversion takes
+     * @return the charge over the hold, at most 1
+     */
+    public float share(int hold) {
+        return Math.min(1f, charge / (float) hold);
+    }
 }

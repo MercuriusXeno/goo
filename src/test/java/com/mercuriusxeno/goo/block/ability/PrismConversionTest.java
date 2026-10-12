@@ -49,6 +49,13 @@ class PrismConversionTest {
     }
 
     @Test
+    void theShareIsTheChargeOverTheHoldCappedAtOne() {
+        assertEquals(0.25f, heldFor(HOLD / 4, 0).share(HOLD), 1e-6f);
+        assertEquals(1f, heldFor(HOLD + 5, 0).share(HOLD), 1e-6f);
+        assertEquals(0f, PrismConversion.NONE.share(HOLD), 1e-6f);
+    }
+
+    @Test
     void anotherTypeStartsTheChargeAgain() {
         assertEquals(1, heldFor(HOLD - 1, 0).chargedBy(DECAY, HOLD - 1).charge());
     }
