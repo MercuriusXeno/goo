@@ -8,5 +8,6 @@
   "behaviors": [
     { "type": "grab", "range": 8, "near": 2, "far": 4, "throw_speed": 1.5 }
   ],
-  "tags": ["self"]
+  "tags": ["self"],
+  "pose": "held_out"
 }

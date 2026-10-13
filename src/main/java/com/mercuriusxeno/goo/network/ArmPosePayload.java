@@ -11,7 +11,8 @@ import org.jspecify.annotations.NonNull;
 
 /**
  * Server-to-client payload: the pose a player's glove arm takes now, for
- * every client drawing that player (decision shards-sling-then-morph-to-flechettes).
+ * every client drawing that player (decisions shards-sling-then-morph-to-flechettes,
+ * ability-json-names-its-arm-pose).
  *
  * @param entityId   the posed player's entity id
  * @param kind       the pose
@@ -26,7 +27,7 @@ public record ArmPosePayload(int entityId, ArmPoseKind kind, boolean gloveRight)
     /** Stream codec for encoding/decoding. */
     public static final StreamCodec<ByteBuf, ArmPosePayload> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.VAR_INT, ArmPosePayload::entityId,
-            ByteBufCodecs.idMapper(index -> ArmPoseKind.values()[index], ArmPoseKind::ordinal), ArmPosePayload::kind,
+            ArmPoseKind.STREAM_CODEC, ArmPosePayload::kind,
             ByteBufCodecs.BOOL, ArmPosePayload::gloveRight,
             ArmPosePayload::new);
 

@@ -62,6 +62,8 @@ import java.util.stream.Stream;
  *                    (decision held-effects-sound-up-and-down)
  * @param distancePrice what a blink adds to the cost for the trip it makes, none for every other ability
  *                    (decision blink-lands-safely-costed-by-distance)
+ * @param pose        the arm pose the glove arm takes in place of the swing, the delivery kind's default
+ *                    for an ability naming none (decision ability-json-names-its-arm-pose)
  */
 public record AbilityDefinition(
         Identifier id,
@@ -82,7 +84,8 @@ public record AbilityDefinition(
         List<Step> onBlocks,
         int upkeep,
         Optional<SoundCue> downSound,
-        DistancePrice distancePrice
+        DistancePrice distancePrice,
+        ArmPose pose
 ) {
 
     /**
@@ -93,6 +96,41 @@ public record AbilityDefinition(
      */
     public AbilityDefinition {
         area = heldArea(area, delivery, badge, behaviors);
+    }
+
+    /**
+     * An ability naming no arm pose, which takes its delivery kind's default
+     * (decision ability-json-names-its-arm-pose).
+     *
+     * @param id            the datapack resource identifier
+     * @param gooType       the goo type this ability belongs to
+     * @param displayName   the translation key for the ability name
+     * @param icon          the texture path for the radial menu icon
+     * @param order         sort order within the type's ability list
+     * @param cost          the mB a throw costs
+     * @param delivery      how the ability leaves the glove
+     * @param behaviors     the step trees the ability runs
+     * @param tags          categorical tags
+     * @param badge         the target kind the radial marks on the icon
+     * @param requires      the items a player must know before the ability is theirs
+     * @param area          the area the glove draws while right click is held
+     * @param indicator     when the ability's indicator shows
+     * @param consumes      the items a throw takes, one of each
+     * @param onPrism       the steps a landing on a prism runs, empty for none
+     * @param onBlocks      the steps a stream or a spore burst runs on each floor it reaches
+     * @param upkeep        the mB a held self + brew effect pays each tick it stands
+     * @param downSound     the cue a held effect plays when it ends, empty for the shared cue
+     * @param distancePrice what a blink adds to the cost for the trip it makes
+     */
+    public AbilityDefinition(Identifier id, ResourceKey<GooTypeDefinition> gooType, String displayName, String icon,
+                             int order, int cost, Delivery delivery, List<Step> behaviors, List<String> tags,
+                             AbilityBadge badge, List<Identifier> requires, AbilityArea area,
+                             IndicatorShowing indicator, List<Identifier> consumes, List<Step> onPrism,
+                             List<Step> onBlocks, int upkeep, Optional<SoundCue> downSound,
+                             DistancePrice distancePrice) {
+        this(id, gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires, area,
+                indicator, consumes, onPrism, onBlocks, upkeep, downSound, distancePrice,
+                ArmPose.defaultFor(delivery.kind()));
     }
 
     /**
@@ -294,6 +332,7 @@ public record AbilityDefinition(
     private static final String FIELD_INDICATOR = "indicator";
     private static final String FIELD_CONSUMES = "consumes";
     private static final String FIELD_ON_PRISM = "on_prism";
+    private static final String FIELD_POSE = "pose";
     private static final String FIELD_ON_BLOCKS = "on_blocks";
     private static final String FIELD_UPKEEP = "upkeep";
     private static final String FIELD_DOWN_SOUND = "down_sound";
@@ -423,12 +462,14 @@ public record AbilityDefinition(
                 // prism-hosts-the-combos, mycosis-spore-stream-buds-and-poisons
                 REACTIONS_CODEC.forGetter(def -> new Reactions(def.onPrism(), def.onBlocks())),
                 // self-effects-trickle-until-ended, held-effects-sound-up-and-down
-                HELD_TRAITS_CODEC.forGetter(def -> new HeldTraits(def.upkeep(), def.downSound()))
+                HELD_TRAITS_CODEC.forGetter(def -> new HeldTraits(def.upkeep(), def.downSound())),
+                // ability-json-names-its-arm-pose
+                ArmPose.CODEC.optionalFieldOf(FIELD_POSE).forGetter(def -> Optional.of(def.pose()))
         ).apply(inst, (heading, price, delivery, steps, tags, badge, requires, area, shows, consumes, reactions,
-                       held) -> new AbilityDefinition(id, heading.gooType(), heading.displayName(),
+                       held, pose) -> new AbilityDefinition(id, heading.gooType(), heading.displayName(),
                         heading.icon(), heading.order(), price.cost(), delivery, steps, tags, badge, requires, area,
                         shows, consumes, reactions.onPrism(), reactions.onBlocks(), held.upkeep(), held.downSound(),
-                        price.distancePrice())));
+                        price.distancePrice(), pose.orElseGet(() -> ArmPose.defaultFor(delivery.kind())))));
     }
 
     /**

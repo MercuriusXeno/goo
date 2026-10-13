@@ -9,5 +9,6 @@
   "behaviors": [
     { "type": "flatten", "breaks": "goo:flatten_breakable" }
   ],
-  "tags": ["self"]
+  "tags": ["self"],
+  "pose": "held_out"
 }

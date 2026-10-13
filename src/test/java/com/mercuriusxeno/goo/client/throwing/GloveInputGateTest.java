@@ -13,8 +13,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Covers the glove press resolved off the use key: the press sends nothing and
- * previews the area while held, release throws once and swings only on a sent
- * payload (decision right-click-held-previews-release-throws), and a stream
+ * previews the area while held with the arm held in its pose, release throws
+ * once and plays the pose's release only on a sent payload, swinging nothing
+ * (decisions right-click-held-previews-release-throws, use-key-throw-swings-no-more), and a stream
  * runs from the press for as long as the key is held (decision stream-delivery-held-cone),
  * and a self + brew eat sends on the press while the key is still down
  * (decision self-brew-goos-eat-before-the-effect).
@@ -29,7 +30,9 @@ class GloveInputGateTest {
         private final boolean stream;
         private final boolean eats;
         private int throwsSent;
-        private int swings;
+        private int poseHolds;
+        private int poseReleases;
+        private int poseDrops;
         private int holds;
         private int lastHeldTicks = -1;
 
@@ -51,8 +54,18 @@ class GloveInputGateTest {
         }
 
         @Override
-        public void swing() {
-            swings++;
+        public void holdPose() {
+            poseHolds++;
+        }
+
+        @Override
+        public void releasePose() {
+            poseReleases++;
+        }
+
+        @Override
+        public void dropPose() {
+            poseDrops++;
         }
 
         @Override
@@ -106,7 +119,7 @@ class GloveInputGateTest {
         }
 
         @Test
-        void thePressSendsNothing() {
+        void thePressSendsNothingAndHoldsThePose() {
             GloveInputGate gate = new GloveInputGate();
             RecordingActions actions = thrown();
 
@@ -114,7 +127,8 @@ class GloveInputGateTest {
             gate.tick(true, actions);
 
             assertEquals(0, actions.throwsSent);
-            assertEquals(0, actions.swings);
+            assertEquals(1, actions.poseHolds);
+            assertEquals(0, actions.poseReleases);
         }
 
         @Test
@@ -131,10 +145,12 @@ class GloveInputGateTest {
 
             assertEquals(0, actions.throwsSent);
             assertEquals(0, actions.holds);
+            assertEquals(1, actions.poseHolds);
         }
 
+        // use-key-throw-swings-no-more
         @Test
-        void releaseSendsOnceAndSwings() {
+        void releaseSendsOnceAndPlaysThePoseRelease() {
             GloveInputGate gate = new GloveInputGate();
             RecordingActions actions = thrown();
 
@@ -145,7 +161,8 @@ class GloveInputGateTest {
             gate.tick(false, actions);
 
             assertEquals(1, actions.throwsSent);
-            assertEquals(1, actions.swings);
+            assertEquals(1, actions.poseReleases);
+            assertEquals(0, actions.poseDrops);
             assertFalse(gate.isArmed());
             assertFalse(gate.isPreviewing());
         }
@@ -162,7 +179,7 @@ class GloveInputGateTest {
         }
 
         @Test
-        void anUnsentThrowSwingsNothing() {
+        void anUnsentThrowLetsThePoseDownAndReleasesNothing() {
             GloveInputGate gate = new GloveInputGate();
             RecordingActions actions = new RecordingActions(false, false);
 
@@ -171,7 +188,8 @@ class GloveInputGateTest {
             gate.tick(false, actions);
 
             assertEquals(1, actions.throwsSent);
-            assertEquals(0, actions.swings);
+            assertEquals(0, actions.poseReleases);
+            assertEquals(1, actions.poseDrops);
         }
 
         @Test
@@ -218,13 +236,14 @@ class GloveInputGateTest {
             }
 
             assertEquals(1, actions.throwsSent);
-            assertEquals(1, actions.swings);
+            assertEquals(1, actions.poseHolds);
+            assertEquals(0, actions.poseReleases);
             assertEquals(LONG_HOLD_TICKS - 1, actions.holds);
             assertFalse(gate.isPreviewing());
         }
 
         @Test
-        void releaseEndsTheStreamWithNoFurtherSend() {
+        void releaseEndsTheStreamWithNoFurtherSendAndLetsThePoseDown() {
             GloveInputGate gate = new GloveInputGate();
             RecordingActions actions = new RecordingActions(true, true);
 
@@ -235,6 +254,8 @@ class GloveInputGateTest {
 
             assertEquals(1, actions.throwsSent);
             assertEquals(0, actions.holds);
+            assertEquals(1, actions.poseDrops);
+            assertEquals(0, actions.poseReleases);
             assertFalse(gate.isArmed());
         }
     }
@@ -263,7 +284,7 @@ class GloveInputGateTest {
         }
 
         @Test
-        void holdingTheKeySendsOnceSwingsNothingAndPreviewsNothing() {
+        void holdingTheKeySendsOncePosesNothingAndPreviewsNothing() {
             GloveInputGate gate = new GloveInputGate();
             RecordingActions actions = eaten();
 
@@ -273,7 +294,8 @@ class GloveInputGateTest {
             }
 
             assertEquals(1, actions.throwsSent);
-            assertEquals(0, actions.swings);
+            assertEquals(0, actions.poseHolds);
+            assertEquals(0, actions.poseReleases);
             assertEquals(0, actions.holds);
             assertFalse(gate.isPreviewing());
             assertTrue(gate.isArmed());

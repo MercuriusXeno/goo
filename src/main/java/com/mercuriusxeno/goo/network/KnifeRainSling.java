@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
-import com.mercuriusxeno.goo.ability.ArmPoseKind;
 import com.mercuriusxeno.goo.ability.Charge;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.crystal.KnifeRain;
@@ -19,6 +18,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
@@ -53,7 +53,6 @@ public final class KnifeRainSling {
     private static final float FLING_PITCH = 1.5f;
     private static final float CHIME_VOLUME = 1f;
     private static final float CHIME_PITCH = 1.3f;
-    private static final int NO_ENTITY = -1;
 
     private static final String LOG_NO_GOO = "Knife rain rejected: insufficient {} goo";
 
@@ -61,9 +60,8 @@ public final class KnifeRainSling {
     }
 
     /**
-     * Pays the release's cost and reagents once, flings the glove arm and
-     * queues each knife to leave the hand on its tick, scattered by the
-     * player's own random.
+     * Pays the release's cost and reagents once and queues each knife to
+     * leave the hand on its tick, scattered by the player's own random.
      *
      * @param player    the releasing player
      * @param gooType   the ability's goo type
@@ -76,8 +74,8 @@ public final class KnifeRainSling {
     }
 
     /**
-     * Pays the release's cost and reagents once, flings the glove arm and
-     * queues each knife to leave the hand on its tick.
+     * Pays the release's cost and reagents once and queues each knife to
+     * leave the hand on its tick; the releasing client poses the arm's fling.
      *
      * @param player    the releasing player
      * @param gooType   the ability's goo type
@@ -98,7 +96,6 @@ public final class KnifeRainSling {
                 charge.spreadDegrees(share), random);
         int[] launchTicks = KnifeRain.launchTicks(count, charge.sweepTicks(), random);
         boolean gloveRight = gloveOnTheRight(player);
-        EntityVisuals.sendToWatchers(player, new ArmPosePayload(player.getId(), ArmPoseKind.FLING, gloveRight));
 
         int now = player.level().getServer().getTickCount();
         FleckLaunches launches = GooServerState.of(player.level().getServer()).fleckLaunches();
@@ -142,7 +139,7 @@ public final class KnifeRainSling {
      * @param player the player
      * @return true for a glove in the right hand
      */
-    static boolean gloveOnTheRight(ServerPlayer player) {
+    public static boolean gloveOnTheRight(Player player) {
         boolean inMain = player.getMainHandItem().getItem() instanceof GooGloveItem;
         HumanoidArm gloveArm = inMain ? player.getMainArm() : player.getMainArm().getOpposite();
         return gloveArm == HumanoidArm.RIGHT;
