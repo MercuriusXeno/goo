@@ -180,14 +180,58 @@ public record CanisterFluidContent(List<Portion> portions) {
 
     /**
      * The volume of one fluid that may leave the canister: all of it, save
-     * infinity, which never leaves.
+     * infinity, which never leaves, and void, which leaves only down to the
+     * amount whose loss would leave the rest over capacity.
      * decision infinity-sources-whatever-shares-its-vessel
+     * decision each-void-mb-adds-n-plus-one-capacity
      *
      * @param resource the fluid resource
+     * @param base     the canister's capacity with no void (mB)
      * @return the volume (mB) an extract may take
      */
-    public int releasableVolumeOf(FluidResource resource) {
-        return GooTypes.isUnspendable(GooFluids.keyOf(resource)) ? 0 : volumeOf(resource);
+    public int releasableVolumeOf(FluidResource resource, int base) {
+        ResourceKey<GooTypeDefinition> type = GooFluids.keyOf(resource);
+        if (GooTypes.isUnspendable(type)) {
+            return 0;
+        }
+        int held = volumeOf(resource);
+        return GooTypes.VOID.equals(type)
+            ? Math.min(held, ContainerCapacity.releasableVoid(base, totalVolume(), held))
+            : held;
+    }
+
+    /**
+     * The void held, which grows the capacity.
+     * decision each-void-mb-adds-n-plus-one-capacity
+     *
+     * @return the void volume (mB)
+     */
+    public int voidVolume() {
+        return volumeOf(GooTypes.VOID);
+    }
+
+    /**
+     * The capacity over a base, grown by the void held.
+     * decision each-void-mb-adds-n-plus-one-capacity
+     *
+     * @param base the capacity with no void (mB)
+     * @return the capacity (mB)
+     */
+    public int capacityOver(int base) {
+        return ContainerCapacity.capacity(base, voidVolume());
+    }
+
+    /**
+     * The room one fluid has: what an insert of it may add, void reaching
+     * past the capacity it grows as it arrives.
+     * decision each-void-mb-adds-n-plus-one-capacity
+     *
+     * @param resource the fluid resource
+     * @param base     the capacity with no void (mB)
+     * @return the room (mB)
+     */
+    public int roomFor(FluidResource resource, int base) {
+        return ContainerCapacity.room(GooTypes.VOID.equals(gooTypeOf(resource)), base, totalVolume(), voidVolume());
     }
 
     /**
@@ -313,19 +357,18 @@ public record CanisterFluidContent(List<Portion> portions) {
 
     /**
      * Returns how much of the requested amount withCappedAdd would accept:
-     * the shared capacity less every fluid's volume.
+     * the room the fluid has in the capacity the held void grows.
      *
      * @param addResource the resource to add
      * @param addAmount   the requested volume
-     * @param capacity    the total capacity of the canister
+     * @param base        the canister's capacity with no void (mB)
      * @return the amount that would be accepted
      */
-    public int cappedAddAmount(FluidResource addResource, int addAmount, int capacity) {
+    public int cappedAddAmount(FluidResource addResource, int addAmount, int base) {
         if (addAmount <= 0 || !canAccept(addResource)) {
             return 0;
         }
-        int space = capacity - totalVolume();
-        return space <= 0 ? 0 : Math.min(addAmount, space);
+        return Math.min(addAmount, roomFor(addResource, base));
     }
 
     /**
@@ -333,11 +376,11 @@ public record CanisterFluidContent(List<Portion> portions) {
      *
      * @param addResource the resource to add
      * @param addAmount   the requested volume
-     * @param capacity    the total capacity of the canister
+     * @param base        the canister's capacity with no void (mB)
      * @return new content with the capped addition, or this where nothing fits
      */
-    public CanisterFluidContent withCappedAdd(FluidResource addResource, int addAmount, int capacity) {
-        int accepted = cappedAddAmount(addResource, addAmount, capacity);
+    public CanisterFluidContent withCappedAdd(FluidResource addResource, int addAmount, int base) {
+        int accepted = cappedAddAmount(addResource, addAmount, base);
         return accepted <= 0 ? this : withVolume(addResource, volumeOf(addResource) + accepted);
     }
 

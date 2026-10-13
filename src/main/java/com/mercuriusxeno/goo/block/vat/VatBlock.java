@@ -30,7 +30,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.Set;
 
 /**
- * Stationary bulk goo storage block. Multi-type, large capacity scaled by the Compression enchantment.
+ * Stationary bulk goo storage block. Multi-type, large capacity grown by the void it holds
+ * (decision each-void-mb-adds-n-plus-one-capacity).
  * Right-click with goo to insert, empty hand to extract.
  */
 public class VatBlock extends GooMachineBlock {

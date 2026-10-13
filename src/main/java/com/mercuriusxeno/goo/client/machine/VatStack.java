@@ -27,7 +27,7 @@ import java.util.Map;
  * @param water    every member's water summed (decision diagnose-then-fix-waterlogged-gasket-link)
  */
 public record VatStack(BlockPos bottom, VatColumn column, List<@Nullable VatBlockEntity> members,
-                       GooContents contents, int capacity, long water) {
+                       GooContents contents, long capacity, long water) {
 
     /** Every member position's column for the tick the cache was filled in. */
     private static final Map<BlockPos, VatStack> STACKS_THIS_TICK = new HashMap<>();
@@ -83,7 +83,7 @@ public record VatStack(BlockPos bottom, VatColumn column, List<@Nullable VatBloc
                 y -> level.getBlockState(pos.atY(y)).getValue(VatBlock.VAT_ABOVE),
                 y -> level.getBlockState(pos.atY(y)).getValue(VatBlock.VAT_BELOW));
         List<@Nullable VatBlockEntity> members = new ArrayList<>();
-        int capacity = 0;
+        long capacity = 0;
         long water = 0;
         for (int y = column.bottomY(); y <= column.topY(); y++) {
             BlockEntity be = level.getBlockEntity(pos.atY(y));

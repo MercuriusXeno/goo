@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.item;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.item.CanisterPlacementResolver.CanisterPlacement;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
-import com.mercuriusxeno.goo.registry.GooEnchantments;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
@@ -26,7 +25,8 @@ import java.util.Map;
 
 /**
  * Canister item: single-type fluid storage accepting any registered fluid.
- * Capacity scales with Compression enchantment via ContainerCapacity.
+ * Capacity grows with the void the canister holds via ContainerCapacity
+ * (decision each-void-mb-adds-n-plus-one-capacity).
  *
  * <p>Overrides placement to support multi-canister blocks: CanisterPlacementResolver
  * decides whether a use inserts into an existing canister block, places a new one,
@@ -238,11 +238,11 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
      * @return the amount actually accepted
      */
     public static int addFluid(ItemStack stack, FluidResource fluid, int amount) {
-        int capacity = ContainerCapacity.canisterCapacity(GooEnchantments.getCompressionLevel(stack));
+        int base = ContainerCapacity.CANISTER_BASE;
         CanisterFluidContent current = getFluidContent(stack);
-        int accepted = current.cappedAddAmount(fluid, amount, capacity);
+        int accepted = current.cappedAddAmount(fluid, amount, base);
         if (accepted > 0) {
-            setFluidContent(stack, current.withCappedAdd(fluid, amount, capacity));
+            setFluidContent(stack, current.withCappedAdd(fluid, amount, base));
         }
         return accepted;
     }
@@ -270,7 +270,7 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
      */
     public static int removeFluid(ItemStack stack, FluidResource fluid, int amount) {
         CanisterFluidContent current = getFluidContent(stack);
-        int removed = Math.min(amount, current.releasableVolumeOf(fluid));
+        int removed = Math.min(amount, current.releasableVolumeOf(fluid, ContainerCapacity.CANISTER_BASE));
         if (removed > 0) {
             setFluidContent(stack, current.withRemoved(fluid, removed));
         }

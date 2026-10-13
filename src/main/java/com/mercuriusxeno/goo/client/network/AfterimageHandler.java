@@ -41,7 +41,8 @@ public final class AfterimageHandler {
                 return;
             }
             int rgb = GooColors.get(mc.level.registryAccess(), payload.gooType());
-            Afterimages.CLIENT.add(snapshot, payload.position(), rgb, mc.level.getGameTime(), payload.lifeTicks());
+            Afterimages.CLIENT.add(snapshot, payload.position(), rgb, mc.level.getGameTime(), payload.lifeTicks(),
+                    payload.inward());
             if (mc.player != null) {
                 ViewportRipples.CLIENT.onAfterimage(payload.entityId(), mc.player.getId(), rgb, mc.level.getGameTime());
             }

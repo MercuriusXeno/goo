@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.block.gasket.GasketDemand;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
-import com.mercuriusxeno.goo.registry.GooEnchantments;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
@@ -81,7 +80,7 @@ public class HubFluidHandler implements ResourceHandler<FluidResource>, GasketDe
         if (stack.isEmpty()) {
             return 0;
         }
-        return ContainerCapacity.canisterCapacity(GooEnchantments.getCompressionLevel(stack));
+        return CanisterItem.getFluidContent(stack).capacityOver(ContainerCapacity.CANISTER_BASE);
     }
 
     /**

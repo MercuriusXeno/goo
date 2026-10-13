@@ -57,8 +57,8 @@ class CanisterFluidContentTest {
         CanisterFluidContent held = CanisterFluidContent.EMPTY.withCappedAdd(infinity, 1, CAPACITY)
                 .withCappedAdd(blaze, FIRST_VOLUME, CAPACITY);
 
-        assertEquals(0, held.releasableVolumeOf(infinity));
-        assertEquals(FIRST_VOLUME, held.releasableVolumeOf(blaze));
+        assertEquals(0, held.releasableVolumeOf(infinity, CAPACITY));
+        assertEquals(FIRST_VOLUME, held.releasableVolumeOf(blaze, CAPACITY));
     }
 
     @Nested

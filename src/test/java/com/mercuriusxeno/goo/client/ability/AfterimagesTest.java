@@ -82,6 +82,27 @@ class AfterimagesTest {
             assertEquals(GROWTH_BLOCKS * 0.75f, halfway.growth(), EPSILON);
             assertEquals(Math.round(0xFF / 2f), halfway.alpha());
         }
+
+        /**
+         * Inward, a silhouette starts grown out and faint, then closes onto the
+         * body on an ease-in as it brightens: void's Erase implodes
+         * (decision void-blob-deletes-the-struck-mob).
+         */
+        @Test
+        void anInwardSilhouetteClosesOntoTheBodyAsItBrightens() {
+            Afterimages.Afterimage<String> implosion = new Afterimages.Afterimage<>("zombie", Vec3.ZERO, ENDER, LEFT_AT,
+                    LIFE, true);
+
+            Afterimages.Pulse left = implosion.pulses(LEFT_AT).getFirst();
+            Afterimages.Pulse halfway = implosion.pulses(LEFT_AT + LIFE / 2f).getFirst();
+            Afterimages.Pulse closing = implosion.pulses(LEFT_AT + LIFE - 0.5f).getFirst();
+
+            assertEquals(new Afterimages.Pulse(GROWTH_BLOCKS, 0, 0f), left);
+            assertEquals(GROWTH_BLOCKS * 0.25f, halfway.growth(), EPSILON);
+            assertEquals(Math.round(0xFF / 2f), halfway.alpha());
+            assertTrue(closing.growth() < halfway.growth() && closing.alpha() > halfway.alpha(),
+                    "the closing silhouette " + closing + " should stand nearer and brighter than " + halfway);
+        }
     }
 
     @Nested

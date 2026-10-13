@@ -32,9 +32,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * Block entity for the Vat. Multi-type bulk goo storage with compression
- * enchantment scaling. Base capacity 2^25 mB, doubled per compression level
- * up to 5 (2^30 mB max).
+ * Block entity for the Vat. Multi-type bulk goo storage, base capacity
+ * 2^25 mB, grown by the void it holds as ordinary goo (decisions
+ * void-goo-grows-a-container and each-void-mb-adds-n-plus-one-capacity).
  *
  * <p>Internal logic delegated to:
  * {@link VatSerialization} (NBT + data components),
@@ -53,10 +53,9 @@ public class VatBlockEntity extends GooGlowingMachineBlockEntity implements IGoo
     private static final AABB BASE_GASKET_BOUNDS = new AABB(0, 0, 0, 1, 0.5, 1);
 
     // Package-private fields accessed by VatSerialization, VatStackRedistributor.
-    final GooFluidHandler fluidHandler = GooFluidHandler.withWaterTank(
-            ContainerCapacity.vatCapacity(0), this::onFluidChanged,
+    final GooFluidHandler fluidHandler = GooFluidHandler.vatReservoir(
+            ContainerCapacity.VAT_BASE, this::onFluidChanged,
             () -> level != null ? level.getGameTime() : 0);
-    int compressionLevel;
     @Nullable String label;
 
     /**
@@ -104,12 +103,12 @@ public class VatBlockEntity extends GooGlowingMachineBlockEntity implements IGoo
     }
 
     /**
-     * Returns the current capacity.
+     * Returns the current capacity, grown by the void held.
      *
      * @return the capacity
      */
     public int getCapacity() {
-        return ContainerCapacity.vatCapacity(compressionLevel);
+        return fluidHandler.currentCapacity();
     }
 
     /**
@@ -156,15 +155,6 @@ public class VatBlockEntity extends GooGlowingMachineBlockEntity implements IGoo
     }
 
     /**
-     * Returns the compression level (0-5).
-     *
-     * @return the compression level
-     */
-    public int getCompressionLevel() {
-        return compressionLevel;
-    }
-
-    /**
      * Returns true if the vat has room for more goo.
      *
      * @return true if accept
@@ -202,9 +192,9 @@ public class VatBlockEntity extends GooGlowingMachineBlockEntity implements IGoo
     }
 
     /**
-     * Each fluid entry glows against the vat's current capacity. Compression
-     * grows capacity, so the same mB amount of glow goo emits less light in
-     * a higher-tier vat -- intentional, scales with the visible fill ratio.
+     * Each fluid entry glows against the vat's current capacity. Void grows
+     * capacity, so the same mB amount of glow goo emits less light in a vat
+     * holding void -- intentional, scales with the visible fill ratio.
      *
      * @return one light entry per goo type held
      */
@@ -333,13 +323,6 @@ public class VatBlockEntity extends GooGlowingMachineBlockEntity implements IGoo
         markDirtyAndSync();
     }
 
-    /**
-     * Updates the fluid handler's capacity to match the current compression level.
-     */
-    void syncCapacity() {
-        fluidHandler.setCapacity(getCapacity());
-    }
-
     @Override
     protected void saveAdditional(@NonNull ValueOutput output) {
         super.saveAdditional(output);
@@ -358,7 +341,6 @@ public class VatBlockEntity extends GooGlowingMachineBlockEntity implements IGoo
     @Override
     protected void collectImplicitComponents(DataComponentMap.@NonNull Builder builder) {
         super.collectImplicitComponents(builder);
-        VatSerialization.collectCompression(builder, compressionLevel, level);
         VatSerialization.collectContents(builder, fluidHandler.toGooContents());
     }
 
@@ -368,11 +350,6 @@ public class VatBlockEntity extends GooGlowingMachineBlockEntity implements IGoo
     @Override
     protected void applyImplicitComponents(@NonNull DataComponentGetter getter) {
         super.applyImplicitComponents(getter);
-        int applied = VatSerialization.applyCompression(getter);
-        if (applied > 0) {
-            compressionLevel = applied;
-            syncCapacity();
-        }
         GooContents contents = VatSerialization.applyContents(getter);
         if (!contents.isEmpty()) {
             fluidHandler.loadFrom(contents);
