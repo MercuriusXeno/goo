@@ -73,7 +73,7 @@ public final class GloveThrowSender {
      *
      * @param player    the local player
      * @param heldTicks the ticks the use key was held, which a charged ability fires by
-     * @return true when a payload was sent, the one press the arm swings for
+     * @return true when a payload was sent, the one press the arm plays its pose's release for
      */
     public static boolean sendThrow(Player player, int heldTicks) {
         GloveSelection selection = heldSelection(player);
@@ -375,7 +375,7 @@ public final class GloveThrowSender {
     /**
      * Whether the player can afford a throw priced the way the server
      * prices it, and holds one of every item the ability consumes, checked
-     * before any swing, packet or sound.
+     * before any pose, packet or sound.
      * decision unaffordable-click-does-nothing
      * decision ability-json-names-its-reagent
      *

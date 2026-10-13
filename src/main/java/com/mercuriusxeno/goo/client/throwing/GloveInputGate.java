@@ -9,20 +9,23 @@ import org.jspecify.annotations.Nullable;
 /**
  * The glove's right-click input as a press the client resolves off the use
  * key. A press arms the throw and previews the ability's area for as long as
- * the key is held; release throws once and swings. A stream runs from the
- * press instead, streaming on every held tick. A self + brew press sends on
- * the press too, while the use key is still down, and then only waits for
- * release: vanilla releases a used item the tick the key comes up, so an eat
- * started on release would be cancelled the tick it began, and letting go
- * mid-eat is what cancels it. The arm swings only for a throw that sent a
- * payload, never for an eat.
+ * the key is held, the arm held in the ability's pose; release throws once
+ * and plays the pose's release. A stream runs from the press instead,
+ * streaming on every held tick with the arm held in its pose until the key
+ * comes up. A self + brew press sends on the press too, while the use key is
+ * still down, and then only waits for release: vanilla releases a used item
+ * the tick the key comes up, so an eat started on release would be cancelled
+ * the tick it began, and letting go mid-eat is what cancels it. A press
+ * plays the ability's pose, its release only for a throw that sent a
+ * payload, and never for an eat; a blob thrown swings there instead.
  * decision right-click-held-previews-release-throws
  * decision self-brew-goos-eat-before-the-effect
  * decision use-animation-only-when-goo-throws
+ * decision use-key-throw-swings-no-more
  */
 public final class GloveInputGate {
 
-    /** What the gate does for a press: the client's throw, swing and stream. */
+    /** What the gate does for a press: the client's throw, arm pose and stream. */
     public interface PressActions {
 
         /**
@@ -33,8 +36,14 @@ public final class GloveInputGate {
          */
         boolean sendThrow(int heldTicks);
 
-        /** Swings the arm holding the glove. */
-        void swing();
+        /** Holds the glove arm in the selected ability's pose while the press is held. */
+        void holdPose();
+
+        /** Plays the selected ability's release pose, as a sent throw lets go. */
+        void releasePose();
+
+        /** Eases the glove arm back down, for a press let go that sent nothing or a stream ended. */
+        void dropPose();
 
         /** Carries a stream one tick further. */
         void hold();
@@ -135,7 +144,7 @@ public final class GloveInputGate {
      * throws once the use key is up.
      *
      * @param useKeyDown whether the use key is held this tick
-     * @param actions    the throw, swing and stream the press resolves to
+     * @param actions    the throw, arm pose and stream the press resolves to
      */
     public void tick(boolean useKeyDown, PressActions actions) {
         if (!armed) {
@@ -160,10 +169,13 @@ public final class GloveInputGate {
 
     private void tickThrow(boolean useKeyDown, PressActions actions) {
         if (useKeyDown) {
+            if (!previewing) {
+                actions.holdPose();
+            }
             previewing = true;
             heldTicks++;
         } else {
-            throwAndSwing(actions, heldTicks);
+            throwAndRelease(actions, heldTicks);
             cancel();
         }
     }
@@ -179,20 +191,34 @@ public final class GloveInputGate {
     }
 
     private void tickStream(boolean useKeyDown, PressActions actions) {
-        if (!streaming) {
+        if (streaming) {
+            if (useKeyDown) {
+                actions.hold();
+            }
+        } else {
             streaming = true;
-            throwAndSwing(actions, 0);
-        } else if (useKeyDown) {
-            actions.hold();
+            if (actions.sendThrow(0)) {
+                actions.holdPose();
+            }
         }
         if (!useKeyDown) {
+            actions.dropPose();
             cancel();
         }
     }
 
-    private static void throwAndSwing(PressActions actions, int heldTicks) {
+    /**
+     * Throws a released press: a sent payload plays the pose's release, and
+     * a throw that sent nothing lets the held arm down.
+     *
+     * @param actions   the throw and arm pose the press resolves to
+     * @param heldTicks the ticks the use key was held
+     */
+    private static void throwAndRelease(PressActions actions, int heldTicks) {
         if (actions.sendThrow(heldTicks)) {
-            actions.swing();
+            actions.releasePose();
+        } else {
+            actions.dropPose();
         }
     }
 }
