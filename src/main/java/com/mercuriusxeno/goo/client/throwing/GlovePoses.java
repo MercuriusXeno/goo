@@ -10,12 +10,14 @@ import com.mercuriusxeno.goo.network.GlovePosePayload;
 import com.mercuriusxeno.goo.network.KnifeRainSling;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
+import net.minecraft.world.InteractionHand;
 import org.jspecify.annotations.Nullable;
 
 /**
  * Poses the local player's glove arm from the selected ability's pose as a
  * press holds, lets go or drops, and tells the server, which shows the
- * players watching the same frame.
+ * players watching the same frame; a blob thrown swings the arm as vanilla
+ * does instead, which vanilla shows the players watching.
  * decision ability-json-names-its-arm-pose
  * decision use-key-throw-swings-no-more
  */
@@ -37,14 +39,19 @@ public final class GlovePoses {
     }
 
     /**
-     * Plays the selection's release as a sent throw lets go; a pose with no
-     * release of its own eases the arm down.
+     * Plays the selection's release as a sent throw lets go: a blob thrown
+     * swings the arm, and a pose with no release of its own eases it down.
+     * decision use-key-throw-swings-no-more
      *
      * @param player the local player
+     * @param hand   the hand the press came from, which a swing swings
      */
-    public static void release(LocalPlayer player) {
+    public static void release(LocalPlayer player, InteractionHand hand) {
         ArmPose pose = selectedPose(player);
         show(player, pose == null ? ArmPoseKind.NONE : pose.releaseFrame());
+        if (pose != null && pose.swingsOnRelease()) {
+            player.swing(hand);
+        }
     }
 
     /**

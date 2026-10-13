@@ -5,10 +5,10 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 
 /**
- * The frames the glove arm is drawn in on the player's model, in place of
- * the swing: an {@link ArmPose} an ability names holds the arm in one frame
- * while the use key is held and plays another on release. The order is
- * synced, so a frame is appended last.
+ * The frames the glove arm is drawn in on the player's model: an
+ * {@link ArmPose} an ability names holds the arm in one frame while the use
+ * key is held and plays another on release. Client and server share one
+ * build, so the synced order changes with it.
  * decision shards-sling-then-morph-to-flechettes
  * decision ability-json-names-its-arm-pose
  */
@@ -21,9 +21,7 @@ public enum ArmPoseKind {
     FLING,
     /** The glove arm held out toward the aim. */
     HOLD_OUT,
-    /** The glove arm flung forward from held out, a throw let go. */
-    THROW,
-    /** The glove hand raised up overhead. */
+    /** The glove hand raised to face height. */
     HOLD_UP;
 
     /** Network codec, writing the frame as a varint ordinal. */

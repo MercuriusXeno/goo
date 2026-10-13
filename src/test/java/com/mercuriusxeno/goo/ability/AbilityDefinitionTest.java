@@ -78,7 +78,7 @@ class AbilityDefinitionTest {
         }
 
         @ParameterizedTest
-        @CsvSource({"arc, THROWN", "beam, HELD_OUT", "stream, HELD_OUT", "self, HELD_UP"})
+        @CsvSource({"arc, SWUNG", "beam, HELD_OUT", "stream, HELD_OUT", "self, HELD_UP"})
         void anAbilityNamingNoPoseTakesItsDeliveryKindsDefault(String delivery, ArmPose expected) {
             assertEquals(expected, decoded(delivery, "").pose());
         }
@@ -91,9 +91,13 @@ class AbilityDefinitionTest {
         }
 
         @Test
-        void theThrownDefaultHoldsOutAndFlingsForward() {
-            assertEquals(ArmPoseKind.HOLD_OUT, ArmPose.THROWN.holdFrame());
-            assertEquals(ArmPoseKind.THROW, ArmPose.THROWN.releaseFrame());
+        void onlyTheSwungArcDefaultSwingsOnRelease() {
+            assertEquals(ArmPoseKind.NONE, ArmPose.SWUNG.holdFrame());
+            assertEquals(ArmPoseKind.NONE, ArmPose.SWUNG.releaseFrame());
+            assertTrue(ArmPose.SWUNG.swingsOnRelease());
+            assertFalse(ArmPose.HELD_OUT.swingsOnRelease());
+            assertFalse(ArmPose.HELD_UP.swingsOnRelease());
+            assertFalse(ArmPose.SHOULDER_CAST.swingsOnRelease());
             assertEquals(ArmPoseKind.NONE, ArmPose.HELD_OUT.releaseFrame());
             assertEquals(ArmPoseKind.HOLD_UP, ArmPose.HELD_UP.holdFrame());
         }
