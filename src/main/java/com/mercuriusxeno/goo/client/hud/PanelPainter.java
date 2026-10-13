@@ -40,8 +40,6 @@ public final class PanelPainter {
     public static final int TEXT_COLOR = 0xFFFFFFFF;
     /** Label header color (vanilla gold). */
     public static final int LABEL_COLOR = 0xFFFFAA00;
-    /** Upgrade level header color (aqua). */
-    public static final int UPGRADE_COLOR = 0xFF55FFFF;
 
     /**
      * Pixel rows the vanilla font draws a digit's ink in, from the top of the
@@ -49,8 +47,6 @@ public final class PanelPainter {
      */
     public static final float DIGIT_GLYPH_HEIGHT = 7f;
 
-    /** Upgrade level display prefix. */
-    private static final String UPGRADE_PREFIX = "Lv ";
     /** Texture path prefix for goo type icons. */
     private static final String ICON_PATH_PREFIX = "textures/goo/type/";
     /** Texture path suffix for goo type icons. */
@@ -241,16 +237,6 @@ public final class PanelPainter {
      */
     public static PanelRow labelRow(String label) {
         return PanelRow.header(label, LABEL_COLOR);
-    }
-
-    /**
-     * Builds the aqua upgrade level header row.
-     *
-     * @param compression the compression level
-     * @return the header row
-     */
-    public static PanelRow upgradeRow(int compression) {
-        return PanelRow.header(UPGRADE_PREFIX + compression, UPGRADE_COLOR);
     }
 
     /**

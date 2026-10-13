@@ -71,7 +71,7 @@ public final class LabSupplyTests {
     private static final String STRAY_ITEM = "Station chest holds an item whose goo value lacks its type: ";
     private static final String EMPTY_CHEST = "The rock station's chest should hold the items that decompose into rock";
     private static final String KIT_MISSING = "Kit should put in the inventory: ";
-    private static final String KIT_VAT = "Kit should hold one vat sharing its capacity evenly between every registered goo type";
+    private static final String KIT_VAT = "Kit should hold one vat holding void and an even share of every other registered goo type";
     private static final String BUILD_NO_KIT = "Build handler should hand the kit to its invoking player";
     private static final String BUILD_FAILED = "Lab build failed: ";
     private static final String SEPARATOR = " ";
@@ -156,7 +156,8 @@ public final class LabSupplyTests {
     }
 
     /**
-     * Asserts an inventory holds every fixed kit item and one vat holding an even share of every goo type.
+     * Asserts an inventory holds every fixed kit item and one vat holding void and an even share of
+     * every other goo type (decision each-void-mb-adds-n-plus-one-capacity).
      *
      * @param helper    the gametest helper
      * @param inventory the inventory
@@ -180,7 +181,12 @@ public final class LabSupplyTests {
         Set<String> held = new TreeSet<>();
         contents.contents().keySet().forEach(type -> held.add(type.identifier().toString()));
         Set<String> registered = new TreeSet<>(LabStock.gooTypeIds(helper.getLevel()));
-        Set<Integer> shares = new HashSet<>(contents.contents().values());
+        Set<Integer> shares = new HashSet<>();
+        contents.contents().forEach((type, volume) -> {
+            if (!GooTypes.VOID.equals(type)) {
+                shares.add(volume);
+            }
+        });
         helper.assertTrue(held.equals(registered) && shares.size() == 1 && shares.iterator().next() > 0,
                 KIT_VAT + ": holds " + held + " in shares " + shares + ", registered " + registered);
     }

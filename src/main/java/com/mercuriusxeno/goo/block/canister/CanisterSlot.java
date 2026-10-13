@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
-import com.mercuriusxeno.goo.registry.GooEnchantments;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -189,9 +188,7 @@ public final class CanisterSlot {
             handler = null;
             return;
         }
-        int capacity = ContainerCapacity.canisterCapacity(
-                GooEnchantments.getCompressionLevel(canister));
-        CanisterSlotFluidHandler newHandler = new CanisterSlotFluidHandler(capacity,
+        CanisterSlotFluidHandler newHandler = new CanisterSlotFluidHandler(ContainerCapacity.CANISTER_BASE,
                 () -> onHandlerChanged(gameTime.getAsLong()),
                 gameTime, admits);
         newHandler.loadFrom(CanisterItem.getFluidContent(canister));
@@ -303,16 +300,17 @@ public final class CanisterSlot {
         if (canister.isEmpty() || handler == null) {
             return false;
         }
-        int compression = GooEnchantments.getCompressionLevel(canister);
-        return handler.totalVolume() < ContainerCapacity.canisterCapacity(compression);
+        return handler.totalVolume() < handler.capacity();
     }
 
-    /** @return the slot's canister capacity in mB, or 0 if no canister installed */
+    /** @return the slot's canister capacity in mB, grown by its void, or 0 if no canister installed */
     public int capacity() {
         if (canister.isEmpty()) {
             return 0;
         }
-        return ContainerCapacity.canisterCapacity(GooEnchantments.getCompressionLevel(canister));
+        return handler != null
+                ? handler.capacity()
+                : CanisterItem.getFluidContent(canister).capacityOver(ContainerCapacity.CANISTER_BASE);
     }
 
     // --- Stream visualization snapshot ---

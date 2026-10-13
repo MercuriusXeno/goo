@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.block.fluid;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
-import com.mercuriusxeno.goo.registry.GooEnchantments;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -77,8 +76,9 @@ public final class PlayerInventorySlotHandler implements ResourceHandler<FluidRe
         return CanisterItem.getFluidContent(getStack()).volumeOf(type);
     }
 
-    /** Returns the canister's shared capacity less every other type's volume
-     * (decision canisters-hold-more-than-one-goo-type).
+    /** Returns the room the resource has in the canister, counting this tank's
+     * own volume (decisions canisters-hold-more-than-one-goo-type and
+     * each-void-mb-adds-n-plus-one-capacity).
      *
      * @param index    the tank index
      * @param resource the fluid resource
@@ -87,8 +87,7 @@ public final class PlayerInventorySlotHandler implements ResourceHandler<FluidRe
     @Override
     public long getCapacityAsLong(int index, FluidResource resource) {
         CanisterFluidContent content = CanisterItem.getFluidContent(getStack());
-        int capacity = ContainerCapacity.canisterCapacity(GooEnchantments.getCompressionLevel(getStack()));
-        return capacity - content.totalVolume() + getAmountAsLong(index);
+        return (long) content.roomFor(resource, ContainerCapacity.CANISTER_BASE) + getAmountAsLong(index);
     }
 
     /** Only the goo fluid matching this tank index is valid.
