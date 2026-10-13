@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.registry.GooDataComponents;
-import com.mercuriusxeno.goo.registry.GooEnchantments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.SlotAccess;
@@ -82,7 +81,7 @@ public class VatBlockItem extends BlockItem implements GooCarrierItem {
     }
 
     /**
-     * Adds goo to the vat item, capped at vat capacity. Returns amount accepted.
+     * Adds goo to the vat item, capped at the capacity its void grows. Returns amount accepted.
      *
      * @param stack  the vat item stack
      * @param type   the goo type to add
@@ -90,8 +89,7 @@ public class VatBlockItem extends BlockItem implements GooCarrierItem {
      * @return the amount actually accepted
      */
     public static int addGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
-        int capacity = ContainerCapacity.vatCapacity(GooEnchantments.getCompressionLevel(stack));
-        return GooContentsOps.addGoo(stack, type, amount, capacity);
+        return GooContentsOps.addGoo(stack, type, amount, ContainerCapacity.VAT_BASE);
     }
 
     /**
@@ -103,7 +101,7 @@ public class VatBlockItem extends BlockItem implements GooCarrierItem {
      * @return the amount actually removed
      */
     public static int removeGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
-        return GooContentsOps.removeGoo(stack, type, amount);
+        return GooContentsOps.removeGoo(stack, type, amount, ContainerCapacity.VAT_BASE);
     }
 
     // --- GooCarrierItem (decision hosts-answer-bounds-through-interfaces) ---

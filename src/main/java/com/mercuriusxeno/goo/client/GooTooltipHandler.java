@@ -10,7 +10,6 @@ import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.fluid.GooBucketItem;
 import com.mercuriusxeno.goo.item.*;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
-import com.mercuriusxeno.goo.registry.GooEnchantments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.datafixers.util.Either;
 import net.minecraft.ChatFormatting;
@@ -333,12 +332,15 @@ public final class GooTooltipHandler {
         GooContents gooContents = stack.get(GooDataComponents.GOO_CONTENTS.get());
         if (isEmptyContents(gooContents)) {
             appendGooRows(elements, gooContents.getAll());
+            if (stack.getItem() instanceof VatBlockItem) {
+                appendFillRow(elements, gooContents.totalVolume(), gooContents.capacityOver(ContainerCapacity.VAT_BASE));
+            }
             return true;
         }
         CanisterFluidContent canisterContent = stack.get(GooDataComponents.CANISTER_FLUID_CONTENT.get());
         if (isEmptyCanister(canisterContent)) {
             appendCanisterRows(elements, canisterContent,
-                    ContainerCapacity.canisterCapacity(GooEnchantments.getCompressionLevel(stack)));
+                    canisterContent.capacityOver(ContainerCapacity.CANISTER_BASE));
             return true;
         }
         return false;
@@ -402,7 +404,19 @@ public final class GooTooltipHandler {
         } else {
             appendGooRows(elements, gooVolumes);
         }
-        elements.add(Either.left(Component.literal(GooFormat.formatFill(content.totalVolume(), capacity))
+        appendFillRow(elements, content.totalVolume(), capacity);
+    }
+
+    /**
+     * Appends the gray line of a vessel's total against its capacity, which
+     * the void it holds grows (decision each-void-mb-adds-n-plus-one-capacity).
+     *
+     * @param elements the tooltip element list
+     * @param total    the volume held (mB)
+     * @param capacity the capacity (mB)
+     */
+    static void appendFillRow(List<Either<FormattedText, TooltipComponent>> elements, long total, int capacity) {
+        elements.add(Either.left(Component.literal(GooFormat.formatFill(total, capacity))
                 .withStyle(ChatFormatting.GRAY)));
     }
 

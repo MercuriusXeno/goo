@@ -26,13 +26,15 @@ import java.util.function.Predicate;
  * Block-level fluid handler for canister slots: one tank per fluid held, in
  * arrival order, plus one empty tank for a fluid not yet held, every tank on
  * one shared capacity the way the vat's GooFluidHandler shares its own
- * (capacity less the other tanks' volume). An insert or extract finds its
- * fluid's tank by resource, whichever index the caller names.
+ * (capacity less the other tanks' volume), grown by the void the slot holds.
+ * An insert or extract finds its fluid's tank by resource, whichever index
+ * the caller names.
  *
  * <p>Used by canister, hub, tap, reactor, plexer and crystallizer block
  * entities for per-slot fluid storage.</p>
  *
  * decision canisters-hold-more-than-one-goo-type
+ * decision each-void-mb-adds-n-plus-one-capacity
  */
 public class CanisterSlotFluidHandler extends SnapshotJournal<CanisterFluidContent>
         implements ResourceHandler<FluidResource>, GasketDemand {
@@ -41,8 +43,8 @@ public class CanisterSlotFluidHandler extends SnapshotJournal<CanisterFluidConte
     private final LongSupplier tickSupplier;
     private final Predicate<FluidResource> admits;
 
-    /** The shared capacity every fluid in the slot fills together (mB). */
-    private int capacity;
+    /** The shared capacity every fluid in the slot fills together before void grows it (mB). */
+    private final int base;
 
     /** Every fluid in the slot with its volume. */
     private CanisterFluidContent content = CanisterFluidContent.EMPTY;
@@ -75,38 +77,38 @@ public class CanisterSlotFluidHandler extends SnapshotJournal<CanisterFluidConte
     private boolean suppressCallbacks;
 
     /**
-     * Creates a handler with the given capacity and change callback.
+     * Creates a handler with the given base capacity and change callback.
      *
-     * @param capacity total capacity (mB)
+     * @param base     the capacity with no void (mB)
      * @param onChange called when contents change
      */
-    public CanisterSlotFluidHandler(int capacity, Runnable onChange) {
-        this(capacity, onChange, () -> 0);
+    public CanisterSlotFluidHandler(int base, Runnable onChange) {
+        this(base, onChange, () -> 0);
     }
 
     /**
-     * Creates a handler with capacity, change callback, and tick supplier.
+     * Creates a handler with base capacity, change callback, and tick supplier.
      *
-     * @param capacity     total capacity (mB)
+     * @param base         the capacity with no void (mB)
      * @param onChange     called when contents change
      * @param tickSupplier supplies current game tick for stream timing
      */
-    public CanisterSlotFluidHandler(int capacity, Runnable onChange, LongSupplier tickSupplier) {
-        this(capacity, onChange, tickSupplier, incoming -> true);
+    public CanisterSlotFluidHandler(int base, Runnable onChange, LongSupplier tickSupplier) {
+        this(base, onChange, tickSupplier, incoming -> true);
     }
 
     /**
      * Creates a handler that takes only the goo its holder admits.
      *
-     * @param capacity     total capacity (mB)
+     * @param base         the capacity with no void (mB)
      * @param onChange     called when contents change
      * @param tickSupplier supplies current game tick for stream timing
      * @param admits       answers whether the holder takes an arriving goo
      */
-    public CanisterSlotFluidHandler(int capacity, Runnable onChange, LongSupplier tickSupplier,
+    public CanisterSlotFluidHandler(int base, Runnable onChange, LongSupplier tickSupplier,
                                     Predicate<FluidResource> admits) {
         super();
-        this.capacity = capacity;
+        this.base = base;
         this.onChange = onChange;
         this.tickSupplier = tickSupplier;
         this.admits = admits;
@@ -127,7 +129,7 @@ public class CanisterSlotFluidHandler extends SnapshotJournal<CanisterFluidConte
      */
     @Override
     public OptionalInt statedDemand(FluidResource resource) {
-        return relay.statedDemand(resource, () -> GasketDemand.restingDemand(resource, capacity, totalVolume()));
+        return relay.statedDemand(resource, () -> GasketDemand.restingDemand(resource, capacity(), totalVolume()));
     }
 
     // --- ResourceHandler ---
@@ -167,7 +169,7 @@ public class CanisterSlotFluidHandler extends SnapshotJournal<CanisterFluidConte
     }
 
     /**
-     * The shared capacity less the volume every other tank holds.
+     * The room the resource has, counting this tank's own volume.
      *
      * @param index    the tank index
      * @param resource the fluid resource
@@ -175,7 +177,7 @@ public class CanisterSlotFluidHandler extends SnapshotJournal<CanisterFluidConte
      */
     @Override
     public long getCapacityAsLong(int index, FluidResource resource) {
-        return capacity - content.totalVolume() + getAmountAsLong(index);
+        return (long) content.roomFor(resource, base) + getAmountAsLong(index);
     }
 
     /**
@@ -205,10 +207,10 @@ public class CanisterSlotFluidHandler extends SnapshotJournal<CanisterFluidConte
         if (amount <= 0 || !isValid(index, resource)) {
             return 0;
         }
-        int accepted = content.cappedAddAmount(resource, amount, capacity);
+        int accepted = content.cappedAddAmount(resource, amount, base);
         if (accepted > 0) {
             updateSnapshots(transaction);
-            content = content.withCappedAdd(resource, accepted, capacity);
+            content = content.withCappedAdd(resource, accepted, base);
             streamResource = resource;
         }
         return accepted;
@@ -228,7 +230,7 @@ public class CanisterSlotFluidHandler extends SnapshotJournal<CanisterFluidConte
         if (amount <= 0 || resource.isEmpty()) {
             return 0;
         }
-        int taken = Math.min(amount, content.releasableVolumeOf(resource));
+        int taken = Math.min(amount, content.releasableVolumeOf(resource, base));
         if (taken > 0) {
             updateSnapshots(transaction);
             content = content.withRemoved(resource, taken);
@@ -471,11 +473,11 @@ public class CanisterSlotFluidHandler extends SnapshotJournal<CanisterFluidConte
     }
 
     /**
-     * Updates the capacity. Used when the compression level changes.
+     * The slot's capacity, grown by the void it holds.
      *
-     * @param newCapacity new total capacity in mB
+     * @return the capacity (mB)
      */
-    public void setCapacity(int newCapacity) {
-        this.capacity = newCapacity;
+    public int capacity() {
+        return content.capacityOver(base);
     }
 }

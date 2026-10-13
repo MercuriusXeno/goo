@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.block.fluid;
 
 import com.mercuriusxeno.goo.block.gasket.DemandRelay;
 import com.mercuriusxeno.goo.block.gasket.GasketDemand;
+import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -49,6 +50,12 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
     private final boolean capacityPerType;
 
     /**
+     * True when the held void grows the shared capacity, which then stands as
+     * the base (decision each-void-mb-adds-n-plus-one-capacity).
+     */
+    private final boolean voidGrowsCapacity;
+
+    /**
      * The tank index that holds vanilla water, or {@link #NO_WATER_TANK}
      * (decision diagnose-then-fix-waterlogged-gasket-link).
      */
@@ -88,7 +95,7 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
      * @param tickSupplier supplies the current game tick for stream timing
      */
     public GooFluidHandler(int capacity, Runnable onChange, LongSupplier tickSupplier) {
-        this(capacity, onChange, tickSupplier, false, false);
+        this(capacity, onChange, tickSupplier, false, false, false);
     }
 
     /**
@@ -97,30 +104,33 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
      * @param capacity        the capacity (mB)
      * @param onChange        called when contents change
      * @param tickSupplier    supplies the current game tick for stream timing
-     * @param capacityPerType true when each tank holds the whole capacity
-     * @param holdsWater      true when one tank past the goo tanks holds vanilla water
+     * @param capacityPerType   true when each tank holds the whole capacity
+     * @param holdsWater        true when one tank past the goo tanks holds vanilla water
+     * @param voidGrowsCapacity true when the held void grows the shared capacity
      */
     private GooFluidHandler(int capacity, Runnable onChange, LongSupplier tickSupplier,
-                            boolean capacityPerType, boolean holdsWater) {
+                            boolean capacityPerType, boolean holdsWater, boolean voidGrowsCapacity) {
         super(GooTypes.order().size() + (holdsWater ? 1 : 0), capacity);
         this.onChange = onChange;
         this.tickSupplier = tickSupplier;
         this.capacityPerType = capacityPerType;
+        this.voidGrowsCapacity = voidGrowsCapacity;
         this.waterIndex = holdsWater ? GooTypes.order().size() : NO_WATER_TANK;
     }
 
     /**
-     * Creates a shared-capacity handler with a water tank past the goo tanks,
-     * the vat's reservoir, which a waterlogged choral gasket fills
-     * (decision diagnose-then-fix-waterlogged-gasket-link).
+     * Creates the vat's reservoir: a shared-capacity handler with a water tank
+     * past the goo tanks, which a waterlogged choral gasket fills (decision
+     * diagnose-then-fix-waterlogged-gasket-link), its capacity grown by the
+     * void it holds (decision each-void-mb-adds-n-plus-one-capacity).
      *
-     * @param capacity     total shared capacity in mB
+     * @param base         the shared capacity with no void, in mB
      * @param onChange     called when contents change
      * @param tickSupplier supplies the current game tick for stream timing
      * @return the handler
      */
-    public static GooFluidHandler withWaterTank(int capacity, Runnable onChange, LongSupplier tickSupplier) {
-        return new GooFluidHandler(capacity, onChange, tickSupplier, false, true);
+    public static GooFluidHandler vatReservoir(int base, Runnable onChange, LongSupplier tickSupplier) {
+        return new GooFluidHandler(base, onChange, tickSupplier, false, true, true);
     }
 
     /**
@@ -132,7 +142,7 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
      * @return the handler
      */
     public static GooFluidHandler withCapacityPerType(int capacityPerType, Runnable onChange) {
-        return new GooFluidHandler(capacityPerType, onChange, () -> 0, true, false);
+        return new GooFluidHandler(capacityPerType, onChange, () -> 0, true, false, false);
     }
 
     /**
@@ -168,15 +178,22 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
      */
     @Override
     public int extract(int index, FluidResource resource, int amount, TransactionContext transaction) {
-        return GooTypes.isUnspendable(GooFluids.keyOf(resource)) ? 0 : super.extract(index, resource, amount, transaction);
+        ResourceKey<GooTypeDefinition> type = GooFluids.keyOf(resource);
+        if (GooTypes.isUnspendable(type)) {
+            return 0;
+        }
+        int allowed = voidGrowsCapacity && GooTypes.VOID.equals(type)
+                ? Math.min(amount, ContainerCapacity.releasableVoid(capacity, totalVolume(), voidVolume()))
+                : amount;
+        return super.extract(index, resource, allowed, transaction);
     }
 
     /**
      * Returns the effective capacity for a slot: the whole capacity when it is
-     * held per type, otherwise the shared capacity less the other slots.
-     * Each slot's effective capacity is the total capacity minus volume in all
-     * other slots. The default insert() clamps at {@code getCapacity - currentAmount},
-     * yielding the correct shared remaining space.
+     * held per type, otherwise the slot's own volume plus the room the shared
+     * capacity leaves it. The default insert() clamps at
+     * {@code getCapacity - currentAmount}, yielding that room. Where void grows
+     * the capacity, void's room reaches past the capacity it grows as it arrives.
      *
      * @param index    tank index
      * @param resource the fluid resource
@@ -187,13 +204,29 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
         if (capacityPerType) {
             return capacity;
         }
-        int otherVolume = 0;
-        for (int i = 0; i < size(); i++) {
-            if (i != index) {
-                otherVolume += getAmountAsInt(i);
-            }
+        long own = getAmountAsInt(index);
+        long total = totalVolume();
+        if (!voidGrowsCapacity) {
+            return (int) (capacity - (total - own));
         }
-        return capacity - otherVolume;
+        boolean isVoid = index == GooTypes.indexOf(GooTypes.VOID);
+        return (int) Math.min(Integer.MAX_VALUE, own + ContainerCapacity.room(isVoid, capacity, total, voidVolume()));
+    }
+
+    /**
+     * The capacity every tank shares, grown by the held void where void grows it.
+     *
+     * @return the capacity in mB
+     */
+    public int currentCapacity() {
+        return voidGrowsCapacity ? ContainerCapacity.capacity(capacity, voidVolume()) : capacity;
+    }
+
+    /**
+     * @return the void the handler holds, in mB
+     */
+    private int voidVolume() {
+        return getVolume(GooTypes.VOID);
     }
 
     /**
@@ -394,7 +427,7 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
      */
     @Override
     public OptionalInt statedDemand(FluidResource resource) {
-        return relay.statedDemand(resource, () -> GasketDemand.restingDemand(resource, capacity,
+        return relay.statedDemand(resource, () -> GasketDemand.restingDemand(resource, currentCapacity(),
                 capacityPerType ? heldOf(resource) : totalVolume()));
     }
 
@@ -409,15 +442,6 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
             }
         }
         return 0;
-    }
-
-    /**
-     * Updates the shared capacity. Used when the compression level changes.
-     *
-     * @param newCapacity new total capacity in mB
-     */
-    public void setCapacity(int newCapacity) {
-        this.capacity = newCapacity;
     }
 
     // --- Convenience methods for internal use ---
