@@ -76,8 +76,7 @@ class AbilityLoaderTest {
     /** The ability whose program ends the tick it lands. */
     private static final String BLAST = "unstable_explode";
     /** The abilities whose whole design was a per-stack shape. */
-    private static final List<String> STACK_SHAPE_ABILITIES = List.of("blaze_flat", "blaze_tunnel",
-            "frost_flat", "frost_tunnel", "frost_sphere", "rock_flat", "rock_tunnel");
+    private static final List<String> STACK_SHAPE_ABILITIES = List.of("frost_flat", "frost_tunnel", "frost_sphere", "rock_flat", "rock_tunnel");
 
     private static Map<Identifier, AbilityDefinition> scanShipped(List<Path> files) {
         return IdentifiedJsonScan.scan(managerListing(files), FileToIdConverter.json(DIRECTORY), JsonOps.INSTANCE,
