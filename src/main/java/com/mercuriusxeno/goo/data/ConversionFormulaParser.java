@@ -67,7 +67,7 @@ final class ConversionFormulaParser {
     }
 
     /**
-     * Parses a formula string like "metal / 4 -> aeon / 2".
+     * Parses a formula string like "metal / 4 -> yore / 2".
      *
      * @param expr the raw formula expression
      * @return parsed Formula record

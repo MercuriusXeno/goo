@@ -23,9 +23,12 @@ import java.util.List;
  */
 public final class HiveSwarm {
 
-    /** The combo a hive prism holds, nether's hive ability. */
-    public static final String COMBO = "goo:nether_hive";
-    /** nether_hive.json's radius, the reach the swarm flies out to. */
+    /**
+     * The combo a hive prism holds, Decay's, whose on_prism reaction is the hive.
+     * channeled-hosts-convert-prisms-over-the-hold
+     */
+    public static final String COMBO = "goo:nether_decay";
+    /** nether_decay.json's on_prism radius, the reach the swarm flies out to. */
     public static final double REACH = 5;
     /** How far from the column's center an idle gnat hovers. */
     static final double CLUSTER_RADIUS = 0.6;

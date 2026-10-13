@@ -5,19 +5,16 @@ import java.util.OptionalDouble;
 
 /**
  * What a step sees on one tick: the host, how many ticks the step has run
- * and how many the program has, the Charged multipliers its cast carries,
- * the sounds the program holds until their frame, and the variable scope
- * that layers the program's counters and those multipliers in front of the
- * host's reads.
+ * and how many the program has, the sounds the program holds until their
+ * frame, and the variable scope that layers the program's counters in front
+ * of the host's reads.
  *
  * @param host         the host seam
  * @param stepTicks    ticks the current step has already run, zero on its first tick
  * @param programTicks ticks since the program body started
- * @param charged      the Charged multipliers of the cast, all 1 for an uncharged one
  * @param heldCues     the sounds the running program holds, or null where no program holds sounds
  */
-public record StepContext(StepHost host, int stepTicks, int programTicks, ChargedMultipliers charged,
-                          @Nullable HeldCues heldCues) implements Variables {
+public record StepContext(StepHost host, int stepTicks, int programTicks, @Nullable HeldCues heldCues) implements Variables {
 
     /**
      * The variable naming ticks since the program started.
@@ -25,26 +22,14 @@ public record StepContext(StepHost host, int stepTicks, int programTicks, Charge
     public static final String VAR_TICK = "tick";
 
     /**
-     * An uncharged step's context outside a program that holds sounds, where a framed sound plays at once.
+     * A step's context outside a program that holds sounds, where a framed sound plays at once.
      *
      * @param host         the host seam
      * @param stepTicks    ticks the current step has already run
      * @param programTicks ticks since the program body started
      */
     public StepContext(StepHost host, int stepTicks, int programTicks) {
-        this(host, stepTicks, programTicks, ChargedMultipliers.NONE, null);
-    }
-
-    /**
-     * A charged cast's context outside a program that holds sounds.
-     *
-     * @param host         the host seam
-     * @param stepTicks    ticks the current step has already run
-     * @param programTicks ticks since the program body started
-     * @param charged      the Charged multipliers of the cast
-     */
-    public StepContext(StepHost host, int stepTicks, int programTicks, ChargedMultipliers charged) {
-        this(host, stepTicks, programTicks, charged, null);
+        this(host, stepTicks, programTicks, null);
     }
 
     /**
@@ -82,8 +67,6 @@ public record StepContext(StepHost host, int stepTicks, int programTicks, Charge
         if (VAR_TICK.equals(name)) {
             return OptionalDouble.of(programTicks);
         }
-        // decision charged-scales-channel-params-by-json
-        OptionalDouble multiplier = charged.read(name);
-        return multiplier.isPresent() ? multiplier : host.read(name);
+        return host.read(name);
     }
 }

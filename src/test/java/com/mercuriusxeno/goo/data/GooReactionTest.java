@@ -49,7 +49,7 @@ class GooReactionTest {
     }
 
     /**
-     * Zoo's twins of the reactions that made or ate vital load, each naming zoo
+     * Zoo's twins of the reactions that made or ate the deleted type load, each naming zoo
      * (decision zoo-ships-from-animal-items).
      */
     @Test

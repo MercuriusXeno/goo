@@ -1,15 +1,16 @@
 package com.mercuriusxeno.goo.gametest;
 
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.ability.PrismCombos;
 import com.mercuriusxeno.goo.block.ability.LightRailBlock;
+import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.block.ability.RailLine;
-import com.mercuriusxeno.goo.network.GooEffectScheduler;
-import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.registry.GooBlocks;
-import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.monster.zombie.Zombie;
@@ -23,8 +24,8 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
- * Gametest for glow's Reflector through the real landing path: glow goo
- * naming Reflector lands on two prisms along the bay's floor and on a third
+ * Gametest for glow's Reflector, the combo a full Sunbeam hold converts a
+ * prism into, standing on two prisms along the bay's floor and on a third
  * off both their axes; the line between the two fills with light rail that
  * lights its cells and burns a zombie standing in it, the diagonal lines to
  * the third take none, and a block set across the line breaks the link, and
@@ -49,8 +50,9 @@ public final class ReflectorTests {
     private static final BlockPos FAR_PRISM = new BlockPos(5, 1, 0);
     /** On the floor but on neither of the other prisms' axes, so a clear diagonal from each. */
     private static final BlockPos DIAGONAL_PRISM = new BlockPos(3, 1, 4);
-    private static final String REFLECTOR = "goo:glow_reflector";
-    private static final int NO_ENTITY = -1;
+    /** Sunbeam, whose on_prism reaction is the reflector (decision channeled-hosts-convert-prisms-over-the-hold). */
+    private static final String REFLECTOR = "goo:glow_sunbeam";
+    private static final String NOT_A_REFLECTOR = "The prism should take the reflector combo";
     /** A reflector refreshes every 20 ticks; this many see both refresh after both land. */
     private static final int LINKED_TICKS = 45;
     private static final int BROKEN_TICKS = LINKED_TICKS * 2;
@@ -117,11 +119,13 @@ public final class ReflectorTests {
         helper.setBlock(at, GooBlocks.PRISM.get());
     }
 
+    /**
+     * Converts a prism into a reflector as a full Sunbeam hold does, its
+     * combo Sunbeam's on_prism reaction.
+     */
     private static void landReflector(GameTestHelper helper, BlockPos prism) {
-        GooEffectScheduler arrivals = GooServerState.of(helper.getLevel().getServer()).gooEffects();
-        int arrivalTick = helper.getLevel().getServer().getTickCount();
-        arrivals.enqueue(new PendingEffect(arrivalTick, helper.getLevel(), null, GooTypes.GLOW, NO_ENTITY,
-                helper.absolutePos(prism), Direction.UP, REFLECTOR));
-        arrivals.drainArrivedEffects(arrivalTick);
+        AbilityDefinition sunbeam = AbilityRegistry.of(helper.getLevel()).getAbility(Identifier.parse(REFLECTOR));
+        helper.assertTrue(sunbeam != null && helper.getBlockEntity(prism, PrismBlockEntity.class)
+                .runCombo(GooTypes.GLOW, REFLECTOR, PrismCombos.comboSteps(sunbeam)), NOT_A_REFLECTOR);
     }
 }

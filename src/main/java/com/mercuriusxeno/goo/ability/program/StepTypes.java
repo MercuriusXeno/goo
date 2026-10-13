@@ -38,7 +38,7 @@ public final class StepTypes {
         register(WatchStep.TYPE);
         register(UnmakeStep.TYPE);
         register(SiphonStep.TYPE);
-        register(ChargedStep.TYPE);
+        register(BusterStep.TYPE);
         register(ExplodeStep.TYPE);
         register(DamageStep.TYPE);
         register(PotionStep.TYPE);
@@ -58,14 +58,8 @@ public final class StepTypes {
         register(GlacialStep.TYPE);
         register(LeafSteps.SET_AI.type());
         register(LeafSteps.SET_INVULNERABLE.type());
-        register(LeafSteps.STASIS.type());
         register(LeafSteps.REWIND_HOLD.type());
         register(RegressStep.TYPE);
-        register(TickBlockStep.TYPE);
-        register(BankTicksStep.TYPE);
-        register(WithdrawBankStep.TYPE);
-        register(SlowTimeStep.TYPE);
-        register(HasteStep.TYPE);
         register(SpawnSlimeStep.TYPE);
         register(AncientStep.TYPE);
         register(DropItemStep.TYPE);

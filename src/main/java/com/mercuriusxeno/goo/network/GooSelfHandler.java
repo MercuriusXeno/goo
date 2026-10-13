@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
+import com.mercuriusxeno.goo.ability.PrismCombos;
 import com.mercuriusxeno.goo.ability.SelfEatRoute;
 import com.mercuriusxeno.goo.ability.held.HeldEffectsEvents;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
@@ -17,10 +18,12 @@ import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.StepContext;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
+import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -45,6 +48,7 @@ public final class GooSelfHandler {
 
     private static final String LOG_NO_GOO = "Self ability {} rejected: insufficient goo";
     private static final String LOG_PROGRAM_REFUSED = "Ability {} refused on the player host: {}";
+    private static final String LOG_COMBO_REFUSED = "Ability {} refused as a prism's combo: {}";
 
     private GooSelfHandler() {
     }
@@ -179,8 +183,34 @@ public final class GooSelfHandler {
         }
         GooSourceScanner.deplete(player, gooType, cost);
         ReagentScanner.consumeOneOfEach(player, ability.consumes());
-        runOn(host, ability);
+        Optional<BlockPos> converting = trip.flatMap(BlinkLanding::converts);
+        if (converting.isPresent()) {
+            spendInto(player, gooType, ability, converting.get());
+        } else {
+            runOn(host, ability);
+        }
         return true;
+    }
+
+    /**
+     * Spends a blink into a bare prism: the blinker stays, and the prism
+     * runs the blink's on_prism reaction as its combo, becoming an oculus.
+     * blink-at-a-prism-spends-into-an-oculus
+     *
+     * @param player  the blinking player
+     * @param gooType the blink's goo type
+     * @param ability the blink ability
+     * @param prism   the bare prism's block
+     */
+    private static void spendInto(ServerPlayer player, ResourceKey<GooTypeDefinition> gooType,
+            AbilityDefinition ability, BlockPos prism) {
+        if (player.level().getBlockEntity(prism) instanceof PrismBlockEntity bare) {
+            try {
+                bare.runCombo(gooType, ability.id().toString(), PrismCombos.comboSteps(ability), player.getUUID());
+            } catch (ProgramLoadException e) {
+                Goo.LOGGER.error(LOG_COMBO_REFUSED, ability.id(), e.getMessage());
+            }
+        }
     }
 
     /**

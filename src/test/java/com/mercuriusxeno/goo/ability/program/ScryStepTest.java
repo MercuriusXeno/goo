@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.type.GooTypes;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -13,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class ScryStepTest {
 
-    private static final ScryStep SCRY = new ScryStep(1, 96, 20, List.of(), List.of());
+    private static final ScryStep SCRY = new ScryStep(GooTypes.ASTRAL, 1, 96, 20, List.of(), List.of());
     private static final int PING_TICKS = 116;
 
     @Test

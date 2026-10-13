@@ -2,11 +2,10 @@ package com.mercuriusxeno.goo.ability.held;
 
 import com.mercuriusxeno.goo.ability.program.AirbornStep;
 import com.mercuriusxeno.goo.ability.program.AncientStep;
-import com.mercuriusxeno.goo.ability.program.ChargedStep;
+import com.mercuriusxeno.goo.ability.program.BusterStep;
 import com.mercuriusxeno.goo.ability.program.EldritchStep;
 import com.mercuriusxeno.goo.ability.program.ExtenderStep;
 import com.mercuriusxeno.goo.ability.program.GluttonyStep;
-import com.mercuriusxeno.goo.ability.program.HasteStep;
 import com.mercuriusxeno.goo.ability.program.HeartOverlayStep;
 import com.mercuriusxeno.goo.ability.program.LifetapStep;
 import com.mercuriusxeno.goo.ability.program.LowerCaseEnumCodec;
@@ -48,16 +47,14 @@ public enum LaidState {
     EXTENDER,
     /** A lifetap (decision lifetap-trades-regen-for-leech). */
     LIFETAP,
-    /** Haste's golden overlay (decision haste-stacks-speed-under-the-golden-overlay). */
-    HASTE,
     /** Air control (decision airborn-steerable-levitation-and-soft-falls). */
     AIRBORN,
     /** Telekinesis's raised reach (decision telekinesis-enacts-at-extended-reach). */
     TELEKINESIS,
     /** The eldritch state (decision eldritch-sight-reveals-the-out-of-phase). */
     ELDRITCH,
-    /** Charged, laid by a charged step (decision charged-scales-channel-params-by-json). */
-    CHARGED,
+    /** Buster's area hits and breaks under its unstable green overlay (decision buster-makes-tools-and-attacks-aoe). */
+    BUSTER,
     /** Ancient's floor of half a heart and its aged overlay (decision ancient-makes-the-player-immortal). */
     ANCIENT,
     /** Standing out of phase (decision phase-shares-a-plane-between-the-phased). */
@@ -97,11 +94,10 @@ public enum LaidState {
             Map.entry(ShifterStep.class, SHIFTER),
             Map.entry(ExtenderStep.class, EXTENDER),
             Map.entry(LifetapStep.class, LIFETAP),
-            Map.entry(HasteStep.class, HASTE),
             Map.entry(AirbornStep.class, AIRBORN),
             Map.entry(TelekinesisStep.class, TELEKINESIS),
             Map.entry(EldritchStep.class, ELDRITCH),
-            Map.entry(ChargedStep.class, CHARGED),
+            Map.entry(BusterStep.class, BUSTER),
             Map.entry(AncientStep.class, ANCIENT),
             Map.entry(PhaseStep.class, PHASE));
 

@@ -31,6 +31,16 @@ public class PrismRenderState extends BlockEntityRenderState {
     /** The id of the ability whose program is the prism's combo, empty for a plain prism. */
     public String combo = "";
 
+    /**
+     * How far a stream degrading blocks has charged the plain prism, 0 to 1,
+     * which its column wears as that stream's degrade look
+     * (decision channeled-hosts-convert-prisms-over-the-hold).
+     */
+    public float decayShare;
+
+    /** The RGB the charging stream's degrade look tints the column toward. */
+    public int decayTint;
+
     /** The beam's scroll clock: the game time within vanilla's 40-tick beacon cycle plus the partial tick. */
     public float animationTime;
 
@@ -42,12 +52,6 @@ public class PrismRenderState extends BlockEntityRenderState {
 
     /** The light the linked network's rails carry, 0 to 15. */
     public int linkLight;
-
-    /** The charge a timekeeper prism's bank holds, zero for a prism that banks nothing. */
-    public long bankTotal;
-
-    /** True while Tick spends the bank, its charge falling within the last moments. */
-    public boolean bankSpending;
 
     /** The game time with the partial tick, which a combo's animation reads. */
     public float gameTime;

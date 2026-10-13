@@ -81,7 +81,7 @@ public final class UpdraftWind {
      */
     public static void seeLift(BlockPos prism, String combo, BlockGetter level, long gameTime) {
         AbilitySyncHandler.ClientAbility ability = AbilitySyncHandler.findAbility(combo);
-        Optional<LiftStep> lift = ability == null ? Optional.empty() : liftOf(ability.behaviors());
+        Optional<LiftStep> lift = ability == null ? Optional.empty() : liftOf(ability.comboSteps());
         if (lift.isEmpty() || !blowsNow(prism.immutable(), gameTime)) {
             return;
         }

@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ThrowCostTest {
 
     private static final String ABILITIES = "data/goo/goo_abilities/";
-    private static final String TIMED_BOMB = ABILITIES + "unstable_timed_bomb.json";
+    private static final String LURKER = ABILITIES + "unstable_lurker.json";
 
     static List<Path> shippedAbilities() {
         return AbilityJson.files();
@@ -55,10 +55,10 @@ class ThrowCostTest {
     @ParameterizedTest
     @ValueSource(strings = {"{\"formula\": \"quadratic\", \"baseCost\": 1000}", "1000.5", "-1", "\"cheap\""})
     void costThatIsNotOneWholeNumberRefusesNamingIt(String cost) throws IOException {
-        JsonElement json = read(TIMED_BOMB);
+        JsonElement json = read(LURKER);
         json.getAsJsonObject().add("cost", JsonParser.parseString(cost));
 
-        DataResult<AbilityDefinition> parsed = AbilityDefinition.codecFor(AbilityJson.idOfResource(TIMED_BOMB))
+        DataResult<AbilityDefinition> parsed = AbilityDefinition.codecFor(AbilityJson.idOfResource(LURKER))
                 .parse(JsonOps.INSTANCE, json);
 
         assertTrue(parsed.error().isPresent(), "an ability costing " + cost + " loaded");
@@ -70,10 +70,10 @@ class ThrowCostTest {
 
     @Test
     void wholeNumberCostLoads() throws IOException {
-        JsonElement json = read(TIMED_BOMB);
+        JsonElement json = read(LURKER);
         json.getAsJsonObject().addProperty("cost", 750);
 
-        AbilityDefinition definition = AbilityDefinition.codecFor(AbilityJson.idOfResource(TIMED_BOMB))
+        AbilityDefinition definition = AbilityDefinition.codecFor(AbilityJson.idOfResource(LURKER))
                 .parse(JsonOps.INSTANCE, json).getOrThrow();
 
         assertEquals(750, definition.cost());

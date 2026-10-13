@@ -26,7 +26,6 @@ import com.mercuriusxeno.goo.ability.spray.Spored;
 import com.mercuriusxeno.goo.ability.typhoon.Airborn;
 import com.mercuriusxeno.goo.ability.typhoon.Floating;
 import com.mercuriusxeno.goo.ability.weird.Wobbled;
-import com.mercuriusxeno.goo.ability.world.TimeVeiled;
 import com.mercuriusxeno.goo.ability.xeno.Eldritch;
 import com.mercuriusxeno.goo.ability.xeno.Mutations;
 import com.mercuriusxeno.goo.ability.zone.Shifter;
@@ -75,7 +74,7 @@ public final class GooAttachments {
 
     /**
      * The counters a struck entity keeps between goo hits, saved with the
-     * entity (decision aeon-mob-ritual-drops-spawn-egg).
+     * entity (decision rewind-fills-while-held).
      */
     public static final Supplier<AttachmentType<EntityCounters>> ENTITY_COUNTERS =
             ATTACHMENT_TYPES.register("entity_counters",
@@ -151,13 +150,14 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("jump_source", () -> AttachmentType.builder(() -> Vec3.ZERO).build());
 
     /**
-     * Whether a player stands Charged, laid by the charged step as its held
-     * effect starts and cleared when that effect ends, saved with the player
-     * (decision charged-scales-channel-params-by-json).
+     * The radius a busting player's melee hits blast at, laid by the buster step
+     * as its held effect starts and cleared to zero when that effect ends,
+     * saved with the player while it stands (decision buster-makes-tools-and-attacks-aoe).
      */
-    public static final Supplier<AttachmentType<Boolean>> CHARGED =
-            ATTACHMENT_TYPES.register("charged",
-                    () -> AttachmentType.builder(() -> false).serialize(Codec.BOOL.fieldOf("standing")).build());
+    public static final Supplier<AttachmentType<Float>> BUSTER_RADIUS =
+            ATTACHMENT_TYPES.register("buster_radius",
+                    () -> AttachmentType.builder(() -> 0f)
+                            .serialize(Codec.FLOAT.fieldOf("radius"), radius -> radius > 0f).build());
 
     /**
      * The Lux a player holds, keeping night vision up and glistening the mob
@@ -245,17 +245,6 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * Marks a mob held in stasis until it is struck, saved with the mob so
-     * the hold outlasts a reload; a freed mob drops the attachment.
-     * stasis-holds-mob-with-golden-shimmer
-     */
-    public static final Supplier<AttachmentType<Boolean>> STASIS =
-            ATTACHMENT_TYPES.register("stasis",
-                    () -> AttachmentType.builder(() -> Boolean.FALSE)
-                            .serialize(Codec.BOOL.fieldOf("held"), Boolean::booleanValue)
-                            .build());
-
-    /**
      * A mob Rewind's stream holds: frozen until shortly after the stream lets
      * go, or shrinking into its egg, saved with the mob so a reload mid-hold
      * still frees it.
@@ -280,15 +269,6 @@ public final class GooAttachments {
      */
     public static final Supplier<AttachmentType<GrabHold>> GRAB_HOLD =
             ATTACHMENT_TYPES.register("grab_hold", () -> AttachmentType.builder(() -> GrabHold.NONE).build());
-
-    /**
-     * A mob a chronosphere's AI pacing holds, saved with the mob so a reload
-     * mid-veil hands back the AI state it had before the veil.
-     * chronosphere-hastes-players-slows-mobs
-     */
-    public static final Supplier<AttachmentType<TimeVeiled>> TIME_VEILED =
-            ATTACHMENT_TYPES.register("time_veiled",
-                    () -> AttachmentType.builder(() -> TimeVeiled.NONE).serialize(TimeVeiled.CODEC).build());
 
     /**
      * The warp curse Zone leaves on a mob, saved with the mob while

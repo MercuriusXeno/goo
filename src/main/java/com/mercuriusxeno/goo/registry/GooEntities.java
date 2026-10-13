@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.entity.CompressionSphere;
+import com.mercuriusxeno.goo.entity.EldritchMonstrosity;
 import com.mercuriusxeno.goo.entity.FeedPile;
 import com.mercuriusxeno.goo.entity.Meteor;
 import com.mercuriusxeno.goo.entity.RollingGoo;
@@ -11,9 +12,12 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.SpawnPlacementTypes;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
+import net.neoforged.neoforge.event.entity.RegisterSpawnPlacementsEvent;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
@@ -23,7 +27,8 @@ import net.neoforged.neoforge.registries.DeferredRegister;
  * the air (decision orb-carries-a-swirling-nova), the orb a black hole
  * leaves (decision black-hole-leaves-a-compression-sphere), the feed
  * Jelly's Feed lays (decision feed-blob-feeds-and-draws-mobs), and a quantum
- * swap body (decision swap-body-stands-until-reverted).
+ * swap body (decision swap-body-stands-until-reverted), and the Eldritch
+ * Monstrosity living out of phase (decision monstrosities-harvest-under-quantum).
  */
 @EventBusSubscriber(modid = Goo.MODID)
 public final class GooEntities {
@@ -45,6 +50,9 @@ public final class GooEntities {
     private static final int SWAP_BODY_UPDATE_TICKS = 2;
     private static final float METEOR_SIZE = 1.0f;
     private static final int METEOR_TRACKING_CHUNKS = 10;
+    private static final float MONSTROSITY_WIDTH = 0.8f;
+    private static final float MONSTROSITY_HEIGHT = 2.4f;
+    private static final int MONSTROSITY_TRACKING_CHUNKS = 8;
 
     /**
      * A goo rolling through the air in a straight line, such as frost's Orb
@@ -109,17 +117,40 @@ public final class GooEntities {
             .noLootTable()
             .build(ResourceKey.create(Registries.ENTITY_TYPE, id)));
 
+    /**
+     * The Eldritch Monstrosity, out of phase between dimensions, harvested for
+     * xeno goo (decision monstrosities-harvest-under-quantum).
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<EldritchMonstrosity>> ELDRITCH_MONSTROSITY =
+        ENTITIES.register("eldritch_monstrosity", id -> EntityType.Builder
+            .<EldritchMonstrosity>of(EldritchMonstrosity::new, MobCategory.MONSTER)
+            .sized(MONSTROSITY_WIDTH, MONSTROSITY_HEIGHT)
+            .clientTrackingRange(MONSTROSITY_TRACKING_CHUNKS)
+            .build(ResourceKey.create(Registries.ENTITY_TYPE, id)));
+
     private GooEntities() {
     }
 
     /**
+     * Lets a monstrosity spawn on the ground only where it is dark and deep.
+     *
+     * @param event the spawn placement registration event
+     */
+    @SubscribeEvent
+    public static void onRegisterSpawnPlacements(RegisterSpawnPlacementsEvent event) {
+        event.register(ELDRITCH_MONSTROSITY.get(), SpawnPlacementTypes.ON_GROUND, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                EldritchMonstrosity::checkSpawnRules, RegisterSpawnPlacementsEvent.Operation.REPLACE);
+    }
+
+    /**
      * Gives the swap body the attributes every living thing carries, without
-     * which it cannot stand.
+     * which it cannot stand, and the monstrosity a monster's.
      *
      * @param event the attribute creation event
      */
     @SubscribeEvent
     public static void onAttributeCreation(EntityAttributeCreationEvent event) {
         event.put(SWAP_BODY.get(), LivingEntity.createLivingAttributes().build());
+        event.put(ELDRITCH_MONSTROSITY.get(), EldritchMonstrosity.createAttributes().build());
     }
 }

@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.ability.hex.Lifetap;
 import com.mercuriusxeno.goo.ability.gluttony.Gluttony;
 import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.typhoon.Airborn;
+import com.mercuriusxeno.goo.ability.unstable.BusterEvents;
 import com.mercuriusxeno.goo.ability.zone.Shifter;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -59,8 +60,7 @@ public final class BrewEffectTests {
     private static final String BREW_FROST_ICEBORN = "brew_frost_iceborn_for_an_hour";
     private static final String BREW_CRYSTAL_SCALES = "brew_crystal_scales_for_an_hour";
     private static final String HEX_BREW_LIFETAPS = "hex_brew_lifetaps_for_an_hour";
-    private static final String AEON_BREW_HASTES = "aeon_brew_hastes_for_an_hour";
-    private static final String UNSTABLE_BREW_CHARGES_FOR_AN_HOUR = "unstable_brew_charges_for_an_hour";
+    private static final String UNSTABLE_BREW_BUSTS_FOR_AN_HOUR = "unstable_brew_busts_for_an_hour";
 
     private static final String BREW_JELLY_GLUTTONY = "brew_jelly_gluttony_for_an_hour";
     /**
@@ -86,8 +86,7 @@ public final class BrewEffectTests {
         GooTestFunctions.registerTest(registrar, BREW_FROST_ICEBORN, BrewEffectTests::frostBrewIcebornForAnHour);
         GooTestFunctions.registerTest(registrar, BREW_CRYSTAL_SCALES, BrewEffectTests::crystalBrewScalesForAnHour);
         GooTestFunctions.registerTest(registrar, HEX_BREW_LIFETAPS, BrewEffectTests::hexBrewLifetapsForAnHour);
-        GooTestFunctions.registerTest(registrar, AEON_BREW_HASTES, BrewEffectTests::aeonBrewHastesForAnHour);
-        GooTestFunctions.registerTest(registrar, UNSTABLE_BREW_CHARGES_FOR_AN_HOUR, BrewEffectTests::unstableBrewChargesForAnHour);
+        GooTestFunctions.registerTest(registrar, UNSTABLE_BREW_BUSTS_FOR_AN_HOUR, BrewEffectTests::unstableBrewBustsForAnHour);
         GooTestFunctions.registerTest(registrar, BREW_JELLY_GLUTTONY, BrewEffectTests::jellyBrewGluttonyForAnHour);
     }
 
@@ -102,9 +101,11 @@ public final class BrewEffectTests {
     private static final String SHOULD_LAY = "The %s brew should lay %d %s halves expiring at %d, laid %s %d expiring at %d";
     private static final String SHOULD_HOLD_EFFECT = "The %s brew effect should stand for %d ticks, stands %s";
     private static final String SHOULD_DRAIN_NOTHING = "A brew should drain no goo, drained %d";
-    private static final String SHOULD_CHARGE = "The unstable brew should charge until %d, charges until %d";
-    private static final Identifier UNSTABLE_CHARGED = Identifier.parse("goo:unstable_charged");
-    /** The expiry read for a player holding no Charged at all. */
+    private static final String SHOULD_BUST = "The unstable brew should bust at radius %.1f until %d, busts at %.1f until %d";
+    private static final Identifier UNSTABLE_BUSTER = Identifier.parse("goo:unstable_buster");
+    /** unstable_buster.json's blast radius. */
+    private static final float BUSTER_RADIUS = 2.5f;
+    /** The expiry read for a player holding no Buster at all. */
     private static final long NOT_HELD = -1;
     /** shroom_sight.json's factor. */
     private static final float SIGHT_FACTOR = 3f;
@@ -118,7 +119,6 @@ public final class BrewEffectTests {
     private static final String SHOULD_LIFETAP = "The hex brew should lifetap at %.2f until %d, granted %.2f until %d";
     private static final String SHOULD_SEE = "The shroom brew should grant sight at %.1f until %d, granted %.1f until %d";
     private static final String SHOULD_SHOW_NO_PARTICLES = "A brew should show its icon and no particles, stands %s";
-    private static final String SHOULD_HASTE = "The aeon brew should raise speed and mining speed for %d ticks, stands %s";
     private static final String SHOULD_GLUT = "The jelly brew should hold gluttony until %d, holds it until %d";
     private static final String SHOULD_RUN_NOTHING = "A brew of a type with no brew ability should lay nothing, laid %s";
     private static final String SHOULD_HOLD_PREPAID = "The blaze brew should hold Kindle prepaid until %d, held %s";
@@ -179,25 +179,26 @@ public final class BrewEffectTests {
     }
 
     /**
-     * Drinking the unstable brew charges the player for an hour: Charged
-     * stands and its held effect is prepaid to the brew's expiry
-     * (decision charged-scales-channel-params-by-json).
+     * Drinking the unstable brew lays Buster on the player for an hour: its
+     * blast radius stands and its held effect is prepaid to the brew's expiry
+     * (decision buster-makes-tools-and-attacks-aoe).
      *
      * @param helper the gametest helper
      */
-    public static void unstableBrewChargesForAnHour(GameTestHelper helper) {
+    public static void unstableBrewBustsForAnHour(GameTestHelper helper) {
         ServerPlayer player = drinker(helper, GooTypes.UNSTABLE);
         long now = player.level().getGameTime();
 
         drink(player, GooTypes.UNSTABLE);
 
-        boolean charged = player.getData(GooAttachments.CHARGED);
-        long chargedUntil = player.getData(GooAttachments.HELD_EFFECTS).held().stream()
-                .filter(held -> held.ability().equals(UNSTABLE_CHARGED)).mapToLong(HeldEffects.Held::expiresAt)
+        float radius = BusterEvents.radiusOf(player);
+        long bustsUntil = player.getData(GooAttachments.HELD_EFFECTS).held().stream()
+                .filter(held -> held.ability().equals(UNSTABLE_BUSTER)).mapToLong(HeldEffects.Held::expiresAt)
                 .findFirst().orElse(NOT_HELD);
         helper.getLevel().getServer().getPlayerList().remove(player);
         long expected = now + GooPotions.BREW_DURATION;
-        helper.assertTrue(charged && chargedUntil == expected, String.format(SHOULD_CHARGE, expected, chargedUntil));
+        helper.assertTrue(radius == BUSTER_RADIUS && bustsUntil == expected,
+                String.format(SHOULD_BUST, BUSTER_RADIUS, expected, radius, bustsUntil));
         helper.succeed();
     }
 
@@ -346,32 +347,6 @@ public final class BrewEffectTests {
         helper.getLevel().getServer().getPlayerList().remove(player);
         long expected = now + GooPotions.BREW_DURATION;
         helper.assertTrue(expiresAt == expected, String.format(SHOULD_LUX, expected, expiresAt));
-        helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
-        helper.succeed();
-    }
-
-    /**
-     * Drinking the aeon brew hastes the player for an hour: the aeon brew is
-     * the one effect it wears, for the brew's duration with no particles,
-     * and it moves and mines faster, draining no goo
-     * (decision haste-stacks-speed-under-the-golden-overlay).
-     *
-     * @param helper the gametest helper
-     */
-    public static void aeonBrewHastesForAnHour(GameTestHelper helper) {
-        ServerPlayer player = drinker(helper, GooTypes.AEON);
-        int heldBefore = held(player, GooTypes.AEON);
-
-        drink(player, GooTypes.AEON);
-
-        MobEffectInstance brew = player.getEffect(GooMobEffects.BREW_EFFECTS.get(GooTypes.AEON));
-        String wrongEffects = HasteChecks.onlyTheAeonBrew(player);
-        boolean hasted = HasteChecks.hasted(player);
-        int drained = heldBefore - held(player, GooTypes.AEON);
-        helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(wrongEffects.isEmpty(), wrongEffects);
-        helper.assertTrue(hasted && brew != null && brew.getDuration() == GooPotions.BREW_DURATION,
-                String.format(SHOULD_HASTE, GooPotions.BREW_DURATION, brew));
         helper.assertTrue(drained == 0, String.format(SHOULD_DRAIN_NOTHING, drained));
         helper.succeed();
     }
