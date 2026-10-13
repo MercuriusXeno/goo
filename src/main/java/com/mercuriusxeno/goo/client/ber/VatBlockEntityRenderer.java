@@ -114,7 +114,7 @@ public class VatBlockEntityRenderer
      * @param capacity the column's summed capacity
      * @param water    the column's summed water
      */
-    private static void applyFill(VatRenderState state, GooContents contents, int capacity, long water) {
+    private static void applyFill(VatRenderState state, GooContents contents, long capacity, long water) {
         long total = contents.totalVolume() + water;
         state.typeBands = TypeBands.over(contents);
         state.waterDominant = water > 0

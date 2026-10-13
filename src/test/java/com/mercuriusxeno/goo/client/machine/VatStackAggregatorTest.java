@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.machine;
 
 import com.mercuriusxeno.goo.client.machine.VatStackAggregator.VatStackData;
+import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.type.GooTypes;
 import org.junit.jupiter.api.Test;
@@ -17,31 +18,25 @@ class VatStackAggregatorTest {
     /** A stack holding nothing, unlabeled and unupgraded, shows nothing. */
     @Test
     void bareStackHasNothingToShow() {
-        assertTrue(stack(GooContents.EMPTY, 0, 0, null).hasNothingToShow());
+        assertTrue(stack(GooContents.EMPTY, 0, null).hasNothingToShow());
     }
 
     /** A stack holding water alone shows its panel. */
     @Test
     void waterOnlyStackHasSomethingToShow() {
-        assertFalse(stack(GooContents.EMPTY, 1000, 0, null).hasNothingToShow());
+        assertFalse(stack(GooContents.EMPTY, 1000, null).hasNothingToShow());
     }
 
     /** A stack holding goo shows its panel. */
     @Test
     void gooStackHasSomethingToShow() {
-        assertFalse(stack(new GooContents(Map.of(GooTypes.ROCK, 1)), 0, 0, null).hasNothingToShow());
-    }
-
-    /** An upgraded empty stack shows its panel. */
-    @Test
-    void upgradedStackHasSomethingToShow() {
-        assertFalse(stack(GooContents.EMPTY, 0, 1, null).hasNothingToShow());
+        assertFalse(stack(new GooContents(Map.of(GooTypes.ROCK, 1)), 0, null).hasNothingToShow());
     }
 
     /** A labeled empty stack shows its panel. */
     @Test
     void labeledStackHasSomethingToShow() {
-        assertFalse(stack(GooContents.EMPTY, 0, 0, "Tank").hasNothingToShow());
+        assertFalse(stack(GooContents.EMPTY, 0, "Tank").hasNothingToShow());
     }
 
     /**
@@ -49,11 +44,10 @@ class VatStackAggregatorTest {
      *
      * @param contents    the stack's summed goo contents
      * @param water       the stack's summed water
-     * @param compression the targeted vat's compression level
      * @param label       the targeted vat's label, or null
      * @return the stack data
      */
-    private static VatStackData stack(GooContents contents, long water, int compression, String label) {
-        return new VatStackData(contents, water, compression, false, false, label, null, null, 1);
+    private static VatStackData stack(GooContents contents, long water, String label) {
+        return new VatStackData(contents, water, ContainerCapacity.VAT_BASE, false, false, label, null, null, 1);
     }
 }

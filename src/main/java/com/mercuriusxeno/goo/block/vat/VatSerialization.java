@@ -1,19 +1,12 @@
 package com.mercuriusxeno.goo.block.vat;
 
-import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
-import com.mercuriusxeno.goo.registry.GooEnchantments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
-import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponentGetter;
 import net.minecraft.core.component.DataComponentMap;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
@@ -25,10 +18,6 @@ import org.jspecify.annotations.Nullable;
  */
 final class VatSerialization {
 
-    /**
-     * NBT key for compression level.
-     */
-    static final String TAG_COMPRESSION = "Compression";
     /**
      * NBT key for goo contents.
      */
@@ -120,7 +109,6 @@ final class VatSerialization {
      * @param output the value output
      */
     static void saveFields(VatBlockEntity be, ValueOutput output) {
-        output.putInt(TAG_COMPRESSION, be.compressionLevel);
         saveContentsAndLabel(be, output);
         saveStreamFields(be, output);
     }
@@ -170,22 +158,8 @@ final class VatSerialization {
      * @param input the value input
      */
     static void loadFields(VatBlockEntity be, ValueInput input) {
-        loadCompression(be, input);
         loadContentsAndLabel(be, input);
         loadStreamFields(be, input);
-    }
-
-    /**
-     * Reads and applies compression level from the value input.
-     *
-     * @param be    the vat block entity
-     * @param input the value input
-     */
-    private static void loadCompression(VatBlockEntity be, ValueInput input) {
-        be.compressionLevel = Math.max(0, Math.min(
-                input.getIntOr(TAG_COMPRESSION, 0),
-                ContainerCapacity.MAX_COMPRESSION));
-        be.syncCapacity();
     }
 
     /**
@@ -225,36 +199,6 @@ final class VatSerialization {
     }
 
     /**
-     * Writes compression enchantment to the data component builder.
-     *
-     * @param builder          the component builder
-     * @param compressionLevel the compression level (0 = no enchantment)
-     * @param level            the current level for registry access, or null
-     */
-    static void collectCompression(
-            DataComponentMap.Builder builder, int compressionLevel, @Nullable Level level) {
-        if (compressionLevel > 0 && level != null) {
-            level.registryAccess().lookup(Registries.ENCHANTMENT)
-                    .flatMap(reg -> reg.get(GooEnchantments.COMPRESSION))
-                    .ifPresent(holder -> applyCompression(builder, holder, compressionLevel));
-        }
-    }
-
-    /**
-     * Writes a single compression enchantment entry to the component builder.
-     *
-     * @param builder the data component builder to write to
-     * @param holder  the compression enchantment holder
-     * @param level   the compression enchantment level
-     */
-    private static void applyCompression(DataComponentMap.Builder builder,
-                                         Holder<Enchantment> holder, int level) {
-        ItemEnchantments.Mutable mutable = new ItemEnchantments.Mutable(ItemEnchantments.EMPTY);
-        mutable.set(holder, level);
-        builder.set(DataComponents.ENCHANTMENTS, mutable.toImmutable());
-    }
-
-    /**
      * Writes goo contents to the data component builder.
      *
      * @param builder  the component builder
@@ -264,22 +208,6 @@ final class VatSerialization {
         if (!contents.isEmpty()) {
             builder.set(GooDataComponents.GOO_CONTENTS.get(), contents);
         }
-    }
-
-    /**
-     * Reads compression level from placed item's enchantments.
-     *
-     * @param getter the data component getter
-     * @return the compression level (0 if none)
-     */
-    static int applyCompression(DataComponentGetter getter) {
-        ItemEnchantments enchants = getter.getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY);
-        for (var entry : enchants.entrySet()) {
-            if (entry.getKey().is(GooEnchantments.COMPRESSION)) {
-                return entry.getIntValue();
-            }
-        }
-        return 0;
     }
 
     /**
