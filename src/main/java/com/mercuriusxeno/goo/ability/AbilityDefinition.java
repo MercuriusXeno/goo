@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.ability.program.AwaitEntityStep;
 import com.mercuriusxeno.goo.ability.program.BloomStep;
-import com.mercuriusxeno.goo.ability.program.ChargedMultipliers;
 import com.mercuriusxeno.goo.ability.program.ColonizeStep;
 import com.mercuriusxeno.goo.ability.program.CoolLavaStep;
 import com.mercuriusxeno.goo.ability.program.EntitiesStep;
@@ -63,8 +62,6 @@ import java.util.stream.Stream;
  *                    (decision held-effects-sound-up-and-down)
  * @param distancePrice what a blink adds to the cost for the trip it makes, none for every other ability
  *                    (decision blink-lands-safely-costed-by-distance)
- * @param charged     what Charged scales while the caster stands charged, all 1 for an ability naming none
- *                    (decision charged-scales-channel-params-by-json)
  * @param pose        the arm pose the glove arm takes in place of the swing, the delivery kind's default
  *                    for an ability naming none (decision ability-json-names-its-arm-pose)
  */
@@ -88,7 +85,6 @@ public record AbilityDefinition(
         int upkeep,
         Optional<SoundCue> downSound,
         DistancePrice distancePrice,
-        ChargedMultipliers charged,
         ArmPose pose
 ) {
 
@@ -125,22 +121,20 @@ public record AbilityDefinition(
      * @param upkeep        the mB a held self + brew effect pays each tick it stands
      * @param downSound     the cue a held effect plays when it ends, empty for the shared cue
      * @param distancePrice what a blink adds to the cost for the trip it makes
-     * @param charged       what Charged scales while the caster stands charged
      */
     public AbilityDefinition(Identifier id, ResourceKey<GooTypeDefinition> gooType, String displayName, String icon,
                              int order, int cost, Delivery delivery, List<Step> behaviors, List<String> tags,
                              AbilityBadge badge, List<Identifier> requires, AbilityArea area,
                              IndicatorShowing indicator, List<Identifier> consumes, List<Step> onPrism,
                              List<Step> onBlocks, int upkeep, Optional<SoundCue> downSound,
-                             DistancePrice distancePrice, ChargedMultipliers charged) {
+                             DistancePrice distancePrice) {
         this(id, gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires, area,
-                indicator, consumes, onPrism, onBlocks, upkeep, downSound, distancePrice, charged,
+                indicator, consumes, onPrism, onBlocks, upkeep, downSound, distancePrice,
                 ArmPose.defaultFor(delivery.kind()));
     }
 
     /**
-     * An ability whose cost reads no trip and that Charged leaves unchanged, every ability but a blink or
-     * one Charged scales.
+     * An ability whose cost reads no trip, every ability but a blink.
      *
      * @param id          the datapack resource identifier
      * @param gooType     the goo type this ability belongs to
@@ -167,8 +161,7 @@ public record AbilityDefinition(
                              IndicatorShowing indicator, List<Identifier> consumes, List<Step> onPrism,
                              List<Step> onBlocks, int upkeep, Optional<SoundCue> downSound) {
         this(id, gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires, area,
-                indicator, consumes, onPrism, onBlocks, upkeep, downSound, DistancePrice.NONE,
-                ChargedMultipliers.NONE);
+                indicator, consumes, onPrism, onBlocks, upkeep, downSound, DistancePrice.NONE);
     }
 
     /**
@@ -339,11 +332,7 @@ public record AbilityDefinition(
     private static final String FIELD_INDICATOR = "indicator";
     private static final String FIELD_CONSUMES = "consumes";
     private static final String FIELD_ON_PRISM = "on_prism";
-    private static final String FIELD_CHARGED = "charged";
     private static final String FIELD_POSE = "pose";
-    /** An ability's Charged multipliers, all 1 where it names none (decision charged-scales-channel-params-by-json). */
-    private static final MapCodec<ChargedMultipliers> CHARGED_FIELD =
-            ChargedMultipliers.CODEC.optionalFieldOf(FIELD_CHARGED, ChargedMultipliers.NONE);
     private static final String FIELD_ON_BLOCKS = "on_blocks";
     private static final String FIELD_UPKEEP = "upkeep";
     private static final String FIELD_DOWN_SOUND = "down_sound";
@@ -474,15 +463,13 @@ public record AbilityDefinition(
                 REACTIONS_CODEC.forGetter(def -> new Reactions(def.onPrism(), def.onBlocks())),
                 // self-effects-trickle-until-ended, held-effects-sound-up-and-down
                 HELD_TRAITS_CODEC.forGetter(def -> new HeldTraits(def.upkeep(), def.downSound())),
-                // charged-scales-channel-params-by-json
-                CHARGED_FIELD.forGetter(AbilityDefinition::charged),
                 // ability-json-names-its-arm-pose
                 ArmPose.CODEC.optionalFieldOf(FIELD_POSE).forGetter(def -> Optional.of(def.pose()))
         ).apply(inst, (heading, price, delivery, steps, tags, badge, requires, area, shows, consumes, reactions,
-                       held, charged, pose) -> new AbilityDefinition(id, heading.gooType(), heading.displayName(),
+                       held, pose) -> new AbilityDefinition(id, heading.gooType(), heading.displayName(),
                         heading.icon(), heading.order(), price.cost(), delivery, steps, tags, badge, requires, area,
                         shows, consumes, reactions.onPrism(), reactions.onBlocks(), held.upkeep(), held.downSound(),
-                        price.distancePrice(), charged, pose.orElseGet(() -> ArmPose.defaultFor(delivery.kind())))));
+                        price.distancePrice(), pose.orElseGet(() -> ArmPose.defaultFor(delivery.kind())))));
     }
 
     /**

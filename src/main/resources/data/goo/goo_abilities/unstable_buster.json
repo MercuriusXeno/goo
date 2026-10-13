@@ -1,13 +1,13 @@
 {
   "gooType": "unstable",
-  "displayName": "goo.ability.unstable.charged",
+  "displayName": "goo.ability.unstable.buster",
   "badge": "brew",
   "order": 40,
   "upkeep": 1,
   "requires": ["minecraft:fire_charge"],
   "delivery": { "kind": "self" },
   "behaviors": [
-    { "type": "charged" },
+    { "type": "buster", "radius": 2.5 },
     { "type": "sound", "id": "minecraft:item.firecharge.use", "at": "target", "source": "players", "volume": 1, "pitch": 1.5 }
   ],
   "tags": ["self"]

@@ -11,5 +11,21 @@
     { "type": "damage", "amount": 0.5, "source": "magic", "knockback": false },
     { "type": "particles", "id": "goo:gnat", "at": "target", "count": 3, "spread": 0.5, "speed": 0.05 }
   ],
+  "on_prism": [
+    {
+      "type": "field_effect",
+      "radius": 5,
+      "where": ["living", "alive", "mob"],
+      "cooldown": 0,
+      "interval": 4,
+      "charges": 1,
+      "spend_chance": 0,
+      "strike_ticks": 1,
+      "strike": [
+        { "type": "damage", "amount": 2, "source": "magic", "knockback": false },
+        { "type": "particles", "id": "goo:gnat", "at": "target", "count": 12, "spread": 0.5, "speed": 0.05 }
+      ]
+    }
+  ],
   "tags": ["stream", "mob_first"]
 }

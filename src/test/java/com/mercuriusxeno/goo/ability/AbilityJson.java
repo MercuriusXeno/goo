@@ -44,7 +44,7 @@ public final class AbilityJson {
 
     /**
      * The id an ability loads under from its classpath path, such as
-     * {@code data/goo/goo_abilities/unstable_timed_bomb.json} for {@code goo:unstable_timed_bomb}.
+     * {@code data/goo/goo_abilities/unstable_lurker.json} for {@code goo:unstable_lurker}.
      *
      * @param resource the classpath path, ending {@code data/<ns>/goo_abilities/<name>.json}
      * @return the ability id

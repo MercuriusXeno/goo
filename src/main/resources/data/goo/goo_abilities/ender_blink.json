@@ -19,6 +19,10 @@
     { "type": "particles", "id": "minecraft:portal", "at": "target", "count": 32, "spread": 0.5, "lift": 1, "speed": 0.5 },
     { "type": "sound", "id": "minecraft:entity.enderman.teleport", "at": "target", "source": "players", "volume": 1, "pitch": 1 }
   ],
+  "on_prism": [
+    { "type": "particles", "id": "minecraft:portal", "at": "host", "count": 48, "spread": 0.4, "lift": 0.5, "speed": 0.4 },
+    { "type": "sound", "id": "minecraft:block.end_portal_frame.fill", "at": "host", "source": "blocks", "volume": 1, "pitch": 1 }
+  ],
   "tags": ["self"],
   "pose": "held_out"
 }

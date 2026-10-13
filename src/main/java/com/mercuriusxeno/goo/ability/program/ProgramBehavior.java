@@ -146,7 +146,6 @@ public final class ProgramBehavior {
         return step.hostedExpressions(kind).map(hosted -> {
             Set<String> names = new TreeSet<>(hosted.expr().variables());
             names.remove(StepContext.VAR_TICK);
-            names.removeIf(ChargedMultipliers::isChargedVariable);
             names.removeAll(hosted.host().variables());
             if (hosted.host().capabilities().contains(HostCapability.TARGET)) {
                 names.removeIf(HostVariables::isCounter);
@@ -164,23 +163,12 @@ public final class ProgramBehavior {
      * @param host the host seam for this tick
      */
     public void tick(StepHost host) {
-        tick(host, ChargedMultipliers.NONE);
-    }
-
-    /**
-     * Runs one tick of a cast carrying Charged multipliers, which the
-     * program's expressions read (decision charged-scales-channel-params-by-json).
-     *
-     * @param host    the host seam for this tick
-     * @param charged the cast's Charged multipliers
-     */
-    public void tick(StepHost host, ChargedMultipliers charged) {
         if (countsHeldCues) {
             heldCues.playDue();
         }
         while (isActive()) {
             Step current = steps.get(stepIndex);
-            boolean finished = current.tick(new StepContext(host, stepTicks, programTicks, charged, heldCues));
+            boolean finished = current.tick(new StepContext(host, stepTicks, programTicks, heldCues));
             if (!finished) {
                 stepTicks++;
                 break;

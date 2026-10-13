@@ -8,5 +8,8 @@
   "behaviors": [
     { "type": "pulser_toggle", "every": 4 }
   ],
+  "on_prism": [
+    { "type": "metronome" }
+  ],
   "tags": ["stream"]
 }

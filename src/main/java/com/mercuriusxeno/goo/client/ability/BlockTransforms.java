@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * The block transforms playing on the client: each old block mingling into
@@ -132,6 +133,17 @@ public final class BlockTransforms {
     public List<Exposure> exposing(long tick) {
         exposures.values().removeIf(exposure -> tick - exposure.updated() > EXPOSURE_STALE_TICKS);
         return List.copyOf(exposures.values());
+    }
+
+    /**
+     * The exposure a block stands at, as a block drawing itself reads it.
+     * channeled-hosts-convert-prisms-over-the-hold
+     *
+     * @param pos the block
+     * @return its exposure, or empty for a block nothing is exposing
+     */
+    public Optional<Exposure> exposureAt(BlockPos pos) {
+        return Optional.ofNullable(exposures.get(pos));
     }
 
     /** Drops every transform and exposure, as a disconnect does. */
