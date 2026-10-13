@@ -6,11 +6,9 @@ import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.VatBlockItem;
 import com.mercuriusxeno.goo.network.PlayerKnowledge;
-import com.mercuriusxeno.goo.registry.GooEnchantments;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
@@ -27,9 +25,10 @@ import java.util.function.Supplier;
 /**
  * The player kit {@code /goo lab kit} puts in the inventory (decision
  * lab-holds-bays-supply-pens-kit): the goo glove, the exorite tool and armor
- * set, the choral tuner and gasket for rigging runs, and one vat at full
- * Compression holding every registered goo type, read from the registry at kit
- * time, its capacity shared evenly between the types (decision
+ * set, the choral tuner and gasket for rigging runs, and one vat holding
+ * enough void to grow it to {@link #KIT_VAT_CAPACITY} and every other
+ * registered goo type, read from the registry at kit time, sharing the rest
+ * evenly (decisions each-void-mb-adds-n-plus-one-capacity and
  * lab-iterates-the-registries; operator ruling 2026-10-11: one vat rather than
  * a canister per type, which overflowed the inventory at twenty-five types). The kit replaces the inventory it fills, since
  * the lab save is scratch, and teaches nothing: {@code /goo lab learn} teaches
@@ -48,6 +47,12 @@ public final class LabKit {
             GooItems.EXORITE_SWORD, GooItems.EXORITE_PICKAXE, GooItems.EXORITE_AXE,
             GooItems.EXORITE_SHOVEL, GooItems.EXORITE_HOE,
             GooItems.EXORITE_HELMET, GooItems.EXORITE_CHESTPLATE, GooItems.EXORITE_LEGGINGS, GooItems.EXORITE_BOOTS);
+
+    /**
+     * The capacity the kit vat's void grows it to: 2^30 mB, room for a large
+     * share of every registered type.
+     */
+    static final int KIT_VAT_CAPACITY = 1 << 30;
 
     private LabKit() {
     }
@@ -75,20 +80,21 @@ public final class LabKit {
     }
 
     /**
-     * Answers a vat at full Compression holding every registered goo type, each an
-     * even share of the vat's capacity.
+     * Answers a vat holding the void that grows it to {@link #KIT_VAT_CAPACITY}
+     * and every other registered goo type, each an even share of the rest.
      *
-     * @param level the level whose goo type and enchantment registries to read
+     * @param level the level whose goo type registry to read
      * @return the vat
      */
     public static ItemStack stockedVat(ServerLevel level) {
         ItemStack vat = new ItemStack(GooItems.VAT.get());
-        vat.enchant(level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT)
-                .getOrThrow(GooEnchantments.COMPRESSION), ContainerCapacity.MAX_COMPRESSION);
-        List<ResourceKey<GooTypeDefinition>> types =
-                level.registryAccess().lookupOrThrow(GooTypes.REGISTRY).listElementIds().toList();
-        int share = ContainerCapacity.vatCapacity(ContainerCapacity.MAX_COMPRESSION) / Math.max(1, types.size());
-        types.forEach(type -> VatBlockItem.addGoo(vat, type, share));
+        List<ResourceKey<GooTypeDefinition>> others =
+                level.registryAccess().lookupOrThrow(GooTypes.REGISTRY).listElementIds()
+                        .filter(type -> !GooTypes.VOID.equals(type)).toList();
+        int voidHeld = ContainerCapacity.voidToReach(ContainerCapacity.VAT_BASE, KIT_VAT_CAPACITY);
+        VatBlockItem.addGoo(vat, GooTypes.VOID, voidHeld);
+        int share = (KIT_VAT_CAPACITY - voidHeld) / Math.max(1, others.size());
+        others.forEach(type -> VatBlockItem.addGoo(vat, type, share));
         return vat;
     }
 

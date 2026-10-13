@@ -1,8 +1,10 @@
 package com.mercuriusxeno.goo.block.vat;
 
 import com.mercuriusxeno.goo.block.fluid.GooFluidHandler;
+import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
@@ -11,7 +13,9 @@ import java.util.*;
 /**
  * Redistributes goo across a connected vat stack so fluid settles to the
  * bottom-most vats first, like a real contiguous tank. Called whenever fluid
- * changes or stack topology changes on the server side.
+ * changes or stack topology changes on the server side. Void settles first,
+ * so each vat's capacity is figured from the void it takes and the stack
+ * never loses room (decision each-void-mb-adds-n-plus-one-capacity).
  */
 public final class VatStackRedistributor {
 
@@ -102,7 +106,7 @@ public final class VatStackRedistributor {
      * @param pool the mutable goo pool to take from
      */
     private static void applySlice(VatBlockEntity vat, Map<ResourceKey<GooTypeDefinition>, Integer> pool) {
-        GooContents slice = takeSlice(pool, vat.getCapacity());
+        GooContents slice = takeSlice(pool, ContainerCapacity.VAT_BASE);
         if (!slice.equals(vat.getContents())) {
             vat.getFluidHandler().loadFrom(slice);
             vat.syncAfterRedistribution();
@@ -110,24 +114,43 @@ public final class VatStackRedistributor {
     }
 
     /**
-     * Takes up to {@code capacity} total mB from the pool, removing consumed
-     * volume. Returns an immutable {@link GooContents} for one vat.
+     * Takes one vat's share from the pool, removing consumed volume: every mB
+     * of void first, then other goo up to the capacity that void grows the
+     * base to. Returns an immutable {@link GooContents} for one vat.
      *
-     * @param pool     the mutable goo pool
-     * @param capacity the capacity in mB
+     * @param pool the mutable goo pool
+     * @param base the vat's capacity with no void, in mB
      * @return the goo contents
      */
-    private static GooContents takeSlice(Map<ResourceKey<GooTypeDefinition>, Integer> pool, int capacity) {
-        if (pool.isEmpty() || capacity <= 0) {
+    static GooContents takeSlice(Map<ResourceKey<GooTypeDefinition>, Integer> pool, int base) {
+        if (pool.isEmpty() || base <= 0) {
             return GooContents.EMPTY;
         }
         Map<ResourceKey<GooTypeDefinition>, Integer> slice = new HashMap<>();
-        int remaining = capacity;
+        int voidTaken = takeVoid(pool, slice);
+        int remaining = ContainerCapacity.capacity(base, voidTaken) - voidTaken;
         var it = pool.entrySet().iterator();
         while (it.hasNext() && remaining > 0) {
             remaining -= takeEntry(it, it.next(), remaining, slice);
         }
         return new GooContents(slice);
+    }
+
+    /**
+     * Moves every mB of void from the pool into the slice.
+     *
+     * @param pool  the mutable goo pool
+     * @param slice the slice being built
+     * @return the void moved, in mB
+     */
+    private static int takeVoid(Map<ResourceKey<GooTypeDefinition>, Integer> pool,
+                                Map<ResourceKey<GooTypeDefinition>, Integer> slice) {
+        Integer voidHeld = pool.remove(GooTypes.VOID);
+        if (voidHeld == null || voidHeld <= 0) {
+            return 0;
+        }
+        slice.put(GooTypes.VOID, voidHeld);
+        return voidHeld;
     }
 
     /**

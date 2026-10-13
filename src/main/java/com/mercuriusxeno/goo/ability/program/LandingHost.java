@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.ability.aging.Aging;
 import com.mercuriusxeno.goo.ability.colonize.ShroomNetwork;
 import com.mercuriusxeno.goo.ability.gate.AstralGateOpening;
 import com.mercuriusxeno.goo.ability.gate.EndGateOpening;
+import com.mercuriusxeno.goo.ability.gate.VoidPocketOpening;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.ability.quantum.PortableHole;
 import com.mercuriusxeno.goo.ability.world.MeteorSky;
@@ -25,10 +26,12 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.UUID;
 
 /**
  * The {@link StepHost} over the cell a thrown world ability's blob lands in:
@@ -50,9 +53,12 @@ import java.util.OptionalDouble;
  *                    aiming one, the cell's center otherwise (decision aim-point-follows-the-cursor)
  * @param size        the size the cast was dragged to, zero for one naming none
  *                    (decision black-hole-leaves-a-compression-sphere)
+ * @param caster      the player whose goo landed, or null for none
+ *                    (decision void-opens-a-pocket-dimension)
  */
 public record LandingHost(ServerLevel level, BlockPos cell, Direction face, boolean waterlogged,
-                          ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 anchor, double size)
+                          ResourceKey<GooTypeDefinition> gooType, String abilityId, Vec3 anchor, double size,
+                          @Nullable UUID caster)
         implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
         ColonizeHost, FloorScanHost, GateHost, PowerPulseHost, MobSpawnHost, FrostHost, MeteorHost, AgingHost,
         TimedBlockHost, PhaseBlocksHost {
@@ -126,6 +132,15 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     @Override
     public boolean openAstralGate(int lifetime) {
         return AstralGateOpening.open(level, cell.relative(face.getOpposite()), face, lifetime);
+    }
+
+    /**
+     * Opens Void's pocket gate over the block the blob struck, into the caster's room.
+     * decision void-opens-a-pocket-dimension
+     */
+    @Override
+    public boolean openVoidPocket(int lifetime) {
+        return VoidPocketOpening.open(level, cell.relative(face.getOpposite()), face, lifetime, caster);
     }
 
     /**

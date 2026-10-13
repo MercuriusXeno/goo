@@ -21,8 +21,8 @@ public final class VatStackAggregator {
 
     /**
      * Aggregates vat stack data centered on the targeted position.
-     * Contents are summed across all vats in the stack. Compression and
-     * label come from the targeted vat. Cap gasket from the top-most
+     * Contents and capacity are summed across all vats in the stack. The
+     * label comes from the targeted vat. Cap gasket from the top-most
      * vat, base gasket from the bottom-most.
      *
      * @param level     the level to query
@@ -36,32 +36,28 @@ public final class VatStackAggregator {
             return null;
         }
         StackGaskets gaskets = resolveGaskets(level, stack.top(), stack.bottom());
-        return buildStackData(targetVat, stack.contents(), stack.water(), gaskets, stack.column().size());
+        return buildStackData(targetVat, stack, gaskets);
     }
 
     /**
      * Assembles the final VatStackData from collected components.
      *
      * @param targetVat the targeted vat block entity
-     * @param contents  the summed goo contents
-     * @param water     the summed water volume
+     * @param stack     the walked column: summed contents, water and capacity
      * @param gaskets   the resolved gasket state
-     * @param stackSize the number of vats in the stack
      * @return the assembled stack data
      */
-    private static VatStackData buildStackData(VatBlockEntity targetVat,
-                                               GooContents contents, long water,
-                                               StackGaskets gaskets, int stackSize) {
+    private static VatStackData buildStackData(VatBlockEntity targetVat, VatStack stack, StackGaskets gaskets) {
         return new VatStackData(
-                contents,
-                water,
-                targetVat.getCompressionLevel(),
+                stack.contents(),
+                stack.water(),
+                stack.capacity(),
                 gaskets.capGasket(),
                 gaskets.baseGasket(),
                 targetVat.getLabel(),
                 gaskets.capPartner(),
                 gaskets.basePartner(),
-                stackSize
+                stack.column().size()
         );
     }
 
@@ -101,12 +97,12 @@ public final class VatStackAggregator {
     }
 
     /**
-     * Aggregated data for a vat stack. Contents are summed, compression level
-     * and label are from the targeted vat, gaskets are from stack endpoints.
+     * Aggregated data for a vat stack. Contents and capacity are summed, the
+     * label is from the targeted vat, gaskets are from stack endpoints.
      *
      * @param contents    the summed goo contents of the stack
      * @param water       the summed water volume of the stack (decision diagnose-then-fix-vat-hud-water-row)
-     * @param compression the compression level of the targeted vat
+     * @param capacity    every vat's capacity summed, each grown by its void
      * @param gasketCap   whether the top vat has a cap gasket
      * @param gasketBase  whether the bottom vat has a base gasket
      * @param label       the label of the targeted vat, or null
@@ -115,7 +111,7 @@ public final class VatStackAggregator {
      * @param stackSize   the number of vats in the stack
      */
     public record VatStackData(
-            GooContents contents, long water, int compression,
+            GooContents contents, long water, long capacity,
             boolean gasketCap, boolean gasketBase,
             @Nullable String label,
             @Nullable GasketPartner capPartner, @Nullable GasketPartner basePartner,
@@ -141,13 +137,13 @@ public final class VatStackAggregator {
 
         /**
          * Returns true when the stack holds no goo and no water and carries
-         * no upgrade and no label, so its panel would show nothing.
+         * no label, so its panel would show nothing.
          *
          * @return true if the panel has nothing to show
          */
         public boolean hasNothingToShow() {
             // A stack holding water alone still shows (decision diagnose-then-fix-vat-hud-water-row).
-            return contents.isEmpty() && water <= 0 && compression <= 0 && !hasLabel();
+            return contents.isEmpty() && water <= 0 && !hasLabel();
         }
     }
 }

@@ -4,12 +4,10 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
-import com.mercuriusxeno.goo.registry.GooEnchantments;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -45,7 +43,7 @@ public final class CanisterHudRenderer {
             return;
         }
         SlotData data = lookupSlotData(target.pos, target.slot);
-        if (data == null || (data.content.isEmpty() && data.compression <= 0)) {
+        if (data == null || data.content.isEmpty()) {
             ANIMATOR.clear();
             return;
         }
@@ -58,7 +56,7 @@ public final class CanisterHudRenderer {
     }
 
     /**
-     * Looks up the goo contents, label, and compression at the given position and slot.
+     * Looks up the goo contents and label at the given position and slot.
      *
      * @param pos  the block position
      * @param slot the slot index
@@ -86,9 +84,7 @@ public final class CanisterHudRenderer {
             return null;
         }
         CanisterMetadata meta = holder.getSlotMetadata(slot);
-        ItemStack canister = holder.getCanister(slot);
-        int compression = GooEnchantments.getCompressionLevel(canister);
-        return new SlotData(holder.getSlotFluidContent(slot), meta.label(), compression);
+        return new SlotData(holder.getSlotFluidContent(slot), meta.label());
     }
 
     /**
@@ -99,8 +95,8 @@ public final class CanisterHudRenderer {
     }
 
     /**
-     * Fluid content, label, and compression level for a targeted slot.
+     * Fluid content and label for a targeted slot.
      */
-    record SlotData(CanisterFluidContent content, @Nullable String label, int compression) {
+    record SlotData(CanisterFluidContent content, @Nullable String label) {
     }
 }
