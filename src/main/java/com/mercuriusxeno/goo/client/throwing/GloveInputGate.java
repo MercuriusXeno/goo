@@ -15,9 +15,9 @@ import org.jspecify.annotations.Nullable;
  * comes up. A self + brew press sends on the press too, while the use key is
  * still down, and then only waits for release: vanilla releases a used item
  * the tick the key comes up, so an eat started on release would be cancelled
- * the tick it began, and letting go mid-eat is what cancels it. No press
- * swings the arm: the pose plays in its place, its release only for a throw
- * that sent a payload, and never for an eat.
+ * the tick it began, and letting go mid-eat is what cancels it. A press
+ * plays the ability's pose, its release only for a throw that sent a
+ * payload, and never for an eat; a blob thrown swings there instead.
  * decision right-click-held-previews-release-throws
  * decision self-brew-goos-eat-before-the-effect
  * decision use-animation-only-when-goo-throws

@@ -88,8 +88,8 @@ public final class SpireCast {
             player.connection.send(new ServerboundCustomPayloadPacket(new GooSpirePayload(
                     GooTypes.id(selection.getGooType()), selection.abilityId(), footprint.corner(),
                     footprint.opposite(), footprint.rise())));
-            // use-key-throw-swings-no-more: the cast plays its pose's release in place of a swing
-            GlovePoses.release(player);
+            // use-key-throw-swings-no-more: the cast plays its pose's release, a swing for a blob thrown
+            GlovePoses.release(player, hand);
         });
     }
 

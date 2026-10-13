@@ -31,7 +31,7 @@ import org.jspecify.annotations.Nullable;
  * Client-side tracker for the glove press: resolves the use key through
  * {@link GloveInputGate}, previewing the ability's area while the key is
  * held and throwing when it comes up, or streaming from the press for a
- * stream, the glove arm posed by the ability in place of a swing.
+ * stream, the glove arm posed by the ability, or swung for a blob thrown.
  * Auto-registered via EventBusSubscriber.
  * decision right-click-held-previews-release-throws
  * decision use-key-throw-swings-no-more
@@ -258,7 +258,7 @@ public final class GloveUseTracker {
 
         @Override
         public void releasePose() {
-            GlovePoses.release(player);
+            GlovePoses.release(player, pressHand);
         }
 
         @Override
