@@ -25,6 +25,34 @@ class PrismCrystalTest {
     private static final double EPSILON = 1e-6;
     private static final int SIDES = 6;
 
+    /**
+     * A charging prism's column wears the degrading stream's tint by the
+     * share charged and keeps its look at none
+     * (decision channeled-hosts-convert-prisms-over-the-hold).
+     */
+    @Nested
+    class Decaying {
+
+        private static final int MAROON = 0xC03434;
+        private final CrystalClusterSubmitter.Look milky = new CrystalClusterSubmitter.Look(
+                new GooRenderUtil.UvRect(0f, 0f, 1f, 1f), ARGB.color(0xB0, 0xFFFFFF));
+
+        @Test
+        void noShareLeavesTheLookAsItWas() {
+            assertEquals(milky, PrismCrystal.decaying(milky, 0f, MAROON));
+        }
+
+        @Test
+        void aShareMovesTheColorTowardTheTintAndKeepsTheOpacity() {
+            int half = PrismCrystal.decaying(milky, 0.5f, MAROON).color();
+            int full = PrismCrystal.decaying(milky, 1f, MAROON).color();
+
+            assertTrue(ARGB.green(half) < ARGB.green(milky.color()) && ARGB.green(full) < ARGB.green(half),
+                    "the green should fall toward maroon's, half " + Integer.toHexString(half));
+            assertEquals(ARGB.color(ARGB.alpha(milky.color()), MAROON), full);
+        }
+    }
+
     @Nested
     class Shape {
 

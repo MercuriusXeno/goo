@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:charged_ends_when_unstable_runs_dry",
+  "function": "goo:unstable_brew_busts_for_an_hour",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
   "max_ticks": 60,

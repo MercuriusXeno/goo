@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.ability.program.Sight;
 import com.mercuriusxeno.goo.ability.program.SoundCue;
 import com.mercuriusxeno.goo.ability.quantum.OutOfPhase;
 import com.mercuriusxeno.goo.ability.typhoon.Airborn;
+import com.mercuriusxeno.goo.ability.unstable.BusterEvents;
 import com.mercuriusxeno.goo.ability.xeno.EldritchEvents;
 import com.mercuriusxeno.goo.ability.zone.Shifter;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
@@ -239,8 +240,7 @@ public final class HeldEffectsEvents {
 
     /**
      * Clears the states an ended effect laid on the player's body: its heart
-     * overlay, its gluttony, its counting as undead and its ancient
-     * overlay.
+     * overlay, its gluttony, its counting as undead, then its overlays.
      *
      * @param player the player
      * @param lays   the states the ended effect laid
@@ -256,9 +256,24 @@ public final class HeldEffectsEvents {
             // undead-nether-hearts-burn-in-sunlight: the player counts as undead no longer
             player.setData(GooAttachments.UNDEAD, Undead.NONE);
         }
+        clearOverlays(player, lays);
+    }
+
+    /**
+     * Clears the overlays an ended effect laid on the player's model: its
+     * ancient overlay and Buster's green.
+     *
+     * @param player the player
+     * @param lays   the states the ended effect laid
+     */
+    private static void clearOverlays(ServerPlayer player, Set<LaidState> lays) {
         if (lays.contains(LaidState.ANCIENT)) {
             // ancient-makes-the-player-immortal: the aged overlay ends with the held effect
             Ancient.clear(player);
+        }
+        if (lays.contains(LaidState.BUSTER)) {
+            // buster-makes-tools-and-attacks-aoe: the blasts and the green overlay end with the held effect
+            BusterEvents.clear(player);
         }
     }
 
@@ -277,7 +292,7 @@ public final class HeldEffectsEvents {
 
     /**
      * Clears the states an ended effect laid on the player's senses and
-     * draws: its sight, its shifter, its Lux, its lifetap and its charge.
+     * draws: its sight, its shifter, its Lux and its lifetap.
      *
      * @param player the player
      * @param lays   the states the ended effect laid
@@ -291,7 +306,7 @@ public final class HeldEffectsEvents {
     }
 
     /**
-     * Clears the player state an ability's own step laid: shifter, Lux and the charge, then the rest.
+     * Clears the player state an ability's own step laid: shifter and Lux, then the rest.
      *
      * @param player the player
      * @param lays   the state the effect laid
@@ -304,10 +319,6 @@ public final class HeldEffectsEvents {
         if (lays.contains(LaidState.LUX)) {
             // lux-night-vision-without-particles: Lux and the night vision it kept up end with its held effect
             LuxEvents.end(player);
-        }
-        if (lays.contains(LaidState.CHARGED)) {
-            // charged-scales-channel-params-by-json: the charge ends with its held effect, dry, pressed or expired
-            player.setData(GooAttachments.CHARGED, false);
         }
         clearSensesAndReach(player, lays);
     }

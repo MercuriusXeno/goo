@@ -31,6 +31,16 @@ public class PrismRenderState extends BlockEntityRenderState {
     /** The id of the ability whose program is the prism's combo, empty for a plain prism. */
     public String combo = "";
 
+    /**
+     * How far a stream degrading blocks has charged the plain prism, 0 to 1,
+     * which its column wears as that stream's degrade look
+     * (decision channeled-hosts-convert-prisms-over-the-hold).
+     */
+    public float decayShare;
+
+    /** The RGB the charging stream's degrade look tints the column toward. */
+    public int decayTint;
+
     /** The beam's scroll clock: the game time within vanilla's 40-tick beacon cycle plus the partial tick. */
     public float animationTime;
 

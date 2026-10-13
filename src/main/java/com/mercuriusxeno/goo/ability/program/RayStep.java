@@ -6,6 +6,7 @@ import com.mercuriusxeno.goo.network.SunbeamPayload;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -116,11 +117,39 @@ public record RayStep(double range, int every, List<EntityFilter> where, Refract
             }
             return List.of();
         }
-        if (hit instanceof BlockHitResult block
-                && level.getBlockEntity(block.getBlockPos()) instanceof PrismBlockEntity) {
-            return refractFrom(level, caster, Vec3.atCenterOf(block.getBlockPos()), hits);
-        }
-        return List.of();
+        return refractingPrism(level, hit).map(prism -> refractFrom(level, caster, Vec3.atCenterOf(prism), hits))
+                .orElse(List.of());
+    }
+
+    /**
+     * The prism the ray strikes where it refracts: one holding a combo, a
+     * bare prism charging toward Sunbeam's combo instead.
+     * channeled-hosts-convert-prisms-over-the-hold
+     *
+     * @param level the server level
+     * @param hit   what the ray struck
+     * @return the refracting prism's position, or empty for anything else
+     */
+    private static Optional<BlockPos> refractingPrism(ServerLevel level, HitResult hit) {
+        return hit instanceof BlockHitResult block
+                && level.getBlockEntity(block.getBlockPos()) instanceof PrismBlockEntity prism && prism.hasCombo()
+                ? Optional.of(block.getBlockPos()) : Optional.empty();
+    }
+
+    /**
+     * The block the ray strikes this tick, where it strikes no mob first.
+     * channeled-hosts-convert-prisms-over-the-hold
+     *
+     * @param level     the server level
+     * @param caster    the channeling player
+     * @param eye       the channeling player's eye
+     * @param aimPoint  the point the hold aims at
+     * @return the struck block, or empty where a mob or nothing stops the ray
+     */
+    public Optional<BlockPos> struckBlock(ServerLevel level, LivingEntity caster, Vec3 eye, Vec3 aimPoint) {
+        HitResult hit = cast(level, caster, eye, eye.add(aimPoint.subtract(eye).normalize().scale(range)));
+        return hit instanceof BlockHitResult block && hit.getType() == HitResult.Type.BLOCK
+                ? Optional.of(block.getBlockPos()) : Optional.empty();
     }
 
     /**

@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.ability.ArmPose;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.type.GooTypes;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
@@ -20,6 +21,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.util.List;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The abilities synced to the client for the glove's radial leave out every
@@ -78,7 +81,7 @@ class AbilitySyncPayloadTest {
     void poseRoundTripsThroughTheSyncCodec(ArmPose pose) {
         AbilitySyncPayload sent = new AbilitySyncPayload(List.of(new AbilitySyncPayload.Entry("goo:rock_throw",
                 "rock", "rock_throw", "", 0, List.of(), List.of(), 0, Delivery.ARC, AbilityBadge.WORLD, List.of(),
-                AbilityArea.NONE, IndicatorShowing.HELD, List.of(), 0, DistancePrice.NONE, pose)));
+                AbilityArea.NONE, IndicatorShowing.HELD, List.of(), 0, DistancePrice.NONE, List.of(), pose)));
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
 
         AbilitySyncPayload.STREAM_CODEC.encode(buf, sent);
@@ -109,6 +112,23 @@ class AbilitySyncPayloadTest {
     @MethodSource("shippedGloveAbilities")
     void eachShippedAreaRoundTripsThroughTheSyncCodec(AbilityDefinition definition) {
         assertEquals(definition.area(), roundTrip(definition).area(), definition.id().toString());
+    }
+
+    /**
+     * Bulb, a world ability carrying its beacon as an on_prism reaction,
+     * reaches the client with that reaction, so its petal wears the world
+     * badge and the prism badge beside it.
+     * decision on-prism-reaction-wears-the-prism-badge
+     */
+    @Test
+    void bulbReachesTheClientWithItsPrismReaction() {
+        AbilityDefinition bulb = AbilityJson.decode("glow_crystal");
+        AbilitySyncPayload.Entry synced = roundTrip(bulb);
+
+        assertEquals(AbilityBadge.WORLD, bulb.badge());
+        assertFalse(bulb.onPrism().isEmpty(), "bulb's on_prism reaction");
+        assertEquals(bulb.onPrism(), synced.onPrism());
+        assertTrue(ClientAbility.fromEntry(synced).reactsToPrisms());
     }
 
     @Test

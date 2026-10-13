@@ -13,6 +13,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Covers a wedge mask's petal shape: a rounded cap at its outer end in place of a circle cut (decision wedges-round-off-like-petals). */
 class PetalMaskTest {
 
+    /** A receded type petal's reach, the base its ability petals grow out of. */
+    private static final double BASE_LENGTH = 0.6;
+
     private static final double ARC = 2.0 * Math.PI / 16;
     private static final double START = 3 * ARC;
     private static final double INNER = RadialWheel.HUB_FRACTION;
@@ -242,14 +245,14 @@ class PetalMaskTest {
 
         @Override
         PetalMask.Petal petal() {
-            return new PetalMask.Petal(START, BASE_ARC, INNER, RadialWheel.TYPE_BASE_LENGTH);
+            return new PetalMask.Petal(START, BASE_ARC, INNER, BASE_LENGTH);
         }
 
         @Test
         void cornersRoundAtAQuarterOfTheBand() {
-            assertEquals(PetalMask.MAX_CORNER * (RadialWheel.TYPE_BASE_LENGTH - INNER), petal().cornerRadius(), 1e-12);
+            assertEquals(PetalMask.MAX_CORNER * (BASE_LENGTH - INNER), petal().cornerRadius(), 1e-12);
             PetalMask.Point corner = end().getFirst();
-            assertTrue(Math.hypot(corner.x(), corner.y()) < RadialWheel.TYPE_BASE_LENGTH - 1e-3,
+            assertTrue(Math.hypot(corner.x(), corner.y()) < BASE_LENGTH - 1e-3,
                     "the end edge stops short of the tip's radius, rounding into the corner");
         }
 
@@ -257,10 +260,10 @@ class PetalMaskTest {
         void tipBetweenTheCornersIsBluntAlongTheOuterCircle() {
             List<PetalMask.Point> end = end();
             PetalMask.Point middle = end.get(end.size() / 2);
-            assertEquals(RadialWheel.TYPE_BASE_LENGTH, Math.hypot(middle.x(), middle.y()), 1e-9);
+            assertEquals(BASE_LENGTH, Math.hypot(middle.x(), middle.y()), 1e-9);
             // five steps of the 72 either side of the middle stay on the blunt tip, short of the fillets
             PetalMask.Point quarter = end.get(end.size() / 2 - TIP_STEPS);
-            assertEquals(RadialWheel.TYPE_BASE_LENGTH, Math.hypot(quarter.x(), quarter.y()), 1e-9);
+            assertEquals(BASE_LENGTH, Math.hypot(quarter.x(), quarter.y()), 1e-9);
         }
     }
 
@@ -276,7 +279,7 @@ class PetalMaskTest {
         /** Within this of the corner's own reach, the card touches it: the tangent point's slope blurs the last digits. */
         private static final double CORNER_TOLERANCE = 1e-6;
 
-        private final PetalMask.Petal base = new PetalMask.Petal(START, 4 * ARC, INNER, RadialWheel.TYPE_BASE_LENGTH);
+        private final PetalMask.Petal base = new PetalMask.Petal(START, 4 * ARC, INNER, BASE_LENGTH);
         private final PetalMask.Petal card = new PetalMask.Petal(START, ARC, base.outer(), OUTER, base);
 
         @Test
@@ -306,7 +309,7 @@ class PetalMaskTest {
                 // the wheel's own arithmetic: the slot from its rotation, each card from the slot's start
                 double rotation = -Math.PI + step * Math.sqrt(2) * 1e-4;
                 PetalMask.Petal turnedBase = new PetalMask.Petal(rotation, abilities * ARC, INNER,
-                        RadialWheel.TYPE_BASE_LENGTH);
+                        BASE_LENGTH);
                 PetalMask.Petal first = new PetalMask.Petal(rotation, ARC, turnedBase.outer(), OUTER, turnedBase);
                 PetalMask.Petal last = new PetalMask.Petal(rotation + (abilities - 1) * ARC * openness, ARC,
                         turnedBase.outer(), OUTER, turnedBase);
