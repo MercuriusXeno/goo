@@ -372,8 +372,7 @@ public final class AbilityPoses {
 
     /**
      * Moves the local player's glove hand in first person by whichever pose
-     * it holds: left across the chest while wound up, with the goo swelling
-     * in it, and out to the glove side as it flings; forward toward the
+     * it holds: left across the chest while wound up, and out to the glove side as it flings; forward toward the
      * crosshair while held out; up a little while raised. Drops the poses
      * that are over.
      * decision ability-json-names-its-arm-pose
@@ -397,9 +396,6 @@ public final class AbilityPoses {
 
     private static void moveGloveHand(RenderHandEvent event, Posed posed, double now) {
         moveHand(event.getPoseStack(), handAt(posed, now - posed.since()), posed.gloveRight());
-        if (posed.holding(ArmPoseKind.WIND_UP)) {
-            ShardsCharge.drawHandBlob(event, posed.gloveRight(), now);
-        }
     }
 
     private static void moveHand(PoseStack pose, HandOffset hand, boolean gloveRight) {
