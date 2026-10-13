@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.model;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.ability.GloveGlow;
+import com.mercuriusxeno.goo.client.ability.ShardsCharge;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.item.GooGloveItem;
@@ -49,26 +50,24 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      */
     private static final int COLOR_WHITE = 0xFFFFFFFF;
     /**
-     * Half-width of the held goo's footprint in model pixels.
-     */
-    private static final float GOO_HW_PX = 2.5f;
-    /**
-     * The palm blob's size against a flight's, so its shell fills the
-     * footprint.
-     */
-    private static final float PALM_BLOB_SCALE = GOO_HW_PX / BLOCK_PIXELS / GooFlightRenderer.SHELL_HW;
-    /**
      * Center X of the goo in model pixels.
      */
     private static final float GOO_CX_PX = 8f;
     /**
-     * Center Y of the goo in model pixels.
+     * Where the palm blob's bottom rests in model pixels: a quarter pixel
+     * above the finger plate's top face, so the shell never shares that face
+     * and swells up the palm rather than down through the fingers.
      */
-    private static final float GOO_CY_PX = 3.5f;
+    private static final float PALM_FLOOR_PX = 1.25f;
     /**
-     * Center Z of the goo in model pixels.
+     * Where the palm blob's back face sits in model pixels: inside the
+     * hand, hidden by it, so the swell grows out of the palm.
      */
-    private static final float GOO_CZ_PX = 6f;
+    private static final float PALM_BACK_Z_PX = 8.5f;
+    /**
+     * Half-width of the shell at rest in model pixels, a flight blob's own.
+     */
+    private static final float SHELL_HW_PX = GooFlightRenderer.SHELL_HW * 16f;
     /**
      * Minimum extent X in model pixels.
      */
@@ -163,20 +162,24 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
 
     /**
      * Draws the held goo in the palm as the charge blob, a pulsing opaque
-     * core inside a translucent tinted shell, both fullbright, the shell
-     * filling the palm's footprint.
+     * core inside a translucent tinted shell, both fullbright, resting on
+     * the fingers with its back in the hand. A charge swells both layers
+     * from that floor and back, so the blob grows up and out of the palm.
      * decision palm-blob-draws-as-the-charge-blob
+     * decision charge-swells-the-palm-blob
      *
      * @param poseStack     the pose stack for rendering
      * @param nodeCollector the render node collector
      * @param type          the goo type
+     * @param blobScale     the blob's size against its rest size
      */
     private static void submitHeldGoo(PoseStack poseStack, SubmitNodeCollector nodeCollector,
-                                      ResourceKey<GooTypeDefinition> type) {
+                                      ResourceKey<GooTypeDefinition> type, float blobScale) {
+        float hwPx = SHELL_HW_PX * blobScale;
         float cx = GOO_CX_PX / BLOCK_PIXELS;
-        float cy = GOO_CY_PX / BLOCK_PIXELS;
-        float cz = GOO_CZ_PX / BLOCK_PIXELS;
-        float scale = PALM_BLOB_SCALE;
+        float cy = (PALM_FLOOR_PX + hwPx) / BLOCK_PIXELS;
+        float cz = (PALM_BACK_Z_PX - hwPx) / BLOCK_PIXELS;
+        float scale = blobScale;
         float gameTime = gameTime();
 
         captureGooCenter(poseStack, cx, cy, cz);
@@ -217,9 +220,10 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         }
         float time = gameTime();
         poseStack.pushPose();
-        poseStack.translate(GOO_CX_PX / BLOCK_PIXELS, GOO_CY_PX / BLOCK_PIXELS, GOO_CZ_PX / BLOCK_PIXELS);
+        poseStack.translate(GOO_CX_PX / BLOCK_PIXELS, (PALM_FLOOR_PX + SHELL_HW_PX) / BLOCK_PIXELS,
+                (PALM_BACK_Z_PX - SHELL_HW_PX) / BLOCK_PIXELS);
         nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.GLOW_SHELL_TYPE,
-                (pose, c) -> GloveGlow.emitShells(pose, c, GOO_HW_PX / BLOCK_PIXELS, strength, time));
+                (pose, c) -> GloveGlow.emitShells(pose, c, SHELL_HW_PX / BLOCK_PIXELS, strength, time));
         poseStack.popPose();
     }
 
@@ -258,7 +262,8 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         if (type != null && !GloveUseTracker.isSelectedTypeAvailable()) {
             type = null;
         }
-        return new GloveData(stack.getItem(), type, channelGlowOf(type, stack));
+        return new GloveData(stack.getItem(), type, channelGlowOf(type, stack),
+                ShardsCharge.palmScaleAt(ShardsCharge.localPalmShare(stack)));
     }
 
     /**
@@ -294,7 +299,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         submitGloveBody(poseStack, nodeCollector, packedLight, gloveItem);
 
         if (data != null && data.selectedType() != null) {
-            submitHeldGoo(poseStack, nodeCollector, data.selectedType());
+            submitHeldGoo(poseStack, nodeCollector, data.selectedType(), data.blobScale());
             submitChannelGlow(poseStack, nodeCollector, data.channelGlow());
         }
 
@@ -319,8 +324,10 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      * @param item         the glove item instance (determines tier/body model)
      * @param selectedType the selected goo type, or null if none selected
      * @param channelGlow  how strongly the light around the held goo glows while a glow channel holds, zero to one
+     * @param blobScale    the palm blob's size against its rest size, swelling with the local charge
      */
-    public record GloveData(Item item, @Nullable ResourceKey<GooTypeDefinition> selectedType, float channelGlow) {
+    public record GloveData(Item item, @Nullable ResourceKey<GooTypeDefinition> selectedType, float channelGlow,
+                            float blobScale) {
     }
 
 

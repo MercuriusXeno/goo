@@ -18,19 +18,19 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderHandEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
  * Shards' charge, seen and heard while right click holds it: the glove
- * hand eases left across the chest with a goo blob swelling in it as the
- * charge grows, a chime climbing in pitch at each step of the charge and a
+ * hand eases left across the chest with the goo in its palm swelling as
+ * the charge grows, a chime climbing in pitch at each step of the charge and a
  * ring of resonance once it is full. The glove press poses the arm, so the
  * players watching see it wound up with the goo in the hand.
  * decision shards-sling-then-morph-to-flechettes
@@ -51,17 +51,19 @@ public final class ShardsCharge {
     private static final double AHEAD = 0.42;
     private static final double GLOVE_SIDE = 0.35;
     private static final double ACROSS = 0.45;
-    /** The first-person hand's place before the eye, where vanilla holds an item, a little above it. */
-    private static final float HAND_SIDE = 0.56f;
-    private static final float HAND_DOWN = -0.42f;
-    private static final float HAND_AHEAD = -0.8f;
+    /**
+     * The glove's palm blob against its own rest size, as the charge begins
+     * and once it is full; at its fullest the shell stays inside the hand's
+     * six-pixel width.
+     */
+    static final float PALM_REST = 1f;
+    static final float PALM_FULLEST = 1.2f;
     private static final float CHIME_VOLUME = 0.55f;
     private static final float CHIME_PITCH_LOW = 0.8f;
     private static final float CHIME_PITCH_SPAN = 1.2f;
     private static final float FULL_VOLUME = 0.8f;
     private static final float FULL_PITCH = 1.5f;
     private static final float RIGHT_ANGLE = 90f;
-    private static final float MIRRORED = -1f;
 
     /** The charge steps the local hold has chimed, so a new one chimes. */
     private static int shownLocally;
@@ -90,6 +92,51 @@ public final class ShardsCharge {
      */
     static float blobScaleAt(float share) {
         return BLOB_SMALLEST + (BLOB_FULLEST - BLOB_SMALLEST) * Math.clamp(share, 0f, 1f);
+    }
+
+    /**
+     * The glove's palm blob at a share of a full charge: its rest size as
+     * the charge begins, swelling to its fullest at full charge.
+     * decision charge-swells-the-palm-blob
+     *
+     * @param share the share of a full charge, 0 to 1
+     * @return its size against its rest size
+     */
+    public static float palmScaleAt(float share) {
+        return PALM_REST + (PALM_FULLEST - PALM_REST) * Math.clamp(share, 0f, 1f);
+    }
+
+    /**
+     * The share of a full charge the palm blob shows: none unless a slinging
+     * charge is held with the arm wound up.
+     *
+     * @param slinging    the held selection's slinging charge, or null where it does not sling
+     * @param woundUp     whether the glove arm holds its wind-up
+     * @param chargeShare the share the held ticks reach, 0 to 1
+     * @return the share, 0 to 1
+     */
+    static float palmShareOf(@Nullable Charge slinging, boolean woundUp, float chargeShare) {
+        return slinging == null || !woundUp ? 0f : Math.clamp(chargeShare, 0f, 1f);
+    }
+
+    /**
+     * The share of a full charge the local player's glove shows in its palm,
+     * for the glove the local player holds; any other glove shows none.
+     *
+     * @param glove the glove being drawn
+     * @return the share, 0 to 1
+     */
+    public static float localPalmShare(ItemStack glove) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null || glove != player.getMainHandItem() && glove != player.getOffhandItem()) {
+            return 0f;
+        }
+        AbilityPoses.Posed posed = AbilityPoses.posedAt(player.getId());
+        Charge charge = localCharge(player);
+        return palmShareOf(charge, posed != null && posed.holding(ArmPoseKind.WIND_UP),
+                charge == null ? 0f
+                        : GloveThrowSender.selectedDelivery(selectedAbility(player))
+                        .chargeShare(GloveUseTracker.heldTicks()));
     }
 
     /**
@@ -150,7 +197,8 @@ public final class ShardsCharge {
 
     /**
      * Draws the goo swelling in the hand of every player whose arm is wound
-     * up, but the local player's in first person, whose hand draws its own.
+     * up, but the local player's in first person, whose glove's palm blob
+     * swells instead.
      *
      * @param event the level render stage event
      */
@@ -198,29 +246,6 @@ public final class ShardsCharge {
         pose.translate(hand.x - camera.x, hand.y - camera.y, hand.z - camera.z);
         GooFlightRenderer.renderBlob(pose, buffers, GooTypes.CRYSTAL, (float) now,
                 blobScaleAt(shareFor(wound.player(), wound.local(), age)));
-        pose.popPose();
-    }
-
-    /**
-     * Draws the goo swelling in the local glove hand in first person, in the
-     * hand's own pose as the wind-up moved it.
-     *
-     * @param event      the hand render event
-     * @param gloveRight whether the glove is in the right hand
-     * @param now        the game time with its partial tick
-     */
-    static void drawHandBlob(RenderHandEvent event, boolean gloveRight, double now) {
-        LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null) {
-            return;
-        }
-        PoseStack pose = event.getPoseStack();
-        pose.pushPose();
-        pose.translate((gloveRight ? 1f : MIRRORED) * HAND_SIDE, HAND_DOWN, HAND_AHEAD);
-        MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
-        GooFlightRenderer.renderBlob(pose, buffers, GooTypes.CRYSTAL, (float) now,
-                blobScaleAt(shareFor(player, player, 0)));
-        buffers.endBatch();
         pose.popPose();
     }
 
