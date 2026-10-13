@@ -11,7 +11,11 @@ import java.util.List;
  * render state, frozen in its pose, standing at a point, and plays as a
  * ripple: PULSES silhouettes leave PULSE_GAP_TICKS apart, each growing
  * outward from the body by up to GROWTH_BLOCKS and fading over its life.
+ * An inward afterimage plays the ripple backward in space: each silhouette
+ * starts GROWTH_BLOCKS out and collapses onto the body, brightening as it
+ * closes, the implosion void's Erase leaves where the struck mob stood.
  * Decision afterimage-is-one-shared-effect.
+ * Decision void-blob-deletes-the-struck-mob.
  *
  * @param <S> the snapshot an afterimage draws from
  */
@@ -59,14 +63,29 @@ public final class Afterimages<S> {
      * @param rgb       the goo type's color, 0xRRGGBB
      * @param startTick the game time it was left
      * @param lifeTicks the game ticks each silhouette takes to grow and fade
+     * @param inward    whether the silhouettes collapse onto the body rather than ripple out of it
      * @param <S>       the snapshot type
      */
-    public record Afterimage<S>(S snapshot, Vec3 position, int rgb, long startTick, int lifeTicks) {
+    public record Afterimage<S>(S snapshot, Vec3 position, int rgb, long startTick, int lifeTicks, boolean inward) {
+
+        /**
+         * An afterimage rippling out of the body.
+         *
+         * @param snapshot  the echoed entity's render state as it was left
+         * @param position  the world point the ripple stands at
+         * @param rgb       the goo type's color, 0xRRGGBB
+         * @param startTick the game time it was left
+         * @param lifeTicks the game ticks each silhouette takes to grow and fade
+         */
+        public Afterimage(S snapshot, Vec3 position, int rgb, long startTick, int lifeTicks) {
+            this(snapshot, position, rgb, startTick, lifeTicks, false);
+        }
 
         /**
          * The silhouettes standing at a game time, oldest first: each leaves
          * PULSE_GAP_TICKS after the one before, grows out on an ease-out and
-         * fades linearly over its life.
+         * fades linearly over its life; inward, it closes onto the body on an
+         * ease-in and brightens linearly instead.
          *
          * @param gameTime the game time including the partial tick
          * @return the standing silhouettes
@@ -77,8 +96,10 @@ public final class Afterimages<S> {
                 float progress = (gameTime - startTick - pulse * PULSE_GAP_TICKS) / lifeTicks;
                 if (progress >= 0f && progress < 1f) {
                     float remaining = 1f - progress;
-                    standing.add(new Pulse(GROWTH_BLOCKS * (1f - remaining * remaining),
-                            Math.round(remaining * FULL_ALPHA), progress));
+                    standing.add(inward
+                            ? new Pulse(GROWTH_BLOCKS * remaining * remaining, Math.round(progress * FULL_ALPHA), progress)
+                            : new Pulse(GROWTH_BLOCKS * (1f - remaining * remaining),
+                                    Math.round(remaining * FULL_ALPHA), progress));
                 }
             }
             return standing;
@@ -103,7 +124,21 @@ public final class Afterimages<S> {
      * @param lifeTicks the game ticks each silhouette takes to grow and fade
      */
     public void add(S snapshot, Vec3 position, int rgb, long now, int lifeTicks) {
-        live.add(new Afterimage<>(snapshot, position, rgb, now, Math.max(1, lifeTicks)));
+        add(snapshot, position, rgb, now, lifeTicks, false);
+    }
+
+    /**
+     * Leaves an afterimage, rippling out or collapsing in.
+     *
+     * @param snapshot  the echoed entity's render state
+     * @param position  the world point it stands at
+     * @param rgb       the goo type's color
+     * @param now       the game time it is left
+     * @param lifeTicks the game ticks each silhouette takes to grow and fade
+     * @param inward    whether the silhouettes collapse onto the body
+     */
+    public void add(S snapshot, Vec3 position, int rgb, long now, int lifeTicks, boolean inward) {
+        live.add(new Afterimage<>(snapshot, position, rgb, now, Math.max(1, lifeTicks), inward));
     }
 
     /**

@@ -13,7 +13,6 @@ import com.mercuriusxeno.goo.client.particle.TapDripLook;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
-import com.mercuriusxeno.goo.registry.GooEnchantments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -90,15 +89,14 @@ public class TapBlockEntityRenderer
     }
 
     /**
-     * Reads compression level and goo fill from the canister stack.
+     * Reads the goo fill from the canister stack, against the capacity its void grows.
      *
      * @param canister the canister item stack
      * @param state    the render state to populate
      */
     private static void extractCanisterContents(ItemStack canister, TapRenderState state) {
-        state.slot.compression = GooEnchantments.getCompressionLevel(canister);
         CanisterFluidContent content = CanisterItem.getFluidContent(canister);
-        state.slot.showContent(content, ContainerCapacity.canisterCapacity(state.slot.compression));
+        state.slot.showContent(content, content.capacityOver(ContainerCapacity.CANISTER_BASE));
     }
 
     /**

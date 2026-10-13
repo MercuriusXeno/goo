@@ -12,9 +12,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Supplies the canister HUD panel's rows: label, upgrade level, then a row per
- * goo type, dominant first, or the vanilla fluid row, then the total against
- * capacity (decisions one-panel-painter-takes-rows and canisters-hold-more-than-one-goo-type).
+ * Supplies the canister HUD panel's rows: label, then a row per goo type,
+ * dominant first, or the vanilla fluid row, then the total against the
+ * capacity the held void grows (decisions one-panel-painter-takes-rows,
+ * canisters-hold-more-than-one-goo-type and each-void-mb-adds-n-plus-one-capacity).
  */
 final class CanisterPanelRows {
 
@@ -24,12 +25,12 @@ final class CanisterPanelRows {
     /**
      * Returns the rows for a targeted canister slot.
      *
-     * @param data the slot's content, label and compression
+     * @param data the slot's content and label
      * @return the rows top to bottom
      */
     static List<PanelRow> rows(CanisterHudRenderer.SlotData data) {
         CanisterFluidContent content = data.content();
-        List<PanelRow> rows = rows(data.label(), data.compression(), GooContents.EMPTY);
+        List<PanelRow> rows = rows(data.label(), GooContents.EMPTY);
         Map<ResourceKey<GooTypeDefinition>, Integer> goo = content.gooVolumesDominantFirst();
         goo.forEach((type, volume) -> rows.add(PanelPainter.gooRow(type, GooFormat.formatAmount(volume))));
         if (goo.isEmpty() && !content.isEmpty()) {
@@ -37,26 +38,22 @@ final class CanisterPanelRows {
         }
         if (!content.isEmpty()) {
             rows.add(PanelPainter.fillRow(content.totalVolume(),
-                    ContainerCapacity.canisterCapacity(data.compression())));
+                    content.capacityOver(ContainerCapacity.CANISTER_BASE)));
         }
         return rows;
     }
 
     /**
-     * Returns the label and upgrade header rows followed by the goo rows.
+     * Returns the label header row followed by the goo rows.
      *
-     * @param label       the slot label, or null
-     * @param compression the canister's compression level
-     * @param goo         the canister's goo contents
+     * @param label the slot label, or null
+     * @param goo   the canister's goo contents
      * @return the rows top to bottom
      */
-    static List<PanelRow> rows(@Nullable String label, int compression, GooContents goo) {
+    static List<PanelRow> rows(@Nullable String label, GooContents goo) {
         List<PanelRow> headers = new ArrayList<>();
         if (label != null && !label.isEmpty()) {
             headers.add(PanelPainter.labelRow(label));
-        }
-        if (compression > 0) {
-            headers.add(PanelPainter.upgradeRow(compression));
         }
         return PanelPainter.rows(headers, goo);
     }

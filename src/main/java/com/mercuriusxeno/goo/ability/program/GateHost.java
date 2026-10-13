@@ -23,4 +23,14 @@ public interface GateHost extends StepHost {
      * @return true once the pair stands open
      */
     boolean openAstralGate(int lifetime);
+
+    /**
+     * Opens Void's pocket gate pair over the struck surface and the caster's
+     * room floor in the pocket dimension.
+     * decision void-opens-a-pocket-dimension
+     *
+     * @param lifetime the ticks the pair stands
+     * @return true once the pair stands open
+     */
+    boolean openVoidPocket(int lifetime);
 }

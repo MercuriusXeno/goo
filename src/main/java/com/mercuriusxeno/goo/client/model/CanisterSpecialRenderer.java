@@ -13,7 +13,6 @@ import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooContents;
-import com.mercuriusxeno.goo.registry.GooEnchantments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.serialization.MapCodec;
@@ -265,8 +264,8 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
     @Override
     public @Nullable GooData extractArgument(ItemStack stack) {
         CanisterMetadata meta = CanisterItem.getMetadata(stack);
-        int capacity = ContainerCapacity.canisterCapacity(GooEnchantments.getCompressionLevel(stack));
-        return dataOf(CanisterItem.getFluidContent(stack), capacity,
+        CanisterFluidContent content = CanisterItem.getFluidContent(stack);
+        return dataOf(content, content.capacityOver(ContainerCapacity.CANISTER_BASE),
                 meta.topGasketId() != null, meta.bottomGasketId() != null);
     }
 

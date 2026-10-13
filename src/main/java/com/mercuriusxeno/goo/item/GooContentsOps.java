@@ -2,35 +2,34 @@ package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 
 /**
  * Shared add/remove logic for any item stack that carries a
- * {@link GooDataComponents#GOO_CONTENTS} component. Centralizes the
- * cap-and-accept pattern used by both {@link CanisterItem} and
- * {@link VatBlockItem}, so the per-container wrappers only supply the
- * capacity calculation.
+ * {@link GooDataComponents#GOO_CONTENTS} component: the cap-and-accept pattern
+ * {@link VatBlockItem} wraps, over a base capacity the held void grows.
+ *
+ * decision each-void-mb-adds-n-plus-one-capacity
  */
 public final class GooContentsOps {
 
     private GooContentsOps() {}
 
     /**
-     * Adds goo to a stack's {@code GOO_CONTENTS}, capped at {@code capacity}.
-     * Writes the component back only if any amount was accepted.
+     * Adds goo to a stack's {@code GOO_CONTENTS}, capped at the room the type
+     * has. Writes the component back only if any amount was accepted.
      *
-     * @param stack    the item stack holding the goo contents
-     * @param type     the goo type to add
-     * @param amount   desired volume
-     * @param capacity maximum total volume the stack may hold
+     * @param stack  the item stack holding the goo contents
+     * @param type   the goo type to add
+     * @param amount desired volume
+     * @param base   the stack's capacity with no void (mB)
      * @return the amount actually accepted (0 if full or non-positive input)
      */
-    public static int addGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount, int capacity) {
+    public static int addGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount, int base) {
         if (amount <= 0) { return 0; }
         GooContents contents = getContents(stack);
-        int accepted = contents.cappedAddAmount(amount, capacity);
+        int accepted = Math.min(amount, contents.roomFor(type, base));
         if (accepted <= 0) { return 0; }
         setContents(stack, contents.withAdded(type, accepted));
         return accepted;
@@ -38,18 +37,17 @@ public final class GooContentsOps {
 
     /**
      * Removes goo of the given type from a stack's {@code GOO_CONTENTS},
-     * capped at what is currently stored.
+     * capped at what may leave.
      *
      * @param stack  the item stack holding the goo contents
      * @param type   the goo type to remove
      * @param amount desired volume to remove
+     * @param base   the stack's capacity with no void (mB)
      * @return the amount actually removed
      */
-    public static int removeGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount) {
+    public static int removeGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount, int base) {
         GooContents contents = getContents(stack);
-        if (contents.isEmpty() || GooTypes.isUnspendable(type)) { return 0; }
-        int available = contents.getVolume(type);
-        int toRemove = Math.min(amount, available);
+        int toRemove = Math.min(amount, contents.releasableVolumeOf(type, base));
         if (toRemove <= 0) { return 0; }
         setContents(stack, contents.withRemoved(type, toRemove));
         return toRemove;

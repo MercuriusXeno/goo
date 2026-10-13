@@ -6,7 +6,6 @@ import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
-import com.mercuriusxeno.goo.registry.GooEnchantments;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
@@ -113,8 +112,7 @@ public class HubBlockEntityRenderer
      */
     private static void extractSlotFluid(HubBlockEntity be, HubRenderState state, int slot) {
         CanisterFluidContent content = be.getSlotFluidContent(slot);
-        int capacity = ContainerCapacity.canisterCapacity(GooEnchantments.getCompressionLevel(be.getCanister(slot)));
-        state.slots[slot].showContent(content, capacity);
+        state.slots[slot].showContent(content, content.capacityOver(ContainerCapacity.CANISTER_BASE));
     }
 
     /**
