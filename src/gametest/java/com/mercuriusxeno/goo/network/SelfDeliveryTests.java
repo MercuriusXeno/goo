@@ -67,7 +67,6 @@ public final class SelfDeliveryTests {
     private static final String SELF_KINDLE_ENDS_WHEN_DRY = "self_kindle_ends_when_dry";
     private static final String SELF_SIGHT_EATS = "self_sight_eats_before_the_sight";
     private static final String SIGHT_ENDS_WHEN_DRY = "sight_ends_when_shroom_runs_dry";
-    private static final String HASTE_HOLDS_WITHOUT_PARTICLES = "haste_holds_without_particles";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -85,7 +84,6 @@ public final class SelfDeliveryTests {
         GooTestFunctions.registerTest(registrar, SELF_KINDLE_ENDS_WHEN_DRY, SelfDeliveryTests::kindleEndsWhenDry);
         GooTestFunctions.registerTest(registrar, SELF_SIGHT_EATS, SelfDeliveryTests::sightEatsBeforeTheSight);
         GooTestFunctions.registerTest(registrar, SIGHT_ENDS_WHEN_DRY, SelfDeliveryTests::sightEndsWhenShroomRunsDry);
-        GooTestFunctions.registerTest(registrar, HASTE_HOLDS_WITHOUT_PARTICLES, SelfDeliveryTests::hasteHoldsWithoutParticles);
     }
 
 
@@ -113,9 +111,6 @@ public final class SelfDeliveryTests {
     private static final String SHOULD_PRICE_THE_TRIP = "The trip should cost %d mB, more than the flat %d";
     private static final Identifier BLAZE_KINDLE = Identifier.parse("goo:blaze_kindle");
     private static final Identifier SHROOM_SIGHT = Identifier.parse("goo:shroom_sight");
-    private static final Identifier AEON_HASTE = Identifier.parse("goo:aeon_haste");
-    private static final String SHOULD_HASTE_HELD = "Held Haste should raise the player's speed and mining speed";
-    private static final String SHOULD_END_HASTE = "Invoking Haste again should end it, its effect and both speeds";
     private static final String SHOULD_SEE = "Once the eat finishes the player should hold fungal sight";
     private static final String SHOULD_SEE_PAID = "Sight should stand through tick %d, which the shroom pays for";
     private static final String SHOULD_END_SIGHT_DRY = "Sight should end and clear once shroom runs dry";
@@ -544,32 +539,6 @@ public final class SelfDeliveryTests {
         player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.GOO_GLOVE.get()));
         player.getInventory().add(GooStacks.createForOutput(gooType, HELD_GOO * GooStacks.THOUSAND));
         return player;
-    }
-
-    /**
-     * A survival player eats Haste from the glove: the aeon brew is the one
-     * effect it wears, iconed and without particles, and it moves and mines
-     * faster for as long as Haste is held; invoking it again ends it, the
-     * effect goes and both speeds fall back (decisions
-     * self-effects-trickle-until-ended and
-     * haste-stacks-speed-under-the-golden-overlay).
-     *
-     * @param helper the gametest helper
-     */
-    public static void hasteHoldsWithoutParticles(GameTestHelper helper) {
-        ServerPlayer player = HeartOverlayTests.selfInvoked(helper, GooTypes.AEON, AEON_HASTE);
-        boolean held = player.getData(GooAttachments.HELD_EFFECTS).holds(AEON_HASTE);
-        String wrongEffects = HasteChecks.onlyTheAeonBrew(player);
-        boolean hasted = HasteChecks.hasted(player);
-        invoke(player, GooTypes.AEON, AEON_HASTE);
-        boolean heldAfter = player.getData(GooAttachments.HELD_EFFECTS).holds(AEON_HASTE);
-        boolean hastedAfter = HasteChecks.hasted(player) || !player.getActiveEffects().isEmpty();
-        helper.getLevel().getServer().getPlayerList().remove(player);
-        helper.assertTrue(held, SHOULD_BE_HELD);
-        helper.assertTrue(wrongEffects.isEmpty(), wrongEffects);
-        helper.assertTrue(hasted, SHOULD_HASTE_HELD);
-        helper.assertFalse(heldAfter || hastedAfter, SHOULD_END_HASTE);
-        helper.succeed();
     }
 
     /**

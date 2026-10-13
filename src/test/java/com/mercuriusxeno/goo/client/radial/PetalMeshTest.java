@@ -21,6 +21,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class PetalMeshTest {
 
+    /** A receded type petal's reach, the base its ability petals grow out of. */
+    private static final double BASE_LENGTH = 0.6;
+
     private static final double ARC = 2.0 * Math.PI / 16;
     private static final double START = 3 * ARC;
 
@@ -44,7 +47,7 @@ class PetalMeshTest {
      */
     @Test
     void abilityPetalDrawsNoBorderAlongItsJoinWithTheBase() {
-        double base = RadialWheel.TYPE_BASE_LENGTH;
+        double base = BASE_LENGTH;
         PetalMask.Petal card = new PetalMask.Petal(START, ARC, base, 1.0);
         double midAngle = START + ARC / 2;
 
@@ -70,7 +73,7 @@ class PetalMeshTest {
     @Test
     void abilityPetalBorderEndsSquareAtTheBase() {
         PetalMask.Petal base = new PetalMask.Petal(START, 4 * ARC, RadialWheel.HUB_FRACTION,
-                RadialWheel.TYPE_BASE_LENGTH);
+                BASE_LENGTH);
         PetalMask.Petal card = new PetalMask.Petal(START, ARC, base.outer(), 1.0, base);
         List<PetalMesh.Quad> edge = PetalMesh.edge(card, PetalMesh.EDGE_THICKNESS, false);
 
@@ -95,7 +98,7 @@ class PetalMeshTest {
     @Test
     void edgeRibbonOfAWideBaseSharesEveryCorner() {
         assertRibbonIsContinuous(new PetalMask.Petal(START, 4 * ARC, RadialWheel.HUB_FRACTION,
-                RadialWheel.TYPE_BASE_LENGTH));
+                BASE_LENGTH));
     }
 
     /** How far, in normalized units, a cut corner may sit off the petal: float rounding at the border. */
@@ -134,7 +137,7 @@ class PetalMeshTest {
         private static final double AREA_TOLERANCE = 0.01;
 
         private final PetalMask.Petal base = new PetalMask.Petal(START, 4 * ARC, RadialWheel.HUB_FRACTION,
-                RadialWheel.TYPE_BASE_LENGTH);
+                BASE_LENGTH);
         private final PetalMask.Petal card = new PetalMask.Petal(START + ARC, 1.5 * ARC, base.outer(), 0.95, base);
         private final double middle = card.start() + card.arc() / 2;
 

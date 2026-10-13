@@ -16,8 +16,11 @@ import net.minecraft.util.ARGB;
  */
 public final class VerdantPrismStyle implements PrismComboStyle {
 
-    /** The id of the ability whose program is the verdant combo. */
-    public static final String COMBO = "goo:leaf_verdant";
+    /**
+     * The id of the ability whose on_prism reaction is the verdant combo: Growth.
+     * channeled-hosts-convert-prisms-over-the-hold
+     */
+    public static final String COMBO = "goo:leaf_growth";
     /** A leaf-green the milky crystal is multiplied by, opaque so the crystal keeps its own alpha. */
     static final int LEAF_GREEN = 0xFF8FD46A;
 

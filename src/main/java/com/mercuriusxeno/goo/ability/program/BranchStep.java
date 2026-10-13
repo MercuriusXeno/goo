@@ -11,8 +11,8 @@ import java.util.stream.Stream;
 /**
  * Runs one of two step lists the tick it is reached, then finishes: the
  * {@code then} list when {@code when} reads nonzero, the {@code otherwise}
- * list when it reads zero. Aeon's ritual branches on
- * {@code at_least(goo:ritual, 100)} (decision aeon-mob-ritual-drops-spawn-egg).
+ * list when it reads zero. Rewind's ritual branches on
+ * {@code at_least(goo:ritual, 100)} (decision rewind-fills-while-held).
  *
  * <p>The chosen list runs to completion within the tick, as a target
  * selection's children do, so both lists hold instant steps.
@@ -53,7 +53,7 @@ public record BranchStep(Expr when, List<Step> then, List<Step> otherwise) imple
     @Override
     public boolean tick(StepContext context) {
         List<Step> chosen = when.evaluate(context) != 0 ? then : otherwise;
-        new ProgramBehavior(chosen).tick(context.host(), context.charged());
+        new ProgramBehavior(chosen).tick(context.host());
         return true;
     }
 

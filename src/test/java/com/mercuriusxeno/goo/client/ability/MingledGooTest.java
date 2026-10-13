@@ -12,8 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
  */
 class MingledGooTest {
 
-    /** Beef: 324 vital to 1500 nether. */
-    private final MingledGoo beef = MingledGoo.of(Map.of(GooTypes.VITAL, 324, GooTypes.NETHER, 1500));
+    /** Beef: 324 jelly to 1500 nether. */
+    private final MingledGoo beef = MingledGoo.of(Map.of(GooTypes.JELLY, 324, GooTypes.NETHER, 1500));
 
     @Test
     void theLargestTypeLeads() {
@@ -23,7 +23,7 @@ class MingledGooTest {
     @Test
     void patchesPickTypesByShare() {
         assertEquals(GooTypes.NETHER, beef.pick(0.5));
-        assertEquals(GooTypes.VITAL, beef.pick(0.9));
+        assertEquals(GooTypes.JELLY, beef.pick(0.9));
     }
 
     @Test

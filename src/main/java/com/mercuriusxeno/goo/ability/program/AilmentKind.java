@@ -1,6 +1,11 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.Codec;
+import net.minecraft.resources.ResourceKey;
+import java.util.Map;
+import java.util.function.ToIntFunction;
 
 /**
  * A status ailment the overlay draws on a mob or player model, each with
@@ -8,10 +13,8 @@ import com.mojang.serialization.Codec;
  * Decision ailment-overlay-shader-per-ailment.
  */
 public enum AilmentKind {
-    /** Aeon's stasis: a golden shimmer. */
+    /** Rewind's stasis: a golden shimmer. */
     STASIS(0xFFD447, AilmentPattern.GLINT),
-    /** Haste: the stasis shimmer's golden look. */
-    HASTE(0xFFBF2E, AilmentPattern.GLINT),
     /** Scales: diamond blue, faceted rather than glinting. */
     SCALES(0x4AEDD9, AilmentPattern.FACETS),
     /** Zone: an ender shimmer. */
@@ -24,8 +27,14 @@ public enum AilmentKind {
     PETRIFY(0x8C8A86, AilmentPattern.STONE),
     /** Frozen: frost. */
     FROZEN(0xC4ECFF, AilmentPattern.FROST),
-    /** Glow's glisten: Scry's sweep marks a mob in glow yellow (decision scry-sphere-reveals-faces-and-glistens-mobs). */
+    /** Glow's glisten: Sunbeam and Lux mark a mob in glow yellow. */
     GLOW(0xFFE628, AilmentPattern.GLINT, 0.4f),
+    /**
+     * Astral's glisten: Scry's sweep marks a mob in the astral type's color.
+     * decision scry-sphere-reveals-faces-and-glistens-mobs
+     * decision scry-ships-on-astral
+     */
+    ASTRAL(AilmentKind.UNRESOLVED_TINT, AilmentPattern.GLINT, 0.4f),
     /** Weird's wobble: a magenta gel shell that jiggles and stretches (decision weird-bounces-and-softens-harm). */
     WOBBLE(0xFF33CC, AilmentPattern.WOBBLE, 0.6f),
     /** Grab's hold: a faint kinetic orange shimmer, and the flail its pose stamp reads (decision grab-holds-and-throws-a-physics-body). */
@@ -37,13 +46,23 @@ public enum AilmentKind {
     /** Ancient: aged stone veined with gold (decision ancient-makes-the-player-immortal). */
     ANCIENT(0xC9A85C, AilmentPattern.STONE, 0.75f),
     /** Zoo's rally: a tawny glisten over the armed mob (decision zoo-rally-arms-the-peaceful). */
-    ZOO(0xD89858, AilmentPattern.GLINT, 0.5f);
+    ZOO(0xD89858, AilmentPattern.GLINT, 0.5f),
+    /** Buster: an unstable green shimmer over the player while it stands (decision buster-makes-tools-and-attacks-aoe). */
+    BUSTER(0x39FF14, AilmentPattern.SHIMMER, 0.5f);
 
     /** Codec for the kind as an ability JSON writes it, in lower case. */
     public static final Codec<AilmentKind> CODEC = LowerCaseEnumCodec.of(AilmentKind.class, "ailment kind");
 
     /** The opacity an ailment draws at unless it names its own. */
     private static final float FULL_OPACITY = 1f;
+    /** The color a type-tinted kind draws where its type resolves to no entry, matching untinted goo. */
+    private static final int UNRESOLVED_TINT = 0xFFFFFF;
+    /**
+     * The kinds whose color is a goo type's rather than their own, held
+     * statically so the enum carries no unserializable instance field.
+     */
+    private static final Map<AilmentKind, ResourceKey<GooTypeDefinition>> TINT_TYPES =
+            Map.of(ASTRAL, GooTypes.ASTRAL);
 
     private final int rgb;
     private final AilmentPattern pattern;
@@ -59,9 +78,21 @@ public enum AilmentKind {
         this.opacity = opacity;
     }
 
-    /** @return the overlay's color, 0xRRGGBB */
+    /** @return the overlay's fixed color, 0xRRGGBB; a type-tinted kind answers white */
     public int rgb() {
         return rgb;
+    }
+
+    /**
+     * The overlay's color: the tint type's color where the kind names one,
+     * its fixed color otherwise, so a datapack recoloring the type recolors the overlay.
+     *
+     * @param typeColor answers a goo type's color, called only for a type-tinted kind
+     * @return 0xRRGGBB
+     */
+    public int rgb(ToIntFunction<ResourceKey<GooTypeDefinition>> typeColor) {
+        ResourceKey<GooTypeDefinition> tintType = TINT_TYPES.get(this);
+        return tintType == null ? rgb : typeColor.applyAsInt(tintType);
     }
 
     /** @return the field the overlay draws */

@@ -52,7 +52,6 @@ public final class HeldDomeRenderer {
 
     /** The ghost each goo type holds; a type with none draws no dome. */
     private static final Map<ResourceKey<GooTypeDefinition>, HeldGhostVisual> GHOSTS = Map.ofEntries(
-            Map.entry(GooTypes.AEON, AeonHeldGhost.INSTANCE),
             Map.entry(GooTypes.CRYSTAL, CrystalExplosionVisual.INSTANCE),
             Map.entry(GooTypes.LEAF, LeafHeldGhost.INSTANCE),
             Map.entry(GooTypes.FROST, FrostExplosionVisual.INSTANCE),
@@ -160,7 +159,7 @@ public final class HeldDomeRenderer {
      * radius its drag sets, its rings as its type's ghost names them, the
      * black hole's pulsing in from the reach it pulls from and Blast's out to
      * the radius dragged (decisions black-hole-leaves-a-compression-sphere,
-     * chronosphere-hastes-players-slows-mobs, blast-is-drag-sized-like-the-black-hole).
+     * blast-is-drag-sized-like-the-black-hole).
      *
      * @param poseStack  the pose stack, camera relative
      * @param buffers    the buffer source

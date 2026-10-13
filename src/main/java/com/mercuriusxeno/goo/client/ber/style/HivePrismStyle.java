@@ -15,7 +15,7 @@ import net.minecraft.util.ARGB;
  */
 public final class HivePrismStyle implements PrismComboStyle {
 
-    /** The combo the style draws, nether's hive ability. */
+    /** The combo the style draws, Decay's hive. */
     public static final String COMBO = HiveSwarm.COMBO;
     /** The swarm's maroon, the column's tint. */
     static final int MAROON = 0x7A1A2A;

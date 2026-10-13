@@ -19,5 +19,8 @@
     { "type": "damage", "amount": 1, "source": "freeze", "knockback": false, "invulnerable_ticks": 10 },
     { "type": "push", "strength": 0.15 }
   ],
+  "on_prism": [
+    { "type": "glacial", "radius": 5 }
+  ],
   "tags": ["stream"]
 }

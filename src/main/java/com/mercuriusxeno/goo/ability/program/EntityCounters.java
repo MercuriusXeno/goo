@@ -8,7 +8,7 @@ import java.util.Map;
 
 /**
  * The named counters a struck entity keeps between goo hits, such as the
- * aeon ritual's {@code goo:ritual} (decision aeon-mob-ritual-drops-spawn-egg).
+ * Rewind ritual's {@code goo:ritual} (decision rewind-fills-while-held).
  * The entity holds it as a data attachment that saves with it, so a ritual
  * survives the mob unloading. Immutable: each write answers a new value
  * for the holder to store.

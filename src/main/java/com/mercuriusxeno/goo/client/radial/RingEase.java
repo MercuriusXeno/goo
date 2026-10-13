@@ -1,135 +1,55 @@
 package com.mercuriusxeno.goo.client.radial;
 
 /**
- * Eases the ring's displayed pose toward its target over a short duration
- * on the client tick: each type's slot width, how far open and how present
- * each type is and the ring's rotation interpolate together, so opening a type plays like a
- * fan of cards and closing plays it in reverse. A new target restarts the
- * ease from the pose on display.
+ * The wheel's easing: each moving part, the types dropping and each type's
+ * fan, steps its own tick count toward its target, so opening one fan never
+ * restarts another's fold, and reads that count eased between ticks.
  * decision petal-moves-animate
  */
 final class RingEase {
 
     /** Client ticks a petal move takes to land. */
     static final int DURATION_TICKS = 4;
-    private static final double TWO_PI = 2.0 * Math.PI;
     private static final double SMOOTHSTEP_RISE = 3.0;
     private static final double SMOOTHSTEP_EASE = 2.0;
 
-    private Pose from;
-    private Pose to;
-    private int ticks = DURATION_TICKS;
+    private RingEase() {
+    }
 
     /**
-     * Creates an ease at rest on a pose.
+     * A part's tick count stepped one tick toward its target.
      *
-     * @param rest the pose on display before any move
+     * @param ticks  the part's tick count
+     * @param target the count it moves toward, 0 or {@link #DURATION_TICKS}
+     * @return the count after one tick
      */
-    RingEase(Pose rest) {
-        this.from = rest;
-        this.to = rest;
+    static int stepped(int ticks, int target) {
+        return ticks + Integer.signum(target - ticks);
     }
 
     /**
-     * Starts an ease from the pose on display to a new target, turning the
-     * target's rotation by whole turns to the one nearest the displayed
-     * rotation, so the ring takes the short way round.
+     * How far a part has moved, eased between ticks.
      *
-     * @param target the pose to land on
-     */
-    void retarget(Pose target) {
-        from = displayed(0.0f);
-        double turns = Math.rint((from.rotation() - target.rotation()) / TWO_PI);
-        to = target.turnedBy(turns * TWO_PI);
-        ticks = 0;
-    }
-
-    /**
-     * Turns the whole ring, the pose on display and the target alike, with
-     * no ease, so the ring follows the cursor while the fan keeps playing.
-     * decision ring-rotates-to-keep-the-cursor-inside
-     *
-     * @param turn the angle to add, clockwise
-     */
-    void turnBy(double turn) {
-        from = from.turnedBy(turn);
-        to = to.turnedBy(turn);
-    }
-
-    /** Advances the ease one client tick, holding once it lands. */
-    void tick() {
-        if (ticks < DURATION_TICKS) {
-            ticks++;
-        }
-    }
-
-    /**
-     * Whether the ease is still moving the petals.
-     * decision mid-animation-input-does-nothing
-     *
-     * @return true until the ease lands
-     */
-    boolean isRunning() {
-        return ticks < DURATION_TICKS;
-    }
-
-    /**
-     * The pose on display between ticks.
-     *
+     * @param ticks       the part's tick count
+     * @param target      the count it moves toward
      * @param partialTick the fraction of a tick since the last one
-     * @return the interpolated pose
+     * @return 0 at rest to 1 fully moved
      */
-    Pose displayed(float partialTick) {
-        double progress = Math.min(1.0, (ticks + partialTick) / DURATION_TICKS);
-        double eased = progress * progress * (SMOOTHSTEP_RISE - SMOOTHSTEP_EASE * progress);
-        return from.toward(to, eased);
+    static double eased(int ticks, int target, float partialTick) {
+        double moving = Integer.signum(target - ticks) * partialTick;
+        double progress = Math.max(0.0, Math.min(1.0, (ticks + moving) / DURATION_TICKS));
+        return progress * progress * (SMOOTHSTEP_RISE - SMOOTHSTEP_EASE * progress);
     }
 
     /**
-     * The ring as its rotation and, per type, the width of the slot it holds,
-     * how far open it is, 0 showing the type's own petal at full length and
-     * 1 its ability petals fanned across the slot, and how present it is.
-     * decision open-type-keeps-six-neighbors-a-side
+     * The wheel as how far the types have dropped into the neutral zone, 0
+     * out at the tips to 1 dropped, and per type how far its abilities have
+     * fanned out.
+     * decision abilities-replace-the-hovered-type
      *
-     * @param rotation the angle the first slot starts at, clockwise from the top
-     * @param widths   each type's slot width in radians
-     * @param openness each type's openness, 0 to 1
-     * @param presence each type's presence, 0 hidden to 1 full
+     * @param dropped  how far the types have dropped into the neutral zone, 0 to 1
+     * @param openness each type's openness, 0 closed to 1 fanned
      */
-    record Pose(double rotation, double[] widths, double[] openness, double[] presence) {
-
-        /**
-         * The pose a fraction of the way to another.
-         *
-         * @param target   the other pose, of the same types
-         * @param fraction 0 for this pose, 1 for the target
-         * @return the interpolated pose
-         */
-        Pose toward(Pose target, double fraction) {
-            return new Pose(mix(rotation, target.rotation(), fraction), mix(widths, target.widths(), fraction),
-                    mix(openness, target.openness(), fraction), mix(presence, target.presence(), fraction));
-        }
-
-        /**
-         * This pose turned by an angle.
-         *
-         * @param turn the angle to add, clockwise
-         * @return the turned pose
-         */
-        Pose turnedBy(double turn) {
-            return new Pose(rotation + turn, widths, openness, presence);
-        }
-
-        private static double mix(double from, double to, double fraction) {
-            return from + (to - from) * fraction;
-        }
-
-        private static double[] mix(double[] from, double[] to, double fraction) {
-            double[] mixed = new double[from.length];
-            for (int i = 0; i < from.length; i++) {
-                mixed[i] = mix(from[i], to[i], fraction);
-            }
-            return mixed;
-        }
+    record Pose(double dropped, double[] openness) {
     }
 }

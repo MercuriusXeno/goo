@@ -12,7 +12,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.Supplier;
 
 /**
- * A mote of vital goo that homes: it bends out from where it spawned and
+ * A mote of jelly goo that homes: it bends out from where it spawned and
  * lands on a target read every tick, then winks out. Reserve draws the
  * player's life from the chest into the glove with it.
  * reserve-hearts-sit-behind-the-bar
@@ -101,7 +101,7 @@ public final class VitalMoteParticle extends SingleQuadParticle {
     }
 
     /**
-     * Creates vital motes; the spawner sends each one home after creating it.
+     * Creates homing motes; the spawner sends each one home after creating it.
      */
     public static class Provider implements ParticleProvider<SimpleParticleType> {
 
