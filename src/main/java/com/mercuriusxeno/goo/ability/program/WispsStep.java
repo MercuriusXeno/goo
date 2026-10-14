@@ -30,16 +30,16 @@ import java.util.stream.Stream;
  * out through the connected air they see, nearest first, a budget of cells
  * a tick, a wisp in each dark cell no wisp already lights, the flood
  * starting over when the hold starts, and carried on from where the holder
- * moves to, its reach and its wisps kept, as they walk. The drip
- * tries the one cell above the block below the tap, a wisp there when it
- * is dark air.
- * decisions radiant-wisps-where-light-is-low, radiant-drip-places-a-wisp
+ * moves to, its reach and its wisps kept, as they walk. Without a
+ * flood the step tries the one cell above the host, a wisp there when it is
+ * dark air.
+ * decision radiant-wisps-where-light-is-low
  * operator rulings 2026-10-10: wisps flood out from the eyes nearest first to 64 blocks, the edge at 16 blocks a second
  *
  * @param radius how far from the host a cell may be, in blocks; zero for the host's own cell
  * @param count  how many cells to walk each run
  * @param life   how many ticks a wisp lasts
- * @param above  how many blocks above the host the drip's cell sits
+ * @param above  how many blocks above the host the tried cell sits
  * @param flood  whether the step floods out from the holder's eyes; otherwise it tries the host's own cell
  * @param growth how many blocks the flood's edge grows each tick; zero reaches the radius at once
  */

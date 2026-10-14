@@ -17,8 +17,8 @@ import java.util.List;
 
 /**
  * The frost novas playing on this client: each is frost's fog ring laid flat
- * about the nova's center, the caster's middle or a tap's landing, spreading out to the reach its charge resolved with
- * a burst of snowflakes riding the edge, then fading.
+ * about the nova's center, the caster's middle, spreading out to the reach its
+ * charge resolved with a burst of snowflakes riding the edge, then fading.
  * nova-ring-grows-with-the-hold
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)

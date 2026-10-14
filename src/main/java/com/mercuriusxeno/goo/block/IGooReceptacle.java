@@ -4,8 +4,8 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.ResourceKey;
 
 /**
- * A block entity goo can be poured into from above, such as a tap's drip
- * landing on it (decision landing-goo-enters-any-holder): takes a type and a
+ * A block entity goo can be poured into from above
+ * (decision landing-goo-enters-any-holder): takes a type and a
  * volume and answers the volume it kept.
  */
 @FunctionalInterface
