@@ -10,7 +10,7 @@ import java.util.function.Consumer;
 /**
  * A one-tick host whose world actions anchor at one point of a block: the
  * entity scans, the pull, the particles and the sound all reach out from
- * that anchor, so a tap's drip and a blob's landing share them.
+ * that anchor, so every landing host shares them.
  */
 public interface AnchoredWorldHost extends EntityScanHost {
 

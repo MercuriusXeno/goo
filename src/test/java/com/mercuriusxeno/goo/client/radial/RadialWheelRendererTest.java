@@ -79,15 +79,13 @@ class RadialWheelRendererTest {
     }
 
     /**
-     * The shipped abilities the radial lists: every one but a tap's drip
-     * ability, which the ability sync never sends the glove.
+     * The shipped abilities the radial lists: every one the ability sync sends the glove.
      *
      * @return the radial's shipped abilities
      */
     private static List<ClientAbility> shippedAbilities() {
         return AbilityJson.files().stream()
                 .map(AbilityJson::decode)
-                .filter(definition -> !definition.hasTag(AbilityTags.TAP))
                 .map(RadialWheelRendererTest::clientAbilityOf)
                 .toList();
     }

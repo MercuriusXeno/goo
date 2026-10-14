@@ -72,7 +72,6 @@ public class GooItems {
     public static final DeferredItem<BlockItem> REACTOR = ITEMS.registerSimpleBlockItem("reactor", GooBlocks.REACTOR);
     public static final DeferredItem<VatBlockItem> VAT = ITEMS.registerItem("vat",
             props -> new VatBlockItem(GooBlocks.VAT.get(), props.useBlockDescriptionPrefix()));
-    public static final DeferredItem<BlockItem> TAP = ITEMS.registerSimpleBlockItem("tap", GooBlocks.TAP);
     public static final DeferredItem<BlockItem> CRYSTALLIZER = ITEMS.registerSimpleBlockItem("crystallizer",
             GooBlocks.CRYSTALLIZER);
     public static final DeferredItem<BlockItem> EXORITE_BARS = ITEMS.registerSimpleBlockItem("exorite_bars",

@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.ArmPose;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DistancePrice;
@@ -80,9 +79,7 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
     }
 
     /**
-     * The entries the glove may offer for a type: every definition but the
-     * tap-tagged ones, which only a tap's drip runs
-     * (decision tap-ability-tagged-program).
+     * The entries the glove may offer for a type: every definition it carries.
      *
      * @param type        the goo type
      * @param definitions the type's definitions
@@ -90,7 +87,6 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
      */
     public static List<Entry> gloveEntries(ResourceKey<GooTypeDefinition> type, List<AbilityDefinition> definitions) {
         return definitions.stream()
-                .filter(def -> !def.hasTag(AbilityTags.TAP))
                 .map(def -> new Entry(def.id().toString(), GooTypes.id(type),
                         def.displayName(), def.icon(), def.order(), def.tags(),
                         def.behaviors(), def.cost(),

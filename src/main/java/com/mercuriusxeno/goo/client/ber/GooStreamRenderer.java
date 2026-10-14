@@ -12,8 +12,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.level.material.Fluid;
 
 /**
- * Renders fluid stream columns: the vat's pulsing fill stream and the tap's
- * pour. Every stream tiles its fluid sprite down the column at the sprite's
+ * Renders fluid stream columns: the vat's pulsing fill stream. Every stream tiles its fluid sprite down the column at the sprite's
  * native scale, flowing downward, through {@link #emitTiledColumn}
  * (decision diagnose-then-fix-stream-tiling).
  */

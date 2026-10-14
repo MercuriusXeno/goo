@@ -70,7 +70,6 @@ class AbilityLoaderTest {
     private static final int RARE_CHARMS = 50;
     private static final double ZOMBIE_MAX_HEALTH = 20;
     private static final double TOP_MAX_HEALTH = 1024;
-    private static final double TAP_SPAWN_CHANCE = 5;
     /** The proving example of a world ability that stays after its blob lands. */
     private static final String LINGERING = "crystal_cloud";
     /** The ability whose program ends the tick it lands. */

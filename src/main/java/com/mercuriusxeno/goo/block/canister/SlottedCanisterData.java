@@ -43,8 +43,8 @@ import java.util.function.Supplier;
 
 /**
  * Behavioral component that owns the slot grid of every machine holding
- * canisters in slots: the canister block, the hub, the reactor's output hollow
- * and the tap. Each machine holds one instance bound to itself and exposes its
+ * canisters in slots: the canister block, the hub, and the reactor's output hollow.
+ * Each machine holds one instance bound to itself and exposes its
  * slots via {@link #slots}. Per-slot operations live on {@link CanisterSlot};
  * this class owns the cross-slot work: composite shape (re-ORed on slot
  * mutation, not access), fluid routing, pushers, and the whole lifecycle of a
@@ -560,7 +560,7 @@ public class SlottedCanisterData {
     /**
      * Writes the slots under one key. A grid of slots writes a compound keyed
      * by slot index; a single slot writes its canister stack alone, the format
-     * the reactor and the tap have always saved. Each handler's fluid is
+     * the reactor has always saved. Each handler's fluid is
      * written onto its stack first.
      *
      * @param output the value output

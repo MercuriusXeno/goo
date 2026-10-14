@@ -14,7 +14,6 @@ import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
 import com.mercuriusxeno.goo.block.quantum.PhasedBlockEntity;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
 import com.mercuriusxeno.goo.block.statue.StatueBlockEntity;
-import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.block.unmake.MeltingBlockEntity;
 import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
 import com.mercuriusxeno.goo.fluid.GooFluidBlockEntity;
@@ -53,10 +52,6 @@ public class GooBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<VatBlockEntity>> VAT =
             BLOCK_ENTITIES.register("vat",
                     () -> new BlockEntityType<>(VatBlockEntity::new, GooBlocks.VAT.get()));
-
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TapBlockEntity>> TAP =
-            BLOCK_ENTITIES.register("tap",
-                    () -> new BlockEntityType<>(TapBlockEntity::new, GooBlocks.TAP.get()));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<CrystallizerBlockEntity>> CRYSTALLIZER =
             BLOCK_ENTITIES.register("crystallizer",

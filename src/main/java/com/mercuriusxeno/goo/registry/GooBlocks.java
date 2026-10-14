@@ -20,7 +20,6 @@ import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
 import com.mercuriusxeno.goo.block.quantum.PhasedBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
 import com.mercuriusxeno.goo.block.statue.StatueBlock;
-import com.mercuriusxeno.goo.block.tap.TapBlock;
 import com.mercuriusxeno.goo.block.unmake.MeltingBlock;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.fluid.GooFluidBlock;
@@ -261,11 +260,6 @@ public class GooBlocks {
             .noOcclusion();
     public static final DeferredBlock<VatBlock> VAT = BLOCKS.registerBlock("vat",
             VatBlock::new, VAT_PROPERTY_SUPPLIER);
-    private static final Supplier<BlockBehaviour.Properties> TAP_PROPERTY_SUPPLIER = () -> BlockBehaviour.Properties.of()
-            .mapColor(MapColor.COLOR_ORANGE).strength(1.5F).sound(SoundType.COPPER)
-            .noOcclusion();
-    public static final DeferredBlock<TapBlock> TAP = BLOCKS.registerBlock("tap",
-            TapBlock::new, TAP_PROPERTY_SUPPLIER);
     private static final Supplier<BlockBehaviour.Properties> CRYSTALLIZER_PROPERTY_SUPPLIER = () -> BlockBehaviour.Properties.of()
             .mapColor(MapColor.COLOR_PURPLE).strength(1.5F).sound(SoundType.AMETHYST).noOcclusion();
     /** Phases goo into chrysm (decision crystallizer-emits-chrysm). */

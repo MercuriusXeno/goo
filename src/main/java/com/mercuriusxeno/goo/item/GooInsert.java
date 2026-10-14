@@ -6,7 +6,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * The in-world goo insert the vat, tap, hub and canister blocks share (decision block-insert-shared).
+ * The in-world goo insert the vat, hub and canister blocks share (decision block-insert-shared).
  */
 public final class GooInsert {
 

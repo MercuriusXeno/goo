@@ -12,8 +12,8 @@ import java.util.OptionalDouble;
  * The {@link StepHost} over one floor a spray reaches: a stream's cone or a
  * spore burst runs an ability's {@code on_blocks} steps on each floor block
  * it reaches, world actions anchoring at the floor's top face and a placed
- * block going into the empty cell above it. Like a tap's landing it has no
- * target and nothing ticks it afterwards
+ * block going into the empty cell above it. It has no target and nothing
+ * ticks it afterwards
  * (decision mycosis-spore-stream-buds-and-poisons).
  *
  * <p>{@code distance} reads how far the floor's open cell sits from the
@@ -27,9 +27,22 @@ import java.util.OptionalDouble;
 public record SurfaceHost(ServerLevel level, BlockPos floor, double distance)
         implements AnchoredWorldHost, PlaceBlockHost {
 
+    private static final double HALF = 0.5;
+
+    /**
+     * The center of a block's face.
+     *
+     * @param block the block
+     * @param face  the face
+     * @return the face center
+     */
+    public static Vec3 faceCenter(BlockPos block, Direction face) {
+        return Vec3.atCenterOf(block).add(face.getStepX() * HALF, face.getStepY() * HALF, face.getStepZ() * HALF);
+    }
+
     @Override
     public Vec3 anchor() {
-        return TapHost.faceCenter(floor, Direction.UP);
+        return faceCenter(floor, Direction.UP);
     }
 
     @Override
