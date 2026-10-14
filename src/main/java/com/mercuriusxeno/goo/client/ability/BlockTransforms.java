@@ -30,6 +30,9 @@ public final class BlockTransforms {
     /** Game ticks an exposure stands with no update before it is dropped. */
     static final int EXPOSURE_STALE_TICKS = 40;
 
+    /** Game ticks a fully built untinted block stays drawn whole over its position, covering the chunk's redraw. */
+    static final int BUILT_HOLD_TICKS = 5;
+
     private final List<Transform> playing = new ArrayList<>();
     private final Map<BlockPos, Exposure> exposures = new HashMap<>();
 
@@ -80,8 +83,11 @@ public final class BlockTransforms {
     /**
      * Starts a block's transform, replacing any playing on it. A block whose
      * exposure wore a tint dissolves from that tinted face into the new block,
-     * so the face it built up carries straight into the step; any other
-     * dissolves from the state it was.
+     * so the face it built up carries straight into the step; a block whose
+     * untinted exposure built the transition plays no second dissolve, its
+     * built block held whole over it a few ticks so the old block never
+     * shows before the client's chunk redraws; any other, a block cooked
+     * away to air among them, dissolves from the state it was.
      *
      * @param pos   the block
      * @param from  the state it was
@@ -90,10 +96,18 @@ public final class BlockTransforms {
     public void start(BlockPos pos, BlockState from, long start) {
         Exposure built = exposures.remove(pos);
         playing.removeIf(transform -> transform.pos().equals(pos));
-        // the operator's ruling on Decay: the maroon face transitions into the next block, never vanishing first
-        playing.add(built != null && built.tint() >= 0
-                ? new Transform(pos.immutable(), built.toward(), start, built.tint())
-                : new Transform(pos.immutable(), from, start));
+        if (built != null && built.tint() >= 0) {
+            // the operator's ruling on Decay: the maroon face transitions into the next block, never vanishing first
+            playing.add(new Transform(pos.immutable(), built.toward(), start, built.tint()));
+        } else if (built == null || built.toward().isAir()) {
+            // broil-heat-wave-ring-cooks-ahead: a block cooked into an item drew nothing building, so it dissolves away
+            playing.add(new Transform(pos.immutable(), from, start));
+        } else {
+            // broil-heat-wave-ring-cooks-ahead: the build was the one dissolve; the built block stays whole
+            // over the old one until the chunk redraws it, so the old block never shows again
+            long staleFrom = start - EXPOSURE_STALE_TICKS + BUILT_HOLD_TICKS;
+            exposures.put(pos.immutable(), new Exposure(pos.immutable(), built.toward(), 1f, staleFrom, UNTINTED));
+        }
     }
 
     /**
