@@ -13,8 +13,6 @@ import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
-import com.mercuriusxeno.goo.block.tap.TapBlock;
-import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
@@ -35,7 +33,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.MockedStatic;
 import java.util.function.BiFunction;
@@ -114,8 +111,6 @@ class HolderBoundsTest {
                         hitAt(0.5, 0.75, 0.5, Direction.UP), 4, GasketRole.RECEIVER, true, false),
                 new Holder("hub", (filled, gasketed) -> hub(filled),
                         hitAt(0.5, 0.5, 2.0 / 16.0, Direction.NORTH), 0, GasketRole.TRANSMITTER, true, true),
-                new Holder("tap", (filled, gasketed) -> tap(filled, gasketed, Direction.SOUTH),
-                        hitAt(0.5, 10.0 / 16.0, 3.0 / 16.0, Direction.NORTH), -1, GasketRole.RECEIVER, false, true),
                 new Holder("reactor", (filled, gasketed) -> reactor(filled),
                         hitAt(0.5, 7.0 / 16.0, 3.0 / 16.0, Direction.NORTH), ReactorBlockEntity.OUTPUT_SLOT,
                         GasketRole.TRANSMITTER, false, true));
@@ -168,27 +163,6 @@ class HolderBoundsTest {
             assertAll(holder.name(),
                     () -> assertNull(be.slotBounds(-1)),
                     () -> assertNull(be.slotBounds(HubBlock.SLOT_COUNT + 1)));
-        }
-
-        /**
-         * The panel sits over the canister slot shape the tap's outline and preview draw.
-         */
-        @ParameterizedTest
-        @EnumSource(value = Direction.class, names = {"SOUTH", "NORTH", "EAST", "WEST"})
-        void tapAnchorsOverTheCanisterTopForEachFacing(Direction facing) {
-            double[] expected = switch (facing) {
-                case NORTH -> new double[] {8.0 / 16.0, 13.0 / 16.0};
-                case EAST -> new double[] {3.0 / 16.0, 8.0 / 16.0};
-                case WEST -> new double[] {13.0 / 16.0, 8.0 / 16.0};
-                default -> new double[] {8.0 / 16.0, 3.0 / 16.0};
-            };
-            HudAnchor anchor = ((ICanisterHolder) tap(true, false, facing))
-                    .hudAnchor(hitAt(expected[0], 10.0 / 16.0, expected[1], Direction.UP), VIEWER);
-            assertNotNull(anchor);
-            assertAll(() -> assertEquals(expected[0], anchor.x(), 1e-9),
-                    () -> assertEquals(expected[1], anchor.z(), 1e-9),
-                    () -> assertEquals(1.0, anchor.lift(), 1e-9),
-                    () -> assertEquals(Direction.UP, anchor.face()));
         }
 
         @Test
@@ -294,13 +268,6 @@ class HolderBoundsTest {
 
     private static HubBlockEntity hub(boolean filled) {
         return slotted(HubBlockEntity.class, mock(BlockState.class), HubBlock.SLOT_COUNT, filled);
-    }
-
-    private static TapBlockEntity tap(boolean filled, boolean gasketed, Direction facing) {
-        BlockState state = mock(BlockState.class);
-        when(state.getValue(TapBlock.FACING)).thenReturn(facing);
-        when(state.getValue(TapBlock.HAS_GASKET)).thenReturn(gasketed);
-        return slotted(TapBlockEntity.class, state, 1, filled);
     }
 
     private static ReactorBlockEntity reactor(boolean filled) {

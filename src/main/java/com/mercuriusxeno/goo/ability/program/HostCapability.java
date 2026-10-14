@@ -65,11 +65,6 @@ public enum HostCapability {
      */
     WATCH(WatchHost.class),
     /**
-     * A tap holding the block under it that an unmake works on
-     * (decision unmake-drip-dissolves-the-block-below).
-     */
-    UNMAKE(UnmakeHost.class),
-    /**
      * A held channel that drinks the face under its cursor into the glove
      * (decision unmake-waves-dissolve-by-crucible-cost).
      */
@@ -94,16 +89,6 @@ public enum HostCapability {
      * crush-blob-breaks-along-its-strike).
      */
     BREAK_BLOCKS(BlockBreakHost.class),
-    /**
-     * A tap drip's landing: the drips its block has taken, and dripstone to
-     * grow down from it (decision petrify-drip-calcifies-and-grows-dripstone).
-     */
-    DRIP(DripHost.class),
-    /**
-     * A tap's spigot a glass shard falls from, onto the first mob under it
-     * (decision shards-drip-falls-as-a-glass-shard).
-     */
-    SHARD_FALL(ShardFallHost.class),
     /**
      * The host's own block, whose properties can change in place (decision
      * bulb-one-model-max-light-beacon-combo).
@@ -164,11 +149,6 @@ public enum HostCapability {
      * old-blob-ages-valuables-slowly).
      */
     AGING(AgingHost.class),
-    /**
-     * A host that can toggle the redstone device where it acts, as a hand
-     * would (decision pulser-drip-toggles-the-block-below).
-     */
-    TOGGLE_DEVICE(DeviceToggleHost.class),
     /**
      * A host whose own block can give redstone power to its neighbors
      * (decision metronome-prism-pulses-at-the-learned-rate).

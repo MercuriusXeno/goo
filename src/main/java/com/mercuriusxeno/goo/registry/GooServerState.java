@@ -5,8 +5,6 @@ import com.mercuriusxeno.goo.ability.petrify.BlockExposures;
 import com.mercuriusxeno.goo.ability.program.Drinks;
 import com.mercuriusxeno.goo.ability.program.UnmakeDrops;
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
-import com.mercuriusxeno.goo.block.tap.TapDripCounts;
-import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
 import com.mercuriusxeno.goo.network.FleckLaunches;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
 import com.mercuriusxeno.goo.network.StreamHolds;
@@ -15,8 +13,8 @@ import net.minecraft.world.level.Level;
 import org.jspecify.annotations.Nullable;
 
 /**
- * What one server holds between ticks: the goo effects, tap drips and marker
- * falls in flight, and the stream holds. Each server holds its
+ * What one server holds between ticks: the goo effects and marker falls in
+ * flight, and the stream holds. Each server holds its
  * own and a server stop clears it, so nothing in flight lands against a
  * stopped server's levels (decision type-package-and-per-server-holders).
  */
@@ -24,8 +22,6 @@ public final class GooServerState {
 
     private final GooEffectScheduler gooEffects = new GooEffectScheduler();
     private final FleckLaunches fleckLaunches = new FleckLaunches();
-    private final TapDripScheduler tapDrips = new TapDripScheduler();
-    private final TapDripCounts tapDripCounts = new TapDripCounts();
     private final UnmakeDrops unmakeDrops = new UnmakeDrops();
     private final Drinks drinks = new Drinks();
     private final BlockExposures blockExposures = new BlockExposures();
@@ -69,13 +65,6 @@ public final class GooServerState {
     }
 
     /**
-     * @return the tap drips in flight
-     */
-    public TapDripScheduler tapDrips() {
-        return tapDrips;
-    }
-
-    /**
      * The goo unmade blocks and mobs leave, held back while their remains
      * morph (decision unmake-waves-dissolve-by-crucible-cost).
      *
@@ -92,16 +81,6 @@ public final class GooServerState {
      */
     public Drinks drinks() {
         return drinks;
-    }
-
-    /**
-     * The drips each block has taken since its tap ability last acted
-     * (decision petrify-drip-calcifies-and-grows-dripstone).
-     *
-     * @return the drip counts
-     */
-    public TapDripCounts tapDripCounts() {
-        return tapDripCounts;
     }
 
     /**
@@ -138,7 +117,7 @@ public final class GooServerState {
     }
 
     /**
-     * Lands every effect, drip and fall whose arrival tick has come.
+     * Lands every effect and fall whose arrival tick has come.
      *
      * @param server the ticking server
      */
@@ -153,7 +132,6 @@ public final class GooServerState {
         if (markerFalls.hasPending()) {
             markerFalls.drainArrivedFalls(currentTick);
         }
-        tapDrips.drainArrived(server);
         drinks.tick(server);
         unmakeDrops.dropArrived(currentTick);
         blockExposures.decay(server);
@@ -165,8 +143,6 @@ public final class GooServerState {
     public void clear() {
         gooEffects.clear();
         fleckLaunches.clear();
-        tapDrips.clear();
-        tapDripCounts.clear();
         blockExposures.clear();
         markerFalls.clear();
         streamHolds.clear();

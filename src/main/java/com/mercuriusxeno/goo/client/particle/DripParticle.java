@@ -21,7 +21,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * Blocky slime drip particle shared by the trail-drip and the tap-drip.
+ * Blocky slime drip particle shared by the trail-drip and the splat-drip.
  * Modeled after vanilla's lava/water drip particles - falls under gravity,
  * splats on ground contact. A drip whose provider names hang ticks first
  * hangs swelling where it spawned, then falls (decision tap-drop-swells-then-falls).

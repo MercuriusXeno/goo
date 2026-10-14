@@ -36,7 +36,6 @@ public final class StepTypes {
         register(LeafSteps.WAIT.type());
         register(AwaitEntityStep.TYPE);
         register(WatchStep.TYPE);
-        register(UnmakeStep.TYPE);
         register(SiphonStep.TYPE);
         register(BusterStep.TYPE);
         register(ExplodeStep.TYPE);
@@ -49,8 +48,6 @@ public final class StepTypes {
         register(CoolLavaStep.TYPE);
         register(BouncePadStep.TYPE);
         register(WobbleStep.TYPE);
-        register(DripsStep.TYPE);
-        register(ShardFallStep.TYPE);
         register(DetectOreStep.TYPE);
         register(WindStep.TYPE);
         register(BreakBlocksStep.TYPE);
@@ -104,13 +101,10 @@ public final class StepTypes {
         register(PetrifyStep.TYPE);
         register(CalcifyStep.TYPE);
         register(DegradeStep.TYPE);
-        register(PetrifyDripStep.TYPE);
-        register(DegradeDripStep.TYPE);
         register(LeafSteps.HEAL.type());
         register(LeafSteps.COURT.type());
         register(LeafSteps.POWER_PULSE.type());
         register(LeafSteps.AGE.type());
-        register(LeafSteps.TOGGLE_DEVICE.type());
         register(MetronomeStep.TYPE);
         register(RelayStep.TYPE);
         register(ExtenderStep.TYPE);
@@ -135,7 +129,6 @@ public final class StepTypes {
         register(BloomStep.TYPE);
         register(TickPlantsStep.TYPE);
         register(TendFungiStep.TYPE);
-        register(PulsePlantsStep.TYPE);
         register(ToxinStep.TYPE);
         register(VerdantStep.TYPE);
         register(HastenRegrowStep.TYPE);

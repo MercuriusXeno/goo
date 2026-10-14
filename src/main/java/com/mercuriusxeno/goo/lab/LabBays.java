@@ -32,16 +32,11 @@ public final class LabBays {
      */
     static final int PLOT_CENTRE = PLOT_SIZE / 2;
     /**
-     * Air blocks between the tap's spigot and the floor it drips on.
-     */
-    public static final int TAP_AIR_GAP = 1;
-    /**
      * Blocks from the gasket plot's centre to each of its two paired canister blocks.
      */
     public static final int GASKET_SPREAD = 1;
 
     // --- block states ---
-    private static final String TAP = "goo:tap[open=true,facing=north]";
     private static final String VAT = "goo:vat";
     private static final String CRUCIBLE = "goo:crucible";
     private static final String HUB = "goo:hub";
@@ -65,7 +60,6 @@ public final class LabBays {
      */
     private static Map<LabMachine, Function<LabPlot, List<LabPlacement>>> bayBlockTable() {
         Map<LabMachine, Function<LabPlot, List<LabPlacement>>> table = new EnumMap<>(LabMachine.class);
-        table.put(LabMachine.TAP, single(TAP));
         table.put(LabMachine.VAT, single(VAT));
         table.put(LabMachine.CRUCIBLE, single(CRUCIBLE));
         table.put(LabMachine.HUB, single(HUB));
@@ -88,7 +82,7 @@ public final class LabBays {
             LabOffset min = corner.shifted(index * (PLOT_SIZE + PLOT_GAP), 0, 0);
             LabOffset max = min.shifted(PLOT_SIZE - 1, PLOT_HEADROOM, PLOT_SIZE - 1);
             LabOffset sign = min.shifted(PLOT_CENTRE, 1, 0);
-            LabOffset machine = min.shifted(PLOT_CENTRE, machineHeight(machines[index]), PLOT_CENTRE);
+            LabOffset machine = min.shifted(PLOT_CENTRE, 1, PLOT_CENTRE);
             plots.add(new LabPlot(machines[index], new LabBox(min, max), sign, machine));
         }
         return plots;
@@ -102,17 +96,6 @@ public final class LabBays {
     static int rowLength() {
         int machineCount = LabMachine.values().length;
         return machineCount * PLOT_SIZE + (machineCount - 1) * PLOT_GAP;
-    }
-
-    /**
-     * Answers how high above the floor a machine block stands: the tap hangs
-     * over an air gap so its drip has a floor to land on, every other machine stands on the floor.
-     *
-     * @param machine the machine
-     * @return the machine block's height above the floor
-     */
-    private static int machineHeight(LabMachine machine) {
-        return machine == LabMachine.TAP ? 1 + TAP_AIR_GAP : 1;
     }
 
     /**

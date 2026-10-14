@@ -7,7 +7,6 @@ import com.mercuriusxeno.goo.ability.frost.FrozenEvents;
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
 import com.mercuriusxeno.goo.ability.hearts.HeartOverlay;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
-import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
 import com.mercuriusxeno.goo.entity.RollingGoo;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
@@ -43,7 +42,7 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 /**
  * Gametests for the frost abilities: each lands a frost ability the way the
  * glove would and reads the frozen gauges and the world it leaves.
- * Decisions nova-ring-grows-with-the-hold, nova-drip-pulses-a-short-lasting-freeze,
+ * Decisions nova-ring-grows-with-the-hold,
  * cold-streams-wind-lines-and-snowflakes, orb-carries-a-swirling-nova,
  * glacial-prism-holds-the-area-frozen, iceborn-frozen-hearts-thaw-on-fire.
  */
@@ -51,7 +50,6 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 public final class FrostAbilityTests {
     private static final String NOVA_HELD_REACHES_BOTH = "nova_held_reaches_both_zombies";
     private static final String NOVA_TAPPED_REACHES_NEAR = "nova_tapped_reaches_only_the_near";
-    private static final String NOVA_TAP_FREEZES_BELOW = "nova_tap_freezes_below";
     private static final String COLD_BREAKS_GRASS = "cold_breaks_grass_and_freezes_faster";
     private static final String ORB_FREEZES_PATH = "orb_freezes_path_and_pool";
     private static final String ORB_ENDS_ON_A_MOB = "orb_ends_on_a_mob";
@@ -69,7 +67,6 @@ public final class FrostAbilityTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, NOVA_HELD_REACHES_BOTH, FrostAbilityTests::novaHeldReachesBothZombies);
         GooTestFunctions.registerTest(registrar, NOVA_TAPPED_REACHES_NEAR, FrostAbilityTests::novaTappedReachesOnlyTheNear);
-        GooTestFunctions.registerTest(registrar, NOVA_TAP_FREEZES_BELOW, FrostAbilityTests::novaTapFreezesBelow);
         GooTestFunctions.registerTest(registrar, COLD_BREAKS_GRASS, FrostAbilityTests::coldBreaksGrassAndFreezesFaster);
         GooTestFunctions.registerTest(registrar, ORB_FREEZES_PATH, FrostAbilityTests::orbFreezesPathAndPool);
         GooTestFunctions.registerTest(registrar, ORB_ENDS_ON_A_MOB, FrostAbilityTests::orbEndsOnAMob);
@@ -97,16 +94,6 @@ public final class FrostAbilityTests {
     private static final float FULL_HOLD_FLOOR = 0.7f;
     private static final float NO_HOLD_CEILING = 0.25f;
     private static final int SETTLE_TICKS = 1;
-    /** The stone floor a frost tap drips onto. */
-    private static final BlockPos TAP_FLOOR = new BlockPos(2, 0, 2);
-    /** Still water beside the drips' landing, inside the tap's freeze. */
-    private static final BlockPos TAP_WATER = new BlockPos(3, 1, 2);
-    /** A zombie standing beside the landing, inside the tap's nova. */
-    private static final BlockPos TAP_ZOMBIE = new BlockPos(2, 1, 3);
-    /** frost_nova_tap.json's drip count. */
-    private static final int TAP_DRIPS = 6;
-    /** Ticks past which a never-thawing ice would have melted were it vanilla ice under light. */
-    private static final int ICE_STANDS_TICKS = 40;
     private static final Identifier FROST_COLD = Identifier.parse("goo:frost_cold");
     private static final BlockPos STREAMER_POS = new BlockPos(0, 1, 2);
     /** Grass three blocks east of the streamer, inside Cold's cone below the look. */
@@ -195,8 +182,6 @@ public final class FrostAbilityTests {
     private static final String SHOULD_THAW_ICE = "Iceborn ice should thaw back to water once the player has gone";
     private static final String SHOULD_MELT_OBSIDIAN = "Iceborn obsidian should melt back to lava once the player has gone";
     private static final String SHOULD_THAW_HEARTS = "Fire should thaw every frozen heart and end Iceborn, stands %s";
-    private static final String SHOULD_NOT_PULSE_YET = "Drips short of the count should freeze nothing, stands %s";
-    private static final String SHOULD_FREEZE_ZOMBIE = "The tap's nova should raise the zombie's gauge";
     private static final String ABILITY_REQUIRED = "Ability registry must hold frost_nova";
     private static final String SHOULD_FREEZE_HARD = "A full Nova should freeze the %s zombie past %s, stands %s";
     private static final String SHOULD_FREEZE_LIGHTLY = "An uncharged Nova should freeze the near zombie lightly, stands %s";
@@ -249,33 +234,6 @@ public final class FrostAbilityTests {
             helper.assertTrue(nearGauge > 0f && nearGauge < NO_HOLD_CEILING,
                     String.format(SHOULD_FREEZE_LIGHTLY, nearGauge));
             helper.assertTrue(farGauge == 0f, String.format(SHOULD_NOT_REACH, farGauge));
-            helper.succeed();
-        });
-    }
-
-    /**
-     * A frost tap's drips gather to its count and pulse a small nova: the
-     * still water beside the landing becomes magicked ice that stands, and
-     * the zombie beside it freezes.
-     *
-     * @param helper the gametest helper
-     */
-    public static void novaTapFreezesBelow(GameTestHelper helper) {
-        helper.setBlock(TAP_FLOOR, Blocks.STONE);
-        helper.setBlock(TAP_WATER.below(), Blocks.STONE);
-        helper.setBlock(TAP_WATER, Blocks.WATER);
-        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, TAP_ZOMBIE);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            drip(helper, TAP_DRIPS - 1);
-            float early = zombie.getData(GooAttachments.FROZEN).gauge();
-            helper.assertTrue(early == 0f, String.format(SHOULD_NOT_PULSE_YET, early));
-            helper.assertBlockPresent(Blocks.WATER, TAP_WATER);
-            drip(helper, 1);
-            helper.assertTrue(zombie.getData(GooAttachments.FROZEN).started(), SHOULD_FREEZE_ZOMBIE);
-            helper.assertBlockPresent(GooBlocks.MAGICKED_ICE.get(), TAP_WATER);
-        });
-        helper.runAfterDelay(SETTLE_TICKS + ICE_STANDS_TICKS, () -> {
-            helper.assertBlockPresent(GooBlocks.MAGICKED_ICE.get(), TAP_WATER);
             helper.succeed();
         });
     }
@@ -568,15 +526,6 @@ public final class FrostAbilityTests {
                     String.format(SHOULD_RUN_AFTER_RELOAD, holds, after.getBehavior()));
             helper.succeed();
         });
-    }
-
-    private static void drip(GameTestHelper helper, int drips) {
-        BlockPos landing = helper.absolutePos(TAP_FLOOR);
-        AbilityRegistry abilities = AbilityRegistry.of(helper.getLevel());
-        for (int dripped = 0; dripped < drips; dripped++) {
-            TapDripScheduler.runTapAbility(new TapDripScheduler.PendingDrip(helper.getLevel(), landing.above(),
-                    landing, Direction.UP, GooTypes.FROST, 1, 0), abilities);
-        }
     }
 
     private static void release(ServerPlayer caster, int heldTicks) {
