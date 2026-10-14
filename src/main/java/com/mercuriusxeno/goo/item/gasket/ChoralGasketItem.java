@@ -40,18 +40,6 @@ public class ChoralGasketItem extends Item implements IGooItemInteraction {
      */
     private static final String MSG_CRUCIBLE_HAS_GASKET = "This crucible already has a gasket";
     /**
-     * Feedback prefix: machine already has a gasket.
-     */
-    private static final String MSG_THIS_PREFIX = "This ";
-    /**
-     * Feedback suffix: machine already has a gasket.
-     */
-    private static final String MSG_ALREADY_SUFFIX = " already has a gasket";
-    /**
-     * Feedback prefix: gasket installed on a machine.
-     */
-    private static final String MSG_INSTALLED_ON = "Gasket installed on ";
-    /**
      * Feedback: remove the canister first (mutual exclusivity).
      */
     private static final String MSG_REMOVE_CANISTER = "Remove the canister first";
