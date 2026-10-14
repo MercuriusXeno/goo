@@ -130,7 +130,8 @@ class MingleNoiseTexelSnapTest {
         void theTransformSnapsItsPositionBeforeTheField() throws IOException {
             String mingle = shader("block_mingle.fsh");
             int snapAt = mingle.indexOf("vec3 texelPos = mingleFaceTexel(mingleWorldPos);");
-            int fieldAt = mingle.indexOf("float field = mingleField(texelPos * MINGLE_BLOCK_CELLS);");
+            int fieldAt = mingle.indexOf(
+                "float field = mingleField(texelPos * MINGLE_BLOCK_CELLS + mingleSeed * MINGLE_SEED_OFFSET);");
 
             assertTrue(snapAt >= 0, "the snap");
             assertTrue(fieldAt > snapAt, "the field samples the snapped position");

@@ -26,6 +26,7 @@ out vec4 lightMapColor;
 out vec2 texCoord0;
 out vec3 mingleWorldPos;
 flat out float mingleProgress;
+flat out float mingleSeed;
 
 // Must match BlockMingleRenderer.PROGRESS_UNITS: UV1.x carries the share of the transform run.
 const float PROGRESS_UNITS = 4096.0;
@@ -42,4 +43,7 @@ void main() {
     // Position is camera-relative; the camera globals recover the world position.
     mingleWorldPos = Position + vec3(CameraBlockPos) - CameraOffset;
     mingleProgress = float(UV1.x) / PROGRESS_UNITS;
+    // UV1.y carries the transition's seed, so each use on a block dissolves through its own field
+    // (decision diagnose-then-fix-dissolve-repeat).
+    mingleSeed = float(UV1.y);
 }

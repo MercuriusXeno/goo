@@ -40,6 +40,8 @@ public final class BlockMingleRenderer {
 
     /** Units the overlay coordinates carry the progress in; must match PROGRESS_UNITS in block_mingle.vsh. */
     static final int PROGRESS_UNITS = 4096;
+    /** The packed overlay's V half sits above its 16-bit U half. */
+    private static final int OVERLAY_V_SHIFT = 16;
     /** How far the old block swells past the new so its faces sit just in front. */
     private static final float SWELL = 1.002f;
     private static final float BLOCK_CENTER = 0.5f;
@@ -89,12 +91,12 @@ public final class BlockMingleRenderer {
         for (BlockTransforms.Transform transform : live) {
             drawMingle(poseStack, consumer, camera,
                     new Mingle(transform.pos(), transform.from(), transform.progress(gameTime),
-                            mingleColor(transform.tint())));
+                            mingleColor(transform.tint()), transform.seed()));
         }
         // petrify-stone-encasement-and-calcify-map: the next rung mingles in by the share built so far
         for (BlockTransforms.Exposure exposure : exposing) {
             drawMingle(poseStack, consumer, camera, new Mingle(exposure.pos(), exposure.toward(),
-                    1f - exposure.share(), mingleColor(exposure.tint())));
+                    1f - exposure.share(), mingleColor(exposure.tint()), BlockTransforms.CLIENT.seedOf(exposure)));
         }
         buffers.endBatch(mingle);
     }
@@ -107,8 +109,9 @@ public final class BlockMingleRenderer {
      * @param state    the state drawn over it
      * @param progress the share of the drawn state dissolved, 0 whole to 1 gone
      * @param color    the ARGB the drawn state is tinted by
+     * @param seed     the transition's mingle seed, so each use dissolves through its own field
      */
-    private record Mingle(BlockPos pos, BlockState state, float progress, int color) {
+    private record Mingle(BlockPos pos, BlockState state, float progress, int color, int seed) {
     }
 
     /**
@@ -159,7 +162,7 @@ public final class BlockMingleRenderer {
         QuadInstance instance = new QuadInstance();
         instance.setColor(mingle.color());
         instance.setLightCoords(faceLight(level, mingle.pos()));
-        instance.setOverlayCoords(progressCoords(mingle.progress()));
+        instance.setOverlayCoords(overlayCoords(mingle.progress(), mingle.seed()));
         BlockStateModel model = mc.getModelManager().getBlockStateModelSet().get(mingle.state());
         for (BakedQuad quad : quadsOf(model, level, mingle)) {
             consumer.putBakedQuad(poseStack.last(), quad, instance);
@@ -175,6 +178,18 @@ public final class BlockMingleRenderer {
      */
     static int progressCoords(float progress) {
         return Math.round(Math.clamp(progress, 0f, 1f) * PROGRESS_UNITS);
+    }
+
+    /**
+     * The overlay coordinates carrying a transition's progress in U and its
+     * mingle seed in V (decision diagnose-then-fix-dissolve-repeat).
+     *
+     * @param progress the share run, from 0 to 1
+     * @param seed     the mingle seed, from 0 to {@link BlockTransforms#SEED_UNITS} less one
+     * @return the packed overlay coordinates
+     */
+    static int overlayCoords(float progress, int seed) {
+        return progressCoords(progress) | Math.floorMod(seed, BlockTransforms.SEED_UNITS) << OVERLAY_V_SHIFT;
     }
 
     /**

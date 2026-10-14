@@ -21,6 +21,7 @@ in vec4 lightMapColor;
 in vec2 texCoord0;
 in vec3 mingleWorldPos;
 flat in float mingleProgress;
+flat in float mingleSeed;
 
 out vec4 fragColor;
 
@@ -36,7 +37,9 @@ void main() {
     // Each texel samples one value, so it stands whole, darkens whole or is gone (decision mingle-noise-snaps-to-texels).
     vec3 texelPos = mingleFaceTexel(mingleWorldPos);
     float threshold = mingleThreshold(1.0 - mingleProgress);
-    float field = mingleField(texelPos * MINGLE_BLOCK_CELLS);
+    // Each seed step moves the sample tens of cells per axis, so each use on a block dissolves through its own field
+    // (decision diagnose-then-fix-dissolve-repeat).
+    float field = mingleField(texelPos * MINGLE_BLOCK_CELLS + mingleSeed * MINGLE_SEED_OFFSET);
     if (field < threshold) {
         discard;
     }
