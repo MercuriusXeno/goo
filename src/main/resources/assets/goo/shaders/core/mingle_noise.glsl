@@ -44,6 +44,17 @@ vec2 mingleTexelSnap(vec2 p, vec2 texelsPerUnit) {
     return (floor(p * texelsPerUnit) + 0.5) / texelsPerUnit;
 }
 
+// The world texel a fragment of a face lies in. A block face sits on a texel
+// boundary, where rounding would flicker between the two texels either side,
+// so the point first steps a quarter texel off the face along its screen-space
+// normal; either side is one texel layer, the same for the whole face.
+vec3 mingleFaceTexel(vec3 worldPos) {
+    vec3 across = cross(dFdx(worldPos), dFdy(worldPos));
+    float span = length(across);
+    vec3 faceNormal = span > 0.0 ? across / span : vec3(0.0);
+    return mingleTexelSnap(worldPos - faceNormal * (0.25 / MINGLE_WORLD_TEXELS), MINGLE_WORLD_TEXELS);
+}
+
 float mingleHash(ivec3 cell) {
     uint h = uint(cell.x) * 0x8da6b343u ^ uint(cell.y) * 0xd8163841u ^ uint(cell.z) * 0xcb1ab31fu;
     h = (h ^ (h >> 15u)) * 0x2c1b3c6du;

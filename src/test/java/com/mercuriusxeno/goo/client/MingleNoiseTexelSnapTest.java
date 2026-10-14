@@ -110,4 +110,30 @@ class MingleNoiseTexelSnapTest {
             assertTrue(pickAt > snapAt, "the type pick samples the snapped pixel");
         }
     }
+
+    @Nested
+    class BlockMingleShader {
+
+        @Test
+        void theFaceTexelSnapsAtTheWorldTexel() throws IOException {
+            String noise = shader("mingle_noise.glsl");
+            int faceTexelAt = noise.indexOf("vec3 mingleFaceTexel(vec3 worldPos) {");
+
+            assertTrue(faceTexelAt >= 0, "the face texel");
+            assertTrue(noise.indexOf("return mingleTexelSnap(worldPos - faceNormal * (0.25 / MINGLE_WORLD_TEXELS), "
+                + "MINGLE_WORLD_TEXELS);", faceTexelAt) > faceTexelAt, "the face texel snaps at the world texel");
+        }
+
+        @Test
+        void theTransformSnapsItsPositionBeforeTheField() throws IOException {
+            String mingle = shader("block_mingle.fsh");
+            int snapAt = mingle.indexOf("vec3 texelPos = mingleFaceTexel(mingleWorldPos);");
+            int fieldAt = mingle.indexOf("float field = mingleField(texelPos * MINGLE_BLOCK_CELLS);");
+
+            assertTrue(snapAt >= 0, "the snap");
+            assertTrue(fieldAt > snapAt, "the field samples the snapped position");
+            assertEquals(2, mingle.split("mingleWorldPos", -1).length - 1,
+                "mingleWorldPos is declared and read only by the snap");
+        }
+    }
 }
