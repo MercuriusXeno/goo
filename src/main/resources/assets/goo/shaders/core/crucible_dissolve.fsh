@@ -6,7 +6,7 @@
 #moj_import "mingle_noise.glsl"
 
 // The dissolve of decision dissolve-shader-on-item: the mingle noise field over
-// world position is thresholded so the share of the item left standing is the
+// the item's sprite pixels is thresholded so the share of the item left standing is the
 // share not yet dissolved; fragments below the threshold are discarded, and a
 // thin band just above it glows.
 //
@@ -23,7 +23,6 @@ in float cylindricalVertexDistance;
 in vec4 vertexColor;
 in vec4 lightMapColor;
 in vec2 texCoord0;
-in vec3 dissolveWorldPos;
 flat in float dissolveFraction;
 flat in vec3 glowColor;
 flat in float glowShare;
@@ -32,26 +31,29 @@ flat in float dissolveSeed;
 
 out vec4 fragColor;
 
-// Noise cells per block: an item spans a fraction of a block, so the field runs
-// finer than the surface's goo to break it into several flecks, each still
-// several texels across (decision mingle-noise-snaps-to-texels).
-const float DISSOLVE_CELLS_PER_BLOCK = 4.0;
+// Noise cells per item pixel: a cell spans four of a 16-pixel item's pixels,
+// so a melting patch is several pixels across however small the crucible
+// draws the item (decision mingle-noise-snaps-to-texels).
+const float DISSOLVE_CELLS_PER_PIXEL = 0.25;
 // Width of the glowing band above the threshold, in field units.
 const float GLOW_BAND = 0.06;
 // The band's brightness at the threshold, above one so it reads as emissive.
 const float GLOW_STRENGTH = 1.6;
-// Scales world position into the type pick's field, so a few type patches run
+// Scales item pixels into the type pick's field, so a few type patches run
 // along the rim of one item rather than one surface goo covering it.
-const float PICK_SCALE = 2.4;
+const float PICK_SCALE = 0.06;
 // A later layer takes a fragment where its mingle opacity passes one half.
 const float PICK_OPACITY = 0.5;
 
 void main() {
-    // Each texel samples one value, so it stands wholly body, wholly glow or gone (decision mingle-noise-snaps-to-texels).
-    vec3 texelPos = mingleTexelSnap(dissolveWorldPos, MINGLE_WORLD_TEXELS);
+    // Each pixel of the item's sprite samples one value, so it stands wholly body, wholly glow or gone;
+    // the front, back and edge faces share a pixel's UV, so the pixel melts through the item whole.
+    // (decision mingle-noise-snaps-to-texels)
+    vec2 atlasPixels = vec2(textureSize(Sampler0, 0));
+    vec3 itemPixel = vec3(mingleTexelSnap(texCoord0, atlasPixels) * atlasPixels, 0.0);
     float threshold = mingleThreshold(1.0 - dissolveFraction);
     // Each seed step moves the sample tens of cells per axis, so each melt erodes through its own field (decision diagnose-then-fix-dissolve-repeat).
-    float field = mingleField(texelPos * DISSOLVE_CELLS_PER_BLOCK + dissolveSeed * MINGLE_SEED_OFFSET);
+    float field = mingleField(itemPixel * DISSOLVE_CELLS_PER_PIXEL + dissolveSeed * MINGLE_SEED_OFFSET);
     if (field < threshold) {
         discard;
     }
@@ -60,7 +62,7 @@ void main() {
         if (edge <= 0.0) {
             discard;
         }
-        float picked = mingleOpacity(texelPos * PICK_SCALE, GameTime, glowShare, glowLayer);
+        float picked = mingleOpacity(itemPixel * PICK_SCALE, GameTime, glowShare, glowLayer);
         if (picked < PICK_OPACITY) {
             discard;
         }

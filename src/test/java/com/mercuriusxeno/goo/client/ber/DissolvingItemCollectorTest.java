@@ -189,12 +189,12 @@ class DissolvingItemCollectorTest {
             return matcher.group(1);
         }
 
-        /** The fragment shader samples the dissolve field at world position offset by the melt's seed. */
+        /** The fragment shader samples the dissolve field at the item's pixel offset by the melt's seed. */
         @Test
         void fieldSampleTakesTheSeedOffset() throws IOException {
             String argument = firstGroup(shaderSource(FRAGMENT_SHADER), "float field = mingleField\\((.*)\\);");
 
-            assertTrue(argument.contains("dissolveWorldPos"), argument);
+            assertTrue(argument.contains("itemPixel"), argument);
             assertTrue(argument.contains("dissolveSeed"), "the dissolve field takes no seed: mingleField(" + argument + ")");
         }
 

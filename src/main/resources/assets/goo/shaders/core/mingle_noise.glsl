@@ -40,7 +40,7 @@ vec3 mingleTexelSnap(vec3 p, float texelsPerUnit) {
     return (floor(p * texelsPerUnit) + 0.5) / texelsPerUnit;
 }
 
-vec2 mingleTexelSnap(vec2 p, float texelsPerUnit) {
+vec2 mingleTexelSnap(vec2 p, vec2 texelsPerUnit) {
     return (floor(p * texelsPerUnit) + 0.5) / texelsPerUnit;
 }
 
