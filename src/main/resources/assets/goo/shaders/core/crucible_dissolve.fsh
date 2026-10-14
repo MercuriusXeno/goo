@@ -33,8 +33,9 @@ flat in float dissolveSeed;
 out vec4 fragColor;
 
 // Noise cells per block: an item spans a fraction of a block, so the field runs
-// finer than the surface's goo to break it into several flecks.
-const float DISSOLVE_CELLS_PER_BLOCK = 12.0;
+// finer than the surface's goo to break it into several flecks, each still
+// several texels across (decision mingle-noise-snaps-to-texels).
+const float DISSOLVE_CELLS_PER_BLOCK = 4.0;
 // Width of the glowing band above the threshold, in field units.
 const float GLOW_BAND = 0.06;
 // The band's brightness at the threshold, above one so it reads as emissive.
@@ -46,18 +47,20 @@ const float PICK_SCALE = 2.4;
 const float PICK_OPACITY = 0.5;
 
 void main() {
+    // Each texel samples one value, so it stands wholly body, wholly glow or gone (decision mingle-noise-snaps-to-texels).
+    vec3 texelPos = mingleTexelSnap(dissolveWorldPos, MINGLE_WORLD_TEXELS);
     float threshold = mingleThreshold(1.0 - dissolveFraction);
     // Each seed step moves the sample tens of cells per axis, so each melt erodes through its own field (decision diagnose-then-fix-dissolve-repeat).
-    float field = mingleField(dissolveWorldPos * DISSOLVE_CELLS_PER_BLOCK + dissolveSeed * MINGLE_SEED_OFFSET);
+    float field = mingleField(texelPos * DISSOLVE_CELLS_PER_BLOCK + dissolveSeed * MINGLE_SEED_OFFSET);
     if (field < threshold) {
         discard;
     }
-    float edge = dissolveFraction > 0.0 ? 1.0 - smoothstep(threshold, threshold + GLOW_BAND, field) : 0.0;
+    float edge = dissolveFraction > 0.0 ? 1.0 - step(threshold + GLOW_BAND, field) : 0.0;
     if (glowLayer > 0.5) {
         if (edge <= 0.0) {
             discard;
         }
-        float picked = mingleOpacity(dissolveWorldPos * PICK_SCALE, GameTime, glowShare, glowLayer);
+        float picked = mingleOpacity(texelPos * PICK_SCALE, GameTime, glowShare, glowLayer);
         if (picked < PICK_OPACITY) {
             discard;
         }
