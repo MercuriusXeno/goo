@@ -1,24 +1,17 @@
 package com.mercuriusxeno.goo.client.model;
 
-import com.mercuriusxeno.goo.ability.GloveSelection;
-import com.mercuriusxeno.goo.ability.program.ShiftStep;
-import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
-import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
-import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.ability.GloveGlow;
-import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
-import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
-import com.mercuriusxeno.goo.client.overlay.FungusNearby;
+import com.mercuriusxeno.goo.client.ability.ShardsCharge;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
+import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.QuadInstance;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -38,8 +31,8 @@ import java.util.function.Consumer;
 
 /**
  * Special item renderer for glove items. Renders the glove body model
- * (arm sheath) and overlays a small fluid cuboid in the palm area when
- * a goo type is selected. Shared by glove, glove_netherite, and glove_exorite tiers.
+ * (arm sheath) and draws the charge blob in the palm area when a goo
+ * type is selected. Shared by glove, glove_netherite, and glove_exorite tiers.
  */
 public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRenderer.GloveData> {
 
@@ -57,21 +50,24 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      */
     private static final int COLOR_WHITE = 0xFFFFFFFF;
     /**
-     * Half-width of the held goo cuboid in model pixels.
-     */
-    private static final float GOO_HW_PX = 2.5f;
-    /**
      * Center X of the goo in model pixels.
      */
     private static final float GOO_CX_PX = 8f;
     /**
-     * Center Y of the goo in model pixels.
+     * Where the palm blob's bottom rests in model pixels: a quarter pixel
+     * above the finger plate's top face, so the shell never shares that face
+     * and swells up the palm rather than down through the fingers.
      */
-    private static final float GOO_CY_PX = 3.5f;
+    private static final float PALM_FLOOR_PX = 1.25f;
     /**
-     * Center Z of the goo in model pixels.
+     * Where the palm blob's back face sits in model pixels: inside the
+     * hand, hidden by it, so the swell grows out of the palm.
      */
-    private static final float GOO_CZ_PX = 6f;
+    private static final float PALM_BACK_Z_PX = 8.5f;
+    /**
+     * Half-width of the shell at rest in model pixels, a flight blob's own.
+     */
+    private static final float SHELL_HW_PX = GooFlightRenderer.SHELL_HW * 16f;
     /**
      * Minimum extent X in model pixels.
      */
@@ -165,25 +161,48 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
     }
 
     /**
-     * Renders a fluid cuboid (5x5x5 pixels) in the palm area,
-     * sitting above the finger plate so the goo is substantial.
+     * Draws the held goo in the palm as the charge blob, a pulsing opaque
+     * core inside a translucent tinted shell, both fullbright, resting on
+     * the fingers with its back in the hand. A charge swells both layers
+     * from that floor and back, so the blob grows up and out of the palm.
+     * decision palm-blob-draws-as-the-charge-blob
+     * decision charge-swells-the-palm-blob
      *
      * @param poseStack     the pose stack for rendering
      * @param nodeCollector the render node collector
-     * @param packedLight   the packed light value
      * @param type          the goo type
+     * @param blobScale     the blob's size against its rest size
      */
-    private static void submitHeldGoo(PoseStack poseStack,
-                                       SubmitNodeCollector nodeCollector, int packedLight, ResourceKey<GooTypeDefinition> type) {
-        float hw = GOO_HW_PX / BLOCK_PIXELS;
+    private static void submitHeldGoo(PoseStack poseStack, SubmitNodeCollector nodeCollector,
+                                      ResourceKey<GooTypeDefinition> type, float blobScale) {
+        float hwPx = SHELL_HW_PX * blobScale;
         float cx = GOO_CX_PX / BLOCK_PIXELS;
-        float cy = GOO_CY_PX / BLOCK_PIXELS;
-        float cz = GOO_CZ_PX / BLOCK_PIXELS;
+        float cy = (PALM_FLOOR_PX + hwPx) / BLOCK_PIXELS;
+        float cz = (PALM_BACK_Z_PX - hwPx) / BLOCK_PIXELS;
+        float scale = blobScale;
+        float gameTime = gameTime();
 
         captureGooCenter(poseStack, cx, cy, cz);
 
+        poseStack.pushPose();
+        poseStack.translate(cx, cy, cz);
+        nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.solidOnBlockAtlas(),
+                (pose, c) -> GooFlightRenderer.emitCore(pose, c, type, gameTime, scale));
         nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
-                (pose, c) -> emitGooFaces(pose, c, packedLight, type, cx, cy, cz, hw));
+                (pose, c) -> GooFlightRenderer.emitShell(pose, c, type, scale));
+        poseStack.popPose();
+    }
+
+    /**
+     * The level's game time with the frame's partial tick, zero with no
+     * level so the inventory slot still draws the blob.
+     *
+     * @return the game time in ticks
+     */
+    private static float gameTime() {
+        Minecraft mc = Minecraft.getInstance();
+        return mc.level == null ? 0f
+                : mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
     }
 
     /**
@@ -199,44 +218,13 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         if (strength <= 0f) {
             return;
         }
-        Minecraft mc = Minecraft.getInstance();
-        float time = mc.level == null ? 0f
-                : mc.level.getGameTime() + mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        float time = gameTime();
         poseStack.pushPose();
-        poseStack.translate(GOO_CX_PX / BLOCK_PIXELS, GOO_CY_PX / BLOCK_PIXELS, GOO_CZ_PX / BLOCK_PIXELS);
+        poseStack.translate(GOO_CX_PX / BLOCK_PIXELS, (PALM_FLOOR_PX + SHELL_HW_PX) / BLOCK_PIXELS,
+                (PALM_BACK_Z_PX - SHELL_HW_PX) / BLOCK_PIXELS);
         nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.GLOW_SHELL_TYPE,
-                (pose, c) -> GloveGlow.emitShells(pose, c, GOO_HW_PX / BLOCK_PIXELS, strength, time));
+                (pose, c) -> GloveGlow.emitShells(pose, c, SHELL_HW_PX / BLOCK_PIXELS, strength, time));
         poseStack.popPose();
-    }
-
-    /**
-     * Emits all six faces of the held goo cuboid.
-     *
-     * @param pose        the pose matrix entry
-     * @param c           the vertex consumer for geometry output
-     * @param packedLight the packed light value
-     * @param type        the goo type determining the fluid texture
-     * @param cx          the goo center X in block coords
-     * @param cy          the goo center Y in block coords
-     * @param cz          the goo center Z in block coords
-     * @param hw          the half-width of the cuboid in block coords
-     */
-    private static void emitGooFaces(PoseStack.Pose pose, VertexConsumer c, int packedLight,
-                                      ResourceKey<GooTypeDefinition> type, float cx, float cy, float cz, float hw) {
-        GooRenderUtil.UvRect uv = buildGooUv(type);
-
-        CuboidBounds goo = new CuboidBounds(cx - hw, cx + hw, cz - hw, cz + hw, cy - hw, cy + hw);
-        new RenderContext(pose, c, packedLight).emitBox(goo, uv);
-    }
-
-    /**
-     * Builds the UV rectangle from the goo type's fluid sprite.
-     *
-     * @param type the goo type to look up the fluid sprite for
-     * @return the UV rectangle covering the full fluid sprite
-     */
-    private static GooRenderUtil.UvRect buildGooUv(ResourceKey<GooTypeDefinition> type) {
-        return GooSubmitter.spriteUv(GooRenderUtil.lookupFluidSprite(type));
     }
 
     /**
@@ -274,9 +262,8 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         if (type != null && !GloveUseTracker.isSelectedTypeAvailable()) {
             type = null;
         }
-        float channelGlow = channelGlowOf(type, stack);
-        return new GloveData(stack.getItem(), type, type != null && (channelGlow > 0f || glowsNearFungus(stack)),
-                channelGlow);
+        return new GloveData(stack.getItem(), type, channelGlowOf(type, stack),
+                ShardsCharge.palmScaleAt(ShardsCharge.localPalmShare(stack)));
     }
 
     /**
@@ -312,8 +299,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
         submitGloveBody(poseStack, nodeCollector, packedLight, gloveItem);
 
         if (data != null && data.selectedType() != null) {
-            int light = data.glows() ? GooSubmitter.fullbrightLight() : packedLight;
-            submitHeldGoo(poseStack, nodeCollector, light, data.selectedType());
+            submitHeldGoo(poseStack, nodeCollector, data.selectedType(), data.blobScale());
             submitChannelGlow(poseStack, nodeCollector, data.channelGlow());
         }
 
@@ -337,25 +323,11 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
      *
      * @param item         the glove item instance (determines tier/body model)
      * @param selectedType the selected goo type, or null if none selected
-     * @param glows        whether the held goo brightens: Fungal Shift selected near a fungus, or a glow channel held
      * @param channelGlow  how strongly the light around the held goo glows while a glow channel holds, zero to one
+     * @param blobScale    the palm blob's size against its rest size, swelling with the local charge
      */
-    public record GloveData(Item item, @Nullable ResourceKey<GooTypeDefinition> selectedType, boolean glows,
-                            float channelGlow) {
-    }
-
-    /**
-     * Whether the glove's goo brightens: its selection shifts to fungus and
-     * the player stands near enough a fungus to start the shift
-     * (decision fungal-shift-blinks-to-the-aimed-fungus).
-     *
-     * @param stack the glove
-     * @return true while a Fungal Shift could start from here
-     */
-    private static boolean glowsNearFungus(ItemStack stack) {
-        GloveSelection selection = GooGloveItem.getSelection(stack);
-        ClientAbility ability = selection == null ? null : AbilitySyncHandler.findAbility(selection.abilityId());
-        return ability != null && ShiftStep.fungusNear(ability.behaviors()).isPresent() && FungusNearby.isNear();
+    public record GloveData(Item item, @Nullable ResourceKey<GooTypeDefinition> selectedType, float channelGlow,
+                            float blobScale) {
     }
 
 

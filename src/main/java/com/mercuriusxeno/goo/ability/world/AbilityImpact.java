@@ -125,7 +125,7 @@ public final class AbilityImpact {
         }
         BlockPos cell = spot.get().cell();
         LandingHost host = new LandingHost(level, cell, face, spot.get().waterlogged(), type,
-                ability.id().toString(), point == null ? Vec3.atCenterOf(cell) : point, size);
+                ability.id().toString(), point == null ? Vec3.atCenterOf(cell) : point, size, caster);
         AbilitySplat.resolve(new Landing(host, ability));
     }
 

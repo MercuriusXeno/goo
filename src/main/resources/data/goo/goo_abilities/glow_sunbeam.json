@@ -43,5 +43,6 @@
     { "type": "sound", "id": "minecraft:block.beacon.power_select", "at": "host", "source": "blocks", "volume": 1, "pitch": 1.6 },
     { "type": "reflector", "every": 20 }
   ],
-  "tags": ["self", "locks_on"]
+  "tags": ["self", "locks_on"],
+  "pose": "held_out"
 }

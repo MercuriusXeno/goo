@@ -10,7 +10,6 @@ import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
-import com.mercuriusxeno.goo.registry.GooEnchantments;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.renderer.LevelRenderer;
@@ -192,18 +191,18 @@ public class ReactorBlockEntityRenderer
     }
 
     /**
-     * Reads compression level, gasket caps and goo fill from the canister stack.
+     * Reads gasket caps and goo fill from the canister stack, the fill against
+     * the capacity its void grows.
      *
      * @param canister the canister item stack
      * @param state    the render state to populate
      */
     private static void extractContents(ItemStack canister, ReactorRenderState state) {
-        state.slot.compression = GooEnchantments.getCompressionLevel(canister);
         CanisterMetadata meta = CanisterItem.getMetadata(canister);
         state.slot.topGasketPresent = meta.topGasketId() != null;
         state.slot.bottomGasketPresent = meta.bottomGasketId() != null;
         CanisterFluidContent content = CanisterItem.getFluidContent(canister);
-        state.slot.showContent(content, ContainerCapacity.canisterCapacity(state.slot.compression));
+        state.slot.showContent(content, content.capacityOver(ContainerCapacity.CANISTER_BASE));
     }
 
     /**

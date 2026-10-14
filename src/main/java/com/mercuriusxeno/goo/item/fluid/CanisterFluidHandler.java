@@ -3,9 +3,6 @@ package com.mercuriusxeno.goo.item.fluid;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
-import com.mercuriusxeno.goo.registry.GooEnchantments;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.access.ItemAccess;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
@@ -16,10 +13,11 @@ import java.util.function.UnaryOperator;
 /**
  * Item fluid handler for canisters: one tank per fluid held, in arrival order,
  * plus one empty tank for a fluid not yet held, every tank on the one shared
- * capacity the Compression enchantment sets. An insert or extract finds its
- * fluid's tank by resource, whichever index the caller names.
+ * capacity the held void grows. An insert or extract finds its fluid's tank by
+ * resource, whichever index the caller names.
  *
  * decision canisters-hold-more-than-one-goo-type
+ * decision each-void-mb-adds-n-plus-one-capacity
  */
 public class CanisterFluidHandler implements ResourceHandler<FluidResource> {
 
@@ -52,7 +50,7 @@ public class CanisterFluidHandler implements ResourceHandler<FluidResource> {
     }
 
     /**
-     * The shared capacity less the volume every other tank holds.
+     * The room the resource has, counting this tank's own volume.
      *
      * @param index    the tank index
      * @param resource the fluid resource
@@ -60,9 +58,8 @@ public class CanisterFluidHandler implements ResourceHandler<FluidResource> {
      */
     @Override
     public long getCapacityAsLong(int index, FluidResource resource) {
-        ItemResource item = itemAccess.getResource();
-        CanisterFluidContent content = readContent(item);
-        return readCapacity(item) - content.totalVolume() + getAmountAsLong(index);
+        CanisterFluidContent content = readContent(itemAccess.getResource());
+        return (long) content.roomFor(resource, ContainerCapacity.CANISTER_BASE) + getAmountAsLong(index);
     }
 
     /**
@@ -87,9 +84,9 @@ public class CanisterFluidHandler implements ResourceHandler<FluidResource> {
         if (count == 0) {
             return 0;
         }
-        int capacity = readCapacity(item);
-        int perItem = readContent(item).cappedAddAmount(resource, amount / count, capacity);
-        return exchange(item, count, perItem, content -> content.withCappedAdd(resource, perItem, capacity), transaction);
+        int base = ContainerCapacity.CANISTER_BASE;
+        int perItem = readContent(item).cappedAddAmount(resource, amount / count, base);
+        return exchange(item, count, perItem, content -> content.withCappedAdd(resource, perItem, base), transaction);
     }
 
     @Override
@@ -102,7 +99,7 @@ public class CanisterFluidHandler implements ResourceHandler<FluidResource> {
         if (count == 0) {
             return 0;
         }
-        int perItem = Math.min(amount / count, readContent(item).releasableVolumeOf(resource));
+        int perItem = Math.min(amount / count, readContent(item).releasableVolumeOf(resource, ContainerCapacity.CANISTER_BASE));
         return exchange(item, count, perItem, content -> content.withRemoved(resource, perItem), transaction);
     }
 
@@ -148,30 +145,5 @@ public class CanisterFluidHandler implements ResourceHandler<FluidResource> {
         return content.isEmpty()
             ? item.without(GooDataComponents.CANISTER_FLUID_CONTENT)
             : item.with(GooDataComponents.CANISTER_FLUID_CONTENT, content);
-    }
-
-    /**
-     * Reads canister capacity from the Compression enchantment.
-     * @param item the item resource to read enchantments from
-     * @return the canister capacity in mB based on compression level
-     */
-    private static int readCapacity(ItemResource item) {
-        ItemEnchantments enchants = item.getComponents().getOrDefault(
-            DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY);
-        return ContainerCapacity.canisterCapacity(findCompressionLevel(enchants));
-    }
-
-    /**
-     * Scans enchantments for the Compression enchant and returns its level.
-     * @param enchants the enchantment set to search
-     * @return the compression enchantment level, or 0 if absent
-     */
-    private static int findCompressionLevel(ItemEnchantments enchants) {
-        for (var entry : enchants.entrySet()) {
-            if (entry.getKey().is(GooEnchantments.COMPRESSION)) {
-                return entry.getIntValue();
-            }
-        }
-        return 0;
     }
 }

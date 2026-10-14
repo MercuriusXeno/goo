@@ -191,6 +191,51 @@ public record GooContents(Map<ResourceKey<GooTypeDefinition>, Integer> contents)
     }
 
     /**
+     * The capacity over a base, grown by the void held.
+     * decision each-void-mb-adds-n-plus-one-capacity
+     *
+     * @param base the capacity with no void (mB)
+     * @return the capacity (mB)
+     */
+    public int capacityOver(int base) {
+        return ContainerCapacity.capacity(base, getVolume(GooTypes.VOID));
+    }
+
+    /**
+     * The room one goo type has over a base: void reaches past the capacity it
+     * grows as it arrives, every other type fills the capacity the void sets.
+     * decision each-void-mb-adds-n-plus-one-capacity
+     *
+     * @param type the goo type to add
+     * @param base the capacity with no void (mB)
+     * @return the room (mB)
+     */
+    public int roomFor(ResourceKey<GooTypeDefinition> type, int base) {
+        return ContainerCapacity.room(GooTypes.VOID.equals(type), base, totalVolume(), getVolume(GooTypes.VOID));
+    }
+
+    /**
+     * The volume of one goo type that may leave: all of it, save infinity, which
+     * never leaves, and void, which leaves only down to the amount whose loss
+     * would leave the rest over the capacity the remaining void sets.
+     * decision infinity-sources-whatever-shares-its-vessel
+     * decision each-void-mb-adds-n-plus-one-capacity
+     *
+     * @param type the goo type to remove
+     * @param base the capacity with no void (mB)
+     * @return the volume (mB) a removal may take
+     */
+    public int releasableVolumeOf(ResourceKey<GooTypeDefinition> type, int base) {
+        if (GooTypes.isUnspendable(type)) {
+            return 0;
+        }
+        int held = getVolume(type);
+        return GooTypes.VOID.equals(type)
+                ? Math.min(held, ContainerCapacity.releasableVoid(base, totalVolume(), held))
+                : held;
+    }
+
+    /**
      * Returns an unmodifiable view of all contents.
      *
      * @return map of goo type to volume
