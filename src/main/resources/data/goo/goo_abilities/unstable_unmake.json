@@ -9,5 +9,6 @@
   "behaviors": [
     { "type": "siphon" }
   ],
-  "tags": ["self"]
+  "tags": ["self"],
+  "pose": "held_out"
 }

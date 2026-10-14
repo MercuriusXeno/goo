@@ -2,13 +2,11 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
-import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
@@ -46,7 +44,9 @@ public final class GooTouchHandler {
         void deplete(int cost);
 
         /**
-         * Swings the glove hand and runs the ability on the touched entity.
+         * Runs the ability on the touched entity; the toucher's client poses
+         * the arm, and an attack-key touch keeps vanilla's own swing
+         * (decisions use-key-throw-swings-no-more, attack-key-touches-plus-punches).
          */
         void strike();
     }
@@ -168,15 +168,9 @@ public final class GooTouchHandler {
 
         @Override
         public void strike() {
-            player.swing(gloveHand(player), true);
             GooEffectScheduler.applyEffect(new PendingEffect(0, player.level(), player, gooType,
                     payload.targetEntityId(), payload.targetPos(),
                     GooThrowHandler.directionFromOrdinal(payload.targetFace()), payload.abilityId()));
-        }
-
-        private static InteractionHand gloveHand(ServerPlayer player) {
-            return player.getMainHandItem().getItem() instanceof GooGloveItem
-                    ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
         }
     }
 }

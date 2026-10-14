@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -64,6 +65,19 @@ class GooReactionTest {
     }
 
     /**
+     * Void's only source is the reaction of astral and deep, one of each giving two void
+     * (decision void-ships-from-astral-and-deep).
+     */
+    @Test
+    void voidReactionTakesAstralAndDeepAndGivesTwoVoid() throws IOException, URISyntaxException {
+        GooReaction reaction = shippedReactions().get("void_from_astral_deep");
+        assertNotNull(reaction, "void_from_astral_deep is not shipped");
+        assertEquals(Map.of(GooTypes.ASTRAL, 1, GooTypes.DEEP, 1), amounts(reaction.inputs()));
+        assertEquals(Map.of(GooTypes.VOID, 2), amounts(reaction.outputs()));
+        assertEquals(1, reaction.rate());
+    }
+
+    /**
      * Every pair of shipped reactions differs in its input set.
      */
     @Test
@@ -81,6 +95,14 @@ class GooReactionTest {
             names.add(entry.fluid().map(key -> key, fluid -> fluid));
         }
         return names;
+    }
+
+    private static Map<Object, Integer> amounts(List<GooReaction.FluidEntry> entries) {
+        Map<Object, Integer> amounts = new HashMap<>();
+        for (GooReaction.FluidEntry entry : entries) {
+            amounts.merge(entry.fluid().map(key -> key, fluid -> fluid), entry.amount(), Integer::sum);
+        }
+        return amounts;
     }
 
     private static Map<String, GooReaction> shippedReactions() throws IOException, URISyntaxException {

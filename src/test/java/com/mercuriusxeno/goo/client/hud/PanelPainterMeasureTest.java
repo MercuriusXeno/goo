@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.client.machine.VatStackAggregator.VatStackData;
+import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -47,19 +48,20 @@ class PanelPainterMeasureTest {
         twoTypes.put(GooTypes.BLAZE, 250);
         PanelRow fuelSixtySeconds = PanelRow.iconText(Identifier.withDefaultNamespace("fuel"), "60s", 0);
         return Stream.of(
-                // label "Tank" 24, "Lv 2" 24, "500" row 12+18=30: 30+6 by 6+3*11
-                Arguments.of("canister label upgrade goo",
-                        CanisterPanelRows.rows("Tank", 2, rock500), 36f, 39f),
+                // label "Tank" 24, "500" row 12+18=30: 30+6 by 6+2*11
+                Arguments.of("canister label goo",
+                        CanisterPanelRows.rows("Tank", rock500), 36f, 28f),
                 Arguments.of("canister goo only",
-                        CanisterPanelRows.rows(null, 0, rock500), 36f, 17f),
-                // "Reservoir North" 90 is the widest; two header rows
-                Arguments.of("canister empty with label and upgrade",
-                        CanisterPanelRows.rows("Reservoir North", 3, GooContents.EMPTY), 96f, 28f),
-                // "Stack: 3" 48 is the widest; three headers and two goo rows
+                        CanisterPanelRows.rows(null, rock500), 36f, 17f),
+                // "Reservoir North" 90 is the widest; one header row
+                Arguments.of("canister empty with label",
+                        CanisterPanelRows.rows("Reservoir North", GooContents.EMPTY), 96f, 17f),
+                // "750 / 33.5M" 66 is the widest; two headers, two goo rows and the fill row
                 Arguments.of("vat stack with every header",
-                        VatPanelRows.rows(vat(contents(twoTypes), 1, "Main", 3)), 54f, 61f),
+                        VatPanelRows.rows(vat(contents(twoTypes), "Main", 3)), 72f, 61f),
+                // "500 / 33.5M" 66 beats the "500" row 30; the goo row and the fill row
                 Arguments.of("vat single goo only",
-                        VatPanelRows.rows(vat(rock500, 0, null, 1)), 36f, 17f),
+                        VatPanelRows.rows(vat(rock500, null, 1)), 72f, 28f),
                 // the "9.99K / 9.99K" floor, 78 after icon and gap: 90+6 by 6+11
                 Arguments.of("crucible reservoir and pool",
                         CruciblePanelRows.rows(rock500, rock250, List.of()), 96f, 17f),
@@ -201,15 +203,14 @@ class PanelPainterMeasureTest {
     }
 
     /**
-     * Builds vat stack data with no gaskets.
+     * Builds vat stack data with no gaskets, at a vat's base capacity.
      *
-     * @param contents    the stack's summed contents
-     * @param compression the targeted vat's compression level
-     * @param label       the targeted vat's label, or null
-     * @param stackSize   the vats in the stack
+     * @param contents  the stack's summed contents
+     * @param label     the targeted vat's label, or null
+     * @param stackSize the vats in the stack
      * @return the stack data
      */
-    private static VatStackData vat(GooContents contents, int compression, String label, int stackSize) {
-        return new VatStackData(contents, 0, compression, false, false, label, null, null, stackSize);
+    private static VatStackData vat(GooContents contents, String label, int stackSize) {
+        return new VatStackData(contents, 0, ContainerCapacity.VAT_BASE, false, false, label, null, null, stackSize);
     }
 }

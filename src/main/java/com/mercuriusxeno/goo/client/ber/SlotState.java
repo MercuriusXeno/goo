@@ -22,8 +22,6 @@ import java.util.Map;
  * <ul>
  *   <li>{@code fluid} - vanilla fluids in canister slots; Hub leaves
  *       this {@link Fluids#EMPTY}.</li>
- *   <li>{@code compression} - canister Compression enchantment level; consumed by
- *       Tap/Reactor renderers, ignored by Hub/Canister.</li>
  *   <li>{@code topGasketPresent} / {@code bottomGasketPresent} - choral
  *       gasket caps; populated by Hub and Canister.</li>
  *   <li>Stream fields - active gasket flow visualization; populated by
@@ -44,8 +42,6 @@ public final class SlotState {
      * than one draws the mingled surface (decision noise-mingled-type-textures).
      */
     public List<TypeBand> bands = List.of();
-    /** Compression level of the inserted canister (Tap / Reactor only). */
-    public int compression;
     /** True if a top gasket cap is installed. */
     public boolean topGasketPresent;
     /** True if a bottom gasket cap is installed. */

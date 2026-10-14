@@ -31,8 +31,10 @@ import org.jspecify.annotations.Nullable;
  * Client-side tracker for the glove press: resolves the use key through
  * {@link GloveInputGate}, previewing the ability's area while the key is
  * held and throwing when it comes up, or streaming from the press for a
- * stream. Auto-registered via EventBusSubscriber.
+ * stream, the glove arm posed by the ability, or swung for a blob thrown.
+ * Auto-registered via EventBusSubscriber.
  * decision right-click-held-previews-release-throws
+ * decision use-key-throw-swings-no-more
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class GloveUseTracker {
@@ -218,6 +220,9 @@ public final class GloveUseTracker {
      */
     private static void trackGloveHold(Minecraft mc, LocalPlayer player) {
         if (mc.screen != null || !(player.getItemInHand(pressHand).getItem() instanceof GooGloveItem)) {
+            if (PRESS.isArmed()) {
+                GlovePoses.drop(player);
+            }
             PRESS.cancel();
             return;
         }
@@ -228,35 +233,53 @@ public final class GloveUseTracker {
      * What a glove press resolves to for the local player.
      *
      * @param player the local player
-     * @return the throw, swing, stream and stream check the press runs
+     * @return the throw, arm pose, stream and stream check the press runs
      */
     private static GloveInputGate.PressActions pressActions(LocalPlayer player) {
-        return new GloveInputGate.PressActions() {
-            @Override
-            public boolean sendThrow(int heldTicks) {
-                return GloveThrowSender.sendThrow(player, heldTicks);
-            }
+        return new LocalPress(player);
+    }
 
-            @Override
-            public void swing() {
-                swingUnlessSlinging(player);
-            }
+    /**
+     * The local player's glove press: its throw, arm pose and stream.
+     *
+     * @param player the local player
+     */
+    private record LocalPress(LocalPlayer player) implements GloveInputGate.PressActions {
 
-            @Override
-            public void hold() {
-                GloveThrowSender.sendHold(player);
-            }
+        @Override
+        public boolean sendThrow(int heldTicks) {
+            return GloveThrowSender.sendThrow(player, heldTicks);
+        }
 
-            @Override
-            public boolean eatsOnPress() {
-                return selectedEats(player);
-            }
+        @Override
+        public void holdPose() {
+            GlovePoses.hold(player);
+        }
 
-            @Override
-            public boolean runsWhileHeld() {
-                return selectedRunsWhileHeld(player);
-            }
-        };
+        @Override
+        public void releasePose() {
+            GlovePoses.release(player, pressHand);
+        }
+
+        @Override
+        public void dropPose() {
+            GlovePoses.drop(player);
+        }
+
+        @Override
+        public void hold() {
+            GloveThrowSender.sendHold(player);
+        }
+
+        @Override
+        public boolean eatsOnPress() {
+            return selectedEats(player);
+        }
+
+        @Override
+        public boolean runsWhileHeld() {
+            return selectedRunsWhileHeld(player);
+        }
     }
 
     /**
@@ -270,32 +293,6 @@ public final class GloveUseTracker {
         GloveSelection selection = GloveThrowSender.heldSelection(player);
         return selection != null && SelfEatRoute.eats(GloveThrowSender.selectedDelivery(selection.abilityId()),
                 GloveThrowSender.selectedBadge(selection.abilityId()));
-    }
-
-    /**
-     * Swings the glove arm on a throw, except for a slinging charge, whose
-     * release flings the arm in its own pose
-     * (decision shards-sling-then-morph-to-flechettes).
-     *
-     * @param player the local player
-     */
-    private static void swingUnlessSlinging(LocalPlayer player) {
-        if (!selectedSlings(player)) {
-            player.swing(pressHand);
-        }
-    }
-
-    /**
-     * Whether the held glove's selection charges and slings on release, so
-     * its arm takes the wind-up and fling pose in place of the swing
-     * (decision shards-sling-then-morph-to-flechettes).
-     *
-     * @param player the local player
-     * @return true for a slinging selection
-     */
-    public static boolean selectedSlings(LocalPlayer player) {
-        GloveSelection selection = GloveThrowSender.heldSelection(player);
-        return selection != null && GloveThrowSender.selectedDelivery(selection.abilityId()).charge().slings();
     }
 
     /**

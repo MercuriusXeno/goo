@@ -5,8 +5,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Supplies the vat HUD panel's rows: label, stack size, upgrade level, then
- * the stack's goo rows (decision one-panel-painter-takes-rows), then its water row.
+ * Supplies the vat HUD panel's rows: label, stack size, then the stack's goo
+ * rows (decision one-panel-painter-takes-rows), then its water row, then the
+ * total against the capacity the held void grows (decision
+ * each-void-mb-adds-n-plus-one-capacity).
  */
 final class VatPanelRows {
 
@@ -32,13 +34,14 @@ final class VatPanelRows {
         if (data.stackSize() > 1) {
             headers.add(PanelRow.header(STACK_PREFIX + data.stackSize(), STACK_COLOR));
         }
-        if (data.compression() > 0) {
-            headers.add(PanelPainter.upgradeRow(data.compression()));
-        }
         List<PanelRow> rows = PanelPainter.rows(headers, data.contents());
         // A vat holds water beside its goo (decision diagnose-then-fix-vat-hud-water-row).
         if (data.water() > 0) {
             rows.add(PanelPainter.waterRow(data.water()));
+        }
+        long total = data.contents().totalVolume() + data.water();
+        if (total > 0) {
+            rows.add(PanelPainter.fillRow(total, data.capacity()));
         }
         return rows;
     }

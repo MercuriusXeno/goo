@@ -5,7 +5,6 @@ import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.VatBlockItem;
-import com.mercuriusxeno.goo.registry.GooEnchantments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.serialization.MapCodec;
@@ -130,8 +129,7 @@ public class VatSpecialRenderer implements SpecialModelRenderer<VatSpecialRender
         if (contents.isEmpty()) {
             return null;
         }
-        int compression = GooEnchantments.getCompressionLevel(stack);
-        int capacity = ContainerCapacity.vatCapacity(compression);
+        int capacity = contents.capacityOver(ContainerCapacity.VAT_BASE);
         float fill = Math.min(1f, (float) contents.totalVolume() / capacity);
         return new VatData(contents.largestType(), fill);
     }

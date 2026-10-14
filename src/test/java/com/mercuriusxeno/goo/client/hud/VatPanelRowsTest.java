@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.client.machine.VatStackAggregator.VatStackData;
+import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.type.GooTypes;
 import org.junit.jupiter.api.Test;
@@ -12,29 +13,30 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests the vat HUD's rows: the stack's water reads as a fluid row beside its goo rows
- * (decision diagnose-then-fix-vat-hud-water-row).
+ * (decision diagnose-then-fix-vat-hud-water-row), then the total against the capacity
+ * the held void grows (decision each-void-mb-adds-n-plus-one-capacity).
  */
 class VatPanelRowsTest {
 
     /** The water a stack holds in the tests. */
     private static final long WATER = 4_000_000L;
 
-    /** A stack holding water paints a see-through fluid row carrying the compact amount text. */
+    /** A stack holding water paints a see-through fluid row carrying the compact amount text, then its fill. */
     @Test
     void stackHoldingWaterPaintsWaterRow() {
-        List<PanelRow> rows = VatPanelRows.rows(vat(GooContents.EMPTY, WATER));
+        List<PanelRow> rows = VatPanelRows.rows(vat(GooContents.EMPTY, WATER, ContainerCapacity.VAT_BASE));
 
-        PanelRow waterRow = rows.getLast();
-        assertEquals(1, rows.size());
+        PanelRow waterRow = rows.getFirst();
+        assertEquals(2, rows.size());
         assertTrue(waterRow.seeThrough());
         assertEquals(PanelPainter.waterIcon(), waterRow.icon());
         assertEquals("4M", waterRow.segments().getFirst().text());
     }
 
-    /** A stack holding no water paints no fluid row. */
+    /** A stack holding nothing paints no row. */
     @Test
-    void stackHoldingNoWaterPaintsNoWaterRow() {
-        List<PanelRow> rows = VatPanelRows.rows(vat(GooContents.EMPTY, 0));
+    void stackHoldingNothingPaintsNoRow() {
+        List<PanelRow> rows = VatPanelRows.rows(vat(GooContents.EMPTY, 0, ContainerCapacity.VAT_BASE));
 
         assertTrue(rows.isEmpty());
     }
@@ -43,23 +45,34 @@ class VatPanelRowsTest {
     @Test
     void stackHoldingGooAndWaterPaintsBoth() {
         GooContents goo = new GooContents(Map.of(GooTypes.ROCK, 1000, GooTypes.BLAZE, 500));
-        List<PanelRow> rows = VatPanelRows.rows(vat(goo, WATER));
+        List<PanelRow> rows = VatPanelRows.rows(vat(goo, WATER, ContainerCapacity.VAT_BASE));
 
-        List<PanelRow> gooRows = rows.subList(0, rows.size() - 1);
-        assertEquals(3, rows.size());
+        List<PanelRow> gooRows = rows.subList(0, 2);
+        assertEquals(4, rows.size());
         assertFalse(gooRows.stream().anyMatch(PanelRow::seeThrough));
-        assertEquals(PanelPainter.waterIcon(), rows.getLast().icon());
-        assertEquals(PanelPainter.waterRow(WATER), rows.getLast());
+        assertEquals(PanelPainter.waterRow(WATER), rows.get(2));
+    }
+
+    /** The last row reads the goo and water together against the capacity the stack's void grows. */
+    @Test
+    void stackReadsItsTotalAgainstTheCapacityItsVoidGrows() {
+        int voidHeld = 8_062;
+        int capacity = ContainerCapacity.vatCapacity(voidHeld);
+        GooContents goo = new GooContents(Map.of(GooTypes.VOID, voidHeld));
+        List<PanelRow> rows = VatPanelRows.rows(vat(goo, WATER, capacity));
+
+        assertEquals(PanelPainter.fillRow(voidHeld + WATER, capacity), rows.getLast());
     }
 
     /**
-     * Builds unlabeled single vat stack data with no gaskets and no upgrade.
+     * Builds unlabeled single vat stack data with no gaskets.
      *
      * @param contents the stack's summed goo contents
      * @param water    the stack's summed water
+     * @param capacity the stack's summed capacity
      * @return the stack data
      */
-    private static VatStackData vat(GooContents contents, long water) {
-        return new VatStackData(contents, water, 0, false, false, null, null, null, 1);
+    private static VatStackData vat(GooContents contents, long water, long capacity) {
+        return new VatStackData(contents, water, capacity, false, false, null, null, null, 1);
     }
 }

@@ -8,35 +8,31 @@ import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.client.throwing.GloveUseTracker;
 import com.mercuriusxeno.goo.client.throwing.GooFlightRenderer;
-import com.mercuriusxeno.goo.item.GooGloveItem;
-import com.mercuriusxeno.goo.network.ChargeHoldPayload;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderHandEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.jspecify.annotations.Nullable;
 
 /**
  * Shards' charge, seen and heard while right click holds it: the glove
- * hand eases left across the chest with a goo blob swelling in it as the
- * charge grows, a chime climbing in pitch at each step of the charge and a
- * ring of resonance once it is full. The hold goes to the server, so the
- * players watching see the arm wound up and the goo in the hand.
+ * hand eases left across the chest with the goo in its palm swelling as
+ * the charge grows, a chime climbing in pitch at each step of the charge and a
+ * ring of resonance once it is full. The glove press poses the arm, so the
+ * players watching see it wound up with the goo in the hand.
  * decision shards-sling-then-morph-to-flechettes
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
@@ -55,22 +51,22 @@ public final class ShardsCharge {
     private static final double AHEAD = 0.42;
     private static final double GLOVE_SIDE = 0.35;
     private static final double ACROSS = 0.45;
-    /** The first-person hand's place before the eye, where vanilla holds an item, a little above it. */
-    private static final float HAND_SIDE = 0.56f;
-    private static final float HAND_DOWN = -0.42f;
-    private static final float HAND_AHEAD = -0.8f;
+    /**
+     * The glove's palm blob against its own rest size, as the charge begins
+     * and once it is full; at its fullest the shell stays inside the hand's
+     * six-pixel width.
+     */
+    static final float PALM_REST = 1f;
+    static final float PALM_FULLEST = 1.2f;
     private static final float CHIME_VOLUME = 0.55f;
     private static final float CHIME_PITCH_LOW = 0.8f;
     private static final float CHIME_PITCH_SPAN = 1.2f;
     private static final float FULL_VOLUME = 0.8f;
     private static final float FULL_PITCH = 1.5f;
     private static final float RIGHT_ANGLE = 90f;
-    private static final float MIRRORED = -1f;
 
     /** The charge steps the local hold has chimed, so a new one chimes. */
     private static int shownLocally;
-    /** Whether the server has been told the local hold began. */
-    private static boolean holdSent;
 
     private ShardsCharge() {
     }
@@ -99,8 +95,52 @@ public final class ShardsCharge {
     }
 
     /**
-     * Client tick: follows the local hold, posing the arm, telling the
-     * server as the hold begins and ends, and chiming each step in.
+     * The glove's palm blob at a share of a full charge: its rest size as
+     * the charge begins, swelling to its fullest at full charge.
+     * decision charge-swells-the-palm-blob
+     *
+     * @param share the share of a full charge, 0 to 1
+     * @return its size against its rest size
+     */
+    public static float palmScaleAt(float share) {
+        return PALM_REST + (PALM_FULLEST - PALM_REST) * Math.clamp(share, 0f, 1f);
+    }
+
+    /**
+     * The share of a full charge the palm blob shows: none unless a slinging
+     * charge is held with the arm wound up.
+     *
+     * @param slinging    the held selection's slinging charge, or null where it does not sling
+     * @param woundUp     whether the glove arm holds its wind-up
+     * @param chargeShare the share the held ticks reach, 0 to 1
+     * @return the share, 0 to 1
+     */
+    static float palmShareOf(@Nullable Charge slinging, boolean woundUp, float chargeShare) {
+        return slinging == null || !woundUp ? 0f : Math.clamp(chargeShare, 0f, 1f);
+    }
+
+    /**
+     * The share of a full charge the local player's glove shows in its palm,
+     * for the glove the local player holds; any other glove shows none.
+     *
+     * @param glove the glove being drawn
+     * @return the share, 0 to 1
+     */
+    public static float localPalmShare(ItemStack glove) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null || glove != player.getMainHandItem() && glove != player.getOffhandItem()) {
+            return 0f;
+        }
+        AbilityPoses.Posed posed = AbilityPoses.posedAt(player.getId());
+        Charge charge = localCharge(player);
+        return palmShareOf(charge, posed != null && posed.holding(ArmPoseKind.WIND_UP),
+                charge == null ? 0f
+                        : GloveThrowSender.selectedDelivery(selectedAbility(player))
+                        .chargeShare(GloveUseTracker.heldTicks()));
+    }
+
+    /**
+     * Client tick: chimes each step of the local hold in.
      *
      * @param event the client tick event
      */
@@ -110,40 +150,15 @@ public final class ShardsCharge {
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null) {
             shownLocally = 0;
-            holdSent = false;
             return;
         }
         Charge charge = localCharge(player);
         boolean holding = charge != null && GloveUseTracker.heldTicks() > 0;
-        if (holding != holdSent) {
-            holdSent = holding;
-            followHold(mc, player, holding);
-        }
         if (!holding) {
             shownLocally = 0;
             return;
         }
         chime(mc.level, player, charge, GloveThrowSender.selectedDelivery(selectedAbility(player)));
-    }
-
-    /**
-     * Tells the server the local hold began or ended, and winds the local
-     * arm up, or lets a wound arm fall where no fling has taken over.
-     *
-     * @param mc      the client
-     * @param player  the local player
-     * @param holding whether the hold began
-     */
-    private static void followHold(Minecraft mc, LocalPlayer player, boolean holding) {
-        if (mc.getConnection() != null) {
-            mc.getConnection().send(new ServerboundCustomPayloadPacket(new ChargeHoldPayload(holding)));
-        }
-        AbilityPoses.Posed posed = AbilityPoses.posedAt(player.getId());
-        if (holding) {
-            AbilityPoses.pose(player.getId(), ArmPoseKind.WIND_UP, gloveOnTheRight(player));
-        } else if (posed != null && posed.kind() == ArmPoseKind.WIND_UP) {
-            AbilityPoses.pose(player.getId(), ArmPoseKind.NONE, false);
-        }
     }
 
     private static void chime(ClientLevel level, LocalPlayer player, Charge charge, Delivery delivery) {
@@ -180,15 +195,10 @@ public final class ShardsCharge {
         return charge.slings() ? charge : null;
     }
 
-    private static boolean gloveOnTheRight(Player player) {
-        boolean inMain = player.getMainHandItem().getItem() instanceof GooGloveItem;
-        HumanoidArm gloveArm = inMain ? player.getMainArm() : player.getMainArm().getOpposite();
-        return gloveArm == HumanoidArm.RIGHT;
-    }
-
     /**
      * Draws the goo swelling in the hand of every player whose arm is wound
-     * up, but the local player's in first person, whose hand draws its own.
+     * up, but the local player's in first person, whose glove's palm blob
+     * swells instead.
      *
      * @param event the level render stage event
      */
@@ -214,7 +224,7 @@ public final class ShardsCharge {
     }
 
     private static boolean woundInTheWorld(AbilityPoses.Posed posed, boolean ownFirstPerson) {
-        return posed != null && posed.kind() == ArmPoseKind.WIND_UP && !ownFirstPerson;
+        return posed != null && posed.holding(ArmPoseKind.WIND_UP) && !ownFirstPerson;
     }
 
     /**
@@ -236,29 +246,6 @@ public final class ShardsCharge {
         pose.translate(hand.x - camera.x, hand.y - camera.y, hand.z - camera.z);
         GooFlightRenderer.renderBlob(pose, buffers, GooTypes.CRYSTAL, (float) now,
                 blobScaleAt(shareFor(wound.player(), wound.local(), age)));
-        pose.popPose();
-    }
-
-    /**
-     * Draws the goo swelling in the local glove hand in first person, in the
-     * hand's own pose as the wind-up moved it.
-     *
-     * @param event      the hand render event
-     * @param gloveRight whether the glove is in the right hand
-     * @param now        the game time with its partial tick
-     */
-    static void drawHandBlob(RenderHandEvent event, boolean gloveRight, double now) {
-        LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null) {
-            return;
-        }
-        PoseStack pose = event.getPoseStack();
-        pose.pushPose();
-        pose.translate((gloveRight ? 1f : MIRRORED) * HAND_SIDE, HAND_DOWN, HAND_AHEAD);
-        MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
-        GooFlightRenderer.renderBlob(pose, buffers, GooTypes.CRYSTAL, (float) now,
-                blobScaleAt(shareFor(player, player, 0)));
-        buffers.endBatch();
         pose.popPose();
     }
 
