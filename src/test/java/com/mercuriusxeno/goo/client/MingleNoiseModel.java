@@ -41,7 +41,23 @@ public final class MingleNoiseModel {
     }
 
     /**
-     * The field crucible_dissolve.fsh thresholds: mingleField at the world
+     * The field crucible_dissolve.fsh thresholds: mingleField at the item sprite's
+     * pixel holding the atlas coordinate, scaled to the given cells per pixel.
+     *
+     * @param u             atlas u
+     * @param v             atlas v
+     * @param atlasWidth    the atlas's width in pixels
+     * @param atlasHeight   the atlas's height in pixels
+     * @param cellsPerPixel noise cells per sprite pixel
+     * @return the field value in [0, 1]
+     */
+    public static float itemPixelField(float u, float v, float atlasWidth, float atlasHeight, float cellsPerPixel) {
+        return field(texelSnap(u, atlasWidth) * atlasWidth * cellsPerPixel,
+            texelSnap(v, atlasHeight) * atlasHeight * cellsPerPixel, 0f);
+    }
+
+    /**
+     * The field a world-space mingle shader thresholds: mingleField at the world
      * position snapped to its texel and scaled to the given cells per block.
      *
      * @param x             world x
