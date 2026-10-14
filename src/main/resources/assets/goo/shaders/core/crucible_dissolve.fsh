@@ -46,14 +46,16 @@ const float PICK_SCALE = 0.06;
 const float PICK_OPACITY = 0.5;
 
 void main() {
-    // Each pixel of the item's sprite samples one value, so it stands wholly body, wholly glow or gone;
-    // the front, back and edge faces share a pixel's UV, so the pixel melts through the item whole.
-    // (decision mingle-noise-snaps-to-texels)
+    // The field is read at the corners of the sprite's pixel grid and blended per screen pixel, so the melt's
+    // edge runs through the item's pixels, its shape pinned to them; the front, back and edge faces share a
+    // pixel's UV, so the melt runs through the item whole (decision cut-edge-blends-texel-corners).
     vec2 atlasPixels = vec2(textureSize(Sampler0, 0));
+    // The glow's type pick keeps one value per pixel (decision mingle-noise-snaps-to-texels).
     vec3 itemPixel = vec3(mingleTexelSnap(texCoord0, atlasPixels) * atlasPixels, 0.0);
     float threshold = mingleThreshold(1.0 - dissolveFraction);
     // Each seed step moves the sample tens of cells per axis, so each melt erodes through its own field (decision diagnose-then-fix-dissolve-repeat).
-    float field = mingleField(itemPixel * DISSOLVE_CELLS_PER_PIXEL + dissolveSeed * MINGLE_SEED_OFFSET);
+    float field = mingleCornerField(texCoord0 * atlasPixels, vec2(1.0), DISSOLVE_CELLS_PER_PIXEL,
+            dissolveSeed * MINGLE_SEED_OFFSET);
     if (field < threshold) {
         discard;
     }

@@ -42,10 +42,10 @@ void main() {
     float share = stoneColor.a;
     float seam = 0.0;
     if (share < WHOLE) {
-        // Each skin texel takes one value, wholly stone, wholly crack or flesh (decision mingle-noise-snaps-to-texels).
-        vec2 skinTexel = mingleTexelSnap(skinCoord, MINGLE_SKIN_TEXELS);
+        // The field is read at the skin texel grid's corners and blended per pixel, so the stone's edge runs
+        // through the skin's texels, its shape pinned to them (decision cut-edge-blends-texel-corners).
         float threshold = mingleThreshold(share);
-        float field = mingleField(vec3(skinTexel * PATCH_CELLS, 0.0) + stoneColor.rgb * SEED_SPREAD);
+        float field = mingleCornerField(skinCoord, MINGLE_SKIN_TEXELS, PATCH_CELLS, stoneColor.rgb * SEED_SPREAD);
         if (field < threshold) {
             discard;
         }
