@@ -33,7 +33,9 @@ const float WHOLE = 0.999;
 
 void main() {
     float share = vineColor.a;
-    if (share < WHOLE && mingleField(vec3(skinCoord * PATCH_CELLS, 0.0)) < mingleThreshold(share)) {
+    // Each skin texel takes one value, wholly tangled or bare (decision mingle-noise-snaps-to-texels).
+    vec2 skinTexel = mingleTexelSnap(skinCoord, MINGLE_SKIN_TEXELS);
+    if (share < WHOLE && mingleField(vec3(skinTexel * PATCH_CELLS, 0.0)) < mingleThreshold(share)) {
         discard;
     }
     vec4 vine = texture(Sampler0, fract(skinCoord * VINE_TILES));
