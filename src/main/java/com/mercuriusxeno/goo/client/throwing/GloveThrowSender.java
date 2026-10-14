@@ -158,15 +158,16 @@ public final class GloveThrowSender {
 
     /**
      * Keeps a held stream's looped sound sounding for its holder one more
-     * tick, fading out once the hold ends (decision decay-gnats-degrade-each-block-once).
+     * tick at the holder's ears, fading out once the hold ends
+     * (decisions decay-gnats-degrade-each-block-once, broil-heat-wave-ring-cooks-ahead).
      *
      * @param player    the local player
      * @param abilityId the selected ability id string
      */
     private static void loopStreamSound(Player player, String abilityId) {
         selectedDelivery(abilityId).sound().filter(StreamSound::loop).ifPresent(sound ->
-                FadingLoops.keepAlive(abilityId, sound.sound(), SoundSource.PLAYERS, sound.volume(),
-                        sound.pitchFor(player.getRandom().nextFloat()), player.getEyePosition()));
+                FadingLoops.keepAliveAtListener(abilityId, sound.sound(), SoundSource.PLAYERS, sound.volume(),
+                        sound.pitchFor(player.getRandom().nextFloat())));
     }
 
     /**

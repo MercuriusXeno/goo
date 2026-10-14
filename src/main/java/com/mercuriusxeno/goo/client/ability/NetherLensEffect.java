@@ -1,10 +1,7 @@
 package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.Std140Builder;
-import com.mojang.blaze3d.systems.CommandEncoder;
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.*;
@@ -14,7 +11,6 @@ import org.joml.Vector3fc;
 import org.joml.Vector4f;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryStack;
-import java.nio.ByteBuffer;
 
 /**
  * Screen-space gravitational-lensing post-process for nether black
@@ -51,12 +47,8 @@ import java.nio.ByteBuffer;
  * uniform bytes through {@link CommandEncoder#writeToBuffer}, and
  * toggles {@link GameRenderer#setPostEffect} on or off accordingly.
  *
- * <p>The uniform update uses {@code writeToBuffer} rather than
- * {@code mapBuffer} because the chain's custom uniforms are created
- * with {@link GpuBuffer#USAGE_UNIFORM} only (no {@code MAP_WRITE}
- * bit). The first frame for each chain instance installs a writable
- * replacement buffer ({@code USAGE_UNIFORM | USAGE_COPY_DST});
- * subsequent frames stream to that replacement.
+ * <p>{@link OwnedPostEffect} holds the slot and streams the uniform
+ * bytes into the chain's writable buffers.
  */
 public final class NetherLensEffect {
 
@@ -112,10 +104,8 @@ public final class NetherLensEffect {
      * NDC → UV offset, added after the scale so NDC 0 maps to UV 0.5.
      */
     private static final float NDC_TO_UV_OFFSET = 0.5f;
-    /**
-     * Vertex label prefix for the LensConfig GpuBuffers we manage.
-     */
-    private static final String MANAGED_LABEL_PREFIX = "goo_nether_lens/";
+    /** The lens chain's hold on the post effect slot and its LensConfig buffers. */
+    private static final OwnedPostEffect SLOT = new OwnedPostEffect(POST_EFFECT_ID, LENS_CONFIG_BLOCK);
     /**
      * Number of corners on a cube.
      */
@@ -221,11 +211,6 @@ public final class NetherLensEffect {
      * Frame stamp at the last {@link #markHoleActive} call.
      */
     private static int lastMarkFrame = Integer.MIN_VALUE;
-    /**
-     * The post chain instance whose LensConfig buffers have already
-     * been swapped for writable copies.
-     */
-    private static @Nullable PostChain managedChain;
 
     private NetherLensEffect() {
     }
@@ -312,12 +297,15 @@ public final class NetherLensEffect {
         if (activeHoleShape == LensShape.HEX) {
             stageHexHullUniforms(mc, gameRenderer, center);
         }
-        PostChain chain = loadChain(mc);
-        if (chain == null) {
-            return;
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            Std140Builder builder = Std140Builder.onStack(stack, LENS_CONFIG_SIZE);
+            builder.putVec4(HOLE_PARAMS);
+            builder.putVec4(LENS_TUNING);
+            builder.putVec4(HOLE_HULL_0);
+            builder.putVec4(HOLE_HULL_1);
+            builder.putVec4(HOLE_HULL_2);
+            SLOT.show(mc, builder.get());
         }
-        writeUniforms(chain);
-        activateIfInactive(gameRenderer);
     }
 
     /**
@@ -749,104 +737,13 @@ public final class NetherLensEffect {
     }
 
     /**
-     * Disables the post effect if we currently own the slot. Leaves
-     * any other post effect (e.g. creeper cam) alone.
+     * Disables the post effect if the lens holds the slot, leaving any
+     * other post effect (e.g. creeper cam) alone.
      *
      * @param gameRenderer the active game renderer
      */
     private static void deactivateIfActive(GameRenderer gameRenderer) {
-        if (!POST_EFFECT_ID.equals(gameRenderer.currentPostEffect())) {
-            return;
-        }
-        gameRenderer.clearPostEffect();
-    }
-
-    /**
-     * Activates the post effect if the slot is free or already ours.
-     * Yields to any other post effect (vanilla spider/creeper/enderman
-     * spectator cams, or another mod's chain).
-     *
-     * @param gameRenderer the active game renderer
-     */
-    private static void activateIfInactive(GameRenderer gameRenderer) {
-        Identifier current = gameRenderer.currentPostEffect();
-        if (POST_EFFECT_ID.equals(current)) {
-            return;
-        }
-        if (current != null) {
-            return;
-        }
-        gameRenderer.setPostEffect(POST_EFFECT_ID);
-    }
-
-    /**
-     * Looks up the lens post-chain via the shader manager. The chain
-     * is cached so repeat calls are cheap.
-     *
-     * @param mc the client instance
-     * @return the loaded chain or {@code null} if compilation failed
-     */
-    private static @Nullable PostChain loadChain(Minecraft mc) {
-        ShaderManager sm = mc.getShaderManager();
-        return sm.getPostChain(POST_EFFECT_ID, LevelTargetBundle.MAIN_TARGETS);
-    }
-
-    /**
-     * Rewrites the {@code LensConfig} uniform buffer on every pass
-     * in the chain that declares it. See class docs for the
-     * first-sighting swap rationale.
-     *
-     * @param chain the loaded post chain
-     */
-    private static void writeUniforms(PostChain chain) {
-        try (MemoryStack stack = MemoryStack.stackPush()) {
-            Std140Builder builder = Std140Builder.onStack(stack, LENS_CONFIG_SIZE);
-            builder.putVec4(HOLE_PARAMS);
-            builder.putVec4(LENS_TUNING);
-            builder.putVec4(HOLE_HULL_0);
-            builder.putVec4(HOLE_HULL_1);
-            builder.putVec4(HOLE_HULL_2);
-            ByteBuffer bytes = builder.get();
-            if (managedChain != chain) {
-                installManagedBuffers(chain, bytes);
-                managedChain = chain;
-                return;
-            }
-            CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
-            for (PostPass pass : chain.passes) {
-                GpuBuffer buffer = pass.customUniforms.get(LENS_CONFIG_BLOCK);
-                if (buffer == null) {
-                    continue;
-                }
-                bytes.position(0);
-                encoder.writeToBuffer(buffer.slice(), bytes);
-            }
-        }
-    }
-
-    /**
-     * Replaces each pass's {@code LensConfig} GpuBuffer with a fresh
-     * one carrying {@code USAGE_COPY_DST}, using {@code initialData}
-     * as the first frame's payload. The old buffer is closed.
-     *
-     * @param chain       the post chain whose buffers to swap
-     * @param initialData the std140 bytes for the first frame
-     */
-    private static void installManagedBuffers(PostChain chain, ByteBuffer initialData) {
-        int usage = GpuBuffer.USAGE_UNIFORM | GpuBuffer.USAGE_COPY_DST;
-        for (PostPass pass : chain.passes) {
-            GpuBuffer oldBuffer = pass.customUniforms.get(LENS_CONFIG_BLOCK);
-            if (oldBuffer == null) {
-                continue;
-            }
-            initialData.position(0);
-            GpuBuffer newBuffer = RenderSystem.getDevice().createBuffer(
-                    () -> MANAGED_LABEL_PREFIX + LENS_CONFIG_BLOCK,
-                    usage,
-                    initialData);
-            pass.customUniforms.put(LENS_CONFIG_BLOCK, newBuffer);
-            oldBuffer.close();
-        }
+        SLOT.hide(gameRenderer);
     }
 
     /**
