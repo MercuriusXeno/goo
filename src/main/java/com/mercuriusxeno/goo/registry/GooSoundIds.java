@@ -23,6 +23,13 @@ public final class GooSoundIds {
      */
     public static final Identifier GNAT_BUZZ = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.gnat_buzz");
 
+    /**
+     * Broil's hum, the vanilla beacon's recorded drone played at the
+     * lowest pitch the sound engine allows, looped while held
+     * (decision broil-heat-wave-ring-cooks-ahead).
+     */
+    public static final Identifier HEAT_HUM = Identifier.fromNamespaceAndPath(Goo.MODID, "effects.heat_hum");
+
     private GooSoundIds() {
     }
 }
