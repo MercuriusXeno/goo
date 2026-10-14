@@ -5,6 +5,8 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -169,6 +171,55 @@ class MingleNoiseTexelSnapTest {
             float second = MingleNoiseModel.opacity(3.035f, 64.53f, -7.035f, 0.3f, 0.5f, 1f);
 
             assertEquals(first, second);
+        }
+    }
+
+    @Nested
+    class SkinShaders {
+
+        private static final String SKIN_SNAP = "vec2 skinTexel = mingleTexelSnap(skinCoord, MINGLE_SKIN_TEXELS);";
+        private static final Pattern MINGLE_CALL = Pattern.compile("mingle(?:Field|ValueNoise)\\(([^;]*)");
+
+        /** Every mingle call in main takes the snapped skin texel, never the raw skin coordinate. */
+        private void assertEveryMingleCallInMainIsSnapped(String name) throws IOException {
+            String source = shader(name);
+            String main = source.substring(source.indexOf("void main() {"));
+            int snapAt = main.indexOf(SKIN_SNAP);
+            Matcher call = MINGLE_CALL.matcher(main);
+            int calls = 0;
+
+            assertTrue(snapAt >= 0, name + " snaps skinCoord at the skin's texel");
+            while (call.find()) {
+                calls++;
+                assertTrue(call.start() > snapAt, name + " samples before the snap: " + call.group());
+                assertTrue(call.group(1).contains("skinTexel") && !call.group(1).contains("skinCoord"),
+                    name + " samples the raw coordinate: " + call.group());
+            }
+            assertTrue(calls > 0, name + " holds a mingle call");
+        }
+
+        @Test
+        void theSkinTexelIsTheSixtyFourTexelSkin() throws IOException {
+            assertTrue(shader("mingle_noise.glsl").contains("const vec2 MINGLE_SKIN_TEXELS = vec2(64.0);"));
+        }
+
+        @Test
+        void petrifyStoneSamplesTheSkinTexel() throws IOException {
+            assertEveryMingleCallInMainIsSnapped("petrify_stone.fsh");
+        }
+
+        @Test
+        void vineTangleSamplesTheSkinTexel() throws IOException {
+            assertEveryMingleCallInMainIsSnapped("vine_tangle.fsh");
+        }
+
+        @Test
+        void theAilmentOverlaySamplesTheSkinTexel() throws IOException {
+            String overlay = shader("goo_ailment_overlay.fsh");
+
+            assertEveryMingleCallInMainIsSnapped("goo_ailment_overlay.fsh");
+            assertTrue(overlay.contains("shine = shimmerField(skinTexel, GameTime);"), "the shimmer's noise");
+            assertTrue(overlay.contains("shine = writheField(skinTexel, GameTime);"), "the writhe's noise");
         }
     }
 }

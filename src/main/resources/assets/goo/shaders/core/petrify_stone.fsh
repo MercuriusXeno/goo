@@ -42,12 +42,14 @@ void main() {
     float share = stoneColor.a;
     float seam = 0.0;
     if (share < WHOLE) {
+        // Each skin texel takes one value, wholly stone, wholly crack or flesh (decision mingle-noise-snaps-to-texels).
+        vec2 skinTexel = mingleTexelSnap(skinCoord, MINGLE_SKIN_TEXELS);
         float threshold = mingleThreshold(share);
-        float field = mingleField(vec3(skinCoord * PATCH_CELLS, 0.0) + stoneColor.rgb * SEED_SPREAD);
+        float field = mingleField(vec3(skinTexel * PATCH_CELLS, 0.0) + stoneColor.rgb * SEED_SPREAD);
         if (field < threshold) {
             discard;
         }
-        seam = 1.0 - smoothstep(threshold, threshold + SEAM_BAND, field);
+        seam = 1.0 - step(threshold + SEAM_BAND, field);
     }
     vec4 stone = texture(Sampler0, fract(skinCoord * STONE_TILES + stoneColor.rg));
     float shade = 0.7 + 0.3 * abs(normalize(skinNormal).y);

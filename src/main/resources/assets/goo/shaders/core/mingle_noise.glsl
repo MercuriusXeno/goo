@@ -33,6 +33,8 @@ const float MINGLE_COVERAGE[33] = float[33](
 const int MINGLE_COVERAGE_STEPS = 32;
 // Minecraft's texel: a sixteenth of a block.
 const float MINGLE_WORLD_TEXELS = 16.0;
+// A mob skin's texels across its [0, 1] coordinates: the 64-texel skin.
+const vec2 MINGLE_SKIN_TEXELS = vec2(64.0);
 
 // The middle of the texel holding p, so every point of one texel samples one
 // field value, the snap the Flames fire takes (decision mingle-noise-snaps-to-texels).
