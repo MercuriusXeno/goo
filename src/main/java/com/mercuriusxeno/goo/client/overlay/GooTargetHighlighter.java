@@ -35,8 +35,9 @@ import java.util.OptionalDouble;
 
 /**
  * Draws the glove's aim each frame from the frame's {@link AimTracker}: a
- * goo-colored highlight on the targeted block or ability block at the opaque
- * stage, and the throw arc after translucent blocks. The entity outline
+ * goo-colored outline and face ripple on the targeted block or ability block
+ * at the opaque stage, with no fill over the block, and the throw arc after
+ * translucent blocks. The entity outline
  * rides the render state modifier AimTracker registers (decision
  * render-context-is-the-one-emitter).
  */
