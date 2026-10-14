@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.block.tap;
 
-import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.block.IGooReceptacle;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -9,12 +8,10 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * A drip's landing: a receptacle keeping any of its goo swallows it and no
- * program runs; a landing keeping none runs the type's tap ability, and a
- * type carrying no tap-tagged ability runs no program.
+ * program runs; a landing keeping none runs the landing program it is handed.
  */
 class TapDripArrivalTest {
 
@@ -26,17 +23,6 @@ class TapDripArrivalTest {
 
     private static TapDripScheduler.PendingDrip blazeDrip() {
         return new TapDripScheduler.PendingDrip(null, TAP_POS, LANDING, Direction.UP, GooTypes.BLAZE, DRIP_MB, 0);
-    }
-
-    @Test
-    void dripOfATypeWithNoTapAbilityRunsNoProgram() {
-        AbilityRegistry abilities = AbilityRegistry.EMPTY;
-        assertNull(abilities.tapAbilityFor(GooTypes.ROCK));
-
-        TapDripScheduler.PendingDrip drip = new TapDripScheduler.PendingDrip(
-                null, TAP_POS, LANDING, Direction.UP, GooTypes.ROCK, 1, 0);
-
-        assertEquals(0, TapDripScheduler.land(drip, null, landed -> TapDripScheduler.runTapAbility(landed, abilities)));
     }
 
     @Nested

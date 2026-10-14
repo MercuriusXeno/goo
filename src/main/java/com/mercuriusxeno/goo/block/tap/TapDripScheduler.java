@@ -1,24 +1,13 @@
 package com.mercuriusxeno.goo.block.tap;
 
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.ability.AbilityDefinition;
-import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.HealReport;
-import com.mercuriusxeno.goo.ability.program.HostKind;
-import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
-import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
-import com.mercuriusxeno.goo.ability.program.TapHost;
 import com.mercuriusxeno.goo.block.IGooReceptacle;
-import com.mercuriusxeno.goo.network.DripHealedPayload;
-import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.phys.AABB;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,20 +25,6 @@ public final class TapDripScheduler {
      * Drips in flight, in the order they left their taps.
      */
     private final List<PendingDrip> pending = new ArrayList<>();
-
-    /**
-     * Log: a tap ability's program the tap host refused at load.
-     */
-    private static final String LOG_PROGRAM_REFUSED = "Tap ability {} refused on the tap landing: {}";
-
-    /**
-     * Blocks around the landing a drip's heal is watched over, wider than any
-     * tap ability's own reach so nothing it heals goes unreported.
-     */
-    private static final double HEAL_WATCH_BLOCKS = 2.0;
-    /** Reads which living things a drip's program healed. */
-    private static final HealReport<LivingEntity> HEALS =
-            new HealReport<>(LivingEntity::getHealth, LivingEntity::getId);
 
     /**
      * Log: a drip landed, with the running count to check the visual against.
@@ -125,8 +100,7 @@ public final class TapDripScheduler {
      * @return the programs run
      */
     static int land(PendingDrip drip) {
-        AbilityRegistry abilities = AbilityRegistry.of(drip.level());
-        return land(drip, receptacleAt(drip.level(), drip.landingPos()), landed -> runTapAbility(landed, abilities));
+        return land(drip, receptacleAt(drip.level(), drip.landingPos()), landed -> 0);
     }
 
     /**
@@ -154,49 +128,6 @@ public final class TapDripScheduler {
      */
     public static @Nullable IGooReceptacle receptacleAt(@Nullable ServerLevel level, BlockPos pos) {
         return level != null && level.getBlockEntity(pos) instanceof IGooReceptacle receptacle ? receptacle : null;
-    }
-
-    /**
-     * Runs the type's tap ability program once on a tap host at the landing
-     * (decision tap-ability-tagged-program). A type carrying no
-     * tap ability lands its drip and nothing further happens: no program
-     * loads and nothing logs (decision drip-without-ability).
-     *
-     * @param drip      the arrived drip
-     * @param abilities the abilities the drip's server holds
-     * @return the programs run: one when the type carries a tap ability, else zero
-     */
-    public static int runTapAbility(PendingDrip drip, AbilityRegistry abilities) {
-        AbilityDefinition ability = abilities.tapAbilityFor(drip.type());
-        if (ability == null) {
-            return 0;
-        }
-        // vitality-drip-heals-below: what the drip healed shows the channel's healing stars
-        List<LivingEntity> reachable = drip.level().getEntitiesOfClass(LivingEntity.class,
-                new AABB(drip.landingPos()).inflate(HEAL_WATCH_BLOCKS), LivingEntity::isAlive);
-        List<Integer> healed = HEALS.healedAmong(reachable,
-                () -> runProgram(ability, new TapHost(drip.level(), drip.tapPos(), drip.landingPos(), drip.face())));
-        for (LivingEntity living : reachable) {
-            if (healed.contains(living.getId())) {
-                EntityVisuals.sendToWatchers(living, new DripHealedPayload(living.getId()));
-            }
-        }
-        return 1;
-    }
-
-    /**
-     * Loads the ability's program for the tap host and runs its one tick; a
-     * program the host cannot serve is refused at load and logged.
-     *
-     * @param ability the tap ability
-     * @param host    the tap host at the landing
-     */
-    private static void runProgram(AbilityDefinition ability, TapHost host) {
-        try {
-            ProgramBehavior.forHost(ability.behaviors(), HostKind.TAP).tick(host);
-        } catch (ProgramLoadException e) {
-            Goo.LOGGER.error(LOG_PROGRAM_REFUSED, ability.id(), e.getMessage());
-        }
     }
 
     /**

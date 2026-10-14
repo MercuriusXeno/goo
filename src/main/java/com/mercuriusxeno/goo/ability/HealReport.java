@@ -7,12 +7,10 @@ import java.util.function.ToIntFunction;
 
 /**
  * Which living things a program run healed: those whose health stands
- * higher after it than before. A held stream and a healing tap's drip both
- * report them, so the client raises the restoration effect on each. The
- * health and id reads come in as functions, the living entity's own getters
- * at every call site.
+ * higher after it than before. A held stream reports them, so the client
+ * raises the restoration effect on each. The health and id reads come in as
+ * functions, the living entity's own getters at every call site.
  * vitality-waves-regenerate-and-court
- * vitality-drip-heals-below
  *
  * @param <T>    the living thing's type
  * @param health reads a living thing's health

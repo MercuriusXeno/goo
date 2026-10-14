@@ -2,9 +2,6 @@ package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.block.tap.TapBlock;
-import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
-import com.mercuriusxeno.goo.block.tap.TapDripGrade;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -22,7 +19,6 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
@@ -32,16 +28,14 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 /**
  * Gametests for Mycosis: its stream poisons what it reaches with Goo's spore
  * poison, a spored zombie bursts spores from its corpse that poison a second
- * zombie, and the spray buds the floor it reaches; a shroom tap's drip
- * poisons the zombie it lands under (decisions mycosis-spore-stream-buds-and-poisons
- * and mycosis-drip-sprays-spores-below).
+ * zombie, and the spray buds the floor it reaches
+ * (decision mycosis-spore-stream-buds-and-poisons).
  */
 @RegistersGameTests
 public final class MycosisTests {
     private static final String MYCOSIS_SPREADS_ON_DEATH = "mycosis_spreads_on_death";
     private static final String MYCOSIS_PLACES_BUDS = "mycosis_places_buds";
     private static final String MYCOSIS_BUDS_AT_THE_FEET = "mycosis_buds_at_the_feet";
-    private static final String MYCOSIS_TAP_POISONS_BELOW = "mycosis_tap_poisons_below";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -52,7 +46,6 @@ public final class MycosisTests {
         GooTestFunctions.registerTest(registrar, MYCOSIS_SPREADS_ON_DEATH, MycosisTests::mycosisSpreadsOnDeath);
         GooTestFunctions.registerTest(registrar, MYCOSIS_PLACES_BUDS, MycosisTests::mycosisPlacesBuds);
         GooTestFunctions.registerTest(registrar, MYCOSIS_BUDS_AT_THE_FEET, MycosisTests::mycosisBudsAtTheFeet);
-        GooTestFunctions.registerTest(registrar, MYCOSIS_TAP_POISONS_BELOW, MycosisTests::mycosisTapPoisonsBelow);
     }
 
 
@@ -83,12 +76,6 @@ public final class MycosisTests {
     private static final String BYSTANDER_CLEAN = "The bystander outside the cone should start unpoisoned";
     private static final String BYSTANDER_POISONED = "The burst from the corpse should poison the bystander";
     private static final String NO_BUD = "Mycosis sprayed at the floor should bud it";
-    private static final String TAP_ABILITY_REQUIRED = "Shroom should carry a tap ability";
-    private static final String TAPPED_POISONED = "The zombie under a shroom tap should carry Goo's spore poison";
-    /** The tap stands over the zombie's head, its drip falling to the stone under the zombie's feet. */
-    private static final BlockPos TAP_POS = new BlockPos(1, 3, 1);
-    private static final BlockPos UNDER_TAP_POS = new BlockPos(1, 1, 1);
-    private static final int TAP_VOLUME = 1000;
 
     private MycosisTests() {
     }
@@ -137,26 +124,6 @@ public final class MycosisTests {
             helper.assertTrue(budded, NO_BUD);
             helper.getLevel().getServer().getPlayerList().remove(player);
         });
-    }
-
-    /**
-     * A shroom tap drips over a zombie: once a drip lands on the stone under
-     * it, the zombie carries the spore poison.
-     *
-     * @param helper the gametest helper
-     */
-    public static void mycosisTapPoisonsBelow(GameTestHelper helper) {
-        helper.assertTrue(AbilityRegistry.of(helper.getLevel()).tapAbilityFor(GooTypes.SHROOM) != null,
-                TAP_ABILITY_REQUIRED);
-        helper.setBlock(UNDER_TAP_POS.below(), Blocks.STONE);
-        helper.setBlock(UNDER_TAP_POS.above(), Blocks.AIR);
-        Mob zombie = helmetedZombie(helper, UNDER_TAP_POS);
-        helper.setBlock(TAP_POS, GooBlocks.TAP.get().defaultBlockState().setValue(TapBlock.OPEN, true));
-        TapBlockEntity tap = helper.getBlockEntity(TAP_POS, TapBlockEntity.class);
-        tap.insertCanister(new ItemStack(GooItems.CANISTER.get()));
-        tap.insertGoo(GooTypes.SHROOM, TAP_VOLUME);
-        tap.setDripGrade(TapDripGrade.ONE_PER_16_TICKS);
-        helper.succeedWhen(() -> helper.assertTrue(zombie.hasEffect(GooMobEffects.MYCOSIS), TAPPED_POISONED));
     }
 
     /**
