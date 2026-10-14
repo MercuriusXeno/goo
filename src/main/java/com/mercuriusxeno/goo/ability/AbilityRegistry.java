@@ -92,17 +92,6 @@ public final class AbilityRegistry {
     }
 
     /**
-     * The ability a tap's drip of this type runs where it lands: the type's
-     * tap-tagged ability lowest by order (decision tap-ability-tagged-program).
-     *
-     * @param type the goo type
-     * @return the tap ability, or null when the type carries none
-     */
-    public @Nullable AbilityDefinition tapAbilityFor(ResourceKey<GooTypeDefinition> type) {
-        return firstTagged(getAbilitiesForType(type), AbilityTags.TAP);
-    }
-
-    /**
      * The ability a drunk brew of this type runs: the type's self ability
      * wearing the brew badge, lowest by order.
      * decision brew-grants-the-self-ability-for-an-hour
@@ -128,20 +117,6 @@ public final class AbilityRegistry {
     public @Nullable AbilityDefinition prismAbilityFor(ResourceKey<GooTypeDefinition> type) {
         return getAbilitiesForType(type).stream()
                 .filter(def -> def.badge() == AbilityBadge.PRISM)
-                .min(Comparator.comparingInt(AbilityDefinition::order))
-                .orElse(null);
-    }
-
-    /**
-     * Picks the definition carrying a tag with the lowest order.
-     *
-     * @param definitions the definitions to pick among
-     * @param tag         the tag the pick carries
-     * @return the pick, or null when none carries the tag
-     */
-    static @Nullable AbilityDefinition firstTagged(List<AbilityDefinition> definitions, String tag) {
-        return definitions.stream()
-                .filter(def -> def.hasTag(tag))
                 .min(Comparator.comparingInt(AbilityDefinition::order))
                 .orElse(null);
     }

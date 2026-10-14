@@ -16,7 +16,6 @@ import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
 import com.mercuriusxeno.goo.client.ability.ClientSwapBody;
 import com.mercuriusxeno.goo.client.ability.EldritchSight;
 import com.mercuriusxeno.goo.client.ability.EncasementLayer;
-import com.mercuriusxeno.goo.client.ability.FallingShards;
 import com.mercuriusxeno.goo.client.ability.FrozenPoses;
 import com.mercuriusxeno.goo.client.ability.GhostTrails;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
@@ -500,9 +499,8 @@ public final class GooClientSetup {
         ThrowFreezeState.clear();
     }
 
-    /** Clears Crystal's shards, glass knives, ore sightings, glitter shells, arm poses and forming prisms. */
+    /** Clears Crystal's glass knives, ore sightings, glitter shells, arm poses and forming prisms. */
     private static void clearCrystalVisuals() {
-        FallingShards.CLIENT.clear();
         OreSightings.CLIENT.clear();
         GlitterShell.clear();
         GlassKnives.clear();

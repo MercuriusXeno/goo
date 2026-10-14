@@ -35,14 +35,14 @@ class AbilityBadgeTest {
 
     @ParameterizedTest
     @CsvSource({"world, WORLD", "mob, MOB", "self, SELF", "channeled, CHANNELED", "brew, BREW",
-            "free, FREE", "prism, PRISM", "tap, TAP"})
+            "free, FREE", "prism, PRISM"})
     void eachVocabularyWordParsesToItsBadge(String word, AbilityBadge expected) {
         assertEquals(expected, AbilityBadge.CODEC.parse(JsonOps.INSTANCE, new JsonPrimitive(word)).getOrThrow());
     }
 
     /**
      * Each badge holds its own tier, ranked channeled, mob, world, free,
-     * prism, tap, self, brew, at orders that reverse that rank if order alone
+     * prism, self, brew, at orders that reverse that rank if order alone
      * decided; a shared badge falls back to order (decision
      * fan-sorts-badge-then-order).
      */
@@ -52,7 +52,6 @@ class AbilityBadgeTest {
         }
         List<Ranked> shuffled = List.of(
                 new Ranked("brew", AbilityBadge.BREW, -3),
-                new Ranked("tap", AbilityBadge.TAP, 0),
                 new Ranked("world", AbilityBadge.WORLD, 3),
                 new Ranked("self", AbilityBadge.SELF, -2),
                 new Ranked("prism", AbilityBadge.PRISM, 1),
@@ -61,7 +60,7 @@ class AbilityBadgeTest {
                 new Ranked("channeled", AbilityBadge.CHANNELED, 6),
                 new Ranked("mob_early", AbilityBadge.MOB, 4));
 
-        assertEquals(List.of("channeled", "mob_early", "mob_late", "world", "free", "prism", "tap", "self", "brew"),
+        assertEquals(List.of("channeled", "mob_early", "mob_late", "world", "free", "prism", "self", "brew"),
                 shuffled.stream().sorted(AbilityBadge.fanOrder(Ranked::badge, Ranked::order)).map(Ranked::name).toList());
     }
 
@@ -72,8 +71,7 @@ class AbilityBadgeTest {
     }
 
     /**
-     * The badges a shipped ability may wear, read from its own fields: tap for a tap-tagged
-     * drip, channeled for a stream or for any delivery that charges or writes a hold's ticks
+     * The badges a shipped ability may wear, read from its own fields: channeled for a stream or for any delivery that charges or writes a hold's ticks
      * per charge, brew for a self delivery paying upkeep, self for any other self delivery,
      * and for a thrown ability mob where it targets entities and world elsewhere. Free and
      * prism are carried by the badge alone, since no field marks them, so a thrown ability
@@ -84,9 +82,6 @@ class AbilityBadgeTest {
      * @return the badges it may wear
      */
     private static Set<AbilityBadge> allowedBadges(AbilityDefinition definition, JsonObject delivery) {
-        if (definition.hasTag(AbilityTags.TAP)) {
-            return EnumSet.of(AbilityBadge.TAP);
-        }
         boolean holds = definition.delivery().charges() || delivery.has(TICKS_PER_CHARGE_FIELD);
         return switch (definition.delivery().kind()) {
             case STREAM -> EnumSet.of(AbilityBadge.CHANNELED);

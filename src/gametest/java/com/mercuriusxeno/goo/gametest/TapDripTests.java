@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.gametest;
 
-import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.TapHost;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
@@ -119,7 +118,6 @@ public final class TapDripTests {
 
     private static final Identifier GLASS = Identifier.withDefaultNamespace("glass");
     private static final double ENTITY_SCAN_RADIUS = 3;
-    private static final String NO_TAP_ABILITY = "a bundled type carries no tap ability at this commit";
     private static final String NO_ABILITY_PENDING = "drips still in flight after the fall";
     private static final String NEIGHBOR_STATE = "landing block or neighbor state";
     private static final String NO_ABILITY_ENTITIES = "entities around the landing";
@@ -297,13 +295,12 @@ public final class TapDripTests {
     }
 
     /**
-     * A drip of a type carrying no tap ability draws its 1 mB and lands,
+     * A drip draws its 1 mB and lands,
      * and the world around the landing stays as it was, with no entity.
      *
      * @param helper the gametest helper
      */
     public static void tapDripNoAbility(GameTestHelper helper) {
-        helper.assertTrue(AbilityRegistry.of(helper.getLevel()).tapAbilityFor(TYPE) == null, NO_TAP_ABILITY);
         TapBlockEntity tap = filledTap(helper);
         BlockPos stone = TAP_POS.below();
         Map<BlockPos, BlockState> before = new HashMap<>();
