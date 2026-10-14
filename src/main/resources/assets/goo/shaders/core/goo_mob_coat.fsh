@@ -30,8 +30,9 @@ out vec4 fragColor;
 
 // Half the operator's half-block splat: the splat's radius in blocks.
 const float SPLAT_RADIUS = 0.25;
-// Noise cells per block over the splat's edge.
-const float EDGE_CELLS_PER_BLOCK = 12.0;
+// Noise cells per block over the splat's edge: a cell spans a few texels, so
+// the broken edge steps in whole texels (decision mingle-noise-snaps-to-texels).
+const float EDGE_CELLS_PER_BLOCK = 6.0;
 // How far the noise pushes the edge in or out, as a share of the radius.
 const float EDGE_NOISE = 0.45;
 // Texels each fluid frame spans; every goo fluid texture is 16 wide.
@@ -49,8 +50,11 @@ float splatDistance(vec3 offset) {
     return length(offset) / SPLAT_RADIUS;
 }
 
-// The splat's reach at a fragment: below 1 inside the noise-broken edge.
+// The splat's reach at a fragment: below 1 inside the noise-broken edge, read
+// once per texel so a texel is wholly splat or wholly skin
+// (decision mingle-noise-snaps-to-texels).
 float splatReach(vec3 offset) {
+    offset = mingleFaceTexel(offset);
     float noise = mingleValueNoise(offset * EDGE_CELLS_PER_BLOCK) - 0.5;
     return splatDistance(offset) + EDGE_NOISE * 2.0 * noise;
 }

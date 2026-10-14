@@ -132,7 +132,8 @@ public final class MingleNoiseModel {
     }
 
     /**
-     * mingleOpacity: the opacity a layer draws at one world position.
+     * mingleOpacity at the world texel holding a position, as goo_fluid_surface.fsh
+     * samples it (decision mingle-noise-snaps-to-texels): the opacity a layer draws at.
      *
      * @param x        world x
      * @param y        world y
@@ -149,11 +150,12 @@ public final class MingleNoiseModel {
         float sway = gameTime * TAU * SWAY_CYCLES_PER_DAY + seed;
         float roll = gameTime * TAU * ROLL_CYCLES_PER_DAY + seed * 1.7f;
         float heave = gameTime * TAU * HEAVE_CYCLES_PER_DAY + seed * 2.3f;
-        float px = x * CELLS_PER_BLOCK + DRIFT_CELLS * ((float) Math.cos(sway) + (float) Math.sin(roll))
-            + seed * SEED_OFFSET[0];
-        float py = y * CELLS_PER_BLOCK + DRIFT_CELLS * (float) Math.sin(heave) + seed * SEED_OFFSET[1];
-        float pz = z * CELLS_PER_BLOCK + DRIFT_CELLS * ((float) Math.sin(sway) + (float) Math.cos(roll))
-            + seed * SEED_OFFSET[2];
+        float px = texelSnap(x, WORLD_TEXELS) * CELLS_PER_BLOCK
+            + DRIFT_CELLS * ((float) Math.cos(sway) + (float) Math.sin(roll)) + seed * SEED_OFFSET[0];
+        float py = texelSnap(y, WORLD_TEXELS) * CELLS_PER_BLOCK + DRIFT_CELLS * (float) Math.sin(heave)
+            + seed * SEED_OFFSET[1];
+        float pz = texelSnap(z, WORLD_TEXELS) * CELLS_PER_BLOCK
+            + DRIFT_CELLS * ((float) Math.sin(sway) + (float) Math.cos(roll)) + seed * SEED_OFFSET[2];
         float t = threshold(share);
         return smoothstep(t - SEAM, t + SEAM, field(px, py, pz));
     }
