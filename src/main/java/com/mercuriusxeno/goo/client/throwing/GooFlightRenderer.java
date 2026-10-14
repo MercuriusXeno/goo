@@ -228,16 +228,12 @@ public final class GooFlightRenderer {
      */
     public static void renderBlob(PoseStack poseStack, MultiBufferSource buffers,
                                   ResourceKey<GooTypeDefinition> type, float gameTime, float scale) {
-        poseStack.pushPose();
-        poseStack.scale(scale, scale, scale);
-        renderCore(poseStack, buffers, type, gameTime);
-        renderShell(poseStack, buffers, type);
-        poseStack.popPose();
+        emitCore(poseStack.last(), buffers.getBuffer(GooSubmitter.solidOnBlockAtlas()), type, gameTime, scale);
+        emitShell(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()), type, scale);
     }
 
     /**
-     * Core: opaque fluid cuboid with sin-pulsing width.
-     * Draws solid on the block atlas for fully opaque rendering.
+     * Core at a flight's size, drawn on its own buffer.
      *
      * @param poseStack the pose stack for rendering
      * @param buffers   the buffer source for rendering
@@ -246,19 +242,11 @@ public final class GooFlightRenderer {
      */
     private static void renderCore(PoseStack poseStack, MultiBufferSource buffers,
                                    ResourceKey<GooTypeDefinition> type, float gameTime) {
-        float pulse = 1.0f + CORE_PULSE_AMP * Mth.sin(gameTime * CORE_PULSE_SPEED);
-        float hw = CORE_HW * pulse;
-
-        GooRenderUtil.UvRect uv = spriteToUv(type);
-        VertexConsumer c = buffers.getBuffer(GooSubmitter.solidOnBlockAtlas());
-        RenderContext ctx = new RenderContext(poseStack.last(), c, GooSubmitter.fullbrightLight());
-        CuboidBounds box = new CuboidBounds(-hw, hw, -hw, hw, -hw, hw);
-        ctx.emitBox(box, uv);
+        emitCore(poseStack.last(), buffers.getBuffer(GooSubmitter.solidOnBlockAtlas()), type, gameTime, 1f);
     }
 
     /**
-     * Shell: larger translucent cuboid with the goo type's color tint.
-     * Gives the goo a slime-like outer glow.
+     * Shell at a flight's size, drawn on its own buffer.
      *
      * @param poseStack the pose stack for rendering
      * @param buffers   the buffer source for rendering
@@ -266,12 +254,45 @@ public final class GooFlightRenderer {
      */
     private static void renderShell(PoseStack poseStack, MultiBufferSource buffers,
                                     ResourceKey<GooTypeDefinition> type) {
+        emitShell(poseStack.last(), buffers.getBuffer(GooSubmitter.renderType()), type, 1f);
+    }
+
+    /**
+     * Emits the blob's core: an opaque fluid cuboid with sin-pulsing width,
+     * fullbright, about the pose's origin. The consumer takes
+     * {@link GooSubmitter#solidOnBlockAtlas()} geometry; the glove's palm blob
+     * submits through this too (decision palm-blob-draws-as-the-charge-blob).
+     *
+     * @param pose     the pose at the blob's center
+     * @param c        a consumer of the solid block atlas render type
+     * @param type     the goo type
+     * @param gameTime the level game time in ticks, driving the pulse
+     * @param scale    the blob's size against a flight's
+     */
+    public static void emitCore(PoseStack.Pose pose, VertexConsumer c,
+                                ResourceKey<GooTypeDefinition> type, float gameTime, float scale) {
+        float pulse = 1.0f + CORE_PULSE_AMP * Mth.sin(gameTime * CORE_PULSE_SPEED);
+        float hw = CORE_HW * pulse * scale;
+        RenderContext ctx = new RenderContext(pose, c, GooSubmitter.fullbrightLight());
+        ctx.emitBox(new CuboidBounds(-hw, hw, -hw, hw, -hw, hw), spriteToUv(type));
+    }
+
+    /**
+     * Emits the blob's shell: a translucent cuboid tinted the goo type's
+     * color, fullbright, about the pose's origin. The consumer takes
+     * {@link GooSubmitter#renderType()} geometry.
+     *
+     * @param pose  the pose at the blob's center
+     * @param c     a consumer of the translucent goo render type
+     * @param type  the goo type
+     * @param scale the blob's size against a flight's
+     */
+    public static void emitShell(PoseStack.Pose pose, VertexConsumer c,
+                                 ResourceKey<GooTypeDefinition> type, float scale) {
         int color = ARGB.color(SHELL_ALPHA, ClientGooTypes.color(type));
-        GooRenderUtil.UvRect uv = spriteToUv(type);
-        VertexConsumer c = buffers.getBuffer(GooSubmitter.renderType());
-        RenderContext ctx = new RenderContext(poseStack.last(), c, GooSubmitter.fullbrightLight());
-        CuboidBounds box = new CuboidBounds(-SHELL_HW, SHELL_HW, -SHELL_HW, SHELL_HW, -SHELL_HW, SHELL_HW);
-        ctx.emitBox(color, box, uv);
+        float hw = SHELL_HW * scale;
+        RenderContext ctx = new RenderContext(pose, c, GooSubmitter.fullbrightLight());
+        ctx.emitBox(color, new CuboidBounds(-hw, hw, -hw, hw, -hw, hw), spriteToUv(type));
     }
 
     /**
