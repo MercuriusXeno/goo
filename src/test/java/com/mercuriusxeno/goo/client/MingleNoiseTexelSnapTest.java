@@ -136,4 +136,39 @@ class MingleNoiseTexelSnapTest {
                 "mingleWorldPos is declared and read only by the snap");
         }
     }
+
+    @Nested
+    class FluidSurfaceAndCoatShaders {
+
+        @Test
+        void theSurfaceMingleSamplesTheWorldTexel() throws IOException {
+            String surface = shader("goo_fluid_surface.fsh");
+
+            assertTrue(surface.contains(
+                "float opacity = mingleOpacity(mingleFaceTexel(mingleWorldPos), GameTime, shareSeed.x, shareSeed.y);"),
+                "the surface's opacity samples the snapped position");
+            assertEquals(2, surface.split("mingleWorldPos", -1).length - 1,
+                "mingleWorldPos is declared and read only by the snap");
+        }
+
+        @Test
+        void theCoatEdgeSamplesTheWorldTexel() throws IOException {
+            String coat = shader("goo_mob_coat.fsh");
+            int reachAt = coat.indexOf("float splatReach(vec3 offset) {\n    offset = mingleFaceTexel(offset);");
+            int noiseAt = coat.indexOf("mingleValueNoise(offset * EDGE_CELLS_PER_BLOCK)");
+            int distanceAt = coat.indexOf("return splatDistance(offset) + EDGE_NOISE * 2.0 * noise;");
+
+            assertTrue(reachAt >= 0, "the reach snaps its offset first");
+            assertTrue(noiseAt > reachAt, "the edge noise samples the snapped offset");
+            assertTrue(distanceAt > reachAt, "the edge's reach is read per texel");
+        }
+
+        @Test
+        void theModelsOpacityIsOneValuePerTexel() {
+            float first = MingleNoiseModel.opacity(3.005f, 64.5f, -7.005f, 0.3f, 0.5f, 1f);
+            float second = MingleNoiseModel.opacity(3.035f, 64.53f, -7.035f, 0.3f, 0.5f, 1f);
+
+            assertEquals(first, second);
+        }
+    }
 }

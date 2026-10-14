@@ -22,7 +22,9 @@ flat in vec2 shareSeed;
 out vec4 fragColor;
 
 void main() {
-    float opacity = mingleOpacity(mingleWorldPos, GameTime, shareSeed.x, shareSeed.y);
+    // Each texel takes one opacity, so a seam steps by texel while the drift still sways the pattern
+    // (decision mingle-noise-snaps-to-texels).
+    float opacity = mingleOpacity(mingleFaceTexel(mingleWorldPos), GameTime, shareSeed.x, shareSeed.y);
     if (opacity <= 0.0) {
         discard;
     }
