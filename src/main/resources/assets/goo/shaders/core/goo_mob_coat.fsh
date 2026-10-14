@@ -50,12 +50,12 @@ float splatDistance(vec3 offset) {
     return length(offset) / SPLAT_RADIUS;
 }
 
-// The splat's reach at a fragment: below 1 inside the noise-broken edge, read
-// once per texel so a texel is wholly splat or wholly skin
-// (decision mingle-noise-snaps-to-texels).
+// The splat's reach at a fragment: below 1 inside the noise-broken edge, the
+// noise read at the world texel grid's corners and blended per pixel, so the
+// edge runs through texels, its shape pinned to them
+// (decision cut-edge-blends-texel-corners).
 float splatReach(vec3 offset) {
-    offset = mingleFaceTexel(offset);
-    float noise = mingleValueNoise(offset * EDGE_CELLS_PER_BLOCK) - 0.5;
+    float noise = mingleWorldCornerNoise(offset, EDGE_CELLS_PER_BLOCK) - 0.5;
     return splatDistance(offset) + EDGE_NOISE * 2.0 * noise;
 }
 

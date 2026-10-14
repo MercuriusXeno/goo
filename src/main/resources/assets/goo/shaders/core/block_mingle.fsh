@@ -34,12 +34,12 @@ const float SEAM_BAND = 0.05;
 const float SEAM_SHADE = 0.55;
 
 void main() {
-    // Each texel samples one value, so it stands whole, darkens whole or is gone (decision mingle-noise-snaps-to-texels).
-    vec3 texelPos = mingleFaceTexel(mingleWorldPos);
     float threshold = mingleThreshold(1.0 - mingleProgress);
-    // Each seed step moves the sample tens of cells per axis, so each use on a block dissolves through its own field
+    // The field is read at the world texel grid's corners and blended per pixel, so the old block's edge runs
+    // through its texels, its shape pinned to them (decision cut-edge-blends-texel-corners). Each seed step moves
+    // the sample tens of cells per axis, so each use on a block dissolves through its own field
     // (decision diagnose-then-fix-dissolve-repeat).
-    float field = mingleField(texelPos * MINGLE_BLOCK_CELLS + mingleSeed * MINGLE_SEED_OFFSET);
+    float field = mingleWorldCornerField(mingleWorldPos, MINGLE_BLOCK_CELLS, mingleSeed * MINGLE_SEED_OFFSET);
     if (field < threshold) {
         discard;
     }

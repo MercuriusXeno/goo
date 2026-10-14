@@ -85,7 +85,7 @@ class MingleNoiseTexelSnapTest {
     }
 
     @Nested
-    class CrucibleDissolveShader {
+    class SnapHelpers {
 
         @Test
         void mingleNoiseDefinesTheSnapAtSixteenTexelsPerBlock() throws IOException {
@@ -99,72 +99,163 @@ class MingleNoiseTexelSnapTest {
         }
 
         @Test
-        void theDissolveSnapsToTheItemsPixelBeforeTheFieldAndThePick() throws IOException {
+        void theFaceTexelStepsOffTheFaceThenSnapsAtTheWorldTexel() throws IOException {
+            String noise = shader("mingle_noise.glsl");
+
+            assertTrue(noise.contains("return worldPos - faceNormal * (0.25 / MINGLE_WORLD_TEXELS);"), "the face step");
+            assertTrue(noise.contains("vec3 mingleFaceTexel(vec3 worldPos) {\n"
+                + "    return mingleTexelSnap(mingleOffFace(worldPos), MINGLE_WORLD_TEXELS);"), "the face snap");
+        }
+
+        @Test
+        void theModelsTexelsAreTheShaders() throws IOException {
+            String noise = shader("mingle_noise.glsl");
+
+            assertTrue(noise.contains("const float MINGLE_WORLD_TEXELS = " + MingleNoiseModel.WORLD_TEXELS + ";"));
+            assertTrue(noise.contains("const vec2 MINGLE_SKIN_TEXELS = vec2(" + MingleNoiseModel.SKIN_TEXELS + ");"));
+        }
+
+        @Test
+        void theCrucibleGlowPickKeepsTheSnap() throws IOException {
             String dissolve = shader("crucible_dissolve.fsh");
             int snapAt = dissolve.indexOf(
                 "vec3 itemPixel = vec3(mingleTexelSnap(texCoord0, atlasPixels) * atlasPixels, 0.0);");
-            int fieldAt = dissolve.indexOf("mingleField(itemPixel * DISSOLVE_CELLS_PER_PIXEL");
-            int pickAt = dissolve.indexOf("mingleOpacity(itemPixel * PICK_SCALE");
 
-            assertTrue(dissolve.contains("vec2 atlasPixels = vec2(textureSize(Sampler0, 0));"), "the atlas size");
             assertTrue(snapAt >= 0, "the snap");
-            assertTrue(fieldAt > snapAt, "the field samples the snapped pixel");
-            assertTrue(pickAt > snapAt, "the type pick samples the snapped pixel");
+            assertTrue(dissolve.indexOf("mingleOpacity(itemPixel * PICK_SCALE") > snapAt,
+                "the type pick samples the snapped pixel");
         }
     }
 
+    /** The cut-edge five blend corner-sampled noise per pixel (decision cut-edge-blends-texel-corners). */
     @Nested
-    class BlockMingleShader {
+    class CornerBlend {
+
+        private static final float[] NO_OFFSET = {0f, 0f, 0f};
+        private static final float[] SEEDED = {37.1f, 11.7f, 53.3f};
+        private static final float CELLS = 4f;
+        private static final float HAIR = 1e-4f;
+        private static final float EDGE_AGREEMENT = 1e-3f;
+
+        private int indexAfter(String source, String text, int from) {
+            int at = source.indexOf(text, from);
+            assertTrue(at >= 0, "missing: " + text);
+            return at;
+        }
 
         @Test
-        void theFaceTexelSnapsAtTheWorldTexel() throws IOException {
+        void mingleNoiseDefinesTheEaseAndTheCornerBlend() throws IOException {
             String noise = shader("mingle_noise.glsl");
-            int faceTexelAt = noise.indexOf("vec3 mingleFaceTexel(vec3 worldPos) {");
 
-            assertTrue(faceTexelAt >= 0, "the face texel");
-            assertTrue(noise.indexOf("return mingleTexelSnap(worldPos - faceNormal * (0.25 / MINGLE_WORLD_TEXELS), "
-                + "MINGLE_WORLD_TEXELS);", faceTexelAt) > faceTexelAt, "the face texel snaps at the world texel");
+            assertTrue(noise.contains("const float MINGLE_CORNER_EASE = "), "the artist's dial");
+            assertTrue(noise.contains("return mix(fraction, fraction * fraction * (3.0 - 2.0 * fraction), "
+                + "MINGLE_CORNER_EASE);"), "the weight slides from slant to curve");
+            assertTrue(noise.contains("float mingleCornerField(vec2 p, vec2 texelsPerUnit, float cellsPerUnit, "
+                + "vec3 offset) {"), "the sprite and skin blend");
+            assertTrue(noise.contains("vec3 grid = mingleOffFace(worldPos) * MINGLE_WORLD_TEXELS;"),
+                "the world blend steps off the face");
         }
 
         @Test
-        void theTransformSnapsItsPositionBeforeTheField() throws IOException {
-            String mingle = shader("block_mingle.fsh");
-            int snapAt = mingle.indexOf("vec3 texelPos = mingleFaceTexel(mingleWorldPos);");
-            int fieldAt = mingle.indexOf(
-                "float field = mingleField(texelPos * MINGLE_BLOCK_CELLS + mingleSeed * MINGLE_SEED_OFFSET);");
+        void theCrucibleDissolveThresholdsTheCornerBlend() throws IOException {
+            String dissolve = shader("crucible_dissolve.fsh");
+            int fieldAt = indexAfter(dissolve,
+                "float field = mingleCornerField(texCoord0 * atlasPixels, vec2(1.0), DISSOLVE_CELLS_PER_PIXEL,", 0);
 
-            assertTrue(snapAt >= 0, "the snap");
-            assertTrue(fieldAt > snapAt, "the field samples the snapped position");
-            assertEquals(2, mingle.split("mingleWorldPos", -1).length - 1,
-                "mingleWorldPos is declared and read only by the snap");
+            assertTrue(indexAfter(dissolve, "if (field < threshold)", fieldAt) > fieldAt);
+            assertTrue(!dissolve.contains("mingleField("), "the dissolve reads the plain field");
+        }
+
+        @Test
+        void theBlockTransformThresholdsTheCornerBlend() throws IOException {
+            String mingle = shader("block_mingle.fsh");
+            int fieldAt = indexAfter(mingle,
+                "float field = mingleWorldCornerField(mingleWorldPos, MINGLE_BLOCK_CELLS, mingleSeed * MINGLE_SEED_OFFSET);",
+                0);
+
+            assertTrue(indexAfter(mingle, "if (field < threshold)", fieldAt) > fieldAt);
+            assertTrue(!mingle.contains("mingleTexelSnap") && !mingle.contains("mingleFaceTexel"),
+                "the transform keeps the centre snap");
+        }
+
+        @Test
+        void petrifyAndVinesThresholdTheCornerBlendAtTheSkinTexel() throws IOException {
+            String stone = shader("petrify_stone.fsh");
+            String vine = shader("vine_tangle.fsh");
+            int stoneAt = indexAfter(stone, "float field = mingleCornerField(skinCoord, MINGLE_SKIN_TEXELS, PATCH_CELLS,",
+                0);
+
+            assertTrue(indexAfter(stone, "if (field < threshold)", stoneAt) > stoneAt);
+            assertTrue(vine.contains("mingleCornerField(skinCoord, MINGLE_SKIN_TEXELS, PATCH_CELLS, vec3(0.0)) "
+                + "< mingleThreshold(share)"), "the tangle thresholds the blend");
+            assertTrue(!stone.contains("mingleTexelSnap") && !vine.contains("mingleTexelSnap"),
+                "the skin shaders keep the centre snap");
+        }
+
+        @Test
+        void theCoatEdgeBlendsItsNoiseAtTheCorners() throws IOException {
+            String coat = shader("goo_mob_coat.fsh");
+
+            assertTrue(coat.contains("float splatReach(vec3 offset) {\n"
+                + "    float noise = mingleWorldCornerNoise(offset, EDGE_CELLS_PER_BLOCK) - 0.5;\n"
+                + "    return splatDistance(offset) + EDGE_NOISE * 2.0 * noise;"), "the edge noise is corner-blended");
+            assertTrue(!coat.contains("mingleFaceTexel"), "the coat keeps the centre snap");
+        }
+
+        @Test
+        void theSurfaceAndTheOverlayKeepThePlainSnap() throws IOException {
+            assertTrue(shader("goo_fluid_surface.fsh").contains(
+                "float opacity = mingleOpacity(mingleFaceTexel(mingleWorldPos), GameTime, shareSeed.x, shareSeed.y);"));
+            String overlay = shader("goo_ailment_overlay.fsh");
+            assertTrue(overlay.contains("vec2 skinTexel = mingleTexelSnap(skinCoord, MINGLE_SKIN_TEXELS);"));
+            assertTrue(!overlay.contains("mingleCornerField"), "the overlay blends corners");
+        }
+
+        @Test
+        void aPointOnACornerTakesThatCornersValueAtSlantAndCurve() {
+            float corner = MingleNoiseModel.fieldAt(200f * CELLS / 64f + SEEDED[0], 37f * CELLS / 64f + SEEDED[1],
+                SEEDED[2]);
+
+            assertEquals(corner, MingleNoiseModel.cornerField(200f / 64f, 37f / 64f, 64f, CELLS, SEEDED, 0f), 1e-6f);
+            assertEquals(corner, MingleNoiseModel.cornerField(200f / 64f, 37f / 64f, 64f, CELLS, SEEDED, 1f), 1e-6f);
+        }
+
+        @Test
+        void twoPointsInsideOneTexelTakeDistinctBlendedValues() {
+            float near = MingleNoiseModel.cornerField(200.2f / 64f, 37.3f / 64f, 64f, CELLS, NO_OFFSET, 1f);
+            float far = MingleNoiseModel.cornerField(200.7f / 64f, 37.8f / 64f, 64f, CELLS, NO_OFFSET, 1f);
+
+            assertNotEquals(near, far);
+        }
+
+        @Test
+        void aSharedTexelEdgeAgreesFromBothSides() {
+            for (float ease : new float[] {0f, 1f}) {
+                float before = MingleNoiseModel.cornerField((201f - HAIR) / 64f, 37.4f / 64f, 64f, CELLS, NO_OFFSET,
+                    ease);
+                float after = MingleNoiseModel.cornerField((201f + HAIR) / 64f, 37.4f / 64f, 64f, CELLS, NO_OFFSET,
+                    ease);
+
+                assertEquals(before, after, EDGE_AGREEMENT, "the edge parts at ease " + ease);
+            }
+        }
+
+        @Test
+        void theWorldBlendTakesItsCornerAndAgreesAcrossAnEdge() {
+            float corner = MingleNoiseModel.fieldAt(48f / 16f * CELLS, 1024f / 16f * CELLS, -112f / 16f * CELLS);
+
+            assertEquals(corner, MingleNoiseModel.worldCornerField(3f, 64f, -7f, CELLS, NO_OFFSET, 0f), 1e-5f);
+            for (float ease : new float[] {0f, 1f}) {
+                float before = MingleNoiseModel.worldCornerField(3.0625f - HAIR, 64.02f, -7.01f, CELLS, NO_OFFSET, ease);
+                float after = MingleNoiseModel.worldCornerField(3.0625f + HAIR, 64.02f, -7.01f, CELLS, NO_OFFSET, ease);
+
+                assertEquals(before, after, EDGE_AGREEMENT, "the world edge parts at ease " + ease);
+            }
         }
     }
 
     @Nested
-    class FluidSurfaceAndCoatShaders {
-
-        @Test
-        void theSurfaceMingleSamplesTheWorldTexel() throws IOException {
-            String surface = shader("goo_fluid_surface.fsh");
-
-            assertTrue(surface.contains(
-                "float opacity = mingleOpacity(mingleFaceTexel(mingleWorldPos), GameTime, shareSeed.x, shareSeed.y);"),
-                "the surface's opacity samples the snapped position");
-            assertEquals(2, surface.split("mingleWorldPos", -1).length - 1,
-                "mingleWorldPos is declared and read only by the snap");
-        }
-
-        @Test
-        void theCoatEdgeSamplesTheWorldTexel() throws IOException {
-            String coat = shader("goo_mob_coat.fsh");
-            int reachAt = coat.indexOf("float splatReach(vec3 offset) {\n    offset = mingleFaceTexel(offset);");
-            int noiseAt = coat.indexOf("mingleValueNoise(offset * EDGE_CELLS_PER_BLOCK)");
-            int distanceAt = coat.indexOf("return splatDistance(offset) + EDGE_NOISE * 2.0 * noise;");
-
-            assertTrue(reachAt >= 0, "the reach snaps its offset first");
-            assertTrue(noiseAt > reachAt, "the edge noise samples the snapped offset");
-            assertTrue(distanceAt > reachAt, "the edge's reach is read per texel");
-        }
+    class FluidSurfaceShader {
 
         @Test
         void theModelsOpacityIsOneValuePerTexel() {
@@ -176,51 +267,28 @@ class MingleNoiseTexelSnapTest {
     }
 
     @Nested
-    class SkinShaders {
+    class AilmentOverlayShader {
 
-        private static final String SKIN_SNAP = "vec2 skinTexel = mingleTexelSnap(skinCoord, MINGLE_SKIN_TEXELS);";
         private static final Pattern MINGLE_CALL = Pattern.compile("mingle(?:Field|ValueNoise)\\(([^;]*)");
 
-        /** Every mingle call in main takes the snapped skin texel, never the raw skin coordinate. */
-        private void assertEveryMingleCallInMainIsSnapped(String name) throws IOException {
-            String source = shader(name);
+        @Test
+        void everyNoiseCallInMainTakesTheSnappedSkinTexel() throws IOException {
+            String source = shader("goo_ailment_overlay.fsh");
             String main = source.substring(source.indexOf("void main() {"));
-            int snapAt = main.indexOf(SKIN_SNAP);
+            int snapAt = main.indexOf("vec2 skinTexel = mingleTexelSnap(skinCoord, MINGLE_SKIN_TEXELS);");
             Matcher call = MINGLE_CALL.matcher(main);
             int calls = 0;
 
-            assertTrue(snapAt >= 0, name + " snaps skinCoord at the skin's texel");
+            assertTrue(snapAt >= 0, "the overlay snaps skinCoord at the skin's texel");
             while (call.find()) {
                 calls++;
-                assertTrue(call.start() > snapAt, name + " samples before the snap: " + call.group());
+                assertTrue(call.start() > snapAt, "samples before the snap: " + call.group());
                 assertTrue(call.group(1).contains("skinTexel") && !call.group(1).contains("skinCoord"),
-                    name + " samples the raw coordinate: " + call.group());
+                    "samples the raw coordinate: " + call.group());
             }
-            assertTrue(calls > 0, name + " holds a mingle call");
-        }
-
-        @Test
-        void theSkinTexelIsTheSixtyFourTexelSkin() throws IOException {
-            assertTrue(shader("mingle_noise.glsl").contains("const vec2 MINGLE_SKIN_TEXELS = vec2(64.0);"));
-        }
-
-        @Test
-        void petrifyStoneSamplesTheSkinTexel() throws IOException {
-            assertEveryMingleCallInMainIsSnapped("petrify_stone.fsh");
-        }
-
-        @Test
-        void vineTangleSamplesTheSkinTexel() throws IOException {
-            assertEveryMingleCallInMainIsSnapped("vine_tangle.fsh");
-        }
-
-        @Test
-        void theAilmentOverlaySamplesTheSkinTexel() throws IOException {
-            String overlay = shader("goo_ailment_overlay.fsh");
-
-            assertEveryMingleCallInMainIsSnapped("goo_ailment_overlay.fsh");
-            assertTrue(overlay.contains("shine = shimmerField(skinTexel, GameTime);"), "the shimmer's noise");
-            assertTrue(overlay.contains("shine = writheField(skinTexel, GameTime);"), "the writhe's noise");
+            assertTrue(calls > 0, "the overlay holds a noise call");
+            assertTrue(source.contains("shine = shimmerField(skinTexel, GameTime);"), "the shimmer's noise");
+            assertTrue(source.contains("shine = writheField(skinTexel, GameTime);"), "the writhe's noise");
         }
     }
 }
