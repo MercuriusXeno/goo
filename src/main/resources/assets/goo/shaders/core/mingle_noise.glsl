@@ -31,6 +31,18 @@ const float MINGLE_COVERAGE[33] = float[33](
     0.2860, 0.1971, 0.1261, 0.0740, 0.0393, 0.0186, 0.0076, 0.0026, 0.0007,
     0.0001, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000);
 const int MINGLE_COVERAGE_STEPS = 32;
+// Minecraft's texel: a sixteenth of a block.
+const float MINGLE_WORLD_TEXELS = 16.0;
+
+// The middle of the texel holding p, so every point of one texel samples one
+// field value, the snap the Flames fire takes (decision mingle-noise-snaps-to-texels).
+vec3 mingleTexelSnap(vec3 p, float texelsPerUnit) {
+    return (floor(p * texelsPerUnit) + 0.5) / texelsPerUnit;
+}
+
+vec2 mingleTexelSnap(vec2 p, float texelsPerUnit) {
+    return (floor(p * texelsPerUnit) + 0.5) / texelsPerUnit;
+}
 
 float mingleHash(ivec3 cell) {
     uint h = uint(cell.x) * 0x8da6b343u ^ uint(cell.y) * 0xd8163841u ^ uint(cell.z) * 0xcb1ab31fu;

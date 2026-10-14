@@ -22,8 +22,37 @@ public final class MingleNoiseModel {
         0.2860f, 0.1971f, 0.1261f, 0.0740f, 0.0393f, 0.0186f, 0.0076f, 0.0026f, 0.0007f,
         0.0001f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f};
     private static final int COVERAGE_STEPS = 32;
+    /** MINGLE_WORLD_TEXELS: Minecraft's texel, a sixteenth of a block. */
+    public static final float WORLD_TEXELS = 16f;
 
     private MingleNoiseModel() {
+    }
+
+    /**
+     * mingleTexelSnap on one axis: the middle of the texel holding the coordinate
+     * (decision mingle-noise-snaps-to-texels).
+     *
+     * @param coordinate    the position on one axis
+     * @param texelsPerUnit texels per unit of the coordinate
+     * @return the coordinate of its texel's middle
+     */
+    public static float texelSnap(float coordinate, float texelsPerUnit) {
+        return ((float) Math.floor(coordinate * texelsPerUnit) + 0.5f) / texelsPerUnit;
+    }
+
+    /**
+     * The field crucible_dissolve.fsh thresholds: mingleField at the world
+     * position snapped to its texel and scaled to the given cells per block.
+     *
+     * @param x             world x
+     * @param y             world y
+     * @param z             world z
+     * @param cellsPerBlock noise cells per block
+     * @return the field value in [0, 1]
+     */
+    public static float texelField(float x, float y, float z, float cellsPerBlock) {
+        return field(texelSnap(x, WORLD_TEXELS) * cellsPerBlock, texelSnap(y, WORLD_TEXELS) * cellsPerBlock,
+            texelSnap(z, WORLD_TEXELS) * cellsPerBlock);
     }
 
     private static float hash(int x, int y, int z) {
