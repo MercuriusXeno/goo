@@ -14,7 +14,7 @@ import java.util.Map;
 
 /**
  * Per-slot render snapshot for slot-arrayed machines (Hub, Canister) and
- * single-slot machines (Tap, Reactor). Mutable; populated by the BER's
+ * single-slot machines (Reactor). Mutable; populated by the BER's
  * extractRenderState path each frame and consumed by submit. Each
  * RenderState instance owns its slot states for the life of the BE.
  *

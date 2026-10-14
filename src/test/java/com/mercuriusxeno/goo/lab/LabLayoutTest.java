@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class LabLayoutTest {
 
     private static final Set<String> MACHINE_BLOCKS = Set.of(
-            "tap", "vat", "crucible", "hub", "plexer", "reactor", "choral_gasket");
+            "vat", "crucible", "hub", "plexer", "reactor", "choral_gasket");
 
     private final LabPlan plan = LabLayout.plan();
 

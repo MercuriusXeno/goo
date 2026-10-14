@@ -1,13 +1,11 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.block.ability.AbilityBlockFallScheduler;
-import com.mercuriusxeno.goo.block.tap.TapDripScheduler;
 import com.mercuriusxeno.goo.network.GooEffectScheduler;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -22,15 +20,12 @@ class GooServerStateTest {
     private static void fill(GooServerState state) {
         state.gooEffects().enqueue(new GooEffectScheduler.PendingEffect(
                 1, null, null, GooTypes.ROCK, -1, POS, Direction.UP, ""));
-        state.tapDrips().enqueue(new TapDripScheduler.PendingDrip(
-                null, POS.above(), POS, Direction.UP, GooTypes.ROCK, 1, 1));
         state.markerFalls().enqueue(new AbilityBlockFallScheduler.PendingFall(
                 1, null, POS, null, null));
     }
 
     private static boolean holdsNothing(GooServerState state) {
         return !state.gooEffects().hasPending()
-                && state.tapDrips().pending().isEmpty()
                 && !state.markerFalls().hasPending();
     }
 
@@ -40,7 +35,6 @@ class GooServerStateTest {
         fill(state);
 
         assertTrue(state.gooEffects().hasPending());
-        assertFalse(state.tapDrips().pending().isEmpty());
         assertTrue(state.markerFalls().hasPending());
     }
 

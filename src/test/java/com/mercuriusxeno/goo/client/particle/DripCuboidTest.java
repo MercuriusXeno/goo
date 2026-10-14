@@ -12,10 +12,10 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Covers the tap drop's cuboid: every face tiled with square quads whose fronts face out of it. */
+/** Covers a drop's cuboid: every face tiled with square quads whose fronts face out of it. */
 class DripCuboidTest {
 
-    private static final float HALF = TapDripParticle.DROP_HALF_SIZE;
+    private static final float HALF = 1f / 16f;
     private static final double BOTTOM_Y = 64.3;
     private static final double TOLERANCE = 1e-5;
 

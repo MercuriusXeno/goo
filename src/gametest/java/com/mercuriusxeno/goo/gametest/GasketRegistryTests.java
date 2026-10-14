@@ -7,8 +7,6 @@ import com.mercuriusxeno.goo.block.crucible.CrucibleBlock;
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
-import com.mercuriusxeno.goo.block.tap.TapBlock;
-import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.data.GasketLocation;
 import com.mercuriusxeno.goo.data.GasketRegistry;
@@ -20,7 +18,6 @@ import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.registry.GooItems;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -43,11 +40,9 @@ import net.neoforged.neoforge.registries.RegisterEvent;
  */
 @RegistersGameTests
 public final class GasketRegistryTests {
-    private static final String TAP_ATTACHMENT_LOADS = "tap_attachment_loads";
     private static final String HUB_SLOT_GASKET_REGISTERED = "hub_slot_gasket_registered";
     private static final String BREAK_POPS_GASKET_CRUCIBLE = "break_pops_gasket_crucible";
     private static final String BREAK_POPS_GASKET_VAT = "break_pops_gasket_vat";
-    private static final String BREAK_POPS_GASKET_TAP = "break_pops_gasket_tap";
     private static final String BREAK_POPS_GASKET_HUB = "break_pops_gasket_hub";
     private static final String REMOVAL_POPS_GASKET_EVERY_MACHINE = "removal_pops_gasket_every_machine";
     private static final String BREAK_RELEASES_STANDING_GASKET = "break_releases_standing_gasket";
@@ -59,11 +54,9 @@ public final class GasketRegistryTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, TAP_ATTACHMENT_LOADS, GasketRegistryTests::tapAttachmentLoads);
         GooTestFunctions.registerTest(registrar, HUB_SLOT_GASKET_REGISTERED, GasketRegistryTests::hubSlotGasketRegistered);
         GooTestFunctions.registerTest(registrar, BREAK_POPS_GASKET_CRUCIBLE, GasketRegistryTests::breakPopsGasketCrucible);
         GooTestFunctions.registerTest(registrar, BREAK_POPS_GASKET_VAT, GasketRegistryTests::breakPopsGasketVat);
-        GooTestFunctions.registerTest(registrar, BREAK_POPS_GASKET_TAP, GasketRegistryTests::breakPopsGasketTap);
         GooTestFunctions.registerTest(registrar, BREAK_POPS_GASKET_HUB, GasketRegistryTests::breakPopsGasketHub);
         GooTestFunctions.registerTest(registrar, REMOVAL_POPS_GASKET_EVERY_MACHINE, GasketRegistryTests::removalPopsGasketEveryMachine);
         GooTestFunctions.registerTest(registrar, BREAK_RELEASES_STANDING_GASKET, GasketRegistryTests::breakReleasesStandingGasket);
@@ -72,10 +65,6 @@ public final class GasketRegistryTests {
 
 
     private static final BlockPos BE_POS = new BlockPos(1, 1, 1);
-    private static final int RELOAD_SETTLE_TICKS = 2;
-    private static final String TAP_RELOADED = "Reloaded tap block entity should stand at the tap position";
-    private static final String TAP_REGISTRY_ACCESS = "Reloaded tap's gasket attachment should hold registry access";
-    private static final String TAP_LOCATION = "Reloaded tap's canister gasket should resolve to the tap's slot";
 
     private static final String LOCATION_MISMATCH = "%s: expected %s, got %s";
 
@@ -101,8 +90,6 @@ public final class GasketRegistryTests {
             GooBlocks.CRUCIBLE.get().defaultBlockState().setValue(CrucibleBlock.HAS_GASKET, true);
     private static final Supplier<BlockState> VAT_GASKETED = () ->
             GooBlocks.VAT.get().defaultBlockState().setValue(VatBlock.GASKET_BASE, true);
-    private static final Supplier<BlockState> TAP_GASKETED = () ->
-            GooBlocks.TAP.get().defaultBlockState().setValue(TapBlock.HAS_GASKET, true);
     private static final Supplier<BlockState> HUB_GASKETED = () ->
             GooBlocks.HUB.get().defaultBlockState().setValue(HubBlock.HAS_GASKET, true);
     private static final String PLACED_HUB_HANDLER = "A hub placed from an item should stand a fluid handler on its carried canister";
@@ -110,32 +97,6 @@ public final class GasketRegistryTests {
     private static final String PARTNER_REF = "Partner's gasket state should read no partner";
 
     private GasketRegistryTests() {
-    }
-
-    /**
-     * Tap: after the block entity reloads from its saved data, its gasket
-     * attachment holds registry access and the gasket on its canister resolves
-     * a registry location at the tap.
-     *
-     * @param helper the gametest helper
-     */
-    public static void tapAttachmentLoads(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.TAP.get());
-        TapBlockEntity tap = helper.getBlockEntity(BE_POS, TapBlockEntity.class);
-        UUID topId = UUID.randomUUID();
-        tap.insertCanister(canisterWithGaskets(topId, UUID.randomUUID()));
-        reloadBlockEntity(helper, tap);
-
-        helper.runAfterDelay(RELOAD_SETTLE_TICKS, () -> {
-            ServerLevel level = helper.getLevel();
-            TapBlockEntity reloaded = helper.getBlockEntity(BE_POS, TapBlockEntity.class);
-            helper.assertTrue(reloaded != tap, TAP_RELOADED);
-            helper.assertTrue(reloaded.gasket().registryAccess() != null, TAP_REGISTRY_ACCESS);
-            GasketLocation expected = new GasketLocation(level.dimension(),
-                    helper.absolutePos(BE_POS), true, TapBlockEntity.SLOT);
-            assertLocation(helper, GasketRegistry.get(level).getLocation(topId), expected, TAP_LOCATION);
-            helper.succeed();
-        });
     }
 
     /**
@@ -194,16 +155,6 @@ public final class GasketRegistryTests {
     }
 
     /**
-     * Tap: breaking a tap whose gasket is linked to a partner drops the gasket
-     * once, clears the gasket's location and pairing, and the partner reads unlinked.
-     *
-     * @param helper the gametest helper
-     */
-    public static void breakPopsGasketTap(GameTestHelper helper) {
-        breakPopsGasket(helper, TAP_GASKETED.get(), GasketRole.RECEIVER, GasketRegistryTests::playerBreaks);
-    }
-
-    /**
      * Hub: breaking a hub whose intake gasket is linked to a partner drops the
      * gasket once, clears the gasket's location and pairing, and the partner reads unlinked.
      *
@@ -222,9 +173,8 @@ public final class GasketRegistryTests {
      * @param helper the gametest helper
      */
     public static void removalPopsGasketEveryMachine(GameTestHelper helper) {
-        List<Supplier<BlockState>> machines = List.of(CRUCIBLE_GASKETED, VAT_GASKETED, TAP_GASKETED, HUB_GASKETED);
-        List<GasketRole> roles = List.of(GasketRole.TRANSMITTER, GasketRole.TRANSMITTER,
-                GasketRole.RECEIVER, GasketRole.RECEIVER);
+        List<Supplier<BlockState>> machines = List.of(CRUCIBLE_GASKETED, VAT_GASKETED, HUB_GASKETED);
+        List<GasketRole> roles = List.of(GasketRole.TRANSMITTER, GasketRole.TRANSMITTER, GasketRole.RECEIVER);
         for (int i = 0; i < machines.size(); i++) {
             assertBreakPops(helper, machines.get(i).get(), roles.get(i), h -> h.destroyBlock(BE_POS));
             helper.killAllEntitiesOfClass(ItemEntity.class);
@@ -399,23 +349,5 @@ public final class GasketRegistryTests {
         CanisterItem.setMetadata(canister,
                 CanisterItem.getMetadata(canister).withTopGasketId(topId).withBottomGasketId(bottomId));
         return canister;
-    }
-
-    /**
-     * Replaces a block entity with one built from its own saved data, the path a
-     * chunk unload and load take: the old entity is removed first, loadStatic reads
-     * the data, then the level sets the level and queues onLoad.
-     *
-     * @param helper the gametest helper
-     * @param be     the block entity to reload
-     */
-    private static void reloadBlockEntity(GameTestHelper helper, BlockEntity be) {
-        ServerLevel level = helper.getLevel();
-        CompoundTag saved = be.saveWithFullMetadata(level.registryAccess());
-        level.removeBlockEntity(be.getBlockPos());
-        BlockEntity reloaded = BlockEntity.loadStatic(be.getBlockPos(), be.getBlockState(), saved,
-                level.registryAccess());
-        helper.assertTrue(reloaded != null, TAP_RELOADED);
-        level.setBlockEntity(reloaded);
     }
 }

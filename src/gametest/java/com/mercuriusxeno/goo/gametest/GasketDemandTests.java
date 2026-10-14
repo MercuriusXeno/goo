@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.GooConstants;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
-import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlock;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerBlockEntity;
 import com.mercuriusxeno.goo.block.crystallizer.CrystallizerPhases;
@@ -11,9 +10,6 @@ import com.mercuriusxeno.goo.block.gasket.GasketPushMath;
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
 import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
-import com.mercuriusxeno.goo.block.tap.TapBlock;
-import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
-import com.mercuriusxeno.goo.block.tap.TapDripGrade;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
 import com.mercuriusxeno.goo.data.GasketRegistry;
@@ -46,16 +42,12 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 /**
  * Receivers on the gasket network state their demand and their partner sends it
  * (decision receivers-demand-and-links-relay): a container with nothing demanding
- * behind it asks the power law of its capacity, a tap asks the rate its valve sets,
- * and a canister or vat between a source and a crystallizer asks its own rest plus the
+ * behind it asks the power law of its capacity, and a canister or vat between a source and a crystallizer asks its own rest plus the
  * crystallizer's pace upstream (decision relay-adds-dependent-ask-to-own).
  */
 @RegistersGameTests
 public final class GasketDemandTests {
     private static final String GASKET_DEMAND_VAT_FILLS_HUB = "gasket_demand_vat_fills_hub";
-    private static final String GASKET_DEMAND_VAT_FEEDS_TAP = "gasket_demand_vat_feeds_tap";
-    private static final String GASKET_DEMAND_TAP_CANISTER_FIRST = "gasket_demand_tap_canister_first";
-    private static final String GASKET_DEMAND_TAP_TYPES_BY_TURNS = "gasket_demand_tap_types_by_turns";
     private static final String GASKET_DEMAND_CRYSTALLIZER_CHAIN = "gasket_demand_crystallizer_chain";
     private static final String GASKET_DEMAND_CRYSTALLIZER_VAT_CHAIN = "gasket_demand_crystallizer_vat_chain";
     private static final String GASKET_DEMAND_HUB_SHARES = "gasket_demand_hub_shares";
@@ -67,9 +59,6 @@ public final class GasketDemandTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, GASKET_DEMAND_VAT_FILLS_HUB, GasketDemandTests::vatFillsHubAtItsRestingDemand);
-        GooTestFunctions.registerTest(registrar, GASKET_DEMAND_VAT_FEEDS_TAP, GasketDemandTests::vatFeedsTapAtTheValveRate);
-        GooTestFunctions.registerTest(registrar, GASKET_DEMAND_TAP_CANISTER_FIRST, GasketDemandTests::tapDrainsItsCanisterBeforeAskingTheVat);
-        GooTestFunctions.registerTest(registrar, GASKET_DEMAND_TAP_TYPES_BY_TURNS, GasketDemandTests::vatFeedsTapBothTypesByTurns);
         GooTestFunctions.registerTest(registrar, GASKET_DEMAND_CRYSTALLIZER_CHAIN, GasketDemandTests::crystallizerDrawsItsPaceThroughACanister);
         GooTestFunctions.registerTest(registrar, GASKET_DEMAND_CRYSTALLIZER_VAT_CHAIN, GasketDemandTests::crystallizerDrawsItsPaceThroughAVat);
         GooTestFunctions.registerTest(registrar, GASKET_DEMAND_HUB_SHARES, GasketDemandTests::hubGivesEachCanisterItsOwnDemand);
@@ -82,11 +71,6 @@ public final class GasketDemandTests {
     private static final int MEASURED_TICKS = 100;
     /** Enough that a canister's resting pull, about 4,200 mB a tick, cannot drain the vat within the run. */
     private static final int VAT_GOO = 1_000_000;
-    private static final TapDripGrade VALVE = TapDripGrade.ONE_PER_4_TICKS;
-    /** The drips the valve lets through over the run, allowing one drip of timing slack either way. */
-    private static final int VALVE_DRIPS = MEASURED_TICKS / VALVE.intervalTicks();
-    /** The drips the tap's own canister holds, well inside the run. */
-    private static final int CANISTER_DRIPS = 5;
 
     // --- Vat, canister, crystallizer chain (machine_bay: 5 wide, 3 deep) ---
 
@@ -150,106 +134,6 @@ public final class GasketDemandTests {
                     "hub gain against vat loss");
             helper.succeed();
         });
-    }
-
-    /**
-     * A vat feeding an open tap with an empty slot by gasket sends the tap what its
-     * valve drips: at one drip per 4 ticks, 25 mB over 100 ticks. The tap drips it into
-     * the crucible below, so the crucible stocks the vat's type (decision
-     * tap-asks-gasket-partner-per-drip).
-     *
-     * @param helper the gametest helper
-     */
-    public static void vatFeedsTapAtTheValveRate(GameTestHelper helper) {
-        VatBlockEntity vat = placeVat(helper);
-        TapBlockEntity tap = placeGasketedTapOverCrucible(helper);
-        link(helper, vat, tap, RECEIVER_POS);
-        vat.insertGoo(GooTypes.BLAZE, VAT_GOO);
-        AtomicInteger held = new AtomicInteger(VAT_GOO);
-        helper.onEachTick(() -> {
-            int now = vat.getContents().getVolume(GooTypes.BLAZE);
-            int sent = held.getAndSet(now) - now;
-            helper.assertTrue(sent <= VALVE.dripVolume(), "The tap asked more than one drip in a tick: " + sent);
-        });
-        helper.runAfterDelay(MEASURED_TICKS, () -> {
-            int intake = VAT_GOO - vat.getContents().getVolume(GooTypes.BLAZE);
-            helper.assertTrue(Math.abs(intake - VALVE_DRIPS) <= VALVE.dripVolume(),
-                    "The tap should take " + VALVE_DRIPS + " mB over " + MEASURED_TICKS + " ticks, took " + intake);
-            int stocked = crucibleHolds(helper, GooTypes.BLAZE);
-            helper.assertTrue(stocked > 0 && stocked <= intake,
-                    "The crucible should stock what the tap drew from the vat, " + intake + " mB, stocks " + stocked);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * A gasketed tap whose canister holds a few drips of goo drips those first and asks
-     * the vat nothing, then once the canister is empty asks the vat for every drip
-     * (decision tap-asks-gasket-partner-per-drip).
-     *
-     * @param helper the gametest helper
-     */
-    public static void tapDrainsItsCanisterBeforeAskingTheVat(GameTestHelper helper) {
-        VatBlockEntity vat = placeVat(helper);
-        TapBlockEntity tap = placeGasketedTapOverCrucible(helper);
-        tap.insertCanister(new ItemStack(GooItems.CANISTER.get()));
-        tap.insertGoo(GooTypes.BLAZE, CANISTER_DRIPS);
-        link(helper, vat, tap, RECEIVER_POS);
-        vat.insertGoo(GooTypes.BLAZE, VAT_GOO);
-        helper.onEachTick(() -> {
-            if (tap.getSlotGooType(TapBlockEntity.SLOT) != null) {
-                helper.assertValueEqual(vat.getContents().getVolume(GooTypes.BLAZE), VAT_GOO,
-                        "vat goo while the tap's canister holds goo");
-            }
-        });
-        helper.runAfterDelay(MEASURED_TICKS, () -> {
-            helper.assertValueEqual(tap.getFluidContent().totalVolume(), 0, "tap canister after the run");
-            int asked = VAT_GOO - vat.getContents().getVolume(GooTypes.BLAZE);
-            int afterCanister = VALVE_DRIPS - CANISTER_DRIPS;
-            helper.assertTrue(Math.abs(asked - afterCanister) <= VALVE.dripVolume(),
-                    "Once its canister ran dry the tap should ask " + afterCanister + " mB, asked " + asked);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * A vat holding blaze and unstable feeding a gasketed tap over a crucible sends the
-     * types by turns, so the crucible stocks both (decision vat-round-robins-gasket-send).
-     *
-     * @param helper the gametest helper
-     */
-    public static void vatFeedsTapBothTypesByTurns(GameTestHelper helper) {
-        VatBlockEntity vat = placeVat(helper);
-        TapBlockEntity tap = placeGasketedTapOverCrucible(helper);
-        link(helper, vat, tap, RECEIVER_POS);
-        vat.insertGoo(GooTypes.BLAZE, VAT_GOO);
-        vat.insertGoo(GooTypes.UNSTABLE, VAT_GOO);
-        helper.runAfterDelay(MEASURED_TICKS, () -> {
-            int blaze = crucibleHolds(helper, GooTypes.BLAZE);
-            int unstable = crucibleHolds(helper, GooTypes.UNSTABLE);
-            helper.assertTrue(blaze > 0 && unstable > 0,
-                    "The crucible should stock both types, holds blaze " + blaze + " and unstable " + unstable);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Stands a crucible, and over it an open gasketed tap with an empty slot at the valve grade.
-     *
-     * @param helper the gametest helper
-     * @return the tap
-     */
-    private static TapBlockEntity placeGasketedTapOverCrucible(GameTestHelper helper) {
-        helper.setBlock(RECEIVER_POS.below(), GooBlocks.CRUCIBLE.get());
-        helper.setBlock(RECEIVER_POS, GooBlocks.TAP.get().defaultBlockState()
-                .setValue(TapBlock.OPEN, true).setValue(TapBlock.HAS_GASKET, true));
-        TapBlockEntity tap = helper.getBlockEntity(RECEIVER_POS, TapBlockEntity.class);
-        tap.setDripGrade(VALVE);
-        return tap;
-    }
-
-    private static int crucibleHolds(GameTestHelper helper, ResourceKey<GooTypeDefinition> type) {
-        return helper.getBlockEntity(RECEIVER_POS.below(), CrucibleBlockEntity.class).reservoirHandler().getVolume(type);
     }
 
     /**

@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
 import com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity;
 import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlock;
 import com.mercuriusxeno.goo.block.gasket.IGasketHolder;
-import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.item.GooInteractionType;
 import com.mercuriusxeno.goo.item.IGooItemInteraction;
@@ -85,10 +84,6 @@ public class ChoralGasketItem extends Item implements IGooItemInteraction {
      */
     private static final String MSG_INSTALLED_FACE_SUFFIX = ")";
     /**
-     * Machine name: tap.
-     */
-    private static final String MACHINE_TAP = "tap";
-    /**
      * Supplier for the world-placeable gasket block, wired during registration.
      */
     private static @Nullable Supplier<Block> gasketBlockSupplier;
@@ -138,8 +133,7 @@ public class ChoralGasketItem extends Item implements IGooItemInteraction {
     /**
      * Handles gasket installation on machines. Dispatch order:
      * 1. Crucible (blockstate HAS_GASKET)
-     * 2. Tap (blockstate HAS_GASKET)
-     * 3. Slotted machines (canister/hub - per-face UUID on CanisterMetadata)
+     * 2. Slotted machines (canister/hub - per-face UUID on CanisterMetadata)
      * Vat gasket handling is in VatBlock.useItemOn.
      *
      * @param context the use-on context
@@ -172,10 +166,6 @@ public class ChoralGasketItem extends Item implements IGooItemInteraction {
         if (be instanceof CrucibleBlockEntity crucible) {
             return GasketInstallHelper.installBlockGasket(context, crucible, GasketRole.TRANSMITTER,
                     MSG_CRUCIBLE_HAS_GASKET, GasketInstallHelper.MSG_GASKET_INSTALLED);
-        }
-        if (be instanceof TapBlockEntity tap) {
-            return GasketInstallHelper.installBlockGasket(context, tap, GasketRole.RECEIVER,
-                    MSG_THIS_PREFIX + MACHINE_TAP + MSG_ALREADY_SUFFIX, MSG_INSTALLED_ON + MACHINE_TAP);
         }
         return dispatchSlottedIfApplicable(be, context);
     }

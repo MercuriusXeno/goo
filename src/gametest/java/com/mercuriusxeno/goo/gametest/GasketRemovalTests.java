@@ -9,8 +9,6 @@ import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
-import com.mercuriusxeno.goo.block.tap.TapBlock;
-import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
 import com.mercuriusxeno.goo.data.GasketRegistry;
@@ -45,7 +43,6 @@ import java.util.function.Consumer;
 public final class GasketRemovalTests {
     private static final String SNEAK_POPS_CANISTER_SLOT_GASKET = "sneak_pops_canister_slot_gasket";
     private static final String SNEAK_POPS_HUB_GASKET = "sneak_pops_hub_gasket";
-    private static final String SNEAK_POPS_TAP_GASKET = "sneak_pops_tap_gasket";
     private static final String SNEAK_POPS_VAT_GASKET = "sneak_pops_vat_gasket";
     private static final String SNEAK_POPS_REACTOR_GASKET = "sneak_pops_reactor_gasket";
     private static final String SNEAK_POPS_CRUCIBLE_GASKET = "sneak_pops_crucible_gasket";
@@ -58,7 +55,6 @@ public final class GasketRemovalTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, SNEAK_POPS_CANISTER_SLOT_GASKET, GasketRemovalTests::canisterSlotGasketPopsCanisterStays);
         GooTestFunctions.registerTest(registrar, SNEAK_POPS_HUB_GASKET, GasketRemovalTests::hubPopsHitGasketThenHandsBackCanister);
-        GooTestFunctions.registerTest(registrar, SNEAK_POPS_TAP_GASKET, GasketRemovalTests::tapPopsGasketThenHandsBackCanister);
         GooTestFunctions.registerTest(registrar, SNEAK_POPS_VAT_GASKET, GasketRemovalTests::vatPopsHitFaceThenLeavesStateUnchanged);
         GooTestFunctions.registerTest(registrar, SNEAK_POPS_REACTOR_GASKET, GasketRemovalTests::reactorPopsHitFaceThenLeavesStateUnchanged);
         GooTestFunctions.registerTest(registrar, SNEAK_POPS_CRUCIBLE_GASKET, GasketRemovalTests::cruciblePopsGasketThenPasses);
@@ -74,9 +70,6 @@ public final class GasketRemovalTests {
     /** Reactor output hollow heights, either side of the output canister's midpoint. */
     private static final double REACTOR_UPPER_Y = 0.65;
     private static final double PIXEL = 1.0 / 16.0;
-    /** A point on the south-facing tap body, clear of the valve and the canister slot. */
-    private static final double TAP_BODY_Y = 2.0 / 16.0;
-    private static final double TAP_BODY_Z = 3.0 / 16.0;
     private static final int HUB_SLOT = 0;
     /** The hub test pops the intake gasket and a slot gasket. */
     private static final int HUB_GASKETS = 2;
@@ -157,34 +150,6 @@ public final class GasketRemovalTests {
         helper.assertTrue(hub.getCanister(HUB_SLOT).isEmpty(), CANISTER_HANDED_BACK);
         helper.assertTrue(player.getInventory().countItem(GooItems.CANISTER.get()) == 1, CANISTER_HANDED_BACK);
         helper.assertTrue(gasketsHeld(player) == HUB_GASKETS, NO_EXTRA_GASKET);
-        helper.succeed();
-    }
-
-    // --- Tap ---
-
-    /**
-     * Tap: sneak empty-hand pops the tap's gasket while a canister is seated and
-     * leaves the canister; the same click once the tap is bare hands back the canister.
-     *
-     * @param helper the gametest helper
-     */
-    public static void tapPopsGasketThenHandsBackCanister(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.TAP.get());
-        TapBlockEntity tap = helper.getBlockEntity(BE_POS, TapBlockEntity.class);
-        tap.insertCanister(new ItemStack(GooItems.CANISTER.get()));
-        Player player = playerOnLastHotbarSlot(helper);
-        BlockHitResult body = hitAt(helper, HALF, TAP_BODY_Y, TAP_BODY_Z, Direction.UP);
-        UUID gasketId = installGasket(helper, player, body, tap, GasketRole.RECEIVER, NO_SLOT);
-
-        sneakEmptyHanded(player);
-        helper.useBlock(BE_POS, player, body);
-        assertPopped(helper, player, tap, GasketRole.RECEIVER, NO_SLOT, gasketId);
-        helper.assertFalse(helper.getBlockState(BE_POS).getValue(TapBlock.HAS_GASKET), GASKET_ID_CLEARED);
-        helper.assertFalse(tap.getCanister().isEmpty(), CANISTER_KEPT);
-
-        helper.useBlock(BE_POS, player, body);
-        helper.assertTrue(tap.getCanister().isEmpty(), CANISTER_HANDED_BACK);
-        helper.assertTrue(gasketsHeld(player) == 1, NO_EXTRA_GASKET);
         helper.succeed();
     }
 

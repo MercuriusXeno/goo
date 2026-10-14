@@ -184,7 +184,7 @@ public final class GooClientSetup {
     }
 
     /**
-     * Registers renderers for vat, plexer, and tap block entities.
+     * Registers renderers for vat, plexer and the other machine block entities.
      *
      * @param event the renderer registration event
      */
@@ -195,8 +195,6 @@ public final class GooClientSetup {
                 PlexerBlockEntityRenderer::new);
         event.registerBlockEntityRenderer(GooBlockEntities.REACTOR.get(),
                 ReactorBlockEntityRenderer::new);
-        event.registerBlockEntityRenderer(GooBlockEntities.TAP.get(),
-                TapBlockEntityRenderer::new);
         event.registerBlockEntityRenderer(GooBlockEntities.CRYSTALLIZER.get(),
                 CrystallizerBlockEntityRenderer::new);
     }
@@ -296,8 +294,6 @@ public final class GooClientSetup {
         event.registerSpriteSet(GooParticles.TRAIL_DRIP.get(), TrailDripParticle.Provider::new);
         event.registerSpriteSet(GooParticles.TRAIL_DRIP_LAND.get(), TrailDripParticle.LandProvider::new);
         event.registerSpriteSet(GooParticles.SPLAT_DRIP.get(), TrailDripParticle.SplatProvider::new);
-        event.registerSpriteSet(GooParticles.TAP_DRIP.get(), TapDripParticle.Provider::new);
-        event.registerSpriteSet(GooParticles.TAP_DRIP_LAND.get(), TapDripParticle.LandProvider::new);
         event.registerSpriteSet(GooParticles.GOO_FOG.get(), GooFogParticle.Provider::new);
         event.registerSpriteSet(GooParticles.SPORE.get(), SporeParticle.Provider::new);
         event.registerSpriteSet(GooParticles.GNAT.get(), GnatParticle.Provider::new);

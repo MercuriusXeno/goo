@@ -24,13 +24,6 @@ public enum HostKind {
             Set.of(HostVariables.HEALTH, HostVariables.MAX_HEALTH, HostVariables.DISTANCE,
                     HostVariables.UNDEAD, HostVariables.SPRINTING, HostVariables.SHARE)),
     /**
-     * The block a tap's drip lands on: the world around its top face, the
-     * entities standing there and the block above it to write, acted on in
-     * the tick the drip lands, with no target and no driver for later ticks
-     * (decisions tap-ability-tagged-program, vitality-drip-heals-below).
-     */
-    TAP("tap landing", TapHost.class, Set.of()),
-    /**
      * The cell a thrown world ability's blob lands in: the world around it,
      * the cell itself to write, and the ability's own block to stand there,
      * acted on in the landing tick with no driver for later ticks (decisions

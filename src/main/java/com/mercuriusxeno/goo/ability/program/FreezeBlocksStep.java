@@ -17,10 +17,8 @@ import java.util.stream.Stream;
 /**
  * Freezes the still water and lava within a sphere around the host's frost
  * center: water becomes ice, magicked ice that never thaws where the step
- * lasts, and lava becomes obsidian. A frost tap's nova leaves the area it
- * crossed frozen this way (decision nova-drip-pulses-a-short-lasting-freeze),
- * and the Orb freezes what it passes with ice that may melt
- * (decision orb-carries-a-swirling-nova).
+ * lasts, and lava becomes obsidian. The Orb freezes what it passes with ice
+ * that may melt (decision orb-carries-a-swirling-nova).
  *
  * @param radius  the sphere's radius in blocks, evaluated on the host
  * @param lasting whether water freezes to magicked ice that never thaws, rather than vanilla ice
