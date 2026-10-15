@@ -3,9 +3,12 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.unmake.MeltingBlockEntity;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
+import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.GooTypeSprites;
 import com.mercuriusxeno.goo.client.ber.MeltMeshGoo;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.network.DrinkPayload;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.platform.NativeImage;
@@ -17,6 +20,7 @@ import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.InteractionHand;
@@ -425,9 +429,9 @@ public final class DrinkRenderer {
     }
 
     /**
-     * The goo's solid color: each type's own color, not its fluid sprite's
-     * tint, which is white for every type wearing its own named sprite
-     * (decision unmake-skin-is-a-solid-sampled-color).
+     * The goo's solid color: each type's fluid color blended by its share of
+     * the block's volume, so a block of several types reaches the hand in
+     * their mix (decision unmake-skin-is-a-solid-sampled-color).
      *
      * @param goo a block's goo types
      * @return their colors blended by their shares of the volume
@@ -436,10 +440,29 @@ public final class DrinkRenderer {
         int[] tints = new int[goo.types().size()];
         float[] shares = new float[tints.length];
         for (int index = 0; index < tints.length; index++) {
-            tints[index] = ARGB.opaque(ClientGooTypes.color(goo.types().get(index)));
+            tints[index] = fluidColorOf(goo.types().get(index));
             shares[index] = goo.share(index);
         }
         return DrinkColors.gooColorOf(tints, shares);
+    }
+
+    /**
+     * A goo type's fluid color: the plain mean of its named fluid sprite's own
+     * pixels, read as the block's color is, so rock is its fluid's deep brown;
+     * its highlight, a pale accent that read as shiny tan, only where it wears
+     * the grey base its highlight tints.
+     * decision diagnose-then-fix-unmake-metallic-color
+     *
+     * @param type a goo type
+     * @return its fluid color, opaque
+     */
+    private static int fluidColorOf(ResourceKey<GooTypeDefinition> type) {
+        GooTypeSprites.FluidSprites sprites = GooSubmitter.fluidSprites(type);
+        if (sprites.tinted()) {
+            return ARGB.opaque(ClientGooTypes.color(type));
+        }
+        return DrinkColors.blockColorOf(pixelsOf(GooSubmitter.blockSprite(sprites.still()).contents()
+                .getOriginalImage()));
     }
 
     /**
