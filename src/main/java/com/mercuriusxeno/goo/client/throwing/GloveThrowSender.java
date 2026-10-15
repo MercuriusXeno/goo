@@ -365,12 +365,30 @@ public final class GloveThrowSender {
     private static @Nullable GooThrowPayload affordablePayload(Player player, TargetResult target,
             ResourceKey<GooTypeDefinition> gooType, String abilityId) {
         GooThrowPayload payload = targetToPayload(target, gooType, abilityId, lineOrigin());
-        if (payload == null || !affordsThrow(AbilitySyncHandler.findAbility(abilityId),
+        ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
+        if (payload == null || refusesStruck(player, payload, ability) || !affordsThrow(ability,
                 amount -> GooSourceScanner.hasEnough(player, gooType, amount),
                 reagent -> ReagentScanner.holds(player, reagent))) {
             return null;
         }
         return payload;
+    }
+
+    /**
+     * Whether the ability refuses the block the throw would strike, so the
+     * aim sends nothing and nothing is paid, as an unaffordable click does;
+     * Melt strikes only meltable stone.
+     * melt-blob-absorbs-into-lava
+     *
+     * @param player  the local player
+     * @param payload the throw the aim would send
+     * @param ability the selected ability's synced copy, or null when none synced
+     * @return true when a step of the ability refuses the struck block
+     */
+    private static boolean refusesStruck(Player player, GooThrowPayload payload, @Nullable ClientAbility ability) {
+        return ability != null && payload.targetEntityId() < 0
+                && GooThrowHandler.refusesStruck(player.level().getBlockState(payload.targetPos()),
+                ability.behaviors());
     }
 
     /**

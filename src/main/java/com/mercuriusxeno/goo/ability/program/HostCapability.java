@@ -214,7 +214,12 @@ public enum HostCapability {
      * A landing that lights a fire in its cell and sets off the explosive
      * ability block it struck (decision ignite-fire-and-explosive-combo).
      */
-    IGNITE(IgniteHost.class);
+    IGNITE(IgniteHost.class),
+    /**
+     * A landing that melts the stone it struck into lava (decision
+     * melt-blob-absorbs-into-lava).
+     */
+    MELT(MeltHost.class);
 
     private final Class<? extends StepHost> hostType;
 
