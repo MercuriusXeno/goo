@@ -47,6 +47,8 @@ class DrinkTreeTest {
     private static final double TWO = 2;
     /** Blocks between samples along a route. */
     private static final double SAMPLE = 0.05;
+    /** Blocks a stream's width may give up in flight after its block drains: a hundredth of the mouth. */
+    private static final double WIDTH_KEPT = 0.005;
     /** Blocks a point counts as on a spine within. */
     private static final double ON_THE_SPINE = 1e-6;
 
@@ -415,7 +417,7 @@ class DrinkTreeTest {
             DrinkTree.Stream stream = loneAt(START + (lone().routeLength() + DrinkStream.BLOCK_SPAN
                     + DrinkStream.TIP) / DrinkStream.FLOW + TICKS_LATER);
             double length = stream.path().length();
-            double full = DrinkBody.MOUTH * DrinkBody.sizeAt(stream.block().progressAt(stream.now()));
+            double full = DrinkBody.MOUTH;
             double leaving = DrinkBody.CENTER / length;
             double step = SAMPLE / length;
             double threadFrom = DrinkTree.threadFrom(stream) / length;
@@ -436,6 +438,49 @@ class DrinkTreeTest {
                     "the hair from half a block before the glove");
             assertEquals(0.5, DrinkTree.THREAD_RUN, DELTA);
             assertEquals(DrinkStream.THINNEST, DrinkTree.THREAD, DELTA, "the hair is the thinnest the skin reads round");
+        }
+
+        /**
+         * @return ticks after its start a lone stream's head has run past the glove
+         */
+        private double flowingTicks() {
+            return (lone().routeLength() + DrinkStream.BLOCK_SPAN + DrinkStream.TIP) / DrinkStream.FLOW + TICKS_LATER;
+        }
+
+        /** decision unmake-waves-dissolve-by-crucible-cost */
+        @Test
+        void aDrainedBlocksStreamKeepsItsWidthUntilItsTailHasFlowedIntoTheHand() {
+            DrinkTree.Stream flowing = loneAt(START + flowingTicks());
+            DrinkTree.Stream draining = loneAt(END - 1);
+            double length = draining.path().length();
+            double share = (DrinkBody.CENTER + DrinkTree.threadFrom(draining)) / TWO / length;
+            double before = DrinkTree.radiusAt(flowing, share);
+
+            for (double later = END; loneAt(later).tailAt() < draining.routeLength(); later += 1) {
+                DrinkTree.Stream drained = loneAt(later);
+                double tailShare = drained.tailAt() / length;
+                if (tailShare + DrinkStream.TIP / length < share) {
+                    assertEquals(before, DrinkTree.radiusAt(drained, share), WIDTH_KEPT, (later - END)
+                            + " ticks after the drain the liquid still in the air keeps the width it flowed with, its "
+                            + "tail at " + drained.tailAt() + " blocks");
+                }
+                assertFalse(drained.spent(), "the stream is drawn until its tail is in the hand");
+            }
+        }
+
+        /** decision unmake-waves-dissolve-by-crucible-cost */
+        @Test
+        void aDrainedTributarysTailRidesItsTrunkAllTheWayIntoTheHand() {
+            for (double later = END; treeAt(later).get(1).tailAt() < treeAt(later).get(1).routeLength(); later += 1) {
+                List<DrinkTree.Stream> streams = treeAt(later);
+                DrinkTree.Stream trunk = streams.getFirst();
+                DrinkTree.Stream tributary = streams.get(1);
+
+                assertFalse(tributary.spent(), "the tributary is drawn until its tail is in the hand");
+                assertFalse(trunk.spent(), "its trunk carries it until then");
+                assertTrue(trunk.carriesAt(trunk.path().length()), (later - END) + " ticks after the drain the "
+                        + "trunk still carries liquid into the hand, the tributary's tail at " + tributary.tailAt());
+            }
         }
 
         /** decision unmake-stream-is-a-shrinking-waterspout */
