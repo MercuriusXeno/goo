@@ -12,7 +12,9 @@ import com.mercuriusxeno.goo.client.model.GloveBodyModels;
 import com.mercuriusxeno.goo.client.model.GloveSpecialRenderer;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -41,6 +43,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -57,15 +60,14 @@ class HeldOutGloveHandTest {
 
     /** The vanilla first-person arm transform for the right hand at rest, ItemInHandRenderer.applyItemArmTransform. */
     private static final Vector3f ARM = new Vector3f(0.56f, -0.52f, -0.72f);
+    /** The default field of view in degrees, which the hand pass projects with. */
+    private static final int FOV_DEGREES = 70;
     /**
-     * The field of view slider's range in degrees, which the hand pass
-     * projects with, from where the palm comes on screen; the operator's
-     * setting is unread, and a few degrees move which glove faces the shell
-     * covers.
+     * The game ticks one pulse of the core spans, 2 pi over the pulse speed
+     * of 0.3 rounded up; the operator's screenshot caught the core near its
+     * widest, a quarter cycle in.
      */
-    private static final int MIN_FOV = 60;
-    private static final int MAX_FOV = 110;
-    private static final int FOV_STEP = 10;
+    private static final int PULSE_TICKS = 21;
     /** The operator's screenshot size, so the raster samples the screen they saw. */
     private static final int WIDTH = 1920;
     private static final int HEIGHT = 1009;
@@ -83,37 +85,47 @@ class HeldOutGloveHandTest {
     private record Submission(RenderType type, SubmitNodeCollector.CustomGeometryRenderer renderer, PoseStack.Pose pose) {
     }
 
+    /**
+     * Over one pulse of the core, every core face that faces the camera
+     * reaches the screen over the area the nearest-opaque resolve gives it,
+     * and no core pixel shows where the glove stands in front of it.
+     */
     @Test
-    void theHandHidesTheCoreItHoldsInTheHeldOutPose() {
-        List<Quad> quads = heldOutPalmQuads();
-        Map<Integer, Map<Direction, Integer>> buriedByFov = new TreeMap<>();
-        Map<Integer, Map<Direction, Integer>> shownByFov = new TreeMap<>();
-        for (int fov = MIN_FOV; fov <= MAX_FOV; fov += FOV_STEP) {
-            Raster drawn = Raster.handPass(quads, fov);
-            Raster truth = Raster.nearestOpaque(quads, fov);
-            Map<Direction, Integer> buried = new EnumMap<>(Direction.class);
+    void everyCoreFaceDrawsTheAreaTheHandLeavesItOverAPulse() {
+        Map<Integer, String> wrongTicks = new TreeMap<>();
+        for (int tick = 0; tick < PULSE_TICKS; tick++) {
+            List<Quad> quads = heldOutPalmQuads(tick);
+            Raster drawn = Raster.handPass(quads);
+            Raster truth = Raster.nearestOpaque(quads);
             Map<Direction, Integer> shown = new EnumMap<>(Direction.class);
+            Map<Direction, Integer> owed = new EnumMap<>(Direction.class);
+            Map<Direction, Integer> buried = new EnumMap<>(Direction.class);
             for (int i = 0; i < drawn.owner.length; i++) {
                 Quad got = drawn.owner[i];
+                Quad nearest = truth.owner[i];
+                if (nearest != null && nearest.part() == Part.CORE) {
+                    owed.merge(nearest.face(), 1, Integer::sum);
+                }
                 if (got != null && got.part() == Part.CORE) {
                     shown.merge(got.face(), 1, Integer::sum);
-                    if (truth.owner[i] == null || truth.owner[i].part() != Part.CORE) {
+                    if (nearest == null || nearest.part() != Part.CORE) {
                         buried.merge(got.face(), 1, Integer::sum);
                     }
                 }
             }
-            assertTrue(!shown.isEmpty(), "the core never reached the screen at field of view " + fov);
-            shownByFov.put(fov, shown);
-            if (!buried.isEmpty()) {
-                buriedByFov.put(fov, buried);
+            assertEquals(3, owed.size(), "the core shows three faces to the camera at tick " + tick + ": " + owed);
+            if (!shown.equals(owed) || !buried.isEmpty()) {
+                wrongTicks.put(tick, "drawn " + shown + ", owed " + owed + ", drawn where the glove hides it " + buried);
             }
         }
-        assertEquals(Map.of(), buriedByFov, "core pixels drawn where the glove stands in front of the core, "
-                + "by field of view and core face; core pixels drawn: " + shownByFov);
+        assertEquals(Map.of(), wrongTicks, "core pixels per face, by game tick of the pulse");
     }
 
-    /** Submits the glove with a blob through GloveSpecialRenderer in the held-out first-person hand and reads every quad back. */
-    private static List<Quad> heldOutPalmQuads() {
+    /**
+     * Submits the glove with a blob at rest size through GloveSpecialRenderer
+     * in the held-out first-person hand at a game tick, and reads every quad back.
+     */
+    private static List<Quad> heldOutPalmQuads(long gameTime) {
         PoseStack poseStack = new PoseStack();
         AbilityPoses.HandOffset hand = AbilityPoses.HELD_OUT_HAND;
         poseStack.translate(hand.across(), hand.lift(), -hand.forward());
@@ -129,6 +141,11 @@ class HeldOutGloveHandTest {
         }).when(collector).submitCustomGeometry(any(PoseStack.class), any(RenderType.class), any());
 
         Minecraft minecraft = mock(Minecraft.class);
+        // deep stubs answer the level's registry lookup for the goo type's color with nothing
+        ClientLevel level = mock(ClientLevel.class, RETURNS_DEEP_STUBS);
+        when(level.getGameTime()).thenReturn(gameTime);
+        minecraft.level = level;
+        when(minecraft.getDeltaTracker()).thenReturn(mock(DeltaTracker.class));
         QuadCollection body = mock(QuadCollection.class);
         when(body.getAll()).thenReturn(gloveBodyQuads());
         TextureAtlasSprite sprite = mock(TextureAtlasSprite.class);
@@ -230,16 +247,16 @@ class HeldOutGloveHandTest {
     private static final class Raster {
         private final float[] depth = new float[WIDTH * HEIGHT];
         private final Quad[] owner = new Quad[WIDTH * HEIGHT];
-        private final Matrix4f projection;
+        private final Matrix4f projection = new Matrix4f().perspective(
+                (float) Math.toRadians(FOV_DEGREES), (float) WIDTH / HEIGHT, NEAR, FAR);
 
-        private Raster(int fov) {
+        private Raster() {
             Arrays.fill(depth, Float.POSITIVE_INFINITY);
-            projection = new Matrix4f().perspective((float) Math.toRadians(fov), (float) WIDTH / HEIGHT, NEAR, FAR);
         }
 
         /** The hand pass: opaque quads in submission order, then translucent quads sorted far to near, MeshData.sortQuads. */
-        static Raster handPass(List<Quad> quads, int fov) {
-            Raster raster = new Raster(fov);
+        static Raster handPass(List<Quad> quads) {
+            Raster raster = new Raster();
             quads.stream().filter(q -> !q.blends()).forEach(raster::draw);
             quads.stream().filter(Quad::blends)
                     .sorted(Comparator.comparingDouble((Quad q) -> centroid(q).lengthSquared()).reversed())
@@ -248,8 +265,8 @@ class HeldOutGloveHandTest {
         }
 
         /** What a correct depth resolve shows: the nearest glove or core surface at each pixel, order aside. */
-        static Raster nearestOpaque(List<Quad> quads, int fov) {
-            Raster raster = new Raster(fov);
+        static Raster nearestOpaque(List<Quad> quads) {
+            Raster raster = new Raster();
             quads.stream().filter(q -> q.part() != Part.SHELL)
                     .map(q -> new Quad(q.part(), q.face(), q.view(), false, false)).forEach(raster::draw);
             return raster;
