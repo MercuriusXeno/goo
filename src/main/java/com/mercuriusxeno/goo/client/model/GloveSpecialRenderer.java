@@ -138,7 +138,10 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
     }
 
     /**
-     * Submits the baked glove body model (arm sheath geometry) for the given tier.
+     * Submits the baked glove body model (arm sheath geometry) for the given
+     * tier, opaque with its wrist opening cut out, so the palm hides the
+     * part of the core held inside the hand whatever order the shell's
+     * faces sort in (decision diagnose-and-correct-the-palm-core-cull).
      *
      * @param poseStack     the pose stack for rendering
      * @param nodeCollector the render node collector
@@ -148,7 +151,7 @@ public class GloveSpecialRenderer implements SpecialModelRenderer<GloveSpecialRe
     private static void submitGloveBody(PoseStack poseStack,
                                         SubmitNodeCollector nodeCollector, int packedLight, Item gloveItem) {
         QuadCollection model = GloveBodyModels.getModel(gloveItem);
-        nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.renderType(),
+        nodeCollector.submitCustomGeometry(poseStack, GooSubmitter.cutoutOnBlockAtlas(),
                 (pose, c) -> {
                     QuadInstance qi = new QuadInstance();
                     qi.setColor(COLOR_WHITE);
