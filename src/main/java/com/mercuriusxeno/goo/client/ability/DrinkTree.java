@@ -613,38 +613,9 @@ public final class DrinkTree {
      * @return how much of its spout's width its liquid has there, 1 for the whole width, 0 for the thread
      */
     static double spoutAlong(Stream stream, double distance) {
-        double nose = noseOf(stream);
-        double run = nose >= threadFrom(stream) ? 1 : (distance - nose) / (threadFrom(stream) - nose);
+        double run = (distance - DrinkBody.CENTER) / (threadFrom(stream) - DrinkBody.CENTER);
         double left = 1 - Math.clamp(run, 0, 1);
         return left * left;
-    }
-
-    /**
-     * Where a stream's spout is widest: its block's middle while the block
-     * feeds it, and once its liquid has left the block, a tip's length past
-     * its tail, so the spout's wide end rides its tail to
-     * the hand rather than staying where the block was while the tail runs
-     * on into the hair; a spout pinned at the block left the last of the
-     * liquid a hair before it reached the hand, where it vanished.
-     * decision unmake-stream-is-a-shrinking-waterspout
-     * decision unmake-waves-dissolve-by-crucible-cost
-     *
-     * @param stream the stream
-     * @return blocks along its route
-     */
-    static double noseOf(Stream stream) {
-        return stream.awaiting() ? DrinkBody.CENTER : Math.max(DrinkBody.CENTER, stream.tailAt() + DrinkStream.TIP);
-    }
-
-    /**
-     * @param stream the stream
-     * @return the share of its spout's width left to it: all of it while its block feeds it, then as much as is
-     *         left of the way from its nose to where the hair starts, so the spout shrinks into the hand as its tail
-     *         flows there, a little each tick
-     */
-    static double spoutLeftOf(Stream stream) {
-        double threadFrom = threadFrom(stream);
-        return Math.clamp((threadFrom - noseOf(stream)) / (threadFrom - DrinkBody.CENTER), 0, 1);
     }
 
     /**
@@ -764,9 +735,11 @@ public final class DrinkTree {
         double presence = DrinkStream.taperAt(distance, stream.tailAt(), stream.headAt()) * swell
                 * DrinkStream.smoothRamp(0, DrinkBody.CENTER, distance);
         if (presence > 0) {
-            // The spout shrinks into the hair and never below it: shrunk to nothing, the last of a drained block's
-            // liquid drew at no width while its tail was still a block from the hand, and vanished there.
-            double full = Math.max(THREAD, liquidWidth(stream, distance) * spoutLeftOf(stream));
+            // The liquid is as wide as the waterspout is where it stands on its route, the spout fixed at the block,
+            // so a drained block's liquid narrows only as it nears the palm and ends at its own tapered tail; a spout
+            // that shrank whole as the tail flowed, or rode the tail, thinned the liquid away in the air before it
+            // reached the hand, the stream vanishing partway.
+            double full = liquidWidth(stream, distance);
             sum[0] += fourthPower(THREAD + (full - THREAD) * spoutAlong(stream, distance)) * presence;
             sum[1] += presence;
         }
