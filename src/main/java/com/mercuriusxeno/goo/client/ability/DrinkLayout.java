@@ -339,7 +339,7 @@ public final class DrinkLayout {
             Node node = nodes.get(pos);
             if (node == null) {
                 lay(pos, glove, flowing);
-            } else if (node.trunk != null && !trunkFlows(node, flowing)) {
+            } else if (node.trunk != null && !trunkFlows(node, flowing) && stillToCome(pos, glove, flowing)) {
                 reroot(node, glove, now, flowing);
             }
         }
@@ -446,6 +446,11 @@ public final class DrinkLayout {
         }
     }
 
+    /**
+     * @param line   the trunk's line
+     * @param center the joining block's middle
+     * @return blocks along the trunk the block joins at: its nearest point plus {@link #LEAD}
+     */
     private static double joinOn(Line line, Vec3 center) {
         return Math.min(line.length(), line.nearestDistance(center) + LEAD);
     }

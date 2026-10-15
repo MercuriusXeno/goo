@@ -282,6 +282,39 @@ class DrinkFieldTest {
         }
     }
 
+    /**
+     * A cone lays a feeder behind its trunk's block, and the trunk's block
+     * drains first: the feeder's liquid runs on into a trunk whose own has
+     * passed, and the skin turns smoothly through the join all the same.
+     * decision diagnose-then-fix-unmake-seam-and-ribbing
+     * decision unmake-streams-collapse-into-a-central-trunk
+     */
+    @Test
+    void aFeederBehindADrainedTrunkJoinsItWithNoSeam() {
+        DrinkTree.Block drained = new DrinkTree.Block(new BlockPos(7, 2, 3), new Vec3(7.5, 2.5, 3.5), 1, 0, 9, 30);
+        DrinkTree.Block behind = new DrinkTree.Block(new BlockPos(8, 2, 3), new Vec3(8.5, 2.5, 3.5), 1, 0, 9, 1000);
+        List<DrinkTree.Stream> tree = treeOf(40, drained, behind);
+        DrinkTree.Stream trunk = tree.getFirst();
+        DrinkTree.Stream feeder = trunk.tributaries().getFirst();
+        List<DrinkField.Skeleton> skeletons = tree.stream().map(DrinkTree::skeleton).toList();
+        double join = feeder.joinShare();
+        double merge = DrinkTree.MERGE / trunk.path().length();
+        double pastTheFeedersBox = (DrinkField.BOX_BLEND + DrinkField.DEPTH) / trunk.path().length();
+
+        for (int side : new int[] {1, -1, 0}) {
+            Turn onTrunk = steepestTurn(skeletons, trunk, Math.max(pastTheFeedersBox, join - merge),
+                    Math.min(1, join + merge), side);
+            Turn onFeeder = steepestTurn(skeletons, feeder,
+                    (WALK_FROM + DrinkField.BOX_BLEND + DrinkField.DEPTH) / feeder.path().length(), 1, side);
+            assertTrue(onTrunk.degrees() < SMOOTH_TURN, "the trunk's normal turns " + onTrunk.degrees()
+                    + " degrees on side " + side + " at " + onTrunk.at() + " blocks, the join "
+                    + join * trunk.path().length() + " blocks along");
+            assertTrue(onFeeder.degrees() < SMOOTH_TURN, "the feeder's normal turns " + onFeeder.degrees()
+                    + " degrees on side " + side + " at " + onFeeder.at() + " blocks of its "
+                    + feeder.path().length());
+        }
+    }
+
     /** decision diagnose-then-fix-unmake-seam-and-ribbing */
     @Test
     void streamsLyingOnOneAnotherAreOneStreamsWidthAndABundleNoWiderThanItsTrunk() {
