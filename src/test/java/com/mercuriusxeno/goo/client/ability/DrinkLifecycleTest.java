@@ -192,6 +192,100 @@ class DrinkLifecycleTest {
     }
 
     /**
+     * Every region the drink is uploaded in holds every body that reaches it,
+     * so the shader draws the whole field there: a body a region's caps left
+     * out broke the skin at that region's faces, block-sized segments, and
+     * cut its stream out of that region.
+     * decision unmake-waves-dissolve-by-crucible-cost
+     */
+    @Test
+    void everyRegionOfTheDrinksUploadHoldsEveryBodyReachingIt() {
+        List<DrinkTree.Block> blocks = cone();
+        Set<BlockPos> streaming = new HashSet<>();
+        blocks.forEach(block -> streaming.add(block.pos()));
+        DrinkLayout layout = new DrinkLayout();
+        Map<BlockPos, DrinkTree.Stream> built = new HashMap<>();
+        List<String> dropped = new ArrayList<>();
+        for (double now = PICKED; now <= LANDS + 80 && dropped.size() < REPORTED; now += 1) {
+            Vec3 pull = layout.pullToward(LOOK, now);
+            layout.place(streaming, GLOVE, new DrinkLayout.Aim(EYE, LOOK), now,
+                    DrinkTree.flowingOf(built, streaming));
+            Map<BlockPos, DrinkTree.Stream> frame = new HashMap<>();
+            List<DrinkField.Skeleton> skeletons = new ArrayList<>();
+            List<DrinkUpload.Coat> coats = new ArrayList<>();
+            for (DrinkTree.Stream stream : DrinkTree.build(blocks, layout, GLOVE, pull, now)) {
+                frame.put(stream.block().pos(), stream);
+                if (!stream.spent()) {
+                    skeletons.add(DrinkTree.skeleton(stream));
+                    coats.add(new DrinkUpload.Coat(0, 0, 0, 0));
+                }
+            }
+            built = frame;
+            int left = 0;
+            int regions = 0;
+            for (DrinkUpload.Block region : DrinkUpload.of(skeletons, coats, Vec3.ZERO, true)) {
+                left += region.dropped();
+                regions += region.dropped() > 0 ? 1 : 0;
+            }
+            if (left > 0) {
+                dropped.add(String.format("at %.0f: %d bodies left out of %d regions; worst region needs %s", now,
+                        left, regions, worstDemandOf(skeletons)));
+            }
+        }
+        assertTrue(dropped.isEmpty(), "the upload's caps left bodies out:\n" + String.join("\n", dropped));
+        assertTrue(DrinkUpload.BYTES <= DrinkUpload.MOST_BYTES, "a region's block is " + DrinkUpload.BYTES
+                + " bytes, past what every driver allows a uniform block");
+    }
+
+    /**
+     * @param skeletons a frame's skeletons
+     * @return the most streams, boxes, rings and table entries any one region asks for, against the caps
+     */
+    private static String worstDemandOf(List<DrinkField.Skeleton> skeletons) {
+        Map<BlockPos, Map<Integer, List<Integer>>> regions = new HashMap<>();
+        for (int index = 0; index < skeletons.size(); index++) {
+            for (int body = 0; body < skeletons.get(index).bodies(); body++) {
+                if (!DrinkUpload.radiates(skeletons.get(index), body)) {
+                    continue;
+                }
+                DrinkUpload.Bound bound = DrinkUpload.boundOf(skeletons.get(index), index, body);
+                for (int x = DrinkUpload.regionOf(bound.low().x); x <= DrinkUpload.regionOf(bound.high().x); x++) {
+                    for (int y = DrinkUpload.regionOf(bound.low().y); y <= DrinkUpload.regionOf(bound.high().y); y++) {
+                        for (int z = DrinkUpload.regionOf(bound.low().z); z <= DrinkUpload.regionOf(bound.high().z);
+                             z++) {
+                            regions.computeIfAbsent(new BlockPos(x, y, z), ignored -> new HashMap<>())
+                                    .computeIfAbsent(index, ignored -> new ArrayList<>()).add(body);
+                        }
+                    }
+                }
+            }
+        }
+        int streams = 0;
+        int boxes = 0;
+        int rings = 0;
+        int entries = 0;
+        for (Map<Integer, List<Integer>> region : regions.values()) {
+            int regionBoxes = 0;
+            int regionRings = 0;
+            int regionEntries = 0;
+            for (Map.Entry<Integer, List<Integer>> run : region.entrySet()) {
+                List<Integer> bodies = run.getValue().stream().sorted().toList();
+                int segments = skeletons.get(run.getKey()).segments();
+                regionRings += DrinkUpload.spanOf(bodies, segments).count();
+                regionBoxes += bodies.getLast() >= segments ? 1 : 0;
+                regionEntries += bodies.size();
+            }
+            streams = Math.max(streams, region.size());
+            boxes = Math.max(boxes, regionBoxes);
+            rings = Math.max(rings, regionRings);
+            entries = Math.max(entries, regionEntries);
+        }
+        return String.format("%d/%d streams, %d/%d boxes, %d/%d rings, %d/%d entries", streams,
+                DrinkUpload.MOST_STREAMS, boxes, DrinkUpload.MOST_BOXES, rings, DrinkUpload.MOST_RINGS, entries,
+                DrinkUpload.MOST_ENTRIES);
+    }
+
+    /**
      * Runs a drink frame by frame as the renderer does, each block joining the drink once it is picked, and asserts
      * no block's liquid stops drawing, leaps or jumps trunks in the air.
      *
