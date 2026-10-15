@@ -135,7 +135,7 @@ float mingleOpacity(vec3 worldPos, float gameTime, float share, float seed) {
 // texels at pixel resolution, its shape pinned to the texture's texel grid.
 // The artist's dial: 0 blends the corners in a straight slant (bilinear),
 // 1 in a smooth curve (eased), anything between mixes the two.
-const float MINGLE_CORNER_EASE = 1.0;
+const float MINGLE_CORNER_EASE = 0.0;
 
 vec3 mingleCornerWeight(vec3 fraction) {
     return mix(fraction, fraction * fraction * (3.0 - 2.0 * fraction), MINGLE_CORNER_EASE);
