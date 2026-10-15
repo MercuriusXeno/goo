@@ -5,11 +5,12 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.ResourceKey;
 
 /**
- * One goo type's layer of a mingled fluid surface (decision
- * noise-mingled-type-textures): layer 0, the first type in its order, draws whole, and
- * every later layer draws over the ones below at an opacity from its own
- * noise field whose mean is its conditional share, so each type covers its
- * volume ratio on average and blends with its neighbours at the seams.
+ * One goo type's layer of a mingled fluid surface (decisions
+ * noise-mingled-type-textures and one-pass-blends-every-type): the surface
+ * draws once, and its shader blends layer 0, the first type in its order,
+ * whole, then every later layer over the ones before at an opacity from its
+ * own noise field whose mean is its conditional share, so each type covers
+ * its volume ratio on average and blends with its neighbours at the seams.
  *
  * @param type  the goo type the layer shows
  * @param lo    the volume ratio of every earlier band together
@@ -17,21 +18,6 @@ import net.minecraft.resources.ResourceKey;
  * @param layer the layer index, 0 for the first type in the band order
  */
 public record TypeBand(ResourceKey<GooTypeDefinition> type, float lo, float hi, int layer) {
-
-    /** Must match goo_fluid_surface.vsh: share units per whole share. */
-    public static final int SHARE_UNITS = 16384;
-
-    /**
-     * Blocks each layer's geometry sits outward of the layer below, so
-     * distance sorting draws the layers in order and depth never ties.
-     */
-    public static final float LAYER_LIFT = 1f / 512f;
-
-    /** Bit offset of the noise seed in the packed band. */
-    private static final int SEED_SHIFT = 16;
-
-    /** The packed band of a lone whole surface: share 1, which draws whole whatever its seed. */
-    public static final int BASE_LAYER_PACKED = SHARE_UNITS;
 
     /**
      * The layer's conditional share: this type's volume over the volume of
@@ -46,13 +32,6 @@ public record TypeBand(ResourceKey<GooTypeDefinition> type, float lo, float hi, 
     }
 
     /**
-     * @return the distance this layer's geometry sits outward of layer 0
-     */
-    public float lift() {
-        return layer * LAYER_LIFT;
-    }
-
-    /**
      * The seed of this type's own noise field, the same in every mix and at
      * every layer, so no layer renumbering reshuffles a pattern (decision
      * mingle-noise-keyed-by-type).
@@ -61,29 +40,5 @@ public record TypeBand(ResourceKey<GooTypeDefinition> type, float lo, float hi, 
      */
     public int seed() {
         return Math.max(0, GooTypes.indexOf(type));
-    }
-
-    /**
-     * Packs the share and the seed into the lightmap coordinates the
-     * surface shader reads as UV2, share in the low short and seed in the
-     * high short; the surface is emissive, so its lightmap coordinates carry
-     * nothing else.
-     *
-     * @return the band as packed lightmap coordinates
-     */
-    public int packed() {
-        return pack(share(), seed());
-    }
-
-    /**
-     * Packs a share and a seed as {@link #packed()} does, for a surface whose
-     * share changes along it (decision unmake-waves-dissolve-by-crucible-cost).
-     *
-     * @param share the layer's conditional share, 0 to 1
-     * @param seed  the type's noise seed
-     * @return the band as packed lightmap coordinates
-     */
-    public static int pack(double share, int seed) {
-        return (int) Math.clamp(Math.round(share * SHARE_UNITS), 0, SHARE_UNITS) | seed << SEED_SHIFT;
     }
 }

@@ -150,7 +150,7 @@ public class VatBlockEntityRenderer
 
     /**
      * Submits this vat's slice of the unified column: one whole water surface
-     * where water outweighs every goo type, else one layer per goo type.
+     * where water outweighs every goo type, else one surface blending every goo type.
      *
      * @param poseStack     the pose stack for rendering
      * @param nodeCollector the render node collector
@@ -160,7 +160,7 @@ public class VatBlockEntityRenderer
                                     SubmitNodeCollector nodeCollector, VatRenderState state) {
         if (state.waterDominant || state.typeBands.isEmpty()) {
             GooSubmitter.submitUndulatingWater(poseStack, nodeCollector,
-                    (ctx, sprite) -> VatFluidRenderer.renderFluid(ctx, sprite, state, 0f));
+                    ctx -> VatFluidRenderer.renderFluid(ctx, state));
         } else {
             VatFluidRenderer.renderMingledFluid(GooSubmitter.bandedSurfaces(poseStack, nodeCollector), state);
         }
