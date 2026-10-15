@@ -211,6 +211,15 @@ bool segmentRead(int segment, vec3 p, out vec2 read, out vec3 facing) {
     float lineT = chord == 0.0 ? 0.0 : clamp(dot(p - a.xyz, line) / (chord * chord), 0.0, 1.0);
     float bound = length(p - a.xyz - line * lineT) - widest - sag;
     read.y = bound - REACH * min(1.0, widest / FULL_RADIUS);
+    // Past its reach the segment reads no nearer than REACH whatever its
+    // curve, which is all its caller asks of it, so the curve and the
+    // cyclone are skipped: every segment of a crowded region's runs paid for
+    // them at every step, which held a drink of many blocks to a few frames.
+    if (read.y > 0.0) {
+        read.x = REACH;
+        facing = vec3(0.0, 1.0, 0.0);
+        return owned;
+    }
     if (!owned) {
         float radius = mix(a.w, b.w, lineT);
         read.x = scaled(roundCone(p - a.xyz, line, a.w, b.w), radius);

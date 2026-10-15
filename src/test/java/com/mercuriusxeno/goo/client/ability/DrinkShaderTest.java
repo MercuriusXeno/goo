@@ -90,6 +90,22 @@ class DrinkShaderTest {
                 + "        hit = fieldOnly(rd * t, streams) >= iso;\n    }\n    if (!hit) {"));
     }
 
+    /**
+     * A segment whose reach falls short of the point reads REACH without
+     * evaluating its curve or its cyclone, which its caller would clamp to
+     * REACH anyway, so a crowded region's march pays only for the segments
+     * near the point.
+     */
+    @Test
+    void aSegmentPastItsReachSkipsItsCurve() throws IOException {
+        String fragment = source(FRAGMENT).replace("\r\n", "\n");
+        int bound = fragment.indexOf("    read.y = bound - REACH * min(1.0, widest / FULL_RADIUS);");
+        int skip = fragment.indexOf("    if (read.y > 0.0) {\n        read.x = REACH;", bound);
+        int curve = fragment.indexOf("vec3 foot = hermite3(", bound);
+
+        assertTrue(bound > 0 && skip > bound && skip < curve, "the skip sits between the bound and the curve");
+    }
+
     @Test
     void theShaderReadsTheSmoothTubeAndJoinsStreamsByTheirFilletAsTheJavaDoes() throws IOException {
         String fragment = source(FRAGMENT);
