@@ -16,7 +16,6 @@ import com.mercuriusxeno.goo.client.ability.ChainBurnouts;
 import com.mercuriusxeno.goo.client.ability.ClientSwapBody;
 import com.mercuriusxeno.goo.client.ability.EldritchSight;
 import com.mercuriusxeno.goo.client.ability.EncasementLayer;
-import com.mercuriusxeno.goo.client.ability.FallingShards;
 import com.mercuriusxeno.goo.client.ability.FrozenPoses;
 import com.mercuriusxeno.goo.client.ability.GhostTrails;
 import com.mercuriusxeno.goo.client.ability.GlassKnives;
@@ -186,7 +185,7 @@ public final class GooClientSetup {
     }
 
     /**
-     * Registers renderers for vat, plexer, and tap block entities.
+     * Registers renderers for vat, plexer and the other machine block entities.
      *
      * @param event the renderer registration event
      */
@@ -197,8 +196,6 @@ public final class GooClientSetup {
                 PlexerBlockEntityRenderer::new);
         event.registerBlockEntityRenderer(GooBlockEntities.REACTOR.get(),
                 ReactorBlockEntityRenderer::new);
-        event.registerBlockEntityRenderer(GooBlockEntities.TAP.get(),
-                TapBlockEntityRenderer::new);
         event.registerBlockEntityRenderer(GooBlockEntities.CRYSTALLIZER.get(),
                 CrystallizerBlockEntityRenderer::new);
     }
@@ -300,8 +297,6 @@ public final class GooClientSetup {
         event.registerSpriteSet(GooParticles.TRAIL_DRIP.get(), TrailDripParticle.Provider::new);
         event.registerSpriteSet(GooParticles.TRAIL_DRIP_LAND.get(), TrailDripParticle.LandProvider::new);
         event.registerSpriteSet(GooParticles.SPLAT_DRIP.get(), TrailDripParticle.SplatProvider::new);
-        event.registerSpriteSet(GooParticles.TAP_DRIP.get(), TapDripParticle.Provider::new);
-        event.registerSpriteSet(GooParticles.TAP_DRIP_LAND.get(), TapDripParticle.LandProvider::new);
         event.registerSpriteSet(GooParticles.GOO_FOG.get(), GooFogParticle.Provider::new);
         event.registerSpriteSet(GooParticles.SPORE.get(), SporeParticle.Provider::new);
         event.registerSpriteSet(GooParticles.GNAT.get(), GnatParticle.Provider::new);
@@ -503,9 +498,8 @@ public final class GooClientSetup {
         ThrowFreezeState.clear();
     }
 
-    /** Clears Crystal's shards, glass knives, ore sightings, glitter shells, arm poses and forming prisms. */
+    /** Clears Crystal's glass knives, ore sightings, glitter shells, arm poses and forming prisms. */
     private static void clearCrystalVisuals() {
-        FallingShards.CLIENT.clear();
         OreSightings.CLIENT.clear();
         GlitterShell.clear();
         GlassKnives.clear();

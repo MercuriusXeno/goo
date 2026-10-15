@@ -20,7 +20,6 @@ import com.mercuriusxeno.goo.network.BlockExposurePayload;
 import com.mercuriusxeno.goo.network.BlockTransformPayload;
 import com.mercuriusxeno.goo.network.ChainBurnoutPayload;
 import com.mercuriusxeno.goo.network.DrinkPayload;
-import com.mercuriusxeno.goo.network.DripHealedPayload;
 import com.mercuriusxeno.goo.network.GhostTrailPayload;
 import com.mercuriusxeno.goo.network.GlassKnifePayload;
 import com.mercuriusxeno.goo.network.GooFlightPayload;
@@ -38,7 +37,6 @@ import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
 import com.mercuriusxeno.goo.network.OreRevealPayload;
 import com.mercuriusxeno.goo.network.ReapSwellPayload;
 import com.mercuriusxeno.goo.network.ScryPayload;
-import com.mercuriusxeno.goo.network.ShardFallPayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.network.SunbeamPayload;
 import com.mercuriusxeno.goo.network.TomePayload;
@@ -109,7 +107,6 @@ public final class GooClientNetworking {
         event.register(ModelShrinkPayload.TYPE, TransformationHandler::handleShrink);
         event.register(GhostTrailPayload.TYPE, GhostTrailHandler::handle);
         event.register(StreamHealedPayload.TYPE, VitalityVisual::handleHealed);
-        event.register(DripHealedPayload.TYPE, VitalityVisual::handleDripHealed);
         event.register(BlockAfterimagePayload.TYPE, AfterimageHandler::handleBlock);
     }
 
@@ -129,7 +126,6 @@ public final class GooClientNetworking {
         event.register(HeaterFlamePayload.TYPE, HeaterFlames::onPayload);
         event.register(MeltAbsorbPayload.TYPE, MeltAbsorbs::onPayload);
         event.register(ReapSwellPayload.TYPE, ReapSwells::handle);
-        event.register(ShardFallPayload.TYPE, ShardFallHandler::handle);
         event.register(OreRevealPayload.TYPE, OreRevealHandler::handle);
         event.register(GlassKnifePayload.TYPE, GlassKnives::onPayload);
         event.register(ArmPosePayload.TYPE, AbilityPoses::onPayload);

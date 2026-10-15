@@ -72,14 +72,6 @@ public class GooParticles {
     public static final DeferredHolder<ParticleType<?>, ParticleType<ColorParticleOption>> SPLAT_DRIP =
         PARTICLE_TYPES.register("splat_drip", GooParticles::colorParticleType);
 
-    /** The tap-drip: square drop falling straight down from a tap's spigot. */
-    public static final DeferredHolder<ParticleType<?>, ParticleType<GooDripParticleOptions>> TAP_DRIP =
-        PARTICLE_TYPES.register("tap_drip", GooParticles::gooDripParticleType);
-
-    /** Square splat when a tap-drip hits the ground. */
-    public static final DeferredHolder<ParticleType<?>, ParticleType<GooDripParticleOptions>> TAP_DRIP_LAND =
-        PARTICLE_TYPES.register("tap_drip_land", GooParticles::gooDripParticleType);
-
     /** Radial gradient fog puff for goo flight trails. */
     public static final DeferredHolder<ParticleType<?>, ParticleType<ColorParticleOption>> GOO_FOG =
         PARTICLE_TYPES.register("goo_fog", GooParticles::colorParticleType);
@@ -148,25 +140,6 @@ public class GooParticles {
             @Override
             public StreamCodec<? super RegistryFriendlyByteBuf, ColorParticleOption> streamCodec() {
                 return ColorParticleOption.streamCodec(this);
-            }
-        };
-    }
-
-    /**
-     * Creates a non-syncing ParticleType that carries a goo type.
-     *
-     * @return the configured goo drip particle type
-     */
-    private static ParticleType<GooDripParticleOptions> gooDripParticleType() {
-        return new ParticleType<>(false) {
-            @Override
-            public MapCodec<GooDripParticleOptions> codec() {
-                return GooDripParticleOptions.codec(this);
-            }
-
-            @Override
-            public StreamCodec<? super RegistryFriendlyByteBuf, GooDripParticleOptions> streamCodec() {
-                return GooDripParticleOptions.streamCodec(this);
             }
         };
     }

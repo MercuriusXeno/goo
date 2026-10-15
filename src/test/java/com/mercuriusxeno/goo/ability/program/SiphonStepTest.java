@@ -201,7 +201,7 @@ class SiphonStepTest {
             List<Step> siphon = List.of(SIPHON);
 
             assertDoesNotThrow(() -> ProgramBehavior.forHost(siphon, HostKind.PLAYER));
-            assertThrows(ProgramLoadException.class, () -> ProgramBehavior.forHost(siphon, HostKind.TAP));
+            assertThrows(ProgramLoadException.class, () -> ProgramBehavior.forHost(siphon, HostKind.SURFACE));
             assertThrows(ProgramLoadException.class, () -> ProgramBehavior.forHost(siphon, HostKind.ENTITY));
         }
     }

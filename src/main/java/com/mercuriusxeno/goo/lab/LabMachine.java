@@ -7,10 +7,6 @@ package com.mercuriusxeno.goo.lab;
  */
 public enum LabMachine {
     /**
-     * Drips its slotted canister's goo onto the first surface below.
-     */
-    TAP("tap", "Tap"),
-    /**
      * Stores goo in bulk, receiving at its cap and transmitting from its base.
      */
     VAT("vat", "Vat"),

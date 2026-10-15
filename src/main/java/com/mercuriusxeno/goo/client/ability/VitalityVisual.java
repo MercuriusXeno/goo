@@ -7,7 +7,6 @@ import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.particle.VitalMoteParticle;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
-import com.mercuriusxeno.goo.network.DripHealedPayload;
 import com.mercuriusxeno.goo.network.StreamHealedPayload;
 import com.mercuriusxeno.goo.registry.GooParticles;
 import net.minecraft.client.Minecraft;
@@ -143,24 +142,6 @@ public final class VitalityVisual {
      */
     public static void handleHealed(StreamHealedPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> playHealed(payload));
-    }
-
-    /**
-     * Plays a healing tap's healed drip on the client: amber stars rise on the
-     * healed thing, as on what the channel heals; a tap has no glove for goo
-     * to home from.
-     * vitality-drip-heals-below
-     *
-     * @param payload the healed drip
-     * @param context the network context
-     */
-    public static void handleDripHealed(DripHealedPayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> {
-            ClientLevel level = Minecraft.getInstance().level;
-            if (level != null && level.getEntity(payload.healedId()) instanceof LivingEntity healed) {
-                raiseStars(level, healed);
-            }
-        });
     }
 
     private static void playHealed(StreamHealedPayload payload) {

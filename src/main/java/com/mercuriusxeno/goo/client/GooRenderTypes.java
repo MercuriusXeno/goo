@@ -33,12 +33,17 @@ public final class GooRenderTypes {
     private static final String PIPELINE_PATH = "pipeline/";
     /** Path prefix of a core shader. */
     private static final String CORE_SHADER_PATH = "core/";
+    /** The block transform's depth bias toward the camera, slope scaled and constant, as a decal's. */
+    private static final float BLOCK_MINGLE_DEPTH_BIAS_SCALE = -1f;
+    private static final float BLOCK_MINGLE_DEPTH_BIAS_CONSTANT = -10f;
     /** Name prefix of a goo render type. */
     private static final String TYPE_NAME_PREFIX = "goo_";
     /** Name suffix of a burnout pipeline's twin that draws through blocks. */
     /** Fragments fainter than this are cut, as vanilla's translucent entity cuts them. */
     private static final float ALPHA_CUTOUT = 0.1f;
     private static final String THROUGH_BLOCKS_SUFFIX = "_through_blocks";
+    /** Must match goo_fluid_surface.fsh: the sampler the frame's mingle table binds to. */
+    private static final String MINGLE_TABLE_SAMPLER = "MingleTable";
 
     /**
      * Lines pipeline with LIGHTNING blend (SRC_ALPHA, ONE) and no depth write.
@@ -533,12 +538,12 @@ public final class GooRenderTypes {
      * goo fluid look, translucent, fullbright and without cardinal
      * lighting, whose vertex shader lifts each vertex by the ripple
      * amplitude its overlay UV carries times a wave of world position and
-     * GameTime. Its fragment shader draws layer 0 whole and every later
-     * layer at the mingle opacity of its own noise field of world position
-     * and GameTime, from the share and layer the vertex's lightmap
-     * coordinates carry (decision noise-mingled-type-textures). Cull is off
-     * as on entityTranslucent, which the vat and crucible fluid drew on
-     * before.
+     * GameTime. Its fragment shader blends every type the surface holds in
+     * one pass, each over the ones before at the mingle opacity of its own
+     * noise field of world position and GameTime, from the rows of the
+     * frame's mingle table the vertex's lightmap coordinates name (decision
+     * one-pass-blends-every-type). Cull is off as on entityTranslucent,
+     * which the vat and crucible fluid drew on before.
      */
     public static final RenderPipeline GOO_FLUID_SURFACE = RenderPipeline.builder(
                     RenderPipelines.ENTITY_EMISSIVE_SNIPPET,
@@ -546,6 +551,7 @@ public final class GooRenderTypes {
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, "pipeline/goo_fluid_surface"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/goo_fluid_surface"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, "core/goo_fluid_surface"))
+            .withSampler(MINGLE_TABLE_SAMPLER)
             .withShaderDefine("ALPHA_CUTOUT", 0.1F)
             .withShaderDefine("NO_OVERLAY")
             .withShaderDefine("NO_CARDINAL_LIGHTING")
@@ -559,6 +565,7 @@ public final class GooRenderTypes {
                     "goo_fluid_surface",
                     RenderSetup.builder(GOO_FLUID_SURFACE)
                             .withTexture("Sampler0", texture)
+                            .withTexture(MINGLE_TABLE_SAMPLER, MingleTableTexture.ID)
                             .sortOnUpload()
                             .createRenderSetup()
             ));
@@ -651,6 +658,10 @@ public final class GooRenderTypes {
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "block_mingle"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "block_mingle"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "block_mingle"))
+            // Drawn on the new block's own faces, the old block wins the depth test by bias rather than by
+            // swelling past them, so no face shifts when the transform ends.
+            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true,
+                    BLOCK_MINGLE_DEPTH_BIAS_SCALE, BLOCK_MINGLE_DEPTH_BIAS_CONSTANT))
             .build();
 
     /** Per-atlas memoized render types on the block transform pipeline. */

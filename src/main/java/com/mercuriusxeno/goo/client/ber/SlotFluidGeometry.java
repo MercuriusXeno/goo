@@ -9,8 +9,8 @@ import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.Direction;
 
 /**
- * Shared fluid rendering geometry for canister-shaped slots. All three BERs
- * (canister, hub, tap) use identical math with different body/inset constants;
+ * Shared fluid rendering geometry for canister-shaped slots. Both BERs
+ * (canister, hub) use identical math with different body/inset constants;
  * this class parameterises those constants via {@link SlotGeometry}.
  */
 final class SlotFluidGeometry {

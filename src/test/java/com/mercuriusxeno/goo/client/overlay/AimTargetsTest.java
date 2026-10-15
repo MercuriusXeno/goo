@@ -93,13 +93,13 @@ class AimTargetsTest {
         }
 
         @ParameterizedTest
-        @EnumSource(value = AbilityBadge.class, names = {"FREE", "CHANNELED", "PRISM", "TAP"})
+        @EnumSource(value = AbilityBadge.class, names = {"FREE", "CHANNELED", "PRISM"})
         void freeAndChanneledAimTheRaysPointWhereNoMobIsNear(AbilityBadge badge) {
             assertEquals(POINT_TARGET, resolve(badge, null).target());
         }
 
         @ParameterizedTest
-        @EnumSource(value = AbilityBadge.class, names = {"FREE", "CHANNELED", "PRISM", "TAP"})
+        @EnumSource(value = AbilityBadge.class, names = {"FREE", "CHANNELED", "PRISM"})
         void freeAimLocksOntoAMobNearTheRay(AbilityBadge badge) {
             Entity zombie = mock(Entity.class);
 

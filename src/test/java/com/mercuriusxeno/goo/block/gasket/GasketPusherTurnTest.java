@@ -65,7 +65,7 @@ class GasketPusherTurnTest {
 
     /**
      * Pushes four times from a two-slot source, blaze first and unstable second, to a
-     * partner asking one drip per push, the way a tap's intake asks.
+     * partner asking one drip per push.
      *
      * @param blazeHeld    the mB of blaze the source holds
      * @param unstableHeld the mB of unstable the source holds

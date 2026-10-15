@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Every canister slot renderer (canister, hub, tap, reactor) builds its slot's fill
+ * Every canister slot renderer (canister, hub, reactor) builds its slot's fill
  * from every type the canister holds: the vat's type bands, one per type by volume,
  * so a two-type slot draws the mingled surface (decisions
  * canisters-hold-more-than-one-goo-type and noise-mingled-type-textures).

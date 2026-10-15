@@ -12,8 +12,6 @@ import com.mercuriusxeno.goo.block.hub.HubBlock;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlock;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
-import com.mercuriusxeno.goo.block.tap.TapBlock;
-import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.block.vat.VatBlock;
 import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
 import com.mercuriusxeno.goo.data.GasketLocation;
@@ -62,9 +60,6 @@ public final class GasketHolderTests {
     private static final String CRUCIBLE_GOO_GASKET_TUNER = "crucible_goo_gasket_tuner";
     private static final String REACTOR_GASKET_LOCATION = "reactor_gasket_location";
     private static final String REACTOR_SEATED_GASKET_METADATA = "reactor_seated_gasket_metadata";
-    private static final String TAP_ROLE_RECEIVER = "tap_role_receiver";
-    private static final String TAP_TUNER_LINK = "tap_tuner_link";
-    private static final String TAP_REFUSES_TRANSMITTER = "tap_refuses_transmitter";
     private static final String HUB_SLOT_TRANSMITS = "hub_slot_transmits";
     private static final String HUB_SUPPORTS_BOTH_ROLES = "hub_supports_both_roles";
     private static final String HUB_SLOT_MISS_INTAKE = "hub_slot_miss_intake";
@@ -86,9 +81,6 @@ public final class GasketHolderTests {
         GooTestFunctions.registerTest(registrar, CRUCIBLE_GOO_GASKET_TUNER, GasketHolderTests::crucibleHoldingGooTakesGasketAndTuner);
         GooTestFunctions.registerTest(registrar, REACTOR_GASKET_LOCATION, GasketHolderTests::reactorOutputGasketLocationFollowsCanister);
         GooTestFunctions.registerTest(registrar, REACTOR_SEATED_GASKET_METADATA, GasketHolderTests::reactorSeatedCanisterAnswersGasketMetadata);
-        GooTestFunctions.registerTest(registrar, TAP_ROLE_RECEIVER, GasketHolderTests::tapResolveRoleAlwaysReceiver);
-        GooTestFunctions.registerTest(registrar, TAP_TUNER_LINK, GasketHolderTests::tapTunerLinksCanisterTransmitter);
-        GooTestFunctions.registerTest(registrar, TAP_REFUSES_TRANSMITTER, GasketHolderTests::tapRefusesTransmitterRole);
         GooTestFunctions.registerTest(registrar, HUB_SLOT_TRANSMITS, GasketHolderTests::hubSlotLinksAsTransmitter);
         GooTestFunctions.registerTest(registrar, HUB_SUPPORTS_BOTH_ROLES, GasketHolderTests::hubSupportsBothRolesIntakeReceives);
         GooTestFunctions.registerTest(registrar, HUB_SLOT_MISS_INTAKE, GasketHolderTests::hubSlotMissKeepsIntakePath);
@@ -135,24 +127,10 @@ public final class GasketHolderTests {
     private static final String REACTOR_SEATED_BOTTOM_GASKET =
             "Seated canister metadata should answer the bottom gasket id it was inserted with";
 
-    // --- Tap fixtures ---
-
-    private static final BlockPos TAP_PARTNER_POS = new BlockPos(1, 1, 3);
-    /** Inside the tap body, below the block's vertical midpoint. */
-    private static final double TAP_BODY_Y = 2.0 / 16.0;
-    /** Inside the inserted canister, above the block's vertical midpoint. */
-    private static final double TAP_CANISTER_Y = 10.0 / 16.0;
-    private static final String TAP_BODY_RECEIVER = "Gasketed tap should resolve RECEIVER for a hit on its body";
-    private static final String TAP_CANISTER_RECEIVER =
-            "Gasketed tap should resolve RECEIVER for a hit on its inserted canister";
-    private static final String TAP_GASKET_INSTALLED = "Choral gasket used on the tap should install its gasket";
-    private static final String TAP_LINKED_RECEIVER =
-            "Tuner should link the tap as receiver of the canister's transmitter gasket";
-    private static final String TAP_GASKET_NO_TX = "Gasketed tap should not support TRANSMITTER";
-    private static final String TAP_NO_GASKET_TX = "Tap without gasket should not support TRANSMITTER";
-    private static final String TAP_NO_GASKET_RX = "Tap without gasket should not support RECEIVER";
-
     // --- Hub fixtures ---
+
+    /** Where a hub test stands the canister its slot links to. */
+    private static final BlockPos PARTNER_POS = new BlockPos(1, 1, 3);
 
     private static final String REMOVAL = "removal";
     private static final int HUB_TEST_SLOT = 0;
@@ -234,93 +212,6 @@ public final class GasketHolderTests {
         helper.succeed();
     }
 
-    // --- Tap (diagnose-then-fix-tap-gasket-role) ---
-
-    /**
-     * Tap: a gasketed tap resolves RECEIVER for a hit on its body, below the
-     * block's vertical midpoint, and for a hit on its inserted canister above it.
-     *
-     * @param helper the gametest helper
-     */
-    public static void tapResolveRoleAlwaysReceiver(GameTestHelper helper) {
-        TapBlockEntity tap = placeGasketedTap(helper);
-        tap.insertCanister(new ItemStack(GooItems.CANISTER.get()));
-        helper.assertTrue(tap.resolveRole(tapHit(helper, TAP_BODY_Y)) == GasketRole.RECEIVER, TAP_BODY_RECEIVER);
-        helper.assertTrue(tap.resolveRole(tapHit(helper, TAP_CANISTER_Y)) == GasketRole.RECEIVER,
-                TAP_CANISTER_RECEIVER);
-        helper.succeed();
-    }
-
-    /**
-     * Tap: a tuner holding a canister's transmitter link, used on a gasketed
-     * tap's body, links the tap as the receiver of that canister.
-     *
-     * @param helper the gametest helper
-     */
-    public static void tapTunerLinksCanisterTransmitter(GameTestHelper helper) {
-        helper.setBlock(TAP_PARTNER_POS, GooBlocks.CANISTER.get());
-        CanisterBlockEntity canister = helper.getBlockEntity(TAP_PARTNER_POS, CanisterBlockEntity.class);
-        ItemStack held = new ItemStack(GooItems.CANISTER.get());
-        CanisterItem.setMetadata(held, CanisterItem.getMetadata(held).withGasketIds());
-        canister.insertCanister(CanisterBlock.CENTER_SLOT, held, false);
-        helper.setBlock(BE_POS, GooBlocks.TAP.get());
-        TapBlockEntity tap = helper.getBlockEntity(BE_POS, TapBlockEntity.class);
-        Player player = playerHolding(helper, GooItems.CHORAL_GASKET.get());
-        helper.useBlock(BE_POS, player, tapHit(helper, TAP_BODY_Y));
-        helper.assertTrue(helper.getBlockState(BE_POS).getValue(TapBlock.HAS_GASKET), TAP_GASKET_INSTALLED);
-
-        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(GooItems.CHORAL_TUNER.get()));
-        BlockPos canisterAbs = helper.absolutePos(TAP_PARTNER_POS);
-        helper.useBlock(TAP_PARTNER_POS, player, new BlockHitResult(
-                new Vec3(canisterAbs.getX() + HALF, canisterAbs.getY() + LOWER_HOLLOW_Y, canisterAbs.getZ() + HALF),
-                Direction.UP, canisterAbs, false));
-        helper.useBlock(BE_POS, player, tapHit(helper, TAP_BODY_Y));
-
-        GasketPartner partner = tap.getPartner(GasketRole.RECEIVER, GooConstants.NO_SLOT);
-        helper.assertTrue(partner != null && canisterAbs.equals(partner.pos())
-                && partner.slot() == CanisterBlock.CENTER_SLOT, TAP_LINKED_RECEIVER);
-        helper.succeed();
-    }
-
-    /**
-     * Tap: a gasketed tap with no canister refuses the transmitter role, and a
-     * tap without a gasket refuses both roles.
-     *
-     * @param helper the gametest helper
-     */
-    public static void tapRefusesTransmitterRole(GameTestHelper helper) {
-        TapBlockEntity gasketed = placeGasketedTap(helper);
-        helper.assertFalse(gasketed.supportsRole(GasketRole.TRANSMITTER), TAP_GASKET_NO_TX);
-        helper.setBlock(BE_POS, GooBlocks.TAP.get().defaultBlockState().setValue(TapBlock.HAS_GASKET, false));
-        TapBlockEntity bare = helper.getBlockEntity(BE_POS, TapBlockEntity.class);
-        helper.assertFalse(bare.supportsRole(GasketRole.TRANSMITTER), TAP_NO_GASKET_TX);
-        helper.assertFalse(bare.supportsRole(GasketRole.RECEIVER), TAP_NO_GASKET_RX);
-        helper.succeed();
-    }
-
-    private static TapBlockEntity placeGasketedTap(GameTestHelper helper) {
-        helper.setBlock(BE_POS, GooBlocks.TAP.get().defaultBlockState().setValue(TapBlock.HAS_GASKET, true));
-        return helper.getBlockEntity(BE_POS, TapBlockEntity.class);
-    }
-
-    /**
-     * A hit centered on the tap body's footprint at the given block-local height.
-     *
-     * @param helper the gametest helper
-     * @param localY block-local Y of the hit
-     * @return the hit result
-     */
-    private static BlockHitResult tapHit(GameTestHelper helper, double localY) {
-        BlockPos abs = helper.absolutePos(BE_POS);
-        Direction facing = helper.getBlockState(BE_POS).getValue(TapBlock.FACING);
-        AABB body = TapBlock.bodyShape(facing).bounds();
-        Vec3 location = new Vec3(
-                abs.getX() + (body.minX + body.maxX) * HALF,
-                abs.getY() + localY,
-                abs.getZ() + (body.minZ + body.maxZ) * HALF);
-        return new BlockHitResult(location, facing, abs, false);
-    }
-
     // --- Hub ---
 
     /**
@@ -345,8 +236,8 @@ public final class GasketHolderTests {
      * @param helper the gametest helper
      */
     public static void hubSlotLinksAsTransmitter(GameTestHelper helper) {
-        helper.setBlock(TAP_PARTNER_POS, GooBlocks.CANISTER.get());
-        CanisterBlockEntity receiver = helper.getBlockEntity(TAP_PARTNER_POS, CanisterBlockEntity.class);
+        helper.setBlock(PARTNER_POS, GooBlocks.CANISTER.get());
+        CanisterBlockEntity receiver = helper.getBlockEntity(PARTNER_POS, CanisterBlockEntity.class);
         receiver.insertCanister(CanisterBlock.CENTER_SLOT, gasketedCanister(), false);
         helper.setBlock(BE_POS, GooBlocks.HUB.get());
         HubBlockEntity hub = helper.getBlockEntity(BE_POS, HubBlockEntity.class);
@@ -354,8 +245,8 @@ public final class GasketHolderTests {
 
         ServerPlayer player = serverPlayerHoldingTuner(helper);
         TunerFeedbackRecorder recorder = TunerFeedbackRecorder.attachTo(player);
-        BlockPos receiverAbs = helper.absolutePos(TAP_PARTNER_POS);
-        helper.useBlock(TAP_PARTNER_POS, player, new BlockHitResult(
+        BlockPos receiverAbs = helper.absolutePos(PARTNER_POS);
+        helper.useBlock(PARTNER_POS, player, new BlockHitResult(
                 new Vec3(receiverAbs.getX() + HALF, receiverAbs.getY() + UPPER_HOLLOW_Y, receiverAbs.getZ() + HALF),
                 Direction.UP, receiverAbs, false));
         helper.useBlock(BE_POS, player, hubSlotHit(helper, HUB_TEST_SLOT, LOWER_HOLLOW_Y));

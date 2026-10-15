@@ -2,7 +2,7 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.unmake.MeltingBlockEntity;
-import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.ber.MeltMeshGoo;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.network.DrinkPayload;
@@ -13,6 +13,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.ARGB;
 import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
@@ -377,14 +378,18 @@ public final class DrinkRenderer {
     }
 
     /**
+     * The goo's solid color: each type's own color, not its fluid sprite's
+     * tint, which is white for every type wearing its own named sprite
+     * (decision unmake-skin-is-a-solid-sampled-color).
+     *
      * @param goo a block's goo types
-     * @return their tints blended by their shares of the volume
+     * @return their colors blended by their shares of the volume
      */
     static int gooColorOf(MingledGoo goo) {
         int[] tints = new int[goo.types().size()];
         float[] shares = new float[tints.length];
         for (int index = 0; index < tints.length; index++) {
-            tints[index] = GooSubmitter.fluidTint(goo.types().get(index));
+            tints[index] = ARGB.opaque(ClientGooTypes.color(goo.types().get(index)));
             shares[index] = goo.share(index);
         }
         return DrinkColors.gooColorOf(tints, shares);

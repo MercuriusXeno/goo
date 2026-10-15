@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
-import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.data.GasketRegistry;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
@@ -44,7 +43,7 @@ public final class LabRigs {
      */
     public static final int VAT_FILL = 64_000;
     /**
-     * The type the single-type bays run on; it carries no destructive tap ability.
+     * The type the single-type bays run on.
      */
     public static final ResourceKey<GooTypeDefinition> BAY_TYPE = GooTypes.ROCK;
     /**
@@ -95,26 +94,12 @@ public final class LabRigs {
      */
     private static Map<LabMachine, BiConsumer<ServerLevel, BlockPos>> rigTable() {
         Map<LabMachine, BiConsumer<ServerLevel, BlockPos>> table = new EnumMap<>(LabMachine.class);
-        table.put(LabMachine.TAP, LabRigs::rigTap);
         table.put(LabMachine.VAT, LabRigs::rigVat);
         table.put(LabMachine.CRUCIBLE, LabRigs::rigCrucible);
         table.put(LabMachine.HUB, LabRigs::rigHub);
         table.put(LabMachine.PLEXER, LabRigs::rigPlexer);
         table.put(LabMachine.REACTOR, LabRigs::rigReactor);
         return table;
-    }
-
-    /**
-     * Slots a filled canister into the tap; the open valve drips it onto the floor below.
-     *
-     * @param level the level
-     * @param at    the tap's position
-     */
-    private static void rigTap(ServerLevel level, BlockPos at) {
-        withHolder(level, at, tap -> {
-            tap.insertCanister(TapBlockEntity.SLOT, new ItemStack(GooItems.CANISTER.get()), false);
-            tap.insertGoo(TapBlockEntity.SLOT, BAY_TYPE, CANISTER_FILL);
-        });
     }
 
     /**
