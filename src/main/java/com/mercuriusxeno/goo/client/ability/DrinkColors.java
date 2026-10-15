@@ -69,4 +69,27 @@ public final class DrinkColors {
         }
         return color;
     }
+
+    /**
+     * The skin's color at a point of a stream: the block's color at the
+     * block crossfading to the goo's at the hand by the point's share of the
+     * route, the crossfade the drink field shader paints with its mix.
+     * decision unmake-skin-is-a-solid-sampled-color
+     * decision diagnose-then-fix-unmake-metallic-color
+     *
+     * @param blockColor the block's color, ARGB
+     * @param gooColor   the goo's color, ARGB
+     * @param route      the point's share of the route, 0 at the block to 1 at the hand
+     * @return the skin's color there, opaque
+     */
+    public static int skinAt(int blockColor, int gooColor, double route) {
+        double toGoo = Math.clamp(route, 0, 1);
+        int color = OPAQUE;
+        for (int shift : SHIFTS) {
+            double block = (blockColor >>> shift) & CHANNEL;
+            double goo = (gooColor >>> shift) & CHANNEL;
+            color |= (int) Math.round(block + (goo - block) * toGoo) << shift;
+        }
+        return color;
+    }
 }
