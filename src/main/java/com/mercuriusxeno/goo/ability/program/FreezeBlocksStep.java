@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.ability.frost.FrostFire;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
@@ -17,8 +18,9 @@ import java.util.stream.Stream;
 /**
  * Freezes the still water and lava within a sphere around the host's frost
  * center: water becomes ice, magicked ice that never thaws where the step
- * lasts, and lava becomes obsidian. The Orb freezes what it passes with ice
- * that may melt (decision orb-carries-a-swirling-nova).
+ * lasts, and lava becomes obsidian, and the fire in the sphere goes out. The
+ * Orb freezes what it passes with ice that may melt
+ * (decision orb-carries-a-swirling-nova).
  *
  * @param radius  the sphere's radius in blocks, evaluated on the host
  * @param lasting whether water freezes to magicked ice that never thaws, rather than vanilla ice
@@ -65,7 +67,7 @@ public record FreezeBlocksStep(Expr radius, boolean lasting) implements Step {
 
     /**
      * Freezes the still water and lava whose block centers stand within a
-     * sphere.
+     * sphere, and puts out the fire blocks and burning entities in it.
      *
      * @param level  the level
      * @param center the sphere's center
@@ -73,6 +75,8 @@ public record FreezeBlocksStep(Expr radius, boolean lasting) implements Step {
      * @param lasting whether water freezes to magicked ice that never thaws
      */
     public static void freezeWithin(ServerLevel level, Vec3 center, double radius, boolean lasting) {
+        // frost-reach-extinguishes-fire-and-burning-mobs
+        FrostFire.putOutWithin(level, center, radius);
         BlockPos from = BlockPos.containing(center.subtract(radius, radius, radius));
         BlockPos to = BlockPos.containing(center.add(radius, radius, radius));
         double reachSquared = radius * radius;

@@ -12,7 +12,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -33,7 +32,7 @@ import java.util.Optional;
 
 /**
  * Iceborn's heat leech: while a player wears Iceborn's frozen hearts, fire
- * near them goes out, fireballs near them fizzle, burning things stop
+ * near them goes out with a hiss and smoke, fireballs near them fizzle, burning things stop
  * burning, and lava freezes to obsidian and water to ice, each block kept in
  * the level's record and sent back once they leave its range; their snowballs strike with ice, doubly against the fire immune;
  * and any fire that reaches them thaws every frozen heart at once and ends
@@ -102,12 +101,30 @@ public final class IcebornEvents {
         }
     }
 
-    private static void leech(ServerLevel level, ServerPlayer player) {
+    /**
+     * One pass of the leech around a player: fire goes out with a hiss and
+     * smoke, lava and water freeze into the level's record, fireballs fizzle
+     * and burning things stop burning.
+     *
+     * @param level  the player's level
+     * @param player the Iceborn player
+     */
+    static void leech(ServerLevel level, ServerPlayer player) {
+        leechBlocks(level, player);
+        leechEntities(level, player);
+    }
+
+    private static void leechBlocks(ServerLevel level, ServerPlayer player) {
         BlockPos center = player.blockPosition();
         IcebornFrozenBlocks frozen = IcebornFrozenBlocks.of(level);
         for (BlockPos pos : BlockPos.betweenClosed(center.offset(-LEECH_RADIUS, -LEECH_RADIUS, -LEECH_RADIUS),
                 center.offset(LEECH_RADIUS, LEECH_RADIUS, LEECH_RADIUS))) {
             BlockState warm = level.getBlockState(pos);
+            if (FrostFire.burns(warm)) {
+                // frost-reach-extinguishes-fire-and-burning-mobs
+                FrostFire.putOut(level, pos.immutable());
+                continue;
+            }
             leechedForm(warm).ifPresent(cold -> {
                 level.setBlock(pos, cold, Block.UPDATE_ALL);
                 if (warm.getFluidState().isSource()) {
@@ -115,6 +132,9 @@ public final class IcebornEvents {
                 }
             });
         }
+    }
+
+    private static void leechEntities(ServerLevel level, ServerPlayer player) {
         AABB around = player.getBoundingBox().inflate(LEECH_RADIUS);
         for (Entity entity : level.getEntities(player, around)) {
             if (entity instanceof AbstractHurtingProjectile fireball) {
@@ -126,17 +146,14 @@ public final class IcebornEvents {
     }
 
     /**
-     * What a block becomes once Iceborn has leeched its heat: fire goes out,
-     * still lava becomes obsidian, still water becomes Iceborn ice, anything
-     * else stays.
+     * What a fluid becomes once Iceborn has leeched its heat: still lava
+     * becomes obsidian, still water becomes Iceborn ice, anything else stays.
+     * Fire goes out through {@link FrostFire} before this is asked.
      *
      * @param state the block
      * @return its leeched form, or empty where it keeps its heat
      */
     static Optional<BlockState> leechedForm(BlockState state) {
-        if (state.is(BlockTags.FIRE)) {
-            return Optional.of(Blocks.AIR.defaultBlockState());
-        }
         if (!state.getFluidState().isSource()) {
             return Optional.empty();
         }
