@@ -35,10 +35,10 @@ uniform sampler2D Sampler2;
 layout(std140) uniform DrinkRegion {
     vec4 Region;
     vec4 Counts;
-    vec4 Streams[96];
-    ivec4 Table[256];
-    vec4 Boxes[16];
-    vec4 Rings[448];
+    vec4 Streams[240];
+    ivec4 Table[64];
+    vec4 Boxes[64];
+    vec4 Rings[576];
 };
 
 in vec3 rayPoint;

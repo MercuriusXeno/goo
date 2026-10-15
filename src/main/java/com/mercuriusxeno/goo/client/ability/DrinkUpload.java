@@ -32,14 +32,28 @@ public final class DrinkUpload {
 
     /** Blocks a region spans each way; a region is one proxy the shader marches, aligned to the world grid. */
     public static final double REGION = 1;
+    /*
+     * The caps hold everything a region of a full cone is reached by: regions
+     * lie on the block grid and every body's field reaches a little past its
+     * own cell, so a cell inside a cone is reached by its own block and all
+     * twenty-six around it, their boxes and their streams, and the trunk
+     * carries more through the cells by the hand. A region that left bodies
+     * out drew the field without them, so the skin broke at that region's
+     * faces into block-sized segments and a stream dropped out of it; caps of
+     * sixteen streams and eight boxes left out some eight hundred bodies a
+     * frame on a cone of twenty-nine blocks. The block stays within the
+     * sixteen kilobytes every driver allows a uniform block.
+     */
     /** The most streams one region's block holds coats and rings for. */
-    static final int MOST_STREAMS = 16;
+    static final int MOST_STREAMS = 40;
     /** The most rings a region's block carries. */
-    static final int MOST_RINGS = 224;
-    /** The most boxes a region's block carries. */
-    static final int MOST_BOXES = 8;
+    static final int MOST_RINGS = 288;
+    /** The most boxes a region's block carries: a block's and every block about it. */
+    static final int MOST_BOXES = 32;
     /** The most table entries a region lists. */
-    static final int MOST_ENTRIES = 1024;
+    static final int MOST_ENTRIES = 256;
+    /** The most bytes a uniform block may take on any driver. */
+    static final int MOST_BYTES = 16_384;
     /** The flag on a table entry that begins a skeleton's run. */
     static final int RUN_START = 1 << 16;
     /** Table entries at and over this name a box, below it a segment. */
