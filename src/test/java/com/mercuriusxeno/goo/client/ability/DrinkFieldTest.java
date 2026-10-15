@@ -271,12 +271,14 @@ class DrinkFieldTest {
                 .map(stream -> new DrinkField.Skeleton(stream, DrinkTree.rings(stream), null)).toList();
         double join = tributary.joinShare();
         double merge = DrinkTree.MERGE / trunk.path().length();
+        double pastTheBox = WALK_FROM / trunk.path().length();
 
         for (int side : new int[] {1, -1, 0}) {
-            Turn steepest = steepestTurn(skeletons, trunk, Math.max(0, join - merge), Math.min(1, join + merge),
-                    side);
+            Turn steepest = steepestTurn(skeletons, trunk, Math.max(pastTheBox, join - merge),
+                    Math.min(1, join + merge), side);
             assertTrue(steepest.degrees() < SMOOTH_TURN, "the trunk's normal turns " + steepest.degrees()
-                    + " degrees between steps about the join on side " + side);
+                    + " degrees between steps about the join on side " + side + " at " + steepest.at()
+                    + " blocks, the join " + join * trunk.path().length() + " blocks along");
         }
     }
 
