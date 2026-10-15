@@ -833,6 +833,31 @@ public final class GooRenderTypes {
     /** The petrify fog render type. */
     public static final RenderType PETRIFY_FOG_TYPE = burnoutType(PETRIFY_FOG);
 
+    /** The uniform block the fire field pipeline reads one burning Flames jet's shape from. */
+    public static final String FIRE_FIELD_BLOCK = "FireField";
+
+    /**
+     * Flames' fire field pipeline (decision flames-pixelated-fire-stream):
+     * a box around one burning jet whose fragments march the voxel grid
+     * through {@code fire_field.vsh / .fsh}, filling each voxel from one
+     * field that merges the jet and its bounce off a wall into one body of
+     * pixelated flame. Blended translucent, and writing the depth of the
+     * nearest voxel it draws, so whatever draws later and farther, such as
+     * the clouds, stands behind it.
+     */
+    public static final RenderPipeline FIRE_FIELD = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET,
+                    RenderPipelines.GLOBALS_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "fire_field"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "fire_field"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "fire_field"))
+            .withUniform(FIRE_FIELD_BLOCK, UniformType.UNIFORM_BUFFER)
+            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withDepthStencilState(DepthStencilState.DEFAULT)
+            .withCull(true)
+            .build();
+
     /**
      * Growth's breeze pipeline: cross-sections of the cone drawn through
      * {@code growth_breeze.vsh / .fsh}, glowing green wisps drifting outward
@@ -1212,6 +1237,7 @@ public final class GooRenderTypes {
         event.registerPipeline(CRUCIBLE_DISSOLVE);
         event.registerPipeline(BLOCK_MINGLE);
         event.registerPipeline(PETRIFY_FOG);
+        event.registerPipeline(FIRE_FIELD);
         event.registerPipeline(BORE_VORTEX);
         registerOverlayPipelines(event);
     }

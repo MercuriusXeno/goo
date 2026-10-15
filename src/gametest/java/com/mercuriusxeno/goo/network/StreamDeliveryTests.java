@@ -27,7 +27,7 @@ import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
- * Gametest for the stream delivery: holding blaze spitfire at a zombie runs
+ * Gametest for the stream delivery: holding blaze flames at a zombie runs
  * the ability on it each tick of the hold, drains one cost per
  * ticks_per_charge of hold, and drains nothing once released
  * (decision stream-delivery-held-cone); holding jelly heal at a hurt cow heals
@@ -35,8 +35,13 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
  */
 @RegistersGameTests
 public final class StreamDeliveryTests {
-    private static final String STREAM_BLAZE_SPITFIRE = "stream_blaze_spitfire";
+    private static final String STREAM_BLAZE_FLAMES = "stream_blaze_flames";
     private static final String VITALITY_HEALS = "vitality_heals_cow_and_caster";
+    private static final String FLAMES_DAMAGES_PER_TICK = "flames_damages_per_tick";
+    /** Ten held ticks; blaze_flames.json burns for one every other tick, five burns in all. */
+    private static final int FLAMES_HOLD_TICKS = 10;
+    private static final float FLAMES_DAMAGE_OVER_HOLD = 5f;
+    private static final String SHOULD_LOSE = "The flamed zombie should lose at least %.1f health, lost %.2f";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -44,8 +49,39 @@ public final class StreamDeliveryTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, STREAM_BLAZE_SPITFIRE, StreamDeliveryTests::blazeSpitfire);
+        GooTestFunctions.registerTest(registrar, STREAM_BLAZE_FLAMES, StreamDeliveryTests::blazeFlames);
         GooTestFunctions.registerTest(registrar, VITALITY_HEALS, StreamDeliveryTests::vitalityHealsCowAndCaster);
+        GooTestFunctions.registerTest(registrar, FLAMES_DAMAGES_PER_TICK, StreamDeliveryTests::flamesDamagesPerTick);
+    }
+
+    /**
+     * A mock player holds blaze flames at a zombie four blocks ahead for ten
+     * ticks: every other tick burns it for one, so it has lost at least the
+     * five those ticks deal, and it is alight.
+     * decision flames-pixelated-fire-stream
+     *
+     * @param helper the gametest helper
+     */
+    public static void flamesDamagesPerTick(GameTestHelper helper) {
+        AbilityDefinition flames = AbilityRegistry.of(helper.getLevel()).getAbility(BLAZE_FLAMES);
+        helper.assertTrue(flames != null, ABILITY_REQUIRED);
+        Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
+        float healthBefore = zombie.getHealth();
+        ServerPlayer player = streamer(helper, GooTypes.BLAZE);
+        KnownRecipes.teachRequires(player, flames);
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.BLAZE), BLAZE_FLAMES.toString(),
+                player.getEyePosition(), player.getEyePosition());
+        for (int held = 1; held <= FLAMES_HOLD_TICKS; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
+        }
+        helper.runAfterDelay(FLAMES_HOLD_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            float lost = healthBefore - zombie.getHealth();
+            helper.assertTrue(lost >= FLAMES_DAMAGE_OVER_HOLD, String.format(SHOULD_LOSE, FLAMES_DAMAGE_OVER_HOLD, lost));
+            helper.assertTrue(zombie.isOnFire(), SHOULD_BURN);
+            helper.succeed();
+        });
     }
 
 
@@ -57,11 +93,11 @@ public final class StreamDeliveryTests {
     private static final float FACING_EAST = -90f;
     /** Pitch down from the eye toward the zombie's middle four blocks off. */
     private static final float LOOKING_AT_ZOMBIE = 9f;
-    private static final Identifier BLAZE_SPITFIRE = Identifier.parse("goo:blaze_spitfire");
-    /** blaze_spitfire.json's ticks_per_charge: twenty ticks of hold drain one cost. */
+    private static final Identifier BLAZE_FLAMES = Identifier.parse("goo:blaze_flames");
+    /** blaze_flames.json's ticks_per_charge: twenty ticks of hold drain one cost. */
     private static final int HOLD_TICKS = 20;
     private static final int RELEASED_TICKS = 10;
-    private static final String ABILITY_REQUIRED = "Ability registry must hold blaze_spitfire";
+    private static final String ABILITY_REQUIRED = "Ability registry must hold blaze_flames";
     private static final String SHOULD_START_UNBURNT = "The helmeted zombie should not burn before the stream";
     private static final String SHOULD_BURN = "The streamed zombie should be on fire";
     private static final String SHOULD_DRAIN_ONE_COST = "Twenty ticks of hold should drain %d mB, drained %d";
@@ -82,22 +118,22 @@ public final class StreamDeliveryTests {
     }
 
     /**
-     * A mock player holds blaze spitfire at a zombie four blocks ahead for
+     * A mock player holds blaze flames at a zombie four blocks ahead for
      * twenty ticks: the zombie burns and the blaze goo drops by one cost;
      * released, the goo stays put for ten more ticks.
      *
      * @param helper the gametest helper
      */
-    public static void blazeSpitfire(GameTestHelper helper) {
-        AbilityDefinition spitfire = AbilityRegistry.of(helper.getLevel()).getAbility(BLAZE_SPITFIRE);
-        helper.assertTrue(spitfire != null, ABILITY_REQUIRED);
+    public static void blazeFlames(GameTestHelper helper) {
+        AbilityDefinition flames = AbilityRegistry.of(helper.getLevel()).getAbility(BLAZE_FLAMES);
+        helper.assertTrue(flames != null, ABILITY_REQUIRED);
         Mob zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
         zombie.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.LEATHER_HELMET));
         ServerPlayer player = streamer(helper, GooTypes.BLAZE);
-        KnownRecipes.teachRequires(player, spitfire);
+        KnownRecipes.teachRequires(player, flames);
         int heldBefore = blazeHeld(player);
         helper.assertFalse(zombie.isOnFire(), SHOULD_START_UNBURNT);
-        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.BLAZE), BLAZE_SPITFIRE.toString(),
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.BLAZE), BLAZE_FLAMES.toString(),
                 player.getEyePosition(), player.getEyePosition());
         for (int held = 1; held <= HOLD_TICKS; held++) {
             helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
@@ -105,8 +141,8 @@ public final class StreamDeliveryTests {
         helper.runAfterDelay(HOLD_TICKS + 1, () -> {
             int drained = heldBefore - blazeHeld(player);
             helper.assertTrue(zombie.isOnFire(), SHOULD_BURN);
-            helper.assertTrue(drained == spitfire.cost(),
-                    String.format(SHOULD_DRAIN_ONE_COST, spitfire.cost(), drained));
+            helper.assertTrue(drained == flames.cost(),
+                    String.format(SHOULD_DRAIN_ONE_COST, flames.cost(), drained));
             int heldAtRelease = blazeHeld(player);
             helper.runAfterDelay(RELEASED_TICKS, () -> {
                 int drainedAfter = heldAtRelease - blazeHeld(player);
