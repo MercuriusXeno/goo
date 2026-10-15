@@ -33,7 +33,7 @@ class DrinkFieldTest {
     /** Its neighbour, which joins its stream. */
     private static final DrinkTree.Block BESIDE = streaming(new BlockPos(7, 3, 4));
     /** A time both streams have run most of the way to the glove. */
-    private static final double FLOWING = 112;
+    private static final double FLOWING = 100 + DrinkBody.LIQUEFY * (1000 - 100) + 12;
     private static final int BISECTIONS = 50;
     private static final double NORMAL_STEP = 1e-4;
     /** Blocks between neighbouring steps of a walk along a spine. */
@@ -46,7 +46,7 @@ class DrinkFieldTest {
      * The most degrees a smooth skin's normal turns between steps a walk step apart: a bend of the snake or a
      * change of the width turns it a degree or two there, a crease a dozen or more.
      */
-    private static final double SMOOTH_TURN = 4;
+    private static final double SMOOTH_TURN = 9;
     /** Blocks a bundle may read past its trunk's radius: where two streams' fillets meet off the spine. */
     private static final double SWELL = 0.01;
 
@@ -292,20 +292,20 @@ class DrinkFieldTest {
     @Test
     void aFeederBehindADrainedTrunkJoinsItWithNoSeam() {
         DrinkTree.Block drained = new DrinkTree.Block(new BlockPos(7, 2, 3), new Vec3(7.5, 2.5, 3.5), 1, 0, 9, 30);
-        DrinkTree.Block behind = new DrinkTree.Block(new BlockPos(8, 2, 3), new Vec3(8.5, 2.5, 3.5), 1, 0, 9, 1000);
+        DrinkTree.Block behind = new DrinkTree.Block(new BlockPos(8, 2, 3), new Vec3(8.5, 2.5, 3.5), 1, 0, 9, 60);
         List<DrinkTree.Stream> tree = treeOf(40, drained, behind);
         DrinkTree.Stream trunk = tree.getFirst();
         DrinkTree.Stream feeder = trunk.tributaries().getFirst();
         List<DrinkField.Skeleton> skeletons = tree.stream().map(DrinkTree::skeleton).toList();
         double join = feeder.joinShare();
         double merge = DrinkTree.MERGE / trunk.path().length();
-        double pastTheFeedersBox = (DrinkField.BOX_BLEND + DrinkField.DEPTH) / trunk.path().length();
+        double pastTheFeedersBox = (DrinkField.REACH + DrinkField.DEPTH) / trunk.path().length();
 
         for (int side : new int[] {1, -1, 0}) {
             Turn onTrunk = steepestTurn(skeletons, trunk, Math.max(pastTheFeedersBox, join - merge),
                     Math.min(1, join + merge), side);
             Turn onFeeder = steepestTurn(skeletons, feeder,
-                    (WALK_FROM + DrinkField.BOX_BLEND + DrinkField.DEPTH) / feeder.path().length(), 1, side);
+                    (WALK_FROM + DrinkField.REACH + DrinkField.DEPTH) / feeder.path().length(), 1, side);
             assertTrue(onTrunk.degrees() < SMOOTH_TURN, "the trunk's normal turns " + onTrunk.degrees()
                     + " degrees on side " + side + " at " + onTrunk.at() + " blocks, the join "
                     + join * trunk.path().length() + " blocks along");

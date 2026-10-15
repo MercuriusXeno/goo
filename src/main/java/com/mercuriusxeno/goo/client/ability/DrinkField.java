@@ -37,8 +37,6 @@ public final class DrinkField {
     public static final double ISO = falloff(0);
     /** The radius at and over which a body's field reaches its whole reach; a thinner body reaches less in proportion. */
     public static final double FULL_RADIUS = DrinkStream.WAIST;
-    /** The fillet where a stream leaves its block's box, in blocks, so the mouth shows no crease. */
-    public static final double BOX_BLEND = 0.35;
     /**
      * Blocks over which streams union smoothly: a stream nearer than this to another merges into it as metaballs
      * do, and two lying wholly on one another swell by this times the log of two.
@@ -118,192 +116,40 @@ public final class DrinkField {
 
         /**
          * @param segment a segment
-         * @return how far the segment's surface stands off its straight line at most: its wider ring's radius and
-         *         how far its curve bows out of the line, a third of its length times the sine of the steeper of its
-         *         two tangents off the line
+         * @return how far the segment's surface stands off its straight line at most: its wider ring's radius
          */
         double swellOf(int segment) {
-            DrinkStream.Ring from = rings.get(segment);
-            DrinkStream.Ring to = rings.get(segment + 1);
-            Vec3 line = to.center().subtract(from.center());
-            double chord = line.length();
-            if (chord == 0) {
-                return Math.max(from.radius(), to.radius());
-            }
-            Vec3 along = line.scale(1 / chord);
-            double steepest = Math.max(tangentAt(segment).cross(along).length(),
-                    tangentAt(segment + 1).cross(along).length());
-            return Math.max(from.radius(), to.radius()) + chord / THREE * steepest;
+            return Math.max(rings.get(segment).radius(), rings.get(segment + 1).radius());
         }
 
         /**
+         * The stream's reading at a point: the nearest of the spheres swept
+         * from ring to ring along its path, the round cone hull of each pair,
+         * so two segments meeting at a ring share that ring's sphere exactly,
+         * and its block's body unioned onto them by the soft minimum. Curved
+         * segments owning the points between planes, a fallback cone where none
+         * did, a box filleted on and grooves carved in each met the others its
+         * own way, and every such meeting showed as a seam.
+         *
          * @param point a point
-         * @return the stream's reading there: the least of the segments owning the point, or of their round cones
-         *         where none does, and its box filleted onto them; {@link #REACH} away where it has no body
+         * @return the reading, {@link #REACH} away where the stream has no body
          */
         Reading readingAt(Vec3 point) {
-            Reading owned = null;
-            Reading unowned = new Reading(REACH, UP);
+            Reading nearest = new Reading(REACH, UP);
             for (int segment = 0; segment < segments(); segment++) {
-                Reading reading = curveReading(segment, point);
-                if (reading != null) {
-                    owned = owned == null ? reading : nearer(owned, reading);
-                } else {
-                    unowned = nearer(unowned, segmentReading(rings.get(segment), rings.get(segment + 1), point));
+                Reading reading = segmentReading(rings.get(segment), rings.get(segment + 1), point);
+                if (reading.distance() < nearest.distance()) {
+                    nearest = reading;
                 }
             }
-            return withBox(owned == null ? unowned : nearer(new Reading(REACH, UP), owned), point);
-        }
-
-        /**
-         * @param tube  the stream's tube's reading at a point
-         * @param point the point
-         * @return the tube with the block's box filleted onto it while the block stands, so its mouth shows no crease
-         */
-        private Reading withBox(Reading tube, Vec3 point) {
             if (box == null) {
-                return tube;
+                return nearest;
             }
             Reading boxed = boxReading(box, point);
-            return tube.distance() >= REACH ? nearer(tube, boxed) : blend(tube, boxed, BOX_BLEND);
-        }
-
-        /**
-         * @param segment a segment
-         * @param before  the point's distance past the plane at its first ring
-         * @param after   the point's distance past the plane at its second ring
-         * @return whether the segment owns the point: between the planes, or before the first segment's or past the
-         *         last segment's
-         */
-        private boolean owns(int segment, double before, double after) {
-            return (before >= 0 || segment == 0) && (after <= 0 || segment == segments() - 1);
-        }
-
-        /**
-         * @param ring a ring's index
-         * @return the unit direction the skeleton runs through it, from the ring before it to the ring after it, so
-         *         the two segments meeting there share it
-         */
-        Vec3 tangentAt(int ring) {
-            Vec3 run = rings.get(Math.min(ring + 1, rings.size() - 1)).center()
-                    .subtract(rings.get(Math.max(ring - 1, 0)).center());
-            return run.lengthSqr() > 0 ? run.normalize() : UP;
-        }
-
-        /**
-         * @param ring a ring's index
-         * @return how fast the radius changes through it per segment, from the ring before it to the ring after it
-         */
-        double radiusSlopeAt(int ring) {
-            int before = Math.max(ring - 1, 0);
-            int after = Math.min(ring + 1, rings.size() - 1);
-            return after == before ? 0 : (rings.get(after).radius() - rings.get(before).radius()) / (after - before);
-        }
-
-        /**
-         * A point's reading off the smooth tube through one segment: the
-         * segment owns the points between the planes square to the skeleton's
-         * run at its two rings, so a ring's plane parts its two segments and
-         * both read the same there, value and facing alike; a point's foot is
-         * its share of the way between the planes, on the curve leaving each
-         * ring along the run there, its radius easing between the rings the
-         * same way. A tube of straight segments creased its outer side at
-         * every ring where the snake bends, three to the block.
-         * decision diagnose-then-fix-unmake-seam-and-ribbing
-         *
-         * @param segment the segment
-         * @param point   the point
-         * @return the reading, or null where the segment does not own the point; the first and the last segment
-         *         own the points before and past the skeleton's ends, read off the end ring's sphere
-         */
-        @Nullable Reading curveReading(int segment, Vec3 point) {
-            DrinkStream.Ring from = rings.get(segment);
-            DrinkStream.Ring to = rings.get(segment + 1);
-            Vec3 leaving = tangentAt(segment);
-            Vec3 arriving = tangentAt(segment + 1);
-            double before = point.subtract(from.center()).dot(leaving);
-            double after = point.subtract(to.center()).dot(arriving);
-            if (!owns(segment, before, after)) {
-                return null;
-            }
-            double t = footShare(before, after);
-            double chord = to.center().distanceTo(from.center());
-            Vec3 foot = hermite(from.center(), to.center(), leaving.scale(chord), arriving.scale(chord), t);
-            double radius = Math.clamp(hermite(from.radius(), to.radius(), radiusSlopeAt(segment),
-                    radiusSlopeAt(segment + 1), t), Math.min(from.radius(), to.radius()),
-                    Math.max(from.radius(), to.radius()));
-            Vec3 off = point.subtract(foot);
-            double length = off.length();
-            double phase = from.spin() + (to.spin() - from.spin()) * t;
-            double skin = radius * grooved(leaving.lerp(arriving, t), off, phase);
-            return new Reading(scaled(length - skin, radius), length > 0 ? off.scale(1 / length) : UP);
-        }
-
-        /**
-         * @param axis  the stream's run at a point's foot
-         * @param off   the point less its foot
-         * @param phase the cyclone's phase there
-         * @return the share of the radius the cyclone's skin stands at in the point's direction, its grooves fading
-         *         toward the run's own line past an end of the stream, where no angle about the run is had
-         */
-        double grooved(Vec3 axis, Vec3 off, double phase) {
-            Vec3 run = axis.lengthSqr() > 0 ? axis.normalize() : UP;
-            double length = off.lengthSqr();
-            double square = length == 0 ? 0 : off.subtract(run.scale(off.dot(run))).lengthSqr() / length;
-            return 1 - (1 - DrinkStream.cycloneAt(angleAbout(run, off), phase)) * square;
-        }
-
-        /**
-         * @param axis the stream's run at a point's foot
-         * @param off  the point less its foot
-         * @return the point's angle about the run, in radians, from the stream's side laid square to the run
-         */
-        double angleAbout(Vec3 axis, Vec3 off) {
-            Vec3 run = axis.lengthSqr() > 0 ? axis.normalize() : UP;
-            Vec3 side = DrinkStream.sideOf(stream.path());
-            Vec3 across = side.subtract(run.scale(side.dot(run)));
-            if (across.lengthSqr() == 0) {
-                return 0;
-            }
-            Vec3 first = across.normalize();
-            return Math.atan2(off.dot(run.cross(first)), off.dot(first));
+            return new Reading(unionOf(weightOf(nearest.distance()) + weightOf(boxed.distance())),
+                    boxed.distance() < nearest.distance() ? boxed.facing() : nearest.facing());
         }
     }
-
-    /**
-     * @param before a point's distance past the plane at a segment's first ring
-     * @param after  its distance past the plane at the second
-     * @return its foot's share of the segment: its share of the way between the planes, 0 before the first and 1
-     *         past the second
-     */
-    static double footShare(double before, double after) {
-        if (before <= 0) {
-            return 0;
-        }
-        return after >= 0 ? 1 : before / (before - after);
-    }
-
-    /**
-     * @param start      the value at the start
-     * @param end        the value at the end
-     * @param startSlope its rate of change at the start, per unit of t
-     * @param endSlope   its rate at the end
-     * @param t          0 at the start to 1 at the end
-     * @return the cubic Hermite curve between them at t
-     */
-    static double hermite(double start, double end, double startSlope, double endSlope, double t) {
-        double t2 = t * t;
-        double t3 = t2 * t;
-        return (TWO * t3 - THREE * t2 + 1) * start + (t3 - TWO * t2 + t) * startSlope
-                + (THREE * t2 - TWO * t3) * end + (t3 - t2) * endSlope;
-    }
-
-    private static Vec3 hermite(Vec3 start, Vec3 end, Vec3 startSlope, Vec3 endSlope, double t) {
-        return new Vec3(hermite(start.x, end.x, startSlope.x, endSlope.x, t),
-                hermite(start.y, end.y, startSlope.y, endSlope.y, t),
-                hermite(start.z, end.z, startSlope.z, endSlope.z, t));
-    }
-
     /**
      * @param signed the signed distance to a body's own surface, below zero inside
      * @return the body's field there: 1 at {@link #DEPTH} inside and deeper, {@link #ISO} at its surface, 0 at
@@ -323,32 +169,6 @@ public final class DrinkField {
     static double scaled(double signed, double radius) {
         double scale = Math.min(1, radius / FULL_RADIUS);
         return scale > 0 ? signed / scale : REACH;
-    }
-
-    /**
-     * The smooth union of two readings: the nearer, less a fillet where the
-     * two come within its width of each other, its facing turning between
-     * theirs across the fillet so the union has no crease.
-     *
-     * @param a     a reading
-     * @param b     another
-     * @param width the fillet's width, in blocks; none takes the nearer whole
-     * @return the union
-     */
-    static Reading blend(Reading a, Reading b, double width) {
-        double apart = Math.abs(a.distance() - b.distance());
-        if (width <= 0 || apart >= width) {
-            return nearer(a, b);
-        }
-        double h = (width - apart) / width;
-        double towardA = Math.clamp((1 + (b.distance() - a.distance()) / width) / TWO, 0, 1);
-        Vec3 facing = a.facing().scale(towardA).add(b.facing().scale(1 - towardA));
-        return new Reading(Math.min(a.distance(), b.distance()) - h * h * width / FOUR,
-                facing.lengthSqr() > 0 ? facing.normalize() : a.facing());
-    }
-
-    private static Reading nearer(Reading a, Reading b) {
-        return b.distance() < a.distance() ? b : a;
     }
 
     /**

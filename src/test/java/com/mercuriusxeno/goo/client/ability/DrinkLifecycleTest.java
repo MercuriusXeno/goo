@@ -289,9 +289,8 @@ class DrinkLifecycleTest {
                         for (double y = low.y; y <= high.y; y += 0.07) {
                             for (double z = low.z; z <= high.z; z += 0.07) {
                                 Vec3 p = new Vec3(x, y, z);
-                                DrinkField.Reading owned = skeleton.curveReading(segment, p);
-                                DrinkField.Reading reading = owned != null ? owned : DrinkField.segmentReading(
-                                        skeleton.rings().get(segment), skeleton.rings().get(segment + 1), p);
+                                DrinkField.Reading reading = DrinkField.segmentReading(skeleton.rings().get(segment),
+                                        skeleton.rings().get(segment + 1), p);
                                 boolean within = x >= bound.low().x && x <= bound.high().x && y >= bound.low().y
                                         && y <= bound.high().y && z >= bound.low().z && z <= bound.high().z;
                                 if (reading.distance() < DrinkField.REACH && !within && outside.size() < REPORTED) {
