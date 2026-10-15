@@ -386,7 +386,7 @@ int nearestBodyOf(vec3 p, int stream) {
     float least = FAR;
     for (int e = first; e < end; e++) {
         int entry = entryAt(e) & (RUN_START - 1);
-        float d = readBody(entry, p).x;
+        float d = readBody(entry, p);
         if (d < least) {
             least = d;
             nearest = entry;
