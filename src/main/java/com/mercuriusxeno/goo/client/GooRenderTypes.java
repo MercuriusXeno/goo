@@ -280,15 +280,6 @@ public final class GooRenderTypes {
     public static final RenderType ROCK_EXPLOSION_THROUGH_BLOCKS_TYPE = burnoutType(ROCK_EXPLOSION_THROUGH_BLOCKS);
 
     /**
-     * Blaze goo's burnout explosion pipeline: the flame bloom, additive so
-     * it lights what it covers, through {@code blaze_explosion.vsh / .fsh}.
-     */
-    public static final RenderPipeline BLAZE_EXPLOSION = burnoutPipeline("blaze_explosion", BlendFunction.LIGHTNING);
-
-    /** RenderType that draws blaze goo's burnout explosion. */
-    public static final RenderType BLAZE_EXPLOSION_TYPE = burnoutType(BLAZE_EXPLOSION);
-
-    /**
      * Frost goo's burnout explosion pipeline: the fog ring, alpha blended,
      * through {@code frost_explosion.vsh / .fsh}.
      */
@@ -1312,7 +1303,6 @@ public final class GooRenderTypes {
         event.registerPipeline(UNSTABLE_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(ROCK_EXPLOSION);
         event.registerPipeline(ROCK_EXPLOSION_THROUGH_BLOCKS);
-        event.registerPipeline(BLAZE_EXPLOSION);
         event.registerPipeline(FROST_EXPLOSION);
         event.registerPipeline(FROST_EXPLOSION_THROUGH_BLOCKS);
         event.registerPipeline(NETHER_EXPLOSION);
