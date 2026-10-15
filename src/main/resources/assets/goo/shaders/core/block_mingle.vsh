@@ -36,7 +36,9 @@ void main() {
 
     sphericalVertexDistance = fog_spherical_distance(Position);
     cylindricalVertexDistance = fog_cylindrical_distance(Position);
-    vertexColor = minecraft_mix_light(Light0_Direction, Light1_Direction, Normal, Color);
+    // The color arrives lit as the world lights the block, face shade, occlusion and biome tint baked in,
+    // so it is applied as terrain applies it, with no entity lighting over it.
+    vertexColor = Color;
     lightMapColor = texelFetch(Sampler2, UV2 / 16, 0);
     texCoord0 = UV0;
 
