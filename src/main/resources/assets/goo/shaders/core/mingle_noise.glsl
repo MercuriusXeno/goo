@@ -31,7 +31,35 @@ const float MINGLE_COVERAGE[33] = float[33](
     0.2860, 0.1971, 0.1261, 0.0740, 0.0393, 0.0186, 0.0076, 0.0026, 0.0007,
     0.0001, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000);
 const int MINGLE_COVERAGE_STEPS = 32;
+// Minecraft's texel: a sixteenth of a block.
+const float MINGLE_WORLD_TEXELS = 16.0;
+// A mob skin's texels across its [0, 1] coordinates: the 64-texel skin.
+const vec2 MINGLE_SKIN_TEXELS = vec2(64.0);
 
+// The middle of the texel holding p, so every point of one texel samples one
+// field value, the snap the Flames fire takes (decision mingle-noise-snaps-to-texels).
+vec3 mingleTexelSnap(vec3 p, float texelsPerUnit) {
+    return (floor(p * texelsPerUnit) + 0.5) / texelsPerUnit;
+}
+
+vec2 mingleTexelSnap(vec2 p, vec2 texelsPerUnit) {
+    return (floor(p * texelsPerUnit) + 0.5) / texelsPerUnit;
+}
+
+// The world texel a fragment of a face lies in. A block face sits on a texel
+// boundary, where rounding would flicker between the two texels either side,
+// so the point first steps a quarter texel off the face along its screen-space
+// normal; either side is one texel layer, the same for the whole face.
+vec3 mingleOffFace(vec3 worldPos) {
+    vec3 across = cross(dFdx(worldPos), dFdy(worldPos));
+    float span = length(across);
+    vec3 faceNormal = span > 0.0 ? across / span : vec3(0.0);
+    return worldPos - faceNormal * (0.25 / MINGLE_WORLD_TEXELS);
+}
+
+vec3 mingleFaceTexel(vec3 worldPos) {
+    return mingleTexelSnap(mingleOffFace(worldPos), MINGLE_WORLD_TEXELS);
+}
 float mingleHash(ivec3 cell) {
     uint h = uint(cell.x) * 0x8da6b343u ^ uint(cell.y) * 0xd8163841u ^ uint(cell.z) * 0xcb1ab31fu;
     h = (h ^ (h >> 15u)) * 0x2c1b3c6du;
@@ -98,4 +126,61 @@ float mingleOpacity(vec3 worldPos, float gameTime, float share, float seed) {
     vec3 p = worldPos * MINGLE_CELLS_PER_BLOCK + mingleDrift(gameTime, seed) + seed * MINGLE_SEED_OFFSET;
     float threshold = mingleThreshold(share);
     return smoothstep(threshold - MINGLE_SEAM, threshold + MINGLE_SEAM, mingleField(p));
+}
+
+// The corner blend of decision cut-edge-blends-texel-corners: the field is read
+// once at each corner of the texel holding a point, the grid's vertices, so
+// neighbouring texels share corner values, and each pixel blends its texel's
+// corners at its own fraction inside it. The edge a threshold cuts runs through
+// texels at pixel resolution, its shape pinned to the texture's texel grid.
+// The artist's dial: 0 blends the corners in a straight slant (bilinear),
+// 1 in a smooth curve (eased), anything between mixes the two.
+const float MINGLE_CORNER_EASE = 0.0;
+
+vec3 mingleCornerWeight(vec3 fraction) {
+    return mix(fraction, fraction * fraction * (3.0 - 2.0 * fraction), MINGLE_CORNER_EASE);
+}
+
+// The corner-blended mingleField over a 2D texel grid, the sprite's or the skin's:
+// p in its own units, texelsPerUnit its grid, the field read at corner * cellsPerUnit + offset.
+float mingleCornerField(vec2 p, vec2 texelsPerUnit, float cellsPerUnit, vec3 offset) {
+    vec2 grid = p * texelsPerUnit;
+    vec2 base = floor(grid);
+    vec2 weight = mingleCornerWeight(vec3(grid - base, 0.0)).xy;
+    float c00 = mingleField(vec3(base / texelsPerUnit * cellsPerUnit, 0.0) + offset);
+    float c10 = mingleField(vec3((base + vec2(1.0, 0.0)) / texelsPerUnit * cellsPerUnit, 0.0) + offset);
+    float c01 = mingleField(vec3((base + vec2(0.0, 1.0)) / texelsPerUnit * cellsPerUnit, 0.0) + offset);
+    float c11 = mingleField(vec3((base + vec2(1.0, 1.0)) / texelsPerUnit * cellsPerUnit, 0.0) + offset);
+    return mix(mix(c00, c10, weight.x), mix(c01, c11, weight.x), weight.y);
+}
+
+// One corner's read over the world grid: mingleField, or bare mingleValueNoise.
+float mingleWorldCorner(vec3 corner, float cellsPerBlock, vec3 offset, bool valueNoise) {
+    vec3 q = corner / MINGLE_WORLD_TEXELS * cellsPerBlock + offset;
+    return valueNoise ? mingleValueNoise(q) : mingleField(q);
+}
+
+// The corner blend over the world's sixteenth-block grid: eight corners, the
+// point first stepped off its face so a face on a texel boundary reads one layer.
+float mingleWorldCornerBlend(vec3 worldPos, float cellsPerBlock, vec3 offset, bool valueNoise) {
+    vec3 grid = mingleOffFace(worldPos) * MINGLE_WORLD_TEXELS;
+    vec3 base = floor(grid);
+    vec3 weight = mingleCornerWeight(grid - base);
+    float x00 = mix(mingleWorldCorner(base, cellsPerBlock, offset, valueNoise),
+        mingleWorldCorner(base + vec3(1.0, 0.0, 0.0), cellsPerBlock, offset, valueNoise), weight.x);
+    float x10 = mix(mingleWorldCorner(base + vec3(0.0, 1.0, 0.0), cellsPerBlock, offset, valueNoise),
+        mingleWorldCorner(base + vec3(1.0, 1.0, 0.0), cellsPerBlock, offset, valueNoise), weight.x);
+    float x01 = mix(mingleWorldCorner(base + vec3(0.0, 0.0, 1.0), cellsPerBlock, offset, valueNoise),
+        mingleWorldCorner(base + vec3(1.0, 0.0, 1.0), cellsPerBlock, offset, valueNoise), weight.x);
+    float x11 = mix(mingleWorldCorner(base + vec3(0.0, 1.0, 1.0), cellsPerBlock, offset, valueNoise),
+        mingleWorldCorner(base + vec3(1.0, 1.0, 1.0), cellsPerBlock, offset, valueNoise), weight.x);
+    return mix(mix(x00, x10, weight.y), mix(x01, x11, weight.y), weight.z);
+}
+
+float mingleWorldCornerField(vec3 worldPos, float cellsPerBlock, vec3 offset) {
+    return mingleWorldCornerBlend(worldPos, cellsPerBlock, offset, false);
+}
+
+float mingleWorldCornerNoise(vec3 worldPos, float cellsPerBlock) {
+    return mingleWorldCornerBlend(worldPos, cellsPerBlock, vec3(0.0), true);
 }

@@ -33,7 +33,10 @@ const float WHOLE = 0.999;
 
 void main() {
     float share = vineColor.a;
-    if (share < WHOLE && mingleField(vec3(skinCoord * PATCH_CELLS, 0.0)) < mingleThreshold(share)) {
+    // The field is read at the skin texel grid's corners and blended per pixel, so the tangle's edge runs
+    // through the skin's texels, its shape pinned to them (decision cut-edge-blends-texel-corners).
+    if (share < WHOLE
+            && mingleCornerField(skinCoord, MINGLE_SKIN_TEXELS, PATCH_CELLS, vec3(0.0)) < mingleThreshold(share)) {
         discard;
     }
     vec4 vine = texture(Sampler0, fract(skinCoord * VINE_TILES));

@@ -42,12 +42,14 @@ void main() {
     float share = stoneColor.a;
     float seam = 0.0;
     if (share < WHOLE) {
+        // The field is read at the skin texel grid's corners and blended per pixel, so the stone's edge runs
+        // through the skin's texels, its shape pinned to them (decision cut-edge-blends-texel-corners).
         float threshold = mingleThreshold(share);
-        float field = mingleField(vec3(skinCoord * PATCH_CELLS, 0.0) + stoneColor.rgb * SEED_SPREAD);
+        float field = mingleCornerField(skinCoord, MINGLE_SKIN_TEXELS, PATCH_CELLS, stoneColor.rgb * SEED_SPREAD);
         if (field < threshold) {
             discard;
         }
-        seam = 1.0 - smoothstep(threshold, threshold + SEAM_BAND, field);
+        seam = 1.0 - step(threshold + SEAM_BAND, field);
     }
     vec4 stone = texture(Sampler0, fract(skinCoord * STONE_TILES + stoneColor.rg));
     float shade = 0.7 + 0.3 * abs(normalize(skinNormal).y);

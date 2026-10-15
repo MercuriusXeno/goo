@@ -28,7 +28,6 @@ out float cylindricalVertexDistance;
 out vec4 vertexColor;
 out vec4 lightMapColor;
 out vec2 texCoord0;
-out vec3 dissolveWorldPos;
 flat out float dissolveFraction;
 flat out vec3 glowColor;
 flat out float glowShare;
@@ -61,8 +60,6 @@ void main() {
     lightMapColor = texelFetch(Sampler2, (UV2 & 0xFF) / 16, 0);
     texCoord0 = UV0;
 
-    // Position is camera-relative; the camera globals recover the world position.
-    dissolveWorldPos = Position + vec3(CameraBlockPos) - CameraOffset;
     dissolveFraction = float(UV1.x) / FRACTION_UNITS;
     glowColor = unpackRgb565(UV1.y);
     glowShare = float(UV2.x >> 8) / SHARE_UNITS;

@@ -2,8 +2,12 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.ability.program.DegradeStep;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * A block transform runs from nothing to whole over its duration, ends after
@@ -45,10 +49,38 @@ class BlockTransformsTest {
         assertEquals(0, transforms.exposing(START + 1).size());
     }
 
+    // broil-heat-wave-ring-cooks-ahead: the build was the one dissolve, so the step only holds the built block whole
     @Test
-    void aStepWithNoTintedExposureDissolvesUntinted() {
+    void aStepOnAnUntintedExposurePlaysNoSecondDissolveAndHoldsTheBuiltBlockWhole() {
+        BlockState raw = mock(BlockState.class);
+        BlockState built = mock(BlockState.class);
         BlockTransforms transforms = new BlockTransforms();
-        transforms.expose(GRAVEL, null, 0.9f, START, BlockTransforms.UNTINTED);
+        transforms.expose(GRAVEL, built, 0.9f, START, BlockTransforms.UNTINTED);
+        transforms.start(GRAVEL, raw, START + 1);
+        assertEquals(List.of(), transforms.live(START + 1));
+        List<BlockTransforms.Exposure> held = transforms.exposing(START + 1);
+        assertEquals(1, held.size());
+        assertEquals(built, held.getFirst().toward());
+        assertEquals(1f, held.getFirst().share(), DELTA);
+        assertEquals(0, transforms.exposing(START + 1 + BlockTransforms.BUILT_HOLD_TICKS + 1).size());
+    }
+
+    // broil-heat-wave-ring-cooks-ahead: a log cooked into charcoal dissolves away once, from the log
+    @Test
+    void aStepOnAnExposureTowardAirDissolvesFromTheOldBlock() {
+        BlockState log = mock(BlockState.class);
+        BlockState air = mock(BlockState.class);
+        when(air.isAir()).thenReturn(true);
+        BlockTransforms transforms = new BlockTransforms();
+        transforms.expose(GRAVEL, air, 0.9f, START, BlockTransforms.UNTINTED);
+        transforms.start(GRAVEL, log, START + 1);
+        assertEquals(List.of(new BlockTransforms.Transform(GRAVEL, log, START + 1)), transforms.live(START + 1));
+        assertEquals(0, transforms.exposing(START + 1).size());
+    }
+
+    @Test
+    void aStepWithNoExposureDissolvesUntinted() {
+        BlockTransforms transforms = new BlockTransforms();
         transforms.start(GRAVEL, null, START + 1);
         assertEquals(BlockTransforms.UNTINTED, transforms.live(START + 1).getFirst().tint());
     }
