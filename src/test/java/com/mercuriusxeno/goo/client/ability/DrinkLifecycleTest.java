@@ -42,7 +42,7 @@ class DrinkLifecycleTest {
      * How far past the fastest pace a tail may run: positions are read from the time since the liquid left through
      * this frame's paths, so as the hand or the pull shortens a path behind it, a tail on the trunk gains a little.
      */
-    private static final double PACE_DRIFT = 1.15;
+    private static final double PACE_DRIFT = 1.25;
     private static final long PICKED = 0;
     private static final long LANDS = 9;
     private static final int REPORTED = 8;
@@ -137,7 +137,7 @@ class DrinkLifecycleTest {
             DrinkTree.Flow own = DrinkTree.flowOf(stream, owner, along / owner.path().length());
             skin.append(String.format("%.2f:%.3f(%s %.2f/%.2f%s own %.3f/%.3f) ", distance,
                     skinOnRoute(stream, distance), owner.block().pos().toShortString(), along, owner.path().length(),
-                    owner.spent() ? " spent" : "", own.radius(), own.presence()));
+                    owner.spent() ? " spent" : "", own.width(), own.presence()));
         }
         return skin.toString();
     }

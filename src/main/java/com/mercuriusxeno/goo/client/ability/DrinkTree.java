@@ -542,16 +542,21 @@ public final class DrinkTree {
 
     /**
      * The radius of a stream at a share of its path: every stream flowing
-     * through there combined as the mean of them times the
-     * {@link #TRUNK_ROOT}th root of how many, each counting by how much of it
-     * is there, so a trunk grows gently with the streams it carries: nine
-     * equal streams make about 1.7 times one, a stream swelling in counts in
-     * proportion, and a trunk whose own liquid has passed is still as wide as
-     * what flows through it. Each stream's liquid is as wide as its own spout
-     * is at its own place on its own route, wherever it flows, so liquid that
-     * has narrowed on its way runs on narrowed into the trunk it feeds; drawn
-     * at the trunk's own spout, it swelled back out to the trunk block's full
-     * mouth at every block of a chain, a ring at each.
+     * through there combined as the {@link #TRUNK_ROOT}th root of the sum of
+     * each one's width to that power, each counting by how much of it is
+     * there, so streams of one width make one width times the
+     * {@link #TRUNK_ROOT}th root of how many, a trunk growing gently with the
+     * streams it carries, nine equal streams about 1.7 times one, a stream
+     * swelling in counting in proportion, and a trunk whose own liquid has
+     * passed still as wide as what flows through it; where widths differ the
+     * widest leads, so a block melting into a trunk of liquid narrowed on its
+     * way swells the trunk to its own mouth and sits inside it, where a mean
+     * of the widths drowned the block's own among the many narrowed ones and
+     * left the melting block a knob on a thin trunk at every node. Each
+     * stream's liquid is as wide as its own spout is at its own place on its
+     * own route, wherever it flows; drawn at the trunk's own spout, it swelled
+     * back out to the trunk block's full mouth at every block of a chain, a
+     * ring at each.
      * decision unmake-stream-is-a-shrinking-waterspout
      *
      * @param stream the stream
@@ -563,10 +568,7 @@ public final class DrinkTree {
         if (sum.presence() <= 0) {
             return 0;
         }
-        double mean = sum.radius() / sum.presence();
-        double taper = Math.pow(Math.min(1, sum.presence()), 1 / TRUNK_ROOT);
-        double growth = Math.pow(Math.max(1, sum.presence()), 1 / TRUNK_ROOT);
-        return mean * taper * growth * handoverAt(stream, share);
+        return sum.width() * handoverAt(stream, share);
     }
 
     /**
@@ -613,7 +615,8 @@ public final class DrinkTree {
     static double spoutAlong(Stream stream, double distance) {
         double nose = noseOf(stream);
         double run = nose >= threadFrom(stream) ? 1 : (distance - nose) / (threadFrom(stream) - nose);
-        return Math.pow(1 - Math.clamp(run, 0, 1), SPOUT_FALL);
+        double left = 1 - Math.clamp(run, 0, 1);
+        return left * left;
     }
 
     /**
@@ -655,15 +658,33 @@ public final class DrinkTree {
     }
 
     /**
-     * Liquid at a point: its radius and how much of a whole stream it is.
+     * Liquid at a point: each stream's width to the {@link #TRUNK_ROOT}th
+     * power by how much of it is there, summed, and how much of a whole
+     * stream it is.
      *
-     * @param radius   the radius it gives the point
+     * @param power    the sum of each stream's width to the {@link #TRUNK_ROOT}th power times its presence
      * @param presence 1 for a stream wholly there, less as it tapers or swells in, 0 for none
      */
-    record Flow(double radius, double presence) {
+    record Flow(double power, double presence) {
+
+        /**
+         * @param width    a stream's width
+         * @param presence how much of it is there
+         * @return its liquid
+         */
+        static Flow of(double width, double presence) {
+            return new Flow(fourthPower(width) * presence, presence);
+        }
 
         Flow plus(Flow other) {
-            return new Flow(radius + other.radius, presence + other.presence);
+            return new Flow(power + other.power, presence + other.presence);
+        }
+
+        /**
+         * @return the width the liquid makes: the {@link #TRUNK_ROOT}th root of its power
+         */
+        double width() {
+            return Math.sqrt(Math.sqrt(power));
         }
     }
 
@@ -746,7 +767,7 @@ public final class DrinkTree {
             // The spout shrinks into the hair and never below it: shrunk to nothing, the last of a drained block's
             // liquid drew at no width while its tail was still a block from the hand, and vanished there.
             double full = Math.max(THREAD, liquidWidth(stream, distance) * spoutLeftOf(stream));
-            sum[0] += (THREAD + (full - THREAD) * spoutAlong(stream, distance)) * presence;
+            sum[0] += fourthPower(THREAD + (full - THREAD) * spoutAlong(stream, distance)) * presence;
             sum[1] += presence;
         }
     }
@@ -798,7 +819,7 @@ public final class DrinkTree {
      * @return the radius, 0 where its liquid is not there now
      */
     static double contribution(Stream stream, Stream through, double share) {
-        return flowOf(stream, through, share).radius();
+        return flowOf(stream, through, share).width();
     }
 
     /**
@@ -846,5 +867,14 @@ public final class DrinkTree {
      */
     static double mergeRamp(double pastJoin) {
         return DrinkStream.smoothRamp(-SWELL_FROM, -DrinkStream.RIDE, pastJoin);
+    }
+
+    /**
+     * @param width a width
+     * @return it to the {@link #TRUNK_ROOT}th power, squared twice since every ring of every stream asks
+     */
+    static double fourthPower(double width) {
+        double squared = width * width;
+        return squared * squared;
     }
 }
