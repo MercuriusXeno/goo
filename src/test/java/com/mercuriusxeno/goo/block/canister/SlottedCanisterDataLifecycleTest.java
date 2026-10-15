@@ -86,7 +86,7 @@ class SlottedCanisterDataLifecycleTest {
     }
 
     /**
-     * The canister block's grid, the hub's ring, the reactor's output hollow and the tap's body slot.
+     * The canister block's grid, the hub's ring, and the reactor's output hollow.
      *
      * @return host name, slot count and the slot the theory drives
      */
@@ -94,8 +94,7 @@ class SlottedCanisterDataLifecycleTest {
         return Stream.of(
                 Arguments.of("canister", CanisterBlockEntity.MAX_SLOTS, CanisterBlock.CENTER_SLOT),
                 Arguments.of("hub", 8, 3),
-                Arguments.of("reactor", 1, 0),
-                Arguments.of("tap", 1, 0));
+                Arguments.of("reactor", 1, 0));
     }
 
     @BeforeEach

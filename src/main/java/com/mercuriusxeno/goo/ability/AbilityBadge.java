@@ -48,13 +48,7 @@ public enum AbilityBadge implements StringRepresentable {
      * Refracts through a prism.
      * badge-vocabulary-gains-free-prism-tap-brew
      */
-    PRISM("prism"),
-
-    /**
-     * Lands with a tap.
-     * badge-vocabulary-gains-free-prism-tap-brew
-     */
-    TAP("tap");
+    PRISM("prism");
 
     /** Datapack codec, reading the badge by its word. */
     public static final Codec<AbilityBadge> CODEC = StringRepresentable.fromEnum(AbilityBadge::values);
@@ -68,7 +62,7 @@ public enum AbilityBadge implements StringRepresentable {
      * declaration order so the network ordinal stays put.
      * fan-sorts-badge-then-order
      */
-    private static final List<AbilityBadge> FAN_RANK = List.of(CHANNELED, MOB, WORLD, FREE, PRISM, TAP, SELF, BREW);
+    private static final List<AbilityBadge> FAN_RANK = List.of(CHANNELED, MOB, WORLD, FREE, PRISM, SELF, BREW);
 
     private final String serializedName;
 
@@ -91,10 +85,10 @@ public enum AbilityBadge implements StringRepresentable {
      * mob or a block: they land and resolve at the aimed point itself.
      * aim-point-follows-the-cursor
      *
-     * @return true for free, channeled, prism and tap
+     * @return true for free, channeled and prism
      */
     public boolean aimsAPoint() {
-        return this == FREE || this == CHANNELED || this == PRISM || this == TAP;
+        return this == FREE || this == CHANNELED || this == PRISM;
     }
 
     /**

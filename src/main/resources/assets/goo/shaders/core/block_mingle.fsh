@@ -21,11 +21,13 @@ in vec4 lightMapColor;
 in vec2 texCoord0;
 in vec3 mingleWorldPos;
 flat in float mingleProgress;
+flat in float mingleSeed;
 
 out vec4 fragColor;
 
-// Noise cells per block: fine enough that a block face breaks into several patches.
-const float MINGLE_BLOCK_CELLS = 4.0;
+// Noise cells per block: a block face breaks into several patches, each
+// several texels across (decision mingle-noise-snaps-to-texels).
+const float MINGLE_BLOCK_CELLS = 3.0;
 // Width of the darkened seam above the threshold, in field units.
 const float SEAM_BAND = 0.05;
 // How dark the seam runs at the threshold.
@@ -33,7 +35,11 @@ const float SEAM_SHADE = 0.55;
 
 void main() {
     float threshold = mingleThreshold(1.0 - mingleProgress);
-    float field = mingleField(mingleWorldPos * MINGLE_BLOCK_CELLS);
+    // The field is read at the world texel grid's corners and blended per pixel, so the old block's edge runs
+    // through its texels, its shape pinned to them (decision cut-edge-blends-texel-corners). Each seed step moves
+    // the sample tens of cells per axis, so each use on a block dissolves through its own field
+    // (decision diagnose-then-fix-dissolve-repeat).
+    float field = mingleWorldCornerField(mingleWorldPos, MINGLE_BLOCK_CELLS, mingleSeed * MINGLE_SEED_OFFSET);
     if (field < threshold) {
         discard;
     }
@@ -43,7 +49,7 @@ void main() {
     }
     color *= vertexColor * ColorModulator;
     color *= lightMapColor;
-    float seam = 1.0 - smoothstep(threshold, threshold + SEAM_BAND, field);
+    float seam = 1.0 - step(threshold + SEAM_BAND, field);
     color.rgb *= mix(1.0, SEAM_SHADE, seam);
     fragColor = apply_fog(color, sphericalVertexDistance, cylindricalVertexDistance, FogEnvironmentalStart, FogEnvironmentalEnd, FogRenderDistanceStart, FogRenderDistanceEnd, FogColor);
 }

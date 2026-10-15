@@ -12,9 +12,8 @@ import java.util.stream.Stream;
  * Convokes a mob from the host's chunk to its spot, trying once every
  * period: finishes the try a mob arrives, and stays inert on each try none
  * does. The convoke blob lingers on
- * {@code convoke goo=deep every=20} until a mob comes; a tap's single drip tries once.
+ * {@code convoke goo=deep every=20} until a mob comes.
  * decision convoke-blob-throbs-until-a-mob-arrives
- * decision convoke-drip-rolls-a-small-chance
  * decision convoke-ships-on-deep
  *
  * @param goo   the goo type whose color the convoked mob's afterimages wear

@@ -2,10 +2,6 @@ package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
-import com.mercuriusxeno.goo.ability.program.BranchStep;
-import com.mercuriusxeno.goo.ability.program.Expr;
-import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
-import com.mercuriusxeno.goo.ability.program.TapHost;
 import com.mercuriusxeno.goo.ability.world.AbilityImpact;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -21,7 +17,6 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
-import java.util.List;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
@@ -37,7 +32,6 @@ import java.util.function.Consumer;
 public final class ConvokeTests {
     private static final String CONVOKE_PULLS = "convoke_pulls_a_chunk_mob";
     private static final String CONVOKE_LINGERS = "convoke_lingers_without_a_mob";
-    private static final String CONVOKE_TAP = "convoke_tap_at_full_chance";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -47,7 +41,6 @@ public final class ConvokeTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, CONVOKE_PULLS, ConvokeTests::convokePullsAChunkMob);
         GooTestFunctions.registerTest(registrar, CONVOKE_LINGERS, ConvokeTests::convokeLingersWithoutAMob);
-        GooTestFunctions.registerTest(registrar, CONVOKE_TAP, ConvokeTests::convokeTapAtFullChance);
     }
 
 
@@ -55,8 +48,6 @@ public final class ConvokeTests {
     /** How far off its own bay each test lays its chunk, past every other test, and apart from each other. */
     private static final int PULL_FAR_OFF = 4096;
     private static final int LINGER_FAR_OFF = 8192;
-    private static final int TAP_FAR_OFF = 12288;
-    private static final Identifier ENDER_CONVOKE_TAP = Identifier.parse("goo:ender_convoke_tap");
     private static final String SHOULD_SPAWN = "A cow should spawn";
     /** How far from the marker the cow stands, inside the marker's chunk. */
     private static final int COW_OFFSET = 3;
@@ -91,33 +82,6 @@ public final class ConvokeTests {
                     String.format(SHOULD_ARRIVE, cell, cow.position()));
             helper.assertFalse(level.getBlockState(marker).is(GooBlocks.ABILITY_BLOCK.get()), SHOULD_LEAVE);
             release(helper, floor, cow);
-        });
-    }
-
-    /**
-     * An ender tap's drip at full chance lands on a floor: ender_convoke_tap.json's
-     * program, its roll made certain, pulls a cow from the floor's chunk to
-     * stand on the floor under the tap (decision convoke-drip-rolls-a-small-chance).
-     *
-     * @param helper the gametest helper
-     */
-    public static void convokeTapAtFullChance(GameTestHelper helper) {
-        ServerLevel level = helper.getLevel();
-        BlockPos floor = farFloor(helper, TAP_FAR_OFF);
-        Mob cow = spawnCow(helper, floor.above().east(COW_OFFSET));
-        AbilityDefinition tap = AbilityRegistry.of(level).getAbility(ENDER_CONVOKE_TAP);
-        helper.assertTrue(tap != null, String.format(ABILITY_REQUIRED, ENDER_CONVOKE_TAP));
-        BranchStep roll = (BranchStep) tap.behaviors().getFirst();
-        BranchStep certain = new BranchStep(Expr.literal(1), roll.then(), roll.otherwise());
-        // The far chunk's entities reach the level's entity scan some ticks after it is forced loaded.
-        helper.runAfterDelay(PERIOD, () -> {
-            new ProgramBehavior(List.of(certain)).tick(new TapHost(level, floor.above(), floor, Direction.UP));
-            Vec3 underTap = Vec3.atBottomCenterOf(floor.above());
-            boolean arrived = cow.position().distanceTo(underTap) < ARRIVED_WITHIN;
-            Vec3 stands = cow.position();
-            release(helper, floor, cow);
-            helper.assertTrue(arrived, String.format(SHOULD_ARRIVE, underTap, stands));
-            helper.succeed();
         });
     }
 

@@ -12,12 +12,6 @@ public final class AbilityTags {
     public static final String ENTITY = "entity";
 
     /**
-     * An ability a tap's drip runs where it lands; the glove never offers
-     * one (decision tap-ability-tagged-program).
-     */
-    public static final String TAP = "tap";
-
-    /**
      * An ability whose blob draws no goo splat on the mob it strikes, its own
      * program drawing the hit instead, as Frost's Orb does.
      */

@@ -34,13 +34,33 @@ public final class FluidFaceEmitter {
      */
     public static void emitFluidFaces(RenderContext ctx, CuboidBounds b,
             TextureAtlasSprite sprite, int tint) {
+        emitFaces(ctx, b, tint, (spanU, spanV) -> GooSubmitter.spriteSubRect(sprite, 0f, 0f, spanU, spanV));
+    }
+
+    /**
+     * Emits the same faces with sprite-relative UVs, 0 to 1 spanning a whole
+     * sprite, in the context color, for a one-pass mingled surface whose
+     * shader maps them into each type's sprite (decision one-pass-blends-every-type).
+     *
+     * @param ctx the render context
+     * @param b   the fluid cuboid - its Y range must already encode the fill height
+     */
+    public static void emitSpriteRelativeFaces(RenderContext ctx, CuboidBounds b) {
+        emitFaces(ctx, b, ctx.color(), (spanU, spanV) -> new GooRenderUtil.UvRect(0f, 0f, spanU, spanV));
+    }
+
+    /** Maps a face's extent in sprite widths to the UV rect it draws on. */
+    @FunctionalInterface
+    private interface FaceUv {
+        GooRenderUtil.UvRect spanning(float spanU, float spanV);
+    }
+
+    private static void emitFaces(RenderContext ctx, CuboidBounds b, int tint, FaceUv faceUv) {
         float spanX = b.x1() - b.x0();
         float spanY = b.yTop() - b.yBot();
         float spanZ = b.z1() - b.z0();
-        ctx.liquidSurface(tint, b, GooSubmitter.spriteSubRect(sprite, 0f, 0f, spanX, spanZ));
-        GooRenderUtil.UvRect xUv = GooSubmitter.spriteSubRect(sprite, 0f, 0f, spanX, spanY);
-        GooRenderUtil.UvRect zUv = GooSubmitter.spriteSubRect(sprite, 0f, 0f, spanZ, spanY);
-        emitAllSideFaces(ctx, b, xUv, zUv, tint);
+        ctx.liquidSurface(tint, b, faceUv.spanning(spanX, spanZ));
+        emitAllSideFaces(ctx, b, faceUv.spanning(spanX, spanY), faceUv.spanning(spanZ, spanY), tint);
     }
 
     /**

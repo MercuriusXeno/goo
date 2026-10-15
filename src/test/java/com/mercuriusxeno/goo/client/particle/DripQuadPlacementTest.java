@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.particle;
 
-import com.mercuriusxeno.goo.block.tap.TapStream;
 import com.mercuriusxeno.goo.throwing.DripFall;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -14,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Covers where a tap drip's falling quad and splat quad sit between its spigot and the surface it lands on. */
+/** Covers where a drip's falling quad and splat quad sit between the point it hangs from and the surface it lands on. */
 class DripQuadPlacementTest {
 
     /** The block top the drip lands on. */
@@ -26,13 +25,19 @@ class DripQuadPlacementTest {
     /** Spigot heights swept, one per step, up to three blocks above the lowest. */
     private static final int FALL_DISTANCES = 300;
 
-    /** The lowest a spigot sits over a surface: a tap standing on a full block. */
-    private static final double LOWEST_SPIGOT_Y = SURFACE_Y + TapStream.SPIGOT_UNDERSIDE_LOCAL_Y;
+    /** The lowest a drip hangs from over a surface: two pixels above a full block. */
+    private static final double LOWEST_SPIGOT_Y = SURFACE_Y + 2.0 / 16.0;
+
+    /** The sample drop's half extent: a 2-pixel drop. */
+    private static final float DROP_HALF_SIZE = 1f / 16f;
+
+    /** Ticks the sample drop hangs swelling before it falls. */
+    private static final int HANG_TICKS = 4;
 
     /** Float rounding the quad's top may carry past the spigot underside. */
     private static final double TOP_TOLERANCE = 1e-6;
 
-    /** The tap-drip's leave speed, downward. */
+    /** The sample drop's leave speed, downward. */
     private static final double LEAVE_SPEED = -0.05;
 
     /**
@@ -60,12 +65,12 @@ class DripQuadPlacementTest {
     class FallingQuad {
 
         /**
-         * Every spigot height the sweep reaches: a tap's drop either hangs
+         * Every spigot height the sweep reaches: a drop either hangs
          * from the spigot and falls, or has no room and splats at once.
          */
         @Test
         void everyTickOfAHangingDropSitsBetweenTheSpigotAndTheSurfaceByTheMargin() {
-            float halfSize = TapDripParticle.DROP_HALF_SIZE;
+            float halfSize = DROP_HALF_SIZE;
             int hung = 0;
             for (int drop = 0; drop <= FALL_DISTANCES; drop++) {
                 double spigotY = LOWEST_SPIGOT_Y + drop * FALL_STEP;
@@ -88,9 +93,9 @@ class DripQuadPlacementTest {
          */
         private void assertHangSwellsFromTheSpigot(double spigotY, double room, float halfSize) {
             DripCuboid.Extent previous = null;
-            for (int hung = 0; hung <= DripFall.HANG_TICKS; hung++) {
+            for (int hung = 0; hung <= HANG_TICKS; hung++) {
                 DripCuboid.Extent cuboid = DripQuadPlacement.hangingCuboid(spigotY, halfSize,
-                        DripQuadPlacement.hangProgress(hung, 0f, DripFall.HANG_TICKS), room);
+                        DripQuadPlacement.hangProgress(hung, 0f, HANG_TICKS), room);
                 String at = "spigot y " + spigotY + ", hang tick " + hung + ": " + cuboid;
                 assertEquals(spigotY, cuboid.topY(), TOP_TOLERANCE, at);
                 assertTrue(cuboid.bottomY() >= SURFACE_Y + DripQuadPlacement.SURFACE_MARGIN, at);
@@ -107,19 +112,19 @@ class DripQuadPlacementTest {
         }
 
         @Test
-        void aTapOverAFullBlockHasNoRoomToHangTheDrop() {
+        void aSpigotJustOverAFullBlockHasNoRoomToHangTheDrop() {
             double room = Math.min(LOWEST_SPIGOT_Y - SURFACE_Y,
-                    DripQuadPlacement.hangingDrop(TapDripParticle.DROP_HALF_SIZE));
+                    DripQuadPlacement.hangingDrop(DROP_HALF_SIZE));
 
-            assertFalse(DripQuadPlacement.dropFits(room, TapDripParticle.DROP_HALF_SIZE));
+            assertFalse(DripQuadPlacement.dropFits(room, DROP_HALF_SIZE));
         }
 
         @Test
-        void aTapOneBlockHigherHangsTheDrop() {
+        void aSpigotOneBlockHigherHangsTheDrop() {
             double room = Math.min(LOWEST_SPIGOT_Y + 1.0 - SURFACE_Y,
-                    DripQuadPlacement.hangingDrop(TapDripParticle.DROP_HALF_SIZE));
+                    DripQuadPlacement.hangingDrop(DROP_HALF_SIZE));
 
-            assertTrue(DripQuadPlacement.dropFits(room, TapDripParticle.DROP_HALF_SIZE));
+            assertTrue(DripQuadPlacement.dropFits(room, DROP_HALF_SIZE));
         }
 
         /**
@@ -143,7 +148,7 @@ class DripQuadPlacementTest {
     @Nested
     class HangEnd {
 
-        private final float halfSize = TapDripParticle.DROP_HALF_SIZE;
+        private final float halfSize = DROP_HALF_SIZE;
 
         @ParameterizedTest
         @ValueSource(doubles = {0.0, 0.125, 0.144})
@@ -164,16 +169,16 @@ class DripQuadPlacementTest {
         }
 
         /**
-         * A tap over a full block: the drop stands at the spigot, swelling,
+         * A spigot just over a full block: the drop stands at the spigot, swelling,
          * clear of the surface for every hang tick, then splats.
          */
         @Test
-        void aTapOverAFullBlockHangsTheDropForTheHangThenSplats() {
+        void aSpigotJustOverAFullBlockHangsTheDropForTheHangThenSplats() {
             double room = Math.min(LOWEST_SPIGOT_Y - SURFACE_Y, DripQuadPlacement.hangingDrop(halfSize));
             float previous = 0f;
-            for (int hung = 1; hung <= DripFall.HANG_TICKS; hung++) {
+            for (int hung = 1; hung <= HANG_TICKS; hung++) {
                 DripCuboid.Extent cuboid = DripQuadPlacement.hangingCuboid(LOWEST_SPIGOT_Y, halfSize,
-                        DripQuadPlacement.hangProgress(hung, 0f, DripFall.HANG_TICKS), room);
+                        DripQuadPlacement.hangProgress(hung, 0f, HANG_TICKS), room);
                 String at = "hang tick " + hung + ": " + cuboid;
                 assertTrue(cuboid.height() > previous, at);
                 assertEquals(LOWEST_SPIGOT_Y, cuboid.topY(), TOP_TOLERANCE, at);
@@ -196,8 +201,8 @@ class DripQuadPlacementTest {
 
         @Test
         void hangProgressInterpolatesWithinATickAndHoldsAtFull() {
-            assertEquals(0.625f, DripQuadPlacement.hangProgress(2, 0.5f, DripFall.HANG_TICKS));
-            assertEquals(1f, DripQuadPlacement.hangProgress(DripFall.HANG_TICKS, 0.5f, DripFall.HANG_TICKS));
+            assertEquals(0.625f, DripQuadPlacement.hangProgress(2, 0.5f, HANG_TICKS));
+            assertEquals(1f, DripQuadPlacement.hangProgress(HANG_TICKS, 0.5f, HANG_TICKS));
         }
     }
 

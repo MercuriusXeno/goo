@@ -7,7 +7,6 @@ import com.mercuriusxeno.goo.block.gasket.ChoralGasketBlockEntity;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
 import com.mercuriusxeno.goo.block.reactor.ReactorBlockEntity;
-import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.HolderLookup;
@@ -60,7 +59,7 @@ class GooMachineBlockEntityTest {
 
     static Stream<Class<? extends GooMachineBlockEntity>> machines() {
         return Stream.of(CanisterBlockEntity.class, HubBlockEntity.class, VatBlockEntity.class,
-                CrucibleBlockEntity.class, ReactorBlockEntity.class, TapBlockEntity.class,
+                CrucibleBlockEntity.class, ReactorBlockEntity.class,
                 ChoralGasketBlockEntity.class);
     }
 

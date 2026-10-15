@@ -35,7 +35,7 @@ import java.util.List;
 /**
  * Draws what Unmake leaves on screen outside the melting block's own
  * renderer: the goo spreading over a block that melts without the sag, a
- * block holding contents or one under a tap, in one solid color with no
+ * block holding contents, in one solid color with no
  * texture; and the remains of anything unmade, a blob of the goo they hold,
  * drawn as the crucible draws its goo, shrinking and rounding into the goo
  * item where the item then drops.
@@ -91,7 +91,7 @@ public final class MeltingBlockRenderer {
 
     /**
      * Submits the goo spreading over a worked block that melts without the
-     * sag, one holding contents or one under a tap: a film over its model in
+     * sag or one holding contents: a film over its model in
      * the goo's one solid color, its types' tints blended by volume, thickening
      * as the block melts.
      *

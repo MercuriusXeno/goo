@@ -7,7 +7,7 @@ import java.util.List;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-/** A stream tick and a tap's drip report each living thing whose health their program raised, the list the healing stars play on (decisions vitality-waves-regenerate-and-court, vitality-drip-heals-below). */
+/** A stream tick reports each living thing whose health its program raised, the list the healing stars play on (decision vitality-waves-regenerate-and-court). */
 class HealReportTest {
 
     private static final int COW_ID = 7;

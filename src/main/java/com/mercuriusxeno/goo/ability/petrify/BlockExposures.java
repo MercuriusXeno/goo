@@ -16,7 +16,7 @@ import java.util.Map;
 
 /**
  * How far each block has gone toward its next calcify rung: exposure builds
- * while Petrify's fog or its tap's drips reach the block, a full share steps
+ * while Petrify's fog reaches the block, a full share steps
  * the block a rung, its floor, and once nothing has reached it a while the
  * unfinished share decays slowly back to that floor, so a released block
  * keeps no patches. Every change goes to the clients watching the block,

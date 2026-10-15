@@ -80,7 +80,6 @@ class TypeBandsTest {
         for (int k = 0; k < bands.size(); k++) {
             TypeBand band = bands.get(k);
             assertEquals(k, band.layer());
-            assertEquals(k * TypeBand.LAYER_LIFT, band.lift());
             float coverage = band.share();
             for (TypeBand later : bands.subList(k + 1, bands.size())) {
                 coverage *= 1f - later.share();
@@ -88,13 +87,6 @@ class TypeBandsTest {
             float ratio = (float) contents.getVolume(band.type()) / contents.totalVolume();
             assertEquals(ratio, coverage, COVERAGE_TOLERANCE);
         }
-    }
-
-    @Test
-    void packingCarriesTheShareLowAndTheTypeSeedHigh() {
-        TypeBand band = new TypeBand(GooTypes.FROST, 0.75f, 1f, 2);
-
-        assertEquals(TypeBand.SHARE_UNITS / 4 | GooTypes.indexOf(GooTypes.FROST) << 16, band.packed());
     }
 
     @Test

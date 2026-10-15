@@ -3,7 +3,6 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.block.canister.CanisterBlock;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
-import com.mercuriusxeno.goo.block.tap.TapBlockEntity;
 import com.mercuriusxeno.goo.data.GasketRegistry;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.lab.LabBays;
@@ -18,7 +17,6 @@ import com.mercuriusxeno.goo.lab.LabPlan;
 import com.mercuriusxeno.goo.lab.LabPlot;
 import com.mercuriusxeno.goo.lab.LabRigs;
 import com.mercuriusxeno.goo.lab.LabSpawn;
-import com.mercuriusxeno.goo.registry.GooBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -39,7 +37,6 @@ import java.util.function.Consumer;
  */
 @RegistersGameTests
 public final class LabBayTests {
-    private static final String LAB_BAY_TAP = "lab_bay_tap";
     private static final String LAB_BAY_HUB = "lab_bay_hub";
     private static final String LAB_BAY_GASKET = "lab_bay_gasket";
     private static final String LAB_PENS_AND_RANGE = "lab_pens_and_range";
@@ -50,7 +47,6 @@ public final class LabBayTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, LAB_BAY_TAP, LabBayTests::tapBay);
         GooTestFunctions.registerTest(registrar, LAB_BAY_HUB, LabBayTests::hubBay);
         GooTestFunctions.registerTest(registrar, LAB_BAY_GASKET, LabBayTests::gasketBay);
         GooTestFunctions.registerTest(registrar, LAB_PENS_AND_RANGE, LabBayTests::pensAndRange);
@@ -62,10 +58,6 @@ public final class LabBayTests {
      */
     private static final BlockPos BAY_CORNER = new BlockPos(1, 0, 1);
     private static final int HUB_FILLED_SLOTS = 4;
-    private static final String NO_TAP = "Tap bay should stand a tap";
-    private static final String TAP_EMPTY = "Tap should hold a slotted canister of goo";
-    private static final String NO_GAP = "Tap should hang over air";
-    private static final String NO_CATCH = "Tap should hang over a catch surface";
     private static final String HUB_SLOTS = "Hub should hold a filled canister in each rigged slot";
     private static final String NO_SOURCE_GASKET = "Gasket run source should carry a bottom gasket";
     private static final String NO_RECEIVER_GASKET = "Gasket run receiver should carry a top gasket";
@@ -77,27 +69,6 @@ public final class LabBayTests {
     private static final String LINE_MISSING = "Firing line should stand in the floor at ";
 
     private LabBayTests() {
-    }
-
-    /**
-     * The tap bay holds a filled, slotted canister over an air gap and a catch surface.
-     *
-     * @param helper the gametest helper
-     */
-    public static void tapBay(GameTestHelper helper) {
-        LabPlan plan = LabLayout.plan();
-        LabPlot plot = plot(plan, LabMachine.TAP);
-        BlockPos origin = buildBay(helper, plan, plot);
-        BlockPos tapPos = LabBuilder.worldPos(origin, plot.machineOffset());
-        helper.assertTrue(helper.getLevel().getBlockState(tapPos).is(GooBlocks.TAP.get()), NO_TAP);
-        TapBlockEntity tap = (TapBlockEntity) helper.getLevel().getBlockEntity(tapPos);
-        helper.assertTrue(tap != null && !tap.getCanister().isEmpty()
-                && tap.getFluidContent().totalVolume() == LabRigs.CANISTER_FILL, TAP_EMPTY);
-        helper.assertTrue(helper.getLevel().getBlockState(tapPos.below()).isAir(), NO_GAP);
-        BlockPos catchPos = tapPos.below(LabBays.TAP_AIR_GAP + 1);
-        helper.assertFalse(helper.getLevel().getBlockState(catchPos).getCollisionShape(
-                helper.getLevel(), catchPos).isEmpty(), NO_CATCH);
-        helper.succeed();
     }
 
     /**

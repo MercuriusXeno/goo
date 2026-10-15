@@ -31,7 +31,7 @@ class HitOrMissStepTest {
 
     @Test
     void aHostThatIsNeitherRunsNothing() {
-        assertTrue(SPLIT.branchFor(HostKind.TAP).isEmpty());
+        assertTrue(SPLIT.branchFor(HostKind.SURFACE).isEmpty());
     }
 
     @Test
