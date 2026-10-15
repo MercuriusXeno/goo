@@ -1,10 +1,9 @@
 package com.mercuriusxeno.goo.client.ber;
 
+import com.mercuriusxeno.goo.client.BandedSurfaceSubmitter;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooSubmitter;
-import com.mercuriusxeno.goo.client.LayeredSurfaceSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
-import com.mercuriusxeno.goo.client.TypeBand;
 import com.mercuriusxeno.goo.client.model.FluidFaceEmitter;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -48,7 +47,7 @@ public final class SlottedFluidContainer {
             GooSubmitter.submitFluid(poseStack, nodeCollector,
                     ctx -> renderAllFluids(ctx, slots, geom, centers, supportsVanilla));
         }
-        submitMingledFluids(GooSubmitter.layeredSurfaces(poseStack, nodeCollector), slots, geom, centers);
+        submitMingledFluids(GooSubmitter.bandedSurfaces(poseStack, nodeCollector), slots, geom, centers);
     }
 
     private static void renderAllFluids(RenderContext ctx, SlotState[] slots,
@@ -92,25 +91,23 @@ public final class SlottedFluidContainer {
     }
 
     /**
-     * Submits each slot holding several goo types once per type band through the
-     * layered submitter, every layer lifted outward of the one below, so the
-     * column mingles the types by noise (decision noise-mingled-type-textures).
+     * Submits each slot holding several goo types once at the slot's own
+     * bounds, carrying every type band, so the column mingles the types by
+     * noise on one surface (decisions noise-mingled-type-textures and
+     * one-pass-blends-every-type).
      *
-     * @param submitter submits one band's surface on that band type's sprite
+     * @param submitter submits a surface carrying every band
      * @param slots     per-slot snapshots
      * @param geom      shared slot geometry
      * @param centers   per-slot XZ block-coord centers (parallel to {@code slots})
      */
-    static void submitMingledFluids(LayeredSurfaceSubmitter submitter, SlotState[] slots,
+    static void submitMingledFluids(BandedSurfaceSubmitter submitter, SlotState[] slots,
                                     SlotFluidGeometry.SlotGeometry geom, float[][] centers) {
         for (int i = 0; i < slots.length; i++) {
             SlotState s = slots[i];
             if (s.fill > 0f && s.mingles()) {
                 CuboidBounds b = SlotFluidGeometry.computeBounds(geom, centers[i][0], centers[i][1], s.fill);
-                for (TypeBand band : s.bands) {
-                    submitter.submit(band, (ctx, sprite) ->
-                            FluidFaceEmitter.emitFluidFaces(ctx, b.liftedOutward(band.lift()), sprite, ctx.color()));
-                }
+                submitter.submit(s.bands, ctx -> FluidFaceEmitter.emitSpriteRelativeFaces(ctx, b));
             }
         }
     }
