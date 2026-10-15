@@ -51,6 +51,7 @@ public final class StepTypes {
         register(DetectOreStep.TYPE);
         register(WindStep.TYPE);
         register(BreakBlocksStep.TYPE);
+        register(ExtinguishStep.TYPE);
         register(TravelingStep.TYPE);
         register(GlacialStep.TYPE);
         register(LeafSteps.SET_AI.type());

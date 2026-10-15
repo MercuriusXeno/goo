@@ -15,7 +15,7 @@ import java.util.stream.Stream;
  * Frost's combo on a prism: for as long as the prism stands, every frozen
  * gauge within the radius holds and never thaws, and the still water and
  * lava within it stand frozen, water as magicked ice and lava as obsidian,
- * and every few seconds a flat frost ring pulses out from the prism to the
+ * the fire in it goes out, and every few seconds a flat frost ring pulses out from the prism to the
  * radius, Nova's ring, for the players watching. The step never finishes, so
  * the prism keeps its area frozen until mined:
  * {@code glacial radius=5}.
