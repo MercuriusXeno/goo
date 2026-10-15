@@ -71,6 +71,8 @@ class StepCodecTest {
             Map.entry("drop_item", new DropItemStep(Identifier.parse("minecraft:cobblestone"),
                     Expr.parse("1 + random(3)").getOrThrow())),
             Map.entry("ignite", LeafSteps.IGNITE.step(Expr.literal(10))),
+            Map.entry("light_fire", LeafSteps.LIGHT_FIRE.step(Unit.INSTANCE)),
+            Map.entry("detonate_explosive", LeafSteps.DETONATE_EXPLOSIVE.step(Expr.literal(6))),
             Map.entry("entities", new EntitiesStep(SelectionShape.SPHERE, Expr.literal(2.5),
                     List.of(EntityFilter.LIVING, EntityFilter.NOT_FIRE_IMMUNE),
                     List.of(LeafSteps.IGNITE.step(Expr.literal(5))))),
