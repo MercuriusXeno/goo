@@ -78,7 +78,7 @@ public final class GloveThrowSender {
     public static boolean sendThrow(Player player, int heldTicks) {
         GloveSelection selection = heldSelection(player);
         ResourceKey<GooTypeDefinition> gooType = selection == null ? null : selection.getGooType();
-        if (gooType == null || ThrowFreezeState.isThrowBlocked()) {
+        if (gooType == null) {
             return false;
         }
         return sendFor(player, gooType, selection.abilityId(), heldTicks);
@@ -334,7 +334,6 @@ public final class GloveThrowSender {
         if (payload == null) {
             return false;
         }
-        ThrowFreezeState.arm(target);
         sendPayload(payload);
         return true;
     }
