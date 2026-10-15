@@ -1,21 +1,22 @@
 package com.mercuriusxeno.goo.client;
 
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import java.util.function.BiConsumer;
+import java.util.List;
+import java.util.function.Consumer;
 
 /**
- * Submits one mingled fluid surface per type band (decision
- * noise-mingled-type-textures): the emitter receives a context whose every
- * vertex carries the band, and the band type's fluid sprite.
+ * Submits one mingled fluid surface carrying every type band it holds
+ * (decision one-pass-blends-every-type): the shader blends the bands itself,
+ * so the emitter draws the surface once, at the surface's own bounds, with
+ * sprite-relative UVs the shader maps into each band type's sprite.
  */
 @FunctionalInterface
 public interface BandedSurfaceSubmitter {
 
     /**
-     * Submits the surface one band draws.
+     * Submits the surface every band draws on.
      *
-     * @param band    the type band the surface shows
-     * @param emitter emits the surface through a band-carrying context on the type's sprite
+     * @param bands   the type bands in the fixed type order
+     * @param emitter emits the surface once, its UVs spanning 0 to 1 across a whole sprite
      */
-    void submit(TypeBand band, BiConsumer<RenderContext, TextureAtlasSprite> emitter);
+    void submit(List<TypeBand> bands, Consumer<RenderContext> emitter);
 }

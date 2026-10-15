@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.block.crucible.CrucibleBasin;
-import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.TypeBand;
@@ -10,7 +9,6 @@ import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -22,57 +20,56 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
- * Tests that a crucible submits one surface per goo type it shows, each
- * carrying its share and its type's noise seed and lifted one layer above the one below,
- * and a single type one whole surface.
+ * Tests that a crucible submits one surface whatever goo types it shows, every
+ * vertex at the surface height, carrying each type's share and noise seed in
+ * the fixed type order (decision one-pass-blends-every-type).
  */
 class CrucibleMingledSurfaceTest {
 
     private static final float SURFACE_Y = 0.875f;
 
-    private static TextureAtlasSprite sprite() {
-        TextureAtlasSprite sprite = mock(TextureAtlasSprite.class);
-        when(sprite.getU1()).thenReturn(1f);
-        when(sprite.getV1()).thenReturn(1f);
-        return sprite;
+    private record Submission(List<TypeBand> bands, List<RecordingVertexConsumer.Vertex> vertices) {
     }
 
-    static Stream<Arguments> contentsAndShareUnitsPerLayer() {
+    static Stream<Arguments> contentsTypesAndShares() {
         return Stream.of(
-            Arguments.of(Map.of(GooTypes.BLAZE, 700), List.of(TypeBand.SHARE_UNITS)),
-            Arguments.of(Map.of(GooTypes.BLAZE, 250, GooTypes.FROST, 750),
-                List.of(TypeBand.SHARE_UNITS, TypeBand.SHARE_UNITS * 3 / 4)));
+            Arguments.of(Map.of(GooTypes.BLAZE, 700), List.of(GooTypes.BLAZE), List.of(1f)),
+            Arguments.of(Map.of(GooTypes.FROST, 750, GooTypes.BLAZE, 250),
+                List.of(GooTypes.BLAZE, GooTypes.FROST), List.of(1f, 0.75f)),
+            Arguments.of(Map.of(GooTypes.FROST, 300, GooTypes.ASTRAL, 100, GooTypes.BLAZE, 600),
+                List.of(GooTypes.ASTRAL, GooTypes.BLAZE, GooTypes.FROST), List.of(1f, 600f / 700f, 0.3f)));
     }
 
     @ParameterizedTest
-    @MethodSource("contentsAndShareUnitsPerLayer")
-    void renderMingledSurface(Map<ResourceKey<GooTypeDefinition>, Integer> volumes,
-                              List<Integer> shareUnitsPerLayer) {
+    @MethodSource("contentsTypesAndShares")
+    void oneSurfaceCarriesEveryTypeInTypeOrderAtTheSurfaceHeight(Map<ResourceKey<GooTypeDefinition>, Integer> volumes,
+                                                                 List<ResourceKey<GooTypeDefinition>> types,
+                                                                 List<Float> shares) {
         // BlockEntityRenderState's constructor bootstraps Blocks, so the state is built without it.
         CrucibleRenderState state = mock(CrucibleRenderState.class);
         state.typeBands = TypeBands.over(new GooContents(volumes));
         state.rippleAmplitude = RenderContext.RESTING_RIPPLE_AMPLITUDE;
-        List<List<RecordingVertexConsumer.Vertex>> surfaces = new ArrayList<>();
+        List<Submission> submissions = new ArrayList<>();
 
-        CrucibleBlockEntityRenderer.renderMingledSurface((band, emitter) -> {
+        CrucibleBlockEntityRenderer.renderMingledSurface((bands, emitter) -> {
             RecordingVertexConsumer recorder = new RecordingVertexConsumer();
-            emitter.accept(RenderContext.banded(new PoseStack().last(), recorder,
-                GooRenderUtil.OPAQUE_WHITE, band), sprite());
-            surfaces.add(recorder.vertices());
+            emitter.accept(new RenderContext(new PoseStack().last(), recorder, 0));
+            submissions.add(new Submission(bands, recorder.vertices()));
         }, state, CrucibleBasin.footprintForVolume(CrucibleBasin.RIM_VOLUME), SURFACE_Y);
 
-        assertEquals(shareUnitsPerLayer.size(), surfaces.size());
-        for (int layer = 0; layer < surfaces.size(); layer++) {
-            List<RecordingVertexConsumer.Vertex> vertices = surfaces.get(layer);
-            assertFalse(vertices.isEmpty());
-            for (RecordingVertexConsumer.Vertex vertex : vertices) {
-                assertEquals(List.of(shareUnitsPerLayer.get(layer), state.typeBands.get(layer).seed()),
-                    List.of(vertex.uv2U(), vertex.uv2V()));
-                assertEquals(SURFACE_Y + layer * TypeBand.LAYER_LIFT, vertex.y(), 1e-6f);
-            }
+        assertEquals(1, submissions.size());
+        Submission surface = submissions.getFirst();
+        assertEquals(types, surface.bands().stream().map(TypeBand::type).toList());
+        assertEquals(types.stream().map(GooTypes::indexOf).toList(),
+            surface.bands().stream().map(TypeBand::seed).toList());
+        for (int k = 0; k < shares.size(); k++) {
+            assertEquals(shares.get(k), surface.bands().get(k).share(), 1e-6f);
+        }
+        assertFalse(surface.vertices().isEmpty());
+        for (RecordingVertexConsumer.Vertex vertex : surface.vertices()) {
+            assertEquals(SURFACE_Y, vertex.y());
         }
     }
 }

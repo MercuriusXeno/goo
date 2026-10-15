@@ -206,19 +206,16 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
     }
 
     /**
-     * Submits the fill once per type band through the vat's banded submitter,
-     * each layer lifted outward of the one below, so a canister holding several
-     * goo types mingles them by noise (decision noise-mingled-type-textures).
+     * Submits the fill once at its own bounds, carrying every type band, so a
+     * canister holding several goo types mingles them by noise on one surface
+     * (decisions noise-mingled-type-textures and one-pass-blends-every-type).
      *
-     * @param submitter submits one band's surface on that band type's sprite
+     * @param submitter submits the surface carrying every band
      * @param data      the goo data, holding more than one band
      */
-    private static void submitMingledFluid(BandedSurfaceSubmitter submitter, GooData data) {
+    static void submitMingledFluid(BandedSurfaceSubmitter submitter, GooData data) {
         CuboidBounds b = fluidBounds(data.fill());
-        for (TypeBand band : data.bands()) {
-            submitter.submit(band, (ctx, sprite) ->
-                    FluidFaceEmitter.emitFluidFaces(ctx, b.liftedOutward(band.lift()), sprite, ctx.color()));
-        }
+        submitter.submit(data.bands(), ctx -> FluidFaceEmitter.emitSpriteRelativeFaces(ctx, b));
     }
 
     /**
@@ -247,7 +244,7 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
      * @param fill the fill fraction in [0, 1]
      * @return the fluid cuboid whose Y span encodes the fill
      */
-    private static CuboidBounds fluidBounds(float fill) {
+    static CuboidBounds fluidBounds(float fill) {
         float min = CENTER - CanisterGeometry.HALF_WIDTH + CanisterGeometry.FLUID_INSET;
         float max = CENTER + CanisterGeometry.HALF_WIDTH - CanisterGeometry.FLUID_INSET;
         return new CuboidBounds(min, max, min, max,
