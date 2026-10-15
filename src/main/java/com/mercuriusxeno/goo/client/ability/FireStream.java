@@ -50,6 +50,8 @@ public final class FireStream {
     private static final double DEFAULT_CONE_DEGREES = 20;
     private static final String FLAMES_ID = "goo:blaze_flames";
     private static final double HALF = 0.5;
+    /** Below this squared length a direction has no way. */
+    private static final double NO_WAY = 1e-6;
 
     /** The game time the current hold began, or NaN while no hold runs. */
     private static double heldSince = Double.NaN;
@@ -128,6 +130,12 @@ public final class FireStream {
         if (pinnedJet != null) {
             burning.add(pinnedJet);
         }
+        for (HeaterFlames.Heater heater : HeaterFlames.burning()) {
+            Burning heaterJet = heaterJet(player, heater, now, camera);
+            if (heaterJet != null) {
+                burning.add(heaterJet);
+            }
+        }
         if (burning.isEmpty()) {
             return;
         }
@@ -170,6 +178,35 @@ public final class FireStream {
         double tan = Math.tan(Math.toRadians(flames.delivery().coneDegrees() * HALF));
         return new Burning(new Jet(hand.subtract(camera), aim.axis(), side, tan), span,
                 cameraRelative(aim.wall(), camera));
+    }
+
+    /**
+     * A heater prism's fire this frame: Flames' own, from the prism's tip the
+     * way its server last pointed it, bouncing off the block its line meets
+     * within Flames' reach. heater-prism-flames-nearby-creatures
+     *
+     * @param player the local player, whose level the line is traced in
+     * @param heater the heater
+     * @param now    the game time with the partial tick
+     * @param camera the camera's world position
+     * @return the heater's fire, or null once it has burned away
+     */
+    private static @Nullable Burning heaterJet(LocalPlayer player, HeaterFlames.Heater heater, double now,
+                                               Vec3 camera) {
+        JetSpan span = HeaterFlames.spanOf(heater, now, DEFAULT_RANGE);
+        if (span == null) {
+            return null;
+        }
+        Vec3 tip = heater.tip();
+        Vec3 axis = heater.axis();
+        BlockHitResult hit = player.level().clip(new ClipContext(tip, tip.add(axis.scale(DEFAULT_RANGE)),
+                ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player));
+        Wall wall = hit.getType() == HitResult.Type.BLOCK
+                ? new Wall(hit.getLocation().distanceTo(tip), hit.getLocation(), hit.getDirection()) : null;
+        Vec3 side = new Vec3(-axis.z, 0, axis.x);
+        side = side.lengthSqr() > NO_WAY ? side.normalize() : new Vec3(1, 0, 0);
+        return new Burning(new Jet(tip.subtract(camera), axis, side, Math.tan(Math.toRadians(DEFAULT_CONE_DEGREES
+                * HALF))), span, cameraRelative(wall, camera));
     }
 
     private static @Nullable Burning pinnedJet(double now, Vec3 camera) {

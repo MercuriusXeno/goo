@@ -11,5 +11,8 @@
   "behaviors": [
     { "type": "flames", "damage": 1, "every": 2, "burn_seconds": 5 }
   ],
+  "on_prism": [
+    { "type": "heater", "radius": 6, "damage": 1, "every": 2, "burn_seconds": 5, "cone": 20 }
+  ],
   "tags": ["stream"]
 }

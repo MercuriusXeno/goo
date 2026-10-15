@@ -155,6 +155,7 @@ class StepCodecTest {
                     TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath("goo", "broil_burns")),
                     Expr.literal(3), 4)),
             Map.entry("flames", new FlamesStep(Expr.literal(1), 2, 5)),
+            Map.entry("heater", new HeaterStep(6, Expr.literal(1), 2, 5, 20)),
             Map.entry("degrade_drip", new DegradeDripStep(Identifier.fromNamespaceAndPath("goo", "decay"), 8)),
             Map.entry("petrify_drip", new PetrifyDripStep(Identifier.fromNamespaceAndPath("goo", "calcify"), 8,
                     TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath("goo", "grows_dripstone")))),
