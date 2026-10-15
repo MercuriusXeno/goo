@@ -1159,25 +1159,6 @@ public final class GooRenderTypes {
             .build();
 
     /**
-     * The Unmake drink's field pipeline for a region the camera is inside:
-     * drawn by the region's far faces, so its depth makes no promise to grow
-     * past the face's and the GPU tests it only after the march.
-     */
-    public static final RenderPipeline DRINK_FIELD_INSIDE = RenderPipeline.builder(
-                    RenderPipelines.MATRICES_FOG_LIGHT_DIR_SNIPPET,
-                    RenderPipelines.GLOBALS_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "drink_field_inside"))
-            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "drink_field"))
-            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "drink_field"))
-            .withShaderDefine("DRINK_INSIDE")
-            .withSampler("Sampler2")
-            .withUniform(DRINK_REGION_BLOCK, UniformType.UNIFORM_BUFFER)
-            .withVertexFormat(DefaultVertexFormat.ENTITY, VertexFormat.Mode.QUADS)
-            .withDepthStencilState(DepthStencilState.DEFAULT)
-            .withCull(true)
-            .build();
-
-    /**
      * The goo film pipeline (decision unmake-skin-is-a-solid-sampled-color):
      * the entity look with no texture at all, each vertex's own color lit by
      * the cardinal lights and the lightmap, translucent, for the solid goo
@@ -1261,7 +1242,6 @@ public final class GooRenderTypes {
         event.registerPipeline(GLOW_SHELL);
         event.registerPipeline(SCRY_FACES);
         event.registerPipeline(DRINK_FIELD);
-        event.registerPipeline(DRINK_FIELD_INSIDE);
         event.registerPipeline(GOO_FILM);
     }
 
