@@ -138,6 +138,7 @@ public final class DrinkTree {
         private double tail = Double.NaN;
         private double route = Double.NaN;
         private double mass = Double.NaN;
+        private double trailing = Double.NaN;
 
         private Stream(Block block, DrinkStream.Path path, @Nullable Stream trunk, double joinShare, double now) {
             this.block = block;
@@ -303,6 +304,30 @@ public final class DrinkTree {
                 tail = distanceAt(timeTo(DrinkStream.BLOCK_SPAN) + now - block.end());
             }
             return tail;
+        }
+
+        /**
+         * Where the last of the liquid through this stream's path trails: its
+         * own tail, or where a tributary's liquid still comes onto it, at its
+         * join while that tributary's tail is still on its own path and past
+         * the join by as far as the tail has ridden on, whichever is furthest
+         * back; read once since every ring asks.
+         * decision unmake-stream-is-a-shrinking-waterspout
+         *
+         * @return blocks along this stream's own path, below its block's middle while its block still feeds it
+         */
+        public double trailingAt() {
+            if (Double.isNaN(trailing)) {
+                double least = awaiting() ? Double.NEGATIVE_INFINITY : tailAt();
+                for (Stream tributary : tributaries) {
+                    if (!tributary.spent()) {
+                        double ridden = Math.max(0, tributary.trailingAt() - tributary.path.length());
+                        least = Math.min(least, tributary.joinShare * path.length() + ridden);
+                    }
+                }
+                trailing = least;
+            }
+            return trailing;
         }
 
         /**
@@ -554,7 +579,7 @@ public final class DrinkTree {
         double mean = sum.radius() / sum.presence();
         double taper = Math.pow(Math.min(1, sum.presence()), 1 / TRUNK_ROOT);
         double growth = Math.pow(Math.max(1, sum.presence()), 1 / TRUNK_ROOT);
-        double full = mean * taper * growth;
+        double full = mean * taper * growth * spoutLeftOf(stream);
         return (THREAD + (full - THREAD) * spoutAt(stream, share)) * handoverAt(stream, share);
     }
 
@@ -592,8 +617,37 @@ public final class DrinkTree {
      */
     static double spoutAt(Stream stream, double share) {
         double distance = share * stream.path().length();
-        double run = (distance - DrinkBody.CENTER) / (threadFrom(stream) - DrinkBody.CENTER);
+        double nose = noseOf(stream);
+        double run = nose >= threadFrom(stream) ? 1 : (distance - nose) / (threadFrom(stream) - nose);
         return Math.pow(1 - Math.clamp(run, 0, 1), SPOUT_FALL);
+    }
+
+    /**
+     * Where a stream's spout is widest: its block's middle while the block
+     * feeds it, and once its liquid has left the block, a tip's length past
+     * where the last of it trails, so the spout's wide end rides its tail to
+     * the hand rather than staying where the block was while the tail runs
+     * on into the hair; a spout pinned at the block left the last of the
+     * liquid a hair before it reached the hand, where it vanished.
+     * decision unmake-stream-is-a-shrinking-waterspout
+     * decision unmake-waves-dissolve-by-crucible-cost
+     *
+     * @param stream the stream
+     * @return blocks along its own path
+     */
+    static double noseOf(Stream stream) {
+        return Math.max(DrinkBody.CENTER, stream.trailingAt() + DrinkStream.TIP);
+    }
+
+    /**
+     * @param stream the stream
+     * @return the share of its spout's width left to it: all of it while its block feeds it, then as much as is
+     *         left of the way from its nose to where the hair starts, so the spout shrinks into the hand as its tail
+     *         flows there, a little each tick
+     */
+    static double spoutLeftOf(Stream stream) {
+        double threadFrom = threadFrom(stream);
+        return Math.clamp((threadFrom - noseOf(stream)) / (threadFrom - DrinkBody.CENTER), 0, 1);
     }
 
     /**
