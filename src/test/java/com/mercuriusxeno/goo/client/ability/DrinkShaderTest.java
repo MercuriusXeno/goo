@@ -91,56 +91,25 @@ class DrinkShaderTest {
     }
 
     /**
-     * A segment whose reach falls short of the point reads REACH without
-     * evaluating its curve or its cyclone, which its caller would clamp to
-     * REACH anyway, so a crowded region's march pays only for the segments
-     * near the point.
+     * Every stream is spheres swept from ring to ring, the round cone hull of
+     * each pair, read only where the point is within the segment's reach;
+     * a stream's own cones and its block's body are unioned by the same soft
+     * minimum as every stream within reach of a point, as DrinkField does.
      */
     @Test
-    void aSegmentPastItsReachSkipsItsCurve() throws IOException {
+    void theShaderSweepsSpheresAlongEachStreamAndUnionsEveryBodySmoothlyAsTheJavaDoes() throws IOException {
         String fragment = source(FRAGMENT).replace("\r\n", "\n");
-        int bound = fragment.indexOf("    read.y = bound - REACH * min(1.0, widest / FULL_RADIUS);");
-        int skip = fragment.indexOf("    if (read.y > 0.0) {\n        read.x = REACH;", bound);
-        int curve = fragment.indexOf("vec3 foot = hermite3(", bound);
 
-        assertTrue(bound > 0 && skip > bound && skip < curve, "the skip sits between the bound and the curve");
-    }
-
-    @Test
-    void theShaderReadsTheSmoothTubeAndJoinsStreamsByTheirFilletAsTheJavaDoes() throws IOException {
-        String fragment = source(FRAGMENT);
-
-        assertEquals(DrinkField.BOX_BLEND, constant(fragment, "BOX_BLEND"), DELTA);
         assertEquals(DrinkField.SOFTNESS, constant(fragment, "SOFTNESS"), DELTA);
-        assertTrue(fragment.contains("int before = sameStream(ring, ring - 1) ? ring - 1 : ring;")
-                        && fragment.contains("int after = sameStream(ring, ring + 1) ? ring + 1 : ring;"),
-                "a ring's tangent runs from the ring before it to the ring after it, as DrinkField.tangentAt");
-        assertTrue(fragment.contains("float t = before <= 0.0 ? 0.0 : after >= 0.0 ? 1.0 : before / (before - after);"),
-                "a point's foot is its share of the way between the planes at the segment's rings");
-        assertTrue(fragment.contains("vec3 foot = hermite3(a.xyz, b.xyz, leaving * chord, arriving * chord, t);"),
-                "on the curve leaving each ring along its tangent");
+        assertTrue(fragment.contains("read.x = read.y > 0.0 ? REACH : scaled(roundCone(p - a.xyz, line, a.w, b.w), "
+                + "mix(a.w, b.w, lineT));"), "a segment is the swept sphere between its rings, skipped past its reach");
+        assertTrue(fragment.contains("return softUnion(least, boxed);"), "a block's body joins its stream softly");
         assertTrue(fragment.contains("sum += max(0.0, exp(-d / SOFTNESS) - none);")
                         && fragment.contains("return falloff(-SOFTNESS * log(sum + none));"),
                 "every stream within reach is unioned smoothly at once, as DrinkField.valueAt");
-        assertFalse(fragment.contains("value += runField"), "no stream's field is added onto another's");
+        assertFalse(fragment.contains("hermite3") || fragment.contains("grooved") || fragment.contains("BOX_BLEND"),
+                "no curved segment, carved groove or separate box fillet is left to seam against the rest");
     }
-
-    /** decision unmake-stream-is-a-shrinking-waterspout */
-    @Test
-    void theShaderCarvesTheCyclonesGroovesByEachRingsPhaseAsTheJavaDoes() throws IOException {
-        String fragment = source(FRAGMENT);
-
-        assertEquals(DrinkStream.LOBES, constant(fragment, "LOBES"), DELTA);
-        assertEquals(DrinkStream.SPIN_DEPTH, constant(fragment, "SPIN_DEPTH"), DELTA);
-        assertEquals(DrinkUpload.SIDE_SLOT, constant(fragment, "SIDE_SLOT"), DELTA);
-        assertTrue(fragment.contains("return 1.0 - SPIN_DEPTH * (1.0 - cos(float(LOBES) * angle - phase)) / 2.0;"),
-                "the grooves fall in between lobes standing at the radius, as DrinkStream.cycloneAt");
-        assertTrue(fragment.contains("float phase = mix(Rings[2 * segment + 1].w, Rings[2 * segment + 3].w, t);"),
-                "the phase each ring carries, which turns with time, eased along the segment");
-        assertTrue(fragment.contains("vec3 side = streamSlot(stream, SIDE_SLOT).xyz;"),
-                "the angle about the axis is read from the stream's side");
-    }
-
     @Test
     void theMarchSamplesTheRegionsExitAndTakesAnEntryInsideTheFieldAsTheHit() throws IOException {
         String fragment = source(FRAGMENT);

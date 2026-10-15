@@ -134,7 +134,16 @@ public final class DrinkTree {
          *         in over {@link #MASS_RAMP} from its start
          */
         public double massAt(double now) {
-            return scale * scale * DrinkStream.smoothRamp(0, MASS_RAMP, now - start);
+            return scale * scale * DrinkStream.smoothRamp(0, MASS_RAMP, now - flowsFrom());
+        }
+
+        /**
+         * @return the game time the block's stream starts to flow: once its cube has rounded into a sphere,
+         *         {@link DrinkBody#LIQUEFY} of the way through its drain, the cube shrinking into the sphere alone
+         *         before then with no stream meeting it
+         */
+        public double flowsFrom() {
+            return start + DrinkBody.LIQUEFY * Math.max(1, end - start);
         }
     }
 
@@ -305,7 +314,7 @@ public final class DrinkTree {
          */
         public double headAt() {
             if (Double.isNaN(head)) {
-                head = distanceAt(timeTo(DrinkStream.BLOCK_SPAN + DrinkStream.TIP) + now - block.start());
+                head = distanceAt(timeTo(DrinkStream.BLOCK_SPAN + DrinkStream.TIP) + now - block.flowsFrom());
             }
             return head;
         }
@@ -732,7 +741,7 @@ public final class DrinkTree {
      * @param sum      the radius then the presence, added to
      */
     private static void gather(Stream stream, double distance, double swell, double[] sum) {
-        if (stream.awaiting()) {
+        if (stream.now() < stream.block().flowsFrom()) {
             return;
         }
         // A stream's own liquid eases in from its far side to its block's middle, where its matter has turned,

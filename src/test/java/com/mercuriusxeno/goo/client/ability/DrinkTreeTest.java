@@ -28,9 +28,12 @@ class DrinkTreeTest {
 
     private static final double DELTA = 1e-9;
     private static final Vec3 GLOVE = new Vec3(1.5, 2.2, 3.1);
-    private static final long START = 100;
+    /** The game time the square lands and the block starts to drain, its cube rounding into a sphere. */
+    private static final long LANDS = 100;
     /** A drain long enough that no tail has left the block while the tests look. */
     private static final long END = 1000;
+    /** The game time the block's stream starts to flow, once its cube has become a sphere. */
+    private static final double START = LANDS + DrinkBody.LIQUEFY * (END - LANDS);
     private static final double NOW = 100;
     /** A time every block's goo weighs wholly on the pace. */
     private static final double RAMPED = START + DrinkTree.MASS_RAMP;
@@ -53,11 +56,11 @@ class DrinkTreeTest {
     private static final double ON_THE_SPINE = 1e-6;
 
     /** The time the blocks were picked, the square leaving the hand. */
-    private static final long PICKED = START - SiphonRule.INJECT_TICKS;
+    private static final long PICKED = LANDS - SiphonRule.INJECT_TICKS;
     private static final double HALF_WAY = 0.5;
 
     private static DrinkTree.Block block(BlockPos pos, double scale) {
-        return new DrinkTree.Block(pos, Vec3.atCenterOf(pos), scale, PICKED, START, END);
+        return new DrinkTree.Block(pos, Vec3.atCenterOf(pos), scale, PICKED, LANDS, END);
     }
 
     /** The trunk's arrival into the hand: flowing west, as a look east pulls it. */
@@ -215,7 +218,7 @@ class DrinkTreeTest {
         @Test
         void theBlockStandsAsItselfWithNoStreamAndNoMassUntilTheSquareLands() {
             DrinkTree.Stream leaving = loneAt(PICKED);
-            DrinkTree.Stream landing = loneAt(START - DELTA);
+            DrinkTree.Stream landing = loneAt(LANDS - DELTA);
             DrinkTree.Stream started = loneAt(START);
             double middle = DrinkBody.CENTER / started.path().length();
 
@@ -238,7 +241,7 @@ class DrinkTreeTest {
 
             assertEquals(0, block.flightShareAt(PICKED), DELTA);
             assertEquals(HALF_WAY, block.flightShareAt(PICKED + SiphonRule.INJECT_TICKS * HALF_WAY), DELTA);
-            assertEquals(1, block.flightShareAt(START), DELTA);
+            assertEquals(1, block.flightShareAt(LANDS), DELTA);
         }
     }
 
@@ -281,7 +284,7 @@ class DrinkTreeTest {
             DrinkLayout layout = new DrinkLayout();
             layout.place(cone.stream().map(DrinkTree.Block::pos).toList(), GLOVE);
             double fastest = 0;
-            double ramped = cone.getFirst().start() + DrinkTree.MASS_RAMP;
+            double ramped = cone.stream().mapToDouble(DrinkTree.Block::flowsFrom).max().orElseThrow() + DrinkTree.MASS_RAMP;
             for (DrinkTree.Stream stream : DrinkTree.build(cone, layout, GLOVE, PULL, ramped)) {
                 for (double share = 0; share <= 1; share += SAMPLE / stream.path().length()) {
                     fastest = Math.max(fastest, stream.speedAt(share));
@@ -585,17 +588,20 @@ class DrinkTreeTest {
 
         @Test
         void theBlockIsACubeOfLiquidWhereItStoodAtTheStartAndGoneWhenDrained() {
+            DrinkTree.Stream landed = loneAt(LANDS);
             DrinkTree.Stream starting = loneAt(START);
             DrinkTree.Stream drained = loneAt(END);
             double middle = DrinkBody.CENTER / starting.path().length();
-            DrinkField.Skeleton startingSkeleton = DrinkTree.skeleton(starting);
+            DrinkField.Skeleton startingSkeleton = DrinkTree.skeleton(landed);
 
-            assertEquals(DrinkBody.MOUTH, DrinkTree.ring(starting, middle).radius(), DELTA);
+            assertEquals(DrinkBody.MOUTH, DrinkTree.ring(starting, middle).radius(), DELTA,
+                    "the stream leaves the block at its whole mouth once the cube has become a sphere");
+            assertEquals(0, DrinkTree.ring(landed, middle).radius(), DELTA, "and nothing of it shows while it is a cube");
             assertEquals(NEAR.center(), startingSkeleton.box().center());
             assertEquals(DrinkBody.MOUTH, startingSkeleton.box().half(), DELTA);
             assertEquals(0, startingSkeleton.box().rounding(), DELTA);
             assertNull(DrinkTree.skeleton(drained).box());
-            assertEquals(DrinkTree.rings(starting).size(), startingSkeleton.rings().size());
+            assertEquals(DrinkTree.rings(landed).size(), startingSkeleton.rings().size());
         }
 
         @Test
