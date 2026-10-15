@@ -274,6 +274,24 @@ class DrinkTreeTest {
             assertEquals(DrinkStream.FLOW * Math.sqrt(TWO), trunk.speedAt(after), DELTA);
         }
 
+        /** decision unmake-waves-dissolve-by-crucible-cost */
+        @Test
+        void aTrunkCarryingAWholeConeFlowsNoFasterThanTwiceTheBasePace() {
+            List<DrinkTree.Block> cone = DrinkLifecycleTest.cone();
+            DrinkLayout layout = new DrinkLayout();
+            layout.place(cone.stream().map(DrinkTree.Block::pos).toList(), GLOVE);
+            double fastest = 0;
+            double ramped = cone.getFirst().start() + DrinkTree.MASS_RAMP;
+            for (DrinkTree.Stream stream : DrinkTree.build(cone, layout, GLOVE, PULL, ramped)) {
+                for (double share = 0; share <= 1; share += SAMPLE / stream.path().length()) {
+                    fastest = Math.max(fastest, stream.speedAt(share));
+                }
+            }
+
+            assertEquals(DrinkStream.FLOW * DrinkTree.SURGE, fastest, DELTA,
+                    "the whole cone through one trunk drives it to the surge and no further");
+        }
+
         @Test
         void theTravelTimeSumsTheRouteOverItsPaceAndInvertsBackToTheDistance() {
             DrinkTree.Stream alone = loneAt(RAMPED);
