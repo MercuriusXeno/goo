@@ -6,29 +6,20 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.color.block.BlockTintSource;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.block.ModelBlockRenderer;
 import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
-import net.minecraft.client.renderer.block.dispatch.BlockStateModelPart;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.data.AtlasIds;
-import net.minecraft.util.ARGB;
-import net.minecraft.util.LightCoordsUtil;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.function.IntUnaryOperator;
 
 /**
  * Draws each playing block transform: the old block's model, on the block's
@@ -47,7 +38,6 @@ public final class BlockMingleRenderer {
     private static final int OVERLAY_V_SHIFT = 16;
     private static final int OPAQUE_WHITE = 0xFFFFFFFF;
     private static final int OPAQUE_ALPHA = 0xFF000000;
-    private static final int UNTINTED_RGB = 0xFFFFFF;
 
     private BlockMingleRenderer() {
     }
@@ -88,14 +78,15 @@ public final class BlockMingleRenderer {
         RenderType mingle = GooRenderTypes.blockMingle(mc.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location());
         VertexConsumer consumer = buffers.getBuffer(mingle);
         Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        ModelBlockRenderer tesselator = worldTesselator(mc);
         for (BlockTransforms.Transform transform : live) {
-            drawMingle(poseStack, consumer, camera,
+            drawMingle(poseStack, consumer, camera, tesselator,
                     new Mingle(transform.pos(), transform.from(), transform.progress(gameTime),
                             mingleColor(transform.tint()), transform.seed()));
         }
         // petrify-stone-encasement-and-calcify-map: the next rung mingles in by the share built so far
         for (BlockTransforms.Exposure exposure : exposing) {
-            drawMingle(poseStack, consumer, camera, new Mingle(exposure.pos(), exposure.toward(),
+            drawMingle(poseStack, consumer, camera, tesselator, new Mingle(exposure.pos(), exposure.toward(),
                     1f - exposure.share(), mingleColor(exposure.tint()), BlockTransforms.CLIENT.seedOf(exposure)));
         }
         buffers.endBatch(mingle);
@@ -127,49 +118,43 @@ public final class BlockMingleRenderer {
     }
 
     /**
-     * The light a drawn state over a block wears: the brightest light on any
-     * of the block's faces, since a solid block holds no light inside it and
-     * its own position reads black.
-     *
-     * @param level the client level
-     * @param pos   the block
-     * @return the packed light coordinates
-     */
-    private static int faceLight(ClientLevel level, BlockPos pos) {
-        int brightest = LevelRenderer.getLightCoords(level, pos);
-        for (Direction side : Direction.values()) {
-            brightest = LightCoordsUtil.max(brightest, LevelRenderer.getLightCoords(level, pos.relative(side)));
-        }
-        return brightest;
-    }
-
-    /**
-     * Draws a state over a block, swelled about its center, its progress on every quad.
+     * Draws a state over a block on the block's own faces, tesselated as the
+     * world tesselates it, so its face shade, ambient occlusion, light and biome
+     * tint match the block the world draws there once the transform ends; each
+     * quad then carries the transform's progress and seed and wears its tint.
      *
      * @param poseStack the level's pose stack, camera relative
      * @param consumer  the mingle buffer
      * @param camera    the camera's world position
+     * @param tesselator the world's block tesselation
      * @param mingle    the state, the block and the progress
      */
-    private static void drawMingle(PoseStack poseStack, VertexConsumer consumer, Vec3 camera, Mingle mingle) {
+    private static void drawMingle(PoseStack poseStack, VertexConsumer consumer, Vec3 camera,
+                                   ModelBlockRenderer tesselator, Mingle mingle) {
         Minecraft mc = Minecraft.getInstance();
-        ClientLevel level = mc.level;
         poseStack.pushPose();
         // The faces sit on the block's own, so nothing shifts when the world's block takes over;
         // the pipeline's depth bias lets them win there.
         poseStack.translate(mingle.pos().getX() - camera.x, mingle.pos().getY() - camera.y,
                 mingle.pos().getZ() - camera.z);
-        QuadInstance instance = new QuadInstance();
-        instance.setLightCoords(faceLight(level, mingle.pos()));
-        instance.setOverlayCoords(overlayCoords(mingle.progress(), mingle.seed()));
+        PoseStack.Pose pose = poseStack.last();
+        int overlay = overlayCoords(mingle.progress(), mingle.seed());
         BlockStateModel model = mc.getModelManager().getBlockStateModelSet().get(mingle.state());
-        for (BakedQuad quad : quadsOf(model, level, mingle)) {
-            // A tinted quad keeps the biome color the world draws it in, grass and leaves green through the mingle.
-            instance.setColor(quadColor(mingle.color(), quad.materialInfo().tintIndex(),
-                    tintIndex -> biomeTint(level, mingle.state(), mingle.pos(), tintIndex)));
-            consumer.putBakedQuad(poseStack.last(), quad, instance);
-        }
+        tesselator.tesselateBlock((x, y, z, quad, instance) -> {
+            dressQuad(instance, mingle.color(), overlay);
+            consumer.putBakedQuad(pose, quad, instance);
+        }, 0f, 0f, 0f, mc.level, mingle.pos(), mingle.state(), model, modelSeed(mingle.state(), mingle.pos()));
         poseStack.popPose();
+    }
+
+    /**
+     * The world's block tesselation, under the player's ambient occlusion setting.
+     *
+     * @param mc the client
+     * @return a tesselator lighting blocks as the chunk builder does
+     */
+    private static ModelBlockRenderer worldTesselator(Minecraft mc) {
+        return new ModelBlockRenderer(mc.options.ambientOcclusion().get(), true, mc.getBlockColors());
     }
 
     /**
@@ -185,33 +170,19 @@ public final class BlockMingleRenderer {
     }
 
     /**
-     * The color one quad of a drawn state wears.
+     * Dresses one world-lit quad for the mingle: its baked colors, the world's
+     * shade, occlusion and biome tint, take the transform's tint over them, and
+     * its overlay carries the progress and seed.
      *
-     * @param mingleColor the ARGB the drawn state is tinted by
-     * @param tintIndex   the quad's tint index, negative for an untinted quad
-     * @param biomeTintOf the RGB the block's tint source gives a tint index where it stands
-     * @return the quad's ARGB
+     * @param instance    the quad's lighting as the world tesselated it
+     * @param mingleColor the ARGB the drawn state is tinted by, opaque white for none
+     * @param overlay     the overlay coordinates carrying the progress and seed
      */
-    static int quadColor(int mingleColor, int tintIndex, IntUnaryOperator biomeTintOf) {
-        if (tintIndex < 0) {
-            return mingleColor;
+    static void dressQuad(QuadInstance instance, int mingleColor, int overlay) {
+        if (mingleColor != OPAQUE_WHITE) {
+            instance.multiplyColor(mingleColor);
         }
-        return ARGB.multiply(mingleColor, ARGB.opaque(biomeTintOf.applyAsInt(tintIndex)));
-    }
-
-    /**
-     * The RGB a block's tint source gives a tint index where the block stands,
-     * white where the block has no source for it.
-     *
-     * @param level     the client level
-     * @param state     the drawn state
-     * @param pos       the block
-     * @param tintIndex the quad's tint index
-     * @return the RGB
-     */
-    private static int biomeTint(ClientLevel level, BlockState state, BlockPos pos, int tintIndex) {
-        BlockTintSource source = Minecraft.getInstance().getBlockColors().getTintSource(state, tintIndex);
-        return source == null ? UNTINTED_RGB : source.colorInWorld(state, level, pos);
+        instance.setOverlayCoords(overlay);
     }
 
     /**
@@ -234,27 +205,5 @@ public final class BlockMingleRenderer {
      */
     static int overlayCoords(float progress, int seed) {
         return progressCoords(progress) | Math.floorMod(seed, BlockTransforms.SEED_UNITS) << OVERLAY_V_SHIFT;
-    }
-
-    /**
-     * Every quad of a drawn state's model, on every face and the faceless ones.
-     *
-     * @param model  the drawn state's model
-     * @param level  the client level
-     * @param mingle the state and the block it is drawn over
-     * @return the quads
-     */
-    private static List<BakedQuad> quadsOf(BlockStateModel model, ClientLevel level, Mingle mingle) {
-        List<BlockStateModelPart> parts = new ArrayList<>();
-        model.collectParts(level, mingle.pos(), mingle.state(),
-                RandomSource.create(modelSeed(mingle.state(), mingle.pos())), parts);
-        List<BakedQuad> quads = new ArrayList<>();
-        for (BlockStateModelPart part : parts) {
-            for (Direction side : Direction.values()) {
-                quads.addAll(part.getQuads(side));
-            }
-            quads.addAll(part.getQuads(null));
-        }
-        return quads;
     }
 }
