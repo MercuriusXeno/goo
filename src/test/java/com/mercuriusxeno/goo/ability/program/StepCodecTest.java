@@ -62,6 +62,7 @@ class StepCodecTest {
             Map.entry("traveling", new TravelingStep(3f, List.of(new FreezeBlocksStep(Expr.literal(2.5), false)))),
             Map.entry("break_blocks", new BreakBlocksStep(TagKey.create(Registries.BLOCK,
                     Identifier.fromNamespaceAndPath("goo", "foliage")))),
+            Map.entry("extinguish", new ExtinguishStep()),
             Map.entry("set_ai", LeafSteps.SET_AI.step(false)),
             Map.entry("set_invulnerable", LeafSteps.SET_INVULNERABLE.step(true)),
             Map.entry("spawn_slime", new SpawnSlimeStep(GooTypes.WEIRD, 1)),
@@ -352,6 +353,12 @@ class StepCodecTest {
         assertEquals(new StepPhase("popping", Expr.literal(0), List.of(), List.of(), List.of()),
                 phased.phases().get(0));
         assertTrue(decode("{\"type\": \"phased\", \"phases\": []}").isError());
+    }
+
+    // frost-reach-extinguishes-fire-and-burning-mobs
+    @Test
+    void extinguishDecodesFromItsTypeAlone() {
+        assertEquals(new ExtinguishStep(), decode("{\"type\": \"extinguish\"}").getOrThrow());
     }
 
     @Test

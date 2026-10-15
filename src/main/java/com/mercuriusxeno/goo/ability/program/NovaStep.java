@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.frost.FrostCurve;
+import com.mercuriusxeno.goo.ability.frost.FrostFire;
 import com.mercuriusxeno.goo.ability.frost.FrozenEvents;
 import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.network.NovaRingPayload;
@@ -18,7 +19,8 @@ import java.util.stream.Stream;
 /**
  * Pulses a ring of frost out from the host's frost center: every mob within the radius
  * has its frozen gauge filled by the amount, shared only slightly among a
- * crowd, and is knocked slightly away; every client watching sees the ring
+ * crowd, and is knocked slightly away; the fire blocks and burning entities
+ * within the radius go out; every client watching sees the ring
  * expand to the radius. Both the radius and the amount are evaluated on the
  * host, so Nova's release reads the charge its hold reached:
  * {@code nova radius="3 + 7 * charge" amount="4 + 12 * charge"}.
@@ -108,6 +110,8 @@ public record NovaStep(Expr radius, Expr amount, float crowd, float push, FrostC
             }
             living.knockback(push, center.x - living.getX(), center.z - living.getZ());
         }
+        // frost-reach-extinguishes-fire-and-burning-mobs
+        FrostFire.putOutWithin(host.level(), center, reach);
         EntityVisuals.sendToWatchersOf(host.level(), center, new NovaRingPayload(center, reach));
         return true;
     }
