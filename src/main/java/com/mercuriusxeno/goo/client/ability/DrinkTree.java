@@ -766,11 +766,16 @@ public final class DrinkTree {
     }
 
     /**
-     * The width of a stream's spout before it narrows: its block's mouth, the
-     * box the block still is, narrowed for a block of less goo than a whole
-     * one by the square root of its volume, never wider than the box; nothing
-     * behind the block's middle, where its matter has not yet turned.
+     * The width of a stream's spout before it narrows: its block's whole
+     * mouth, narrowed for a block of less goo than a whole one by the square
+     * root of its volume; nothing behind the block's middle, where its matter
+     * has not yet turned. It is the same through the whole drain: the box
+     * shrinks as the block drains, while the liquid already in the air keeps
+     * flowing at its width until its tail is in the hand; a width that shrank
+     * with the box left the whole stream in the air a thread the moment the
+     * block was drained, so it vanished before its tail had flowed at all.
      * decision unmake-stream-is-a-shrinking-waterspout
+     * decision unmake-waves-dissolve-by-crucible-cost
      *
      * @param stream   a stream whose block is streaming
      * @param distance blocks along its route
@@ -780,8 +785,7 @@ public final class DrinkTree {
         if (distance < DrinkBody.CENTER) {
             return 0;
         }
-        Block block = stream.block();
-        return DrinkBody.MOUTH * DrinkBody.sizeAt(block.progressAt(stream.now())) * Math.min(1, block.scale());
+        return DrinkBody.MOUTH * Math.min(1, stream.block().scale());
     }
 
     /**
