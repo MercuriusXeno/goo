@@ -38,9 +38,9 @@ public final class DrinkField {
     /** The radius at and over which a body's field reaches its whole reach; a thinner body reaches less in proportion. */
     public static final double FULL_RADIUS = DrinkStream.WAIST;
     /** The fillet where a stream leaves its block's box, in blocks, so the mouth shows no crease. */
-    public static final double BOX_BLEND = 0.15;
+    public static final double BOX_BLEND = 0.35;
     /** The fillet between two streams whose surfaces face opposite ways, in blocks; streams facing alike get none. */
-    public static final double MEET_BLEND = 0.2;
+    public static final double MEET_BLEND = 0.5;
     private static final double TWO = 2;
     private static final double THREE = 3;
     private static final double FOUR = 4;
@@ -461,7 +461,8 @@ public final class DrinkField {
                 second = reading;
             }
         }
-        return falloff(blend(first, second, MEET_BLEND * (1 - first.facing().dot(second.facing())) / TWO)
-                .distance());
+        // A second reading at the reach is no body at all, so a lone body's surface is filleted to nothing.
+        double width = second.distance() < REACH ? MEET_BLEND * (1 - first.facing().dot(second.facing())) / TWO : 0;
+        return falloff(blend(first, second, width).distance());
     }
 }

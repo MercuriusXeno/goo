@@ -46,6 +46,11 @@ class DrinkLifecycleTest {
     private static final long PICKED = 0;
     private static final long LANDS = 9;
     private static final int REPORTED = 8;
+    /**
+     * The most streams with liquid still to come that may run to the glove at once: the spine, and a spine handed
+     * off finishing its last; any more and the drink enters the hand as separate strands rather than one trunk.
+     */
+    private static final int GLOVE_STREAMS = 2;
     /** The most regions a frame of the cone drink may march, a guard set just above what it marches today. */
     private static final int WORK_REGIONS = 160;
     /** The most bodies a frame of the cone drink may list across its regions, a guard set just above today's. */
@@ -422,6 +427,14 @@ class DrinkLifecycleTest {
             Map<BlockPos, DrinkTree.Stream> frame = new HashMap<>();
             for (DrinkTree.Stream stream : DrinkTree.build(blocks, layout, glove, pull, now)) {
                 frame.put(stream.block().pos(), stream);
+            }
+            int toTheGlove = 0;
+            for (DrinkTree.Stream stream : frame.values()) {
+                toTheGlove += stream.trunk() == null && !stream.spent() && stream.tailAt() < stream.routeLength() ? 1 : 0;
+            }
+            if (toTheGlove > GLOVE_STREAMS && faults.size() < REPORTED) {
+                faults.add(String.format("at %.2f %d streams run to the glove at once, spine %s", now, toTheGlove,
+                        layout.spine()));
             }
             Map<BlockPos, Double> seenNow = new HashMap<>();
             for (DrinkTree.Stream stream : frame.values()) {
