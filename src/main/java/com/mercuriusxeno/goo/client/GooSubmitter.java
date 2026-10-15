@@ -304,39 +304,23 @@ public final class GooSubmitter {
      * @return the one-pass submitter
      */
     public static BandedSurfaceSubmitter bandedSurfaces(PoseStack poseStack, SubmitNodeCollector nodeCollector) {
-        return (bands, emitter) -> submitMingled(poseStack, nodeCollector,
-            bands.stream().map(GooSubmitter::mingleLayer).toList(), GooRenderUtil.OPAQUE_WHITE, emitter);
+        return bandedSurfaces(poseStack, nodeCollector, ARGB.alpha(GooRenderUtil.OPAQUE_WHITE));
     }
 
     /**
-     * Answers the submitter that draws one lifted surface per type band, each
-     * naming a one-row table whose sprite rect leaves the emitter's atlas UVs
-     * as they are, for the containers still drawing their layers lifted.
-     *
-     * @param poseStack     the pose stack
-     * @param nodeCollector the render node collector
-     * @return the band-per-surface submitter
-     */
-    public static LayeredSurfaceSubmitter layeredSurfaces(PoseStack poseStack, SubmitNodeCollector nodeCollector) {
-        return layeredSurfaces(poseStack, nodeCollector, ARGB.alpha(GooRenderUtil.OPAQUE_WHITE));
-    }
-
-    /**
-     * Answers the band-per-surface submitter whose vertices draw at an alpha.
+     * Answers the one-pass submitter whose vertices draw at an alpha, for a
+     * goo ball fading in or out.
      *
      * @param poseStack     the pose stack
      * @param nodeCollector the render node collector
      * @param alpha         the alpha every vertex carries, 0 to 255
-     * @return the band-per-surface submitter
+     * @return the one-pass submitter
      */
-    public static LayeredSurfaceSubmitter layeredSurfaces(PoseStack poseStack, SubmitNodeCollector nodeCollector,
-                                                          int alpha) {
-        return (band, emitter) -> {
-            TextureAtlasSprite sprite = fluidSprite(band.type());
-            MingleLayer layer = new MingleLayer(MingleLayer.ATLAS_UV, fluidTint(band.type()), band.share(), band.seed());
-            submitMingled(poseStack, nodeCollector, List.of(layer), ARGB.color(alpha, GooRenderUtil.OPAQUE_WHITE),
-                ctx -> emitter.accept(ctx, sprite));
-        };
+    public static BandedSurfaceSubmitter bandedSurfaces(PoseStack poseStack, SubmitNodeCollector nodeCollector,
+                                                        int alpha) {
+        return (bands, emitter) -> submitMingled(poseStack, nodeCollector,
+            bands.stream().map(GooSubmitter::mingleLayer).toList(), ARGB.color(alpha, GooRenderUtil.OPAQUE_WHITE),
+            emitter);
     }
 
     /**

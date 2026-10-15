@@ -11,7 +11,4 @@ package com.mercuriusxeno.goo.client;
  * @param seed   the type's noise seed
  */
 public record MingleLayer(GooRenderUtil.UvRect sprite, int tint, float share, int seed) {
-
-    /** The rect that maps a UV to itself, for an emitter that already writes atlas UVs. */
-    public static final GooRenderUtil.UvRect ATLAS_UV = new GooRenderUtil.UvRect(0f, 0f, 1f, 1f);
 }

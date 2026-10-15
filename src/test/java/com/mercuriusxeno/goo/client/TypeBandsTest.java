@@ -80,7 +80,6 @@ class TypeBandsTest {
         for (int k = 0; k < bands.size(); k++) {
             TypeBand band = bands.get(k);
             assertEquals(k, band.layer());
-            assertEquals(k * TypeBand.LAYER_LIFT, band.lift());
             float coverage = band.share();
             for (TypeBand later : bands.subList(k + 1, bands.size())) {
                 coverage *= 1f - later.share();
