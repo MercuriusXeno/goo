@@ -25,6 +25,7 @@ import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
 import net.neoforged.neoforge.client.fluid.FluidTintSource;
+import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -305,40 +306,82 @@ public final class GooSubmitter {
 
     /**
      * Answers the submitter that draws vat and crucible fluid as one
-     * undulating surface per type band (decisions undulating-fluid-surface
-     * and noise-mingled-type-textures): a vertex's overlay UV carries its
-     * ripple amplitude and its lightmap coordinates the band, each surface
-     * on its type's fluid sprite and tint.
+     * undulating surface carrying every type band it holds (decisions
+     * undulating-fluid-surface and one-pass-blends-every-type): a vertex's
+     * overlay UV carries its ripple amplitude and its lightmap coordinates
+     * the rows of the frame's mingle table holding each band's sprite,
+     * tint, share and seed, which the shader blends in the bands' order.
      *
      * @param poseStack     the pose stack
      * @param nodeCollector the render node collector
-     * @return the band-per-surface submitter
+     * @return the one-pass submitter
      */
     public static BandedSurfaceSubmitter bandedSurfaces(PoseStack poseStack, SubmitNodeCollector nodeCollector) {
-        return (band, emitter) -> {
-            TextureAtlasSprite sprite = fluidSprite(band.type());
-            int tint = fluidTint(band.type());
-            nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.gooFluidSurface(BLOCK_ATLAS),
-                (pose, c) -> emitter.accept(RenderContext.banded(pose, c, tint, band), sprite));
-        };
+        return bandedSurfaces(poseStack, nodeCollector, ARGB.alpha(GooRenderUtil.OPAQUE_WHITE));
+    }
+
+    /**
+     * Answers the one-pass submitter whose vertices draw at an alpha, for a
+     * goo ball fading in or out.
+     *
+     * @param poseStack     the pose stack
+     * @param nodeCollector the render node collector
+     * @param alpha         the alpha every vertex carries, 0 to 255
+     * @return the one-pass submitter
+     */
+    public static BandedSurfaceSubmitter bandedSurfaces(PoseStack poseStack, SubmitNodeCollector nodeCollector,
+                                                        int alpha) {
+        return (bands, emitter) -> submitMingled(poseStack, nodeCollector,
+            bands.stream().map(GooSubmitter::mingleLayer).toList(), ARGB.color(alpha, GooRenderUtil.OPAQUE_WHITE),
+            emitter);
     }
 
     /**
      * Submits vat fluid as one whole undulating surface on the vanilla water
      * sprite and tint, for a column where water outweighs every goo type
-     * (decision diagnose-then-fix-waterlogged-gasket-link): its vertices
-     * carry layer 0, which the surface shader draws whole.
+     * (decision diagnose-then-fix-waterlogged-gasket-link): its table holds
+     * one row of share 1, which the surface shader draws whole.
      *
      * @param poseStack     the pose stack
      * @param nodeCollector the render node collector
-     * @param emitter       emits the surface through the context on the water sprite
+     * @param emitter       emits the surface once with sprite-relative UVs
      */
     public static void submitUndulatingWater(PoseStack poseStack, SubmitNodeCollector nodeCollector,
-                                             BiConsumer<RenderContext, TextureAtlasSprite> emitter) {
-        TextureAtlasSprite sprite = fluidSprite(Fluids.WATER);
-        int tint = fluidTint(Fluids.WATER);
+                                             Consumer<RenderContext> emitter) {
+        MingleLayer water = new MingleLayer(spriteUv(fluidSprite(Fluids.WATER)), fluidTint(Fluids.WATER), 1f, 0);
+        submitMingled(poseStack, nodeCollector, List.of(water), GooRenderUtil.OPAQUE_WHITE, emitter);
+    }
+
+    /**
+     * The mingle table row a band draws from: its type's whole fluid sprite,
+     * its tint, its share and its seed.
+     *
+     * @param band the type band
+     * @return the band's layer
+     */
+    private static MingleLayer mingleLayer(TypeBand band) {
+        return new MingleLayer(spriteUv(fluidSprite(band.type())), fluidTint(band.type()), band.share(), band.seed());
+    }
+
+    /**
+     * Writes a surface's layers to the frame's mingle table and submits its
+     * geometry once on the surface type, every vertex naming those rows; the
+     * table uploads as the geometry is built, before the draw reads it.
+     *
+     * @param poseStack     the pose stack
+     * @param nodeCollector the render node collector
+     * @param layers        the surface's layers, the first drawn first
+     * @param color         the ARGB color the context's uncolored emitters use
+     * @param emitter       emits the surface through the context
+     */
+    private static void submitMingled(PoseStack poseStack, SubmitNodeCollector nodeCollector,
+                                      List<MingleLayer> layers, int color, Consumer<RenderContext> emitter) {
+        int rows = MingleTableTexture.append(layers);
         nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.gooFluidSurface(BLOCK_ATLAS),
-            (pose, c) -> emitter.accept(new RenderContext(pose, c, TypeBand.BASE_LAYER_PACKED, tint), sprite));
+            (pose, c) -> {
+                MingleTableTexture.uploadIfStale();
+                emitter.accept(new RenderContext(pose, c, rows, color));
+            });
     }
 
     /**

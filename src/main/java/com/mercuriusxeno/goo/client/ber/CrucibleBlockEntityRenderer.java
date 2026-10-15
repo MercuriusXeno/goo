@@ -9,7 +9,6 @@ import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.SurfaceAgitation;
 import com.mercuriusxeno.goo.client.SurfaceRipple;
-import com.mercuriusxeno.goo.client.TypeBand;
 import com.mercuriusxeno.goo.client.TypeBands;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -28,6 +27,9 @@ import java.util.WeakHashMap;
  */
 public class CrucibleBlockEntityRenderer
         implements BlockEntityRenderer<CrucibleBlockEntity, CrucibleRenderState> {
+
+    /** The sprite-relative UV rect spanning a whole sprite. */
+    private static final GooRenderUtil.UvRect WHOLE_SPRITE = new GooRenderUtil.UvRect(0f, 0f, 1f, 1f);
 
     /** Each crucible's surface agitation, held client-side and dropped with the crucible. */
     private final Map<CrucibleBlockEntity, SurfaceAgitation> agitations = new WeakHashMap<>();
@@ -113,22 +115,20 @@ public class CrucibleBlockEntityRenderer
     // -- Liquid level --
 
     /**
-     * Submits the liquid surface once per type layer, each lifted above the
-     * one below, so the types mingle by noise in place of a dominant-type
-     * crossfade (decision mingling-on-vat-and-crucible). The submitter
-     * lights the surface fullbright; the basin model uses world light.
+     * Submits the liquid surface once, carrying every type band, so the
+     * shader mingles the types by noise on one flat surface (decisions
+     * mingling-on-vat-and-crucible and one-pass-blends-every-type). The
+     * submitter lights the surface fullbright; the basin model uses world light.
      *
-     * @param submitter submits one band's surface on that band type's sprite
+     * @param submitter submits the surface carrying every band
      * @param state the crucible render state
      * @param footprint the square the goo covers
      * @param surfaceY the computed liquid surface Y height
      */
     static void renderMingledSurface(BandedSurfaceSubmitter submitter, CrucibleRenderState state,
             CrucibleBasin.PuddleFootprint footprint, float surfaceY) {
-        for (TypeBand band : state.typeBands) {
-            submitter.submit(band, (ctx, sprite) -> emitLiquidSurface(ctx, footprint, surfaceY, band.lift(),
-                GooSubmitter.spriteUv(sprite), state.rippleAmplitude));
-        }
+        submitter.submit(state.typeBands,
+            ctx -> emitLiquidSurface(ctx, footprint, surfaceY, WHOLE_SPRITE, state.rippleAmplitude));
     }
 
     /**
@@ -138,31 +138,14 @@ public class CrucibleBlockEntityRenderer
      * @param ctx the render context the submitter built
      * @param footprint the square the goo covers
      * @param surfaceY the liquid surface Y height
-     * @param uv the sprite's UV rect
+     * @param uv the UV rect, sprite-relative on the one-pass surface
      * @param amplitude the ripple amplitude the interior vertices carry
      */
     static void emitLiquidSurface(RenderContext ctx, CrucibleBasin.PuddleFootprint footprint, float surfaceY,
             GooRenderUtil.UvRect uv, float amplitude) {
-        emitLiquidSurface(ctx, footprint, surfaceY, 0f, uv, amplitude);
-    }
-
-    /**
-     * Emits one mingled layer's surface grid at its lift above layer 0's,
-     * rippling with layer 0's amplitude so it never dips under the layer
-     * below (decision diagnose-then-fix-undulation-blend-exposure).
-     *
-     * @param ctx the render context the submitter built
-     * @param footprint the square the goo covers
-     * @param surfaceY layer 0's liquid surface Y height
-     * @param lift the distance the layer sits above layer 0
-     * @param uv the sprite's UV rect
-     * @param amplitude the ripple amplitude the interior vertices carry
-     */
-    static void emitLiquidSurface(RenderContext ctx, CrucibleBasin.PuddleFootprint footprint, float surfaceY,
-            float lift, GooRenderUtil.UvRect uv, float amplitude) {
         CuboidBounds goo = new CuboidBounds(footprint.min(), footprint.max(),
             footprint.min(), footprint.max(), CrucibleBasin.FLOOR_Y, surfaceY);
-        ctx.liquidSurfaceLayer(goo, uv, amplitude, lift, 0f);
+        ctx.liquidSurfaceGrid(goo, uv, amplitude);
     }
 
 }
