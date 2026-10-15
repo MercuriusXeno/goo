@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.network.DrinkPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.entity.Entity;
@@ -66,7 +67,8 @@ public final class DrinkSquares {
         if (level == null) {
             return;
         }
-        List<Flight> flights = flightsOf(mc, level, mc.getDeltaTracker().getGameTimeDeltaPartialTick(false));
+        List<Flight> flights = flightsOf(mc, level, mc.getDeltaTracker().getGameTimeDeltaPartialTick(false),
+                event.getLevelRenderState().cameraRenderState);
         if (flights.isEmpty()) {
             return;
         }
@@ -85,9 +87,11 @@ public final class DrinkSquares {
      * @param mc          the client
      * @param level       the client level
      * @param partialTick the partial tick
+     * @param sight       the camera's state this frame
      * @return every square in flight: one for each picked block whose square has not yet landed
      */
-    private static List<Flight> flightsOf(Minecraft mc, ClientLevel level, float partialTick) {
+    private static List<Flight> flightsOf(Minecraft mc, ClientLevel level, float partialTick,
+                                          CameraRenderState sight) {
         double now = level.getGameTime() + partialTick;
         List<Flight> flights = new ArrayList<>();
         for (ClientDrinks.Drink drink : ClientDrinks.CLIENT.live(now, id -> true)) {
@@ -95,7 +99,7 @@ public final class DrinkSquares {
             if (drinker == null) {
                 continue;
             }
-            Vec3 glove = DrinkRenderer.gloveOf(mc, drinker, partialTick);
+            Vec3 glove = DrinkRenderer.gloveOf(mc, drinker, partialTick, sight);
             for (DrinkPayload.Streaming streaming : drink.streaming()) {
                 if (now < streaming.start()) {
                     flights.add(flightOf(glove, nearFaceOf(streaming.pos(), glove),

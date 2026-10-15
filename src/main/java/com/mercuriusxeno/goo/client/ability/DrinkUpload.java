@@ -134,7 +134,7 @@ public final class DrinkUpload {
      * @param first the first ring
      * @param last  the last ring, before the first for a box alone
      */
-    private record Span(int first, int last) {
+    record Span(int first, int last) {
 
         int count() {
             return last - first + 1;
@@ -307,15 +307,23 @@ public final class DrinkUpload {
     }
 
     /**
+     * The rings the listed segments need: their own, and the skeleton's ring
+     * before and after them, since a segment's curve and the planes parting
+     * it from its neighbours run along the stream from the ring before each
+     * of its rings to the ring after, so a region reads a segment as every
+     * other region does.
+     * decision diagnose-then-fix-unmake-seam-and-ribbing
+     *
      * @param bodies   a skeleton's listed bodies, ascending
      * @param segments how many segments the skeleton has
      * @return the span of rings the listed segments need, empty for a box alone
      */
-    private static Span spanOf(List<Integer> bodies, int segments) {
+    static Span spanOf(List<Integer> bodies, int segments) {
         if (bodies.getFirst() >= segments) {
             return new Span(0, NONE);
         }
-        return new Span(bodies.getFirst(), Math.min(bodies.getLast(), segments - 1) + 1);
+        int lastRing = Math.min(bodies.getLast(), segments - 1) + 1;
+        return new Span(Math.max(0, bodies.getFirst() - 1), Math.min(lastRing + 1, segments));
     }
 
     /**
