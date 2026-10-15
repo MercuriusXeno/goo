@@ -31,8 +31,8 @@ import java.util.List;
 import java.util.function.IntUnaryOperator;
 
 /**
- * Draws each playing block transform: the old block's model, a hair larger
- * than the block so it covers the new one on every face, through the mingle
+ * Draws each playing block transform: the old block's model, on the block's
+ * own faces and pulled in front of the new one by depth bias, through the mingle
  * pipeline, which lets the new block show through more of it as the
  * transform runs; and each block part way to its next calcify rung, the
  * next block's model mingled in over it by the share built
@@ -45,13 +45,9 @@ public final class BlockMingleRenderer {
     static final int PROGRESS_UNITS = 4096;
     /** The packed overlay's V half sits above its 16-bit U half. */
     private static final int OVERLAY_V_SHIFT = 16;
-    /** How far the old block swells past the new so its faces sit just in front. */
-    private static final float SWELL = 1.002f;
-    private static final float BLOCK_CENTER = 0.5f;
     private static final int OPAQUE_WHITE = 0xFFFFFFFF;
     private static final int OPAQUE_ALPHA = 0xFF000000;
     private static final int UNTINTED_RGB = 0xFFFFFF;
-    private static final long MODEL_SEED = 42L;
 
     private BlockMingleRenderer() {
     }
@@ -159,10 +155,10 @@ public final class BlockMingleRenderer {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         poseStack.pushPose();
-        poseStack.translate(mingle.pos().getX() - camera.x + BLOCK_CENTER,
-                mingle.pos().getY() - camera.y + BLOCK_CENTER, mingle.pos().getZ() - camera.z + BLOCK_CENTER);
-        poseStack.scale(SWELL, SWELL, SWELL);
-        poseStack.translate(-BLOCK_CENTER, -BLOCK_CENTER, -BLOCK_CENTER);
+        // The faces sit on the block's own, so nothing shifts when the world's block takes over;
+        // the pipeline's depth bias lets them win there.
+        poseStack.translate(mingle.pos().getX() - camera.x, mingle.pos().getY() - camera.y,
+                mingle.pos().getZ() - camera.z);
         QuadInstance instance = new QuadInstance();
         instance.setLightCoords(faceLight(level, mingle.pos()));
         instance.setOverlayCoords(overlayCoords(mingle.progress(), mingle.seed()));
@@ -174,6 +170,18 @@ public final class BlockMingleRenderer {
             consumer.putBakedQuad(poseStack.last(), quad, instance);
         }
         poseStack.popPose();
+    }
+
+    /**
+     * The seed a drawn state's model picks its variant by.
+     *
+     * @param state the drawn state
+     * @param pos   the block it is drawn over
+     * @return the seed
+     */
+    static long modelSeed(BlockState state, BlockPos pos) {
+        // The world tesselates a block with this seed, so the drawn block wears the variant the world swaps in after.
+        return state.getSeed(pos);
     }
 
     /**
@@ -238,7 +246,8 @@ public final class BlockMingleRenderer {
      */
     private static List<BakedQuad> quadsOf(BlockStateModel model, ClientLevel level, Mingle mingle) {
         List<BlockStateModelPart> parts = new ArrayList<>();
-        model.collectParts(level, mingle.pos(), mingle.state(), RandomSource.create(MODEL_SEED), parts);
+        model.collectParts(level, mingle.pos(), mingle.state(),
+                RandomSource.create(modelSeed(mingle.state(), mingle.pos())), parts);
         List<BakedQuad> quads = new ArrayList<>();
         for (BlockStateModelPart part : parts) {
             for (Direction side : Direction.values()) {
