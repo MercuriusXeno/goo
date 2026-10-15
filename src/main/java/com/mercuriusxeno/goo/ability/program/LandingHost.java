@@ -61,7 +61,7 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
                           @Nullable UUID caster)
         implements PlacedFaceHost, ExplodeHost, AnchoredWorldHost, PlaceBlockHost, LingerHost, BlockBreakHost,
         ColonizeHost, FloorScanHost, GateHost, PowerPulseHost, MobSpawnHost, FrostHost, MeteorHost, AgingHost,
-        TimedBlockHost, PhaseBlocksHost {
+        TimedBlockHost, PhaseBlocksHost, IgniteHost {
 
     private static final String ERR_UNKNOWN_BLOCK = "No block is registered as ";
 
@@ -168,6 +168,16 @@ public record LandingHost(ServerLevel level, BlockPos cell, Direction face, bool
     @Override
     public void explode(float power, ExplosionMode mode) {
         GooExplosion.detonate(level, anchor(), power, mode, GooExplosion.Look.silent(GooParticles.SILENT_BLAST.get()));
+    }
+
+    @Override
+    public void lightFire() {
+        IgniteLanding.lightFire(level, cell, face);
+    }
+
+    @Override
+    public boolean detonateExplosive(float power) {
+        return IgniteLanding.detonateExplosive(level, cell, face, power);
     }
 
     @Override
