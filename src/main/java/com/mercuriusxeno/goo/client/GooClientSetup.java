@@ -43,6 +43,7 @@ import com.mercuriusxeno.goo.client.ber.*;
 import com.mercuriusxeno.goo.client.ber.style.GlacialPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlowBeaconStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlowReflectorStyle;
+import com.mercuriusxeno.goo.client.ber.style.HeaterPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.HivePrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.OculusStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyles;
@@ -223,6 +224,8 @@ public final class GooClientSetup {
         PrismComboStyles.register(PulsePrismStyle.METRONOME_COMBO, PulsePrismStyle.METRONOME);
         PrismComboStyles.register(PulsePrismStyle.RELAY_COMBO, PulsePrismStyle.RELAY);
         PrismComboStyles.register(GlacialPrismStyle.COMBO, new GlacialPrismStyle());
+        // heater-prism-flames-nearby-creatures: a heater prism glows ember
+        PrismComboStyles.register(HeaterPrismStyle.COMBO, new HeaterPrismStyle());
         event.registerBlockEntityRenderer(GooBlockEntities.STATUE.get(), StatueRenderer::new);
         event.registerEntityRenderer(GooEntities.COMPRESSION_SPHERE.get(), CompressionSphereRenderer::new);
         event.registerEntityRenderer(GooEntities.FEED_PILE.get(), FeedPileRenderer::new);
