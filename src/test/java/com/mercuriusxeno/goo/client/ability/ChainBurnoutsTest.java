@@ -14,6 +14,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -59,9 +60,11 @@ class ChainBurnoutsTest {
         assertSame(RockExplosionVisual.INSTANCE, BurnoutVisuals.forType(GooTypes.ROCK));
     }
 
+    /** ignite-plays-no-burnout: Blaze carries no burnout visual, so one sent anyway draws nothing. */
     @Test
-    void blazeResolvesItsOwnExplosion() {
-        assertSame(BlazeExplosionVisual.INSTANCE, BurnoutVisuals.forType(GooTypes.BLAZE));
+    void blazeCarriesNoBurnout() {
+        assertFalse(BurnoutVisuals.CHAIN_TYPES.contains(GooTypes.BLAZE));
+        assertInstanceOf(BurnoutVisual.UndesignedBurnout.class, BurnoutVisuals.forType(GooTypes.BLAZE));
     }
 
     @Test
