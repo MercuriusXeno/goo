@@ -49,7 +49,7 @@ const float DEPTH = 0.05;
 const float REACH = 0.24;
 const float FULL_RADIUS = 0.1;
 const float BOX_BLEND = 0.35;
-const float MEET_BLEND = 0.5;
+const float SOFTNESS = 0.08;
 const float REGION_SPAN = 1.0;
 const int STREAM_VEC4S = 6;
 const int COAT_SLOT = 0;
@@ -352,27 +352,14 @@ float runField(vec3 p, int stream, inout float gap, out vec3 facing) {
 // field, or to a run's box the point is outside.
 float fieldAt(vec3 p, int streams, out float gap) {
     gap = FAR;
-    float first = REACH;
-    vec3 firstFacing = vec3(0.0, 1.0, 0.0);
-    float second = REACH;
-    vec3 secondFacing = firstFacing;
+    float none = exp(-REACH / SOFTNESS);
+    float sum = 0.0;
     for (int s = 0; s < streams; s++) {
         vec3 facing;
         float d = runField(p, s, gap, facing);
-        if (d < first) {
-            second = first;
-            secondFacing = firstFacing;
-            first = d;
-            firstFacing = facing;
-        } else if (d < second) {
-            second = d;
-            secondFacing = facing;
-        }
+        sum += max(0.0, exp(-d / SOFTNESS) - none);
     }
-    vec3 facing;
-    // A second reading at the reach is no body at all, so a lone body's surface is filleted to nothing.
-    float width = second < REACH ? MEET_BLEND * (1.0 - dot(firstFacing, secondFacing)) / 2.0 : 0.0;
-    return falloff(blend(first, firstFacing, second, secondFacing, width, facing));
+    return falloff(-SOFTNESS * log(sum + none));
 }
 
 float fieldOnly(vec3 p, int streams) {

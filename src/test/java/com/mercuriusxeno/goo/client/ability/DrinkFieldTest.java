@@ -315,9 +315,15 @@ class DrinkFieldTest {
         }
     }
 
-    /** decision diagnose-then-fix-unmake-seam-and-ribbing */
+    /**
+     * Streams union smoothly as metaballs, so two lying wholly on one another
+     * swell by no more than the union's softness times the log of two, and a
+     * bundle past its join stands no further than that past its trunk.
+     * decision diagnose-then-fix-unmake-seam-and-ribbing
+     */
     @Test
-    void streamsLyingOnOneAnotherAreOneStreamsWidthAndABundleNoWiderThanItsTrunk() {
+    void streamsLyingOnOneAnotherSwellByNoMoreThanTheUnionsSoftness() {
+        double swell = DrinkField.SOFTNESS * Math.log(2) + SWELL;
         List<DrinkField.Skeleton> twice = List.of(capsule(Vec3.ZERO, EAST.scale(2)),
                 capsule(Vec3.ZERO, EAST.scale(2)));
         List<DrinkTree.Stream> tree = treeOf(FLOWING, STREAMING, BESIDE);
@@ -327,7 +333,8 @@ class DrinkFieldTest {
         double join = trunk.tributaries().getFirst().joinShare();
         double merge = DrinkTree.MERGE / trunk.path().length();
 
-        assertEquals(RADIUS, skinAlong(twice, EAST, UP).y, SWELL, "two coincident streams swell into neither");
+        assertTrue(skinAlong(twice, EAST, UP).y <= RADIUS + swell, "two coincident streams swell by the softness at most");
+        assertTrue(skinAlong(twice, EAST, UP).y >= RADIUS, "and never shrink");
         for (double share = join; share <= Math.min(1, join + merge); share += WALK_STEP / trunk.path().length()) {
             Vec3 spine = DrinkStream.pointAt(trunk.path(), share, trunk.now());
             Vec3 flow = DrinkStream.flowAt(trunk.path(), share, trunk.now());
@@ -335,7 +342,7 @@ class DrinkFieldTest {
             double width = DrinkTree.radiusAt(trunk, share);
             for (Vec3 outward : List.of(sideways, sideways.scale(-1), flow.cross(sideways).normalize())) {
                 double skin = skinAlong(skeletons, spine, outward).distanceTo(spine);
-                assertTrue(skin <= width + SWELL, "past the join the bundle reads " + skin + " wide where its "
+                assertTrue(skin <= width + swell, "past the join the bundle reads " + skin + " wide where its "
                         + "trunk is " + width);
             }
         }
