@@ -6,6 +6,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.color.block.BlockTintSource;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -16,6 +17,7 @@ import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.data.AtlasIds;
+import net.minecraft.util.ARGB;
 import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.state.BlockState;
@@ -26,6 +28,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.IntUnaryOperator;
 
 /**
  * Draws each playing block transform: the old block's model, a hair larger
@@ -47,6 +50,7 @@ public final class BlockMingleRenderer {
     private static final float BLOCK_CENTER = 0.5f;
     private static final int OPAQUE_WHITE = 0xFFFFFFFF;
     private static final int OPAQUE_ALPHA = 0xFF000000;
+    private static final int UNTINTED_RGB = 0xFFFFFF;
     private static final long MODEL_SEED = 42L;
 
     private BlockMingleRenderer() {
@@ -160,14 +164,46 @@ public final class BlockMingleRenderer {
         poseStack.scale(SWELL, SWELL, SWELL);
         poseStack.translate(-BLOCK_CENTER, -BLOCK_CENTER, -BLOCK_CENTER);
         QuadInstance instance = new QuadInstance();
-        instance.setColor(mingle.color());
         instance.setLightCoords(faceLight(level, mingle.pos()));
         instance.setOverlayCoords(overlayCoords(mingle.progress(), mingle.seed()));
         BlockStateModel model = mc.getModelManager().getBlockStateModelSet().get(mingle.state());
         for (BakedQuad quad : quadsOf(model, level, mingle)) {
+            // A tinted quad keeps the biome color the world draws it in, grass and leaves green through the mingle.
+            instance.setColor(quadColor(mingle.color(), quad.materialInfo().tintIndex(),
+                    tintIndex -> biomeTint(level, mingle.state(), mingle.pos(), tintIndex)));
             consumer.putBakedQuad(poseStack.last(), quad, instance);
         }
         poseStack.popPose();
+    }
+
+    /**
+     * The color one quad of a drawn state wears.
+     *
+     * @param mingleColor the ARGB the drawn state is tinted by
+     * @param tintIndex   the quad's tint index, negative for an untinted quad
+     * @param biomeTintOf the RGB the block's tint source gives a tint index where it stands
+     * @return the quad's ARGB
+     */
+    static int quadColor(int mingleColor, int tintIndex, IntUnaryOperator biomeTintOf) {
+        if (tintIndex < 0) {
+            return mingleColor;
+        }
+        return ARGB.multiply(mingleColor, ARGB.opaque(biomeTintOf.applyAsInt(tintIndex)));
+    }
+
+    /**
+     * The RGB a block's tint source gives a tint index where the block stands,
+     * white where the block has no source for it.
+     *
+     * @param level     the client level
+     * @param state     the drawn state
+     * @param pos       the block
+     * @param tintIndex the quad's tint index
+     * @return the RGB
+     */
+    private static int biomeTint(ClientLevel level, BlockState state, BlockPos pos, int tintIndex) {
+        BlockTintSource source = Minecraft.getInstance().getBlockColors().getTintSource(state, tintIndex);
+        return source == null ? UNTINTED_RGB : source.colorInWorld(state, level, pos);
     }
 
     /**
