@@ -10,10 +10,11 @@
 // One region of an Unmake drink, drawn by marching the drink's field
 // (decision unmake-waves-dissolve-by-crucible-cost): inside the region's box
 // the ray from the camera steps through the metaball field of the bodies that
-// reach the region, every stream a soft capsule chain and every standing
-// block a soft rounded box, each stream's run read at its least distance only
+// reach the region, every stream a smooth tube along a curve through its
+// rings and every standing block a rounded box, each stream's run read only
 // where the point is within the box its bodies reach, the gap to the others'
-// boxes being the jump, and the runs summed, until the field reaches the iso;
+// boxes being the jump, and the two nearest streams filleted together, until
+// the field reaches the iso;
 // the hit is refined by bisection, shaded from the gradient of the whole
 // field so skin two streams share is one smooth shape, painted as the skins
 // of the two streams most present there blended by their presence so a
@@ -45,6 +46,8 @@ out vec4 fragColor;
 const float DEPTH = 0.05;
 const float REACH = 0.24;
 const float FULL_RADIUS = 0.1;
+const float BOX_BLEND = 0.15;
+const float MEET_BLEND = 0.2;
 const float REGION_SPAN = 1.0;
 const int STREAM_VEC4S = 5;
 const int COAT_SLOT = 0;
@@ -85,66 +88,242 @@ vec4 streamSlot(int stream, int slot) {
     return Streams[stream * STREAM_VEC4S + slot];
 }
 
-// A body's reading at a point: x its scaled signed distance, y the gap to
-// its field, positive where the point is outside the body's reach.
-vec2 segmentRead(int segment, vec3 p) {
+// Whether two of the block's rings are of one stream: a stream's rings are
+// copied together, with the ring before and after the segments it lists.
+bool sameStream(int ring, int other) {
+    return other >= 0 && other < int(Counts.y) && Rings[2 * other + 1].z == Rings[2 * ring + 1].z;
+}
+
+// The direction a stream runs through a ring, from the ring before it to the
+// ring after it, so the two segments meeting there share it.
+vec3 tangentAt(int ring) {
+    int before = sameStream(ring, ring - 1) ? ring - 1 : ring;
+    int after = sameStream(ring, ring + 1) ? ring + 1 : ring;
+    vec3 run = Rings[2 * after].xyz - Rings[2 * before].xyz;
+    return dot(run, run) > 0.0 ? normalize(run) : vec3(0.0, 1.0, 0.0);
+}
+
+float radiusSlopeAt(int ring) {
+    int before = sameStream(ring, ring - 1) ? ring - 1 : ring;
+    int after = sameStream(ring, ring + 1) ? ring + 1 : ring;
+    return after == before ? 0.0 : (Rings[2 * after].w - Rings[2 * before].w) / float(after - before);
+}
+
+float hermite(float start, float end, float startSlope, float endSlope, float t) {
+    float t2 = t * t;
+    float t3 = t2 * t;
+    return (2.0 * t3 - 3.0 * t2 + 1.0) * start + (t3 - 2.0 * t2 + t) * startSlope
+        + (3.0 * t2 - 2.0 * t3) * end + (t3 - t2) * endSlope;
+}
+
+vec3 hermite3(vec3 start, vec3 end, vec3 startSlope, vec3 endSlope, float t) {
+    float t2 = t * t;
+    float t3 = t2 * t;
+    return (2.0 * t3 - 3.0 * t2 + 1.0) * start + (t3 - 2.0 * t2 + t) * startSlope
+        + (3.0 * t2 - 2.0 * t3) * end + (t3 - t2) * endSlope;
+}
+
+// The signed distance to the hull of a segment's two ring spheres, a cone
+// tangent to both, which a point no segment owns falls back on.
+float roundCone(vec3 rel, vec3 line, float first, float last) {
+    float len2 = dot(line, line);
+    float fall = first - last;
+    float slant = len2 - fall * fall;
+    float toFirst = length(rel) - first;
+    if (slant <= 0.0) {
+        return first >= last ? toFirst : length(rel - line) - last;
+    }
+    float along = dot(rel, line);
+    float past = along - len2;
+    vec3 sideways = rel * len2 - line * along;
+    float side = dot(sideways, sideways);
+    float alongSquared = along * along * len2;
+    float pastSquared = past * past * len2;
+    float edge = sign(fall) * fall * fall * side;
+    if (sign(past) * slant * pastSquared > edge) {
+        return sqrt(side + pastSquared) / len2 - last;
+    }
+    if (sign(along) * slant * alongSquared < edge) {
+        return toFirst;
+    }
+    return (sqrt(side * slant / len2) + along * fall) / len2 - first;
+}
+
+// A segment's reading at a point (decision diagnose-then-fix-unmake-seam-and-ribbing):
+// the segment owns the points between the planes square to its stream's run
+// at its two rings, so a ring's plane parts its two segments and both read
+// the same there, value and facing alike, and the point's foot is its share
+// of the way between the planes on the curve leaving each ring along that
+// run, the radius easing between the rings the same way. read.x is the scaled
+// signed distance, read.y the gap to the segment's field. Returns whether the
+// segment owns the point; one that does not reads its round cone.
+bool segmentRead(int segment, vec3 p, out vec2 read, out vec3 facing) {
     vec4 a = Rings[2 * segment];
     vec4 b = Rings[2 * segment + 2];
     vec3 line = b.xyz - a.xyz;
-    vec3 rel = p - a.xyz;
-    float len2 = dot(line, line);
-    float t = len2 == 0.0 ? 0.0 : clamp(dot(rel, line) / len2, 0.0, 1.0);
-    float radius = mix(a.w, b.w, t);
-    float d = length(rel - line * t) - radius;
-    return vec2(scaled(d, radius), d - REACH * min(1.0, radius / FULL_RADIUS));
+    float chord = length(line);
+    vec3 leaving = tangentAt(segment);
+    vec3 arriving = tangentAt(segment + 1);
+    float widest = max(a.w, b.w);
+    vec3 along = chord > 0.0 ? line / chord : leaving;
+    float sag = chord / 3.0 * max(length(cross(leaving, along)), length(cross(arriving, along)));
+    float before = dot(p - a.xyz, leaving);
+    float after = dot(p - b.xyz, arriving);
+    bool owned = (before >= 0.0 || !sameStream(segment, segment - 1))
+        && (after <= 0.0 || !sameStream(segment + 1, segment + 2));
+    float lineT = chord == 0.0 ? 0.0 : clamp(dot(p - a.xyz, line) / (chord * chord), 0.0, 1.0);
+    float bound = length(p - a.xyz - line * lineT) - widest - sag;
+    read.y = bound - REACH * min(1.0, widest / FULL_RADIUS);
+    if (!owned) {
+        float radius = mix(a.w, b.w, lineT);
+        read.x = scaled(roundCone(p - a.xyz, line, a.w, b.w), radius);
+        vec3 off = p - a.xyz - line * lineT;
+        facing = dot(off, off) > 0.0 ? normalize(off) : vec3(0.0, 1.0, 0.0);
+        return false;
+    }
+    float t = before <= 0.0 ? 0.0 : after >= 0.0 ? 1.0 : before / (before - after);
+    vec3 foot = hermite3(a.xyz, b.xyz, leaving * chord, arriving * chord, t);
+    float radius = clamp(hermite(a.w, b.w, radiusSlopeAt(segment), radiusSlopeAt(segment + 1), t),
+        min(a.w, b.w), widest);
+    vec3 off = p - foot;
+    float offLength = length(off);
+    read.x = scaled(offLength - radius, radius);
+    facing = offLength > 0.0 ? off / offLength : vec3(0.0, 1.0, 0.0);
+    return true;
 }
 
-vec2 boxRead(int box, vec3 p) {
+vec2 boxRead(int box, vec3 p, out vec3 facing) {
     vec4 centerHalf = Boxes[2 * box];
     float rounding = Boxes[2 * box + 1].x;
-    vec3 q = abs(p - centerHalf.xyz) - (centerHalf.w - rounding);
-    float outside = length(max(q, 0.0));
+    vec3 rel = p - centerHalf.xyz;
+    vec3 q = abs(rel) - (centerHalf.w - rounding);
+    vec3 beyond = max(q, 0.0);
+    float outside = length(beyond);
     float inside = min(max(q.x, max(q.y, q.z)), 0.0);
     float d = outside + inside - rounding;
+    if (outside > 0.0) {
+        facing = sign(rel) * beyond / outside;
+    } else if (q.x >= q.y && q.x >= q.z) {
+        facing = vec3(sign(rel.x), 0.0, 0.0);
+    } else if (q.y >= q.z) {
+        facing = vec3(0.0, sign(rel.y), 0.0);
+    } else {
+        facing = vec3(0.0, 0.0, sign(rel.z));
+    }
     return vec2(scaled(d, centerHalf.w), d - REACH * min(1.0, centerHalf.w / FULL_RADIUS));
 }
 
-vec2 readBody(int entry, vec3 p) {
-    int body = entry & (RUN_START - 1);
-    return body >= BOX_BASE ? boxRead(body - BOX_BASE, p) : segmentRead(body, p);
+// The smooth union of two readings: the nearer, less a fillet where they come
+// within its width of each other, the facing turning between theirs across it.
+float blend(float a, vec3 facingA, float b, vec3 facingB, float width, out vec3 facing) {
+    float apart = abs(a - b);
+    if (width <= 0.0 || apart >= width) {
+        facing = b < a ? facingB : facingA;
+        return min(a, b);
+    }
+    float h = (width - apart) / width;
+    float towardA = clamp((1.0 + (b - a) / width) / 2.0, 0.0, 1.0);
+    vec3 mixed = facingA * towardA + facingB * (1.0 - towardA);
+    facing = dot(mixed, mixed) > 0.0 ? normalize(mixed) : facingA;
+    return min(a, b) - h * h * width / 4.0;
 }
 
-// One stream's part of the field at a point: its run read at its least
-// distance where the point is within the box its bodies reach, nothing
-// outside it, the gap then measured to the box so the march can jump to it.
-float runField(vec3 p, int stream, inout float gap) {
+// A body's scaled signed distance at a point, for picking a stream's nearest
+// body: a segment not owning the point reads a reach farther, so its owner wins.
+float readBody(int entry, vec3 p) {
+    int body = entry & (RUN_START - 1);
+    vec3 facing;
+    if (body >= BOX_BASE) {
+        return boxRead(body - BOX_BASE, p, facing).x;
+    }
+    vec2 read;
+    return segmentRead(body, p, read, facing) ? read.x : read.x + REACH;
+}
+
+// One stream's reading at a point: its segments read at the least distance of
+// those owning the point, its block's box filleted onto them, where the point
+// is within the box its bodies reach; nothing outside it, the gap then
+// measured to the box so the march can jump to it.
+float runField(vec3 p, int stream, inout float gap, out vec3 facing) {
+    facing = vec3(0.0, 1.0, 0.0);
     vec4 low = streamSlot(stream, RUN_LOW_SLOT);
     vec4 high = streamSlot(stream, RUN_HIGH_SLOT);
     float outside = length(max(max(low.xyz - p, p - high.xyz), vec3(0.0)));
     if (outside > 0.0) {
         gap = min(gap, outside);
-        return 0.0;
+        return REACH;
     }
-    float least = REACH;
+    float owned = FAR;
+    vec3 ownedFacing = facing;
+    float unowned = REACH;
+    vec3 unownedFacing = facing;
+    float boxed = FAR;
+    vec3 boxFacing = facing;
     int first = int(low.w);
     int end = first + int(high.w);
     for (int e = first; e < end; e++) {
-        vec2 read = readBody(entryAt(e), p);
-        least = min(least, read.x);
+        int body = entryAt(e) & (RUN_START - 1);
+        vec3 bodyFacing;
+        if (body >= BOX_BASE) {
+            vec2 read = boxRead(body - BOX_BASE, p, bodyFacing);
+            gap = min(gap, read.y);
+            boxed = read.x;
+            boxFacing = bodyFacing;
+            continue;
+        }
+        vec2 read;
+        bool owns = segmentRead(body, p, read, bodyFacing);
         gap = min(gap, read.y);
+        if (owns && read.x < owned) {
+            owned = read.x;
+            ownedFacing = bodyFacing;
+        } else if (!owns && read.x < unowned) {
+            unowned = read.x;
+            unownedFacing = bodyFacing;
+        }
     }
-    return falloff(least);
+    float least = owned < FAR ? min(owned, REACH) : unowned;
+    facing = owned < FAR ? ownedFacing : unownedFacing;
+    if (boxed < FAR && least >= REACH) {
+        if (boxed < least) {
+            least = boxed;
+            facing = boxFacing;
+        }
+    } else if (boxed < FAR) {
+        vec3 blended;
+        least = blend(least, facing, boxed, boxFacing, BOX_BLEND, blended);
+        facing = blended;
+    }
+    return least;
 }
 
-// The field at a point over the region's streams, the runs summed; gap is
-// the least gap to any body's field, or to a run's box the point is outside.
+// The field at a point over the region's streams (decision diagnose-then-fix-unmake-seam-and-ribbing):
+// the two streams nearest it blended over a fillet as wide as their surfaces
+// face apart, so streams lying on one another are one stream's width and
+// streams meeting across a gap merge; gap is the least gap to any body's
+// field, or to a run's box the point is outside.
 float fieldAt(vec3 p, int streams, out float gap) {
-    float value = 0.0;
     gap = FAR;
+    float first = REACH;
+    vec3 firstFacing = vec3(0.0, 1.0, 0.0);
+    float second = REACH;
+    vec3 secondFacing = firstFacing;
     for (int s = 0; s < streams; s++) {
-        value += runField(p, s, gap);
+        vec3 facing;
+        float d = runField(p, s, gap, facing);
+        if (d < first) {
+            second = first;
+            secondFacing = firstFacing;
+            first = d;
+            firstFacing = facing;
+        } else if (d < second) {
+            second = d;
+            secondFacing = facing;
+        }
     }
-    return value;
+    vec3 facing;
+    return falloff(blend(first, firstFacing, second, secondFacing,
+        MEET_BLEND * (1.0 - dot(firstFacing, secondFacing)) / 2.0, facing));
 }
 
 float fieldOnly(vec3 p, int streams) {
@@ -154,7 +333,8 @@ float fieldOnly(vec3 p, int streams) {
 
 float runOnly(vec3 p, int stream) {
     float gap = FAR;
-    return runField(p, stream, gap);
+    vec3 facing;
+    return falloff(runField(p, stream, gap, facing));
 }
 
 // The body of one stream nearest a point, by its scaled signed distance.

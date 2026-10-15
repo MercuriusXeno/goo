@@ -75,6 +75,25 @@ class DrinkShaderTest {
         assertTrue(fragment.contains("gl_FragDepth ="), "the hit writes its depth");
     }
 
+    /** decision diagnose-then-fix-unmake-seam-and-ribbing */
+    @Test
+    void theShaderReadsTheSmoothTubeAndJoinsStreamsByTheirFilletAsTheJavaDoes() throws IOException {
+        String fragment = source(FRAGMENT);
+
+        assertEquals(DrinkField.BOX_BLEND, constant(fragment, "BOX_BLEND"), DELTA);
+        assertEquals(DrinkField.MEET_BLEND, constant(fragment, "MEET_BLEND"), DELTA);
+        assertTrue(fragment.contains("int before = sameStream(ring, ring - 1) ? ring - 1 : ring;")
+                        && fragment.contains("int after = sameStream(ring, ring + 1) ? ring + 1 : ring;"),
+                "a ring's tangent runs from the ring before it to the ring after it, as DrinkField.tangentAt");
+        assertTrue(fragment.contains("float t = before <= 0.0 ? 0.0 : after >= 0.0 ? 1.0 : before / (before - after);"),
+                "a point's foot is its share of the way between the planes at the segment's rings");
+        assertTrue(fragment.contains("vec3 foot = hermite3(a.xyz, b.xyz, leaving * chord, arriving * chord, t);"),
+                "on the curve leaving each ring along its tangent");
+        assertTrue(fragment.contains("MEET_BLEND * (1.0 - dot(firstFacing, secondFacing)) / 2.0"),
+                "the two nearest streams are filleted as wide as their surfaces face apart, never summed");
+        assertFalse(fragment.contains("value += runField"), "no stream's field is added onto another's");
+    }
+
     @Test
     void theMarchSamplesTheRegionsExitAndTakesAnEntryInsideTheFieldAsTheHit() throws IOException {
         String fragment = source(FRAGMENT);
