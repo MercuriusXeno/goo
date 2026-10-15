@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.LandingHost;
 import com.mercuriusxeno.goo.ability.program.LeafSteps;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
+import com.mercuriusxeno.goo.ability.program.MeltStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
@@ -232,6 +233,18 @@ public final class AbilityImpact {
                 && PRISM.equals(place.block()));
     }
 
+    /**
+     * Whether an ability's blob sinks into the stone it melts, the sinking
+     * standing in for a burnout.
+     * melt-blob-absorbs-into-lava
+     *
+     * @param ability the landing ability
+     * @return true when a top-level step melts the struck block
+     */
+    static boolean sinksIntoTheMelt(AbilityDefinition ability) {
+        return ability.behaviors().stream().anyMatch(MeltStep.class::isInstance);
+    }
+
     private static Stream<Step> withDescendants(Step step) {
         return Stream.concat(Stream.of(step), step.children().flatMap(AbilityImpact::withDescendants));
     }
@@ -257,7 +270,7 @@ public final class AbilityImpact {
 
         @Override
         public boolean turnsIntoItsBlock() {
-            return AbilityImpact.turnsIntoAPrism(ability);
+            return AbilityImpact.turnsIntoAPrism(ability) || AbilityImpact.sinksIntoTheMelt(ability);
         }
 
         @Override
