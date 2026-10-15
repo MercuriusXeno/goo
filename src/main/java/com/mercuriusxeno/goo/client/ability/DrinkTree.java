@@ -61,6 +61,12 @@ public final class DrinkTree {
      * thinnest only at the blob's middle, hidden inside it, met the blob as a blunt knob.
      */
     static final double THREAD_RUN = 0.5;
+    /**
+     * The most times the base pace goo massing in one place drives the liquid: with every stream converging on one
+     * trunk, a cone of many blocks drove its trunk at many times the base pace, and the last of the drink was flung
+     * into the hand in a tenth of a second, a halt rather than a flow.
+     */
+    static final double SURGE = 2;
     /** Ticks a block's goo takes to weigh wholly on the pace of the trunks it feeds, so the pace glides rather than jumps. */
     static final double MASS_RAMP = 10;
     /** Stations along one block of path the liquid's travel time is summed at. */
@@ -251,10 +257,10 @@ public final class DrinkTree {
         /**
          * @param share a share of this stream's path
          * @return blocks a tick the liquid flows there: the base pace times the square root of the goo through
-         *         it, never slower than the base pace
+         *         it, never slower than the base pace nor faster than {@link #SURGE} times it
          */
         public double speedAt(double share) {
-            return DrinkStream.FLOW * Math.sqrt(Math.max(1, massAt(share)));
+            return DrinkStream.FLOW * Math.min(SURGE, Math.sqrt(Math.max(1, massAt(share))));
         }
 
         /**
