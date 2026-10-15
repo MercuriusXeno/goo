@@ -30,8 +30,33 @@ public final class BlockTransforms {
     /** Game ticks an exposure stands with no update before it is dropped. */
     static final int EXPOSURE_STALE_TICKS = 40;
 
+    /** Game ticks a fully built untinted block stays drawn whole over its position, covering the chunk's redraw. */
+    static final int BUILT_HOLD_TICKS = 5;
+
+    /** The seeds a mingle draws among; must fit the overlay's V byte block_mingle.vsh reads. */
+    static final int SEED_UNITS = 256;
+    private static final long POS_MIX = 0x9E3779B97F4A7C15L;
+    private static final long TICK_MIX = 0xC2B2AE3D27D4EB4FL;
+    private static final int MIX_SHIFT = 29;
+
     private final List<Transform> playing = new ArrayList<>();
     private final Map<BlockPos, Exposure> exposures = new HashMap<>();
+    private final Map<BlockPos, Long> exposedSince = new HashMap<>();
+
+    /**
+     * The mingle seed of a block's transition begun at a tick, so each use on a
+     * block dissolves through its own field rather than the one its world spot fixes
+     * (decision diagnose-then-fix-dissolve-repeat).
+     *
+     * @param pos  the block
+     * @param tick the game tick the transition began
+     * @return the seed, from 0 to {@link #SEED_UNITS} less one
+     */
+    static int seedAt(BlockPos pos, long tick) {
+        long mixed = pos.asLong() * POS_MIX ^ tick * TICK_MIX;
+        mixed ^= mixed >>> MIX_SHIFT;
+        return Math.floorMod(mixed, SEED_UNITS);
+    }
 
     /**
      * A block part way to its next calcify rung.
@@ -75,25 +100,46 @@ public final class BlockTransforms {
         public float progress(float gameTime) {
             return Math.clamp((gameTime - start) / DURATION_TICKS, 0f, 1f);
         }
+
+        /**
+         * The transform's mingle seed, from the block and the tick it began.
+         *
+         * @return the seed, from 0 to {@link #SEED_UNITS} less one
+         */
+        public int seed() {
+            return seedAt(pos, start);
+        }
     }
 
     /**
      * Starts a block's transform, replacing any playing on it. A block whose
      * exposure wore a tint dissolves from that tinted face into the new block,
-     * so the face it built up carries straight into the step; any other
-     * dissolves from the state it was.
+     * so the face it built up carries straight into the step; a block whose
+     * untinted exposure built the transition plays no second dissolve, its
+     * built block held whole over it a few ticks so the old block never
+     * shows before the client's chunk redraws; any other, a block cooked
+     * away to air among them, dissolves from the state it was.
      *
      * @param pos   the block
      * @param from  the state it was
      * @param start the game tick the transform began
      */
     public void start(BlockPos pos, BlockState from, long start) {
+        exposedSince.remove(pos);
         Exposure built = exposures.remove(pos);
         playing.removeIf(transform -> transform.pos().equals(pos));
-        // the operator's ruling on Decay: the maroon face transitions into the next block, never vanishing first
-        playing.add(built != null && built.tint() >= 0
-                ? new Transform(pos.immutable(), built.toward(), start, built.tint())
-                : new Transform(pos.immutable(), from, start));
+        if (built != null && built.tint() >= 0) {
+            // the operator's ruling on Decay: the maroon face transitions into the next block, never vanishing first
+            playing.add(new Transform(pos.immutable(), built.toward(), start, built.tint()));
+        } else if (built == null || built.toward().isAir()) {
+            // broil-heat-wave-ring-cooks-ahead: a block cooked into an item drew nothing building, so it dissolves away
+            playing.add(new Transform(pos.immutable(), from, start));
+        } else {
+            // broil-heat-wave-ring-cooks-ahead: the build was the one dissolve; the built block stays whole
+            // over the old one until the chunk redraws it, so the old block never shows again
+            long staleFrom = start - EXPOSURE_STALE_TICKS + BUILT_HOLD_TICKS;
+            exposures.put(pos.immutable(), new Exposure(pos.immutable(), built.toward(), 1f, staleFrom, UNTINTED));
+        }
     }
 
     /**
@@ -119,9 +165,22 @@ public final class BlockTransforms {
     public void expose(BlockPos pos, BlockState toward, float share, long tick, int tint) {
         if (share <= 0f) {
             exposures.remove(pos);
+            exposedSince.remove(pos);
         } else {
             exposures.put(pos.immutable(), new Exposure(pos.immutable(), toward, share, tick, tint));
+            exposedSince.putIfAbsent(pos.immutable(), tick);
         }
+    }
+
+    /**
+     * An exposure's mingle seed, from its block and the tick it began building,
+     * steady while the share keeps arriving.
+     *
+     * @param exposure the exposure
+     * @return the seed, from 0 to {@link #SEED_UNITS} less one
+     */
+    public int seedOf(Exposure exposure) {
+        return seedAt(exposure.pos(), exposedSince.getOrDefault(exposure.pos(), exposure.updated()));
     }
 
     /**
@@ -132,6 +191,7 @@ public final class BlockTransforms {
      */
     public List<Exposure> exposing(long tick) {
         exposures.values().removeIf(exposure -> tick - exposure.updated() > EXPOSURE_STALE_TICKS);
+        exposedSince.keySet().retainAll(exposures.keySet());
         return List.copyOf(exposures.values());
     }
 
@@ -150,5 +210,6 @@ public final class BlockTransforms {
     public void clear() {
         playing.clear();
         exposures.clear();
+        exposedSince.clear();
     }
 }
