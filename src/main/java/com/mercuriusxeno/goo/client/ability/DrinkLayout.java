@@ -33,6 +33,12 @@ public final class DrinkLayout {
 
     /** Blocks toward the hand a join is pushed past the point of the trunk nearest the joining block, short so a feeder collapses into its trunk rather than running beside it. */
     static final double LEAD = 0.4;
+    /**
+     * How many times nearer than the central trunk a stream off the aim line must run for a block to join it, so
+     * the cone's streams converge on the centre rather than knotting into a lattice of tubes between neighbours,
+     * pulled into the trunk more strongly than toward the hand.
+     */
+    static final double SIDE_PULL = 2;
     /** Ticks the pull takes to close most of the way to a new look, so the stream sways rather than snaps. */
     static final double PULL_LAG = 6;
     /** The rise over the look the trunk arrives down, as a slope: about thirty degrees, over the fingertips into the palm. */
@@ -221,6 +227,7 @@ public final class DrinkLayout {
 
     private final Map<BlockPos, Node> nodes = new LinkedHashMap<>();
     private @Nullable BlockPos spine;
+    private @Nullable Aim aim;
     private @Nullable Vec3 pull;
     private double pulledAt;
 
@@ -332,6 +339,7 @@ public final class DrinkLayout {
         List<BlockPos> order = new ArrayList<>();
         blocks.forEach(pos -> order.add(pos.immutable()));
         order.sort(Comparator.comparingDouble(pos -> Vec3.atCenterOf(pos).distanceToSqr(glove)));
+        this.aim = aim;
         if (spine == null || !nodes.containsKey(spine) || !spineCarries(glove, flowing)) {
             handOffSpine(order, glove, aim, now, flowing);
         }
@@ -500,13 +508,22 @@ public final class DrinkLayout {
                 continue;
             }
             Line line = lineOf(node, glove);
-            double distance = line.pointAt(line.nearestDistance(center)).distanceToSqr(center);
+            double distance = line.pointAt(line.nearestDistance(center)).distanceToSqr(center)
+                    * (central(node.pos) ? 1 : SIDE_PULL * SIDE_PULL);
             if (distance < least && flowing.at(node.pos, joinOn(line, center))) {
                 least = distance;
                 nearest = node;
             }
         }
         return nearest;
+    }
+
+    /**
+     * @param pos a laid block
+     * @return whether its stream is the central trunk's: the spine's, or a block's the aim line passes through
+     */
+    private boolean central(BlockPos pos) {
+        return pos.equals(spine) || aim != null && aim.passesThrough(pos);
     }
 
     /**

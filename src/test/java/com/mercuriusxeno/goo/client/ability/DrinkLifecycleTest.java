@@ -46,6 +46,10 @@ class DrinkLifecycleTest {
     private static final long PICKED = 0;
     private static final long LANDS = 9;
     private static final int REPORTED = 8;
+    /** The most regions a frame of the cone drink may march, a guard set just above what it marches today. */
+    private static final int WORK_REGIONS = 160;
+    /** The most bodies a frame of the cone drink may list across its regions, a guard set just above today's. */
+    private static final int WORK_ENTRIES = 4600;
     /** Degrees either way the look sweeps while drinking. */
     private static final double SWEEP_DEGREES = 25;
     /** Ticks a radian of the sweep takes. */
@@ -235,6 +239,48 @@ class DrinkLifecycleTest {
         assertTrue(dropped.isEmpty(), "the upload's caps left bodies out:\n" + String.join("\n", dropped));
         assertTrue(DrinkUpload.BYTES <= DrinkUpload.MOST_BYTES, "a region's block is " + DrinkUpload.BYTES
                 + " bytes, past what every driver allows a uniform block");
+    }
+
+    /** Measures the shader's work over the cone drink: the regions it marches and the bodies they list. */
+    @Test
+    void theDrinksShaderWorkStaysWithinBudget() {
+        List<DrinkTree.Block> blocks = cone();
+        Set<BlockPos> streaming = new HashSet<>();
+        blocks.forEach(block -> streaming.add(block.pos()));
+        DrinkLayout layout = new DrinkLayout();
+        Map<BlockPos, DrinkTree.Stream> built = new HashMap<>();
+        int mostRegions = 0;
+        int mostEntries = 0;
+        long totalEntries = 0;
+        int frames = 0;
+        for (double now = PICKED; now <= LANDS + 90; now += 1) {
+            Vec3 pull = layout.pullToward(LOOK, now);
+            layout.place(streaming, GLOVE, new DrinkLayout.Aim(EYE, LOOK), now,
+                    DrinkTree.flowingOf(built, streaming));
+            Map<BlockPos, DrinkTree.Stream> frame = new HashMap<>();
+            List<DrinkField.Skeleton> skeletons = new ArrayList<>();
+            List<DrinkUpload.Coat> coats = new ArrayList<>();
+            for (DrinkTree.Stream stream : DrinkTree.build(blocks, layout, GLOVE, pull, now)) {
+                frame.put(stream.block().pos(), stream);
+                if (!stream.spent()) {
+                    skeletons.add(DrinkTree.skeleton(stream));
+                    coats.add(new DrinkUpload.Coat(0, 0, 0, 0));
+                }
+            }
+            built = frame;
+            List<DrinkUpload.Block> regions = DrinkUpload.of(skeletons, coats, Vec3.ZERO, true);
+            int entries = 0;
+            for (DrinkUpload.Block region : regions) {
+                entries += (int) region.bytes().getFloat(DrinkUpload.COUNTS_AT + 3 * Float.BYTES);
+            }
+            mostRegions = Math.max(mostRegions, regions.size());
+            mostEntries = Math.max(mostEntries, entries);
+            totalEntries += entries;
+            frames++;
+        }
+        assertTrue(mostRegions <= WORK_REGIONS && mostEntries <= WORK_ENTRIES, String.format(
+                "the drink's shader work: at most %d regions and %d listed bodies a frame, %d bodies a frame on average",
+                mostRegions, mostEntries, totalEntries / frames));
     }
 
     /**

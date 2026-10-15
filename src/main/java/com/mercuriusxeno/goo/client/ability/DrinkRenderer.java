@@ -81,7 +81,8 @@ public final class DrinkRenderer {
     private static final Vec3 UP = new Vec3(0, 1, 0);
     private static final double MILLIS_PER_NANO = 1e-6;
     private static final double HALF = 0.5;
-    private static final String UPLOADED = "Unmake drink uploaded in {} ms: {} regions, {} bodies or entries dropped";
+    private static final String UPLOADED =
+            "Unmake drink uploaded in {} ms: {} regions, {} bodies or entries dropped, GPU {} ms a pass";
     /** Each drink's streams as last built, by its drinker then block, which say where liquid still flows. */
     private static final Map<Integer, Map<BlockPos, DrinkTree.Stream>> LAST = new HashMap<>();
     /** The drinkers whose drink still showed liquid last frame. */
@@ -142,7 +143,7 @@ public final class DrinkRenderer {
         List<ClientDrinks.Drink> drinks = ClientDrinks.CLIENT.live(ticks, SHOWING::contains);
         forgetAllBut(drinks);
         Passes passes = passesOf(mc, level, drinks, event.getLevelRenderState().cameraRenderState, ticks);
-        DrinkPass.draw(passes.level, event.getModelViewMatrix());
+        drawTimed(passes.level, event.getModelViewMatrix());
         inHand = passes.hand;
         levelView = new Matrix4f(event.getModelViewMatrix());
         levelProjection = RenderSystem.getProjectionMatrixBuffer();
@@ -205,7 +206,7 @@ public final class DrinkRenderer {
         }
         RenderSystem.backupProjectionMatrix();
         RenderSystem.setProjectionMatrix(levelProjection, ProjectionType.PERSPECTIVE);
-        DrinkPass.draw(inHand, levelView);
+        drawTimed(inHand, levelView);
         RenderSystem.restoreProjectionMatrix();
         inHand = List.of();
     }
@@ -218,13 +219,30 @@ public final class DrinkRenderer {
         SHOWING.retainAll(drinkers);
     }
 
+    /**
+     * Draws a pass, timing it on the GPU while the drink's debug line is logged.
+     *
+     * @param blocks    the pass's uploads
+     * @param modelView the level's model view
+     */
+    private static void drawTimed(List<DrinkUpload.Block> blocks, Matrix4fc modelView) {
+        boolean timed = Goo.LOGGER.isDebugEnabled() && !blocks.isEmpty();
+        if (timed) {
+            DrinkGpuTimer.begin();
+        }
+        DrinkPass.draw(blocks, modelView);
+        if (timed) {
+            DrinkGpuTimer.end();
+        }
+    }
+
     private static void logOnce(long tick, long began, Passes passes) {
         if (passes.regions() == 0 || tick == loggedTick) {
             return;
         }
         loggedTick = tick;
         Goo.LOGGER.debug(UPLOADED, Math.round((System.nanoTime() - began) * MILLIS_PER_NANO), passes.regions(),
-                passes.dropped());
+                passes.dropped(), DrinkGpuTimer.millis());
     }
 
     /**
