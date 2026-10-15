@@ -202,6 +202,43 @@ class DrinkLayoutTest {
             }
         }
 
+        /**
+         * The cone's streams converge on the centre: a block off the aim
+         * line joins the central trunk, the stream of a block the aim line
+         * passes through, unless another stream runs at least
+         * {@link DrinkLayout#SIDE_PULL} times nearer, so the streams collapse
+         * into one mass rather than a lattice of tubes between neighbours.
+         * decision unmake-streams-collapse-into-a-central-trunk
+         */
+        @Test
+        void aBlockOffTheAimLineJoinsTheCentralTrunkUnlessAnotherStreamIsMuchNearer() {
+            DrinkLayout layout = laid();
+
+            for (BlockPos pos : CONE) {
+                DrinkLayout.Node node = layout.node(pos);
+                if (node.trunk() == null || AIM.passesThrough(pos)) {
+                    continue;
+                }
+                double toTrunk = layout.lineOf(layout.node(node.trunk()), HAND).nearestDistance(Vec3.atCenterOf(pos));
+                if (!AIM.passesThrough(node.trunk())) {
+                    for (BlockPos central : CONE) {
+                        DrinkLayout.Node centre = layout.node(central);
+                        if (AIM.passesThrough(central) && Vec3.atCenterOf(central).distanceToSqr(HAND)
+                                < Vec3.atCenterOf(pos).distanceToSqr(HAND)) {
+                            DrinkLayout.Line line = layout.lineOf(centre, HAND);
+                            double toCentre = line.pointAt(line.nearestDistance(Vec3.atCenterOf(pos)))
+                                    .distanceTo(Vec3.atCenterOf(pos));
+                            DrinkLayout.Line own = layout.lineOf(layout.node(node.trunk()), HAND);
+                            double toSide = own.pointAt(toTrunk).distanceTo(Vec3.atCenterOf(pos));
+                            assertTrue(toSide * DrinkLayout.SIDE_PULL <= toCentre + DELTA, pos + " joined "
+                                    + node.trunk() + " " + toSide + " away rather than " + central + " " + toCentre
+                                    + " away");
+                        }
+                    }
+                }
+            }
+        }
+
         @Test
         void aFeederMeetsItsTrunkLevelWithItsBlockPlusALeadUnderHalfABlock() {
             DrinkLayout layout = laid();
