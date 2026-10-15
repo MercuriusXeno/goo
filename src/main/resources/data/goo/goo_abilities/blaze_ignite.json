@@ -1,22 +1,13 @@
 {
   "gooType": "blaze",
   "displayName": "goo.ability.blaze.ignite",
-  "badge": "mob",
+  "badge": "free",
   "order": 10,
   "cost": 1000,
   "requires": ["minecraft:flint"],
   "delivery": { "kind": "arc" },
   "behaviors": [
-    { "type": "ignite", "seconds": 10 },
-    {
-      "type": "entities",
-      "shape": "sphere",
-      "radius": 2.5,
-      "where": ["living", "not_fire_immune"],
-      "steps": [
-        { "type": "ignite", "seconds": 5 }
-      ]
-    }
-  ],
-  "tags": ["entity"]
+    { "type": "detonate_explosive", "power": 2.5 },
+    { "type": "light_fire" }
+  ]
 }

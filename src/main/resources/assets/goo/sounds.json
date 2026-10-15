@@ -29,6 +29,17 @@
       }
     ]
   },
+  "effects.heat_hum": {
+    "category": "players",
+    "subtitle": "subtitles.goo.heat_hum",
+    "sounds": [
+      {
+        "name": "minecraft:block/beacon/ambient",
+        "attenuation_distance": 8,
+        "stream": false
+      }
+    ]
+  },
   "effects.ability_down": {
     "category": "players",
     "sounds": [

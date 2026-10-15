@@ -115,7 +115,8 @@ class AbilityBadgeTest {
     @ParameterizedTest
     @CsvSource({"typhoon_lift, typhoon_updraft", "pulse_relay, pulse_zap", "pulse_metronome, pulse_pulser",
             "nether_hive, nether_decay", "glow_reflector, glow_sunbeam",
-            "leaf_verdant, leaf_growth", "frost_glacial, frost_cold", "ender_oculus, ender_blink"})
+            "leaf_verdant, leaf_growth", "frost_glacial, frost_cold", "ender_oculus, ender_blink",
+            "blaze_heater, blaze_flames"})
     void aFoldedPrismCardLoadsNoDefinitionAndItsHostReacts(String card, String host) {
         assertTrue(AbilityJson.files().stream().map(AbilityJson::decode)
                 .noneMatch(definition -> definition.id().getPath().equals(card)), card + " loads");
