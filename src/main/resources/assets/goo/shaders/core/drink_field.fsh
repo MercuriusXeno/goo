@@ -507,6 +507,15 @@ void main() {
             break;
         }
     }
+    // Out of steps short of the region's exit: the surface may still lie
+    // before it, so the exit is read and the hit refined between, or the
+    // region past this one, entering inside the goo, drew a flat face there
+    // and cut the goo on the block grid.
+    if (!hit && t < tExit) {
+        before = t;
+        t = tExit;
+        hit = fieldOnly(rd * t, streams) >= iso;
+    }
     if (!hit) {
         discard;
     }
