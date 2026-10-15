@@ -108,10 +108,11 @@ public final class DrinkRenderer {
      *
      * @param glove  the drinker's glove, in the world
      * @param pull   the unit direction the trunk flows as it enters the hand
+     * @param aim    the drinker's aim line, which picks the spine
      * @param camera the camera's world position
      * @param ticks  the game time including the partial tick
      */
-    private record Frame(Vec3 glove, Vec3 pull, Vec3 camera, double ticks) {
+    private record Frame(Vec3 glove, Vec3 pull, DrinkLayout.Aim aim, Vec3 camera, double ticks) {
     }
 
     /**
@@ -157,8 +158,10 @@ public final class DrinkRenderer {
         for (ClientDrinks.Drink drink : drinks) {
             Entity drinker = level.getEntity(drink.playerId());
             if (drinker != null) {
-                Vec3 pull = drink.layout().pullToward(drinker.getViewVector(partialTick), ticks);
-                Frame frame = new Frame(gloveOf(mc, drinker, partialTick, sight), pull, camera, ticks);
+                Vec3 look = drinker.getViewVector(partialTick);
+                Vec3 pull = drink.layout().pullToward(look, ticks);
+                DrinkLayout.Aim aim = new DrinkLayout.Aim(drinker.getEyePosition(partialTick), look);
+                Frame frame = new Frame(gloveOf(mc, drinker, partialTick, sight), pull, aim, camera, ticks);
                 passes.add(uploadsOf(level, drink, frame), inHand(mc, drinker) ? frame.glove().subtract(camera) : null);
             }
         }
@@ -323,7 +326,8 @@ public final class DrinkRenderer {
         Map<BlockPos, BlockState> states = new HashMap<>();
         List<DrinkTree.Block> blocks = blocksOf(level, drink, states);
         Map<BlockPos, DrinkTree.Stream> last = LAST.getOrDefault(drink.playerId(), Map.of());
-        drink.layout().place(states.keySet(), frame.glove(), frame.ticks(), DrinkTree.flowingOf(last, states.keySet()));
+        drink.layout().place(states.keySet(), frame.glove(), frame.aim(), frame.ticks(),
+                DrinkTree.flowingOf(last, states.keySet()));
         List<DrinkField.Skeleton> skeletons = new ArrayList<>();
         List<DrinkUpload.Coat> coats = new ArrayList<>();
         Map<BlockPos, DrinkTree.Stream> built = new HashMap<>();
