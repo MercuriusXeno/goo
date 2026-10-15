@@ -8,8 +8,8 @@
 // The vanilla entity fragment shader under EMISSIVE and NO_OVERLAY, blending
 // every goo type a surface holds in one pass (decision one-pass-blends-every-type):
 // each row of the frame's mingle table draws its type's sprite over the rows
-// before it at its mingle opacity, the over-blend the lifted layers drew, so
-// the types form goo that crossfade at their seams on one flat surface.
+// before it at its mingle opacity, an over-blend that leaves each type its
+// volume ratio, so the types form goo that crossfade at their seams on one flat surface.
 
 uniform sampler2D Sampler0;
 uniform sampler2D MingleTable;

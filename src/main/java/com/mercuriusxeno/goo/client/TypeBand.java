@@ -5,11 +5,12 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.ResourceKey;
 
 /**
- * One goo type's layer of a mingled fluid surface (decision
- * noise-mingled-type-textures): layer 0, the first type in its order, draws whole, and
- * every later layer draws over the ones below at an opacity from its own
- * noise field whose mean is its conditional share, so each type covers its
- * volume ratio on average and blends with its neighbours at the seams.
+ * One goo type's layer of a mingled fluid surface (decisions
+ * noise-mingled-type-textures and one-pass-blends-every-type): the surface
+ * draws once, and its shader blends layer 0, the first type in its order,
+ * whole, then every later layer over the ones before at an opacity from its
+ * own noise field whose mean is its conditional share, so each type covers
+ * its volume ratio on average and blends with its neighbours at the seams.
  *
  * @param type  the goo type the layer shows
  * @param lo    the volume ratio of every earlier band together
@@ -17,12 +18,6 @@ import net.minecraft.resources.ResourceKey;
  * @param layer the layer index, 0 for the first type in the band order
  */
 public record TypeBand(ResourceKey<GooTypeDefinition> type, float lo, float hi, int layer) {
-
-    /**
-     * Blocks each layer's geometry sits outward of the layer below, so
-     * distance sorting draws the layers in order and depth never ties.
-     */
-    public static final float LAYER_LIFT = 1f / 512f;
 
     /**
      * The layer's conditional share: this type's volume over the volume of
@@ -34,13 +29,6 @@ public record TypeBand(ResourceKey<GooTypeDefinition> type, float lo, float hi, 
      */
     public float share() {
         return hi > 0f ? (hi - lo) / hi : 0f;
-    }
-
-    /**
-     * @return the distance this layer's geometry sits outward of layer 0
-     */
-    public float lift() {
-        return layer * LAYER_LIFT;
     }
 
     /**
