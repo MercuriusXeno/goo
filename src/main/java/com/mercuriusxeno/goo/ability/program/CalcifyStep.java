@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.blockmap.BlockMap;
 import com.mercuriusxeno.goo.ability.blockmap.BlockMaps;
+import com.mercuriusxeno.goo.network.HoldMarks;
 import com.mercuriusxeno.goo.throwing.StreamCone;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
@@ -23,7 +24,10 @@ import java.util.stream.Stream;
  * the block map the JSON names, and steps that rung once it has stood in the
  * fog the JSON's ticks, the next block mingling in as it builds; a block the
  * fog leaves decays back to its last rung
- * (decision petrify-stone-encasement-and-calcify-map).
+ * (decision petrify-stone-encasement-and-calcify-map). A position the hold
+ * has stepped once it passes over, so gravel becomes cobblestone and goes no
+ * further until the next activation
+ * (decision block-powers-step-each-block-once-per-activation).
  *
  * @param map   the id of the block map the blocks step along
  * @param ticks the ticks of fog a block takes to step one rung
@@ -62,7 +66,8 @@ public record CalcifyStep(Identifier map, int ticks) implements Step {
 
     /**
      * Builds each fogged block's exposure toward its next rung, stepping the
-     * rung once the share is full.
+     * rung once the share is full and passing over every position the hold
+     * already stepped.
      *
      * @param host  the channel host
      * @param aim   the stream's aim, its reach along the look
@@ -70,13 +75,31 @@ public record CalcifyStep(Identifier map, int ticks) implements Step {
      * @param rate  the share one tick of fog builds
      */
     private static void calcifyCone(ChannelHost host, ChannelAim aim, BlockMap steps, float rate) {
+        HoldMarks marks = host.holdMarks();
         for (BlockPos pos : blocksInCone(host.eye(), aim.aimPoint(), aim.coneDegrees())) {
-            Optional<Block> next = host.airAt(pos) ? Optional.empty() : steps.next(host.blockAt(pos));
-            if (next.isPresent() && facesAir(host, pos)
-                    && host.exposeBlock(pos, next.get().defaultBlockState(), rate) >= 1f) {
+            Optional<Block> next = nextRung(host, steps, marks, pos);
+            if (next.isPresent() && host.exposeBlock(pos, next.get().defaultBlockState(), rate) >= 1f) {
                 host.transformBlock(pos, next.get().defaultBlockState());
+                marks.noteStepped(pos);
             }
         }
+    }
+
+    /**
+     * The rung a fogged position builds toward this tick.
+     *
+     * @param host  the channel host
+     * @param steps the block map
+     * @param marks the hold's marks
+     * @param pos   the block
+     * @return the next rung, or empty where the position is air, faces no air,
+     *         tops the map or was stepped this hold
+     */
+    private static Optional<Block> nextRung(ChannelHost host, BlockMap steps, HoldMarks marks, BlockPos pos) {
+        if (host.airAt(pos) || marks.stepped(pos) || !facesAir(host, pos)) {
+            return Optional.empty();
+        }
+        return steps.next(host.blockAt(pos));
     }
 
     /**
