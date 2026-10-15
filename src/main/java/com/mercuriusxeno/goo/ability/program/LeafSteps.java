@@ -23,6 +23,7 @@ public final class LeafSteps {
     private static final MapCodec<Unit> NO_PARAMS = MapCodec.unit(Unit.INSTANCE);
     private static final Set<HostCapability> TARGET = Set.of(HostCapability.TARGET);
     private static final Set<HostCapability> HOARD = Set.of(HostCapability.HOARD);
+    private static final Set<HostCapability> IGNITE_LANDING = Set.of(HostCapability.IGNITE);
     private static final float PERCENT = 100;
 
     /**
@@ -118,6 +119,28 @@ public final class LeafSteps {
      */
     public static final LeafStepType<Expr> IGNITE = TargetEffectStep.of("ignite", "seconds",
             (target, seconds, context) -> target.igniteForSeconds(seconds.evaluateInt(context)));
+
+    /**
+     * Lights a fire in the landing cell; Ignite's blob lights one where it
+     * lands: {@code light_fire}.
+     * ignite-fire-and-explosive-combo
+     */
+    public static final LeafStepType<Unit> LIGHT_FIRE = StepType.of("light_fire", NO_PARAMS, IGNITE_LANDING,
+            (none, context) -> {
+                context.hostAs(IgniteHost.class).lightFire();
+                return true;
+            });
+
+    /**
+     * Sets off the explosive ability block the landing struck as a fiery
+     * explosion; Ignite landing on a Lurker: {@code detonate_explosive power=2.5}.
+     * ignite-fire-and-explosive-combo
+     */
+    public static final LeafStepType<Expr> DETONATE_EXPLOSIVE = StepType.of("detonate_explosive", "power", IGNITE_LANDING,
+            (power, context) -> {
+                context.hostAs(IgniteHost.class).detonateExplosive(power.evaluateFloat(context));
+                return true;
+            });
 
     /**
      * Heals the host's target by an amount of health points; vitality

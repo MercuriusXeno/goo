@@ -189,7 +189,17 @@ public enum HostCapability {
      * The ground a Spire lifts, the footprint and rise its submit planned
      * (decision spire-rips-walls-and-platforms).
      */
-    RAISE_GROUND(RaiseGroundHost.class);
+    RAISE_GROUND(RaiseGroundHost.class),
+    /**
+     * A landing that lights a fire in its cell and sets off the explosive
+     * ability block it struck (decision ignite-fire-and-explosive-combo).
+     */
+    IGNITE(IgniteHost.class),
+    /**
+     * A landing that melts the stone it struck into lava (decision
+     * melt-blob-absorbs-into-lava).
+     */
+    MELT(MeltHost.class);
 
     private final Class<? extends StepHost> hostType;
 

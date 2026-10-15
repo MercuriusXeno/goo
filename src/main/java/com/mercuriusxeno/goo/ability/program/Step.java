@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -124,5 +125,16 @@ public interface Step {
      */
     default boolean holdsItsPlace() {
         return false;
+    }
+
+    /**
+     * The RGB a bare prism's quartz warms toward while a stream charges it
+     * into this step's combo, the color the converted prism wears.
+     * prism-conversion-creeps-over-the-hold
+     *
+     * @return the tint, or empty where the combo keeps the plain quartz
+     */
+    default OptionalInt prismTint() {
+        return OptionalInt.empty();
     }
 }

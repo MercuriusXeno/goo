@@ -126,7 +126,7 @@ public final class RockExplosionVisual implements BurnoutVisual, HeldGhostVisual
         int alphaByte = NetherDiscMesh.toByte(opacity);
         double spin = heldSpin(nowSeconds);
         BurnoutGeometry.emitSphere(pose, c, ghost.domeRadius(),
-                direction -> domeColor(direction, face, spin, progressByte, alphaByte), face, 0f);
+                direction -> domeColor(direction, face, spin, progressByte, alphaByte));
     }
 
     /**

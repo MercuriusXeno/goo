@@ -86,6 +86,10 @@ public final class BlockMingleRenderer {
         }
         // petrify-stone-encasement-and-calcify-map: the next rung mingles in by the share built so far
         for (BlockTransforms.Exposure exposure : exposing) {
+            if (exposure.toward().isAir()) {
+                // broil-heat-wave-ring-cooks-ahead: a block cooking away to air has no next block to mingle in
+                continue;
+            }
             drawMingle(poseStack, consumer, camera, tesselator, new Mingle(exposure.pos(), exposure.toward(),
                     1f - exposure.share(), mingleColor(exposure.tint()), BlockTransforms.CLIENT.seedOf(exposure)));
         }

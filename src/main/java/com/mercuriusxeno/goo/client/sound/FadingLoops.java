@@ -35,11 +35,37 @@ public final class FadingLoops {
                                  Vec3 at) {
         FadingLoopSound live = LIVE.get(key);
         if (live == null || live.isStopped()) {
-            LIVE.values().removeIf(FadingLoopSound::isStopped);
-            live = new FadingLoopSound(SoundEvent.createVariableRangeEvent(sound), source, volume, pitch, at);
-            LIVE.put(key, live);
-            Minecraft.getInstance().getSoundManager().play(live);
+            live = start(key, new FadingLoopSound(SoundEvent.createVariableRangeEvent(sound), source, volume, pitch,
+                    at));
         }
         live.feed(at);
+    }
+
+    /**
+     * Keeps a key's loop sounding one more tick at the listener's ears,
+     * unpanned, starting it when none sounds for the key: the holder's own
+     * loop of a held stream (decision broil-heat-wave-ring-cooks-ahead).
+     *
+     * @param key    what the loop belongs to
+     * @param sound  the looped sound's id
+     * @param source the mixer channel it plays on
+     * @param volume the volume it swells to
+     * @param pitch  its pitch, used when it starts
+     */
+    public static void keepAliveAtListener(Object key, Identifier sound, SoundSource source, float volume,
+                                           float pitch) {
+        FadingLoopSound live = LIVE.get(key);
+        if (live == null || live.isStopped()) {
+            live = start(key, FadingLoopSound.atListener(SoundEvent.createVariableRangeEvent(sound), source, volume,
+                    pitch));
+        }
+        live.feed(Vec3.ZERO);
+    }
+
+    private static FadingLoopSound start(Object key, FadingLoopSound loop) {
+        LIVE.values().removeIf(FadingLoopSound::isStopped);
+        LIVE.put(key, loop);
+        Minecraft.getInstance().getSoundManager().play(loop);
+        return loop;
     }
 }

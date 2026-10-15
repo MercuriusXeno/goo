@@ -40,7 +40,7 @@ public final class GloveSelectTests {
 
     private static final String BLAZE_ID = GooTypes.id(GooTypes.BLAZE);
     private static final String BLAZE_IGNITE = "goo:blaze_ignite";
-    private static final String BLAZE_SPITFIRE = "goo:blaze_spitfire";
+    private static final String BLAZE_FLAMES = "goo:blaze_flames";
     private static final String CRYSTAL_ID = GooTypes.id(GooTypes.CRYSTAL);
     private static final String CRYSTAL_CLOUD = "goo:crystal_cloud";
     private static final String REMOVAL = "removal";
@@ -77,7 +77,7 @@ public final class GloveSelectTests {
     }
 
     /**
-     * A player who has never melted a torchflower selects blaze spitfire and
+     * A player who has never melted a torchflower selects blaze flames and
      * the glove stays empty; once they know torchflower, the same selection
      * holds (decision ability-hidden-until-recipes-known).
      *
@@ -87,16 +87,16 @@ public final class GloveSelectTests {
     public static void gatedSelectionRefusedWithoutTheRecipe(GameTestHelper helper) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         ItemStack glove = new ItemStack(GooItems.GOO_GLOVE.get());
-        GloveSelectPayload spitfire = new GloveSelectPayload(BLAZE_ID, BLAZE_SPITFIRE);
+        GloveSelectPayload flames = new GloveSelectPayload(BLAZE_ID, BLAZE_FLAMES);
 
-        GloveSelectHandler.resolveAndApply(player, glove, spitfire);
+        GloveSelectHandler.resolveAndApply(player, glove, flames);
         helper.assertTrue(GooGloveItem.getSelection(glove) == null,
-                "A player without the torchflower recipe should not select blaze spitfire");
+                "A player without the torchflower recipe should not select blaze flames");
 
         PlayerKnowledge.learn(player, Items.TORCHFLOWER);
-        GloveSelectHandler.resolveAndApply(player, glove, spitfire);
+        GloveSelectHandler.resolveAndApply(player, glove, flames);
         GloveSelection held = GooGloveItem.getSelection(glove);
-        helper.assertTrue(held != null && BLAZE_SPITFIRE.equals(held.abilityId()), ABILITY_NOT_HELD);
+        helper.assertTrue(held != null && BLAZE_FLAMES.equals(held.abilityId()), ABILITY_NOT_HELD);
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.succeed();
     }

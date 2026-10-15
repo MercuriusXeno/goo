@@ -93,45 +93,24 @@ final class BurnoutGeometry {
      * @param color  the packed ARGB color
      */
     static void emitSphere(PoseStack.Pose pose, VertexConsumer c, float radius, int color) {
-        emitSphere(pose, c, Direction.UP, 0f, radius, color);
+        emitSphere(pose, c, radius, direction -> color);
     }
 
     /**
-     * Emits the unit sphere scaled to radius about the block center shifted
-     * along the face's step by lift, each vertex's normal the unit direction to it.
-     *
-     * @param pose   the pose entry
-     * @param c      the vertex consumer
-     * @param face   the placed face
-     * @param lift   the shift from the block center along the face's step, in blocks
-     * @param radius the sphere's radius in blocks
-     * @param color  the packed ARGB color
-     */
-    static void emitSphere(PoseStack.Pose pose, VertexConsumer c, Direction face, float lift, float radius,
-                           int color) {
-        emitSphere(pose, c, radius, direction -> color, face, lift);
-    }
-
-    /**
-     * Emits the unit sphere scaled to radius about the block center shifted
-     * along the face's step by lift, each vertex colored from its direction.
+     * Emits the unit sphere scaled to radius about the block center, each
+     * vertex colored from its direction.
      *
      * @param pose   the pose entry
      * @param c      the vertex consumer
      * @param radius the sphere's radius in blocks
      * @param color  colors each vertex from its unit direction
-     * @param face   the placed face
-     * @param lift   the shift from the block center along the face's step, in blocks
      */
-    static void emitSphere(PoseStack.Pose pose, VertexConsumer c, float radius, SphereColor color, Direction face,
-                           float lift) {
+    static void emitSphere(PoseStack.Pose pose, VertexConsumer c, float radius, SphereColor color) {
+        // burnouts-are-whole-spheres: every sphere stands about the block center, never lifted to a face
         FlatQuadContext sphere = new FlatQuadContext(pose, c);
-        float cx = BLOCK_CENTER + face.getStepX() * lift;
-        float cy = BLOCK_CENTER + face.getStepY() * lift;
-        float cz = BLOCK_CENTER + face.getStepZ() * lift;
         for (Vector3f v : NetherSphereVisual.unitSphereMesh()) {
-            sphere.vertex(cx + v.x() * radius, cy + v.y() * radius, cz + v.z() * radius,
-                    color.at(v), v.x(), v.y(), v.z());
+            sphere.vertex(BLOCK_CENTER + v.x() * radius, BLOCK_CENTER + v.y() * radius,
+                    BLOCK_CENTER + v.z() * radius, color.at(v), v.x(), v.y(), v.z());
         }
     }
 
