@@ -163,7 +163,7 @@ class MingleNoiseTexelSnapTest {
                 "float field = mingleCornerField(texCoord0 * atlasPixels, vec2(1.0), DISSOLVE_CELLS_PER_PIXEL,", 0);
 
             assertTrue(indexAfter(dissolve, "if (field < threshold)", fieldAt) > fieldAt);
-            assertTrue(!dissolve.contains("mingleField("), "the dissolve reads the plain field");
+            assertTrue(!dissolve.contains("mingleField("), "the dissolve still reads the plain field instead of the corner blend");
         }
 
         @Test
@@ -175,7 +175,7 @@ class MingleNoiseTexelSnapTest {
 
             assertTrue(indexAfter(mingle, "if (field < threshold)", fieldAt) > fieldAt);
             assertTrue(!mingle.contains("mingleTexelSnap") && !mingle.contains("mingleFaceTexel"),
-                "the transform keeps the centre snap");
+                "the transform still snaps to texel centres instead of blending corners");
         }
 
         @Test
@@ -189,7 +189,7 @@ class MingleNoiseTexelSnapTest {
             assertTrue(vine.contains("mingleCornerField(skinCoord, MINGLE_SKIN_TEXELS, PATCH_CELLS, vec3(0.0)) "
                 + "< mingleThreshold(share)"), "the tangle thresholds the blend");
             assertTrue(!stone.contains("mingleTexelSnap") && !vine.contains("mingleTexelSnap"),
-                "the skin shaders keep the centre snap");
+                "a skin shader still snaps to texel centres instead of blending corners");
         }
 
         @Test
@@ -199,7 +199,7 @@ class MingleNoiseTexelSnapTest {
             assertTrue(coat.contains("float splatReach(vec3 offset) {\n"
                 + "    float noise = mingleWorldCornerNoise(offset, EDGE_CELLS_PER_BLOCK) - 0.5;\n"
                 + "    return splatDistance(offset) + EDGE_NOISE * 2.0 * noise;"), "the edge noise is corner-blended");
-            assertTrue(!coat.contains("mingleFaceTexel"), "the coat keeps the centre snap");
+            assertTrue(!coat.contains("mingleFaceTexel"), "the coat edge still snaps to texel centres instead of blending corners");
         }
 
         @Test
@@ -208,7 +208,7 @@ class MingleNoiseTexelSnapTest {
                 "float opacity = mingleOpacity(mingleFaceTexel(mingleWorldPos), GameTime, shareSeed.x, shareSeed.y);"));
             String overlay = shader("goo_ailment_overlay.fsh");
             assertTrue(overlay.contains("vec2 skinTexel = mingleTexelSnap(skinCoord, MINGLE_SKIN_TEXELS);"));
-            assertTrue(!overlay.contains("mingleCornerField"), "the overlay blends corners");
+            assertTrue(!overlay.contains("mingleCornerField"), "the overlay blends corners where it should keep the plain snap");
         }
 
         @Test
