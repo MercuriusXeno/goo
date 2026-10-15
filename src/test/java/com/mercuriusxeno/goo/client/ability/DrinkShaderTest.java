@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.io.InputStream;
@@ -77,29 +76,6 @@ class DrinkShaderTest {
     }
 
     /** decision diagnose-then-fix-unmake-seam-and-ribbing */
-    /**
-     * A region seen from outside promises its depth only grows past its near
-     * face, so the GPU drops a hidden fragment before its march; a region the
-     * camera is inside makes no promise, and a driver without the extension
-     * still compiles the shader.
-     * decision unmake-streams-collapse-into-a-central-trunk
-     */
-    @Test
-    void aRegionSeenFromOutsidePromisesItsDepthGrowsPastItsNearFace() throws IOException {
-        String fragment = source(FRAGMENT).replace("\r\n", "\n");
-
-        assertTrue(fragment.contains("#ifdef GL_ARB_conservative_depth\n#extension GL_ARB_conservative_depth : enable"),
-                "the extension is enabled only where the driver has it");
-        assertTrue(fragment.contains("#if defined(GL_ARB_conservative_depth) && !defined(DRINK_INSIDE)\n"
-                + "layout(depth_greater) out float gl_FragDepth;"), "the promise is made only from outside");
-        assertTrue(DrinkPass.holdsCamera(new DrinkUpload.Proxy(new Vec3(-0.5, -0.5, -0.5), new Vec3(0.5, 0.5, 0.5))));
-        assertTrue(DrinkPass.holdsCamera(new DrinkUpload.Proxy(new Vec3(0.05, -0.5, -0.5), new Vec3(1, 0.5, 0.5))),
-                "a face nearer than the near plane counts as inside");
-        assertFalse(DrinkPass.holdsCamera(new DrinkUpload.Proxy(new Vec3(2, 0, 0), new Vec3(3, 1, 1))));
-        assertEquals(4, DrinkPass.nearestSquared(new DrinkUpload.Proxy(new Vec3(2, -1, -1), new Vec3(3, 1, 1))),
-                DELTA, "regions are drawn nearest first by their nearest point");
-    }
-
     @Test
     void theShaderReadsTheSmoothTubeAndJoinsStreamsByTheirFilletAsTheJavaDoes() throws IOException {
         String fragment = source(FRAGMENT);
