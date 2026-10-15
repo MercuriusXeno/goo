@@ -33,6 +33,9 @@ public final class GooRenderTypes {
     private static final String PIPELINE_PATH = "pipeline/";
     /** Path prefix of a core shader. */
     private static final String CORE_SHADER_PATH = "core/";
+    /** The block transform's depth bias toward the camera, slope scaled and constant, as a decal's. */
+    private static final float BLOCK_MINGLE_DEPTH_BIAS_SCALE = -1f;
+    private static final float BLOCK_MINGLE_DEPTH_BIAS_CONSTANT = -10f;
     /** Name prefix of a goo render type. */
     private static final String TYPE_NAME_PREFIX = "goo_";
     /** Name suffix of a burnout pipeline's twin that draws through blocks. */
@@ -660,6 +663,10 @@ public final class GooRenderTypes {
             .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "block_mingle"))
             .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "block_mingle"))
             .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "block_mingle"))
+            // Drawn on the new block's own faces, the old block wins the depth test by bias rather than by
+            // swelling past them, so no face shifts when the transform ends.
+            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true,
+                    BLOCK_MINGLE_DEPTH_BIAS_SCALE, BLOCK_MINGLE_DEPTH_BIAS_CONSTANT))
             .build();
 
     /** Per-atlas memoized render types on the block transform pipeline. */
