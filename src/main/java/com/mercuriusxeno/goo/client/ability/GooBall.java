@@ -1,18 +1,14 @@
 package com.mercuriusxeno.goo.client.ability;
 
-import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.LayeredSurfaceSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.TypeBand;
 import com.mercuriusxeno.goo.client.TypeBands;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.data.AtlasIds;
-import net.minecraft.util.ARGB;
 import org.joml.Vector3f;
 
 /**
@@ -40,14 +36,10 @@ public final class GooBall {
      * @param alpha     its alpha
      */
     public static void submit(PoseStack poseStack, SubmitNodeCollector collector, GooContents goo, int alpha) {
-        RenderType surface = GooRenderTypes.gooFluidSurface(
-                Minecraft.getInstance().getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS).location());
+        LayeredSurfaceSubmitter submitter = GooSubmitter.layeredSurfaces(poseStack, collector, alpha);
         for (TypeBand band : TypeBands.over(goo)) {
-            GooRenderUtil.UvRect sprite = GooSubmitter.spriteUv(GooRenderUtil.lookupFluidSprite(band.type()));
-            int color = ARGB.color(alpha, GooSubmitter.fluidTint(band.type()));
             float scale = 1f + LAYER_STEP * band.layer();
-            collector.submitCustomGeometry(poseStack, surface,
-                    (pose, consumer) -> emitSphere(RenderContext.banded(pose, consumer, color, band), sprite, scale));
+            submitter.submit(band, (ctx, sprite) -> emitSphere(ctx, GooSubmitter.spriteUv(sprite), scale));
         }
     }
 

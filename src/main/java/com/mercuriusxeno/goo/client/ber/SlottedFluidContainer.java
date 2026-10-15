@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client.ber;
 
-import com.mercuriusxeno.goo.client.BandedSurfaceSubmitter;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.LayeredSurfaceSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.TypeBand;
 import com.mercuriusxeno.goo.client.model.FluidFaceEmitter;
@@ -48,7 +48,7 @@ public final class SlottedFluidContainer {
             GooSubmitter.submitFluid(poseStack, nodeCollector,
                     ctx -> renderAllFluids(ctx, slots, geom, centers, supportsVanilla));
         }
-        submitMingledFluids(GooSubmitter.bandedSurfaces(poseStack, nodeCollector), slots, geom, centers);
+        submitMingledFluids(GooSubmitter.layeredSurfaces(poseStack, nodeCollector), slots, geom, centers);
     }
 
     private static void renderAllFluids(RenderContext ctx, SlotState[] slots,
@@ -93,7 +93,7 @@ public final class SlottedFluidContainer {
 
     /**
      * Submits each slot holding several goo types once per type band through the
-     * vat's banded submitter, every layer lifted outward of the one below, so the
+     * layered submitter, every layer lifted outward of the one below, so the
      * column mingles the types by noise (decision noise-mingled-type-textures).
      *
      * @param submitter submits one band's surface on that band type's sprite
@@ -101,7 +101,7 @@ public final class SlottedFluidContainer {
      * @param geom      shared slot geometry
      * @param centers   per-slot XZ block-coord centers (parallel to {@code slots})
      */
-    static void submitMingledFluids(BandedSurfaceSubmitter submitter, SlotState[] slots,
+    static void submitMingledFluids(LayeredSurfaceSubmitter submitter, SlotState[] slots,
                                     SlotFluidGeometry.SlotGeometry geom, float[][] centers) {
         for (int i = 0; i < slots.length; i++) {
             SlotState s = slots[i];

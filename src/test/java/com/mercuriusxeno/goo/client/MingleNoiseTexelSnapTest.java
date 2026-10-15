@@ -204,8 +204,11 @@ class MingleNoiseTexelSnapTest {
 
         @Test
         void theSurfaceAndTheOverlayKeepThePlainSnap() throws IOException {
-            assertTrue(shader("goo_fluid_surface.fsh").contains(
-                "float opacity = mingleOpacity(mingleFaceTexel(mingleWorldPos), GameTime, shareSeed.x, shareSeed.y);"));
+            String surface = shader("goo_fluid_surface.fsh");
+            assertTrue(surface.contains("vec3 faceTexel = mingleFaceTexel(mingleWorldPos);"),
+                "the surface no longer snaps its mingle position to the world texel");
+            assertTrue(surface.contains("float opacity = mingleOpacity(faceTexel, GameTime, share, seed);"),
+                "the surface's opacity no longer reads the snapped texel");
             String overlay = shader("goo_ailment_overlay.fsh");
             assertTrue(overlay.contains("vec2 skinTexel = mingleTexelSnap(skinCoord, MINGLE_SKIN_TEXELS);"));
             assertTrue(!overlay.contains("mingleCornerField"), "the overlay blends corners where it should keep the plain snap");

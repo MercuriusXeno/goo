@@ -7,13 +7,11 @@ import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.SurfaceAgitation;
 import com.mojang.blaze3d.vertex.PoseStack;
 import java.util.List;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests that no vat or crucible surface vertex can ripple down to its
@@ -40,7 +38,7 @@ class SurfaceStaysAboveFloorTest {
         state.rippleAmplitude = amplitude(agitated);
         RecordingVertexConsumer recorder = new RecordingVertexConsumer();
 
-        VatFluidRenderer.renderFluid(new RenderContext(new PoseStack().last(), recorder, 0), sprite(), state, 0f);
+        VatFluidRenderer.renderFluid(new RenderContext(new PoseStack().last(), recorder, 0), state);
 
         assertEveryLowestHeightAbove(surfaceGridVertices(recorder.vertices()), VatBlockEntityRenderer.BASE_FLOOR);
     }
@@ -74,14 +72,5 @@ class SurfaceStaysAboveFloorTest {
             float lowest = vertex.y() - (float) vertex.uv1U() / RenderContext.AMPLITUDE_UNITS_PER_BLOCK;
             assertTrue(lowest > floor, "vertex " + vertex + " ripples down to " + lowest + ", floor " + floor);
         }
-    }
-
-    private static TextureAtlasSprite sprite() {
-        TextureAtlasSprite sprite = mock(TextureAtlasSprite.class);
-        when(sprite.getU0()).thenReturn(0f);
-        when(sprite.getU1()).thenReturn(1f);
-        when(sprite.getV0()).thenReturn(0f);
-        when(sprite.getV1()).thenReturn(1f);
-        return sprite;
     }
 }

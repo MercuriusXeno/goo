@@ -91,13 +91,6 @@ class TypeBandsTest {
     }
 
     @Test
-    void packingCarriesTheShareLowAndTheTypeSeedHigh() {
-        TypeBand band = new TypeBand(GooTypes.FROST, 0.75f, 1f, 2);
-
-        assertEquals(TypeBand.SHARE_UNITS / 4 | GooTypes.indexOf(GooTypes.FROST) << 16, band.packed());
-    }
-
-    @Test
     void emptyContentsAnswerNoBand() {
         assertTrue(TypeBands.over(GooContents.EMPTY).isEmpty());
     }
