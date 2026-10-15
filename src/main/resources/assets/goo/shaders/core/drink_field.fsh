@@ -20,6 +20,8 @@
 // of the two streams most present there blended by their presence so a
 // tributary folding into its trunk shows no seam, lit by the lightmap and
 // the cardinal lights; its depth is written so the world occludes it.
+// Each stream's skin is a cyclone, grooves twisting about its own axis by the
+// phase its rings carry and turning as the goo travels.
 // No texture anywhere (decision unmake-skin-is-a-solid-sampled-color): each
 // stream's skin is one solid color, its block's sampled color at the block
 // crossfading to its goo's color at the hand by the point's share of the
@@ -33,7 +35,7 @@ uniform sampler2D Sampler2;
 layout(std140) uniform DrinkRegion {
     vec4 Region;
     vec4 Counts;
-    vec4 Streams[80];
+    vec4 Streams[96];
     ivec4 Table[256];
     vec4 Boxes[16];
     vec4 Rings[448];
@@ -49,12 +51,15 @@ const float FULL_RADIUS = 0.1;
 const float BOX_BLEND = 0.15;
 const float MEET_BLEND = 0.2;
 const float REGION_SPAN = 1.0;
-const int STREAM_VEC4S = 5;
+const int STREAM_VEC4S = 6;
 const int COAT_SLOT = 0;
 const int BLOCK_COLOR_SLOT = 1;
 const int GOO_COLOR_SLOT = 2;
 const int RUN_LOW_SLOT = 3;
 const int RUN_HIGH_SLOT = 4;
+const int SIDE_SLOT = 5;
+const int LOBES = 2;
+const float SPIN_DEPTH = 0.25;
 const int RUN_START = 65536;
 const int BOX_BASE = 4096;
 const int MAX_STEPS = 96;
@@ -149,6 +154,38 @@ float roundCone(vec3 rel, vec3 line, float first, float last) {
     return (sqrt(side * slant / len2) + along * fall) / len2 - first;
 }
 
+// A point's angle about a stream's run at its foot, from the stream's side
+// laid square to the run.
+float angleAbout(int stream, vec3 axis, vec3 off) {
+    vec3 run = dot(axis, axis) > 0.0 ? normalize(axis) : vec3(0.0, 1.0, 0.0);
+    vec3 side = streamSlot(stream, SIDE_SLOT).xyz;
+    vec3 across = side - run * dot(side, run);
+    if (dot(across, across) == 0.0) {
+        return 0.0;
+    }
+    vec3 first = normalize(across);
+    return atan(dot(off, cross(run, first)), dot(off, first));
+}
+
+// How far out the cyclone's skin stands at an angle about the stream's axis
+// (decision unmake-stream-is-a-shrinking-waterspout): its lobes at the radius
+// turned by the phase, the grooves between them falling in, so the skin
+// spins about the stream's own axis as the goo travels.
+float cycloneAt(float angle, float phase) {
+    return 1.0 - SPIN_DEPTH * (1.0 - cos(float(LOBES) * angle - phase)) / 2.0;
+}
+
+// The share of the radius the cyclone's skin stands at in a point's
+// direction, its grooves fading toward the run's own line past an end of the
+// stream, where no angle about the run is had.
+float grooved(int stream, vec3 axis, vec3 off, float phase) {
+    vec3 run = dot(axis, axis) > 0.0 ? normalize(axis) : vec3(0.0, 1.0, 0.0);
+    float len2 = dot(off, off);
+    vec3 square = off - run * dot(off, run);
+    float share = len2 == 0.0 ? 0.0 : dot(square, square) / len2;
+    return 1.0 - (1.0 - cycloneAt(angleAbout(stream, run, off), phase)) * share;
+}
+
 // A segment's reading at a point (decision diagnose-then-fix-unmake-seam-and-ribbing):
 // the segment owns the points between the planes square to its stream's run
 // at its two rings, so a ring's plane parts its two segments and both read
@@ -187,7 +224,9 @@ bool segmentRead(int segment, vec3 p, out vec2 read, out vec3 facing) {
         min(a.w, b.w), widest);
     vec3 off = p - foot;
     float offLength = length(off);
-    read.x = scaled(offLength - radius, radius);
+    float phase = mix(Rings[2 * segment + 1].w, Rings[2 * segment + 3].w, t);
+    float skin = radius * grooved(int(Rings[2 * segment + 1].z), mix(leaving, arriving, t), off, phase);
+    read.x = scaled(offLength - skin, radius);
     facing = offLength > 0.0 ? off / offLength : vec3(0.0, 1.0, 0.0);
     return true;
 }

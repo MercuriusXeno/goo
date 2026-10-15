@@ -94,6 +94,22 @@ class DrinkShaderTest {
         assertFalse(fragment.contains("value += runField"), "no stream's field is added onto another's");
     }
 
+    /** decision unmake-stream-is-a-shrinking-waterspout */
+    @Test
+    void theShaderCarvesTheCyclonesGroovesByEachRingsPhaseAsTheJavaDoes() throws IOException {
+        String fragment = source(FRAGMENT);
+
+        assertEquals(DrinkStream.LOBES, constant(fragment, "LOBES"), DELTA);
+        assertEquals(DrinkStream.SPIN_DEPTH, constant(fragment, "SPIN_DEPTH"), DELTA);
+        assertEquals(DrinkUpload.SIDE_SLOT, constant(fragment, "SIDE_SLOT"), DELTA);
+        assertTrue(fragment.contains("return 1.0 - SPIN_DEPTH * (1.0 - cos(float(LOBES) * angle - phase)) / 2.0;"),
+                "the grooves fall in between lobes standing at the radius, as DrinkStream.cycloneAt");
+        assertTrue(fragment.contains("float phase = mix(Rings[2 * segment + 1].w, Rings[2 * segment + 3].w, t);"),
+                "the phase each ring carries, which turns with time, eased along the segment");
+        assertTrue(fragment.contains("vec3 side = streamSlot(stream, SIDE_SLOT).xyz;"),
+                "the angle about the axis is read from the stream's side");
+    }
+
     @Test
     void theMarchSamplesTheRegionsExitAndTakesAnEntryInsideTheFieldAsTheHit() throws IOException {
         String fragment = source(FRAGMENT);
