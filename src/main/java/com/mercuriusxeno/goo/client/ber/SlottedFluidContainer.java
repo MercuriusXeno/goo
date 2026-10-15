@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.client.BandedSurfaceSubmitter;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
-import com.mercuriusxeno.goo.client.TypeBand;
 import com.mercuriusxeno.goo.client.model.FluidFaceEmitter;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -92,11 +91,12 @@ public final class SlottedFluidContainer {
     }
 
     /**
-     * Submits each slot holding several goo types once per type band through the
-     * vat's banded submitter, every layer lifted outward of the one below, so the
-     * column mingles the types by noise (decision noise-mingled-type-textures).
+     * Submits each slot holding several goo types once at the slot's own
+     * bounds, carrying every type band, so the column mingles the types by
+     * noise on one surface (decisions noise-mingled-type-textures and
+     * one-pass-blends-every-type).
      *
-     * @param submitter submits one band's surface on that band type's sprite
+     * @param submitter submits a surface carrying every band
      * @param slots     per-slot snapshots
      * @param geom      shared slot geometry
      * @param centers   per-slot XZ block-coord centers (parallel to {@code slots})
@@ -107,10 +107,7 @@ public final class SlottedFluidContainer {
             SlotState s = slots[i];
             if (s.fill > 0f && s.mingles()) {
                 CuboidBounds b = SlotFluidGeometry.computeBounds(geom, centers[i][0], centers[i][1], s.fill);
-                for (TypeBand band : s.bands) {
-                    submitter.submit(band, (ctx, sprite) ->
-                            FluidFaceEmitter.emitFluidFaces(ctx, b.liftedOutward(band.lift()), sprite, ctx.color()));
-                }
+                submitter.submit(s.bands, ctx -> FluidFaceEmitter.emitSpriteRelativeFaces(ctx, b));
             }
         }
     }

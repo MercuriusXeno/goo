@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.client.ber;
 
 import com.mercuriusxeno.goo.block.crucible.CrucibleBasin;
-import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.client.MingleNoiseModel;
 import com.mercuriusxeno.goo.client.RecordingVertexConsumer;
 import com.mercuriusxeno.goo.client.RenderContext;
@@ -11,7 +10,6 @@ import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -21,19 +19,20 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
- * Tests that the mingle on a crucible surface advances continuously while one
- * type's volume changes (decisions diagnose-then-fix-blend-jump and
- * mingle-noise-keyed-by-type): each frame submits the surface through
- * renderMingledSurface, blends the layers in submission order at the opacity
- * goo_fluid_surface.fsh draws, and measures how much of the surface changed
- * type since the frame before. The operator's recording was a log melting
- * leaf into 1000 mB of blaze; while bands ranked types by volume, the frame
- * leaf passed blaze swapped their layers and inverted the pattern.
+ * Tests that the one-pass blend on a crucible surface gives each type its
+ * volume ratio and advances continuously while one type's volume changes
+ * (decisions diagnose-then-fix-blend-jump, mingle-noise-keyed-by-type and
+ * one-pass-blends-every-type): each frame submits the surface through
+ * renderMingledSurface, blends its bands as goo_fluid_surface.fsh does, and
+ * measures how much of the surface changed type since the frame before. The
+ * operator's recording was a log melting leaf into 1000 mB of blaze; while
+ * bands ranked types by volume, the frame leaf passed blaze swapped their
+ * layers and inverted the pattern.
  */
 class CrucibleBlendStaysContinuousTest {
 
@@ -55,6 +54,11 @@ class CrucibleBlendStaysContinuousTest {
     private static final int ARRIVES_AFTER_WINDOW = -2 * WINDOW * MB_PER_FRAME;
     /** The reservoir the frames sample: its footprint and height, held fixed. */
     private static final long VOLUME = 2000L;
+    /** Blocks along each side of the plane the coverage is measured over, one sample per world texel. */
+    private static final int COVERAGE_BLOCKS = 24;
+    private static final int WORLD_TEXELS = 16;
+    /** How far a type's measured coverage may stand from its volume ratio over that plane. */
+    private static final double COVERAGE_TOLERANCE = 0.04;
 
     /**
      * The goo standing still, the type whose volume changes, its volume on
@@ -113,7 +117,7 @@ class CrucibleBlendStaysContinuousTest {
         List<Float> changes = new ArrayList<>();
         for (int frame = 0; frame < FRAMES; frame++) {
             float gameTime = (START_TICK + frame) / TICKS_PER_DAY;
-            float[][] shown = shownTypes(submittedLayers(scenario.volumesAt(frame), footprint, surfaceY),
+            float[][] shown = shownTypes(submittedBands(scenario.volumesAt(frame), footprint, surfaceY),
                 types, footprint, surfaceY, gameTime);
             if (previous != null) {
                 changes.add(meanChange(previous, shown));
@@ -143,46 +147,81 @@ class CrucibleBlendStaysContinuousTest {
             + ", outside the frames " + (WINDOW + 1) + " to " + (FRAMES - 1) + " the assertions check");
     }
 
-    /** One submitted layer: the type its sprite shows and the share and seed its vertices carry. */
-    private record Layer(ResourceKey<GooTypeDefinition> type, float share, int seed) {
+    static Stream<Arguments> mixes() {
+        return Stream.of(
+            Arguments.of(Map.of(GooTypes.BLAZE, 250, GooTypes.FROST, 750)),
+            Arguments.of(Map.of(GooTypes.ASTRAL, 100, GooTypes.BLAZE, 600, GooTypes.FROST, 300)),
+            Arguments.of(Map.of(GooTypes.CRYSTAL, 500, GooTypes.LEAF, 400, GooTypes.BLAZE, 100)));
     }
 
-    private static List<Layer> submittedLayers(Map<ResourceKey<GooTypeDefinition>, Integer> volumes,
-                                               CrucibleBasin.PuddleFootprint footprint, float surfaceY) {
+    @ParameterizedTest
+    @MethodSource("mixes")
+    void eachTypeCoversItsVolumeRatio(Map<ResourceKey<GooTypeDefinition>, Integer> volumes) {
+        List<TypeBand> bands = submittedBands(volumes, CrucibleBasin.footprintForVolume(VOLUME),
+            CrucibleBasin.surfaceYForVolume(VOLUME));
+        float[] shares = new float[bands.size()];
+        float[] seeds = new float[bands.size()];
+        for (int k = 0; k < bands.size(); k++) {
+            shares[k] = bands.get(k).share();
+            seeds[k] = bands.get(k).seed();
+        }
+        float gameTime = START_TICK / TICKS_PER_DAY;
+        double[] covered = new double[bands.size()];
+        int texels = COVERAGE_BLOCKS * WORLD_TEXELS;
+        for (int i = 0; i < texels; i++) {
+            for (int j = 0; j < texels; j++) {
+                float[] shown = MingleNoiseModel.blend((i + 0.5f) / WORLD_TEXELS, WORLD_OFFSET,
+                    (j + 0.5f) / WORLD_TEXELS, gameTime, shares, seeds);
+                for (int k = 0; k < shown.length; k++) {
+                    covered[k] += shown[k];
+                }
+            }
+        }
+        int total = volumes.values().stream().mapToInt(Integer::intValue).sum();
+        for (int k = 0; k < bands.size(); k++) {
+            float ratio = (float) volumes.get(bands.get(k).type()) / total;
+            double coverage = covered[k] / ((double) texels * texels);
+            assertEquals(ratio, coverage, COVERAGE_TOLERANCE, bands.get(k).type() + " covers "
+                + coverage + " of the surface, against its volume ratio " + ratio);
+        }
+    }
+
+    private static List<TypeBand> submittedBands(Map<ResourceKey<GooTypeDefinition>, Integer> volumes,
+                                                 CrucibleBasin.PuddleFootprint footprint, float surfaceY) {
         // BlockEntityRenderState's constructor bootstraps Blocks, so the state is built without it.
         CrucibleRenderState state = mock(CrucibleRenderState.class);
         state.typeBands = TypeBands.over(new GooContents(volumes));
         state.rippleAmplitude = RenderContext.RESTING_RIPPLE_AMPLITUDE;
-        List<Layer> layers = new ArrayList<>();
-        CrucibleBlockEntityRenderer.renderMingledSurface((band, emitter) -> {
-            RecordingVertexConsumer recorder = new RecordingVertexConsumer();
-            emitter.accept(RenderContext.banded(new PoseStack().last(), recorder,
-                GooRenderUtil.OPAQUE_WHITE, band), sprite());
-            RecordingVertexConsumer.Vertex vertex = recorder.vertices().getFirst();
-            layers.add(new Layer(band.type(), (float) vertex.uv2U() / TypeBand.SHARE_UNITS, vertex.uv2V()));
+        List<TypeBand> submitted = new ArrayList<>();
+        CrucibleBlockEntityRenderer.renderMingledSurface((bands, emitter) -> {
+            emitter.accept(new RenderContext(new PoseStack().last(), new RecordingVertexConsumer(), 0));
+            submitted.addAll(bands);
         }, state, footprint, surfaceY);
-        return layers;
+        return submitted;
     }
 
     /**
-     * How much each sample point shows each type, 0 to 1, the layers blended
-     * over each other in submission order at the opacity goo_fluid_surface.fsh draws.
+     * How much each sample point shows each type, 0 to 1, the submission's
+     * bands blended in one pass as goo_fluid_surface.fsh blends them.
      */
-    private static float[][] shownTypes(List<Layer> layers, List<ResourceKey<GooTypeDefinition>> types,
+    private static float[][] shownTypes(List<TypeBand> bands, List<ResourceKey<GooTypeDefinition>> types,
                                         CrucibleBasin.PuddleFootprint footprint, float surfaceY, float gameTime) {
+        float[] shares = new float[bands.size()];
+        float[] seeds = new float[bands.size()];
+        for (int k = 0; k < bands.size(); k++) {
+            shares[k] = bands.get(k).share();
+            seeds[k] = bands.get(k).seed();
+        }
         float[][] shown = new float[SAMPLES_PER_SIDE * SAMPLES_PER_SIDE][types.size()];
         float span = footprint.max() - footprint.min();
         for (int i = 0; i < SAMPLES_PER_SIDE; i++) {
             for (int j = 0; j < SAMPLES_PER_SIDE; j++) {
                 float x = WORLD_OFFSET + footprint.min() + span * (i + 0.5f) / SAMPLES_PER_SIDE;
                 float z = WORLD_OFFSET + footprint.min() + span * (j + 0.5f) / SAMPLES_PER_SIDE;
+                float[] layers = MingleNoiseModel.blend(x, surfaceY, z, gameTime, shares, seeds);
                 float[] point = shown[i * SAMPLES_PER_SIDE + j];
-                for (Layer layer : layers) {
-                    float opacity = MingleNoiseModel.opacity(x, surfaceY, z, gameTime, layer.share(), layer.seed());
-                    int drawn = types.indexOf(layer.type());
-                    for (int t = 0; t < point.length; t++) {
-                        point[t] += ((t == drawn ? 1f : 0f) - point[t]) * opacity;
-                    }
+                for (int k = 0; k < layers.length; k++) {
+                    point[types.indexOf(bands.get(k).type())] += layers[k];
                 }
             }
         }
@@ -198,12 +237,5 @@ class CrucibleBlendStaysContinuousTest {
             }
         }
         return sum / 2f / before.length;
-    }
-
-    private static TextureAtlasSprite sprite() {
-        TextureAtlasSprite sprite = mock(TextureAtlasSprite.class);
-        when(sprite.getU1()).thenReturn(1f);
-        when(sprite.getV1()).thenReturn(1f);
-        return sprite;
     }
 }
