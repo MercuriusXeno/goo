@@ -114,6 +114,19 @@ public final class GooSubmitter {
     }
 
     /**
+     * Returns the cutout render type on the block atlas, for an opaque body
+     * whose texture leaves holes, drawn from both sides like entityTranslucent
+     * but without blending, so the hand pass draws it with the solid geometry
+     * before any translucent face can write depth in front of it
+     * (decision diagnose-and-correct-the-palm-core-cull).
+     *
+     * @return entityCutout on the block atlas
+     */
+    public static RenderType cutoutOnBlockAtlas() {
+        return RenderTypes.entityCutout(BLOCK_ATLAS);
+    }
+
+    /**
      * Returns the packed light an emissive draw carries, so the lightmap
      * multiply leaves it unshaded.
      *
