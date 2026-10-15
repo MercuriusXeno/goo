@@ -19,6 +19,8 @@ class DrinkFieldTest {
 
     private static final double DELTA = 1e-9;
     private static final double RADIUS = 0.2;
+    /** The cyclone phase turning a lobe of a capsule running east straight up: its side lies level, a quarter turn off. */
+    private static final double LOBE_UP = Math.PI;
     /** A gap between two surfaces facing each other narrower than half the fillet between streams, which fills. */
     private static final double NEAR_GAP = 0.08;
     private static final Vec3 UP = new Vec3(0, 1, 0);
@@ -56,8 +58,14 @@ class DrinkFieldTest {
         return ring(center, RADIUS);
     }
 
+    /**
+     * @param center the ring's middle
+     * @param radius its radius
+     * @return a ring whose cyclone phase turns a lobe straight up from a capsule running east, so a reading straight
+     *         up off the capsule meets the skin at the radius rather than in a groove
+     */
     private static DrinkStream.Ring ring(Vec3 center, double radius) {
-        return new DrinkStream.Ring(center, EAST, radius, 0, 0, DrinkStream.FLOW);
+        return new DrinkStream.Ring(center, EAST, radius, 0, 0, DrinkStream.FLOW, LOBE_UP);
     }
 
     private static DrinkTree.Stream stream() {

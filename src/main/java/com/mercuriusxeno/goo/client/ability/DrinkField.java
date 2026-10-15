@@ -19,7 +19,9 @@ import java.util.List;
  * streams meeting across a gap merge like metaballs while a tributary riding
  * its trunk's spine adds nothing to the trunk's width; a lone body's surface
  * sits exactly where its own does, an empty skeleton leaves no trace, and the
- * whole drink is one skin with no seam. The drink field shader marches this
+ * whole drink is one skin with no seam. Each stream's skin is a cyclone,
+ * grooves twisting about its own axis and turning as the goo travels. The
+ * drink field shader marches this
  * same field on the GPU; this is its statement in Java, which DrinkUpload
  * packs and DrinkShaderTest holds the shader to.
  * decision unmake-waves-dissolve-by-crucible-cost
@@ -229,7 +231,39 @@ public final class DrinkField {
                     Math.max(from.radius(), to.radius()));
             Vec3 off = point.subtract(foot);
             double length = off.length();
-            return new Reading(scaled(length - radius, radius), length > 0 ? off.scale(1 / length) : UP);
+            double phase = from.spin() + (to.spin() - from.spin()) * t;
+            double skin = radius * grooved(leaving.lerp(arriving, t), off, phase);
+            return new Reading(scaled(length - skin, radius), length > 0 ? off.scale(1 / length) : UP);
+        }
+
+        /**
+         * @param axis  the stream's run at a point's foot
+         * @param off   the point less its foot
+         * @param phase the cyclone's phase there
+         * @return the share of the radius the cyclone's skin stands at in the point's direction, its grooves fading
+         *         toward the run's own line past an end of the stream, where no angle about the run is had
+         */
+        double grooved(Vec3 axis, Vec3 off, double phase) {
+            Vec3 run = axis.lengthSqr() > 0 ? axis.normalize() : UP;
+            double length = off.lengthSqr();
+            double square = length == 0 ? 0 : off.subtract(run.scale(off.dot(run))).lengthSqr() / length;
+            return 1 - (1 - DrinkStream.cycloneAt(angleAbout(run, off), phase)) * square;
+        }
+
+        /**
+         * @param axis the stream's run at a point's foot
+         * @param off  the point less its foot
+         * @return the point's angle about the run, in radians, from the stream's side laid square to the run
+         */
+        double angleAbout(Vec3 axis, Vec3 off) {
+            Vec3 run = axis.lengthSqr() > 0 ? axis.normalize() : UP;
+            Vec3 side = DrinkStream.sideOf(stream.path());
+            Vec3 across = side.subtract(run.scale(side.dot(run)));
+            if (across.lengthSqr() == 0) {
+                return 0;
+            }
+            Vec3 first = across.normalize();
+            return Math.atan2(off.dot(run.cross(first)), off.dot(first));
         }
     }
 

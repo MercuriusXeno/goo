@@ -45,7 +45,7 @@ public final class DrinkUpload {
     /** Table entries at and over this name a box, below it a segment. */
     static final int BOX_BASE = 1 << 12;
     /** The vec4 slots one stream's coat and run take in the block. */
-    static final int STREAM_VEC4S = 5;
+    static final int STREAM_VEC4S = 6;
     /** The stream's block light and sky light. */
     static final int COAT_SLOT = 0;
     /** The block's solid color, which the skin wears at the block. */
@@ -56,6 +56,8 @@ public final class DrinkUpload {
     static final int RUN_LOW_SLOT = 3;
     /** The high corner of that box, and how many entries the run lists. */
     static final int RUN_HIGH_SLOT = 4;
+    /** The stream's side, the direction its cyclone's angle about its axis is read from. */
+    static final int SIDE_SLOT = 5;
 
     static final int VEC4 = 16;
     static final int REGION_AT = 0;
@@ -392,8 +394,8 @@ public final class DrinkUpload {
     }
 
     /**
-     * Writes a stream's slots: its light, its two colors, and the box its
-     * run reaches with the run's span of the table.
+     * Writes a stream's slots: its light, its two colors, the box its
+     * run reaches with the run's span of the table, and its side.
      *
      * @param bytes  the block
      * @param index  the skeleton
@@ -408,13 +410,14 @@ public final class DrinkUpload {
         Bound run = runs.get(index);
         putVec3(bytes, at + RUN_LOW_SLOT * VEC4, run.low().subtract(camera), runStartOf.get(index));
         putVec3(bytes, at + RUN_HIGH_SLOT * VEC4, run.high().subtract(camera), runCountOf.get(index));
+        putVec3(bytes, at + SIDE_SLOT * VEC4, DrinkStream.sideOf(skeletons.get(index).stream().path()), 0);
     }
 
     /**
      * Writes the boxes and the rings: a box as its camera-relative middle and
      * half width then its rounding and stream, a ring as its camera-relative
      * middle and radius then its material, its route share, which the skin's
-     * crossfade from block to goo reads, and its stream.
+     * crossfade from block to goo reads, its stream and its cyclone's phase.
      *
      * @param bytes the block
      */
@@ -429,7 +432,7 @@ public final class DrinkUpload {
             DrinkStream.Ring ring = rings.get(index);
             putVec3(bytes, RINGS_AT + index * PAIR * VEC4, ring.center().subtract(camera), ring.radius());
             putVec4(bytes, RINGS_AT + (index * PAIR + 1) * VEC4, ring.material(), ring.share(),
-                    streamOf.get(ringStreams.get(index)), 0);
+                    streamOf.get(ringStreams.get(index)), ring.spin());
         }
     }
 
