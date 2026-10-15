@@ -47,8 +47,8 @@ class DrinkTreeTest {
     private static final double TWO = 2;
     /** Blocks between samples along a route. */
     private static final double SAMPLE = 0.05;
-    /** Blocks a stream's width may give up in flight after its block drains: a hundredth of the mouth. */
-    private static final double WIDTH_KEPT = 0.005;
+    /** Blocks a widest radius read at samples a step apart may miss the spout's own by. */
+    private static final double SAMPLE_WIDTH = 0.03;
     /** Blocks a point counts as on a spine within. */
     private static final double ON_THE_SPINE = 1e-6;
 
@@ -447,24 +447,40 @@ class DrinkTreeTest {
             return (lone().routeLength() + DrinkStream.BLOCK_SPAN + DrinkStream.TIP) / DrinkStream.FLOW + TICKS_LATER;
         }
 
-        /** decision unmake-waves-dissolve-by-crucible-cost */
-        @Test
-        void aDrainedBlocksStreamKeepsItsWidthUntilItsTailHasFlowedIntoTheHand() {
-            DrinkTree.Stream flowing = loneAt(START + flowingTicks());
-            DrinkTree.Stream draining = loneAt(END - 1);
-            double length = draining.path().length();
-            double share = (DrinkBody.CENTER + DrinkTree.threadFrom(draining)) / TWO / length;
-            double before = DrinkTree.radiusAt(flowing, share);
+        /**
+         * @param stream a stream
+         * @return its widest radius along its whole path, read at samples a short step apart
+         */
+        private double widestOf(DrinkTree.Stream stream) {
+            double widest = 0;
+            for (double share = 0; share <= 1; share += SAMPLE / stream.path().length()) {
+                widest = Math.max(widest, DrinkTree.radiusAt(stream, share));
+            }
+            return widest;
+        }
 
-            for (double later = END; loneAt(later).tailAt() < draining.routeLength(); later += 1) {
+        /** decisions unmake-waves-dissolve-by-crucible-cost and unmake-stream-is-a-shrinking-waterspout */
+        @Test
+        void aDrainedBlocksSpoutRidesItsTailAndShrinksSmoothlyIntoTheHand() {
+            DrinkTree.Stream flowing = loneAt(START + flowingTicks());
+            double threadFrom = DrinkTree.threadFrom(flowing);
+            double spout = threadFrom - DrinkBody.CENTER;
+            double last = widestOf(flowing);
+
+            assertEquals(DrinkBody.MOUTH, last, SAMPLE_WIDTH, "the whole mouth while the block drains");
+            for (double later = END - TICKS_LATER; loneAt(later).tailAt() < threadFrom; later += 1) {
                 DrinkTree.Stream drained = loneAt(later);
-                double tailShare = drained.tailAt() / length;
-                if (tailShare + DrinkStream.TIP / length < share) {
-                    assertEquals(before, DrinkTree.radiusAt(drained, share), WIDTH_KEPT, (later - END)
-                            + " ticks after the drain the liquid still in the air keeps the width it flowed with, its "
-                            + "tail at " + drained.tailAt() + " blocks");
-                }
+                double nose = Math.max(DrinkBody.CENTER, drained.tailAt() + DrinkStream.TIP);
+                double left = Math.clamp((threadFrom - nose) / spout, 0, 1);
+                double widest = widestOf(drained);
+
+                assertEquals(DrinkBody.MOUTH * left, widest, SAMPLE_WIDTH, (later - END) + " ticks after the drain "
+                        + "the spout is as wide as the share of its route its tail has still to go, the tail at "
+                        + drained.tailAt() + " of " + threadFrom + " blocks");
+                assertTrue(last - widest <= DrinkBody.MOUTH * DrinkStream.FLOW * TWO / spout,
+                        "it narrows a tick's travel at a time, never all at once: " + last + " to " + widest);
                 assertFalse(drained.spent(), "the stream is drawn until its tail is in the hand");
+                last = widest;
             }
         }
 
