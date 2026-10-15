@@ -348,36 +348,48 @@ class DrinkTreeTest {
             assertEquals(0, DrinkTree.contribution(tributary, trunk, before), DELTA);
             DrinkTree.Flow owner = DrinkTree.flowOf(trunk, trunk, after);
             DrinkTree.Flow joined = DrinkTree.flowOf(tributary, trunk, after);
-            assertTrue(joined.radius() > 0, "the tributary's liquid is on the trunk");
+            assertTrue(joined.power() > 0, "the tributary's liquid is on the trunk");
             assertEquals(1, joined.presence(), DELTA, "wholly swollen in past the join");
-            assertTrue(joined.radius() < owner.radius() / owner.presence(),
+            assertTrue(joined.width() < owner.width() / Math.pow(owner.presence(), 1 / DrinkTree.TRUNK_ROOT),
                     "the tributary's liquid runs on as narrow as its own spout has made it, narrower than the trunk's own");
-            double presence = owner.presence() + joined.presence();
-            double grown = (owner.radius() + joined.radius()) / presence * Math.pow(presence, 1 / DrinkTree.TRUNK_ROOT);
-            assertEquals(grown, DrinkTree.ring(trunk, after).radius(), DELTA,
-                    "the mean of each stream's own width times the fourth root of the count");
+            assertEquals(owner.plus(joined).width(), DrinkTree.ring(trunk, after).radius(), DELTA,
+                    "the fourth root of the sum of each stream's own width to the fourth");
         }
 
         @Test
         void aTrunkGrowsByTheFourthRootOfTheStreamsThroughItEachCountingByItsPresence() {
             double one = 0.15;
-            DrinkTree.Flow nine = new DrinkTree.Flow(NINE * one, NINE);
-            DrinkTree.Flow half = new DrinkTree.Flow(one * 0.5, 0.5);
-            DrinkTree.Flow oneAndHalf = new DrinkTree.Flow(one, 1).plus(half);
+            DrinkTree.Flow nine = DrinkTree.Flow.of(one, NINE);
+            DrinkTree.Flow half = DrinkTree.Flow.of(one, 0.5);
+            DrinkTree.Flow oneAndHalf = DrinkTree.Flow.of(one, 1).plus(half);
 
             assertEquals(4, DrinkTree.TRUNK_ROOT, DELTA);
-            assertEquals(Math.sqrt(THREE) * one, widthOf(nine), DELTA, "nine equal streams make root three times one");
-            assertEquals(one, widthOf(new DrinkTree.Flow(one, 1).plus(new DrinkTree.Flow(0, 0))), DELTA);
-            assertEquals(one * Math.pow(1.5, 1 / DrinkTree.TRUNK_ROOT), widthOf(oneAndHalf), DELTA,
+            assertEquals(Math.sqrt(THREE) * one, nine.width(), DELTA, "nine equal streams make root three times one");
+            assertEquals(one, DrinkTree.Flow.of(one, 1).plus(DrinkTree.Flow.of(0, 0)).width(), DELTA);
+            assertEquals(one * Math.pow(1.5, 1 / DrinkTree.TRUNK_ROOT), oneAndHalf.width(), DELTA,
                     "half a stream joining widens the trunk by the fourth root of one and a half");
-            assertEquals(one * Math.pow(0.5, 1 / DrinkTree.TRUNK_ROOT), widthOf(half), DELTA,
+            assertEquals(one * Math.pow(0.5, 1 / DrinkTree.TRUNK_ROOT), half.width(), DELTA,
                     "a trunk carrying only half a stream is as wide as the fourth root of a half");
-            assertTrue(widthOf(new DrinkTree.Flow(TWO * NINE * NINE * one, TWO * NINE * NINE)) < 4 * one,
+            assertTrue(DrinkTree.Flow.of(one, TWO * NINE * NINE).width() < 4 * one,
                     "even 162 streams make under four times one");
         }
 
+        /** decision unmake-stream-is-a-shrinking-waterspout */
+        @Test
+        void aWideStreamAmongNarrowOnesLeadsTheTrunksWidthRatherThanDrowningInTheirMean() {
+            double narrow = 0.15;
+            double wide = DrinkBody.MOUTH;
+            DrinkTree.Flow many = DrinkTree.Flow.of(narrow, NINE * THREE);
+            DrinkTree.Flow withBlock = many.plus(DrinkTree.Flow.of(wide, 1));
+
+            assertTrue(withBlock.width() >= wide, "a block's own mouth fits inside the trunk it melts into: "
+                    + withBlock.width());
+            assertTrue((NINE * THREE * narrow + wide) / (NINE * THREE + 1) * Math.pow(NINE * THREE + 1, 0.25) < wide,
+                    "where the mean of the widths left the trunk narrower than the block's mouth");
+        }
+
         private double widthOf(DrinkTree.Flow flow) {
-            return flow.radius() / flow.presence() * Math.pow(flow.presence(), 1 / DrinkTree.TRUNK_ROOT);
+            return flow.width();
         }
 
         /** decision unmake-stream-is-a-shrinking-waterspout */
@@ -550,7 +562,7 @@ class DrinkTreeTest {
             double join = tributary.joinShare();
             DrinkTree.Flow joined = DrinkTree.flowOf(tributary, trunk, join);
 
-            assertTrue(joined.radius() > 0, "the tributary's liquid has arrived at its join");
+            assertTrue(joined.power() > 0, "the tributary's liquid has arrived at its join");
             assertEquals(1, joined.presence(), DELTA, "wholly swollen in at the join itself");
             assertTrue(DrinkTree.radiusAt(trunk, join) >= widthOf(joined) - DELTA,
                     "the trunk at the join is at least as wide as the joining stream alone would make it");

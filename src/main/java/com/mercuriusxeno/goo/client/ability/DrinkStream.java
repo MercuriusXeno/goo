@@ -247,8 +247,32 @@ public final class DrinkStream {
             return own;
         }
         Vec3 glide = path.to().subtract(pointAt(trunk, path.joinShare(), now));
-        Vec3 along = pointAt(trunk, Math.max(0, path.joinShare() - remaining / trunk.length()), now).add(glide);
+        Vec3 along = trunkSpineAt(trunk, path.joinShare() * trunk.length() - remaining, now).add(glide);
         return own.lerp(along, smoothRamp(0, ARRIVAL_REACH - RIDE, ARRIVAL_REACH - remaining));
+    }
+
+    /**
+     * A trunk's spine at a distance along it, run on straight back from its
+     * start along the way it leaves its far side where the distance falls
+     * before it, so a tributary joining close to its trunk's start rides in
+     * along a straight line onto it; pinned to the trunk's start, every point
+     * of the ride before it fell on that one point, the tributary's path
+     * crumpled there, and its skin bunched into a collar at every node.
+     * decision diagnose-then-fix-unmake-seam-and-ribbing
+     *
+     * @param trunk    the trunk's path
+     * @param distance blocks along it, below zero before its start
+     * @param now      the game time, with the partial tick
+     * @return the point of its spine there
+     */
+    static Vec3 trunkSpineAt(Path trunk, double distance, double now) {
+        if (distance >= 0) {
+            return pointAt(trunk, distance / trunk.length(), now);
+        }
+        Vec3 start = snakeAt(trunk, 0, now);
+        Vec3 leaving = snakeAt(trunk, TANGENT_STEP, now).subtract(start);
+        Vec3 run = leaving.lengthSqr() > 0 ? leaving.normalize() : trunk.to().subtract(trunk.from()).normalize();
+        return start.add(run.scale(distance));
     }
 
     /**
