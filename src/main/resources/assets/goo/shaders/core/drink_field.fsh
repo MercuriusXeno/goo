@@ -1,4 +1,7 @@
 #version 330
+#ifdef GL_ARB_conservative_depth
+#extension GL_ARB_conservative_depth : enable
+#endif
 
 #moj_import <minecraft:light.glsl>
 #moj_import <minecraft:fog.glsl>
@@ -31,6 +34,18 @@
 // DrinkField, DrinkUpload and DrinkShaderTest, which checks them.
 
 uniform sampler2D Sampler2;
+
+// A region seen from outside is drawn by its near faces, and every hit lies
+// behind the face its fragment came from, so the depth written only ever
+// grows past the face's: promised to the GPU, it tests each fragment against
+// the depth already drawn before the march runs, and a region hidden behind
+// nearer goo or the world costs nothing. Without the promise every region on
+// the screen marched in full, and a drink of many blocks dropped the frame
+// rate to a few frames a second. A region the camera is inside is drawn by
+// its far faces and makes no promise.
+#if defined(GL_ARB_conservative_depth) && !defined(DRINK_INSIDE)
+layout(depth_greater) out float gl_FragDepth;
+#endif
 
 layout(std140) uniform DrinkRegion {
     vec4 Region;
