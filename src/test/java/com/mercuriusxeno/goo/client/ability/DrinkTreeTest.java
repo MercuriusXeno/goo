@@ -259,15 +259,18 @@ class DrinkTreeTest {
             List<DrinkTree.Stream> streams = treeAt(RAMPED);
             DrinkTree.Stream trunk = streams.getFirst();
             DrinkTree.Stream tributary = streams.get(1);
-            double before = pastJoin(trunk, -DrinkTree.MERGE - PAST_THE_MERGE);
-            double after = pastJoin(trunk, DrinkTree.MERGE + PAST_THE_MERGE);
+            double before = pastJoin(trunk, -DrinkTree.SWELL_FROM);
+            double after = pastJoin(trunk, PAST_THE_MERGE);
 
             assertEquals(DrinkStream.FLOW, loneAt(START).speedAt(0.5), DELTA);
             assertEquals(DrinkStream.FLOW, loneAt(RAMPED).speedAt(0.5), DELTA);
             assertEquals(DrinkStream.FLOW, tributary.speedAt(0.5), DELTA);
             assertEquals(1, trunk.massAt(before), DELTA);
+            assertEquals(1.5, trunk.massAt(pastJoin(trunk, -DrinkStream.RIDE - DrinkTree.MERGE / TWO)), DELTA,
+                    "half swollen in halfway through the swell");
+            assertEquals(TWO, trunk.massAt(pastJoin(trunk, -DrinkStream.RIDE)), DELTA,
+                    "wholly swollen in where the tributary's ride begins");
             assertEquals(TWO, trunk.massAt(after), DELTA);
-            assertEquals(1.5, trunk.massAt(tributary.joinShare()), DELTA);
             assertEquals(DrinkStream.FLOW * Math.sqrt(TWO), trunk.speedAt(after), DELTA);
         }
 
@@ -333,25 +336,26 @@ class DrinkTreeTest {
     @Nested
     class Width {
 
+        /** decision unmake-stream-is-a-shrinking-waterspout */
         @Test
-        void theTrunkCarriesTheOwnerAloneBeforeTheJoinAndTheRootOfTheCountAfterIt() {
+        void theTrunkCarriesNothingOfATributaryBeforeItsSwellAndTheRootOfTheCountOfEachOwnWidthAfterIt() {
             List<DrinkTree.Stream> streams = treeAt(START + tree().get(1).routeLength() / DrinkStream.FLOW);
             DrinkTree.Stream trunk = streams.getFirst();
             DrinkTree.Stream tributary = streams.get(1);
-            double before = pastJoin(trunk, -DrinkTree.MERGE - PAST_THE_MERGE);
-            double after = pastJoin(trunk, DrinkTree.MERGE + PAST_THE_MERGE);
+            double before = pastJoin(trunk, -DrinkTree.SWELL_FROM - PAST_THE_MERGE);
+            double after = pastJoin(trunk, PAST_THE_MERGE);
 
             assertEquals(0, DrinkTree.contribution(tributary, trunk, before), DELTA);
-            assertEquals(DrinkTree.THREAD + (DrinkTree.contribution(trunk, trunk, before) - DrinkTree.THREAD)
-                    * DrinkTree.spoutAt(trunk, before), DrinkTree.ring(trunk, before).radius(), DELTA);
             DrinkTree.Flow owner = DrinkTree.flowOf(trunk, trunk, after);
             DrinkTree.Flow joined = DrinkTree.flowOf(tributary, trunk, after);
             assertTrue(joined.radius() > 0, "the tributary's liquid is on the trunk");
-            assertEquals(1, joined.presence(), DELTA, "wholly swollen in past the merge");
+            assertEquals(1, joined.presence(), DELTA, "wholly swollen in past the join");
+            assertTrue(joined.radius() < owner.radius() / owner.presence(),
+                    "the tributary's liquid runs on as narrow as its own spout has made it, narrower than the trunk's own");
             double presence = owner.presence() + joined.presence();
             double grown = (owner.radius() + joined.radius()) / presence * Math.pow(presence, 1 / DrinkTree.TRUNK_ROOT);
-            assertEquals(DrinkTree.THREAD + (grown - DrinkTree.THREAD) * DrinkTree.spoutAt(trunk, after),
-                    DrinkTree.ring(trunk, after).radius(), DELTA, "the fourth root of the count, narrowed by the spout");
+            assertEquals(grown, DrinkTree.ring(trunk, after).radius(), DELTA,
+                    "the mean of each stream's own width times the fourth root of the count");
         }
 
         @Test
@@ -527,12 +531,15 @@ class DrinkTreeTest {
         }
 
         @Test
-        void theTrunkSwellsIntoAJoinSymmetricallyOverTheMergeLength() {
-            assertEquals(0, DrinkTree.mergeRamp(-DrinkTree.MERGE), DELTA);
-            assertEquals(0.5, DrinkTree.mergeRamp(0), DELTA);
-            assertEquals(1, DrinkTree.mergeRamp(DrinkTree.MERGE), DELTA);
-            assertEquals(1, DrinkTree.mergeRamp(DrinkTree.MERGE * 2), DELTA);
-            assertEquals(0, DrinkTree.mergeRamp(-DrinkTree.MERGE * 2), DELTA);
+        void theTrunkSwellsOverTheMergeBeforeTheRideSoItIsWholeWhereTheTributaryHandsOver() {
+            double ride = DrinkStream.RIDE;
+
+            assertEquals(ride + DrinkTree.MERGE, DrinkTree.SWELL_FROM, DELTA);
+            assertEquals(0, DrinkTree.mergeRamp(-DrinkTree.SWELL_FROM), DELTA);
+            assertEquals(0.5, DrinkTree.mergeRamp(-ride - DrinkTree.MERGE / TWO), DELTA);
+            assertEquals(1, DrinkTree.mergeRamp(-ride), DELTA, "whole where the ride begins");
+            assertEquals(1, DrinkTree.mergeRamp(0), DELTA);
+            assertEquals(0, DrinkTree.mergeRamp(-DrinkTree.SWELL_FROM * 2), DELTA);
         }
 
         @Test
@@ -544,9 +551,8 @@ class DrinkTreeTest {
             DrinkTree.Flow joined = DrinkTree.flowOf(tributary, trunk, join);
 
             assertTrue(joined.radius() > 0, "the tributary's liquid has arrived at its join");
-            assertEquals(0.5, joined.presence(), DELTA, "half swollen in at the join itself");
-            assertTrue(DrinkTree.radiusAt(trunk, join) >= DrinkTree.THREAD + (widthOf(joined) - DrinkTree.THREAD)
-                    * DrinkTree.spoutAt(trunk, join) - DELTA,
+            assertEquals(1, joined.presence(), DELTA, "wholly swollen in at the join itself");
+            assertTrue(DrinkTree.radiusAt(trunk, join) >= widthOf(joined) - DELTA,
                     "the trunk at the join is at least as wide as the joining stream alone would make it");
         }
 
