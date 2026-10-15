@@ -254,4 +254,30 @@ public final class MingleNoiseModel {
         float t = threshold(share);
         return smoothstep(t - SEAM, t + SEAM, field(px, py, pz));
     }
+
+    /**
+     * The one-pass blend goo_fluid_surface.fsh draws at a position (decision
+     * one-pass-blends-every-type): each layer over the ones before at its
+     * opacity, every sprite opaque, so a layer shows its opacity times one
+     * minus the opacity of every later layer.
+     *
+     * @param x        world x
+     * @param y        world y
+     * @param z        world z
+     * @param gameTime the fraction of the day, as the GameTime uniform
+     * @param shares   each layer's conditional share, the first drawn first
+     * @param seeds    each layer's noise seed
+     * @return how much each layer shows, summing to the composite's alpha
+     */
+    public static float[] blend(float x, float y, float z, float gameTime, float[] shares, float[] seeds) {
+        float[] shown = new float[shares.length];
+        for (int layer = 0; layer < shares.length; layer++) {
+            float over = opacity(x, y, z, gameTime, shares[layer], seeds[layer]);
+            for (int below = 0; below < layer; below++) {
+                shown[below] *= 1f - over;
+            }
+            shown[layer] = over;
+        }
+        return shown;
+    }
 }

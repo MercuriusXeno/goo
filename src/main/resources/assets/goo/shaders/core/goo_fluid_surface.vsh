@@ -21,14 +21,11 @@ out float cylindricalVertexDistance;
 out vec4 vertexColor;
 out vec2 texCoord0;
 out vec3 mingleWorldPos;
-flat out vec2 shareSeed;
+flat out ivec2 mingleRows;
 
 // Must match RenderContext.AMPLITUDE_UNITS_PER_BLOCK: UV1.x carries the
 // vertex's ripple amplitude in 1/4096 block, zero on every flat vertex.
 const float AMPLITUDE_UNITS_PER_BLOCK = 4096.0;
-// Must match TypeBand.SHARE_UNITS: the surface is emissive, so UV2 carries
-// the layer's share and its type's noise seed (decision mingle-noise-keyed-by-type) instead of light.
-const float SHARE_UNITS = 16384.0;
 
 const float TAU = 6.2831853;
 // GameTime is the fraction of a 24000-tick day, so whole cycles per day
@@ -63,5 +60,8 @@ void main() {
     // The mingle reads the unrippled position, so a patch keeps its type at
     // every lift (decision diagnose-then-fix-undulation-blend-exposure).
     mingleWorldPos = worldPos;
-    shareSeed = vec2(float(UV2.x) / SHARE_UNITS, float(UV2.y));
+    // The surface is emissive, so UV2 carries the first row of the frame's mingle
+    // table this surface reads and its row count, as MingleTable.append packs them,
+    // instead of light (decision one-pass-blends-every-type).
+    mingleRows = UV2;
 }

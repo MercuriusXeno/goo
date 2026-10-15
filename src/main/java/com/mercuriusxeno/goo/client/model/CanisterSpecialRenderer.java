@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.client.model;
 
 import com.mercuriusxeno.goo.block.canister.CanisterGeometry;
-import com.mercuriusxeno.goo.client.BandedSurfaceSubmitter;
 import com.mercuriusxeno.goo.client.CuboidBounds;
 import com.mercuriusxeno.goo.client.GooSubmitter;
+import com.mercuriusxeno.goo.client.LayeredSurfaceSubmitter;
 import com.mercuriusxeno.goo.client.RenderContext;
 import com.mercuriusxeno.goo.client.TypeBand;
 import com.mercuriusxeno.goo.client.TypeBands;
@@ -84,7 +84,7 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
             return;
         }
         if (data.bands().size() > 1) {
-            submitMingledFluid(GooSubmitter.bandedSurfaces(poseStack, nodeCollector), data);
+            submitMingledFluid(GooSubmitter.layeredSurfaces(poseStack, nodeCollector), data);
         } else if (data.gooType() != null) {
             submitFluid(poseStack, nodeCollector, data.gooType(), data.fill());
         } else if (data.vanillaFluid() != null) {
@@ -206,14 +206,14 @@ public class CanisterSpecialRenderer implements SpecialModelRenderer<CanisterSpe
     }
 
     /**
-     * Submits the fill once per type band through the vat's banded submitter,
+     * Submits the fill once per type band through the layered submitter,
      * each layer lifted outward of the one below, so a canister holding several
      * goo types mingles them by noise (decision noise-mingled-type-textures).
      *
      * @param submitter submits one band's surface on that band type's sprite
      * @param data      the goo data, holding more than one band
      */
-    private static void submitMingledFluid(BandedSurfaceSubmitter submitter, GooData data) {
+    private static void submitMingledFluid(LayeredSurfaceSubmitter submitter, GooData data) {
         CuboidBounds b = fluidBounds(data.fill());
         for (TypeBand band : data.bands()) {
             submitter.submit(band, (ctx, sprite) ->

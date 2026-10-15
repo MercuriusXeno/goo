@@ -18,20 +18,11 @@ import net.minecraft.resources.ResourceKey;
  */
 public record TypeBand(ResourceKey<GooTypeDefinition> type, float lo, float hi, int layer) {
 
-    /** Must match goo_fluid_surface.vsh: share units per whole share. */
-    public static final int SHARE_UNITS = 16384;
-
     /**
      * Blocks each layer's geometry sits outward of the layer below, so
      * distance sorting draws the layers in order and depth never ties.
      */
     public static final float LAYER_LIFT = 1f / 512f;
-
-    /** Bit offset of the noise seed in the packed band. */
-    private static final int SEED_SHIFT = 16;
-
-    /** The packed band of a lone whole surface: share 1, which draws whole whatever its seed. */
-    public static final int BASE_LAYER_PACKED = SHARE_UNITS;
 
     /**
      * The layer's conditional share: this type's volume over the volume of
@@ -61,29 +52,5 @@ public record TypeBand(ResourceKey<GooTypeDefinition> type, float lo, float hi, 
      */
     public int seed() {
         return Math.max(0, GooTypes.indexOf(type));
-    }
-
-    /**
-     * Packs the share and the seed into the lightmap coordinates the
-     * surface shader reads as UV2, share in the low short and seed in the
-     * high short; the surface is emissive, so its lightmap coordinates carry
-     * nothing else.
-     *
-     * @return the band as packed lightmap coordinates
-     */
-    public int packed() {
-        return pack(share(), seed());
-    }
-
-    /**
-     * Packs a share and a seed as {@link #packed()} does, for a surface whose
-     * share changes along it (decision unmake-waves-dissolve-by-crucible-cost).
-     *
-     * @param share the layer's conditional share, 0 to 1
-     * @param seed  the type's noise seed
-     * @return the band as packed lightmap coordinates
-     */
-    public static int pack(double share, int seed) {
-        return (int) Math.clamp(Math.round(share * SHARE_UNITS), 0, SHARE_UNITS) | seed << SEED_SHIFT;
     }
 }
