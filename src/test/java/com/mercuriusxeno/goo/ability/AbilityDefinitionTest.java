@@ -162,7 +162,7 @@ class AbilityDefinitionTest {
         /** One proving example per kind: a thrown channel, a self, a brew and a stream. */
         @ParameterizedTest
         @CsvSource({"crystal_shards, NONE, 0.0, 0.0", "ender_blink, NONE, 0.0, 0.0",
-                "blaze_kindle, NONE, 0.0, 0.0", "blaze_spitfire, CONE, 6.0, 20.0"})
+                "blaze_kindle, NONE, 0.0, 0.0", "blaze_flames, CONE, 6.0, 20.0"})
         void mobSelfBrewAndChanneledKeepTheirArea(String name, AbilityArea.Shape shape, double size, double angle) {
             assertEquals(new AbilityArea(shape, size, angle), AbilityJson.decode(name).area());
         }
