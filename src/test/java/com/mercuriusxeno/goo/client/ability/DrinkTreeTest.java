@@ -477,26 +477,23 @@ class DrinkTreeTest {
 
         /** decisions unmake-waves-dissolve-by-crucible-cost and unmake-stream-is-a-shrinking-waterspout */
         @Test
-        void aDrainedBlocksSpoutRidesItsTailAndShrinksSmoothlyIntoTheHand() {
+        void aDrainedBlocksLiquidKeepsTheWaterspoutsWidthWhereItStandsAllTheWayIntoTheHand() {
             DrinkTree.Stream flowing = loneAt(START + flowingTicks());
-            double threadFrom = DrinkTree.threadFrom(flowing);
-            double spout = threadFrom - DrinkBody.CENTER;
-            double last = widestOf(flowing);
+            double length = flowing.path().length();
 
-            assertEquals(DrinkBody.MOUTH, last, SAMPLE_WIDTH, "the whole mouth while the block drains");
-            for (double later = END - TICKS_LATER; loneAt(later).tailAt() < threadFrom; later += 1) {
+            assertEquals(DrinkBody.MOUTH, widestOf(flowing), SAMPLE_WIDTH, "the whole mouth while the block drains");
+            for (double later = END; loneAt(later).tailAt() < loneAt(later).routeLength(); later += 1) {
                 DrinkTree.Stream drained = loneAt(later);
-                double nose = Math.max(DrinkBody.CENTER, drained.tailAt() + DrinkStream.TIP);
-                double left = Math.clamp((threadFrom - nose) / spout, 0, 1);
-                double widest = widestOf(drained);
-
-                assertEquals(DrinkBody.MOUTH * left, widest, SAMPLE_WIDTH, (later - END) + " ticks after the drain "
-                        + "the spout is as wide as the share of its route its tail has still to go, the tail at "
-                        + drained.tailAt() + " of " + threadFrom + " blocks");
-                assertTrue(last - widest <= DrinkBody.MOUTH * DrinkStream.FLOW * TWO / spout,
-                        "it narrows a tick's travel at a time, never all at once: " + last + " to " + widest);
+                double behind = drained.tailAt() + DrinkStream.TIP;
+                for (double share = behind / length; share < 1; share += SAMPLE / length) {
+                    double distance = share * length;
+                    double waterspout = DrinkTree.THREAD + (DrinkBody.MOUTH - DrinkTree.THREAD)
+                            * DrinkTree.spoutAlong(drained, distance);
+                    assertEquals(waterspout, DrinkTree.radiusAt(drained, share), DELTA, (later - END)
+                            + " ticks after the drain the liquid at " + distance + " blocks is as wide as the "
+                            + "waterspout is there, not shrunk as its tail flows");
+                }
                 assertFalse(drained.spent(), "the stream is drawn until its tail is in the hand");
-                last = widest;
             }
         }
 
