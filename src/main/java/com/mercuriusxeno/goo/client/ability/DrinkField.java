@@ -39,8 +39,11 @@ public final class DrinkField {
     public static final double FULL_RADIUS = DrinkStream.WAIST;
     /** The fillet where a stream leaves its block's box, in blocks, so the mouth shows no crease. */
     public static final double BOX_BLEND = 0.35;
-    /** The fillet between two streams whose surfaces face opposite ways, in blocks; streams facing alike get none. */
-    public static final double MEET_BLEND = 0.5;
+    /**
+     * Blocks over which streams union smoothly: a stream nearer than this to another merges into it as metaballs
+     * do, and two lying wholly on one another swell by this times the log of two.
+     */
+    public static final double SOFTNESS = 0.08;
     private static final double TWO = 2;
     private static final double THREE = 3;
     private static final double FOUR = 4;
@@ -441,28 +444,39 @@ public final class DrinkField {
     }
 
     /**
-     * The field of a drink at a point: the two streams nearest it blended
-     * over a fillet as wide as their surfaces face apart, so coincident
-     * streams are one stream's width and streams meeting across a gap merge.
+     * The field of a drink at a point: every stream within reach of it
+     * unioned smoothly at once, each counting by how near it is, so the skin
+     * is one surface however many streams crowd a place and streams meeting
+     * merge as metaballs do. A blend of only the two nearest streams jumped
+     * wherever which two were nearest changed, cracking and seaming the skin
+     * all through a crowded cone.
      *
      * @param skeletons the drink's skeletons
      * @param point     the point
      * @return the field there
      */
     public static double valueAt(List<Skeleton> skeletons, Vec3 point) {
-        Reading first = new Reading(REACH, UP);
-        Reading second = new Reading(REACH, UP);
+        double sum = 0;
         for (Skeleton skeleton : skeletons) {
-            Reading reading = skeleton.readingAt(point);
-            if (reading.distance() < first.distance()) {
-                second = first;
-                first = reading;
-            } else if (reading.distance() < second.distance()) {
-                second = reading;
-            }
+            sum += weightOf(skeleton.readingAt(point).distance());
         }
-        // A second reading at the reach is no body at all, so a lone body's surface is filleted to nothing.
-        double width = second.distance() < REACH ? MEET_BLEND * (1 - first.facing().dot(second.facing())) / TWO : 0;
-        return falloff(blend(first, second, width).distance());
+        return falloff(unionOf(sum));
+    }
+
+    /**
+     * @param distance a stream's stretched signed distance at a point
+     * @return how much it counts toward the smooth union there, nothing at the reach and beyond
+     */
+    static double weightOf(double distance) {
+        return Math.max(0, Math.exp(-distance / SOFTNESS) - Math.exp(-REACH / SOFTNESS));
+    }
+
+    /**
+     * @param weights the streams' weights at a point, summed
+     * @return the union's stretched signed distance there: a lone stream's own, the reach where none counts, and
+     *         nearer as more streams crowd in
+     */
+    static double unionOf(double weights) {
+        return -SOFTNESS * Math.log(weights + Math.exp(-REACH / SOFTNESS));
     }
 }
