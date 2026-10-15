@@ -61,7 +61,6 @@ import com.mercuriusxeno.goo.client.sound.FadingLoops;
 import com.mercuriusxeno.goo.client.throwing.GooFlightManager;
 import com.mercuriusxeno.goo.client.throwing.GooSizeProperty;
 import com.mercuriusxeno.goo.client.throwing.GooVolumeDecorator;
-import com.mercuriusxeno.goo.client.throwing.ThrowFreezeState;
 import com.mercuriusxeno.goo.entity.SwapBody;
 import com.mercuriusxeno.goo.item.gasket.TunerAwaitState;
 import com.mercuriusxeno.goo.registry.*;
@@ -492,7 +491,6 @@ public final class GooClientSetup {
         Transformations.CLIENT.clear();
         GhostTrails.CLIENT.clear();
         ViewportRipples.CLIENT.clear();
-        ThrowFreezeState.clear();
     }
 
     /** Clears Crystal's glass knives, ore sightings, glitter shells, arm poses and forming prisms. */
