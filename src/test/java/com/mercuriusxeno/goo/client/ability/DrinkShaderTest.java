@@ -76,6 +76,20 @@ class DrinkShaderTest {
     }
 
     /** decision diagnose-then-fix-unmake-seam-and-ribbing */
+    /**
+     * A ray out of steps short of its region's exit reads the field at the
+     * exit and refines the hit between, so the region always draws its own
+     * surface where the goo runs on past it, and the region beyond never
+     * shows a flat face at its entry that cuts the goo on the block grid.
+     */
+    @Test
+    void aRayOutOfStepsShortOfItsRegionsExitStillFindsTheSurfaceBeforeIt() throws IOException {
+        String fragment = source(FRAGMENT).replace("\r\n", "\n");
+
+        assertTrue(fragment.contains("    if (!hit && t < tExit) {\n        before = t;\n        t = tExit;\n"
+                + "        hit = fieldOnly(rd * t, streams) >= iso;\n    }\n    if (!hit) {"));
+    }
+
     @Test
     void theShaderReadsTheSmoothTubeAndJoinsStreamsByTheirFilletAsTheJavaDoes() throws IOException {
         String fragment = source(FRAGMENT);

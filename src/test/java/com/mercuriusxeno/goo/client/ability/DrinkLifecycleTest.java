@@ -241,6 +241,68 @@ class DrinkLifecycleTest {
                 + " bytes, past what every driver allows a uniform block");
     }
 
+    /**
+     * Every body's field lies within the bounds the upload spreads it over,
+     * so no region lacks a body whose skin reaches into it: a body left out
+     * of a region its skin reaches leaves that region without the surface,
+     * and the region past it draws a flat face at its entry, cutting the goo
+     * on the block grid.
+     */
+    @Test
+    void everyBodysFieldLiesWithinTheBoundsItIsUploadedBy() {
+        List<DrinkTree.Block> blocks = cone();
+        Set<BlockPos> streaming = new HashSet<>();
+        blocks.forEach(block -> streaming.add(block.pos()));
+        DrinkLayout layout = new DrinkLayout();
+        Map<BlockPos, DrinkTree.Stream> built = new HashMap<>();
+        List<String> outside = new ArrayList<>();
+        for (double now = PICKED; now <= LANDS + 60 && outside.size() < REPORTED; now += 1) {
+            Vec3 pull = layout.pullToward(LOOK, now);
+            layout.place(streaming, GLOVE, new DrinkLayout.Aim(EYE, LOOK), now,
+                    DrinkTree.flowingOf(built, streaming));
+            Map<BlockPos, DrinkTree.Stream> frame = new HashMap<>();
+            List<DrinkField.Skeleton> skeletons = new ArrayList<>();
+            for (DrinkTree.Stream stream : DrinkTree.build(blocks, layout, GLOVE, pull, now)) {
+                frame.put(stream.block().pos(), stream);
+                if (!stream.spent()) {
+                    skeletons.add(DrinkTree.skeleton(stream));
+                }
+            }
+            built = frame;
+            if (now % 10 != 0) {
+                continue;
+            }
+            for (DrinkField.Skeleton skeleton : skeletons) {
+                for (int segment = 0; segment < skeleton.segments() && outside.size() < REPORTED; segment++) {
+                    if (!DrinkUpload.radiates(skeleton, segment)) {
+                        continue;
+                    }
+                    DrinkUpload.Bound bound = DrinkUpload.boundOf(skeleton, 0, segment);
+                    Vec3 low = bound.low().subtract(0.5, 0.5, 0.5);
+                    Vec3 high = bound.high().add(0.5, 0.5, 0.5);
+                    for (double x = low.x; x <= high.x; x += 0.07) {
+                        for (double y = low.y; y <= high.y; y += 0.07) {
+                            for (double z = low.z; z <= high.z; z += 0.07) {
+                                Vec3 p = new Vec3(x, y, z);
+                                DrinkField.Reading owned = skeleton.curveReading(segment, p);
+                                DrinkField.Reading reading = owned != null ? owned : DrinkField.segmentReading(
+                                        skeleton.rings().get(segment), skeleton.rings().get(segment + 1), p);
+                                boolean within = x >= bound.low().x && x <= bound.high().x && y >= bound.low().y
+                                        && y <= bound.high().y && z >= bound.low().z && z <= bound.high().z;
+                                if (reading.distance() < DrinkField.REACH && !within && outside.size() < REPORTED) {
+                                    outside.add(String.format("at %.0f %s segment %d reads %.3f at %s outside %s..%s",
+                                            now, skeleton.stream().block().pos().toShortString(), segment,
+                                            reading.distance(), p, bound.low(), bound.high()));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assertTrue(outside.isEmpty(), "a body's field reaches past its uploaded bounds:\n" + String.join("\n", outside));
+    }
+
     /** Measures the shader's work over the cone drink: the regions it marches and the bodies they list. */
     @Test
     void theDrinksShaderWorkStaysWithinBudget() {
