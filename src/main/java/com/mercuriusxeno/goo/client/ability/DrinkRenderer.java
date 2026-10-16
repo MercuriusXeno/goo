@@ -81,7 +81,9 @@ public final class DrinkRenderer {
     private static final Vec3 UP = new Vec3(0, 1, 0);
     private static final double MILLIS_PER_NANO = 1e-6;
     private static final double HALF = 0.5;
-    private static final String BUILT = "Unmake drink built in {} ms: {} splats, GPU {} ms a splat and shade pass";
+    private static final String BUILT =
+            "Unmake drink built in {} ms: {} splats, GPU {} ms splat, {} ms blur, {} ms shade, frame {} ms at {} fps";
+    private static final double MILLIS_PER_SECOND = 1000;
     /** Each drink's streams as last built, by its drinker then block, which say where liquid still flows. */
     private static final Map<Integer, Map<BlockPos, DrinkTree.Stream>> LAST = new HashMap<>();
     /** The drinkers whose drink still showed liquid last frame. */
@@ -219,20 +221,13 @@ public final class DrinkRenderer {
     }
 
     /**
-     * Draws a pass's splat and shade passes, timing them on the GPU while the drink's debug line is logged.
+     * Draws a pass's splat, blur and shade passes, timing each on the GPU while the drink's debug line is logged.
      *
      * @param splats    the pass's splats, camera-relative
      * @param modelView the level's model view
      */
     private static void drawTimed(List<DrinkSplats.Splat> splats, Matrix4fc modelView) {
-        boolean timed = Goo.LOGGER.isDebugEnabled() && !splats.isEmpty();
-        if (timed) {
-            DrinkGpuTimer.begin();
-        }
-        DrinkFluidPass.draw(splats, modelView);
-        if (timed) {
-            DrinkGpuTimer.end();
-        }
+        DrinkFluidPass.draw(splats, modelView, Goo.LOGGER.isDebugEnabled());
     }
 
     private static void logOnce(long tick, long began, Passes passes) {
@@ -240,8 +235,10 @@ public final class DrinkRenderer {
             return;
         }
         loggedTick = tick;
+        int fps = Math.max(1, Minecraft.getInstance().getFps());
         Goo.LOGGER.debug(BUILT, Math.round((System.nanoTime() - began) * MILLIS_PER_NANO), passes.splats(),
-                DrinkGpuTimer.millis());
+                DrinkGpuTimer.SPLAT.millis(), DrinkGpuTimer.BLUR.millis(), DrinkGpuTimer.SHADE.millis(),
+                MILLIS_PER_SECOND / fps, fps);
     }
 
     /**

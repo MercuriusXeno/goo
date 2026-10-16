@@ -9,8 +9,8 @@ import org.jspecify.annotations.Nullable;
  * shade pass draws them as one skin: the fluid buffer holds each sphere's
  * surface depth, over a copy of the level's depth so walls hide the goo, and
  * its lit color with its radius as coverage, clear where no sphere covers;
- * the blur buffer, the same size, holds the first blur pass's result while
- * the second writes back into the fluid buffer.
+ * the blur buffer, the same size, holds the blurred skin the shade pass
+ * reads.
  * decision unmake-drink-draws-as-a-screen-space-fluid
  */
 final class DrinkFluidTarget {

@@ -27,18 +27,17 @@ import java.util.OptionalInt;
 /**
  * Draws the splats of a pass as a screen-space fluid: every splat a
  * camera-facing quad into the fluid target, over the level's depth copied
- * there, each writing its shape's own surface depth and lit color; a
- * bilateral blur across the screen then down it, making the spheres one
- * skin; then one full-screen pass shading the skin and writing it to the
- * main target with its depth.
+ * there, each writing its shape's own surface depth and lit color; one
+ * bilateral blur over a disc about each pixel, making the spheres one skin;
+ * then one full-screen pass shading the skin and writing it to the main
+ * target with its depth.
  * decision unmake-drink-draws-as-a-screen-space-fluid
  */
 final class DrinkFluidPass {
 
     private static final String SPLAT_PASS = "Goo unmake drink splat";
     private static final String SHADE_PASS = "Goo unmake drink shade";
-    private static final String BLUR_ACROSS_PASS = "Goo unmake drink blur across";
-    private static final String BLUR_DOWN_PASS = "Goo unmake drink blur down";
+    private static final String BLUR_PASS = "Goo unmake drink blur";
     private static final String SPLATS_BUFFER = "Goo unmake drink splats";
     private static final String FRAME_BUFFER = "Goo unmake drink frame";
     private static final String TRANSFORMS_UNIFORM = "DynamicTransforms";
@@ -49,12 +48,6 @@ final class DrinkFluidPass {
     private static final int INDICES_PER_QUAD = 6;
     private static final int FULLSCREEN_VERTICES = 3;
     private static final int FRAME_BYTES = 16;
-    /** The frame block the splat and shade passes read, with no blur axis. */
-    private static final int STILL = 0;
-    /** The frame block the blur across the screen reads. */
-    private static final int ACROSS = 1;
-    /** The frame block the blur down the screen reads. */
-    private static final int DOWN = 2;
     /** Each corner of a quad, as its steps along the quad's right and up. */
     private static final int[][] CORNER_SIGNS = {{-1, -1}, {1, -1}, {1, 1}, {-1, 1}};
     /** How much nearer than its bound the camera may come to a shape before the quad about it is left out. */
@@ -84,13 +77,14 @@ final class DrinkFluidPass {
     }
 
     /**
-     * Draws a pass's splats: splatted into the fluid target, blurred across
-     * then down into one skin, then shaded onto the main target.
+     * Draws a pass's splats: splatted into the fluid target, blurred into one
+     * skin in the blur target, then shaded onto the main target.
      *
      * @param splats    the splats, camera-relative
      * @param modelView the level's model view matrix this frame
+     * @param timed     whether each pass is timed on the GPU for the drink's debug line
      */
-    static void draw(List<DrinkSplats.Splat> splats, Matrix4fc modelView) {
+    static void draw(List<DrinkSplats.Splat> splats, Matrix4fc modelView, boolean timed) {
         int quads = pack(splats);
         if (quads == 0) {
             return;
@@ -102,28 +96,34 @@ final class DrinkFluidPass {
         fluid.copyDepthFrom(main);
         GpuBufferSlice transform = RenderSystem.getDynamicUniforms().writeTransform(new Matrix4f(modelView), WHITE,
                 new Vector3f(), new Matrix4f());
-        List<GpuBuffer> frames = List.of(frameOf(device, 0, 0), frameOf(device, 1, 0), frameOf(device, 0, 1));
+        GpuBuffer frame = frameOf(device);
         GpuBuffer vertices = device.createBuffer(() -> SPLATS_BUFFER, GpuBuffer.USAGE_VERTEX, kept);
-        splat(device, fluid, vertices, quads, transform, frames.get(STILL));
-        fullScreen(device, new Screen(BLUR_ACROSS_PASS, GooRenderTypes.DRINK_BLUR, blur, fluid), transform,
-                frames.get(ACROSS));
-        fullScreen(device, new Screen(BLUR_DOWN_PASS, GooRenderTypes.DRINK_BLUR, fluid, blur), transform,
-                frames.get(DOWN));
-        fullScreen(device, new Screen(SHADE_PASS, GooRenderTypes.DRINK_SHADE, main, fluid), transform,
-                frames.get(STILL));
+        time(DrinkGpuTimer.SPLAT, timed, () -> splat(device, fluid, vertices, quads, transform, frame));
+        time(DrinkGpuTimer.BLUR, timed, () -> fullScreen(device,
+                new Screen(BLUR_PASS, GooRenderTypes.DRINK_BLUR, blur, fluid), transform, frame));
+        time(DrinkGpuTimer.SHADE, timed, () -> fullScreen(device,
+                new Screen(SHADE_PASS, GooRenderTypes.DRINK_SHADE, main, blur), transform, frame));
         vertices.close();
-        frames.forEach(GpuBuffer::close);
+        frame.close();
+    }
+
+    private static void time(DrinkGpuTimer timer, boolean timed, Runnable pass) {
+        if (timed) {
+            timer.begin();
+        }
+        pass.run();
+        if (timed) {
+            timer.end();
+        }
     }
 
     /**
-     * @param device     the device
-     * @param acrossStep how far a blur tap steps across the screen, in taps
-     * @param downStep   how far a blur tap steps down the screen, in taps
-     * @return the frame's uniform block: the depth convention and the blur's axis
+     * @param device the device
+     * @return the frame's uniform block: the depth convention
      */
-    private static GpuBuffer frameOf(GpuDevice device, float acrossStep, float downStep) {
+    private static GpuBuffer frameOf(GpuDevice device) {
         FRAME.clear();
-        putFloats(FRAME, 0, depthZeroToOne() ? 1 : 0, acrossStep, downStep);
+        putFloats(FRAME, 0, depthZeroToOne() ? 1 : 0);
         return device.createBuffer(() -> FRAME_BUFFER, GpuBuffer.USAGE_UNIFORM, FRAME);
     }
 
