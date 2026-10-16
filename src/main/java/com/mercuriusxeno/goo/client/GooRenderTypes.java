@@ -9,6 +9,7 @@ import com.mojang.blaze3d.platform.CompareOp;
 import com.mojang.blaze3d.shaders.UniformType;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.blaze3d.vertex.VertexFormatElement;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.feature.ItemFeatureRenderer;
 import net.minecraft.client.renderer.rendertype.LayeringTransform;
@@ -1150,28 +1151,84 @@ public final class GooRenderTypes {
                 .build();
     }
 
-    /** The uniform block the drink field pipeline reads one region's bodies and its streams' coats from. */
-    public static final String DRINK_REGION_BLOCK = "DrinkRegion";
+    /** The uniform block the drink's splat, blur and shade pipelines read the depth convention from. */
+    public static final String DRINK_FRAME_BLOCK = "DrinkFrame";
+
+    /** A drink splat vertex's shape: its camera-relative middle, and its radius or half width. */
+    public static final VertexFormatElement DRINK_SHAPE = VertexFormatElement.register(
+            VertexFormatElement.findNextId(), 0, VertexFormatElement.Type.FLOAT, false, 4);
 
     /**
-     * The Unmake drink's field pipeline (decision
-     * unmake-waves-dissolve-by-crucible-cost): region boxes whose fragments
-     * march the drink's metaball field and write the hit's depth, opaque,
-     * lit by the cardinal lights and the lightmap, painted in two solid
-     * colors with no texture (decision unmake-skin-is-a-solid-sampled-color),
-     * with each region's bodies in a uniform block of their own.
+     * A drink splat's vertex: a corner of the camera-facing quad about its
+     * shape, the shape's color, its rounding in UV0's first channel, its light
+     * in UV2 and the shape itself.
      */
-    public static final RenderPipeline DRINK_FIELD = RenderPipeline.builder(
+    public static final VertexFormat DRINK_SPLAT_FORMAT = VertexFormat.builder()
+            .add("Position", VertexFormatElement.POSITION)
+            .add("Color", VertexFormatElement.COLOR)
+            .add("UV0", VertexFormatElement.UV0)
+            .add("UV2", VertexFormatElement.UV2)
+            .add("Shape", DRINK_SHAPE)
+            .build();
+
+    /**
+     * The Unmake drink's splat pipeline (decision
+     * unmake-drink-draws-as-a-screen-space-fluid): one camera-facing quad
+     * per sphere of the drink, or per block's rounded cube, whose fragments
+     * meet the eye ray with the shape, discard a miss and write the shape's
+     * own surface depth and its color lit by the lightmap into the fluid
+     * target, against the level's depth copied there.
+     */
+    public static final RenderPipeline DRINK_SPLAT = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "drink_splat"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "drink_splat"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "drink_splat"))
+            .withSampler("Sampler2")
+            .withUniform(DRINK_FRAME_BLOCK, UniformType.UNIFORM_BUFFER)
+            .withVertexFormat(DRINK_SPLAT_FORMAT, VertexFormat.Mode.QUADS)
+            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true))
+            .withCull(false)
+            .build();
+
+    /**
+     * The Unmake drink's blur pipeline (decision
+     * unmake-drink-draws-as-a-screen-space-fluid): one full-screen pass
+     * averaging each covered pixel's depth and color with the covered pixels
+     * near it in depth within a disc about it, writing every pixel's depth
+     * whatever stood there, so the splatted spheres become one skin.
+     */
+    public static final RenderPipeline DRINK_BLUR = RenderPipeline.builder(
+                    RenderPipelines.MATRICES_PROJECTION_SNIPPET)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "drink_blur"))
+            .withVertexShader(Identifier.withDefaultNamespace("core/screenquad"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "drink_blur"))
+            .withSampler("FluidColor")
+            .withSampler("FluidDepth")
+            .withUniform(DRINK_FRAME_BLOCK, UniformType.UNIFORM_BUFFER)
+            .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.Mode.TRIANGLES)
+            .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, true))
+            .build();
+
+    /**
+     * The Unmake drink's shade pipeline (decision
+     * unmake-drink-draws-as-a-screen-space-fluid): one full-screen pass
+     * reading the fluid target's depth and color, shading the skin with the
+     * glisten, the rim and the cardinal lights, and writing it to the main
+     * target with its depth, so the world hides the goo behind walls and the
+     * goo hides the world behind it.
+     */
+    public static final RenderPipeline DRINK_SHADE = RenderPipeline.builder(
                     RenderPipelines.MATRICES_FOG_LIGHT_DIR_SNIPPET,
                     RenderPipelines.GLOBALS_SNIPPET)
-            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "drink_field"))
-            .withVertexShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "drink_field"))
-            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "drink_field"))
-            .withSampler("Sampler2")
-            .withUniform(DRINK_REGION_BLOCK, UniformType.UNIFORM_BUFFER)
-            .withVertexFormat(DefaultVertexFormat.ENTITY, VertexFormat.Mode.QUADS)
-            .withDepthStencilState(DepthStencilState.DEFAULT)
-            .withCull(true)
+            .withLocation(Identifier.fromNamespaceAndPath(NAMESPACE, PIPELINE_PATH + "drink_shade"))
+            .withVertexShader(Identifier.withDefaultNamespace("core/screenquad"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(NAMESPACE, CORE_SHADER_PATH + "drink_shade"))
+            .withSampler("FluidColor")
+            .withSampler("FluidDepth")
+            .withUniform(DRINK_FRAME_BLOCK, UniformType.UNIFORM_BUFFER)
+            .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.Mode.TRIANGLES)
+            .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true))
             .build();
 
     /**
@@ -1246,7 +1303,7 @@ public final class GooRenderTypes {
 
     /**
      * Registers the overlay pipelines: the goo ripple masks and edge, the
-     * ghost, Bulb's glow beam, the glow shell, Scry's faces and Unmake's drink field.
+     * ghost, Bulb's glow beam, the glow shell, Scry's faces and Unmake's drink splat, blur and shade.
      *
      * @param event the event instance
      */
@@ -1258,7 +1315,9 @@ public final class GooRenderTypes {
         event.registerPipeline(GLOW_BEAM);
         event.registerPipeline(GLOW_SHELL);
         event.registerPipeline(SCRY_FACES);
-        event.registerPipeline(DRINK_FIELD);
+        event.registerPipeline(DRINK_BLUR);
+        event.registerPipeline(DRINK_SPLAT);
+        event.registerPipeline(DRINK_SHADE);
         event.registerPipeline(GOO_FILM);
     }
 
