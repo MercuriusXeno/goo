@@ -1,15 +1,23 @@
 package com.mercuriusxeno.goo.client.ability;
 
+import com.mercuriusxeno.goo.client.GooRenderTypes;
+import com.mojang.blaze3d.pipeline.DepthStencilState;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
+import net.minecraft.resources.Identifier;
+import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
 import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 /**
  * The drink field shader marches the same field DrinkField states and reads
@@ -22,6 +30,9 @@ class DrinkShaderTest {
 
     private static final String FRAGMENT = "/assets/goo/shaders/core/drink_field.fsh";
     private static final String VERTEX = "/assets/goo/shaders/core/drink_field.vsh";
+    private static final String SPLAT_FRAGMENT = "/assets/goo/shaders/core/drink_splat.fsh";
+    private static final String SPLAT_VERTEX = "/assets/goo/shaders/core/drink_splat.vsh";
+    private static final String SHADE_FRAGMENT = "/assets/goo/shaders/core/drink_shade.fsh";
     private static final double DELTA = 1e-9;
     private static final int IVEC4 = 4;
     /** How tight the glisten's highlight is. */
@@ -183,6 +194,57 @@ class DrinkShaderTest {
         assertTrue(glistened >= 0 && mixed > glistened, "main glistens the hit before the light mix");
         assertTrue(fragment.contains("vec3 toEye = normalize(mat3(ModelViewMat) * -p);"),
                 "the view direction is toward the eye, in the lights' space");
+    }
+
+    /** decision unmake-drink-draws-as-a-screen-space-fluid */
+    @Test
+    void aSplatWritesItsShapesOwnSurfaceDepthAndDiscardsAMiss() throws IOException {
+        String fragment = source(SPLAT_FRAGMENT).replace("\r\n", "\n");
+
+        assertTrue(fragment.contains("float h = along * along - dot(center, center) + bound * bound;\n"
+                + "    if (h < 0.0) {\n        discard;\n    }"), "a ray missing the sphere is discarded");
+        assertTrue(fragment.contains("float t = along - sqrt(h);"), "the hit is the ray's first meeting with the sphere");
+        assertTrue(fragment.contains("        if (!hit) {\n            discard;\n        }"),
+                "a ray missing the block's rounded cube is discarded");
+        assertTrue(fragment.contains("vec3 p = rd * t;\n")
+                && fragment.contains("vec4 clip = ProjMat * ModelViewMat * vec4(p, 1.0);")
+                && fragment.contains("gl_FragDepth = Frame.x > 0.5 ? ndc : ndc * 0.5 + 0.5;"),
+                "the depth written is the hit's, not the quad's");
+        assertEquals(Math.sqrt(3), constant(fragment, "CORNER"), 1e-6);
+        assertTrue(source(SPLAT_VERTEX).contains("rayPoint = Position;"), "the quad hands the fragment its eye ray");
+    }
+
+    /** decision unmake-drink-draws-as-a-screen-space-fluid */
+    @Test
+    void theShadeWritesTheFluidTargetsDepthToTheMainTarget() throws IOException {
+        String fragment = source(SHADE_FRAGMENT);
+
+        assertTrue(fragment.contains("float depth = texture(FluidDepth, texCoord).r;"), "it reads the splats' depth");
+        assertTrue(fragment.contains("gl_FragDepth = depth;"), "and writes it, so the world and the goo hide each other");
+        assertTrue(fragment.contains("if (skin.a < COVERED) {"), "a pixel no splat covered is left alone");
+        assertEquals(GLISTEN_POWER, constant(fragment, "GLISTEN_POWER"), DELTA);
+        assertEquals(RIM_STRENGTH, constant(fragment, "RIM_STRENGTH"), DELTA);
+        assertTrue(fragment.contains("color = minecraft_mix_light(Light0_Direction, Light1_Direction, viewNormal, color);"),
+                "lit by the cardinal lights");
+    }
+
+    /** decision unmake-drink-draws-as-a-screen-space-fluid */
+    @Test
+    void theSplatAndShadePipelinesWriteDepthAndRegister() {
+        RegisterRenderPipelinesEvent event = mock(RegisterRenderPipelinesEvent.class);
+
+        GooRenderTypes.registerPipelines(event);
+
+        for (RenderPipeline pipeline : List.of(GooRenderTypes.DRINK_SPLAT, GooRenderTypes.DRINK_SHADE)) {
+            DepthStencilState depth = pipeline.getDepthStencilState();
+            assertNotNull(depth);
+            assertTrue(depth.writeDepth(), pipeline.getLocation() + " writes depth");
+            verify(event).registerPipeline(pipeline);
+        }
+        assertEquals(Identifier.fromNamespaceAndPath("goo", "core/drink_splat"),
+                GooRenderTypes.DRINK_SPLAT.getFragmentShader());
+        assertEquals(Identifier.fromNamespaceAndPath("goo", "core/drink_shade"),
+                GooRenderTypes.DRINK_SHADE.getFragmentShader());
     }
 
     @Test

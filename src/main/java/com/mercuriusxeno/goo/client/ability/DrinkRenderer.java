@@ -44,13 +44,12 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Draws every Unmake drink as one surface: the field of its blocks' boxes
- * and its streams' skeletons, built fresh every frame and marched on the GPU
- * by the drink field shader, so there is no mesh, no cell and nothing carried
- * on between ticks; blocks, streams and their joins are one skin with no seam,
- * blending like metaballs where they meet, moving every frame and never
- * standing or vanishing mid-air, and the drink is drawn until its last stream
- * is spent. No texture anywhere: each piece of the skin wears one solid
+ * Draws every Unmake drink as a screen-space fluid: the spheres of its
+ * streams and its blocks' cubes, built fresh every frame, splat their depth
+ * and color into an offscreen target and one full-screen pass shades the
+ * skin, so there is no mesh, no cell and nothing carried on between ticks,
+ * the cost follows the pixels the drink covers, and the drink is drawn until
+ * its last stream is spent. No texture anywhere: each piece of the skin wears one solid
  * color, the block's particle sprite averaged over its raw pixels at the
  * block crossfading by its share of the route to the goo's own color, its
  * types' tints blended by volume, at the hand, a blend the whole way with no
@@ -64,6 +63,7 @@ import java.util.Set;
  * decision unmake-waves-dissolve-by-crucible-cost
  * decision unmake-skin-is-a-solid-sampled-color
  * decision diagnose-then-fix-unmake-seam-and-ribbing
+ * decision unmake-drink-draws-as-a-screen-space-fluid
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class DrinkRenderer {
@@ -81,19 +81,18 @@ public final class DrinkRenderer {
     private static final Vec3 UP = new Vec3(0, 1, 0);
     private static final double MILLIS_PER_NANO = 1e-6;
     private static final double HALF = 0.5;
-    private static final String UPLOADED =
-            "Unmake drink uploaded in {} ms: {} regions, {} bodies or entries dropped, GPU {} ms a pass";
+    private static final String BUILT = "Unmake drink built in {} ms: {} splats, GPU {} ms a splat and shade pass";
     /** Each drink's streams as last built, by its drinker then block, which say where liquid still flows. */
     private static final Map<Integer, Map<BlockPos, DrinkTree.Stream>> LAST = new HashMap<>();
     /** The drinkers whose drink still showed liquid last frame. */
     private static final Set<Integer> SHOWING = new HashSet<>();
     /** Each streaming block's skin, by its drinker then block, read once from its model. */
     private static final Map<Integer, Map<BlockPos, Skin>> SKINS = new HashMap<>();
-    /** Blocks from the local glove within which a region of the player's own drink is drawn in the hand's pass. */
+    /** Blocks from the local glove within which a splat of the player's own drink is drawn in the hand's pass. */
     static final double HAND_REACH = 1.5;
     private static long loggedTick = Long.MIN_VALUE;
-    /** The regions by the local glove this frame, waiting for the hand's pass. */
-    private static List<DrinkUpload.Block> inHand = List.of();
+    /** The splats by the local glove this frame, waiting for the hand's pass. */
+    private static List<DrinkSplats.Splat> inHand = List.of();
     /** The level's view matrix this frame, which the hand's pass draws the stretch by the glove in. */
     private static @Nullable Matrix4f levelView;
     /** The level's projection this frame, which the hand's pass draws the stretch by the glove in. */
@@ -163,7 +162,7 @@ public final class DrinkRenderer {
                 Vec3 pull = drink.layout().pullToward(look, ticks);
                 DrinkLayout.Aim aim = new DrinkLayout.Aim(drinker.getEyePosition(partialTick), look);
                 Frame frame = new Frame(gloveOf(mc, drinker, partialTick, sight), pull, aim, camera, ticks);
-                passes.add(uploadsOf(level, drink, frame), inHand(mc, drinker) ? frame.glove().subtract(camera) : null);
+                passes.add(splatsOf(level, drink, frame), inHand(mc, drinker) ? frame.glove().subtract(camera) : null);
             }
         }
         return passes;
@@ -220,64 +219,53 @@ public final class DrinkRenderer {
     }
 
     /**
-     * Draws a pass, timing it on the GPU while the drink's debug line is logged.
+     * Draws a pass's splat and shade passes, timing them on the GPU while the drink's debug line is logged.
      *
-     * @param blocks    the pass's uploads
+     * @param splats    the pass's splats, camera-relative
      * @param modelView the level's model view
      */
-    private static void drawTimed(List<DrinkUpload.Block> blocks, Matrix4fc modelView) {
-        boolean timed = Goo.LOGGER.isDebugEnabled() && !blocks.isEmpty();
+    private static void drawTimed(List<DrinkSplats.Splat> splats, Matrix4fc modelView) {
+        boolean timed = Goo.LOGGER.isDebugEnabled() && !splats.isEmpty();
         if (timed) {
             DrinkGpuTimer.begin();
         }
-        DrinkPass.draw(blocks, modelView);
+        DrinkFluidPass.draw(splats, modelView);
         if (timed) {
             DrinkGpuTimer.end();
         }
     }
 
     private static void logOnce(long tick, long began, Passes passes) {
-        if (passes.regions() == 0 || tick == loggedTick) {
+        if (passes.splats() == 0 || tick == loggedTick) {
             return;
         }
         loggedTick = tick;
-        Goo.LOGGER.debug(UPLOADED, Math.round((System.nanoTime() - began) * MILLIS_PER_NANO), passes.regions(),
-                passes.dropped(), DrinkGpuTimer.millis());
+        Goo.LOGGER.debug(BUILT, Math.round((System.nanoTime() - began) * MILLIS_PER_NANO), passes.splats(),
+                DrinkGpuTimer.millis());
     }
 
     /**
-     * This frame's uploads by the pass that draws them: the level's for the
-     * drink at large, the hand's for the regions within {@link #HAND_REACH}
+     * This frame's splats by the pass that draws them: the level's for the
+     * drink at large, the hand's for the splats within {@link #HAND_REACH}
      * of the local glove.
      */
     private static final class Passes {
 
-        private final List<DrinkUpload.Block> level = new ArrayList<>();
-        private final List<DrinkUpload.Block> hand = new ArrayList<>();
+        private final List<DrinkSplats.Splat> level = new ArrayList<>();
+        private final List<DrinkSplats.Splat> hand = new ArrayList<>();
 
         /**
-         * @param uploads a drink's uploads
-         * @param glove   the drinker's glove, camera-relative, or null to draw the whole drink in the level's pass
+         * @param splats a drink's splats, camera-relative
+         * @param glove  the drinker's glove, camera-relative, or null to draw the whole drink in the level's pass
          */
-        void add(List<DrinkUpload.Block> uploads, @Nullable Vec3 glove) {
-            for (DrinkUpload.Block block : uploads) {
-                (glove != null && block.within(glove, HAND_REACH) ? hand : level).add(block);
+        void add(List<DrinkSplats.Splat> splats, @Nullable Vec3 glove) {
+            for (DrinkSplats.Splat splat : splats) {
+                (glove != null && splat.center().distanceTo(glove) <= HAND_REACH ? hand : level).add(splat);
             }
         }
 
-        int regions() {
+        int splats() {
             return level.size() + hand.size();
-        }
-
-        int dropped() {
-            int dropped = 0;
-            for (DrinkUpload.Block block : level) {
-                dropped += block.dropped();
-            }
-            for (DrinkUpload.Block block : hand) {
-                dropped += block.dropped();
-            }
-            return dropped;
         }
     }
 
@@ -331,44 +319,39 @@ public final class DrinkRenderer {
     }
 
     /**
-     * One drink's uploads this frame: its tree built for the frame, every
-     * stream with liquid still to show uploaded with every other as its
-     * neighbour, streams with nothing left to show left out.
+     * One drink's splats this frame: its tree built for the frame, every
+     * stream with liquid still to show splatted, streams with nothing left to
+     * show left out.
      *
      * @param level the client level
      * @param drink the drink
      * @param frame the frame
-     * @return the uploads
+     * @return the splats, camera-relative
      */
-    private static List<DrinkUpload.Block> uploadsOf(ClientLevel level, ClientDrinks.Drink drink, Frame frame) {
+    private static List<DrinkSplats.Splat> splatsOf(ClientLevel level, ClientDrinks.Drink drink, Frame frame) {
         Map<BlockPos, BlockState> states = new HashMap<>();
         List<DrinkTree.Block> blocks = blocksOf(level, drink, states);
         Map<BlockPos, DrinkTree.Stream> last = LAST.getOrDefault(drink.playerId(), Map.of());
         drink.layout().place(states.keySet(), frame.glove(), frame.aim(), frame.ticks(),
                 DrinkTree.flowingOf(last, states.keySet()));
-        List<DrinkField.Skeleton> skeletons = new ArrayList<>();
-        List<DrinkUpload.Coat> coats = new ArrayList<>();
+        List<DrinkSplats.Splat> splats = new ArrayList<>();
         Map<BlockPos, DrinkTree.Stream> built = new HashMap<>();
         for (DrinkTree.Stream stream : DrinkTree.build(blocks, drink.layout(), frame.glove(), frame.pull(),
                 frame.ticks())) {
             built.put(stream.block().pos(), stream);
             if (!stream.spent()) {
-                skeletons.add(DrinkTree.skeleton(stream));
-                coats.add(coatOf(level, drink.playerId(), stream, states.get(stream.block().pos()), frame.ticks()));
+                DrinkSplats.Coat coat = coatOf(level, drink.playerId(), stream, states.get(stream.block().pos()),
+                        frame.ticks());
+                DrinkSplats.of(stream, coat).forEach(splat -> splats.add(splat.relativeTo(frame.camera())));
             }
         }
         LAST.put(drink.playerId(), built);
-        return uploads(drink.playerId(), skeletons, coats, frame.camera());
-    }
-
-    private static List<DrinkUpload.Block> uploads(int id, List<DrinkField.Skeleton> skeletons,
-                                                   List<DrinkUpload.Coat> coats, Vec3 camera) {
-        if (skeletons.isEmpty()) {
-            SHOWING.remove(id);
-            return List.of();
+        if (splats.isEmpty()) {
+            SHOWING.remove(drink.playerId());
+        } else {
+            SHOWING.add(drink.playerId());
         }
-        SHOWING.add(id);
-        return DrinkUpload.of(skeletons, coats, camera, DrinkPass.depthZeroToOne());
+        return splats;
     }
 
     private static List<DrinkTree.Block> blocksOf(ClientLevel level, ClientDrinks.Drink drink,
@@ -413,12 +396,12 @@ public final class DrinkRenderer {
      * @param now    the game time, with the partial tick
      * @return the coat
      */
-    private static DrinkUpload.Coat coatOf(ClientLevel level, int id, DrinkTree.Stream stream, BlockState state,
+    private static DrinkSplats.Coat coatOf(ClientLevel level, int id, DrinkTree.Stream stream, BlockState state,
                                            double now) {
         int light = lightAlong(level, stream, now);
         Skin skin = SKINS.computeIfAbsent(id, ignored -> new HashMap<>())
                 .computeIfAbsent(stream.block().pos(), pos -> skinOf(level, pos, state));
-        return new DrinkUpload.Coat(skin.blockColor(), skin.gooColor(), light & LIGHT_MASK, light >>> SKY_SHIFT);
+        return new DrinkSplats.Coat(skin.blockColor(), skin.gooColor(), light & LIGHT_MASK, light >>> SKY_SHIFT);
     }
 
     /**

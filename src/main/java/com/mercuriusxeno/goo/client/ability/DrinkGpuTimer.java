@@ -6,11 +6,12 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 
 /**
- * The GPU time the Unmake drink's passes take, read back from timer queries
- * a frame or more after each pass, so the debug log can say what the drink
- * costs the GPU rather than leaving the frame rate to be guessed at. It runs
- * only while the drink's debug line is logged.
+ * The GPU time the Unmake drink's splat and shade passes take together,
+ * read back from timer queries a frame or more after each, so the debug log
+ * can say what the drink costs the GPU rather than leaving the frame rate to
+ * be guessed at. It runs only while the drink's debug line is logged.
  * decision unmake-streams-collapse-into-a-central-trunk
+ * decision unmake-drink-draws-as-a-screen-space-fluid
  */
 final class DrinkGpuTimer {
 
