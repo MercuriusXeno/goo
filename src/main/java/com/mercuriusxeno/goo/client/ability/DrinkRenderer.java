@@ -3,16 +3,18 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.unmake.MeltingBlockEntity;
 import com.mercuriusxeno.goo.client.ber.MeltMeshGoo;
+import com.mercuriusxeno.goo.client.particle.DrinkBreakParticle;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.network.DrinkPayload;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
-import net.minecraft.util.LightCoordsUtil;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -34,16 +36,17 @@ import java.util.Set;
  * Builds every Unmake drink's tree each frame: its blocks as the client sees
  * them, the layout walk placed against the drinker's glove and aim, and the
  * streams that walk gives, kept so the next frame knows where liquid still
- * flows and the drink stays live until its last stream is spent. Nothing is
- * drawn yet; the drink's streams carry no picture of their own.
+ * flows and the drink stays live until its last stream is spent, and keeps
+ * each drinker's glove for their break particles to fly to. The frame a
+ * block's square lands, the block bursts whole into break particles of its
+ * own sprite.
  * decision unmake-waves-dissolve-by-crucible-cost
  * decision diagnose-then-fix-unmake-seam-and-ribbing
+ * decision unmake-drink-is-a-stream-of-break-particles
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class DrinkRenderer {
 
-    /** The shares of a path its light is read at: the block, just before it, the middle of the way and the hand. */
-    private static final double[] LIGHT_SHARES = {0.0, 0.25, 0.5, 1.0};
     /** Where another player's glove hangs before their eyes, in blocks. */
     private static final double GLOVE_AHEAD = 0.5;
     /** How far right of another player's look their glove hangs, in blocks. */
@@ -52,10 +55,17 @@ public final class DrinkRenderer {
     private static final double GLOVE_BELOW = 0.45;
     private static final Vec3 UP = new Vec3(0, 1, 0);
     private static final double HALF = 0.5;
+    private static final float HALF_F = 0.5f;
+    /** The pitch vanilla plays a block's break sound at, as a share of the block's own. */
+    private static final float BREAK_PITCH = 0.8f;
     /** Each drink's streams as last built, by its drinker then block, which say where liquid still flows. */
     private static final Map<Integer, Map<BlockPos, DrinkTree.Stream>> LAST = new HashMap<>();
     /** The drinkers whose drink still showed liquid last frame. */
     private static final Set<Integer> SHOWING = new HashSet<>();
+    /** Which blocks of each drink have burst, by its drinker. */
+    private static final Map<Integer, DrinkBurst> BURSTS = new HashMap<>();
+    /** Each drinker's glove as last placed, which their drink's break particles fly to. */
+    private static final Map<Integer, Vec3> GLOVES = new HashMap<>();
 
     private DrinkRenderer() {
     }
@@ -104,6 +114,8 @@ public final class DrinkRenderer {
         drinks.forEach(drink -> drinkers.add(drink.playerId()));
         LAST.keySet().retainAll(drinkers);
         SHOWING.retainAll(drinkers);
+        BURSTS.keySet().retainAll(drinkers);
+        GLOVES.keySet().retainAll(drinkers);
     }
 
     /**
@@ -171,16 +183,30 @@ public final class DrinkRenderer {
                 DrinkTree.flowingOf(last, states.keySet()));
         Map<BlockPos, DrinkTree.Stream> built = new HashMap<>();
         boolean flowing = false;
+        DrinkBurst bursts = BURSTS.computeIfAbsent(drink.playerId(), ignored -> new DrinkBurst());
         for (DrinkTree.Stream stream : DrinkTree.build(blocks, drink.layout(), frame.glove(), frame.pull(),
                 frame.ticks())) {
             built.put(stream.block().pos(), stream);
             flowing |= !stream.spent();
+            int burst = bursts.burstAt(stream.block(), frame.ticks());
+            if (burst > 0) {
+                burst(level, drink.playerId(), stream.block(), states.get(stream.block().pos()), burst);
+            }
         }
         LAST.put(drink.playerId(), built);
+        GLOVES.put(drink.playerId(), frame.glove());
+        showing(drink.playerId(), flowing);
+    }
+
+    /**
+     * @param drinker the drinker
+     * @param flowing whether any stream of their drink still has liquid left, which keeps the drink live
+     */
+    private static void showing(int drinker, boolean flowing) {
         if (flowing) {
-            SHOWING.add(drink.playerId());
+            SHOWING.add(drinker);
         } else {
-            SHOWING.remove(drink.playerId());
+            SHOWING.remove(drinker);
         }
     }
 
@@ -217,21 +243,27 @@ public final class DrinkRenderer {
     }
 
     /**
-     * The light a stream is drawn in: the brightest along its path, so a block
-     * deep in a wall is lit as the air its stream runs through, not as the
-     * dark inside the wall.
+     * Bursts a block into its break particles with its own break sound, as
+     * vanilla plays it, all of them in the air at once, each flying to the
+     * drinker's glove as it is placed frame by frame.
      *
-     * @param level  the client level
-     * @param stream the stream
-     * @param now    the game time, with the partial tick
-     * @return the packed light
+     * @param level   the client level
+     * @param drinker the drinker
+     * @param block   the block
+     * @param state   the block as it stood
+     * @param count   how many particles
      */
-    private static int lightAlong(ClientLevel level, DrinkTree.Stream stream, double now) {
-        int brightest = 0;
-        for (double share : LIGHT_SHARES) {
-            brightest = LightCoordsUtil.max(brightest, LevelRenderer.getLightCoords(level,
-                    BlockPos.containing(DrinkStream.pointAt(stream.path(), share, now))));
+    private static void burst(ClientLevel level, int drinker, DrinkTree.Block block, BlockState state, int count) {
+        Minecraft mc = Minecraft.getInstance();
+        BlockPos pos = block.pos();
+        TextureAtlasSprite sprite = mc.getModelManager().getBlockStateModelSet().getParticleMaterial(state, level, pos)
+                .sprite();
+        SoundType sound = state.getSoundType(level, pos, null);
+        level.playLocalSound(pos, sound.getBreakSound(), SoundSource.BLOCKS, (sound.getVolume() + 1) * HALF_F,
+                sound.getPitch() * BREAK_PITCH, false);
+        for (DrinkRide.Mote mote : DrinkRide.motesOf(block, count, level.getRandom())) {
+            mc.particleEngine.add(new DrinkBreakParticle(level, state, pos, sprite, () -> GLOVES.get(drinker),
+                    mote));
         }
-        return brightest;
     }
 }
