@@ -35,6 +35,13 @@ class DrinkBlurTest {
     /** The most the normal may turn between neighbouring pixels across the join, in degrees. */
     private static final double TURN_BOUND = 1.5;
     private static final int TWO_PIXELS = 2;
+    private static final double HALF = 0.5;
+    /** A thin stream's radius, whose kernel stays under the cap. */
+    private static final double THREAD_RADIUS = 0.03;
+    /** Pixels a block spans a block from the eye, so it spans {@link #PIXELS_PER_BLOCK} at the spheres' depth. */
+    private static final double FOCAL = PIXELS_PER_BLOCK * SPHERES_AWAY;
+    /** The share of a lone sphere's radius either side of its middle its face is looked at over. */
+    private static final double FACE = 0.8;
 
     private static int pixelAt(double across) {
         return (int) Math.round((across - ROW_FROM) * PIXELS_PER_BLOCK);
@@ -86,7 +93,7 @@ class DrinkBlurTest {
     void twoOverlappingSpheresBlurIntoOneSkinWithNoCreaseAcrossTheirJoin() {
         double[][] row = row();
 
-        double[] blurred = DrinkBlur.blurRow(row[0], row[1], PIXELS_PER_BLOCK);
+        double[] blurred = DrinkBlur.blurRow(row[0], row[1], FOCAL);
 
         assertTrue(largestCrease(row[0]) > CREASE_BOUND, "unblurred, the join is a crease: " + largestCrease(row[0]));
         assertTrue(largestTurn(row[0]) > TURN_BOUND, "unblurred, the normal folds there: " + largestTurn(row[0]));
@@ -94,11 +101,42 @@ class DrinkBlurTest {
         assertTrue(largestTurn(blurred) < TURN_BOUND, "the blurred turn, degrees: " + largestTurn(blurred));
     }
 
+    /**
+     * A lone sphere seen in perspective blurs with no terraces: its kernel
+     * widens as its face comes nearer the eye, and the blurred normal turns
+     * no faster anywhere on its face than the sphere's own does, where a
+     * kernel stepping a whole tap at a time stepped the depth along every
+     * line of equal depth, contour rings over the skin.
+     */
+    @Test
+    void aLoneSphereInPerspectiveBlursWithNoTerraces() {
+        int pixels = pixelAt(ROW_TO) + 1;
+        double[] distance = new double[pixels];
+        double[] radius = new double[pixels];
+        for (int pixel = 0; pixel < pixels; pixel++) {
+            distance[pixel] = sphereDistance(ROW_FROM + pixel / PIXELS_PER_BLOCK, FIRST);
+            radius[pixel] = distance[pixel] < WALL_AWAY ? RADIUS : 0;
+        }
+
+        double[] blurred = DrinkBlur.blurRow(distance, radius, FOCAL);
+
+        double raw = 0;
+        double smoothed = 0;
+        int middle = pixelAt(FIRST);
+        int face = (int) Math.round(FACE * RADIUS * PIXELS_PER_BLOCK);
+        for (int pixel = middle - face; pixel <= middle + face; pixel++) {
+            raw = Math.max(raw, Math.abs(angleAt(distance, pixel + 1) - angleAt(distance, pixel)));
+            smoothed = Math.max(smoothed, Math.abs(angleAt(blurred, pixel + 1) - angleAt(blurred, pixel)));
+        }
+        assertTrue(smoothed <= raw, "the blurred face turns at most " + smoothed + " degrees a pixel against the "
+                + "sphere's own " + raw);
+    }
+
     @Test
     void theWallBesideTheSpheresKeepsItsDepth() {
         double[][] row = row();
 
-        double[] blurred = DrinkBlur.blurRow(row[0], row[1], PIXELS_PER_BLOCK);
+        double[] blurred = DrinkBlur.blurRow(row[0], row[1], FOCAL);
 
         for (int pixel = 0; pixel < blurred.length; pixel++) {
             if (row[1][pixel] == 0) {
@@ -114,13 +152,14 @@ class DrinkBlurTest {
         int taps = DrinkBlur.MOST_TAPS;
         double threshold = RADIUS * DrinkBlur.DEPTH_SHARE;
 
-        assertEquals(0, DrinkBlur.weightOf(0, taps, threshold, threshold), "a neighbour at the threshold weighs nothing");
-        assertEquals(1, DrinkBlur.weightOf(0, taps, 0, threshold));
-        assertTrue(DrinkBlur.weightOf(taps, taps, 0, threshold) < DrinkBlur.weightOf(1, taps, 0, threshold));
-        assertEquals(2 * DrinkBlur.widthOf(RADIUS, PIXELS_PER_BLOCK),
-                DrinkBlur.widthOf(RADIUS, 2 * PIXELS_PER_BLOCK), 1e-9, "a sphere twice as near blurs twice as wide");
+        assertEquals(0, DrinkBlur.weightOf(0, threshold, threshold), "a neighbour at the threshold weighs nothing");
+        assertEquals(0, DrinkBlur.weightOf(1, 0, threshold), "nor one at the kernel's edge, so a new tap enters at nothing");
+        assertEquals(1, DrinkBlur.weightOf(0, 0, threshold));
+        assertTrue(DrinkBlur.weightOf(HALF, 0, threshold) < DrinkBlur.weightOf(0, 0, threshold));
+        assertEquals(2 * DrinkBlur.widthOf(THREAD_RADIUS, PIXELS_PER_BLOCK),
+                DrinkBlur.widthOf(THREAD_RADIUS, 2 * PIXELS_PER_BLOCK), 1e-9, "a sphere twice as near blurs twice as wide");
         assertEquals(TWO_PIXELS, DrinkBlur.tapsOf(TWO_PIXELS), "a narrow kernel reads every pixel");
-        assertEquals(taps, DrinkBlur.tapsOf(PIXELS_PER_BLOCK), "a wide one spreads its capped taps");
+        assertEquals(taps, DrinkBlur.widthOf(RADIUS, PIXELS_PER_BLOCK), 1e-9, "a wide one is capped");
     }
 
     @Test

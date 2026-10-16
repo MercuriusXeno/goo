@@ -5,14 +5,15 @@
 // One pass of the bilateral blur that makes the Unmake drink's spheres one
 // skin (decision unmake-drink-draws-as-a-screen-space-fluid), along the screen
 // axis Frame.yz names: a covered pixel's distance from the eye and its color
-// are averaged with its covered neighbours, the kernel as wide on screen as
-// the sphere there, read from the coverage channel, times WIDTH_SHARE, and a
-// neighbour farther in depth than the radius times DEPTH_SHARE weighs nothing,
-// so the silhouette against the world and between a near and a far stream
-// stays sharp; a pixel no splat covered keeps the world's depth. The kernel
-// reads every pixel up to MOST_TAPS either side, its taps spread evenly past
-// that and each read between its two nearest pixels. The constants mirror
-// DrinkBlur, which DrinkShaderTest checks them against.
+// are averaged with its covered neighbours, every pixel the kernel reaches, the
+// kernel as wide on screen as the sphere there, read from the coverage channel,
+// times WIDTH_SHARE up to MOST_TAPS pixels; a neighbour farther in depth than
+// the radius times DEPTH_SHARE weighs nothing, so the silhouette against the
+// world and between a near and a far stream stays sharp, and a pixel no splat
+// covered keeps the world's depth. Every weight falls smoothly to nothing at
+// its edge, so nothing the kernel gains or loses as it moves steps the
+// average. The pixel keeps its own coverage, its own sphere's radius. The
+// constants mirror DrinkBlur, which DrinkShaderTest checks them against.
 
 uniform sampler2D FluidColor;
 uniform sampler2D FluidDepth;
@@ -25,12 +26,11 @@ in vec2 texCoord;
 
 out vec4 fragColor;
 
-const int MOST_TAPS = 24;
+const int MOST_TAPS = 32;
 const float WIDTH_SHARE = 1.0;
 const float DEPTH_SHARE = 1.0;
 const float RADIUS_SCALE = 0.5;
 const float COVERED = 0.002;
-const float SPATIAL = 2.0;
 
 float distanceOf(float depth) {
     float ndc = Frame.x > 0.5 ? depth : depth * 2.0 - 1.0;
@@ -42,31 +42,13 @@ float depthOf(float away) {
     return Frame.x > 0.5 ? ndc : ndc * 0.5 + 0.5;
 }
 
-float weightOf(int tap, int taps, float depthDelta, float threshold) {
-    float share = float(tap) / float(taps);
-    float near = depthDelta / threshold;
-    float range = abs(near) >= 1.0 ? 0.0 : (1.0 - near * near) * (1.0 - near * near);
-    return exp(-SPATIAL * share * share) * range;
+float falloff(float share) {
+    float inside = 1.0 - share * share;
+    return inside <= 0.0 ? 0.0 : inside * inside;
 }
 
-// A tap's distance and color, read between its two nearest pixels where both
-// are covered and at the covered one where only one is, as DrinkBlur.readAt;
-// its alpha is under COVERED where neither is.
-vec4 readAt(vec2 at, ivec2 size, ivec2 axis, out float there) {
-    vec2 within = clamp(at, vec2(0.0), vec2(size - 1));
-    ivec2 low = ivec2(floor(within));
-    ivec2 high = min(low + axis, size - 1);
-    float share = clamp(dot(within - vec2(low), vec2(axis)), 0.0, 1.0);
-    vec4 lowColor = texelFetch(FluidColor, low, 0);
-    vec4 highColor = texelFetch(FluidColor, high, 0);
-    float lowDistance = distanceOf(texelFetch(FluidDepth, low, 0).r);
-    float highDistance = distanceOf(texelFetch(FluidDepth, high, 0).r);
-    if (lowColor.a >= COVERED && highColor.a >= COVERED) {
-        there = mix(lowDistance, highDistance, share);
-        return mix(lowColor, highColor, share);
-    }
-    there = lowColor.a >= COVERED ? lowDistance : highDistance;
-    return lowColor.a >= COVERED ? lowColor : highColor;
+float weightOf(float offset, float depthDelta, float threshold) {
+    return falloff(offset) * falloff(depthDelta / threshold);
 }
 
 void main() {
@@ -83,23 +65,23 @@ void main() {
     float here = distanceOf(depth);
     float radius = center.a * RADIUS_SCALE;
     float pixelsPerBlock = ProjMat[1][1] * float(size.y) * 0.5 / here;
-    float width = max(1.0, WIDTH_SHARE * radius * pixelsPerBlock);
-    int taps = int(min(float(MOST_TAPS), ceil(width)));
-    vec2 stride = vec2(axis) * (width / float(taps));
+    float width = clamp(WIDTH_SHARE * radius * pixelsPerBlock, 1.0, float(MOST_TAPS));
+    int taps = int(ceil(width));
     float threshold = DEPTH_SHARE * radius;
     float weights = 0.0;
     float distances = 0.0;
-    vec4 colors = vec4(0.0);
+    vec3 colors = vec3(0.0);
     for (int tap = -taps; tap <= taps; tap++) {
-        float there;
-        vec4 color = readAt(vec2(pixel) + stride * float(tap), size, axis, there);
+        ivec2 at = clamp(pixel + axis * tap, ivec2(0), size - 1);
+        vec4 color = texelFetch(FluidColor, at, 0);
         if (color.a >= COVERED) {
-            float weight = weightOf(tap, taps, there - here, threshold);
+            float there = distanceOf(texelFetch(FluidDepth, at, 0).r);
+            float weight = weightOf(float(tap) / width, there - here, threshold);
             weights += weight;
             distances += weight * there;
-            colors += weight * color;
+            colors += weight * color.rgb;
         }
     }
-    fragColor = colors / weights;
+    fragColor = vec4(colors / weights, center.a);
     gl_FragDepth = depthOf(distances / weights);
 }
