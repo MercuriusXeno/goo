@@ -84,8 +84,8 @@ final class FirePass {
 
     /**
      * Packs every field's block end to end at the stride, in one direct
-     * buffer kept across frames, as DrinkFluidPass keeps its vertices, so a
-     * frame allocates no direct memory of its own.
+     * buffer kept across frames, so a frame allocates no direct memory of its
+     * own.
      *
      * @param fields    the burning fields
      * @param stride    bytes from one block to the next, the device's alignment

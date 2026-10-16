@@ -55,7 +55,6 @@ public final class GooNetworking {
     private static void registerAbilityVisualPayloads(PayloadRegistrar r) {
         r.playToClient(ChainBurnoutPayload.TYPE, ChainBurnoutPayload.STREAM_CODEC);
         r.playToClient(LurkerPulsePayload.TYPE, LurkerPulsePayload.STREAM_CODEC);
-        r.playToClient(UnmakePayload.TYPE, UnmakePayload.STREAM_CODEC);
         r.playToClient(DrinkPayload.TYPE, DrinkPayload.STREAM_CODEC);
         r.playToClient(UnmadePayload.TYPE, UnmadePayload.STREAM_CODEC);
         registerClientEffectPayloads(r);
