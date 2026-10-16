@@ -90,7 +90,7 @@ class DrinkShaderTest {
     void theBlurCarriesDrinkBlursKernel() throws IOException {
         String fragment = source(BLUR_FRAGMENT);
 
-        assertEquals(DrinkBlur.MOST_TAPS, constant(fragment, "MOST_TAPS"), DELTA);
+        assertEquals(DrinkBlur.MOST_REACH, constant(fragment, "MOST_REACH"), DELTA);
         assertEquals(DrinkBlur.WIDTH_SHARE, constant(fragment, "WIDTH_SHARE"), DELTA);
         assertEquals(DrinkBlur.DEPTH_SHARE, constant(fragment, "DEPTH_SHARE"), DELTA);
         assertEquals(DrinkBlur.RADIUS_SCALE, constant(fragment, "RADIUS_SCALE"), DELTA);
@@ -98,12 +98,13 @@ class DrinkShaderTest {
         assertTrue(fragment.contains("float inside = 1.0 - share * share;\n    return inside <= 0.0 ? 0.0 : inside * inside;")
                 && fragment.contains("return falloff(offset) * falloff(depthDelta / threshold);"),
                 "the weight is DrinkBlur.weightOf's, falling to nothing at its edges");
-        assertTrue(fragment.contains("float width = clamp(WIDTH_SHARE * radius * pixelsPerBlock, 1.0, float(MOST_TAPS));"),
-                "the kernel is as wide on screen as the sphere up to its cap, as DrinkBlur.widthOf");
-        assertTrue(fragment.contains("int taps = int(ceil(width));")
-                && fragment.contains("ivec2 at = clamp(pixel + axis * tap, ivec2(0), size - 1);")
-                && fragment.contains("float weight = weightOf(float(tap) / width, there - here, threshold);"),
-                "it reads every pixel it reaches, as DrinkBlur.blurRow");
+        assertTrue(fragment.contains("float width = clamp(WIDTH_SHARE * radius * pixelsPerBlock, 1.0, float(MOST_REACH));"),
+                "the disc is as wide on screen as the sphere up to its cap, as DrinkBlur.widthOf");
+        assertTrue(fragment.contains("for (int down = -reach; down <= reach; down++) {")
+                && fragment.contains("for (int across = -reach; across <= reach; across++) {")
+                && fragment.contains("float share = length(vec2(across, down)) / width;")
+                && fragment.contains("float weight = weightOf(share, there - here, threshold);"),
+                "it reads every pixel of the disc, both axes at once, as DrinkBlur.blurImage");
         assertTrue(fragment.contains("fragColor = vec4(colors / weights, center.a);"),
                 "a pixel keeps its own sphere's radius as its coverage");
         assertTrue(fragment.contains("if (center.a < COVERED) {\n        fragColor = center;\n        gl_FragDepth = depth;"),

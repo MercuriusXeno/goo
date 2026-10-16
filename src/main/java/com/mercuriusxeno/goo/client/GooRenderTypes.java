@@ -1151,7 +1151,7 @@ public final class GooRenderTypes {
                 .build();
     }
 
-    /** The uniform block the drink's splat, blur and shade pipelines read the depth convention and blur axis from. */
+    /** The uniform block the drink's splat, blur and shade pipelines read the depth convention from. */
     public static final String DRINK_FRAME_BLOCK = "DrinkFrame";
 
     /** A drink splat vertex's shape: its camera-relative middle, and its radius or half width. */
@@ -1193,10 +1193,10 @@ public final class GooRenderTypes {
 
     /**
      * The Unmake drink's blur pipeline (decision
-     * unmake-drink-draws-as-a-screen-space-fluid): one full-screen pass along
-     * one screen axis, averaging each covered pixel's depth and color with its
-     * covered neighbours near it in depth, writing every pixel's depth whatever
-     * stood there, so two passes make the splatted spheres one skin.
+     * unmake-drink-draws-as-a-screen-space-fluid): one full-screen pass
+     * averaging each covered pixel's depth and color with the covered pixels
+     * near it in depth within a disc about it, writing every pixel's depth
+     * whatever stood there, so the splatted spheres become one skin.
      */
     public static final RenderPipeline DRINK_BLUR = RenderPipeline.builder(
                     RenderPipelines.MATRICES_PROJECTION_SNIPPET)

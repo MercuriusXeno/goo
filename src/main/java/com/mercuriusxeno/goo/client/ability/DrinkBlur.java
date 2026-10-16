@@ -4,26 +4,26 @@ package com.mercuriusxeno.goo.client.ability;
  * The blur that makes the drink's splatted spheres one skin, and the normal
  * the shade pass reads off it, stated in Java: drink_blur.fsh runs the same
  * kernel and drink_shade.fsh the same normal, and DrinkShaderTest holds their
- * constants to these. Each blur pass averages a pixel's distance from the
- * eye and its color with its covered neighbours along one screen axis, the
- * kernel as wide on screen as the sphere there is times
- * {@link #WIDTH_SHARE} up to {@link #MOST_TAPS} pixels, so near spheres blend
- * as widely as far ones until the cap; a neighbour farther in depth than the
- * sphere's radius times {@link #DEPTH_SHARE} weighs nothing, so the
- * silhouette against the world and between a near and a far stream stays
- * sharp, and a pixel no splat covered keeps the world's depth untouched.
- * Every weight falls smoothly to nothing at its edge, so nothing the kernel
- * gains or loses as it moves steps the average.
+ * constants to these. One pass averages each covered pixel's distance from
+ * the eye and its color with every covered pixel within a disc about it, the
+ * disc as wide on screen as the sphere there is times {@link #WIDTH_SHARE} up
+ * to {@link #MOST_REACH} pixels, so near spheres blend as widely as far ones
+ * until the cap; a neighbour farther in depth than the sphere's radius times
+ * {@link #DEPTH_SHARE} weighs nothing, so the silhouette against the world
+ * and between a near and a far stream stays sharp, and a pixel no splat
+ * covered keeps the world's depth untouched. Every weight falls smoothly to
+ * nothing at its edge, so nothing the disc gains or loses as it moves steps
+ * the average. A blur run across the screen and then down it averaged what
+ * the first pass had already pulled unevenly at a rim, one column differently
+ * from the next, and left lines hanging down the goo; the disc reads both
+ * axes at once and leaves none.
  * decision unmake-drink-draws-as-a-screen-space-fluid
  */
 public final class DrinkBlur {
 
-    /**
-     * The most pixels the kernel reaches either side, reading every one: taps spread a stride apart stepped the
-     * average once a stride as each crossed a silhouette, contour rings along every edge of the goo.
-     */
-    public static final int MOST_TAPS = 32;
-    /** The kernel's half width on screen, as a share of the sphere's radius there. */
+    /** The most pixels the disc reaches from its middle, every one within it read. */
+    public static final int MOST_REACH = 12;
+    /** The disc's radius on screen, as a share of the sphere's radius there. */
     public static final double WIDTH_SHARE = 1.0;
     /** The depth difference past which a neighbour weighs nothing, as a share of the sphere's radius. */
     public static final double DEPTH_SHARE = 1.0;
@@ -38,26 +38,18 @@ public final class DrinkBlur {
     /**
      * @param radius         the sphere's radius at a pixel, in blocks
      * @param pixelsPerBlock how many pixels a block spans on screen at that pixel's depth
-     * @return the kernel's half width there, in pixels, from one to {@link #MOST_TAPS}
+     * @return the disc's radius there, in pixels, from one to {@link #MOST_REACH}
      */
     public static double widthOf(double radius, double pixelsPerBlock) {
-        return Math.clamp(WIDTH_SHARE * radius * pixelsPerBlock, 1, MOST_TAPS);
+        return Math.clamp(WIDTH_SHARE * radius * pixelsPerBlock, 1, MOST_REACH);
     }
 
     /**
-     * @param width the kernel's half width, in pixels
-     * @return how many pixels it reads either side
-     */
-    public static int tapsOf(double width) {
-        return (int) Math.ceil(width);
-    }
-
-    /**
-     * A neighbour's weight: falling smoothly to nothing at the kernel's edge,
-     * so a pixel the kernel gains as it widens enters weighing nothing, and to
+     * A neighbour's weight: falling smoothly to nothing at the disc's edge,
+     * so a pixel the disc gains as it widens enters weighing nothing, and to
      * nothing at the depth threshold.
      *
-     * @param offset     the neighbour's offset as a share of the kernel's half width, -1 to 1
+     * @param offset     the neighbour's distance from the pixel as a share of the disc's radius
      * @param depthDelta how much farther the neighbour is than the pixel, in blocks
      * @param threshold  the depth difference at which a neighbour weighs nothing, in blocks
      * @return the weight, 1 at the pixel itself
@@ -72,37 +64,47 @@ public final class DrinkBlur {
     }
 
     /**
-     * One blur pass along a row of pixels, as the shader runs it: each
-     * covered pixel's distance averaged over the covered neighbours its
-     * kernel reaches; an uncovered pixel kept as it was.
+     * The blur over an image, as the shader runs it: each covered pixel's
+     * distance averaged over the covered pixels within its disc; an
+     * uncovered pixel kept as it was.
      *
-     * @param distance each pixel's distance from the eye, in blocks
-     * @param radius   each pixel's sphere radius, in blocks, 0 where no splat covers it
+     * @param distance each pixel's distance from the eye, in blocks, by row then column
+     * @param radius   each pixel's sphere radius, in blocks, 0 where no splat covers it, by row then column
      * @param focal    how many pixels a block spans on screen a block from the eye, so a pixel's own distance sets
      *                 how many it spans there
-     * @return the blurred distances
+     * @return the blurred distances, by row then column
      */
-    public static double[] blurRow(double[] distance, double[] radius, double focal) {
-        double[] blurred = distance.clone();
-        for (int pixel = 0; pixel < distance.length; pixel++) {
-            if (radius[pixel] > 0) {
-                blurred[pixel] = blurredAt(distance, radius, pixel, focal / distance[pixel]);
+    public static double[][] blurImage(double[][] distance, double[][] radius, double focal) {
+        double[][] blurred = new double[distance.length][];
+        for (int row = 0; row < distance.length; row++) {
+            blurred[row] = distance[row].clone();
+            for (int column = 0; column < distance[row].length; column++) {
+                if (radius[row][column] > 0) {
+                    blurred[row][column] = blurredAt(distance, radius, row, column,
+                            focal / distance[row][column]);
+                }
             }
         }
         return blurred;
     }
 
-    private static double blurredAt(double[] distance, double[] radius, int pixel, double pixelsPerBlock) {
-        double width = widthOf(radius[pixel], pixelsPerBlock);
-        double threshold = DEPTH_SHARE * radius[pixel];
+    private static double blurredAt(double[][] distance, double[][] radius, int row, int column,
+                                    double pixelsPerBlock) {
+        double width = widthOf(radius[row][column], pixelsPerBlock);
+        double threshold = DEPTH_SHARE * radius[row][column];
+        int reach = (int) Math.ceil(width);
         double weights = 0;
         double sum = 0;
-        for (int tap = -tapsOf(width); tap <= tapsOf(width); tap++) {
-            int at = Math.clamp(pixel + tap, 0, distance.length - 1);
-            if (radius[at] > 0) {
-                double weight = weightOf(tap / width, distance[at] - distance[pixel], threshold);
-                weights += weight;
-                sum += weight * distance[at];
+        for (int down = -reach; down <= reach; down++) {
+            int at = row + down;
+            for (int across = -reach; across <= reach && at >= 0 && at < distance.length; across++) {
+                int beside = column + across;
+                if (beside >= 0 && beside < distance[at].length && radius[at][beside] > 0) {
+                    double weight = weightOf(Math.sqrt(down * down + across * across) / width,
+                            distance[at][beside] - distance[row][column], threshold);
+                    weights += weight;
+                    sum += weight * distance[at][beside];
+                }
             }
         }
         return sum / weights;
