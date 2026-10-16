@@ -13,32 +13,26 @@ import java.util.Map;
 /**
  * The layout of one Unmake drink's tree, one central trunk every stream
  * collapses into: the spine is the block the aim line passes through nearest
- * the hand, its stream running to the glove, and every other block joins the
- * standing stream whose line runs nearest it, the spine or a feeder on the
- * spine's chain nearer the hand, still carrying liquid where it would join,
- * a short lead toward the hand from the nearest point, so blobs collapse into
- * one mass near the blocks and few geometries reach the hand. A stream whose
- * trunk carries nothing at its join any more re-roots the same way, its block
- * end anchored and its hand end gliding onto the new course rather than
- * snapping, while a trunk whose own liquid has passed keeps carrying what
- * joins it; once the spine carries nothing, the next block the aim line passes
- * through nearest the hand becomes the spine, so one stream enters the palm.
+ * the hand, its stream running to the glove, and every other block's stream
+ * runs straight to the spine and joins it a short lead toward the hand from
+ * the point nearest its block, no stream chaining onto another side stream,
+ * so one trunk enters the glove and the threads collapse into one central
+ * mass flowing to the hand. A spine whose own liquid has passed keeps
+ * carrying its feeders while any of their goo rides it; once it carries
+ * nothing, the next block the aim line passes through nearest the hand
+ * becomes the spine and every feeder re-roots onto it, its block end anchored
+ * and its hand end gliding onto the new course rather than snapping.
  * The trunk arrives down a line lifted over the look, in over the fingertips
  * into the palm, and the line follows the look with a lag, so the hand pulls
  * the stream.
  * decision unmake-streams-collapse-into-a-central-trunk
+ * decision unmake-every-stream-joins-the-trunk-directly
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 public final class DrinkLayout {
 
     /** Blocks toward the hand a join is pushed past the point of the trunk nearest the joining block, short so a feeder collapses into its trunk rather than running beside it. */
     static final double LEAD = 0.4;
-    /**
-     * How many times nearer than the central trunk a stream off the aim line must run for a block to join it, so
-     * the cone's streams converge on the centre rather than knotting into a lattice of tubes between neighbours,
-     * pulled into the trunk more strongly than toward the hand.
-     */
-    static final double SIDE_PULL = 2;
     /** Ticks the pull takes to close most of the way to a new look, so the stream sways rather than snaps. */
     static final double PULL_LAG = 6;
     /** The rise over the look the trunk arrives down, as a slope: about thirty degrees, over the fingertips into the palm. */
@@ -227,7 +221,6 @@ public final class DrinkLayout {
 
     private final Map<BlockPos, Node> nodes = new LinkedHashMap<>();
     private @Nullable BlockPos spine;
-    private @Nullable Aim aim;
     private @Nullable Vec3 pull;
     private double pulledAt;
 
@@ -324,10 +317,10 @@ public final class DrinkLayout {
 
     /**
      * Picks the spine while none flows, then lays every block not yet laid,
-     * nearest the glove first, each joining the nearest flowing stream on the
-     * spine's chain, and re-roots every laid block whose trunk has run dry at
-     * its join.
+     * nearest the glove first, each joining the spine, and re-roots every
+     * laid block whose trunk has run dry at its join onto the spine.
      * decision unmake-streams-collapse-into-a-central-trunk
+     * decision unmake-every-stream-joins-the-trunk-directly
      *
      * @param blocks  the drink's blocks
      * @param glove   the glove this frame
@@ -339,16 +332,15 @@ public final class DrinkLayout {
         List<BlockPos> order = new ArrayList<>();
         blocks.forEach(pos -> order.add(pos.immutable()));
         order.sort(Comparator.comparingDouble(pos -> Vec3.atCenterOf(pos).distanceToSqr(glove)));
-        this.aim = aim;
         if (spine == null || !nodes.containsKey(spine) || !spineCarries(glove, flowing)) {
             handOffSpine(order, glove, aim, now, flowing);
         }
         for (BlockPos pos : order) {
             Node node = nodes.get(pos);
             if (node == null) {
-                lay(pos, glove, flowing);
+                lay(pos, glove);
             } else if (node.trunk != null && !trunkFlows(node, flowing) && stillToCome(pos, glove, flowing)) {
-                reroot(node, glove, now, flowing);
+                reroot(node, glove, now);
             }
         }
     }
@@ -432,9 +424,9 @@ public final class DrinkLayout {
         return nodes.containsKey(node.trunk) && flowing.at(node.trunk, node.joinAt);
     }
 
-    private void lay(BlockPos pos, Vec3 glove, Flowing flowing) {
+    private void lay(BlockPos pos, Vec3 glove) {
         Vec3 center = Vec3.atCenterOf(pos);
-        Node trunk = nearestTrunk(center, glove, flowing, null);
+        Node trunk = spineFor(pos);
         if (trunk == null) {
             nodes.put(pos, new Node(pos, farSideOf(center, glove), null, 0, glove));
             return;
@@ -444,9 +436,9 @@ public final class DrinkLayout {
         nodes.put(pos, new Node(pos, farSideOf(center, line.pointAt(at)), trunk.pos, at, line.pointAt(at)));
     }
 
-    private void reroot(Node node, Vec3 glove, double now, Flowing flowing) {
+    private void reroot(Node node, Vec3 glove, double now) {
         Vec3 center = Vec3.atCenterOf(node.pos);
-        Node trunk = nearestTrunk(center, glove, flowing, node);
+        Node trunk = spineFor(node.pos);
         if (trunk == null) {
             node.reroot(null, 0, now);
         } else {
@@ -489,68 +481,15 @@ public final class DrinkLayout {
     }
 
     /**
-     * The standing stream a block joins: the one whose line runs nearest it
-     * among the spine and those whose blocks are nearer the glove, which do
-     * not themselves run through the block's own stream, and whose liquid
-     * still flows where the block would join.
+     * The stream a block joins: the spine's, straight down the aim line,
+     * whatever side streams lie nearer it.
+     * decision unmake-every-stream-joins-the-trunk-directly
      *
-     * @param center  the block's middle
-     * @param glove   the glove
-     * @param flowing whether a stream still flows at a distance along its path
-     * @param self    the block's own node, where it is re-rooting, else null
-     * @return the trunk, or null for a stream running to the glove
+     * @param pos a block
+     * @return the spine's node, or null where the block is the spine or no spine stands, its stream then running to
+     *         the glove
      */
-    private @Nullable Node nearestTrunk(Vec3 center, Vec3 glove, Flowing flowing, @Nullable Node self) {
-        Node nearest = null;
-        double least = Double.MAX_VALUE;
-        for (Node node : nodes.values()) {
-            if (!candidate(node, center, glove, self)) {
-                continue;
-            }
-            Line line = lineOf(node, glove);
-            double distance = line.pointAt(line.nearestDistance(center)).distanceToSqr(center)
-                    * (central(node.pos) ? 1 : SIDE_PULL * SIDE_PULL);
-            if (distance < least && flowing.at(node.pos, joinOn(line, center))) {
-                least = distance;
-                nearest = node;
-            }
-        }
-        return nearest;
-    }
-
-    /**
-     * @param pos a laid block
-     * @return whether its stream is the central trunk's: the spine's, or a block's the aim line passes through
-     */
-    private boolean central(BlockPos pos) {
-        return pos.equals(spine) || aim != null && aim.passesThrough(pos);
-    }
-
-    /**
-     * @param node   a standing node
-     * @param center a block's middle
-     * @param glove  the glove
-     * @param self   the block's own node, or null
-     * @return whether the block may join the node's stream: another's, the spine or nearer the glove, and not
-     *         running down its own
-     */
-    private boolean candidate(Node node, Vec3 center, Vec3 glove, @Nullable Node self) {
-        boolean nearer = node.pos.equals(spine)
-                || Vec3.atCenterOf(node.pos).distanceToSqr(glove) < center.distanceToSqr(glove);
-        return node != self && nearer && !runsThrough(node, self);
-    }
-
-    /**
-     * @param node     a node
-     * @param ancestor a node, or null
-     * @return whether the node's stream runs down the ancestor's, so the ancestor cannot join it
-     */
-    private boolean runsThrough(Node node, @Nullable Node ancestor) {
-        for (Node up = node; up != null && ancestor != null; up = up.trunk == null ? null : nodes.get(up.trunk)) {
-            if (up == ancestor) {
-                return true;
-            }
-        }
-        return false;
+    private @Nullable Node spineFor(BlockPos pos) {
+        return spine == null || pos.equals(spine) ? null : nodes.get(spine);
     }
 }
