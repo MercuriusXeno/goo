@@ -6,6 +6,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -13,9 +14,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * A stream flows languidly along its path, kept the longest route's travel
  * at the base pace past its drain; between the ends it snakes off the
- * straight line and wanders, its width a slow profile of bulbs and waists
- * with gentle grades between, scaled by its block, its texture riding the
- * flow, tapering to a point at both ends (decision unmake-waves-dissolve-by-crucible-cost).
+ * straight line and wanders, its skin a cyclone whose grooves twist along the
+ * liquid and spin about its axis as the goo travels, tapering to a point at
+ * both ends (decisions unmake-waves-dissolve-by-crucible-cost and
+ * unmake-stream-is-a-shrinking-waterspout).
  */
 class DrinkStreamTest {
 
@@ -31,20 +33,20 @@ class DrinkStreamTest {
     private static final double LATER = 100;
     private static final double LENGTH = 3;
     private static final double MIDDLE = 1.5;
+    private static final Vec3 GLOVE = new Vec3(1.5, 2.2, 3.1);
+    /** A block streaming, landed at tick 100 and drained long after the test looks. */
+    private static final DrinkTree.Block STREAMING = new DrinkTree.Block(new BlockPos(7, 2, 3),
+            new Vec3(7.5, 2.5, 3.5), 1, START - SiphonRule.INJECT_TICKS, START, 1000);
+    /** A time the stream's head is well past the ring the spin test reads. */
+    private static final double FLOWING = START + 20;
     private static final int TICKS_A_SECOND = 20;
     private static final double EIGHT_BLOCKS = 8;
     private static final double OFF_THE_LINE = 0.02;
-    /** Blocks of liquid the width is read over, both ways from the start. */
-    private static final double READ = 40;
-    private static final double STEP = 0.05;
-    /** The steepest a grade between bulb and waist may run, in blocks of radius a block of liquid. */
-    private static final double GENTLE = 0.3;
-    /** The fewest times the width crosses its middle over the read, so the stream undulates. */
-    private static final int UNDULATIONS = 20;
-    private static final double LEAST_RATIO = 2;
-    private static final double MOST_RATIO = 4;
     private static final double RADIUS = 0.1;
     private static final double NUDGE = 0.01;
+    private static final Vec3 PULL = new Vec3(-1, 0, 0);
+    /** Radians a tick under which the grooves would read as standing still. */
+    private static final double TURNING = 0.05;
 
     @Nested
     class Timing {
@@ -159,53 +161,48 @@ class DrinkStreamTest {
     class Shape {
 
         @Test
-        void theStreamTapersToAPointAtBothEndsAndIsThickBetween() {
-            assertEquals(0, DrinkStream.radiusAt(1, 0, 0, 0, LENGTH, SEED), DELTA);
-            assertEquals(0, DrinkStream.radiusAt(1, 0, LENGTH, 0, LENGTH, SEED), DELTA);
-            assertTrue(DrinkStream.radiusAt(1, 0, MIDDLE, 0, LENGTH, SEED) >= DrinkStream.WAIST - DELTA);
-            assertEquals(0, DrinkStream.radiusAt(1, 0, LENGTH + 1, 0, LENGTH, SEED), DELTA);
+        void theStreamTapersToAPointAtBothEndsAndIsWholeBetween() {
             assertEquals(1, DrinkStream.taperAt(MIDDLE, 0, LENGTH), DELTA);
             assertEquals(0, DrinkStream.taperAt(0, 0, LENGTH), DELTA);
+            assertEquals(0, DrinkStream.taperAt(LENGTH, 0, LENGTH), DELTA);
+            assertEquals(0, DrinkStream.taperAt(LENGTH + 1, 0, LENGTH), DELTA);
+        }
+
+        /** decision unmake-stream-is-a-shrinking-waterspout */
+        @Test
+        void theCyclonesPhaseAtOnePlaceOnTheStreamTurnsAboutItsAxisWithTime() {
+            DrinkLayout layout = new DrinkLayout();
+            layout.place(List.of(STREAMING.pos()), GLOVE);
+            DrinkTree.Stream now = DrinkTree.build(List.of(STREAMING), layout, GLOVE, PULL, FLOWING).getFirst();
+            DrinkTree.Stream later = DrinkTree.build(List.of(STREAMING), layout, GLOVE, PULL, FLOWING + 1).getFirst();
+            int ring = DrinkTree.rings(now).size() / 2;
+            double turned = DrinkTree.rings(later).get(ring).spin() - DrinkTree.rings(now).get(ring).spin();
+            double expected = DrinkStream.SPIN - DrinkStream.TWIST * DrinkStream.FLOW;
+
+            assertEquals(0, Math.IEEEremainder(turned - expected, 2 * Math.PI), 1e-6,
+                    "a tick on, the phase at one ring has turned by the spin less the twist the liquid carried past");
+            assertTrue(Math.abs(expected) > TURNING, "so the grooves go round the axis rather than standing still");
+            double lobe = DrinkTree.rings(now).get(ring).spin() / DrinkStream.LOBES;
+            assertEquals(1, DrinkStream.cycloneAt(lobe, DrinkTree.rings(now).get(ring).spin()), DELTA,
+                    "a lobe stands at the radius");
+            assertEquals(1 - DrinkStream.SPIN_DEPTH, DrinkStream.cycloneAt(lobe + Math.PI / DrinkStream.LOBES,
+                    DrinkTree.rings(now).get(ring).spin()), DELTA, "a groove falls in between lobes");
+            assertTrue(DrinkStream.cycloneAt(lobe, DrinkTree.rings(later).get(ring).spin()) < 1,
+                    "a tick on, the lobe has turned away from where it stood");
         }
 
         @Test
-        void theWidthScalesWithTheStream() {
-            double alone = DrinkStream.radiusAt(1, MIDDLE, MIDDLE, 0, LENGTH, SEED);
+        void aRingsPhaseRunsOnAlongThePathByTheTwistOfTheLiquidBetween() {
+            DrinkLayout layout = new DrinkLayout();
+            layout.place(List.of(STREAMING.pos()), GLOVE);
+            List<DrinkStream.Ring> rings = DrinkTree.rings(DrinkTree.build(List.of(STREAMING), layout, GLOVE, PULL,
+                    FLOWING).getFirst());
 
-            assertEquals(2 * alone, DrinkStream.radiusAt(2, MIDDLE, MIDDLE, 0, LENGTH, SEED), DELTA);
-        }
-
-        @Test
-        void theWidthRunsBetweenTheWaistAndTheBulbAndReachesBoth() {
-            double least = Double.MAX_VALUE;
-            double most = 0;
-            for (double material = -READ; material <= READ; material += STEP) {
-                double width = DrinkStream.widthAt(material, SEED);
-                least = Math.min(least, width);
-                most = Math.max(most, width);
+            for (int index = 1; index < rings.size(); index++) {
+                assertEquals(DrinkStream.TWIST * (rings.get(index).material() - rings.get(index - 1).material()),
+                        rings.get(index).spin() - rings.get(index - 1).spin(), 1e-9, "continuous along the stream");
             }
-
-            assertEquals(DrinkStream.WAIST, least, DELTA);
-            assertEquals(DrinkStream.BULB, most, DELTA);
-            assertTrue(DrinkStream.BULB / DrinkStream.WAIST >= LEAST_RATIO
-                    && DrinkStream.BULB / DrinkStream.WAIST <= MOST_RATIO);
-        }
-
-        @Test
-        void theWidthUndulatesAlongTheLiquidWithGentleGrades() {
-            double middle = (DrinkStream.WAIST + DrinkStream.BULB) / 2;
-            int crossings = 0;
-            double steepest = 0;
-            boolean wide = DrinkStream.widthAt(-READ, SEED) > middle;
-            for (double material = -READ; material <= READ; material += STEP) {
-                double width = DrinkStream.widthAt(material, SEED);
-                crossings += width > middle != wide ? 1 : 0;
-                wide = width > middle;
-                steepest = Math.max(steepest, Math.abs(DrinkStream.widthAt(material + STEP, SEED) - width) / STEP);
-            }
-
-            assertTrue(crossings >= UNDULATIONS, "crossed the middle " + crossings + " times");
-            assertTrue(steepest <= GENTLE, "steepest grade " + steepest);
+            assertTrue(Math.abs(rings.getFirst().spin()) <= Math.PI, "the first ring's phase within half a turn");
         }
 
         @Test

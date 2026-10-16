@@ -75,6 +75,41 @@ class DrinkShaderTest {
         assertTrue(fragment.contains("gl_FragDepth ="), "the hit writes its depth");
     }
 
+    /** decision diagnose-then-fix-unmake-seam-and-ribbing */
+    /**
+     * A ray out of steps short of its region's exit reads the field at the
+     * exit and refines the hit between, so the region always draws its own
+     * surface where the goo runs on past it, and the region beyond never
+     * shows a flat face at its entry that cuts the goo on the block grid.
+     */
+    @Test
+    void aRayOutOfStepsShortOfItsRegionsExitStillFindsTheSurfaceBeforeIt() throws IOException {
+        String fragment = source(FRAGMENT).replace("\r\n", "\n");
+
+        assertTrue(fragment.contains("    if (!hit && t < tExit) {\n        before = t;\n        t = tExit;\n"
+                + "        hit = fieldOnly(rd * t, streams) >= iso;\n    }\n    if (!hit) {"));
+    }
+
+    /**
+     * Every stream is spheres swept from ring to ring, the round cone hull of
+     * each pair, read only where the point is within the segment's reach;
+     * a stream's own cones and its block's body are unioned by the same soft
+     * minimum as every stream within reach of a point, as DrinkField does.
+     */
+    @Test
+    void theShaderSweepsSpheresAlongEachStreamAndUnionsEveryBodySmoothlyAsTheJavaDoes() throws IOException {
+        String fragment = source(FRAGMENT).replace("\r\n", "\n");
+
+        assertEquals(DrinkField.SOFTNESS, constant(fragment, "SOFTNESS"), DELTA);
+        assertTrue(fragment.contains("read.x = read.y > 0.0 ? REACH : scaled(roundCone(p - a.xyz, line, a.w, b.w), "
+                + "mix(a.w, b.w, lineT));"), "a segment is the swept sphere between its rings, skipped past its reach");
+        assertTrue(fragment.contains("return softUnion(least, boxed);"), "a block's body joins its stream softly");
+        assertTrue(fragment.contains("sum += max(0.0, exp(-d / SOFTNESS) - none);")
+                        && fragment.contains("return falloff(-SOFTNESS * log(sum + none));"),
+                "every stream within reach is unioned smoothly at once, as DrinkField.valueAt");
+        assertFalse(fragment.contains("hermite3") || fragment.contains("grooved") || fragment.contains("BOX_BLEND"),
+                "no curved segment, carved groove or separate box fillet is left to seam against the rest");
+    }
     @Test
     void theMarchSamplesTheRegionsExitAndTakesAnEntryInsideTheFieldAsTheHit() throws IOException {
         String fragment = source(FRAGMENT);

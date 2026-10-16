@@ -32,20 +32,34 @@ public final class DrinkUpload {
 
     /** Blocks a region spans each way; a region is one proxy the shader marches, aligned to the world grid. */
     public static final double REGION = 1;
+    /*
+     * The caps hold everything a region of a full cone is reached by: regions
+     * lie on the block grid and every body's field reaches a little past its
+     * own cell, so a cell inside a cone is reached by its own block and all
+     * twenty-six around it, their boxes and their streams, and the trunk
+     * carries more through the cells by the hand. A region that left bodies
+     * out drew the field without them, so the skin broke at that region's
+     * faces into block-sized segments and a stream dropped out of it; caps of
+     * sixteen streams and eight boxes left out some eight hundred bodies a
+     * frame on a cone of twenty-nine blocks. The block stays within the
+     * sixteen kilobytes every driver allows a uniform block.
+     */
     /** The most streams one region's block holds coats and rings for. */
-    static final int MOST_STREAMS = 16;
+    static final int MOST_STREAMS = 40;
     /** The most rings a region's block carries. */
-    static final int MOST_RINGS = 224;
-    /** The most boxes a region's block carries. */
-    static final int MOST_BOXES = 8;
+    static final int MOST_RINGS = 288;
+    /** The most boxes a region's block carries: a block's and every block about it. */
+    static final int MOST_BOXES = 32;
     /** The most table entries a region lists. */
-    static final int MOST_ENTRIES = 1024;
+    static final int MOST_ENTRIES = 256;
+    /** The most bytes a uniform block may take on any driver. */
+    static final int MOST_BYTES = 16_384;
     /** The flag on a table entry that begins a skeleton's run. */
     static final int RUN_START = 1 << 16;
     /** Table entries at and over this name a box, below it a segment. */
     static final int BOX_BASE = 1 << 12;
     /** The vec4 slots one stream's coat and run take in the block. */
-    static final int STREAM_VEC4S = 5;
+    static final int STREAM_VEC4S = 6;
     /** The stream's block light and sky light. */
     static final int COAT_SLOT = 0;
     /** The block's solid color, which the skin wears at the block. */
@@ -56,6 +70,8 @@ public final class DrinkUpload {
     static final int RUN_LOW_SLOT = 3;
     /** The high corner of that box, and how many entries the run lists. */
     static final int RUN_HIGH_SLOT = 4;
+    /** The stream's side, the direction its cyclone's angle about its axis is read from. */
+    static final int SIDE_SLOT = 5;
 
     static final int VEC4 = 16;
     static final int REGION_AT = 0;
@@ -134,7 +150,7 @@ public final class DrinkUpload {
      * @param first the first ring
      * @param last  the last ring, before the first for a box alone
      */
-    private record Span(int first, int last) {
+    record Span(int first, int last) {
 
         int count() {
             return last - first + 1;
@@ -307,15 +323,23 @@ public final class DrinkUpload {
     }
 
     /**
+     * The rings the listed segments need: their own, and the skeleton's ring
+     * before and after them, since a segment's curve and the planes parting
+     * it from its neighbours run along the stream from the ring before each
+     * of its rings to the ring after, so a region reads a segment as every
+     * other region does.
+     * decision diagnose-then-fix-unmake-seam-and-ribbing
+     *
      * @param bodies   a skeleton's listed bodies, ascending
      * @param segments how many segments the skeleton has
      * @return the span of rings the listed segments need, empty for a box alone
      */
-    private static Span spanOf(List<Integer> bodies, int segments) {
+    static Span spanOf(List<Integer> bodies, int segments) {
         if (bodies.getFirst() >= segments) {
             return new Span(0, NONE);
         }
-        return new Span(bodies.getFirst(), Math.min(bodies.getLast(), segments - 1) + 1);
+        int lastRing = Math.min(bodies.getLast(), segments - 1) + 1;
+        return new Span(Math.max(0, bodies.getFirst() - 1), Math.min(lastRing + 1, segments));
     }
 
     /**
@@ -384,8 +408,8 @@ public final class DrinkUpload {
     }
 
     /**
-     * Writes a stream's slots: its light, its two colors, and the box its
-     * run reaches with the run's span of the table.
+     * Writes a stream's slots: its light, its two colors, the box its
+     * run reaches with the run's span of the table, and its side.
      *
      * @param bytes  the block
      * @param index  the skeleton
@@ -400,13 +424,14 @@ public final class DrinkUpload {
         Bound run = runs.get(index);
         putVec3(bytes, at + RUN_LOW_SLOT * VEC4, run.low().subtract(camera), runStartOf.get(index));
         putVec3(bytes, at + RUN_HIGH_SLOT * VEC4, run.high().subtract(camera), runCountOf.get(index));
+        putVec3(bytes, at + SIDE_SLOT * VEC4, DrinkStream.sideOf(skeletons.get(index).stream().path()), 0);
     }
 
     /**
      * Writes the boxes and the rings: a box as its camera-relative middle and
      * half width then its rounding and stream, a ring as its camera-relative
      * middle and radius then its material, its route share, which the skin's
-     * crossfade from block to goo reads, and its stream.
+     * crossfade from block to goo reads, its stream and its cyclone's phase.
      *
      * @param bytes the block
      */
@@ -421,7 +446,7 @@ public final class DrinkUpload {
             DrinkStream.Ring ring = rings.get(index);
             putVec3(bytes, RINGS_AT + index * PAIR * VEC4, ring.center().subtract(camera), ring.radius());
             putVec4(bytes, RINGS_AT + (index * PAIR + 1) * VEC4, ring.material(), ring.share(),
-                    streamOf.get(ringStreams.get(index)), 0);
+                    streamOf.get(ringStreams.get(index)), ring.spin());
         }
     }
 

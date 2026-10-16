@@ -19,20 +19,53 @@ class DrinkFieldTest {
 
     private static final double DELTA = 1e-9;
     private static final double RADIUS = 0.2;
-    /** A gap between two surfaces well within the reach, which the field fills. */
-    private static final double NEAR_GAP = 0.15;
+    /** The cyclone phase turning a lobe of a capsule running east straight up: its side lies level, a quarter turn off. */
+    private static final double LOBE_UP = Math.PI;
+    /** A gap between two surfaces facing each other narrower than half the fillet between streams, which fills. */
+    private static final double NEAR_GAP = 0.08;
     private static final Vec3 UP = new Vec3(0, 1, 0);
     private static final Vec3 EAST = new Vec3(1, 0, 0);
     private static final Vec3 GLOVE = new Vec3(1.5, 2.2, 3.1);
     private static final DrinkTree.Block BLOCK = new DrinkTree.Block(new BlockPos(7, 2, 3), new Vec3(7.5, 2.5, 3.5),
             1, 0, 0, 100);
+    /** A block streaming, picked at tick 90 and landing at 100, drained long after the tests look. */
+    private static final DrinkTree.Block STREAMING = streaming(new BlockPos(7, 2, 3));
+    /** Its neighbour, which joins its stream. */
+    private static final DrinkTree.Block BESIDE = streaming(new BlockPos(7, 3, 4));
+    /** A time both streams have run most of the way to the glove. */
+    private static final double FLOWING = 100 + DrinkBody.LIQUEFY * (1000 - 100) + 12;
+    private static final int BISECTIONS = 50;
+    private static final double NORMAL_STEP = 1e-4;
+    /** Blocks between neighbouring steps of a walk along a spine. */
+    private static final double WALK_STEP = 0.013;
+    /** Blocks along a lone stream's path a walk starts at: the block's near face, past which its box stands no more. */
+    private static final double WALK_FROM = DrinkStream.BLOCK_SPAN;
+    /** The share it ends at, short of the thread by the palm. */
+    private static final double WALK_TO = 0.9;
+    /**
+     * The most degrees a smooth skin's normal turns between steps a walk step apart: a bend of the snake or a
+     * change of the width turns it a degree or two there, a crease a dozen or more.
+     */
+    private static final double SMOOTH_TURN = 9;
+    /** Blocks a bundle may read past its trunk's radius: where two streams' fillets meet off the spine. */
+    private static final double SWELL = 0.01;
+
+    private static DrinkTree.Block streaming(BlockPos pos) {
+        return new DrinkTree.Block(pos, Vec3.atCenterOf(pos), 1, 90, 100, 1000);
+    }
 
     private static DrinkStream.Ring ring(Vec3 center) {
         return ring(center, RADIUS);
     }
 
+    /**
+     * @param center the ring's middle
+     * @param radius its radius
+     * @return a ring whose cyclone phase turns a lobe straight up from a capsule running east, so a reading straight
+     *         up off the capsule meets the skin at the radius rather than in a groove
+     */
     private static DrinkStream.Ring ring(Vec3 center, double radius) {
-        return new DrinkStream.Ring(center, EAST, radius, 0, 0, DrinkStream.FLOW);
+        return new DrinkStream.Ring(center, EAST, radius, 0, 0, DrinkStream.FLOW, LOBE_UP);
     }
 
     private static DrinkTree.Stream stream() {
@@ -100,7 +133,7 @@ class DrinkFieldTest {
     }
 
     @Test
-    void twoBodiesWhoseSurfacesComeWithinTheReachSwellIntoOneAnother() {
+    void twoStreamsFacingEachOtherAcrossANarrowGapMergeAndFarOnesDoNot() {
         Vec3 near = new Vec3(0, 2 * RADIUS + NEAR_GAP, 0);
         Vec3 far = new Vec3(0, 2 * RADIUS + 2 * DrinkField.REACH, 0);
         List<DrinkField.Skeleton> touching = List.of(capsule(Vec3.ZERO, EAST), capsule(near, near.add(EAST)));
@@ -127,6 +160,192 @@ class DrinkFieldTest {
         assertTrue(DrinkField.valueAt(slender, new Vec3(0.5, thin + DrinkField.REACH / 4, 0)) > 0);
         assertEquals(0, DrinkField.valueAt(slender, new Vec3(0.5, thin + DrinkField.REACH / 2 + 0.01, 0)), DELTA,
                 "a body half a waist thick reaches half as far");
+    }
+
+    /**
+     * @param skeletons a drink's skeletons
+     * @param middle    a point inside the skin
+     * @param outward   a unit direction out of it
+     * @return where the skin is along the direction, found by bisection
+     */
+    private static Vec3 skinAlong(List<DrinkField.Skeleton> skeletons, Vec3 middle, Vec3 outward) {
+        double in = 0;
+        double out = 1.5;
+        for (int step = 0; step < BISECTIONS; step++) {
+            double mid = (in + out) / 2;
+            if (inside(skeletons, middle.add(outward.scale(mid)))) {
+                in = mid;
+            } else {
+                out = mid;
+            }
+        }
+        return middle.add(outward.scale(in));
+    }
+
+    /**
+     * @param skeletons a drink's skeletons
+     * @param point     a point
+     * @return the unit direction the field falls fastest there, the skin's normal at a point on it
+     */
+    private static Vec3 normalAt(List<DrinkField.Skeleton> skeletons, Vec3 point) {
+        double e = NORMAL_STEP;
+        return new Vec3(
+                DrinkField.valueAt(skeletons, point.add(-e, 0, 0)) - DrinkField.valueAt(skeletons, point.add(e, 0, 0)),
+                DrinkField.valueAt(skeletons, point.add(0, -e, 0)) - DrinkField.valueAt(skeletons, point.add(0, e, 0)),
+                DrinkField.valueAt(skeletons, point.add(0, 0, -e)) - DrinkField.valueAt(skeletons, point.add(0, 0, e)))
+                .normalize();
+    }
+
+    /**
+     * Walks a stream's spine in short steps, finds the skin out from it on
+     * the given side, and measures the most the skin's normal turns between
+     * neighbouring steps.
+     *
+     * @param skeletons the drink's skeletons
+     * @param walked    the stream walked
+     * @param from      the share of its path the walk starts at
+     * @param to        the share it ends at
+     * @param side      which side: 1 for its frame's side, -1 for the other, 0 for across
+     * @return the greatest turn between neighbouring steps and where along the path it is
+     */
+    private static Turn steepestTurn(List<DrinkField.Skeleton> skeletons, DrinkTree.Stream walked, double from,
+                                       double to, int side) {
+        double steepest = 0;
+        double steepestAt = 0;
+        Vec3 last = null;
+        double step = WALK_STEP / walked.path().length();
+        for (double share = from; share <= to; share += step) {
+            Vec3 spine = DrinkStream.pointAt(walked.path(), share, walked.now());
+            Vec3 flow = DrinkStream.flowAt(walked.path(), share, walked.now());
+            Vec3 sideways = flow.cross(UP).normalize();
+            Vec3 outward = side == 0 ? flow.cross(sideways).normalize() : sideways.scale(side);
+            Vec3 normal = normalAt(skeletons, skinAlong(skeletons, spine, outward));
+            if (last != null) {
+                double turn = Math.toDegrees(Math.acos(Math.min(1, last.dot(normal))));
+                if (turn > steepest) {
+                    steepest = turn;
+                    steepestAt = share * walked.path().length();
+                }
+            }
+            last = normal;
+        }
+        return new Turn(steepest, steepestAt);
+    }
+
+    /**
+     * The most a skin's normal turned between neighbouring steps of a walk.
+     *
+     * @param degrees the turn, in degrees
+     * @param at      blocks along the walked path it turned at
+     */
+    private record Turn(double degrees, double at) {
+    }
+
+    private static List<DrinkTree.Stream> treeOf(double now, DrinkTree.Block... blocks) {
+        DrinkLayout layout = new DrinkLayout();
+        layout.place(List.of(blocks).stream().map(DrinkTree.Block::pos).toList(), GLOVE);
+        return DrinkTree.build(List.of(blocks), layout, GLOVE, EAST.scale(-1), now);
+    }
+
+    /** decision diagnose-then-fix-unmake-seam-and-ribbing */
+    @Test
+    void aLoneStreamsSkinTurnsSmoothlyAcrossEveryRingWithNoCrease() {
+        DrinkTree.Stream lone = treeOf(FLOWING, STREAMING).getFirst();
+        List<DrinkField.Skeleton> skeletons = List.of(new DrinkField.Skeleton(lone, DrinkTree.rings(lone), null));
+
+        for (int side : new int[] {1, -1, 0}) {
+            Turn steepest = steepestTurn(skeletons, lone, WALK_FROM / lone.path().length(), WALK_TO, side);
+            assertTrue(steepest.degrees() < SMOOTH_TURN, "the skin's normal turns " + steepest.degrees()
+                    + " degrees between steps " + WALK_STEP + " blocks apart on side " + side + " at "
+                    + steepest.at() + " blocks, a crease at a ring");
+        }
+    }
+
+    /** decision diagnose-then-fix-unmake-seam-and-ribbing */
+    @Test
+    void aTributarysSkinTurnsSmoothlyIntoItsTrunk() {
+        List<DrinkTree.Stream> tree = treeOf(FLOWING, STREAMING, BESIDE);
+        DrinkTree.Stream trunk = tree.getFirst();
+        DrinkTree.Stream tributary = trunk.tributaries().getFirst();
+        List<DrinkField.Skeleton> skeletons = tree.stream()
+                .map(stream -> new DrinkField.Skeleton(stream, DrinkTree.rings(stream), null)).toList();
+        double join = tributary.joinShare();
+        double merge = DrinkTree.MERGE / trunk.path().length();
+        double pastTheBox = WALK_FROM / trunk.path().length();
+
+        for (int side : new int[] {1, -1, 0}) {
+            Turn steepest = steepestTurn(skeletons, trunk, Math.max(pastTheBox, join - merge),
+                    Math.min(1, join + merge), side);
+            assertTrue(steepest.degrees() < SMOOTH_TURN, "the trunk's normal turns " + steepest.degrees()
+                    + " degrees between steps about the join on side " + side + " at " + steepest.at()
+                    + " blocks, the join " + join * trunk.path().length() + " blocks along");
+        }
+    }
+
+    /**
+     * A cone lays a feeder behind its trunk's block, and the trunk's block
+     * drains first: the feeder's liquid runs on into a trunk whose own has
+     * passed, and the skin turns smoothly through the join all the same.
+     * decision diagnose-then-fix-unmake-seam-and-ribbing
+     * decision unmake-streams-collapse-into-a-central-trunk
+     */
+    @Test
+    void aFeederBehindADrainedTrunkJoinsItWithNoSeam() {
+        DrinkTree.Block drained = new DrinkTree.Block(new BlockPos(7, 2, 3), new Vec3(7.5, 2.5, 3.5), 1, 0, 9, 30);
+        DrinkTree.Block behind = new DrinkTree.Block(new BlockPos(8, 2, 3), new Vec3(8.5, 2.5, 3.5), 1, 0, 9, 60);
+        List<DrinkTree.Stream> tree = treeOf(40, drained, behind);
+        DrinkTree.Stream trunk = tree.getFirst();
+        DrinkTree.Stream feeder = trunk.tributaries().getFirst();
+        List<DrinkField.Skeleton> skeletons = tree.stream().map(DrinkTree::skeleton).toList();
+        double join = feeder.joinShare();
+        double merge = DrinkTree.MERGE / trunk.path().length();
+        double pastTheFeedersBox = (DrinkField.REACH + DrinkField.DEPTH) / trunk.path().length();
+
+        for (int side : new int[] {1, -1, 0}) {
+            Turn onTrunk = steepestTurn(skeletons, trunk, Math.max(pastTheFeedersBox, join - merge),
+                    Math.min(1, join + merge), side);
+            Turn onFeeder = steepestTurn(skeletons, feeder,
+                    (WALK_FROM + DrinkField.REACH + DrinkField.DEPTH) / feeder.path().length(), 1, side);
+            assertTrue(onTrunk.degrees() < SMOOTH_TURN, "the trunk's normal turns " + onTrunk.degrees()
+                    + " degrees on side " + side + " at " + onTrunk.at() + " blocks, the join "
+                    + join * trunk.path().length() + " blocks along");
+            assertTrue(onFeeder.degrees() < SMOOTH_TURN, "the feeder's normal turns " + onFeeder.degrees()
+                    + " degrees on side " + side + " at " + onFeeder.at() + " blocks of its "
+                    + feeder.path().length());
+        }
+    }
+
+    /**
+     * Streams union smoothly as metaballs, so two lying wholly on one another
+     * swell by no more than the union's softness times the log of two, and a
+     * bundle past its join stands no further than that past its trunk.
+     * decision diagnose-then-fix-unmake-seam-and-ribbing
+     */
+    @Test
+    void streamsLyingOnOneAnotherSwellByNoMoreThanTheUnionsSoftness() {
+        double swell = DrinkField.SOFTNESS * Math.log(2) + SWELL;
+        List<DrinkField.Skeleton> twice = List.of(capsule(Vec3.ZERO, EAST.scale(2)),
+                capsule(Vec3.ZERO, EAST.scale(2)));
+        List<DrinkTree.Stream> tree = treeOf(FLOWING, STREAMING, BESIDE);
+        DrinkTree.Stream trunk = tree.getFirst();
+        List<DrinkField.Skeleton> skeletons = tree.stream()
+                .map(stream -> new DrinkField.Skeleton(stream, DrinkTree.rings(stream), null)).toList();
+        double join = trunk.tributaries().getFirst().joinShare();
+        double merge = DrinkTree.MERGE / trunk.path().length();
+
+        assertTrue(skinAlong(twice, EAST, UP).y <= RADIUS + swell, "two coincident streams swell by the softness at most");
+        assertTrue(skinAlong(twice, EAST, UP).y >= RADIUS, "and never shrink");
+        for (double share = join; share <= Math.min(1, join + merge); share += WALK_STEP / trunk.path().length()) {
+            Vec3 spine = DrinkStream.pointAt(trunk.path(), share, trunk.now());
+            Vec3 flow = DrinkStream.flowAt(trunk.path(), share, trunk.now());
+            Vec3 sideways = flow.cross(UP).normalize();
+            double width = DrinkTree.radiusAt(trunk, share);
+            for (Vec3 outward : List.of(sideways, sideways.scale(-1), flow.cross(sideways).normalize())) {
+                double skin = skinAlong(skeletons, spine, outward).distanceTo(spine);
+                assertTrue(skin <= width + swell, "past the join the bundle reads " + skin + " wide where its "
+                        + "trunk is " + width);
+            }
+        }
     }
 
     @Test

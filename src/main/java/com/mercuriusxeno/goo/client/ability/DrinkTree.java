@@ -19,10 +19,11 @@ import java.util.Set;
  * is there, as wide as one of them times the fourth root of how many, each
  * swelling in over a short length either side of its join, so the two meet
  * like metaballs touching and a trunk grows gently however many feed it,
- * and every stream's width falls straight to a thread over the last two
- * fifths of its route, reaching it half a block before the glove and running
- * into the palm at that one width, so the trunk enters the palm as a hair.
- * The liquid's
+ * and every stream is a shrinking waterspout: widest where it leaves its
+ * block, as wide as the block's own mouth, narrowing over its whole route by
+ * the square of what is left of it to a thread half a block before the glove
+ * and running into the palm at that one width, so the trunk enters the palm
+ * as a hair and nothing by the eye is wider than one stream. The liquid's
  * pace is set by the goo massing where it flows: a lone block's stream runs
  * at the base pace and a trunk fed by many runs faster by the square root of
  * the goo through it, so a join pulls its tributaries' liquid on; a block's
@@ -31,20 +32,28 @@ import java.util.Set;
  * the block standing as itself and nothing of its stream showing until the
  * square lands.
  * decision unmake-waves-dissolve-by-crucible-cost
+ * decision unmake-stream-is-a-shrinking-waterspout
  */
 public final class DrinkTree {
 
     /**
-     * Blocks each way about a join over which the trunk swells to carry the stream joining it, the ride over which
-     * that stream hands its own width to the trunk, so the two make one neck.
+     * Blocks over which the trunk swells to carry the stream joining it, ending where that stream's ride begins, so
+     * the trunk is already as wide as both by the time the stream hands its own width over and the two make one
+     * neck; a swell centred on the join met a stream already gone there, and the union of the one falling and the
+     * other rising notched a ring into the skin at every join.
      */
     static final double MERGE = DrinkStream.RIDE;
+    /** Blocks before its join a stream's liquid starts to swell its trunk: its ride, then the swell before it. */
+    static final double SWELL_FROM = DrinkStream.RIDE + MERGE;
     /** The goo volume of a block whose stream has scale 1, in mB. */
     static final double BASE_VOLUME = 1000;
     /** The root of the count of streams a trunk's width grows by: the fourth, so a trunk never fattens far. */
     static final double TRUNK_ROOT = 4;
-    /** The share of a stream's route past which its width falls, straight, from its full width to the thread. */
-    static final double TAPER_FROM = 0.6;
+    /**
+     * The power of what is left of the route a stream's width falls by: the square, so the spout narrows fastest by
+     * its block and runs a long fine hair into the palm, its fall easing into the thread with no cliff.
+     */
+    static final double SPOUT_FALL = 2;
     /** The radius of the thread the trunk is as it enters the palm, in blocks: the thinnest the skin reads round. */
     static final double THREAD = DrinkStream.THINNEST;
     /**
@@ -52,11 +61,24 @@ public final class DrinkTree {
      * thinnest only at the blob's middle, hidden inside it, met the blob as a blunt knob.
      */
     static final double THREAD_RUN = 0.5;
+    /**
+     * The most times the base pace goo massing in one place drives the liquid: with every stream converging on one
+     * trunk, a cone of many blocks drove its trunk at many times the base pace, and the last of the drink was flung
+     * into the hand in a tenth of a second, a halt rather than a flow.
+     */
+    static final double SURGE = 2;
     /** Ticks a block's goo takes to weigh wholly on the pace of the trunks it feeds, so the pace glides rather than jumps. */
     static final double MASS_RAMP = 10;
     /** Stations along one block of path the liquid's travel time is summed at. */
     static final int STATIONS_PER_BLOCK = DrinkStream.RINGS_PER_BLOCK;
+    /**
+     * Blocks within which two distances along a path are one point: a join read back through its share of the
+     * trunk lands a rounding error off the distance it was laid at, and read as past it, the trunk let go of a
+     * tributary whose liquid was riding it, so the liquid jumped to another course in the air.
+     */
+    static final double SAME_POINT = 1e-6;
     private static final double HALF = 0.5;
+    private static final double FULL_TURN = 2 * Math.PI;
     /** The two stations a distance along a path is read between, so the last pair serves the path's very end. */
     private static final int PAIR = 2;
 
@@ -112,7 +134,16 @@ public final class DrinkTree {
          *         in over {@link #MASS_RAMP} from its start
          */
         public double massAt(double now) {
-            return scale * scale * DrinkStream.smoothRamp(0, MASS_RAMP, now - start);
+            return scale * scale * DrinkStream.smoothRamp(0, MASS_RAMP, now - flowsFrom());
+        }
+
+        /**
+         * @return the game time the block's stream starts to flow: once its cube has rounded into a sphere,
+         *         {@link DrinkBody#LIQUEFY} of the way through its drain, the cube shrinking into the sphere alone
+         *         before then with no stream meeting it
+         */
+        public double flowsFrom() {
+            return start + DrinkBody.LIQUEFY * Math.max(1, end - start);
         }
     }
 
@@ -235,10 +266,10 @@ public final class DrinkTree {
         /**
          * @param share a share of this stream's path
          * @return blocks a tick the liquid flows there: the base pace times the square root of the goo through
-         *         it, never slower than the base pace
+         *         it, never slower than the base pace nor faster than {@link #SURGE} times it
          */
         public double speedAt(double share) {
-            return DrinkStream.FLOW * Math.sqrt(Math.max(1, massAt(share)));
+            return DrinkStream.FLOW * Math.min(SURGE, Math.sqrt(Math.max(1, massAt(share))));
         }
 
         /**
@@ -283,7 +314,7 @@ public final class DrinkTree {
          */
         public double headAt() {
             if (Double.isNaN(head)) {
-                head = distanceAt(timeTo(DrinkStream.BLOCK_SPAN + DrinkStream.TIP) + now - block.start());
+                head = distanceAt(timeTo(DrinkStream.BLOCK_SPAN + DrinkStream.TIP) + now - block.flowsFrom());
             }
             return head;
         }
@@ -331,7 +362,7 @@ public final class DrinkTree {
                 return true;
             }
             for (Stream tributary : tributaries) {
-                if (tributary.joinShare * path.length() <= distance && !tributary.spent()) {
+                if (tributary.joinShare * path.length() <= distance + SAME_POINT && !tributary.spent()) {
                     return true;
                 }
             }
@@ -472,25 +503,31 @@ public final class DrinkTree {
         for (int index = 0; index < count; index++) {
             rings.add(ring(stream, (double) index / (count - 1)));
         }
-        return laid(rings);
+        return laid(rings, stream.now());
     }
 
     /**
      * The rings with their material brought down by one multiple of the
      * texture's period for all of them, so the first lies within a period of
-     * zero: the texture reads the same, and the shader's floats keep their
-     * texels where a long drink's material has run to the tens of thousands.
+     * zero and the shader's floats keep their precision where a long drink's
+     * material has run to the tens of thousands, and each ring's cyclone
+     * phase read off the material before the shift and brought within a turn
+     * at the first ring, the rest following it along the path, so the phase
+     * is continuous along the stream and from frame to frame.
+     * decision unmake-stream-is-a-shrinking-waterspout
      *
      * @param rings a path's rings
-     * @return the rings, their material shifted together
+     * @param now   the game time, with the partial tick
+     * @return the rings, their material shifted together and their phases laid
      */
-    static List<DrinkStream.Ring> laid(List<DrinkStream.Ring> rings) {
-        double shift = DrinkStream.TEXTURE_PERIOD
-                * Math.floor(rings.getFirst().material() / DrinkStream.TEXTURE_PERIOD);
+    static List<DrinkStream.Ring> laid(List<DrinkStream.Ring> rings, double now) {
+        double first = rings.getFirst().material();
+        double shift = DrinkStream.TEXTURE_PERIOD * Math.floor(first / DrinkStream.TEXTURE_PERIOD);
+        double spin = Math.IEEEremainder(DrinkStream.spinAt(first, now), FULL_TURN);
         List<DrinkStream.Ring> laid = new ArrayList<>();
         for (DrinkStream.Ring ring : rings) {
             laid.add(new DrinkStream.Ring(ring.center(), ring.flow(), ring.radius(), ring.material() - shift,
-                    ring.share(), ring.speed()));
+                    ring.share(), ring.speed(), spin + DrinkStream.TWIST * (ring.material() - first)));
         }
         return laid;
     }
@@ -520,15 +557,22 @@ public final class DrinkTree {
 
     /**
      * The radius of a stream at a share of its path: every stream flowing
-     * through there combined as the mean of them times the
-     * {@link #TRUNK_ROOT}th root of how many, each counting by how much of it
-     * is there, so a trunk grows gently with the streams it carries: nine
-     * equal streams make about 1.7 times one, a stream swelling in counts in
-     * proportion, and a trunk whose own liquid has passed is still as wide as
-     * what flows through it; past {@link #TAPER_FROM} of the route the whole
-     * width falls in a straight line to a {@link #THREAD} reached
-     * {@link #THREAD_RUN} before the palm and held into it, so the stream
-     * enters the hand as a hair and never blocks the view there.
+     * through there combined as the {@link #TRUNK_ROOT}th root of the sum of
+     * each one's width to that power, each counting by how much of it is
+     * there, so streams of one width make one width times the
+     * {@link #TRUNK_ROOT}th root of how many, a trunk growing gently with the
+     * streams it carries, nine equal streams about 1.7 times one, a stream
+     * swelling in counting in proportion, and a trunk whose own liquid has
+     * passed still as wide as what flows through it; where widths differ the
+     * widest leads, so a block melting into a trunk of liquid narrowed on its
+     * way swells the trunk to its own mouth and sits inside it, where a mean
+     * of the widths drowned the block's own among the many narrowed ones and
+     * left the melting block a knob on a thin trunk at every node. Each
+     * stream's liquid is as wide as its own spout is at its own place on its
+     * own route, wherever it flows; drawn at the trunk's own spout, it swelled
+     * back out to the trunk block's full mouth at every block of a chain, a
+     * ring at each.
+     * decision unmake-stream-is-a-shrinking-waterspout
      *
      * @param stream the stream
      * @param share  the share of its path
@@ -539,11 +583,7 @@ public final class DrinkTree {
         if (sum.presence() <= 0) {
             return 0;
         }
-        double mean = sum.radius() / sum.presence();
-        double taper = Math.pow(Math.min(1, sum.presence()), 1 / TRUNK_ROOT);
-        double growth = Math.pow(Math.max(1, sum.presence()), 1 / TRUNK_ROOT);
-        double full = mean * taper * growth;
-        return (THREAD + (full - THREAD) * widthHeldAt(stream, share)) * handoverAt(stream, share);
+        return sum.width() * handoverAt(stream, share);
     }
 
     /**
@@ -566,42 +606,71 @@ public final class DrinkTree {
     }
 
     /**
-     * How much of its full width a stream keeps at a share of its path: all of
-     * it to {@link #TAPER_FROM} of its whole route to the glove, then falling
-     * in a straight line to none where the thread starts, and none from there
-     * to the glove; a tributary's own path ends at its join, so it keeps the
-     * share its join's place on its route leaves it.
+     * How much of its spout's width a stream has at a share of its path: all
+     * of it at its block's middle, where it leaves the block, and from there
+     * falling by the {@link #SPOUT_FALL} power of what is left of the way to
+     * where the thread starts, every step narrower than the last, none from
+     * there to the glove; a tributary's own path ends at its join, so it keeps
+     * what its join's place on its route leaves it.
+     * decision unmake-stream-is-a-shrinking-waterspout
      *
      * @param stream the stream
      * @param share  the share of its path
-     * @return 1 for the whole width, 0 for the thread
+     * @return 1 for the spout's whole width, 0 for the thread
      */
-    static double widthHeldAt(Stream stream, double share) {
-        double taperFrom = TAPER_FROM * stream.routeLength();
-        double distance = share * stream.path().length();
-        return 1 - Math.clamp((distance - taperFrom) / (threadFrom(stream) - taperFrom), 0, 1);
+    static double spoutAt(Stream stream, double share) {
+        return spoutAlong(stream, share * stream.path().length());
+    }
+
+    /**
+     * @param stream   the stream
+     * @param distance blocks along its route
+     * @return how much of its spout's width its liquid has there, 1 for the whole width, 0 for the thread
+     */
+    static double spoutAlong(Stream stream, double distance) {
+        double run = (distance - DrinkBody.CENTER) / (threadFrom(stream) - DrinkBody.CENTER);
+        double left = 1 - Math.clamp(run, 0, 1);
+        return left * left;
     }
 
     /**
      * @param stream the stream
      * @return blocks along its route from which it is the thread: {@link #THREAD_RUN} before the glove, or on a route
-     *         too short for that, halfway from where the taper starts to the glove, so the fall is never a cliff
+     *         too short for that, halfway from its block's middle to the glove, so the fall is never a cliff
      */
     static double threadFrom(Stream stream) {
         double route = stream.routeLength();
-        return Math.max(route - THREAD_RUN, (TAPER_FROM * route + route) * HALF);
+        return Math.max(route - THREAD_RUN, (DrinkBody.CENTER + route) * HALF);
     }
 
     /**
-     * Liquid at a point: its radius and how much of a whole stream it is.
+     * Liquid at a point: each stream's width to the {@link #TRUNK_ROOT}th
+     * power by how much of it is there, summed, and how much of a whole
+     * stream it is.
      *
-     * @param radius   the radius it gives the point
+     * @param power    the sum of each stream's width to the {@link #TRUNK_ROOT}th power times its presence
      * @param presence 1 for a stream wholly there, less as it tapers or swells in, 0 for none
      */
-    record Flow(double radius, double presence) {
+    record Flow(double power, double presence) {
+
+        /**
+         * @param width    a stream's width
+         * @param presence how much of it is there
+         * @return its liquid
+         */
+        static Flow of(double width, double presence) {
+            return new Flow(fourthPower(width) * presence, presence);
+        }
 
         Flow plus(Flow other) {
-            return new Flow(radius + other.radius, presence + other.presence);
+            return new Flow(power + other.power, presence + other.presence);
+        }
+
+        /**
+         * @return the width the liquid makes: the {@link #TRUNK_ROOT}th root of its power
+         */
+        double width() {
+            return Math.sqrt(Math.sqrt(power));
         }
     }
 
@@ -636,7 +705,7 @@ public final class DrinkTree {
         gather(through, distance, 1, sum);
         for (Stream tributary : through.tributaries()) {
             double pastJoin = distance - tributary.joinShare() * length;
-            if (pastJoin >= -MERGE) {
+            if (pastJoin >= -SWELL_FROM) {
                 gatherUnder(tributary, tributary.path().length() + Math.max(0, pastJoin), mergeRamp(pastJoin), sum);
             }
         }
@@ -672,12 +741,21 @@ public final class DrinkTree {
      * @param sum      the radius then the presence, added to
      */
     private static void gather(Stream stream, double distance, double swell, double[] sum) {
-        if (stream.awaiting()) {
+        if (stream.now() < stream.block().flowsFrom()) {
             return;
         }
-        double presence = DrinkStream.taperAt(distance, stream.tailAt(), stream.headAt()) * swell;
+        // A stream's own liquid eases in from its far side to its block's middle, where its matter has turned,
+        // rather than counting there whole at no width, which halved the width of whatever ran through and then
+        // stepped out to full at the middle, a flat disc wherever a feeder's liquid filled the stretch.
+        double presence = DrinkStream.taperAt(distance, stream.tailAt(), stream.headAt()) * swell
+                * DrinkStream.smoothRamp(0, DrinkBody.CENTER, distance);
         if (presence > 0) {
-            sum[0] += liquidWidth(stream, distance) * presence;
+            // The liquid is as wide as the waterspout is where it stands on its route, the spout fixed at the block,
+            // so a drained block's liquid narrows only as it nears the palm and ends at its own tapered tail; a spout
+            // that shrank whole as the tail flowed, or rode the tail, thinned the liquid away in the air before it
+            // reached the hand, the stream vanishing partway.
+            double full = liquidWidth(stream, distance);
+            sum[0] += fourthPower(THREAD + (full - THREAD) * spoutAlong(stream, distance)) * presence;
             sum[1] += presence;
         }
     }
@@ -711,7 +789,7 @@ public final class DrinkTree {
             branch = next;
         }
         double pastJoin = (share - branch.joinShare()) * through.path().length();
-        if (pastJoin < -MERGE) {
+        if (pastJoin < -SWELL_FROM) {
             return null;
         }
         return new Entry(distance + Math.max(0, pastJoin), pastJoin);
@@ -719,10 +797,9 @@ public final class DrinkTree {
 
     /**
      * The radius one stream alone gives a point of a path it flows through:
-     * its matter's width there, the block's blob where it stood narrowing
-     * down the funnel to the stream's, tapering at its ends; on a trunk it joins,
-     * swelling in symmetrically about the join over {@link #MERGE} each way,
-     * so the two meet like metaballs touching.
+     * its spout's width, tapering at its ends; on a trunk it joins, swelling
+     * in over {@link #MERGE} before its ride, so the trunk is whole before the
+     * stream hands its width over.
      *
      * @param stream  the stream
      * @param through its own path or a trunk it flows through
@@ -730,7 +807,7 @@ public final class DrinkTree {
      * @return the radius, 0 where its liquid is not there now
      */
     static double contribution(Stream stream, Stream through, double share) {
-        return flowOf(stream, through, share).radius();
+        return flowOf(stream, through, share).width();
     }
 
     /**
@@ -753,22 +830,39 @@ public final class DrinkTree {
     }
 
     /**
+     * The width of a stream's spout before it narrows: its block's whole
+     * mouth, narrowed for a block of less goo than a whole one by the square
+     * root of its volume. It is the same through the whole drain: the box
+     * shrinks as the block drains, while the liquid already in the air keeps
+     * flowing at its width until its tail is in the hand; a width that shrank
+     * with the box left the whole stream in the air a thread the moment the
+     * block was drained, so it vanished before its tail had flowed at all.
+     * decision unmake-stream-is-a-shrinking-waterspout
+     * decision unmake-waves-dissolve-by-crucible-cost
+     *
      * @param stream   a stream whose block is streaming
      * @param distance blocks along its route
-     * @return the width of its matter there before any taper
+     * @return the width of its spout there before it narrows or tapers
      */
     private static double liquidWidth(Stream stream, double distance) {
-        Block block = stream.block();
-        double now = stream.now();
-        return DrinkBody.widthAt(distance, block.progressAt(now), block.scale()
-                * DrinkStream.widthAt(stream.materialAt(distance), block.seed()), block.seed(), now);
+        return DrinkBody.MOUTH * Math.min(1, stream.block().scale());
     }
 
     /**
      * @param pastJoin blocks past a join along the trunk, below zero before it
-     * @return how far the trunk has swelled to carry the stream that joins, 0 a merge before the join to 1 a merge past
+     * @return how far the trunk has swelled to carry the stream that joins, 0 {@link #SWELL_FROM} before the join to 1
+     *         where the stream's ride begins
      */
     static double mergeRamp(double pastJoin) {
-        return DrinkStream.smoothRamp(-MERGE, MERGE, pastJoin);
+        return DrinkStream.smoothRamp(-SWELL_FROM, -DrinkStream.RIDE, pastJoin);
+    }
+
+    /**
+     * @param width a width
+     * @return it to the {@link #TRUNK_ROOT}th power, squared twice since every ring of every stream asks
+     */
+    static double fourthPower(double width) {
+        double squared = width * width;
+        return squared * squared;
     }
 }

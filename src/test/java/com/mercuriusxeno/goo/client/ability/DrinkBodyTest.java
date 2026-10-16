@@ -8,15 +8,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * A block becomes its stream as a box of liquid where it stood, its edges
  * rounding into a sphere and the box shrinking smoothly about its middle as
- * it drains, with a funnel narrowing from its width to the stream's in front
- * of it, nothing jumping at the start (decision unmake-waves-dissolve-by-crucible-cost).
+ * it drains, nothing jumping at the start (decision unmake-waves-dissolve-by-crucible-cost).
  */
 class DrinkBodyTest {
 
     private static final double DELTA = 1e-6;
-    private static final long SEED = 42;
-    private static final double NOW = 100;
-    private static final double STREAM = 0.1;
     private static final double HALFWAY = 0.5;
     private static final double STEP = 0.02;
     private static final Vec3 CENTER = new Vec3(7.5, 2.5, 3.5);
@@ -54,29 +50,5 @@ class DrinkBodyTest {
         assertEquals(CENTER, half.center());
         assertEquals(DrinkBody.MOUTH * DrinkBody.sizeAt(HALFWAY), half.half(), DELTA);
         assertEquals(0, DrinkBody.boxAt(CENTER, 1).half(), DELTA);
-    }
-
-    @Test
-    void theFunnelNarrowsFromTheBoxsWidthToTheStreamsInFrontOfIt() {
-        double past = DrinkBody.CENTER + DrinkBody.FUNNEL;
-
-        assertEquals(0, DrinkBody.funnelAt(0, 0, STREAM), DELTA);
-        assertEquals(DrinkBody.MOUTH, DrinkBody.funnelAt(DrinkBody.CENTER, 0, STREAM), DELTA);
-        assertEquals(STREAM, DrinkBody.funnelAt(past, 0, STREAM), DELTA);
-        assertEquals(STREAM, DrinkBody.widthAt(past + 1, 0, STREAM, SEED, NOW), DELTA);
-        assertEquals(STREAM, DrinkBody.widthAt(past + 1, 1, STREAM, SEED, NOW), DELTA);
-        double between = DrinkBody.funnelAt(DrinkBody.CENTER + DrinkBody.FUNNEL / 2, 0, STREAM);
-        assertTrue(between < DrinkBody.MOUTH && between > STREAM);
-        assertEquals(DrinkBody.MOUTH, DrinkBody.widthAt(DrinkBody.CENTER, 0, STREAM, SEED, NOW), DELTA);
-    }
-
-    @Test
-    void theLiquidWobblesWithinItsBoundWhereItIsStillBlob() {
-        double still = DrinkBody.widthAt(DrinkBody.CENTER, 0, STREAM, SEED, NOW);
-        double liquid = DrinkBody.widthAt(DrinkBody.CENTER, DrinkBody.LIQUEFY, STREAM, SEED, NOW);
-        double expected = DrinkBody.MOUTH * DrinkBody.sizeAt(DrinkBody.LIQUEFY);
-
-        assertEquals(DrinkBody.MOUTH, still, DELTA);
-        assertTrue(Math.abs(liquid - expected) <= expected * DrinkBody.WOBBLE + DELTA);
     }
 }

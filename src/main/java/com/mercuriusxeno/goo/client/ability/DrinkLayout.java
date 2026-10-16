@@ -11,24 +11,34 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The layout of one Unmake drink's tree, every stream pathing to the hand:
- * a block joins the nearest standing stream that runs nearer the hand and
- * still carries liquid where it would join, its own or a tributary's, a little
- * toward the hand from the nearest point so it arrives at a shallow angle, or
- * runs to the glove when none does; a stream whose trunk carries nothing at
- * its join any more re-roots the same way, its block end anchored and its hand
- * end gliding onto the new course rather than snapping, so the tree thins
- * toward the hand as blocks finish instead of channelling through what has
- * gone, while a trunk whose own liquid has passed keeps carrying what joins
- * it, so one stream enters the palm. The trunk arrives down
- * a line lifted over the look, in over the fingertips into the palm, and the
- * line follows the look with a lag, so the hand pulls the stream.
+ * The layout of one Unmake drink's tree, one central trunk every stream
+ * collapses into: the spine is the block the aim line passes through nearest
+ * the hand, its stream running to the glove, and every other block joins the
+ * standing stream whose line runs nearest it, the spine or a feeder on the
+ * spine's chain nearer the hand, still carrying liquid where it would join,
+ * a short lead toward the hand from the nearest point, so blobs collapse into
+ * one mass near the blocks and few geometries reach the hand. A stream whose
+ * trunk carries nothing at its join any more re-roots the same way, its block
+ * end anchored and its hand end gliding onto the new course rather than
+ * snapping, while a trunk whose own liquid has passed keeps carrying what
+ * joins it; once the spine carries nothing, the next block the aim line passes
+ * through nearest the hand becomes the spine, so one stream enters the palm.
+ * The trunk arrives down a line lifted over the look, in over the fingertips
+ * into the palm, and the line follows the look with a lag, so the hand pulls
+ * the stream.
+ * decision unmake-streams-collapse-into-a-central-trunk
  * decision unmake-waves-dissolve-by-crucible-cost
  */
 public final class DrinkLayout {
 
-    /** Blocks toward the hand a join is pushed past the point of the trunk nearest the joining block. */
-    static final double LEAD = 1.2;
+    /** Blocks toward the hand a join is pushed past the point of the trunk nearest the joining block, short so a feeder collapses into its trunk rather than running beside it. */
+    static final double LEAD = 0.4;
+    /**
+     * How many times nearer than the central trunk a stream off the aim line must run for a block to join it, so
+     * the cone's streams converge on the centre rather than knotting into a lattice of tubes between neighbours,
+     * pulled into the trunk more strongly than toward the hand.
+     */
+    static final double SIDE_PULL = 2;
     /** Ticks the pull takes to close most of the way to a new look, so the stream sways rather than snaps. */
     static final double PULL_LAG = 6;
     /** The rise over the look the trunk arrives down, as a slope: about thirty degrees, over the fingertips into the palm. */
@@ -55,6 +65,49 @@ public final class DrinkLayout {
 
     /** Every stream flowing everywhere, as at a drink's start. */
     static final Flowing EVERY = (pos, distance) -> true;
+
+    /**
+     * The drinker's aim line, which picks the spine.
+     *
+     * @param eye  where the line starts
+     * @param look its unit direction
+     */
+    public record Aim(Vec3 eye, Vec3 look) {
+
+        /**
+         * @param pos a block
+         * @return whether the line passes through the block's cube ahead of the eye
+         */
+        boolean passesThrough(BlockPos pos) {
+            double enter = 0;
+            double leave = Double.MAX_VALUE;
+            double[] from = {eye.x, eye.y, eye.z};
+            double[] along = {look.x, look.y, look.z};
+            double[] low = {pos.getX(), pos.getY(), pos.getZ()};
+            for (int axis = 0; axis < from.length; axis++) {
+                if (along[axis] == 0) {
+                    if (from[axis] < low[axis] || from[axis] > low[axis] + 1) {
+                        return false;
+                    }
+                    continue;
+                }
+                double first = (low[axis] - from[axis]) / along[axis];
+                double second = (low[axis] + 1 - from[axis]) / along[axis];
+                enter = Math.max(enter, Math.min(first, second));
+                leave = Math.min(leave, Math.max(first, second));
+            }
+            return enter <= leave;
+        }
+
+        /**
+         * @param point a point
+         * @return the squared distance from the point to the line ahead of the eye
+         */
+        double offLineSqr(Vec3 point) {
+            double ahead = Math.max(0, point.subtract(eye).dot(look));
+            return eye.add(look.scale(ahead)).distanceToSqr(point);
+        }
+    }
 
     /**
      * One block's place in the tree: its far side, the stream it joins and
@@ -173,6 +226,8 @@ public final class DrinkLayout {
     }
 
     private final Map<BlockPos, Node> nodes = new LinkedHashMap<>();
+    private @Nullable BlockPos spine;
+    private @Nullable Aim aim;
     private @Nullable Vec3 pull;
     private double pulledAt;
 
@@ -250,37 +305,127 @@ public final class DrinkLayout {
     }
 
     /**
-     * Lays every block with every stream flowing, as at a drink's start.
+     * @return the spine's block, whose stream the others collapse into, or null while none flows
+     */
+    public @Nullable BlockPos spine() {
+        return spine;
+    }
+
+    /**
+     * Lays every block with every stream flowing, as at a drink's start, the
+     * block nearest the glove the spine.
      *
      * @param blocks the drink's blocks
      * @param glove  the glove this frame
      */
     public void place(Collection<BlockPos> blocks, Vec3 glove) {
-        place(blocks, glove, 0, EVERY);
+        place(blocks, glove, null, 0, EVERY);
     }
 
     /**
-     * Lays every block not yet laid, nearest the glove first, each joining
-     * the nearest flowing stream nearer the hand or running to the glove, and
-     * re-roots every laid block whose trunk has run dry at its join.
+     * Picks the spine while none flows, then lays every block not yet laid,
+     * nearest the glove first, each joining the nearest flowing stream on the
+     * spine's chain, and re-roots every laid block whose trunk has run dry at
+     * its join.
+     * decision unmake-streams-collapse-into-a-central-trunk
      *
      * @param blocks  the drink's blocks
      * @param glove   the glove this frame
+     * @param aim     the drinker's aim line, or null to make the block nearest the glove the spine
      * @param now     the game time, with the partial tick
      * @param flowing whether a laid stream's liquid still flows at a distance along its path
      */
-    public void place(Collection<BlockPos> blocks, Vec3 glove, double now, Flowing flowing) {
+    public void place(Collection<BlockPos> blocks, Vec3 glove, @Nullable Aim aim, double now, Flowing flowing) {
         List<BlockPos> order = new ArrayList<>();
         blocks.forEach(pos -> order.add(pos.immutable()));
         order.sort(Comparator.comparingDouble(pos -> Vec3.atCenterOf(pos).distanceToSqr(glove)));
+        this.aim = aim;
+        if (spine == null || !nodes.containsKey(spine) || !spineCarries(glove, flowing)) {
+            handOffSpine(order, glove, aim, now, flowing);
+        }
         for (BlockPos pos : order) {
             Node node = nodes.get(pos);
             if (node == null) {
                 lay(pos, glove, flowing);
-            } else if (node.trunk != null && !trunkFlows(node, flowing)) {
+            } else if (node.trunk != null && !trunkFlows(node, flowing) && stillToCome(pos, glove, flowing)) {
                 reroot(node, glove, now, flowing);
             }
         }
+    }
+
+    /**
+     * Whether the spine still carries anything: its own liquid at the hand,
+     * or a feeder's at that feeder's join, so a spine whose block has
+     * finished keeps its feeders while any of their goo rides it.
+     *
+     * @param glove   the glove
+     * @param flowing whether a stream still flows at a distance along its path
+     * @return whether the spine carries anything
+     */
+    private boolean spineCarries(Vec3 glove, Flowing flowing) {
+        Node node = nodes.get(spine);
+        if (flowing.at(spine, lineOf(node, glove).length())) {
+            return true;
+        }
+        for (Node feeder : nodes.values()) {
+            if (spine.equals(feeder.trunk) && flowing.at(spine, feeder.joinAt)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Makes the next block the aim line passes through nearest the hand the
+     * spine, its stream running to the glove, gliding there where it was laid
+     * as a feeder.
+     *
+     * @param order   the drink's blocks, nearest the glove first
+     * @param glove   the glove
+     * @param aim     the aim line, or null
+     * @param now     the game time, with the partial tick
+     * @param flowing whether a stream still flows at a distance along its path
+     */
+    private void handOffSpine(List<BlockPos> order, Vec3 glove, @Nullable Aim aim, double now, Flowing flowing) {
+        BlockPos former = spine;
+        spine = null;
+        double least = Double.MAX_VALUE;
+        boolean onLine = false;
+        for (BlockPos pos : order) {
+            if (pos.equals(former) || !stillToCome(pos, glove, flowing)) {
+                continue;
+            }
+            boolean through = aim == null || aim.passesThrough(pos);
+            double score = aim == null || through ? Vec3.atCenterOf(pos).distanceToSqr(glove)
+                    : aim.offLineSqr(Vec3.atCenterOf(pos));
+            if (through && !onLine || through == onLine && score < least) {
+                onLine = through;
+                least = score;
+                spine = pos;
+            }
+        }
+        if (spine == null) {
+            return;
+        }
+        Node node = nodes.get(spine);
+        if (node == null) {
+            Vec3 center = Vec3.atCenterOf(spine);
+            nodes.put(spine, new Node(spine, farSideOf(center, glove), null, 0, glove));
+        } else if (node.trunk != null) {
+            node.reroot(null, 0, now);
+        }
+    }
+
+    /**
+     * @param pos     a block
+     * @param glove   the glove
+     * @param flowing whether a stream still flows at a distance along its path
+     * @return whether its liquid has yet to reach the end of its line: every block not yet laid, else a laid one
+     *         whose tail has not passed its line's end
+     */
+    private boolean stillToCome(BlockPos pos, Vec3 glove, Flowing flowing) {
+        Node node = nodes.get(pos);
+        return node == null ? flowing.at(pos, 0) : flowing.at(pos, lineOf(node, glove).length());
     }
 
     private boolean trunkFlows(Node node, Flowing flowing) {
@@ -309,6 +454,11 @@ public final class DrinkLayout {
         }
     }
 
+    /**
+     * @param line   the trunk's line
+     * @param center the joining block's middle
+     * @return blocks along the trunk the block joins at: its nearest point plus {@link #LEAD}
+     */
     private static double joinOn(Line line, Vec3 center) {
         return Math.min(line.length(), line.nearestDistance(center) + LEAD);
     }
@@ -340,9 +490,9 @@ public final class DrinkLayout {
 
     /**
      * The standing stream a block joins: the one whose line runs nearest it
-     * among those whose blocks are nearer the glove, which do not themselves
-     * run through the block's own stream, and whose liquid still flows where
-     * the block would join.
+     * among the spine and those whose blocks are nearer the glove, which do
+     * not themselves run through the block's own stream, and whose liquid
+     * still flows where the block would join.
      *
      * @param center  the block's middle
      * @param glove   the glove
@@ -358,7 +508,8 @@ public final class DrinkLayout {
                 continue;
             }
             Line line = lineOf(node, glove);
-            double distance = line.pointAt(line.nearestDistance(center)).distanceToSqr(center);
+            double distance = line.pointAt(line.nearestDistance(center)).distanceToSqr(center)
+                    * (central(node.pos) ? 1 : SIDE_PULL * SIDE_PULL);
             if (distance < least && flowing.at(node.pos, joinOn(line, center))) {
                 least = distance;
                 nearest = node;
@@ -368,15 +519,25 @@ public final class DrinkLayout {
     }
 
     /**
+     * @param pos a laid block
+     * @return whether its stream is the central trunk's: the spine's, or a block's the aim line passes through
+     */
+    private boolean central(BlockPos pos) {
+        return pos.equals(spine) || aim != null && aim.passesThrough(pos);
+    }
+
+    /**
      * @param node   a standing node
      * @param center a block's middle
      * @param glove  the glove
      * @param self   the block's own node, or null
-     * @return whether the block may join the node's stream: another's, nearer the glove, and not running down its own
+     * @return whether the block may join the node's stream: another's, the spine or nearer the glove, and not
+     *         running down its own
      */
     private boolean candidate(Node node, Vec3 center, Vec3 glove, @Nullable Node self) {
-        return node != self && Vec3.atCenterOf(node.pos).distanceToSqr(glove) < center.distanceToSqr(glove)
-                && !runsThrough(node, self);
+        boolean nearer = node.pos.equals(spine)
+                || Vec3.atCenterOf(node.pos).distanceToSqr(glove) < center.distanceToSqr(glove);
+        return node != self && nearer && !runsThrough(node, self);
     }
 
     /**

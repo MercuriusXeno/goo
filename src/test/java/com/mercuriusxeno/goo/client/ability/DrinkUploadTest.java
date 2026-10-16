@@ -123,11 +123,12 @@ class DrinkUploadTest {
             assertEquals(List.of(DrinkUpload.RUN_START), entriesOf(first.bytes()),
                     "the region before the chain lists only the first segment");
             assertEquals(List.of(DrinkUpload.RUN_START, 1), entriesOf(regionAt(blocks, 0, 0, 0).bytes()));
-            assertEquals(List.of(DrinkUpload.RUN_START), entriesOf(regionAt(blocks, 2, 0, 0).bytes()),
-                    "the region past the chain lists only the last segment, which is its first local one");
-            assertEquals(2, countAt(regionAt(blocks, 2, 0, 0).bytes(), 1), "it copies the segment's two rings alone");
-            assertEquals(1 - CAMERA.x, floatAt(regionAt(blocks, 2, 0, 0).bytes(), DrinkUpload.RINGS_AT), DELTA,
-                    "the copied span starts at the segment's first ring");
+            assertEquals(List.of(DrinkUpload.RUN_START | 1), entriesOf(regionAt(blocks, 2, 0, 0).bytes()),
+                    "the region past the chain lists only the last segment, its second local one");
+            assertEquals(3, countAt(regionAt(blocks, 2, 0, 0).bytes(), 1),
+                    "it copies the segment's two rings and the ring before them, which its curve's tangent reads");
+            assertEquals(0 - CAMERA.x, floatAt(regionAt(blocks, 2, 0, 0).bytes(), DrinkUpload.RINGS_AT), DELTA,
+                    "the copied span starts at the ring before the segment");
             assertEquals(0, dropped(blocks));
         }
 
