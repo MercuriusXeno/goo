@@ -11,6 +11,7 @@ import com.mercuriusxeno.goo.client.ability.BlockTransforms;
 import com.mercuriusxeno.goo.client.ability.TransformationRenderer;
 import com.mercuriusxeno.goo.client.ability.Transformations;
 import com.mercuriusxeno.goo.client.ability.UpdraftWind;
+import com.mercuriusxeno.goo.client.ber.style.HeaterPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.OculusLids;
 import com.mercuriusxeno.goo.client.ber.style.OculusStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyle;
@@ -98,6 +99,10 @@ public class PrismRenderer implements BlockEntityRenderer<PrismBlockEntity, Pris
                 ? BlockTransforms.CLIENT.exposureAt(prism.getBlockPos()) : Optional.empty();
         state.decayShare = exposure.map(BlockTransforms.Exposure::share).orElse(0f);
         state.decayTint = exposure.map(BlockTransforms.Exposure::tint).orElse(0);
+        if (state.decayShare > 0f && HeaterPrismStyle.glowsWhileCharging(state.decayTint)) {
+            // prism-conversion-creeps-over-the-hold: the glow rises with the ember, ending at the heater's full bright
+            state.lightCoords = HeaterPrismStyle.warmingLight(state.lightCoords, state.decayShare);
+        }
     }
 
     /**

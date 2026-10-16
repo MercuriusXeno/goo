@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.ber.style;
 
+import com.mercuriusxeno.goo.ability.program.GlacialStep;
 import com.mercuriusxeno.goo.client.CrystalClusterSubmitter;
 import com.mercuriusxeno.goo.client.PrismCrystal;
 import com.mercuriusxeno.goo.client.ber.PrismRenderState;
@@ -21,7 +22,7 @@ public final class GlacialPrismStyle implements PrismComboStyle {
     public static final String COMBO = "goo:frost_cold";
 
     /** The deep glacier blue the column takes over its quartz. */
-    static final int GLACIER_BLUE = 0x3F8FD8;
+    static final int GLACIER_BLUE = GlacialStep.GLACIER_BLUE;
 
     @Override
     public void submit(PrismRenderState state, PoseStack poseStack, SubmitNodeCollector nodeCollector) {

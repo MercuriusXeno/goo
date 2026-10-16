@@ -62,12 +62,17 @@ class StepCodecTest {
             Map.entry("traveling", new TravelingStep(3f, List.of(new FreezeBlocksStep(Expr.literal(2.5), false)))),
             Map.entry("break_blocks", new BreakBlocksStep(TagKey.create(Registries.BLOCK,
                     Identifier.fromNamespaceAndPath("goo", "foliage")))),
+            Map.entry("extinguish", new ExtinguishStep()),
             Map.entry("set_ai", LeafSteps.SET_AI.step(false)),
             Map.entry("set_invulnerable", LeafSteps.SET_INVULNERABLE.step(true)),
             Map.entry("spawn_slime", new SpawnSlimeStep(GooTypes.WEIRD, 1)),
             Map.entry("drop_item", new DropItemStep(Identifier.parse("minecraft:cobblestone"),
                     Expr.parse("1 + random(3)").getOrThrow())),
             Map.entry("ignite", LeafSteps.IGNITE.step(Expr.literal(10))),
+            Map.entry("light_fire", LeafSteps.LIGHT_FIRE.step(Unit.INSTANCE)),
+            Map.entry("detonate_explosive", LeafSteps.DETONATE_EXPLOSIVE.step(Expr.literal(2.5))),
+            Map.entry("melt", new MeltStep(TagKey.create(Registries.BLOCK,
+                    Identifier.fromNamespaceAndPath("goo", "meltable")))),
             Map.entry("entities", new EntitiesStep(SelectionShape.SPHERE, Expr.literal(2.5),
                     List.of(EntityFilter.LIVING, EntityFilter.NOT_FIRE_IMMUNE),
                     List.of(LeafSteps.IGNITE.step(Expr.literal(5))))),
@@ -148,6 +153,11 @@ class StepCodecTest {
             Map.entry("petrify", new PetrifyStep(Expr.literal(2))),
             Map.entry("calcify", new CalcifyStep(Identifier.fromNamespaceAndPath("goo", "calcify"), 30)),
             Map.entry("degrade", new DegradeStep(Identifier.fromNamespaceAndPath("goo", "decay"), 20)),
+            Map.entry("broil", new BroilStep(20,
+                    TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath("goo", "broil_burns")),
+                    Expr.literal(3), 4)),
+            Map.entry("flames", new FlamesStep(Expr.literal(1), 2, 5)),
+            Map.entry("heater", new HeaterStep(6, Expr.literal(1), 2, 5, 20)),
             Map.entry("heal", LeafSteps.HEAL.step(Expr.literal(0.1))),
             Map.entry("court", LeafSteps.COURT.step(Expr.literal(0.25))),
             Map.entry("power_pulse", LeafSteps.POWER_PULSE.step(Unit.INSTANCE)),
@@ -343,6 +353,12 @@ class StepCodecTest {
         assertEquals(new StepPhase("popping", Expr.literal(0), List.of(), List.of(), List.of()),
                 phased.phases().get(0));
         assertTrue(decode("{\"type\": \"phased\", \"phases\": []}").isError());
+    }
+
+    // frost-reach-extinguishes-fire-and-burning-mobs
+    @Test
+    void extinguishDecodesFromItsTypeAlone() {
+        assertEquals(new ExtinguishStep(), decode("{\"type\": \"extinguish\"}").getOrThrow());
     }
 
     @Test

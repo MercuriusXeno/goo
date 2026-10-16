@@ -78,7 +78,7 @@ public final class GloveThrowSender {
     public static boolean sendThrow(Player player, int heldTicks) {
         GloveSelection selection = heldSelection(player);
         ResourceKey<GooTypeDefinition> gooType = selection == null ? null : selection.getGooType();
-        if (gooType == null || ThrowFreezeState.isThrowBlocked()) {
+        if (gooType == null) {
             return false;
         }
         return sendFor(player, gooType, selection.abilityId(), heldTicks);
@@ -158,15 +158,16 @@ public final class GloveThrowSender {
 
     /**
      * Keeps a held stream's looped sound sounding for its holder one more
-     * tick, fading out once the hold ends (decision decay-gnats-degrade-each-block-once).
+     * tick at the holder's ears, fading out once the hold ends
+     * (decisions decay-gnats-degrade-each-block-once, broil-heat-wave-ring-cooks-ahead).
      *
      * @param player    the local player
      * @param abilityId the selected ability id string
      */
     private static void loopStreamSound(Player player, String abilityId) {
         selectedDelivery(abilityId).sound().filter(StreamSound::loop).ifPresent(sound ->
-                FadingLoops.keepAlive(abilityId, sound.sound(), SoundSource.PLAYERS, sound.volume(),
-                        sound.pitchFor(player.getRandom().nextFloat()), player.getEyePosition()));
+                FadingLoops.keepAliveAtListener(abilityId, sound.sound(), SoundSource.PLAYERS, sound.volume(),
+                        sound.pitchFor(player.getRandom().nextFloat())));
     }
 
     /**
@@ -334,7 +335,6 @@ public final class GloveThrowSender {
         if (payload == null) {
             return false;
         }
-        ThrowFreezeState.arm(target);
         sendPayload(payload);
         return true;
     }
@@ -364,12 +364,30 @@ public final class GloveThrowSender {
     private static @Nullable GooThrowPayload affordablePayload(Player player, TargetResult target,
             ResourceKey<GooTypeDefinition> gooType, String abilityId) {
         GooThrowPayload payload = targetToPayload(target, gooType, abilityId, lineOrigin());
-        if (payload == null || !affordsThrow(AbilitySyncHandler.findAbility(abilityId),
+        ClientAbility ability = AbilitySyncHandler.findAbility(abilityId);
+        if (payload == null || refusesStruck(player, payload, ability) || !affordsThrow(ability,
                 amount -> GooSourceScanner.hasEnough(player, gooType, amount),
                 reagent -> ReagentScanner.holds(player, reagent))) {
             return null;
         }
         return payload;
+    }
+
+    /**
+     * Whether the ability refuses the block the throw would strike, so the
+     * aim sends nothing and nothing is paid, as an unaffordable click does;
+     * Melt strikes only meltable stone.
+     * melt-blob-absorbs-into-lava
+     *
+     * @param player  the local player
+     * @param payload the throw the aim would send
+     * @param ability the selected ability's synced copy, or null when none synced
+     * @return true when a step of the ability refuses the struck block
+     */
+    private static boolean refusesStruck(Player player, GooThrowPayload payload, @Nullable ClientAbility ability) {
+        return ability != null && payload.targetEntityId() < 0
+                && GooThrowHandler.refusesStruck(player.level().getBlockState(payload.targetPos()),
+                ability.behaviors());
     }
 
     /**

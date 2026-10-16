@@ -46,12 +46,35 @@ public final class FadingLoopSound extends AbstractTickableSoundInstance {
     }
 
     /**
-     * Keeps the loop sounding one more tick, at a point.
+     * A loop starting silent at the listener's ears, unpanned and
+     * unattenuated wherever it is fed: a held stream's holder hears its own
+     * loop this way, since a loop fed at the eye each tick sits on the
+     * frame-interpolated listener and re-pans with every tick, rattling.
+     * decision broil-heat-wave-ring-cooks-ahead
+     *
+     * @param sound      the looped sound
+     * @param source     the mixer channel it plays on
+     * @param fullVolume the volume it swells to while fed
+     * @param pitch      its pitch
+     * @return the loop
+     */
+    static FadingLoopSound atListener(SoundEvent sound, SoundSource source, float fullVolume, float pitch) {
+        FadingLoopSound loop = new FadingLoopSound(sound, source, fullVolume, pitch, Vec3.ZERO);
+        loop.relative = true;
+        loop.attenuation = SoundInstance.Attenuation.NONE;
+        return loop;
+    }
+
+    /**
+     * Keeps the loop sounding one more tick, at a point; a loop at the
+     * listener stays at the ears.
      *
      * @param at where it plays
      */
     void feed(Vec3 at) {
-        moveTo(at);
+        if (!relative) {
+            moveTo(at);
+        }
         lastFed = age;
     }
 

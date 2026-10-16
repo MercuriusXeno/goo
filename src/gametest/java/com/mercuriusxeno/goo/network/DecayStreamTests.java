@@ -26,7 +26,7 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 /**
  * Gametests for nether decay: a held stream of gnats paints the stone it
  * reaches, which keeps stepping toward cobblestone while the hold lasts
- * though the aim has left it, finishes alone once past half its step even
+ * though the aim has left it, finishes alone once past nine tenths of its step even
  * after release, and within one hold steps no further than cobblestone
  * (decision decay-gnats-degrade-each-block-once).
  */
@@ -34,7 +34,7 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 public final class DecayStreamTests {
     private static final String DECAY_DEGRADES_ONCE = "decay_degrades_once_per_activation";
     private static final String DECAY_PAINTED_STEPS_UNAIMED = "decay_painted_block_steps_unaimed";
-    private static final String DECAY_PAST_HALF_FINISHES = "decay_past_half_finishes_after_release";
+    private static final String DECAY_PAST_NINE_TENTHS_FINISHES = "decay_past_nine_tenths_finishes_after_release";
     private static final String DECAY_BITES_THE_MOB = "decay_bites_the_mob_and_spares_the_blocks";
     private static final String DECAY_PAINTS_CROSSHAIR = "decay_paints_the_crosshair_block_off_center";
     private static final String DECAY_STEPS_THROUGH_A_BITE = "decay_painted_block_steps_through_a_bite";
@@ -47,7 +47,8 @@ public final class DecayStreamTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, DECAY_DEGRADES_ONCE, DecayStreamTests::decayDegradesOncePerActivation);
         GooTestFunctions.registerTest(registrar, DECAY_PAINTED_STEPS_UNAIMED, DecayStreamTests::decayPaintedBlockStepsUnaimed);
-        GooTestFunctions.registerTest(registrar, DECAY_PAST_HALF_FINISHES, DecayStreamTests::decayPastHalfFinishesAfterRelease);
+        GooTestFunctions.registerTest(registrar, DECAY_PAST_NINE_TENTHS_FINISHES,
+                DecayStreamTests::decayPastNineTenthsFinishesAfterRelease);
         GooTestFunctions.registerTest(registrar, DECAY_BITES_THE_MOB, DecayStreamTests::decayBitesTheMobAndSparesTheBlocks);
         GooTestFunctions.registerTest(registrar, DECAY_PAINTS_CROSSHAIR, DecayStreamTests::decayPaintsTheCrosshairBlockOffCenter);
         GooTestFunctions.registerTest(registrar, DECAY_STEPS_THROUGH_A_BITE, DecayStreamTests::decayPaintedBlockStepsThroughABite);
@@ -70,8 +71,8 @@ public final class DecayStreamTests {
     private static final int TWO_STEPS_AND_MORE = 2 * STEP_TICKS + 10;
     /** A brush across the stone short of half its step. */
     private static final int BRUSH_TICKS = 3;
-    /** Aim on the stone past half its step. */
-    private static final int PAST_HALF_TICKS = 10;
+    /** Aim on the stone past nine tenths of its step, short of the whole. */
+    private static final int PAST_NINE_TENTHS_TICKS = 14;
     /** Room for a block to finish its step, and then some. */
     private static final int FINISH_TICKS = STEP_TICKS + 10;
     private static final Identifier NETHER_DECAY = Identifier.parse("goo:nether_decay");
@@ -134,19 +135,19 @@ public final class DecayStreamTests {
     }
 
     /**
-     * A mock player holds decay on stone past half its step and lets go:
+     * A mock player holds decay on stone past nine tenths of its step and lets go:
      * the stone finishes its step to cobblestone on its own.
      *
      * @param helper the gametest helper
      */
-    public static void decayPastHalfFinishesAfterRelease(GameTestHelper helper) {
+    public static void decayPastNineTenthsFinishesAfterRelease(GameTestHelper helper) {
         ServerPlayer player = decayerOverStone(helper);
-        hold(helper, player, 1, PAST_HALF_TICKS);
-        helper.runAfterDelay(PAST_HALF_TICKS + 1, () -> {
+        hold(helper, player, 1, PAST_NINE_TENTHS_TICKS);
+        helper.runAfterDelay(PAST_NINE_TENTHS_TICKS, () -> {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertBlockPresent(Blocks.STONE, TARGET_POS);
         });
-        helper.runAfterDelay(PAST_HALF_TICKS + FINISH_TICKS, () -> {
+        helper.runAfterDelay(PAST_NINE_TENTHS_TICKS + FINISH_TICKS, () -> {
             helper.assertBlockPresent(Blocks.COBBLESTONE, TARGET_POS);
             helper.succeed();
         });

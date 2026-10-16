@@ -55,7 +55,6 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 public final class MobEffectTests {
     private static final String MOB_METAL = "mob_metal_javelin";
     private static final String ALLURE_COURTS = "allure_courts_the_struck_animal";
-    private static final String MOB_BLAZE = "mob_blaze_ignite";
     private static final String MOB_FROST = "mob_frost_snap";
     private static final String SNAP_ENCASES_THEN_THAWS = "snap_encases_then_thaws";
     private static final String FLOAT_LEVITATES_A_ZOMBIE = "float_levitates_a_zombie";
@@ -77,7 +76,6 @@ public final class MobEffectTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, MOB_METAL, MobEffectTests::metalJavelin);
         GooTestFunctions.registerTest(registrar, ALLURE_COURTS, MobEffectTests::allureCourtsTheStruckAnimal);
-        GooTestFunctions.registerTest(registrar, MOB_BLAZE, MobEffectTests::blazeIgnite);
         GooTestFunctions.registerTest(registrar, MOB_FROST, MobEffectTests::frostSnap);
         GooTestFunctions.registerTest(registrar, SNAP_ENCASES_THEN_THAWS, MobEffectTests::snapEncasesThenThaws);
         GooTestFunctions.registerTest(registrar, FLOAT_LEVITATES_A_ZOMBIE, MobEffectTests::floatLevitatesAZombie);
@@ -122,7 +120,6 @@ public final class MobEffectTests {
     private static final String OTHER_HIT_SHOULD_LEAVE = "A hit from another mob should leave the charm";
     private static final String SHOULD_NOT_GLOW = "Target should wear the ailment overlay, not vanilla glowing";
     private static final String SHOULD_TAKE_DAMAGE = "Target should have taken damage";
-    private static final String SHOULD_BE_ON_FIRE = "Target should be on fire";
     private static final String SHOULD_HAVE_NO_AI = "Target should have AI disabled";
     private static final String SHOULD_HAVE_LEVITATION = "Target should have levitation";
     private static final String SHOULD_TAKE_JAVELIN_DAMAGE = "Target should have taken the javelin's damage";
@@ -139,7 +136,6 @@ public final class MobEffectTests {
     private static final String ABILITY_UNSTABLE_EXPLODE = "goo:test_blast";
     private static final String ABILITY_HEX_CHARM = "goo:hex_charm";
     private static final String ABILITY_ZOO_ALLURE = "goo:zoo_allure";
-    private static final String ABILITY_BLAZE_IGNITE = "goo:blaze_ignite";
     private static final String ABILITY_ENDER_ZONE = "goo:ender_zone";
     /** Above ender_zone.json's radius of six, so the player sets nothing off until the test walks it in. */
     private static final double PLAYER_OUT_OF_REACH_ABOVE = 20.0;
@@ -231,21 +227,6 @@ public final class MobEffectTests {
         helper.runAfterDelay(SETTLE_TICKS, () -> {
             strike(helper, cow, ABILITY_ZOO_ALLURE);
             helper.assertTrue(cow.isInLove(), SHOULD_BE_IN_LOVE);
-            helper.succeed();
-        });
-    }
-
-    /**
-     * Blaze ignite sets the struck mob on fire; the splash selection it
-     * asks of the host is graded in MobProgramTest.
-     *
-     * @param helper the gametest helper
-     */
-    public static void blazeIgnite(GameTestHelper helper) {
-        Mob mob = helper.spawnWithNoFreeWill(EntityType.COW, SPAWN_POS);
-        helper.runAfterDelay(SETTLE_TICKS, () -> {
-            strike(helper, mob, ABILITY_BLAZE_IGNITE);
-            helper.assertTrue(mob.isOnFire(), SHOULD_BE_ON_FIRE);
             helper.succeed();
         });
     }

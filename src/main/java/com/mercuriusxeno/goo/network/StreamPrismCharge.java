@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.program.DegradeStep;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.RayStep;
+import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.block.ability.PrismBlockEntity;
 import com.mercuriusxeno.goo.registry.GooServerState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -19,6 +20,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import java.util.Optional;
+import java.util.OptionalInt;
 
 /**
  * A channeled stream converting a bare prism: where the stream carries an
@@ -26,9 +28,11 @@ import java.util.Optional;
  * tick charges the prism in place of running the stream's program, and held
  * for one charge's ticks unbroken the prism converts into that reaction as
  * its combo. A mob-first stream bites a mob in its cone before it charges any
- * prism. While it charges, the stream's motes fly to the prism, and a stream
- * that degrades blocks wears the prism with its degrade look by the share charged.
+ * prism. While it charges, the stream's motes fly to the prism, and the prism
+ * warms by the share charged toward its tint: a degrading stream's decay look,
+ * or the color its combo wears once converted.
  * channeled-hosts-convert-prisms-over-the-hold
+ * prism-conversion-creeps-over-the-hold
  */
 final class StreamPrismCharge {
 
@@ -158,12 +162,31 @@ final class StreamPrismCharge {
         // the operator's ruling: the prism is the gnats' homing target until it converts fully
         GooStreamHandler.sprayParticles(level, apex, moteAxis(apex, pos),
                 ability.delivery().withCone(ability.delivery().range(), 0), apex.distanceTo(Vec3.atCenterOf(pos)));
+        OptionalInt tint = chargeTint(ability);
+        if (tint.isPresent()) {
+            // the converting tick holds the full share, so the prism never drops back to quartz before its combo draws
+            float share = prism.hasCombo() ? 1f : prism.conversion().share(hold);
+            GooServerState.of(level.getServer()).blockExposures().setShare(level, pos, prism.getBlockState(), share,
+                    tint.getAsInt());
+        }
+    }
+
+    /**
+     * The tint a charging prism warms toward: a stream that degrades blocks
+     * wears it with its decay look, and any other with the color its combo
+     * wears once converted.
+     * prism-conversion-creeps-over-the-hold
+     *
+     * @param ability the stream ability
+     * @return the tint, or empty where the charge shows nothing on the prism
+     */
+    static OptionalInt chargeTint(AbilityDefinition ability) {
         if (ability.behaviors().stream().anyMatch(DegradeStep.class::isInstance)) {
             // the operator's ruling: the decay animation plays on the prism while it charges
-            float share = prism.hasCombo() ? 0f : prism.conversion().share(hold);
-            GooServerState.of(level.getServer()).blockExposures().setShare(level, pos, prism.getBlockState(), share,
-                    DegradeStep.NETHER_MAROON);
+            return OptionalInt.of(DegradeStep.NETHER_MAROON);
         }
+        return ability.onPrism().stream().map(Step::prismTint).filter(OptionalInt::isPresent).findFirst()
+                .orElse(OptionalInt.empty());
     }
 
     /**

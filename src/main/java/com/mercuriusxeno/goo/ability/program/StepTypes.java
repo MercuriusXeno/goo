@@ -51,6 +51,7 @@ public final class StepTypes {
         register(DetectOreStep.TYPE);
         register(WindStep.TYPE);
         register(BreakBlocksStep.TYPE);
+        register(ExtinguishStep.TYPE);
         register(TravelingStep.TYPE);
         register(GlacialStep.TYPE);
         register(LeafSteps.SET_AI.type());
@@ -61,6 +62,9 @@ public final class StepTypes {
         register(AncientStep.TYPE);
         register(DropItemStep.TYPE);
         register(LeafSteps.IGNITE.type());
+        register(LeafSteps.LIGHT_FIRE.type());
+        register(LeafSteps.DETONATE_EXPLOSIVE.type());
+        register(MeltStep.TYPE);
         register(EntitiesStep.TYPE);
         register(ParticlesStep.TYPE);
         register(SoundStep.TYPE);
@@ -101,6 +105,9 @@ public final class StepTypes {
         register(PetrifyStep.TYPE);
         register(CalcifyStep.TYPE);
         register(DegradeStep.TYPE);
+        register(BroilStep.TYPE);
+        register(FlamesStep.TYPE);
+        register(HeaterStep.TYPE);
         register(LeafSteps.HEAL.type());
         register(LeafSteps.COURT.type());
         register(LeafSteps.POWER_PULSE.type());
