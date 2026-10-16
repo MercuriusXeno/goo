@@ -166,13 +166,7 @@ public class GooBlocks {
      * sags (decision unmake-waves-dissolve-by-crucible-cost).
      */
     public static final DeferredBlock<MeltingBlock> MELTING_BLOCK = BLOCKS.registerBlock(
-            "melting_block", MeltingBlock::new,
-            () -> BlockBehaviour.Properties.of()
-                    .mapColor(MapColor.COLOR_LIGHT_GREEN)
-                    .strength(COBBLESTONE_HARDNESS, COBBLESTONE_RESISTANCE)
-                    .noLootTable()
-                    .noOcclusion()
-                    .sound(SoundType.SLIME_BLOCK));
+            "melting_block", MeltingBlock::new, MeltingBlock::standInProperties);
     public static final DeferredBlock<StatueBlock> STATUE = BLOCKS.registerBlock(
             "statue", StatueBlock::new,
             () -> BlockBehaviour.Properties.of()

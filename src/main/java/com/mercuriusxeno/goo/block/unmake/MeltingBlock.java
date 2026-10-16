@@ -4,11 +4,14 @@ import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.MapColor;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -25,6 +28,23 @@ public class MeltingBlock extends BaseEntityBlock {
     public static final MapCodec<MeltingBlock> CODEC = simpleCodec(MeltingBlock::new);
     /** Ticks past its siphon's end a melting block no drink removed waits before it turns back. */
     public static final int ORPHAN_TICKS = 40;
+    /** A melting block's hardness, cobblestone's. */
+    private static final float STAND_IN_HARDNESS = 2.0F;
+    /** A melting block's blast resistance, cobblestone's. */
+    private static final float STAND_IN_RESISTANCE = 6.0F;
+
+    /**
+     * @return a melting block's properties, as it stands in for the block it was
+     */
+    public static Properties standInProperties() {
+        return Properties.of()
+                .mapColor(MapColor.COLOR_LIGHT_GREEN)
+                .strength(STAND_IN_HARDNESS, STAND_IN_RESISTANCE)
+                .noLootTable()
+                .noOcclusion()
+                .isViewBlocking((state, level, pos) -> false)
+                .sound(SoundType.SLIME_BLOCK);
+    }
 
     /**
      * Creates the melting block.
@@ -52,6 +72,17 @@ public class MeltingBlock extends BaseEntityBlock {
     @Override
     protected boolean propagatesSkylightDown(@NonNull BlockState state) {
         return true;
+    }
+
+    /**
+     * Shades the blocks beside it as air does: its full collision shape would
+     * otherwise darken their faces' corners as a solid block's does, leaving a
+     * dark layer across a cone being unmade.
+     */
+    @Override
+    protected float getShadeBrightness(@NonNull BlockState state, @NonNull BlockGetter level,
+                                       @NonNull BlockPos pos) {
+        return 1.0F;
     }
 
     @Override
