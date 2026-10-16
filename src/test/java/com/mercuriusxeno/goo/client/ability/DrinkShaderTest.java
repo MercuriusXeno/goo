@@ -95,15 +95,17 @@ class DrinkShaderTest {
         assertEquals(DrinkBlur.DEPTH_SHARE, constant(fragment, "DEPTH_SHARE"), DELTA);
         assertEquals(DrinkBlur.RADIUS_SCALE, constant(fragment, "RADIUS_SCALE"), DELTA);
         assertEquals(DrinkBlur.COVERED, constant(fragment, "COVERED"), DELTA);
-        assertTrue(fragment.contains("float range = abs(near) >= 1.0 ? 0.0 : (1.0 - near * near) * (1.0 - near * near);")
-                && fragment.contains("return exp(-SPATIAL * share * share) * range;"),
-                "the weight is DrinkBlur.weightOf's");
-        assertTrue(fragment.contains("float width = max(1.0, WIDTH_SHARE * radius * pixelsPerBlock);"),
-                "the kernel is as wide on screen as the sphere, as DrinkBlur.widthOf");
-        assertTrue(fragment.contains("int taps = int(min(float(MOST_TAPS), ceil(width)));"),
-                "it reads a tap a pixel up to its cap, as DrinkBlur.tapsOf");
-        assertTrue(fragment.contains("there = mix(lowDistance, highDistance, share);"),
-                "each tap reads between its two nearest pixels, as DrinkBlur.readAt");
+        assertTrue(fragment.contains("float inside = 1.0 - share * share;\n    return inside <= 0.0 ? 0.0 : inside * inside;")
+                && fragment.contains("return falloff(offset) * falloff(depthDelta / threshold);"),
+                "the weight is DrinkBlur.weightOf's, falling to nothing at its edges");
+        assertTrue(fragment.contains("float width = clamp(WIDTH_SHARE * radius * pixelsPerBlock, 1.0, float(MOST_TAPS));"),
+                "the kernel is as wide on screen as the sphere up to its cap, as DrinkBlur.widthOf");
+        assertTrue(fragment.contains("int taps = int(ceil(width));")
+                && fragment.contains("ivec2 at = clamp(pixel + axis * tap, ivec2(0), size - 1);")
+                && fragment.contains("float weight = weightOf(float(tap) / width, there - here, threshold);"),
+                "it reads every pixel it reaches, as DrinkBlur.blurRow");
+        assertTrue(fragment.contains("fragColor = vec4(colors / weights, center.a);"),
+                "a pixel keeps its own sphere's radius as its coverage");
         assertTrue(fragment.contains("if (center.a < COVERED) {\n        fragColor = center;\n        gl_FragDepth = depth;"),
                 "a pixel no splat covered keeps the world's depth");
         assertTrue(fragment.contains("gl_FragDepth = depthOf(distances / weights);"), "the blurred depth is written");
