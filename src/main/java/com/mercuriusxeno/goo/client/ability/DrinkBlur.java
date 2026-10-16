@@ -31,6 +31,18 @@ public final class DrinkBlur {
     public static final double RADIUS_SCALE = DrinkTree.MOUTH;
     /** The coverage under which a pixel holds no splat: half the coverage channel's least step. */
     public static final double COVERED = 0.002;
+    /** The sums a disc gathers: its weights, then its weighted distances. */
+    private static final int SUMS = 2;
+
+    /**
+     * A pixel and one row of its disc.
+     *
+     * @param row    the pixel's row
+     * @param column the pixel's column
+     * @param down   the disc row's offset down from the pixel
+     */
+    private record Place(int row, int column, int down) {
+    }
 
     private DrinkBlur() {
     }
@@ -91,23 +103,41 @@ public final class DrinkBlur {
     private static double blurredAt(double[][] distance, double[][] radius, int row, int column,
                                     double pixelsPerBlock) {
         double width = widthOf(radius[row][column], pixelsPerBlock);
+        int reach = (int) Math.ceil(width);
+        double[] sums = new double[SUMS];
+        for (int down = Math.max(-reach, -row); down <= reach && row + down < distance.length; down++) {
+            gatherRow(distance, radius, new Place(row, column, down), width, sums);
+        }
+        return sums[1] / sums[0];
+    }
+
+    /**
+     * Adds one row of a pixel's disc: each covered pixel weighed by its
+     * distance from the pixel and its depth difference.
+     *
+     * @param distance each pixel's distance from the eye
+     * @param radius   each pixel's sphere radius, 0 where uncovered
+     * @param place    the pixel and the disc row's offset down from it
+     * @param width    the disc's radius, in pixels
+     * @param sums     the weights then the weighted distances, added to
+     */
+    private static void gatherRow(double[][] distance, double[][] radius, Place place, double width,
+                                  double[] sums) {
+        int row = place.row();
+        int column = place.column();
+        int down = place.down();
+        double here = distance[row][column];
         double threshold = DEPTH_SHARE * radius[row][column];
         int reach = (int) Math.ceil(width);
-        double weights = 0;
-        double sum = 0;
-        for (int down = -reach; down <= reach; down++) {
-            int at = row + down;
-            for (int across = -reach; across <= reach && at >= 0 && at < distance.length; across++) {
-                int beside = column + across;
-                if (beside >= 0 && beside < distance[at].length && radius[at][beside] > 0) {
-                    double weight = weightOf(Math.sqrt(down * down + across * across) / width,
-                            distance[at][beside] - distance[row][column], threshold);
-                    weights += weight;
-                    sum += weight * distance[at][beside];
-                }
+        double[] line = distance[row + down];
+        for (int across = Math.max(-reach, -column); across <= reach && column + across < line.length; across++) {
+            if (radius[row + down][column + across] > 0) {
+                double weight = weightOf(Math.sqrt(down * down + across * across) / width,
+                        line[column + across] - here, threshold);
+                sums[0] += weight;
+                sums[1] += weight * line[column + across];
             }
         }
-        return sum / weights;
     }
 
     /**
