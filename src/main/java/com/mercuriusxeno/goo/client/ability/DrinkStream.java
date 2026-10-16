@@ -34,7 +34,7 @@ public final class DrinkStream {
     /** The ticks the longest route's travel takes at the slowest pace; a drink is kept this long past its last block's drain. */
     public static final int LONGEST_TRAVEL_TICKS = (int) Math.ceil((SiphonRule.RANGE + GLOVE_SLACK) / FLOW);
     /**
-     * Rings along one block of stream in the field's skeleton: the capsules between them follow the snake's bends,
+     * Rings along one block of stream, the spheres splatted between them following the snake's bends,
      * which three to the block read smoothly, and every ring costs a sum over the streams it carries each frame.
      */
     public static final int RINGS_PER_BLOCK = 3;
@@ -161,7 +161,7 @@ public final class DrinkStream {
 
     /**
      * One ring of a stream's skeleton: a point of its middle with the radius of
-     * its liquid there, the surface being meshed from the field about these.
+     * its liquid there, the spheres the drink splats sweeping from one to the next.
      *
      * @param center   the ring's middle
      * @param flow     the unit direction the liquid flows there

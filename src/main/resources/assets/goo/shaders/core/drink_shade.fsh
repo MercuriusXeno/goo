@@ -8,8 +8,8 @@
 
 // The Unmake drink's skin, shaded from the fluid target in one full-screen
 // pass (decision unmake-drink-draws-as-a-screen-space-fluid): where a splat
-// covered the pixel, its depth is read back to the point it shows, the normal
-// taken from how that point changes across the screen, and its color, the
+// covered the pixel, its blurred depth is read back to the point it shows, the
+// normal built from the steps to its neighbours on each axis, and its color, the
 // block's sampled color crossfading to the goo's in the level's light
 // (decision unmake-skin-is-a-solid-sampled-color), glistens with a specular
 // highlight and a rim brightening (decision unmake-metaball-glistens-and-shades)
@@ -28,7 +28,7 @@ in vec2 texCoord;
 
 out vec4 fragColor;
 
-const float COVERED = 0.5;
+const float COVERED = 0.002;
 const float GLISTEN_POWER = 48.0;
 const float GLISTEN_STRENGTH = 0.35;
 const float RIM_POWER = 3.0;
@@ -52,16 +52,35 @@ vec4 glisten(vec4 color, vec3 n, vec3 view) {
     return color;
 }
 
+vec3 pointAtPixel(ivec2 pixel, ivec2 size) {
+    ivec2 within = clamp(pixel, ivec2(0), size - 1);
+    return pointAt((vec2(within) + 0.5) / vec2(size), texelFetch(FluidDepth, within, 0).r);
+}
+
+// The step across a pixel the normal is built from: the smaller in distance
+// from the eye of the steps to its two neighbours, as DrinkBlur.slopeAt, so a
+// pixel at an edge takes its slope from the surface it lies on rather than
+// across the drop to the world behind.
+vec3 stepAcross(vec3 before, vec3 at, vec3 after) {
+    float forward = length(after) - length(at);
+    float backward = length(at) - length(before);
+    return abs(forward) < abs(backward) ? after - at : at - before;
+}
+
 void main() {
     vec4 skin = texture(FluidColor, texCoord);
-    float depth = texture(FluidDepth, texCoord).r;
-    vec3 p = pointAt(texCoord, depth);
-    vec3 n = cross(dFdx(p), dFdy(p));
-    n = dot(n, n) > 0.0 ? normalize(n) : normalize(-p);
-    n = dot(n, -p) < 0.0 ? -n : n;
     if (skin.a < COVERED) {
         discard;
     }
+    ivec2 size = textureSize(FluidDepth, 0);
+    ivec2 pixel = ivec2(gl_FragCoord.xy);
+    float depth = texelFetch(FluidDepth, pixel, 0).r;
+    vec3 p = pointAtPixel(pixel, size);
+    vec3 across = stepAcross(pointAtPixel(pixel - ivec2(1, 0), size), p, pointAtPixel(pixel + ivec2(1, 0), size));
+    vec3 up = stepAcross(pointAtPixel(pixel - ivec2(0, 1), size), p, pointAtPixel(pixel + ivec2(0, 1), size));
+    vec3 n = cross(across, up);
+    n = dot(n, n) > 0.0 ? normalize(n) : normalize(-p);
+    n = dot(n, -p) < 0.0 ? -n : n;
     vec3 viewNormal = normalize(mat3(ModelViewMat) * n);
     vec3 toEye = normalize(mat3(ModelViewMat) * -p);
     vec4 color = glisten(vec4(skin.rgb, 1.0), viewNormal, toEye);

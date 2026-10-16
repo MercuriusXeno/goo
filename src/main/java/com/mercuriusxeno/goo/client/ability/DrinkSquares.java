@@ -39,7 +39,7 @@ public final class DrinkSquares {
     /** The square's half side as it leaves the hand, in blocks, Pulser's own. */
     static final double HAND_RADIUS = SignalRings.HAND_RADIUS;
     /** The square's half side as it lands, the block face's own. */
-    static final double FACE_RADIUS = DrinkBody.MOUTH;
+    static final double FACE_RADIUS = DrinkTree.MOUTH;
     private static final Vec3 UP = new Vec3(0, 1, 0);
 
     private DrinkSquares() {

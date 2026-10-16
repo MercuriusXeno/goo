@@ -73,7 +73,7 @@ public final class DrinkColors {
     /**
      * The skin's color at a point of a stream: the block's color at the
      * block crossfading to the goo's at the hand by the point's share of the
-     * route, the crossfade the drink field shader paints with its mix.
+     * route, the crossfade each of the drink's splats wears.
      * decision unmake-skin-is-a-solid-sampled-color
      * decision diagnose-then-fix-unmake-metallic-color
      *

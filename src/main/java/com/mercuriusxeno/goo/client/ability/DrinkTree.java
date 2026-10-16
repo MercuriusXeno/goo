@@ -77,6 +77,12 @@ public final class DrinkTree {
      * tributary whose liquid was riding it, so the liquid jumped to another course in the air.
      */
     static final double SAME_POINT = 1e-6;
+    /** The block's half width, in blocks: its cube's, and the mouth its stream leaves it by. */
+    static final double MOUTH = 0.5;
+    /** The block's middle along its path, in blocks from its far side. */
+    static final double CENTER = DrinkStream.BLOCK_SPAN / 2;
+    /** The share of the drain over which the block's cube rounds into a sphere, its stream flowing only after. */
+    static final double LIQUEFY = 0.35;
     private static final double HALF = 0.5;
     private static final double FULL_TURN = 2 * Math.PI;
     /** The two stations a distance along a path is read between, so the last pair serves the path's very end. */
@@ -139,11 +145,11 @@ public final class DrinkTree {
 
         /**
          * @return the game time the block's stream starts to flow: once its cube has rounded into a sphere,
-         *         {@link DrinkBody#LIQUEFY} of the way through its drain, the cube shrinking into the sphere alone
+         *         {@link #LIQUEFY} of the way through its drain, the cube shrinking into the sphere alone
          *         before then with no stream meeting it
          */
         public double flowsFrom() {
-            return start + DrinkBody.LIQUEFY * Math.max(1, end - start);
+            return start + LIQUEFY * Math.max(1, end - start);
         }
     }
 
@@ -491,7 +497,7 @@ public final class DrinkTree {
 
     /**
      * The rings of a stream's own path from its block's far side to its end,
-     * its skeleton in the drink's field, each ring as wide as every stream
+     * the spheres it splats, each ring as wide as every stream
      * flowing through it there makes it.
      *
      * @param stream the stream
@@ -628,7 +634,7 @@ public final class DrinkTree {
      * @return how much of its spout's width its liquid has there, 1 for the whole width, 0 for the thread
      */
     static double spoutAlong(Stream stream, double distance) {
-        double run = (distance - DrinkBody.CENTER) / (threadFrom(stream) - DrinkBody.CENTER);
+        double run = (distance - CENTER) / (threadFrom(stream) - CENTER);
         double left = 1 - Math.clamp(run, 0, 1);
         return left * left;
     }
@@ -640,7 +646,7 @@ public final class DrinkTree {
      */
     static double threadFrom(Stream stream) {
         double route = stream.routeLength();
-        return Math.max(route - THREAD_RUN, (DrinkBody.CENTER + route) * HALF);
+        return Math.max(route - THREAD_RUN, (CENTER + route) * HALF);
     }
 
     /**
@@ -672,19 +678,6 @@ public final class DrinkTree {
         double width() {
             return Math.sqrt(Math.sqrt(power));
         }
-    }
-
-    /**
-     * A stream's part of the drink's field: its skeleton, and its block's box while the block stands.
-     *
-     * @param stream the stream
-     * @return the skeleton
-     */
-    public static DrinkField.Skeleton skeleton(Stream stream) {
-        Block block = stream.block();
-        double progress = block.progressAt(stream.now());
-        DrinkBody.Box box = progress < 1 && !stream.awaiting() ? DrinkBody.boxAt(block.center(), progress) : null;
-        return new DrinkField.Skeleton(stream, rings(stream), box);
     }
 
     /**
@@ -748,7 +741,7 @@ public final class DrinkTree {
         // rather than counting there whole at no width, which halved the width of whatever ran through and then
         // stepped out to full at the middle, a flat disc wherever a feeder's liquid filled the stretch.
         double presence = DrinkStream.taperAt(distance, stream.tailAt(), stream.headAt()) * swell
-                * DrinkStream.smoothRamp(0, DrinkBody.CENTER, distance);
+                * DrinkStream.smoothRamp(0, CENTER, distance);
         if (presence > 0) {
             // The liquid is as wide as the waterspout is where it stands on its route, the spout fixed at the block,
             // so a drained block's liquid narrows only as it nears the palm and ends at its own tapered tail; a spout
@@ -845,7 +838,7 @@ public final class DrinkTree {
      * @return the width of its spout there before it narrows or tapers
      */
     private static double liquidWidth(Stream stream, double distance) {
-        return DrinkBody.MOUTH * Math.min(1, stream.block().scale());
+        return MOUTH * Math.min(1, stream.block().scale());
     }
 
     /**
