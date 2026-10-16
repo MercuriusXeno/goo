@@ -9,7 +9,6 @@ import com.mercuriusxeno.goo.client.ability.MetalSpikeVisual;
 import com.mercuriusxeno.goo.client.ability.UpdraftWind;
 import com.mercuriusxeno.goo.client.ability.VineTrapVisual;
 import com.mercuriusxeno.goo.client.ber.style.NetherHoleStyles;
-import com.mercuriusxeno.goo.client.throwing.ThrowFreezeState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
@@ -75,10 +74,10 @@ public class AbilityBlockRenderer
      */
     private static void extractTargetAndFace(AbilityBlockEntity be,
                                              AbilityBlockRenderState state) {
-        // Highlight when the vanilla crosshair or the post-throw freeze
-        // window (aim locked from the previous throw) is on this block.
+        // Highlights only while the vanilla crosshair targets this block.
+        // throw-freeze-state-deleted-whole
         BlockPos pos = be.getBlockPos();
-        state.targeted = GooRenderUtil.isBlockTargeted(pos) || ThrowFreezeState.isFrozenOnBlock(pos);
+        state.targeted = GooRenderUtil.isBlockTargeted(pos);
         state.placedFace = be.getPlacedFace();
         state.behaviorActive = be.getBehavior() != null;
     }

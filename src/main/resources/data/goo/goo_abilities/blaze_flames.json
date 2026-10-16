@@ -1,0 +1,18 @@
+{
+  "gooType": "blaze",
+  "displayName": "goo.ability.blaze.flames",
+  "badge": "channeled",
+  "order": 30,
+  "cost": 1000,
+  "requires": ["minecraft:torchflower"],
+  "delivery": { "kind": "stream", "range": 6, "cone": 20, "ticks_per_charge": 20,
+    "sound": { "id": "minecraft:block.fire.ambient", "every": 20, "volume": 1.0, "pitch": 1.0, "pitch_spread": 0.0, "loop": true } },
+  "area": { "shape": "cone", "size": 6.0, "angle": 20.0 },
+  "behaviors": [
+    { "type": "flames", "damage": 1, "every": 2, "burn_seconds": 5 }
+  ],
+  "on_prism": [
+    { "type": "heater", "radius": 6, "damage": 1, "every": 2, "burn_seconds": 5, "cone": 20 }
+  ],
+  "tags": ["stream"]
+}

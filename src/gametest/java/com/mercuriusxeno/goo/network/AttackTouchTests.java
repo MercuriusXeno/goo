@@ -64,7 +64,7 @@ public final class AttackTouchTests {
     private static final Identifier METAL_JAVELIN = Identifier.parse("goo:metal_javelin");
     private static final Identifier METAL_SPIKES = Identifier.parse("goo:metal_spikes");
     private static final Identifier ENDER_BLINK = Identifier.parse("goo:ender_blink");
-    private static final Identifier BLAZE_SPITFIRE = Identifier.parse("goo:blaze_spitfire");
+    private static final Identifier BLAZE_FLAMES = Identifier.parse("goo:blaze_flames");
     /** The damage metal_javelin.json's damage step names. */
     private static final float JAVELIN_DAMAGE = 8.0f;
     private static final float DAMAGE_TOLERANCE = 0.01f;
@@ -138,7 +138,7 @@ public final class AttackTouchTests {
         assertVanilla(helper, press(gloved, javelin, null, within), "on a block");
         assertVanilla(helper, press(gloved, ability(helper, METAL_SPIKES), villager, within), "with a world ability");
         assertVanilla(helper, press(gloved, ability(helper, ENDER_BLINK), villager, within), "with a self ability");
-        assertVanilla(helper, press(gloved, ability(helper, BLAZE_SPITFIRE), villager, within),
+        assertVanilla(helper, press(gloved, ability(helper, BLAZE_FLAMES), villager, within),
                 "with a channeled ability");
         assertVanilla(helper, press(bare, javelin, villager, within), "with no glove in the pressing hand");
         helper.getLevel().getServer().getPlayerList().remove(gloved);

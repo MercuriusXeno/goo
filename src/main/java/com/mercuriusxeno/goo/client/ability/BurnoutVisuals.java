@@ -15,16 +15,18 @@ import java.util.stream.Collectors;
  */
 public final class BurnoutVisuals {
 
-    /** Every goo type a chain ability carries. */
+    /**
+     * Every goo type a chain ability carries. Blaze carries none: Ignite's
+     * fire is its landing's whole visual (idea ignite-plays-no-burnout).
+     */
     public static final List<ResourceKey<GooTypeDefinition>> CHAIN_TYPES = List.of(
-            GooTypes.ROCK, GooTypes.BLAZE, GooTypes.FROST, GooTypes.NETHER,
+            GooTypes.ROCK, GooTypes.FROST, GooTypes.NETHER,
             GooTypes.METAL, GooTypes.CRYSTAL, GooTypes.GLOW, GooTypes.UNSTABLE);
 
     /** The explosions designed so far, by the goo type each draws for. */
     private static final Map<ResourceKey<GooTypeDefinition>, BurnoutVisual> DESIGNED = Map.of(
             GooTypes.UNSTABLE, UnstableExplosionVisual.INSTANCE,
             GooTypes.ROCK, RockExplosionVisual.INSTANCE,
-            GooTypes.BLAZE, BlazeExplosionVisual.INSTANCE,
             GooTypes.FROST, FrostExplosionVisual.INSTANCE,
             GooTypes.NETHER, NetherExplosionVisual.INSTANCE,
             GooTypes.METAL, MetalExplosionVisual.INSTANCE,

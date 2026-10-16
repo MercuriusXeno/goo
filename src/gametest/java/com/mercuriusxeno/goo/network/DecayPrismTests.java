@@ -68,7 +68,8 @@ public final class DecayPrismTests {
     private static final int BREAK = 2;
     private static final float SHARE_SLACK = 1e-4f;
     private static final String SHOULD_FOLLOW = "The prism's decay look should stand at %.3f in maroon, stands %.3f tint %x";
-    private static final String SHOULD_CLEAR = "A converted prism should hold no decay look, holds %.3f";
+    /** prism-conversion-creeps-over-the-hold: the converting tick keeps the full look, so the prism never flashes quartz. */
+    private static final String SHOULD_HOLD_FULL = "A converted prism should hold its full charge look, holds %.3f";
 
     private DecayPrismTests() {
     }
@@ -141,7 +142,7 @@ public final class DecayPrismTests {
      * shorter run, breaks again, then holds to the conversion: after each run
      * the prism's decay exposure stands at that run's ticks over the hold in
      * nether maroon, restarting with the charge, and once the hive stands it
-     * holds none.
+     * holds the full look, which the hive's style draws over.
      *
      * @param helper the gametest helper
      */
@@ -160,7 +161,7 @@ public final class DecayPrismTests {
             String combo = helper.getBlockEntity(PRISM, PrismBlockEntity.class).getCombo();
             float left = exposures(helper).shareAt(helper.getLevel(), helper.absolutePos(PRISM));
             helper.assertTrue(DECAY.toString().equals(combo), String.format(SHOULD_CONVERT, combo));
-            helper.assertTrue(left == 0f, String.format(SHOULD_CLEAR, left));
+            helper.assertTrue(left == 1f, String.format(SHOULD_HOLD_FULL, left));
             helper.succeed();
         });
     }

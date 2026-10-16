@@ -8,6 +8,7 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -15,7 +16,7 @@ import java.util.stream.Stream;
  * Frost's combo on a prism: for as long as the prism stands, every frozen
  * gauge within the radius holds and never thaws, and the still water and
  * lava within it stand frozen, water as magicked ice and lava as obsidian,
- * and every few seconds a flat frost ring pulses out from the prism to the
+ * the fire in it goes out, and every few seconds a flat frost ring pulses out from the prism to the
  * radius, Nova's ring, for the players watching. The step never finishes, so
  * the prism keeps its area frozen until mined:
  * {@code glacial radius=5}.
@@ -29,6 +30,8 @@ public record GlacialStep(double radius) implements Step {
     private static final String FIELD_RADIUS = "radius";
     /** Ticks between the prism's passes over its water and lava. */
     static final int FREEZE_EVERY_TICKS = 20;
+    /** The deep glacier blue a glacial prism's quartz wears, and warms toward while Cold charges it. */
+    public static final int GLACIER_BLUE = 0x3F8FD8;
     /** Ticks between the prism's frost rings. */
     static final int PULSE_EVERY_TICKS = 60;
 
@@ -85,5 +88,10 @@ public record GlacialStep(double radius) implements Step {
     @Override
     public Set<HostCapability> requires() {
         return Set.of(HostCapability.TICKING, HostCapability.FROST);
+    }
+
+    @Override
+    public OptionalInt prismTint() {
+        return OptionalInt.of(GLACIER_BLUE);
     }
 }

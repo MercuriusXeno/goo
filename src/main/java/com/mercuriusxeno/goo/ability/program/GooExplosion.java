@@ -22,6 +22,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.level.ExplosionDamageCalculator;
 import net.minecraft.world.level.ServerExplosion;
+import net.minecraft.world.level.block.BaseFireBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
@@ -51,8 +52,14 @@ public final class GooExplosion extends ServerExplosion {
     private static final float PARTICLE_SPEED = 1.0F;
     private static final float OUTSIDE_WORLD_RESISTANCE = Float.MAX_VALUE;
 
-    private GooExplosion(ServerLevel level, Vec3 center, float power, BlockInteraction blockInteraction) {
-        super(level, null, null, DAMAGE_CALCULATOR, center, power, false, blockInteraction);
+    /** One in this many cleared floor cells catches in a fiery explosion, vanilla's share. */
+    private static final int FIRE_ONE_IN = 3;
+
+    private final boolean lightsFires;
+
+    private GooExplosion(ServerLevel level, Vec3 center, float power, ExplosionMode mode) {
+        super(level, null, null, DAMAGE_CALCULATOR, center, power, mode == ExplosionMode.FIRE, blockInteraction(mode));
+        this.lightsFires = mode == ExplosionMode.FIRE;
     }
 
     /**
@@ -103,7 +110,7 @@ public final class GooExplosion extends ServerExplosion {
      * @param look   how the explosion shows and sounds
      */
     public static void detonate(ServerLevel level, Vec3 center, float power, ExplosionMode mode, Look look) {
-        GooExplosion explosion = new GooExplosion(level, center, power, blockInteraction(mode));
+        GooExplosion explosion = new GooExplosion(level, center, power, mode);
         if (EventHooks.onExplosionStart(level, explosion)) {
             return;
         }
@@ -127,7 +134,7 @@ public final class GooExplosion extends ServerExplosion {
      * @return destroy for a block-breaking explosion, keep otherwise
      */
     private static BlockInteraction blockInteraction(ExplosionMode mode) {
-        return mode == ExplosionMode.TNT ? BlockInteraction.DESTROY : BlockInteraction.KEEP;
+        return mode == ExplosionMode.NONE ? BlockInteraction.KEEP : BlockInteraction.DESTROY;
     }
 
     @Override
@@ -138,7 +145,27 @@ public final class GooExplosion extends ServerExplosion {
         if (getBlockInteraction() != BlockInteraction.KEEP) {
             breakBlocks(marked);
         }
+        if (lightsFires) {
+            lightFires(marked);
+        }
         return marked.size();
+    }
+
+    /**
+     * Lights fire in about one in three of the cleared cells standing on a
+     * solid block, as vanilla's fiery explosions do.
+     * ignite-fire-and-explosive-combo
+     *
+     * @param marked the cells the explosion's rays reached
+     */
+    private void lightFires(List<BlockPos> marked) {
+        ServerLevel level = level();
+        for (BlockPos pos : marked) {
+            if (level.getRandom().nextInt(FIRE_ONE_IN) == 0 && level.getBlockState(pos).isAir()
+                    && level.getBlockState(pos.below()).isSolidRender()) {
+                level.setBlockAndUpdate(pos, BaseFireBlock.getState(level, pos));
+            }
+        }
     }
 
     /**

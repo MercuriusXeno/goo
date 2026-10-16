@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.TargetResult;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
-import com.mercuriusxeno.goo.client.throwing.ThrowFreezeState;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
@@ -32,8 +31,7 @@ public final class AimTracker {
     }
 
     /**
-     * Frame start: resolves the aim from the look the frame draws, or holds
-     * the frozen target through the post-throw freeze.
+     * Frame start: resolves the aim from the look the frame draws.
      *
      * @param event the event instance
      */
@@ -47,11 +45,6 @@ public final class AimTracker {
         }
         ResourceKey<GooTypeDefinition> selectedType = GloveAim.selectedGooType(player);
         int entityOutline = selectedType != null ? ARGB.opaque(ClientGooTypes.highlight(selectedType)) : 0;
-        TargetResult frozen = ThrowFreezeState.getFrozenTarget();
-        if (frozen != null) {
-            STATE.update(seed -> new AimState.Resolution(frozen, seed), entityOutline);
-            return;
-        }
         float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
         STATE.update(seed -> AimTargets.resolve(player, seed, GloveAim.targetingHint(player), partialTick),
                 entityOutline);

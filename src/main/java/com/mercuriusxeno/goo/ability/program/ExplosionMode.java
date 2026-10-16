@@ -11,6 +11,12 @@ public enum ExplosionMode {
      */
     TNT,
     /**
+     * Breaks and drops blocks like TNT, and lights fire in about one in three
+     * of the cleared cells standing on a solid block, as vanilla's fiery
+     * explosions do (decision ignite-fire-and-explosive-combo).
+     */
+    FIRE,
+    /**
      * Hurts and pushes entities, leaves blocks standing.
      */
     NONE;

@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:broil_pops_charcoal_from_a_log",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 80,
+  "setup_ticks": 0,
+  "required": true
+}

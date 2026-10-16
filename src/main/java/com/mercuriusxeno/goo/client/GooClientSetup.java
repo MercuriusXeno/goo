@@ -42,6 +42,7 @@ import com.mercuriusxeno.goo.client.ber.*;
 import com.mercuriusxeno.goo.client.ber.style.GlacialPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlowBeaconStyle;
 import com.mercuriusxeno.goo.client.ber.style.GlowReflectorStyle;
+import com.mercuriusxeno.goo.client.ber.style.HeaterPrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.HivePrismStyle;
 import com.mercuriusxeno.goo.client.ber.style.OculusStyle;
 import com.mercuriusxeno.goo.client.ber.style.PrismComboStyles;
@@ -61,7 +62,6 @@ import com.mercuriusxeno.goo.client.sound.FadingLoops;
 import com.mercuriusxeno.goo.client.throwing.GooFlightManager;
 import com.mercuriusxeno.goo.client.throwing.GooSizeProperty;
 import com.mercuriusxeno.goo.client.throwing.GooVolumeDecorator;
-import com.mercuriusxeno.goo.client.throwing.ThrowFreezeState;
 import com.mercuriusxeno.goo.entity.SwapBody;
 import com.mercuriusxeno.goo.item.gasket.TunerAwaitState;
 import com.mercuriusxeno.goo.registry.*;
@@ -220,6 +220,8 @@ public final class GooClientSetup {
         PrismComboStyles.register(PulsePrismStyle.METRONOME_COMBO, PulsePrismStyle.METRONOME);
         PrismComboStyles.register(PulsePrismStyle.RELAY_COMBO, PulsePrismStyle.RELAY);
         PrismComboStyles.register(GlacialPrismStyle.COMBO, new GlacialPrismStyle());
+        // heater-prism-flames-nearby-creatures: a heater prism glows ember
+        PrismComboStyles.register(HeaterPrismStyle.COMBO, new HeaterPrismStyle());
         event.registerBlockEntityRenderer(GooBlockEntities.STATUE.get(), StatueRenderer::new);
         event.registerEntityRenderer(GooEntities.COMPRESSION_SPHERE.get(), CompressionSphereRenderer::new);
         event.registerEntityRenderer(GooEntities.FEED_PILE.get(), FeedPileRenderer::new);
@@ -492,7 +494,6 @@ public final class GooClientSetup {
         Transformations.CLIENT.clear();
         GhostTrails.CLIENT.clear();
         ViewportRipples.CLIENT.clear();
-        ThrowFreezeState.clear();
     }
 
     /** Clears Crystal's glass knives, ore sightings, glitter shells, arm poses and forming prisms. */
