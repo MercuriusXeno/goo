@@ -37,8 +37,8 @@ class DrinkSquaresTest {
     @Test
     void theSquareLeavesTheHandAtPulsersSizeAndLandsAtTheFaces() {
         assertEquals(SignalRings.HAND_RADIUS, DrinkSquares.radiusAt(0), DELTA);
-        assertEquals(DrinkBody.MOUTH, DrinkSquares.radiusAt(1), DELTA);
-        assertEquals((SignalRings.HAND_RADIUS + DrinkBody.MOUTH) / 2, DrinkSquares.radiusAt(HALF_WAY), DELTA);
+        assertEquals(DrinkTree.MOUTH, DrinkSquares.radiusAt(1), DELTA);
+        assertEquals((SignalRings.HAND_RADIUS + DrinkTree.MOUTH) / 2, DrinkSquares.radiusAt(HALF_WAY), DELTA);
     }
 
     @Test

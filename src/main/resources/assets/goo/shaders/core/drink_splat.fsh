@@ -9,9 +9,10 @@
 // sphere, or the block's rounded cube by stepping its signed distance from
 // the bounding sphere's entry, a miss is discarded, and the hit writes the
 // shape's own surface depth, not the quad's, with its color in the level's
-// light, against the level's depth copied into the target so walls hide the
-// goo. Overlapping splats keep the nearest surface; the shade pass makes them
-// one skin.
+// light and its radius over RADIUS_SCALE as its coverage, which the blur sizes
+// its kernel by, against the level's depth copied into the target so walls
+// hide the goo. Overlapping splats keep the nearest surface; the blur makes
+// them one skin.
 
 uniform sampler2D Sampler2;
 
@@ -30,6 +31,8 @@ out vec4 fragColor;
 const int BOX_STEPS = 24;
 const float BOX_HIT = 0.0005;
 const float CORNER = 1.7320508;
+const float RADIUS_SCALE = 0.5;
+const float LEAST_COVERAGE = 0.004;
 
 float roundedBox(vec3 rel, float halfWidth, float round) {
     vec3 q = abs(rel) - (halfWidth - round);
@@ -63,7 +66,8 @@ void main() {
         }
     }
     vec3 p = rd * t;
-    fragColor = vec4(splatColor.rgb * sample_lightmap(Sampler2, light).rgb, 1.0);
+    float coverage = max(halfWidth / RADIUS_SCALE, LEAST_COVERAGE);
+    fragColor = vec4(splatColor.rgb * sample_lightmap(Sampler2, light).rgb, coverage);
     vec4 clip = ProjMat * ModelViewMat * vec4(p, 1.0);
     float ndc = clip.z / clip.w;
     gl_FragDepth = Frame.x > 0.5 ? ndc : ndc * 0.5 + 0.5;

@@ -39,6 +39,7 @@ class DrinkSplatsTest {
     private static final double WIDE = 0.5;
     private static final double APART = 1.0;
     private static final double DELTA = 1e-9;
+    private static final double STEP = 0.02;
 
     private static DrinkTree.Block block(BlockPos pos) {
         return new DrinkTree.Block(pos, Vec3.atCenterOf(pos), 1, PICKED, LANDS, END);
@@ -143,7 +144,7 @@ class DrinkSplatsTest {
             DrinkSplats.Splat cube = splats.getFirst();
             assertEquals(NEAR.center(), cube.center());
             assertFalse(cube.sphere(), "its edges still rounding");
-            assertTrue(cube.half() < DrinkBody.MOUTH, "shrinking from the first frame");
+            assertTrue(cube.half() < DrinkTree.MOUTH, "shrinking from the first frame");
             assertEquals(BLOCK_COLOR, cube.color());
         }
 
@@ -154,8 +155,38 @@ class DrinkSplatsTest {
             DrinkSplats.Splat sphere = splats.getFirst();
             assertEquals(NEAR.center(), sphere.center());
             assertTrue(sphere.sphere());
-            assertEquals(DrinkBody.MOUTH * DrinkBody.sizeAt(NEAR.progressAt(SPHERE_TIME)), sphere.half(), DELTA);
+            assertEquals(DrinkTree.MOUTH * DrinkSplats.sizeAt(NEAR.progressAt(SPHERE_TIME)), sphere.half(), DELTA);
             assertTrue(splats.size() > 1, "the stream flows once the block is a sphere");
+        }
+
+        @Test
+        void landsAsTheWholeHardCubeWhereTheBlockStood() {
+            DrinkSplats.Splat cube = DrinkSplats.of(nearAt(LANDS), COAT).getFirst();
+
+            assertEquals(NEAR.center(), cube.center());
+            assertEquals(DrinkTree.MOUTH, cube.half(), DELTA);
+            assertEquals(0, cube.rounding(), DELTA);
+        }
+
+        @Test
+        void shrinksSmoothlyFromTheWholeCubeToNothingAndRoundsOverTheFirstPartOfTheDrain() {
+            assertEquals(1, DrinkSplats.sizeAt(0), DELTA);
+            assertEquals(0, DrinkSplats.sizeAt(1), DELTA);
+            assertTrue(DrinkSplats.sizeAt(STEP) > 1 - STEP, "no jump at the start");
+            double before = 1;
+            for (double progress = 0; progress <= 1; progress += STEP) {
+                assertTrue(DrinkSplats.sizeAt(progress) <= before + DELTA, "shrinks only");
+                before = DrinkSplats.sizeAt(progress);
+            }
+            assertEquals(0, DrinkSplats.liquidityAt(0), DELTA);
+            assertEquals(1, DrinkSplats.liquidityAt(DrinkTree.LIQUEFY), DELTA);
+        }
+
+        @Test
+        void isGoneOnceDrained() {
+            List<DrinkSplats.Splat> splats = DrinkSplats.of(nearAt(END), COAT);
+
+            assertTrue(splats.stream().noneMatch(splat -> splat.center().equals(NEAR.center())));
         }
 
         @Test

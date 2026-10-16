@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.ability;
 import com.mercuriusxeno.goo.client.GooRenderTypes;
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.GpuDevice;
 import com.mojang.blaze3d.systems.RenderPass;
@@ -26,15 +27,18 @@ import java.util.OptionalInt;
 /**
  * Draws the splats of a pass as a screen-space fluid: every splat a
  * camera-facing quad into the fluid target, over the level's depth copied
- * there, each writing its shape's own surface depth and lit color; then one
- * full-screen pass shading what the splats left and writing it to the main
- * target with its depth.
+ * there, each writing its shape's own surface depth and lit color; a
+ * bilateral blur across the screen then down it, making the spheres one
+ * skin; then one full-screen pass shading the skin and writing it to the
+ * main target with its depth.
  * decision unmake-drink-draws-as-a-screen-space-fluid
  */
 final class DrinkFluidPass {
 
     private static final String SPLAT_PASS = "Goo unmake drink splat";
     private static final String SHADE_PASS = "Goo unmake drink shade";
+    private static final String BLUR_ACROSS_PASS = "Goo unmake drink blur across";
+    private static final String BLUR_DOWN_PASS = "Goo unmake drink blur down";
     private static final String SPLATS_BUFFER = "Goo unmake drink splats";
     private static final String FRAME_BUFFER = "Goo unmake drink frame";
     private static final String TRANSFORMS_UNIFORM = "DynamicTransforms";
@@ -45,6 +49,12 @@ final class DrinkFluidPass {
     private static final int INDICES_PER_QUAD = 6;
     private static final int FULLSCREEN_VERTICES = 3;
     private static final int FRAME_BYTES = 16;
+    /** The frame block the splat and shade passes read, with no blur axis. */
+    private static final int STILL = 0;
+    /** The frame block the blur across the screen reads. */
+    private static final int ACROSS = 1;
+    /** The frame block the blur down the screen reads. */
+    private static final int DOWN = 2;
     /** Each corner of a quad, as its steps along the quad's right and up. */
     private static final int[][] CORNER_SIGNS = {{-1, -1}, {1, -1}, {1, 1}, {-1, 1}};
     /** How much nearer than its bound the camera may come to a shape before the quad about it is left out. */
@@ -56,7 +66,11 @@ final class DrinkFluidPass {
     private static final Vec3 UP = new Vec3(0, 1, 0);
     private static final Vec3 EAST = new Vec3(1, 0, 0);
     private static final ByteBuffer FRAME = ByteBuffer.allocateDirect(FRAME_BYTES).order(ByteOrder.nativeOrder());
-    /** The vertex bytes, kept across frames and grown only to the largest pass, as DrinkPacking found it must. */
+    /**
+     * The vertex bytes, kept across frames and grown only to the largest pass: a direct buffer is freed only when
+     * the heap collects its handle, which the renderer's little garbage lets wait for hours, so a fresh one a frame
+     * fills the direct memory limit. The device copies the bytes at creation, so reusing them is safe.
+     */
     private static ByteBuffer kept = ByteBuffer.allocateDirect(0);
 
     private DrinkFluidPass() {
@@ -70,7 +84,8 @@ final class DrinkFluidPass {
     }
 
     /**
-     * Draws a pass's splats: splatted into the fluid target, then shaded onto the main target.
+     * Draws a pass's splats: splatted into the fluid target, blurred across
+     * then down into one skin, then shaded onto the main target.
      *
      * @param splats    the splats, camera-relative
      * @param modelView the level's model view matrix this frame
@@ -82,17 +97,34 @@ final class DrinkFluidPass {
         }
         GpuDevice device = RenderSystem.getDevice();
         RenderTarget main = Minecraft.getInstance().getMainRenderTarget();
-        RenderTarget fluid = DrinkFluidTarget.sizedTo(main);
+        RenderTarget fluid = DrinkFluidTarget.fluidSizedTo(main);
+        RenderTarget blur = DrinkFluidTarget.blurSizedTo(main);
         fluid.copyDepthFrom(main);
-        FRAME.clear().putFloat(0, depthZeroToOne() ? 1 : 0);
-        GpuBuffer frame = device.createBuffer(() -> FRAME_BUFFER, GpuBuffer.USAGE_UNIFORM, FRAME);
-        GpuBuffer vertices = device.createBuffer(() -> SPLATS_BUFFER, GpuBuffer.USAGE_VERTEX, kept);
         GpuBufferSlice transform = RenderSystem.getDynamicUniforms().writeTransform(new Matrix4f(modelView), WHITE,
                 new Vector3f(), new Matrix4f());
-        splat(device, fluid, vertices, quads, transform, frame);
-        shade(device, main, fluid, transform, frame);
+        List<GpuBuffer> frames = List.of(frameOf(device, 0, 0), frameOf(device, 1, 0), frameOf(device, 0, 1));
+        GpuBuffer vertices = device.createBuffer(() -> SPLATS_BUFFER, GpuBuffer.USAGE_VERTEX, kept);
+        splat(device, fluid, vertices, quads, transform, frames.get(STILL));
+        fullScreen(device, new Screen(BLUR_ACROSS_PASS, GooRenderTypes.DRINK_BLUR, blur, fluid), transform,
+                frames.get(ACROSS));
+        fullScreen(device, new Screen(BLUR_DOWN_PASS, GooRenderTypes.DRINK_BLUR, fluid, blur), transform,
+                frames.get(DOWN));
+        fullScreen(device, new Screen(SHADE_PASS, GooRenderTypes.DRINK_SHADE, main, fluid), transform,
+                frames.get(STILL));
         vertices.close();
-        frame.close();
+        frames.forEach(GpuBuffer::close);
+    }
+
+    /**
+     * @param device     the device
+     * @param acrossStep how far a blur tap steps across the screen, in taps
+     * @param downStep   how far a blur tap steps down the screen, in taps
+     * @return the frame's uniform block: the depth convention and the blur's axis
+     */
+    private static GpuBuffer frameOf(GpuDevice device, float acrossStep, float downStep) {
+        FRAME.clear();
+        putFloats(FRAME, 0, depthZeroToOne() ? 1 : 0, acrossStep, downStep);
+        return device.createBuffer(() -> FRAME_BUFFER, GpuBuffer.USAGE_UNIFORM, FRAME);
     }
 
     private static void splat(GpuDevice device, RenderTarget fluid, GpuBuffer vertices, int quads,
@@ -112,17 +144,28 @@ final class DrinkFluidPass {
         }
     }
 
-    private static void shade(GpuDevice device, RenderTarget main, RenderTarget fluid, GpuBufferSlice transform,
-                              GpuBuffer frame) {
-        try (RenderPass pass = device.createCommandEncoder().createRenderPass(() -> SHADE_PASS,
-                main.getColorTextureView(), OptionalInt.empty(), main.getDepthTextureView(), OptionalDouble.empty())) {
-            pass.setPipeline(GooRenderTypes.DRINK_SHADE);
+    /**
+     * One full-screen pass reading one target's color and depth into another's.
+     *
+     * @param label    the pass's label in GPU debuggers
+     * @param pipeline the pass's pipeline
+     * @param into     the target written
+     * @param from     the target read
+     */
+    private record Screen(String label, RenderPipeline pipeline, RenderTarget into, RenderTarget from) {
+    }
+
+    private static void fullScreen(GpuDevice device, Screen screen, GpuBufferSlice transform, GpuBuffer frame) {
+        try (RenderPass pass = device.createCommandEncoder().createRenderPass(screen::label,
+                screen.into().getColorTextureView(), OptionalInt.empty(), screen.into().getDepthTextureView(),
+                OptionalDouble.empty())) {
+            pass.setPipeline(screen.pipeline());
             RenderSystem.bindDefaultUniforms(pass);
             pass.setUniform(TRANSFORMS_UNIFORM, transform);
             pass.setUniform(GooRenderTypes.DRINK_FRAME_BLOCK, frame);
-            pass.bindTexture(COLOR_SAMPLER, fluid.getColorTextureView(),
+            pass.bindTexture(COLOR_SAMPLER, screen.from().getColorTextureView(),
                     RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
-            pass.bindTexture(DEPTH_SAMPLER, fluid.getDepthTextureView(),
+            pass.bindTexture(DEPTH_SAMPLER, screen.from().getDepthTextureView(),
                     RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
             pass.draw(0, FULLSCREEN_VERTICES);
         }

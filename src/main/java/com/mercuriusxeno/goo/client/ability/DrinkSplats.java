@@ -26,6 +26,8 @@ public final class DrinkSplats {
     static final double NARROWEST = DrinkStream.THINNEST / 2;
     /** How far a cube's corner lies from its middle, in half widths. */
     private static final double CORNER = Math.sqrt(3);
+    private static final double TWO = 2;
+    private static final double THREE = 3;
 
     private DrinkSplats() {
     }
@@ -92,11 +94,9 @@ public final class DrinkSplats {
         }
         DrinkTree.Block block = stream.block();
         double progress = block.progressAt(stream.now());
-        if (progress < 1) {
-            DrinkBody.Box box = DrinkBody.boxAt(block.center(), progress);
-            if (box.half() > 0) {
-                splats.add(new Splat(box.center(), box.half(), box.rounding(), coat.blockColor(), coat));
-            }
+        double half = DrinkTree.MOUTH * sizeAt(progress);
+        if (half > 0) {
+            splats.add(new Splat(block.center(), half, half * liquidityAt(progress), coat.blockColor(), coat));
         }
         along(DrinkTree.rings(stream), coat, splats);
         return splats;
@@ -141,6 +141,28 @@ public final class DrinkSplats {
             splats.add(new Splat(center, radius, radius, DrinkColors.skinAt(coat.blockColor(), coat.gooColor(), share),
                     coat));
         }
+    }
+
+    /**
+     * @param progress how far the block's drain has gone, 0 to 1
+     * @return how big its cube still is, 1 the whole block to 0 gone, shrinking smoothly about its middle from the
+     *         first frame
+     */
+    static double sizeAt(double progress) {
+        return 1 - ease(Math.clamp(progress, 0, 1));
+    }
+
+    /**
+     * @param progress how far the block's drain has gone, 0 to 1
+     * @return how far its cube's edges have rounded, 0 the hard cube to 1 a sphere, over the first
+     *         {@link DrinkTree#LIQUEFY} of the drain
+     */
+    static double liquidityAt(double progress) {
+        return ease(Math.clamp(progress / DrinkTree.LIQUEFY, 0, 1));
+    }
+
+    private static double ease(double t) {
+        return t * t * (THREE - TWO * t);
     }
 
     private static double lerp(double from, double to, double t) {
