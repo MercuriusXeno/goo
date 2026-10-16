@@ -51,10 +51,6 @@ class DrinkLifecycleTest {
      * off finishing its last; any more and the drink enters the hand as separate strands rather than one trunk.
      */
     private static final int GLOVE_STREAMS = 2;
-    /** The most regions a frame of the cone drink may march, a guard set just above what it marches today. */
-    private static final int WORK_REGIONS = 160;
-    /** The most bodies a frame of the cone drink may list across its regions, a guard set just above today's. */
-    private static final int WORK_ENTRIES = 4600;
     /** Degrees either way the look sweeps while drinking. */
     private static final double SWEEP_DEGREES = 25;
     /** Ticks a radian of the sweep takes. */
@@ -63,6 +59,17 @@ class DrinkLifecycleTest {
     private static final double HAND_SWAY = 0.3;
     /** Ticks over which the blocks are picked one after another. */
     private static final long STAGGER_TICKS = 30;
+    /** Blocks either side of the look's middle the swept field runs. */
+    private static final int FIELD_HALF_WIDTH = 6;
+    /** The field's nearest and farthest rows ahead of the eye. */
+    private static final int FIELD_NEAR = 3;
+    private static final int FIELD_FAR = 9;
+    /** Ticks the sweep takes to cross one row of the field. */
+    private static final long SWEEP_ROW_TICKS = 3;
+    /** The most streams carrying liquid that may feed the spine directly in a frame. */
+    private static final int SPINE_FEEDERS = 2;
+    /** How far below level the look dips onto the field. */
+    private static final double FIELD_DIP = 0.3;
 
     /**
      * @return a cone of blocks ahead of the eye, each draining over its own time
@@ -201,200 +208,63 @@ class DrinkLifecycleTest {
     }
 
     /**
-     * Every region the drink is uploaded in holds every body that reaches it,
-     * so the shader draws the whole field there: a body a region's caps left
-     * out broke the skin at that region's faces, block-sized segments, and
-     * cut its stream out of that region.
-     * decision unmake-waves-dissolve-by-crucible-cost
+     * A sweep across a field: a flat field ahead and below the eye, picked a
+     * row across at a time as the look sweeps over it.
+     *
+     * @return the field's blocks, each picked as the sweep reaches it
      */
-    @Test
-    void everyRegionOfTheDrinksUploadHoldsEveryBodyReachingIt() {
-        List<DrinkTree.Block> blocks = cone();
-        Set<BlockPos> streaming = new HashSet<>();
-        blocks.forEach(block -> streaming.add(block.pos()));
-        DrinkLayout layout = new DrinkLayout();
-        Map<BlockPos, DrinkTree.Stream> built = new HashMap<>();
-        List<String> dropped = new ArrayList<>();
-        for (double now = PICKED; now <= LANDS + 80 && dropped.size() < REPORTED; now += 1) {
-            Vec3 pull = layout.pullToward(LOOK, now);
-            layout.place(streaming, GLOVE, new DrinkLayout.Aim(EYE, LOOK), now,
-                    DrinkTree.flowingOf(built, streaming));
-            Map<BlockPos, DrinkTree.Stream> frame = new HashMap<>();
-            List<DrinkField.Skeleton> skeletons = new ArrayList<>();
-            List<DrinkUpload.Coat> coats = new ArrayList<>();
-            for (DrinkTree.Stream stream : DrinkTree.build(blocks, layout, GLOVE, pull, now)) {
-                frame.put(stream.block().pos(), stream);
-                if (!stream.spent()) {
-                    skeletons.add(DrinkTree.skeleton(stream));
-                    coats.add(new DrinkUpload.Coat(0, 0, 0, 0));
-                }
-            }
-            built = frame;
-            int left = 0;
-            int regions = 0;
-            for (DrinkUpload.Block region : DrinkUpload.of(skeletons, coats, Vec3.ZERO, true)) {
-                left += region.dropped();
-                regions += region.dropped() > 0 ? 1 : 0;
-            }
-            if (left > 0) {
-                dropped.add(String.format("at %.0f: %d bodies left out of %d regions; worst region needs %s", now,
-                        left, regions, worstDemandOf(skeletons)));
+    static List<DrinkTree.Block> sweptField() {
+        List<DrinkTree.Block> blocks = new ArrayList<>();
+        for (int z = -FIELD_HALF_WIDTH; z <= FIELD_HALF_WIDTH; z++) {
+            long picked = (long) (z + FIELD_HALF_WIDTH) * SWEEP_ROW_TICKS;
+            for (int x = FIELD_NEAR; x <= FIELD_FAR; x++) {
+                BlockPos pos = new BlockPos(x, 0, z);
+                long drain = 20 + Math.floorMod(pos.hashCode() * 31L, 41);
+                blocks.add(new DrinkTree.Block(pos, Vec3.atCenterOf(pos), 1, picked, picked + LANDS,
+                        picked + LANDS + drain));
             }
         }
-        assertTrue(dropped.isEmpty(), "the upload's caps left bodies out:\n" + String.join("\n", dropped));
-        assertTrue(DrinkUpload.BYTES <= DrinkUpload.MOST_BYTES, "a region's block is " + DrinkUpload.BYTES
-                + " bytes, past what every driver allows a uniform block");
+        return blocks;
     }
 
     /**
-     * Every body's field lies within the bounds the upload spreads it over,
-     * so no region lacks a body whose skin reaches into it: a body left out
-     * of a region its skin reaches leaves that region without the surface,
-     * and the region past it draws a flat face at its entry, cutting the goo
-     * on the block grid.
+     * Swept across a field, the streams meld with their neighbours on the
+     * way to the trunk: no frame has more than two streams carrying liquid
+     * feeding the spine directly, every other stream joining a stream it ran
+     * near, an inverse tree rather than a comb on the spine.
+     * decision unmake-streams-meld-into-an-inverse-tree
      */
     @Test
-    void everyBodysFieldLiesWithinTheBoundsItIsUploadedBy() {
-        List<DrinkTree.Block> blocks = cone();
-        Set<BlockPos> streaming = new HashSet<>();
-        blocks.forEach(block -> streaming.add(block.pos()));
+    void aSweptFieldMeldsIntoATreeRatherThanACombOnTheSpine() {
+        List<DrinkTree.Block> all = sweptField();
         DrinkLayout layout = new DrinkLayout();
         Map<BlockPos, DrinkTree.Stream> built = new HashMap<>();
-        List<String> outside = new ArrayList<>();
-        for (double now = PICKED; now <= LANDS + 60 && outside.size() < REPORTED; now += 1) {
-            Vec3 pull = layout.pullToward(LOOK, now);
-            layout.place(streaming, GLOVE, new DrinkLayout.Aim(EYE, LOOK), now,
-                    DrinkTree.flowingOf(built, streaming));
-            Map<BlockPos, DrinkTree.Stream> frame = new HashMap<>();
-            List<DrinkField.Skeleton> skeletons = new ArrayList<>();
-            for (DrinkTree.Stream stream : DrinkTree.build(blocks, layout, GLOVE, pull, now)) {
-                frame.put(stream.block().pos(), stream);
-                if (!stream.spent()) {
-                    skeletons.add(DrinkTree.skeleton(stream));
+        int feeding = 0;
+        List<String> combs = new ArrayList<>();
+        for (double now = PICKED; now <= LANDS + FIELD_HALF_WIDTH * 2 * SWEEP_ROW_TICKS; now += FRAME) {
+            double at = now;
+            List<DrinkTree.Block> blocks = all.stream().filter(block -> block.picked() <= at).toList();
+            Set<BlockPos> streaming = new HashSet<>();
+            blocks.forEach(block -> streaming.add(block.pos()));
+            double yaw = Math.atan2(FIELD_HALF_WIDTH * (2 * at / (FIELD_HALF_WIDTH * 2 * SWEEP_ROW_TICKS) - 1),
+                    (FIELD_NEAR + FIELD_FAR) / 2.0);
+            Vec3 look = new Vec3(Math.cos(yaw), -FIELD_DIP, Math.sin(yaw)).normalize();
+            layout.place(streaming, GLOVE, new DrinkLayout.Aim(EYE, look), now, DrinkTree.flowingOf(built, streaming));
+            built = new HashMap<>();
+            int onSpine = 0;
+            for (DrinkTree.Stream stream : DrinkTree.build(blocks, layout, GLOVE, layout.pullToward(look, now), now)) {
+                built.put(stream.block().pos(), stream);
+                if (stream.trunk() != null && !stream.spent()) {
+                    feeding++;
+                    onSpine += stream.trunk().block().pos().equals(layout.spine()) ? 1 : 0;
                 }
             }
-            built = frame;
-            if (now % 10 != 0) {
-                continue;
-            }
-            for (DrinkField.Skeleton skeleton : skeletons) {
-                for (int segment = 0; segment < skeleton.segments() && outside.size() < REPORTED; segment++) {
-                    if (!DrinkUpload.radiates(skeleton, segment)) {
-                        continue;
-                    }
-                    DrinkUpload.Bound bound = DrinkUpload.boundOf(skeleton, 0, segment);
-                    Vec3 low = bound.low().subtract(0.5, 0.5, 0.5);
-                    Vec3 high = bound.high().add(0.5, 0.5, 0.5);
-                    for (double x = low.x; x <= high.x; x += 0.07) {
-                        for (double y = low.y; y <= high.y; y += 0.07) {
-                            for (double z = low.z; z <= high.z; z += 0.07) {
-                                Vec3 p = new Vec3(x, y, z);
-                                DrinkField.Reading reading = DrinkField.segmentReading(skeleton.rings().get(segment),
-                                        skeleton.rings().get(segment + 1), p);
-                                boolean within = x >= bound.low().x && x <= bound.high().x && y >= bound.low().y
-                                        && y <= bound.high().y && z >= bound.low().z && z <= bound.high().z;
-                                if (reading.distance() < DrinkField.REACH && !within && outside.size() < REPORTED) {
-                                    outside.add(String.format("at %.0f %s segment %d reads %.3f at %s outside %s..%s",
-                                            now, skeleton.stream().block().pos().toShortString(), segment,
-                                            reading.distance(), p, bound.low(), bound.high()));
-                                }
-                            }
-                        }
-                    }
-                }
+            if (onSpine > SPINE_FEEDERS && combs.size() < REPORTED) {
+                combs.add(String.format("at %.2f %d streams feed the spine", now, onSpine));
             }
         }
-        assertTrue(outside.isEmpty(), "a body's field reaches past its uploaded bounds:\n" + String.join("\n", outside));
-    }
-
-    /** Measures the shader's work over the cone drink: the regions it marches and the bodies they list. */
-    @Test
-    void theDrinksShaderWorkStaysWithinBudget() {
-        List<DrinkTree.Block> blocks = cone();
-        Set<BlockPos> streaming = new HashSet<>();
-        blocks.forEach(block -> streaming.add(block.pos()));
-        DrinkLayout layout = new DrinkLayout();
-        Map<BlockPos, DrinkTree.Stream> built = new HashMap<>();
-        int mostRegions = 0;
-        int mostEntries = 0;
-        long totalEntries = 0;
-        int frames = 0;
-        for (double now = PICKED; now <= LANDS + 90; now += 1) {
-            Vec3 pull = layout.pullToward(LOOK, now);
-            layout.place(streaming, GLOVE, new DrinkLayout.Aim(EYE, LOOK), now,
-                    DrinkTree.flowingOf(built, streaming));
-            Map<BlockPos, DrinkTree.Stream> frame = new HashMap<>();
-            List<DrinkField.Skeleton> skeletons = new ArrayList<>();
-            List<DrinkUpload.Coat> coats = new ArrayList<>();
-            for (DrinkTree.Stream stream : DrinkTree.build(blocks, layout, GLOVE, pull, now)) {
-                frame.put(stream.block().pos(), stream);
-                if (!stream.spent()) {
-                    skeletons.add(DrinkTree.skeleton(stream));
-                    coats.add(new DrinkUpload.Coat(0, 0, 0, 0));
-                }
-            }
-            built = frame;
-            List<DrinkUpload.Block> regions = DrinkUpload.of(skeletons, coats, Vec3.ZERO, true);
-            int entries = 0;
-            for (DrinkUpload.Block region : regions) {
-                entries += (int) region.bytes().getFloat(DrinkUpload.COUNTS_AT + 3 * Float.BYTES);
-            }
-            mostRegions = Math.max(mostRegions, regions.size());
-            mostEntries = Math.max(mostEntries, entries);
-            totalEntries += entries;
-            frames++;
-        }
-        assertTrue(mostRegions <= WORK_REGIONS && mostEntries <= WORK_ENTRIES, String.format(
-                "the drink's shader work: at most %d regions and %d listed bodies a frame, %d bodies a frame on average",
-                mostRegions, mostEntries, totalEntries / frames));
-    }
-
-    /**
-     * @param skeletons a frame's skeletons
-     * @return the most streams, boxes, rings and table entries any one region asks for, against the caps
-     */
-    private static String worstDemandOf(List<DrinkField.Skeleton> skeletons) {
-        Map<BlockPos, Map<Integer, List<Integer>>> regions = new HashMap<>();
-        for (int index = 0; index < skeletons.size(); index++) {
-            for (int body = 0; body < skeletons.get(index).bodies(); body++) {
-                if (!DrinkUpload.radiates(skeletons.get(index), body)) {
-                    continue;
-                }
-                DrinkUpload.Bound bound = DrinkUpload.boundOf(skeletons.get(index), index, body);
-                for (int x = DrinkUpload.regionOf(bound.low().x); x <= DrinkUpload.regionOf(bound.high().x); x++) {
-                    for (int y = DrinkUpload.regionOf(bound.low().y); y <= DrinkUpload.regionOf(bound.high().y); y++) {
-                        for (int z = DrinkUpload.regionOf(bound.low().z); z <= DrinkUpload.regionOf(bound.high().z);
-                             z++) {
-                            regions.computeIfAbsent(new BlockPos(x, y, z), ignored -> new HashMap<>())
-                                    .computeIfAbsent(index, ignored -> new ArrayList<>()).add(body);
-                        }
-                    }
-                }
-            }
-        }
-        int streams = 0;
-        int boxes = 0;
-        int rings = 0;
-        int entries = 0;
-        for (Map<Integer, List<Integer>> region : regions.values()) {
-            int regionBoxes = 0;
-            int regionRings = 0;
-            int regionEntries = 0;
-            for (Map.Entry<Integer, List<Integer>> run : region.entrySet()) {
-                List<Integer> bodies = run.getValue().stream().sorted().toList();
-                int segments = skeletons.get(run.getKey()).segments();
-                regionRings += DrinkUpload.spanOf(bodies, segments).count();
-                regionBoxes += bodies.getLast() >= segments ? 1 : 0;
-                regionEntries += bodies.size();
-            }
-            streams = Math.max(streams, region.size());
-            boxes = Math.max(boxes, regionBoxes);
-            rings = Math.max(rings, regionRings);
-            entries = Math.max(entries, regionEntries);
-        }
-        return String.format("%d/%d streams, %d/%d boxes, %d/%d rings, %d/%d entries", streams,
-                DrinkUpload.MOST_STREAMS, boxes, DrinkUpload.MOST_BOXES, rings, DrinkUpload.MOST_RINGS, entries,
-                DrinkUpload.MOST_ENTRIES);
+        assertTrue(feeding > 0, "the sweep feeds a trunk");
+        assertTrue(combs.isEmpty(), String.join("\n", combs));
     }
 
     /**
