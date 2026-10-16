@@ -59,6 +59,17 @@ class DrinkLifecycleTest {
     private static final double HAND_SWAY = 0.3;
     /** Ticks over which the blocks are picked one after another. */
     private static final long STAGGER_TICKS = 30;
+    /** Blocks either side of the look's middle the swept field runs. */
+    private static final int FIELD_HALF_WIDTH = 6;
+    /** The field's nearest and farthest rows ahead of the eye. */
+    private static final int FIELD_NEAR = 3;
+    private static final int FIELD_FAR = 9;
+    /** Ticks the sweep takes to cross one row of the field. */
+    private static final long SWEEP_ROW_TICKS = 3;
+    /** The most streams carrying liquid that may feed the spine directly in a frame. */
+    private static final int SPINE_FEEDERS = 2;
+    /** How far below level the look dips onto the field. */
+    private static final double FIELD_DIP = 0.3;
 
     /**
      * @return a cone of blocks ahead of the eye, each draining over its own time
@@ -194,6 +205,66 @@ class DrinkLifecycleTest {
                     picked + LANDS + drain));
         }
         assertFlowsHome(staggered, now -> LOOK, now -> GLOVE);
+    }
+
+    /**
+     * A sweep across a field: a flat field ahead and below the eye, picked a
+     * row across at a time as the look sweeps over it.
+     *
+     * @return the field's blocks, each picked as the sweep reaches it
+     */
+    static List<DrinkTree.Block> sweptField() {
+        List<DrinkTree.Block> blocks = new ArrayList<>();
+        for (int z = -FIELD_HALF_WIDTH; z <= FIELD_HALF_WIDTH; z++) {
+            long picked = (long) (z + FIELD_HALF_WIDTH) * SWEEP_ROW_TICKS;
+            for (int x = FIELD_NEAR; x <= FIELD_FAR; x++) {
+                BlockPos pos = new BlockPos(x, 0, z);
+                long drain = 20 + Math.floorMod(pos.hashCode() * 31L, 41);
+                blocks.add(new DrinkTree.Block(pos, Vec3.atCenterOf(pos), 1, picked, picked + LANDS,
+                        picked + LANDS + drain));
+            }
+        }
+        return blocks;
+    }
+
+    /**
+     * Swept across a field, the streams meld with their neighbours on the
+     * way to the trunk: no frame has more than two streams carrying liquid
+     * feeding the spine directly, every other stream joining a stream it ran
+     * near, an inverse tree rather than a comb on the spine.
+     * decision unmake-streams-meld-into-an-inverse-tree
+     */
+    @Test
+    void aSweptFieldMeldsIntoATreeRatherThanACombOnTheSpine() {
+        List<DrinkTree.Block> all = sweptField();
+        DrinkLayout layout = new DrinkLayout();
+        Map<BlockPos, DrinkTree.Stream> built = new HashMap<>();
+        int feeding = 0;
+        List<String> combs = new ArrayList<>();
+        for (double now = PICKED; now <= LANDS + FIELD_HALF_WIDTH * 2 * SWEEP_ROW_TICKS; now += FRAME) {
+            double at = now;
+            List<DrinkTree.Block> blocks = all.stream().filter(block -> block.picked() <= at).toList();
+            Set<BlockPos> streaming = new HashSet<>();
+            blocks.forEach(block -> streaming.add(block.pos()));
+            double yaw = Math.atan2(FIELD_HALF_WIDTH * (2 * at / (FIELD_HALF_WIDTH * 2 * SWEEP_ROW_TICKS) - 1),
+                    (FIELD_NEAR + FIELD_FAR) / 2.0);
+            Vec3 look = new Vec3(Math.cos(yaw), -FIELD_DIP, Math.sin(yaw)).normalize();
+            layout.place(streaming, GLOVE, new DrinkLayout.Aim(EYE, look), now, DrinkTree.flowingOf(built, streaming));
+            built = new HashMap<>();
+            int onSpine = 0;
+            for (DrinkTree.Stream stream : DrinkTree.build(blocks, layout, GLOVE, layout.pullToward(look, now), now)) {
+                built.put(stream.block().pos(), stream);
+                if (stream.trunk() != null && !stream.spent()) {
+                    feeding++;
+                    onSpine += stream.trunk().block().pos().equals(layout.spine()) ? 1 : 0;
+                }
+            }
+            if (onSpine > SPINE_FEEDERS && combs.size() < REPORTED) {
+                combs.add(String.format("at %.2f %d streams feed the spine", now, onSpine));
+            }
+        }
+        assertTrue(feeding > 0, "the sweep feeds a trunk");
+        assertTrue(combs.isEmpty(), String.join("\n", combs));
     }
 
     /**
