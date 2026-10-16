@@ -258,6 +258,7 @@ class DrinkLayoutTest {
                 if (!pos.equals(NEXT_ON_LINE)) {
                     assertTrue(node.trunk() != null && SPINE_DRY.at(node.trunk(), node.joinAt()),
                             pos + " re-roots onto a flowing stream");
+                    assertEquals(NEXT_ON_LINE, rootOf(layout, pos), pos + "'s chain ends at the new spine");
                 }
             }
         }
