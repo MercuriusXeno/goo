@@ -17,7 +17,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * however the glove moves, a block whose trunk runs dry at its join re-roots
  * to the nearest flowing stream or the glove with its hand end gliding onto
  * the new course, and the nodes list each after its trunk
- * (decision unmake-waves-dissolve-by-crucible-cost).
+ * (decision unmake-waves-dissolve-by-crucible-cost); with an aim, the block
+ * the aim line passes through nearest the hand is the spine every other
+ * stream collapses into (decision unmake-streams-collapse-into-a-central-trunk).
  */
 class DrinkLayoutTest {
 
@@ -76,7 +78,7 @@ class DrinkLayoutTest {
             List<DrinkLayout.Node> laid = List.copyOf(layout.nodes());
             double joinAt = layout.node(FAR).joinAt();
 
-            layout.place(List.of(FAR, NEAR), GLOVE_MOVED, NOW, DrinkLayout.EVERY);
+            layout.place(List.of(FAR, NEAR), GLOVE_MOVED, null, NOW,DrinkLayout.EVERY);
 
             assertEquals(laid, List.copyOf(layout.nodes()));
             assertEquals(NEAR, layout.node(FAR).trunk());
@@ -88,10 +90,10 @@ class DrinkLayoutTest {
         void aBlockAppearingLaterJoinsTheStandingLayoutOnlyWhereItStillFlows() {
             DrinkLayout layout = new DrinkLayout();
             layout.place(List.of(NEAR), GLOVE);
-            layout.place(List.of(NEAR, LATER), GLOVE, NOW, DrinkLayout.EVERY);
+            layout.place(List.of(NEAR, LATER), GLOVE, null, NOW,DrinkLayout.EVERY);
             DrinkLayout dry = new DrinkLayout();
             dry.place(List.of(NEAR), GLOVE);
-            dry.place(List.of(NEAR, LATER), GLOVE, NOW, NEAR_DRY);
+            dry.place(List.of(NEAR, LATER), GLOVE, null, NOW,NEAR_DRY);
 
             assertEquals(NEAR, layout.node(LATER).trunk());
             assertEquals(2, layout.nodes().size());
@@ -109,7 +111,7 @@ class DrinkLayoutTest {
             layout.place(List.of(FAR, NEAR), GLOVE);
             Vec3 oldEnd = layout.lineOf(layout.node(FAR), GLOVE).to();
 
-            layout.place(List.of(FAR, NEAR), GLOVE, NOW, NEAR_DRY);
+            layout.place(List.of(FAR, NEAR), GLOVE, null, NOW,NEAR_DRY);
             DrinkLayout.Node rerooted = layout.node(FAR);
 
             assertNull(rerooted.trunk());
@@ -127,7 +129,7 @@ class DrinkLayoutTest {
             DrinkLayout layout = new DrinkLayout();
             layout.place(List.of(FARTHER, FAR, NEAR), GLOVE);
 
-            layout.place(List.of(FARTHER, FAR, NEAR), GLOVE, NOW, NEAR_DRY);
+            layout.place(List.of(FARTHER, FAR, NEAR), GLOVE, null, NOW,NEAR_DRY);
 
             assertNull(layout.node(FAR).trunk());
             assertEquals(FAR, layout.node(FARTHER).trunk());
@@ -142,10 +144,151 @@ class DrinkLayoutTest {
             DrinkLayout layout = new DrinkLayout();
             layout.place(List.of(FAR, NEAR), GLOVE);
 
-            layout.place(List.of(FAR, NEAR), GLOVE, NOW, (pos, distance) -> pos.equals(FAR));
+            layout.place(List.of(FAR, NEAR), GLOVE, null, NOW,(pos, distance) -> pos.equals(FAR));
 
             assertNull(layout.node(FAR).trunk());
             assertNull(layout.node(NEAR).trunk());
+        }
+    }
+
+    /**
+     * A cone aimed east down y 1.6, z 0.5: the line passes through ON_LINE
+     * and NEXT_ON_LINE, while OFF_LINE_NEAREST sits nearer the glove than
+     * either.
+     * decision unmake-streams-collapse-into-a-central-trunk
+     */
+    @Nested
+    class CentralTrunk {
+
+        private static final Vec3 HAND = new Vec3(0.5, 1.2, 0.3);
+        private static final DrinkLayout.Aim AIM = new DrinkLayout.Aim(new Vec3(0, 1.6, 0.5), new Vec3(1, 0, 0));
+        private static final BlockPos ON_LINE = new BlockPos(3, 1, 0);
+        private static final BlockPos NEXT_ON_LINE = new BlockPos(5, 1, 0);
+        private static final BlockPos OFF_LINE_NEAREST = new BlockPos(2, 0, 1);
+        private static final List<BlockPos> CONE = List.of(ON_LINE, NEXT_ON_LINE, OFF_LINE_NEAREST,
+                new BlockPos(4, 2, 1), new BlockPos(5, 0, -1), new BlockPos(6, 2, -1), new BlockPos(4, 0, 0));
+        private static final DrinkLayout.Flowing SPINE_DRY = (pos, distance) -> !pos.equals(ON_LINE);
+
+        private DrinkLayout laid() {
+            DrinkLayout layout = new DrinkLayout();
+            layout.place(CONE, HAND, AIM, 0, DrinkLayout.EVERY);
+            return layout;
+        }
+
+        private List<BlockPos> feedersOf(DrinkLayout layout, BlockPos trunk) {
+            return layout.nodes().stream().filter(node -> trunk.equals(node.trunk())).map(DrinkLayout.Node::pos)
+                    .toList();
+        }
+
+        @Test
+        void theBlockTheAimLinePassesThroughNearestTheHandIsTheSpineEveryOtherStreamFeedsIt() {
+            DrinkLayout layout = laid();
+
+            assertTrue(Vec3.atCenterOf(OFF_LINE_NEAREST).distanceTo(HAND) < Vec3.atCenterOf(ON_LINE).distanceTo(HAND),
+                    "the spine is not merely the block nearest the glove");
+            assertEquals(ON_LINE, layout.spine());
+            assertNull(layout.node(ON_LINE).trunk());
+            for (BlockPos pos : CONE) {
+                if (pos.equals(ON_LINE)) {
+                    continue;
+                }
+                DrinkLayout.Node node = layout.node(pos);
+                assertTrue(node.trunk() != null, pos + " feeds a trunk rather than running to the glove");
+                int hops = 0;
+                while (node.trunk() != null && hops++ < CONE.size()) {
+                    node = layout.node(node.trunk());
+                }
+                assertEquals(ON_LINE, node.pos(), pos + "'s chain ends at the spine");
+            }
+        }
+
+        /**
+         * The cone's streams converge on the centre: a block off the aim
+         * line joins the central trunk, the stream of a block the aim line
+         * passes through, unless another stream runs at least
+         * {@link DrinkLayout#SIDE_PULL} times nearer, so the streams collapse
+         * into one mass rather than a lattice of tubes between neighbours.
+         * decision unmake-streams-collapse-into-a-central-trunk
+         */
+        @Test
+        void aBlockOffTheAimLineJoinsTheCentralTrunkUnlessAnotherStreamIsMuchNearer() {
+            DrinkLayout layout = laid();
+
+            for (BlockPos pos : CONE) {
+                DrinkLayout.Node node = layout.node(pos);
+                if (node.trunk() == null || AIM.passesThrough(pos)) {
+                    continue;
+                }
+                double toTrunk = layout.lineOf(layout.node(node.trunk()), HAND).nearestDistance(Vec3.atCenterOf(pos));
+                if (!AIM.passesThrough(node.trunk())) {
+                    for (BlockPos central : CONE) {
+                        DrinkLayout.Node centre = layout.node(central);
+                        if (AIM.passesThrough(central) && Vec3.atCenterOf(central).distanceToSqr(HAND)
+                                < Vec3.atCenterOf(pos).distanceToSqr(HAND)) {
+                            DrinkLayout.Line line = layout.lineOf(centre, HAND);
+                            double toCentre = line.pointAt(line.nearestDistance(Vec3.atCenterOf(pos)))
+                                    .distanceTo(Vec3.atCenterOf(pos));
+                            DrinkLayout.Line own = layout.lineOf(layout.node(node.trunk()), HAND);
+                            double toSide = own.pointAt(toTrunk).distanceTo(Vec3.atCenterOf(pos));
+                            assertTrue(toSide * DrinkLayout.SIDE_PULL <= toCentre + DELTA, pos + " joined "
+                                    + node.trunk() + " " + toSide + " away rather than " + central + " " + toCentre
+                                    + " away");
+                        }
+                    }
+                }
+            }
+        }
+
+        @Test
+        void aFeederMeetsItsTrunkLevelWithItsBlockPlusALeadUnderHalfABlock() {
+            DrinkLayout layout = laid();
+
+            assertTrue(DrinkLayout.LEAD < 0.5);
+            for (BlockPos pos : CONE) {
+                DrinkLayout.Node node = layout.node(pos);
+                if (node.trunk() == null) {
+                    continue;
+                }
+                DrinkLayout.Line line = layout.lineOf(layout.node(node.trunk()), HAND);
+                double nearest = line.nearestDistance(Vec3.atCenterOf(pos));
+                assertTrue(node.joinAt() >= nearest - DELTA && node.joinAt() <= nearest + 0.5,
+                        pos + " joins at " + node.joinAt() + " against its nearest " + nearest);
+            }
+        }
+
+        @Test
+        void aDrySpineHandsOffToTheNextAimLineBlockItsFeedersGlidingOntoAFlowingStream() {
+            DrinkLayout layout = laid();
+            List<BlockPos> feeders = feedersOf(layout, ON_LINE);
+
+            layout.place(CONE, HAND, AIM, NOW, SPINE_DRY);
+
+            assertFalse(feeders.isEmpty());
+            assertEquals(NEXT_ON_LINE, layout.spine());
+            assertNull(layout.node(NEXT_ON_LINE).trunk());
+            for (BlockPos pos : feeders) {
+                DrinkLayout.Node node = layout.node(pos);
+                assertTrue(node.gliding(), pos + " glides onto its new course");
+                if (!pos.equals(NEXT_ON_LINE)) {
+                    assertTrue(node.trunk() != null && SPINE_DRY.at(node.trunk(), node.joinAt()),
+                            pos + " feeds a flowing stream");
+                }
+            }
+        }
+
+        @Test
+        void aSpineStillCarryingAFeedersGooAtItsJoinKeepsThatFeeder() {
+            DrinkLayout layout = laid();
+            BlockPos feeder = feedersOf(layout, ON_LINE).getFirst();
+            double joinAt = layout.node(feeder).joinAt();
+            DrinkLayout.Flowing ridden = (pos, distance) -> !pos.equals(ON_LINE) || Math.abs(distance - joinAt) < DELTA;
+
+            layout.place(CONE, HAND, AIM, NOW, ridden);
+
+            assertEquals(ON_LINE, layout.spine());
+            assertEquals(ON_LINE, layout.node(feeder).trunk());
+            assertEquals(joinAt, layout.node(feeder).joinAt(), DELTA);
+            assertFalse(layout.node(feeder).gliding());
         }
     }
 

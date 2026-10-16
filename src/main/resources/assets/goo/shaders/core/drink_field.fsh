@@ -10,15 +10,18 @@
 // One region of an Unmake drink, drawn by marching the drink's field
 // (decision unmake-waves-dissolve-by-crucible-cost): inside the region's box
 // the ray from the camera steps through the metaball field of the bodies that
-// reach the region, every stream a soft capsule chain and every standing
-// block a soft rounded box, each stream's run read at its least distance only
+// reach the region, every stream a smooth tube along a curve through its
+// rings and every standing block a rounded box, each stream's run read only
 // where the point is within the box its bodies reach, the gap to the others'
-// boxes being the jump, and the runs summed, until the field reaches the iso;
+// boxes being the jump, and the two nearest streams filleted together, until
+// the field reaches the iso;
 // the hit is refined by bisection, shaded from the gradient of the whole
 // field so skin two streams share is one smooth shape, painted as the skins
 // of the two streams most present there blended by their presence so a
 // tributary folding into its trunk shows no seam, lit by the lightmap and
 // the cardinal lights; its depth is written so the world occludes it.
+// Each stream's skin is a cyclone, grooves twisting about its own axis by the
+// phase its rings carry and turning as the goo travels.
 // No texture anywhere (decision unmake-skin-is-a-solid-sampled-color): each
 // stream's skin is one solid color, its block's sampled color at the block
 // crossfading to its goo's color at the hand by the point's share of the
@@ -32,10 +35,10 @@ uniform sampler2D Sampler2;
 layout(std140) uniform DrinkRegion {
     vec4 Region;
     vec4 Counts;
-    vec4 Streams[80];
-    ivec4 Table[256];
-    vec4 Boxes[16];
-    vec4 Rings[448];
+    vec4 Streams[240];
+    ivec4 Table[64];
+    vec4 Boxes[64];
+    vec4 Rings[576];
 };
 
 in vec3 rayPoint;
@@ -45,13 +48,15 @@ out vec4 fragColor;
 const float DEPTH = 0.05;
 const float REACH = 0.24;
 const float FULL_RADIUS = 0.1;
+const float SOFTNESS = 0.08;
 const float REGION_SPAN = 1.0;
-const int STREAM_VEC4S = 5;
+const int STREAM_VEC4S = 6;
 const int COAT_SLOT = 0;
 const int BLOCK_COLOR_SLOT = 1;
 const int GOO_COLOR_SLOT = 2;
 const int RUN_LOW_SLOT = 3;
 const int RUN_HIGH_SLOT = 4;
+const int SIDE_SLOT = 5;
 const int RUN_START = 65536;
 const int BOX_BASE = 4096;
 const int MAX_STEPS = 96;
@@ -85,66 +90,137 @@ vec4 streamSlot(int stream, int slot) {
     return Streams[stream * STREAM_VEC4S + slot];
 }
 
-// A body's reading at a point: x its scaled signed distance, y the gap to
-// its field, positive where the point is outside the body's reach.
-vec2 segmentRead(int segment, vec3 p) {
+// The signed distance to the hull of a segment's two ring spheres, a cone
+// tangent to both.
+float roundCone(vec3 rel, vec3 line, float first, float last) {
+    float len2 = dot(line, line);
+    float fall = first - last;
+    float slant = len2 - fall * fall;
+    float toFirst = length(rel) - first;
+    if (slant <= 0.0) {
+        return first >= last ? toFirst : length(rel - line) - last;
+    }
+    float along = dot(rel, line);
+    float past = along - len2;
+    vec3 sideways = rel * len2 - line * along;
+    float side = dot(sideways, sideways);
+    float alongSquared = along * along * len2;
+    float pastSquared = past * past * len2;
+    float edge = sign(fall) * fall * fall * side;
+    if (sign(past) * slant * pastSquared > edge) {
+        return sqrt(side + pastSquared) / len2 - last;
+    }
+    if (sign(along) * slant * alongSquared < edge) {
+        return toFirst;
+    }
+    return (sqrt(side * slant / len2) + along * fall) / len2 - first;
+}
+
+// A segment's reading at a point: the sphere at each of its two rings swept
+// from one to the other, the round cone hull of the two, so a stream is
+// spheres all along its path, each as wide as the stream is there, and two
+// segments meeting at a ring share that ring's sphere exactly. read.x is the
+// scaled signed distance, read.y the gap to the segment's field; past its
+// reach the segment reads REACH without the cone.
+void segmentRead(int segment, vec3 p, out vec2 read) {
     vec4 a = Rings[2 * segment];
     vec4 b = Rings[2 * segment + 2];
     vec3 line = b.xyz - a.xyz;
-    vec3 rel = p - a.xyz;
     float len2 = dot(line, line);
-    float t = len2 == 0.0 ? 0.0 : clamp(dot(rel, line) / len2, 0.0, 1.0);
-    float radius = mix(a.w, b.w, t);
-    float d = length(rel - line * t) - radius;
-    return vec2(scaled(d, radius), d - REACH * min(1.0, radius / FULL_RADIUS));
+    float widest = max(a.w, b.w);
+    float lineT = len2 == 0.0 ? 0.0 : clamp(dot(p - a.xyz, line) / len2, 0.0, 1.0);
+    read.y = length(p - a.xyz - line * lineT) - widest - REACH * min(1.0, widest / FULL_RADIUS);
+    read.x = read.y > 0.0 ? REACH : scaled(roundCone(p - a.xyz, line, a.w, b.w), mix(a.w, b.w, lineT));
 }
 
-vec2 boxRead(int box, vec3 p) {
+// The smooth union of two readings, by the same soft minimum as the drink's
+// streams: a lone reading's own value, nearer where the two crowd together.
+float softUnion(float a, float b) {
+    float none = exp(-REACH / SOFTNESS);
+    return -SOFTNESS * log(max(0.0, exp(-a / SOFTNESS) - none) + max(0.0, exp(-b / SOFTNESS) - none) + none);
+}
+
+vec2 boxRead(int box, vec3 p, out vec3 facing) {
     vec4 centerHalf = Boxes[2 * box];
     float rounding = Boxes[2 * box + 1].x;
-    vec3 q = abs(p - centerHalf.xyz) - (centerHalf.w - rounding);
-    float outside = length(max(q, 0.0));
+    vec3 rel = p - centerHalf.xyz;
+    vec3 q = abs(rel) - (centerHalf.w - rounding);
+    vec3 beyond = max(q, 0.0);
+    float outside = length(beyond);
     float inside = min(max(q.x, max(q.y, q.z)), 0.0);
     float d = outside + inside - rounding;
+    if (outside > 0.0) {
+        facing = sign(rel) * beyond / outside;
+    } else if (q.x >= q.y && q.x >= q.z) {
+        facing = vec3(sign(rel.x), 0.0, 0.0);
+    } else if (q.y >= q.z) {
+        facing = vec3(0.0, sign(rel.y), 0.0);
+    } else {
+        facing = vec3(0.0, 0.0, sign(rel.z));
+    }
     return vec2(scaled(d, centerHalf.w), d - REACH * min(1.0, centerHalf.w / FULL_RADIUS));
 }
 
-vec2 readBody(int entry, vec3 p) {
+// A body's scaled signed distance at a point, for picking a stream's nearest body.
+float readBody(int entry, vec3 p) {
     int body = entry & (RUN_START - 1);
-    return body >= BOX_BASE ? boxRead(body - BOX_BASE, p) : segmentRead(body, p);
+    vec3 facing;
+    if (body >= BOX_BASE) {
+        return boxRead(body - BOX_BASE, p, facing).x;
+    }
+    vec2 read;
+    segmentRead(body, p, read);
+    return read.x;
 }
 
-// One stream's part of the field at a point: its run read at its least
-// distance where the point is within the box its bodies reach, nothing
-// outside it, the gap then measured to the box so the march can jump to it.
-float runField(vec3 p, int stream, inout float gap) {
+// One stream's reading at a point: the nearest of its swept spheres, its
+// block's body unioned onto them by the soft minimum, where the point is
+// within the box its bodies reach; nothing outside it, the gap then measured
+// to the box so the march can jump to it.
+float runField(vec3 p, int stream, inout float gap, out vec3 facing) {
+    facing = vec3(0.0, 1.0, 0.0);
     vec4 low = streamSlot(stream, RUN_LOW_SLOT);
     vec4 high = streamSlot(stream, RUN_HIGH_SLOT);
     float outside = length(max(max(low.xyz - p, p - high.xyz), vec3(0.0)));
     if (outside > 0.0) {
         gap = min(gap, outside);
-        return 0.0;
+        return REACH;
     }
     float least = REACH;
+    float boxed = REACH;
     int first = int(low.w);
     int end = first + int(high.w);
     for (int e = first; e < end; e++) {
-        vec2 read = readBody(entryAt(e), p);
-        least = min(least, read.x);
+        int body = entryAt(e) & (RUN_START - 1);
+        if (body >= BOX_BASE) {
+            vec3 boxFacing;
+            vec2 read = boxRead(body - BOX_BASE, p, boxFacing);
+            gap = min(gap, read.y);
+            boxed = min(read.x, REACH);
+            continue;
+        }
+        vec2 read;
+        segmentRead(body, p, read);
         gap = min(gap, read.y);
+        least = min(least, read.x);
     }
-    return falloff(least);
+    return softUnion(least, boxed);
 }
 
-// The field at a point over the region's streams, the runs summed; gap is
-// the least gap to any body's field, or to a run's box the point is outside.
+// The field at a point over the region's streams: every stream within reach
+// unioned smoothly at once by the soft minimum, so the skin is one surface
+// however many streams crowd a place; gap is the least gap to any body's
+// field, or to a run's box the point is outside.
 float fieldAt(vec3 p, int streams, out float gap) {
-    float value = 0.0;
     gap = FAR;
+    float none = exp(-REACH / SOFTNESS);
+    float sum = 0.0;
     for (int s = 0; s < streams; s++) {
-        value += runField(p, s, gap);
+        vec3 facing;
+        float d = runField(p, s, gap, facing);
+        sum += max(0.0, exp(-d / SOFTNESS) - none);
     }
-    return value;
+    return falloff(-SOFTNESS * log(sum + none));
 }
 
 float fieldOnly(vec3 p, int streams) {
@@ -154,7 +230,8 @@ float fieldOnly(vec3 p, int streams) {
 
 float runOnly(vec3 p, int stream) {
     float gap = FAR;
-    return runField(p, stream, gap);
+    vec3 facing;
+    return falloff(runField(p, stream, gap, facing));
 }
 
 // The body of one stream nearest a point, by its scaled signed distance.
@@ -167,7 +244,7 @@ int nearestBodyOf(vec3 p, int stream) {
     float least = FAR;
     for (int e = first; e < end; e++) {
         int entry = entryAt(e) & (RUN_START - 1);
-        float d = readBody(entry, p).x;
+        float d = readBody(entry, p);
         if (d < least) {
             least = d;
             nearest = entry;
@@ -287,6 +364,15 @@ void main() {
         if (!hit && t >= tExit) {
             break;
         }
+    }
+    // Out of steps short of the region's exit: the surface may still lie
+    // before it, so the exit is read and the hit refined between, or the
+    // region past this one, entering inside the goo, drew a flat face there
+    // and cut the goo on the block grid.
+    if (!hit && t < tExit) {
+        before = t;
+        t = tExit;
+        hit = fieldOnly(rd * t, streams) >= iso;
     }
     if (!hit) {
         discard;

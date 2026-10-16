@@ -78,4 +78,17 @@ class DrinkColorsTest {
             assertEquals(DrinkColors.OPAQUE_WHITE, DrinkColors.gooColorOf(new int[0], new float[0]));
         }
     }
+
+    /** decision diagnose-then-fix-unmake-metallic-color */
+    @Nested
+    class Skin {
+
+        @Test
+        void theSkinIsTheBlocksColorAtTheBlockTheGoosAtTheHandAndCrossfadesBetweenByTheRoute() {
+            assertEquals(RED, DrinkColors.skinAt(RED, BLUE, 0));
+            assertChannelsWithinOne(0xFF800080, DrinkColors.skinAt(RED, BLUE, 0.5));
+            assertEquals(BLUE, DrinkColors.skinAt(RED, BLUE, 1));
+            assertEquals(BLUE, DrinkColors.skinAt(RED, BLUE, 2), "never past the goo's color");
+        }
+    }
 }

@@ -11,20 +11,21 @@ import org.jspecify.annotations.Nullable;
  * its far side through where the block stood to its join or the glove, snaking off the straight line as a
  * smooth noise field bends it, its last stretch sliding onto its trunk's spine
  * so it runs with the trunk into the join as one strand, the bends carried slowly downstream and
- * drifting with time so the snake never repeats; its width a slow profile of
- * elongated bulbs and hourglass waists with gentle grades between them, the
- * bulb clamped at a few times the waist, scaled by the square root of its
- * block's goo volume since transmutation is compressive, the profile riding
- * the flow without jogging the centreline; its head runs out along its route
- * at the pace the tree's mass there sets, and once the block is drained its
- * tail follows the rest, the stream tapering to a point at both ends.
+ * drifting with time so the snake never repeats; its skin a cyclone spinning
+ * about the stream's own axis, two lobes twisting along the liquid and
+ * carried with it as it flows while the whole twist turns with time, so the
+ * stream reads as a waterspout rather than a tube, and no stream twines about
+ * another; its head runs out along its route at the pace the tree's mass
+ * there sets, and once the block is drained its tail follows the rest, the
+ * stream tapering to a point at both ends.
  * decision unmake-waves-dissolve-by-crucible-cost
+ * decision unmake-stream-is-a-shrinking-waterspout
  */
 public final class DrinkStream {
 
     /** Blocks the liquid flows a tick where a lone block of goo flows: eight blocks a second, and faster where more goo masses. */
     public static final double FLOW = SiphonRule.BASE_PACE;
-    /** The radius at a waist of a stream of scale 1, in blocks, over a cell of the surface's grid so it reads round. */
+    /** A stream's radius at and over which its field reaches its whole reach, in blocks. */
     static final double WAIST = 0.1;
     /** Blocks of the way the block's own matter spans, from its far side through its middle to its near face. */
     public static final double BLOCK_SPAN = 1;
@@ -39,14 +40,14 @@ public final class DrinkStream {
     public static final int RINGS_PER_BLOCK = 3;
     /** The fewest rings a path has, its two ends. */
     public static final int FEWEST_RINGS = 2;
-    /** The radius at a bulb of a stream of scale 1, in blocks, twice the waist. */
-    static final double BULB = 0.2;
-    /** Blocks of liquid from one bulb or waist to the next, about, so the stream undulates along its length. */
-    static final double FEATURE_SPACING = 1.2;
-    /** The share of the width profile's field under which the stream sits at its waist. */
-    static final double WAIST_EDGE = 0.1;
-    /** The share of the width profile's field over which the stream sits at its bulb. */
-    static final double BULB_EDGE = 0.9;
+    /** How many lobes the cyclone's skin stands out in about the stream's axis. */
+    public static final int LOBES = 2;
+    /** The share of the radius the cyclone's grooves fall in by between its lobes, which stand at the radius. */
+    public static final double SPIN_DEPTH = 0.25;
+    /** Radians the cyclone's phase turns along a block of liquid, so its lobes twist along the stream. */
+    public static final double TWIST = 2;
+    /** Radians a tick the cyclone's phase turns of its own, so the twist spins as the goo travels. */
+    public static final double SPIN = 0.15;
     /** How far the stream snakes off the straight line at most, in blocks. */
     static final double SNAKE = 0.45;
     /** Noise cells along one block of stream for its bends. */
@@ -81,7 +82,6 @@ public final class DrinkStream {
     private static final double BEND_SEED_Y = 11.3;
     private static final double BEND_SEED_Z = 29.7;
     private static final long ACROSS_SALT = 0x51ED_270BL;
-    private static final long WIDTH_SALT = 0x2545_F491L;
     private static final Vec3 UP = new Vec3(0, 1, 0);
     private static final Vec3 EAST = new Vec3(1, 0, 0);
 
@@ -169,8 +169,24 @@ public final class DrinkStream {
      * @param material how far along the path's own liquid the ring is, in blocks of liquid at the slowest pace
      * @param share    the share of the path's owner's whole route to the glove the ring stands at
      * @param speed    blocks a tick the liquid flows there
+     * @param spin     the cyclone's phase at the ring, in radians, continuous along the path
      */
-    public record Ring(Vec3 center, Vec3 flow, double radius, double material, double share, double speed) {
+    public record Ring(Vec3 center, Vec3 flow, double radius, double material, double share, double speed,
+                       double spin) {
+
+        /**
+         * A ring with its cyclone at rest.
+         *
+         * @param center   the ring's middle
+         * @param flow     the unit direction the liquid flows there
+         * @param radius   the liquid's radius there, in blocks
+         * @param material how far along the path's own liquid the ring is
+         * @param share    the share of the path's owner's whole route the ring stands at
+         * @param speed    blocks a tick the liquid flows there
+         */
+        public Ring(Vec3 center, Vec3 flow, double radius, double material, double share, double speed) {
+            this(center, flow, radius, material, share, speed, 0);
+        }
     }
 
     /**
@@ -231,8 +247,32 @@ public final class DrinkStream {
             return own;
         }
         Vec3 glide = path.to().subtract(pointAt(trunk, path.joinShare(), now));
-        Vec3 along = pointAt(trunk, Math.max(0, path.joinShare() - remaining / trunk.length()), now).add(glide);
+        Vec3 along = trunkSpineAt(trunk, path.joinShare() * trunk.length() - remaining, now).add(glide);
         return own.lerp(along, smoothRamp(0, ARRIVAL_REACH - RIDE, ARRIVAL_REACH - remaining));
+    }
+
+    /**
+     * A trunk's spine at a distance along it, run on straight back from its
+     * start along the way it leaves its far side where the distance falls
+     * before it, so a tributary joining close to its trunk's start rides in
+     * along a straight line onto it; pinned to the trunk's start, every point
+     * of the ride before it fell on that one point, the tributary's path
+     * crumpled there, and its skin bunched into a collar at every node.
+     * decision diagnose-then-fix-unmake-seam-and-ribbing
+     *
+     * @param trunk    the trunk's path
+     * @param distance blocks along it, below zero before its start
+     * @param now      the game time, with the partial tick
+     * @return the point of its spine there
+     */
+    static Vec3 trunkSpineAt(Path trunk, double distance, double now) {
+        if (distance >= 0) {
+            return pointAt(trunk, distance / trunk.length(), now);
+        }
+        Vec3 start = snakeAt(trunk, 0, now);
+        Vec3 leaving = snakeAt(trunk, TANGENT_STEP, now).subtract(start);
+        Vec3 run = leaving.lengthSqr() > 0 ? leaving.normalize() : trunk.to().subtract(trunk.from()).normalize();
+        return start.add(run.scale(distance));
     }
 
     /**
@@ -281,23 +321,6 @@ public final class DrinkStream {
     }
 
     /**
-     * The radius one stream alone has at a point of its route: its width
-     * profile along its liquid, scaled, tapering to a point at its tail and
-     * its head, nothing where its liquid is not.
-     *
-     * @param scale    the stream's scale, 1 for a block of 1000 mB
-     * @param material the point's place along the liquid
-     * @param distance the point's distance along the route, in blocks
-     * @param tail     how far along the route the tail has flowed
-     * @param head     how far along the route the head has flowed
-     * @param seed     the block's seed
-     * @return the radius there, in blocks
-     */
-    public static double radiusAt(double scale, double material, double distance, double tail, double head, long seed) {
-        return scale * widthAt(material, seed) * taperAt(distance, tail, head);
-    }
-
-    /**
      * @param distance a point's distance along the route, in blocks
      * @param tail     how far along the route the tail has flowed
      * @param head     how far along the route the head has flowed
@@ -310,17 +333,33 @@ public final class DrinkStream {
     }
 
     /**
-     * The radius along the liquid of a stream of scale 1 before any taper:
-     * the waist, the bulb, or a gentle grade between them where the slow
-     * field crosses over.
+     * The cyclone's phase at a point of the liquid: turning {@link #TWIST}
+     * along each block of liquid, so a point of the liquid carries its phase
+     * as it flows, and {@link #SPIN} each tick of its own, so at one place on
+     * the stream the phase goes round with time.
+     * decision unmake-stream-is-a-shrinking-waterspout
      *
-     * @param material the point's place along the liquid
-     * @param seed     the block's seed
-     * @return the radius there, in blocks
+     * @param material the point's place along the liquid, in blocks
+     * @param now      the game time, with the partial tick
+     * @return the phase, in radians
      */
-    static double widthAt(double material, long seed) {
-        double field = MeltMeshNoise.smooth(material / FEATURE_SPACING, 0, 0, seed + WIDTH_SALT);
-        return WAIST + (BULB - WAIST) * smoothRamp(WAIST_EDGE, BULB_EDGE, field);
+    public static double spinAt(double material, double now) {
+        return TWIST * material + SPIN * now;
+    }
+
+    /**
+     * How far out the cyclone's skin stands at an angle about the stream's
+     * axis: its {@link #LOBES} lobes at the radius turned by the phase, the
+     * grooves between them falling in, so the skin is never wider than the
+     * stream's radius.
+     * decision unmake-stream-is-a-shrinking-waterspout
+     *
+     * @param angle the angle about the axis, in radians, from the stream's side
+     * @param phase the cyclone's phase there
+     * @return the share of the radius the skin stands at, 1 on a lobe and one less {@link #SPIN_DEPTH} in a groove
+     */
+    public static double cycloneAt(double angle, double phase) {
+        return 1 - SPIN_DEPTH * (1 - Math.cos(LOBES * angle - phase)) / TWO;
     }
 
     /**
