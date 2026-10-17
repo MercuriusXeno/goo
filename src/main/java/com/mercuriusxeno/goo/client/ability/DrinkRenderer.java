@@ -2,35 +2,24 @@ package com.mercuriusxeno.goo.client.ability;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.unmake.MeltingBlockEntity;
-import com.mercuriusxeno.goo.client.ClientGooTypes;
-import com.mercuriusxeno.goo.client.GooSubmitter;
-import com.mercuriusxeno.goo.client.GooTypeSprites;
 import com.mercuriusxeno.goo.client.ber.MeltMeshGoo;
+import com.mercuriusxeno.goo.client.particle.DrinkBreakParticle;
 import com.mercuriusxeno.goo.client.throwing.GloveAim;
 import com.mercuriusxeno.goo.network.DrinkPayload;
-import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import com.mojang.blaze3d.ProjectionType;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
-import com.mojang.blaze3d.platform.NativeImage;
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.util.ARGB;
-import net.minecraft.util.LightCoordsUtil;
-import net.minecraft.world.InteractionHand;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderHandEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
@@ -44,90 +33,56 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Draws every Unmake drink as a screen-space fluid: the spheres of its
- * streams and its blocks' cubes, built fresh every frame, splat their depth
- * and color into an offscreen target and one full-screen pass shades the
- * skin, so there is no mesh, no cell and nothing carried on between ticks,
- * the cost follows the pixels the drink covers, and the drink is drawn until
- * its last stream is spent. No texture anywhere: each piece of the skin wears one solid
- * color, the block's particle sprite averaged over its raw pixels at the
- * block crossfading by its share of the route to the goo's own color, its
- * types' tints blended by volume, at the hand, a blend the whole way with no
- * band and no boundary and nothing to stretch. The drink is drawn after the level
- * against its depth, but the player's own stretch by the glove is drawn in
- * the hand's pass, so it shows over the hand and ends in the palm rather than
- * disappearing behind the knuckles; that stretch is drawn in the level's own
- * projection and view, so it meets the rest of the drink with no break, and
- * the glove's end of the stream is placed where the level's projection shows
- * the glove the hand's pass draws in its own.
+ * Builds every Unmake drink's tree each frame: its blocks as the client sees
+ * them, the layout walk placed against the drinker's glove and aim, and the
+ * streams that walk gives, kept so the next frame knows where liquid still
+ * flows and the drink stays live until its last stream is spent, and keeps
+ * each drinker's glove for their break particles to fly to. The frame a
+ * block's square lands, the block bursts whole into break particles of its
+ * own sprite.
  * decision unmake-waves-dissolve-by-crucible-cost
- * decision unmake-skin-is-a-solid-sampled-color
  * decision diagnose-then-fix-unmake-seam-and-ribbing
- * decision unmake-drink-draws-as-a-screen-space-fluid
+ * decision unmake-drink-is-a-stream-of-break-particles
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class DrinkRenderer {
 
-    /** The shares of a path its light is read at: the block, just before it, the middle of the way and the hand. */
-    private static final double[] LIGHT_SHARES = {0.0, 0.25, 0.5, 1.0};
     /** Where another player's glove hangs before their eyes, in blocks. */
     private static final double GLOVE_AHEAD = 0.5;
     /** How far right of another player's look their glove hangs, in blocks. */
     private static final double GLOVE_RIGHT = 0.35;
     /** How far below another player's eyes their glove hangs, in blocks. */
     private static final double GLOVE_BELOW = 0.45;
-    private static final int LIGHT_MASK = 0xFFFF;
-    private static final int SKY_SHIFT = 16;
     private static final Vec3 UP = new Vec3(0, 1, 0);
-    private static final double MILLIS_PER_NANO = 1e-6;
     private static final double HALF = 0.5;
-    private static final String BUILT =
-            "Unmake drink built in {} ms: {} splats, GPU {} ms splat, {} ms blur, {} ms shade, frame {} ms at {} fps";
-    private static final double MILLIS_PER_SECOND = 1000;
+    private static final float HALF_F = 0.5f;
+    /** The pitch vanilla plays a block's break sound at, as a share of the block's own. */
+    private static final float BREAK_PITCH = 0.8f;
     /** Each drink's streams as last built, by its drinker then block, which say where liquid still flows. */
     private static final Map<Integer, Map<BlockPos, DrinkTree.Stream>> LAST = new HashMap<>();
     /** The drinkers whose drink still showed liquid last frame. */
     private static final Set<Integer> SHOWING = new HashSet<>();
-    /** Each streaming block's skin, by its drinker then block, read once from its model. */
-    private static final Map<Integer, Map<BlockPos, Skin>> SKINS = new HashMap<>();
-    /** Blocks from the local glove within which a splat of the player's own drink is drawn in the hand's pass. */
-    static final double HAND_REACH = 1.5;
-    private static long loggedTick = Long.MIN_VALUE;
-    /** The splats by the local glove this frame, waiting for the hand's pass. */
-    private static List<DrinkSplats.Splat> inHand = List.of();
-    /** The level's view matrix this frame, which the hand's pass draws the stretch by the glove in. */
-    private static @Nullable Matrix4f levelView;
-    /** The level's projection this frame, which the hand's pass draws the stretch by the glove in. */
-    private static @Nullable GpuBufferSlice levelProjection;
-    /** Whether the hand's pass drew since the level's last, so the next frame may leave it the stretch by the glove. */
-    private static boolean handDrew;
+    /** Which blocks of each drink have burst, by its drinker. */
+    private static final Map<Integer, DrinkBurst> BURSTS = new HashMap<>();
+    /** Each drinker's glove as last placed, which their drink's break particles fly to. */
+    private static final Map<Integer, Vec3> GLOVES = new HashMap<>();
 
     private DrinkRenderer() {
     }
 
     /**
-     * What a frame draws a drink against.
+     * What a frame builds a drink against.
      *
-     * @param glove  the drinker's glove, in the world
-     * @param pull   the unit direction the trunk flows as it enters the hand
-     * @param aim    the drinker's aim line, which picks the spine
-     * @param camera the camera's world position
-     * @param ticks  the game time including the partial tick
+     * @param glove the drinker's glove, in the world
+     * @param pull  the unit direction the trunk flows as it enters the hand
+     * @param aim   the drinker's aim line, which picks the spine
+     * @param ticks the game time including the partial tick
      */
-    private record Frame(Vec3 glove, Vec3 pull, DrinkLayout.Aim aim, Vec3 camera, double ticks) {
+    private record Frame(Vec3 glove, Vec3 pull, DrinkLayout.Aim aim, double ticks) {
     }
 
     /**
-     * What a block's skin is drawn with once its liquid flows: two solid colors.
-     *
-     * @param blockColor the block's color, worn at the block
-     * @param gooColor   its goo's color, worn at the hand
-     */
-    private record Skin(int blockColor, int gooColor) {
-    }
-
-    /**
-     * Draws every drink this frame, after the level, against its depth.
+     * Builds every drink's tree this frame, after the level.
      *
      * @param event the level stage event
      */
@@ -138,132 +93,29 @@ public final class DrinkRenderer {
         if (level == null) {
             return;
         }
-        long began = System.nanoTime();
         float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         double ticks = level.getGameTime() + partialTick;
         List<ClientDrinks.Drink> drinks = ClientDrinks.CLIENT.live(ticks, SHOWING::contains);
         forgetAllBut(drinks);
-        Passes passes = passesOf(mc, level, drinks, event.getLevelRenderState().cameraRenderState, ticks);
-        drawTimed(passes.level, event.getModelViewMatrix());
-        inHand = passes.hand;
-        levelView = new Matrix4f(event.getModelViewMatrix());
-        levelProjection = RenderSystem.getProjectionMatrixBuffer();
-        handDrew = false;
-        logOnce(level.getGameTime(), began, passes);
-    }
-
-    private static Passes passesOf(Minecraft mc, ClientLevel level, List<ClientDrinks.Drink> drinks,
-                                   CameraRenderState sight, double ticks) {
-        Vec3 camera = sight.pos;
-        float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        Passes passes = new Passes();
+        CameraRenderState sight = event.getLevelRenderState().cameraRenderState;
         for (ClientDrinks.Drink drink : drinks) {
             Entity drinker = level.getEntity(drink.playerId());
             if (drinker != null) {
                 Vec3 look = drinker.getViewVector(partialTick);
                 Vec3 pull = drink.layout().pullToward(look, ticks);
                 DrinkLayout.Aim aim = new DrinkLayout.Aim(drinker.getEyePosition(partialTick), look);
-                Frame frame = new Frame(gloveOf(mc, drinker, partialTick, sight), pull, aim, camera, ticks);
-                passes.add(splatsOf(level, drink, frame), inHand(mc, drinker) ? frame.glove().subtract(camera) : null);
+                streamsOf(level, drink, new Frame(gloveOf(mc, drinker, partialTick, sight), pull, aim, ticks));
             }
         }
-        return passes;
-    }
-
-    /**
-     * Whether a drinker's stretch of drink by the glove is drawn in the hand's
-     * pass: the local player's, seen in first person, while the hand is being
-     * drawn at all; with the hand hidden the whole drink stays in the level's.
-     *
-     * @param mc      the client
-     * @param drinker the drinker
-     * @return whether to draw the stretch over the hand
-     */
-    private static boolean inHand(Minecraft mc, Entity drinker) {
-        return drinker == mc.player && mc.options.getCameraType().isFirstPerson() && handDrew;
-    }
-
-    /**
-     * Draws the local drink's stretch by the glove in the hand's pass, where
-     * the level's depth is cleared and the hand is yet to be drawn, so the
-     * stream's last stretch shows over the hand and the hand drawn after it is
-     * hidden only where the stream is in front. It is drawn in the level's own
-     * projection and view, as the rest of the drink is, so the two meet with
-     * no break: the hand's projection keeps a field of view of its own, 70
-     * degrees whatever the player's setting, and drew this stretch at another
-     * scale from the rest, broken where the passes met.
-     * decision diagnose-then-fix-unmake-seam-and-ribbing
-     *
-     * @param event the hand event, the main hand's starting the pass
-     */
-    @SubscribeEvent
-    public static void onRenderHand(RenderHandEvent event) {
-        if (event.getHand() != InteractionHand.MAIN_HAND) {
-            return;
-        }
-        handDrew = true;
-        if (inHand.isEmpty() || levelView == null || levelProjection == null) {
-            return;
-        }
-        RenderSystem.backupProjectionMatrix();
-        RenderSystem.setProjectionMatrix(levelProjection, ProjectionType.PERSPECTIVE);
-        drawTimed(inHand, levelView);
-        RenderSystem.restoreProjectionMatrix();
-        inHand = List.of();
     }
 
     private static void forgetAllBut(List<ClientDrinks.Drink> drinks) {
         Set<Integer> drinkers = new HashSet<>();
         drinks.forEach(drink -> drinkers.add(drink.playerId()));
         LAST.keySet().retainAll(drinkers);
-        SKINS.keySet().retainAll(drinkers);
         SHOWING.retainAll(drinkers);
-    }
-
-    /**
-     * Draws a pass's splat, blur and shade passes, timing each on the GPU while the drink's debug line is logged.
-     *
-     * @param splats    the pass's splats, camera-relative
-     * @param modelView the level's model view
-     */
-    private static void drawTimed(List<DrinkSplats.Splat> splats, Matrix4fc modelView) {
-        DrinkFluidPass.draw(splats, modelView, Goo.LOGGER.isDebugEnabled());
-    }
-
-    private static void logOnce(long tick, long began, Passes passes) {
-        if (passes.splats() == 0 || tick == loggedTick) {
-            return;
-        }
-        loggedTick = tick;
-        int fps = Math.max(1, Minecraft.getInstance().getFps());
-        Goo.LOGGER.debug(BUILT, Math.round((System.nanoTime() - began) * MILLIS_PER_NANO), passes.splats(),
-                DrinkGpuTimer.SPLAT.millis(), DrinkGpuTimer.BLUR.millis(), DrinkGpuTimer.SHADE.millis(),
-                MILLIS_PER_SECOND / fps, fps);
-    }
-
-    /**
-     * This frame's splats by the pass that draws them: the level's for the
-     * drink at large, the hand's for the splats within {@link #HAND_REACH}
-     * of the local glove.
-     */
-    private static final class Passes {
-
-        private final List<DrinkSplats.Splat> level = new ArrayList<>();
-        private final List<DrinkSplats.Splat> hand = new ArrayList<>();
-
-        /**
-         * @param splats a drink's splats, camera-relative
-         * @param glove  the drinker's glove, camera-relative, or null to draw the whole drink in the level's pass
-         */
-        void add(List<DrinkSplats.Splat> splats, @Nullable Vec3 glove) {
-            for (DrinkSplats.Splat splat : splats) {
-                (glove != null && splat.center().distanceTo(glove) <= HAND_REACH ? hand : level).add(splat);
-            }
-        }
-
-        int splats() {
-            return level.size() + hand.size();
-        }
+        BURSTS.keySet().retainAll(drinkers);
+        GLOVES.keySet().retainAll(drinkers);
     }
 
     /**
@@ -316,39 +168,46 @@ public final class DrinkRenderer {
     }
 
     /**
-     * One drink's splats this frame: its tree built for the frame, every
-     * stream with liquid still to show splatted, streams with nothing left to
-     * show left out.
+     * Builds one drink's streams this frame: its tree built for the frame and kept
+     * for the next, the drink showing while any stream has liquid left.
      *
      * @param level the client level
      * @param drink the drink
      * @param frame the frame
-     * @return the splats, camera-relative
      */
-    private static List<DrinkSplats.Splat> splatsOf(ClientLevel level, ClientDrinks.Drink drink, Frame frame) {
+    private static void streamsOf(ClientLevel level, ClientDrinks.Drink drink, Frame frame) {
         Map<BlockPos, BlockState> states = new HashMap<>();
         List<DrinkTree.Block> blocks = blocksOf(level, drink, states);
         Map<BlockPos, DrinkTree.Stream> last = LAST.getOrDefault(drink.playerId(), Map.of());
         drink.layout().place(states.keySet(), frame.glove(), frame.aim(), frame.ticks(),
                 DrinkTree.flowingOf(last, states.keySet()));
-        List<DrinkSplats.Splat> splats = new ArrayList<>();
         Map<BlockPos, DrinkTree.Stream> built = new HashMap<>();
+        boolean flowing = false;
+        DrinkBurst bursts = BURSTS.computeIfAbsent(drink.playerId(), ignored -> new DrinkBurst());
         for (DrinkTree.Stream stream : DrinkTree.build(blocks, drink.layout(), frame.glove(), frame.pull(),
                 frame.ticks())) {
             built.put(stream.block().pos(), stream);
-            if (!stream.spent()) {
-                DrinkSplats.Coat coat = coatOf(level, drink.playerId(), stream, states.get(stream.block().pos()),
-                        frame.ticks());
-                DrinkSplats.of(stream, coat).forEach(splat -> splats.add(splat.relativeTo(frame.camera())));
+            flowing |= !stream.spent();
+            int burst = bursts.burstAt(stream.block(), frame.ticks());
+            if (burst > 0) {
+                burst(level, drink.playerId(), stream.block(), states.get(stream.block().pos()), burst);
             }
         }
         LAST.put(drink.playerId(), built);
-        if (splats.isEmpty()) {
-            SHOWING.remove(drink.playerId());
+        GLOVES.put(drink.playerId(), frame.glove());
+        showing(drink.playerId(), flowing);
+    }
+
+    /**
+     * @param drinker the drinker
+     * @param flowing whether any stream of their drink still has liquid left, which keeps the drink live
+     */
+    private static void showing(int drinker, boolean flowing) {
+        if (flowing) {
+            SHOWING.add(drinker);
         } else {
-            SHOWING.add(drink.playerId());
+            SHOWING.remove(drinker);
         }
-        return splats;
     }
 
     private static List<DrinkTree.Block> blocksOf(ClientLevel level, ClientDrinks.Drink drink,
@@ -384,105 +243,27 @@ public final class DrinkRenderer {
     }
 
     /**
-     * What a stream is drawn with: its block's two colors, in the light along its path.
+     * Bursts a block into its break particles with its own break sound, as
+     * vanilla plays it, all of them in the air at once, each flying to the
+     * drinker's glove as it is placed frame by frame.
      *
-     * @param level  the client level
-     * @param id     the drinker
-     * @param stream the stream
-     * @param state  its block
-     * @param now    the game time, with the partial tick
-     * @return the coat
+     * @param level   the client level
+     * @param drinker the drinker
+     * @param block   the block
+     * @param state   the block as it stood
+     * @param count   how many particles
      */
-    private static DrinkSplats.Coat coatOf(ClientLevel level, int id, DrinkTree.Stream stream, BlockState state,
-                                           double now) {
-        int light = lightAlong(level, stream, now);
-        Skin skin = SKINS.computeIfAbsent(id, ignored -> new HashMap<>())
-                .computeIfAbsent(stream.block().pos(), pos -> skinOf(level, pos, state));
-        return new DrinkSplats.Coat(skin.blockColor(), skin.gooColor(), light & LIGHT_MASK, light >>> SKY_SHIFT);
-    }
-
-    /**
-     * @param level the client level
-     * @param pos   the block
-     * @param state the block
-     * @return its skin: its particle sprite's raw mean, and its goo types' tints blended by volume share, or the
-     *         block's own color where it holds no goo
-     */
-    private static Skin skinOf(ClientLevel level, BlockPos pos, BlockState state) {
-        TextureAtlasSprite particle = Minecraft.getInstance().getModelManager().getBlockStateModelSet()
-                .getParticleMaterial(state, level, pos).sprite();
-        int blockColor = DrinkColors.blockColorOf(pixelsOf(particle.contents().getOriginalImage()));
-        MingledGoo goo = MeltMeshGoo.of(state);
-        return new Skin(blockColor, goo.types().isEmpty() ? blockColor : gooColorOf(goo));
-    }
-
-    /**
-     * @param image a sprite's raw image
-     * @return its pixels, ARGB, row by row
-     */
-    private static int[] pixelsOf(NativeImage image) {
-        int[] pixels = new int[image.getWidth() * image.getHeight()];
-        for (int y = 0; y < image.getHeight(); y++) {
-            for (int x = 0; x < image.getWidth(); x++) {
-                pixels[y * image.getWidth() + x] = image.getPixel(x, y);
-            }
+    private static void burst(ClientLevel level, int drinker, DrinkTree.Block block, BlockState state, int count) {
+        Minecraft mc = Minecraft.getInstance();
+        BlockPos pos = block.pos();
+        TextureAtlasSprite sprite = mc.getModelManager().getBlockStateModelSet().getParticleMaterial(state, level, pos)
+                .sprite();
+        SoundType sound = state.getSoundType(level, pos, null);
+        level.playLocalSound(pos, sound.getBreakSound(), SoundSource.BLOCKS, (sound.getVolume() + 1) * HALF_F,
+                sound.getPitch() * BREAK_PITCH, false);
+        for (DrinkRide.Mote mote : DrinkRide.motesOf(block, count, level.getRandom())) {
+            mc.particleEngine.add(new DrinkBreakParticle(level, state, pos, sprite, () -> GLOVES.get(drinker),
+                    mote));
         }
-        return pixels;
-    }
-
-    /**
-     * The goo's solid color: each type's fluid color blended by its share of
-     * the block's volume, so a block of several types reaches the hand in
-     * their mix (decision unmake-skin-is-a-solid-sampled-color).
-     *
-     * @param goo a block's goo types
-     * @return their colors blended by their shares of the volume
-     */
-    static int gooColorOf(MingledGoo goo) {
-        int[] tints = new int[goo.types().size()];
-        float[] shares = new float[tints.length];
-        for (int index = 0; index < tints.length; index++) {
-            tints[index] = fluidColorOf(goo.types().get(index));
-            shares[index] = goo.share(index);
-        }
-        return DrinkColors.gooColorOf(tints, shares);
-    }
-
-    /**
-     * A goo type's fluid color: the plain mean of its named fluid sprite's own
-     * pixels, read as the block's color is, so rock is its fluid's deep brown;
-     * its highlight, a pale accent that read as shiny tan, only where it wears
-     * the grey base its highlight tints.
-     * decision diagnose-then-fix-unmake-metallic-color
-     *
-     * @param type a goo type
-     * @return its fluid color, opaque
-     */
-    private static int fluidColorOf(ResourceKey<GooTypeDefinition> type) {
-        GooTypeSprites.FluidSprites sprites = GooSubmitter.fluidSprites(type);
-        if (sprites.tinted()) {
-            return ARGB.opaque(ClientGooTypes.color(type));
-        }
-        return DrinkColors.blockColorOf(pixelsOf(GooSubmitter.blockSprite(sprites.still()).contents()
-                .getOriginalImage()));
-    }
-
-    /**
-     * The light a stream is drawn in: the brightest along its path, so a block
-     * deep in a wall is lit as the air its stream runs through, not as the
-     * dark inside the wall.
-     *
-     * @param level  the client level
-     * @param stream the stream
-     * @param now    the game time, with the partial tick
-     * @return the packed light
-     */
-    private static int lightAlong(ClientLevel level, DrinkTree.Stream stream, double now) {
-        int brightest = 0;
-        for (double share : LIGHT_SHARES) {
-            brightest = LightCoordsUtil.max(brightest, LevelRenderer.getLightCoords(level,
-                    BlockPos.containing(DrinkStream.pointAt(stream.path(), share, now))));
-        }
-        return brightest;
     }
 }

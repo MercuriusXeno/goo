@@ -43,7 +43,6 @@ import com.mercuriusxeno.goo.network.TomePayload;
 import com.mercuriusxeno.goo.network.TransformationPayload;
 import com.mercuriusxeno.goo.network.TunerFeedbackPayload;
 import com.mercuriusxeno.goo.network.UnmadePayload;
-import com.mercuriusxeno.goo.network.UnmakePayload;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -85,7 +84,6 @@ public final class GooClientNetworking {
     private static void registerAbilityVisualHandlers(RegisterClientPayloadHandlersEvent event) {
         event.register(ChainBurnoutPayload.TYPE, ChainBurnoutHandler::handle);
         event.register(LurkerPulsePayload.TYPE, LurkerPulseHandler::handle);
-        event.register(UnmakePayload.TYPE, UnmakeHandler::handle);
         event.register(DrinkPayload.TYPE, UnmakeHandler::handleDrink);
         event.register(UnmadePayload.TYPE, UnmakeHandler::handleUnmade);
         registerEffectHandlers(event);
