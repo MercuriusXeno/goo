@@ -25,15 +25,14 @@ import java.util.stream.Stream;
  * cone that grows on random ticks, a crop, anything bone meal grows, or a
  * plant that climbs or stacks on its own (vines, sugar cane, cactus, kelp
  * and the other growing heads, bamboo, chorus), takes a random tick, a vine
- * growing on {@link VineGrowth}'s rule instead, and now and then throws vanilla's bone-meal sparkle so the
- * breeze shows what it grows.
+ * growing on {@link VineGrowth}'s rule instead, and every plant it grows
+ * throws vanilla's bone-meal sparkle so the breeze shows what it grows.
  * growth-breeze-ticks-plants
+ * every-ticked-plant-throws-the-sparkle
  */
 public record TickPlantsStep() implements Step {
 
     private static final String NAME = "tick_plants";
-    /** One in this many ticks a plant takes throws a sparkle, so the cone glints without smothering. */
-    private static final int SPARKLE_ODDS = 6;
     private static final int SPARKLE_COUNT = 2;
     private static final double SPARKLE_SPREAD = 0.3;
     private static final double PLANT_MIDDLE = 0.5;
@@ -87,10 +86,9 @@ public record TickPlantsStep() implements Step {
         } else {
             state.randomTick(level, pos, random);
         }
-        if (random.nextInt(SPARKLE_ODDS) == 0) {
-            level.sendParticles(ParticleTypes.HAPPY_VILLAGER, pos.getX() + PLANT_MIDDLE, pos.getY() + PLANT_MIDDLE,
-                    pos.getZ() + PLANT_MIDDLE, SPARKLE_COUNT, SPARKLE_SPREAD, SPARKLE_SPREAD, SPARKLE_SPREAD, 0);
-        }
+        // every-ticked-plant-throws-the-sparkle
+        level.sendParticles(ParticleTypes.HAPPY_VILLAGER, pos.getX() + PLANT_MIDDLE, pos.getY() + PLANT_MIDDLE,
+                pos.getZ() + PLANT_MIDDLE, SPARKLE_COUNT, SPARKLE_SPREAD, SPARKLE_SPREAD, SPARKLE_SPREAD, 0);
     }
 
     /**
