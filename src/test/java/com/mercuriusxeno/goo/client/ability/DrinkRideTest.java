@@ -62,6 +62,23 @@ class DrinkRideTest {
         }
 
         @Test
+        void aParticleLeavingDuringTheSettleFliesFromWhereItStandsInTheBurst() {
+            DrinkRide.Mote mote = new DrinkRide.Mote(SETTLED.cloud(), SETTLED.kick(), LANDS, LANDS + TICK);
+            int steps = 0;
+            for (double now = mote.release(); now < LANDS + DrinkRide.POP_TICKS + DrinkRide.SETTLE_TICKS;
+                 now += TICK) {
+                Vec3 from = DrinkRide.burstPlaceOf(mote, now);
+                Vec3 at = DrinkRide.pointOf(mote, GLOVE, now);
+                assertNotNull(at, "a particle short of the glove at " + now);
+                double flown = DrinkStream.FLOW * (now - mote.release());
+                assertEquals(flown, from.distanceTo(at), ON_THE_LINE);
+                assertEquals(from.distanceTo(GLOVE), from.distanceTo(at) + at.distanceTo(GLOVE), ON_THE_LINE);
+                steps++;
+            }
+            assertTrue(steps > 1, "the settle held " + steps + " steps of flight");
+        }
+
+        @Test
         void aParticleFollowsTheGloveAsItMoves() {
             DrinkRide.Mote mote = SETTLED;
             Vec3 moved = GLOVE.add(0, 1, 0);
