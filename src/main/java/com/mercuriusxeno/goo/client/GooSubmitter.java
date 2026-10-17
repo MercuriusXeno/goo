@@ -185,21 +185,6 @@ public final class GooSubmitter {
     }
 
     /**
-     * Submits solid colored geometry with no texture, each vertex in its own
-     * color, at the world light (decision unmake-skin-is-a-solid-sampled-color).
-     *
-     * @param poseStack     the pose stack
-     * @param nodeCollector the render node collector
-     * @param worldLight    the packed light where the geometry stands
-     * @param emitter       emits the vertices through the context
-     */
-    public static void submitFilm(PoseStack poseStack, SubmitNodeCollector nodeCollector,
-                                  int worldLight, Consumer<RenderContext> emitter) {
-        nodeCollector.submitCustomGeometry(poseStack, GooRenderTypes.GOO_FILM_TYPE,
-            (pose, c) -> emitter.accept(new RenderContext(pose, c, worldLight)));
-    }
-
-    /**
      * Submits the baked canister body model at the current pose position.
      *
      * @param poseStack     the pose stack
