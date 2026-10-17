@@ -40,6 +40,18 @@ class DrinkBurstTest {
     }
 
     @Test
+    void aBlockPlacedBackAndDrunkAgainInTheSameDrinkBurstsAgain() {
+        DrinkBurst bursts = new DrinkBurst();
+        BlockPos pos = new BlockPos(3, 4, 5);
+        assertTrue(bursts.burstAt(block(pos, 1), FIRST_FRAME) > 0);
+        long again = DRAINED + LANDS;
+        DrinkTree.Block placedBack = new DrinkTree.Block(pos, Vec3.atCenterOf(pos), 1, again - (LANDS - PICKED),
+                again, again + (DRAINED - LANDS));
+        assertEquals(DrinkBurst.countOf(1), bursts.burstAt(placedBack, again));
+        assertEquals(0, bursts.burstAt(placedBack, again + 1));
+    }
+
+    @Test
     void aBlockOfMoreGooBurstsIntoMoreParticles() {
         DrinkBurst bursts = new DrinkBurst();
         int whole = bursts.burstAt(block(new BlockPos(0, 0, 0), 1), FIRST_FRAME);
