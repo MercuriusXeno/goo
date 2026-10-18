@@ -21,7 +21,7 @@
       { "position": 1.0, "color": "#2A3C9A" }
     ],
     "accent": {
-      "shape": "SPECKS",
+      "shape": "TWINKLES",
       "coverage": 0.02,
       "palette": [
         { "position": 0.0, "color": "#C8B860" },
@@ -97,7 +97,7 @@
       { "position": 1.0, "color": "#1A2C36" }
     ],
     "accent": {
-      "shape": "SPECKS",
+      "shape": "TWINKLES",
       "coverage": 0.04,
       "palette": [
         { "position": 0.0, "color": "#0A5060" },

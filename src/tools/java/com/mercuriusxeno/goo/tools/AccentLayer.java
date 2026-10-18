@@ -11,9 +11,8 @@ import java.util.stream.IntStream;
 /**
  * Lays a type's accent palette over its frames in one of two shapes. Patches: a second cellular
  * automaton, seeded apart from the one shading the base, ranks each frame's cells, and the share
- * its coverage names takes the accent, so the patches drift with the animation. Specks: rare
- * single cells, scattered once and standing still, apart from each other, each twinkling on its
- * own phase between the accent's dim rim and its bright heart.
+ * its coverage names takes the accent, so the patches drift with the animation. Twinkles: rare
+ * single-cell stars, each fading in and out at one cell and relighting at another once dark.
  */
 final class AccentLayer {
 
@@ -26,9 +25,17 @@ final class AccentLayer {
      */
     static final float UNCOVERED = -1f;
     /**
-     * Midpoint and half-swing of a speck's twinkle across the accent palette.
+     * Frames one star lifetime runs, from dark through its brightest back to dark.
      */
-    private static final float TWINKLE_MID = 0.5f;
+    static final int LIFETIME = 16;
+    /**
+     * Lifetimes a slot can start within one loop of frames, its phase pushing the last past the end.
+     */
+    private static final int LIFETIMES_PER_SLOT = FluidTextureGenerator.FRAMES / LIFETIME + 1;
+    /**
+     * Brightness below which a star counts as dark and leaves its cell to the base palette.
+     */
+    private static final float LIT_FLOOR = 0.2f;
 
     private AccentLayer() {
     }
@@ -40,45 +47,68 @@ final class AccentLayer {
      * @return per frame, per cell, the cell's position in the accent band, or UNCOVERED
      */
     static float[][] capture(FluidTextureGenerator.GooFluidType type) {
-        if (type.accent().shape() == FluidTextureGenerator.AccentShape.SPECKS) {
-            return scatterSpecks(type);
+        if (type.accent().shape() == FluidTextureGenerator.AccentShape.TWINKLES) {
+            return twinkleStars(type);
         }
         return rankPatches(type);
     }
 
     /**
-     * Scatters the type's specks once, each at least one cell clear of every other on the tiling
-     * frame, and twinkles each in place across the frames.
+     * Lights the type's stars: each star slot runs lifetimes of LIFETIME frames on its own phase,
+     * and in each lifetime fades in, shines and fades out at one cell, then relights at the next
+     * cell once dark. Every cell any star uses stands clear of every other, so no lit cell sits
+     * beside another lit cell in the same frame or the next one, where interpolation would smear
+     * it into a streak.
      * astral-is-dark-blue-with-starlight-spots
      * deep-takes-sculk-and-echo-shard-colors
      *
      * @param type the goo fluid type
-     * @return per frame, per cell, the speck's twinkle position, or UNCOVERED
+     * @return per frame, per cell, the star's brightness from rim (0) to heart (1), or UNCOVERED
      */
-    static float[][] scatterSpecks(FluidTextureGenerator.GooFluidType type) {
+    static float[][] twinkleStars(FluidTextureGenerator.GooFluidType type) {
         int cellCount = FluidTextureGenerator.SIZE * FluidTextureGenerator.SIZE;
         Random random = new Random(type.seed() + ACCENT_SEED_OFFSET);
-        List<Integer> candidates = new ArrayList<>(IntStream.range(0, cellCount).boxed().toList());
-        Collections.shuffle(candidates, random);
-        int wanted = Math.round(type.accent().coverage() * cellCount);
-        List<Integer> specks = new ArrayList<>();
-        for (int cell : candidates) {
-            if (specks.size() < wanted && specks.stream().noneMatch(speck -> touching(speck, cell))) {
-                specks.add(cell);
-            }
-        }
+        List<int[]> slots = placeStarSlots(random, (int) (type.accent().coverage() * cellCount));
         float[][] bands = new float[FluidTextureGenerator.FRAMES][cellCount];
         for (float[] frame : bands) {
             Arrays.fill(frame, UNCOVERED);
         }
-        for (int speck : specks) {
-            float phase = random.nextFloat();
+        for (int[] cells : slots) {
+            int phase = random.nextInt(LIFETIME);
             for (int frame = 0; frame < FluidTextureGenerator.FRAMES; frame++) {
-                double turn = (double) frame / FluidTextureGenerator.FRAMES + phase;
-                bands[frame][speck] = (float) (TWINKLE_MID + TWINKLE_MID * Math.sin(Math.TAU * turn));
+                int step = frame + phase;
+                float brightness = (float) Math.sin(Math.PI * (step % LIFETIME) / LIFETIME);
+                if (brightness >= LIT_FLOOR) {
+                    bands[frame][cells[step / LIFETIME]] = brightness;
+                }
             }
         }
         return bands;
+    }
+
+    /**
+     * Picks each star slot's cells, one per lifetime it lives through, every cell clear of every
+     * other cell picked; slots stop where the frame runs out of clear cells.
+     *
+     * @param random the type's seeded generator
+     * @param wanted how many star slots the coverage asks for
+     * @return each slot's cells in lifetime order
+     */
+    private static List<int[]> placeStarSlots(Random random, int wanted) {
+        int cellCount = FluidTextureGenerator.SIZE * FluidTextureGenerator.SIZE;
+        List<Integer> candidates = new ArrayList<>(IntStream.range(0, cellCount).boxed().toList());
+        Collections.shuffle(candidates, random);
+        List<Integer> taken = new ArrayList<>();
+        for (int cell : candidates) {
+            if (taken.size() < wanted * LIFETIMES_PER_SLOT && taken.stream().noneMatch(used -> touching(used, cell))) {
+                taken.add(cell);
+            }
+        }
+        List<int[]> slots = new ArrayList<>();
+        for (int start = 0; start + LIFETIMES_PER_SLOT <= taken.size(); start += LIFETIMES_PER_SLOT) {
+            slots.add(taken.subList(start, start + LIFETIMES_PER_SLOT).stream().mapToInt(Integer::intValue).toArray());
+        }
+        return slots;
     }
 
     /**

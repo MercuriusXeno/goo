@@ -5,13 +5,12 @@ import java.awt.image.BufferedImage;
 import java.util.HashSet;
 import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests that FluidTextureGenerator's frame renderer lays a type's accent palette in patches
- * covering the share its coverage names, in still single-cell specks when its shape asks, and
- * lays none for a type without one.
+ * covering the share its coverage names, in rare single-cell stars that twinkle in place and
+ * relight elsewhere when its shape asks, and lays none for a type without one.
  */
 class FluidTextureGeneratorTest {
 
@@ -39,32 +38,59 @@ class FluidTextureGeneratorTest {
     }
 
     @Test
-    void specksStandStillAcrossFrames() {
+    void twinklesAreRareSingleCellsThatNeverTouch() {
         // astral-is-dark-blue-with-starlight-spots
-        FluidTextureGenerator.Accent specks = new FluidTextureGenerator.Accent(
-                GREEN, SPECK_COVERAGE, FluidTextureGenerator.AccentShape.SPECKS);
-        Set<Integer> first = accentCells(renderFrame(specks, 0));
-        assertFalse(first.isEmpty(), "no speck in the first frame");
-        for (int frame = 1; frame < FluidTextureGenerator.FRAMES; frame++) {
-            assertEquals(first, accentCells(renderFrame(specks, frame)), "specks moved by frame " + frame);
+        for (int frame = 0; frame < FluidTextureGenerator.FRAMES; frame++) {
+            Set<Integer> cells = accentCells(renderFrame(twinkles(), frame));
+            assertTrue(cells.size() <= CELLS * SPECK_COVERAGE,
+                    cells.size() + " stars lit in frame " + frame + ", too many for coverage " + SPECK_COVERAGE);
+            for (int cell : cells) {
+                for (int other : cells) {
+                    assertTrue(other == cell || !touching(cell, other),
+                            "stars at " + cell + " and " + other + " touch in frame " + frame);
+                }
+            }
         }
     }
 
     @Test
-    void specksAreSingleCellsThatNeverTouch() {
-        // astral-is-dark-blue-with-starlight-spots
-        FluidTextureGenerator.Accent specks = new FluidTextureGenerator.Accent(
-                GREEN, SPECK_COVERAGE, FluidTextureGenerator.AccentShape.SPECKS);
-        Set<Integer> cells = accentCells(renderFrame(specks, 0));
-        for (int cell : cells) {
-            int x = cell % FluidTextureGenerator.SIZE;
-            int y = cell / FluidTextureGenerator.SIZE;
-            for (int other : cells) {
-                int dx = Math.abs(other % FluidTextureGenerator.SIZE - x);
-                int dy = Math.abs(other / FluidTextureGenerator.SIZE - y);
-                assertTrue(other == cell || Math.max(dx, dy) > 1, "specks at " + cell + " and " + other + " touch");
+    void aLitStarNeverSlidesToANeighborBetweenFrames() {
+        // astral-is-dark-blue-with-starlight-spots: interpolation smears a slide into a streak
+        Set<Integer> previous = accentCells(renderFrame(twinkles(), 0));
+        for (int frame = 1; frame < FluidTextureGenerator.FRAMES; frame++) {
+            Set<Integer> current = accentCells(renderFrame(twinkles(), frame));
+            for (int cell : current) {
+                for (int before : previous) {
+                    assertTrue(!touching(cell, before),
+                            "a star slid from " + before + " to " + cell + " into frame " + frame);
+                }
             }
+            previous = current;
         }
+    }
+
+    @Test
+    void starsRelightAtNewCells() {
+        // astral-is-dark-blue-with-starlight-spots
+        Set<Integer> everLit = new HashSet<>();
+        int mostAtOnce = 0;
+        for (int frame = 0; frame < FluidTextureGenerator.FRAMES; frame++) {
+            Set<Integer> cells = accentCells(renderFrame(twinkles(), frame));
+            everLit.addAll(cells);
+            mostAtOnce = Math.max(mostAtOnce, cells.size());
+        }
+        assertTrue(mostAtOnce > 0, "no star lit in any frame");
+        assertTrue(everLit.size() > mostAtOnce, "the stars never moved to new cells: " + everLit);
+    }
+
+    private static boolean touching(int first, int second) {
+        int dx = Math.abs(first % FluidTextureGenerator.SIZE - second % FluidTextureGenerator.SIZE);
+        int dy = Math.abs(first / FluidTextureGenerator.SIZE - second / FluidTextureGenerator.SIZE);
+        return Math.max(dx, dy) == 1;
+    }
+
+    private static FluidTextureGenerator.Accent twinkles() {
+        return new FluidTextureGenerator.Accent(GREEN, SPECK_COVERAGE, FluidTextureGenerator.AccentShape.TWINKLES);
     }
 
     private static BufferedImage renderFrame(FluidTextureGenerator.Accent accent, int frameIndex) {

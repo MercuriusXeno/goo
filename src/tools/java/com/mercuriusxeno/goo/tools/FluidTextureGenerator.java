@@ -783,11 +783,12 @@ public final class FluidTextureGenerator {
          */
         PATCHES,
         /**
-         * Rare single cells standing still apart from each other, each twinkling in place.
+         * Rare single cells that each fade in, shine and fade out at one cell, then relight at
+         * another once dark, so nothing slides between frames for interpolation to smear.
          * astral-is-dark-blue-with-starlight-spots
          * deep-takes-sculk-and-echo-shard-colors
          */
-        SPECKS
+        TWINKLES
     }
 
     /**
