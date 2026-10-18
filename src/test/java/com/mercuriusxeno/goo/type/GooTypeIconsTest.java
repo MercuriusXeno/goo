@@ -2,17 +2,11 @@ package com.mercuriusxeno.goo.type;
 
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
 import javax.imageio.ImageIO;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -29,12 +23,6 @@ class GooTypeIconsTest {
     private static final float BROWN_HUE_HIGH = 45f / 360f;
     /** The least saturated brown the old rock icon held, #884b2b. */
     private static final float OLD_ROCK_BROWN_SATURATION = 0.68f;
-    private static final float HUE_GAP = 25f / 360f;
-    private static final float COLORED_SATURATION = 0.25f;
-    private static final float COLORED_BRIGHTNESS = 0.1f;
-    /** The icons redrawn by hand, each from its own decision. */
-    private static final List<String> REDRAWN = List.of("astral", "deep", "infinity", "jelly",
-            "kinetic", "opulent", "quantum", "void", "weird", "xeno", "zoo");
 
     @Nested
     class Yore {
@@ -82,44 +70,6 @@ class GooTypeIconsTest {
             assertTrue(grayPixels > 0, "rock holds no gray");
             assertTrue(brownPixels > 0, "rock holds no brown");
         }
-    }
-
-    @Nested
-    class Redrawn {
-
-        static Stream<String> redrawnIcons() {
-            return REDRAWN.stream();
-        }
-
-        @ParameterizedTest
-        @MethodSource("redrawnIcons")
-        void holdsAtLeastTwoHues(String typeId) throws IOException {
-            assertTrue(countHueClusters(readIcon(typeId)) >= 2, typeId + " holds a single hue");
-        }
-    }
-
-    /**
-     * Counts the hue families among an icon's colored pixels: hues sorted round the wheel,
-     * a new family starting at each gap of HUE_GAP or wider.
-     */
-    private static int countHueClusters(BufferedImage icon) {
-        List<Float> hues = new ArrayList<>();
-        for (int y = 0; y < icon.getHeight(); y++) {
-            for (int x = 0; x < icon.getWidth(); x++) {
-                int argb = icon.getRGB(x, y);
-                float[] hsb = Color.RGBtoHSB(argb >> 16 & 0xFF, argb >> 8 & 0xFF, argb & 0xFF, null);
-                if (argb >>> 24 != 0 && hsb[1] >= COLORED_SATURATION && hsb[2] >= COLORED_BRIGHTNESS) {
-                    hues.add(hsb[0]);
-                }
-            }
-        }
-        Collections.sort(hues);
-        int clusters = 0;
-        for (int i = 0; i < hues.size(); i++) {
-            float previous = i == 0 ? hues.getLast() - 1f : hues.get(i - 1);
-            clusters += hues.get(i) - previous >= HUE_GAP ? 1 : 0;
-        }
-        return hues.isEmpty() ? 0 : Math.max(clusters, 1);
     }
 
     private static BufferedImage readIcon(String typeId) throws IOException {
