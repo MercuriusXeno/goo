@@ -47,6 +47,42 @@ public final class GooColors {
     }
 
     /**
+     * @param type the goo type's registry entry
+     * @param tick the tick to color, so a cycling type drifts around the hue wheel
+     * @return the radial menu RGB at that tick
+     */
+    public static int wheel(GooTypeDefinition type, long tick) {
+        return type.hueCycle().rotate(type.wheel(), tick);
+    }
+
+    /**
+     * @param type the goo type's registry entry
+     * @param tick the tick to color, so a cycling type drifts around the hue wheel
+     * @return the hovered radial segment RGB at that tick
+     */
+    public static int bright(GooTypeDefinition type, long tick) {
+        return type.hueCycle().rotate(type.bright(), tick);
+    }
+
+    /**
+     * @param type the goo type's registry entry
+     * @param tick the tick to color, so a cycling type drifts around the hue wheel
+     * @return the aim arc, ghost fill and fade wall RGB at that tick
+     */
+    public static int highlight(GooTypeDefinition type, long tick) {
+        return type.hueCycle().rotate(type.highlight(), tick);
+    }
+
+    /**
+     * @param type the goo type's registry entry
+     * @param tick the tick to color, so a cycling type drifts around the hue wheel
+     * @return the wireframe and outline RGB at that tick
+     */
+    public static int edge(GooTypeDefinition type, long tick) {
+        return type.hueCycle().rotate(type.edge(), tick);
+    }
+
+    /**
      * The type's one color where a caller names no channel: the highlight,
      * which is the channel most read.
      *

@@ -38,39 +38,50 @@ public final class ClientGooTypes {
     }
 
     /**
+     * The tick a cycling type's color is drawn at: the game time of the level the client is in.
+     * infinity-is-rainbow-goo
+     *
+     * @return the level's game time, or 0 when the client is in no level
+     */
+    private static long tick() {
+        ClientLevel level = Minecraft.getInstance().level;
+        return level == null ? 0L : level.getGameTime();
+    }
+
+    /**
      * @param key the goo type's registry key
-     * @return the radial menu RGB of its entry
+     * @return the radial menu RGB of its entry at the current tick
      */
     public static int wheel(ResourceKey<GooTypeDefinition> key) {
         GooTypeDefinition definition = definition(key);
-        return definition == null ? UNRESOLVED_COLOR : GooColors.wheel(definition);
+        return definition == null ? UNRESOLVED_COLOR : GooColors.wheel(definition, tick());
     }
 
     /**
      * @param key the goo type's registry key
-     * @return the hovered radial segment RGB of its entry
+     * @return the hovered radial segment RGB of its entry at the current tick
      */
     public static int bright(ResourceKey<GooTypeDefinition> key) {
         GooTypeDefinition definition = definition(key);
-        return definition == null ? UNRESOLVED_COLOR : GooColors.bright(definition);
+        return definition == null ? UNRESOLVED_COLOR : GooColors.bright(definition, tick());
     }
 
     /**
      * @param key the goo type's registry key
-     * @return the aim arc, ghost fill and fade wall RGB of its entry
+     * @return the aim arc, ghost fill and fade wall RGB of its entry at the current tick
      */
     public static int highlight(ResourceKey<GooTypeDefinition> key) {
         GooTypeDefinition definition = definition(key);
-        return definition == null ? UNRESOLVED_COLOR : GooColors.highlight(definition);
+        return definition == null ? UNRESOLVED_COLOR : GooColors.highlight(definition, tick());
     }
 
     /**
      * @param key the goo type's registry key
-     * @return the wireframe and outline RGB of its entry
+     * @return the wireframe and outline RGB of its entry at the current tick
      */
     public static int edge(ResourceKey<GooTypeDefinition> key) {
         GooTypeDefinition definition = definition(key);
-        return definition == null ? UNRESOLVED_COLOR : GooColors.edge(definition);
+        return definition == null ? UNRESOLVED_COLOR : GooColors.edge(definition, tick());
     }
 
     /**
