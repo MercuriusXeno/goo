@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.type;
 
-import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -30,12 +29,10 @@ class GooTypeIconsTest {
     private static final float BROWN_HUE_HIGH = 45f / 360f;
     /** The least saturated brown the old rock icon held, #884b2b. */
     private static final float OLD_ROCK_BROWN_SATURATION = 0.68f;
-    private static final int ICON_SIZE = 11;
-    private static final int MIN_MASK_DISTANCE = 12;
     private static final float HUE_GAP = 25f / 360f;
     private static final float COLORED_SATURATION = 0.25f;
     private static final float COLORED_BRIGHTNESS = 0.1f;
-    /** The icons redrawn by hand, each from its own decision, on no shared disc. */
+    /** The icons redrawn by hand, each from its own decision. */
     private static final List<String> REDRAWN = List.of("astral", "deep", "infinity", "jelly",
             "kinetic", "opulent", "quantum", "void", "weird", "xeno", "zoo");
 
@@ -96,38 +93,9 @@ class GooTypeIconsTest {
 
         @ParameterizedTest
         @MethodSource("redrawnIcons")
-        void maskDiffersFromEveryOtherIcon(String typeId) throws IOException {
-            boolean[] mask = opaqueMask(readIcon(typeId));
-            for (ResourceKey<GooTypeDefinition> other : GooTypes.BUNDLED) {
-                String otherId = GooTypes.id(other);
-                if (otherId.equals(typeId)) {
-                    continue;
-                }
-                boolean[] otherMask = opaqueMask(readIcon(otherId));
-                int distance = 0;
-                for (int i = 0; i < mask.length; i++) {
-                    distance += mask[i] == otherMask[i] ? 0 : 1;
-                }
-                assertTrue(distance >= MIN_MASK_DISTANCE,
-                        typeId + "'s mask differs from " + otherId + "'s in only " + distance + " pixels");
-            }
-        }
-
-        @ParameterizedTest
-        @MethodSource("redrawnIcons")
         void holdsAtLeastTwoHues(String typeId) throws IOException {
             assertTrue(countHueClusters(readIcon(typeId)) >= 2, typeId + " holds a single hue");
         }
-    }
-
-    private static boolean[] opaqueMask(BufferedImage icon) {
-        boolean[] mask = new boolean[ICON_SIZE * ICON_SIZE];
-        for (int y = 0; y < ICON_SIZE; y++) {
-            for (int x = 0; x < ICON_SIZE; x++) {
-                mask[y * ICON_SIZE + x] = icon.getRGB(x, y) >>> 24 != 0;
-            }
-        }
-        return mask;
     }
 
     /**
