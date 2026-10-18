@@ -397,12 +397,10 @@
     "frametime": 2,
     "shadowHue": -1,
     "palette": [
-      { "position": 0.0, "color": "#101012" },
-      { "position": 0.2, "color": "#2A2A2E" },
-      { "position": 0.4, "color": "#55575C" },
-      { "position": 0.6, "color": "#8E9094" },
-      { "position": 0.8, "color": "#C8C8CA" },
-      { "position": 1.0, "color": "#F4F4F4" }
+      { "position": 0.0, "color": "#08080A" },
+      { "position": 0.44, "color": "#1A1A1E" },
+      { "position": 0.5, "color": "#E8E8EC" },
+      { "position": 1.0, "color": "#FFFFFF" }
     ]
   },
   {
