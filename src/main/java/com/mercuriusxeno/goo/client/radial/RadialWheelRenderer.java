@@ -260,9 +260,9 @@ final class RadialWheelRenderer {
      *
      * @param frame what the frame draws from
      * @param petal the type petal
-     * @return the point's x and y
+     * @return the point's x and y, unrounded, so the icon's square rounds once on its edges
      */
-    static int[] lengthCenter(Frame frame, RadialWheel.PetalArc petal) {
+    static double[] lengthCenter(Frame frame, RadialWheel.PetalArc petal) {
         double hub = frame.wheel().displayedHubRadius(frame.partialTick());
         double dropped = (RadialWheel.HUB_REST_FRACTION - hub)
                 / (RadialWheel.HUB_REST_FRACTION - RadialWheel.HUB_FRACTION);
@@ -270,8 +270,7 @@ final class RadialWheelRenderer {
         PetalMask.Point tip = petal.shape().tipCenter();
         double x = middle.x() + (tip.x() - middle.x()) * dropped;
         double y = middle.y() + (tip.y() - middle.y()) * dropped;
-        return new int[]{frame.centerX() + (int) Math.round(x * frame.radius()),
-                frame.centerY() + (int) Math.round(y * frame.radius())};
+        return new double[]{frame.centerX() + x * frame.radius(), frame.centerY() + y * frame.radius()};
     }
 
     /**
@@ -723,9 +722,20 @@ final class RadialWheelRenderer {
     private record Icon(Identifier texture, int size) {
     }
 
-    private static void blitIcon(GuiGraphicsExtractor graphics, Icon icon, int[] center, int color) {
-        int offset = icon.size() / HALF;
-        graphics.blit(RenderPipelines.GUI_TEXTURED, icon.texture(), center[0] - offset, center[1] - offset,
+    /**
+     * Draws an icon's square centered on a point, its edges rounded from the
+     * unrounded point so an odd-sized icon leans neither right nor down.
+     *
+     * @param graphics the GUI graphics extractor
+     * @param icon     the icon and its size
+     * @param center   the screen point the icon centers on, unrounded
+     * @param color    the packed ARGB color the icon draws under
+     */
+    private static void blitIcon(GuiGraphicsExtractor graphics, Icon icon, double[] center, int color) {
+        double half = icon.size() / (double) HALF;
+        int left = (int) Math.round(center[0] - half);
+        int top = (int) Math.round(center[1] - half);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, icon.texture(), left, top,
                 0.0f, 0.0f, icon.size(), icon.size(), icon.size(), icon.size(), color);
     }
 
