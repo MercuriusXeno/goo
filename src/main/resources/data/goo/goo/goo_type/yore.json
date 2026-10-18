@@ -1,10 +1,10 @@
 {
   "light_level": 0,
   "saturation_fill": 0.5,
-  "wheel": "8C6A3A",
-  "bright": "EEE6D2",
-  "highlight": "C49A5C",
-  "edge": "DCCBA4",
+  "wheel": "DCD0F0",
+  "bright": "F8F4FF",
+  "highlight": "F4DCE8",
+  "edge": "D8F0EA",
   "density": 1400,
   "viscosity": 4000,
   "temperature": 300,
@@ -19,5 +19,7 @@
     "goo_large": "goo:item/yore_goo_large",
     "fluid_still": "goo:fluid/yore_fluid",
     "fluid_flowing": "goo:fluid/yore_fluid"
-  }
+  },
+  "hue_cycle_ticks": 160,
+  "hue_swing_degrees": 240
 }
