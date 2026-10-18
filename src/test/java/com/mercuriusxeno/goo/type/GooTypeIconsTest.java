@@ -37,7 +37,7 @@ class GooTypeIconsTest {
     private static final float COLORED_BRIGHTNESS = 0.1f;
     /** The icons redrawn by hand, each from its own decision, on no shared disc. */
     private static final List<String> REDRAWN = List.of("astral", "deep", "infinity", "jelly",
-            "kinetic", "opulent", "quantum", "void");
+            "kinetic", "opulent", "quantum", "void", "weird", "xeno", "zoo");
 
     @Nested
     class Yore {
