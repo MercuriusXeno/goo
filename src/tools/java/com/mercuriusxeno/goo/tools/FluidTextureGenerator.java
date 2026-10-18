@@ -276,7 +276,7 @@ public final class FluidTextureGenerator {
      */
     private static void writeFluidStrip(GooFluidType type, float[][] heatFrames,
                                         float... heatRange) throws IOException {
-        BufferedImage strip = renderFluidStrip(heatFrames, heatRange, type, AccentPatches.capture(type));
+        BufferedImage strip = renderFluidStrip(heatFrames, heatRange, type, AccentLayer.capture(type));
         ImageIO.write(strip, FORMAT_PNG, FLUID_DIR.resolve(type.id() + SUFFIX_FLUID_PNG).toFile());
         TextureMcmetaWriter.writeFluidMcmeta(type.frametime(), FLUID_DIR, type.id() + SUFFIX_FLUID_MCMETA);
         System.out.printf(FMT_HEAT_RANGE, type.id(), heatRange[0], heatRange[0] + heatRange[1], heatRange[1]);
@@ -288,7 +288,7 @@ public final class FluidTextureGenerator {
      * @param heatFrames the raw heat values per frame
      * @param heatRange  min and range values for normalization
      * @param type       the goo fluid type whose palettes the strip samples
-     * @param bands      per frame, each cell's accent band position from AccentPatches
+     * @param bands      per frame, each cell's accent band position from AccentLayer
      * @return the rendered sprite strip image
      */
     private static BufferedImage renderFluidStrip(float[][] heatFrames, float[] heatRange, GooFluidType type,
@@ -317,7 +317,7 @@ public final class FluidTextureGenerator {
             for (int x = 0; x < SIZE; x++) {
                 int cell = y * SIZE + x;
                 float normalized = normalizeHeat(heat[cell], minHeat, range);
-                strip.setRGB(x, frame * SIZE + y, AccentPatches.sampleColor(type, normalized, band[cell]));
+                strip.setRGB(x, frame * SIZE + y, AccentLayer.sampleColor(type, normalized, band[cell]));
             }
         }
     }
@@ -762,22 +762,40 @@ public final class FluidTextureGenerator {
      * astral-is-dark-blue-with-starlight-spots
      * shroom-keeps-purple-with-wart-and-red-shroom-patches
      *
-     * @param palette  the accent gradient, sampled from a patch's rim (0) to its heart (1)
-     * @param coverage the share of each frame's cells the patches cover, 0 for none
+     * @param palette  the accent gradient, sampled from a patch's rim, or a speck's dimmest twinkle (0),
+     *                 to its heart or brightest twinkle (1)
+     * @param coverage the share of each frame's cells the accent covers, 0 for none
+     * @param shape    whether the accent falls in drifting patches or in still single-cell specks
      */
-    record Accent(Palette palette, float coverage) {
+    record Accent(Palette palette, float coverage, AccentShape shape) {
         /**
          * The accent of a type that names none: it covers no cell.
          */
-        static final Accent NONE = new Accent(Palette.of(0f, "#00000000"), 0f);
+        static final Accent NONE = new Accent(Palette.of(0f, "#00000000"), 0f, AccentShape.PATCHES);
     }
 
     /**
-     * JSON-shaped accent: a coverage share and its palette stops.
+     * How an accent lays its cells.
      */
-    private record AccentJson(float coverage, List<PaletteStop> palette) {
+    enum AccentShape {
+        /**
+         * Clumps ranked from a moving field, drifting with the animation.
+         */
+        PATCHES,
+        /**
+         * Rare single cells standing still apart from each other, each twinkling in place.
+         * astral-is-dark-blue-with-starlight-spots
+         * deep-takes-sculk-and-echo-shard-colors
+         */
+        SPECKS
+    }
+
+    /**
+     * JSON-shaped accent: a coverage share, its palette stops, and its shape, patches when absent.
+     */
+    private record AccentJson(float coverage, List<PaletteStop> palette, AccentShape shape) {
         Accent toAccent() {
-            return new Accent(Palette.fromStops(palette), coverage);
+            return new Accent(Palette.fromStops(palette), coverage, shape == null ? AccentShape.PATCHES : shape);
         }
     }
 

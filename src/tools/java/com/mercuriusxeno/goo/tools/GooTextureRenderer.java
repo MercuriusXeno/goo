@@ -80,7 +80,7 @@ final class GooTextureRenderer {
         float[][] smallMask = TextureColorShader.loadLuminanceMask(FluidTextureGenerator.GOO_MASK_SMALL_PATH);
         float[][] baseMask = TextureColorShader.loadLuminanceMask(FluidTextureGenerator.GOO_MASK_PATH);
         float[][] largeMask = TextureColorShader.loadLuminanceMask(FluidTextureGenerator.GOO_MASK_LARGE_PATH);
-        MaskedHeat heat = new MaskedHeat(heatFrames, heatRange, AccentPatches.capture(type));
+        MaskedHeat heat = new MaskedHeat(heatFrames, heatRange, AccentLayer.capture(type));
         writeMaskedGooVariant(heat, type, tinyMask, type.id() + SUFFIX_GOO_TINY);
         writeMaskedGooVariant(heat, type, smallMask, type.id() + SUFFIX_GOO_SMALL);
         writeMaskedGooVariant(heat, type, baseMask, type.id() + SUFFIX_GOO_BASE);
@@ -168,7 +168,7 @@ final class GooTextureRenderer {
         }
         float normalized = FluidTextureGenerator.normalizeHeat(
                 heat.heatFrames()[frame][cell], heat.heatRange()[0], heat.heatRange()[1]);
-        int color = AccentPatches.sampleColor(type, normalized, heat.bands()[frame][cell]);
+        int color = AccentLayer.sampleColor(type, normalized, heat.bands()[frame][cell]);
         return TextureColorShader.modulateColorShaded(color, lum, type.shadowHue());
     }
 }
