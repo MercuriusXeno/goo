@@ -15,13 +15,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests that GooColors answers a cycling type's channels rotated around the hue wheel by the
- * tick's share of its cycle, and a still type's channels unchanged at every tick.
+ * tick's share of its cycle, a swinging type's within its arc, and a still type's channels
+ * unchanged at every tick.
  */
 class GooColorsTest {
 
     private static final String TYPE_JSON_FORMAT = "/data/goo/goo/goo_type/%s.json";
     private static final float HUE_TOLERANCE_DEGREES = 1.5f;
     private static final float SHADE_TOLERANCE = 0.01f;
+    private static final float PALE_FLOOR = 0.85f;
 
     @Test
     void infinityWheelSitsAQuarterTurnAwayAtAQuarterCycle() throws IOException {
@@ -41,6 +43,23 @@ class GooColorsTest {
         GooTypeDefinition blaze = bundled("blaze");
         for (long tick : new long[]{0, 1, 37, 200, 123_456}) {
             assertEquals(blaze.wheel(), GooColors.wheel(blaze, tick), "blaze's wheel at tick " + tick);
+        }
+    }
+
+    @Test
+    void yoreSheenStaysInItsSwingAboveThePaleFloor() throws IOException {
+        // yore-gets-opalescent-iridescence-back
+        GooTypeDefinition yore = bundled("yore");
+        HueCycle cycle = yore.hueCycle();
+        assertTrue(cycle.ticks() > 0, "yore names no hue cycle");
+        assertTrue(cycle.swingDegrees() < 360f, "yore's swing is the whole wheel");
+        float[] base = hsb(yore.wheel());
+        for (int tick = 0; tick < cycle.ticks(); tick++) {
+            float[] sheen = hsb(GooColors.wheel(yore, tick));
+            float offset = ((sheen[0] - base[0] + 1.5f) % 1f - 0.5f) * 360f;
+            assertTrue(Math.abs(offset) <= cycle.swingDegrees() / 2f + HUE_TOLERANCE_DEGREES,
+                    "yore's hue sits " + offset + " degrees from its base at tick " + tick);
+            assertTrue(sheen[2] >= PALE_FLOOR, "yore's value drops to " + sheen[2] + " at tick " + tick);
         }
     }
 

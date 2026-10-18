@@ -582,14 +582,15 @@
       "neighborhoodReach": 1
     },
     "frametime": 4,
-    "shadowHue": 0.1,
+    "shadowHue": -1,
     "palette": [
-      { "position": 0.0, "color": "#4A3418" },
-      { "position": 0.2, "color": "#7A5A2C" },
-      { "position": 0.4, "color": "#A87A40" },
-      { "position": 0.6, "color": "#C49A5C" },
-      { "position": 0.8, "color": "#DCCBA4" },
-      { "position": 1.0, "color": "#EEE6D2" }
+      { "position": 0.0, "color": "#E0D0F8" },
+      { "position": 0.2, "color": "#F8C8E0" },
+      { "position": 0.4, "color": "#F4F0F8" },
+      { "position": 0.55, "color": "#C8F4DC" },
+      { "position": 0.75, "color": "#C8DCFA" },
+      { "position": 0.9, "color": "#ECD8FA" },
+      { "position": 1.0, "color": "#FFFFFF" }
     ]
   },
   {
