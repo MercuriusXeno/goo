@@ -80,14 +80,15 @@
       "neighborhoodReach": 1
     },
     "frametime": 3,
-    "shadowHue": 0.6,
+    "shadowHue": 0.55,
     "palette": [
-      { "position": 0.0, "color": "#0A141C" },
-      { "position": 0.2, "color": "#16283A" },
-      { "position": 0.4, "color": "#243E54" },
-      { "position": 0.6, "color": "#365A70" },
-      { "position": 0.8, "color": "#4E788C" },
-      { "position": 1.0, "color": "#7AA0B0" }
+      { "position": 0.0, "color": "#0D1217" },
+      { "position": 0.2, "color": "#111B21" },
+      { "position": 0.4, "color": "#052A32" },
+      { "position": 0.6, "color": "#034150" },
+      { "position": 0.75, "color": "#0A5060" },
+      { "position": 0.9, "color": "#009295" },
+      { "position": 1.0, "color": "#29DFEB" }
     ]
   },
   {
@@ -241,14 +242,14 @@
       "neighborhoodReach": 1
     },
     "frametime": 2,
-    "shadowHue": 0.6,
+    "shadowHue": 0.62,
     "palette": [
-      { "position": 0.0, "color": "#4A4E54" },
-      { "position": 0.3, "color": "#6E737A" },
-      { "position": 0.55, "color": "#9A8270" },
-      { "position": 0.75, "color": "#E8681A" },
-      { "position": 0.9, "color": "#FF8A2A" },
-      { "position": 1.0, "color": "#FFC07A" }
+      { "position": 0.0, "color": "#0A1A5C" },
+      { "position": 0.25, "color": "#1438C8" },
+      { "position": 0.45, "color": "#2050FF" },
+      { "position": 0.65, "color": "#4C8CFF" },
+      { "position": 0.85, "color": "#A8D8FF" },
+      { "position": 1.0, "color": "#F4FAFF" }
     ]
   },
   {
@@ -311,12 +312,12 @@
     "frametime": 3,
     "shadowHue": 0.0,
     "palette": [
-      { "position": 0.0, "color": "#501214" },
-      { "position": 0.25, "color": "#7C1C20" },
-      { "position": 0.5, "color": "#A4262C" },
-      { "position": 0.75, "color": "#C03434" },
-      { "position": 0.9, "color": "#D44C42" },
-      { "position": 1.0, "color": "#E4685A" }
+      { "position": 0.0, "color": "#411616" },
+      { "position": 0.2, "color": "#501B1B" },
+      { "position": 0.4, "color": "#652828" },
+      { "position": 0.6, "color": "#723232" },
+      { "position": 0.8, "color": "#854242" },
+      { "position": 1.0, "color": "#9A4E4E" }
     ]
   },
   {
@@ -332,14 +333,15 @@
       "neighborhoodReach": 1
     },
     "frametime": 4,
-    "shadowHue": 0.12,
+    "shadowHue": 0.08,
     "palette": [
-      { "position": 0.0, "color": "#0E4A2A" },
-      { "position": 0.2, "color": "#1C7A44" },
-      { "position": 0.4, "color": "#8A6A12" },
-      { "position": 0.6, "color": "#C8961C" },
-      { "position": 0.8, "color": "#F0C840" },
-      { "position": 1.0, "color": "#FFF0A0" }
+      { "position": 0.0, "color": "#6A3A08" },
+      { "position": 0.2, "color": "#B26411" },
+      { "position": 0.4, "color": "#DC9613" },
+      { "position": 0.6, "color": "#F9BD23" },
+      { "position": 0.75, "color": "#FFD83E" },
+      { "position": 0.9, "color": "#FFEC4F" },
+      { "position": 1.0, "color": "#FFFD90" }
     ]
   },
   {
@@ -378,14 +380,14 @@
       "neighborhoodReach": 1
     },
     "frametime": 2,
-    "shadowHue": 0.7,
+    "shadowHue": -1,
     "palette": [
-      { "position": 0.0, "color": "#1A1048" },
-      { "position": 0.2, "color": "#30207C" },
-      { "position": 0.4, "color": "#5040B0" },
-      { "position": 0.6, "color": "#7A68E0" },
-      { "position": 0.8, "color": "#60C8F0" },
-      { "position": 1.0, "color": "#D8F4FF" }
+      { "position": 0.0, "color": "#101012" },
+      { "position": 0.2, "color": "#2A2A2E" },
+      { "position": 0.4, "color": "#55575C" },
+      { "position": 0.6, "color": "#8E9094" },
+      { "position": 0.8, "color": "#C8C8CA" },
+      { "position": 1.0, "color": "#F4F4F4" }
     ]
   },
   {
@@ -401,13 +403,14 @@
       "neighborhoodReach": 1
     },
     "frametime": 4,
-    "shadowHue": 0.0,
+    "shadowHue": -1,
     "palette": [
-      { "position": 0.0, "color": "#4A2008" },
-      { "position": 0.3, "color": "#703010" },
-      { "position": 0.6, "color": "#984818" },
-      { "position": 0.85, "color": "#C47830" },
-      { "position": 1.0, "color": "#B86828" }
+      { "position": 0.0, "color": "#3A2A1E" },
+      { "position": 0.25, "color": "#5A4232" },
+      { "position": 0.45, "color": "#7A5C44" },
+      { "position": 0.6, "color": "#747474" },
+      { "position": 0.8, "color": "#8F8F8F" },
+      { "position": 1.0, "color": "#B4B6B8" }
     ]
   },
   {
@@ -516,14 +519,14 @@
       "neighborhoodReach": 1
     },
     "frametime": 2,
-    "shadowHue": -1,
+    "shadowHue": 0.3,
     "palette": [
-      { "position": 0.0, "color": "#5A1080" },
-      { "position": 0.2, "color": "#FF33CC" },
-      { "position": 0.4, "color": "#7CFF2E" },
-      { "position": 0.6, "color": "#FF8A1E" },
-      { "position": 0.8, "color": "#2EE8FF" },
-      { "position": 1.0, "color": "#FFF040" }
+      { "position": 0.0, "color": "#1E3A1A" },
+      { "position": 0.2, "color": "#34532F" },
+      { "position": 0.4, "color": "#477A42" },
+      { "position": 0.6, "color": "#51A03E" },
+      { "position": 0.8, "color": "#7EBF6E" },
+      { "position": 1.0, "color": "#C9FECE" }
     ]
   },
   {
@@ -539,15 +542,14 @@
       "neighborhoodReach": 2
     },
     "frametime": 3,
-    "shadowHue": 0.8,
+    "shadowHue": 0.7,
     "palette": [
-      { "position": 0.0, "color": "#1A0830" },
-      { "position": 0.2, "color": "#3C1660" },
-      { "position": 0.4, "color": "#5E2A80" },
-      { "position": 0.55, "color": "#4E6A30" },
-      { "position": 0.75, "color": "#7EA034" },
-      { "position": 0.9, "color": "#A8CC48" },
-      { "position": 1.0, "color": "#D4F47C" }
+      { "position": 0.0, "color": "#1A1048" },
+      { "position": 0.2, "color": "#30207C" },
+      { "position": 0.4, "color": "#5040B0" },
+      { "position": 0.6, "color": "#7A68E0" },
+      { "position": 0.8, "color": "#60C8F0" },
+      { "position": 1.0, "color": "#D8F4FF" }
     ]
   },
   {
@@ -586,13 +588,15 @@
       "neighborhoodReach": 1
     },
     "frametime": 3,
-    "shadowHue": 0.08,
+    "shadowHue": 0.04,
     "palette": [
-      { "position": 0.0, "color": "#5A3418" },
-      { "position": 0.3, "color": "#8A5428" },
-      { "position": 0.6, "color": "#B5793A" },
-      { "position": 0.85, "color": "#D8A060" },
-      { "position": 1.0, "color": "#F0CC90" }
+      { "position": 0.0, "color": "#3D1C10" },
+      { "position": 0.2, "color": "#542716" },
+      { "position": 0.4, "color": "#9E492A" },
+      { "position": 0.55, "color": "#C65C35" },
+      { "position": 0.7, "color": "#A88054" },
+      { "position": 0.85, "color": "#C79E67" },
+      { "position": 1.0, "color": "#E0C08C" }
     ]
   }
 ]
