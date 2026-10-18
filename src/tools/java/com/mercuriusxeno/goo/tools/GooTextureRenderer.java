@@ -80,25 +80,35 @@ final class GooTextureRenderer {
         float[][] smallMask = TextureColorShader.loadLuminanceMask(FluidTextureGenerator.GOO_MASK_SMALL_PATH);
         float[][] baseMask = TextureColorShader.loadLuminanceMask(FluidTextureGenerator.GOO_MASK_PATH);
         float[][] largeMask = TextureColorShader.loadLuminanceMask(FluidTextureGenerator.GOO_MASK_LARGE_PATH);
-        writeMaskedGooVariant(heatFrames, heatRange, type, tinyMask, type.id() + SUFFIX_GOO_TINY);
-        writeMaskedGooVariant(heatFrames, heatRange, type, smallMask, type.id() + SUFFIX_GOO_SMALL);
-        writeMaskedGooVariant(heatFrames, heatRange, type, baseMask, type.id() + SUFFIX_GOO_BASE);
-        writeMaskedGooVariant(heatFrames, heatRange, type, largeMask, type.id() + SUFFIX_GOO_LARGE);
+        MaskedHeat heat = new MaskedHeat(heatFrames, heatRange, AccentPatches.capture(type));
+        writeMaskedGooVariant(heat, type, tinyMask, type.id() + SUFFIX_GOO_TINY);
+        writeMaskedGooVariant(heat, type, smallMask, type.id() + SUFFIX_GOO_SMALL);
+        writeMaskedGooVariant(heat, type, baseMask, type.id() + SUFFIX_GOO_BASE);
+        writeMaskedGooVariant(heat, type, largeMask, type.id() + SUFFIX_GOO_LARGE);
+    }
+
+    /**
+     * The per-frame fields a goo sprite samples: the base heat, its range, and the accent bands.
+     *
+     * @param heatFrames the raw heat values per frame
+     * @param heatRange  min and range values for normalization
+     * @param bands      per frame, each cell's accent band position
+     */
+    record MaskedHeat(float[][] heatFrames, float[] heatRange, float[][] bands) {
     }
 
     /**
      * Writes a masked goo variant (luminance-shaded, single layer) with sprite strip + mcmeta.
      *
-     * @param heatFrames the raw heat values per frame
-     * @param heatRange  min and range values for normalization
-     * @param type       the goo fluid type definition
-     * @param mask       the luminance mask for shading
-     * @param baseName   the output filename without extension
+     * @param heat     the base heat, its range and the accent bands
+     * @param type     the goo fluid type definition
+     * @param mask     the luminance mask for shading
+     * @param baseName the output filename without extension
      * @throws IOException if texture files cannot be written
      */
-    static void writeMaskedGooVariant(float[][] heatFrames, float[] heatRange,
-                                       FluidTextureGenerator.GooFluidType type, float[][] mask, String baseName) throws IOException {
-        BufferedImage strip = renderGooStripMasked(heatFrames, heatRange, type, mask);
+    static void writeMaskedGooVariant(MaskedHeat heat, FluidTextureGenerator.GooFluidType type, float[][] mask,
+                                      String baseName) throws IOException {
+        BufferedImage strip = renderGooStripMasked(heat, type, mask);
         ImageIO.write(strip, FORMAT_PNG, FluidTextureGenerator.ITEM_DIR.resolve(baseName + EXT_PNG).toFile());
         TextureMcmetaWriter.writeGooMcmeta(type.frametime(), FluidTextureGenerator.ITEM_DIR, baseName + EXT_PNG_MCMETA);
     }
@@ -106,19 +116,18 @@ final class GooTextureRenderer {
     /**
      * Renders a goo sprite strip with luminance mask modulating the palette colors.
      *
-     * @param heatFrames the raw heat values per frame
-     * @param heatRange  min and range values for normalization
-     * @param type       the goo fluid type definition
-     * @param mask       the luminance mask for shading
+     * @param heat the base heat, its range and the accent bands
+     * @param type the goo fluid type definition
+     * @param mask the luminance mask for shading
      * @return the rendered goo sprite strip image
      */
-    static BufferedImage renderGooStripMasked(
-            float[][] heatFrames, float[] heatRange, FluidTextureGenerator.GooFluidType type, float[]... mask) {
+    static BufferedImage renderGooStripMasked(MaskedHeat heat, FluidTextureGenerator.GooFluidType type,
+                                              float[]... mask) {
         BufferedImage strip = new BufferedImage(
                 FluidTextureGenerator.SIZE, FluidTextureGenerator.SIZE * FluidTextureGenerator.FRAMES,
                 BufferedImage.TYPE_INT_ARGB);
         for (int frame = 0; frame < FluidTextureGenerator.FRAMES; frame++) {
-            renderMaskedFrame(strip, heatFrames[frame], frame, heatRange[0], heatRange[1], type, mask);
+            renderMaskedFrame(strip, heat, frame, type, mask);
         }
         return strip;
     }
@@ -126,20 +135,18 @@ final class GooTextureRenderer {
     /**
      * Renders a single masked goo frame into the composite strip.
      *
-     * @param strip   the composite sprite strip image
-     * @param heat    the raw heat values for this frame
-     * @param frame   the frame index
-     * @param minHeat the minimum heat for normalization
-     * @param range   the heat range for normalization
-     * @param type    the goo fluid type definition
-     * @param mask    the luminance mask
+     * @param strip the composite sprite strip image
+     * @param heat  the base heat, its range and the accent bands
+     * @param frame the frame index
+     * @param type  the goo fluid type definition
+     * @param mask  the luminance mask
      */
-    static void renderMaskedFrame(BufferedImage strip, float[] heat, int frame,
-                                  float minHeat, float range, FluidTextureGenerator.GooFluidType type, float[]... mask) {
+    static void renderMaskedFrame(BufferedImage strip, MaskedHeat heat, int frame,
+                                  FluidTextureGenerator.GooFluidType type, float[]... mask) {
         for (int y = 0; y < FluidTextureGenerator.SIZE; y++) {
             for (int x = 0; x < FluidTextureGenerator.SIZE; x++) {
                 int py = frame * FluidTextureGenerator.SIZE + y;
-                strip.setRGB(x, py, maskedPixel(heat, mask, x, y, minHeat, range, type));
+                strip.setRGB(x, py, maskedPixel(heat, frame, mask[y][x], y * FluidTextureGenerator.SIZE + x, type));
             }
         }
     }
@@ -147,24 +154,21 @@ final class GooTextureRenderer {
     /**
      * Computes a single masked pixel color, returning transparent if outside the mask.
      *
-     * @param heat    the raw heat values for the current frame
-     * @param mask    the luminance mask (0 = transparent, >0 = visible)
-     * @param x       the pixel X coordinate
-     * @param y       the pixel Y coordinate
-     * @param minHeat the minimum heat value for normalization
-     * @param range   the heat range for normalization
-     * @param type    the goo fluid type definition providing palette and shadow hue
+     * @param heat  the base heat, its range and the accent bands
+     * @param frame the frame index
+     * @param lum   the mask's luminance at the pixel (0 = transparent, >0 = visible)
+     * @param cell  the pixel's index in the frame
+     * @param type  the goo fluid type definition providing palettes and shadow hue
      * @return the ARGB pixel color, or transparent if outside the mask
      */
-    private static int maskedPixel(float[] heat, float[][] mask, int x, int y,
-                                   float minHeat, float range, FluidTextureGenerator.GooFluidType type) {
-        float lum = mask[y][x];
+    private static int maskedPixel(MaskedHeat heat, int frame, float lum, int cell,
+                                   FluidTextureGenerator.GooFluidType type) {
         if (lum <= 0) {
             return FluidTextureGenerator.TRANSPARENT;
         }
         float normalized = FluidTextureGenerator.normalizeHeat(
-                heat[y * FluidTextureGenerator.SIZE + x], minHeat, range);
-        return TextureColorShader.modulateColorShaded(
-                type.palette().sample(normalized), lum, type.shadowHue());
+                heat.heatFrames()[frame][cell], heat.heatRange()[0], heat.heatRange()[1]);
+        int color = AccentPatches.sampleColor(type, normalized, heat.bands()[frame][cell]);
+        return TextureColorShader.modulateColorShaded(color, lum, type.shadowHue());
     }
 }

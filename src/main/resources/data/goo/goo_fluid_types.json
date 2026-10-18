@@ -12,15 +12,22 @@
       "neighborhoodReach": 1
     },
     "frametime": 4,
-    "shadowHue": -1,
+    "shadowHue": 0.65,
     "palette": [
-      { "position": 0.0, "color": "#7888A8" },
-      { "position": 0.25, "color": "#98A8C8" },
-      { "position": 0.5, "color": "#B8C6E0" },
-      { "position": 0.7, "color": "#D0D8E8" },
-      { "position": 0.88, "color": "#E8F0FF" },
-      { "position": 1.0, "color": "#FFFFFF" }
-    ]
+      { "position": 0.0, "color": "#060A24" },
+      { "position": 0.25, "color": "#0C1440" },
+      { "position": 0.5, "color": "#142060" },
+      { "position": 0.75, "color": "#1E2C80" },
+      { "position": 1.0, "color": "#2A3C9A" }
+    ],
+    "accent": {
+      "coverage": 0.08,
+      "palette": [
+        { "position": 0.0, "color": "#C8B860" },
+        { "position": 0.5, "color": "#F0E090" },
+        { "position": 1.0, "color": "#FFF8C8" }
+      ]
+    }
   },
   {
     "id": "blaze",
@@ -434,7 +441,17 @@
       { "position": 0.75, "color": "#E838A0" },
       { "position": 0.9, "color": "#FF60C0" },
       { "position": 1.0, "color": "#FF98D8" }
-    ]
+    ],
+    "accent": {
+      "coverage": 0.18,
+      "palette": [
+        { "position": 0.0, "color": "#4E1116" },
+        { "position": 0.35, "color": "#A62530" },
+        { "position": 0.65, "color": "#E21212" },
+        { "position": 0.88, "color": "#FE2A2A" },
+        { "position": 1.0, "color": "#EDE8CA" }
+      ]
+    }
   },
   {
     "id": "typhoon",
