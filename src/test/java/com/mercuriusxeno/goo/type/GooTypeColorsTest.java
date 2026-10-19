@@ -27,10 +27,10 @@ class GooTypeColorsTest {
     private static final float PALE_LIGHTNESS = 0.8f;
     private static final float TINTED_SATURATION = 0.06f;
     private static final int HUE_BUCKET_DEGREES = 30;
-    private static final float BLACK_BODY = 0.2f;
-    private static final float WHITE_BODY = 0.85f;
-    private static final float BODY_SHARE = 0.25f;
-    private static final float BODIES_TOGETHER = 0.85f;
+    private static final String ICON_BLUE = "3AA0E0";
+    private static final String ICON_ORANGE = "E8603C";
+    private static final float ICON_HUE_TOLERANCE = 15f;
+    private static final float ICON_SATURATION = 0.4f;
 
     @Test
     void kineticWheelSitsFarFromJellys() throws IOException {
@@ -76,28 +76,17 @@ class GooTypeColorsTest {
     }
 
     @Test
-    void quantumFluidSplitsIntoBodiesOfBlackAndWhite() throws IOException {
-        // quantum-is-gray-half-white-half-black
-        java.awt.image.BufferedImage strip;
-        try (InputStream in = GooTypeColorsTest.class.getResourceAsStream("/assets/goo/textures/fluid/quantum_fluid.png")) {
-            assertNotNull(in, "quantum's fluid sprite is missing");
-            strip = javax.imageio.ImageIO.read(in);
+    void quantumWearsItsIconsBlueAndReddishOrange() throws IOException {
+        // quantum-is-gray-half-white-half-black, restated: quantum uses the colors of its type icon
+        assertTrue(hueDistance(channel("quantum", "wheel"), ICON_BLUE) <= ICON_HUE_TOLERANCE,
+                "quantum's wheel " + channel("quantum", "wheel") + " is not the icon's blue");
+        assertTrue(hueDistance(channel("quantum", "edge"), ICON_ORANGE) <= ICON_HUE_TOLERANCE,
+                "quantum's edge " + channel("quantum", "edge") + " is not the icon's reddish orange");
+        for (String name : CHANNELS) {
+            int rgb = Integer.parseInt(channel("quantum", name), 16);
+            float saturation = java.awt.Color.RGBtoHSB((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, null)[1];
+            assertTrue(saturation >= ICON_SATURATION, "quantum's " + name + " is washed out at " + saturation);
         }
-        int black = 0;
-        int white = 0;
-        int pixels = strip.getWidth() * strip.getHeight();
-        for (int y = 0; y < strip.getHeight(); y++) {
-            for (int x = 0; x < strip.getWidth(); x++) {
-                int rgb = strip.getRGB(x, y);
-                float value = java.awt.Color.RGBtoHSB((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, null)[2];
-                black += value <= BLACK_BODY ? 1 : 0;
-                white += value >= WHITE_BODY ? 1 : 0;
-            }
-        }
-        assertTrue(black >= pixels * BODY_SHARE, "only " + black + " of " + pixels + " pixels are black");
-        assertTrue(white >= pixels * BODY_SHARE, "only " + white + " of " + pixels + " pixels are white");
-        assertTrue(black + white >= pixels * BODIES_TOGETHER,
-                (pixels - black - white) + " of " + pixels + " pixels smear gray between the bodies");
     }
 
     private static List<String> paletteStops(String type) throws IOException {
