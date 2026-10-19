@@ -94,8 +94,7 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
     /**
      * Stamps the ailments the entity wears onto its render state, each with
      * its strength this frame, read by the layer when it draws; a charmed
-     * mob wears the hex glisten from its synced charm, and a mutated mob
-     * wears the writhe at full strength for as long as it stays mutated.
+     * mob wears the hex glisten from its synced charm.
      *
      * @param entity the entity
      * @param state  its render state
@@ -107,15 +106,7 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
                 .map(ailment -> new StampedAilment(ailment.kind(),
                         MobAilments.strength(ailment.ticksLeft() - partialTick)))
                 .toList();
-        List<StampedAilment> glistened = withCharmGlisten(worn, entity.hasData(GooAttachments.CHARMED));
-        // xeno-blob-mutates-the-struck: the writhe stands with the saved mutations, not on a timer
-        Stream<StampedAilment> mutated = isMutated(entity)
-                ? Stream.of(new StampedAilment(AilmentKind.MUTATED, FULL_STRENGTH)) : Stream.empty();
-        state.setRenderData(AILMENTS, Stream.concat(glistened.stream(), mutated).toList());
-    }
-
-    private static boolean isMutated(Entity entity) {
-        return entity.hasData(GooAttachments.MUTATIONS) && !entity.getData(GooAttachments.MUTATIONS).isEmpty();
+        state.setRenderData(AILMENTS, withCharmGlisten(worn, entity.hasData(GooAttachments.CHARMED)));
     }
 
     /**
@@ -133,7 +124,7 @@ public final class AilmentOverlayLayer<S extends LivingEntityRenderState, M exte
             return worn;
         }
         return Stream.concat(worn.stream().filter(ailment -> ailment.kind() != AilmentKind.HEX),
-                Stream.of(new StampedAilment(AilmentKind.HEX, 1f))).toList();
+                Stream.of(new StampedAilment(AilmentKind.HEX, FULL_STRENGTH))).toList();
     }
 
     /**
