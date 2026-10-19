@@ -11,8 +11,9 @@ import java.util.stream.IntStream;
 /**
  * Lays a type's accent palette over its frames in one of two shapes. Patches: a second cellular
  * automaton, seeded apart from the one shading the base, ranks each frame's cells, and the share
- * its coverage names takes the accent, so the patches drift with the animation. Twinkles: rare
- * single-cell stars, each fading in and out at one cell and relighting at another once dark.
+ * its coverage names takes the accent, so the patches drift with the animation. Twinkles: few
+ * sporadic stars, each flaring in place at its own strength, opening into a 4-point plus or
+ * stopping shy of it, and relighting at another cell once dark.
  */
 final class AccentLayer {
 
@@ -36,6 +37,18 @@ final class AccentLayer {
      * Brightness below which a star counts as dark and leaves its cell to the base palette.
      */
     private static final float LIT_FLOOR = 0.2f;
+    /**
+     * Brightness a flare must pass before its four arms open.
+     */
+    private static final float ARM_FLOOR = 0.6f;
+    /**
+     * The weakest peak a flare may draw, which stays shy of its arms.
+     */
+    private static final float MIN_STRENGTH = 0.35f;
+    /**
+     * Least reach between any two star cells, so no star's arms ever meet another star.
+     */
+    private static final int STAR_SPACING = 4;
 
     private AccentLayer() {
     }
@@ -75,15 +88,46 @@ final class AccentLayer {
         }
         for (int[] cells : slots) {
             int phase = random.nextInt(LIFETIME);
+            float[] strengths = new float[cells.length];
+            for (int life = 0; life < strengths.length; life++) {
+                strengths[life] = MIN_STRENGTH + (1f - MIN_STRENGTH) * random.nextFloat();
+            }
             for (int frame = 0; frame < FluidTextureGenerator.FRAMES; frame++) {
                 int step = frame + phase;
-                float brightness = (float) Math.sin(Math.PI * (step % LIFETIME) / LIFETIME);
-                if (brightness >= LIT_FLOOR) {
-                    bands[frame][cells[step / LIFETIME]] = brightness;
-                }
+                float brightness = strengths[step / LIFETIME] * (float) Math.sin(Math.PI * (step % LIFETIME) / LIFETIME);
+                lightStar(bands[frame], cells[step / LIFETIME], brightness);
             }
         }
         return bands;
+    }
+
+    /**
+     * Lights one star in a frame: its center at its brightness, and once the flare climbs past
+     * ARM_FLOOR, its four arms, dimmer than the center and brighter the stronger the flare, so a
+     * strong flare opens into a 4-point star, a middling one opens partway and a weak one peaks as
+     * a lone glint.
+     * deep-takes-sculk-and-echo-shard-colors
+     *
+     * @param frame      the frame's bands
+     * @param center     the star's center cell
+     * @param brightness the flare's brightness at this frame, 0 to 1
+     */
+    private static void lightStar(float[] frame, int center, float brightness) {
+        if (brightness < LIT_FLOOR) {
+            return;
+        }
+        frame[center] = brightness;
+        if (brightness < ARM_FLOOR) {
+            return;
+        }
+        float arm = brightness * (brightness - ARM_FLOOR) / (1f - ARM_FLOOR);
+        int size = FluidTextureGenerator.SIZE;
+        int x = center % size;
+        int y = center / size;
+        frame[y * size + Math.floorMod(x + 1, size)] = arm;
+        frame[y * size + Math.floorMod(x - 1, size)] = arm;
+        frame[Math.floorMod(y + 1, size) * size + x] = arm;
+        frame[Math.floorMod(y - 1, size) * size + x] = arm;
     }
 
     /**
@@ -100,7 +144,8 @@ final class AccentLayer {
         Collections.shuffle(candidates, random);
         List<Integer> taken = new ArrayList<>();
         for (int cell : candidates) {
-            if (taken.size() < wanted * LIFETIMES_PER_SLOT && taken.stream().noneMatch(used -> touching(used, cell))) {
+            if (taken.size() < wanted * LIFETIMES_PER_SLOT
+                    && taken.stream().noneMatch(used -> reach(used, cell) < STAR_SPACING)) {
                 taken.add(cell);
             }
         }
@@ -112,18 +157,18 @@ final class AccentLayer {
     }
 
     /**
-     * Whether two cells sit side by side or corner to corner on the frame, counting the wrap a
+     * How many steps, straight or diagonal, part two cells on the frame, counting the wrap a
      * tiling fluid makes at its edges.
      *
      * @param first  one cell's index
      * @param second the other cell's index
-     * @return true when the cells touch
+     * @return the larger of the wrapped column and row distances
      */
-    private static boolean touching(int first, int second) {
+    private static int reach(int first, int second) {
         int size = FluidTextureGenerator.SIZE;
         int dx = Math.abs(first % size - second % size);
         int dy = Math.abs(first / size - second / size);
-        return Math.min(dx, size - dx) <= 1 && Math.min(dy, size - dy) <= 1;
+        return Math.max(Math.min(dx, size - dx), Math.min(dy, size - dy));
     }
 
     /**

@@ -22,7 +22,7 @@
     ],
     "accent": {
       "shape": "TWINKLES",
-      "coverage": 0.02,
+      "coverage": 0.012,
       "palette": [
         { "position": 0.0, "color": "#C8B860" },
         { "position": 0.5, "color": "#F0E090" },
@@ -98,7 +98,7 @@
     ],
     "accent": {
       "shape": "TWINKLES",
-      "coverage": 0.04,
+      "coverage": 0.016,
       "palette": [
         { "position": 0.0, "color": "#0A5060" },
         { "position": 0.5, "color": "#009295" },
