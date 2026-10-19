@@ -581,26 +581,27 @@
   },
   {
     "id": "yore",
-    "seed": 41003,
+    "seed": 40975,
     "genParams": {
-      "viscosity": 2.2,
-      "decayRate": 0.02,
-      "ignitionChance": 0.004,
-      "ignitionStrength": 0.9,
-      "potHeatRate": 0.008,
-      "potInfluence": 0.85,
+      "viscosity": 2.5,
+      "decayRate": 0.015,
+      "ignitionChance": 0.003,
+      "ignitionStrength": 0.7,
+      "potHeatRate": 0.005,
+      "potInfluence": 0.9,
       "neighborhoodReach": 1
     },
-    "frametime": 4,
+    "frametime": 5,
     "shadowHue": -1,
     "palette": [
-      { "position": 0.0, "color": "#E0D0F8" },
-      { "position": 0.2, "color": "#F8C8E0" },
-      { "position": 0.4, "color": "#F4F0F8" },
-      { "position": 0.55, "color": "#C8F4DC" },
-      { "position": 0.75, "color": "#C8DCFA" },
-      { "position": 0.9, "color": "#ECD8FA" },
-      { "position": 1.0, "color": "#FFFFFF" }
+      { "position": 0.0, "color": "#E898B8" },
+      { "position": 0.15, "color": "#F0E0B0" },
+      { "position": 0.3, "color": "#88D0F0" },
+      { "position": 0.45, "color": "#F8E0D0" },
+      { "position": 0.6, "color": "#A0F0C0" },
+      { "position": 0.75, "color": "#D8B8F8" },
+      { "position": 0.9, "color": "#F8D898" },
+      { "position": 1.0, "color": "#F8F0E8" }
     ]
   },
   {
