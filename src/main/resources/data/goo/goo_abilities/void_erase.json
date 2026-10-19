@@ -1,6 +1,7 @@
 {
   "gooType": "void",
   "displayName": "goo.ability.void.erase",
+  "cost_mechanics": "goo.ability.void.erase.cost_mechanics",
   "badge": "mob",
   "order": 0,
   "cost": 2000,

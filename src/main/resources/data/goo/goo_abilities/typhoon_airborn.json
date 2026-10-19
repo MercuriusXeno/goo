@@ -1,6 +1,7 @@
 {
   "gooType": "typhoon",
   "displayName": "goo.ability.typhoon.airborn",
+  "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
   "badge": "brew",
   "order": 60,
   "upkeep": 1,

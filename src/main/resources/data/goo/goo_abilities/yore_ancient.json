@@ -1,6 +1,7 @@
 {
   "gooType": "yore",
   "displayName": "goo.ability.yore.ancient",
+  "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
   "badge": "brew",
   "order": 50,
   "upkeep": 2,

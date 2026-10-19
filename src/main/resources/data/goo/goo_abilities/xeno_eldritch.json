@@ -1,6 +1,7 @@
 {
   "gooType": "xeno",
   "displayName": "goo.ability.xeno.eldritch",
+  "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
   "badge": "brew",
   "order": 30,
   "upkeep": 1,
