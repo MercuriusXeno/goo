@@ -1,9 +1,9 @@
 {
   "gooType": "zoo",
   "displayName": "goo.ability.zoo.rally",
-  "badge": "self",
+  "badge": "brew",
   "order": 30,
-  "cost": 2000,
+  "upkeep": 1,
   "delivery": { "kind": "self" },
   "behaviors": [
     {

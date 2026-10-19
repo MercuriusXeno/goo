@@ -81,7 +81,7 @@ public final class RallyTests {
         Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
         caster.hurtServer(helper.getLevel(), zombie.damageSources().mobAttack(zombie), ZOMBIE_HIT);
 
-        SelfDeliveryTests.invoke(caster, GooTypes.ZOO, ZOO_RALLY);
+        HeartOverlayTests.invoke(caster, GooTypes.ZOO, ZOO_RALLY);
 
         helper.succeedWhen(() -> {
             helper.assertTrue(cow.hasData(GooAttachments.RALLIED), COW_NOT_RALLIED);
@@ -102,7 +102,7 @@ public final class RallyTests {
     public static void rallySurvivesAReload(GameTestHelper helper) {
         ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
         Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
-        SelfDeliveryTests.invoke(caster, GooTypes.ZOO, ZOO_RALLY);
+        HeartOverlayTests.invoke(caster, GooTypes.ZOO, ZOO_RALLY);
         Mob[] reloaded = new Mob[1];
         helper.succeedWhen(() -> {
             if (reloaded[0] == null) {

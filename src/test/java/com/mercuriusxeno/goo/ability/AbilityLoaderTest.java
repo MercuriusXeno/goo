@@ -445,18 +445,42 @@ class AbilityLoaderTest {
         }
 
         @Test
-        void shippedBlazeAndLeafEachCarryExactlyOneBrew() {
+        void shippedBlazeLeafAndZooEachCarryExactlyOneBrew() {
             Map<Identifier, AbilityDefinition> shipped = scanShipped(AbilityJson.files());
+            List<ResourceKey<GooTypeDefinition>> carriers = List.of(GooTypes.BLAZE, GooTypes.LEAF, GooTypes.ZOO);
 
             List<ResourceKey<GooTypeDefinition>> lacking = AbilityLoader.typesLackingABrew(shipped, GooTypes.BUNDLED);
 
-            assertFalse(lacking.contains(GooTypes.BLAZE) || lacking.contains(GooTypes.LEAF), lacking.toString());
-            for (ResourceKey<GooTypeDefinition> type : List.of(GooTypes.BLAZE, GooTypes.LEAF)) {
+            assertTrue(carriers.stream().noneMatch(lacking::contains), lacking.toString());
+            for (ResourceKey<GooTypeDefinition> type : carriers) {
                 long brews = shipped.values().stream()
                         .filter(def -> def.gooType() == type && SelfEatRoute.eats(def.delivery(), def.badge()))
                         .count();
                 assertEquals(1, brews, type.identifier().toString());
             }
+        }
+
+        /** decision zoo-rally-is-a-brew-ability */
+        @Test
+        void shippedZooBrewIsRally() {
+            List<Identifier> zooBrews = scanShipped(AbilityJson.files()).values().stream()
+                    .filter(def -> def.gooType() == GooTypes.ZOO && SelfEatRoute.eats(def.delivery(), def.badge()))
+                    .map(AbilityDefinition::id)
+                    .toList();
+
+            assertEquals(List.of(Identifier.fromNamespaceAndPath(Goo.MODID, "zoo_rally")), zooBrews);
+        }
+
+        /** decision zoo-rally-is-a-brew-ability */
+        @Test
+        void shippedZooRallyEatsAsABrewPayingUpkeep() {
+            AbilityDefinition rally = AbilityJson.decode("zoo_rally");
+
+            assertEquals(AbilityBadge.BREW, rally.badge());
+            assertEquals(DeliveryKind.SELF, rally.delivery().kind());
+            assertTrue(rally.upkeep() > 0, "upkeep " + rally.upkeep());
+            assertEquals(0, rally.cost());
+            assertTrue(SelfEatRoute.eats(rally.delivery(), rally.badge()));
         }
     }
 
