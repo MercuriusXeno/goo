@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.client.hud;
 
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
 import java.util.List;
 
 /**
@@ -12,6 +14,8 @@ public final class NineSlice {
     public static final float BORDER = 3f;
     /** The border as a fraction of the 24px texture. */
     public static final float BORDER_UV = 3f / 24f;
+    /** The background texture's side in pixels. */
+    private static final int TEXTURE_SIZE = 24;
 
     private NineSlice() {
     }
@@ -44,6 +48,26 @@ public final class NineSlice {
                 new Slice(x0, y1, x1, y2, 0f, b, b, e),
                 new Slice(x2, y1, x3, y2, e, b, 1f, e),
                 new Slice(x1, y1, x2, y2, b, b, e, e));
+    }
+
+    /**
+     * Draws a GUI panel's background over a rectangle, the effect background
+     * cut into its nine slices.
+     *
+     * @param graphics the GUI graphics extractor
+     * @param rect     the panel rectangle
+     */
+    public static void blit(GuiGraphicsExtractor graphics, PanelRectangle rect) {
+        for (Slice slice : of(rect)) {
+            int x = Math.round(slice.x0());
+            int y = Math.round(slice.y0());
+            graphics.blit(RenderPipelines.GUI_TEXTURED, InWorldHud.BG_TEXTURE, x, y,
+                    slice.u0() * TEXTURE_SIZE, slice.v0() * TEXTURE_SIZE,
+                    Math.round(slice.x1()) - x, Math.round(slice.y1()) - y,
+                    Math.round((slice.u1() - slice.u0()) * TEXTURE_SIZE),
+                    Math.round((slice.v1() - slice.v0()) * TEXTURE_SIZE),
+                    TEXTURE_SIZE, TEXTURE_SIZE);
+        }
     }
 
     /**
