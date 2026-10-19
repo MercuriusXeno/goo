@@ -20,5 +20,6 @@
     "fluid_still": "goo:fluid/infinity_fluid",
     "fluid_flowing": "goo:fluid/infinity_fluid"
   },
-  "vessel_source_per_mb": 1
+  "vessel_source_per_mb": 1,
+  "hue_cycle_ticks": 200
 }

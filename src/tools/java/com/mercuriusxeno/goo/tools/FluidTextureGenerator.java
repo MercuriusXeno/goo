@@ -276,7 +276,7 @@ public final class FluidTextureGenerator {
      */
     private static void writeFluidStrip(GooFluidType type, float[][] heatFrames,
                                         float... heatRange) throws IOException {
-        BufferedImage strip = renderFluidStrip(heatFrames, heatRange, type.palette());
+        BufferedImage strip = renderFluidStrip(heatFrames, heatRange, type, AccentLayer.capture(type));
         ImageIO.write(strip, FORMAT_PNG, FLUID_DIR.resolve(type.id() + SUFFIX_FLUID_PNG).toFile());
         TextureMcmetaWriter.writeFluidMcmeta(type.frametime(), FLUID_DIR, type.id() + SUFFIX_FLUID_MCMETA);
         System.out.printf(FMT_HEAT_RANGE, type.id(), heatRange[0], heatRange[0] + heatRange[1], heatRange[1]);
@@ -287,13 +287,15 @@ public final class FluidTextureGenerator {
      *
      * @param heatFrames the raw heat values per frame
      * @param heatRange  min and range values for normalization
-     * @param palette    the color palette to sample
+     * @param type       the goo fluid type whose palettes the strip samples
+     * @param bands      per frame, each cell's accent band position from AccentLayer
      * @return the rendered sprite strip image
      */
-    private static BufferedImage renderFluidStrip(float[][] heatFrames, float[] heatRange, Palette palette) {
+    private static BufferedImage renderFluidStrip(float[][] heatFrames, float[] heatRange, GooFluidType type,
+                                                  float[]... bands) {
         BufferedImage strip = new BufferedImage(SIZE, SIZE * FRAMES, BufferedImage.TYPE_INT_ARGB);
         for (int frame = 0; frame < FRAMES; frame++) {
-            renderFluidFrame(strip, heatFrames[frame], frame, heatRange[0], heatRange[1], palette);
+            renderFluidFrame(strip, heatFrames[frame], frame, heatRange[0], heatRange[1], type, bands[frame]);
         }
         return strip;
     }
@@ -306,14 +308,16 @@ public final class FluidTextureGenerator {
      * @param frame   the frame index
      * @param minHeat the minimum heat for normalization
      * @param range   the heat range for normalization
-     * @param palette the color palette to sample
+     * @param type    the goo fluid type whose palettes the frame samples
+     * @param band    each cell's accent band position for this frame
      */
-    private static void renderFluidFrame(BufferedImage strip, float[] heat, int frame,
-                                         float minHeat, float range, Palette palette) {
+    static void renderFluidFrame(BufferedImage strip, float[] heat, int frame,
+                                 float minHeat, float range, GooFluidType type, float... band) {
         for (int y = 0; y < SIZE; y++) {
             for (int x = 0; x < SIZE; x++) {
-                float normalized = normalizeHeat(heat[y * SIZE + x], minHeat, range);
-                strip.setRGB(x, frame * SIZE + y, palette.sample(normalized));
+                int cell = y * SIZE + x;
+                float normalized = normalizeHeat(heat[cell], minHeat, range);
+                strip.setRGB(x, frame * SIZE + y, AccentLayer.sampleColor(type, normalized, band[cell]));
             }
         }
     }
@@ -750,7 +754,50 @@ public final class FluidTextureGenerator {
      * Complete definition of a goo fluid type, including CA params, palette, and rendering hints.
      */
     record GooFluidType(String id, long seed, GooFluidGenParams genParams, int frametime, float shadowHue,
-                        Palette palette) {
+                        Palette palette, Accent accent) {
+    }
+
+    /**
+     * A second palette laid in patches over the share of each frame's cells that coverage names.
+     * astral-is-dark-blue-with-starlight-spots
+     * shroom-keeps-purple-with-wart-and-red-shroom-patches
+     *
+     * @param palette  the accent gradient, sampled from a patch's rim, or a speck's dimmest twinkle (0),
+     *                 to its heart or brightest twinkle (1)
+     * @param coverage the share of each frame's cells the accent covers, 0 for none
+     * @param shape    whether the accent falls in drifting patches or in still single-cell specks
+     */
+    record Accent(Palette palette, float coverage, AccentShape shape) {
+        /**
+         * The accent of a type that names none: it covers no cell.
+         */
+        static final Accent NONE = new Accent(Palette.of(0f, "#00000000"), 0f, AccentShape.PATCHES);
+    }
+
+    /**
+     * How an accent lays its cells.
+     */
+    enum AccentShape {
+        /**
+         * Clumps ranked from a moving field, drifting with the animation.
+         */
+        PATCHES,
+        /**
+         * Rare single cells that each fade in, shine and fade out at one cell, then relight at
+         * another once dark, so nothing slides between frames for interpolation to smear.
+         * astral-is-dark-blue-with-starlight-spots
+         * deep-takes-sculk-and-echo-shard-colors
+         */
+        TWINKLES
+    }
+
+    /**
+     * JSON-shaped accent: a coverage share, its palette stops, and its shape, patches when absent.
+     */
+    private record AccentJson(float coverage, List<PaletteStop> palette, AccentShape shape) {
+        Accent toAccent() {
+            return new Accent(Palette.fromStops(palette), coverage, shape == null ? AccentShape.PATCHES : shape);
+        }
     }
 
     /**
@@ -762,7 +809,8 @@ public final class FluidTextureGenerator {
             GooFluidGenParams genParams,
             int frametime,
             float shadowHue,
-            List<PaletteStop> palette
+            List<PaletteStop> palette,
+            AccentJson accent
     ) {
         /**
          * Converts the deserialized JSON form into a full GooFluidType with a built Palette.
@@ -770,7 +818,8 @@ public final class FluidTextureGenerator {
          * @return the complete fluid type definition
          */
         GooFluidType toFluidType() {
-            return new GooFluidType(id, seed, genParams, frametime, shadowHue, Palette.fromStops(palette));
+            Accent built = accent == null ? Accent.NONE : accent.toAccent();
+            return new GooFluidType(id, seed, genParams, frametime, shadowHue, Palette.fromStops(palette), built);
         }
     }
 }
