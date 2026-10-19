@@ -408,6 +408,32 @@ class AbilityLoaderTest {
     }
 
     /**
+     * An ability's description translation key: the one its JSON names, or its
+     * displayName key plus ".description" when it names none.
+     * decision ability-json-carries-a-description
+     */
+    @Nested
+    class Description {
+
+        private static final String SPIRE = "rock_spire";
+
+        @Test
+        void jsonNamingADescriptionReadsThatKey() {
+            String json = AbilityJson.read(SPIRE).replaceFirst("\\{",
+                    "{ \"description\": \"goo.ability.rock.spire.lifted\",");
+
+            assertEquals("goo.ability.rock.spire.lifted", AbilityJson.decodeText(SPIRE, json).description());
+        }
+
+        @Test
+        void jsonNamingNoDescriptionReadsItsDisplayNamePlusDescription() {
+            assertFalse(AbilityJson.read(SPIRE).contains("\"description\""), "spire names a description");
+
+            assertEquals("goo.ability.rock.spire.description", AbilityJson.decode(SPIRE).description());
+        }
+    }
+
+    /**
      * Each goo type carries at most one self + brew ability: a second fails
      * the load naming both, and a type carrying none is answered for the load's
      * warning (decision every-type-ships-one-brew-ability).

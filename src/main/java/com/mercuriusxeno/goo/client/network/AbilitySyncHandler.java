@@ -104,16 +104,48 @@ public final class AbilitySyncHandler {
      *                    (decision on-prism-reaction-wears-the-prism-badge)
      * @param pose        the arm pose the glove arm takes in place of the swing
      *                    (decision ability-json-names-its-arm-pose)
+     * @param description the translation key for what the ability does, which the radial's panel shows
+     *                    (decision ability-json-carries-a-description)
      */
     public record ClientAbility(Identifier id, String displayName, String icon,
                                 int order, List<String> tags,
                                 List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
                                 List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
                                 List<Identifier> consumes, int upkeep, DistancePrice distancePrice,
-                                List<Step> onPrism, ArmPose pose) {
+                                List<Step> onPrism, ArmPose pose, String description) {
 
         private static final int TICKS_PER_SECOND = 20;
         private static final String PER_SECOND = "/s";
+
+        /**
+         * A client ability naming no description, which reads its displayName key plus ".description".
+         *
+         * @param id            the ability resource identifier
+         * @param displayName   the translation key
+         * @param icon          the icon texture path override
+         * @param order         the sort order
+         * @param tags          categorical tags
+         * @param behaviors     the ability's step program
+         * @param cost          the mB a throw costs
+         * @param delivery      how the ability leaves the glove
+         * @param badge         the target kind the radial marks on the icon
+         * @param requires      the items the player must know before its radial petal unlocks
+         * @param area          the area the glove draws while right click is held
+         * @param indicator     when the ability's indicator shows
+         * @param consumes      the items a throw takes, one of each
+         * @param upkeep        the mB a held self + brew effect pays each tick it stands
+         * @param distancePrice what a blink adds to the cost for its trip
+         * @param onPrism       the steps a landing on a prism runs, empty for none
+         * @param pose          the arm pose the glove arm takes in place of the swing
+         */
+        public ClientAbility(Identifier id, String displayName, String icon, int order, List<String> tags,
+                             List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
+                             List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
+                             List<Identifier> consumes, int upkeep, DistancePrice distancePrice,
+                             List<Step> onPrism, ArmPose pose) {
+            this(id, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires, area, indicator,
+                    consumes, upkeep, distancePrice, onPrism, pose, AbilityDefinition.defaultDescription(displayName));
+        }
 
         /**
          * A client ability naming no arm pose, which takes its delivery kind's default.
@@ -298,7 +330,7 @@ public final class AbilitySyncHandler {
                     entry.order(), entry.tags(), entry.behaviors(),
                     entry.cost(), entry.delivery(), entry.badge(), entry.requires(), entry.area(),
                     entry.indicator(), entry.consumes(), entry.upkeep(), entry.distancePrice(), entry.onPrism(),
-                    entry.pose());
+                    entry.pose(), entry.description());
         }
 
         /**
