@@ -1013,6 +1013,24 @@ class RadialWheelRendererTest {
                     -> assertIconAt(openGraphics, petal, petal.shape().tipCenter(), half)));
         }
 
+        /**
+         * With a type open, each type icon's drawn square centers on its tip's
+         * center to within half a pixel either way, so an odd-sized icon
+         * leans neither right nor down.
+         */
+        @Test
+        void openTypeIconCentersOnItsTipToHalfAPixel() {
+            GuiGraphicsExtractor openGraphics = renderFrame(openWheel());
+            assertAll(typePetalsOf(openWheel()).stream().map(petal -> (Executable) () -> {
+                PetalMask.Point tip = petal.shape().tipCenter();
+                var blit = iconBlit(openGraphics, "type_" + petal.type() + ".png");
+                double dx = (int) blit.getArgument(2) + TYPE_ICON_SIZE / 2.0 - (CENTER_X + tip.x() * RADIUS);
+                double dy = (int) blit.getArgument(3) + TYPE_ICON_SIZE / 2.0 - (CENTER_Y + tip.y() * RADIUS);
+                assertTrue(Math.abs(dx) <= 0.5 && Math.abs(dy) <= 0.5,
+                        petal.type() + " icon center is off its tip by " + dx + ", " + dy);
+            }));
+        }
+
         /** Asserts a type petal's icon blitted centered on a point of the wheel. */
         private static void assertIconAt(GuiGraphicsExtractor graphics, RadialWheel.PetalArc petal,
                                          PetalMask.Point expected, int half) {
