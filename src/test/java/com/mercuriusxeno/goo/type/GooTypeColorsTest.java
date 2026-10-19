@@ -16,17 +16,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Tests that the recolored goo types' UI channels, read from their type JSON
  * through the classpath, read apart from the types they sat on, that xeno
- * wears quantum's former purples, and that yore's sprite palette runs pale
- * across several hues.
+ * wears quantum's former purples, and that yore's fluid is aeon's oil slick.
  */
 class GooTypeColorsTest {
 
     private static final String TYPE_JSON_FORMAT = "/data/goo/goo/goo_type/%s.json";
     private static final String FLUID_TYPES_JSON = "/data/goo/goo_fluid_types.json";
     private static final List<String> CHANNELS = List.of("wheel", "bright", "highlight", "edge");
-    private static final float PALE_LIGHTNESS = 0.8f;
-    private static final float TINTED_SATURATION = 0.06f;
-    private static final int HUE_BUCKET_DEGREES = 30;
+    private static final long AEON_SEED = 40_975L;
+    private static final int AEON_FRAMETIME = 5;
+    private static final float AEON_VISCOSITY = 2.5f;
     private static final String ICON_BLUE = "3AA0E0";
     private static final String ICON_ORANGE = "E8603C";
     private static final float ICON_HUE_TOLERANCE = 15f;
@@ -57,22 +56,15 @@ class GooTypeColorsTest {
     }
 
     @Test
-    void yorePaletteStopsArePaleAcrossThreeHues() throws IOException {
-        // yore-gets-opalescent-iridescence-back
-        java.util.Set<Integer> hueBuckets = new java.util.TreeSet<>();
-        for (String hex : paletteStops("yore")) {
-            int rgb = Integer.parseInt(hex, 16);
-            int red = (rgb >> 16) & 0xFF;
-            int green = (rgb >> 8) & 0xFF;
-            int blue = rgb & 0xFF;
-            float lightness = (Math.max(red, Math.max(green, blue)) + Math.min(red, Math.min(green, blue))) / 510f;
-            assertTrue(lightness >= PALE_LIGHTNESS, "yore's stop " + hex + " sits at lightness " + lightness);
-            float[] hsb = java.awt.Color.RGBtoHSB(red, green, blue, null);
-            if (hsb[1] >= TINTED_SATURATION) {
-                hueBuckets.add(Math.round(hsb[0] * 360f / HUE_BUCKET_DEGREES) % (360 / HUE_BUCKET_DEGREES));
-            }
-        }
-        assertTrue(hueBuckets.size() >= 3, "yore's stops tint only " + hueBuckets.size() + " hues");
+    void yoreWearsAeonsOilSlickFluid() throws IOException {
+        // yore-gets-opalescent-iridescence-back: aeon's fluid config as it stood before 8b83cec5
+        JsonObject yore = fluidEntry("yore");
+        assertEquals(List.of("E898B8", "F0E0B0", "88D0F0", "F8E0D0", "A0F0C0", "D8B8F8", "F8D898", "F8F0E8"),
+                paletteStops("yore"));
+        assertEquals(AEON_SEED, yore.get("seed").getAsLong(), "yore's seed");
+        assertEquals(AEON_FRAMETIME, yore.get("frametime").getAsInt(), "yore's frametime");
+        assertEquals(AEON_VISCOSITY, yore.getAsJsonObject("genParams").get("viscosity").getAsFloat(),
+                "yore's viscosity");
     }
 
     @Test
@@ -90,16 +82,20 @@ class GooTypeColorsTest {
     }
 
     private static List<String> paletteStops(String type) throws IOException {
+        List<String> stops = new java.util.ArrayList<>();
+        fluidEntry(type).getAsJsonArray("palette").forEach(stop ->
+                stops.add(stop.getAsJsonObject().get("color").getAsString().substring(1)));
+        return stops;
+    }
+
+    private static JsonObject fluidEntry(String type) throws IOException {
         try (InputStream in = GooTypeColorsTest.class.getResourceAsStream(FLUID_TYPES_JSON)) {
             assertNotNull(in, "missing on the classpath: " + FLUID_TYPES_JSON);
             try (Reader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
                 for (var entry : JsonParser.parseReader(reader).getAsJsonArray()) {
                     JsonObject fluid = entry.getAsJsonObject();
                     if (type.equals(fluid.get("id").getAsString())) {
-                        List<String> stops = new java.util.ArrayList<>();
-                        fluid.getAsJsonArray("palette").forEach(stop ->
-                                stops.add(stop.getAsJsonObject().get("color").getAsString().substring(1)));
-                        return stops;
+                        return fluid;
                     }
                 }
             }
