@@ -43,6 +43,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -430,6 +431,60 @@ class AbilityLoaderTest {
             assertFalse(AbilityJson.read(SPIRE).contains("\"description\""), "spire names a description");
 
             assertEquals("goo.ability.rock.spire.description", AbilityJson.decode(SPIRE).description());
+        }
+    }
+
+    /**
+     * An ability costing nothing up front names a cost_mechanics key explaining how it
+     * charges; one with a plain cost may leave it out.
+     * decision zero-cost-field-formats-the-cost-mechanics
+     */
+    @Nested
+    class CostMechanics {
+
+        private static final String SPIRE = "rock_spire";
+        private static final String NAMED_KEY = "\"cost_mechanics\": \"goo.ability.rock.spire.cost_mechanics\",";
+
+        private static String spireNamingNoCostMechanics() {
+            return AbilityJson.read(SPIRE).replaceAll("\\s*\"cost_mechanics\"\\s*:\\s*\"[^\"]*\",?", "");
+        }
+
+        @Test
+        void zeroCostAbilityNamingNoCostMechanicsFailsNamingTheField() {
+            String json = spireNamingNoCostMechanics();
+
+            IllegalStateException refusal = assertThrows(IllegalStateException.class,
+                    () -> AbilityJson.decodeText(SPIRE, json));
+
+            assertTrue(refusal.getMessage().contains("cost_mechanics"), refusal.getMessage());
+        }
+
+        @Test
+        void absentCostNamingNoCostMechanicsFailsNamingTheField() {
+            String json = spireNamingNoCostMechanics().replaceAll("\"cost\"\\s*:\\s*0,", "");
+
+            IllegalStateException refusal = assertThrows(IllegalStateException.class,
+                    () -> AbilityJson.decodeText(SPIRE, json));
+
+            assertTrue(refusal.getMessage().contains("cost_mechanics"), refusal.getMessage());
+        }
+
+        @Test
+        void zeroCostAbilityNamingCostMechanicsLoadsWithThatKey() {
+            String json = spireNamingNoCostMechanics().replaceFirst("\\{", "{ " + NAMED_KEY);
+
+            assertEquals(Optional.of("goo.ability.rock.spire.cost_mechanics"),
+                    AbilityJson.decodeText(SPIRE, json).costMechanics());
+        }
+
+        @Test
+        void plainCostAbilityLoadsNamingNoCostMechanics() {
+            assertFalse(AbilityJson.read(BLAST).contains("cost_mechanics"), "Blast names cost_mechanics");
+
+            AbilityDefinition blast = AbilityJson.decode(BLAST);
+
+            assertTrue(blast.cost() > 0, "Blast's cost " + blast.cost());
+            assertEquals(Optional.empty(), blast.costMechanics());
         }
     }
 

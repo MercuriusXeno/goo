@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
+import com.mercuriusxeno.goo.ability.program.SpireStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.client.throwing.BlinkAim;
 import com.mercuriusxeno.goo.data.KnownItems;
@@ -19,7 +20,9 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
+import java.util.IllegalFormatException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -106,16 +109,51 @@ public final class AbilitySyncHandler {
      *                    (decision ability-json-names-its-arm-pose)
      * @param description the translation key for what the ability does, which the radial's panel shows
      *                    (decision ability-json-carries-a-description)
+     * @param costMechanics the format key explaining how a zero-cost ability charges, empty for none
+     *                    (decision zero-cost-field-formats-the-cost-mechanics)
      */
     public record ClientAbility(Identifier id, String displayName, String icon,
                                 int order, List<String> tags,
                                 List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
                                 List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
                                 List<Identifier> consumes, int upkeep, DistancePrice distancePrice,
-                                List<Step> onPrism, ArmPose pose, String description) {
+                                List<Step> onPrism, ArmPose pose, String description,
+                                Optional<String> costMechanics) {
 
         private static final int TICKS_PER_SECOND = 20;
         private static final String PER_SECOND = "/s";
+        private static final Identifier SPIRE_BLOCK = Identifier.withDefaultNamespace("stone");
+
+        /**
+         * A client ability naming no cost mechanics.
+         *
+         * @param id            the ability resource identifier
+         * @param displayName   the translation key
+         * @param icon          the icon texture path override
+         * @param order         the sort order
+         * @param tags          categorical tags
+         * @param behaviors     the ability's step program
+         * @param cost          the mB a throw costs
+         * @param delivery      how the ability leaves the glove
+         * @param badge         the target kind the radial marks on the icon
+         * @param requires      the items the player must know before its radial petal unlocks
+         * @param area          the area the glove draws while right click is held
+         * @param indicator     when the ability's indicator shows
+         * @param consumes      the items a throw takes, one of each
+         * @param upkeep        the mB a held self + brew effect pays each tick it stands
+         * @param distancePrice what a blink adds to the cost for its trip
+         * @param onPrism       the steps a landing on a prism runs, empty for none
+         * @param pose          the arm pose the glove arm takes in place of the swing
+         * @param description   the translation key for what the ability does
+         */
+        public ClientAbility(Identifier id, String displayName, String icon, int order, List<String> tags,
+                             List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
+                             List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
+                             List<Identifier> consumes, int upkeep, DistancePrice distancePrice,
+                             List<Step> onPrism, ArmPose pose, String description) {
+            this(id, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires, area, indicator,
+                    consumes, upkeep, distancePrice, onPrism, pose, description, Optional.empty());
+        }
 
         /**
          * A client ability naming no description, which reads its displayName key plus ".description".
@@ -330,7 +368,7 @@ public final class AbilitySyncHandler {
                     entry.order(), entry.tags(), entry.behaviors(),
                     entry.cost(), entry.delivery(), entry.badge(), entry.requires(), entry.area(),
                     entry.indicator(), entry.consumes(), entry.upkeep(), entry.distancePrice(), entry.onPrism(),
-                    entry.pose(), entry.description());
+                    entry.pose(), entry.description(), entry.costMechanics());
         }
 
         /**
@@ -404,6 +442,52 @@ public final class AbilitySyncHandler {
 
         private int upkeepPerSecond() {
             return upkeep * TICKS_PER_SECOND;
+        }
+
+        /**
+         * How the ability charges, its cost-mechanics format string filled from its own
+         * numbers, so the text stays true when a number changes; a format the lookup
+         * cannot fill reads as written.
+         * zero-cost-field-formats-the-cost-mechanics
+         *
+         * @param lookup the lang, item names and goo values the text fills from
+         * @return the text, or empty for an ability naming no cost mechanics
+         */
+        public Optional<String> costMechanics(CostMechanicsLookup lookup) {
+            return costMechanics.map(lookup::translate)
+                    .map(format -> fillCostMechanics(format, costMechanicsArguments(lookup)));
+        }
+
+        private static String fillCostMechanics(String format, List<String> arguments) {
+            try {
+                return String.format(Locale.ROOT, format, arguments.toArray());
+            } catch (IllegalFormatException unfillable) {
+                return format;
+            }
+        }
+
+        /**
+         * The numbers a cost-mechanics format fills from, in the order its kind reads them:
+         * a brew its upkeep a second; a blink its per-block price, its wall price and its
+         * oculus percent; a Spire stone's goo value per block; any other the names of the
+         * items it consumes.
+         *
+         * @param lookup the item names and goo values the numbers read from
+         * @return the arguments, formatted
+         */
+        private List<String> costMechanicsArguments(CostMechanicsLookup lookup) {
+            if (upkeep > 0) {
+                return List.of(GooFormat.formatAmount(upkeepPerSecond()));
+            }
+            if (distancePrice.perBlock() > 0 || distancePrice.wallCost() > 0) {
+                return List.of(GooFormat.formatAmount(distancePrice.perBlock()),
+                        GooFormat.formatAmount(distancePrice.wallCost()),
+                        Integer.toString(distancePrice.nodePercent()));
+            }
+            if (SpireStep.liftsOf(behaviors).isPresent()) {
+                return List.of(GooFormat.formatAmount(lookup.valueOf(SPIRE_BLOCK)));
+            }
+            return consumes.stream().map(lookup::itemName).toList();
         }
         /**
          * Returns true if this ability has the given tag.
