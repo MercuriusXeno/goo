@@ -515,6 +515,11 @@ public record AbilityDefinition(
     private record Heading(ResourceKey<GooTypeDefinition> gooType, String displayName, String icon, int order,
                            Optional<String> description) {
 
+        static Heading of(AbilityDefinition def) {
+            return new Heading(def.gooType(), def.displayName(), def.icon(), def.order(),
+                    Optional.of(def.description()));
+        }
+
         String descriptionKey() {
             return description.orElseGet(() -> defaultDescription(displayName));
         }
@@ -539,8 +544,7 @@ public record AbilityDefinition(
      */
     public static Codec<AbilityDefinition> codecFor(Identifier id) {
         return RecordCodecBuilder.create(inst -> inst.group(
-                HEADING_CODEC.forGetter(def -> new Heading(def.gooType(), def.displayName(), def.icon(), def.order(),
-                        Optional.of(def.description()))),
+                HEADING_CODEC.forGetter(Heading::of),
                 // self-effects-trickle-until-ended, blink-lands-safely-costed-by-distance
                 PRICE_CODEC.forGetter(def -> new Price(def.cost(), def.distancePrice(), def.costMechanics())),
                 Delivery.CODEC.fieldOf(FIELD_DELIVERY).forGetter(AbilityDefinition::delivery),
