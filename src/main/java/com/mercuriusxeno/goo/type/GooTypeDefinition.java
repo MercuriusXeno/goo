@@ -33,11 +33,12 @@ import java.util.Locale;
  * @param vesselSourcePerMb mB of another held type a vessel gains each tick
  *                       per mB of this type it holds, 0 for a type that
  *                       sources nothing (decision infinity-sources-whatever-shares-its-vessel)
+ * @param hueCycle       how the color channels drift around the hue wheel, {@link HueCycle#NONE} for a still type
  */
 public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, int bright, int highlight, int edge,
                                 int density, int viscosity, int temperature, boolean extinguishes, MapColor mapColor,
                                 float levity, int baseFlightTime, GooTypeTextures textures,
-                                int vesselSourcePerMb) {
+                                int vesselSourcePerMb, HueCycle hueCycle) {
 
     /**
      * JSON key of {@link #peakLight}.
@@ -128,7 +129,8 @@ public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, 
      * follow the colors; decision levity-and-base-in-goo-type-json: the
      * flight fields follow the fluid; decision type-named-textures: the textures object
      * follows and may be left out; decision infinity-sources-whatever-shares-its-vessel:
-     * the vessel source rate closes the body and may be left out.
+     * the vessel source rate follows and may be left out; decision infinity-is-rainbow-goo: the hue
+     * cycle's flat fields close the body and may be left out.
      */
     public static final Codec<GooTypeDefinition> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.intRange(0, MAX_LIGHT).fieldOf(LIGHT_LEVEL).forGetter(GooTypeDefinition::peakLight),
@@ -146,7 +148,8 @@ public record GooTypeDefinition(int peakLight, float saturationFill, int wheel, 
             Codec.intRange(0, Integer.MAX_VALUE).fieldOf(BASE_FLIGHT_TIME).forGetter(GooTypeDefinition::baseFlightTime),
             GooTypeTextures.CODEC.optionalFieldOf(TEXTURES, GooTypeTextures.NONE).forGetter(GooTypeDefinition::textures),
             Codec.intRange(0, Integer.MAX_VALUE).optionalFieldOf(VESSEL_SOURCE_PER_MB, NO_VESSEL_SOURCE)
-                    .forGetter(GooTypeDefinition::vesselSourcePerMb)
+                    .forGetter(GooTypeDefinition::vesselSourcePerMb),
+            HueCycle.MAP_CODEC.forGetter(GooTypeDefinition::hueCycle)
     ).apply(instance, GooTypeDefinition::new));
 
     /**
