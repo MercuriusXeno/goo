@@ -227,6 +227,12 @@ class RadialWheelRendererTest {
             }));
         }
 
+        /** quantum-anchors-link-two-points: the ability once called Anchor reads Portal; its key stays. */
+        @Test
+        void quantumAnchorReadsPortal() throws IOException {
+            assertEquals("Portal", englishLang().get("goo.ability.quantum.anchor").getAsString());
+        }
+
         @Test
         void twoWordNameSplitsIntoALinePerWord() {
             assertEquals(List.of("Frost", "Disc"), RadialWheelRenderer.splitNameLines("Frost Disc").stream()
