@@ -64,6 +64,8 @@ import java.util.stream.Stream;
  *                    (decision blink-lands-safely-costed-by-distance)
  * @param pose        the arm pose the glove arm takes in place of the swing, the delivery kind's default
  *                    for an ability naming none (decision ability-json-names-its-arm-pose)
+ * @param description the translation key for what the ability does, its displayName key plus
+ *                    ".description" for an ability naming none (decision ability-json-carries-a-description)
  */
 public record AbilityDefinition(
         Identifier id,
@@ -85,7 +87,8 @@ public record AbilityDefinition(
         int upkeep,
         Optional<SoundCue> downSound,
         DistancePrice distancePrice,
-        ArmPose pose
+        ArmPose pose,
+        String description
 ) {
 
     /**
@@ -96,6 +99,42 @@ public record AbilityDefinition(
      */
     public AbilityDefinition {
         area = heldArea(area, delivery, badge, behaviors);
+    }
+
+    /**
+     * An ability naming no description, which reads its displayName key plus ".description"
+     * (decision ability-json-carries-a-description).
+     *
+     * @param id            the datapack resource identifier
+     * @param gooType       the goo type this ability belongs to
+     * @param displayName   the translation key for the ability name
+     * @param icon          the texture path for the radial menu icon
+     * @param order         sort order within the type's ability list
+     * @param cost          the mB a throw costs
+     * @param delivery      how the ability leaves the glove
+     * @param behaviors     the step trees the ability runs
+     * @param tags          categorical tags
+     * @param badge         the target kind the radial marks on the icon
+     * @param requires      the items a player must know before the ability is theirs
+     * @param area          the area the glove draws while right click is held
+     * @param indicator     when the ability's indicator shows
+     * @param consumes      the items a throw takes, one of each
+     * @param onPrism       the steps a landing on a prism runs, empty for none
+     * @param onBlocks      the steps a stream or a spore burst runs on each floor it reaches
+     * @param upkeep        the mB a held self + brew effect pays each tick it stands
+     * @param downSound     the cue a held effect plays when it ends, empty for the shared cue
+     * @param distancePrice what a blink adds to the cost for the trip it makes
+     * @param pose          the arm pose the glove arm takes in place of the swing
+     */
+    public AbilityDefinition(Identifier id, ResourceKey<GooTypeDefinition> gooType, String displayName, String icon,
+                             int order, int cost, Delivery delivery, List<Step> behaviors, List<String> tags,
+                             AbilityBadge badge, List<Identifier> requires, AbilityArea area,
+                             IndicatorShowing indicator, List<Identifier> consumes, List<Step> onPrism,
+                             List<Step> onBlocks, int upkeep, Optional<SoundCue> downSound,
+                             DistancePrice distancePrice, ArmPose pose) {
+        this(id, gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires, area,
+                indicator, consumes, onPrism, onBlocks, upkeep, downSound, distancePrice, pose,
+                defaultDescription(displayName));
     }
 
     /**
@@ -319,6 +358,8 @@ public record AbilityDefinition(
 
     private static final String FIELD_GOO_TYPE = "gooType";
     private static final String FIELD_DISPLAY_NAME = "displayName";
+    private static final String FIELD_DESCRIPTION = "description";
+    private static final String DESCRIPTION_SUFFIX = ".description";
     private static final String FIELD_ICON = "icon";
     private static final String NO_ICON = "";
     private static final String FIELD_ORDER = "order";
@@ -419,15 +460,23 @@ public record AbilityDefinition(
      * @param displayName the translation key for its name
      * @param icon        the texture path for its radial icon, empty for the convention path
      * @param order       its sort order within the type's list
+     * @param description the translation key for what it does, empty for the displayName default
      */
-    private record Heading(ResourceKey<GooTypeDefinition> gooType, String displayName, String icon, int order) {
+    private record Heading(ResourceKey<GooTypeDefinition> gooType, String displayName, String icon, int order,
+                           Optional<String> description) {
+
+        String descriptionKey() {
+            return description.orElseGet(() -> defaultDescription(displayName));
+        }
     }
 
     private static final MapCodec<Heading> HEADING_CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
             GooTypes.ID_CODEC.fieldOf(FIELD_GOO_TYPE).forGetter(Heading::gooType),
             Codec.STRING.fieldOf(FIELD_DISPLAY_NAME).forGetter(Heading::displayName),
             Codec.STRING.optionalFieldOf(FIELD_ICON, NO_ICON).forGetter(Heading::icon),
-            Codec.INT.optionalFieldOf(FIELD_ORDER, 0).forGetter(Heading::order)
+            Codec.INT.optionalFieldOf(FIELD_ORDER, 0).forGetter(Heading::order),
+            // ability-json-carries-a-description
+            Codec.STRING.optionalFieldOf(FIELD_DESCRIPTION).forGetter(Heading::description)
     ).apply(inst, Heading::new));
 
     /**
@@ -440,7 +489,8 @@ public record AbilityDefinition(
      */
     public static Codec<AbilityDefinition> codecFor(Identifier id) {
         return RecordCodecBuilder.create(inst -> inst.group(
-                HEADING_CODEC.forGetter(def -> new Heading(def.gooType(), def.displayName(), def.icon(), def.order())),
+                HEADING_CODEC.forGetter(def -> new Heading(def.gooType(), def.displayName(), def.icon(), def.order(),
+                        Optional.of(def.description()))),
                 // self-effects-trickle-until-ended, blink-lands-safely-costed-by-distance
                 PRICE_CODEC.forGetter(def -> new Price(def.cost(), def.distancePrice())),
                 Delivery.CODEC.fieldOf(FIELD_DELIVERY).forGetter(AbilityDefinition::delivery),
@@ -469,7 +519,19 @@ public record AbilityDefinition(
                        held, pose) -> new AbilityDefinition(id, heading.gooType(), heading.displayName(),
                         heading.icon(), heading.order(), price.cost(), delivery, steps, tags, badge, requires, area,
                         shows, consumes, reactions.onPrism(), reactions.onBlocks(), held.upkeep(), held.downSound(),
-                        price.distancePrice(), pose.orElseGet(() -> ArmPose.defaultFor(delivery.kind())))));
+                        price.distancePrice(), pose.orElseGet(() -> ArmPose.defaultFor(delivery.kind())),
+                        heading.descriptionKey())));
+    }
+
+    /**
+     * The description key an ability naming none reads: its displayName key plus ".description".
+     * ability-json-carries-a-description
+     *
+     * @param displayName the ability's name key
+     * @return the description key
+     */
+    public static String defaultDescription(String displayName) {
+        return displayName + DESCRIPTION_SUFFIX;
     }
 
     /**
