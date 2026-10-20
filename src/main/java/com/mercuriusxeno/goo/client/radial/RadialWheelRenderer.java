@@ -97,6 +97,8 @@ final class RadialWheelRenderer {
     private static final String ICON_SUFFIX = ".png";
     private static final char NAMESPACE_SEPARATOR = ':';
     private static final String BADGE_ICON_PREFIX = "textures/goo/badge/";
+    /** hovering-a-badge-names-its-kind */
+    private static final String BADGE_NAME_PREFIX = "goo.badge.";
     private static final String WORD_SEPARATOR = "\\s+";
 
 
@@ -149,9 +151,9 @@ final class RadialWheelRenderer {
      * @param graphics the GUI graphics extractor
      * @param font     the font
      * @param frame    what the frame draws from
-     * @return every required item icon the locked petals drew, for the cursor to name
+     * @return every item icon and badge the petals drew, for the cursor to name
      */
-    static List<ItemIcon> render(GuiGraphicsExtractor graphics, Font font, Frame frame) {
+    static Hoverables render(GuiGraphicsExtractor graphics, Font font, Frame frame) {
         blitHub(graphics, frame);
         List<Words> words = new ArrayList<>();
         for (RadialWheel.PetalArc petal : frame.wheel().displayedLayout(frame.partialTick())) {
@@ -163,15 +165,85 @@ final class RadialWheelRenderer {
         }
         // abilities-replace-the-hovered-type: words draw last, on a layer nothing draws over
         List<ItemIcon> required = new ArrayList<>();
+        List<BadgeIcon> badges = new ArrayList<>();
         for (Words ability : words) {
             drawWords(graphics, font, frame, ability);
             required.addAll(ability.required());
+            badges.addAll(ability.badges());
         }
         slashLearnedItems(graphics, frame, required);
         renderCenterLabel(graphics, font, frame);
         // explanation-panel-draws-right-of-the-wheel
         AbilityExplanationPanel.paint(graphics, font, frame);
-        return required;
+        return new Hoverables(required, badges);
+    }
+
+    /**
+     * What a frame drew that the cursor can rest on and be named by.
+     *
+     * @param items  every required item icon the locked petals drew
+     * @param badges every badge the unlocked petals drew
+     */
+    record Hoverables(List<ItemIcon> items, List<BadgeIcon> badges) {
+    }
+
+    /**
+     * One badge a petal drew and the square it covers, less the squares
+     * drawn over it, which hide that part of it from the cursor.
+     *
+     * @param badge     the badge's kind
+     * @param rect      the square it draws in
+     * @param coveredBy the squares drawn over it
+     */
+    record BadgeIcon(AbilityBadge badge, ItemRect rect, List<ItemRect> coveredBy) {
+
+        /**
+         * Whether a screen point falls on the part of the badge left showing.
+         *
+         * @param x the point's x
+         * @param y the point's y
+         * @return true when the point is on the badge and under nothing drawn over it
+         */
+        boolean shows(double x, double y) {
+            return rect.contains(x, y) && coveredBy.stream().noneMatch(cover -> cover.contains(x, y));
+        }
+    }
+
+    /**
+     * Names what the cursor rests on in a tooltip beside it: a locked
+     * petal's item icon by the item's name, a badge by its kind's name.
+     * decision locked-petal-lists-the-unlearned-items
+     * decision hovering-a-badge-names-its-kind
+     *
+     * @param graphics   the GUI graphics extractor
+     * @param font       the font
+     * @param hoverables what the frame drew
+     * @param cursorX    the cursor's x
+     * @param cursorY    the cursor's y
+     */
+    static void nameWhatTheCursorRestsOn(GuiGraphicsExtractor graphics, Font font, Hoverables hoverables,
+                                         int cursorX, int cursorY) {
+        ItemIcon item = itemUnder(hoverables.items(), cursorX, cursorY);
+        Component name = item != null ? item.stack().getHoverName() : badgeNameUnder(hoverables.badges(),
+                cursorX, cursorY);
+        if (name != null) {
+            graphics.setTooltipForNextFrame(font, name, cursorX, cursorY);
+        }
+    }
+
+    /**
+     * The name of the badge kind whose showing part lies under the cursor.
+     * decision hovering-a-badge-names-its-kind
+     *
+     * @param badges  every badge the frame drew
+     * @param cursorX the cursor's x
+     * @param cursorY the cursor's y
+     * @return the kind's name, or null over no badge
+     */
+    private static @Nullable Component badgeNameUnder(List<BadgeIcon> badges, int cursorX, int cursorY) {
+        return badges.stream().filter(badge -> badge.shows(cursorX, cursorY)).findFirst()
+                .map(badge -> (Component) Component.translatable(BADGE_NAME_PREFIX + badge.badge().getSerializedName()))
+                .orElse(null);
     }
 
     /**
@@ -305,12 +377,14 @@ final class RadialWheelRenderer {
                 tint(hovered, dimmed, frame.active().contains(ability.id()), frame.gameTime()));
         int[] restingTip = tipCenter(frame, petal);
         if (offered.locked()) {
-            return new Words(List.of(), null, restingTip, DISABLED_TEXT_COLOR, requiredIcons(frame, petal, offered));
+            return new Words(List.of(), null, restingTip, DISABLED_TEXT_COLOR, requiredIcons(frame, petal, offered),
+                    List.of());
         }
         // icons-slide-in-from-behind-the-tip: the icon rides in while the words stay on the resting tip
-        blitAbilityIcon(graphics, frame, petal, ability, dimmed ? computeOverlayTint(false, true) : COLOR_WHITE);
+        List<BadgeIcon> badges = blitAbilityIcon(graphics, frame, petal, ability,
+                dimmed ? computeOverlayTint(false, true) : COLOR_WHITE);
         return new Words(splitNameLines(buildLabel(ability).getString()), Component.literal(slotLabels.costLabel()),
-                restingTip, textColorOf(dimmed, hovered), List.of());
+                restingTip, textColorOf(dimmed, hovered), List.of(), badges);
     }
 
     private static int textColorOf(boolean dimmed, boolean hovered) {
@@ -348,13 +422,14 @@ final class RadialWheelRenderer {
      * @param restingTip the point the icon rests on once the petal is fanned, which the words gather around
      * @param color      the words' color
      * @param required   the required items' icons, empty on an unlocked petal
+     * @param badges     the badges the petal drew, empty on a locked petal
      */
     private record Words(List<Component> name, @Nullable Component cost, int[] restingTip, int color,
-                         List<ItemIcon> required) {
+                         List<ItemIcon> required, List<BadgeIcon> badges) {
     }
 
     /**
-     * A 16x16 screen square one item icon draws in.
+     * A 16x16 screen square one item icon or badge draws in.
      *
      * @param left the square's left edge
      * @param top  the square's top edge
@@ -510,21 +585,38 @@ final class RadialWheelRenderer {
      * @param petal    the ability's petal
      * @param ability  the synced ability
      * @param color    the wedge's tint for the icon
+     * @return the own badge, and the prism badge less the icon and own badge drawn over it
      */
-    private static void blitAbilityIcon(GuiGraphicsExtractor graphics, Frame frame, RadialWheel.PetalArc petal,
-                                        ClientAbility ability, int color) {
+    private static List<BadgeIcon> blitAbilityIcon(GuiGraphicsExtractor graphics, Frame frame,
+                                                   RadialWheel.PetalArc petal, ClientAbility ability, int color) {
         int[] slot = contentCenter(frame, petal);
         int[] badgeSlot = badgeBeside(slot);
         PetalMask.Petal shape = petal.shape();
+        ItemRect ownSquare = squareAround(badgeSlot);
+        List<BadgeIcon> badges = new ArrayList<>(List.of(new BadgeIcon(ability.badge(), ownSquare, List.of())));
         if (ability.reactsToPrisms()) {
+            int[] prismSlot = prismBadgeUnder(badgeSlot);
             // the operator's ruling: the prism badge sits underneath the own badge, to the side a hair
             PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(badgeIcon(AbilityBadge.PRISM)),
-                    prismBadgeUnder(badgeSlot), ABILITY_ICON_SIZE, COLOR_WHITE);
+                    prismSlot, ABILITY_ICON_SIZE, COLOR_WHITE);
+            badges.add(new BadgeIcon(AbilityBadge.PRISM, squareAround(prismSlot),
+                    List.of(squareAround(slot), ownSquare)));
         }
         PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(resolveAbilityIcon(ability)), slot,
                 ABILITY_ICON_SIZE, color);
         PetalPainter.paintSprite(graphics, frame, shape, frame.look().sprite(badgeIcon(ability.badge())),
                 badgeSlot, ABILITY_ICON_SIZE, COLOR_WHITE);
+        return badges;
+    }
+
+    /**
+     * The 16x16 square a sprite centered on a point draws in.
+     *
+     * @param center the sprite's center
+     * @return its square
+     */
+    private static ItemRect squareAround(int[] center) {
+        return new ItemRect(center[0] - ABILITY_ICON_OFFSET, center[1] - ABILITY_ICON_OFFSET);
     }
 
     /**
@@ -547,7 +639,7 @@ final class RadialWheelRenderer {
      * @param iconCenter the center of the sprite the badge follows
      * @return the badge's center
      */
-    private static int[] badgeBeside(int[] iconCenter) {
+    static int[] badgeBeside(int[] iconCenter) {
         return new int[]{iconCenter[0] + ABILITY_ICON_SIZE, iconCenter[1]};
     }
 
