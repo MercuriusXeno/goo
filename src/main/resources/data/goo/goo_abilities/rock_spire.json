@@ -8,7 +8,7 @@
   "requires": ["minecraft:gravel", "minecraft:sand"],
   "delivery": { "kind": "arc" },
   "behaviors": [
-    { "type": "spire", "lifts": "goo:spire_liftable" }
+    { "type": "spire" }
   ],
   "tags": ["footprint"]
 }

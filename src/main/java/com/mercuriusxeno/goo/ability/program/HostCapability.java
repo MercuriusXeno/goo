@@ -186,8 +186,8 @@ public enum HostCapability {
      */
     SPAWN_MOB(MobSpawnHost.class),
     /**
-     * The ground a Spire lifts, the footprint and rise its submit planned
-     * (decision spire-rips-walls-and-platforms).
+     * The stone a Spire grows, the footprint and rise its submit planned
+     * (decision spire-grows-stone-out-of-the-top).
      */
     RAISE_GROUND(RaiseGroundHost.class),
     /**
