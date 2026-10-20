@@ -3,6 +3,9 @@ package com.mercuriusxeno.goo.ability.gluttony;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import io.netty.buffer.ByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
 
 /**
  * The gluttony standing on a player until it expires: it heals and feeds
@@ -42,6 +45,15 @@ public record Gluttony(long expiresAt, int maxOverheal, int maxOverhunger, float
             Codec.FLOAT.fieldOf(FIELD_OVERHEAL).forGetter(Gluttony::overheal),
             Codec.INT.fieldOf(FIELD_OVERHUNGER).forGetter(Gluttony::overhunger)
     ).apply(inst, Gluttony::new));
+
+    /** Codec for the gluttony synced to the owning client, which lets a full player start eating. */
+    public static final StreamCodec<ByteBuf, Gluttony> STREAM_CODEC = StreamCodec.composite(
+            ByteBufCodecs.VAR_LONG, Gluttony::expiresAt,
+            ByteBufCodecs.VAR_INT, Gluttony::maxOverheal,
+            ByteBufCodecs.VAR_INT, Gluttony::maxOverhunger,
+            ByteBufCodecs.FLOAT, Gluttony::overheal,
+            ByteBufCodecs.VAR_INT, Gluttony::overhunger,
+            Gluttony::new);
 
     /**
      * Answers whether gluttony stands.
@@ -107,6 +119,22 @@ public record Gluttony(long expiresAt, int maxOverheal, int maxOverhunger, float
             return this;
         }
         return withBanks(Math.min(maxOverheal, overheal + excess), overhunger);
+    }
+
+    /**
+     * Banks what a meal pushes past full hunger as overhunger, up to the cap.
+     *
+     * @param food      the player's hunger before the meal
+     * @param maxFood   the hunger a full bar holds
+     * @param nutrition the food points the meal adds
+     * @return the gluttony after the meal, the same instance when nothing banks
+     */
+    public Gluttony bankMeal(int food, int maxFood, int nutrition) {
+        int excess = food + nutrition - maxFood;
+        if (!stands() || excess <= 0 || overhunger >= maxOverhunger) {
+            return this;
+        }
+        return withBanks(overheal, Math.min(maxOverhunger, overhunger + excess));
     }
 
     /**

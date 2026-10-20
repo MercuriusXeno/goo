@@ -7,6 +7,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.food.FoodConstants;
 import net.minecraft.world.food.FoodData;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -17,7 +19,8 @@ import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 /**
  * Banks a glutton's overflow while Gluttony stands: healing past full health
  * stands as absorption hearts under a max absorption the effect lends and
- * takes back when it ends, and banked overhunger refills hunger as it drops.
+ * takes back when it ends, a glutton may eat at a full bar, eating past full
+ * banks as overhunger, and banked overhunger refills hunger as it drops.
  * gluttony-overheals-and-overhungers
  */
 @EventBusSubscriber(modid = Goo.MODID)
@@ -79,6 +82,35 @@ public final class GluttonyEvents {
         lendMaxAbsorption(player, banked.maxOverheal());
         player.setAbsorptionAmount(player.getAbsorptionAmount() + grown);
         player.setData(GooAttachments.GLUTTONY, banked);
+    }
+
+    /**
+     * Answers whether a player may start eating at a full bar: a glutton may.
+     * Read on both sides, from the gluttony synced to its owner.
+     *
+     * @param player the player
+     * @return true while the player's gluttony stands
+     */
+    public static boolean eatsPastFull(Player player) {
+        return player.hasData(GooAttachments.GLUTTONY) && player.getData(GooAttachments.GLUTTONY).stands();
+    }
+
+    /**
+     * Banks what a meal pushes past a glutton's full hunger as overhunger.
+     * Called before the meal lands, while the bar still holds its hunger.
+     *
+     * @param player    the eating player
+     * @param nutrition the food points the meal adds
+     */
+    public static void bankMeal(ServerPlayer player, int nutrition) {
+        if (!player.hasData(GooAttachments.GLUTTONY)) {
+            return;
+        }
+        Gluttony standing = player.getData(GooAttachments.GLUTTONY);
+        Gluttony banked = standing.bankMeal(player.getFoodData().getFoodLevel(), FoodConstants.MAX_FOOD, nutrition);
+        if (banked != standing) {
+            player.setData(GooAttachments.GLUTTONY, banked);
+        }
     }
 
     /**

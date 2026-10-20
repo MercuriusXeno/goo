@@ -5,9 +5,11 @@
   "mixins": [
     "ContainerShiftClickMergeMixin",
     "FoodDataLifetapMixin",
+    "FoodPropertiesGluttonyMixin",
     "InventoryPickupMergeMixin",
     "LivingEntityUndeadMixin",
     "MinecraftServerGooStateMixin",
+    "PlayerGluttonyEatMixin",
     "GooQuickCraftMixin",
     "ReloadableServerResourcesGooMixin",
     "WorldDimensionsGooStableMixin"

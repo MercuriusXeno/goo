@@ -12,7 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The gluttony's expiry and banks: a repeat invoke stacking its duration, a
- * heal past full health banking its excess up to the cap, banked hunger
+ * heal past full health and a meal past full hunger each banking its excess
+ * up to its cap, banked hunger
  * refilling a dropped bar, and the saved form carrying no clock
  * (decision gluttony-overheals-and-overhungers).
  */
@@ -109,6 +110,40 @@ class GluttonyTest {
         @Test
         void aGluttonyNotStandingBanksNothing() {
             assertSame(Gluttony.NONE, Gluttony.NONE.bankHeal(MAX_HEALTH, MAX_HEALTH, HEAL));
+        }
+    }
+
+    @Nested
+    class BankMeal {
+
+        private static final int MAX_FOOD = 20;
+        private static final int NUTRITION = 2;
+
+        @Test
+        void aMealOnAFullBarBanksWhole() {
+            assertEquals(NUTRITION, glutton().bankMeal(MAX_FOOD, MAX_FOOD, NUTRITION).overhunger());
+        }
+
+        @Test
+        void aMealOnAShortBarBanksOnlyItsExcess() {
+            assertEquals(1, glutton().bankMeal(MAX_FOOD - 1, MAX_FOOD, NUTRITION).overhunger());
+        }
+
+        @Test
+        void aMealShortOfFullBanksNothing() {
+            Gluttony gluttony = glutton();
+            assertSame(gluttony, gluttony.bankMeal(MAX_FOOD - NUTRITION, MAX_FOOD, NUTRITION));
+        }
+
+        @Test
+        void theBankStopsAtTheCapTheJsonNames() {
+            Gluttony once = glutton().bankMeal(MAX_FOOD, MAX_FOOD, NUTRITION);
+            assertEquals(MAX_OVERHUNGER, once.bankMeal(MAX_FOOD, MAX_FOOD, NUTRITION).overhunger());
+        }
+
+        @Test
+        void aGluttonyNotStandingBanksNothing() {
+            assertSame(Gluttony.NONE, Gluttony.NONE.bankMeal(MAX_FOOD, MAX_FOOD, NUTRITION));
         }
     }
 
