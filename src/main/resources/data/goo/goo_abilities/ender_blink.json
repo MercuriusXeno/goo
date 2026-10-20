@@ -1,6 +1,7 @@
 {
   "gooType": "ender",
   "displayName": "goo.ability.ender.blink",
+  "cost_mechanics": "goo.ability.ender.blink.cost_mechanics",
   "badge": "self",
   "order": 10,
   "cost": 200,

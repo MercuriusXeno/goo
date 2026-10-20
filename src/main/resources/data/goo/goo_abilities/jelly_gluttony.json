@@ -1,6 +1,7 @@
 {
   "gooType": "jelly",
   "displayName": "goo.ability.jelly.gluttony",
+  "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
   "badge": "brew",
   "order": 30,
   "upkeep": 1,

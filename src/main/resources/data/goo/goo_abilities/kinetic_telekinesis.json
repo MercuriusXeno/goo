@@ -1,6 +1,7 @@
 {
   "gooType": "kinetic",
   "displayName": "goo.ability.kinetic.telekinesis",
+  "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
   "badge": "brew",
   "order": 20,
   "upkeep": 1,
