@@ -1,6 +1,7 @@
 {
   "gooType": "unstable",
   "displayName": "goo.ability.unstable.buster",
+  "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
   "badge": "brew",
   "order": 40,
   "upkeep": 1,

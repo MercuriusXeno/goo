@@ -1,6 +1,7 @@
 {
   "gooType": "zoo",
   "displayName": "goo.ability.zoo.rally",
+  "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
   "badge": "brew",
   "order": 30,
   "upkeep": 1,

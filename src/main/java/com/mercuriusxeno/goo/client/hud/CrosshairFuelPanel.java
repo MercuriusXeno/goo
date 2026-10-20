@@ -36,7 +36,6 @@ import java.util.Optional;
 public final class CrosshairFuelPanel {
 
     private static final Identifier LAYER_ID = Identifier.fromNamespaceAndPath(Goo.MODID, "crosshair_fuel");
-    private static final int BACKGROUND_TEXTURE_SIZE = 24;
     private static final String COST_PREFIX = "- ";
     private static final String GAP = " ";
     private static final int COST_COLOR = 0xFFFF5555;
@@ -149,17 +148,6 @@ public final class CrosshairFuelPanel {
         return NineSlice.of(rect);
     }
 
-    private static void blitSlice(GuiGraphicsExtractor graphics, NineSlice.Slice slice) {
-        int x = Math.round(slice.x0());
-        int y = Math.round(slice.y0());
-        graphics.blit(RenderPipelines.GUI_TEXTURED, InWorldHud.BG_TEXTURE, x, y,
-                slice.u0() * BACKGROUND_TEXTURE_SIZE, slice.v0() * BACKGROUND_TEXTURE_SIZE,
-                Math.round(slice.x1()) - x, Math.round(slice.y1()) - y,
-                Math.round((slice.u1() - slice.u0()) * BACKGROUND_TEXTURE_SIZE),
-                Math.round((slice.v1() - slice.v0()) * BACKGROUND_TEXTURE_SIZE),
-                BACKGROUND_TEXTURE_SIZE, BACKGROUND_TEXTURE_SIZE);
-    }
-
     /**
      * Draws the icon of each item the throw consumes, left to right after the cost.
      * decision ability-json-names-its-reagent
@@ -197,9 +185,7 @@ public final class CrosshairFuelPanel {
                 BORDER + ITEM_SIZE + BORDER);
         int left = Math.round(rect.x());
         int top = Math.round(rect.y());
-        for (NineSlice.Slice slice : backgroundSlices(rect)) {
-            blitSlice(graphics, slice);
-        }
+        NineSlice.blit(graphics, rect);
         int x = left + BORDER;
         int rowTop = top + BORDER;
         if (!row.source().isEmpty()) {
