@@ -58,18 +58,30 @@ tasks.register('cpd', JavaExec) {
     }
 }
 
-// Wire CPD into the check lifecycle
-tasks.named('check') { dependsOn 'cpd' }
+// The analysis runs at the gate alone, off check (decision analysis-runs-at-the-gate-only).
+// An empty sourceSets list keeps the Checkstyle and PMD plugins from wiring their tasks into check.
+checkstyle { sourceSets = [] }
+pmd { sourceSets = [] }
+tasks.register('sca') {
+    description = 'Runs Checkstyle, PMD, SpotBugs and CPD over main; the gate runs it beside check'
+    group = 'verification'
+    dependsOn 'checkstyleMain', 'pmdMain', 'spotbugsMain', 'cpd'
+}
 
 // Unified flat-text report aggregating all analysis XML
 tasks.register('scaDigest', Exec) {
     description = 'Produces build/reports/digest.txt; fails the build on checkstyle errors or test failures'
     group = 'verification'
     commandLine 'python3', "${projectDir}/tools/sca-digest.py"
+    // A build that asks for the MAX run reads its report (decision full-runs-the-slow-runs-in-one-command).
+    if (gradle.startParameter.taskNames.any { it in ['full', 'spotbugsMaxMain', ':full', ':spotbugsMaxMain'] }) {
+        args '--spotbugs-effort', 'max'
+    }
 }
 tasks.checkstyleMain.finalizedBy(tasks.scaDigest)
 tasks.pmdMain.finalizedBy(tasks.scaDigest)
 tasks.spotbugsMain.finalizedBy(tasks.scaDigest)
 tasks.named('cpd') { finalizedBy tasks.scaDigest }
 tasks.named('check') { finalizedBy tasks.scaDigest }
+tasks.named('sca') { finalizedBy tasks.scaDigest }
 

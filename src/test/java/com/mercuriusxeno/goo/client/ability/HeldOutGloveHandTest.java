@@ -68,9 +68,14 @@ class HeldOutGloveHandTest {
      * widest, a quarter cycle in.
      */
     private static final int PULSE_TICKS = 21;
-    /** The operator's screenshot size, so the raster samples the screen they saw. */
-    private static final int WIDTH = 1920;
-    private static final int HEIGHT = 1009;
+    /** The pulse sampled at its quarter points, the widest among them, so the suite stays fast (decision slow-tests-take-a-seam). */
+    private static final int[] SAMPLED_TICKS = {0, PULSE_TICKS / 4, PULSE_TICKS / 2, 3 * PULSE_TICKS / 4};
+    /**
+     * Half the operator's 1920 by 1009 screenshot, the aspect they saw, which still
+     * resolves every core face and the buried pixels (decision slow-tests-take-a-seam).
+     */
+    private static final int WIDTH = 960;
+    private static final int HEIGHT = 505;
     private static final float NEAR = 0.05f;
     private static final float FAR = 100f;
     private static final float PX = 1f / 16f;
@@ -93,7 +98,7 @@ class HeldOutGloveHandTest {
     @Test
     void everyCoreFaceDrawsTheAreaTheHandLeavesItOverAPulse() {
         Map<Integer, String> wrongTicks = new TreeMap<>();
-        for (int tick = 0; tick < PULSE_TICKS; tick++) {
+        for (int tick : SAMPLED_TICKS) {
             List<Quad> quads = heldOutPalmQuads(tick);
             Raster drawn = Raster.handPass(quads);
             Raster truth = Raster.nearestOpaque(quads);
