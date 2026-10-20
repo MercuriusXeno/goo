@@ -7,7 +7,17 @@ import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
+import com.tngtech.archunit.core.importer.Location;
+import com.mercuriusxeno.goo.tools.architecture.ArchitectureGraphs;
+import net.minecraft.world.level.lighting.LevelLightEngine;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import com.tngtech.archunit.lang.ArchCondition;
+import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 import static com.tngtech.archunit.core.domain.JavaAccess.Predicates.target;
@@ -18,6 +28,8 @@ import static com.tngtech.archunit.core.domain.properties.HasName.Predicates.nam
 import static com.tngtech.archunit.core.domain.properties.HasOwner.Predicates.With.owner;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 /**
  * ArchUnit convention enforcement. Only rules that catch recurring mistakes.
@@ -27,7 +39,6 @@ class ConventionTest {
     private static final String[] DOMAIN_PACKAGES = {
             "com.mercuriusxeno.goo.block..", "com.mercuriusxeno.goo.item.."
     };
-    private static final String LEVEL_LIGHT_ENGINE = "net.minecraft.world.level.lighting.LevelLightEngine";
     private static final String RUN_LIGHT_UPDATES = "runLightUpdates";
     private static final String CLIENT_PACKAGE = "com.mercuriusxeno.goo.client..";
     private static final String CLIENT_OVERLAY_PACKAGE = "com.mercuriusxeno.goo.client.overlay..";
@@ -50,17 +61,82 @@ class ConventionTest {
     private static final String[] CLIENT_PACKAGES = {
             "net.minecraft.client..", "com.mercuriusxeno.goo.client..", "com.mojang.blaze3d.."
     };
-    private static JavaClasses mainClasses;
+    private static final String GOO_PATH = "/com/mercuriusxeno/goo/";
+    /**
+     * The main and tools classes split into slices imported side by side, since one
+     * import of them all took seconds (decision slow-tests-take-a-seam). The first
+     * slice holds every client reader beside the block and item types it must not
+     * check instanceof against, so assignableTo sees their whole goo hierarchy.
+     */
+    private static final List<ImportOption> MAIN_SLICES = List.of(
+            inAny("block/", "item/", "client/overlay/", "client/hud/"),
+            inAny("client/ability/"),
+            location -> location.contains(GOO_PATH + "client/") && !inAny("client/ability/", "client/overlay/",
+                    "client/hud/").includes(location),
+            inAny("ability/"),
+            location -> !inAny("block/", "item/", "client/", "ability/").includes(location));
+    private static final String EMPTY_SHOULD = "failed to check any classes";
+    private static List<JavaClasses> mainSlices;
     private static JavaClasses testClasses;
 
     @BeforeAll
     static void importClasses() {
-        mainClasses = new ClassFileImporter()
-                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
-                .importPackages("com.mercuriusxeno.goo");
-        testClasses = new ClassFileImporter()
-                .withImportOption(ImportOption.Predefined.ONLY_INCLUDE_TESTS)
-                .importPackages("com.mercuriusxeno.goo");
+        Set<Location> mainAndTools = Set.of(locationOf(Goo.class), locationOf(ArchitectureGraphs.class));
+        List<CompletableFuture<JavaClasses>> slices = MAIN_SLICES.stream()
+                .map(slice -> CompletableFuture.supplyAsync(() ->
+                        new ClassFileImporter().withImportOption(slice).importLocations(mainAndTools)))
+                .toList();
+        // A test class's simple name ends in Test, and testClassesArePackagePrivate reads no other.
+        testClasses = new ClassFileImporter().withImportOption(location -> location.contains("Test.class"))
+                .importLocations(Set.of(locationOf(ConventionTest.class)));
+        mainSlices = slices.stream().map(CompletableFuture::join).toList();
+    }
+
+    /**
+     * A class the JVM loads, without initializing it, as a subtype of the given type;
+     * the import resolves no Minecraft hierarchy, so the JVM answers for it.
+     */
+    private static DescribedPredicate<JavaClass> loadedAssignableTo(Class<?> type) {
+        return DescribedPredicate.describe("assignable to " + type.getName(), cls -> {
+            try {
+                return type.isAssignableFrom(Class.forName(cls.getName(), false, ConventionTest.class.getClassLoader()));
+            } catch (ClassNotFoundException | LinkageError absent) {
+                return false;
+            }
+        });
+    }
+
+    private static ImportOption inAny(String... packagePaths) {
+        return location -> Arrays.stream(packagePaths).anyMatch(path -> location.contains(GOO_PATH + path));
+    }
+
+    private static Location locationOf(Class<?> member) {
+        try {
+            return Location.of(member.getProtectionDomain().getCodeSource().getLocation().toURI());
+        } catch (URISyntaxException e) {
+            throw new IllegalStateException(member + " has no classes directory location", e);
+        }
+    }
+
+    /**
+     * Checks a rule over every main slice: it fails on any violation in any slice,
+     * and on a rule whose classes no slice holds, as one check over all of main would.
+     */
+    private static void checkMain(ArchRule rule) {
+        List<String> violations = new ArrayList<>();
+        int slicesChecked = 0;
+        for (JavaClasses slice : mainSlices) {
+            try {
+                violations.addAll(rule.evaluate(slice).getFailureReport().getDetails());
+                slicesChecked++;
+            } catch (AssertionError empty) {
+                if (!String.valueOf(empty.getMessage()).contains(EMPTY_SHOULD)) {
+                    throw empty;
+                }
+            }
+        }
+        assertNotEquals(0, slicesChecked, () -> rule.getDescription() + " " + EMPTY_SHOULD);
+        assertEquals(List.of(), violations, rule::getDescription);
     }
 
     /**
@@ -123,11 +199,10 @@ class ConventionTest {
     @Test
     void noOnlyIn() {
         String annotation = "net.neoforged.api.distmarker.OnlyIn";
-        noClasses()
+        checkMain(noClasses()
                 .should().beAnnotatedWith(annotation)
                 .orShould(haveAnnotatedMembers(annotation))
-                .because("HARD RULE: use dist executors or proxies, never @OnlyIn")
-                .check(mainClasses);
+                .because("HARD RULE: use dist executors or proxies, never @OnlyIn"));
     }
 
     /**
@@ -137,12 +212,11 @@ class ConventionTest {
      */
     @Test
     void noManualLightEngineDrain() {
-        noClasses()
+        checkMain(noClasses()
                 .should().callMethodWhere(target(name(RUN_LIGHT_UPDATES))
-                        .and(target(owner(assignableTo(LEVEL_LIGHT_ENGINE)))))
+                        .and(target(owner(loadedAssignableTo(LevelLightEngine.class)))))
                 .because("the server light engine drains its own queue on its tick;"
-                        + " a manual drain throws (decision light-kick-never-drains)")
-                .check(mainClasses);
+                        + " a manual drain throws (decision light-kick-never-drains)"));
     }
 
     /**
@@ -154,14 +228,13 @@ class ConventionTest {
      */
     @Test
     void renderTypeChoiceStaysInSubmitter() {
-        noClasses()
+        checkMain(noClasses()
                 .that().resideInAPackage(CLIENT_PACKAGE)
                 .and().doNotHaveFullyQualifiedName(GOO_SUBMITTER)
                 .should().callMethodWhere(target(name(ENTITY_TRANSLUCENT).or(name(ENTITY_SOLID)))
                         .and(target(owner(name(RENDER_TYPES)))))
                 .because("every goo render type lives in GooSubmitter"
-                        + " (decision submitter-owns-every-render-choice)")
-                .check(mainClasses);
+                        + " (decision submitter-owns-every-render-choice)"));
     }
 
     /**
@@ -173,12 +246,11 @@ class ConventionTest {
      */
     @Test
     void clientReadersDispatchOnHostInterfaces() {
-        classes()
+        checkMain(classes()
                 .that().resideInAnyPackage(CLIENT_OVERLAY_PACKAGE, CLIENT_HUD_PACKAGE)
                 .should(checkNoInstanceofOn(machineType()))
                 .because("client readers dispatch on the host interfaces"
-                        + " (decision hosts-answer-bounds-through-interfaces)")
-                .check(mainClasses);
+                        + " (decision hosts-answer-bounds-through-interfaces)"));
     }
 
     /**
@@ -188,12 +260,11 @@ class ConventionTest {
      */
     @Test
     void sourceScannerDispatchesOnTheCarrierInterface() {
-        classes()
+        checkMain(classes()
                 .that().haveFullyQualifiedName(GOO_SOURCE_SCANNER)
                 .should(checkNoInstanceofOn(carrierItemClass()))
                 .because("the scan reads carriers through GooCarrierItem"
-                        + " (decision hosts-answer-bounds-through-interfaces)")
-                .check(mainClasses);
+                        + " (decision hosts-answer-bounds-through-interfaces)"));
     }
 
     private static DescribedPredicate<JavaClass> carrierItemClass() {
@@ -227,13 +298,12 @@ class ConventionTest {
      */
     @Test
     void runeInkHasNoClass() {
-        noClasses()
+        checkMain(noClasses()
                 .should().haveSimpleNameContaining("RuneInk")
                 .orShould().haveSimpleNameContaining("Matrix")
                 .orShould().haveSimpleNameContaining("Matrices")
                 .because("rune ink and matrix upgrades are removed from the mod"
-                        + " (decisions rune-ink-stays-out, no-machine-takes-a-matrix)")
-                .check(mainClasses);
+                        + " (decisions rune-ink-stays-out, no-machine-takes-a-matrix)"));
     }
 
     /**
@@ -248,13 +318,12 @@ class ConventionTest {
      */
     @Test
     void sharedPackagesDoNotLinkClientCode() {
-        noClasses()
+        checkMain(noClasses()
                 .that().resideInAnyPackage(SHARED_PACKAGES)
                 .should().dependOnClassesThat()
                 .resideInAnyPackage(CLIENT_PACKAGES)
                 .because("a dedicated server has no client classes to link"
-                        + " (decision client-handlers-under-client-network)")
-                .check(mainClasses);
+                        + " (decision client-handlers-under-client-network)"));
     }
 
     /**
@@ -274,7 +343,7 @@ class ConventionTest {
      */
     @Test
     void domainLayerDoesNotImportBannedRegistryClasses() {
-        noClasses()
+        checkMain(noClasses()
                 .that().resideInAnyPackage(DOMAIN_PACKAGES)
                 .and(DescribedPredicate.not(registryAllowed()))
                 .should().dependOnClassesThat()
@@ -283,8 +352,7 @@ class ConventionTest {
                 .haveFullyQualifiedName("com.mercuriusxeno.goo.registry.GooBlocks")
                 .orShould().dependOnClassesThat()
                 .haveFullyQualifiedName("com.mercuriusxeno.goo.registry.GooFluids")
-                .because("domain layer must not import registry singletons (decoupling-arch §5.1)")
-                .check(mainClasses);
+                .because("domain layer must not import registry singletons (decoupling-arch §5.1)"));
     }
 
     /**
@@ -293,14 +361,13 @@ class ConventionTest {
      */
     @Test
     void domainLayerDoesNotResolveGooValues() {
-        noClasses()
+        checkMain(noClasses()
                 .that().resideInAnyPackage(DOMAIN_PACKAGES)
                 .and(DescribedPredicate.not(
                         simpleName("CrucibleBlockEntity").or(simpleName("PlexerBlockEntity"))
                                 .or(simpleName("CrucibleInsertion"))))
                 .should().dependOnClassesThat().haveFullyQualifiedName("com.mercuriusxeno.goo.data.GooValues")
-                .because("domain layer must use IGooValueLookup seams, not GooValues (decoupling-arch §5.2)")
-                .check(mainClasses);
+                .because("domain layer must use IGooValueLookup seams, not GooValues (decoupling-arch §5.2)"));
     }
 
     /**
@@ -308,7 +375,7 @@ class ConventionTest {
      */
     @Test
     void domainLayerDoesNotUseBuiltInRegistries() {
-        noClasses()
+        checkMain(noClasses()
                 .that().resideInAnyPackage(DOMAIN_PACKAGES)
                 .and(DescribedPredicate.not(
                         simpleName("ContainerEvaluator")
@@ -318,8 +385,7 @@ class ConventionTest {
                                 .or(belongToAnyOf(com.mercuriusxeno.goo.item.CanisterFluidContent.class))))
                 .should().dependOnClassesThat()
                 .haveFullyQualifiedName("net.minecraft.core.registries.BuiltInRegistries")
-                .because("domain layer must resolve Identifiers in adapter wrappers (decoupling-arch §5.3)")
-                .check(mainClasses);
+                .because("domain layer must resolve Identifiers in adapter wrappers (decoupling-arch §5.3)"));
     }
 
     /**
@@ -328,11 +394,10 @@ class ConventionTest {
      */
     @Test
     void throwPathReadsNoGlowType() {
-        noClasses()
+        checkMain(noClasses()
                 .that().resideInAnyPackage("com.mercuriusxeno.goo.network..",
                         "com.mercuriusxeno.goo.client.throwing..", CLIENT_OVERLAY_PACKAGE)
                 .should().accessField("com.mercuriusxeno.goo.type.GooTypes", "GLOW")
-                .because("the delivery kind decides the throw, not the goo type")
-                .check(mainClasses);
+                .because("the delivery kind decides the throw, not the goo type"));
     }
 }

@@ -18,7 +18,9 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class GooValueSnapshotTest {
 
-    private static final int ITEM_COUNT = 4000;
+    // Sized so a table published while still being filled tears under the reader loop
+    // in a fraction of a second (decision slow-tests-take-a-seam).
+    private static final int ITEM_COUNT = 200;
     private static final int REPLACEMENTS = 100;
     private static final Identifier KNOWN_ITEM = id("goo:base_0");
 
