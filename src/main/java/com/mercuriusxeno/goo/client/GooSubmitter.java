@@ -124,7 +124,18 @@ public final class GooSubmitter {
      * @return entityCutout on the block atlas
      */
     public static RenderType cutoutOnBlockAtlas() {
-        return RenderTypes.entityCutout(BLOCK_ATLAS);
+        return cutoutOn(BLOCK_ATLAS);
+    }
+
+    /**
+     * Returns the cutout render type on a standalone texture, for a flat card
+     * whose texture leaves holes, such as the goo label's paper and symbol.
+     *
+     * @param texture the texture the draw samples
+     * @return entityCutout on that texture
+     */
+    public static RenderType cutoutOn(Identifier texture) {
+        return RenderTypes.entityCutout(texture);
     }
 
     /**

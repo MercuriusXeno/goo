@@ -21,6 +21,7 @@ import java.util.OptionalInt;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /**
  * Block-level fluid handler for canister slots: one tank per fluid held, in
@@ -42,6 +43,7 @@ public class CanisterSlotFluidHandler extends SnapshotJournal<CanisterFluidConte
     private final Runnable onChange;
     private final LongSupplier tickSupplier;
     private final Predicate<FluidResource> admits;
+    private final Supplier<@Nullable ResourceKey<GooTypeDefinition>> gooLabel;
 
     /** The shared capacity every fluid in the slot fills together before void grows it (mB). */
     private final int base;
@@ -107,11 +109,28 @@ public class CanisterSlotFluidHandler extends SnapshotJournal<CanisterFluidConte
      */
     public CanisterSlotFluidHandler(int base, Runnable onChange, LongSupplier tickSupplier,
                                     Predicate<FluidResource> admits) {
+        this(base, onChange, tickSupplier, admits, () -> null);
+    }
+
+    /**
+     * Creates a handler that takes only the goo its holder admits and its
+     * canister's goo label allows.
+     *
+     * @param base         the capacity with no void (mB)
+     * @param onChange     called when contents change
+     * @param tickSupplier supplies current game tick for stream timing
+     * @param admits       answers whether the holder takes an arriving goo
+     * @param gooLabel     reads the canister's goo label type, null where it carries none
+     */
+    public CanisterSlotFluidHandler(int base, Runnable onChange, LongSupplier tickSupplier,
+                                    Predicate<FluidResource> admits,
+                                    Supplier<@Nullable ResourceKey<GooTypeDefinition>> gooLabel) {
         super();
         this.base = base;
         this.onChange = onChange;
         this.tickSupplier = tickSupplier;
         this.admits = admits;
+        this.gooLabel = gooLabel;
     }
 
     /**
@@ -181,8 +200,9 @@ public class CanisterSlotFluidHandler extends SnapshotJournal<CanisterFluidConte
     }
 
     /**
-     * Any fluid the held content accepts and the holder admits: goo beside goo,
-     * a vanilla fluid alone.
+     * Any fluid the held content accepts, the goo label allows and the holder
+     * admits: goo beside goo, a vanilla fluid alone, a labeled canister's type alone.
+     * decision labeled-vessel-accepts-only-its-label-type
      *
      * @param index    the tank index, which routing ignores
      * @param resource the fluid resource to validate
@@ -190,7 +210,7 @@ public class CanisterSlotFluidHandler extends SnapshotJournal<CanisterFluidConte
      */
     @Override
     public boolean isValid(int index, FluidResource resource) {
-        return content.canAccept(resource) && admits.test(resource);
+        return content.canAccept(resource, gooLabel.get()) && admits.test(resource);
     }
 
     /**

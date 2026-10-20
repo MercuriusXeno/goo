@@ -240,11 +240,30 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
     public static int addFluid(ItemStack stack, FluidResource fluid, int amount) {
         int base = ContainerCapacity.CANISTER_BASE;
         CanisterFluidContent current = getFluidContent(stack);
-        int accepted = current.cappedAddAmount(fluid, amount, base);
+        // decision labeled-vessel-accepts-only-its-label-type
+        ResourceKey<GooTypeDefinition> label = getMetadata(stack).gooLabel();
+        int accepted = current.cappedAddAmount(fluid, amount, base, label);
         if (accepted > 0) {
-            setFluidContent(stack, current.withCappedAdd(fluid, amount, base));
+            setFluidContent(stack, current.withCappedAdd(fluid, amount, base, label));
         }
         return accepted;
+    }
+
+    /**
+     * Puts a goo label on a canister stack where the label rule lets it on.
+     * decision label-goes-on-an-empty-or-matching-vessel
+     *
+     * @param canister the canister stack
+     * @param type     the label's goo type
+     * @return true when the label went on
+     */
+    public static boolean applyGooLabel(ItemStack canister, ResourceKey<GooTypeDefinition> type) {
+        CanisterMetadata meta = getMetadata(canister);
+        if (!GooLabelRule.canLabel(getFluidContent(canister), meta, type)) {
+            return false;
+        }
+        setMetadata(canister, meta.withGooLabel(type));
+        return true;
     }
 
     /**
@@ -311,8 +330,33 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
             return CanisterInventoryHandler.drainIntoInventory(new CanisterGooSource(canister),
                     GooDeposit.intoInventory(player, canister));
         }
-        return action == ClickAction.PRIMARY
-                && CanisterInventoryHandler.handlePrimaryClick(canister, cursor, cursorAccess);
+        if (action != ClickAction.PRIMARY) {
+            return false;
+        }
+        ResourceKey<GooTypeDefinition> label = GooLabelItem.typeOf(cursor);
+        if (label != null) {
+            return applyLabelFromCursor(canister, cursor, label);
+        }
+        return CanisterInventoryHandler.handlePrimaryClick(canister, cursor, cursorAccess);
+    }
+
+    /**
+     * Puts the cursor's goo label on the canister and takes one label from the cursor;
+     * a refused label leaves both as they stood.
+     * decision label-goes-on-an-empty-or-matching-vessel
+     *
+     * @param canister the canister stack in the slot
+     * @param cursor   the label stack on the cursor
+     * @param label    the label's goo type
+     * @return true when the label went on
+     */
+    private static boolean applyLabelFromCursor(ItemStack canister, ItemStack cursor,
+                                                ResourceKey<GooTypeDefinition> label) {
+        if (!applyGooLabel(canister, label)) {
+            return false;
+        }
+        cursor.shrink(1);
+        return true;
     }
 
     /**

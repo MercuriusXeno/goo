@@ -12,8 +12,10 @@ import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
@@ -418,8 +420,9 @@ public class ReactorBlockEntity extends GooGlowingMachineBlockEntity
      */
     private boolean outputCanAcceptProducts(GooReaction reaction) {
         CanisterFluidContent content = CanisterItem.getFluidContent(getOutputCanister());
+        ResourceKey<GooTypeDefinition> label = CanisterItem.getMetadata(getOutputCanister()).gooLabel();
         for (GooReaction.FluidEntry entry : reaction.outputs()) {
-            if (!content.canAccept(entry.resource())) {
+            if (!content.canAccept(entry.resource(), label)) {
                 return false;
             }
         }

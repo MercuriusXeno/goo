@@ -73,5 +73,6 @@ public class GooCreativeTabs {
         output.accept(GooItem.createWithVolume(key, LARGE_GOO_VOLUME));
         output.accept(GooBucketItem.of(key));
         GooItems.CHRYSM_TIERS.forEach(tier -> output.accept(tier.get().createOf(key)));
+        output.accept(GooItems.GOO_LABEL.get().labelOf(key));
     }
 }
