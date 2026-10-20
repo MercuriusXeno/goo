@@ -79,15 +79,18 @@ final class RadialWheelRenderer {
     /**
      * How far left of the ability's own badge, toward the icon, the prism
      * badge sits, so it peeks out from under the own badge: left rather than
-     * right, since the petal's face ends just past the own badge.
+     * right, since the petal's face ends just past the own badge. Further
+     * left slides it under the icon, so the badge shows mostly below.
      * decision on-prism-reaction-wears-the-prism-badge
+     * decision prism-badge-overlapped-less-to-be-seen
      */
-    static final int PRISM_BADGE_NUDGE_LEFT = 4;
+    static final int PRISM_BADGE_NUDGE_LEFT = 5;
     /**
      * How far below the ability's own badge the prism badge sits.
      * decision on-prism-reaction-wears-the-prism-badge
+     * decision prism-badge-overlapped-less-to-be-seen
      */
-    static final int PRISM_BADGE_NUDGE_DOWN = 2;
+    static final int PRISM_BADGE_NUDGE_DOWN = 6;
 
     private static final String TYPE_ICON_PREFIX = "textures/goo/type/";
     private static final String ABILITY_ICON_PREFIX = "textures/goo/ability/";
@@ -495,8 +498,8 @@ final class RadialWheelRenderer {
      * Draws the ability's icon, then its badge untinted directly to the icon's
      * right, where the words never clip it and it never covers the icon. An
      * ability carrying an on_prism reaction first draws the prism badge a
-     * hair off the own badge, so the icon and the own badge cover it and it
-     * peeks out from underneath; each is cut at the petal's border so only
+     * little off the own badge, so the icon and the own badge cover part of it
+     * and it peeks out from underneath; each is cut at the petal's border so only
      * the part under its face shows.
      * badge-marks-the-target-kind
      * decision on-prism-reaction-wears-the-prism-badge
