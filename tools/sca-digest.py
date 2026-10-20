@@ -14,7 +14,8 @@ REPO = Path(__file__).resolve().parent.parent
 REPORTS = REPO / "build" / "reports"
 CHECKSTYLE_XML = REPORTS / "checkstyle" / "main.xml"
 PMD_XML = REPORTS / "pmd" / "main.xml"
-SPOTBUGS_XML = REPORTS / "spotbugs" / "main.xml"
+SPOTBUGS_DEFAULT_XML = REPORTS / "spotbugs" / "main.xml"
+SPOTBUGS_MAX_XML = REPORTS / "spotbugs" / "max.xml"
 CPD_XML = REPORTS / "cpd" / "main.xml"
 TEST_RESULTS = REPO / "build" / "test-results" / "test"
 GAMETEST_RESULTS = REPO / "build" / "test-results" / "gameTest"
@@ -76,11 +77,21 @@ def parse_pmd():
 
 # ── SpotBugs ─────────────────────────────────────────────────────────────
 
-def parse_spotbugs():
-    """Returns {type: [(file, line, category, priority, message)]}."""
-    if not SPOTBUGS_XML.exists():
-        return {}
-    tree = ET.parse(SPOTBUGS_XML)
+def spotbugs_report(effort):
+    """Returns (path, effort) of the SpotBugs report the build asked for, or (None, None).
+
+    A build running spotbugsMaxMain asks for max (decision full-runs-the-slow-runs-in-one-command).
+    """
+    report = SPOTBUGS_MAX_XML if effort == "max" else SPOTBUGS_DEFAULT_XML
+    return (report, effort) if report.exists() else (None, None)
+
+
+def parse_spotbugs(effort):
+    """Returns ({type: [(file, line, category, priority, message)]}, effort)."""
+    report, effort = spotbugs_report(effort)
+    if report is None:
+        return {}, None
+    tree = ET.parse(report)
     bugs = defaultdict(list)
     for bug in tree.findall(".//BugInstance"):
         bug_type = bug.get("type", "UNKNOWN")
@@ -104,7 +115,7 @@ def parse_spotbugs():
             sourcepath = "?"
             line = "?"
         bugs[bug_type].append((sourcepath, line, category, priority, message))
-    return bugs
+    return bugs, effort
 
 
 # ── CPD ──────────────────────────────────────────────────────────────────
@@ -163,7 +174,7 @@ def parse_tests():
 
 # ── Output ───────────────────────────────────────────────────────────────
 
-def write_digest(cs_rules, pmd_rules, sb_bugs, cpd_dupes, tests):
+def write_digest(cs_rules, pmd_rules, sb_bugs, sb_effort, cpd_dupes, tests):
     """Writes the unified digest."""
     out = []
 
@@ -179,7 +190,7 @@ def write_digest(cs_rules, pmd_rules, sb_bugs, cpd_dupes, tests):
     out.append("TOTALS")
     out.append(f"  checkstyle: {cs_errors} errors, {cs_warnings} warnings ({cs_total})")
     out.append(f"  pmd: {pmd_total}")
-    out.append(f"  spotbugs: {sb_total}")
+    out.append(f"  spotbugs: {sb_total} (effort {sb_effort or 'none'})")
     out.append(f"  cpd: {cpd_total} duplications")
     out.append(f"  tests: {t_total} passed, {t_fail + t_err} failed")
     out.append("")
@@ -217,7 +228,7 @@ def write_digest(cs_rules, pmd_rules, sb_bugs, cpd_dupes, tests):
 
     # ── SpotBugs ──
     if sb_bugs:
-        out.append("--- SPOTBUGS (by type, descending) ---")
+        out.append(f"--- SPOTBUGS at {sb_effort} effort (by type, descending) ---")
         out.append("")
         type_counts = {t: len(v) for t, v in sb_bugs.items()}
         for bug_type in sorted(type_counts, key=type_counts.get, reverse=True):
@@ -279,13 +290,14 @@ def write_digest(cs_rules, pmd_rules, sb_bugs, cpd_dupes, tests):
 def main():
     cs = parse_checkstyle()
     pmd = parse_pmd()
-    sb = parse_spotbugs()
+    effort = sys.argv[sys.argv.index("--spotbugs-effort") + 1] if "--spotbugs-effort" in sys.argv else "default"
+    sb, sb_effort = parse_spotbugs(effort)
     cpd = parse_cpd()
     tests = parse_tests()
     if not any([cs, pmd, sb, cpd, tests[0]]):
         print("No reports found, skipping digest.")
         sys.exit(0)
-    failed = write_digest(cs, pmd, sb, cpd, tests)
+    failed = write_digest(cs, pmd, sb, sb_effort, cpd, tests)
     sys.exit(1 if failed else 0)
 
 

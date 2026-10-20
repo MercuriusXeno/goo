@@ -73,6 +73,10 @@ tasks.register('scaDigest', Exec) {
     description = 'Produces build/reports/digest.txt; fails the build on checkstyle errors or test failures'
     group = 'verification'
     commandLine 'python3', "${projectDir}/tools/sca-digest.py"
+    // A build that asks for the MAX run reads its report (decision full-runs-the-slow-runs-in-one-command).
+    if (gradle.startParameter.taskNames.any { it in ['full', 'spotbugsMaxMain', ':full', ':spotbugsMaxMain'] }) {
+        args '--spotbugs-effort', 'max'
+    }
 }
 tasks.checkstyleMain.finalizedBy(tasks.scaDigest)
 tasks.pmdMain.finalizedBy(tasks.scaDigest)
