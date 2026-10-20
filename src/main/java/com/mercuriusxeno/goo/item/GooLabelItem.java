@@ -15,7 +15,7 @@ import org.jspecify.annotations.Nullable;
  * of one type stack and labels of two types do not, and nothing rewrites the type
  * once crafted (decision goo-label-is-paper-plus-one-mb-of-goo).
  */
-public class GooLabelItem extends Item {
+public class GooLabelItem extends Item implements IGooItemInteraction {
 
     /**
      * @param properties item properties
@@ -45,5 +45,10 @@ public class GooLabelItem extends Item {
     @Override
     public @NonNull Component getName(@NonNull ItemStack stack) {
         return GooTypeNames.labelName(typeOf(stack));
+    }
+
+    @Override
+    public GooInteractionType canisterInteraction() {
+        return GooInteractionType.LABEL_APPLY;
     }
 }

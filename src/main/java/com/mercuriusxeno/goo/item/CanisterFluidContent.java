@@ -356,6 +356,19 @@ public record CanisterFluidContent(List<Portion> portions) {
     }
 
     /**
+     * Whether a fluid may join this content in a canister carrying a goo label:
+     * what {@link #canAccept(FluidResource)} takes, narrowed to the label's type.
+     * decision labeled-vessel-accepts-only-its-label-type
+     *
+     * @param candidate the resource to test
+     * @param label     the canister's goo label type, or null where it carries none
+     * @return true if the candidate may be added
+     */
+    public boolean canAccept(FluidResource candidate, @Nullable ResourceKey<GooTypeDefinition> label) {
+        return canAccept(candidate) && GooLabelRule.admits(label, candidate);
+    }
+
+    /**
      * Returns how much of the requested amount withCappedAdd would accept:
      * the room the fluid has in the capacity the held void grows.
      *
@@ -365,7 +378,23 @@ public record CanisterFluidContent(List<Portion> portions) {
      * @return the amount that would be accepted
      */
     public int cappedAddAmount(FluidResource addResource, int addAmount, int base) {
-        if (addAmount <= 0 || !canAccept(addResource)) {
+        return cappedAddAmount(addResource, addAmount, base, null);
+    }
+
+    /**
+     * Returns how much of the requested amount a canister carrying a goo label
+     * would accept: nothing of a fluid the label refuses.
+     * decision labeled-vessel-accepts-only-its-label-type
+     *
+     * @param addResource the resource to add
+     * @param addAmount   the requested volume
+     * @param base        the canister's capacity with no void (mB)
+     * @param label       the canister's goo label type, or null where it carries none
+     * @return the amount that would be accepted
+     */
+    public int cappedAddAmount(FluidResource addResource, int addAmount, int base,
+                               @Nullable ResourceKey<GooTypeDefinition> label) {
+        if (addAmount <= 0 || !canAccept(addResource, label)) {
             return 0;
         }
         return Math.min(addAmount, roomFor(addResource, base));
@@ -380,7 +409,23 @@ public record CanisterFluidContent(List<Portion> portions) {
      * @return new content with the capped addition, or this where nothing fits
      */
     public CanisterFluidContent withCappedAdd(FluidResource addResource, int addAmount, int base) {
-        int accepted = cappedAddAmount(addResource, addAmount, base);
+        return withCappedAdd(addResource, addAmount, base, null);
+    }
+
+    /**
+     * Returns a new content with the given volume added in a canister carrying a
+     * goo label, capped by the shared capacity; a fluid the label refuses adds nothing.
+     * decision labeled-vessel-accepts-only-its-label-type
+     *
+     * @param addResource the resource to add
+     * @param addAmount   the requested volume
+     * @param base        the canister's capacity with no void (mB)
+     * @param label       the canister's goo label type, or null where it carries none
+     * @return new content with the capped addition, or this where nothing fits
+     */
+    public CanisterFluidContent withCappedAdd(FluidResource addResource, int addAmount, int base,
+                                              @Nullable ResourceKey<GooTypeDefinition> label) {
+        int accepted = cappedAddAmount(addResource, addAmount, base, label);
         return accepted <= 0 ? this : withVolume(addResource, volumeOf(addResource) + accepted);
     }
 

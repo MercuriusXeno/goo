@@ -470,8 +470,29 @@ public class CanisterBlockEntity extends GooGlowingMachineBlockEntity implements
             case CANISTER_PICKUP -> handleCanisterPickup(player, hitResult);
             case FLUID_CONTAINER -> handleFluidContainer(player, hand, hitResult);
             case GOO_INSERT -> handleGooInsert(hitResult, stack, player);
+            case LABEL_APPLY -> handleLabelApply(hitResult, stack, player);
             default -> throw new IllegalStateException(ERR_UNHANDLED + interaction);
         };
+    }
+
+    /**
+     * Puts the held goo label on the aimed canister and takes one label from the hand;
+     * a refused label leaves both as they stood.
+     * decision label-goes-on-an-empty-or-matching-vessel
+     *
+     * @param hitResult the ray trace hit result
+     * @param label     the held label stack
+     * @param player    the interacting player
+     * @return SUCCESS when the label went on, else PASS
+     */
+    private InteractionResult handleLabelApply(BlockHitResult hitResult, ItemStack label, Player player) {
+        CanisterSlot slot = slot(aimedSlot(hitResult));
+        ResourceKey<GooTypeDefinition> type = GooLabelItem.typeOf(label);
+        if (slot == null || type == null || !slot.applyGooLabel(type)) {
+            return InteractionResult.PASS;
+        }
+        GooBlockInteraction.consumeOneHeld(label, player);
+        return InteractionResult.SUCCESS;
     }
 
     private InteractionResult handleCanisterInsert(BlockHitResult hitResult, ItemStack stack, Player player) {
