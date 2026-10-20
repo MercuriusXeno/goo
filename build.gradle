@@ -114,6 +114,7 @@ dependencies {
     testImplementation 'org.mockito:mockito-junit-jupiter:5.23.0'
     testImplementation 'org.instancio:instancio-junit:5.4.0'
     testImplementation 'com.tngtech.archunit:archunit-junit5:1.4.1'
+    toolsImplementation 'de.elnarion.util:plantuml-generator-util:3.0.1'
     spotbugsPlugins 'com.mebigfatguy.sb-contrib:sb-contrib:7.6.8'
     spotbugsPlugins 'com.h3xstream.findsecbugs:findsecbugs-plugin:1.13.0'
 }
