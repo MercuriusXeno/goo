@@ -174,7 +174,7 @@ def parse_tests():
 
 # ── Output ───────────────────────────────────────────────────────────────
 
-def write_digest(cs_rules, pmd_rules, sb_bugs, sb_effort, cpd_dupes, tests):
+def write_digest(cs_rules, pmd_rules, sb_bugs, cpd_dupes, tests, sb_effort="default"):
     """Writes the unified digest."""
     out = []
 
@@ -297,7 +297,7 @@ def main():
     if not any([cs, pmd, sb, cpd, tests[0]]):
         print("No reports found, skipping digest.")
         sys.exit(0)
-    failed = write_digest(cs, pmd, sb, sb_effort, cpd, tests)
+    failed = write_digest(cs, pmd, sb, cpd, tests, sb_effort=sb_effort)
     sys.exit(1 if failed else 0)
 
 
