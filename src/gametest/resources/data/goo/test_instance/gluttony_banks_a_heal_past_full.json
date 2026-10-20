@@ -1,6 +1,6 @@
 {
   "type": "minecraft:function",
-  "function": "goo:gluttony_fills_past_the_cap",
+  "function": "goo:gluttony_banks_a_heal_past_full",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
   "max_ticks": 600,

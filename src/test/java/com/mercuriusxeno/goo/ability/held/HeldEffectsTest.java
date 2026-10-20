@@ -204,8 +204,8 @@ class HeldEffectsTest {
     @Test
     void laidStateIsReadFromTheProgram() {
         assertEquals(Set.of(LaidState.HEART_OVERLAY), LaidState.laidBy(List.of(new HeartOverlayStep(HeartKind.KINDLE))));
-        assertEquals(Set.of(LaidState.GLUTTONY), LaidState.laidBy(List.of(new GluttonyStep(Expr.literal(80),
-                Expr.literal(20), Expr.literal(20)))));
+        assertEquals(Set.of(LaidState.GLUTTONY), LaidState.laidBy(List.of(new GluttonyStep(Expr.literal(20),
+                Expr.literal(20)))));
         assertEquals(Set.of(), LaidState.laidBy(List.of()));
     }
 
