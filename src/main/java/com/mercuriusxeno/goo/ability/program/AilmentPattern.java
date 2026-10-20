@@ -17,8 +17,6 @@ public enum AilmentPattern {
     STONE,
     /** Pale frost crystals rimming the model. */
     FROST,
-    /** Veins writhing and coiling over the model (decision xeno-blob-mutates-the-struck). */
-    WRITHE,
     /**
      * A translucent gel shell that wobbles and stretches over the model
      * (decision weird-bounces-and-softens-harm).
