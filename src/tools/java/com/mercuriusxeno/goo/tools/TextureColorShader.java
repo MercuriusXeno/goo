@@ -160,7 +160,16 @@ final class TextureColorShader {
      * @throws IOException if the mask file cannot be read
      */
     static float[][] loadLuminanceMask(Path maskPath) throws IOException {
-        BufferedImage mask = ImageIO.read(maskPath.toFile());
+        return luminanceMask(ImageIO.read(maskPath.toFile()));
+    }
+
+    /**
+     * Extracts per-pixel luminance (0.0-1.0), incorporating alpha, from a mask image.
+     *
+     * @param mask the mask image
+     * @return 2D luminance array indexed by [y][x]
+     */
+    static float[][] luminanceMask(BufferedImage mask) {
         float[][] luminance = new float[SIZE][SIZE];
         for (int y = 0; y < SIZE; y++) {
             for (int x = 0; x < SIZE; x++) {

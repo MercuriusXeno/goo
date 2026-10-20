@@ -16,7 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Tests that the recolored goo types' UI channels, read from their type JSON
  * through the classpath, read apart from the types they sat on, that xeno
- * wears quantum's former purples, and that yore's fluid is aeon's oil slick.
+ * wears quantum's former purples, that yore's fluid is aeon's oil slick, and that quantum wears
+ * its icon's blue and a brighter, oranger orange than its former red orange.
  */
 class GooTypeColorsTest {
 
@@ -27,8 +28,12 @@ class GooTypeColorsTest {
     private static final int AEON_FRAMETIME = 5;
     private static final float AEON_VISCOSITY = 2.5f;
     private static final String ICON_BLUE = "3AA0E0";
-    private static final String ICON_ORANGE = "E8603C";
+    private static final String ICON_HIGHLIGHT = "6AD0F0";
+    private static final String ICON_ORANGE = "FF8A40";
+    private static final List<String> FORMER_RED_ORANGES = List.of("F26E4B", "E8603C");
     private static final float ICON_HUE_TOLERANCE = 15f;
+    private static final float ORANGE_STOP_HUE_TOLERANCE = 8f;
+    private static final float ORANGE_HUE_CEILING = 45f;
     private static final float ICON_SATURATION = 0.4f;
 
     @Test
@@ -68,17 +73,51 @@ class GooTypeColorsTest {
     }
 
     @Test
-    void quantumWearsItsIconsBlueAndReddishOrange() throws IOException {
+    void quantumWearsItsIconsBlueAndBrighterOrange() throws IOException {
         // quantum-is-gray-half-white-half-black, restated: quantum uses the colors of its type icon
-        assertTrue(hueDistance(channel("quantum", "wheel"), ICON_BLUE) <= ICON_HUE_TOLERANCE,
-                "quantum's wheel " + channel("quantum", "wheel") + " is not the icon's blue");
+        assertEquals(ICON_BLUE, channel("quantum", "wheel"), "quantum's wheel");
+        assertEquals(ICON_HIGHLIGHT, channel("quantum", "highlight"), "quantum's highlight");
         assertTrue(hueDistance(channel("quantum", "edge"), ICON_ORANGE) <= ICON_HUE_TOLERANCE,
-                "quantum's edge " + channel("quantum", "edge") + " is not the icon's reddish orange");
+                "quantum's edge " + channel("quantum", "edge") + " is not the icon's orange");
         for (String name : CHANNELS) {
-            int rgb = Integer.parseInt(channel("quantum", name), 16);
-            float saturation = java.awt.Color.RGBtoHSB((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, null)[1];
-            assertTrue(saturation >= ICON_SATURATION, "quantum's " + name + " is washed out at " + saturation);
+            assertTrue(hsb(channel("quantum", name))[1] >= ICON_SATURATION, "quantum's " + name + " is washed out");
         }
+    }
+
+    @Test
+    void quantumOrangeIsOrangerAndBrighterThanItsFormerRedOrange() throws IOException {
+        // quantum-is-gray-half-white-half-black: a slightly brighter, oranger orange than its red orange
+        for (String name : List.of("bright", "edge")) {
+            String orange = channel("quantum", name);
+            for (String former : FORMER_RED_ORANGES) {
+                assertTrue(hue(orange) > hue(former), "quantum's " + name + " " + orange + " is no oranger than " + former);
+                assertTrue(hsb(orange)[2] > hsb(former)[2], "quantum's " + name + " " + orange + " is no brighter than " + former);
+            }
+        }
+    }
+
+    @Test
+    void quantumFluidOrangeStopsWearTheNewOrange() throws IOException {
+        // quantum-is-gray-half-white-half-black
+        String bright = channel("quantum", "bright");
+        int orangeStops = 0;
+        for (String stop : paletteStops("quantum")) {
+            if (isOrange(stop)) {
+                orangeStops++;
+                assertTrue(hueDistance(stop, bright) <= ORANGE_STOP_HUE_TOLERANCE,
+                        "quantum's fluid stop " + stop + " sits off its orange " + bright);
+            }
+        }
+        assertTrue(orangeStops > 0, "quantum's fluid palette holds no orange stop");
+    }
+
+    private static boolean isOrange(String hex) {
+        return hue(hex) <= ORANGE_HUE_CEILING && hsb(hex)[1] >= ICON_SATURATION;
+    }
+
+    private static float[] hsb(String hex) {
+        int rgb = Integer.parseInt(hex, 16);
+        return java.awt.Color.RGBtoHSB((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, null);
     }
 
     private static List<String> paletteStops(String type) throws IOException {

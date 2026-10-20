@@ -58,29 +58,35 @@ final class GooTextureRenderer {
      * @throws IOException if texture or mask files cannot be read or written
      */
     static void generateGooBase(FluidTextureGenerator.GooFluidType type) throws IOException {
+        writeGooVariants(type, maskedHeat(type));
+    }
+
+    /**
+     * Runs a goo type's goo CA and captures the heat its goo sprites sample.
+     *
+     * @param type the goo fluid type definition
+     * @return the base heat, its range and the accent bands
+     */
+    static MaskedHeat maskedHeat(FluidTextureGenerator.GooFluidType type) {
         FluidTextureGenerator.FluidCA ca = new FluidTextureGenerator.FluidCA(
                 type.genParams(), type.seed() + GOO_SEED_OFFSET);
         FluidTextureGenerator.warmup(ca, FluidTextureGenerator.WARMUP + GOO_EXTRA_WARMUP);
         float[][] heatFrames = FluidTextureGenerator.captureHeatFrames(ca);
-        float[] heatRange = FluidTextureGenerator.findHeatRange(heatFrames);
-        writeGooVariants(type, heatFrames, heatRange);
+        return new MaskedHeat(heatFrames, FluidTextureGenerator.findHeatRange(heatFrames), AccentLayer.capture(type));
     }
 
     /**
      * Loads all size masks and writes masked goo sprite variants.
      *
-     * @param type       the goo fluid type definition
-     * @param heatFrames the raw heat values per frame
-     * @param heatRange  min and range values for normalization
+     * @param type the goo fluid type definition
+     * @param heat the base heat, its range and the accent bands
      * @throws IOException if texture or mask files cannot be read or written
      */
-    static void writeGooVariants(FluidTextureGenerator.GooFluidType type, float[][] heatFrames,
-                                  float... heatRange) throws IOException {
+    static void writeGooVariants(FluidTextureGenerator.GooFluidType type, MaskedHeat heat) throws IOException {
         float[][] tinyMask = TextureColorShader.loadLuminanceMask(FluidTextureGenerator.GOO_MASK_TINY_PATH);
         float[][] smallMask = TextureColorShader.loadLuminanceMask(FluidTextureGenerator.GOO_MASK_SMALL_PATH);
         float[][] baseMask = TextureColorShader.loadLuminanceMask(FluidTextureGenerator.GOO_MASK_PATH);
         float[][] largeMask = TextureColorShader.loadLuminanceMask(FluidTextureGenerator.GOO_MASK_LARGE_PATH);
-        MaskedHeat heat = new MaskedHeat(heatFrames, heatRange, AccentLayer.capture(type));
         writeMaskedGooVariant(heat, type, tinyMask, type.id() + SUFFIX_GOO_TINY);
         writeMaskedGooVariant(heat, type, smallMask, type.id() + SUFFIX_GOO_SMALL);
         writeMaskedGooVariant(heat, type, baseMask, type.id() + SUFFIX_GOO_BASE);
