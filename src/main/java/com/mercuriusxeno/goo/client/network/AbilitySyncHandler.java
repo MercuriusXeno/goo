@@ -483,7 +483,7 @@ public final class AbilitySyncHandler {
                         GooFormat.formatAmount(distancePrice.wallCost()),
                         Integer.toString(distancePrice.nodePercent()));
             }
-            if (SpireStep.liftsOf(behaviors).isPresent()) {
+            if (behaviors.stream().anyMatch(SpireStep.class::isInstance)) {
                 return List.of(GooFormat.formatAmount(lookup.valueOf(SPIRE_BLOCK)));
             }
             return List.of();
