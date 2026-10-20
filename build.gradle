@@ -120,7 +120,7 @@ dependencies {
 }
 
 // -Pverbose to log passed/skipped events alongside failures.
-tasks.named('test', Test) {
+tasks.withType(Test).configureEach {
     useJUnitPlatform()
     testLogging {
         if (project.hasProperty('verbose')) {
@@ -143,6 +143,19 @@ tasks.named('test', Test) {
     }
 }
 
+// The JaCoCo agent attaches to the unit suite only under coverage, which runs it as
+// coverageTest; test runs agentless (decision jacoco-agent-only-under-coverage).
+tasks.named('test', Test) {
+    jacoco.enabled = false
+}
+
+tasks.register('coverageTest', Test) {
+    description = 'Runs the unit suite under the JaCoCo agent for the coverage report'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+}
+
 // The name test-conventions.md and the acceptance criteria run; the pure unit suite is the test task.
 tasks.register('gooTest') {
     description = 'Runs the pure unit tests without bootstrapping a Minecraft server'
@@ -153,7 +166,7 @@ tasks.register('gooTest') {
 tasks.register('jacocoGooTestReport', JacocoReport) {
     description = 'Generates JaCoCo coverage report merging unit tests and gametests'
     group = 'verification'
-    dependsOn tasks.named('test')
+    dependsOn tasks.named('coverageTest')
     executionData fileTree(dir: buildDir, includes: ['jacoco/*.exec'])
     sourceSets sourceSets.main
     reports {
@@ -167,7 +180,7 @@ tasks.register('jacocoGooTestReport', JacocoReport) {
 tasks.register('coverage') {
     description = 'Runs unit tests + gametests, then generates merged JaCoCo report'
     group = 'verification'
-    dependsOn 'test', 'runGameTestServer'
+    dependsOn 'coverageTest', 'runGameTestServer'
     finalizedBy 'jacocoGooTestReport'
 }
 
