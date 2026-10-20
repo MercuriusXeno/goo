@@ -147,8 +147,9 @@ tasks.withType(Test).configureEach {
 // coverageTest; test runs agentless (decision jacoco-agent-only-under-coverage).
 tasks.named('test', Test) {
     jacoco.enabled = false
-    // One fork per two available cores (decision unit-suite-forks-in-parallel).
-    maxParallelForks = Math.max(1, Runtime.runtime.availableProcessors().intdiv(2))
+    // One fork per four available cores (decision unit-suite-forks-in-parallel); each fork
+    // bootstraps Minecraft, so more forks than this measured slower (decision test-jvm-keeps-what-measures-faster).
+    maxParallelForks = Math.max(1, Runtime.runtime.availableProcessors().intdiv(4))
 }
 
 tasks.register('coverageTest', Test) {
