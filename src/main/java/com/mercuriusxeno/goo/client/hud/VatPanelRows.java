@@ -31,6 +31,10 @@ final class VatPanelRows {
         if (data.hasLabel()) {
             headers.add(PanelPainter.labelRow(data.label()));
         }
+        // decision hud-panel-shows-the-label-type
+        if (data.gooLabel() != null) {
+            headers.add(PanelPainter.gooLabelRow(data.gooLabel()));
+        }
         if (data.stackSize() > 1) {
             headers.add(PanelRow.header(STACK_PREFIX + data.stackSize(), STACK_COLOR));
         }

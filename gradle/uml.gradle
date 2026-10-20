@@ -1,12 +1,9 @@
-// PlantUML class diagrams via plantuml-generator-util (de.elnarion.util:3.0.1).
-// Operates on compiled bytecode through ClassGraph. Output is raw .puml
-// text. Slices are data; one task per slice keeps each renewable. Aggregate
-// `umlDiagrams` regenerates everything. Add a slice by adding an entry to
-// umlSlices below.
-buildscript {
-    repositories { mavenCentral() }
-    dependencies { classpath 'de.elnarion.util:plantuml-generator-util:3.0.1' }
-}
+// PlantUML class diagrams through elnarion's generator, a tools dependency.
+// Each slice runs com.mercuriusxeno.goo.tools.architecture.UmlSliceWriter
+// as a forked JavaExec, so no project class loads inside the build JVM
+// (decision uml-generator-runs-in-tools). Slices are data; one task per slice
+// keeps each renewable. Aggregate `umlDiagrams` regenerates everything. Add a
+// slice by adding an entry to umlSlices below.
 def umlSlices = [
         [name    : 'Ability',
          file    : 'ability.puml',
@@ -47,35 +44,17 @@ def umlSlices = [
 
 // The slices land beside the other architecture documents (gradle/architecture.gradle).
 def umlOutputDir = new File(architectureOutDir, 'class')
-// Resolve at configuration time; sourceSets is not accessible inside doLast.
-def umlClasspathFiles = (sourceSets.main.output.classesDirs.files +
-                         sourceSets.main.compileClasspath.files) as Set
 
 umlSlices.each { slice ->
-    tasks.register("umlDiagrams${slice.name}") {
+    tasks.register("umlDiagrams${slice.name}", JavaExec) {
         description = "Generates PlantUML class diagram for ${slice.packages.join(', ')}"
         group = 'documentation'
         dependsOn tasks.named('compileJava')
-
-        doLast {
-            umlOutputDir.mkdirs()
-            // Classloader spanning goo's compiled classes plus compile-time
-            // dependencies (NeoForge, Minecraft) so ClassGraph resolves types.
-            def urls = umlClasspathFiles.collect { it.toURI().toURL() } as URL[]
-            def cl = new URLClassLoader(urls, this.class.classLoader)
-            // ClassGraph scans subpackages recursively, so a slice listing
-            // `client` would pull in `client.ber`, etc. The whitelist regex
-            // restricts each slice to direct children of the packages it lists.
-            def alt = slice.packages.collect { it.replace('.', '\\.') }.join('|')
-            def whitelist = '^(' + alt + ')\\.[^.]+$'
-            def cfg = new de.elnarion.util.plantuml.generator.classdiagram.config.PlantUMLClassDiagramConfigBuilder(slice.packages, whitelist)
-                    .withClassLoader(cl)
-                    .build()
-            def gen = new de.elnarion.util.plantuml.generator.classdiagram.PlantUMLClassDiagramGenerator(cfg)
-            def out = new File(umlOutputDir, slice.file)
-            out.text = gen.generateDiagramText()
-            println "Wrote ${out} (${out.length()} bytes)"
-        }
+        classpath = sourceSets.tools.runtimeClasspath
+        mainClass = 'com.mercuriusxeno.goo.tools.architecture.UmlSliceWriter'
+        workingDir = project.projectDir
+        args([umlOutputDir.absolutePath, slice.file] + slice.packages)
+        outputs.upToDateWhen { false }
     }
 }
 

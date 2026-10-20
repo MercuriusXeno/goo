@@ -11,6 +11,7 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import java.util.Map;
 
 /**
@@ -49,8 +50,50 @@ public class VatBlockItem extends BlockItem implements GooCarrierItem {
         if (cursor.isEmpty() && action == ClickAction.SECONDARY) {
             return CanisterInventoryHandler.drainIntoInventory(new VatGooSource(vat), GooDeposit.intoInventory(player, vat));
         }
-        return action == ClickAction.PRIMARY && CanisterInventoryHandler.insertFromCursor(
-                cursor, cursorAccess, (type, volume) -> addGoo(vat, type, volume));
+        if (action != ClickAction.PRIMARY) {
+            return false;
+        }
+        ResourceKey<GooTypeDefinition> label = GooLabelItem.typeOf(cursor);
+        if (label != null) {
+            return applyLabelFromCursor(vat, cursor, label);
+        }
+        return CanisterInventoryHandler.insertFromCursor(cursor, cursorAccess, (type, volume) -> addGoo(vat, type, volume));
+    }
+
+    /**
+     * Puts the cursor's goo label on a lone vat item and takes one label from the cursor;
+     * a refused label, or a slot holding more than one vat, leaves both as they stood,
+     * since one label goes onto one vat.
+     * decision label-goes-on-an-empty-or-matching-vessel
+     * decision goo-label-is-paper-plus-one-mb-of-goo
+     *
+     * @param vat    the vat item stack in the slot
+     * @param cursor the label stack on the cursor
+     * @param label  the label's goo type
+     * @return true when the label went on
+     */
+    private static boolean applyLabelFromCursor(ItemStack vat, ItemStack cursor, ResourceKey<GooTypeDefinition> label) {
+        if (vat.getCount() != 1 || !applyGooLabel(vat, label)) {
+            return false;
+        }
+        cursor.shrink(1);
+        return true;
+    }
+
+    /**
+     * Puts a goo label on a vat item where the label rule lets it on; an item carries no water.
+     * decision label-goes-on-an-empty-or-matching-vessel
+     *
+     * @param vat  the vat item stack
+     * @param type the label's goo type
+     * @return true when the label went on
+     */
+    public static boolean applyGooLabel(ItemStack vat, ResourceKey<GooTypeDefinition> type) {
+        if (!GooLabelRule.canLabelVat(getGooContents(vat), 0, getGooLabel(vat), type)) {
+            return false;
+        }
+        vat.set(GooDataComponents.GOO_LABEL.get(), type);
+        return true;
     }
 
     // --- Goo contents helpers (vat-specific capacity) ---
@@ -78,6 +121,16 @@ public class VatBlockItem extends BlockItem implements GooCarrierItem {
         } else {
             stack.set(GooDataComponents.GOO_CONTENTS.get(), contents);
         }
+    }
+
+    /**
+     * Returns the goo type the vat item's goo label holds it to, or null.
+     *
+     * @param stack the vat item stack
+     * @return the goo label type
+     */
+    public static @Nullable ResourceKey<GooTypeDefinition> getGooLabel(ItemStack stack) {
+        return stack.get(GooDataComponents.GOO_LABEL.get());
     }
 
     /**

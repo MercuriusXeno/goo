@@ -45,7 +45,7 @@ class CanisterMetadataTest {
     @Test
     void withGasketIds_preservesLabel() {
         CanisterMetadata meta = new CanisterMetadata(
-                null, null, "Gasket Test", null, null);
+                null, null, "Gasket Test", null, null, null);
         CanisterMetadata withGaskets = meta.withGasketIds();
         assertEquals("Gasket Test", withGaskets.label());
     }
@@ -156,14 +156,14 @@ class CanisterMetadataTest {
     @Test
     void hasData_withLabelOnly_returnsTrue() {
         CanisterMetadata meta = new CanisterMetadata(
-                null, null, "Named", null, null);
+                null, null, "Named", null, null, null);
         assertTrue(meta.hasData());
     }
 
     @Test
     void hasData_withGasketOnly_returnsTrue() {
         CanisterMetadata meta = new CanisterMetadata(
-                UUID.randomUUID(), null, null, null, null);
+                UUID.randomUUID(), null, null, null, null, null);
         assertTrue(meta.hasData());
     }
 
@@ -171,14 +171,14 @@ class CanisterMetadataTest {
     void hasData_withPartnerOnly_returnsTrue() {
         GasketPartner partner = new GasketPartner(new BlockPos(1, 2, 3), 0);
         CanisterMetadata meta = new CanisterMetadata(
-                null, null, null, partner, null);
+                null, null, null, partner, null, null);
         assertTrue(meta.hasData());
     }
 
     @Test
     void hasData_allDefaults_returnsFalse() {
         CanisterMetadata meta = new CanisterMetadata(
-                null, null, null, null, null);
+                null, null, null, null, null, null);
         assertFalse(meta.hasData());
     }
 }

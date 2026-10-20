@@ -48,6 +48,17 @@ public class GooDataComponents {
                     .build());
 
     /**
+     * The goo type a vat item's goo label holds it to
+     * (decision labeled-vessel-accepts-only-its-label-type).
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<ResourceKey<GooTypeDefinition>>>
+            GOO_LABEL = DATA_COMPONENTS.register("goo_label",
+            () -> DataComponentType.<ResourceKey<GooTypeDefinition>>builder()
+                    .persistent(GooTypes.KEY_CODEC)
+                    .networkSynchronized(GooTypes.KEY_STREAM_CODEC)
+                    .build());
+
+    /**
      * Single-fluid storage for canister items. Accepts any registered fluid.
      */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<CanisterFluidContent>>

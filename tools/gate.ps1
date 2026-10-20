@@ -70,8 +70,9 @@ function Invoke-PythonTests {
 
 function Invoke-GradleCheck {
     $gradlew = Join-Path $repo $(if ($IsWindows) { 'gradlew.bat' } else { 'gradlew' })
-    # A shared daemon outlives the run and stands outside its process tree (diagnose-then-fix-gate-collisions).
-    $said = @(& $gradlew check --no-daemon --console=plain 2>&1 | ForEach-Object { [string]$_ })
+    # The run builds in the worktree's daemon, which dies idle (decisions daemon-back-on, idle-daemon-dies-in-minutes).
+    # sca carries the analysis check no longer runs, so the digest still counts it (decision analysis-runs-at-the-gate-only).
+    $said = @(& $gradlew check sca --console=plain 2>&1 | ForEach-Object { [string]$_ })
     [pscustomobject]@{ Green = $LASTEXITCODE -eq 0; Output = $said }
 }
 

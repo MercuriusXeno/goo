@@ -27,7 +27,10 @@ public final class GooContentsOps {
      * @return the amount actually accepted (0 if full or non-positive input)
      */
     public static int addGoo(ItemStack stack, ResourceKey<GooTypeDefinition> type, int amount, int base) {
-        if (amount <= 0) { return 0; }
+        // decision labeled-vessel-accepts-only-its-label-type
+        if (amount <= 0 || !GooLabelRule.admitsType(stack.get(GooDataComponents.GOO_LABEL.get()), type)) {
+            return 0;
+        }
         GooContents contents = getContents(stack);
         int accepted = Math.min(amount, contents.roomFor(type, base));
         if (accepted <= 0) { return 0; }

@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
+import org.jspecify.annotations.Nullable;
 import java.util.*;
 
 /**
@@ -72,15 +73,17 @@ public final class VatStackRedistributor {
     }
 
     /**
-     * Sums all goo, then fills vats bottom-up greedily.
+     * Sums all goo, then fills vats bottom-up greedily: the labeled vats first, each
+     * taking its label's type alone, then the unlabeled vats taking the rest, so goo
+     * of another type settles in the unlabeled vats and none is left without a home
+     * (decision labeled-vessel-accepts-only-its-label-type).
      *
      * @param stack the vat stack, bottom-to-top
      */
     private static void doRedistribute(List<VatBlockEntity> stack) {
         Map<ResourceKey<GooTypeDefinition>, Integer> pool = mergePool(stack);
-        for (VatBlockEntity vat : stack) {
-            applySlice(vat, pool);
-        }
+        stack.stream().filter(vat -> vat.getGooLabel() != null).forEach(vat -> applySlice(vat, pool));
+        stack.stream().filter(vat -> vat.getGooLabel() == null).forEach(vat -> applySlice(vat, pool));
     }
 
     /**
@@ -106,7 +109,7 @@ public final class VatStackRedistributor {
      * @param pool the mutable goo pool to take from
      */
     private static void applySlice(VatBlockEntity vat, Map<ResourceKey<GooTypeDefinition>, Integer> pool) {
-        GooContents slice = takeSlice(pool, ContainerCapacity.VAT_BASE);
+        GooContents slice = takeSlice(pool, ContainerCapacity.VAT_BASE, vat.getGooLabel());
         if (!slice.equals(vat.getContents())) {
             vat.getFluidHandler().loadFrom(slice);
             vat.syncAfterRedistribution();
@@ -134,6 +137,31 @@ public final class VatStackRedistributor {
             remaining -= takeEntry(it, it.next(), remaining, slice);
         }
         return new GooContents(slice);
+    }
+
+    /**
+     * Takes one vat's share as {@link #takeSlice(Map, int)} does, a labeled vat drawing
+     * on its label's type alone and leaving the rest of the pool standing.
+     * decision labeled-vessel-accepts-only-its-label-type
+     *
+     * @param pool  the mutable goo pool
+     * @param base  the vat's capacity with no void, in mB
+     * @param label the vat's goo label type, or null where it wears none
+     * @return the goo contents
+     */
+    static GooContents takeSlice(Map<ResourceKey<GooTypeDefinition>, Integer> pool, int base,
+                                 @Nullable ResourceKey<GooTypeDefinition> label) {
+        if (label == null) {
+            return takeSlice(pool, base);
+        }
+        Integer held = pool.remove(label);
+        if (held == null) {
+            return GooContents.EMPTY;
+        }
+        Map<ResourceKey<GooTypeDefinition>, Integer> own = new HashMap<>(Map.of(label, held));
+        GooContents slice = takeSlice(own, base);
+        pool.putAll(own);
+        return slice;
     }
 
     /**
