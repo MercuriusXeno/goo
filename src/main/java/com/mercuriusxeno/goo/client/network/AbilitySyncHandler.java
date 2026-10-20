@@ -450,7 +450,7 @@ public final class AbilitySyncHandler {
          * cannot fill reads as written.
          * zero-cost-field-formats-the-cost-mechanics
          *
-         * @param lookup the lang, item names and goo values the text fills from
+         * @param lookup the lang and goo values the text fills from
          * @return the text, or empty for an ability naming no cost mechanics
          */
         public Optional<String> costMechanics(CostMechanicsLookup lookup) {
@@ -469,10 +469,9 @@ public final class AbilitySyncHandler {
         /**
          * The numbers a cost-mechanics format fills from, in the order its kind reads them:
          * a brew its upkeep a second; a blink its per-block price, its wall price and its
-         * oculus percent; a Spire stone's goo value per block; any other the names of the
-         * items it consumes.
+         * oculus percent; a Spire stone's goo value per block; any other none.
          *
-         * @param lookup the item names and goo values the numbers read from
+         * @param lookup the goo values the numbers read from
          * @return the arguments, formatted
          */
         private List<String> costMechanicsArguments(CostMechanicsLookup lookup) {
@@ -487,7 +486,7 @@ public final class AbilitySyncHandler {
             if (SpireStep.liftsOf(behaviors).isPresent()) {
                 return List.of(GooFormat.formatAmount(lookup.valueOf(SPIRE_BLOCK)));
             }
-            return consumes.stream().map(lookup::itemName).toList();
+            return List.of();
         }
         /**
          * Returns true if this ability has the given tag.

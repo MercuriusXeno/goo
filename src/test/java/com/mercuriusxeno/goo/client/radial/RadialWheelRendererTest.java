@@ -392,7 +392,7 @@ class RadialWheelRendererTest {
 
             @Override
             public CostMechanicsLookup costMechanicsLookup(ResourceKey<GooTypeDefinition> type) {
-                return new CostMechanicsLookup(key -> key, Identifier::toString, item -> 0);
+                return new CostMechanicsLookup(key -> key, item -> 0);
             }
         };
 

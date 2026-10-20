@@ -76,8 +76,7 @@ class AbilityTextsLangTest {
     void costMechanicsTextFillsWithNoPlaceholderLeft(AbilityDefinition definition) {
         ClientAbility client = ClientAbility.fromEntry(
                 AbilitySyncPayload.gloveEntries(definition.gooType(), List.of(definition)).getFirst());
-        CostMechanicsLookup enUs = new CostMechanicsLookup(AbilityTextsLangTest::valueOf,
-                item -> item.getPath().replace('_', ' '), item -> 1);
+        CostMechanicsLookup enUs = new CostMechanicsLookup(AbilityTextsLangTest::valueOf, item -> 1);
 
         String text = client.costMechanics(enUs).orElseThrow();
 

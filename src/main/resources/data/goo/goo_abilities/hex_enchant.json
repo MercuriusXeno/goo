@@ -1,7 +1,6 @@
 {
   "gooType": "hex",
   "displayName": "goo.ability.hex.enchant",
-  "cost_mechanics": "goo.ability.hex.enchant.cost_mechanics",
   "badge": "self",
   "order": 10,
   "cost": 1000,
