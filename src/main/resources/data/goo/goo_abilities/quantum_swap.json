@@ -1,7 +1,7 @@
 {
   "gooType": "quantum",
   "displayName": "goo.ability.quantum.swap",
-  "badge": "self",
+  "badge": "instant",
   "order": 30,
   "cost": 1000,
   "delivery": { "kind": "self" },
