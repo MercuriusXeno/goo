@@ -1,6 +1,7 @@
 {
   "gooType": "quantum",
   "displayName": "goo.ability.quantum.phase",
+  "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
   "badge": "brew",
   "order": 0,
   "upkeep": 1,

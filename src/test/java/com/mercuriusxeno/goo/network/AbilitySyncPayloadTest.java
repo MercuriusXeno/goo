@@ -79,6 +79,22 @@ class AbilitySyncPayloadTest {
         assertEquals(pose, AbilitySyncPayload.STREAM_CODEC.decode(buf).entries().getFirst().pose());
     }
 
+    /**
+     * The sync codec carries the description key to the client, which the
+     * radial's panel reads (decision ability-json-carries-a-description).
+     */
+    @Test
+    void descriptionReachesTheClientAbility() {
+        String json = AbilityJson.read("rock_spire").replaceFirst("\\{",
+                "{ \"description\": \"goo.ability.rock.spire.lifted\",");
+        AbilityDefinition definition = AbilityJson.decodeText("rock_spire", json);
+
+        ClientAbility client = ClientAbility.fromEntry(roundTrip(definition));
+
+        assertEquals(definition.description(), client.description());
+        assertEquals("goo.ability.rock.spire.lifted", client.description());
+    }
+
     /** Shards' shoulder cast reaches the client from its shipped JSON. */
     @Test
     void shardsPoseRoundTripsFromItsJson() {

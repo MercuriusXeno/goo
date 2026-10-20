@@ -1,6 +1,7 @@
 {
   "gooType": "rock",
   "displayName": "goo.ability.rock.spire",
+  "cost_mechanics": "goo.ability.rock.spire.cost_mechanics",
   "badge": "world",
   "order": 40,
   "cost": 0,
