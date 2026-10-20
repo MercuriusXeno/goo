@@ -9,10 +9,13 @@ import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
+import com.mercuriusxeno.goo.ability.ArmPose;
 import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.client.network.CostMechanicsLookup;
 import com.mercuriusxeno.goo.client.network.OfferedAbility;
+import com.mercuriusxeno.goo.client.hud.InWorldHud;
 import net.minecraft.world.item.ItemStack;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypeNames;
@@ -46,6 +49,7 @@ import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -327,6 +331,14 @@ class RadialWheelRendererTest {
                 new OfferedAbility.RequiredItem(Identifier.withDefaultNamespace("glass"), true),
                 new OfferedAbility.RequiredItem(Identifier.withDefaultNamespace("sand"), false),
                 new OfferedAbility.RequiredItem(Identifier.withDefaultNamespace("clay"), false));
+        /** The open type's ability whose JSON names cost mechanics; the rest charge a plain cost. */
+        private static final int ZERO_COST_ABILITY = 2;
+        /** The open type's ability charging a plain cost that a test hovers. */
+        private static final int PLAIN_COST_ABILITY = 0;
+        /** Every test ability's description key, which the fake lang reads back as written. */
+        private static final String DESCRIPTION = "ability.gootest.word.description";
+        /** The zero-cost ability's cost-mechanics key, which the fake lang reads back as written. */
+        private static final String COST_MECHANICS = "ability.gootest.mechanics";
         /** How far, in pixels, an item's center may stray from the petal's center line or its stride. */
         private static final double COLUMN_TOLERANCE = 1.5;
 
@@ -376,6 +388,11 @@ class RadialWheelRendererTest {
             @Override
             public ItemStack itemStack(Identifier item) {
                 return mock(ItemStack.class);
+            }
+
+            @Override
+            public CostMechanicsLookup costMechanicsLookup(ResourceKey<GooTypeDefinition> type) {
+                return new CostMechanicsLookup(key -> key, item -> 0);
             }
         };
 
@@ -440,7 +457,9 @@ class RadialWheelRendererTest {
                             List.of(), AbilityArea.NONE, IndicatorShowing.HELD, List.of(),
                             AbilityDefinition.NO_UPKEEP, DistancePrice.NONE,
                             type == OPEN_TYPE && (ability == prismAbility || prismAbility == EVERY_ABILITY)
-                                    ? List.of(mock(Step.class)) : List.of()),
+                                    ? List.of(mock(Step.class)) : List.of(),
+                            ArmPose.defaultFor(DeliveryKind.ARC), DESCRIPTION,
+                            ability == ZERO_COST_ABILITY ? Optional.of(COST_MECHANICS) : Optional.empty()),
                             type == OPEN_TYPE && ability == lockedAbility ? REQUIRED : List.of()))
                             .toList())
                     .toList();
@@ -557,7 +576,7 @@ class RadialWheelRendererTest {
         /** decision abilities-replace-the-hovered-type */
         @Test
         void everyLineDrawsInsideADarkBorderAllTheWayAround() {
-            GuiGraphicsExtractor graphics = renderFrame(openWheel());
+            GuiGraphicsExtractor graphics = renderFrame(restingOnOpenType(RADIUS));
             List<DrawnText> lines = wordsDrawn(graphics, color -> color != RadialWheelRenderer.OUTLINE_COLOR);
             List<DrawnText> border = wordsDrawn(graphics, color -> color == RadialWheelRenderer.OUTLINE_COLOR);
 
@@ -612,7 +631,7 @@ class RadialWheelRendererTest {
 
         @Test
         void eachAbilityPetalDrawsTwoLinesAndNoTypePetalDrawsText() {
-            RadialWheel wheel = openWheel();
+            RadialWheel wheel = restingOnOpenType(RADIUS);
             Map<RadialWheel.PetalArc, Long> linesByPetal = renderTexts(wheel).stream()
                     .filter(OpenTypeFrame::isOnTheRing)
                     .collect(Collectors.groupingBy(text -> petalUnder(wheel, text), Collectors.counting()));
@@ -736,6 +755,114 @@ class RadialWheelRendererTest {
                         assertEquals(Math.round(ownBox[1]) + down, Math.round(prismBox[1]), petal + " prism badge's top");
                         assertEquals(size * size, areaOf(prismState), AREA_TOLERANCE, petal + " prism badge shown whole");
                     }));
+        }
+
+        /** The wheel opened on the open type with the cursor on one of its abilities. */
+        private static RadialWheel hoveringAbility(int ability, int radius) {
+            RadialWheel wheel = openedWheel(TYPES, ABILITIES, OPEN_TYPE, radius);
+            RadialWheel.PetalArc petal = wheel.layout().stream()
+                    .filter(arc -> arc.isAbility() && arc.ability() == ability).findFirst().orElseThrow();
+            double reach = (petal.shape().inner() + petal.shape().outer()) / 2 * radius;
+            wheel.moveCursor(Math.sin(petal.center()) * reach, -Math.cos(petal.center()) * reach, radius);
+            for (int tick = 0; tick < RingEase.DURATION_TICKS; tick++) {
+                wheel.tick();
+            }
+            assertEquals(ability, wheel.hoveredAbility(), "the cursor hovers the ability");
+            return wheel;
+        }
+
+        /**
+         * The wheel opened on the open type with the cursor resting on that type's
+         * petal in the inner band, so no ability is hovered and no panel draws.
+         */
+        private static RadialWheel restingOnOpenType(int radius) {
+            RadialWheel wheel = openedWheel(TYPES, ABILITIES, OPEN_TYPE, radius);
+            double angle = wheel.layout().stream().filter(arc -> !arc.isAbility() && arc.type() == OPEN_TYPE)
+                    .findFirst().orElseThrow().center();
+            double reach = (RadialWheel.HUB_FRACTION + RadialWheel.TYPE_BAND_FRACTION) / 2 * radius;
+            wheel.moveCursor(Math.sin(angle) * reach, -Math.cos(angle) * reach, radius);
+            assertEquals(OPEN_TYPE, wheel.selectedType(), "the open type stays open");
+            return wheel;
+        }
+
+        /** The left edge of each text call drawing a line of words, by the words. */
+        private static Map<String, Integer> panelTextLefts(GuiGraphicsExtractor graphics) {
+            Map<String, Integer> lefts = new HashMap<>();
+            mockingDetails(graphics).getInvocations().stream()
+                    .filter(call -> call.getMethod().getName().equals("text")
+                            && (int) call.getArgument(TEXT_COLOR_ARGUMENT) != RadialWheelRenderer.OUTLINE_COLOR)
+                    .forEach(call -> lefts.put(((Component) call.getArgument(1)).getString(), call.getArgument(2)));
+            return lefts;
+        }
+
+        /** The left edge of every panel background quad the frame blitted. */
+        private static List<Integer> panelBackgroundLefts(GuiGraphicsExtractor graphics) {
+            return mockingDetails(graphics).getInvocations().stream()
+                    .filter(call -> call.getMethod().getName().equals("blit")
+                            && InWorldHud.BG_TEXTURE.equals(call.getArgument(1)))
+                    .map(call -> (Integer) call.getArgument(2))
+                    .toList();
+        }
+
+        private static int radiusAt(int guiWidth) {
+            return (int) RadialWheel.outerRadius(guiWidth, guiWidth * GUI_HEIGHT_PER_WIDTH / GUI_WIDTH_UNITS);
+        }
+
+        /**
+         * A hovered zero-cost ability draws its description and its cost-mechanics
+         * text in a panel whose box lies wholly right of the wheel's outer radius.
+         * decision explanation-panel-draws-right-of-the-wheel
+         */
+        @ParameterizedTest
+        @ValueSource(ints = {SCALE_THREE_WIDTH, SCALE_FOUR_WIDTH})
+        void hoveredZeroCostAbilityExplainsItselfRightOfTheWheel(int guiWidth) {
+            int radius = radiusAt(guiWidth);
+            GuiGraphicsExtractor graphics = renderFrame(hoveringAbility(ZERO_COST_ABILITY, radius), NO_ABILITY,
+                    NO_ABILITY, radius);
+            Map<String, Integer> lefts = panelTextLefts(graphics);
+            List<Integer> box = panelBackgroundLefts(graphics);
+            int wheelRight = CENTER_X + radius;
+
+            assertTrue(lefts.containsKey(DESCRIPTION), "description drawn: " + lefts.keySet());
+            assertTrue(lefts.containsKey(COST_MECHANICS), "cost mechanics drawn: " + lefts.keySet());
+            assertFalse(box.isEmpty(), "panel background drawn");
+            assertTrue(box.stream().allMatch(left -> left > wheelRight), "box left of " + wheelRight + ": " + box);
+            assertTrue(lefts.get(DESCRIPTION) > wheelRight, "description at " + lefts.get(DESCRIPTION));
+            assertTrue(lefts.get(COST_MECHANICS) > wheelRight, "cost mechanics at " + lefts.get(COST_MECHANICS));
+        }
+
+        /**
+         * A hovered ability charging a plain cost draws its description and no
+         * cost-mechanics text.
+         * decision explanation-panel-draws-right-of-the-wheel
+         */
+        @ParameterizedTest
+        @ValueSource(ints = {SCALE_THREE_WIDTH, SCALE_FOUR_WIDTH})
+        void hoveredPlainCostAbilityDrawsItsDescriptionAlone(int guiWidth) {
+            int radius = radiusAt(guiWidth);
+            Map<String, Integer> lefts = panelTextLefts(renderFrame(hoveringAbility(PLAIN_COST_ABILITY, radius),
+                    NO_ABILITY, NO_ABILITY, radius));
+
+            assertTrue(lefts.containsKey(DESCRIPTION), "description drawn: " + lefts.keySet());
+            assertTrue(lefts.get(DESCRIPTION) > CENTER_X + radius, "description at " + lefts.get(DESCRIPTION));
+            assertFalse(lefts.containsKey(COST_MECHANICS), "cost mechanics drawn for a plain cost");
+        }
+
+        /**
+         * With no ability hovered, no panel draws.
+         * decision explanation-panel-draws-right-of-the-wheel
+         */
+        @ParameterizedTest
+        @ValueSource(ints = {SCALE_THREE_WIDTH, SCALE_FOUR_WIDTH})
+        void noHoveredAbilityDrawsNoPanel(int guiWidth) {
+            int radius = radiusAt(guiWidth);
+            RadialWheel wheel = restingOnOpenType(radius);
+            assertEquals(RadialWheel.NONE, wheel.hoveredAbility(), "no ability hovered");
+
+            GuiGraphicsExtractor graphics = renderFrame(wheel, NO_ABILITY, NO_ABILITY, radius);
+
+            assertFalse(panelTextLefts(graphics).containsKey(DESCRIPTION), "description drawn with nothing hovered");
+            assertTrue(panelBackgroundLefts(graphics).isEmpty(), "panel background drawn with nothing hovered");
         }
 
         /**
@@ -1047,7 +1174,7 @@ class RadialWheelRendererTest {
         /** decision abilities-replace-the-hovered-type */
         @Test
         void abilityWordsDrawAfterEveryPetalAndIcon() {
-            List<String> calls = mockingDetails(renderFrame(openWheel())).getInvocations().stream()
+            List<String> calls = mockingDetails(renderFrame(restingOnOpenType(RADIUS))).getInvocations().stream()
                     .map(call -> call.getMethod().getName()).toList();
             int lastShape = Math.max(calls.lastIndexOf("submitGuiElementRenderState"), calls.lastIndexOf("blit"));
 

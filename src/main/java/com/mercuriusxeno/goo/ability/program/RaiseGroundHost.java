@@ -1,17 +1,17 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.SpireLift;
+import com.mercuriusxeno.goo.ability.SpireGrowth;
 
 /**
- * A host holding the ground a Spire lifts: the footprint the caster submitted
+ * A host holding the stone a Spire grows: the footprint the caster submitted
  * and the server planned, at the rise the caster's goo paid for (capability
  * {@link HostCapability#RAISE_GROUND}).
- * decision spire-rips-walls-and-platforms
+ * decision spire-grows-stone-out-of-the-top
  */
 public interface RaiseGroundHost extends AnchoredWorldHost {
 
     /**
-     * @return the planned lift, its columns and its paid rise
+     * @return the planned growth, its columns and its paid rise
      */
-    SpireLift lift();
+    SpireGrowth growth();
 }

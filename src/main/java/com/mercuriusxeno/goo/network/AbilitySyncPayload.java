@@ -23,6 +23,7 @@ import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.NonNull;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Server-to-client payload: syncs the loaded ability definitions so the
@@ -91,7 +92,8 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
                         def.displayName(), def.icon(), def.order(), def.tags(),
                         def.behaviors(), def.cost(),
                         def.delivery(), def.badge(), def.requires(), def.area(), def.indicator(),
-                        def.consumes(), def.upkeep(), def.distancePrice(), def.onPrism(), def.pose()))
+                        def.consumes(), def.upkeep(), def.distancePrice(), def.onPrism(), def.pose(),
+                        def.description(), def.costMechanics()))
                 .toList();
     }
 
@@ -116,6 +118,8 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
             DistancePrice.STREAM_CODEC.encode(buf, e.distancePrice);
             STEPS_CODEC.encode(buf, e.onPrism);
             ArmPose.STREAM_CODEC.encode(buf, e.pose);
+            buf.writeUtf(e.description);
+            buf.writeOptional(e.costMechanics, FriendlyByteBuf::writeUtf);
         }
     }
 
@@ -136,7 +140,8 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
                     AbilityBadge.STREAM_CODEC.decode(buf), ITEMS_CODEC.decode(buf),
                     AbilityArea.STREAM_CODEC.decode(buf), IndicatorShowing.STREAM_CODEC.decode(buf),
                     ITEMS_CODEC.decode(buf), buf.readVarInt(), DistancePrice.STREAM_CODEC.decode(buf),
-                    STEPS_CODEC.decode(buf), ArmPose.STREAM_CODEC.decode(buf)));
+                    STEPS_CODEC.decode(buf), ArmPose.STREAM_CODEC.decode(buf), buf.readUtf(),
+                    buf.readOptional(FriendlyByteBuf::readUtf)));
         }
         return new AbilitySyncPayload(entries);
     }
@@ -177,13 +182,81 @@ public record AbilitySyncPayload(List<Entry> entries) implements CustomPacketPay
      * @param onPrism     the steps a landing on a prism runs, empty for none, which the wheel
      *                    marks with the prism badge (decision on-prism-reaction-wears-the-prism-badge)
      * @param pose        the arm pose the glove arm takes in place of the swing
+     * @param description the translation key for what the ability does
+     *                    (decision ability-json-carries-a-description)
+     * @param costMechanics the format key explaining how a zero-cost ability charges, empty for none
+     *                    (decision zero-cost-field-formats-the-cost-mechanics)
      */
     public record Entry(String abilityId, String gooTypeId, String displayName,
                         String icon, int order, List<String> tags,
                         List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
                         List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
                         List<Identifier> consumes, int upkeep, DistancePrice distancePrice,
-                        List<Step> onPrism, ArmPose pose) {
+                        List<Step> onPrism, ArmPose pose, String description, Optional<String> costMechanics) {
+
+        /**
+         * An entry naming no cost mechanics.
+         *
+         * @param abilityId     the ability resource id string
+         * @param gooTypeId     the goo type id string
+         * @param displayName   the translation key
+         * @param icon          the icon texture path override
+         * @param order         the sort order within the type
+         * @param tags          categorical tags
+         * @param behaviors     the ability's step program
+         * @param cost          the mB a throw costs
+         * @param delivery      how the ability leaves the glove
+         * @param badge         the target kind the radial marks on the icon
+         * @param requires      the items a player must know before the radial offers it
+         * @param area          the area the glove draws while right click is held
+         * @param indicator     when the ability's indicator shows
+         * @param consumes      the items a throw takes, one of each
+         * @param upkeep        the mB a held self + brew effect pays each tick it stands
+         * @param distancePrice what a blink adds to the cost for its trip
+         * @param onPrism       the steps a landing on a prism runs, empty for none
+         * @param pose          the arm pose the glove arm takes in place of the swing
+         * @param description   the translation key for what the ability does
+         */
+        public Entry(String abilityId, String gooTypeId, String displayName, String icon, int order,
+                     List<String> tags, List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
+                     List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
+                     List<Identifier> consumes, int upkeep, DistancePrice distancePrice, List<Step> onPrism,
+                     ArmPose pose, String description) {
+            this(abilityId, gooTypeId, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires,
+                    area, indicator, consumes, upkeep, distancePrice, onPrism, pose, description, Optional.empty());
+        }
+
+        /**
+         * An entry naming no description, which reads its displayName key plus ".description".
+         *
+         * @param abilityId     the ability resource id string
+         * @param gooTypeId     the goo type id string
+         * @param displayName   the translation key
+         * @param icon          the icon texture path override
+         * @param order         the sort order within the type
+         * @param tags          categorical tags
+         * @param behaviors     the ability's step program
+         * @param cost          the mB a throw costs
+         * @param delivery      how the ability leaves the glove
+         * @param badge         the target kind the radial marks on the icon
+         * @param requires      the items a player must know before the radial offers it
+         * @param area          the area the glove draws while right click is held
+         * @param indicator     when the ability's indicator shows
+         * @param consumes      the items a throw takes, one of each
+         * @param upkeep        the mB a held self + brew effect pays each tick it stands
+         * @param distancePrice what a blink adds to the cost for its trip
+         * @param onPrism       the steps a landing on a prism runs, empty for none
+         * @param pose          the arm pose the glove arm takes in place of the swing
+         */
+        public Entry(String abilityId, String gooTypeId, String displayName, String icon, int order,
+                     List<String> tags, List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
+                     List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
+                     List<Identifier> consumes, int upkeep, DistancePrice distancePrice, List<Step> onPrism,
+                     ArmPose pose) {
+            this(abilityId, gooTypeId, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires,
+                    area, indicator, consumes, upkeep, distancePrice, onPrism, pose,
+                    AbilityDefinition.defaultDescription(displayName));
+        }
 
         /**
          * An entry naming no arm pose, which takes its delivery kind's default.

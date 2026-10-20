@@ -4,7 +4,9 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.GooValues;
+import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
+import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.registry.GooItems;
@@ -20,23 +22,42 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import java.util.List;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
-import com.mercuriusxeno.goo.gametest.GooTestFunctions;
-import com.mercuriusxeno.goo.gametest.RegistersGameTests;
 
 /**
  * Gametest for rock's Spire, submitted the way the second right click
- * submits it: a 3x1 footprint at rise 4 stands a 3x1x4 wall of the ground's
- * own blocks in their order, refills the column it left with deepslate,
- * the gametest bay standing below Y 0, and spends the rock goo value of
- * that refill.
- * decision spire-rips-walls-and-platforms
+ * submits it: a 3x1 footprint at rise 3 over ground of dirt, stone and
+ * deepslate grows a 3x1x3 wall of stone above it, leaves every ground block
+ * as it stood, and spends stone's rock goo value per stone block grown.
+ * decision spire-grows-stone-out-of-the-top
  */
 @RegistersGameTests
 public final class SpireTests {
-    private static final String SPIRE_STANDS_A_WALL = "spire_stands_a_wall";
+    private static final String SPIRE_GROWS_STONE = "spire_grows_stone_above_the_footprint";
+
+    private static final String ROCK_SPIRE = "goo:rock_spire";
+    /** The footprint's ground row, three cells along X at the bay's middle depth, one above the floor. */
+    private static final BlockPos CORNER = new BlockPos(1, 1, 2);
+    private static final BlockPos OPPOSITE = new BlockPos(3, 1, 2);
+    private static final int RISE = 3;
+    /** The footprint's ground cells along X, each a different block. */
+    private static final List<Block> GROUND = List.of(Blocks.DIRT, Blocks.STONE, Blocks.DEEPSLATE);
+    /** How deep under the footprint the test checks the ground stands unchanged. */
+    private static final int GROUND_DEPTH_CHECKED = 2;
+    private static final BlockPos CASTER_POS = new BlockPos(0, 1, 5);
+    private static final int CASTER_GOO = 100 * GooStacks.THOUSAND;
+    private static final String ABILITY_REQUIRED = "goo:rock_spire must be loaded";
+    private static final String STONE_MISSING = "The cell at %s should hold %s, holds %s";
+    private static final String GROUND_MOVED = "The ground at %s should still hold %s, holds %s";
+    private static final String UNPRICED = "Stone should carry a rock goo value for Spire to spend";
+    private static final String CHARGED_WRONG = "The growth should spend %d mB of rock goo, spent %d";
+
+    private SpireTests() {
+    }
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -44,68 +65,46 @@ public final class SpireTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, SPIRE_STANDS_A_WALL, SpireTests::spireStandsAWall);
-    }
-
-
-    private static final String ROCK_SPIRE = "goo:rock_spire";
-    /**
-     * The footprint's ground row, three cells along X at the bay's middle
-     * depth, one above the floor so the risen wall tops out inside the
-     * six-block bay; the column it lifts reaches under the floor.
-     */
-    private static final BlockPos CORNER = new BlockPos(1, 1, 2);
-    private static final BlockPos OPPOSITE = new BlockPos(3, 1, 2);
-    private static final int RISE = 4;
-    /** The ground column under each footprint cell, top first, which the wall stands in this order. */
-    private static final List<Block> GROUND = List.of(Blocks.DIRT, Blocks.COBBLESTONE, Blocks.ANDESITE, Blocks.STONE);
-    private static final BlockPos CASTER_POS = new BlockPos(0, 1, 5);
-    private static final int CASTER_GOO = 100 * GooStacks.THOUSAND;
-    private static final String ABILITY_REQUIRED = "goo:rock_spire must be loaded";
-    private static final String WALL_WRONG = "The wall at %s should hold %s, holds %s";
-    private static final String REFILL_WRONG = "The lifted ground at %s should refill with %s, holds %s";
-    private static final String BAY_ABOVE_DEEPSLATE =
-            "The bay should stand below Y 0, where the lifted ground refills with deepslate";
-    private static final String UNPRICED = "Stone and deepslate should carry a rock goo value for Spire to spend";
-    private static final String CHARGED_WRONG = "The lift should spend %d mB of rock goo, spent %d";
-
-    private SpireTests() {
+        GooTestFunctions.registerTest(registrar, SPIRE_GROWS_STONE, SpireTests::spireGrowsStoneAboveTheFootprint);
     }
 
     /**
-     * A submitted 3x1 footprint at rise 4 stands a 3x1x4 wall of the ground's
-     * own blocks, refills the gap under it and spends the refill's goo value.
+     * A submitted 3x1 footprint at rise 3 over mixed ground grows stone in the
+     * three cells above each footprint cell and leaves the ground as it stood.
      *
      * @param helper the gametest helper
      */
-    public static void spireStandsAWall(GameTestHelper helper) {
+    public static void spireGrowsStoneAboveTheFootprint(GameTestHelper helper) {
         for (int x = CORNER.getX(); x <= OPPOSITE.getX(); x++) {
-            for (int depth = 0; depth < GROUND.size(); depth++) {
-                helper.setBlock(new BlockPos(x, CORNER.getY() - depth, CORNER.getZ()), GROUND.get(depth));
+            helper.setBlock(new BlockPos(x, CORNER.getY(), CORNER.getZ()), GROUND.get(x - CORNER.getX()));
+        }
+        Map<BlockPos, BlockState> groundBefore = new HashMap<>();
+        for (int x = CORNER.getX(); x <= OPPOSITE.getX(); x++) {
+            for (int depth = 0; depth < GROUND_DEPTH_CHECKED; depth++) {
+                BlockPos ground = new BlockPos(x, CORNER.getY() - depth, CORNER.getZ());
+                groundBefore.put(ground, helper.getBlockState(ground));
             }
         }
         int spent = submit(helper);
-        int expected = 0;
         for (int x = CORNER.getX(); x <= OPPOSITE.getX(); x++) {
-            for (int depth = 0; depth < GROUND.size(); depth++) {
-                BlockPos risen = new BlockPos(x, CORNER.getY() + RISE - depth, CORNER.getZ());
-                assertHolds(helper, risen, GROUND.get(depth).defaultBlockState(), WALL_WRONG);
-                BlockPos refilled = new BlockPos(x, CORNER.getY() - depth, CORNER.getZ());
-                helper.assertTrue(helper.absolutePos(refilled).getY() < 0, BAY_ABOVE_DEEPSLATE);
-                assertHolds(helper, refilled, Blocks.DEEPSLATE.defaultBlockState(), REFILL_WRONG);
-                expected += rockValue(helper, Blocks.DEEPSLATE.defaultBlockState());
+            for (int height = 1; height <= RISE; height++) {
+                assertHolds(helper, new BlockPos(x, CORNER.getY() + height, CORNER.getZ()),
+                        Blocks.STONE.defaultBlockState(), STONE_MISSING);
             }
         }
-        helper.assertTrue(expected > 0, UNPRICED);
+        groundBefore.forEach((ground, before) -> assertHolds(helper, ground, before, GROUND_MOVED));
+        int stoneValue = stoneRockValue(helper);
+        helper.assertTrue(stoneValue > 0, UNPRICED);
+        int expected = stoneValue * GROUND.size() * RISE;
         helper.assertTrue(spent == expected, String.format(CHARGED_WRONG, expected, spent));
         helper.succeed();
     }
 
     /**
-     * Submits the footprint as a caster holding a glove and rock goo.
+     * Submits the footprint as a caster holding a glove, the reagents and rock goo.
      *
      * @param helper the gametest helper
-     * @return the mB of rock goo the lift spent
+     * @return the mB of rock goo the growth spent
      */
     @SuppressWarnings("removal") // vanilla marks the mock server player helper for removal and names no replacement
     private static int submit(GameTestHelper helper) {
@@ -124,12 +123,11 @@ public final class SpireTests {
 
     private static void assertHolds(GameTestHelper helper, BlockPos pos, BlockState expected, String message) {
         BlockState actual = helper.getBlockState(pos);
-        helper.assertTrue(actual.is(expected.getBlock()), String.format(message, pos, expected, actual));
+        helper.assertTrue(actual.equals(expected), String.format(message, pos, expected, actual));
     }
 
-    private static int rockValue(GameTestHelper helper, BlockState refill) {
-        GooValue value = GooValues.of(helper.getLevel())
-                .lookup(BuiltInRegistries.ITEM.getKey(refill.getBlock().asItem()));
+    private static int stoneRockValue(GameTestHelper helper) {
+        GooValue value = GooValues.of(helper.getLevel()).lookup(BuiltInRegistries.ITEM.getKey(Blocks.STONE.asItem()));
         return value == null ? 0 : value.get(GooTypes.ROCK);
     }
 
