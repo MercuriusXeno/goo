@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.ability.SpireLift;
+import com.mercuriusxeno.goo.ability.SpireGrowth;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -8,15 +8,15 @@ import net.minecraft.world.phys.Vec3;
 import java.util.OptionalDouble;
 
 /**
- * The {@link StepHost} over a Spire's submitted footprint: the ground it
- * lifts, acted on in the tick the submit lands, its particles and sound
+ * The {@link StepHost} over a Spire's submitted footprint: the stone it
+ * grows, acted on in the tick the submit lands, its particles and sound
  * reaching out from the footprint's center.
- * decision spire-rips-walls-and-platforms
+ * decision spire-grows-stone-out-of-the-top
  *
- * @param level the server level
- * @param lift  the planned lift
+ * @param level  the server level
+ * @param growth the planned growth
  */
-public record FootprintHost(ServerLevel level, SpireLift lift) implements RaiseGroundHost {
+public record FootprintHost(ServerLevel level, SpireGrowth growth) implements RaiseGroundHost {
 
     private static final double HALF = 0.5;
 
@@ -32,13 +32,13 @@ public record FootprintHost(ServerLevel level, SpireLift lift) implements RaiseG
 
     @Override
     public BlockPos position() {
-        return lift.footprint().corner();
+        return growth.footprint().corner();
     }
 
     @Override
     public Vec3 anchor() {
-        BlockPos min = lift.footprint().min();
-        BlockPos max = lift.footprint().max();
+        BlockPos min = growth.footprint().min();
+        BlockPos max = growth.footprint().max();
         return new Vec3((min.getX() + max.getX() + 1) * HALF, min.getY() + 1.0, (min.getZ() + max.getZ() + 1) * HALF);
     }
 
