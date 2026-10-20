@@ -56,7 +56,6 @@ interface PetalLook {
         @Override
         public CostMechanicsLookup costMechanicsLookup(ResourceKey<GooTypeDefinition> type) {
             return new CostMechanicsLookup(Language.getInstance()::getOrDefault,
-                    item -> BuiltInRegistries.ITEM.getValue(item).getDefaultInstance().getHoverName().getString(),
                     item -> {
                         GooValue value = ClientGooValues.current().lookup(item);
                         return value == null ? 0 : value.get(type);
@@ -65,8 +64,8 @@ interface PetalLook {
     };
 
     /**
-     * What the explanation panel resolves its texts through: the lang, the
-     * consumed items' names and the open type's goo values.
+     * What the explanation panel resolves its texts through: the lang and
+     * the open type's goo values.
      * decision zero-cost-field-formats-the-cost-mechanics
      *
      * @param type the open type, whose goo values price the ability

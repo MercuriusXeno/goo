@@ -1,12 +1,10 @@
 {
   "gooType": "void",
   "displayName": "goo.ability.void.erase",
-  "cost_mechanics": "goo.ability.void.erase.cost_mechanics",
   "badge": "mob",
   "order": 0,
   "cost": 2000,
   "requires": ["minecraft:recovery_compass"],
-  "consumes": ["minecraft:ender_pearl"],
   "delivery": { "kind": "arc" },
   "behaviors": [
     {

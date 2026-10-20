@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
@@ -29,17 +30,10 @@ class CostMechanicsTest {
             "goo.ability.cost_mechanics.upkeep", "%s a second",
             "goo.ability.ender.blink.cost_mechanics", "%s per block, %s through a wall, %s percent to an oculus",
             "goo.ability.rock.spire.cost_mechanics", "%s per block raised",
-            "goo.ability.unstable.unmake.cost_mechanics", "Burns unstable goo for each block dissolved.",
-            "goo.ability.hex.enchant.cost_mechanics", "Uses a %s",
-            "goo.ability.void.erase.cost_mechanics", "Uses an %s");
-
-    private static final Map<Identifier, String> ITEM_NAMES = Map.of(
-            Identifier.withDefaultNamespace("book"), "Book",
-            Identifier.withDefaultNamespace("ender_pearl"), "Ender Pearl");
+            "goo.ability.unstable.unmake.cost_mechanics", "Burns unstable goo for each block dissolved.");
 
     private static final CostMechanicsLookup LOOKUP = new CostMechanicsLookup(
             key -> LANG.getOrDefault(key, key),
-            item -> ITEM_NAMES.getOrDefault(item, item.toString()),
             item -> STONE.equals(item) ? STONE_ROCK_VALUE : 0);
 
     static Stream<AbilityDefinition> abilitiesNamingCostMechanics() {
@@ -98,14 +92,21 @@ class CostMechanicsTest {
         assertTrue(textOf("unstable_unmake").startsWith("Burns unstable goo"), textOf("unstable_unmake"));
     }
 
-    @Test
-    void enchantTextNamesTheBookItConsumes() {
-        assertTrue(textOf("hex_enchant").contains("Uses a Book"), textOf("hex_enchant"));
+    static Stream<AbilityDefinition> abilitiesWithAPlainCost() {
+        return AbilityJson.files().stream().map(AbilityJson::decode)
+                .filter(definition -> definition.cost() > 0 && definition.distancePrice().equals(DistancePrice.NONE));
     }
 
+    @ParameterizedTest
+    @MethodSource("abilitiesWithAPlainCost")
+    void abilityWithAPlainCostNamesNoCostMechanics(AbilityDefinition definition) {
+        assertTrue(definition.costMechanics().isEmpty(), definition.id().toString());
+    }
+
+    // decision ability-json-names-its-reagent
     @Test
-    void eraseTextNamesTheEnderPearlItConsumes() {
-        assertTrue(textOf("void_erase").contains("Uses an Ender Pearl"), textOf("void_erase"));
+    void eraseConsumesNoItem() {
+        assertTrue(AbilityJson.decode("void_erase").consumes().isEmpty());
     }
 
     @Test
