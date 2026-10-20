@@ -505,6 +505,27 @@ class GooValueRegistryTest {
         }
 
         /**
+         * Each type divides on its own, so remainders per type are lost even when the total divides.
+         * Mirrors minecraft:cookie: jelly 300 and leaf 492 over 8 lose 4 each, total 792 divides by 8.
+         */
+        @Test
+        void perTypeRemainderDetectsLossWhenTotalDivides() {
+            setBaseValues(Map.of(
+                    id("input"), new GooValue(Map.of(GooTypes.ROCK, 300, GooTypes.METAL, 492))
+            ));
+            List<RecipeInput> recipes = List.of(
+                    recipe("output", 8, slot("input"))
+            );
+
+            registry.deriveFromRecipeInputs(recipes, false);
+            assertEquals(1, registry.diagnostics().divisibilityLosses().size());
+            var loss = registry.diagnostics().divisibilityLosses().get(0);
+            assertEquals(792, loss.inputTotal());
+            assertEquals(98, loss.perItemValue());
+            assertEquals(8, loss.lostGoo());
+        }
+
+        /**
          * Result count 1 is never checked for divisibility loss.
          */
         @Test
