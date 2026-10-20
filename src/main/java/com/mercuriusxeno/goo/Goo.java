@@ -71,6 +71,7 @@ public class Goo {
         GooParticles.PARTICLE_TYPES.register(modEventBus);
         GooSounds.SOUND_EVENTS.register(modEventBus);
         GooCreativeTabs.TABS.register(modEventBus);
+        GooRecipeSerializers.RECIPE_SERIALIZERS.register(modEventBus);
     }
 
     /**

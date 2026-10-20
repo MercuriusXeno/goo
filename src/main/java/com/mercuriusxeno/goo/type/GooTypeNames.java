@@ -26,6 +26,10 @@ public final class GooTypeNames {
      */
     public static final String BUCKET = "item.goo.goo_bucket";
     /**
+     * Translation key of the goo label item name, taking the type name.
+     */
+    public static final String LABEL = "item.goo.goo_label";
+    /**
      * Translation key of the name an item shows when it carries no type.
      */
     public static final String UNTYPED = "goo.type.untyped";
@@ -68,5 +72,13 @@ public final class GooTypeNames {
      */
     public static MutableComponent bucketName(ResourceKey<GooTypeDefinition> key) {
         return Component.translatable(BUCKET, name(key));
+    }
+
+    /**
+     * @param key the type a goo label carries, or null
+     * @return the label item name, "[Type] Goo Label"
+     */
+    public static MutableComponent labelName(ResourceKey<GooTypeDefinition> key) {
+        return Component.translatable(LABEL, name(key));
     }
 }
