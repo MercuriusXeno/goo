@@ -25,7 +25,7 @@ import java.util.function.Consumer;
  * canisters, vats, crucible reservoirs, and partially melted items.
  *
  * <p>Each entry maps a goo type key to a volume (mB).
- * Mutation methods return new instances; this record is never modified in place.</p>
+ * Update methods return new instances; this record is never modified in place.</p>
  *
  * @param contents the map of goo types to volumes
  */
