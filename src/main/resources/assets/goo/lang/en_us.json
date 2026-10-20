@@ -155,6 +155,14 @@
   "block.goo.zap_pulse": "Zap Pulse",
   "block.goo.bounce_pad": "Bounce Pad",
 
+  "goo.badge.world": "World",
+  "goo.badge.mob": "Mob",
+  "goo.badge.instant": "Instant",
+  "goo.badge.channeled": "Channeled",
+  "goo.badge.brew": "Brew",
+  "goo.badge.free": "Free",
+  "goo.badge.prism": "Prism",
+
   "goo.ability.yore.rewind": "Rewind",
   "goo.ability.yore.rewind.description": "Rewind time for a mob, freezing it while held, then turning it into a baby, or into its spawn egg.",
   "goo.ability.yore.expire": "Expire",

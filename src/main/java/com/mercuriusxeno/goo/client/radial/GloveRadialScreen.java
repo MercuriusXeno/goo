@@ -140,22 +140,21 @@ public final class GloveRadialScreen extends Screen {
      * Draws the wheel at the frame's true partial tick: the float a screen's
      * render receives is the frame's delta in ticks, not how far into the
      * tick the frame falls, and easing on it steps once a tick. A cursor on
-     * a locked petal's item icon names that item beside it.
+     * a locked petal's item icon names that item beside it, and on a badge
+     * names the badge's kind.
      * decision petal-moves-animate
      * decision locked-petal-lists-the-unlearned-items
+     * decision hovering-a-badge-names-its-kind
      */
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float frameDelta) {
         super.extractBackground(graphics, mouseX, mouseY, frameDelta);
         float partialTick = minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-        List<RadialWheelRenderer.ItemIcon> sacrifice = RadialWheelRenderer.render(graphics, font,
+        RadialWheelRenderer.Hoverables drawn = RadialWheelRenderer.render(graphics, font,
                 new RadialWheelRenderer.Frame(wheel, types, abilities, available,
                         width / HALF, height / HALF, radius(), PetalLook.LIVE, partialTick, activeAbilities(),
                         gameTime(partialTick)));
-        RadialWheelRenderer.ItemIcon hovered = RadialWheelRenderer.itemUnder(sacrifice, mouseX, mouseY);
-        if (hovered != null) {
-            graphics.setTooltipForNextFrame(font, hovered.stack().getHoverName(), mouseX, mouseY);
-        }
+        RadialWheelRenderer.nameWhatTheCursorRestsOn(graphics, font, drawn, mouseX, mouseY);
     }
 
     /**
