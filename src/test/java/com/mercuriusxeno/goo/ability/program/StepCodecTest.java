@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.ability.frost.FrostCurve;
 import com.mercuriusxeno.goo.ability.hearts.HeartKind;
-import com.mercuriusxeno.goo.ability.xeno.Mutation;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.datafixers.util.Unit;
 import com.google.gson.JsonElement;
@@ -132,9 +131,6 @@ class StepCodecTest {
             Map.entry("sight", new SightStep(Expr.literal(3))),
             Map.entry("lux", new LuxStep()),
             Map.entry("eldritch", new EldritchStep()),
-            Map.entry("mutate", new MutateStep(List.of(
-                    new Mutation(Mutation.Kind.SIZE, 0.5, Optional.empty()),
-                    new Mutation(Mutation.Kind.DROP, 0, Optional.of(Identifier.withDefaultNamespace("bone")))))),
             Map.entry("wisps", new WispsStep(64, 4000, 1200, 0, true, 0.8)),
             Map.entry("reflector", new ReflectorStep(20)),
             Map.entry("ray", new RayStep(32, 10, List.of(EntityFilter.LIVING), new RayStep.Refraction(16, 1.5, 0.85),
@@ -167,7 +163,7 @@ class StepCodecTest {
             Map.entry("stun", LeafSteps.STUN.step(Expr.literal(60))),
             Map.entry("signal_wave", new SignalWaveStep(Expr.literal(8), Expr.literal(40))),
             Map.entry("pulser_toggle", new PulserToggleStep(Expr.literal(4))),
-            Map.entry("gluttony", new GluttonyStep(Expr.literal(80), Expr.literal(20), Expr.literal(20))),
+            Map.entry("gluttony", new GluttonyStep(Expr.literal(20), Expr.literal(20))),
             Map.entry("reserve_drain", new ReserveDrainStep(Expr.literal(0.05), Expr.literal(0.5), Expr.literal(10),
                     Expr.literal(0.5))),
             Map.entry("feed", new FeedStep(Expr.literal(12), Expr.literal(100))),
@@ -278,9 +274,9 @@ class StepCodecTest {
         // self-effects-trickle-until-ended: the brew alone names a duration
         assertEquals(new HeartOverlayStep(HeartKind.KINDLE),
                 decode("{\"type\": \"heart_overlay\", \"kind\": \"kindle\"}").getOrThrow());
-        assertEquals(new GluttonyStep(Expr.literal(80), Expr.literal(20), Expr.literal(16)),
-                decode("{\"type\": \"gluttony\", \"interval\": 80, \"max_overheal\": 20, \"max_overhunger\": 16}")
-                        .getOrThrow());
+        // gluttony-overheals-and-overhungers: the step names the caps alone, no clock
+        assertEquals(new GluttonyStep(Expr.literal(20), Expr.literal(16)),
+                decode("{\"type\": \"gluttony\", \"max_overheal\": 20, \"max_overhunger\": 16}").getOrThrow());
     }
 
     @Test

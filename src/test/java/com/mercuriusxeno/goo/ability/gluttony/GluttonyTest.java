@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.ability.gluttony;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.mojang.serialization.JsonOps;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -8,64 +11,52 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The gluttony clock and banks: a point every interval up to and on the
- * expiry, a repeat invoke stacking its duration, a full bar banking the
- * point up to its cap, and banked hunger refilling a dropped bar
+ * The gluttony's expiry and banks: a repeat invoke stacking its duration, a
+ * heal past full health and a meal past full hunger each banking its excess
+ * up to its cap, banked hunger
+ * refilling a dropped bar, and the saved form carrying no clock
  * (decision gluttony-overheals-and-overhungers).
  */
 class GluttonyTest {
 
     private static final long NOW = 1_000L;
-    private static final int INTERVAL = 80;
     private static final int DURATION = 400;
     private static final int MAX_OVERHEAL = 4;
     private static final int MAX_OVERHUNGER = 3;
-    private static final Gluttony CAPS = Gluttony.caps(INTERVAL, MAX_OVERHEAL, MAX_OVERHUNGER);
+    private static final float MAX_HEALTH = 20f;
+    private static final float HEAL = 3f;
+    private static final Gluttony CAPS = Gluttony.caps(MAX_OVERHEAL, MAX_OVERHUNGER);
 
     private static Gluttony glutton() {
         return Gluttony.NONE.apply(CAPS, DURATION, NOW);
-    }
-
-    /** Counts the points landing from now through the given tick, ticking the state the way the player tick does. */
-    private static int pointsThrough(Gluttony start, long last) {
-        Gluttony state = start;
-        int points = 0;
-        for (long tick = NOW; tick <= last; tick++) {
-            if (state.feeds(tick)) {
-                points++;
-            }
-            state = state.tick(tick);
-        }
-        return points;
     }
 
     @Nested
     class Apply {
 
         @Test
-        void theFirstPointLandsAnIntervalFromNow() {
+        void anInvokeStandsForItsDurationUnderTheCaps() {
             Gluttony gluttony = glutton();
-            assertEquals(NOW + INTERVAL, gluttony.nextAt());
             assertEquals(NOW + DURATION, gluttony.expiresAt());
             assertEquals(MAX_OVERHEAL, gluttony.maxOverheal());
             assertEquals(MAX_OVERHUNGER, gluttony.maxOverhunger());
         }
 
         @Test
-        void aRepeatInvokeStacksTheDurationAndKeepsTheClockAndBanks() {
-            Gluttony banked = glutton().land(true, true).after();
+        void aRepeatInvokeStacksTheDurationAndKeepsTheBanks() {
+            Gluttony banked = new Gluttony(NOW + DURATION, MAX_OVERHEAL, MAX_OVERHUNGER, 2f, 1);
             Gluttony stacked = banked.apply(CAPS, DURATION, NOW + 10);
-            assertEquals(NOW + INTERVAL, stacked.nextAt());
             assertEquals(NOW + 2L * DURATION, stacked.expiresAt());
             assertEquals(1, stacked.overhunger());
+            assertEquals(2f, stacked.overheal());
         }
 
         @Test
-        void aHeldStartNeverExpiresAndFeedsEveryInterval() {
+        void aHeldStartNeverExpires() {
             // self-effects-trickle-until-ended
             Gluttony held = Gluttony.NONE.hold(CAPS, NOW);
             assertEquals(Gluttony.NEVER_EXPIRES, held.expiresAt());
-            assertEquals(10, pointsThrough(held, NOW + 10L * INTERVAL));
+            assertSame(held, held.tick(NOW + 100L * DURATION));
         }
 
         @Test
@@ -79,60 +70,80 @@ class GluttonyTest {
     class Tick {
 
         @Test
-        void aPointLandsEveryIntervalForTheDuration() {
-            assertEquals(DURATION / INTERVAL, pointsThrough(glutton(), NOW + DURATION + INTERVAL));
-        }
-
-        @Test
-        void noPointLandsBeforeItsTime() {
-            assertFalse(glutton().feeds(NOW + INTERVAL - 1));
-            assertTrue(glutton().feeds(NOW + INTERVAL));
-        }
-
-        @Test
-        void theGluttonyEndsPastItsExpiry() {
-            Gluttony last = new Gluttony(INTERVAL, NOW + DURATION + INTERVAL, NOW + DURATION, MAX_OVERHEAL,
-                    MAX_OVERHUNGER, 2f, 1);
-            assertFalse(last.feeds(NOW + DURATION + INTERVAL));
-            assertSame(Gluttony.NONE, last.tick(NOW + DURATION));
+        void theGluttonyStandsUntilItsExpiry() {
+            Gluttony gluttony = glutton();
+            assertSame(gluttony, gluttony.tick(NOW + DURATION - 1));
+            assertSame(Gluttony.NONE, gluttony.tick(NOW + DURATION));
         }
 
         @Test
         void nothingStandingStaysPut() {
             assertSame(Gluttony.NONE, Gluttony.NONE.tick(NOW));
-            assertFalse(Gluttony.NONE.feeds(NOW));
         }
     }
 
     @Nested
-    class Land {
+    class BankHeal {
 
         @Test
-        void barsShortOfFullFillAndBankNothing() {
-            Gluttony.Landing landing = glutton().land(false, false);
-            assertTrue(landing.eats());
-            assertTrue(landing.heals());
-            assertEquals(0, landing.after().overhunger());
-            assertEquals(0f, landing.after().overheal());
+        void aHealOnAFullBarBanksWhole() {
+            assertEquals(HEAL, glutton().bankHeal(MAX_HEALTH, MAX_HEALTH, HEAL).overheal());
         }
 
         @Test
-        void fullBarsBankThePointPastTheirCaps() {
-            Gluttony.Landing landing = glutton().land(true, true);
-            assertFalse(landing.eats());
-            assertFalse(landing.heals());
-            assertEquals(1, landing.after().overhunger());
-            assertEquals(Gluttony.HEALTH_PER_POINT, landing.after().overheal());
+        void aHealOnAShortBarBanksOnlyItsExcess() {
+            assertEquals(2f, glutton().bankHeal(MAX_HEALTH - 1f, MAX_HEALTH, HEAL).overheal());
         }
 
         @Test
-        void theBanksStopAtTheCapsTheJsonNames() {
-            Gluttony state = glutton();
-            for (int point = 0; point < MAX_OVERHEAL + MAX_OVERHUNGER; point++) {
-                state = state.land(true, true).after();
-            }
-            assertEquals(MAX_OVERHUNGER, state.overhunger());
-            assertEquals(MAX_OVERHEAL, state.overheal());
+        void aHealShortOfFullBanksNothing() {
+            Gluttony gluttony = glutton();
+            assertSame(gluttony, gluttony.bankHeal(MAX_HEALTH - HEAL, MAX_HEALTH, HEAL));
+        }
+
+        @Test
+        void theBankStopsAtTheCapTheJsonNames() {
+            Gluttony once = glutton().bankHeal(MAX_HEALTH, MAX_HEALTH, HEAL);
+            assertEquals((float) MAX_OVERHEAL, once.bankHeal(MAX_HEALTH, MAX_HEALTH, HEAL).overheal());
+        }
+
+        @Test
+        void aGluttonyNotStandingBanksNothing() {
+            assertSame(Gluttony.NONE, Gluttony.NONE.bankHeal(MAX_HEALTH, MAX_HEALTH, HEAL));
+        }
+    }
+
+    @Nested
+    class BankMeal {
+
+        private static final int MAX_FOOD = 20;
+        private static final int NUTRITION = 2;
+
+        @Test
+        void aMealOnAFullBarBanksWhole() {
+            assertEquals(NUTRITION, glutton().bankMeal(MAX_FOOD, MAX_FOOD, NUTRITION).overhunger());
+        }
+
+        @Test
+        void aMealOnAShortBarBanksOnlyItsExcess() {
+            assertEquals(1, glutton().bankMeal(MAX_FOOD - 1, MAX_FOOD, NUTRITION).overhunger());
+        }
+
+        @Test
+        void aMealShortOfFullBanksNothing() {
+            Gluttony gluttony = glutton();
+            assertSame(gluttony, gluttony.bankMeal(MAX_FOOD - NUTRITION, MAX_FOOD, NUTRITION));
+        }
+
+        @Test
+        void theBankStopsAtTheCapTheJsonNames() {
+            Gluttony once = glutton().bankMeal(MAX_FOOD, MAX_FOOD, NUTRITION);
+            assertEquals(MAX_OVERHUNGER, once.bankMeal(MAX_FOOD, MAX_FOOD, NUTRITION).overhunger());
+        }
+
+        @Test
+        void aGluttonyNotStandingBanksNothing() {
+            assertSame(Gluttony.NONE, Gluttony.NONE.bankMeal(MAX_FOOD, MAX_FOOD, NUTRITION));
         }
     }
 
@@ -141,7 +152,7 @@ class GluttonyTest {
 
         @Test
         void bankedHungerRefillsADroppedBarOnly() {
-            Gluttony banked = glutton().land(true, false).after();
+            Gluttony banked = new Gluttony(NOW + DURATION, MAX_OVERHEAL, MAX_OVERHUNGER, 0f, 1);
             assertFalse(banked.refills(true));
             assertTrue(banked.refills(false));
             assertEquals(0, banked.refilled().overhunger());
@@ -150,9 +161,23 @@ class GluttonyTest {
 
         @Test
         void damageSpendsTheOwnedOverhealDownToWhatStands() {
-            Gluttony banked = glutton().land(false, true).after().land(false, true).after();
+            Gluttony banked = glutton().bankHeal(MAX_HEALTH, MAX_HEALTH, 2f);
             assertEquals(1f, banked.spentTo(1f).overheal());
             assertSame(banked, banked.spentTo(5f));
+        }
+    }
+
+    @Nested
+    class Codec {
+
+        @Test
+        void theSavedGluttonyCarriesNoClockAndRoundTrips() {
+            Gluttony banked = new Gluttony(NOW + DURATION, MAX_OVERHEAL, MAX_OVERHUNGER, 2f, 1);
+            JsonElement saved = Gluttony.CODEC.codec().encodeStart(JsonOps.INSTANCE, banked).getOrThrow();
+            JsonObject fields = saved.getAsJsonObject();
+            assertFalse(fields.has("interval"));
+            assertFalse(fields.has("next_at"));
+            assertEquals(banked, Gluttony.CODEC.codec().parse(JsonOps.INSTANCE, saved).getOrThrow());
         }
     }
 }

@@ -1,9 +1,9 @@
 {
   "type": "minecraft:function",
-  "function": "goo:xeno_mutates_the_struck_pig",
+  "function": "goo:gluttony_banks_a_heal_past_full",
   "environment": "minecraft:default",
   "structure": "goo:test_bay",
-  "max_ticks": 40,
+  "max_ticks": 600,
   "setup_ticks": 0,
   "required": true
 }
