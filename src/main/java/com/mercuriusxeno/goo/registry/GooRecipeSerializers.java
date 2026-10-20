@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.recipe.GooLabelApplyRecipe;
 import com.mercuriusxeno.goo.recipe.GooLabelRecipe;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.crafting.RecipeSerializer;
@@ -16,6 +17,11 @@ public final class GooRecipeSerializers {
     public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<GooLabelRecipe>> GOO_LABEL =
             RECIPE_SERIALIZERS.register("goo_label",
                     () -> new RecipeSerializer<>(GooLabelRecipe.MAP_CODEC, GooLabelRecipe.STREAM_CODEC));
+
+    /** A vessel beside a goo label crafts the labeled vessel (decision label-goes-on-an-empty-or-matching-vessel). */
+    public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<GooLabelApplyRecipe>> GOO_LABEL_APPLY =
+            RECIPE_SERIALIZERS.register("goo_label_apply",
+                    () -> new RecipeSerializer<>(GooLabelApplyRecipe.MAP_CODEC, GooLabelApplyRecipe.STREAM_CODEC));
 
     private GooRecipeSerializers() {
     }
