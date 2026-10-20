@@ -147,6 +147,8 @@ tasks.withType(Test).configureEach {
 // coverageTest; test runs agentless (decision jacoco-agent-only-under-coverage).
 tasks.named('test', Test) {
     jacoco.enabled = false
+    // One fork per two available cores (decision unit-suite-forks-in-parallel).
+    maxParallelForks = Math.max(1, Runtime.runtime.availableProcessors().intdiv(2))
 }
 
 tasks.register('coverageTest', Test) {
