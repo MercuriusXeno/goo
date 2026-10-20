@@ -1,6 +1,7 @@
 {
   "gooType": "pulse",
   "displayName": "goo.ability.pulse.extender",
+  "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
   "badge": "brew",
   "order": 70,
   "upkeep": 1,

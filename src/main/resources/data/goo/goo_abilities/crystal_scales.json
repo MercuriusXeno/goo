@@ -1,6 +1,7 @@
 {
   "gooType": "crystal",
   "displayName": "goo.ability.crystal.scales",
+  "cost_mechanics": "goo.ability.cost_mechanics.upkeep",
   "badge": "brew",
   "order": 50,
   "upkeep": 1,
