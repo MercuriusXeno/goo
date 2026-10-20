@@ -5,7 +5,9 @@ import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import org.jspecify.annotations.Nullable;
@@ -55,6 +57,7 @@ public final class VatStackAggregator {
                 gaskets.capGasket(),
                 gaskets.baseGasket(),
                 targetVat.getLabel(),
+                targetVat.getGooLabel(),
                 gaskets.capPartner(),
                 gaskets.basePartner(),
                 stack.column().size()
@@ -106,6 +109,7 @@ public final class VatStackAggregator {
      * @param gasketCap   whether the top vat has a cap gasket
      * @param gasketBase  whether the bottom vat has a base gasket
      * @param label       the label of the targeted vat, or null
+     * @param gooLabel    the goo type the targeted vat's goo label holds it to, or null
      * @param capPartner  the cap gasket's partner, or null
      * @param basePartner the base gasket's partner, or null
      * @param stackSize   the number of vats in the stack
@@ -113,7 +117,7 @@ public final class VatStackAggregator {
     public record VatStackData(
             GooContents contents, long water, long capacity,
             boolean gasketCap, boolean gasketBase,
-            @Nullable String label,
+            @Nullable String label, @Nullable ResourceKey<GooTypeDefinition> gooLabel,
             @Nullable GasketPartner capPartner, @Nullable GasketPartner basePartner,
             int stackSize) {
 
@@ -143,7 +147,8 @@ public final class VatStackAggregator {
          */
         public boolean hasNothingToShow() {
             // A stack holding water alone still shows (decision diagnose-then-fix-vat-hud-water-row).
-            return contents.isEmpty() && water <= 0 && !hasLabel();
+            // An empty labeled vat still shows its label's type (decision hud-panel-shows-the-label-type).
+            return contents.isEmpty() && water <= 0 && !hasLabel() && gooLabel == null;
         }
     }
 }

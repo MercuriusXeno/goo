@@ -48,6 +48,6 @@ class VatStackAggregatorTest {
      * @return the stack data
      */
     private static VatStackData stack(GooContents contents, long water, String label) {
-        return new VatStackData(contents, water, ContainerCapacity.VAT_BASE, false, false, label, null, null, 1);
+        return new VatStackData(contents, water, ContainerCapacity.VAT_BASE, false, false, label, null, null, null, 1);
     }
 }

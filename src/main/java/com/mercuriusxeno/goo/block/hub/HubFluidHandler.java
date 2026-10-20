@@ -85,7 +85,8 @@ public class HubFluidHandler implements ResourceHandler<FluidResource>, GasketDe
 
     /**
      * Accepts any fluid the canister at the slot takes: goo beside goo, a
-     * vanilla fluid alone (decision canisters-hold-more-than-one-goo-type).
+     * vanilla fluid alone (decision canisters-hold-more-than-one-goo-type), a
+     * labeled canister's type alone (decision labeled-vessel-accepts-only-its-label-type).
      *
      * @param index    the tank index
      * @param resource the fluid resource
@@ -94,7 +95,8 @@ public class HubFluidHandler implements ResourceHandler<FluidResource>, GasketDe
     @Override
     public boolean isValid(int index, FluidResource resource) {
         ItemStack stack = hub.getCanister(index);
-        return !stack.isEmpty() && CanisterItem.getFluidContent(stack).canAccept(resource);
+        return !stack.isEmpty() && CanisterItem.getFluidContent(stack)
+                .canAccept(resource, CanisterItem.getMetadata(stack).gooLabel());
     }
 
     /**

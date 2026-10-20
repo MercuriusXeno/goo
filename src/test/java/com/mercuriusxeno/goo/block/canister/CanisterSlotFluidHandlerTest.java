@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -85,6 +86,32 @@ class CanisterSlotFluidHandlerTest {
         slot.insertFluid(blaze, BLAZE_VOLUME, false);
         slot.insertFluid(rock, ROCK_VOLUME, true);
         assertEquals(BLAZE_VOLUME, slot.totalVolume());
+    }
+
+    /** decision labeled-vessel-accepts-only-its-label-type */
+    @Nested
+    class LabeledSlot {
+
+        private CanisterSlotFluidHandler blazeLabeled() {
+            return new CanisterSlotFluidHandler(CAPACITY, () -> { }, () -> 0, incoming -> true, () -> GooTypes.BLAZE);
+        }
+
+        @Test
+        void aBlazeLabeledSlotTakesBlaze() {
+            CanisterSlotFluidHandler slot = blazeLabeled();
+            assertTrue(slot.isValid(0, blaze));
+            assertEquals(BLAZE_VOLUME, slot.insertFluid(blaze, BLAZE_VOLUME, false));
+        }
+
+        @Test
+        void aBlazeLabeledSlotRefusesRockAndWater() {
+            CanisterSlotFluidHandler slot = blazeLabeled();
+            slot.insertFluid(blaze, BLAZE_VOLUME, false);
+            assertFalse(slot.isValid(0, rock));
+            assertFalse(slot.isValid(0, goo.vanilla()));
+            assertEquals(0, slot.insertFluid(rock, ROCK_VOLUME, false));
+            assertEquals(BLAZE_VOLUME, slot.totalVolume());
+        }
     }
 
     /**

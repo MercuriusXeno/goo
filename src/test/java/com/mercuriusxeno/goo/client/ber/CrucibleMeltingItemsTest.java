@@ -93,9 +93,10 @@ class CrucibleMeltingItemsTest {
 
     /** An item model that submits a unit cube's six faces with no layer transform. */
     private static ItemStackRenderState cubeItem() {
+        // ShardModels stubs mocks as it initializes, so it initializes before this stubbing opens.
+        List<BakedQuad> faces = ShardModels.cube();
         ItemStackRenderState item = mock(ItemStackRenderState.class);
         when(item.getModelBoundingBox()).thenReturn(ShardModels.CUBE_BOX);
-        List<BakedQuad> faces = ShardModels.cube();
         doAnswer(call -> {
             SubmitNodeCollector collector = call.getArgument(1);
             collector.submitItem(call.getArgument(0), ItemDisplayContext.FIXED, call.getArgument(2), 0, 0,

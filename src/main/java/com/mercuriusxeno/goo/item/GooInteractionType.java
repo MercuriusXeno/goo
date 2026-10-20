@@ -28,6 +28,9 @@ public enum GooInteractionType {
     /** Goo or goo: pour goo volume into a matching slot. */
     GOO_INSERT,
 
+    /** Goo label: put the label on the aimed vessel (decision label-goes-on-an-empty-or-matching-vessel). */
+    LABEL_APPLY,
+
     /** A bucket or any other item carrying a fluid handler: fill from or drain into the slot. */
     FLUID_CONTAINER,
 
