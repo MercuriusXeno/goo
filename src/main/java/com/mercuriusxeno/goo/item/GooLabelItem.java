@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.item;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypeNames;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.Item;
@@ -16,6 +17,9 @@ import org.jspecify.annotations.Nullable;
  * once crafted (decision goo-label-is-paper-plus-one-mb-of-goo).
  */
 public class GooLabelItem extends Item implements IGooItemInteraction {
+
+    /** Translation key of the tooltip line naming the label's type (decision hud-panel-shows-the-label-type). */
+    private static final String TOOLTIP = "item.goo.goo_label.tooltip";
 
     /**
      * @param properties item properties
@@ -45,6 +49,16 @@ public class GooLabelItem extends Item implements IGooItemInteraction {
     @Override
     public @NonNull Component getName(@NonNull ItemStack stack) {
         return GooTypeNames.labelName(typeOf(stack));
+    }
+
+    /**
+     * The tooltip line naming the goo type a label holds its vessel to.
+     *
+     * @param type the label's goo type
+     * @return the tooltip line
+     */
+    public static Component tooltipLine(@Nullable ResourceKey<GooTypeDefinition> type) {
+        return Component.translatable(TOOLTIP, GooTypeNames.name(type)).withStyle(ChatFormatting.GRAY);
     }
 
     @Override
