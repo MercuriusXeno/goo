@@ -63,7 +63,7 @@ public class VatBlock extends GooMachineBlock {
 
     /** The clicks a vat answers through its dispatcher; a canister click is not among them. */
     static final Set<GooInteractionType> CLICK_ROWS =
-            Set.of(GooInteractionType.GASKET_INSTALL, GooInteractionType.GOO_INSERT);
+            Set.of(GooInteractionType.GASKET_INSTALL, GooInteractionType.GOO_INSERT, GooInteractionType.LABEL_APPLY);
     /**
      * Block update flags: notify neighbors + send to clients.
      */

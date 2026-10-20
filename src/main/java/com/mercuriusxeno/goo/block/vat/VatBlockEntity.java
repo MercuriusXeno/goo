@@ -11,9 +11,11 @@ import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooContents;
+import com.mercuriusxeno.goo.item.GooLabelRule;
 import com.mercuriusxeno.goo.item.gasket.GasketRegionResolver;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
+import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponentGetter;
@@ -57,6 +59,8 @@ public class VatBlockEntity extends GooGlowingMachineBlockEntity implements IGoo
             ContainerCapacity.VAT_BASE, this::onFluidChanged,
             () -> level != null ? level.getGameTime() : 0);
     @Nullable String label;
+    /** The goo type the vat's goo label holds it to, or null (decision labeled-vessel-accepts-only-its-label-type). */
+    @Nullable ResourceKey<GooTypeDefinition> gooLabel;
 
     /**
      * Re-entrance guard for {@link VatStackRedistributor}.
@@ -87,6 +91,7 @@ public class VatBlockEntity extends GooGlowingMachineBlockEntity implements IGoo
         super(GooBlockEntities.VAT.get(), pos, state, be -> GasketAttachment.dual(be, "cap", "base"));
         this.gasketPusher = gasket().singlePusher(fluidHandler);
         fluidHandler.readDemandFrom(gasketPusher::partnerStatedDemand);
+        fluidHandler.holdTo(() -> gooLabel);
     }
 
     /**
@@ -224,6 +229,31 @@ public class VatBlockEntity extends GooGlowingMachineBlockEntity implements IGoo
     }
 
     /**
+     * Returns the goo type the vat's goo label holds it to, or null.
+     *
+     * @return the goo label type
+     */
+    public @Nullable ResourceKey<GooTypeDefinition> getGooLabel() {
+        return gooLabel;
+    }
+
+    /**
+     * Puts a goo label on the vat where the label rule lets it on.
+     * decision label-goes-on-an-empty-or-matching-vessel
+     *
+     * @param type the label's goo type
+     * @return true when the label went on
+     */
+    public boolean applyGooLabel(ResourceKey<GooTypeDefinition> type) {
+        if (!GooLabelRule.canLabelVat(getContents(), getWaterVolume(), gooLabel, type)) {
+            return false;
+        }
+        gooLabel = type;
+        markDirtyAndSync();
+        return true;
+    }
+
+    /**
      * Returns the stream goo type, or null once the stream's hold has passed.
      *
      * @param currentTick the current game tick
@@ -342,6 +372,7 @@ public class VatBlockEntity extends GooGlowingMachineBlockEntity implements IGoo
     protected void collectImplicitComponents(DataComponentMap.@NonNull Builder builder) {
         super.collectImplicitComponents(builder);
         VatSerialization.collectContents(builder, fluidHandler.toGooContents());
+        VatSerialization.collectGooLabel(builder, gooLabel);
     }
 
     /**
@@ -354,5 +385,6 @@ public class VatBlockEntity extends GooGlowingMachineBlockEntity implements IGoo
         if (!contents.isEmpty()) {
             fluidHandler.loadFrom(contents);
         }
+        gooLabel = getter.get(GooDataComponents.GOO_LABEL.get());
     }
 }

@@ -23,6 +23,7 @@ class CanisterPanelRowsTest {
     /** Three mB of void: the first adds 2, the second 3, the third 4. */
     private static final int VOID_VOLUME = 3;
     private static final int VOID_GROWTH = 9;
+    private static final String CORNER = "Corner";
 
     private StampedGoo goo;
 
@@ -41,12 +42,42 @@ class CanisterPanelRowsTest {
         CanisterFluidContent content = CanisterFluidContent.of(goo.resource(GooTypes.ROCK), ROCK_VOLUME)
                 .withVolume(goo.resource(GooTypes.BLAZE), BLAZE_VOLUME);
 
-        List<PanelRow> rows = CanisterPanelRows.rows(new CanisterHudRenderer.SlotData(content, null));
+        List<PanelRow> rows = CanisterPanelRows.rows(new CanisterHudRenderer.SlotData(content, null, null));
 
         assertEquals(List.of(
                 PanelPainter.gooRow(GooTypes.BLAZE, GooFormat.formatAmount(BLAZE_VOLUME)),
                 PanelPainter.gooRow(GooTypes.ROCK, GooFormat.formatAmount(ROCK_VOLUME)),
                 PanelPainter.fillRow(ROCK_VOLUME + BLAZE_VOLUME, ContainerCapacity.CANISTER_BASE)), rows);
+    }
+
+    /**
+     * A labeled canister's panel shows its goo label type, icon and name, under the
+     * text label row, and the goo and fill rows stand as they do unlabeled
+     * (decision hud-panel-shows-the-label-type).
+     */
+    @Test
+    void aLabeledCanisterShowsItsLabelTypeUnderTheTextLabel() {
+        CanisterFluidContent content = CanisterFluidContent.of(goo.resource(GooTypes.BLAZE), BLAZE_VOLUME);
+
+        List<PanelRow> rows = CanisterPanelRows.rows(new CanisterHudRenderer.SlotData(content, CORNER, GooTypes.BLAZE));
+
+        assertEquals(List.of(
+                PanelPainter.labelRow(CORNER),
+                PanelPainter.gooLabelRow(GooTypes.BLAZE),
+                PanelPainter.gooRow(GooTypes.BLAZE, GooFormat.formatAmount(BLAZE_VOLUME)),
+                PanelPainter.fillRow(BLAZE_VOLUME, ContainerCapacity.CANISTER_BASE)), rows);
+    }
+
+    @Test
+    void anUnlabeledCanisterShowsNoLabelTypeRow() {
+        CanisterFluidContent content = CanisterFluidContent.of(goo.resource(GooTypes.BLAZE), BLAZE_VOLUME);
+
+        List<PanelRow> rows = CanisterPanelRows.rows(new CanisterHudRenderer.SlotData(content, CORNER, null));
+
+        assertEquals(List.of(
+                PanelPainter.labelRow(CORNER),
+                PanelPainter.gooRow(GooTypes.BLAZE, GooFormat.formatAmount(BLAZE_VOLUME)),
+                PanelPainter.fillRow(BLAZE_VOLUME, ContainerCapacity.CANISTER_BASE)), rows);
     }
 
     /**
@@ -57,7 +88,7 @@ class CanisterPanelRowsTest {
     void aCanisterHoldingVoidReadsTheCapacityItsVoidGrows() {
         CanisterFluidContent content = CanisterFluidContent.of(goo.resource(GooTypes.VOID), VOID_VOLUME);
 
-        List<PanelRow> rows = CanisterPanelRows.rows(new CanisterHudRenderer.SlotData(content, null));
+        List<PanelRow> rows = CanisterPanelRows.rows(new CanisterHudRenderer.SlotData(content, null, null));
 
         assertEquals(List.of(
                 PanelPainter.gooRow(GooTypes.VOID, GooFormat.formatAmount(VOID_VOLUME)),

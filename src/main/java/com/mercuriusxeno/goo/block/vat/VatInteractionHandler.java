@@ -4,9 +4,12 @@ import com.mercuriusxeno.goo.block.GooBlockInteraction;
 import com.mercuriusxeno.goo.item.GooDeposit;
 import com.mercuriusxeno.goo.item.GooInsert;
 import com.mercuriusxeno.goo.item.GooInteractionType;
+import com.mercuriusxeno.goo.item.GooLabelItem;
 import com.mercuriusxeno.goo.item.gasket.GasketInstallHelper;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -50,8 +53,28 @@ final class VatInteractionHandler {
         return switch (interaction) {
             case GASKET_INSTALL -> handleGasketApply(vat, stack, player, hitResult);
             case GOO_INSERT -> handleGooInsert(vat, stack, player);
+            case LABEL_APPLY -> handleLabelApply(vat, stack, player);
             default -> throw new IllegalStateException(ERR_UNHANDLED + interaction);
         };
+    }
+
+    /**
+     * Puts the held goo label on the vat and takes one label from the hand; a refused
+     * label leaves both as they stood.
+     * decision label-goes-on-an-empty-or-matching-vessel
+     *
+     * @param vat    the vat block entity
+     * @param label  the held label stack
+     * @param player the interacting player
+     * @return SUCCESS when the label went on, else PASS
+     */
+    static InteractionResult handleLabelApply(VatBlockEntity vat, ItemStack label, Player player) {
+        ResourceKey<GooTypeDefinition> type = GooLabelItem.typeOf(label);
+        if (type == null || !vat.applyGooLabel(type)) {
+            return InteractionResult.PASS;
+        }
+        GooBlockInteraction.consumeOneHeld(label, player);
+        return InteractionResult.SUCCESS;
     }
 
     // --- Gasket handlers ---

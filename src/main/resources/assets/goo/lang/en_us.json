@@ -12,6 +12,9 @@
 
   "item.goo.goo_bucket": "%s Goo Bucket",
 
+  "item.goo.goo_label": "%s Goo Label",
+  "item.goo.goo_label.tooltip": "Holds a canister or vat to %s goo",
+
   "item.goo.chrysm": "%s Chrysm",
   "item.goo.budding_chrysm": "%s Budding Chrysm",
   "item.goo.flowering_chrysm": "%s Flowering Chrysm",

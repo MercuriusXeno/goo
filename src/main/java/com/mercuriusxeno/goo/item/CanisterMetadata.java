@@ -1,21 +1,25 @@
 package com.mercuriusxeno.goo.item;
 
 import com.mercuriusxeno.goo.item.gasket.GasketPartner;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
  * Canister-specific metadata: gasket UUIDs for the transport network,
- * optional player-assigned label, and denormalized gasket partner references
- * for HUD display. Separated from goo volume storage (GooContents)
- * so that machine-specific concerns don't pollute the shared storage record.
+ * optional player-assigned label, denormalized gasket partner references
+ * for HUD display, and the goo label holding the canister to one goo type.
+ * Separated from goo volume storage (GooContents) so that machine-specific
+ * concerns don't pollute the shared storage record.
  *
  * <p>Partner fields store the position and slot of the machine on the other
  * end of each gasket link, enabling the canister HUD to display
@@ -27,19 +31,21 @@ import java.util.UUID;
  * @param label          the user-assigned label, or null
  * @param topPartner     the top gasket's linked partner, or null
  * @param bottomPartner  the bottom gasket's linked partner, or null
+ * @param gooLabel       the goo type the canister's goo label holds it to, or null
  */
 public record CanisterMetadata(
         @Nullable UUID topGasketId,
         @Nullable UUID bottomGasketId,
         @Nullable String label,
         @Nullable GasketPartner topPartner,
-        @Nullable GasketPartner bottomPartner) {
+        @Nullable GasketPartner bottomPartner,
+        @Nullable ResourceKey<GooTypeDefinition> gooLabel) {
 
     /**
-     * Empty metadata with no gaskets, label, or partners.
+     * Empty metadata with no gaskets, label, partners or goo label.
      */
     public static final CanisterMetadata EMPTY =
-            new CanisterMetadata(null, null, null, null, null);
+            new CanisterMetadata(null, null, null, null, null, null);
 
     /**
      * Persistent codec for saving/loading canister metadata.
@@ -55,8 +61,10 @@ public record CanisterMetadata(
                     GasketPartner.CODEC.optionalFieldOf("top_partner")
                             .forGetter(c -> Optional.ofNullable(c.topPartner())),
                     GasketPartner.CODEC.optionalFieldOf("bottom_partner")
-                            .forGetter(c -> Optional.ofNullable(c.bottomPartner()))
-            ).apply(instance, CanisterMetadata::fromCodec)
+                            .forGetter(c -> Optional.ofNullable(c.bottomPartner())),
+                    GooTypes.KEY_CODEC.optionalFieldOf("goo_label")
+                            .forGetter(c -> Optional.ofNullable(c.gooLabel()))
+            ).apply(instance, CanisterMetadata::fromOptionals)
     );
 
     /**
@@ -73,7 +81,9 @@ public record CanisterMetadata(
             c -> Optional.ofNullable(c.topPartner()),
             ByteBufCodecs.optional(GasketPartner.STREAM_CODEC),
             c -> Optional.ofNullable(c.bottomPartner()),
-            CanisterMetadata::fromStreamCodec
+            ByteBufCodecs.optional(GooTypes.KEY_STREAM_CODEC),
+            c -> Optional.ofNullable(c.gooLabel()),
+            CanisterMetadata::fromOptionals
     );
 
     /**
@@ -84,47 +94,30 @@ public record CanisterMetadata(
      * @param label          optional player-assigned label
      * @param topPartner     optional top gasket partner
      * @param bottomPartner  optional bottom gasket partner
+     * @param gooLabel       optional goo label type
      * @return the constructed metadata
      */
-    private static CanisterMetadata fromCodec(
+    private static CanisterMetadata fromOptionals(
             Optional<UUID> topGasketId, Optional<UUID> bottomGasketId,
             Optional<String> label,
-            Optional<GasketPartner> topPartner, Optional<GasketPartner> bottomPartner) {
+            Optional<GasketPartner> topPartner, Optional<GasketPartner> bottomPartner,
+            Optional<ResourceKey<GooTypeDefinition>> gooLabel) {
         return new CanisterMetadata(
                 topGasketId.orElse(null), bottomGasketId.orElse(null),
                 label.orElse(null),
-                topPartner.orElse(null), bottomPartner.orElse(null));
-    }
-
-    /**
-     * Constructs from stream codec output, unwrapping optionals.
-     *
-     * @param topGasketId    optional top gasket UUID
-     * @param bottomGasketId optional bottom gasket UUID
-     * @param label          optional player-assigned label
-     * @param topPartner     optional top gasket partner
-     * @param bottomPartner  optional bottom gasket partner
-     * @return the constructed metadata
-     */
-    private static CanisterMetadata fromStreamCodec(
-            Optional<UUID> topGasketId, Optional<UUID> bottomGasketId,
-            Optional<String> label,
-            Optional<GasketPartner> topPartner, Optional<GasketPartner> bottomPartner) {
-        return new CanisterMetadata(
-                topGasketId.orElse(null), bottomGasketId.orElse(null),
-                label.orElse(null),
-                topPartner.orElse(null), bottomPartner.orElse(null));
+                topPartner.orElse(null), bottomPartner.orElse(null),
+                gooLabel.orElse(null));
     }
 
     /**
      * Returns true if any field is non-default: any gasket ID present,
-     * a label is set, or any partner is linked. Used to decide whether
-     * to keep the component on an ItemStack.
+     * a label is set, any partner is linked, or a goo label is on. Used to
+     * decide whether to keep the component on an ItemStack.
      *
      * @return true if any metadata field is set
      */
     public boolean hasData() {
-        return hasAnyGasket() || label != null || hasAnyPartner();
+        return hasAnyGasket() || label != null || hasAnyPartner() || gooLabel != null;
     }
 
     /**
@@ -146,12 +139,12 @@ public record CanisterMetadata(
     }
 
     /**
-     * Returns metadata with gasket UUIDs and partners cleared, preserving label.
+     * Returns metadata with gasket UUIDs and partners cleared, preserving the labels.
      *
      * @return new metadata with gaskets removed
      */
     public CanisterMetadata withoutGaskets() {
-        return new CanisterMetadata(null, null, label, null, null);
+        return new CanisterMetadata(null, null, label, null, null, gooLabel);
     }
 
     /**
@@ -165,7 +158,7 @@ public record CanisterMetadata(
         return new CanisterMetadata(
                 topGasketId != null ? UUID.randomUUID() : null,
                 bottomGasketId != null ? UUID.randomUUID() : null,
-                label, null, null);
+                label, null, null, gooLabel);
     }
 
     /**
@@ -176,7 +169,19 @@ public record CanisterMetadata(
      */
     public CanisterMetadata withLabel(@Nullable String newLabel) {
         return new CanisterMetadata(topGasketId, bottomGasketId,
-                newLabel, topPartner, bottomPartner);
+                newLabel, topPartner, bottomPartner, gooLabel);
+    }
+
+    /**
+     * Returns a new metadata with the given goo label (null to take it off).
+     * decision label-goes-on-an-empty-or-matching-vessel
+     *
+     * @param type the goo type the label holds the canister to, or null
+     * @return new metadata with the goo label applied
+     */
+    public CanisterMetadata withGooLabel(@Nullable ResourceKey<GooTypeDefinition> type) {
+        return new CanisterMetadata(topGasketId, bottomGasketId,
+                label, topPartner, bottomPartner, type);
     }
 
     /**
@@ -190,7 +195,7 @@ public record CanisterMetadata(
         }
         return new CanisterMetadata(
                 getOrCreateTopGasketId(), getOrCreateBottomGasketId(),
-                label, topPartner, bottomPartner);
+                label, topPartner, bottomPartner, gooLabel);
     }
 
     /**
@@ -201,7 +206,7 @@ public record CanisterMetadata(
      */
     public CanisterMetadata withTopGasketId(UUID id) {
         return new CanisterMetadata(id, bottomGasketId,
-                label, topPartner, bottomPartner);
+                label, topPartner, bottomPartner, gooLabel);
     }
 
     /**
@@ -212,7 +217,7 @@ public record CanisterMetadata(
      */
     public CanisterMetadata withBottomGasketId(UUID id) {
         return new CanisterMetadata(topGasketId, id,
-                label, topPartner, bottomPartner);
+                label, topPartner, bottomPartner, gooLabel);
     }
 
     /**
@@ -222,7 +227,7 @@ public record CanisterMetadata(
      */
     public CanisterMetadata withoutTopGasket() {
         return new CanisterMetadata(null, bottomGasketId,
-                label, null, bottomPartner);
+                label, null, bottomPartner, gooLabel);
     }
 
     /**
@@ -232,7 +237,7 @@ public record CanisterMetadata(
      */
     public CanisterMetadata withoutBottomGasket() {
         return new CanisterMetadata(topGasketId, null,
-                label, topPartner, null);
+                label, topPartner, null, gooLabel);
     }
 
     /**
@@ -243,7 +248,7 @@ public record CanisterMetadata(
      */
     public CanisterMetadata withTopPartner(@Nullable GasketPartner partner) {
         return new CanisterMetadata(topGasketId, bottomGasketId,
-                label, partner, bottomPartner);
+                label, partner, bottomPartner, gooLabel);
     }
 
     /**
@@ -254,7 +259,7 @@ public record CanisterMetadata(
      */
     public CanisterMetadata withBottomPartner(@Nullable GasketPartner partner) {
         return new CanisterMetadata(topGasketId, bottomGasketId,
-                label, topPartner, partner);
+                label, topPartner, partner, gooLabel);
     }
 
     /**
