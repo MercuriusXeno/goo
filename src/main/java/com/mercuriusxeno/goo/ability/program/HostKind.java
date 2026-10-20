@@ -59,9 +59,9 @@ public enum HostKind {
      */
     IMPACT("ray impact", ImpactHost.class, Set.of(HostVariables.HELD, HostVariables.HIT)),
     /**
-     * A Spire's submitted footprint: the ground it lifts and the world around
+     * A Spire's submitted footprint: the stone it grows and the world around
      * it, acted on in the tick the submit lands, with no driver for later
-     * ticks (decision spire-rips-walls-and-platforms).
+     * ticks (decision spire-grows-stone-out-of-the-top).
      */
     FOOTPRINT("raised footprint", FootprintHost.class, Set.of());
 
