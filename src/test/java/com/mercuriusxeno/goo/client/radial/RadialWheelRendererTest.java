@@ -801,6 +801,18 @@ class RadialWheelRendererTest {
                     }));
         }
 
+        /**
+         * The prism badge stands further out from under the own badge than the
+         * 4 left and 2 down that left only a sliver showing.
+         * decision prism-badge-overlapped-less-to-be-seen
+         */
+        @Test
+        void prismBadgePeeksOutFurtherThanASliver() {
+            assertTrue(RadialWheelRenderer.PRISM_BADGE_NUDGE_LEFT + RadialWheelRenderer.PRISM_BADGE_NUDGE_DOWN > 6,
+                    "nudge " + RadialWheelRenderer.PRISM_BADGE_NUDGE_LEFT + " left, "
+                            + RadialWheelRenderer.PRISM_BADGE_NUDGE_DOWN + " down");
+        }
+
         /** The wheel opened on the open type with the cursor on one of its abilities. */
         private static RadialWheel hoveringAbility(int ability, int radius) {
             RadialWheel wheel = openedWheel(TYPES, ABILITIES, OPEN_TYPE, radius);
