@@ -4,7 +4,7 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.SpireFootprint;
-import com.mercuriusxeno.goo.ability.SpireLift;
+import com.mercuriusxeno.goo.ability.SpireGrowth;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.data.GooValues;
@@ -16,13 +16,9 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
-import net.minecraft.resources.Identifier;
-import net.minecraft.tags.TagKey;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -43,10 +39,6 @@ import java.util.Optional;
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class SpireCast {
-
-    /** The blocks the client prices a Spire preview by, the tag the shipped Spire lifts. */
-    private static final TagKey<Block> PREVIEW_LIFTS =
-            TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(Goo.MODID, "spire_liftable"));
 
     private static final SpireChoreography CAST = new SpireChoreography();
     private static InteractionHand castHand = InteractionHand.MAIN_HAND;
@@ -138,19 +130,20 @@ public final class SpireCast {
 
     /**
      * The rock goo the live cast would spend, priced through the plan the
-     * server lifts by, at the rise the player's goo pays for.
+     * server grows by, at the rise the player's goo pays for.
+     * decision spire-grows-stone-out-of-the-top
      *
      * @param player the local player
-     * @return the planned lift, empty while no cast is live or nothing it covers lifts
+     * @return the planned growth, empty while no cast is live or nothing it covers grows
      */
-    public static Optional<SpireLift> plannedLift(LocalPlayer player) {
+    public static Optional<SpireGrowth> plannedGrowth(LocalPlayer player) {
         GloveSelection selection = GloveThrowSender.heldSelection(player);
         Optional<SpireFootprint> footprint = CAST.footprint();
         if (selection == null || selection.getGooType() == null || footprint.isEmpty()) {
             return Optional.empty();
         }
         int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(selection.getGooType(), 0);
-        return SpireLift.affordable(player.level(), footprint.get(), PREVIEW_LIFTS, GooValues.of(player.level()),
+        return SpireGrowth.affordable(player.level(), footprint.get(), GooValues.of(player.level()),
                 selection.getGooType(), holdings);
     }
 
