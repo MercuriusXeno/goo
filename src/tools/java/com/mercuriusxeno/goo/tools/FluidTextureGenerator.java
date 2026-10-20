@@ -247,11 +247,26 @@ public final class FluidTextureGenerator {
      * @throws IOException if texture files cannot be written
      */
     private static void generateFluidTexture(GooFluidType type) throws IOException {
-        FluidCA ca = new FluidCA(type.genParams(), type.seed());
-        warmup(ca, WARMUP);
-        float[][] heatFrames = captureHeatFrames(ca);
+        float[][] heatFrames = fluidHeatFrames(type);
         float[] heatRange = findHeatRange(heatFrames);
         writeFluidStrip(type, heatFrames, heatRange);
+    }
+
+    /**
+     * Renders a goo type's fluid sprite strip in memory, as generateTextures writes it.
+     *
+     * @param type the goo fluid type definition
+     * @return the rendered sprite strip image
+     */
+    static BufferedImage renderFluidStrip(GooFluidType type) {
+        float[][] heatFrames = fluidHeatFrames(type);
+        return renderFluidStrip(heatFrames, findHeatRange(heatFrames), type, AccentLayer.capture(type));
+    }
+
+    private static float[][] fluidHeatFrames(GooFluidType type) {
+        FluidCA ca = new FluidCA(type.genParams(), type.seed());
+        warmup(ca, WARMUP);
+        return captureHeatFrames(ca);
     }
 
     /**
