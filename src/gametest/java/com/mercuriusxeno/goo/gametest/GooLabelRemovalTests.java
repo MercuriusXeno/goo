@@ -35,6 +35,7 @@ public final class GooLabelRemovalTests {
     private static final int GRID_SIDE = 3;
     private static final int VESSEL_CELL = 4;
     private static final int VOLUME = 300;
+    private static final int STACKED_VATS = 2;
     private static final String CORNER = "Corner";
 
     private GooLabelRemovalTests() {
@@ -78,6 +79,10 @@ public final class GooLabelRemovalTests {
                         && VatBlockItem.getGooContents(vatLeft).getVolume(GooTypes.BLAZE) == VOLUME
                         && VatBlockItem.getGooLabel(vatLeft) == null,
                 "The vat should stay in the grid with its goo and no goo label: " + vatLeft);
+
+        ItemStack vatStack = vat.copyWithCount(STACKED_VATS);
+        helper.assertTrue(recipeFor(helper, grid(vatStack)).isEmpty(),
+                "A stack of " + STACKED_VATS + " labeled vats alone should match nothing");
 
         helper.assertTrue(recipeFor(helper, grid(new ItemStack(GooItems.CANISTER.get()))).isEmpty(),
                 "An unlabeled canister alone should match nothing");

@@ -60,6 +60,7 @@ public final class GooLabelVatTests {
     private static final int VOLUME = 200;
     private static final int INVENTORY_SLOT = 9;
     private static final int SETTLE_TICKS = 2;
+    private static final int STACKED_VATS = 2;
 
     private GooLabelVatTests() {
     }
@@ -141,6 +142,13 @@ public final class GooLabelVatTests {
         helper.assertTrue(!refused && VatBlockItem.getGooLabel(rockVat) == null && blazeCursor[0].getCount() == 1
                         && VatBlockItem.getGooContents(rockVat).getVolume(GooTypes.ROCK) == VOLUME,
                 "A rock vat should refuse a blaze label and leave both stacks as they stood");
+
+        ItemStack vatStack = new ItemStack(GooItems.VAT.get(), STACKED_VATS);
+        ItemStack[] stackCursor = {labels(GooTypes.BLAZE, 1)};
+        boolean stackHandled = vatStack.overrideOtherStackedOnMe(stackCursor[0], slot, ClickAction.PRIMARY, player,
+                SlotAccess.of(() -> stackCursor[0], stack -> stackCursor[0] = stack));
+        helper.assertTrue(!stackHandled && VatBlockItem.getGooLabel(vatStack) == null && stackCursor[0].getCount() == 1,
+                "One label should label no stack of " + STACKED_VATS + " vats: " + vatStack);
         helper.getLevel().getServer().getPlayerList().remove(player);
         helper.succeed();
     }

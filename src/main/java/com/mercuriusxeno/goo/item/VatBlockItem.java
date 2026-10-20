@@ -61,9 +61,11 @@ public class VatBlockItem extends BlockItem implements GooCarrierItem {
     }
 
     /**
-     * Puts the cursor's goo label on the vat item and takes one label from the cursor;
-     * a refused label leaves both as they stood.
+     * Puts the cursor's goo label on a lone vat item and takes one label from the cursor;
+     * a refused label, or a slot holding more than one vat, leaves both as they stood,
+     * since one label goes onto one vat.
      * decision label-goes-on-an-empty-or-matching-vessel
+     * decision goo-label-is-paper-plus-one-mb-of-goo
      *
      * @param vat    the vat item stack in the slot
      * @param cursor the label stack on the cursor
@@ -71,7 +73,7 @@ public class VatBlockItem extends BlockItem implements GooCarrierItem {
      * @return true when the label went on
      */
     private static boolean applyLabelFromCursor(ItemStack vat, ItemStack cursor, ResourceKey<GooTypeDefinition> label) {
-        if (!applyGooLabel(vat, label)) {
+        if (vat.getCount() != 1 || !applyGooLabel(vat, label)) {
             return false;
         }
         cursor.shrink(1);

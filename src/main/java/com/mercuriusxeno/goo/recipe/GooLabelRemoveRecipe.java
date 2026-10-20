@@ -59,12 +59,17 @@ public class GooLabelRemoveRecipe extends CustomRecipe {
     }
 
     /**
+     * A stack of labeled vessels matches nothing: the grid would keep the rest still
+     * labeled, and shift-crafting would pull one label per vessel.
+     * decision goo-label-is-paper-plus-one-mb-of-goo
+     *
      * @param input the grid
-     * @return the one stack the grid holds, or empty where it holds none or more than one
+     * @return the one lone vessel the grid holds, or empty where it holds none, more than
+     *         one stack, or a stack of more than one
      */
     private static Optional<ItemStack> onlyVessel(CraftingInput input) {
         return input.ingredientCount() == 1
-                ? input.items().stream().filter(stack -> !stack.isEmpty()).findFirst()
+                ? input.items().stream().filter(stack -> stack.getCount() == 1).findFirst()
                 : Optional.empty();
     }
 
