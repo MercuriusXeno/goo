@@ -27,6 +27,10 @@ final class VatSerialization {
      */
     static final String TAG_LABEL = "Label";
     /**
+     * NBT key for the goo label's type (decision labeled-vessel-accepts-only-its-label-type).
+     */
+    static final String TAG_GOO_LABEL = "GooLabel";
+    /**
      * NBT key for stream goo type ordinal.
      */
     static final String TAG_STREAM_TYPE = "StreamType";
@@ -133,6 +137,9 @@ final class VatSerialization {
         if (be.label != null) {
             output.putString(TAG_LABEL, be.label);
         }
+        if (be.gooLabel != null) {
+            output.store(TAG_GOO_LABEL, GooTypes.KEY_CODEC, be.gooLabel);
+        }
     }
 
     /**
@@ -174,6 +181,7 @@ final class VatSerialization {
         be.fluidHandler.loadFrom(input.read(TAG_CONTENTS, GooContents.CODEC).orElse(GooContents.EMPTY));
         be.fluidHandler.loadWater(input.getIntOr(TAG_WATER, 0));
         be.label = input.getString(TAG_LABEL).orElse(null);
+        be.gooLabel = input.read(TAG_GOO_LABEL, GooTypes.KEY_CODEC).orElse(null);
     }
 
     /**
@@ -209,6 +217,18 @@ final class VatSerialization {
     static void collectContents(DataComponentMap.Builder builder, GooContents contents) {
         if (!contents.isEmpty()) {
             builder.set(GooDataComponents.GOO_CONTENTS.get(), contents);
+        }
+    }
+
+    /**
+     * Writes the goo label to the data component builder, so it rides the vat item.
+     *
+     * @param builder  the component builder
+     * @param gooLabel the vat's goo label type, or null
+     */
+    static void collectGooLabel(DataComponentMap.Builder builder, @Nullable ResourceKey<GooTypeDefinition> gooLabel) {
+        if (gooLabel != null) {
+            builder.set(GooDataComponents.GOO_LABEL.get(), gooLabel);
         }
     }
 

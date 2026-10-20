@@ -10,7 +10,8 @@
             {
               "function": "minecraft:copy_components",
               "include": [
-                "minecraft:enchantments"
+                "minecraft:enchantments",
+                "goo:goo_label"
               ],
               "source": "block_entity"
             }

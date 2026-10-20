@@ -6,6 +6,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -46,6 +47,34 @@ class GooLabelApplyTest {
         void aCanisterHoldingTheLabelsTypeAloneTakesTheLabel() {
             assertTrue(GooLabelRule.canLabel(CanisterFluidContent.of(blaze, VOLUME), CanisterMetadata.EMPTY,
                     GooTypes.BLAZE));
+        }
+    }
+
+    /** The same rule over a vat's goo and water, water counting as another fluid. */
+    @Nested
+    class OnAVat {
+
+        private static final int WATER = 100;
+
+        @Test
+        void anEmptyVatOrOneHoldingTheTypeAloneTakesTheLabel() {
+            assertTrue(GooLabelRule.canLabelVat(GooContents.EMPTY, 0, null, GooTypes.BLAZE));
+            assertTrue(GooLabelRule.canLabelVat(new GooContents(Map.of(GooTypes.BLAZE, VOLUME)), 0, null,
+                    GooTypes.BLAZE));
+        }
+
+        @Test
+        void aVatHoldingAnotherTypeOrBothOrWaterRefusesTheLabel() {
+            assertFalse(GooLabelRule.canLabelVat(new GooContents(Map.of(GooTypes.ROCK, VOLUME)), 0, null,
+                    GooTypes.BLAZE));
+            assertFalse(GooLabelRule.canLabelVat(new GooContents(Map.of(GooTypes.BLAZE, VOLUME, GooTypes.ROCK, VOLUME)),
+                    0, null, GooTypes.BLAZE));
+            assertFalse(GooLabelRule.canLabelVat(GooContents.EMPTY, WATER, null, GooTypes.BLAZE));
+        }
+
+        @Test
+        void anAlreadyLabeledVatRefusesASecondLabel() {
+            assertFalse(GooLabelRule.canLabelVat(GooContents.EMPTY, 0, GooTypes.BLAZE, GooTypes.BLAZE));
         }
     }
 

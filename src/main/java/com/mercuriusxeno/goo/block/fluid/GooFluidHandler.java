@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.block.gasket.DemandRelay;
 import com.mercuriusxeno.goo.block.gasket.GasketDemand;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooContents;
+import com.mercuriusxeno.goo.item.GooLabelRule;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -21,6 +22,7 @@ import java.util.Map;
 import java.util.OptionalInt;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 
 /**
  * Multi-tank fluid handler for goo containers. One tank per goo type key
@@ -65,6 +67,11 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
     private static final int NO_WATER_TANK = -1;
 
     private static final FluidResource WATER = FluidResource.of(Fluids.WATER);
+
+    /**
+     * Reads the goo label type the handler's vessel wears, null where it wears none.
+     */
+    private Supplier<@Nullable ResourceKey<GooTypeDefinition>> gooLabel = () -> null;
 
     /**
      * Incoming goo, transient, for rendering the pour.
@@ -146,6 +153,16 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
     }
 
     /**
+     * Sets where the handler reads its vessel's goo label, which then holds every
+     * insert to that type (decision labeled-vessel-accepts-only-its-label-type).
+     *
+     * @param label reads the label type, null where the vessel wears none
+     */
+    public void holdTo(Supplier<@Nullable ResourceKey<GooTypeDefinition>> label) {
+        this.gooLabel = label;
+    }
+
+    /**
      * Only the goo fluid matching this tank index is valid, and plain water
      * in the water tank where the handler holds one.
      * Index maps to the type's position in GooTypes.order().
@@ -156,7 +173,8 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
      */
     @Override
     public boolean isValid(int index, FluidResource resource) {
-        if (resource.isEmpty()) {
+        // decision labeled-vessel-accepts-only-its-label-type
+        if (resource.isEmpty() || !GooLabelRule.admits(gooLabel.get(), resource)) {
             return false;
         }
         if (index == waterIndex) {
