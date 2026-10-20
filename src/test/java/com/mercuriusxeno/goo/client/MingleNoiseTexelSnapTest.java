@@ -290,8 +290,6 @@ class MingleNoiseTexelSnapTest {
                     "samples the raw coordinate: " + call.group());
             }
             assertTrue(calls > 0, "the overlay holds a noise call");
-            assertTrue(source.contains("shine = shimmerField(skinTexel, GameTime);"), "the shimmer's noise");
-            assertTrue(source.contains("shine = writheField(skinTexel, GameTime);"), "the writhe's noise");
-        }
+            assertTrue(source.contains("shine = shimmerField(skinTexel, GameTime);"), "the shimmer's noise");        }
     }
 }

@@ -7,15 +7,20 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.food.FoodConstants;
 import net.minecraft.world.food.FoodData;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.living.LivingHealEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 /**
- * Runs a glutton's points each tick while Gluttony stands: hunger and health
- * fill, then bank past their caps, the overheal standing as absorption hearts
- * under a max absorption the effect lends and takes back when it ends.
+ * Banks a glutton's overflow while Gluttony stands: healing past full health
+ * stands as absorption hearts under a max absorption the effect lends and
+ * takes back when it ends, a glutton may eat at a full bar, eating past full
+ * banks as overhunger, and banked overhunger refills hunger as it drops.
  * gluttony-overheals-and-overhungers
  */
 @EventBusSubscriber(modid = Goo.MODID)
@@ -23,16 +28,17 @@ public final class GluttonyEvents {
 
     /** The max absorption Gluttony lends for its overheal. */
     static final Identifier OVERHEAL_ID = Identifier.fromNamespaceAndPath(Goo.MODID, "gluttony_overheal");
-    /** The food points one point or one banked refill adds. */
-    private static final int FOOD_PER_POINT = 1;
-    /** A point adds hunger, not saturation. */
+    /** The food points one banked refill adds. */
+    private static final int FOOD_PER_REFILL = 1;
+    /** A refill adds hunger, not saturation. */
     private static final float NO_SATURATION = 0f;
 
     private GluttonyEvents() {
     }
 
     /**
-     * Advances a standing gluttony one tick on the server.
+     * Advances a standing gluttony one tick on the server: banked hunger
+     * refills a dropped bar and the gluttony ends at its expiry.
      *
      * @param event the player tick event
      */
@@ -45,14 +51,65 @@ public final class GluttonyEvents {
         if (!standing.stands()) {
             return;
         }
-        long now = player.level().getGameTime();
         lendMaxAbsorption(player, standing.maxOverheal());
-        Gluttony fed = feed(player, standing.spentTo(player.getAbsorptionAmount()), now);
-        Gluttony after = fed.tick(now);
+        Gluttony after = refill(player, standing.spentTo(player.getAbsorptionAmount()))
+                .tick(player.level().getGameTime());
         if (!after.stands()) {
             end(player);
         } else if (!after.equals(standing)) {
             player.setData(GooAttachments.GLUTTONY, after);
+        }
+    }
+
+    /**
+     * Banks what a heal pushes past a glutton's full health as absorption
+     * hearts. Runs last, so a listener cancelling or shrinking the heal acts first.
+     *
+     * @param event the heal event, before the heal lands
+     */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onHeal(LivingHealEvent event) {
+        if (event.isCanceled() || !(event.getEntity() instanceof ServerPlayer player)
+                || !player.hasData(GooAttachments.GLUTTONY)) {
+            return;
+        }
+        Gluttony standing = player.getData(GooAttachments.GLUTTONY).spentTo(player.getAbsorptionAmount());
+        Gluttony banked = standing.bankHeal(player.getHealth(), player.getMaxHealth(), event.getAmount());
+        float grown = banked.overheal() - standing.overheal();
+        if (grown <= 0f) {
+            return;
+        }
+        lendMaxAbsorption(player, banked.maxOverheal());
+        player.setAbsorptionAmount(player.getAbsorptionAmount() + grown);
+        player.setData(GooAttachments.GLUTTONY, banked);
+    }
+
+    /**
+     * Answers whether a player may start eating at a full bar: a glutton may.
+     * Read on both sides, from the gluttony synced to its owner.
+     *
+     * @param player the player
+     * @return true while the player's gluttony stands
+     */
+    public static boolean eatsPastFull(Player player) {
+        return player.hasData(GooAttachments.GLUTTONY) && player.getData(GooAttachments.GLUTTONY).stands();
+    }
+
+    /**
+     * Banks what a meal pushes past a glutton's full hunger as overhunger.
+     * Called before the meal lands, while the bar still holds its hunger.
+     *
+     * @param player    the eating player
+     * @param nutrition the food points the meal adds
+     */
+    public static void bankMeal(ServerPlayer player, int nutrition) {
+        if (!player.hasData(GooAttachments.GLUTTONY)) {
+            return;
+        }
+        Gluttony standing = player.getData(GooAttachments.GLUTTONY);
+        Gluttony banked = standing.bankMeal(player.getFoodData().getFoodLevel(), FoodConstants.MAX_FOOD, nutrition);
+        if (banked != standing) {
+            player.setData(GooAttachments.GLUTTONY, banked);
         }
     }
 
@@ -73,28 +130,13 @@ public final class GluttonyEvents {
         player.setData(GooAttachments.GLUTTONY, Gluttony.NONE);
     }
 
-    private static Gluttony feed(ServerPlayer player, Gluttony gluttony, long now) {
+    private static Gluttony refill(ServerPlayer player, Gluttony gluttony) {
         FoodData food = player.getFoodData();
-        Gluttony fed = gluttony;
-        if (fed.refills(!food.needsFood())) {
-            food.eat(FOOD_PER_POINT, NO_SATURATION);
-            fed = fed.refilled();
+        if (!gluttony.refills(!food.needsFood())) {
+            return gluttony;
         }
-        if (!fed.feeds(now)) {
-            return fed;
-        }
-        Gluttony.Landing landing = fed.land(!food.needsFood(), player.getHealth() >= player.getMaxHealth());
-        if (landing.eats()) {
-            food.eat(FOOD_PER_POINT, NO_SATURATION);
-        }
-        if (landing.heals()) {
-            player.heal(Gluttony.HEALTH_PER_POINT);
-        }
-        float grown = landing.after().overheal() - fed.overheal();
-        if (grown > 0f) {
-            player.setAbsorptionAmount(player.getAbsorptionAmount() + grown);
-        }
-        return landing.after();
+        food.eat(FOOD_PER_REFILL, NO_SATURATION);
+        return gluttony.refilled();
     }
 
     private static void lendMaxAbsorption(ServerPlayer player, int maxOverheal) {

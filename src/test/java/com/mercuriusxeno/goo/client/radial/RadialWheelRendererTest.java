@@ -39,12 +39,16 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
@@ -53,6 +57,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import javax.imageio.ImageIO;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -160,28 +165,61 @@ class RadialWheelRendererTest {
             }));
         }
 
-        /** Each Rock ability draws an icon of its own, never one shared placeholder (decision rock-abilities-get-icons). */
+        /**
+         * Every shipped ability draws an icon of its own: no two share bytes, and none is a type icon as it
+         * stands or stretched to the ability icon's size.
+         * decision every-icon-its-own-drawing
+         * decision rock-abilities-get-icons
+         */
         @Test
-        void everyRockAbilityDrawsAnIconOfItsOwn() throws IOException {
-            Map<String, String> abilityByIcon = new HashMap<>();
+        void everyShippedAbilityDrawsAnIconOfItsOwn() throws IOException {
+            Map<String, List<String>> abilitiesByIcon = new HashMap<>();
+            List<String> typeIcons = new ArrayList<>();
             for (ClientAbility ability : shippedAbilities()) {
-                if (!ability.id().getPath().startsWith(ROCK_PREFIX)) {
-                    continue;
-                }
                 Identifier icon = RadialWheelRenderer.resolveAbilityIcon(ability);
                 String resource = ASSETS_ROOT + icon.getNamespace() + "/" + icon.getPath();
-                assertEquals(List.of(RadialWheelRenderer.ABILITY_ICON_SIZE, RadialWheelRenderer.ABILITY_ICON_SIZE),
-                        pngDimensions(resource), resource);
-                String shared = abilityByIcon.put(HexFormat.of().formatHex(pngBytes(resource)), ability.id().getPath());
-                assertNull(shared, ability.id() + " draws the same icon as " + shared);
+                byte[] bytes = pngBytes(resource);
+                abilitiesByIcon.computeIfAbsent(HexFormat.of().formatHex(bytes), key -> new ArrayList<>())
+                        .add(ability.id().getPath());
+                BufferedImage drawn = ImageIO.read(new ByteArrayInputStream(bytes));
+                for (ResourceKey<GooTypeDefinition> type : GooTypes.BUNDLED) {
+                    String typeResource = ASSETS_ROOT + Goo.MODID + "/textures/goo/type/" + GooTypes.id(type) + ".png";
+                    if (isTypeIcon(drawn, bytes, pngBytes(typeResource))) {
+                        typeIcons.add(ability.id().getPath() + " is the " + GooTypes.id(type) + " type icon");
+                    }
+                }
             }
-            assertEquals(ROCK_ABILITIES, abilityByIcon.size());
+            List<List<String>> shared = abilitiesByIcon.values().stream().filter(group -> group.size() > 1)
+                    .map(group -> group.stream().sorted().toList()).sorted(Comparator.comparing(List::getFirst))
+                    .toList();
+            assertAll(
+                    () -> assertEquals(List.of(), shared, "ability icons sharing bytes"),
+                    () -> assertEquals(List.of(), typeIcons, "ability icons that are type icons"));
         }
     }
 
-    private static final String ROCK_PREFIX = "rock_";
-    /** Flatten, Bore, Petrify, Stoneskin and Spire. */
-    private static final int ROCK_ABILITIES = 5;
+    /** Pixels of a stretched type icon may differ from the source at its resampled seams; nine in ten agree. */
+    private static final double STRETCHED_AGREEMENT = 0.9;
+
+    /**
+     * Whether an ability icon is a type icon: the same bytes, or the type icon stretched to the ability icon's
+     * size, which nearest sampling back to the type icon's size undoes.
+     */
+    private static boolean isTypeIcon(BufferedImage drawn, byte[] drawnBytes, byte[] typeBytes) throws IOException {
+        if (Arrays.equals(drawnBytes, typeBytes)) {
+            return true;
+        }
+        BufferedImage type = ImageIO.read(new ByteArrayInputStream(typeBytes));
+        int agree = 0;
+        for (int y = 0; y < type.getHeight(); y++) {
+            for (int x = 0; x < type.getWidth(); x++) {
+                int sampled = drawn.getRGB((2 * x + 1) * drawn.getWidth() / (2 * type.getWidth()),
+                        (2 * y + 1) * drawn.getHeight() / (2 * type.getHeight()));
+                agree += sampled == type.getRGB(x, y) ? 1 : 0;
+            }
+        }
+        return agree >= STRETCHED_AGREEMENT * type.getWidth() * type.getHeight();
+    }
 
     private static byte[] pngBytes(String resource) throws IOException {
         try (InputStream stream = RadialWheelRendererTest.class.getClassLoader().getResourceAsStream(resource)) {
@@ -229,6 +267,12 @@ class RadialWheelRendererTest {
                 assertTrue(!terms[0].isEmpty() && terms.length <= MOST_LABEL_TERMS,
                         ability.id() + " reads \"" + label.getAsString() + "\"");
             }));
+        }
+
+        /** quantum-anchors-link-two-points: the ability once called Anchor reads Portal; its key stays. */
+        @Test
+        void quantumAnchorReadsPortal() throws IOException {
+            assertEquals("Portal", englishLang().get("goo.ability.quantum.anchor").getAsString());
         }
 
         @Test
