@@ -8,7 +8,7 @@ import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.DragSize;
 import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.ability.HeldRoute;
-import com.mercuriusxeno.goo.ability.SpireLift;
+import com.mercuriusxeno.goo.ability.SpireGrowth;
 import com.mercuriusxeno.goo.ability.StreamSound;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.ChannelAim;
@@ -466,7 +466,7 @@ public final class GloveThrowSender {
 
     /**
      * The cost of a cast sized as it is made: a drag-sized cast's dragged
-     * radius, or a Spire's planned refill.
+     * radius, or a Spire's planned stone.
      *
      * @param player  the local player
      * @param ability the selected ability, or null where the client holds no synced copy
@@ -479,8 +479,8 @@ public final class GloveThrowSender {
             return OptionalInt.of(DragSize.costAt(ability.cost(), dragged.getAsDouble()));
         }
         if (player instanceof LocalPlayer local && SpireCast.footprint().isPresent()) {
-            // spire-rips-walls-and-platforms: a Spire reads the goo value of the refill it would place
-            return OptionalInt.of(SpireCast.plannedLift(local).map(SpireLift::cost).orElse(0));
+            // spire-grows-stone-out-of-the-top: a Spire reads the goo value of the stone it would grow
+            return OptionalInt.of(SpireCast.plannedGrowth(local).map(SpireGrowth::cost).orElse(0));
         }
         return OptionalInt.empty();
     }

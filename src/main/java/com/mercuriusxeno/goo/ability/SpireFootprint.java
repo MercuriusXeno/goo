@@ -5,20 +5,21 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The ground a Spire rips up: a rectangle of ground cells on the pinned
- * corner's level, the drag sizing it, and the rise the pitch sets, each
- * capped so one cast stays a wall or a platform, never a landslide.
+ * The ground a Spire grows stone over: a rectangle of ground cells on the
+ * pinned corner's level, the drag sizing it, and the rise the pitch sets,
+ * each capped so one cast stays a wall or a platform.
  * decision spire-rips-walls-and-platforms
+ * decision spire-grows-stone-out-of-the-top
  *
  * @param corner   the ground cell the press pinned
  * @param opposite the ground cell across the footprint, on the corner's level
- * @param rise     how many blocks the ground lifts
+ * @param rise     how many stone blocks grow above each ground cell
  */
 public record SpireFootprint(BlockPos corner, BlockPos opposite, int rise) {
 
     /** The widest a footprint runs on either axis, in blocks. */
     public static final int MAX_SPAN = 8;
-    /** The highest the ground lifts, in blocks. */
+    /** The highest the stone grows, in blocks. */
     public static final int MAX_RISE = 8;
     /** The lowest rise a cast makes, however little the pitch moved. */
     public static final int MIN_RISE = 1;
@@ -41,7 +42,7 @@ public record SpireFootprint(BlockPos corner, BlockPos opposite, int rise) {
 
     /**
      * Whether a footprint as sent stands within the caps, the check the server
-     * makes before it lifts anything.
+     * makes before it grows anything.
      *
      * @return true for a footprint on one level within the span and rise caps
      */
@@ -53,14 +54,14 @@ public record SpireFootprint(BlockPos corner, BlockPos opposite, int rise) {
      * The same footprint at another rise.
      *
      * @param lower the rise
-     * @return the footprint lifting that far
+     * @return the footprint growing that high
      */
     public SpireFootprint withRise(int lower) {
         return new SpireFootprint(corner, opposite, lower);
     }
 
     /**
-     * The ground cells of the footprint, the top block of each column that lifts.
+     * The ground cells of the footprint, the block each column of stone grows on.
      *
      * @return the cells, row by row
      */

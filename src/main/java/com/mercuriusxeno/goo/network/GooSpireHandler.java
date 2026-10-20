@@ -4,12 +4,11 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityTags;
 import com.mercuriusxeno.goo.ability.SpireFootprint;
-import com.mercuriusxeno.goo.ability.SpireLift;
+import com.mercuriusxeno.goo.ability.SpireGrowth;
 import com.mercuriusxeno.goo.ability.program.FootprintHost;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
-import com.mercuriusxeno.goo.ability.program.SpireStep;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -18,8 +17,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.tags.TagKey;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
@@ -27,11 +24,12 @@ import java.util.Optional;
 
 /**
  * Server side of a Spire's submit: the footprint is checked against the caps
- * and the throw range, planned against the ground it stands on, its rise
- * lowered to what the caster's goo pays for, and lifted, charging the goo
- * value of the refill it places. The client held the choreography; the
- * server trusts none of it.
+ * and the throw range, planned against the cells above it, its rise lowered
+ * to what the caster's goo pays for, and grown, charging stone's goo value
+ * per stone block grown. The client held the choreography; the server
+ * trusts none of it.
  * decision spire-rips-walls-and-platforms
+ * decision spire-grows-stone-out-of-the-top
  */
 public final class GooSpireHandler {
 
@@ -55,10 +53,10 @@ public final class GooSpireHandler {
     }
 
     /**
-     * Lifts a Spire for a player: refused whole for a glove-less player, an
+     * Grows a Spire for a player: refused whole for a glove-less player, an
      * unknown type, an ability the player may not use or that is not cast by
      * its footprint, a missing reagent, a footprint past the caps or the
-     * throw range, or ground the goo cannot lift a block of.
+     * throw range, or a footprint the goo cannot grow a stone block over.
      *
      * @param player  the casting player
      * @param payload the submit
@@ -69,9 +67,8 @@ public final class GooSpireHandler {
             return;
         }
         AbilityDefinition ability = GooThrowHandler.usableAbility(player, payload.abilityId(), gooType);
-        Optional<TagKey<Block>> lifts = ability == null ? Optional.empty() : SpireStep.liftsOf(ability.behaviors());
-        if (castable(player, ability) && lifts.isPresent()) {
-            lift(player, payload, gooType, ability, lifts.get());
+        if (castable(player, ability)) {
+            grow(player, payload, gooType, ability);
         }
     }
 
@@ -99,20 +96,19 @@ public final class GooSpireHandler {
     }
 
     /**
-     * Plans the lift at the highest rise the goo pays for, charges its refill
-     * and runs the program on the planned ground.
+     * Plans the growth at the highest rise the goo pays for, charges its stone
+     * and runs the program on the planned footprint.
      *
      * @param player  the casting player
      * @param payload the submit
      * @param gooType the ability's goo type
      * @param ability the ability
-     * @param lifts   the blocks the ability may lift
      */
-    private static void lift(ServerPlayer player, GooSpirePayload payload, ResourceKey<GooTypeDefinition> gooType,
-                             AbilityDefinition ability, TagKey<Block> lifts) {
+    private static void grow(ServerPlayer player, GooSpirePayload payload, ResourceKey<GooTypeDefinition> gooType,
+                             AbilityDefinition ability) {
         ServerLevel level = player.level();
         int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(gooType, 0);
-        Optional<SpireLift> plan = SpireLift.affordable(level, payload.footprint(), lifts, GooValues.of(level),
+        Optional<SpireGrowth> plan = SpireGrowth.affordable(level, payload.footprint(), GooValues.of(level),
                 gooType, holdings);
         if (plan.isEmpty() || !GooSourceScanner.hasEnough(player, gooType, plan.get().cost())) {
             return;
