@@ -1,0 +1,9 @@
+{
+  "model": {
+    "type": "minecraft:special",
+    "base": "goo:item/goo_label",
+    "model": {
+      "type": "goo:goo_label"
+    }
+  }
+}
