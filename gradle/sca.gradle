@@ -58,8 +58,15 @@ tasks.register('cpd', JavaExec) {
     }
 }
 
-// Wire CPD into the check lifecycle
-tasks.named('check') { dependsOn 'cpd' }
+// The analysis runs at the gate alone, off check (decision analysis-runs-at-the-gate-only).
+// An empty sourceSets list keeps the Checkstyle and PMD plugins from wiring their tasks into check.
+checkstyle { sourceSets = [] }
+pmd { sourceSets = [] }
+tasks.register('sca') {
+    description = 'Runs Checkstyle, PMD, SpotBugs and CPD over main; the gate runs it beside check'
+    group = 'verification'
+    dependsOn 'checkstyleMain', 'pmdMain', 'spotbugsMain', 'cpd'
+}
 
 // Unified flat-text report aggregating all analysis XML
 tasks.register('scaDigest', Exec) {
@@ -72,4 +79,5 @@ tasks.pmdMain.finalizedBy(tasks.scaDigest)
 tasks.spotbugsMain.finalizedBy(tasks.scaDigest)
 tasks.named('cpd') { finalizedBy tasks.scaDigest }
 tasks.named('check') { finalizedBy tasks.scaDigest }
+tasks.named('sca') { finalizedBy tasks.scaDigest }
 

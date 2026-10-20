@@ -185,6 +185,11 @@ spotbugs {
     toolVersion = '4.9.8'
 }
 
+// The SpotBugs plugin wires every SpotBugs task into check; sca runs spotbugsMain at the
+// gate instead (decision analysis-runs-at-the-gate-only).
+tasks.named('check') {
+    setDependsOn(dependsOn.findAll { !(it instanceof TaskCollection && it.any { t -> t instanceof com.github.spotbugs.snom.SpotBugsTask }) })
+}
 tasks.named('spotbugsTest') { enabled = false }
 tasks.named('spotbugsGametest') { enabled = false }
 tasks.named('spotbugsTools') { enabled = false }
