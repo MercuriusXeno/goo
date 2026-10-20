@@ -169,7 +169,9 @@ tasks.register('jacocoGooTestReport', JacocoReport) {
     description = 'Generates JaCoCo coverage report merging unit tests and gametests'
     group = 'verification'
     dependsOn tasks.named('coverageTest')
-    executionData fileTree(dir: buildDir, includes: ['jacoco/*.exec'])
+    // The two exec files by name: a tree over build/jacoco also reads testJunit's exec, an output
+    // of a task this report never depends on, and Gradle fails the build on that overlap.
+    executionData layout.buildDirectory.file('jacoco/coverageTest.exec'), layout.buildDirectory.file('jacoco/gameTest.exec')
     sourceSets sourceSets.main
     reports {
         html.required = true
@@ -193,7 +195,8 @@ apply from: 'gradle/sca.gradle'
 // classloader. scaDigest wiring is in sca.gradle.
 spotbugs {
     ignoreFailures = true
-    effort = com.github.spotbugs.snom.Effort.valueOf('MAX')
+    // sca, and so the gate, runs SpotBugs at default effort (decision sca-spotbugs-at-default-effort).
+    effort = com.github.spotbugs.snom.Effort.valueOf('DEFAULT')
     reportLevel = com.github.spotbugs.snom.Confidence.valueOf('MEDIUM')
     excludeFilter = file('config/spotbugs/spotbugs-exclude.xml')
     // Override engine to 4.9.8 for ASM 9.9 (JDK 25 / class file version 69)
@@ -209,20 +212,42 @@ tasks.named('spotbugsTest') { enabled = false }
 tasks.named('spotbugsGametest') { enabled = false }
 tasks.named('spotbugsTools') { enabled = false }
 
+// The max-sensitivity run over main that full carries (decision full-runs-the-slow-runs-in-one-command).
+// It reports to max.xml so its outputs never overlap spotbugsMain's; scaDigest reads max.xml when the build asks for it.
+tasks.register('spotbugsMaxMain', com.github.spotbugs.snom.SpotBugsTask) {
+    description = 'Runs SpotBugs over main at MAX effort'
+    group = 'verification'
+    classDirs = sourceSets.main.output
+    sourceDirs = sourceSets.main.allSource.sourceDirectories
+    auxClassPaths = sourceSets.main.compileClasspath
+    effort = com.github.spotbugs.snom.Effort.valueOf('MAX')
+    mustRunAfter 'spotbugsMain'
+    finalizedBy 'scaDigest'
+}
+
 tasks.withType(com.github.spotbugs.snom.SpotBugsTask).configureEach {
     showProgress = false
     // Suppress "classes needed for analysis were missing" stderr noise
     extraArgs = ['-quiet']
+    var reportName = name == 'spotbugsMaxMain' ? 'max' : 'main'
     reports {
         html {
             required = true
-            outputLocation = file("${buildDir.get()}/reports/spotbugs/main.html")
+            outputLocation = file("${buildDir.get()}/reports/spotbugs/${reportName}.html")
         }
         xml {
             required = true
-            outputLocation = file("${buildDir.get()}/reports/spotbugs/main.xml")
+            outputLocation = file("${buildDir.get()}/reports/spotbugs/${reportName}.xml")
         }
     }
+}
+
+// One command runs everything check once ran plus coverage (decision full-runs-the-slow-runs-in-one-command).
+tasks.register('full') {
+    description = 'Runs check, sca, coverage and SpotBugs at MAX effort; the digest carries the MAX findings'
+    group = 'verification'
+    dependsOn 'check', 'sca', 'coverage', 'spotbugsMaxMain'
+    finalizedBy 'scaDigest'
 }
 
 // Gametests boot a full Minecraft server; opt-in via -PgameTests
