@@ -29,7 +29,8 @@ import java.util.stream.IntStream;
  * at its size this frame, the type petals and the open type's ability petals, type petals with
  * their icon alone and the open type's ability petals with icon, name and
  * cost, or on a locked one its required items alone with the learned ones
- * slashed, the open type's name and holdings in the hub.
+ * slashed, the open type's name and holdings in the hub, and the hovered
+ * ability's explanation in a panel right of the wheel.
  * decision abilities-replace-the-hovered-type
  * decision locked-petal-lists-the-unlearned-items
  * decision halves-arc-petals-at-rest
@@ -165,6 +166,8 @@ final class RadialWheelRenderer {
         }
         slashLearnedItems(graphics, frame, required);
         renderCenterLabel(graphics, font, frame);
+        // explanation-panel-draws-right-of-the-wheel
+        AbilityExplanationPanel.paint(graphics, font, frame);
         return required;
     }
 
