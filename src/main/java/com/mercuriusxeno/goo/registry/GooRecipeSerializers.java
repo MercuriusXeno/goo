@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.registry;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.recipe.GooLabelApplyRecipe;
 import com.mercuriusxeno.goo.recipe.GooLabelRecipe;
+import com.mercuriusxeno.goo.recipe.GooLabelRemoveRecipe;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -22,6 +23,11 @@ public final class GooRecipeSerializers {
     public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<GooLabelApplyRecipe>> GOO_LABEL_APPLY =
             RECIPE_SERIALIZERS.register("goo_label_apply",
                     () -> new RecipeSerializer<>(GooLabelApplyRecipe.MAP_CODEC, GooLabelApplyRecipe.STREAM_CODEC));
+
+    /** A labeled vessel alone crafts its label back off (decision label-comes-off-in-the-crafting-grid). */
+    public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<GooLabelRemoveRecipe>> GOO_LABEL_REMOVE =
+            RECIPE_SERIALIZERS.register("goo_label_remove",
+                    () -> new RecipeSerializer<>(GooLabelRemoveRecipe.MAP_CODEC, GooLabelRemoveRecipe.STREAM_CODEC));
 
     private GooRecipeSerializers() {
     }
