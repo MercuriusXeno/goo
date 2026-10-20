@@ -107,8 +107,8 @@ public final class GooAttachments {
                             .build());
 
     /**
-     * The gluttony Gluttony leaves on a player, a point every interval until
-     * it expires and the overheal and overhunger it banks, saved with the player while it stands.
+     * The gluttony Gluttony leaves on a player until it expires, with the
+     * overheal and overhunger it banks, saved with the player while it stands.
      * gluttony-overheals-and-overhungers
      */
     public static final Supplier<AttachmentType<Gluttony>> GLUTTONY =
