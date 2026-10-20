@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.held.LaidState;
 import com.mercuriusxeno.goo.ability.program.AfterimageStep;
 import com.mercuriusxeno.goo.ability.program.AirbornStep;
 import com.mercuriusxeno.goo.ability.program.BranchStep;
@@ -562,6 +563,15 @@ class AbilityLoaderTest {
             assertTrue(rally.upkeep() > 0, "upkeep " + rally.upkeep());
             assertEquals(0, rally.cost());
             assertTrue(SelfEatRoute.eats(rally.delivery(), rally.badge()));
+        }
+
+        /** decision zoo-rally-holds-for-the-brew */
+        @Test
+        void shippedZooRallyLaysTheRallyItsEndingClears() {
+            AbilityDefinition rally = AbilityJson.decode("zoo_rally");
+
+            assertTrue(LaidState.laidBy(rally.behaviors()).contains(LaidState.RALLY),
+                    LaidState.laidBy(rally.behaviors()).toString());
         }
     }
 
