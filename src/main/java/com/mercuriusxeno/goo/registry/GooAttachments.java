@@ -108,13 +108,15 @@ public final class GooAttachments {
 
     /**
      * The gluttony Gluttony leaves on a player until it expires, with the
-     * overheal and overhunger it banks, saved with the player while it stands.
+     * overheal and overhunger it banks, saved with the player while it stands
+     * and synced to its owner, whose client lets a full glutton start eating.
      * gluttony-overheals-and-overhungers
      */
     public static final Supplier<AttachmentType<Gluttony>> GLUTTONY =
             ATTACHMENT_TYPES.register("gluttony",
                     () -> AttachmentType.builder(() -> Gluttony.NONE)
                             .serialize(Gluttony.CODEC, Gluttony::stands)
+                            .sync(GooAttachments::syncsToOwner, Gluttony.STREAM_CODEC)
                             .build());
 
     /**
