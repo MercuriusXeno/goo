@@ -249,7 +249,7 @@
   "goo.ability.jelly.heal": "Vitality",
   "goo.ability.jelly.heal.description": "Channel a healing stream that heals you and every living thing in its cone.",
   "goo.ability.jelly.gluttony": "Gluttony",
-  "goo.ability.jelly.gluttony.description": "Your hunger and health fill over time and keep filling past their caps as overhunger and overheal.",
+  "goo.ability.jelly.gluttony.description": "You can overheal and overeat: healing past full health becomes extra hearts and eating past full hunger is banked as overhunger, which refills your hunger as it drops.",
   "goo.ability.jelly.reserve": "Reserve",
   "goo.ability.jelly.reserve.description": "Channel to drain health and hunger into reserve hearts and shanks behind your bars, at a loss; the reserve is spent before your real health and hunger.",
   "goo.ability.jelly.feed": "Feed",
