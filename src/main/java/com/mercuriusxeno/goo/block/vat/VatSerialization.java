@@ -77,7 +77,9 @@ final class VatSerialization {
         if (be.redistributing || !isServerLevel(level)) {
             return;
         }
-        if (isStacked(be.getBlockState())) {
+        // A vat placed on another keeps the unstacked state its placement cached, so the
+        // stack is read from the level rather than from the block entity.
+        if (isStacked(level.getBlockState(be.getBlockPos()))) {
             VatStackRedistributor.redistribute(level, be.getBlockPos());
         }
     }
