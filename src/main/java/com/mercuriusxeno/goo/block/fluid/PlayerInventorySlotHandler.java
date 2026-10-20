@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.block.fluid;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
+import com.mercuriusxeno.goo.item.GooLabelRule;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -90,7 +91,8 @@ public final class PlayerInventorySlotHandler implements ResourceHandler<FluidRe
         return (long) content.roomFor(resource, ContainerCapacity.CANISTER_BASE) + getAmountAsLong(index);
     }
 
-    /** Only the goo fluid matching this tank index is valid.
+    /** Only the goo fluid matching this tank index is valid, and on a labeled
+     * canister only its label's type (decision labeled-vessel-accepts-only-its-label-type).
      *
      * @param index    the tank index
      * @param resource the fluid resource
@@ -100,7 +102,8 @@ public final class PlayerInventorySlotHandler implements ResourceHandler<FluidRe
     public boolean isValid(int index, FluidResource resource) {
         if (resource.isEmpty()) { return false; }
         ResourceKey<GooTypeDefinition> type = GooFluids.keyOf(resource);
-        return type != null && GooTypes.indexOf(type) == index;
+        return type != null && GooTypes.indexOf(type) == index
+                && GooLabelRule.admits(CanisterItem.getMetadata(getStack()).gooLabel(), resource);
     }
 
     /** Inserts goo into the canister at the matching type index.

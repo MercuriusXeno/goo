@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.client.GooRenderUtil;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypeNames;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -237,6 +238,17 @@ public final class PanelPainter {
      */
     public static PanelRow labelRow(String label) {
         return PanelRow.header(label, LABEL_COLOR);
+    }
+
+    /**
+     * Builds the goo label row: the label's type icon beside its name, in the label's gold.
+     * decision hud-panel-shows-the-label-type
+     *
+     * @param type the goo type the vessel's goo label holds it to
+     * @return the row
+     */
+    public static PanelRow gooLabelRow(ResourceKey<GooTypeDefinition> type) {
+        return PanelRow.iconText(gooIcon(type), GooTypeNames.labelName(type).getString(), LABEL_COLOR);
     }
 
     /**

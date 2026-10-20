@@ -77,7 +77,7 @@ public class CanisterBlock extends GooMachineBlock {
     /** The clicks a canister block answers through its dispatcher. */
     private static final Set<GooInteractionType> CLICK_ROWS = Set.of(
             GooInteractionType.CANISTER_INSERT, GooInteractionType.CANISTER_PICKUP,
-            GooInteractionType.FLUID_CONTAINER, GooInteractionType.GOO_INSERT);
+            GooInteractionType.FLUID_CONTAINER, GooInteractionType.GOO_INSERT, GooInteractionType.LABEL_APPLY);
 
     static {
         for (int slot = 0; slot < SLOT_COUNT; slot++) {

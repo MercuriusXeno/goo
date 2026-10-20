@@ -79,6 +79,8 @@ public class GooItems {
     // --- Canister ---
     public static final DeferredItem<CanisterItem> CANISTER = ITEMS.registerItem("canister",
             props -> new CanisterItem(GooBlocks.CANISTER.get(), props.stacksTo(1).useBlockDescriptionPrefix()));
+    /** The goo label, stacking to 64 by type (decision goo-label-is-paper-plus-one-mb-of-goo). */
+    public static final DeferredItem<GooLabelItem> GOO_LABEL = ITEMS.registerItem("goo_label", GooLabelItem::new);
     // --- Intermediate items ---
     public static final DeferredItem<ChoralGasketItem> CHORAL_GASKET = ITEMS.registerItem("choral_gasket",
             ChoralGasketItem::new);

@@ -1,13 +1,17 @@
 package com.mercuriusxeno.goo.item.fluid;
 
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
+import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import net.minecraft.resources.ResourceKey;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.access.ItemAccess;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 import net.neoforged.neoforge.transfer.transaction.TransactionContext;
+import org.jspecify.annotations.Nullable;
 import java.util.function.UnaryOperator;
 
 /**
@@ -71,7 +75,8 @@ public class CanisterFluidHandler implements ResourceHandler<FluidResource> {
      */
     @Override
     public boolean isValid(int index, FluidResource resource) {
-        return readContent(itemAccess.getResource()).canAccept(resource);
+        ItemResource item = itemAccess.getResource();
+        return readContent(item).canAccept(resource, readGooLabel(item));
     }
 
     @Override
@@ -85,8 +90,10 @@ public class CanisterFluidHandler implements ResourceHandler<FluidResource> {
             return 0;
         }
         int base = ContainerCapacity.CANISTER_BASE;
-        int perItem = readContent(item).cappedAddAmount(resource, amount / count, base);
-        return exchange(item, count, perItem, content -> content.withCappedAdd(resource, perItem, base), transaction);
+        ResourceKey<GooTypeDefinition> label = readGooLabel(item);
+        int perItem = readContent(item).cappedAddAmount(resource, amount / count, base, label);
+        return exchange(item, count, perItem, content -> content.withCappedAdd(resource, perItem, base, label),
+                transaction);
     }
 
     @Override
@@ -133,6 +140,16 @@ public class CanisterFluidHandler implements ResourceHandler<FluidResource> {
         CanisterFluidContent content = item.getComponents().get(
             GooDataComponents.CANISTER_FLUID_CONTENT.get());
         return content != null ? content : CanisterFluidContent.EMPTY;
+    }
+
+    /**
+     * Reads the goo label type from the canister's metadata.
+     * @param item the item resource to read
+     * @return the goo label type, or null where the canister carries none
+     */
+    private static @Nullable ResourceKey<GooTypeDefinition> readGooLabel(ItemResource item) {
+        CanisterMetadata meta = item.getComponents().get(GooDataComponents.CANISTER_METADATA.get());
+        return meta != null ? meta.gooLabel() : null;
     }
 
     /**

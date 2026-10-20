@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
+import com.mercuriusxeno.goo.item.GooLabelRule;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -190,7 +191,7 @@ public final class CanisterSlot {
         }
         CanisterSlotFluidHandler newHandler = new CanisterSlotFluidHandler(ContainerCapacity.CANISTER_BASE,
                 () -> onHandlerChanged(gameTime.getAsLong()),
-                gameTime, admits);
+                gameTime, admits, () -> CanisterItem.getMetadata(canister).gooLabel());
         newHandler.loadFrom(CanisterItem.getFluidContent(canister));
         newHandler.setConsumerDemand(this::consumerDemand);
         this.handler = newHandler;
@@ -380,6 +381,26 @@ public final class CanisterSlot {
         }
         CanisterItem.setMetadata(canister, metadata);
         onSync.run();
+    }
+
+    /**
+     * Puts a goo label on this slot's canister where the label rule lets it on,
+     * reading the live fluid content, and fires onSync.
+     * decision label-goes-on-an-empty-or-matching-vessel
+     *
+     * @param type the label's goo type
+     * @return true when the label went on
+     */
+    public boolean applyGooLabel(ResourceKey<GooTypeDefinition> type) {
+        if (canister.isEmpty()) {
+            return false;
+        }
+        CanisterMetadata meta = CanisterItem.getMetadata(canister);
+        if (!GooLabelRule.canLabel(fluidContent(), meta, type)) {
+            return false;
+        }
+        setMetadata(meta.withGooLabel(type));
+        return true;
     }
 
     /**
