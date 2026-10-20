@@ -108,6 +108,32 @@ class CanisterFluidContentTest {
         }
     }
 
+    /** decision labeled-vessel-accepts-only-its-label-type */
+    @Nested
+    class LabeledCanister {
+
+        @Test
+        void aBlazeLabeledCanisterTakesBlaze() {
+            assertTrue(CanisterFluidContent.EMPTY.canAccept(blaze, GooTypes.BLAZE));
+            assertEquals(FIRST_VOLUME, CanisterFluidContent.EMPTY.cappedAddAmount(blaze, FIRST_VOLUME, CAPACITY,
+                    GooTypes.BLAZE));
+        }
+
+        @Test
+        void aBlazeLabeledCanisterRefusesRockAndWater() {
+            CanisterFluidContent held = CanisterFluidContent.of(blaze, FIRST_VOLUME);
+            assertFalse(held.canAccept(rock, GooTypes.BLAZE));
+            assertFalse(CanisterFluidContent.EMPTY.canAccept(water, GooTypes.BLAZE));
+            assertEquals(0, held.cappedAddAmount(rock, FIRST_VOLUME, CAPACITY, GooTypes.BLAZE));
+            assertEquals(held, held.withCappedAdd(rock, FIRST_VOLUME, CAPACITY, GooTypes.BLAZE));
+        }
+
+        @Test
+        void anUnlabeledCanisterStillTakesASecondType() {
+            assertTrue(CanisterFluidContent.of(blaze, FIRST_VOLUME).canAccept(rock, null));
+        }
+    }
+
     @Nested
     class SavedShape {
 

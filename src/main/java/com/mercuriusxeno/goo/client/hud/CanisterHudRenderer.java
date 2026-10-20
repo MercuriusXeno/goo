@@ -4,10 +4,12 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -43,7 +45,8 @@ public final class CanisterHudRenderer {
             return;
         }
         SlotData data = lookupSlotData(target.pos, target.slot);
-        if (data == null || data.content.isEmpty()) {
+        // An empty labeled canister still shows its label's type (decision hud-panel-shows-the-label-type).
+        if (data == null || data.content.isEmpty() && data.gooLabel() == null) {
             ANIMATOR.clear();
             return;
         }
@@ -84,7 +87,7 @@ public final class CanisterHudRenderer {
             return null;
         }
         CanisterMetadata meta = holder.getSlotMetadata(slot);
-        return new SlotData(holder.getSlotFluidContent(slot), meta.label());
+        return new SlotData(holder.getSlotFluidContent(slot), meta.label(), meta.gooLabel());
     }
 
     /**
@@ -95,8 +98,13 @@ public final class CanisterHudRenderer {
     }
 
     /**
-     * Fluid content and label for a targeted slot.
+     * Fluid content, label and goo label for a targeted slot.
+     *
+     * @param content  the slot's fluid content
+     * @param label    the player-assigned label, or null
+     * @param gooLabel the goo type the canister's goo label holds it to, or null
      */
-    record SlotData(CanisterFluidContent content, @Nullable String label) {
+    record SlotData(CanisterFluidContent content, @Nullable String label,
+                    @Nullable ResourceKey<GooTypeDefinition> gooLabel) {
     }
 }

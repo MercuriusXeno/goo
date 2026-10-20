@@ -31,6 +31,10 @@ final class CanisterPanelRows {
     static List<PanelRow> rows(CanisterHudRenderer.SlotData data) {
         CanisterFluidContent content = data.content();
         List<PanelRow> rows = rows(data.label(), GooContents.EMPTY);
+        // decision hud-panel-shows-the-label-type
+        if (data.gooLabel() != null) {
+            rows.add(PanelPainter.gooLabelRow(data.gooLabel()));
+        }
         Map<ResourceKey<GooTypeDefinition>, Integer> goo = content.gooVolumesDominantFirst();
         goo.forEach((type, volume) -> rows.add(PanelPainter.gooRow(type, GooFormat.formatAmount(volume))));
         if (goo.isEmpty() && !content.isEmpty()) {
