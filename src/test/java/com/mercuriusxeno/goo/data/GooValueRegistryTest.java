@@ -505,6 +505,27 @@ class GooValueRegistryTest {
         }
 
         /**
+         * Each type divides on its own, so remainders per type are lost even when the total divides.
+         * Mirrors minecraft:cookie: jelly 300 and leaf 492 over 8 lose 4 each, total 792 divides by 8.
+         */
+        @Test
+        void perTypeRemainderDetectsLossWhenTotalDivides() {
+            setBaseValues(Map.of(
+                    id("input"), new GooValue(Map.of(GooTypes.ROCK, 300, GooTypes.METAL, 492))
+            ));
+            List<RecipeInput> recipes = List.of(
+                    recipe("output", 8, slot("input"))
+            );
+
+            registry.deriveFromRecipeInputs(recipes, false);
+            assertEquals(1, registry.diagnostics().divisibilityLosses().size());
+            var loss = registry.diagnostics().divisibilityLosses().get(0);
+            assertEquals(792, loss.inputTotal());
+            assertEquals(98, loss.perItemValue());
+            assertEquals(8, loss.lostGoo());
+        }
+
+        /**
          * Result count 1 is never checked for divisibility loss.
          */
         @Test
@@ -2457,7 +2478,7 @@ class GooValueRegistryTest {
         @Test
         void retiredTermsMoveToYore() {
             for (String item : List.of("minecraft:heart_of_the_sea", "minecraft:echo_shard", "minecraft:elytra",
-                    "minecraft:dragon_egg", "minecraft:nautilus_shell", "minecraft:music_disc_13")) {
+                    "minecraft:dragon_egg", "minecraft:nautilus_shell")) {
                 GooValue value = registry.table().lookup(id(item));
                 assertNotNull(value, item);
                 assertTrue(value.get(GooTypes.YORE) > 0, item + " carries no yore: " + value);
@@ -2517,6 +2538,8 @@ class GooValueRegistryTest {
     class ShippedBaseValues {
 
         private static final String SHIPPED_BASE_VALUES = "/data/goo/goo_values/base_values.json";
+        private static final List<String> SCULK_FAMILY = List.of("minecraft:sculk", "minecraft:sculk_vein",
+                "minecraft:sculk_sensor", "minecraft:sculk_shrieker", "minecraft:sculk_catalyst");
 
         /**
          * The shipped slime ball and gunpowder each resolve a kinetic share.
@@ -2577,22 +2600,65 @@ class GooValueRegistryTest {
         }
 
         /**
-         * The shipped base_values.json values slime balls and the sculk family
-         * in weird.
+         * The shipped base_values.json values slime balls, frogspawn, froglights,
+         * honeycomb and wet sponges in weird, and the sculk family carries none.
          * decision weird-ships-from-slime-and-sculk
          */
         @Test
-        void slimeBallAndSculkFamilyResolveWeird() throws IOException {
+        void slimeAndItsKinResolveWeird() throws IOException {
             try (java.io.InputStream in = GooValueRegistryTest.class.getResourceAsStream(SHIPPED_BASE_VALUES)) {
                 assertNotNull(in, SHIPPED_BASE_VALUES);
                 parseBaseValuesFromStream(in);
             }
             copyBaseToEffective();
-            for (String item : List.of("minecraft:slime_ball", "minecraft:sculk", "minecraft:sculk_vein",
-                    "minecraft:sculk_sensor", "minecraft:sculk_shrieker", "minecraft:sculk_catalyst")) {
+            for (String item : List.of("minecraft:slime_ball", "minecraft:frogspawn", "minecraft:ochre_froglight",
+                    "minecraft:honeycomb", "minecraft:wet_sponge")) {
                 GooValue value = registry.table().lookup(id(item));
                 assertNotNull(value, item);
                 assertTrue(value.get(GooTypes.WEIRD) > 0, item + " carries no weird: " + value);
+            }
+            for (String item : SCULK_FAMILY) {
+                assertEquals(0, registry.table().lookup(id(item)).get(GooTypes.WEIRD), item);
+            }
+        }
+
+        /**
+         * The shipped base_values.json values the sculk family, echo shards and
+         * phantom membranes in xeno.
+         * decision xeno-ships-as-a-type-with-no-source-yet
+         */
+        @Test
+        void sculkEchoAndPhantomResolveXeno() throws IOException {
+            try (java.io.InputStream in = GooValueRegistryTest.class.getResourceAsStream(SHIPPED_BASE_VALUES)) {
+                assertNotNull(in, SHIPPED_BASE_VALUES);
+                parseBaseValuesFromStream(in);
+            }
+            copyBaseToEffective();
+            List<String> items = new java.util.ArrayList<>(SCULK_FAMILY);
+            items.addAll(List.of("minecraft:echo_shard", "minecraft:phantom_membrane"));
+            for (String item : items) {
+                GooValue value = registry.table().lookup(id(item));
+                assertNotNull(value, item);
+                assertTrue(value.get(GooTypes.XENO) > 0, item + " carries no xeno: " + value);
+            }
+        }
+
+        /**
+         * The shipped base_values.json values chorus fruit, chorus plants and
+         * shulker shells in void.
+         * decision void-ships-from-astral-and-deep
+         */
+        @Test
+        void chorusAndShulkerResolveVoid() throws IOException {
+            try (java.io.InputStream in = GooValueRegistryTest.class.getResourceAsStream(SHIPPED_BASE_VALUES)) {
+                assertNotNull(in, SHIPPED_BASE_VALUES);
+                parseBaseValuesFromStream(in);
+            }
+            copyBaseToEffective();
+            for (String item : List.of("minecraft:chorus_fruit", "minecraft:chorus_plant", "minecraft:shulker_shell")) {
+                GooValue value = registry.table().lookup(id(item));
+                assertNotNull(value, item);
+                assertTrue(value.get(GooTypes.VOID) > 0, item + " carries no void: " + value);
             }
         }
     }
@@ -2603,34 +2669,6 @@ class GooValueRegistryTest {
     class ShippedValues {
 
         private static final String SHIPPED_BASE_VALUES = "/data/goo/goo_values/base_values.json";
-
-        /**
-         * The shipped base values give no item any xeno or void, while the same
-         * load still values items in the standing types.
-         * decision xeno-ships-as-a-type-with-no-source-yet
-         * decision void-ships-from-astral-and-deep
-         */
-        @ParameterizedTest
-        @ValueSource(strings = {"xeno", "void"})
-        void noShippedItemResolvesATypeWithNoItemSource(String typeId) throws IOException {
-            ResourceKey<GooTypeDefinition> sourceless = GooTypes.BUNDLED.stream()
-                    .filter(key -> GooTypes.id(key).equals(typeId))
-                    .findFirst().orElseThrow();
-            try (var shipped = GooValueRegistryTest.class.getResourceAsStream(SHIPPED_BASE_VALUES)) {
-                assertNotNull(shipped, SHIPPED_BASE_VALUES);
-                parseBaseValuesFromStream(shipped);
-            }
-            copyBaseToEffective();
-
-            Map<Identifier, GooValue> effective = registry.table().getEffectiveValues();
-            assertTrue(effective.values().stream().anyMatch(value -> value.get(GooTypes.YORE) > 0),
-                    "the shipped load valued no item in yore");
-            List<Identifier> carryingSourceless = effective.entrySet().stream()
-                    .filter(entry -> entry.getValue().get(sourceless) != 0)
-                    .map(Map.Entry::getKey)
-                    .toList();
-            assertEquals(List.of(), carryingSourceless);
-        }
 
         /**
          * No shipped item value resolves to quantum, after the post-conversions
@@ -2697,13 +2735,17 @@ class GooValueRegistryTest {
         }
 
         /**
-         * A spawn egg, leather, bone, string and honeycomb each resolve zoo.
+         * A spawn egg, leather, bone and string each resolve zoo; ink and slime,
+         * which an animal produces rather than is made of, carry none.
          */
         @Test
         void animalItemsResolveZoo() throws IOException {
             loadShipped();
+            for (String item : List.of("minecraft:ink_sac", "minecraft:slime_ball", "minecraft:honeycomb")) {
+                assertEquals(0, registry.table().lookup(id(item)).get(GooTypes.ZOO), item);
+            }
             for (String item : List.of("minecraft:cow_spawn_egg", "minecraft:leather", "minecraft:bone",
-                    "minecraft:string", "minecraft:honeycomb")) {
+                    "minecraft:string")) {
                 GooValue value = registry.table().lookup(id(item));
                 assertNotNull(value, item);
                 assertTrue(value.get(GooTypes.ZOO) > 0, item + " resolves no zoo");

@@ -168,25 +168,29 @@ final class GooDerivationDiagnostics {
         if (inputValue.isEmpty()) {
             return;
         }
-        buildLossIfRemainder(outputId, recipe, inputValue.get().totalGoo(), losses);
+        buildLossIfRemainder(outputId, recipe, inputValue.get(), losses);
     }
 
     /**
-     * Appends a divisibility loss entry when integer division leaves a remainder.
+     * Appends a divisibility loss entry when integer division leaves a remainder in any type.
+     * Derivation divides each type on its own, so the loss is the sum of per-type remainders.
      *
      * @param outputId   the output item ID
      * @param recipe     the recipe being checked
-     * @param inputTotal total input goo before division
+     * @param inputValue total input goo before division
      * @param losses     accumulator for detected losses
      */
     static void buildLossIfRemainder(Identifier outputId, RecipeInput recipe,
-                                     int inputTotal, List<GooValueRegistry.DivisibilityLoss> losses) {
-        int remainder = inputTotal % recipe.resultCount();
-        if (remainder == 0) {
+                                     GooValue inputValue, List<GooValueRegistry.DivisibilityLoss> losses) {
+        int count = recipe.resultCount();
+        int lost = 0;
+        for (int amount : inputValue.getAll().values()) {
+            lost += Math.abs(amount % count);
+        }
+        if (lost == 0) {
             return;
         }
-        int perItem = inputTotal / recipe.resultCount();
         losses.add(new GooValueRegistry.DivisibilityLoss(
-                outputId, recipe.resultCount(), inputTotal, perItem, remainder, recipe));
+                outputId, count, inputValue.totalGoo(), inputValue.divide(count).totalGoo(), lost, recipe));
     }
 }

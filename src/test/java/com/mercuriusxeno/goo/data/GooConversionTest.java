@@ -464,14 +464,18 @@ class GooConversionTest {
         }
 
         /**
-         * The metal reaction consumes crystal, rock and yore and yields metal.
+         * The metal reaction consumes one each of crystal, rock, deep and opulent and yields four metal,
+         * so metal renews by reactor with opulent gating the plentiful deep
+         * (decision goo-reactions-reviewed-against-the-new-types).
          */
         @Test
-        void metalReactionConsumesYore() throws IOException {
-            JsonObject reaction = loadReaction("metal_from_crystal_rock_yore");
-            assertEquals(List.of(GooTypes.CRYSTAL, GooTypes.ROCK, GooTypes.YORE),
+        void metalReactionConsumesDeepAndOpulent() throws IOException {
+            JsonObject reaction = loadReaction("metal_from_crystal_rock_deep_opulent");
+            assertEquals(List.of(GooTypes.CRYSTAL, GooTypes.ROCK, GooTypes.DEEP, GooTypes.OPULENT),
                     gooTypesOf(reaction.getAsJsonArray("inputs")));
             assertEquals(List.of(GooTypes.METAL), gooTypesOf(reaction.getAsJsonArray("outputs")));
+            assertEquals(4, totalAmount(reaction.getAsJsonArray("inputs")));
+            assertEquals(4, totalAmount(reaction.getAsJsonArray("outputs")));
         }
 
         // GooReaction's codec reaches BuiltInRegistries, which a unit test cannot initialize,

@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.command;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.data.GooReaction;
+import com.mercuriusxeno.goo.data.GooReactionLoader;
 import com.mercuriusxeno.goo.data.GooValueRegistry;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mojang.brigadier.context.CommandContext;
@@ -25,7 +27,7 @@ import java.util.stream.Collectors;
  * (expressions, phantom IDs, cycles, no-value items) and delegates value
  * comparison sections to {@link GooAuditValues}.
  */
-final class GooAuditReport {
+public final class GooAuditReport {
 
     // --- Shared/template constants (package-private for GooAuditValues access) ---
 
@@ -75,7 +77,7 @@ final class GooAuditReport {
     /**
      * Audit file output path.
      */
-    private static final String FILE_AUDIT = "goo_audit.txt";
+    public static final String FILE_AUDIT = "goo_audit.txt";
     /**
      * All checks passed message.
      */
@@ -228,25 +230,30 @@ final class GooAuditReport {
      */
     static int run(CommandContext<CommandSourceStack> ctx) {
         GooValueRegistry values = GooValues.registryOf(ctx.getSource().getServer());
-        int issues = buildAndWriteReport(values);
+        int issues = writeReport(values, GooReactionLoader.reactionsOf(ctx.getSource().getServer()));
         sendAuditResultToChat(ctx, issues);
         sendSectionSummaries(values, ctx);
         return 1;
     }
 
     /**
-     * Builds the full audit report, writes it to disk, and returns the issue count.
+     * Builds the full audit report, writes it to config/goo_audit.txt, and returns the issue count.
+     * The audit-dump gametest calls it headless, so the report needs no world load
+     * (decision audit-dump-from-a-gametest).
      *
-     * @param values the server's goo value registry
+     * @param values    the server's goo value registry
+     * @param reactions the reactions the server loaded from goo_reactions
      * @return the total number of issues found
      */
-    private static int buildAndWriteReport(GooValueRegistry values) {
+    public static int writeReport(GooValueRegistry values, List<GooReaction> reactions) {
         List<String> report = new ArrayList<>();
         report.add(AUDIT_TITLE);
         report.add(AUDIT_UNDERLINE);
         report.add(EMPTY_LINE);
         int issues = appendIssueSections(values, report);
         appendNoValueSection(values, report);
+        GooAuditFlows.appendFormulasSection(values, report);
+        GooAuditFlows.appendReactionsSection(reactions, report);
         GooAuditValues.appendAllValuesSection(values, report);
         writeDiagnosticFile(FILE_AUDIT, report);
         return issues;
