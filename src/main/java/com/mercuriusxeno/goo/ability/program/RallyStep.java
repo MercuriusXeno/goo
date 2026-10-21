@@ -14,11 +14,14 @@ import java.util.stream.Stream;
  * Rallies the host's target for the caster and finishes: until the rally
  * fades, the mob strikes the caster's enemies for the named damage, its max
  * health and speed lifted by the named shares. A cast with no caster behind
- * it rallies nothing. Zoo's Rally is
- * {@code rally duration=600 damage=6 health=1.5 speed=0.5}.
+ * it rallies nothing. A mob the caster already rallied has its expiry pushed
+ * out, keeping its buff and health. Zoo's Rally is
+ * {@code rally duration=100 damage=6 health=1.5 speed=0.5}, re-run while its
+ * brew holds.
  * zoo-rally-arms-the-peaceful
+ * zoo-rally-holds-for-the-brew
  *
- * @param duration the ticks the rally lasts, evaluated when the step runs
+ * @param duration the ticks the rally lasts past the step's last run, evaluated when the step runs
  * @param damage   the damage one strike deals
  * @param health   the share max health grows by
  * @param speed    the share movement speed grows by
@@ -52,11 +55,20 @@ public record RallyStep(Expr duration, Expr damage, Expr health, Expr speed) imp
         TargetHost host = context.hostAs(TargetHost.class);
         Entity caster = host.thrower();
         if (caster != null && host.target() instanceof Mob mob) {
+            boolean alreadyRallied = ralliedBy(mob, caster);
             long expiresAt = mob.level().getGameTime() + duration.evaluateInt(context);
             mob.setData(GooAttachments.RALLIED, new Rallied(caster.getUUID(), expiresAt, damage.evaluateFloat(context)));
-            RallyEvents.buff(mob, health.evaluate(context), speed.evaluate(context));
+            if (!alreadyRallied) {
+                // zoo-rally-holds-for-the-brew: a refresh pushes the expiry out without healing the mob again
+                RallyEvents.buff(mob, health.evaluate(context), speed.evaluate(context));
+            }
         }
         return true;
+    }
+
+    private static boolean ralliedBy(Mob mob, Entity caster) {
+        return mob.hasData(GooAttachments.RALLIED) && mob.getData(GooAttachments.RALLIED).caster()
+                .equals(caster.getUUID());
     }
 
     @Override
