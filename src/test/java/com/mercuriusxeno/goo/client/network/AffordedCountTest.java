@@ -85,6 +85,26 @@ class AffordedCountTest {
         }
     }
 
+    /** A count reads to 3 significant digits truncated (decision counts-read-three-significant-digits). */
+    @Nested
+    class ShortUnits {
+
+        @Test
+        void useCountsReadInShorthand() {
+            ClientAbility penny = oneShot(1);
+            assertEquals("x42.6K", AffordedCount.reckon(penny, 42_678, NO_REAGENTS).orElseThrow().label());
+            assertEquals("x999", AffordedCount.reckon(penny, 999, NO_REAGENTS).orElseThrow().label());
+            assertEquals("x1M", AffordedCount.reckon(penny, 1_000_000, NO_REAGENTS).orElseThrow().label());
+        }
+
+        @Test
+        void brewCountsReadInTheirLargestUnit() {
+            ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW, List.of(), 1);
+            assertEquals("1.5m", AffordedCount.reckon(brew, 1800, NO_REAGENTS).orElseThrow().label());
+            assertEquals("12s", AffordedCount.reckon(brew, 250, NO_REAGENTS).orElseThrow().label());
+        }
+    }
+
     /** A dynamically priced petal reads its formula and never 0 (decision dynamic-costs-keep-the-mb-quantity). */
     @Nested
     class Dynamic {
