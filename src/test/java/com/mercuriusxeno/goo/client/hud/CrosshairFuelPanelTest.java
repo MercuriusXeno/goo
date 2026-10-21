@@ -1,42 +1,94 @@
 package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.DeliveryKind;
+import com.mercuriusxeno.goo.ability.IndicatorShowing;
+import com.mercuriusxeno.goo.client.hud.CrosshairFuelPanel.AbilityIcon;
+import com.mercuriusxeno.goo.client.hud.CrosshairFuelPanel.AbilityName;
+import com.mercuriusxeno.goo.client.hud.CrosshairFuelPanel.Count;
+import com.mercuriusxeno.goo.client.hud.CrosshairFuelPanel.FuelCell;
+import com.mercuriusxeno.goo.client.hud.CrosshairFuelPanel.ItemIcon;
+import com.mercuriusxeno.goo.client.hud.CrosshairFuelPanel.TypeIcon;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.client.network.AffordedCount;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.item.ItemStack;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.mockito.Mockito.mock;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Covers the crosshair panel's row: the first source, the goo it holds and the cost at the aimed stack (decision crosshair-panel-shows-source-and-cost). */
+/** Covers the crosshair panel: the row it reads for the selected ability, its background and its anchor. */
 class CrosshairFuelPanelTest {
 
-    private static final int CANISTER_VOLUME = 3000;
-    private static final int FLAT_COST = 2500;
+    /**
+     * A fixed-cost ability's row reads the type icon, the name, the ability icon and the count, with each
+     * consumed item's icon after the count, and no container or goo amount.
+     * panel-and-petals-count-uses-or-seconds
+     * reagent-count-is-the-smaller-bound
+     */
+    @Nested
+    class CountRow {
 
-    private static ClientAbility costing(int cost) {
-        return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "cost_" + cost), "ability.goo.cost", "",
-                0, List.of(), List.of(), cost, Delivery.ARC, AbilityBadge.WORLD, List.of());
-    }
+        private static final int THOUSAND = 1000;
+        private static final int PLENTY = Integer.MAX_VALUE;
+        private static final String NOT_READ = "unread";
+        private static final Identifier BOOK = Identifier.withDefaultNamespace("book");
 
-    @Test
-    void rowReadsTheCanisterItsVolumeAndTheCost() {
-        ItemStack canister = mock(ItemStack.class);
-        int cost = costing(FLAT_COST).cost();
+        private static ClientAbility ability(int cost, AbilityBadge badge, List<Identifier> consumes, int upkeep) {
+            return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "counted"), "ability.goo.counted", "",
+                    0, List.of(), List.of(), cost, badge == AbilityBadge.BREW ? Delivery.of(DeliveryKind.SELF) : Delivery.ARC,
+                    badge, List.of(), AbilityArea.NONE, IndicatorShowing.HELD, consumes, upkeep);
+        }
 
-        CrosshairFuelPanel.FuelRow row = CrosshairFuelPanel.fuelRow(canister, GooTypes.UNSTABLE, CANISTER_VOLUME, cost);
+        private static List<FuelCell> head(ClientAbility ability) {
+            return List.of(new TypeIcon(GooTypes.UNSTABLE), new AbilityName("ability.goo.counted"),
+                    new AbilityIcon(ability.iconTexture()));
+        }
 
-        assertSame(canister, row.source());
-        assertEquals(GooTypes.UNSTABLE, row.type());
-        assertEquals("3K", row.heldText());
-        assertEquals("- 2.5K", row.costText());
+        private static List<FuelCell> concat(List<FuelCell> head, FuelCell... tail) {
+            List<FuelCell> row = new ArrayList<>(head);
+            row.addAll(List.of(tail));
+            return row;
+        }
+
+        @Test
+        void oneShotReadsItsUses() {
+            ClientAbility oneShot = ability(THOUSAND, AbilityBadge.WORLD, List.of(), 0);
+            assertEquals(concat(head(oneShot), new Count("x3")),
+                    CrosshairFuelPanel.rowCells(GooTypes.UNSTABLE, oneShot, 3500, PLENTY, NOT_READ));
+        }
+
+        @Test
+        void enchantReadsItsUsesThenTheBook() {
+            ClientAbility enchant = ability(THOUSAND, AbilityBadge.WORLD, List.of(BOOK), 0);
+            assertEquals(concat(head(enchant), new Count("x3"), new ItemIcon(BOOK)),
+                    CrosshairFuelPanel.rowCells(GooTypes.UNSTABLE, enchant, 9000, 3, NOT_READ));
+        }
+
+        @Test
+        void brewReadsItsSeconds() {
+            ClientAbility brew = ability(0, AbilityBadge.BREW, List.of(), 1);
+            assertEquals(concat(head(brew), new Count("12s")),
+                    CrosshairFuelPanel.rowCells(GooTypes.UNSTABLE, brew, 250, PLENTY, NOT_READ));
+        }
+
+        /** The panel's count and the petal's count for one ability and holdings are one text. */
+        @Test
+        void panelCountMatchesThePetalCount() {
+            ClientAbility oneShot = ability(THOUSAND, AbilityBadge.WORLD, List.of(), 0);
+            String petalCount = AffordedCount.reckon(oneShot, 3500, PLENTY).orElseThrow().label();
+            List<FuelCell> row = CrosshairFuelPanel.rowCells(GooTypes.UNSTABLE, oneShot, 3500, PLENTY, NOT_READ);
+
+            assertEquals(new Count(petalCount), row.get(row.size() - 1));
+            assertTrue(oneShot.petalLabel(3500, PLENTY).endsWith(" | " + petalCount));
+        }
     }
 
     /** A 60 by 22 panel at (100, 50) cuts the 24x24 effect background into nine slices with a 3px border (decision diagnose-then-fix-aiming-panel-stretch). */

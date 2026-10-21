@@ -94,9 +94,7 @@ final class RadialWheelRenderer {
     static final int PRISM_BADGE_NUDGE_DOWN = 6;
 
     private static final String TYPE_ICON_PREFIX = "textures/goo/type/";
-    private static final String ABILITY_ICON_PREFIX = "textures/goo/ability/";
     private static final String ICON_SUFFIX = ".png";
-    private static final char NAMESPACE_SEPARATOR = ':';
     private static final String BADGE_ICON_PREFIX = "textures/goo/badge/";
     /** hovering-a-badge-names-its-kind */
     private static final String BADGE_NAME_PREFIX = "goo.badge.";
@@ -939,12 +937,6 @@ final class RadialWheelRenderer {
      * @return the icon texture identifier
      */
     static Identifier resolveAbilityIcon(ClientAbility ability) {
-        if (!ability.icon().isEmpty()) {
-            // diagnose-then-fix-radial-icon-id: a namespaced icon keeps its namespace rather than taking a second goo:
-            return ability.icon().indexOf(NAMESPACE_SEPARATOR) >= 0
-                    ? Identifier.parse(ability.icon())
-                    : Identifier.fromNamespaceAndPath(Goo.MODID, ability.icon());
-        }
-        return Identifier.fromNamespaceAndPath(Goo.MODID, ABILITY_ICON_PREFIX + ability.id().getPath() + ICON_SUFFIX);
+        return ability.iconTexture();
     }
 }

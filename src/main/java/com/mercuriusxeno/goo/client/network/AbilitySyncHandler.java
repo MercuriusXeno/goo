@@ -125,6 +125,9 @@ public final class AbilitySyncHandler {
         private static final String PER_SECOND = "/s";
         private static final String COUNT_SEPARATOR = " | ";
         private static final String NO_COUNT = "";
+        private static final String ABILITY_ICON_PREFIX = "textures/goo/ability/";
+        private static final String ICON_SUFFIX = ".png";
+        private static final char NAMESPACE_SEPARATOR = ':';
         private static final Identifier SPIRE_BLOCK = Identifier.withDefaultNamespace("stone");
 
         /**
@@ -372,6 +375,22 @@ public final class AbilitySyncHandler {
                     entry.cost(), entry.delivery(), entry.badge(), entry.requires(), entry.area(),
                     entry.indicator(), entry.consumes(), entry.upkeep(), entry.distancePrice(), entry.onPrism(),
                     entry.pose(), entry.description(), entry.costMechanics());
+        }
+
+        /**
+         * The ability's icon texture, which the wheel and the crosshair panel draw: the explicit
+         * override where the JSON names one, otherwise the convention path.
+         *
+         * @return the icon texture identifier
+         */
+        public Identifier iconTexture() {
+            String override = icon();
+            if (!override.isEmpty()) {
+                // diagnose-then-fix-radial-icon-id: a namespaced icon keeps its namespace rather than taking a second goo:
+                return override.indexOf(NAMESPACE_SEPARATOR) >= 0 ? Identifier.parse(override)
+                        : Identifier.fromNamespaceAndPath(Goo.MODID, override);
+            }
+            return Identifier.fromNamespaceAndPath(Goo.MODID, ABILITY_ICON_PREFIX + id.getPath() + ICON_SUFFIX);
         }
 
         /**

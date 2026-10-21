@@ -2,9 +2,12 @@ package com.mercuriusxeno.goo.client.hud;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.client.network.AffordedCount;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
-import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -13,32 +16,30 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 /**
  * A nine-slice panel at the bottom right of the screen while a glove with a
- * selection is held (decision fuel-panel-sits-at-bottom-right): the icon of
- * the stack the throw deducts from first, the goo type and the goo it
- * holds, and "- N", the throw's cost at the aimed target (decision
- * crosshair-panel-shows-source-and-cost), followed by the icon of each item
- * the throw consumes (decision ability-json-names-its-reagent).
+ * selection is held (decision fuel-panel-sits-at-bottom-right): the goo
+ * type's icon, the ability's name and icon, and the uses or seconds the
+ * type's holdings afford (decision panel-and-petals-count-uses-or-seconds),
+ * followed by the icon of each item the throw consumes, which bounds the
+ * count (decision reagent-count-is-the-smaller-bound).
  */
 @EventBusSubscriber(modid = Goo.MODID, value = Dist.CLIENT)
 public final class CrosshairFuelPanel {
 
     private static final Identifier LAYER_ID = Identifier.fromNamespaceAndPath(Goo.MODID, "crosshair_fuel");
-    private static final String COST_PREFIX = "- ";
-    private static final String GAP = " ";
-    private static final int COST_COLOR = 0xFFFF5555;
     /** Gap between the panel and the gui's right and bottom edges. */
     private static final int EDGE_MARGIN = 4;
     private static final int BORDER = 3;
@@ -50,43 +51,69 @@ public final class CrosshairFuelPanel {
     private CrosshairFuelPanel() {
     }
 
-    /**
-     * What the panel's row reads.
-     *
-     * @param source   the stack the throw deducts from first, or empty when the player holds none
-     * @param type     the selected goo type
-     * @param heldText the source's volume of the type, in goo
-     * @param costText the throw's cost at the aimed target
-     */
-    public record FuelRow(ItemStack source, ResourceKey<GooTypeDefinition> type, String heldText, String costText) {
+    /** One cell of the panel's row, drawn left to right. */
+    public sealed interface FuelCell permits TypeIcon, AbilityName, AbilityIcon, Count, ItemIcon {
     }
 
     /**
-     * Builds the panel's row from the first source and the aimed cost.
+     * The goo type's icon.
      *
-     * @param source the stack the throw deducts from first, or empty
-     * @param type   the selected goo type
-     * @param held   the amount the source holds of the type
-     * @param cost   the throw's cost at the aimed target
-     * @return the row
+     * @param type the selected goo type
      */
-    public static FuelRow fuelRow(ItemStack source, ResourceKey<GooTypeDefinition> type, int held, int cost) {
-        return fuelRow(source, type, held, GooFormat.formatAmount(cost));
+    public record TypeIcon(ResourceKey<GooTypeDefinition> type) implements FuelCell {
     }
 
     /**
-     * Builds the panel's row from the first source and the aimed cost as
-     * already formatted, a held effect's reading "20/s".
+     * The ability's name.
      *
-     * @param source    the stack the throw deducts from first, or empty
-     * @param type      the selected goo type
-     * @param held      the amount the source holds of the type
-     * @param costLabel the throw's cost at the aimed target, formatted
-     * @return the row
+     * @param translationKey the ability's display name key
      */
-    public static FuelRow fuelRow(ItemStack source, ResourceKey<GooTypeDefinition> type, int held, String costLabel) {
-        // hud-amounts-read-through-goo-format: the machine panels' goo convention
-        return new FuelRow(source, type, GooFormat.formatAmount(held), COST_PREFIX + costLabel);
+    public record AbilityName(String translationKey) implements FuelCell {
+    }
+
+    /**
+     * The ability's icon.
+     *
+     * @param texture the icon's whole texture file
+     */
+    public record AbilityIcon(Identifier texture) implements FuelCell {
+    }
+
+    /**
+     * The uses or seconds the holdings afford, or a dynamic ability's live mB at the aim.
+     *
+     * @param text the count, "x3" or "12s", or the mB
+     */
+    public record Count(String text) implements FuelCell {
+    }
+
+    /**
+     * A consumed item's icon, beside the count it bounds.
+     *
+     * @param item the item id
+     */
+    public record ItemIcon(Identifier item) implements FuelCell {
+    }
+
+    /**
+     * Builds the panel's row for the selected ability.
+     *
+     * @param type           the selected goo type
+     * @param ability        the selected ability's synced copy
+     * @param holdings       the mB the player holds of the type across the inventory
+     * @param reagentSets    the whole sets of the ability's consumed items the inventory holds
+     * @param aimedCostLabel the live cost at the aim, which a dynamic ability's row reads
+     * @return the row's cells, left to right
+     */
+    public static List<FuelCell> rowCells(ResourceKey<GooTypeDefinition> type, ClientAbility ability, int holdings,
+                                          int reagentSets, String aimedCostLabel) {
+        List<FuelCell> cells = new ArrayList<>(List.of(new TypeIcon(type), new AbilityName(ability.displayName()),
+                new AbilityIcon(ability.iconTexture())));
+        // dynamic-costs-keep-the-mb-quantity: a dynamic ability's row reads the live mB at the aim
+        cells.add(new Count(AffordedCount.reckon(ability, holdings, reagentSets).map(AffordedCount::label)
+                .orElse(aimedCostLabel)));
+        ability.consumes().forEach(item -> cells.add(new ItemIcon(item)));
+        return cells;
     }
 
     /**
@@ -110,16 +137,15 @@ public final class CrosshairFuelPanel {
     private static void renderFor(GuiGraphicsExtractor graphics, Font font, LocalPlayer player) {
         GloveSelection selection = GloveThrowSender.heldSelection(player);
         ResourceKey<GooTypeDefinition> type = selection == null ? null : selection.getGooType();
+        ClientAbility ability = selection == null ? null : AbilitySyncHandler.findAbility(selection.abilityId());
         Optional<String> cost = GloveThrowSender.aimedCostLabel(player);
-        if (type == null || cost.isEmpty()) {
+        if (type == null || ability == null || cost.isEmpty()) {
             return;
         }
-        ItemStack source = GooSourceScanner.firstSource(player, type);
-        FuelRow row = fuelRow(source, type, GooSourceScanner.volumeIn(source, type), cost.get());
-        List<ItemStack> reagents = GloveThrowSender.aimedReagents(player).stream()
-                .map(reagent -> BuiltInRegistries.ITEM.getValue(reagent).getDefaultInstance())
-                .toList();
-        paint(graphics, font, row, reagents, graphics.guiWidth(), graphics.guiHeight());
+        int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(type, 0);
+        List<FuelCell> cells = rowCells(type, ability, holdings, ReagentScanner.setsHeld(player, ability.consumes()),
+                cost.get());
+        paint(graphics, font, cells, graphics.guiWidth(), graphics.guiHeight());
     }
 
     /**
@@ -149,56 +175,49 @@ public final class CrosshairFuelPanel {
     }
 
     /**
-     * Draws the icon of each item the throw consumes, left to right after the cost.
-     * decision ability-json-names-its-reagent
+     * A cell's width in gui pixels.
      *
-     * @param graphics the gui graphics
-     * @param reagents the consumed items
-     * @param left     the x the first icon's gap starts at
-     * @param top      the row's top
+     * @param font the font text cells measure in
+     * @param cell the cell
+     * @return the width
      */
-    private static void paintReagents(GuiGraphicsExtractor graphics, List<ItemStack> reagents, int left, int top) {
-        int x = left;
-        for (ItemStack reagent : reagents) {
-            x += ICON_GAP;
-            graphics.item(reagent, x, top);
-            x += ITEM_SIZE;
-        }
+    private static int cellWidth(Font font, FuelCell cell) {
+        return switch (cell) {
+            case TypeIcon ignored -> TYPE_ICON_SIZE;
+            case AbilityName name -> font.width(Component.translatable(name.translationKey()));
+            case Count count -> font.width(count.text());
+            case AbilityIcon ignored -> ITEM_SIZE;
+            case ItemIcon ignored -> ITEM_SIZE;
+        };
     }
 
-    /**
-     * The panel's width: the source icon, the type icon, the text and an icon per reagent, inside the border.
-     *
-     * @param textWidth    the width of the held and cost text
-     * @param reagentCount how many items the throw consumes
-     * @return the width in gui pixels
-     */
-    private static int panelWidth(int textWidth, int reagentCount) {
-        return BORDER + ITEM_SIZE + ICON_GAP + TYPE_ICON_SIZE + ICON_GAP + textWidth
-                + reagentCount * (ICON_GAP + ITEM_SIZE) + BORDER;
-    }
-
-    private static void paint(GuiGraphicsExtractor graphics, Font font, FuelRow row, List<ItemStack> reagents,
-            int guiWidth, int guiHeight) {
-        int textWidth = font.width(row.heldText() + GAP + row.costText());
-        PanelRectangle rect = bottomRightAnchor(guiWidth, guiHeight, panelWidth(textWidth, reagents.size()),
-                BORDER + ITEM_SIZE + BORDER);
-        int left = Math.round(rect.x());
-        int top = Math.round(rect.y());
-        NineSlice.blit(graphics, rect);
-        int x = left + BORDER;
-        int rowTop = top + BORDER;
-        if (!row.source().isEmpty()) {
-            graphics.item(row.source(), x, rowTop);
-        }
-        x += ITEM_SIZE + ICON_GAP;
-        graphics.blit(RenderPipelines.GUI_TEXTURED, PanelPainter.gooIcon(row.type()),
-                x, rowTop + (ITEM_SIZE - TYPE_ICON_SIZE) / HALF, 0.0f, 0.0f,
-                TYPE_ICON_SIZE, TYPE_ICON_SIZE, TYPE_ICON_SIZE, TYPE_ICON_SIZE);
-        x += TYPE_ICON_SIZE + ICON_GAP;
+    private static void paintCell(GuiGraphicsExtractor graphics, Font font, FuelCell cell, int x, int rowTop) {
         int textTop = rowTop + (ITEM_SIZE - font.lineHeight) / HALF + 1;
-        graphics.text(font, row.heldText(), x, textTop, PanelPainter.TEXT_COLOR);
-        graphics.text(font, row.costText(), x + font.width(row.heldText() + GAP), textTop, COST_COLOR);
-        paintReagents(graphics, reagents, x + textWidth, rowTop);
+        switch (cell) {
+            case TypeIcon typeIcon -> graphics.blit(RenderPipelines.GUI_TEXTURED, PanelPainter.gooIcon(typeIcon.type()),
+                    x, rowTop + (ITEM_SIZE - TYPE_ICON_SIZE) / HALF, 0.0f, 0.0f,
+                    TYPE_ICON_SIZE, TYPE_ICON_SIZE, TYPE_ICON_SIZE, TYPE_ICON_SIZE);
+            case AbilityName name -> graphics.text(font, Component.translatable(name.translationKey()), x, textTop,
+                    PanelPainter.TEXT_COLOR);
+            case Count count -> graphics.text(font, count.text(), x, textTop, PanelPainter.TEXT_COLOR);
+            case AbilityIcon abilityIcon -> graphics.blit(RenderPipelines.GUI_TEXTURED, abilityIcon.texture(),
+                    x, rowTop, 0.0f, 0.0f, ITEM_SIZE, ITEM_SIZE, ITEM_SIZE, ITEM_SIZE);
+            case ItemIcon itemIcon -> graphics.item(BuiltInRegistries.ITEM.getValue(itemIcon.item()).getDefaultInstance(),
+                    x, rowTop);
+        }
+    }
+
+    private static void paint(GuiGraphicsExtractor graphics, Font font, List<FuelCell> cells, int guiWidth,
+            int guiHeight) {
+        int rowWidth = cells.stream().mapToInt(cell -> cellWidth(font, cell)).sum() + (cells.size() - 1) * ICON_GAP;
+        PanelRectangle rect = bottomRightAnchor(guiWidth, guiHeight, BORDER + rowWidth + BORDER,
+                BORDER + ITEM_SIZE + BORDER);
+        NineSlice.blit(graphics, rect);
+        int x = Math.round(rect.x()) + BORDER;
+        int rowTop = Math.round(rect.y()) + BORDER;
+        for (FuelCell cell : cells) {
+            paintCell(graphics, font, cell, x, rowTop);
+            x += cellWidth(font, cell) + ICON_GAP;
+        }
     }
 }
