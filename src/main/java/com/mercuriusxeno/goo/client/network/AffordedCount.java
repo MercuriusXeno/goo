@@ -68,8 +68,10 @@ public record AffordedCount(long count, boolean timed) {
      */
     private static long ticksSustained(ClientAbility ability, int holdings, StandingUpkeep standing) {
         if (ability.upkeep() > 0) {
-            return (long) (holdings / (standing.ownBrewUpkeep(ability.upkeep(), ability.extendsOthers())
-                    + standing.perTick()));
+            // active-brew-counts-its-time-left: a brew standing on the glove is in the standing upkeep already
+            double own = standing.paying().contains(ability.id()) ? 0
+                    : standing.ownBrewUpkeep(ability.upkeep(), ability.extendsOthers());
+            return (long) (holdings / (own + standing.perTick()));
         }
         int ticksPerCharge = ability.delivery().ticksPerCharge();
         return (long) ((double) holdings * ticksPerCharge / (ability.cost() + standing.perTick() * ticksPerCharge));
