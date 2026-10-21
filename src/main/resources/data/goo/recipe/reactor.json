@@ -5,7 +5,7 @@
     "C": "minecraft:cauldron",
     "N": "minecraft:netherite_scrap",
     "R": "minecraft:comparator",
-    "S": "minecraft:cut_copper_slab"
+    "S": "minecraft:gold_ingot"
   },
   "pattern": [
     "SRS",

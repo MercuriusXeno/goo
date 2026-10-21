@@ -3,10 +3,7 @@
   "category": "misc",
   "key": {
     "Q": "minecraft:quartz_block",
-    "B": [
-      "minecraft:copper_block",
-      "minecraft:waxed_copper_block"
-    ],
+    "B": "minecraft:gold_block",
     "G": "minecraft:glass"
   },
   "pattern": [

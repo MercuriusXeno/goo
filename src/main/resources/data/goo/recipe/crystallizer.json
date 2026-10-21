@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": "minecraft:amethyst_block",
+    "G": "minecraft:gold_ingot",
+    "N": "minecraft:netherite_scrap",
+    "R": "minecraft:comparator"
+  },
+  "pattern": [
+    "GRG",
+    "NAN",
+    "GGG"
+  ],
+  "result": {
+    "count": 1,
+    "id": "goo:crystallizer"
+  }
+}
