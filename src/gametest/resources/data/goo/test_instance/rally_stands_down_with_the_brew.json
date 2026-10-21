@@ -1,7 +1,7 @@
 {
   "type": "minecraft:function",
-  "function": "goo:weird_soften_trades_damage_for_knockback",
-  "environment": "minecraft:default",
+  "function": "goo:rally_stands_down_with_the_brew",
+  "environment": "goo:rally_reload",
   "structure": "goo:test_bay",
   "max_ticks": 20,
   "setup_ticks": 0,
