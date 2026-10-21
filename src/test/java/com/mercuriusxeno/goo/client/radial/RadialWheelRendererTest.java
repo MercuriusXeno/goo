@@ -139,6 +139,19 @@ class RadialWheelRendererTest {
                         pngDimensions(ASSETS_ROOT + sprite.getNamespace() + "/" + sprite.getPath()), badge.name());
             }));
         }
+
+        /** decision hovering-a-badge-names-its-kind */
+        @Test
+        void theLangFileNamesEveryBadgeKind() throws IOException {
+            JsonObject lang;
+            try (InputStream in = RadialWheelRendererTest.class.getResourceAsStream("/assets/goo/lang/en_us.json")) {
+                lang = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
+            }
+            assertAll(Arrays.stream(AbilityBadge.values()).map(badge -> (Executable) () -> {
+                String key = "goo.badge." + badge.getSerializedName();
+                assertTrue(lang.has(key) && !lang.get(key).getAsString().isBlank(), key);
+            }));
+        }
     }
 
     @Nested
@@ -493,6 +506,22 @@ class RadialWheelRendererTest {
          * @return the mocked graphics the frame drew to
          */
         private GuiGraphicsExtractor renderFrame(RadialWheel wheel, int lockedAbility, int prismAbility, int radius) {
+            return renderFrame(wheel, lockedAbility, prismAbility, radius, null);
+        }
+
+        /**
+         * Renders the frame, then names whatever the cursor rests on.
+         *
+         * @param wheel         the wheel's state
+         * @param lockedAbility the open type's ability index to lock, or {@link #NO_ABILITY}
+         * @param prismAbility  the open type's ability index reacting to prisms, {@link #EVERY_ABILITY}
+         *                      for all of them, or {@link #NO_ABILITY}
+         * @param radius        the wheel's outer radius in pixels
+         * @param cursor        the cursor's screen x and y, or null to name nothing
+         * @return the mocked graphics the frame drew to
+         */
+        private GuiGraphicsExtractor renderFrame(RadialWheel wheel, int lockedAbility, int prismAbility, int radius,
+                                                 int @org.jspecify.annotations.Nullable [] cursor) {
             List<List<OfferedAbility>> abilities = IntStream.range(0, TYPES)
                     .mapToObj(type -> IntStream.range(0, ABILITIES).mapToObj(ability -> new OfferedAbility(
                             new ClientAbility(
@@ -511,8 +540,48 @@ class RadialWheelRendererTest {
             when(graphics.pose()).thenReturn(new Matrix3x2fStack(1));
             Font font = mock(Font.class);
             when(font.width(any(FormattedText.class))).thenReturn(WORD_WIDTH);
-            RadialWheelRenderer.render(graphics, font, frameOf(wheel, abilities, radius));
+            RadialWheelRenderer.Hoverables hoverables = RadialWheelRenderer.render(graphics, font,
+                    frameOf(wheel, abilities, radius));
+            if (cursor != null) {
+                RadialWheelRenderer.nameWhatTheCursorRestsOn(graphics, font, hoverables, cursor[0], cursor[1]);
+            }
             return graphics;
+        }
+
+        /** The tooltip lines the frame set for the cursor. */
+        private List<Component> tooltipsSet(GuiGraphicsExtractor graphics) {
+            return submittedArguments(graphics, "setTooltipForNextFrame", Component.class);
+        }
+
+        /**
+         * A cursor resting on a petal's own badge names its kind, on the
+         * prism badge peeking out under it names Prism, and on the petal's
+         * face away from both names no kind.
+         * decision hovering-a-badge-names-its-kind
+         */
+        @Test
+        void aBadgeUnderTheCursorNamesItsKind() {
+            RadialWheel wheel = openWheel();
+            RadialWheel.PetalArc petal = wheel.displayedLayout(0.0f).stream().filter(RadialWheel.PetalArc::isAbility)
+                    .findFirst().orElseThrow();
+            int[] icon = RadialWheelRenderer.contentCenter(frameOf(wheel, List.of()), petal);
+            int[] own = RadialWheelRenderer.badgeBeside(icon);
+            int[] prism = RadialWheelRenderer.prismBadgeUnder(own);
+            int quarter = RadialWheelRenderer.ABILITY_ICON_SIZE / 4;
+            int[] onOwn = {own[0] + quarter, own[1] - quarter};
+            int[] onPrismBelowOwn = {prism[0], own[1] + RadialWheelRenderer.ABILITY_ICON_SIZE / 2 + quarter};
+            Component world = Component.translatable("goo.badge." + AbilityBadge.WORLD.getSerializedName());
+            Component prismName = Component.translatable("goo.badge." + AbilityBadge.PRISM.getSerializedName());
+
+            assertAll(
+                    () -> assertEquals(List.of(world),
+                            tooltipsSet(renderFrame(wheel, NO_ABILITY, petal.ability(), RADIUS, onOwn)), "own badge"),
+                    () -> assertEquals(List.of(prismName), tooltipsSet(renderFrame(wheel, NO_ABILITY,
+                            petal.ability(), RADIUS, onPrismBelowOwn)), "prism badge"),
+                    () -> assertEquals(List.of(), tooltipsSet(renderFrame(wheel, NO_ABILITY,
+                            petal.ability(), RADIUS, icon)), "petal face"),
+                    () -> assertEquals(List.of(), tooltipsSet(renderFrame(wheel, NO_ABILITY,
+                            NO_ABILITY, RADIUS, onPrismBelowOwn)), "no prism badge drawn"));
         }
 
         private RadialWheelRenderer.Frame frameOf(RadialWheel wheel, List<List<OfferedAbility>> abilities) {
@@ -799,6 +868,18 @@ class RadialWheelRendererTest {
                         assertEquals(Math.round(ownBox[1]) + down, Math.round(prismBox[1]), petal + " prism badge's top");
                         assertEquals(size * size, areaOf(prismState), AREA_TOLERANCE, petal + " prism badge shown whole");
                     }));
+        }
+
+        /**
+         * The prism badge stands further out from under the own badge than the
+         * 4 left and 2 down that left only a sliver showing.
+         * decision prism-badge-overlapped-less-to-be-seen
+         */
+        @Test
+        void prismBadgePeeksOutFurtherThanASliver() {
+            assertTrue(RadialWheelRenderer.PRISM_BADGE_NUDGE_LEFT + RadialWheelRenderer.PRISM_BADGE_NUDGE_DOWN > 6,
+                    "nudge " + RadialWheelRenderer.PRISM_BADGE_NUDGE_LEFT + " left, "
+                            + RadialWheelRenderer.PRISM_BADGE_NUDGE_DOWN + " down");
         }
 
         /** The wheel opened on the open type with the cursor on one of its abilities. */

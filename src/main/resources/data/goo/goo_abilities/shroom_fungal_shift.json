@@ -1,7 +1,7 @@
 {
   "gooType": "shroom",
   "displayName": "goo.ability.shroom.fungal_shift",
-  "badge": "self",
+  "badge": "instant",
   "order": 20,
   "cost": 1000,
   "requires": ["minecraft:sculk"],

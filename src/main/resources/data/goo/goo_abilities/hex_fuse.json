@@ -1,7 +1,7 @@
 {
   "gooType": "hex",
   "displayName": "goo.ability.hex.fuse",
-  "badge": "self",
+  "badge": "instant",
   "order": 20,
   "cost": 2000,
   "requires": ["minecraft:bookshelf", "minecraft:lapis_lazuli"],
