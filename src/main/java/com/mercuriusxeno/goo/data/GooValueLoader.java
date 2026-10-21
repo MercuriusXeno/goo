@@ -9,8 +9,6 @@ import net.minecraft.server.packs.resources.Resource;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -96,25 +94,14 @@ final class GooValueLoader {
         JsonObject merged = GooValueMerger.mergeBaseValueJsonLayers(layers);
         merged = GooValueMerger.expandTagEntries(merged, GooValueMerger::resolveItemTag);
         state.lastMergedBaseValues = merged;
-        parseMergedValues(merged, state);
-        state.effectiveValues.putAll(state.baseValues);
-        if (Goo.LOGGER.isInfoEnabled()) {
-            Goo.LOGGER.info(LOG_LOADED_PACKS, state.baseValues.size(), layers.size());
-        }
-    }
-
-    /**
-     * Parses merged, tag-expanded base values into parsing state: constants, item entries and
-     * conversions, with the pre-conversions applied. The least base search reruns it per candidate base.
-     *
-     * @param merged the merged, tag-expanded base_values JSON
-     * @param state  mutable parsing state to populate
-     */
-    static void parseMergedValues(JsonObject merged, ParseState state) {
         GooConstantParser.parseConstants(merged, state);
         parseItemValues(merged, state);
         GooConversionLoader.parseConversions(merged, state);
         GooConversionLoader.applyConversions(state.preConversions, state.baseValues, state.pseudoTags);
+        state.effectiveValues.putAll(state.baseValues);
+        if (Goo.LOGGER.isInfoEnabled()) {
+            Goo.LOGGER.info(LOG_LOADED_PACKS, state.baseValues.size(), layers.size());
+        }
     }
 
     /**
@@ -159,16 +146,14 @@ final class GooValueLoader {
     static void assignItemValue(Identifier itemId, JsonElement value, ParseState state) {
         if (isDeniedEntry(value)) {
             state.deniedItems.add(itemId);
-            return;
-        }
-        DivisionRemainders.underItem(itemId.toString(), () -> {
+        } else {
             GooValue resolved = resolveItemEntry(value, state);
             if (resolved.hasNegative()) {
                 Goo.LOGGER.error(LOG_NEGATIVE_BASE, itemId, resolved);
             } else {
                 state.baseValues.put(itemId, resolved);
             }
-        });
+        }
     }
 
     /**
@@ -264,14 +249,6 @@ final class GooValueLoader {
             this.constants = constants;
             this.treeConstants = treeConstants;
             this.pseudoTags = pseudoTags;
-        }
-
-        /**
-         * @return a parse state over fresh, empty maps
-         */
-        static ParseState fresh() {
-            return new ParseState(new HashMap<>(), new HashMap<>(), new HashSet<>(), new HashSet<>(),
-                    new HashMap<>(), new HashMap<>(), new HashMap<>());
         }
     }
 }
