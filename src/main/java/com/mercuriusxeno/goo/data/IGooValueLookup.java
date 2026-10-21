@@ -16,7 +16,9 @@ public interface IGooValueLookup {
 
     /**
      * Returns the item ID with the lowest {@link GooValue#totalGoo()} among {@code candidates},
-     * using {@code lookup} to resolve each ID. Null and empty values are skipped.
+     * using {@code lookup} to resolve each ID. Null and empty values are skipped. On equal totals
+     * the simplest, the value holding fewer goo types, wins (operator ruling: cheapest wins, simplest
+     * breaks a tie), then the lower ID, so the pick never rests on set order.
      *
      * @param candidates set of item IDs to compare
      * @param lookup     function from item ID to GooValue (may return null)
@@ -25,15 +27,26 @@ public interface IGooValueLookup {
     static @Nullable Identifier findCheapestAmong(
             Set<Identifier> candidates, Function<Identifier, GooValue> lookup) {
         Identifier cheapestId = null;
-        int cheapestTotal = Integer.MAX_VALUE;
+        GooValue cheapest = null;
         for (Identifier itemId : candidates) {
             GooValue val = lookup.apply(itemId);
-            if (val != null && !val.isEmpty() && val.totalGoo() < cheapestTotal) {
-                cheapestTotal = val.totalGoo();
+            if (val != null && !val.isEmpty()
+                    && (cheapest == null || beats(val, itemId, cheapest, cheapestId))) {
+                cheapest = val;
                 cheapestId = itemId;
             }
         }
         return cheapestId;
+    }
+
+    private static boolean beats(GooValue candidate, Identifier candidateId, GooValue held, Identifier heldId) {
+        if (candidate.totalGoo() != held.totalGoo()) {
+            return candidate.totalGoo() < held.totalGoo();
+        }
+        if (candidate.typeCount() != held.typeCount()) {
+            return candidate.typeCount() < held.typeCount();
+        }
+        return candidateId.compareTo(heldId) < 0;
     }
 
     /**

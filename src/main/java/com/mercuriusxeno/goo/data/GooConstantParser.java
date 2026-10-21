@@ -38,13 +38,12 @@ final class GooConstantParser {
     }
 
     /**
-     * Logs the number of parsed scalar and tree constants at INFO level, save under the least base
-     * search, which parses once per candidate base.
+     * Logs the number of parsed scalar and tree constants at INFO level.
      *
      * @param state the mutable parsing state containing scalar and tree constant maps
      */
     private static void logConstantCounts(GooValueLoader.ParseState state) {
-        if (Goo.LOGGER.isInfoEnabled() && !DivisionRemainders.isRecording()) {
+        if (Goo.LOGGER.isInfoEnabled()) {
             Goo.LOGGER.info(LOG_LOADED_CONSTANTS,
                     state.constants.size() + state.treeConstants.size(),
                     state.constants.size(), state.treeConstants.size());
@@ -59,15 +58,13 @@ final class GooConstantParser {
      * @param state mutable parsing state
      */
     static void parseOneConstant(String name, JsonElement value, GooValueLoader.ParseState state) {
-        DivisionRemainders.underConstant(name, () -> {
-            if (value.isJsonObject()) {
-                state.treeConstants.put(name,
-                        GooValueJsonFormat.parseGooValue(value.getAsJsonObject(),
-                                state.constants, null, state.treeConstants));
-            } else {
-                parseScalarConstant(name, value, state);
-            }
-        }, () -> !state.treeConstants.containsKey(name));
+        if (value.isJsonObject()) {
+            state.treeConstants.put(name,
+                    GooValueJsonFormat.parseGooValue(value.getAsJsonObject(),
+                            state.constants, null, state.treeConstants));
+        } else {
+            parseScalarConstant(name, value, state);
+        }
     }
 
     /**

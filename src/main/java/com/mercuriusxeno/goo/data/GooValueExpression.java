@@ -88,11 +88,10 @@ final class GooValueExpression {
     static GooValue evaluate(String expr, Map<Identifier, GooValue> baseValues,
                              Map<String, Integer> constants,
                              Map<String, GooValue> treeConstants) {
-        return DivisionRemainders.underExpression(expr, () -> {
-            List<String> tokens = ExpressionTokenizer.tokenize(expr);
-            int[] pos = {0};
-            return evalExpr(tokens, pos, baseValues, constants, treeConstants).toGooValue();
-        });
+        List<String> tokens = ExpressionTokenizer.tokenize(expr);
+        int[] pos = {0};
+        ExprVal result = evalExpr(tokens, pos, baseValues, constants, treeConstants);
+        return result.toGooValue();
     }
 
     /**
@@ -457,7 +456,6 @@ final class GooValueExpression {
             LOGGER.warn(LOG_UNKNOWN_CONST, name);
             return 0;
         }
-        DivisionRemainders.readScalarConstant(name);
         return value;
     }
 

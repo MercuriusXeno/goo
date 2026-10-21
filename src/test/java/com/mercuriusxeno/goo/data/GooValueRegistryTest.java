@@ -2784,4 +2784,93 @@ class GooValueRegistryTest {
             assertEquals(List.of(), unbundled);
         }
     }
+
+    /**
+     * Ties on total goo: the cheapest wins, and the simplest, the value holding fewer goo types,
+     * breaks a tie.
+     */
+    @Nested
+    class SimplestBreaksATie {
+
+        @Test
+        void slotTakesTheSimplerOfTwoEqualAlternatives() {
+            setBaseValues(Map.of(id("minecraft:oak_log"), goo(GooTypes.LEAF, 4),
+                    id("minecraft:stripped_oak_log"), goo(GooTypes.LEAF, 3, GooTypes.NETHER, 1)));
+            registry.deriveFromRecipeInputs(List.of(recipe("minecraft:oak_planks", 4,
+                    slot("minecraft:stripped_oak_log", "minecraft:oak_log"))), false);
+
+            assertEquals(Map.of(GooTypes.LEAF, 1), getDerivedValues().get(id("minecraft:oak_planks")).getAll());
+        }
+
+        @Test
+        void outputTakesTheSimplerOfTwoEqualRecipes() {
+            setBaseValues(Map.of(id("minecraft:oak_log"), goo(GooTypes.LEAF, 16),
+                    id("minecraft:stripped_oak_log"), goo(GooTypes.LEAF, 12, GooTypes.NETHER, 4)));
+            registry.deriveFromRecipeInputs(List.of(
+                    recipe("minecraft:oak_planks", 4, slot("minecraft:stripped_oak_log")),
+                    recipe("minecraft:oak_planks", 4, slot("minecraft:oak_log"))), false);
+
+            assertEquals(Map.of(GooTypes.LEAF, 4), getDerivedValues().get(id("minecraft:oak_planks")).getAll());
+        }
+    }
+
+    /**
+     * The recipes that set a value: where two paths exist the smaller value wins, so only the
+     * winning recipe and its cheapest alternative per slot carry a divisor.
+     */
+    @Nested
+    class ValueSettingRecipes {
+
+        @Test
+        void costlierRecipeForTheSameOutputSetsNothing() {
+            setBaseValues(Map.of(id("minecraft:dandelion"), goo(GooTypes.LEAF, 2),
+                    id("minecraft:golden_dandelion"), goo(GooTypes.METAL, 100)));
+            registry.deriveFromRecipeInputs(List.of(
+                    recipe("minecraft:yellow_dye", 1, slot("minecraft:dandelion")),
+                    recipe("minecraft:yellow_dye", 1, slot("minecraft:golden_dandelion"))), false);
+
+            List<RecipeInput> setting = registry.valueSettingRecipes();
+
+            assertEquals(1, setting.size());
+            assertEquals(List.of(Set.of(id("minecraft:dandelion"))), setting.getFirst().ingredientAlternatives());
+        }
+
+        @Test
+        void handKeyedOutputStillCarriesItsWinningRecipe() {
+            setBaseValues(Map.of(id("minecraft:gold_ingot"), goo(GooTypes.METAL, 9),
+                    id("minecraft:gold_block"), goo(GooTypes.METAL, 81)));
+            registry.deriveFromRecipeInputs(List.of(
+                    recipe("minecraft:gold_block", 1, slot("minecraft:gold_ingot"), slot("minecraft:gold_ingot"),
+                            slot("minecraft:gold_ingot"), slot("minecraft:gold_ingot"), slot("minecraft:gold_ingot"),
+                            slot("minecraft:gold_ingot"), slot("minecraft:gold_ingot"), slot("minecraft:gold_ingot"),
+                            slot("minecraft:gold_ingot"))), false);
+
+            assertEquals(List.of(id("minecraft:gold_block")),
+                    registry.valueSettingRecipes().stream().map(RecipeInput::output).toList());
+        }
+
+        @Test
+        void slotKeepsEveryAlternativeTiedForCheapestAndSimplest() {
+            setBaseValues(Map.of(id("minecraft:oak_planks"), goo(GooTypes.LEAF, 2),
+                    id("minecraft:acacia_planks"), goo(GooTypes.LEAF, 2),
+                    id("minecraft:crimson_planks"), goo(GooTypes.LEAF, 1, GooTypes.NETHER, 1)));
+            registry.deriveFromRecipeInputs(List.of(recipe("minecraft:stick", 4,
+                    slot("minecraft:oak_planks", "minecraft:acacia_planks", "minecraft:crimson_planks"),
+                    slot("minecraft:oak_planks", "minecraft:acacia_planks", "minecraft:crimson_planks"))), false);
+
+            assertEquals(Set.of(id("minecraft:oak_planks"), id("minecraft:acacia_planks")),
+                    registry.valueSettingRecipes().getFirst().ingredientAlternatives().getFirst());
+        }
+
+        @Test
+        void slotKeepsOnlyItsCheapestAlternative() {
+            setBaseValues(Map.of(id("minecraft:stone"), goo(GooTypes.ROCK, 2),
+                    id("minecraft:granite"), goo(GooTypes.ROCK, 6)));
+            registry.deriveFromRecipeInputs(List.of(
+                    recipe("minecraft:gravel", 2, slot("minecraft:stone", "minecraft:granite"))), false);
+
+            assertEquals(List.of(Set.of(id("minecraft:stone"))),
+                    registry.valueSettingRecipes().getFirst().ingredientAlternatives());
+        }
+    }
 }

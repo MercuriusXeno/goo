@@ -1,13 +1,11 @@
 package com.mercuriusxeno.goo.command;
 
-import com.google.gson.JsonObject;
 import com.mercuriusxeno.goo.Goo;
-import com.mercuriusxeno.goo.GooConfig;
 import com.mercuriusxeno.goo.data.GooReaction;
 import com.mercuriusxeno.goo.data.GooReactionLoader;
 import com.mercuriusxeno.goo.data.GooValueRegistry;
 import com.mercuriusxeno.goo.data.GooValues;
-import com.mercuriusxeno.goo.data.LeastBaseSearch;
+import com.mercuriusxeno.goo.data.LeastNumberPerType;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.ChatFormatting;
@@ -192,20 +190,24 @@ public final class GooAuditReport {
      */
     private static final String CYCLE_DEAD_SUFFIX = " (no base values - unresolvable)";
 
-    // --- Least base constants (private) ---
+    // --- Least number constants (private) ---
 
     /**
-     * Least base section header prefix.
+     * Least number section header prefix.
      */
-    private static final String HDR_LEAST_BASE_PREFIX = "LEAST BASE PER TYPE (";
+    private static final String HDR_LEAST_NUMBER_PREFIX = "LEAST NUMBER PER TYPE (";
     /**
-     * Least base section header suffix.
+     * Least number section header suffix.
      */
-    private static final String HDR_LEAST_BASE_SUFFIX = " types)";
+    private static final String HDR_LEAST_NUMBER_SUFFIX = " types)";
     /**
-     * Least base message before any pack load.
+     * Least number message when no goo type stands.
      */
-    private static final String MSG_NO_BASE_VALUES = "  No base values loaded.";
+    private static final String MSG_NO_TYPES = "  No goo types.";
+    /**
+     * Heads the per-item smallest values inside the least number section.
+     */
+    private static final String LEAST_VALUE_BY_ITEM = "  smallest value by item:";
 
     // --- No-value constants (private) ---
 
@@ -270,7 +272,7 @@ public final class GooAuditReport {
         report.add(AUDIT_UNDERLINE);
         report.add(EMPTY_LINE);
         int issues = appendIssueSections(values, report);
-        appendLeastBaseSection(values, report);
+        appendLeastNumberSection(values, report);
         appendNoValueSection(values, report);
         GooAuditFlows.appendFormulasSection(values, report);
         GooAuditFlows.appendReactionsSection(reactions, report);
@@ -501,24 +503,25 @@ public final class GooAuditReport {
         return CYCLE_DEAD_PREFIX + items + CYCLE_DEAD_SUFFIX;
     }
 
-    // --- Least Base Per Type ---
+    // --- Least Number Per Type ---
 
     /**
-     * Appends each goo type's least lossless base, searched to twice the current base. It derives once
-     * per candidate, so it runs here alone, never at server start
-     * (decision audit-searches-the-least-base-per-type).
+     * Appends each goo type's least number, worked from the recipe graph. It walks every recipe, so it
+     * runs here alone, never at server start
+     * (decision audit-works-the-least-number-per-type-from-the-recipe-graph).
      *
      * @param values the server's goo value registry
      * @param report the report lines list to append to
      */
-    private static void appendLeastBaseSection(GooValueRegistry values, List<String> report) {
-        JsonObject merged = values.lastMergedBaseValues();
-        List<LeastBaseSearch.TypeLeastBase> answers = merged == null ? List.of()
-                : LeastBaseSearch.search(merged, values.lastRecipes(), GooTypes.BUNDLED,
-                        GooConfig.BASE_VALUES_OVERRIDE_RECIPES.get(), LeastBaseSearch.capFor(merged));
-        List<String> lines = answers.stream().flatMap(answer -> answer.lines().stream()).toList();
-        appendSectionBody(report, HDR_LEAST_BASE_PREFIX + answers.size() + HDR_LEAST_BASE_SUFFIX,
-                MSG_NO_BASE_VALUES, lines, Function.identity());
+    private static void appendLeastNumberSection(GooValueRegistry values, List<String> report) {
+        List<LeastNumberPerType.TypeLeastNumber> answers = LeastNumberPerType.work(values.valueSettingRecipes(),
+                values.table().getEffectiveValues(), values.deniedItems(), GooTypes.BUNDLED);
+        List<String> lines = new ArrayList<>(answers.stream().flatMap(answer -> answer.lines().stream()).toList());
+        lines.add(LEAST_VALUE_BY_ITEM);
+        lines.addAll(LeastNumberPerType.smallestValueLines(values.valueSettingRecipes(),
+                values.table().getEffectiveValues(), values.deniedItems()));
+        appendSectionBody(report, HDR_LEAST_NUMBER_PREFIX + answers.size() + HDR_LEAST_NUMBER_SUFFIX,
+                MSG_NO_TYPES, lines, Function.identity());
     }
 
     // --- No Value ---
