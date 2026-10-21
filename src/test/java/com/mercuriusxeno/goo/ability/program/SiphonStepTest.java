@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
+import static com.mercuriusxeno.goo.data.TestRecipeBuilder.fraction;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -76,6 +77,17 @@ class SiphonStepTest {
             verify(host).siphon(AIMED, new GooContents(Map.of(GooTypes.ROCK, 1152)), COBBLESTONE_TICKS);
             verify(host).siphon(BESIDE, new GooContents(Map.of(GooTypes.ROCK, 1152)), COBBLESTONE_TICKS);
             verify(host, times(2)).burnUnstable(COBBLESTONE_FUEL);
+        }
+
+        @Test
+        void aFractionalBlockPaysTheFloorOfEachType() {
+            SiphonHost host = facing(List.of(AIMED));
+            when(host.siphonValue(AIMED)).thenReturn(fraction(GooTypes.LEAF, 64, 3));
+            when(host.burnUnstable(anyInt())).thenReturn(true);
+
+            tick(host);
+
+            verify(host).siphon(eq(AIMED), eq(new GooContents(Map.of(GooTypes.LEAF, 21))), anyInt());
         }
 
         @Test

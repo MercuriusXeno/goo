@@ -190,7 +190,7 @@ public final class UnmakeTests {
             helper.getLevel().getServer().getPlayerList().remove(player);
             helper.assertTrue(helper.getBlockState(AIMED_POS).isAir(), String.format(STANDS, AIMED_POS, drinkTicks));
             helper.assertFalse(creative, STILL_CREATIVE);
-            Map<ResourceKey<GooTypeDefinition>, Integer> expected = cobblestone.toGooContents().getAll();
+            Map<ResourceKey<GooTypeDefinition>, Integer> expected = cobblestone.meltPayout().getAll();
             helper.assertTrue(expected.equals(dropped), String.format(NOT_AT_FEET, expected, dropped, held));
             helper.succeed();
         });

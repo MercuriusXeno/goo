@@ -268,8 +268,8 @@ public class GooValue {
      *
      * @return the melt floor of each type
      */
-    public GooContents toGooContents() {
-        return toGooContents(1);
+    public GooContents meltPayout() {
+        return meltPayout(1);
     }
 
     /**
@@ -278,7 +278,7 @@ public class GooValue {
      * @param count number of items melted
      * @return the melt floor of each type, times count
      */
-    public GooContents toGooContents(int count) {
+    public GooContents meltPayout(int count) {
         if (isEmpty() || count <= 0) {
             return GooContents.EMPTY;
         }

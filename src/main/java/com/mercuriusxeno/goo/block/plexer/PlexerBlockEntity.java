@@ -182,16 +182,32 @@ public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanister
         }
 
         List<SlotRef> slots = getExternalCanisterSlots();
-        if (slots.isEmpty()) {
+        if (slots.isEmpty() || !fabricateFrom(required, new CanisterSlotSupply(slots))) {
             return ItemStack.EMPTY;
         }
-        if (!hasEnoughGoo(slots, required)) {
-            return ItemStack.EMPTY;
-        }
-
-        consumeAllRequired(slots, required);
         setChanged();
         return new ItemStack(targetItem.getItem());
+    }
+
+    /**
+     * Consumes what fabricating the target costs from the supply, or nothing when the
+     * supply holds too little of any type.
+     * Decision values-are-fractions-melt-floors-fabricate-ceils: the cost is the ceiling of each
+     * type, so melting what the plexer made never pays back more than it cost.
+     *
+     * @param target the target's goo value
+     * @param supply the goo to fabricate from
+     * @return true if the supply paid the cost
+     */
+    public static boolean fabricateFrom(GooValue target, PlexerGooSupply supply) {
+        Map<ResourceKey<GooTypeDefinition>, Integer> cost = target.fabricateCeilingAll();
+        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : cost.entrySet()) {
+            if (supply.available(entry.getKey()) < entry.getValue()) {
+                return false;
+            }
+        }
+        cost.forEach(supply::consume);
+        return true;
     }
 
     /**
@@ -210,34 +226,6 @@ public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanister
             return null;
         }
         return required;
-    }
-
-    /**
-     * Returns true if all required goo types are available in sufficient quantity.
-     *
-     * @param slots    the list of slot references
-     * @param required the required goo value
-     * @return the available goo
-     */
-    private boolean hasEnoughGoo(List<SlotRef> slots, GooValue required) {
-        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : required.meltFloorAll().entrySet()) {
-            if (getAvailableGoo(slots, entry.getKey()) < entry.getValue()) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Consumes all required goo types from external canister slots.
-     *
-     * @param slots    the list of slot references
-     * @param required the required goo value
-     */
-    private void consumeAllRequired(List<SlotRef> slots, GooValue required) {
-        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : required.meltFloorAll().entrySet()) {
-            consumeGoo(slots, entry.getKey(), entry.getValue());
-        }
     }
 
     /**
@@ -273,38 +261,6 @@ public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanister
     }
 
     /**
-     * Sums the available volume of a specific goo type across external canister slots.
-     *
-     * @param slots the list of slot references
-     * @param type  the goo type
-     * @return the update packet
-     */
-    private int getAvailableGoo(List<SlotRef> slots, ResourceKey<GooTypeDefinition> type) {
-        int total = 0;
-        for (SlotRef ref : slots) {
-            total += CanisterItem.getFluidContent(ref.entity.getCanister(ref.slot)).volumeOf(type);
-        }
-        return total;
-    }
-
-    /**
-     * Consumes the specified amount of a goo type across external canister slots.
-     *
-     * @param slots  the list of slot references
-     * @param type   the goo type
-     * @param amount volume
-     */
-    private void consumeGoo(List<SlotRef> slots, ResourceKey<GooTypeDefinition> type, int amount) {
-        int remaining = amount;
-        for (SlotRef ref : slots) {
-            if (remaining <= 0) {
-                break;
-            }
-            remaining -= ref.entity.extractGoo(ref.slot, type, remaining);
-        }
-    }
-
-    /**
      * Persists target item.
      *
      * @param output the value output to write to
@@ -337,5 +293,33 @@ public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanister
      * @param slot   the slot index
      */
     private record SlotRef(CanisterBlockEntity entity, int slot) {
+    }
+
+    /**
+     * The occupied canister slots above, read as one goo supply.
+     *
+     * @param slots the occupied slot references
+     */
+    private record CanisterSlotSupply(List<SlotRef> slots) implements PlexerGooSupply {
+
+        @Override
+        public int available(ResourceKey<GooTypeDefinition> type) {
+            int total = 0;
+            for (SlotRef ref : slots) {
+                total += CanisterItem.getFluidContent(ref.entity.getCanister(ref.slot)).volumeOf(type);
+            }
+            return total;
+        }
+
+        @Override
+        public void consume(ResourceKey<GooTypeDefinition> type, int amount) {
+            int remaining = amount;
+            for (SlotRef ref : slots) {
+                if (remaining <= 0) {
+                    break;
+                }
+                remaining -= ref.entity.extractGoo(ref.slot, type, remaining);
+            }
+        }
     }
 }

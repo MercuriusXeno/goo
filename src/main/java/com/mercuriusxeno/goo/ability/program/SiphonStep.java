@@ -53,7 +53,7 @@ public record SiphonStep(Expr radius, Expr speed) implements Step {
                 continue;
             }
             if (host.burnUnstable(SiphonRule.fuelFor(value.meltFloorTotal(), host.meltExponent(), host.ticksPerMb()))) {
-                host.siphon(pos, value.toGooContents(),
+                host.siphon(pos, value.meltPayout(),
                         SiphonRule.siphonTicks(value.meltFloorTotal(), host.meltExponent(), speed));
             }
         }

@@ -75,17 +75,45 @@ final class CrucibleInsertion {
      * @return the number of items melted in, from zero to {@code count}
      */
     static int insertItem(CrucibleBlockEntity be, Identifier itemId, int count, IGooValueLookup lookup) {
-        GooValue value = lookup.lookup(itemId);
-        if (value == null || value.isEmpty()) {
+        MeltArrival arrival = meltArrival(poolContents(be), itemId, count, lookup);
+        if (arrival == null) {
             return 0;
         }
-        int fitting = CrucibleCapacity.wholeUnitsThatFit(poolContents(be), value.toGooContents(), count);
-        GooContents arriving = value.toGooContents(fitting);
-        if (fitting > 0 && mergeIntoPool(be, arriving,
-                List.of(new ValuedStack(itemId, fitting, value.toGooContents())))) {
+        if (arrival.fitting() > 0 && mergeIntoPool(be, arrival.arriving(),
+                List.of(new ValuedStack(itemId, arrival.fitting(), arrival.perItem())))) {
             be.syncToClients();
         }
-        return fitting;
+        return arrival.fitting();
+    }
+
+    /**
+     * What melting the whole items that fit the pool pays, free of the block entity.
+     * Decision values-are-fractions-melt-floors-fabricate-ceils: each item pays the floor of each type.
+     *
+     * @param pool   the goo already melting
+     * @param itemId the item registry ID
+     * @param count  the number of items offered
+     * @param lookup the goo value lookup
+     * @return the arrival, or null when the item has no goo value
+     */
+    static @Nullable MeltArrival meltArrival(GooContents pool, Identifier itemId, int count, IGooValueLookup lookup) {
+        GooValue value = lookup.lookup(itemId);
+        if (value == null || value.isEmpty()) {
+            return null;
+        }
+        GooContents perItem = value.meltPayout();
+        int fitting = CrucibleCapacity.wholeUnitsThatFit(pool, perItem, count);
+        return new MeltArrival(fitting, value.meltPayout(fitting), perItem);
+    }
+
+    /**
+     * The items of an offer that melt in and the goo they pay.
+     *
+     * @param fitting  the whole items that fit the pool
+     * @param arriving the goo those items pay
+     * @param perItem  the goo one item pays
+     */
+    record MeltArrival(int fitting, GooContents arriving, GooContents perItem) {
     }
 
     /**
