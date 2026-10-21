@@ -13,8 +13,8 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 import java.util.function.Consumer;
 
 /**
- * Gametest for Jelly's value: every item carrying a food component resolves
- * a jelly term on the live server, recipe-derived foods included
+ * Gametest for Jelly's value: every item carrying a food component and no
+ * denial resolves a jelly term on the live server, recipe-derived foods included
  * (decision jelly-ships-from-every-food).
  */
 @RegistersGameTests
@@ -50,7 +50,9 @@ public final class JellyValueTests {
                 .map(BuiltInRegistries.ITEM::getKey)
                 .toList();
         helper.assertFalse(foods.isEmpty(), NO_FOODS);
+        // decision goo-values-reviewed-against-the-new-types: a denied food, such as a fish bucket, holds no value to carry jelly
         List<Identifier> unjellied = foods.stream()
+                .filter(id -> !values.isDenied(id))
                 .filter(id -> jellyOf(values.lookup(id)) <= 0)
                 .toList();
         helper.assertTrue(unjellied.isEmpty(), UNJELLIED_FOODS + unjellied);
