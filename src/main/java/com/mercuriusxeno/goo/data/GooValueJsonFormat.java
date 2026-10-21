@@ -106,8 +106,8 @@ final class GooValueJsonFormat {
                                        Map<ResourceKey<GooTypeDefinition>, Integer> map) {
         try {
             ResourceKey<GooTypeDefinition> type = GooTypes.parseKnown(entry.getKey());
-            map.put(type, GooIntExpressionEvaluator.resolveValue(
-                    entry.getValue(), constants, baseValues, treeConstants));
+            map.put(type, DivisionRemainders.underType(type, () -> GooIntExpressionEvaluator.resolveValue(
+                    entry.getValue(), constants, baseValues, treeConstants)));
         } catch (IllegalArgumentException e) {
             if (LOGGER.isWarnEnabled()) {
                 LOGGER.warn(WARN_UNKNOWN_TYPE, entry.getKey());

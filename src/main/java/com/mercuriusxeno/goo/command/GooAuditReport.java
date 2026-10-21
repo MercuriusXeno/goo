@@ -1,10 +1,14 @@
 package com.mercuriusxeno.goo.command;
 
+import com.google.gson.JsonObject;
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.GooConfig;
 import com.mercuriusxeno.goo.data.GooReaction;
 import com.mercuriusxeno.goo.data.GooReactionLoader;
 import com.mercuriusxeno.goo.data.GooValueRegistry;
 import com.mercuriusxeno.goo.data.GooValues;
+import com.mercuriusxeno.goo.data.LeastBaseSearch;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
@@ -188,6 +192,21 @@ public final class GooAuditReport {
      */
     private static final String CYCLE_DEAD_SUFFIX = " (no base values - unresolvable)";
 
+    // --- Least base constants (private) ---
+
+    /**
+     * Least base section header prefix.
+     */
+    private static final String HDR_LEAST_BASE_PREFIX = "LEAST BASE PER TYPE (";
+    /**
+     * Least base section header suffix.
+     */
+    private static final String HDR_LEAST_BASE_SUFFIX = " types)";
+    /**
+     * Least base message before any pack load.
+     */
+    private static final String MSG_NO_BASE_VALUES = "  No base values loaded.";
+
     // --- No-value constants (private) ---
 
     /**
@@ -251,6 +270,7 @@ public final class GooAuditReport {
         report.add(AUDIT_UNDERLINE);
         report.add(EMPTY_LINE);
         int issues = appendIssueSections(values, report);
+        appendLeastBaseSection(values, report);
         appendNoValueSection(values, report);
         GooAuditFlows.appendFormulasSection(values, report);
         GooAuditFlows.appendReactionsSection(reactions, report);
@@ -479,6 +499,26 @@ public final class GooAuditReport {
             return CYCLE_OK_PREFIX + items + CYCLE_ANCHORED_BY + cycle.anchor() + MSG_CLOSE_PAREN;
         }
         return CYCLE_DEAD_PREFIX + items + CYCLE_DEAD_SUFFIX;
+    }
+
+    // --- Least Base Per Type ---
+
+    /**
+     * Appends each goo type's least lossless base, searched to twice the current base. It derives once
+     * per candidate, so it runs here alone, never at server start
+     * (decision audit-searches-the-least-base-per-type).
+     *
+     * @param values the server's goo value registry
+     * @param report the report lines list to append to
+     */
+    private static void appendLeastBaseSection(GooValueRegistry values, List<String> report) {
+        JsonObject merged = values.lastMergedBaseValues();
+        List<LeastBaseSearch.TypeLeastBase> answers = merged == null ? List.of()
+                : LeastBaseSearch.search(merged, values.lastRecipes(), GooTypes.BUNDLED,
+                        GooConfig.BASE_VALUES_OVERRIDE_RECIPES.get(), LeastBaseSearch.capFor(merged));
+        List<String> lines = answers.stream().flatMap(answer -> answer.lines().stream()).toList();
+        appendSectionBody(report, HDR_LEAST_BASE_PREFIX + answers.size() + HDR_LEAST_BASE_SUFFIX,
+                MSG_NO_BASE_VALUES, lines, Function.identity());
     }
 
     // --- No Value ---

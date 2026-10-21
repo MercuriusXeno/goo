@@ -241,6 +241,20 @@ public class GooValueRegistry {
     }
 
     /**
+     * @return the base_values.json the last pack load merged, or null before the first load
+     */
+    public @Nullable JsonObject lastMergedBaseValues() {
+        return lastMergedBaseValues;
+    }
+
+    /**
+     * @return the recipes the last derivation adapted, empty before the first
+     */
+    public List<RecipeInput> lastRecipes() {
+        return lastRecipes;
+    }
+
+    /**
      * @param name a constant's name, without its $ prefix
      * @return the constant's resolved tree or scalar, or null for a name no constant holds
      */
