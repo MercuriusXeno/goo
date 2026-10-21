@@ -40,7 +40,23 @@ public final class RallyTests {
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, RALLY_COW_ATTACKS_THE_ZOMBIE, RallyTests::rallyCowAttacksTheZombie);
         GooTestFunctions.registerTest(registrar, RALLY_SURVIVES_A_RELOAD, RallyTests::rallySurvivesAReload);
+        GooTestFunctions.registerTest(registrar, RALLY_TAKES_A_LATECOMER, RallyTests::rallyTakesALatecomer);
+        GooTestFunctions.registerTest(registrar, RALLY_HOLDS_PAST_THE_OLD_RALLY, RallyTests::rallyHoldsPastTheOldRally);
+        GooTestFunctions.registerTest(registrar, RALLY_STANDS_DOWN_WITH_THE_BREW,
+                RallyTests::rallyStandsDownWithTheBrew);
     }
+
+    private static final String RALLY_TAKES_A_LATECOMER = "rally_takes_a_latecomer";
+    private static final String RALLY_HOLDS_PAST_THE_OLD_RALLY = "rally_holds_past_the_old_rally";
+    private static final String RALLY_STANDS_DOWN_WITH_THE_BREW = "rally_stands_down_with_the_brew";
+    /** The 600 ticks a rally lasted before it held for the brew, and a refresh's span past them. */
+    private static final int PAST_THE_OLD_RALLY_TICKS = 600 + 50;
+    /** A cow's own max health. */
+    private static final float COW_MAX_HEALTH = 10f;
+    private static final String LATECOMER_NOT_RALLIED = "A cow arriving after the eat should take the rally";
+    private static final String RALLY_LAPSED = "The cow should hold the rally past 600 ticks while the brew holds";
+    private static final String RALLY_STOOD = "The cow should stand down the tick the brew ends";
+    private static final String STILL_BUFFED = "The stood-down cow's max health should be a cow's 10, stands %s";
 
 
     private static final Identifier ZOO_RALLY = Identifier.fromNamespaceAndPath(Goo.MODID, "zoo_rally");
@@ -114,6 +130,67 @@ public final class RallyTests {
                     String.format(RELOADED_UNBUFFED, reloaded[0].getMaxHealth()));
             helper.getLevel().getServer().getPlayerList().remove(caster);
         });
+    }
+
+    /**
+     * A cow spawned near the caster only after the eat takes the rally and its
+     * buff while the brew holds (decision zoo-rally-holds-for-the-brew).
+     *
+     * @param helper the gametest helper
+     */
+    public static void rallyTakesALatecomer(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        HeartOverlayTests.invoke(caster, GooTypes.ZOO, ZOO_RALLY);
+        helper.onEachTick(caster::doTick);
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        helper.succeedWhen(() -> {
+            helper.assertTrue(cow.hasData(GooAttachments.RALLIED), LATECOMER_NOT_RALLIED);
+            helper.assertTrue(cow.getMaxHealth() == RALLIED_COW_MAX_HEALTH,
+                    String.format(COW_NOT_BUFFED, cow.getMaxHealth()));
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+        });
+    }
+
+    /**
+     * A rallied cow still holds the rally and its buff past the 600 ticks the
+     * rally formerly lasted, the brew holding throughout
+     * (decision zoo-rally-holds-for-the-brew).
+     *
+     * @param helper the gametest helper
+     */
+    public static void rallyHoldsPastTheOldRally(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        HeartOverlayTests.invoke(caster, GooTypes.ZOO, ZOO_RALLY);
+        helper.onEachTick(caster::doTick);
+        helper.runAfterDelay(PAST_THE_OLD_RALLY_TICKS, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(caster);
+            helper.assertTrue(cow.hasData(GooAttachments.RALLIED), RALLY_LAPSED);
+            helper.assertTrue(cow.getMaxHealth() == RALLIED_COW_MAX_HEALTH,
+                    String.format(COW_NOT_BUFFED, cow.getMaxHealth()));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * The caster invokes Rally again to end the brew, and the cow it rallied
+     * stands down at once: no rally, a cow's own max health
+     * (decision zoo-rally-holds-for-the-brew).
+     *
+     * @param helper the gametest helper
+     */
+    public static void rallyStandsDownWithTheBrew(GameTestHelper helper) {
+        ServerPlayer caster = SelfDeliveryTests.invoker(helper, GooTypes.ZOO);
+        Cow cow = helper.spawnWithNoFreeWill(EntityType.COW, COW_POS);
+        HeartOverlayTests.invoke(caster, GooTypes.ZOO, ZOO_RALLY);
+        helper.assertTrue(cow.hasData(GooAttachments.RALLIED), COW_NOT_RALLIED);
+
+        SelfDeliveryTests.invoke(caster, GooTypes.ZOO, ZOO_RALLY);
+
+        helper.getLevel().getServer().getPlayerList().remove(caster);
+        helper.assertFalse(cow.hasData(GooAttachments.RALLIED), RALLY_STOOD);
+        helper.assertTrue(cow.getMaxHealth() == COW_MAX_HEALTH, String.format(STILL_BUFFED, cow.getMaxHealth()));
+        helper.succeed();
     }
 
     /**
