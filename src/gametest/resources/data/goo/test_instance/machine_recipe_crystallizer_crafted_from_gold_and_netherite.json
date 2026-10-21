@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:machine_recipe_crystallizer_crafted_from_gold_and_netherite",
+  "environment": "minecraft:default",
+  "structure": "goo:test_bay",
+  "max_ticks": 100,
+  "setup_ticks": 0,
+  "required": true
+}
