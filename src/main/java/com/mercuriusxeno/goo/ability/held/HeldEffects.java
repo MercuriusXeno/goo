@@ -420,7 +420,21 @@ public record HeldEffects(List<Held> held) {
      */
     public Map<ResourceKey<GooTypeDefinition>, Integer> ticksLeft(
             ToIntFunction<ResourceKey<GooTypeDefinition>> available) {
-        boolean extended = held.stream().anyMatch(Held::extendsOthers);
+        Map<ResourceKey<GooTypeDefinition>, Integer> left = new HashMap<>();
+        upkeepPerTick().forEach((type, perTick) -> left.put(type, (int) (available.applyAsInt(type) / perTick)));
+        return Map.copyOf(left);
+    }
+
+    /**
+     * The mB a tick each goo type's glove effects draw, the rate ticksLeft divides by: a prepaid
+     * brew draws none, and while a glove extender stands every other glove effect's upkeep
+     * counts half (decision extender-multiplies-the-next-self-duration).
+     * time-counts-net-standing-upkeep
+     *
+     * @return per goo type holding a paying glove effect, its upkeep a tick
+     */
+    public Map<ResourceKey<GooTypeDefinition>, Double> upkeepPerTick() {
+        boolean extended = extended();
         Map<ResourceKey<GooTypeDefinition>, Double> upkeep = new HashMap<>();
         for (Held standing : held) {
             if (!standing.prepaid() && standing.upkeep() > 0) {
@@ -429,9 +443,25 @@ public record HeldEffects(List<Held> held) {
                 upkeep.merge(standing.gooType(), paid, Double::sum);
             }
         }
-        Map<ResourceKey<GooTypeDefinition>, Integer> left = new HashMap<>();
-        upkeep.forEach((type, perTick) -> left.put(type, (int) (available.applyAsInt(type) / perTick)));
-        return Map.copyOf(left);
+        return Map.copyOf(upkeep);
+    }
+
+    /**
+     * Whether a glove extender stands, halving every other glove effect's upkeep.
+     *
+     * @return true while one stands
+     */
+    public boolean extended() {
+        return held.stream().anyMatch(Held::extendsOthers);
+    }
+
+    /**
+     * The share of its upkeep a glove effect pays while an extender stands.
+     *
+     * @return the divisor an extended upkeep counts under
+     */
+    public static int extendedDivisor() {
+        return COVERED_EVERY;
     }
 
     /**

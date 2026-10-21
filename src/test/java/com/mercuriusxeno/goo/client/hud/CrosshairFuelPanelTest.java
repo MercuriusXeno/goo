@@ -16,6 +16,7 @@ import com.mercuriusxeno.goo.client.hud.CrosshairFuelPanel.ItemIcon;
 import com.mercuriusxeno.goo.client.hud.CrosshairFuelPanel.TypeIcon;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.AffordedCount;
+import com.mercuriusxeno.goo.client.network.StandingUpkeep;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Nested;
@@ -92,6 +93,24 @@ class CrosshairFuelPanelTest {
                     Optional.of("1K x r³"));
             assertEquals(concat(head(churn), new Count("700")),
                     CrosshairFuelPanel.rowCells(GooTypes.UNSTABLE, churn, 3500, PLENTY, "700"));
+        }
+
+        /** With upkeep standing on the type, the panel's and the petal's stream counts are one text (decision time-counts-net-standing-upkeep). */
+        @Test
+        void panelAndPetalAgreeWithUpkeepStanding() {
+            Delivery stream = new Delivery(DeliveryKind.STREAM, Delivery.DEFAULT_BLOCKS_PER_TICK, 0,
+                    Delivery.DEFAULT_CONE_DEGREES, Delivery.DEFAULT_TICKS_PER_CHARGE, true, Optional.empty(),
+                    Delivery.DEFAULT_TRANSFORM_AT);
+            ClientAbility flames = new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "counted"),
+                    "ability.goo.counted", "", 0, List.of(), List.of(), THOUSAND, stream, AbilityBadge.WORLD,
+                    List.of(), AbilityArea.NONE, IndicatorShowing.HELD, List.of(), 0);
+            StandingUpkeep fifty = new StandingUpkeep(50, false);
+            String count = AffordedCount.reckon(flames, 12_500, PLENTY, fifty).orElseThrow().label();
+            List<FuelCell> row = CrosshairFuelPanel.rowCells(GooTypes.UNSTABLE, flames, 12_500, PLENTY, fifty, NOT_READ);
+
+            assertEquals("6s", count);
+            assertEquals(new Count(count), row.get(row.size() - 1));
+            assertTrue(flames.petalLabel(12_500, PLENTY, fifty).endsWith(" | " + count));
         }
 
         /** The panel's count and the petal's count for one ability and holdings are one text. */

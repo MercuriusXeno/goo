@@ -60,7 +60,7 @@ class AffordedCountTest {
         void holdingsShortOfOneReadTimesZeroDimmed() {
             ClientAbility ability = oneShot(THOUSAND);
             assertEquals("1K | x0", ability.petalLabel(999, NO_REAGENTS));
-            assertTrue(ability.dimsAt(999, NO_REAGENTS));
+            assertTrue(ability.dimsAt(999, NO_REAGENTS, StandingUpkeep.NONE));
         }
     }
 
@@ -102,6 +102,39 @@ class AffordedCountTest {
             ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW, List.of(), 1);
             assertEquals("1.5m", AffordedCount.reckon(brew, 1800, NO_REAGENTS).orElseThrow().label());
             assertEquals("12s", AffordedCount.reckon(brew, 250, NO_REAGENTS).orElseThrow().label());
+        }
+    }
+
+    /** A time count subtracts the upkeep already standing on its type (decision time-counts-net-standing-upkeep). */
+    @Nested
+    class StandingUpkeepNetted {
+
+        private static final StandingUpkeep FIFTY = new StandingUpkeep(50, false);
+        private static final StandingUpkeep FIFTY_EXTENDED = new StandingUpkeep(25, true);
+
+        private static String count(ClientAbility ability, int holdings, StandingUpkeep standing) {
+            return AffordedCount.reckon(ability, holdings, NO_REAGENTS, standing).orElseThrow().label();
+        }
+
+        @Test
+        void streamSubtractsTheStandingUpkeep() {
+            ClientAbility flames = stream(THOUSAND, Delivery.DEFAULT_TICKS_PER_CHARGE);
+            assertEquals("1K/s | 12s", flames.petalLabel(12_500, NO_REAGENTS, StandingUpkeep.NONE));
+            assertEquals("1K/s | 6s", flames.petalLabel(12_500, NO_REAGENTS, FIFTY));
+            assertEquals("1K/s | 8s", flames.petalLabel(12_500, NO_REAGENTS, FIFTY_EXTENDED));
+        }
+
+        @Test
+        void brewSubtractsTheStandingUpkeepAndHalvesItsOwnUnderAnExtender() {
+            ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW, List.of(), 2);
+            assertEquals("6s", count(brew, 250, StandingUpkeep.NONE));
+            assertEquals("3s", count(brew, 250, new StandingUpkeep(2, false)));
+            assertEquals("6s", count(brew, 250, new StandingUpkeep(1, true)));
+        }
+
+        @Test
+        void oneShotIgnoresTheStandingUpkeep() {
+            assertEquals("x3", count(oneShot(THOUSAND), 3500, FIFTY));
         }
     }
 

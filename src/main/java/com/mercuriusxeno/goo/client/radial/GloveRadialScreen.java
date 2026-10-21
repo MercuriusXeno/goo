@@ -96,13 +96,21 @@ public final class GloveRadialScreen extends Screen {
      * @return the held abilities' ids, empty with no player
      */
     private static Set<Identifier> activeAbilities() {
-        Player player = Minecraft.getInstance().player;
-        if (player == null) {
-            return Set.of();
-        }
-        return player.getData(GooAttachments.HELD_EFFECTS).held().stream()
+        return standingEffects().held().stream()
                 .map(HeldEffects.Held::ability)
                 .collect(Collectors.toUnmodifiableSet());
+    }
+
+    /**
+     * The effects standing on the local player, synced from the server, whose upkeep the
+     * petals' time counts subtract.
+     * time-counts-net-standing-upkeep
+     *
+     * @return the standing effects, none with no player
+     */
+    private static HeldEffects standingEffects() {
+        Player player = Minecraft.getInstance().player;
+        return player == null ? HeldEffects.NONE : player.getData(GooAttachments.HELD_EFFECTS);
     }
 
     /**
@@ -166,7 +174,7 @@ public final class GloveRadialScreen extends Screen {
         RadialWheelRenderer.Hoverables drawn = RadialWheelRenderer.render(graphics, font,
                 new RadialWheelRenderer.Frame(wheel, types, abilities, available,
                         width / HALF, height / HALF, radius(), PetalLook.LIVE, partialTick, activeAbilities(),
-                        gameTime(partialTick), GloveRadialScreen::reagentSetsHeld));
+                        gameTime(partialTick), GloveRadialScreen::reagentSetsHeld, standingEffects()));
         RadialWheelRenderer.nameWhatTheCursorRestsOn(graphics, font, drawn, mouseX, mouseY);
     }
 
