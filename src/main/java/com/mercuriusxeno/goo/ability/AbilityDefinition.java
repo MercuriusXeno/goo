@@ -71,6 +71,9 @@ import java.util.stream.Stream;
  *                    its per-block price, its wall price and its oculus percent; a Spire stone's goo value
  *                    per block; any other the names of the items it consumes
  *                    (decision zero-cost-field-formats-the-cost-mechanics)
+ * @param costFormula the short formula a dynamically priced ability's petal reads in place of a
+ *                    fixed cost, "200 + 100/block" for a blink, empty for a fixed-cost ability
+ *                    (decision dynamic-costs-keep-the-mb-quantity)
  */
 public record AbilityDefinition(
         Identifier id,
@@ -94,8 +97,47 @@ public record AbilityDefinition(
         DistancePrice distancePrice,
         ArmPose pose,
         String description,
-        Optional<String> costMechanics
+        Optional<String> costMechanics,
+        Optional<String> costFormula
 ) {
+
+    /**
+     * An ability whose price reads no formula, every ability pricing a fixed cost.
+     *
+     * @param id            the datapack resource identifier
+     * @param gooType       the goo type this ability belongs to
+     * @param displayName   the translation key for the ability name
+     * @param icon          the texture path for the radial menu icon
+     * @param order         sort order within the type's ability list
+     * @param cost          the mB a throw costs
+     * @param delivery      how the ability leaves the glove
+     * @param behaviors     the step trees the ability runs
+     * @param tags          categorical tags
+     * @param badge         the target kind the radial marks on the icon
+     * @param requires      the items a player must know before the ability is theirs
+     * @param area          the area the glove draws while right click is held
+     * @param indicator     when the ability's indicator shows
+     * @param consumes      the items a throw takes, one of each
+     * @param onPrism       the steps a landing on a prism runs, empty for none
+     * @param onBlocks      the steps a stream or a spore burst runs on each floor it reaches
+     * @param upkeep        the mB a held self + brew effect pays each tick it stands
+     * @param downSound     the cue a held effect plays when it ends, empty for the shared cue
+     * @param distancePrice what a blink adds to the cost for the trip it makes
+     * @param pose          the arm pose the glove arm takes in place of the swing
+     * @param description   the translation key for what the ability does
+     * @param costMechanics the format key explaining how the ability charges, empty for none
+     */
+    public AbilityDefinition(Identifier id, ResourceKey<GooTypeDefinition> gooType, String displayName, String icon,
+                             int order, int cost, Delivery delivery, List<Step> behaviors, List<String> tags,
+                             AbilityBadge badge, List<Identifier> requires, AbilityArea area,
+                             IndicatorShowing indicator, List<Identifier> consumes, List<Step> onPrism,
+                             List<Step> onBlocks, int upkeep, Optional<SoundCue> downSound,
+                             DistancePrice distancePrice, ArmPose pose, String description,
+                             Optional<String> costMechanics) {
+        this(id, gooType, displayName, icon, order, cost, delivery, behaviors, tags, badge, requires, area,
+                indicator, consumes, onPrism, onBlocks, upkeep, downSound, distancePrice, pose, description,
+                costMechanics, Optional.empty());
+    }
 
     /**
      * Draws an explosive ability's sphere at the reach its explosion cuts at most, and
@@ -424,6 +466,10 @@ public record AbilityDefinition(
     /** The cost of a held self + brew effect, which starts free and pays its upkeep after. */
     private static final int NO_COST = 0;
     private static final String FIELD_COST_MECHANICS = "cost_mechanics";
+    private static final String FIELD_COST_FORMULA = "cost_formula";
+    private static final String UNFORMULATED_DYNAMIC_PRICE =
+            "An ability costing nothing up front and paying no upkeep must name " + FIELD_COST_FORMULA
+                    + ", the formula its petal reads";
     private static final String UNEXPLAINED_ZERO_COST =
             "An ability costing nothing up front must name " + FIELD_COST_MECHANICS
                     + ", the format key explaining how it charges";
@@ -483,15 +529,23 @@ public record AbilityDefinition(
      * @param cost          the flat mB a throw costs
      * @param distancePrice what a blink adds for its trip
      * @param costMechanics the format key explaining how the ability charges, empty for none
+     * @param costFormula   the short formula a dynamic price reads on its petal, empty for none
      */
-    private record Price(int cost, DistancePrice distancePrice, Optional<String> costMechanics) {
+    private record Price(int cost, DistancePrice distancePrice, Optional<String> costMechanics,
+                         Optional<String> costFormula) {
+
+        static Price of(AbilityDefinition def) {
+            return new Price(def.cost(), def.distancePrice(), def.costMechanics(), def.costFormula());
+        }
     }
 
     private static final MapCodec<Price> PRICE_CODEC = RecordCodecBuilder.<Price>mapCodec(inst -> inst.group(
             FLAT_COST_CODEC.optionalFieldOf(FIELD_COST, NO_COST).forGetter(Price::cost),
             DistancePrice.MAP_CODEC.forGetter(Price::distancePrice),
             // zero-cost-field-formats-the-cost-mechanics
-            Codec.STRING.optionalFieldOf(FIELD_COST_MECHANICS).forGetter(Price::costMechanics)
+            Codec.STRING.optionalFieldOf(FIELD_COST_MECHANICS).forGetter(Price::costMechanics),
+            // dynamic-costs-keep-the-mb-quantity
+            Codec.STRING.optionalFieldOf(FIELD_COST_FORMULA).forGetter(Price::costFormula)
     ).apply(inst, Price::new)).validate(AbilityDefinition::explainedPrice);
 
     private static final MapCodec<HeldTraits> HELD_TRAITS_CODEC = RecordCodecBuilder.mapCodec(inst -> inst.group(
@@ -540,10 +594,14 @@ public record AbilityDefinition(
      * @return the codec decoding that file into a definition with that id
      */
     public static Codec<AbilityDefinition> codecFor(Identifier id) {
+        return fileCodec(id).validate(AbilityDefinition::formulatedDynamicPrice);
+    }
+
+    private static Codec<AbilityDefinition> fileCodec(Identifier id) {
         return RecordCodecBuilder.create(inst -> inst.group(
                 HEADING_CODEC.forGetter(Heading::of),
                 // self-effects-trickle-until-ended, blink-lands-safely-costed-by-distance
-                PRICE_CODEC.forGetter(def -> new Price(def.cost(), def.distancePrice(), def.costMechanics())),
+                PRICE_CODEC.forGetter(Price::of),
                 Delivery.CODEC.fieldOf(FIELD_DELIVERY).forGetter(AbilityDefinition::delivery),
                 StepTypes.LIST_CODEC.fieldOf(FIELD_BEHAVIORS).forGetter(AbilityDefinition::behaviors),
                 Codec.STRING.listOf().optionalFieldOf(FIELD_TAGS, List.of()).forGetter(AbilityDefinition::tags),
@@ -571,7 +629,24 @@ public record AbilityDefinition(
                         heading.icon(), heading.order(), price.cost(), delivery, steps, tags, badge, requires, area,
                         shows, consumes, reactions.onPrism(), reactions.onBlocks(), held.upkeep(), held.downSound(),
                         price.distancePrice(), pose.orElseGet(() -> ArmPose.defaultFor(delivery.kind())),
-                        heading.descriptionKey(), price.costMechanics())));
+                        heading.descriptionKey(), price.costMechanics(), price.costFormula())));
+    }
+
+    /**
+     * Refuses an ability costing nothing up front and paying no upkeep that names cost_mechanics
+     * and no cost_formula: its price moves with what it does, so its petal reads the formula
+     * in place of a 0. A brew names cost_mechanics too, and its upkeep counts its seconds.
+     * dynamic-costs-keep-the-mb-quantity
+     *
+     * @param definition the ability as the JSON wrote it
+     * @return the ability, or an error naming the field
+     */
+    private static DataResult<AbilityDefinition> formulatedDynamicPrice(AbilityDefinition definition) {
+        boolean dynamic = definition.cost() == NO_COST && definition.upkeep() == NO_UPKEEP
+                && definition.costMechanics().isPresent();
+        return dynamic && definition.costFormula().isEmpty()
+                ? DataResult.error(() -> UNFORMULATED_DYNAMIC_PRICE)
+                : DataResult.success(definition);
     }
 
     /**

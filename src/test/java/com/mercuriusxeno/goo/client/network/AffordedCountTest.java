@@ -3,10 +3,15 @@ package com.mercuriusxeno.goo.client.network;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityJson;
+import com.mercuriusxeno.goo.ability.ArmPose;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
+import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -14,6 +19,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** How many uses or whole seconds an ability's holdings afford, and the petal label reading cost then count. */
@@ -76,6 +82,36 @@ class AffordedCountTest {
         void brewPayingOneATickReadsTwelveSeconds() {
             ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW, List.of(), 1);
             assertEquals("20/s | 12s", brew.petalLabel(250, NO_REAGENTS));
+        }
+    }
+
+    /** A dynamically priced petal reads its formula and never 0 (decision dynamic-costs-keep-the-mb-quantity). */
+    @Nested
+    class Dynamic {
+
+        private static final List<String> DYNAMIC_ABILITIES = List.of("ender_blink", "deep_churn",
+                "nether_black_hole", "unstable_explode", "rock_spire", "unstable_unmake", "yore_age");
+
+        @Test
+        void zeroCostPetalReadsItsFormula() {
+            ClientAbility blink = new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "blink"),
+                    "ability.goo.blink", "", 0, List.of(), List.of(), 0, Delivery.of(DeliveryKind.SELF),
+                    AbilityBadge.SELF, List.of(), AbilityArea.NONE, IndicatorShowing.HELD, List.of(), 0,
+                    DistancePrice.NONE, List.of(), ArmPose.defaultFor(DeliveryKind.SELF), "ability.goo.blink.description",
+                    Optional.empty(), Optional.of("200 + 100/block"));
+            assertEquals("200 + 100/block", blink.petalLabel(THOUSAND, NO_REAGENTS));
+        }
+
+        @Test
+        void noShippedDynamicPetalReadsZero() {
+            for (String name : DYNAMIC_ABILITIES) {
+                AbilityDefinition definition = AbilityJson.decode(name);
+                ClientAbility ability = ClientAbility.fromEntry(
+                        AbilitySyncPayload.gloveEntries(definition.gooType(), List.of(definition)).get(0));
+                String label = ability.petalLabel(THOUSAND, NO_REAGENTS);
+                assertEquals(definition.costFormula().orElse("no formula"), label, name);
+                assertNotEquals("0", label, name);
+            }
         }
     }
 

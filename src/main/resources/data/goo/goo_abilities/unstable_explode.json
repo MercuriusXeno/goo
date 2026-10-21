@@ -4,6 +4,7 @@
   "badge": "free",
   "order": 10,
   "cost": 1000,
+  "cost_formula": "1K x r³",
   "requires": ["minecraft:gunpowder"],
   "delivery": { "kind": "arc" },
   "behaviors": [
