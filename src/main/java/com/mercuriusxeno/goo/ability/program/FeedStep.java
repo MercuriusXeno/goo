@@ -6,17 +6,20 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.player.Player;
 import java.util.Set;
 import java.util.stream.Stream;
 
 /**
  * Jelly's Feed where its blob lands: on a struck animal it counts as
- * feeding, setting an adult in love or growing a baby a stage; on the ground
- * it lays a feed that draws the animals and mobs within its radius, hostiles
- * that reach it together fighting for the fight time. Jelly Feed is
+ * feeding, setting an adult in love or growing a baby a stage; on a struck
+ * slime it grows the slime a size step; on the ground it lays a feed that
+ * draws the animals and mobs within its radius, hostiles that reach it
+ * together fighting for the fight time. Jelly Feed is
  * {@code feed radius=12 fight_ticks=100}.
  * feed-blob-feeds-and-draws-mobs
+ * slimes-grow-on-jelly-feed
  *
  * @param radius     the blocks out to which a laid feed draws mobs
  * @param fightTicks the ticks hostiles that reach a laid feed together fight for
@@ -47,14 +50,21 @@ public record FeedStep(Expr radius, Expr fightTicks) implements Step {
     public boolean tick(StepContext context) {
         StepHost host = context.host();
         if (host instanceof TargetHost struck) {
-            if (struck.target() instanceof Animal animal
-                    && Feeding.feed(animal, struck.thrower() instanceof Player player ? player : null)) {
-                Feeding.crumbsAndHearts((ServerLevel) animal.level(), animal);
-            }
+            feedStruck(struck);
         } else if (host instanceof AnchoredWorldHost landing) {
             FeedPile.lay(landing.level(), landing.anchor(), radius.evaluate(context), fightTicks.evaluateInt(context));
         }
         return true;
+    }
+
+    private static void feedStruck(TargetHost struck) {
+        if (struck.target() instanceof Slime slime) {
+            Feeding.feed(slime);
+            Feeding.crumbsAndHearts((ServerLevel) slime.level(), slime);
+        } else if (struck.target() instanceof Animal animal
+                && Feeding.feed(animal, struck.thrower() instanceof Player player ? player : null)) {
+            Feeding.crumbsAndHearts((ServerLevel) animal.level(), animal);
+        }
     }
 
     @Override

@@ -12,6 +12,7 @@ import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.level.storage.ValueInput;
@@ -28,7 +29,8 @@ import java.util.Set;
  * Animals and mobs within its radius path to it; the first animal to reach
  * it eats it as its food, a lone hostile reaching it eats it, and hostiles
  * that reach it together turn on each other for the fight time before
- * trying again (decision feed-blob-feeds-and-draws-mobs).
+ * trying again (decision feed-blob-feeds-and-draws-mobs). A slime that eats it
+ * grows a size step (decision slimes-grow-on-jelly-feed).
  */
 public class FeedPile extends Entity {
 
@@ -156,6 +158,8 @@ public class FeedPile extends Entity {
     private void eat(ServerLevel server, Mob eater) {
         if (eater instanceof Animal animal) {
             Feeding.feed(animal, null);
+        } else if (eater instanceof Slime slime) {
+            Feeding.feed(slime);
         }
         Feeding.crumbsAndHearts(server, eater);
         discard();
