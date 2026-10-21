@@ -58,7 +58,7 @@ interface PetalLook {
             return new CostMechanicsLookup(Language.getInstance()::getOrDefault,
                     item -> {
                         GooValue value = ClientGooValues.current().lookup(item);
-                        return value == null ? 0 : value.get(type);
+                        return value == null ? 0 : value.meltFloor(type);
                     });
         }
     };

@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -16,7 +17,8 @@ import java.util.Map;
 
 /**
  * Network payload carrying the full effective goo value map from server to client.
- * Wire format: VarInt entry count, then per entry: Identifier + VarInt type count + per type: type key + VarInt amount.
+ * Wire format: VarInt entry count, then per entry: Identifier + VarInt type count + per type:
+ * type key + VarLong numerator + VarLong denominator.
  *
  * @param values the full effective goo value map
  */
@@ -65,45 +67,37 @@ public record GooValueSyncPayload(Map<Identifier, GooValue> values) implements C
     }
 
     /**
-     * Writes a single GooValue: VarInt type count, then type key + amount pairs.
+     * Writes a single GooValue: VarInt type count, then per type its key, a VarLong
+     * numerator and a VarLong denominator.
+     * Decision values-are-fractions-melt-floors-fabricate-ceils: the client reads the exact fraction.
      *
      * @param buf   the output buffer
      * @param value the goo value to encode
      */
     private static void encodeGooValue(FriendlyByteBuf buf, GooValue value) {
-        Map<ResourceKey<GooTypeDefinition>, Integer> all = value.getAll();
+        Map<ResourceKey<GooTypeDefinition>, GooFraction> all = value.exactAll();
         buf.writeVarInt(all.size());
-        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : all.entrySet()) {
+        for (Map.Entry<ResourceKey<GooTypeDefinition>, GooFraction> entry : all.entrySet()) {
             GooTypes.KEY_STREAM_CODEC.encode(buf, entry.getKey());
-            buf.writeVarInt(entry.getValue());
+            buf.writeVarLong(entry.getValue().numerator());
+            buf.writeVarLong(entry.getValue().denominator());
         }
     }
 
     /**
-     * Reads a single GooValue: VarInt type count, then type key + amount pairs.
+     * Reads a single GooValue written by {@link #encodeGooValue}.
      *
      * @param buf the input buffer
      * @return the decoded goo value
      */
     private static GooValue decodeGooValue(FriendlyByteBuf buf) {
         int typeCount = buf.readVarInt();
-        return new GooValue(readTypeAmounts(buf, typeCount));
-    }
-
-    /**
-     * Reads type key + amount pairs from the buffer into a map.
-     *
-     * @param buf   the input buffer
-     * @param count the number of pairs to read
-     * @return the decoded type-to-amount map
-     */
-    private static Map<ResourceKey<GooTypeDefinition>, Integer> readTypeAmounts(FriendlyByteBuf buf, int count) {
-        Map<ResourceKey<GooTypeDefinition>, Integer> map = new LinkedHashMap<>(count);
-        for (int i = 0; i < count; i++) {
+        Map<ResourceKey<GooTypeDefinition>, GooFraction> map = new LinkedHashMap<>(typeCount);
+        for (int i = 0; i < typeCount; i++) {
             ResourceKey<GooTypeDefinition> type = GooTypes.KEY_STREAM_CODEC.decode(buf);
-            map.put(type, buf.readVarInt());
+            map.put(type, GooFraction.of(buf.readVarLong(), buf.readVarLong()));
         }
-        return map;
+        return GooValue.ofExact(map);
     }
 
     @Override

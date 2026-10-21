@@ -1,38 +1,17 @@
 package com.mercuriusxeno.goo.data;
 
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.ResourceKey;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.UnaryOperator;
 
 /**
- * Pure arithmetic operations on {@link GooValue} instances.
- * Extracted from GooValue to keep method counts manageable while allowing
- * free decomposition of the longer division/scaling implementations.
+ * Pure arithmetic operations on {@link GooValue} instances, each exact on fractions.
+ * Decision values-are-fractions-melt-floors-fabricate-ceils: division keeps every
+ * fraction, so no derivation loses goo to a remainder.
  */
 final class GooValueArithmetic {
-
-    /**
-     * Error prefix for lossy division.
-     */
-    static final String ERR_LOSSY_PREFIX = "Lossy reverse division: ";
-    /**
-     * Equals separator in error messages.
-     */
-    static final String ERR_EQUALS = "=";
-    /**
-     * Division separator in error messages.
-     */
-    static final String ERR_DIV = " / ";
-    /**
-     * Remainder prefix in error messages.
-     */
-    static final String ERR_REMAINDER = " (remainder ";
-    /**
-     * Remainder suffix in error messages.
-     */
-    static final String ERR_REMAINDER_CLOSE = ")";
 
     private GooValueArithmetic() {
         // utility class
@@ -47,27 +26,21 @@ final class GooValueArithmetic {
      * @return a new GooValue with the combined amounts
      */
     static GooValue add(GooValue self, GooValue other, int multiplier) {
-        Map<ResourceKey<GooTypeDefinition>, Integer> result = new HashMap<>();
-        result.putAll(self.getAll());
-        other.getAll().forEach((type, amount) ->
-                result.merge(type, amount * multiplier, Integer::sum));
-        return new GooValue(result);
+        Map<ResourceKey<GooTypeDefinition>, GooFraction> result = new HashMap<>(self.exactAll());
+        other.exactAll().forEach((type, amount) ->
+                result.merge(type, amount.times(multiplier), GooFraction::plus));
+        return GooValue.ofExact(result);
     }
 
     /**
-     * Returns a new GooValue with per-type subtraction, flooring each type at zero.
-     * Types that reach zero or below are excluded from the result.
+     * Returns a new GooValue with per-type subtraction; a type reaching zero is excluded.
      *
      * @param self  the base value
      * @param other the value to subtract
      * @return a new GooValue with the difference
      */
     static GooValue subtract(GooValue self, GooValue other) {
-        Map<ResourceKey<GooTypeDefinition>, Integer> result = new HashMap<>();
-        result.putAll(self.getAll());
-        other.getAll().forEach((type, amount) ->
-                result.merge(type, -amount, Integer::sum));
-        return new GooValue(result);
+        return add(self, mapEachType(other, GooFraction::negated), 1);
     }
 
     /**
@@ -84,73 +57,26 @@ final class GooValueArithmetic {
         if (factor == 1) {
             return self;
         }
-        Map<ResourceKey<GooTypeDefinition>, Integer> result = new HashMap<>();
-        self.getAll().forEach((type, amount) -> result.put(type, amount * factor));
-        return new GooValue(result);
+        return mapEachType(self, amount -> amount.times(factor));
     }
 
     /**
-     * Divides all values by divisor (integer division, floors).
+     * Divides all type amounts by divisor exactly.
      *
      * @param self    the value to divide
      * @param divisor the divisor for each type's amount
-     * @return a new GooValue with floored divided amounts
+     * @return a new GooValue holding each exact share
      */
     static GooValue divide(GooValue self, int divisor) {
         if (divisor <= 1) {
             return self;
         }
-        Map<ResourceKey<GooTypeDefinition>, Integer> result = new HashMap<>();
-        self.getAll().forEach((type, amount) -> {
-            int divided = amount / divisor;
-            if (divided > 0) {
-                result.put(type, divided);
-            }
-        });
-        return new GooValue(result);
+        return mapEachType(self, amount -> amount.dividedBy(divisor));
     }
 
     /**
-     * Divides all type amounts by divisor, throwing if any type has a remainder.
-     *
-     * @param self    the value to divide
-     * @param divisor the divisor for each type's amount
-     * @return a new GooValue with divided amounts
-     * @throws ArithmeticException if any type's amount is not evenly divisible
-     */
-    static GooValue divideExact(GooValue self, int divisor) {
-        if (divisor <= 1) {
-            return self;
-        }
-        Map<ResourceKey<GooTypeDefinition>, Integer> result = new HashMap<>();
-        self.getAll().forEach((type, amount) -> {
-            assertDivisible(type, amount, divisor);
-            int divided = amount / divisor;
-            if (divided > 0) {
-                result.put(type, divided);
-            }
-        });
-        return new GooValue(result);
-    }
-
-    /**
-     * Throws ArithmeticException if the amount is not evenly divisible.
-     *
-     * @param type    the goo type being divided (used in error messages)
-     * @param amount  the numerator to check for divisibility
-     * @param divisor the denominator to divide by
-     */
-    private static void assertDivisible(ResourceKey<GooTypeDefinition> type, int amount, int divisor) {
-        if (amount % divisor != 0) {
-            throw new ArithmeticException(
-                    ERR_LOSSY_PREFIX + GooTypes.id(type) + ERR_EQUALS + amount
-                            + ERR_DIV + divisor + ERR_REMAINDER + amount % divisor + ERR_REMAINDER_CLOSE);
-        }
-    }
-
-    /**
-     * Returns a new GooValue with all type volumes scaled by the given fraction.
-     * Rounds each type to the nearest integer. Types that round to zero are excluded.
+     * Returns a new GooValue with all type amounts scaled by the given ratio, each
+     * rounded to the nearest whole. Types that round to zero are excluded.
      *
      * @param self     the value to scale
      * @param fraction the scaling factor (e.g. 0.5 for half value)
@@ -163,14 +89,7 @@ final class GooValueArithmetic {
         if (fraction >= 1.0) {
             return self;
         }
-        Map<ResourceKey<GooTypeDefinition>, Integer> result = new HashMap<>();
-        self.getAll().forEach((type, amount) -> {
-            int scaled = (int) Math.round(amount * fraction);
-            if (scaled > 0) {
-                result.put(type, scaled);
-            }
-        });
-        return new GooValue(result);
+        return mapEachType(self, amount -> GooFraction.of(Math.round(amount.toDouble() * fraction)));
     }
 
     /**
@@ -182,16 +101,15 @@ final class GooValueArithmetic {
      * @return a new GooValue with negatives removed, or self if none exist
      */
     static GooValue floorZero(GooValue self) {
-        boolean hasNegative = self.getAll().values().stream().anyMatch(v -> v < 0);
-        if (!hasNegative) {
+        if (!self.hasNegative()) {
             return self;
         }
-        Map<ResourceKey<GooTypeDefinition>, Integer> result = new HashMap<>();
-        self.getAll().forEach((type, amount) -> {
-            if (amount > 0) {
-                result.put(type, amount);
-            }
-        });
-        return new GooValue(result);
+        return mapEachType(self, amount -> amount.isNegative() ? GooFraction.ZERO : amount);
+    }
+
+    private static GooValue mapEachType(GooValue self, UnaryOperator<GooFraction> operation) {
+        Map<ResourceKey<GooTypeDefinition>, GooFraction> result = new HashMap<>();
+        self.exactAll().forEach((type, amount) -> result.put(type, operation.apply(amount)));
+        return GooValue.ofExact(result);
     }
 }

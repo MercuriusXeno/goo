@@ -745,7 +745,7 @@ public final class CrucibleTests {
      */
     public static void itemStackMeltsWholeItemsThatFit(GameTestHelper helper) {
         CrucibleBlockEntity crucible = placeFueledCrucible(helper);
-        GooContents perItem = GooValues.of(helper.getLevel()).lookup(BuiltInRegistries.ITEM.getKey(Items.COBBLESTONE)).toGooContents();
+        GooContents perItem = GooValues.of(helper.getLevel()).lookup(BuiltInRegistries.ITEM.getKey(Items.COBBLESTONE)).meltPayout();
         Map<ResourceKey<GooTypeDefinition>, Integer> room = new HashMap<>();
         perItem.getAll().forEach((type, amount) -> {
             crucible.insertGoo(type, CAP);
@@ -968,7 +968,7 @@ public final class CrucibleTests {
      * @return the goo one cobblestone carries
      */
     private static GooContents cobblestoneValue(GameTestHelper helper) {
-        return GooValues.of(helper.getLevel()).lookup(BuiltInRegistries.ITEM.getKey(Items.COBBLESTONE)).toGooContents();
+        return GooValues.of(helper.getLevel()).lookup(BuiltInRegistries.ITEM.getKey(Items.COBBLESTONE)).meltPayout();
     }
 
     /**
@@ -1113,7 +1113,7 @@ public final class CrucibleTests {
      * @return the pool contents spawned into the basin
      */
     private static GooContents fillPoolAndReservoirForCobblestone(GameTestHelper helper, CrucibleBlockEntity crucible) {
-        GooContents perItem = GooValues.of(helper.getLevel()).lookup(BuiltInRegistries.ITEM.getKey(Items.COBBLESTONE)).toGooContents();
+        GooContents perItem = GooValues.of(helper.getLevel()).lookup(BuiltInRegistries.ITEM.getKey(Items.COBBLESTONE)).meltPayout();
         Map<ResourceKey<GooTypeDefinition>, Integer> full = new HashMap<>();
         perItem.getAll().keySet().forEach(type -> {
             crucible.insertGoo(type, CAP);

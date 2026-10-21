@@ -150,7 +150,7 @@ public final class LabSupplyTests {
         helper.assertTrue(chest != null, NO_CHEST + station.gooTypeId());
         for (int slot = 0; slot < chest.getContainerSize(); slot++) {
             ItemStack stack = chest.getItem(slot);
-            helper.assertTrue(stack.isEmpty() || GooValues.of(helper.getLevel()).lookup(stack).get(type) > 0,
+            helper.assertTrue(stack.isEmpty() || GooValues.of(helper.getLevel()).lookup(stack).exact(type).isPositive(),
                     STRAY_ITEM + station.gooTypeId() + SEPARATOR + stack);
         }
     }

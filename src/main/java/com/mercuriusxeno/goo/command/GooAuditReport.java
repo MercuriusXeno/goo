@@ -271,7 +271,6 @@ public final class GooAuditReport {
         issues += appendPhantomIdsSection(values, report);
         issues += appendCyclesSection(values, report);
         issues += GooAuditValues.appendConflictsSection(values, report);
-        issues += GooAuditValues.appendDivisibilitySection(values, report);
         return issues;
     }
 
@@ -298,7 +297,6 @@ public final class GooAuditReport {
         sendPhantomIdsSummary(values, ctx);
         sendCyclesSummary(values, ctx);
         GooAuditValues.sendConflictsSummary(values, ctx);
-        GooAuditValues.sendDivisibilitySummary(values, ctx);
         sendNoValueSummary(values, ctx);
         ctx.getSource().sendSuccess(() ->
                 Component.literal(MSG_FULL_REPORT).withStyle(ChatFormatting.GRAY), false);
