@@ -1,7 +1,7 @@
 {
   "gooType": "hex",
   "displayName": "goo.ability.hex.enchant",
-  "badge": "self",
+  "badge": "instant",
   "order": 10,
   "cost": 1000,
   "requires": ["minecraft:book", "minecraft:lapis_lazuli"],

@@ -25,8 +25,11 @@ public enum AbilityBadge implements StringRepresentable {
     /** Lands on a mob. */
     MOB("mob"),
 
-    /** Acts on the thrower. */
-    SELF("self"),
+    /**
+     * Casts instantly, a one-shot that fires once on release.
+     * self-badge-becomes-instant-with-a-noita-trigger-star
+     */
+    SELF("instant"),
 
     /** Runs while the thrower holds it. */
     CHANNELED("channeled"),

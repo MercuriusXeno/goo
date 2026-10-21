@@ -2,7 +2,7 @@
   "gooType": "ender",
   "displayName": "goo.ability.ender.blink",
   "cost_mechanics": "goo.ability.ender.blink.cost_mechanics",
-  "badge": "self",
+  "badge": "instant",
   "order": 10,
   "cost": 200,
   "cost_per_block": 100,

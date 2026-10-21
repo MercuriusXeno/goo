@@ -34,10 +34,16 @@ class AbilityBadgeTest {
     private static final String TICKS_PER_CHARGE_FIELD = "ticks_per_charge";
 
     @ParameterizedTest
-    @CsvSource({"world, WORLD", "mob, MOB", "self, SELF", "channeled, CHANNELED", "brew, BREW",
+    @CsvSource({"world, WORLD", "mob, MOB", "instant, SELF", "channeled, CHANNELED", "brew, BREW",
             "free, FREE", "prism, PRISM"})
     void eachVocabularyWordParsesToItsBadge(String word, AbilityBadge expected) {
         assertEquals(expected, AbilityBadge.CODEC.parse(JsonOps.INSTANCE, new JsonPrimitive(word)).getOrThrow());
+    }
+
+    /** decision self-badge-becomes-instant-with-a-noita-trigger-star */
+    @Test
+    void theOneShotBadgeSpellsInstant() {
+        assertEquals("instant", AbilityBadge.SELF.getSerializedName());
     }
 
     /**
@@ -65,14 +71,14 @@ class AbilityBadgeTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"splash", "punch"})
+    @CsvSource({"splash", "punch", "self"})
     void aWordOutsideTheVocabularyFailsToParse(String word) {
         assertTrue(AbilityBadge.CODEC.parse(JsonOps.INSTANCE, new JsonPrimitive(word)).isError());
     }
 
     /**
      * The badges a shipped ability may wear, read from its own fields: channeled for a stream or for any delivery that charges or writes a hold's ticks
-     * per charge, brew for a self delivery paying upkeep, self for any other self delivery,
+     * per charge, brew for a self delivery paying upkeep, instant for any other self delivery,
      * and for a thrown ability mob where it targets entities and world elsewhere. Free and
      * prism are carried by the badge alone, since no field marks them, so a thrown ability
      * wearing either passes on its badge.
