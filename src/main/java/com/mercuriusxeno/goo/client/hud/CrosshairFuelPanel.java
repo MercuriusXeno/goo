@@ -5,9 +5,11 @@ import com.mercuriusxeno.goo.ability.GloveSelection;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.AffordedCount;
+import com.mercuriusxeno.goo.client.network.StandingUpkeep;
 import com.mercuriusxeno.goo.client.throwing.GloveThrowSender;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.item.ReagentScanner;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -107,10 +109,27 @@ public final class CrosshairFuelPanel {
      */
     public static List<FuelCell> rowCells(ResourceKey<GooTypeDefinition> type, ClientAbility ability, int holdings,
                                           int reagentSets, String aimedCostLabel) {
+        return rowCells(type, ability, holdings, reagentSets, StandingUpkeep.NONE, aimedCostLabel);
+    }
+
+    /**
+     * Builds the panel's row for the selected ability beside the upkeep standing on its type.
+     * time-counts-net-standing-upkeep
+     *
+     * @param type           the selected goo type
+     * @param ability        the selected ability's synced copy
+     * @param holdings       the mB the player holds of the type across the inventory
+     * @param reagentSets    the whole sets of the ability's consumed items the inventory holds
+     * @param standing       the upkeep already standing on the type
+     * @param aimedCostLabel the live cost at the aim, which a dynamic ability's row reads
+     * @return the row's cells, left to right
+     */
+    public static List<FuelCell> rowCells(ResourceKey<GooTypeDefinition> type, ClientAbility ability, int holdings,
+                                          int reagentSets, StandingUpkeep standing, String aimedCostLabel) {
         List<FuelCell> cells = new ArrayList<>(List.of(new TypeIcon(type), new AbilityName(ability.displayName()),
                 new AbilityIcon(ability.iconTexture())));
         // dynamic-costs-keep-the-mb-quantity: a dynamic ability's row reads the live mB at the aim
-        cells.add(new Count(AffordedCount.reckon(ability, holdings, reagentSets).map(AffordedCount::label)
+        cells.add(new Count(AffordedCount.reckon(ability, holdings, reagentSets, standing).map(AffordedCount::label)
                 .orElse(aimedCostLabel)));
         ability.consumes().forEach(item -> cells.add(new ItemIcon(item)));
         return cells;
@@ -144,7 +163,7 @@ public final class CrosshairFuelPanel {
         }
         int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(type, 0);
         List<FuelCell> cells = rowCells(type, ability, holdings, ReagentScanner.setsHeld(player, ability.consumes()),
-                cost.get());
+                StandingUpkeep.on(player.getData(GooAttachments.HELD_EFFECTS), type), cost.get());
         paint(graphics, font, cells, graphics.guiWidth(), graphics.guiHeight());
     }
 

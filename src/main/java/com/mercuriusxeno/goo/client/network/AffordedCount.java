@@ -26,30 +26,53 @@ public record AffordedCount(long count, boolean timed) {
      * @return the count, empty for a dynamically priced ability
      */
     public static Optional<AffordedCount> reckon(ClientAbility ability, int holdings, int reagentSets) {
+        return reckon(ability, holdings, reagentSets, StandingUpkeep.NONE);
+    }
+
+    /**
+     * Reckons what the holdings afford of an ability beside the upkeep already standing on its
+     * type: a time count draws its own rate and the standing upkeep together, while a one-shot's
+     * shots can all fire this instant, so its use count ignores what stands.
+     * time-counts-net-standing-upkeep
+     *
+     * @param ability     the synced ability
+     * @param holdings    the mB the player holds of the ability's type across the inventory
+     * @param reagentSets the whole sets of the ability's consumed items the inventory holds
+     * @param standing    the upkeep already standing on the ability's type
+     * @return the count, empty for a dynamically priced ability
+     */
+    public static Optional<AffordedCount> reckon(ClientAbility ability, int holdings, int reagentSets,
+                                                 StandingUpkeep standing) {
         if (!ability.countsUses()) {
             return Optional.empty();
         }
         int reagentBound = ability.consumes().isEmpty() ? Integer.MAX_VALUE : reagentSets;
         if (ability.paysWhileHeld()) {
             // a hold pays its reagents once, so holding none sustains no tick
-            return Optional.of(new AffordedCount(reagentBound > 0 ? ticksSustained(ability, holdings) : 0, true));
+            return Optional.of(new AffordedCount(reagentBound > 0 ? ticksSustained(ability, holdings, standing) : 0,
+                    true));
         }
         return Optional.of(new AffordedCount(Math.min(holdings / ability.cost(), reagentBound), false));
     }
 
     /**
-     * The ticks the holdings sustain: a brew's upkeep each tick, or a stream's or channel's
-     * cost each ticksPerCharge.
+     * The ticks the holdings pay for the ability's own rate and the standing upkeep together:
+     * a brew's upkeep, halved under a standing Extender unless it is the Extender, or a stream's
+     * or channel's cost each ticksPerCharge, scaled through by ticksPerCharge so 1000 over
+     * 1000 a 60 ticks reads 60 rather than a hair under.
      *
      * @param ability  the held ability
      * @param holdings the mB the player holds of its type
+     * @param standing the upkeep already standing on its type
      * @return the whole ticks
      */
-    private static long ticksSustained(ClientAbility ability, int holdings) {
+    private static long ticksSustained(ClientAbility ability, int holdings, StandingUpkeep standing) {
         if (ability.upkeep() > 0) {
-            return holdings / ability.upkeep();
+            return (long) (holdings / (standing.ownBrewUpkeep(ability.upkeep(), ability.extendsOthers())
+                    + standing.perTick()));
         }
-        return (long) holdings * ability.delivery().ticksPerCharge() / ability.cost();
+        int ticksPerCharge = ability.delivery().ticksPerCharge();
+        return (long) ((double) holdings * ticksPerCharge / (ability.cost() + standing.perTick() * ticksPerCharge));
     }
 
     /**

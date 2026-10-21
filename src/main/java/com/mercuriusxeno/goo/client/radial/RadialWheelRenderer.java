@@ -2,8 +2,10 @@ package com.mercuriusxeno.goo.client.radial;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.OfferedAbility;
+import com.mercuriusxeno.goo.client.network.StandingUpkeep;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypeNames;
@@ -119,14 +121,15 @@ final class RadialWheelRenderer {
      * @param active      the abilities whose effect the player holds, which pulse
      * @param gameTime    the game time, fraction included, which the pulse runs on
      * @param reagentSets the whole sets of a list of consumed items the inventory holds
+     * @param standing    the effects standing on the player, whose upkeep the time counts subtract
      */
     record Frame(RadialWheel wheel, List<ResourceKey<GooTypeDefinition>> types,
                  List<List<OfferedAbility>> abilities, Map<ResourceKey<GooTypeDefinition>, Integer> available,
                  int centerX, int centerY, int radius, PetalLook look, float partialTick, Set<Identifier> active,
-                 float gameTime, ToIntFunction<List<Identifier>> reagentSets) {
+                 float gameTime, ToIntFunction<List<Identifier>> reagentSets, HeldEffects standing) {
 
         /**
-         * A frame whose inventory reads every reagent as plentiful.
+         * A frame whose inventory reads every reagent as plentiful and holds no standing effect.
          *
          * @param wheel       the wheel's state
          * @param types       the types, one per petal at rest
@@ -144,7 +147,7 @@ final class RadialWheelRenderer {
               Map<ResourceKey<GooTypeDefinition>, Integer> available, int centerX, int centerY, int radius,
               PetalLook look, float partialTick, Set<Identifier> active, float gameTime) {
             this(wheel, types, abilities, available, centerX, centerY, radius, look, partialTick, active, gameTime,
-                    reagents -> Integer.MAX_VALUE);
+                    reagents -> Integer.MAX_VALUE, HeldEffects.NONE);
         }
 
         /**
@@ -392,7 +395,7 @@ final class RadialWheelRenderer {
         ClientAbility ability = offered.ability();
         boolean hovered = petal.ability() == frame.wheel().hoveredAbility();
         FanSlot slotLabels = fanSlot(ability, frame.available().getOrDefault(key, 0),
-                frame.reagentSets().applyAsInt(ability.consumes()));
+                frame.reagentSets().applyAsInt(ability.consumes()), StandingUpkeep.on(frame.standing(), key));
         // locked-petal-stays-on-the-wheel: a locked petal takes the unaffordable petal's dimmed look
         boolean dimmed = offered.locked() || slotLabels.dimmed();
         // wheel-pulses-the-active-effect: a held effect's petal pulses
@@ -804,22 +807,26 @@ final class RadialWheelRenderer {
      * @return the wedge's labels
      */
     static FanSlot fanSlot(ClientAbility ability, int holdings) {
-        return fanSlot(ability, holdings, Integer.MAX_VALUE);
+        return fanSlot(ability, holdings, Integer.MAX_VALUE, StandingUpkeep.NONE);
     }
 
     /**
-     * Reads an ability wedge's cost and the uses or seconds the type's holdings and the
-     * inventory's reagents afford, dimmed when they afford none.
+     * Reads an ability wedge's cost and the uses or time the type's holdings and the
+     * inventory's reagents afford beside the upkeep standing on the type, dimmed when they
+     * afford none.
      * panel-and-petals-count-uses-or-seconds
      * reagent-count-is-the-smaller-bound
+     * time-counts-net-standing-upkeep
      *
      * @param ability     the synced ability
      * @param holdings    the amount the player holds of its type
      * @param reagentSets the whole sets of the ability's consumed items the inventory holds
+     * @param standing    the upkeep already standing on its type
      * @return the wedge's labels
      */
-    static FanSlot fanSlot(ClientAbility ability, int holdings, int reagentSets) {
-        return new FanSlot(ability.petalLabel(holdings, reagentSets), ability.dimsAt(holdings, reagentSets));
+    static FanSlot fanSlot(ClientAbility ability, int holdings, int reagentSets, StandingUpkeep standing) {
+        return new FanSlot(ability.petalLabel(holdings, reagentSets, standing),
+                ability.dimsAt(holdings, reagentSets, standing));
     }
 
     /**

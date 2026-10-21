@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
+import com.mercuriusxeno.goo.ability.program.ExtenderStep;
 import com.mercuriusxeno.goo.ability.program.SpireStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.client.throwing.BlinkAim;
@@ -524,30 +525,55 @@ public final class AbilitySyncHandler {
         }
 
         /**
-         * What the petal reads: the shorthand cost, then the uses or seconds the holdings afford,
-         * or a dynamically priced ability's formula.
-         * panel-and-petals-count-uses-or-seconds
-         * dynamic-costs-keep-the-mb-quantity
+         * Whether the ability is the glove's Extender, whose own upkeep a standing Extender
+         * never halves (decision extender-multiplies-the-next-self-duration).
+         *
+         * @return true for an ability running the extender step
+         */
+        public boolean extendsOthers() {
+            return behaviors.stream().anyMatch(ExtenderStep.class::isInstance);
+        }
+
+        /**
+         * What the petal reads with nothing standing on the ability's type.
          *
          * @param holdings    the mB the player holds of the ability's type across the inventory
          * @param reagentSets the whole sets of the ability's consumed items the inventory holds
-         * @return "1K | x3" for a one-shot, "1K/s | 12s" for a stream, channel or brew, "200 + 100/block" for a blink
+         * @return the petal's cost line
          */
         public String petalLabel(int holdings, int reagentSets) {
-            return costFormula.orElseGet(() -> costLabel() + AffordedCount.reckon(this, holdings, reagentSets)
+            return petalLabel(holdings, reagentSets, StandingUpkeep.NONE);
+        }
+
+        /**
+         * What the petal reads: the shorthand cost, then the uses or time the holdings afford
+         * beside the upkeep standing on the type, or a dynamically priced ability's formula.
+         * panel-and-petals-count-uses-or-seconds
+         * dynamic-costs-keep-the-mb-quantity
+         * time-counts-net-standing-upkeep
+         *
+         * @param holdings    the mB the player holds of the ability's type across the inventory
+         * @param reagentSets the whole sets of the ability's consumed items the inventory holds
+         * @param standing    the upkeep already standing on the ability's type
+         * @return "1K | x3" for a one-shot, "1K/s | 12s" for a stream, channel or brew, "200 + 100/block" for a blink
+         */
+        public String petalLabel(int holdings, int reagentSets, StandingUpkeep standing) {
+            return costFormula.orElseGet(() -> costLabel()
+                    + AffordedCount.reckon(this, holdings, reagentSets, standing)
                     .map(count -> COUNT_SEPARATOR + count.label()).orElse(NO_COUNT));
         }
 
         /**
-         * Whether the petal dims: the holdings afford no use, or a dynamically priced ability's
-         * base price exceeds them.
+         * Whether the petal dims: the holdings afford no use beside the upkeep standing on the
+         * type, or a dynamically priced ability's base price exceeds them.
          *
          * @param holdings    the mB the player holds of the ability's type across the inventory
          * @param reagentSets the whole sets of the ability's consumed items the inventory holds
+         * @param standing    the upkeep already standing on the ability's type
          * @return true when the petal reads unaffordable
          */
-        public boolean dimsAt(int holdings, int reagentSets) {
-            return AffordedCount.reckon(this, holdings, reagentSets).map(AffordedCount::affordsNone)
+        public boolean dimsAt(int holdings, int reagentSets, StandingUpkeep standing) {
+            return AffordedCount.reckon(this, holdings, reagentSets, standing).map(AffordedCount::affordsNone)
                     .orElse(price() > holdings);
         }
 
