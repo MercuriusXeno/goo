@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
 import java.util.Map;
 import java.util.OptionalDouble;
@@ -20,12 +21,17 @@ import java.util.OptionalDouble;
  * spray's source, so a burst can treat the floor it landed on apart from
  * the rest (decision colonize-blob-grows-the-network).
  *
+ * <p>A timed block stands in the open cell above the floor, so Coat's
+ * stream leaves a bounce pad on each floor it hits; a floor that already is
+ * that block takes none, so a held stream lays no pad on a pad.
+ * weird-bounces-and-softens-harm
+ *
  * @param level    the server level
  * @param floor    the floor block reached
  * @param distance how far the floor's open cell sits from the spray's source, in blocks
  */
 public record SurfaceHost(ServerLevel level, BlockPos floor, double distance)
-        implements AnchoredWorldHost, PlaceBlockHost {
+        implements AnchoredWorldHost, PlaceBlockHost, TimedBlockHost {
 
     private static final double HALF = 0.5;
 
@@ -68,5 +74,15 @@ public record SurfaceHost(ServerLevel level, BlockPos floor, double distance)
     @Override
     public void placeBlock(Identifier block, Map<String, String> state) {
         BlockAnchoredActions.placeBeyondFace(level, floor, Direction.UP, block, state);
+    }
+
+    @Override
+    public void placeForTicks(Block block, int ticks) {
+        if (level.getBlockState(floor).is(block)) {
+            return;
+        }
+        BlockPos cell = floor.above();
+        level.setBlock(cell, block.defaultBlockState(), Block.UPDATE_ALL);
+        level.scheduleTick(cell, block, ticks);
     }
 }

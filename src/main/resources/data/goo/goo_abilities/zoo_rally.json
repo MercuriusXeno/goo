@@ -13,8 +13,8 @@
       "radius": 12,
       "where": ["living", "peaceful"],
       "steps": [
-        { "type": "rally", "duration": 600, "damage": 6, "health": 1.5, "speed": 0.5 },
-        { "type": "ailment_overlay", "kind": "zoo", "duration": 600 }
+        { "type": "rally", "duration": 100, "damage": 6, "health": 1.5, "speed": 0.5 },
+        { "type": "ailment_overlay", "kind": "zoo", "duration": 100 }
       ]
     },
     { "type": "sound", "id": "minecraft:entity.ravager.roar", "at": "target", "source": "players", "volume": 0.8, "pitch": 1.4 }

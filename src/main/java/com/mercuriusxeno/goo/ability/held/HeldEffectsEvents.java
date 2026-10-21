@@ -14,6 +14,7 @@ import com.mercuriusxeno.goo.ability.typhoon.Airborn;
 import com.mercuriusxeno.goo.ability.unstable.BusterEvents;
 import com.mercuriusxeno.goo.ability.xeno.EldritchEvents;
 import com.mercuriusxeno.goo.ability.zone.Shifter;
+import com.mercuriusxeno.goo.ability.zoo.RallyEvents;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.registry.GooMobEffects;
@@ -278,7 +279,8 @@ public final class HeldEffectsEvents {
     }
 
     /**
-     * Clears the state an ended effect laid on how the player moves: its air control.
+     * Clears the state an ended effect laid on how the player moves and on
+     * the mobs around it: its air control and its rally.
      *
      * @param player the player
      * @param lays   the states the ended effect laid
@@ -287,6 +289,10 @@ public final class HeldEffectsEvents {
         if (lays.contains(LaidState.AIRBORN)) {
             // airborn-steerable-levitation-and-soft-falls: the air control ends with its held effect
             player.setData(GooAttachments.AIRBORN, Airborn.NONE);
+        }
+        if (lays.contains(LaidState.RALLY)) {
+            // zoo-rally-holds-for-the-brew: every mob the drinker rallied stands down with the brew
+            RallyEvents.standDown(player);
         }
     }
 
