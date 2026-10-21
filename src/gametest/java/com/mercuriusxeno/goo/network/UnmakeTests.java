@@ -128,7 +128,7 @@ public final class UnmakeTests {
         column.forEach(pos -> helper.setBlock(pos, Blocks.COBBLESTONE));
         wall.forEach(pos -> helper.setBlock(pos, Blocks.COBBLESTONE));
         GooValue cobblestone = GooValues.of(helper.getLevel()).lookup(new ItemStack(Blocks.COBBLESTONE));
-        int fuel = SiphonRule.fuelFor(cobblestone.totalGoo(), GooConfig.UNSTABLE_MELT_EXPONENT.get(),
+        int fuel = SiphonRule.fuelFor(cobblestone.meltFloorTotal(), GooConfig.UNSTABLE_MELT_EXPONENT.get(),
                 GooConfig.UNSTABLE_TICKS_PER_MB.get());
         ServerPlayer player = channeler(helper, COLUMN_BLOCKS * fuel);
         KnownRecipes.teachRequires(player, unmake);
@@ -151,7 +151,7 @@ public final class UnmakeTests {
         });
         helper.runAfterDelay(drinkTicks + travel + 2L, () -> {
             Map<ResourceKey<GooTypeDefinition>, Integer> expected = new HashMap<>();
-            cobblestone.getAll().forEach((type, amount) -> expected.put(type, amount * COLUMN_BLOCKS));
+            cobblestone.meltFloorAll().forEach((type, amount) -> expected.put(type, amount * COLUMN_BLOCKS));
             Map<ResourceKey<GooTypeDefinition>, Integer> held = heldGoo(player.getInventory());
             Map<ResourceKey<GooTypeDefinition>, Integer> dropped = droppedGoo(helper, AIMED_POS, DROP_REACH);
             helper.getLevel().getServer().getPlayerList().remove(player);
@@ -287,7 +287,7 @@ public final class UnmakeTests {
      */
     private static int drinkTicks(GameTestHelper helper) {
         GooValue cobblestone = GooValues.of(helper.getLevel()).lookup(new ItemStack(Blocks.COBBLESTONE));
-        return SiphonRule.INJECT_TICKS + SiphonRule.siphonTicks(cobblestone.totalGoo(),
+        return SiphonRule.INJECT_TICKS + SiphonRule.siphonTicks(cobblestone.meltFloorTotal(),
                 GooConfig.UNSTABLE_MELT_EXPONENT.get(), 1) + SLACK_TICKS;
     }
 

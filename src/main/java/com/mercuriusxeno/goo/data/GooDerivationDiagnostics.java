@@ -5,8 +5,7 @@ import java.util.*;
 
 /**
  * Diagnostic scanners for the goo derivation pipeline: detects value conflicts
- * between base and derived maps, recipe dependency cycles, and integer division
- * remainder losses. Extracted from {@link GooValueDerivation} to keep per-class
+ * between base and derived maps and recipe dependency cycles. Extracted from {@link GooValueDerivation} to keep per-class
  * method counts manageable.
  */
 final class GooDerivationDiagnostics {
@@ -42,7 +41,7 @@ final class GooDerivationDiagnostics {
                                            Map<Identifier, GooValue> derivedValues,
                                            List<GooValueRegistry.ValueConflict> conflicts) {
         GooValue derived = derivedValues.get(itemId);
-        if (derived != null && derived.totalGoo() != base.totalGoo()) {
+        if (derived != null && derived.totalExact().compareTo(base.totalExact()) != 0) {
             conflicts.add(new GooValueRegistry.ValueConflict(itemId, base, derived));
         }
     }
@@ -129,68 +128,4 @@ final class GooDerivationDiagnostics {
         }
     }
 
-    /**
-     * Scans all multi-output recipes for integer division remainder losses.
-     *
-     * @param byOutput      recipes grouped by output item ID
-     * @param baseValues    hand-keyed base values for lookup
-     * @param derivedValues recipe-derived values for lookup
-     * @return list of detected divisibility losses
-     */
-    static List<GooValueRegistry.DivisibilityLoss> detectDivisibilityLoss(
-            Map<Identifier, List<RecipeInput>> byOutput,
-            Map<Identifier, GooValue> baseValues, Map<Identifier, GooValue> derivedValues) {
-        List<GooValueRegistry.DivisibilityLoss> losses = new ArrayList<>();
-        for (var entry : byOutput.entrySet()) {
-            for (RecipeInput recipe : entry.getValue()) {
-                checkDivisibilityLoss(entry.getKey(), recipe, baseValues, derivedValues, losses);
-            }
-        }
-        return losses;
-    }
-
-    /**
-     * Checks a single recipe for divisibility loss and appends to the losses list if found.
-     *
-     * @param outputId      the output item ID
-     * @param recipe        the recipe to check
-     * @param baseValues    hand-keyed base values for lookup
-     * @param derivedValues recipe-derived values for lookup
-     * @param losses        accumulator for detected losses
-     */
-    static void checkDivisibilityLoss(Identifier outputId, RecipeInput recipe,
-                                      Map<Identifier, GooValue> baseValues, Map<Identifier, GooValue> derivedValues,
-                                      List<GooValueRegistry.DivisibilityLoss> losses) {
-        if (recipe.resultCount() <= 1) {
-            return;
-        }
-        Optional<GooValue> inputValue = GooRecipeEvaluator.deriveFromRecipeInput(recipe, baseValues, derivedValues);
-        if (inputValue.isEmpty()) {
-            return;
-        }
-        buildLossIfRemainder(outputId, recipe, inputValue.get(), losses);
-    }
-
-    /**
-     * Appends a divisibility loss entry when integer division leaves a remainder in any type.
-     * Derivation divides each type on its own, so the loss is the sum of per-type remainders.
-     *
-     * @param outputId   the output item ID
-     * @param recipe     the recipe being checked
-     * @param inputValue total input goo before division
-     * @param losses     accumulator for detected losses
-     */
-    static void buildLossIfRemainder(Identifier outputId, RecipeInput recipe,
-                                     GooValue inputValue, List<GooValueRegistry.DivisibilityLoss> losses) {
-        int count = recipe.resultCount();
-        int lost = 0;
-        for (int amount : inputValue.getAll().values()) {
-            lost += Math.abs(amount % count);
-        }
-        if (lost == 0) {
-            return;
-        }
-        losses.add(new GooValueRegistry.DivisibilityLoss(
-                outputId, count, inputValue.totalGoo(), inputValue.divide(count).totalGoo(), lost, recipe));
-    }
 }

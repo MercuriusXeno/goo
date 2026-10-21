@@ -159,9 +159,9 @@ final class ExpressionOperators {
      * @return a new GooValue with scaled amounts
      */
     private static GooValue multiplyGooValue(GooValue value, int scalar) {
-        Map<ResourceKey<GooTypeDefinition>, Integer> result = new HashMap<>();
-        value.getAll().forEach((type, amount) -> result.put(type, amount * scalar));
-        return new GooValue(result);
+        Map<ResourceKey<GooTypeDefinition>, GooFraction> result = new HashMap<>();
+        value.exactAll().forEach((type, amount) -> result.put(type, amount.times(scalar)));
+        return GooValue.ofExact(result);
     }
 
     /**

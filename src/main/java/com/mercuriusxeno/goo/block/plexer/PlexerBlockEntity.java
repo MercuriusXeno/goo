@@ -220,7 +220,7 @@ public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanister
      * @return the available goo
      */
     private boolean hasEnoughGoo(List<SlotRef> slots, GooValue required) {
-        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : required.getAll().entrySet()) {
+        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : required.meltFloorAll().entrySet()) {
             if (getAvailableGoo(slots, entry.getKey()) < entry.getValue()) {
                 return false;
             }
@@ -235,7 +235,7 @@ public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanister
      * @param required the required goo value
      */
     private void consumeAllRequired(List<SlotRef> slots, GooValue required) {
-        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : required.getAll().entrySet()) {
+        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : required.meltFloorAll().entrySet()) {
             consumeGoo(slots, entry.getKey(), entry.getValue());
         }
     }

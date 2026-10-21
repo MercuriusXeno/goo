@@ -397,7 +397,7 @@ final class GooIntExpressionEvaluator {
     private static int extractGooType(String typeSuffix, GooValue source) {
         try {
             ResourceKey<GooTypeDefinition> type = GooTypes.parseKnown(typeSuffix);
-            return source.get(type);
+            return source.exact(type).floor();
         } catch (IllegalArgumentException ignored) {
             return Integer.MIN_VALUE;
         }

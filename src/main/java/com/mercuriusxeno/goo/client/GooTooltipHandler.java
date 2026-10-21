@@ -235,7 +235,7 @@ public final class GooTooltipHandler {
             return;
         }
         elements.add(Either.left(PLUS_SEPARATOR));
-        appendGooRows(elements, containerValue.getAll());
+        appendGooRows(elements, containerValue.meltFloorAll());
     }
 
     /**
@@ -356,7 +356,7 @@ public final class GooTooltipHandler {
             List<Either<FormattedText, TooltipComponent>> elements, ItemStack stack) {
         GooValue value = knownValue(stack);
         if (value != null && !value.isEmpty()) {
-            appendGooRows(elements, value.getAll());
+            appendGooRows(elements, value.meltFloorAll());
         }
     }
 

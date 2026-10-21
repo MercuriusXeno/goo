@@ -145,6 +145,6 @@ final class ItemOperandResolver {
             LOGGER.warn(WARN_UNKNOWN_ITEM, itemId);
             return 0;
         }
-        return value.get(type);
+        return value.exact(type).floor();
     }
 }
