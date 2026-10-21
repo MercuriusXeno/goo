@@ -229,6 +229,31 @@ public class GooValueRegistry {
     }
 
     /**
+     * Correlates the last-loaded base_values.json's constants and items with the entries consuming them.
+     *
+     * @return each operand to its consumers, empty before the first load
+     */
+    public SortedMap<String, SortedSet<String>> formulaConsumers() {
+        if (lastMergedBaseValues == null) {
+            return new TreeMap<>();
+        }
+        return GooFormulaReferences.consumersByOperand(lastMergedBaseValues);
+    }
+
+    /**
+     * @param name a constant's name, without its $ prefix
+     * @return the constant's resolved tree or scalar, or null for a name no constant holds
+     */
+    public @Nullable String resolvedConstant(String name) {
+        GooValue tree = treeConstants.get(name);
+        if (tree != null) {
+            return tree.toString();
+        }
+        Integer scalar = constants.get(name);
+        return scalar == null ? null : scalar.toString();
+    }
+
+    /**
      * Generates scaffold by collecting recipes fresh from the server.
      *
      * @param server the running server providing recipes
