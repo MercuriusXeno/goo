@@ -1,0 +1,28 @@
+{
+  "gooType": "weird",
+  "displayName": "goo.ability.weird.coat",
+  "badge": "channeled",
+  "order": 0,
+  "cost": 1000,
+  "delivery": {
+    "kind": "stream",
+    "range": 8,
+    "cone": 16,
+    "ticks_per_charge": 20
+  },
+  "behaviors": [
+    { "type": "cool_lava" },
+    {
+      "type": "target",
+      "where": ["mob"],
+      "steps": [
+        { "type": "wobble", "duration": 600 },
+        { "type": "ailment_overlay", "kind": "wobble", "duration": 600 }
+      ]
+    }
+  ],
+  "on_blocks": [
+    { "type": "bounce_pad", "ticks": 200 }
+  ],
+  "tags": ["stream"]
+}
