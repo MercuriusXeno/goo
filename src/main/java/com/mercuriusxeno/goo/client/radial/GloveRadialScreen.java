@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.client.network.OfferedAbility;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.network.GloveSelectPayload;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -105,6 +106,18 @@ public final class GloveRadialScreen extends Screen {
     }
 
     /**
+     * The whole sets of consumed items the local player's inventory holds, which bound a petal's count.
+     * reagent-count-is-the-smaller-bound
+     *
+     * @param reagents the item ids an ability consumes, one of each
+     * @return the smallest count among them, Integer.MAX_VALUE for none named, 0 with no player
+     */
+    private static int reagentSetsHeld(List<Identifier> reagents) {
+        Player player = Minecraft.getInstance().player;
+        return player == null ? 0 : ReagentScanner.setsHeld(player, reagents);
+    }
+
+    /**
      * The game time the wheel's pulse runs on.
      *
      * @param partialTick the fraction of a tick since the last one
@@ -153,7 +166,7 @@ public final class GloveRadialScreen extends Screen {
         RadialWheelRenderer.Hoverables drawn = RadialWheelRenderer.render(graphics, font,
                 new RadialWheelRenderer.Frame(wheel, types, abilities, available,
                         width / HALF, height / HALF, radius(), PetalLook.LIVE, partialTick, activeAbilities(),
-                        gameTime(partialTick)));
+                        gameTime(partialTick), GloveRadialScreen::reagentSetsHeld));
         RadialWheelRenderer.nameWhatTheCursorRestsOn(graphics, font, drawn, mouseX, mouseY);
     }
 

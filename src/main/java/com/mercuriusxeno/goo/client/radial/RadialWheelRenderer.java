@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.ToIntFunction;
 import java.util.stream.IntStream;
 
 /**
@@ -119,11 +120,34 @@ final class RadialWheelRenderer {
      * @param partialTick the fraction of a tick since the last one, for the petals' ease
      * @param active      the abilities whose effect the player holds, which pulse
      * @param gameTime    the game time, fraction included, which the pulse runs on
+     * @param reagentSets the whole sets of a list of consumed items the inventory holds
      */
     record Frame(RadialWheel wheel, List<ResourceKey<GooTypeDefinition>> types,
                  List<List<OfferedAbility>> abilities, Map<ResourceKey<GooTypeDefinition>, Integer> available,
                  int centerX, int centerY, int radius, PetalLook look, float partialTick, Set<Identifier> active,
-                 float gameTime) {
+                 float gameTime, ToIntFunction<List<Identifier>> reagentSets) {
+
+        /**
+         * A frame whose inventory reads every reagent as plentiful.
+         *
+         * @param wheel       the wheel's state
+         * @param types       the types, one per petal at rest
+         * @param abilities   the abilities each type opens to
+         * @param available   the amount the player holds per type
+         * @param centerX     the wheel's center x
+         * @param centerY     the wheel's center y
+         * @param radius      the wheel's outer radius
+         * @param look        the fluid, edge and colors a petal draws with
+         * @param partialTick the fraction of a tick since the last one
+         * @param active      the abilities whose effect the player holds
+         * @param gameTime    the game time, fraction included
+         */
+        Frame(RadialWheel wheel, List<ResourceKey<GooTypeDefinition>> types, List<List<OfferedAbility>> abilities,
+              Map<ResourceKey<GooTypeDefinition>, Integer> available, int centerX, int centerY, int radius,
+              PetalLook look, float partialTick, Set<Identifier> active, float gameTime) {
+            this(wheel, types, abilities, available, centerX, centerY, radius, look, partialTick, active, gameTime,
+                    reagents -> Integer.MAX_VALUE);
+        }
 
         /**
          * A frame holding no active effect.
@@ -369,7 +393,8 @@ final class RadialWheelRenderer {
         OfferedAbility offered = frame.abilities().get(petal.type()).get(petal.ability());
         ClientAbility ability = offered.ability();
         boolean hovered = petal.ability() == frame.wheel().hoveredAbility();
-        FanSlot slotLabels = fanSlot(ability, frame.available().getOrDefault(key, 0));
+        FanSlot slotLabels = fanSlot(ability, frame.available().getOrDefault(key, 0),
+                frame.reagentSets().applyAsInt(ability.consumes()));
         // locked-petal-stays-on-the-wheel: a locked petal takes the unaffordable petal's dimmed look
         boolean dimmed = offered.locked() || slotLabels.dimmed();
         // wheel-pulses-the-active-effect: a held effect's petal pulses
@@ -774,15 +799,29 @@ final class RadialWheelRenderer {
     }
 
     /**
-     * Reads an ability wedge's first-throw cost against the type's holdings.
+     * Reads an ability wedge's cost and the uses or seconds the type's holdings afford.
      *
      * @param ability  the synced ability
      * @param holdings the amount the player holds of its type
      * @return the wedge's labels
      */
     static FanSlot fanSlot(ClientAbility ability, int holdings) {
-        // self-effects-trickle-until-ended: a held effect reads its upkeep a second, dimmed short of a second's worth
-        return new FanSlot(ability.costLabel(), ability.price() > holdings);
+        return fanSlot(ability, holdings, Integer.MAX_VALUE);
+    }
+
+    /**
+     * Reads an ability wedge's cost and the uses or seconds the type's holdings and the
+     * inventory's reagents afford, dimmed when they afford none.
+     * panel-and-petals-count-uses-or-seconds
+     * reagent-count-is-the-smaller-bound
+     *
+     * @param ability     the synced ability
+     * @param holdings    the amount the player holds of its type
+     * @param reagentSets the whole sets of the ability's consumed items the inventory holds
+     * @return the wedge's labels
+     */
+    static FanSlot fanSlot(ClientAbility ability, int holdings, int reagentSets) {
+        return new FanSlot(ability.petalLabel(holdings, reagentSets), ability.dimsAt(holdings, reagentSets));
     }
 
     /**

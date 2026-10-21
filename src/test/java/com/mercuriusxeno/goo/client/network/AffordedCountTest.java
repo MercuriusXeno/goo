@@ -1,0 +1,98 @@
+package com.mercuriusxeno.goo.client.network;
+
+import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.ability.AbilityArea;
+import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.Delivery;
+import com.mercuriusxeno.goo.ability.DeliveryKind;
+import com.mercuriusxeno.goo.ability.IndicatorShowing;
+import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
+import net.minecraft.resources.Identifier;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/** How many uses or whole seconds an ability's holdings afford, and the petal label reading cost then count. */
+class AffordedCountTest {
+
+    private static final int THOUSAND = 1000;
+    private static final int NO_REAGENTS = 0;
+    private static final int SLOW_TICKS_PER_CHARGE = 60;
+    private static final Identifier BOOK = Identifier.withDefaultNamespace("book");
+
+    private static ClientAbility ability(int cost, Delivery delivery, AbilityBadge badge, List<Identifier> consumes,
+                                         int upkeep) {
+        return new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "counted"), "ability.goo.counted", "", 0,
+                List.of(), List.of(), cost, delivery, badge, List.of(), AbilityArea.NONE, IndicatorShowing.HELD,
+                consumes, upkeep);
+    }
+
+    private static ClientAbility oneShot(int cost) {
+        return ability(cost, Delivery.ARC, AbilityBadge.WORLD, List.of(), 0);
+    }
+
+    private static ClientAbility stream(int cost, int ticksPerCharge) {
+        Delivery delivery = new Delivery(DeliveryKind.STREAM, Delivery.DEFAULT_BLOCKS_PER_TICK, 0,
+                Delivery.DEFAULT_CONE_DEGREES, ticksPerCharge, true, Optional.empty(), Delivery.DEFAULT_TRANSFORM_AT);
+        return ability(cost, delivery, AbilityBadge.WORLD, List.of(), 0);
+    }
+
+    /** A one-shot petal reads its shorthand cost then its uses, dimmed at none. */
+    @Nested
+    class OneShot {
+
+        @Test
+        void holdingsForThreeReadTimesThree() {
+            assertEquals("1K | x3", oneShot(THOUSAND).petalLabel(3500, NO_REAGENTS));
+        }
+
+        @Test
+        void holdingsShortOfOneReadTimesZeroDimmed() {
+            ClientAbility ability = oneShot(THOUSAND);
+            assertEquals("1K | x0", ability.petalLabel(999, NO_REAGENTS));
+            assertTrue(ability.dimsAt(999, NO_REAGENTS));
+        }
+    }
+
+    /** A stream or brew petal reads its cost a second then its whole seconds. */
+    @Nested
+    class Seconds {
+
+        @Test
+        void streamPayingEverySecondReadsTwelveSeconds() {
+            assertEquals("1K/s | 12s", stream(THOUSAND, Delivery.DEFAULT_TICKS_PER_CHARGE).petalLabel(12_500, NO_REAGENTS));
+        }
+
+        @Test
+        void streamPayingEveryThreeSecondsReadsThreeSeconds() {
+            assertEquals("333/s | 3s", stream(THOUSAND, SLOW_TICKS_PER_CHARGE).petalLabel(THOUSAND, NO_REAGENTS));
+        }
+
+        @Test
+        void brewPayingOneATickReadsTwelveSeconds() {
+            ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW, List.of(), 1);
+            assertEquals("20/s | 12s", brew.petalLabel(250, NO_REAGENTS));
+        }
+    }
+
+    /** An ability consuming an item counts the smaller of the goo bound and the item bound. */
+    @Nested
+    class Reagents {
+
+        private final ClientAbility enchant = ability(THOUSAND, Delivery.ARC, AbilityBadge.WORLD, List.of(BOOK), 0);
+
+        @Test
+        void fewerBooksThanGooBoundsTheCount() {
+            assertEquals(3, AffordedCount.reckon(enchant, 5000, 3).orElseThrow().count());
+        }
+
+        @Test
+        void fewerGooThanBooksBoundsTheCount() {
+            assertEquals(5, AffordedCount.reckon(enchant, 5000, 7).orElseThrow().count());
+        }
+    }
+}
