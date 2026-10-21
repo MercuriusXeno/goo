@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.ArmPose;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DistancePrice;
+import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
 import com.mercuriusxeno.goo.ability.program.SpireStep;
@@ -122,6 +123,8 @@ public final class AbilitySyncHandler {
 
         private static final int TICKS_PER_SECOND = 20;
         private static final String PER_SECOND = "/s";
+        private static final String COUNT_SEPARATOR = " | ";
+        private static final String NO_COUNT = "";
         private static final Identifier SPIRE_BLOCK = Identifier.withDefaultNamespace("stone");
 
         /**
@@ -418,16 +421,78 @@ public final class AbilitySyncHandler {
         }
 
         /**
-         * What the ability costs for a trip: a held effect's upkeep a second,
-         * and every other ability's one-shot cost plus what the trip adds.
+         * What the ability costs for a trip: a held effect's upkeep a second, a
+         * fixed-cost stream's or channel's cost a second, and every other
+         * ability's one-shot cost plus what the trip adds.
          * blink-lands-safely-costed-by-distance
          *
          * @param trip the blink's trip, empty for an ability making none
          * @return the cost, formatted
          */
         public String costLabel(Optional<BlinkLanding> trip) {
-            return upkeep > 0 ? GooFormat.formatAmount(upkeepPerSecond()) + PER_SECOND
-                    : GooFormat.formatAmount(BlinkAim.tripCost(distancePrice, cost, trip));
+            if (upkeep > 0) {
+                return GooFormat.formatAmount(upkeepPerSecond()) + PER_SECOND;
+            }
+            // panel-and-petals-count-uses-or-seconds: a stream or channel reads its cost a second
+            if (!pricedDynamically() && paysWhileHeld()) {
+                return GooFormat.formatAmount((long) cost * TICKS_PER_SECOND / delivery.ticksPerCharge()) + PER_SECOND;
+            }
+            return GooFormat.formatAmount(BlinkAim.tripCost(distancePrice, cost, trip));
+        }
+
+        /**
+         * Whether the ability's price moves with the target, the trip or the stone it plans, so no
+         * fixed cost counts its uses: one naming cost mechanics and paying no upkeep.
+         *
+         * @return true for a dynamically priced ability
+         */
+        public boolean pricedDynamically() {
+            return costMechanics.isPresent() && upkeep == 0;
+        }
+
+        /**
+         * Whether a fixed price counts the ability's uses or seconds.
+         *
+         * @return true for a fixed-cost ability with a price above 0
+         */
+        public boolean countsUses() {
+            return !pricedDynamically() && price() > 0;
+        }
+
+        /**
+         * Whether the ability pays as it is held, so the holdings sustain it for seconds: a brew's
+         * upkeep, or a stream's or channel's cost each ticksPerCharge.
+         *
+         * @return true for a brew, a stream or a channel
+         */
+        public boolean paysWhileHeld() {
+            return upkeep > 0 || HeldRoute.runsWhileHeld(delivery, badge);
+        }
+
+        /**
+         * What the petal reads: the shorthand cost, then the uses or seconds the holdings afford.
+         * panel-and-petals-count-uses-or-seconds
+         *
+         * @param holdings    the mB the player holds of the ability's type across the inventory
+         * @param reagentSets the whole sets of the ability's consumed items the inventory holds
+         * @return "1K | x3" for a one-shot, "1K/s | 12s" for a stream, channel or brew
+         */
+        public String petalLabel(int holdings, int reagentSets) {
+            return costLabel() + AffordedCount.reckon(this, holdings, reagentSets)
+                    .map(count -> COUNT_SEPARATOR + count.label()).orElse(NO_COUNT);
+        }
+
+        /**
+         * Whether the petal dims: the holdings afford no use, or a dynamically priced ability's
+         * base price exceeds them.
+         *
+         * @param holdings    the mB the player holds of the ability's type across the inventory
+         * @param reagentSets the whole sets of the ability's consumed items the inventory holds
+         * @return true when the petal reads unaffordable
+         */
+        public boolean dimsAt(int holdings, int reagentSets) {
+            return AffordedCount.reckon(this, holdings, reagentSets).map(AffordedCount::affordsNone)
+                    .orElse(price() > holdings);
         }
 
         /**
