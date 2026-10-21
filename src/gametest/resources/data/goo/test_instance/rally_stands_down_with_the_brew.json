@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:rally_stands_down_with_the_brew",
+  "environment": "goo:rally_reload",
+  "structure": "goo:test_bay",
+  "max_ticks": 20,
+  "setup_ticks": 0,
+  "required": true
+}
