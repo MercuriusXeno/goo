@@ -369,7 +369,7 @@ final class GooValueExpression {
     private static ExprVal parseSingleTypeGoo(String typeSuffix, GooValue tree) {
         try {
             ResourceKey<GooTypeDefinition> type = GooTypes.parseKnown(typeSuffix);
-            return new GooVal(new GooValue(Map.of(type, tree.get(type))));
+            return new GooVal(GooValue.ofExact(Map.of(type, tree.exact(type))));
         } catch (IllegalArgumentException ignored) {
             return null;
         }
@@ -497,7 +497,7 @@ final class GooValueExpression {
 
         @Override
         public int toInt() {
-            return value.totalGoo();
+            return value.totalExact().floor();
         }
 
         @Override

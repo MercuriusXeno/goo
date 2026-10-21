@@ -25,11 +25,12 @@ public interface IGooValueLookup {
     static @Nullable Identifier findCheapestAmong(
             Set<Identifier> candidates, Function<Identifier, GooValue> lookup) {
         Identifier cheapestId = null;
-        int cheapestTotal = Integer.MAX_VALUE;
+        GooFraction cheapestTotal = null;
         for (Identifier itemId : candidates) {
             GooValue val = lookup.apply(itemId);
-            if (val != null && !val.isEmpty() && val.totalGoo() < cheapestTotal) {
-                cheapestTotal = val.totalGoo();
+            if (val != null && !val.isEmpty()
+                    && (cheapestTotal == null || val.totalExact().compareTo(cheapestTotal) < 0)) {
+                cheapestTotal = val.totalExact();
                 cheapestId = itemId;
             }
         }

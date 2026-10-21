@@ -164,6 +164,22 @@ public final class TestRecipeBuilder {
     }
 
     /**
+     * Creates a single-type GooValue holding the exact fraction numerator / denominator.
+     */
+    public static GooValue fraction(ResourceKey<GooTypeDefinition> type, long numerator, long denominator) {
+        return GooValue.ofExact(Map.of(type, GooFraction.of(numerator, denominator)));
+    }
+
+    /**
+     * Creates a two-type GooValue, each type holding an exact fraction.
+     */
+    public static GooValue fraction(ResourceKey<GooTypeDefinition> type1, long numerator1, long denominator1,
+                                    ResourceKey<GooTypeDefinition> type2, long numerator2, long denominator2) {
+        return GooValue.ofExact(Map.of(type1, GooFraction.of(numerator1, denominator1),
+                type2, GooFraction.of(numerator2, denominator2)));
+    }
+
+    /**
      * Shorthand for creating an Identifier from a string.
      */
     public static Identifier id(String value) {

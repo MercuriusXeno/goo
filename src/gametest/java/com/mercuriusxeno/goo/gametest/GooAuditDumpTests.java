@@ -23,9 +23,12 @@ import java.util.function.Consumer;
 public final class GooAuditDumpTests {
     private static final String VALUES_AUDIT_DUMP = "values_audit_dump";
     private static final List<String> SECTIONS_IN_ORDER = List.of(
-            "EXPRESSION WARNINGS", "PHANTOM IDS", "CYCLES", "CONFLICTS", "DIVISIBILITY LOSS",
+            "EXPRESSION WARNINGS", "PHANTOM IDS", "CYCLES", "CONFLICTS",
             "NO VALUE", "FORMULAS", "REACTIONS", "ALL VALUES");
+    // Decision values-are-fractions-melt-floors-fabricate-ceils: division is exact, so nothing is lost to report.
+    private static final String RETIRED_SECTION = "DIVISIBILITY LOSS";
     private static final String SECTION_MISSING = "The audit dump holds no section, in order, headed ";
+    private static final String SECTION_RETIRED = "The audit dump still holds a section headed ";
     private static final String UNREADABLE = "The audit dump could not be read back: ";
 
     private GooAuditDumpTests() {
@@ -66,6 +69,7 @@ public final class GooAuditDumpTests {
             helper.assertTrue(found >= 0, SECTION_MISSING + section);
             from = found + 1;
         }
+        helper.assertTrue(headerIndex(lines, RETIRED_SECTION, 0) < 0, SECTION_RETIRED + RETIRED_SECTION);
         helper.succeed();
     }
 

@@ -128,7 +128,7 @@ public final class SpireTests {
 
     private static int stoneRockValue(GameTestHelper helper) {
         GooValue value = GooValues.of(helper.getLevel()).lookup(BuiltInRegistries.ITEM.getKey(Blocks.STONE.asItem()));
-        return value == null ? 0 : value.get(GooTypes.ROCK);
+        return value == null ? 0 : value.fabricateCeiling(GooTypes.ROCK);
     }
 
     private static AbilityDefinition spire(GameTestHelper helper) {

@@ -24,6 +24,7 @@ final class GooValueJsonFormat {
      * Log warning for unknown goo type in value JSON.
      */
     private static final String WARN_UNKNOWN_TYPE = "Unknown goo type in values: {}";
+    private static final char FRACTION_DIVIDER = '/';
 
     /**
      * Utility class, not instantiable.
@@ -33,7 +34,6 @@ final class GooValueJsonFormat {
 
     /**
      * Parses a flat goo value JSON object with integer-only values (no expressions).
-     * Used when loading the pre-resolved effective cache file.
      *
      * @param json JSON object whose keys are goo type names and values are integers
      * @return parsed GooValue
@@ -123,9 +123,45 @@ final class GooValueJsonFormat {
      */
     static JsonObject toJson(GooValue value) {
         JsonObject json = new JsonObject();
-        value.getAll().forEach((type, amount) ->
-                json.addProperty(GooTypes.id(type), amount));
+        value.exactAll().forEach((type, amount) -> {
+            if (amount.isWhole()) {
+                json.addProperty(GooTypes.id(type), amount.numerator());
+            } else {
+                json.addProperty(GooTypes.id(type), amount.toString());
+            }
+        });
         return json;
+    }
+
+    /**
+     * Parses a value written by {@link #toJson}: each type holds a whole number or a
+     * "numerator/denominator" string. Used when loading the effective cache file.
+     * Decision values-are-fractions-melt-floors-fabricate-ceils: the cache keeps fractions whole.
+     *
+     * @param json JSON object whose keys are goo type names
+     * @return the exact value
+     */
+    static GooValue parseExactGooValue(JsonObject json) {
+        Map<ResourceKey<GooTypeDefinition>, GooFraction> map = new LinkedHashMap<>();
+        for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
+            try {
+                map.put(GooTypes.parseKnown(entry.getKey()), parseFraction(entry.getValue().getAsString()));
+            } catch (IllegalArgumentException e) {
+                if (LOGGER.isWarnEnabled()) {
+                    LOGGER.warn(WARN_UNKNOWN_TYPE, entry.getKey());
+                }
+            }
+        }
+        return GooValue.ofExact(map);
+    }
+
+    private static GooFraction parseFraction(String text) {
+        int divider = text.indexOf(FRACTION_DIVIDER);
+        if (divider < 0) {
+            return GooFraction.of(Long.parseLong(text.trim()));
+        }
+        return GooFraction.of(Long.parseLong(text.substring(0, divider).trim()),
+                Long.parseLong(text.substring(divider + 1).trim()));
     }
 
     /**

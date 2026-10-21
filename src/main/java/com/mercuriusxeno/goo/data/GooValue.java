@@ -7,11 +7,14 @@ import net.minecraft.resources.ResourceKey;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.ToIntFunction;
 
 // Arithmetic operations live in GooValueArithmetic; instance methods delegate there.
 
 /**
- * Represents the goo composition of an item: how many goo of each type it contains.
+ * Represents the goo composition of an item: how much goo of each type it contains.
+ * Decision values-are-fractions-melt-floors-fabricate-ceils: each amount is an exact
+ * fraction; melting reads the floor of each type and fabricating reads the ceiling.
  */
 public class GooValue {
 
@@ -30,40 +33,113 @@ public class GooValue {
      */
     private static final String KV_SEPARATOR = ": ";
 
-    private final Map<ResourceKey<GooTypeDefinition>, Integer> values;
+    private final Map<ResourceKey<GooTypeDefinition>, GooFraction> amounts;
 
     /**
-     * Creates a GooValue from a map of goo types to amounts.
-     * Zero-valued entries are stripped; the internal map is an EnumMap copy.
+     * Creates a GooValue from whole amounts per goo type. Zero entries are stripped.
      *
-     * @param values goo type amounts (zero entries are excluded)
+     * @param values whole goo type amounts (zero entries are excluded)
      */
     public GooValue(Map<ResourceKey<GooTypeDefinition>, Integer> values) {
-        this.values = new HashMap<>();
+        this.amounts = new HashMap<>();
         values.forEach((type, amount) -> {
             if (amount != 0) {
-                this.values.put(type, amount);
+                this.amounts.put(type, GooFraction.of(amount));
             }
         });
     }
 
     /**
-     * Returns the amount of the given goo type, or 0 if absent.
+     * Creates a GooValue from exact amounts per goo type. Zero entries are stripped.
      *
-     * @param type the goo type to query
-     * @return amount in goo, or 0
+     * @param exactAmounts exact goo type amounts
+     * @return the value holding those amounts
      */
-    public int get(ResourceKey<GooTypeDefinition> type) {
-        return values.getOrDefault(type, 0);
+    public static GooValue ofExact(Map<ResourceKey<GooTypeDefinition>, GooFraction> exactAmounts) {
+        GooValue value = new GooValue(Collections.emptyMap());
+        exactAmounts.forEach((type, amount) -> {
+            if (!amount.isZero()) {
+                value.amounts.put(type, amount);
+            }
+        });
+        return value;
     }
 
     /**
-     * Returns an unmodifiable view of all goo type amounts.
+     * The exact amount of a type, zero when absent.
      *
-     * @return map of goo types to their amounts (never null, may be empty)
+     * @param type the goo type to query
+     * @return the exact amount
      */
-    public Map<ResourceKey<GooTypeDefinition>, Integer> getAll() {
-        return Collections.unmodifiableMap(values);
+    public GooFraction exact(ResourceKey<GooTypeDefinition> type) {
+        return amounts.getOrDefault(type, GooFraction.ZERO);
+    }
+
+    /**
+     * An unmodifiable view of every exact amount.
+     *
+     * @return map of goo types to exact amounts (never null, may be empty)
+     */
+    public Map<ResourceKey<GooTypeDefinition>, GooFraction> exactAll() {
+        return Collections.unmodifiableMap(amounts);
+    }
+
+    /**
+     * What melting pays in a type: the floor of its exact amount.
+     *
+     * @param type the goo type to query
+     * @return the floor, 0 when absent
+     */
+    public int meltFloor(ResourceKey<GooTypeDefinition> type) {
+        return exact(type).floor();
+    }
+
+    /**
+     * What melting pays per type; a type flooring to zero is absent.
+     *
+     * @return map of goo types to floored amounts
+     */
+    public Map<ResourceKey<GooTypeDefinition>, Integer> meltFloorAll() {
+        return wholeView(GooFraction::floor);
+    }
+
+    /**
+     * The sum of what melting pays across every type.
+     *
+     * @return the total of each type's floor
+     */
+    public int meltFloorTotal() {
+        return meltFloorAll().values().stream().mapToInt(Integer::intValue).sum();
+    }
+
+    /**
+     * What fabricating costs in a type: the ceiling of its exact amount.
+     *
+     * @param type the goo type to query
+     * @return the ceiling, 0 when absent
+     */
+    public int fabricateCeiling(ResourceKey<GooTypeDefinition> type) {
+        return exact(type).ceiling();
+    }
+
+    /**
+     * What fabricating costs per type.
+     *
+     * @return map of goo types to ceiled amounts
+     */
+    public Map<ResourceKey<GooTypeDefinition>, Integer> fabricateCeilingAll() {
+        return wholeView(GooFraction::ceiling);
+    }
+
+    private Map<ResourceKey<GooTypeDefinition>, Integer> wholeView(ToIntFunction<GooFraction> rounding) {
+        Map<ResourceKey<GooTypeDefinition>, Integer> view = new HashMap<>();
+        amounts.forEach((type, amount) -> {
+            int whole = rounding.applyAsInt(amount);
+            if (whole != 0) {
+                view.put(type, whole);
+            }
+        });
+        return Collections.unmodifiableMap(view);
     }
 
     /**
@@ -72,7 +148,7 @@ public class GooValue {
      * @return true if the value map is empty
      */
     public boolean isEmpty() {
-        return values.isEmpty();
+        return amounts.isEmpty();
     }
 
     /**
@@ -81,7 +157,7 @@ public class GooValue {
      * @return true if any type's amount is below zero
      */
     public boolean hasNegative() {
-        return values.values().stream().anyMatch(v -> v < 0);
+        return amounts.values().stream().anyMatch(GooFraction::isNegative);
     }
 
     /**
@@ -90,16 +166,20 @@ public class GooValue {
      * @return the count of goo types present
      */
     public int typeCount() {
-        return values.size();
+        return amounts.size();
     }
 
     /**
-     * Returns the sum of all goo type amounts.
+     * The exact sum of every type's amount.
      *
      * @return total goo across all types
      */
-    public int totalGoo() {
-        return values.values().stream().mapToInt(Integer::intValue).sum();
+    public GooFraction totalExact() {
+        GooFraction total = GooFraction.ZERO;
+        for (GooFraction amount : amounts.values()) {
+            total = total.plus(amount);
+        }
+        return total;
     }
 
     /**
@@ -110,9 +190,9 @@ public class GooValue {
      */
     public ResourceKey<GooTypeDefinition> largestType() {
         ResourceKey<GooTypeDefinition> largest = null;
-        int highest = 0;
-        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : values.entrySet()) {
-            if (entry.getValue() > highest) {
+        GooFraction highest = GooFraction.ZERO;
+        for (Map.Entry<ResourceKey<GooTypeDefinition>, GooFraction> entry : amounts.entrySet()) {
+            if (entry.getValue().compareTo(highest) > 0) {
                 highest = entry.getValue();
                 largest = entry.getKey();
             }
@@ -132,8 +212,7 @@ public class GooValue {
     }
 
     /**
-     * Returns a new GooValue with per-type subtraction, flooring each type at zero.
-     * Types that reach zero or below are excluded from the result.
+     * Returns a new GooValue with per-type subtraction; a type reaching zero is excluded.
      *
      * @param other the value to subtract
      * @return a new GooValue with the difference
@@ -154,8 +233,8 @@ public class GooValue {
     }
 
     /**
-     * Returns a new GooValue with all type volumes scaled by the given fraction.
-     * Rounds each type to the nearest integer. Types that round to zero are excluded.
+     * Returns a new GooValue with all type amounts scaled by the given ratio, each
+     * rounded to the nearest whole. Types that round to zero are excluded.
      *
      * @param fraction the scaling factor (e.g. 0.5 for half value)
      * @return a new scaled GooValue
@@ -175,54 +254,51 @@ public class GooValue {
     }
 
     /**
-     * Divides all type amounts by divisor, throwing if any type has a remainder.
+     * Divides all type amounts by divisor exactly, keeping every fraction.
      *
      * @param divisor the divisor for each type's amount
-     * @return a new GooValue with divided amounts
-     * @throws ArithmeticException if any type's amount is not evenly divisible
-     */
-    public GooValue divideExact(int divisor) {
-        return GooValueArithmetic.divideExact(this, divisor);
-    }
-
-    /**
-     * Divides all values by divisor (integer division, floors).
-     *
-     * @param divisor the divisor for each type's amount
-     * @return a new GooValue with floored divided amounts
+     * @return a new GooValue with the exact shares
      */
     public GooValue divide(int divisor) {
         return GooValueArithmetic.divide(this, divisor);
     }
 
     /**
-     * Converts this GooValue to a GooContents, using int amounts.
-     * Used when creating a PartiallyMeltedItem from an item's goo value.
+     * What melting one item pays, as goo contents.
      *
-     * @return a GooContents with the same type amounts widened to long
+     * @return the melt floor of each type
      */
     public GooContents toGooContents() {
         return toGooContents(1);
     }
 
     /**
-     * Converts this GooValue to a GooContents scaled by item count.
-     * Each type's amount is multiplied by count before using int.
+     * What melting count items pays, each item paying its own melt floor.
      *
-     * @param count number of items to scale by
-     * @return a GooContents with scaled amounts widened to long
+     * @param count number of items melted
+     * @return the melt floor of each type, times count
      */
     public GooContents toGooContents(int count) {
         if (isEmpty() || count <= 0) {
             return GooContents.EMPTY;
         }
-        Map<ResourceKey<GooTypeDefinition>, Integer> longMap = new HashMap<>();
-        values.forEach((type, amount) -> longMap.put(type, amount * count));
-        return new GooContents(longMap);
+        Map<ResourceKey<GooTypeDefinition>, Integer> paid = new HashMap<>();
+        meltFloorAll().forEach((type, amount) -> paid.put(type, amount * count));
+        return new GooContents(paid);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        return this == other || other instanceof GooValue value && amounts.equals(value.amounts);
+    }
+
+    @Override
+    public int hashCode() {
+        return amounts.hashCode();
     }
 
     /**
-     * Returns a human-readable summary like "metal: 480, jelly: 120", or "none" if empty.
+     * Returns a human-readable summary like "metal: 480, leaf: 64/3", or "none" if empty.
      */
     @Override
     public String toString() {
@@ -230,7 +306,7 @@ public class GooValue {
             return LABEL_NONE;
         }
         StringBuilder sb = new StringBuilder();
-        values.forEach((type, amount) -> {
+        amounts.forEach((type, amount) -> {
             if (sb.length() > 0) {
                 sb.append(TYPE_SEPARATOR);
             }

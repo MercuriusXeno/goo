@@ -23,7 +23,7 @@ public final class MeltMeshGoo {
      */
     public static MingledGoo of(BlockState state) {
         GooValue value = valueOf(state);
-        return value == null ? MingledGoo.NONE : MingledGoo.of(value.getAll());
+        return value == null ? MingledGoo.NONE : MingledGoo.of(value.meltFloorAll());
     }
 
     /**
@@ -32,7 +32,7 @@ public final class MeltMeshGoo {
      */
     public static long volumeOf(BlockState state) {
         GooValue value = valueOf(state);
-        return value == null ? 0 : value.totalGoo();
+        return value == null ? 0 : value.meltFloorTotal();
     }
 
     private static @Nullable GooValue valueOf(BlockState state) {
