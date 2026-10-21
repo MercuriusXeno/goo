@@ -24,7 +24,7 @@ public final class GooAuditDumpTests {
     private static final String VALUES_AUDIT_DUMP = "values_audit_dump";
     private static final List<String> SECTIONS_IN_ORDER = List.of(
             "EXPRESSION WARNINGS", "PHANTOM IDS", "CYCLES", "CONFLICTS", "DIVISIBILITY LOSS",
-            "NO VALUE", "FORMULAS", "REACTIONS", "ALL VALUES");
+            "LEAST BASE PER TYPE", "NO VALUE", "FORMULAS", "REACTIONS", "ALL VALUES");
     private static final String SECTION_MISSING = "The audit dump holds no section, in order, headed ";
     private static final String UNREADABLE = "The audit dump could not be read back: ";
 

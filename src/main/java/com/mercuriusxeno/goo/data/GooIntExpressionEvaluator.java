@@ -96,7 +96,9 @@ final class GooIntExpressionEvaluator {
         if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isNumber()) {
             return element.getAsInt();
         }
-        return resolveExpression(element.getAsString().trim(), constants, baseValues, treeConstants);
+        String expression = element.getAsString().trim();
+        return DivisionRemainders.underExpression(expression,
+                () -> resolveExpression(expression, constants, baseValues, treeConstants));
     }
 
     // -- Expression evaluation ------------------------------------------------
@@ -417,6 +419,7 @@ final class GooIntExpressionEvaluator {
             LOGGER.warn(WARN_UNKNOWN_CONSTANT, name);
             return 0;
         }
+        DivisionRemainders.readScalarConstant(name);
         return value;
     }
 
@@ -442,13 +445,15 @@ final class GooIntExpressionEvaluator {
     }
 
     /**
-     * Integer division guarded against divide-by-zero, returning 0 instead.
+     * Integer division guarded against divide-by-zero, returning 0 instead. A remainder it truncates
+     * goes to {@link DivisionRemainders} (decision audit-searches-the-least-base-per-type).
      *
      * @param base    the dividend
      * @param operand the divisor
      * @return the quotient, or 0 if the divisor is zero
      */
     private static int safeDivide(int base, int operand) {
+        DivisionRemainders.reportDivision(base, operand);
         return operand == 0 ? 0 : base / operand;
     }
 

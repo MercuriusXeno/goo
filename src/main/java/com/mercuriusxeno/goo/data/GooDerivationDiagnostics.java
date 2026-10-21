@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.data;
 
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import java.util.*;
 
 /**
@@ -183,14 +185,29 @@ final class GooDerivationDiagnostics {
     static void buildLossIfRemainder(Identifier outputId, RecipeInput recipe,
                                      GooValue inputValue, List<GooValueRegistry.DivisibilityLoss> losses) {
         int count = recipe.resultCount();
-        int lost = 0;
-        for (int amount : inputValue.getAll().values()) {
-            lost += Math.abs(amount % count);
-        }
+        int lost = remainderByType(inputValue, count).values().stream().mapToInt(Integer::intValue).sum();
         if (lost == 0) {
             return;
         }
         losses.add(new GooValueRegistry.DivisibilityLoss(
                 outputId, count, inputValue.totalGoo(), inputValue.divide(count).totalGoo(), lost, recipe));
+    }
+
+    /**
+     * The remainder each goo type leaves when a recipe's input divides by its output count; the least
+     * base search reads it per type (decision audit-searches-the-least-base-per-type).
+     *
+     * @param inputValue total input goo before division
+     * @param count      the recipe's output count
+     * @return each type leaving a remainder, to that remainder
+     */
+    static Map<ResourceKey<GooTypeDefinition>, Integer> remainderByType(GooValue inputValue, int count) {
+        Map<ResourceKey<GooTypeDefinition>, Integer> remainders = new HashMap<>();
+        inputValue.getAll().forEach((type, amount) -> {
+            if (amount % count != 0) {
+                remainders.put(type, Math.abs(amount % count));
+            }
+        });
+        return remainders;
     }
 }

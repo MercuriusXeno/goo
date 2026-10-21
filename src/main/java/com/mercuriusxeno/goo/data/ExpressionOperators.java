@@ -135,6 +135,7 @@ final class ExpressionOperators {
             LOGGER.warn(LOG_CANNOT_DIV_SCALAR);
             return new GooVal(GooValue.EMPTY);
         }
+        gv.getAll().forEach((type, amount) -> DivisionRemainders.reportDivision(amount, scalar, type));
         return new GooVal(gv.divide(scalar));
     }
 
@@ -183,13 +184,15 @@ final class ExpressionOperators {
     }
 
     /**
-     * Divides a by b, returning 0 when b is zero to avoid ArithmeticException.
+     * Divides a by b, returning 0 when b is zero to avoid ArithmeticException. A remainder it truncates
+     * goes to {@link DivisionRemainders} (decision audit-searches-the-least-base-per-type).
      *
      * @param a the dividend
      * @param b the divisor
      * @return the quotient, or 0 if b is zero
      */
     private static int safeDivide(int a, int b) {
+        DivisionRemainders.reportDivision(a, b);
         return b == 0 ? 0 : a / b;
     }
 }
