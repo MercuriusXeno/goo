@@ -4,6 +4,7 @@
   "badge": "world",
   "order": 20,
   "cost": 1000,
+  "cost_formula": "1K x r³",
   "requires": ["minecraft:sculk_catalyst"],
   "delivery": { "kind": "arc" },
   "behaviors": [

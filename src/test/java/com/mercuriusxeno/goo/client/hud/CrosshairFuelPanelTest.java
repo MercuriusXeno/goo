@@ -3,8 +3,10 @@ package com.mercuriusxeno.goo.client.hud;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityArea;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.ArmPose;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
+import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.client.hud.CrosshairFuelPanel.AbilityIcon;
 import com.mercuriusxeno.goo.client.hud.CrosshairFuelPanel.AbilityName;
@@ -20,6 +22,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -77,6 +80,18 @@ class CrosshairFuelPanelTest {
             ClientAbility brew = ability(0, AbilityBadge.BREW, List.of(), 1);
             assertEquals(concat(head(brew), new Count("12s")),
                     CrosshairFuelPanel.rowCells(GooTypes.UNSTABLE, brew, 250, PLENTY, NOT_READ));
+        }
+
+        /** A dynamic ability's row reads the live mB at the aim (decision dynamic-costs-keep-the-mb-quantity). */
+        @Test
+        void dynamicAbilityReadsTheLiveMbAtTheAim() {
+            ClientAbility churn = new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "counted"),
+                    "ability.goo.counted", "", 0, List.of(), List.of(), THOUSAND, Delivery.ARC, AbilityBadge.WORLD,
+                    List.of(), AbilityArea.NONE, IndicatorShowing.HELD, List.of(), 0, DistancePrice.NONE, List.of(),
+                    ArmPose.defaultFor(DeliveryKind.ARC), "ability.goo.counted.description", Optional.empty(),
+                    Optional.of("1K x r³"));
+            assertEquals(concat(head(churn), new Count("700")),
+                    CrosshairFuelPanel.rowCells(GooTypes.UNSTABLE, churn, 3500, PLENTY, "700"));
         }
 
         /** The panel's count and the petal's count for one ability and holdings are one text. */

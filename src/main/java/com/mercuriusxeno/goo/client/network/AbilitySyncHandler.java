@@ -112,6 +112,8 @@ public final class AbilitySyncHandler {
      *                    (decision ability-json-carries-a-description)
      * @param costMechanics the format key explaining how a zero-cost ability charges, empty for none
      *                    (decision zero-cost-field-formats-the-cost-mechanics)
+     * @param costFormula the short formula a dynamically priced ability's petal reads, empty for none
+     *                    (decision dynamic-costs-keep-the-mb-quantity)
      */
     public record ClientAbility(Identifier id, String displayName, String icon,
                                 int order, List<String> tags,
@@ -119,7 +121,39 @@ public final class AbilitySyncHandler {
                                 List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
                                 List<Identifier> consumes, int upkeep, DistancePrice distancePrice,
                                 List<Step> onPrism, ArmPose pose, String description,
-                                Optional<String> costMechanics) {
+                                Optional<String> costMechanics, Optional<String> costFormula) {
+
+        /**
+         * A client ability naming no cost formula.
+         *
+         * @param id            the ability resource identifier
+         * @param displayName   the translation key
+         * @param icon          the icon texture path override
+         * @param order         the sort order
+         * @param tags          categorical tags
+         * @param behaviors     the ability's step program
+         * @param cost          the mB a throw costs
+         * @param delivery      how the ability leaves the glove
+         * @param badge         the target kind the radial marks on the icon
+         * @param requires      the items the player must know before its radial petal unlocks
+         * @param area          the area the glove draws while right click is held
+         * @param indicator     when the ability's indicator shows
+         * @param consumes      the items a throw takes, one of each
+         * @param upkeep        the mB a held self + brew effect pays each tick it stands
+         * @param distancePrice what a blink adds to the cost for its trip
+         * @param onPrism       the steps a landing on a prism runs, empty for none
+         * @param pose          the arm pose the glove arm takes in place of the swing
+         * @param description   the translation key for what the ability does
+         * @param costMechanics the format key explaining how a zero-cost ability charges, empty for none
+         */
+        public ClientAbility(Identifier id, String displayName, String icon, int order, List<String> tags,
+                             List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
+                             List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
+                             List<Identifier> consumes, int upkeep, DistancePrice distancePrice,
+                             List<Step> onPrism, ArmPose pose, String description, Optional<String> costMechanics) {
+            this(id, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires, area, indicator,
+                    consumes, upkeep, distancePrice, onPrism, pose, description, costMechanics, Optional.empty());
+        }
 
         private static final int TICKS_PER_SECOND = 20;
         private static final String PER_SECOND = "/s";
@@ -374,7 +408,7 @@ public final class AbilitySyncHandler {
                     entry.order(), entry.tags(), entry.behaviors(),
                     entry.cost(), entry.delivery(), entry.badge(), entry.requires(), entry.area(),
                     entry.indicator(), entry.consumes(), entry.upkeep(), entry.distancePrice(), entry.onPrism(),
-                    entry.pose(), entry.description(), entry.costMechanics());
+                    entry.pose(), entry.description(), entry.costMechanics(), entry.costFormula());
         }
 
         /**
@@ -460,13 +494,14 @@ public final class AbilitySyncHandler {
         }
 
         /**
-         * Whether the ability's price moves with the target, the trip or the stone it plans, so no
-         * fixed cost counts its uses: one naming cost mechanics and paying no upkeep.
+         * Whether the ability's price moves with the target, the trip, the drag or the stone it
+         * plans, so no fixed cost counts its uses: one naming a cost formula.
+         * dynamic-costs-keep-the-mb-quantity
          *
          * @return true for a dynamically priced ability
          */
         public boolean pricedDynamically() {
-            return costMechanics.isPresent() && upkeep == 0;
+            return costFormula.isPresent();
         }
 
         /**
@@ -489,16 +524,18 @@ public final class AbilitySyncHandler {
         }
 
         /**
-         * What the petal reads: the shorthand cost, then the uses or seconds the holdings afford.
+         * What the petal reads: the shorthand cost, then the uses or seconds the holdings afford,
+         * or a dynamically priced ability's formula.
          * panel-and-petals-count-uses-or-seconds
+         * dynamic-costs-keep-the-mb-quantity
          *
          * @param holdings    the mB the player holds of the ability's type across the inventory
          * @param reagentSets the whole sets of the ability's consumed items the inventory holds
-         * @return "1K | x3" for a one-shot, "1K/s | 12s" for a stream, channel or brew
+         * @return "1K | x3" for a one-shot, "1K/s | 12s" for a stream, channel or brew, "200 + 100/block" for a blink
          */
         public String petalLabel(int holdings, int reagentSets) {
-            return costLabel() + AffordedCount.reckon(this, holdings, reagentSets)
-                    .map(count -> COUNT_SEPARATOR + count.label()).orElse(NO_COUNT);
+            return costFormula.orElseGet(() -> costLabel() + AffordedCount.reckon(this, holdings, reagentSets)
+                    .map(count -> COUNT_SEPARATOR + count.label()).orElse(NO_COUNT));
         }
 
         /**
