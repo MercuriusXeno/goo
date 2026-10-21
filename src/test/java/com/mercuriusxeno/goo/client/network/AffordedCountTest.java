@@ -10,15 +10,19 @@ import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DeliveryKind;
 import com.mercuriusxeno.goo.ability.DistancePrice;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
+import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
+import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -135,6 +139,54 @@ class AffordedCountTest {
         @Test
         void oneShotIgnoresTheStandingUpkeep() {
             assertEquals("x3", count(oneShot(THOUSAND), 3500, FIFTY));
+        }
+    }
+
+    /** A brew standing on the glove counts its time left, its own upkeep counted once (decision active-brew-counts-its-time-left). */
+    @Nested
+    class ActiveBrew {
+
+        private static final long STARTED = 100L;
+        private final ClientAbility brew = ability(0, Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW, List.of(), 1);
+
+        private HeldEffects.Held standingBrew() {
+            return new HeldEffects.Held(brew.id(), GooTypes.BLAZE, 1, Set.of(), STARTED);
+        }
+
+        private static HeldEffects holding(HeldEffects.Held... held) {
+            HeldEffects effects = HeldEffects.NONE;
+            for (HeldEffects.Held effect : held) {
+                effects = effects.start(effect).after();
+            }
+            return effects;
+        }
+
+        @Test
+        void standingBrewCountsItsUpkeepOnce() {
+            StandingUpkeep standing = StandingUpkeep.on(holding(standingBrew()), GooTypes.BLAZE);
+            AffordedCount count = AffordedCount.reckon(brew, 250, NO_REAGENTS, standing).orElseThrow();
+
+            assertEquals("12s", count.label());
+            assertFalse(count.affordsNone());
+        }
+
+        @Test
+        void standingBrewBesideASecondEffectSharesTheGoo() {
+            HeldEffects.Held second = new HeldEffects.Held(Identifier.fromNamespaceAndPath(Goo.MODID, "other"),
+                    GooTypes.BLAZE, 1, Set.of(), STARTED);
+            StandingUpkeep standing = StandingUpkeep.on(holding(standingBrew(), second), GooTypes.BLAZE);
+
+            assertEquals("6s", AffordedCount.reckon(brew, 250, NO_REAGENTS, standing).orElseThrow().label());
+        }
+
+        @Test
+        void drunkBrewStandsNoUpkeepAndKeepsTheProspectiveCount() {
+            HeldEffects.Held drunk = new HeldEffects.Held(brew.id(), GooTypes.BLAZE, 1, Set.of(), STARTED,
+                    STARTED + 1000);
+            StandingUpkeep standing = StandingUpkeep.on(holding(drunk), GooTypes.BLAZE);
+
+            assertEquals(0.0, standing.perTick());
+            assertEquals("12s", AffordedCount.reckon(brew, 250, NO_REAGENTS, standing).orElseThrow().label());
         }
     }
 
