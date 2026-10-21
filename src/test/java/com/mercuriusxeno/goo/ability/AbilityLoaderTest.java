@@ -3,23 +3,33 @@ package com.mercuriusxeno.goo.ability;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.held.LaidState;
 import com.mercuriusxeno.goo.ability.program.AfterimageStep;
+import com.mercuriusxeno.goo.ability.program.AilmentKind;
+import com.mercuriusxeno.goo.ability.program.AilmentOverlayStep;
 import com.mercuriusxeno.goo.ability.program.AirbornStep;
+import com.mercuriusxeno.goo.ability.program.BouncePadStep;
 import com.mercuriusxeno.goo.ability.program.BranchStep;
+import com.mercuriusxeno.goo.ability.program.ChannelHost;
 import com.mercuriusxeno.goo.ability.program.CharmStep;
+import com.mercuriusxeno.goo.ability.program.CoolLavaStep;
+import com.mercuriusxeno.goo.ability.program.EntityFilter;
 import com.mercuriusxeno.goo.ability.program.Expr;
+import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.FloatStep;
 import com.mercuriusxeno.goo.ability.program.GhostTrailStep;
 import com.mercuriusxeno.goo.ability.program.HostVariables;
 import com.mercuriusxeno.goo.ability.program.LingerStep;
 import com.mercuriusxeno.goo.ability.program.PlaceBlockStep;
 import com.mercuriusxeno.goo.ability.program.PotionStep;
+import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.ability.program.SoundStep;
+import com.mercuriusxeno.goo.ability.program.TargetStep;
 import com.mercuriusxeno.goo.ability.program.TeleportStep;
 import com.mercuriusxeno.goo.ability.program.TomeKind;
 import com.mercuriusxeno.goo.ability.program.TomeStep;
 import com.mercuriusxeno.goo.ability.program.Variables;
+import com.mercuriusxeno.goo.ability.program.WobbleStep;
 import com.mercuriusxeno.goo.data.IdentifiedJsonScan;
 import com.mercuriusxeno.goo.registry.GooItems;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -572,6 +582,67 @@ class AbilityLoaderTest {
 
             assertTrue(LaidState.laidBy(rally.behaviors()).contains(LaidState.RALLY),
                     LaidState.laidBy(rally.behaviors()).toString());
+        }
+    }
+
+    /**
+     * Weird's abilities are the make-this-harmless family: Coat's stream coats
+     * what it hits, Bounce stays the long-range pad, and Slime stands apart.
+     * weird-bounces-and-softens-harm
+     */
+    @Nested
+    class WeirdHarmlessFamily {
+
+        @Test
+        void weirdLoadsBounceCoatAndSlimeAlone() {
+            Map<Identifier, AbilityDefinition> scanned = scanShipped(AbilityJson.files());
+
+            Set<String> weird = scanned.values().stream().filter(def -> def.gooType() == GooTypes.WEIRD)
+                    .map(def -> def.id().getPath()).collect(Collectors.toSet());
+
+            assertEquals(Set.of("weird_bounce", "weird_coat", "weird_slime"), weird);
+            assertFalse(scanned.containsKey(Identifier.fromNamespaceAndPath(Goo.MODID, "weird_wobble")),
+                    "weird_wobble still loads");
+            assertFalse(scanned.containsKey(Identifier.fromNamespaceAndPath(Goo.MODID, "weird_magma")),
+                    "weird_magma still loads");
+        }
+
+        @Test
+        void coatStreamsAPadOnTheFloorItHits() {
+            AbilityDefinition coat = AbilityJson.decode("weird_coat");
+
+            assertEquals(DeliveryKind.STREAM, coat.delivery().kind());
+            assertEquals(List.of(BouncePadStep.class), coat.onBlocks().stream().map(Object::getClass).toList());
+            assertTrue(ProgramBehavior.serves(coat.onBlocks(), HostKind.SURFACE), "the sprayed floor runs the pad");
+        }
+
+        @Test
+        void coatCoolsTheLavaInItsConeInTheBlockPass() {
+            List<Step> blockPass = ChannelHost.passSteps(AbilityJson.decode("weird_coat").behaviors(), true);
+
+            assertEquals(List.of(CoolLavaStep.class), blockPass.stream().map(Object::getClass).toList());
+            assertTrue(ProgramBehavior.serves(blockPass, HostKind.PLAYER), "the channeling player runs the block pass");
+        }
+
+        @Test
+        void coatWobblesTheMobItHitsUnderTheWobbleOverlay() {
+            List<Step> entityPass = ChannelHost.passSteps(AbilityJson.decode("weird_coat").behaviors(), false);
+
+            TargetStep onMob = entityPass.stream().filter(TargetStep.class::isInstance).map(TargetStep.class::cast)
+                    .findFirst().orElseThrow();
+            assertEquals(List.of(EntityFilter.MOB), onMob.where());
+            assertTrue(onMob.steps().stream().anyMatch(WobbleStep.class::isInstance), "no wobble step on the mob");
+            assertTrue(onMob.steps().stream().anyMatch(step -> step instanceof AilmentOverlayStep overlay
+                    && overlay.kind() == AilmentKind.WOBBLE), "no wobble overlay on the mob");
+            assertTrue(ProgramBehavior.serves(entityPass, HostKind.ENTITY), "the struck entity runs the entity pass");
+        }
+
+        @Test
+        void bounceStandsAsTheArcPad() {
+            AbilityDefinition bounce = AbilityJson.decode("weird_bounce");
+
+            assertEquals(DeliveryKind.ARC, bounce.delivery().kind());
+            assertEquals(List.of(BouncePadStep.class), bounce.behaviors().stream().map(Object::getClass).toList());
         }
     }
 

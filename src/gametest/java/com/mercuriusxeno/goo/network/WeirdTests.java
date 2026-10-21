@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.network;
 
+import com.mercuriusxeno.goo.ability.AbilityDefinition;
+import com.mercuriusxeno.goo.ability.AbilityRegistry;
+import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.network.GooEffectScheduler.PendingEffect;
 import com.mercuriusxeno.goo.ability.weird.Wobbled;
 import com.mercuriusxeno.goo.registry.GooAttachments;
@@ -8,6 +11,8 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.pig.Pig;
 import net.minecraft.world.entity.monster.zombie.Zombie;
@@ -18,10 +23,12 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import com.mercuriusxeno.goo.gametest.GooTestFunctions;
 import com.mercuriusxeno.goo.gametest.RegistersGameTests;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Gametests for Weird's abilities, each cast through the real landing path.
+ * Gametests for Weird's abilities, each cast through its real path: a blob
+ * through its landing, Coat through the stream tick.
  * weird-bounces-and-softens-harm
  */
 @RegistersGameTests
@@ -29,11 +36,27 @@ public final class WeirdTests {
 
     /** Marks a pending effect aimed at a block rather than an entity. */
     private static final int NO_ENTITY = -1;
-    private static final String MAGMA = "goo:weird_magma";
-    private static final String TURNS_LAVA_TO_MAGMA = "weird_turns_lava_to_magma";
+    private static final Identifier COAT = Identifier.parse("goo:weird_coat");
+    private static final String ABILITY_REQUIRED = "Ability registry must hold goo:weird_coat";
+    private static final String COAT_COOLS_LAVA = "coat_cools_lava_to_magma";
+    private static final String COAT_LAYS_PADS = "coat_lays_a_pad_on_the_floor";
+    private static final String SOFTEN_TRADES_DAMAGE = "coat_softens_the_mob_it_hits";
     private static final BlockPos POOL_FLOOR = new BlockPos(2, 0, 2);
-    private static final int POOL_REACH = 1;
-    private static final String LAVA_LEFT = "Weird landing in lava should leave magma where the lava stood at ";
+    private static final BlockPos STREAMER_POS = new BlockPos(0, 1, 2);
+    private static final float FACING_EAST = -90f;
+    /** Pitched down at the floor three and four blocks east, so both floor cells stand in Coat's cone. */
+    private static final float AT_THE_FLOOR = 32f;
+    /** Pitched a little down at a zombie four blocks east. */
+    private static final float AT_THE_ZOMBIE = 8f;
+    /** Two floor cells three and four blocks east of the streamer, inside Coat's cone pitched at the floor. */
+    private static final List<BlockPos> LAVA_CELLS = List.of(new BlockPos(3, 0, 2), new BlockPos(4, 0, 2));
+    private static final BlockPos ZOMBIE_POS = new BlockPos(4, 1, 2);
+    private static final int COAT_HOLD_TICKS = 10;
+    /** The open cells above the floor Coat's cone reaches when pitched at it run along the look from here. */
+    private static final int PAD_NEAR_X = 1;
+    private static final int PAD_FAR_X = 7;
+    private static final String LAVA_LEFT = "Coat's stream should leave magma where the lava stood at ";
+    private static final String NO_COAT_PAD = "Coat's stream held on a stone floor should leave a bounce pad on it";
     private static final String BOUNCE = "goo:weird_bounce";
     private static final String PAD_BREAKS_THE_FALL = "weird_pad_breaks_the_fall";
     /** The test bay's roof stands five blocks over the pad, so the pig starts under it. */
@@ -45,10 +68,9 @@ public final class WeirdTests {
     private static final String NOT_LAUNCHED = "A pig falling onto the pad should leave it moving upward";
     private static final String HURT = "A pig falling onto the pad should keep its full health, has ";
     private static final String PAD_STANDS = "The bounce pad should be gone once its time has passed";
-    private static final String WOBBLE = "goo:weird_wobble";
     private static final String SLIME = "goo:weird_slime";
     private static final String SLIME_BLOB_MAKES_A_SLIME = "slime_blob_makes_a_slime";
-    private static final String SOFTEN_TRADES_DAMAGE = "weird_soften_trades_damage_for_knockback";
+    private static final String NOT_WOBBLED = "A zombie in Coat's stream should be wobbled";
     private static final String HURT_BY_SOFTENED = "A softened zombie's hit should leave the player's health full, has ";
     private static final String NOT_KNOCKED = "A softened zombie's hit should knock the player back";
     private static final String FADED_STILL_SOFT = "Once the wobble has faded, the zombie's hit should hurt the player";
@@ -62,9 +84,10 @@ public final class WeirdTests {
      * @param registrar the test function registrar
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
-        GooTestFunctions.registerTest(registrar, TURNS_LAVA_TO_MAGMA, WeirdTests::weirdTurnsLavaToMagma);
+        GooTestFunctions.registerTest(registrar, COAT_COOLS_LAVA, WeirdTests::coatCoolsLavaToMagma);
+        GooTestFunctions.registerTest(registrar, COAT_LAYS_PADS, WeirdTests::coatLaysAPadOnTheFloor);
         GooTestFunctions.registerTest(registrar, PAD_BREAKS_THE_FALL, WeirdTests::weirdPadBreaksTheFall);
-        GooTestFunctions.registerTest(registrar, SOFTEN_TRADES_DAMAGE, WeirdTests::weirdSoftenTradesDamageForKnockback);
+        GooTestFunctions.registerTest(registrar, SOFTEN_TRADES_DAMAGE, WeirdTests::coatSoftensTheMobItHits);
         GooTestFunctions.registerTest(registrar, SLIME_BLOB_MAKES_A_SLIME, WeirdTests::slimeBlobMakesASlime);
     }
 
@@ -84,29 +107,29 @@ public final class WeirdTests {
     }
 
     /**
-     * A zombie struck by a Weird Wobble blob strikes a survival player: the
+     * A zombie in Coat's stream is wobbled and strikes a survival player: the
      * player keeps its full health and is knocked back instead; once the
      * wobble has faded, the zombie's next hit hurts the player.
      *
      * @param helper the gametest helper
      */
-    public static void weirdSoftenTradesDamageForKnockback(GameTestHelper helper) {
-        helper.setBlock(POOL_FLOOR, Blocks.STONE);
-        Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, POOL_FLOOR.above());
-        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
-        player.setPos(helper.absoluteVec(Vec3.atBottomCenterOf(POOL_FLOOR.above().east())));
-        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.WEIRD,
-                zombie.getId(), zombie.blockPosition(), Direction.UP, WOBBLE));
-        player.setDeltaMovement(Vec3.ZERO);
-        zombie.doHurtTarget(helper.getLevel(), player);
-        helper.assertTrue(player.getHealth() == player.getMaxHealth(), HURT_BY_SOFTENED + player.getHealth());
-        helper.assertTrue(player.getDeltaMovement().horizontalDistance() > 0, NOT_KNOCKED);
+    public static void coatSoftensTheMobItHits(GameTestHelper helper) {
+        Zombie zombie = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, ZOMBIE_POS);
+        ServerPlayer streamer = streamerAt(helper, AT_THE_ZOMBIE);
+        holdCoat(helper, streamer, () -> {
+            helper.assertTrue(zombie.hasData(GooAttachments.WOBBLED), NOT_WOBBLED);
+            Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+            player.setPos(helper.absoluteVec(Vec3.atBottomCenterOf(ZOMBIE_POS.east())));
+            player.setDeltaMovement(Vec3.ZERO);
+            zombie.doHurtTarget(helper.getLevel(), player);
+            helper.assertTrue(player.getHealth() == player.getMaxHealth(), HURT_BY_SOFTENED + player.getHealth());
+            helper.assertTrue(player.getDeltaMovement().horizontalDistance() > 0, NOT_KNOCKED);
 
-        zombie.setData(GooAttachments.WOBBLED, new Wobbled(helper.getLevel().getGameTime()));
-        player.invulnerableTime = 0;
-        zombie.doHurtTarget(helper.getLevel(), player);
-        helper.assertTrue(player.getHealth() < player.getMaxHealth(), FADED_STILL_SOFT);
-        helper.succeed();
+            zombie.setData(GooAttachments.WOBBLED, new Wobbled(helper.getLevel().getGameTime()));
+            player.invulnerableTime = 0;
+            zombie.doHurtTarget(helper.getLevel(), player);
+            helper.assertTrue(player.getHealth() < player.getMaxHealth(), FADED_STILL_SOFT);
+        });
     }
 
     /**
@@ -138,27 +161,85 @@ public final class WeirdTests {
     }
 
     /**
-     * A Weird blob thrown through a three-by-three lava pool strikes its
-     * floor, lands in the lava above it, and leaves magma blocks where the
-     * pool's lava stood.
+     * Coat's stream held over two lava cells in a stone floor cools both to
+     * magma blocks.
      *
      * @param helper the gametest helper
      */
-    public static void weirdTurnsLavaToMagma(GameTestHelper helper) {
-        for (BlockPos floor : poolFloor()) {
-            helper.setBlock(floor, Blocks.STONE);
-            helper.setBlock(floor.above(), Blocks.LAVA);
+    public static void coatCoolsLavaToMagma(GameTestHelper helper) {
+        for (BlockPos cell : LAVA_CELLS) {
+            helper.setBlock(cell, Blocks.LAVA);
         }
-        GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null, GooTypes.WEIRD,
-                NO_ENTITY, helper.absolutePos(POOL_FLOOR), Direction.UP, MAGMA));
-        for (BlockPos floor : poolFloor()) {
-            helper.assertTrue(helper.getBlockState(floor.above()).is(Blocks.MAGMA_BLOCK), LAVA_LEFT + floor.above());
-        }
-        helper.succeed();
+        ServerPlayer streamer = streamerAt(helper, AT_THE_FLOOR);
+        holdCoat(helper, streamer, () -> {
+            for (BlockPos cell : LAVA_CELLS) {
+                helper.assertTrue(helper.getBlockState(cell).is(Blocks.MAGMA_BLOCK), LAVA_LEFT + cell);
+            }
+        });
     }
 
-    private static Iterable<BlockPos> poolFloor() {
-        return BlockPos.betweenClosed(POOL_FLOOR.offset(-POOL_REACH, 0, -POOL_REACH),
-                POOL_FLOOR.offset(POOL_REACH, 0, POOL_REACH));
+    /**
+     * Coat's stream held on a stone floor leaves a bounce pad standing on
+     * it, in an open cell its cone reaches.
+     *
+     * @param helper the gametest helper
+     */
+    public static void coatLaysAPadOnTheFloor(GameTestHelper helper) {
+        for (BlockPos floor : coneFloor()) {
+            helper.setBlock(floor, Blocks.STONE);
+        }
+        ServerPlayer streamer = streamerAt(helper, AT_THE_FLOOR);
+        holdCoat(helper, streamer, () -> {
+            boolean padded = false;
+            for (BlockPos floor : coneFloor()) {
+                padded |= helper.getBlockState(floor.above()).is(GooBlocks.BOUNCE_PAD.get());
+            }
+            helper.assertTrue(padded, NO_COAT_PAD);
+        });
+    }
+
+    private static Iterable<BlockPos> coneFloor() {
+        return BlockPos.betweenClosed(new BlockPos(PAD_NEAR_X, 0, STREAMER_POS.getZ() - 1),
+                new BlockPos(PAD_FAR_X, 0, STREAMER_POS.getZ() + 1));
+    }
+
+    /**
+     * A Weird invoker standing at the bay's west side facing east, pitched down.
+     *
+     * @param helper the gametest helper
+     * @param pitch  the look's pitch, down from level
+     * @return the streamer
+     */
+    private static ServerPlayer streamerAt(GameTestHelper helper, float pitch) {
+        ServerPlayer streamer = SelfDeliveryTests.invoker(helper, GooTypes.WEIRD);
+        Vec3 stand = Vec3.atBottomCenterOf(helper.absolutePos(STREAMER_POS));
+        streamer.setPos(stand.x, stand.y, stand.z);
+        streamer.setYRot(FACING_EAST);
+        streamer.setXRot(pitch);
+        return streamer;
+    }
+
+    /**
+     * Holds Coat's stream through the real stream tick, then removes the
+     * streamer, runs the check and succeeds.
+     *
+     * @param helper   the gametest helper
+     * @param streamer the streaming player
+     * @param check    the assertions run once the hold ends
+     */
+    private static void holdCoat(GameTestHelper helper, ServerPlayer streamer, Runnable check) {
+        AbilityDefinition coat = AbilityRegistry.of(helper.getLevel()).getAbility(COAT);
+        helper.assertTrue(coat != null, ABILITY_REQUIRED);
+        KnownRecipes.teachRequires(streamer, coat);
+        GooStreamPayload tick = GooStreamPayload.unplaned(GooTypes.id(GooTypes.WEIRD), COAT.toString(),
+                streamer.getEyePosition(), streamer.getEyePosition());
+        for (int held = 1; held <= COAT_HOLD_TICKS; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(streamer, tick));
+        }
+        helper.runAfterDelay(COAT_HOLD_TICKS + 1, () -> {
+            helper.getLevel().getServer().getPlayerList().remove(streamer);
+            check.run();
+            helper.succeed();
+        });
     }
 }

@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.PrismCombos;
-import com.mercuriusxeno.goo.ability.program.CoolLavaStep;
 import com.mercuriusxeno.goo.ability.program.ExplodeStep;
 import com.mercuriusxeno.goo.ability.program.HostKind;
 import com.mercuriusxeno.goo.ability.program.LandingHost;
@@ -120,7 +119,7 @@ public final class AbilityImpact {
             landOnPrism(level, prism, type, ability, caster);
             return;
         }
-        Optional<LandingSpot> spot = landingSpot(level, pos, face, ability, point);
+        Optional<LandingSpot> spot = landingSpot(level, pos, face, point);
         if (spot.isEmpty()) {
             return;
         }
@@ -131,33 +130,17 @@ public final class AbilityImpact {
     }
 
     /**
-     * The cell a blob lands in: the one the placement rules pick, and where
-     * they refuse it, the lava cell for an ability that cools lava.
+     * The cell a blob lands in, the one the placement rules pick.
      *
-     * @param level   the server level
-     * @param pos     the struck block
-     * @param face    the struck face
-     * @param ability the ability the goo names
-     * @param point   the aimed point, or null for none
+     * @param level the server level
+     * @param pos   the struck block
+     * @param face  the struck face
+     * @param point the aimed point, or null for none
      * @return the landing, or empty where nothing takes it
      */
     private static Optional<LandingSpot> landingSpot(ServerLevel level, BlockPos pos, Direction face,
-                                                     AbilityDefinition ability, @Nullable Vec3 point) {
-        Optional<LandingSpot> spot = point == null ? LandingSpot.resolve(level, pos, face)
-                : LandingSpot.resolve(level, pos, face, point);
-        return spot.isEmpty() && coolsLava(ability) ? LandingSpot.inLava(level, pos, face) : spot;
-    }
-
-    /**
-     * Whether an ability's landing cools lava, so lava takes the landing the
-     * placement rules refuse every other blob.
-     * weird-bounces-and-softens-harm
-     *
-     * @param ability the landing ability
-     * @return true when the ability's program carries a lava-cooling step
-     */
-    static boolean coolsLava(AbilityDefinition ability) {
-        return ability.behaviors().stream().anyMatch(step -> step.type() == CoolLavaStep.TYPE);
+                                                     @Nullable Vec3 point) {
+        return point == null ? LandingSpot.resolve(level, pos, face) : LandingSpot.resolve(level, pos, face, point);
     }
 
     /**
