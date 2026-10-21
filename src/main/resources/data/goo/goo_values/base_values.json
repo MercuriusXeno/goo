@@ -800,6 +800,7 @@
     "book": "leather + 3 paper",
     "writable_book": "book + feather + ink_sac",
     "written_book": "writable_book",
+    "goo:goo_label": "paper",
 
     "clay_ball": "$mundane_block / 4",
     "honeycomb": "$waxed",
