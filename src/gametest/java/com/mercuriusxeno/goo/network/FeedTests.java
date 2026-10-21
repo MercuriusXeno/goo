@@ -10,6 +10,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.cow.Cow;
+import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.phys.AABB;
 import java.util.List;
 import net.neoforged.neoforge.registries.RegisterEvent;
@@ -22,7 +23,8 @@ import com.mercuriusxeno.goo.gametest.RegistersGameTests;
  * blob striking an adult cow sets it in love, one striking a calf grows it to
  * an adult, one landing on the ground lays a feed that draws a cow from across
  * the bay to eat it, and two zombies reaching a feed together turn on each other
- * over it (decision feed-blob-feeds-and-draws-mobs).
+ * over it (decision feed-blob-feeds-and-draws-mobs). A slime struck by feed, or
+ * eating a laid one, grows a size step (decision slimes-grow-on-jelly-feed).
  */
 @RegistersGameTests
 public final class FeedTests {
@@ -30,6 +32,8 @@ public final class FeedTests {
     private static final String FEED_GROWS_A_CALF = "feed_grows_a_calf";
     private static final String FEED_ON_THE_GROUND_STARTS_A_FIGHT = "feed_on_the_ground_starts_a_fight";
     private static final String FEED_ON_THE_GROUND_DRAWS_A_MOB = "feed_on_the_ground_draws_a_mob";
+    private static final String FEED_GROWS_A_SLIME = "feed_grows_a_slime";
+    private static final String SLIME_EATS_A_LAID_FEED = "slime_eats_a_laid_feed";
 
     /**
      * Registers this class's gametest functions, found and called by GooTestFunctions.
@@ -41,6 +45,8 @@ public final class FeedTests {
         GooTestFunctions.registerTest(registrar, FEED_GROWS_A_CALF, FeedTests::feedGrowsACalf);
         GooTestFunctions.registerTest(registrar, FEED_ON_THE_GROUND_STARTS_A_FIGHT, FeedTests::feedOnTheGroundStartsAFight);
         GooTestFunctions.registerTest(registrar, FEED_ON_THE_GROUND_DRAWS_A_MOB, FeedTests::feedOnTheGroundDrawsAMob);
+        GooTestFunctions.registerTest(registrar, FEED_GROWS_A_SLIME, FeedTests::feedGrowsASlime);
+        GooTestFunctions.registerTest(registrar, SLIME_EATS_A_LAID_FEED, FeedTests::slimeEatsALaidFeed);
     }
 
 
@@ -61,6 +67,10 @@ public final class FeedTests {
     private static final String SHOULD_START_OUT_OF_REACH = "The cow should start out of the feed's reach, %.2f off";
     private static final String SHOULD_DRAW = "The feed should draw the cow to eat it: cow %.2f off, in love %b, feeds left %d, heading to %s, panicking %b";
     private static final String SHOULD_FIGHT = "Two zombies at one feed should target each other: %s and %s";
+    private static final String SHOULD_GROW_SLIME = "Feed number %d should leave the slime size %d, not %d";
+    private static final String SHOULD_EAT_AND_GROW = "The slime should eat the feed and grow to size 2: feeds left %d, size %d";
+    /** The slime's size after each of three feeds: one step, a second, then the cap. */
+    private static final int[] SLIME_SIZES_FED = {2, 4, 4};
 
     private FeedTests() {
     }
@@ -134,6 +144,45 @@ public final class FeedTests {
             double off = cow.position().distanceTo(helper.absoluteVec(NEAR_CORNER.above().getBottomCenter()));
             helper.assertTrue(left == 0 && cow.isInLove(), String.format(SHOULD_DRAW, off, cow.isInLove(), left,
                     cow.getNavigation().getTargetPos(), cow.isPanicking()));
+        });
+    }
+
+    /**
+     * Feed strikes a size-1 slime three times: it grows to 2, then 4, and
+     * stays at 4 (decision slimes-grow-on-jelly-feed).
+     *
+     * @param helper the gametest helper
+     */
+    public static void feedGrowsASlime(GameTestHelper helper) {
+        Slime slime = helper.spawnWithNoFreeWill(EntityType.SLIME, FLOOR.above());
+        slime.setSize(1, true);
+        helper.runAfterDelay(1, () -> {
+            for (int feed = 0; feed < SLIME_SIZES_FED.length; feed++) {
+                strike(helper, slime);
+                helper.assertTrue(slime.getSize() == SLIME_SIZES_FED[feed],
+                        String.format(SHOULD_GROW_SLIME, feed + 1, SLIME_SIZES_FED[feed], slime.getSize()));
+            }
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Feed lands on the ground beside a size-1 slime: the slime eats the laid
+     * feed and grows to size 2 (decision slimes-grow-on-jelly-feed).
+     *
+     * @param helper the gametest helper
+     */
+    public static void slimeEatsALaidFeed(GameTestHelper helper) {
+        Slime slime = helper.spawnWithNoFreeWill(EntityType.SLIME, FLOOR.above());
+        slime.setSize(1, true);
+        helper.runAfterDelay(1, () -> GooEffectScheduler.applyEffect(new PendingEffect(0, helper.getLevel(), null,
+                GooTypes.JELLY, NO_ENTITY, helper.absolutePos(FLOOR), Direction.UP, FEED)));
+        helper.runAfterDelay(SETTLE_TICKS, () -> {
+            int left = helper.getLevel().getEntities(GooEntities.FEED_PILE.get(),
+                    new AABB(helper.absolutePos(FLOOR)).inflate(SEARCH), FeedPile::isAlive).size();
+            helper.assertTrue(left == 0 && slime.getSize() == 2,
+                    String.format(SHOULD_EAT_AND_GROW, left, slime.getSize()));
+            helper.succeed();
         });
     }
 
