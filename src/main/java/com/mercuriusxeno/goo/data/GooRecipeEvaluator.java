@@ -26,7 +26,7 @@ final class GooRecipeEvaluator {
      * @return true if candidate is cheaper than current
      */
     static boolean isCheaper(GooValue candidate, GooValue current) {
-        return candidate.totalGoo() < current.totalGoo();
+        return candidate.totalExact().compareTo(current.totalExact()) < 0;
     }
 
     /**

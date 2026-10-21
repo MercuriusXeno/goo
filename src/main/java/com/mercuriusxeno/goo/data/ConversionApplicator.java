@@ -20,11 +20,6 @@ final class ConversionApplicator {
 
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    private static final String SLASH_SEP = " / ";
-    private static final String LOSSY_PREFIX = "Lossy conversion division: ";
-    private static final String IN_CTX = " in ";
-    private static final String REMAINDER_PREFIX = " (remainder ";
-    private static final String REMAINDER_SUFFIX = ")";
     private static final String LOG_PARALLEL_MISMATCH =
             "Parallel copy size mismatch: {} has {} items, source has {} items";
     private static final String LOG_SCALE_FAILED = "Scale failed for {} (* {} / {}): {}";
@@ -37,75 +32,28 @@ final class ConversionApplicator {
 
     /**
      * Applies a conversion formula N times to a GooValue. All applications use the
-     * original value (simultaneous stacking). Division must be exact or throws.
+     * original value (simultaneous stacking).
+     * Decision values-are-fractions-melt-floors-fabricate-ceils: each division is exact,
+     * so a formula never refuses an amount its divisor does not divide.
      *
      * @param original the item's current value
      * @param formula  the conversion formula
      * @param times    number of simultaneous applications
      * @return the modified GooValue
-     * @throws ArithmeticException if division is lossy
      */
     static GooValue apply(GooValue original, Formula formula, int times) {
-        int sourceAmount = original.get(formula.sourceType());
-        if (sourceAmount == 0) {
+        GooFraction sourceAmount = original.exact(formula.sourceType());
+        if (sourceAmount.isZero()) {
             return original;
         }
-        return computeConversion(original, formula, times, sourceAmount);
-    }
-
-    /**
-     * Performs the actual conversion arithmetic.
-     *
-     * @param original     the item's current goo value
-     * @param formula      the conversion formula to apply
-     * @param times        the conversion multiplier
-     * @param sourceAmount the source goo amount being consumed
-     * @return the converted goo value
-     */
-    private static GooValue computeConversion(GooValue original, Formula formula,
-                                              int times, int sourceAmount) {
-        int perApp = exactDivide(sourceAmount, formula.sourceDivisor(),
-                formula.sourceType() + SLASH_SEP + formula.sourceDivisor());
-        int removed = perApp * times;
-        int added = exactDivide(perApp, formula.targetDivisor(),
-                formula.targetType() + SLASH_SEP + formula.targetDivisor())
-                * formula.targetMultiplier() * times;
-        return applyDelta(original, formula, removed, added);
-    }
-
-    /**
-     * Creates a new GooValue with source removed and target added.
-     *
-     * @param original the item's current goo value
-     * @param formula  the conversion formula to apply
-     * @param removed  the amount of source goo removed
-     * @param added    the amount of target goo added
-     * @return the converted goo value
-     */
-    private static GooValue applyDelta(GooValue original, Formula formula,
-                                       int removed, int added) {
-        Map<ResourceKey<GooTypeDefinition>, Integer> result = new HashMap<>();
-        original.getAll().forEach(result::put);
-        result.merge(formula.sourceType(), -removed, Integer::sum);
-        result.merge(formula.targetType(), added, Integer::sum);
-        return new GooValue(result);
-    }
-
-    /**
-     * Integer division that throws if lossy.
-     *
-     * @param value   the dividend
-     * @param divisor the divisor
-     * @param context description for the error message if lossy
-     * @return the converted goo value
-     */
-    private static int exactDivide(int value, int divisor, String context) {
-        if (value % divisor != 0) {
-            throw new ArithmeticException(
-                    LOSSY_PREFIX + value + IN_CTX + context
-                            + REMAINDER_PREFIX + value % divisor + REMAINDER_SUFFIX);
-        }
-        return value / divisor;
+        GooFraction perApp = sourceAmount.dividedBy(formula.sourceDivisor());
+        GooFraction removed = perApp.times(times);
+        GooFraction added = perApp.dividedBy(formula.targetDivisor())
+                .times(formula.targetMultiplier()).times(times);
+        Map<ResourceKey<GooTypeDefinition>, GooFraction> result = new HashMap<>(original.exactAll());
+        result.merge(formula.sourceType(), removed.negated(), GooFraction::plus);
+        result.merge(formula.targetType(), added, GooFraction::plus);
+        return GooValue.ofExact(result);
     }
 
     /**
@@ -219,7 +167,7 @@ final class ConversionApplicator {
                                       Assignment assignment) {
         try {
             GooValue scaled = current.multiply(assignment.scaleMultiplier())
-                    .divideExact(assignment.scaleDivisor());
+                    .divide(assignment.scaleDivisor());
             effectiveValues.put(itemId, scaled);
         } catch (ArithmeticException e) {
             logScaleError(itemId, assignment, e);

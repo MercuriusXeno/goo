@@ -27,9 +27,9 @@ class GooValueTest {
         map.put(GooTypes.LEAF, 10);
 
         GooValue val = new GooValue(map);
-        assertEquals(0, val.get(GooTypes.METAL));
-        assertEquals(-5, val.get(GooTypes.CRYSTAL));
-        assertEquals(10, val.get(GooTypes.LEAF));
+        assertEquals(GooFraction.of(0), val.exact(GooTypes.METAL));
+        assertEquals(GooFraction.of(-5), val.exact(GooTypes.CRYSTAL));
+        assertEquals(GooFraction.of(10), val.exact(GooTypes.LEAF));
     }
 
     /**
@@ -39,7 +39,7 @@ class GooValueTest {
     void emptyMapProducesEmptyValue() {
         GooValue val = new GooValue(Map.of());
         assertTrue(val.isEmpty());
-        assertEquals(0, val.totalGoo());
+        assertEquals(GooFraction.of(0), val.totalExact());
     }
 
     /**
@@ -48,7 +48,7 @@ class GooValueTest {
     @Test
     void emptySingletonIsEmpty() {
         assertTrue(GooValue.EMPTY.isEmpty());
-        assertEquals(0, GooValue.EMPTY.totalGoo());
+        assertEquals(GooFraction.of(0), GooValue.EMPTY.totalExact());
         assertNull(GooValue.EMPTY.largestType());
     }
 
@@ -60,7 +60,7 @@ class GooValueTest {
     @Test
     void totalGooSumsAllTypes() {
         GooValue val = goo(GooTypes.METAL, 5, GooTypes.CRYSTAL, 3);
-        assertEquals(8, val.totalGoo());
+        assertEquals(GooFraction.of(8), val.totalExact());
     }
 
     /**
@@ -69,7 +69,7 @@ class GooValueTest {
     @Test
     void singleTypeTotalGoo() {
         GooValue val = goo(GooTypes.JELLY, 42);
-        assertEquals(42, val.totalGoo());
+        assertEquals(GooFraction.of(42), val.totalExact());
     }
 
     // ── largestType ──────────────────────────────────────────────────
@@ -102,7 +102,7 @@ class GooValueTest {
         GooValue a = goo(GooTypes.METAL, 5);
         GooValue b = goo(GooTypes.METAL, 3);
         GooValue result = a.add(b, 1);
-        assertEquals(8, result.get(GooTypes.METAL));
+        assertEquals(GooFraction.of(8), result.exact(GooTypes.METAL));
     }
 
     /**
@@ -113,7 +113,7 @@ class GooValueTest {
         GooValue a = goo(GooTypes.ROCK, 2);
         GooValue b = goo(GooTypes.ROCK, 3);
         GooValue result = a.add(b, 4);
-        assertEquals(14, result.get(GooTypes.ROCK)); // 2 + 3*4
+        assertEquals(GooFraction.of(14), result.exact(GooTypes.ROCK)); // 2 + 3*4
     }
 
     /**
@@ -124,8 +124,8 @@ class GooValueTest {
         GooValue a = goo(GooTypes.METAL, 5);
         GooValue b = goo(GooTypes.CRYSTAL, 3);
         GooValue result = a.add(b, 1);
-        assertEquals(5, result.get(GooTypes.METAL));
-        assertEquals(3, result.get(GooTypes.CRYSTAL));
+        assertEquals(GooFraction.of(5), result.exact(GooTypes.METAL));
+        assertEquals(GooFraction.of(3), result.exact(GooTypes.CRYSTAL));
     }
 
     /**
@@ -135,7 +135,7 @@ class GooValueTest {
     void addToEmpty() {
         GooValue b = goo(GooTypes.GLOW, 7);
         GooValue result = GooValue.EMPTY.add(b, 1);
-        assertEquals(7, result.get(GooTypes.GLOW));
+        assertEquals(GooFraction.of(7), result.exact(GooTypes.GLOW));
     }
 
     /**
@@ -150,9 +150,9 @@ class GooValueTest {
         GooValue exposed = new GooValue(exposedMap);
 
         GooValue result = copper.add(exposed, 1);
-        assertEquals(36, result.get(GooTypes.METAL));  // 100 - 64
-        assertEquals(32, result.get(GooTypes.YORE));    // 0 + 32
-        assertEquals(20, result.get(GooTypes.ROCK));    // unchanged
+        assertEquals(GooFraction.of(36), result.exact(GooTypes.METAL));  // 100 - 64
+        assertEquals(GooFraction.of(32), result.exact(GooTypes.YORE));    // 0 + 32
+        assertEquals(GooFraction.of(20), result.exact(GooTypes.ROCK));    // unchanged
     }
 
     /**
@@ -166,7 +166,7 @@ class GooValueTest {
         GooValue drain = new GooValue(bigDrain);
 
         GooValue result = small.add(drain, 1);
-        assertEquals(-40, result.get(GooTypes.METAL));
+        assertEquals(GooFraction.of(-40), result.exact(GooTypes.METAL));
     }
 
     /**
@@ -181,10 +181,10 @@ class GooValueTest {
         GooValue val = new GooValue(map);
 
         GooValue floored = val.floorZero();
-        assertEquals(0, floored.get(GooTypes.METAL));
-        assertEquals(32, floored.get(GooTypes.YORE));
-        assertTrue(floored.getAll().containsKey(GooTypes.YORE));
-        assertFalse(floored.getAll().containsKey(GooTypes.METAL));
+        assertEquals(GooFraction.of(0), floored.exact(GooTypes.METAL));
+        assertEquals(GooFraction.of(32), floored.exact(GooTypes.YORE));
+        assertTrue(floored.exactAll().containsKey(GooTypes.YORE));
+        assertFalse(floored.exactAll().containsKey(GooTypes.METAL));
     }
 
     // ── subtract ────────────────────────────────────────────────────────
@@ -197,8 +197,8 @@ class GooValueTest {
         GooValue a = goo(GooTypes.METAL, 10, GooTypes.CRYSTAL, 8);
         GooValue b = goo(GooTypes.METAL, 3, GooTypes.CRYSTAL, 2);
         GooValue result = a.subtract(b);
-        assertEquals(7, result.get(GooTypes.METAL));
-        assertEquals(6, result.get(GooTypes.CRYSTAL));
+        assertEquals(GooFraction.of(7), result.exact(GooTypes.METAL));
+        assertEquals(GooFraction.of(6), result.exact(GooTypes.CRYSTAL));
     }
 
     /**
@@ -209,7 +209,7 @@ class GooValueTest {
         GooValue a = goo(GooTypes.METAL, 5);
         GooValue b = goo(GooTypes.METAL, 10);
         GooValue result = a.subtract(b);
-        assertEquals(-5, result.get(GooTypes.METAL));
+        assertEquals(GooFraction.of(-5), result.exact(GooTypes.METAL));
     }
 
     /**
@@ -219,7 +219,7 @@ class GooValueTest {
     void subtractFromEmptyGoesNegative() {
         GooValue b = goo(GooTypes.LEAF, 5);
         GooValue result = GooValue.EMPTY.subtract(b);
-        assertEquals(-5, result.get(GooTypes.LEAF));
+        assertEquals(GooFraction.of(-5), result.exact(GooTypes.LEAF));
     }
 
     /**
@@ -230,8 +230,8 @@ class GooValueTest {
         GooValue a = goo(GooTypes.METAL, 10);
         GooValue b = goo(GooTypes.CRYSTAL, 5);
         GooValue result = a.subtract(b);
-        assertEquals(10, result.get(GooTypes.METAL));
-        assertEquals(-5, result.get(GooTypes.CRYSTAL));
+        assertEquals(GooFraction.of(10), result.exact(GooTypes.METAL));
+        assertEquals(GooFraction.of(-5), result.exact(GooTypes.CRYSTAL));
     }
 
     // ── multiply ────────────────────────────────────────────────────────
@@ -243,8 +243,8 @@ class GooValueTest {
     void multiplyScalesAllTypes() {
         GooValue val = goo(GooTypes.METAL, 10, GooTypes.CRYSTAL, 6);
         GooValue result = val.multiply(3);
-        assertEquals(30, result.get(GooTypes.METAL));
-        assertEquals(18, result.get(GooTypes.CRYSTAL));
+        assertEquals(GooFraction.of(30), result.exact(GooTypes.METAL));
+        assertEquals(GooFraction.of(18), result.exact(GooTypes.CRYSTAL));
     }
 
     /**
@@ -274,37 +274,6 @@ class GooValueTest {
         assertTrue(val.multiply(-1).isEmpty());
     }
 
-    // ── divideExact ──────────────────────────────────────────────────────
-
-    /**
-     * Exact division with clean divisor succeeds.
-     */
-    @Test
-    void divideExactClean() {
-        GooValue val = goo(GooTypes.METAL, 18, GooTypes.CRYSTAL, 9);
-        GooValue result = val.divideExact(9);
-        assertEquals(2, result.get(GooTypes.METAL));
-        assertEquals(1, result.get(GooTypes.CRYSTAL));
-    }
-
-    /**
-     * Exact division with remainder throws ArithmeticException.
-     */
-    @Test
-    void divideExactLossyThrows() {
-        GooValue val = goo(GooTypes.METAL, 10);
-        assertThrows(ArithmeticException.class, () -> val.divideExact(3));
-    }
-
-    /**
-     * Exact division by 1 returns same instance.
-     */
-    @Test
-    void divideExactByOneReturnsSame() {
-        GooValue val = goo(GooTypes.BLAZE, 15);
-        assertSame(val, val.divideExact(1));
-    }
-
     // ── divide ──────────────────────────────────────────────────────────
 
     /**
@@ -314,17 +283,17 @@ class GooValueTest {
     void divideEvenly() {
         GooValue val = goo(GooTypes.METAL, 10);
         GooValue result = val.divide(2);
-        assertEquals(5, result.get(GooTypes.METAL));
+        assertEquals(GooFraction.of(5), result.exact(GooTypes.METAL));
     }
 
     /**
-     * Dividing with remainder floors the result.
+     * Dividing with a remainder keeps the exact fraction.
      */
     @Test
-    void divideWithRemainder() {
+    void divideWithRemainderKeepsTheFraction() {
         GooValue val = goo(GooTypes.METAL, 7);
         GooValue result = val.divide(3);
-        assertEquals(2, result.get(GooTypes.METAL)); // 7/3 = 2
+        assertEquals(GooFraction.of(7, 3), result.exact(GooTypes.METAL));
     }
 
     /**
@@ -338,13 +307,13 @@ class GooValueTest {
     }
 
     /**
-     * Dividing can zero out a type (excluded from result).
+     * Dividing keeps a share under one rather than dropping the type.
      */
     @Test
-    void divideCanZeroOutType() {
+    void divideKeepsAShareUnderOne() {
         GooValue val = goo(GooTypes.METAL, 1);
         GooValue result = val.divide(2);
-        assertTrue(result.isEmpty()); // 1/2 = 0 → empty
+        assertEquals(GooFraction.of(1, 2), result.exact(GooTypes.METAL));
     }
 
     /**
@@ -354,8 +323,8 @@ class GooValueTest {
     void multiTypeDivide() {
         GooValue val = goo(GooTypes.METAL, 10, GooTypes.CRYSTAL, 6);
         GooValue result = val.divide(3);
-        assertEquals(3, result.get(GooTypes.METAL)); // 10/3
-        assertEquals(2, result.get(GooTypes.CRYSTAL)); // 6/3
+        assertEquals(GooFraction.of(10, 3), result.exact(GooTypes.METAL));
+        assertEquals(GooFraction.of(2), result.exact(GooTypes.CRYSTAL));
     }
 
     // ── scale ──────────────────────────────────────────────────────────
@@ -367,8 +336,8 @@ class GooValueTest {
     void scaleByHalf() {
         GooValue val = goo(GooTypes.BLAZE, 100, GooTypes.METAL, 50);
         GooValue result = val.scale(0.5);
-        assertEquals(50, result.get(GooTypes.BLAZE));
-        assertEquals(25, result.get(GooTypes.METAL));
+        assertEquals(GooFraction.of(50), result.exact(GooTypes.BLAZE));
+        assertEquals(GooFraction.of(25), result.exact(GooTypes.METAL));
     }
 
     /**
@@ -378,7 +347,7 @@ class GooValueTest {
     void scaleRoundsToNearest() {
         GooValue val = goo(GooTypes.BLAZE, 7);
         GooValue result = val.scale(0.5);
-        assertEquals(4, result.get(GooTypes.BLAZE)); // round(3.5) = 4
+        assertEquals(GooFraction.of(4), result.exact(GooTypes.BLAZE)); // round(3.5) = 4
     }
 
     /**

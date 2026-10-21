@@ -111,7 +111,7 @@ class GooValueRegistryTest {
             assertEquals(1, derived);
             GooValue val = registry.table().lookup(id("minecraft:iron_block"));
             assertNotNull(val);
-            assertEquals(90, val.get(GooTypes.METAL)); // 9 * 10
+            assertEquals(GooFraction.of(90), val.exact(GooTypes.METAL)); // 9 * 10
         }
 
         /**
@@ -131,7 +131,7 @@ class GooValueRegistryTest {
             registry.deriveFromRecipeInputs(recipes, false);
             GooValue val = registry.table().lookup(id("x"));
             assertNotNull(val);
-            assertEquals(6, val.get(GooTypes.METAL)); // cheaper recipe wins
+            assertEquals(GooFraction.of(6), val.exact(GooTypes.METAL)); // cheaper recipe wins
         }
 
         /**
@@ -147,7 +147,7 @@ class GooValueRegistryTest {
             List<RecipeInput> recipes = List.of(recipe("stew", 1, slot("shroom")));
 
             registry.deriveFromRecipeInputs(recipes, false);
-            assertEquals(3, registry.table().lookup(id("stew")).get(GooTypes.JELLY));
+            assertEquals(GooFraction.of(3), registry.table().lookup(id("stew")).exact(GooTypes.JELLY));
         }
 
         /**
@@ -165,7 +165,7 @@ class GooValueRegistryTest {
 
             int derived = registry.deriveFromRecipeInputs(recipes, false);
             assertEquals(2, derived);
-            assertEquals(10, registry.table().lookup(id("final")).get(GooTypes.ROCK));
+            assertEquals(GooFraction.of(10), registry.table().lookup(id("final")).exact(GooTypes.ROCK));
         }
 
         /**
@@ -182,7 +182,7 @@ class GooValueRegistryTest {
             );
 
             registry.deriveFromRecipeInputs(recipes, false);
-            assertEquals(2, registry.table().lookup(id("output")).get(GooTypes.LEAF));
+            assertEquals(GooFraction.of(2), registry.table().lookup(id("output")).exact(GooTypes.LEAF));
         }
 
         /**
@@ -198,7 +198,7 @@ class GooValueRegistryTest {
             );
 
             registry.deriveFromRecipeInputs(recipes, false);
-            assertEquals(5, registry.table().lookup(id("sticks")).get(GooTypes.LEAF));
+            assertEquals(GooFraction.of(5), registry.table().lookup(id("sticks")).exact(GooTypes.LEAF));
         }
 
         /**
@@ -250,8 +250,8 @@ class GooValueRegistryTest {
             registry.deriveFromRecipeInputs(recipes, false);
             GooValue val = registry.table().lookup(id("x"));
             assertNotNull(val);
-            assertEquals(30, val.totalGoo(), "Cheaper recipe wins even with more types");
-            assertEquals(3, val.getAll().size());
+            assertEquals(GooFraction.of(30), val.totalExact(), "Cheaper recipe wins even with more types");
+            assertEquals(3, val.exactAll().size());
         }
 
         /**
@@ -347,7 +347,7 @@ class GooValueRegistryTest {
             registry.deriveFromRecipeInputs(recipes, false);
             GooValue eff = registry.table().lookup(id("derived_only"));
             assertNotNull(eff);
-            assertEquals(10, eff.get(GooTypes.METAL));
+            assertEquals(GooFraction.of(10), eff.exact(GooTypes.METAL));
         }
 
         /**
@@ -362,7 +362,7 @@ class GooValueRegistryTest {
 
             GooValue eff = registry.table().lookup(id("base_only"));
             assertNotNull(eff);
-            assertEquals(7, eff.get(GooTypes.LEAF));
+            assertEquals(GooFraction.of(7), eff.exact(GooTypes.LEAF));
         }
 
         /**
@@ -379,7 +379,7 @@ class GooValueRegistryTest {
             );
 
             registry.deriveFromRecipeInputs(recipes, false);
-            assertEquals(3, registry.table().lookup(id("item")).get(GooTypes.METAL));
+            assertEquals(GooFraction.of(3), registry.table().lookup(id("item")).exact(GooTypes.METAL));
         }
 
         /**
@@ -396,7 +396,7 @@ class GooValueRegistryTest {
             );
 
             registry.deriveFromRecipeInputs(recipes, true);
-            assertEquals(20, registry.table().lookup(id("item")).get(GooTypes.METAL));
+            assertEquals(GooFraction.of(20), registry.table().lookup(id("item")).exact(GooTypes.METAL));
         }
     }
 
@@ -458,87 +458,7 @@ class GooValueRegistryTest {
             Map<Identifier, GooValue> effective = GooValueDerivation.buildEffectiveValues(
                     base, derived, false);
             assertNull(effective.get(id("bad_item")));
-            assertEquals(50, effective.get(id("good_item")).get(GooTypes.ROCK));
-        }
-    }
-
-    // ── Divisibility Loss ───────────────────────────────────────────────
-
-    @Nested
-    class DivisibilityLossDetection {
-
-        /**
-         * Evenly divisible recipe produces no loss.
-         */
-        @Test
-        void evenlyDivisibleNoLoss() {
-            setBaseValues(Map.of(
-                    id("input"), goo(GooTypes.ROCK, 12)
-            ));
-            List<RecipeInput> recipes = List.of(
-                    recipe("output", 4, slot("input")) // 12 / 4 = 3, no remainder
-            );
-
-            registry.deriveFromRecipeInputs(recipes, false);
-            assertTrue(registry.diagnostics().divisibilityLosses().isEmpty());
-        }
-
-        /**
-         * Recipe with remainder detects loss with correct amounts.
-         */
-        @Test
-        void remainderDetectsLoss() {
-            setBaseValues(Map.of(
-                    id("input"), goo(GooTypes.ROCK, 10)
-            ));
-            List<RecipeInput> recipes = List.of(
-                    recipe("output", 3, slot("input")) // 10 / 3 = 3 remainder 1
-            );
-
-            registry.deriveFromRecipeInputs(recipes, false);
-            assertEquals(1, registry.diagnostics().divisibilityLosses().size());
-            var loss = registry.diagnostics().divisibilityLosses().get(0);
-            assertEquals(10, loss.inputTotal());
-            assertEquals(3, loss.outputCount());
-            assertEquals(3, loss.perItemValue());
-            assertEquals(1, loss.lostGoo());
-        }
-
-        /**
-         * Each type divides on its own, so remainders per type are lost even when the total divides.
-         * Mirrors minecraft:cookie: jelly 300 and leaf 492 over 8 lose 4 each, total 792 divides by 8.
-         */
-        @Test
-        void perTypeRemainderDetectsLossWhenTotalDivides() {
-            setBaseValues(Map.of(
-                    id("input"), new GooValue(Map.of(GooTypes.ROCK, 300, GooTypes.METAL, 492))
-            ));
-            List<RecipeInput> recipes = List.of(
-                    recipe("output", 8, slot("input"))
-            );
-
-            registry.deriveFromRecipeInputs(recipes, false);
-            assertEquals(1, registry.diagnostics().divisibilityLosses().size());
-            var loss = registry.diagnostics().divisibilityLosses().get(0);
-            assertEquals(792, loss.inputTotal());
-            assertEquals(98, loss.perItemValue());
-            assertEquals(8, loss.lostGoo());
-        }
-
-        /**
-         * Result count 1 is never checked for divisibility loss.
-         */
-        @Test
-        void resultCountOneSkipped() {
-            setBaseValues(Map.of(
-                    id("input"), goo(GooTypes.ROCK, 7)
-            ));
-            List<RecipeInput> recipes = List.of(
-                    recipe("output", 1, slot("input"))
-            );
-
-            registry.deriveFromRecipeInputs(recipes, false);
-            assertTrue(registry.diagnostics().divisibilityLosses().isEmpty());
+            assertEquals(GooFraction.of(50), effective.get(id("good_item")).exact(GooTypes.ROCK));
         }
     }
 
@@ -581,7 +501,7 @@ class GooValueRegistryTest {
             // ore_block is denied as output, but its base value still works as input
             GooValue val = registry.table().lookup(id("ingot"));
             assertNotNull(val);
-            assertEquals(20, val.get(GooTypes.METAL));
+            assertEquals(GooFraction.of(20), val.exact(GooTypes.METAL));
         }
 
         /**
@@ -625,8 +545,8 @@ class GooValueRegistryTest {
             GooValue val = registry.table().lookup(id("output"));
             assertNotNull(val);
             // 30 jelly - 0 jelly from bucket = 30 jelly; 0 metal - 10 metal = no subtraction on missing type
-            assertEquals(30, val.get(GooTypes.JELLY));
-            assertEquals(0, val.get(GooTypes.METAL)); // bucket's metal not in milk_bucket
+            assertEquals(GooFraction.of(30), val.exact(GooTypes.JELLY));
+            assertEquals(GooFraction.of(0), val.exact(GooTypes.METAL)); // bucket's metal not in milk_bucket
         }
 
         /**
@@ -647,7 +567,7 @@ class GooValueRegistryTest {
             registry.deriveFromRecipeInputs(recipes, false);
             GooValue val = registry.table().lookup(id("output"));
             assertNotNull(val);
-            assertEquals(30, val.get(GooTypes.JELLY));
+            assertEquals(GooFraction.of(30), val.exact(GooTypes.JELLY));
         }
 
         /**
@@ -670,8 +590,8 @@ class GooValueRegistryTest {
             assertNotNull(val);
             // Each slot: 20 jelly + 10 metal - 10 metal = 20 jelly + 0 metal
             // 3 slots: 60 jelly
-            assertEquals(60, val.get(GooTypes.JELLY));
-            assertEquals(0, val.get(GooTypes.METAL)); // bucket metal cancels ingredient metal
+            assertEquals(GooFraction.of(60), val.exact(GooTypes.JELLY));
+            assertEquals(GooFraction.of(0), val.exact(GooTypes.METAL)); // bucket metal cancels ingredient metal
         }
 
         /**
@@ -693,7 +613,7 @@ class GooValueRegistryTest {
             GooValue val = registry.table().lookup(id("output"));
             assertNotNull(val);
             // 5 - 50 = -45 → empty → guard returns gross (5)
-            assertEquals(5, val.get(GooTypes.LEAF));
+            assertEquals(GooFraction.of(5), val.exact(GooTypes.LEAF));
         }
 
         /**
@@ -711,7 +631,7 @@ class GooValueRegistryTest {
             );
 
             registry.deriveFromRecipeInputs(recipes, false);
-            assertEquals(20, registry.table().lookup(id("block")).get(GooTypes.METAL));
+            assertEquals(GooFraction.of(20), registry.table().lookup(id("block")).exact(GooTypes.METAL));
         }
     }
 
@@ -838,7 +758,7 @@ class GooValueRegistryTest {
             Map<Identifier, GooValue> base = Map.of(id("item"), goo(GooTypes.METAL, 10));
             GooValue result = GooValueDerivation.lookupForDerivation(id("item"), base, Map.of());
             assertNotNull(result);
-            assertEquals(10, result.get(GooTypes.METAL));
+            assertEquals(GooFraction.of(10), result.exact(GooTypes.METAL));
         }
 
         /**
@@ -858,7 +778,7 @@ class GooValueRegistryTest {
             Map<Identifier, GooValue> derived = Map.of(id("item"), goo(GooTypes.METAL, 3));
             GooValue result = GooValueDerivation.lookupForDerivation(id("item"), base, derived);
             assertNotNull(result);
-            assertEquals(3, result.get(GooTypes.METAL));
+            assertEquals(GooFraction.of(3), result.exact(GooTypes.METAL));
         }
     }
 
@@ -883,9 +803,9 @@ class GooValueRegistryTest {
             registry.deriveFromRecipeInputs(recipes, false);
             GooValue val = registry.table().lookup(id("combo"));
             assertNotNull(val);
-            assertEquals(7, val.get(GooTypes.METAL));   // 5 + 2
-            assertEquals(3, val.get(GooTypes.CRYSTAL));  // 3 + 0
-            assertEquals(4, val.get(GooTypes.LEAF));     // 0 + 4
+            assertEquals(GooFraction.of(7), val.exact(GooTypes.METAL));   // 5 + 2
+            assertEquals(GooFraction.of(3), val.exact(GooTypes.CRYSTAL));  // 3 + 0
+            assertEquals(GooFraction.of(4), val.exact(GooTypes.LEAF));     // 0 + 4
         }
 
         /**
@@ -903,8 +823,8 @@ class GooValueRegistryTest {
             registry.deriveFromRecipeInputs(recipes, false);
             GooValue val = registry.table().lookup(id("nugget"));
             assertNotNull(val);
-            assertEquals(3, val.get(GooTypes.METAL));   // 9 / 3
-            assertEquals(2, val.get(GooTypes.CRYSTAL)); // 6 / 3
+            assertEquals(GooFraction.of(3), val.exact(GooTypes.METAL));   // 9 / 3
+            assertEquals(GooFraction.of(2), val.exact(GooTypes.CRYSTAL)); // 6 / 3
         }
     }
 
@@ -993,9 +913,9 @@ class GooValueRegistryTest {
                         "#logs": { "leaf": 384 }
                     }
                     """);
-            assertEquals(384, registry.table().lookup(id("minecraft:oak_log")).get(GooTypes.LEAF));
-            assertEquals(384, registry.table().lookup(id("minecraft:spruce_log")).get(GooTypes.LEAF));
-            assertEquals(384, registry.table().lookup(id("minecraft:birch_log")).get(GooTypes.LEAF));
+            assertEquals(GooFraction.of(384), registry.table().lookup(id("minecraft:oak_log")).exact(GooTypes.LEAF));
+            assertEquals(GooFraction.of(384), registry.table().lookup(id("minecraft:spruce_log")).exact(GooTypes.LEAF));
+            assertEquals(GooFraction.of(384), registry.table().lookup(id("minecraft:birch_log")).exact(GooTypes.LEAF));
         }
 
         /**
@@ -1029,8 +949,8 @@ class GooValueRegistryTest {
                         "#logs": { "leaf": "$log" }
                     }
                     """);
-            assertEquals(384, registry.table().lookup(id("minecraft:oak_log")).get(GooTypes.LEAF));
-            assertEquals(384, registry.table().lookup(id("minecraft:spruce_log")).get(GooTypes.LEAF));
+            assertEquals(GooFraction.of(384), registry.table().lookup(id("minecraft:oak_log")).exact(GooTypes.LEAF));
+            assertEquals(GooFraction.of(384), registry.table().lookup(id("minecraft:spruce_log")).exact(GooTypes.LEAF));
         }
 
         /**
@@ -1048,9 +968,9 @@ class GooValueRegistryTest {
                         "#stones": { "rock": 240 }
                     }
                     """);
-            assertEquals(384, registry.table().lookup(id("minecraft:oak_log")).get(GooTypes.LEAF));
-            assertEquals(240, registry.table().lookup(id("minecraft:stone")).get(GooTypes.ROCK));
-            assertEquals(240, registry.table().lookup(id("minecraft:cobblestone")).get(GooTypes.ROCK));
+            assertEquals(GooFraction.of(384), registry.table().lookup(id("minecraft:oak_log")).exact(GooTypes.LEAF));
+            assertEquals(GooFraction.of(240), registry.table().lookup(id("minecraft:stone")).exact(GooTypes.ROCK));
+            assertEquals(GooFraction.of(240), registry.table().lookup(id("minecraft:cobblestone")).exact(GooTypes.ROCK));
         }
 
         /**
@@ -1067,8 +987,8 @@ class GooValueRegistryTest {
                         "#logs": { "leaf": 384 }
                     }
                     """);
-            assertEquals(12000, registry.table().lookup(id("minecraft:diamond")).get(GooTypes.CRYSTAL));
-            assertEquals(384, registry.table().lookup(id("minecraft:oak_log")).get(GooTypes.LEAF));
+            assertEquals(GooFraction.of(12000), registry.table().lookup(id("minecraft:diamond")).exact(GooTypes.CRYSTAL));
+            assertEquals(GooFraction.of(384), registry.table().lookup(id("minecraft:oak_log")).exact(GooTypes.LEAF));
         }
 
         /**
@@ -1086,8 +1006,8 @@ class GooValueRegistryTest {
                         "#wood": "#logs * 3 / 4"
                     }
                     """);
-            assertEquals(360, registry.table().lookup(id("minecraft:oak_wood")).get(GooTypes.LEAF));
-            assertEquals(360, registry.table().lookup(id("minecraft:birch_wood")).get(GooTypes.LEAF));
+            assertEquals(GooFraction.of(360), registry.table().lookup(id("minecraft:oak_wood")).exact(GooTypes.LEAF));
+            assertEquals(GooFraction.of(360), registry.table().lookup(id("minecraft:birch_wood")).exact(GooTypes.LEAF));
         }
 
         /**
@@ -1105,8 +1025,8 @@ class GooValueRegistryTest {
                         "#stripped": "#logs"
                     }
                     """);
-            assertEquals(480, registry.table().lookup(id("minecraft:stripped_oak_log")).get(GooTypes.LEAF));
-            assertEquals(480, registry.table().lookup(id("minecraft:stripped_birch_log")).get(GooTypes.LEAF));
+            assertEquals(GooFraction.of(480), registry.table().lookup(id("minecraft:stripped_oak_log")).exact(GooTypes.LEAF));
+            assertEquals(GooFraction.of(480), registry.table().lookup(id("minecraft:stripped_birch_log")).exact(GooTypes.LEAF));
         }
 
         /**
@@ -1125,8 +1045,8 @@ class GooValueRegistryTest {
                     }
                     """);
             GooValue nugget = registry.table().lookup(id("minecraft:iron_nugget"));
-            assertEquals(192, nugget.get(GooTypes.METAL));  // 1728 / 9
-            assertEquals(48, nugget.get(GooTypes.ROCK));     // 432 / 9
+            assertEquals(GooFraction.of(192), nugget.exact(GooTypes.METAL));  // 1728 / 9
+            assertEquals(GooFraction.of(48), nugget.exact(GooTypes.ROCK));     // 432 / 9
         }
 
         /**
@@ -1172,9 +1092,9 @@ class GooValueRegistryTest {
                     """);
             GooValue val = registry.table().lookup(id("minecraft:copper_ingot"));
             assertNotNull(val);
-            assertEquals(120, val.get(GooTypes.METAL)); // 160 - 40
-            assertEquals(20, val.get(GooTypes.YORE));    // 40 / 2
-            assertEquals(40, val.get(GooTypes.ROCK));    // untouched
+            assertEquals(GooFraction.of(120), val.exact(GooTypes.METAL)); // 160 - 40
+            assertEquals(GooFraction.of(20), val.exact(GooTypes.YORE));    // 40 / 2
+            assertEquals(GooFraction.of(40), val.exact(GooTypes.ROCK));    // untouched
         }
 
         /**
@@ -1194,8 +1114,8 @@ class GooValueRegistryTest {
                     """);
             GooValue val = registry.table().lookup(id("minecraft:copper_ingot"));
             assertNotNull(val);
-            assertEquals(80, val.get(GooTypes.METAL));  // 160 - 2*40
-            assertEquals(40, val.get(GooTypes.YORE));    // 2 * 20
+            assertEquals(GooFraction.of(80), val.exact(GooTypes.METAL));  // 160 - 2*40
+            assertEquals(GooFraction.of(40), val.exact(GooTypes.YORE));    // 2 * 20
         }
 
         /**
@@ -1224,10 +1144,10 @@ class GooValueRegistryTest {
             GooValue cut = registry.table().lookup(id("minecraft:weathered_cut_copper"));
             assertNotNull(copper);
             assertNotNull(cut);
-            assertEquals(80, copper.get(GooTypes.METAL));
-            assertEquals(40, copper.get(GooTypes.YORE));
-            assertEquals(80, cut.get(GooTypes.METAL));
-            assertEquals(40, cut.get(GooTypes.YORE));
+            assertEquals(GooFraction.of(80), copper.exact(GooTypes.METAL));
+            assertEquals(GooFraction.of(40), copper.exact(GooTypes.YORE));
+            assertEquals(GooFraction.of(80), cut.exact(GooTypes.METAL));
+            assertEquals(GooFraction.of(40), cut.exact(GooTypes.YORE));
         }
 
         /**
@@ -1247,8 +1167,8 @@ class GooValueRegistryTest {
                     """);
             GooValue val = registry.table().lookup(id("minecraft:copper_ingot"));
             assertNotNull(val);
-            assertEquals(40, val.get(GooTypes.METAL));   // 160 - 3*40
-            assertEquals(60, val.get(GooTypes.YORE));     // 3 * 20
+            assertEquals(GooFraction.of(40), val.exact(GooTypes.METAL));   // 160 - 3*40
+            assertEquals(GooFraction.of(60), val.exact(GooTypes.YORE));     // 3 * 20
         }
 
         /**
@@ -1274,8 +1194,8 @@ class GooValueRegistryTest {
             registry.deriveFromRecipeInputs(recipes, false);
             GooValue slab = registry.table().lookup(id("minecraft:exposed_copper_slab"));
             assertNotNull(slab);
-            assertEquals(60, slab.get(GooTypes.METAL));  // 120 / 2
-            assertEquals(10, slab.get(GooTypes.YORE));    // 20 / 2
+            assertEquals(GooFraction.of(60), slab.exact(GooTypes.METAL));  // 120 / 2
+            assertEquals(GooFraction.of(10), slab.exact(GooTypes.YORE));    // 20 / 2
         }
 
         /**
@@ -1307,12 +1227,12 @@ class GooValueRegistryTest {
             // copper_block derived from unmodified ingot: 9 * 160 = 1440 metal
             GooValue block = registry.table().lookup(id("minecraft:copper_block"));
             assertNotNull(block);
-            assertEquals(1440, block.get(GooTypes.METAL));
+            assertEquals(GooFraction.of(1440), block.exact(GooTypes.METAL));
             // But copper_ingot itself got post-converted
             GooValue ingot = registry.table().lookup(id("minecraft:copper_ingot"));
             assertNotNull(ingot);
-            assertEquals(120, ingot.get(GooTypes.METAL)); // 160 - 40
-            assertEquals(20, ingot.get(GooTypes.YORE));    // 40 / 2
+            assertEquals(GooFraction.of(120), ingot.exact(GooTypes.METAL)); // 160 - 40
+            assertEquals(GooFraction.of(20), ingot.exact(GooTypes.YORE));    // 40 / 2
         }
 
         /**
@@ -1338,14 +1258,14 @@ class GooValueRegistryTest {
             // exposed_copper gets copper_block's value (160 metal), then 1x oxidation
             GooValue exposed = registry.table().lookup(id("minecraft:exposed_copper"));
             assertNotNull(exposed);
-            assertEquals(120, exposed.get(GooTypes.METAL)); // 160 - 40
-            assertEquals(20, exposed.get(GooTypes.YORE));    // 40 / 2
+            assertEquals(GooFraction.of(120), exposed.exact(GooTypes.METAL)); // 160 - 40
+            assertEquals(GooFraction.of(20), exposed.exact(GooTypes.YORE));    // 40 / 2
 
             // exposed_cut_copper gets cut_copper's value (80 metal), then 1x oxidation
             GooValue exposedCut = registry.table().lookup(id("minecraft:exposed_cut_copper"));
             assertNotNull(exposedCut);
-            assertEquals(60, exposedCut.get(GooTypes.METAL)); // 80 - 20
-            assertEquals(10, exposedCut.get(GooTypes.YORE));   // 20 / 2
+            assertEquals(GooFraction.of(60), exposedCut.exact(GooTypes.METAL)); // 80 - 20
+            assertEquals(GooFraction.of(10), exposedCut.exact(GooTypes.YORE));   // 20 / 2
         }
 
         /**
@@ -1373,15 +1293,15 @@ class GooValueRegistryTest {
             // exposed_copper: copy 160 metal, 1x oxidation -> 120 metal, 20 yore
             GooValue exposed = registry.table().lookup(id("minecraft:exposed_copper"));
             assertNotNull(exposed);
-            assertEquals(120, exposed.get(GooTypes.METAL));
-            assertEquals(20, exposed.get(GooTypes.YORE));
+            assertEquals(GooFraction.of(120), exposed.exact(GooTypes.METAL));
+            assertEquals(GooFraction.of(20), exposed.exact(GooTypes.YORE));
 
             // weathered_copper: copy from exposed (120 metal, 20 yore), 2x oxidation
             // 2 * (120/4) = 60 removed, 2 * (120/4/2) = 30 added
             GooValue weathered = registry.table().lookup(id("minecraft:weathered_copper"));
             assertNotNull(weathered);
-            assertEquals(60, weathered.get(GooTypes.METAL));  // 120 - 60
-            assertEquals(50, weathered.get(GooTypes.YORE));    // 20 + 30
+            assertEquals(GooFraction.of(60), weathered.exact(GooTypes.METAL));  // 120 - 60
+            assertEquals(GooFraction.of(50), weathered.exact(GooTypes.YORE));    // 20 + 30
         }
 
         /**
@@ -1406,13 +1326,13 @@ class GooValueRegistryTest {
                     """);
             GooValue waxedBlock = registry.table().lookup(id("minecraft:waxed_copper_block"));
             assertNotNull(waxedBlock);
-            assertEquals(160, waxedBlock.get(GooTypes.METAL)); // copied from copper_block
-            assertEquals(48, waxedBlock.get(GooTypes.JELLY));   // added by +$waxed
+            assertEquals(GooFraction.of(160), waxedBlock.exact(GooTypes.METAL)); // copied from copper_block
+            assertEquals(GooFraction.of(48), waxedBlock.exact(GooTypes.JELLY));   // added by +$waxed
 
             GooValue waxedCut = registry.table().lookup(id("minecraft:waxed_cut_copper"));
             assertNotNull(waxedCut);
-            assertEquals(80, waxedCut.get(GooTypes.METAL));
-            assertEquals(48, waxedCut.get(GooTypes.JELLY));
+            assertEquals(GooFraction.of(80), waxedCut.exact(GooTypes.METAL));
+            assertEquals(GooFraction.of(48), waxedCut.exact(GooTypes.JELLY));
         }
     }
 
@@ -1447,7 +1367,7 @@ class GooValueRegistryTest {
             assertNotNull(val, "iron_block should have a value");
             // nugget = {metal: 48}, ingot = 9 * {metal: 48} = {metal: 432}
             // block = 9 * {metal: 432} = {metal: 3888}
-            assertEquals(3888, val.get(GooTypes.METAL));
+            assertEquals(GooFraction.of(3888), val.exact(GooTypes.METAL));
         }
 
         /**
@@ -1463,10 +1383,10 @@ class GooValueRegistryTest {
                     }
                     """);
             GooValue golem = registry.table().lookup(id("minecraft:copper_golem"));
-            assertEquals(1440, golem.get(GooTypes.METAL));
-            assertEquals(1440, golem.get(GooTypes.PULSE));
-            assertEquals(480, golem.get(GooTypes.LEAF));
-            assertEquals(120, golem.get(GooTypes.JELLY));
+            assertEquals(GooFraction.of(1440), golem.exact(GooTypes.METAL));
+            assertEquals(GooFraction.of(1440), golem.exact(GooTypes.PULSE));
+            assertEquals(GooFraction.of(480), golem.exact(GooTypes.LEAF));
+            assertEquals(GooFraction.of(120), golem.exact(GooTypes.JELLY));
         }
 
         /**
@@ -1481,7 +1401,7 @@ class GooValueRegistryTest {
                         "minecraft:leftover": "minecraft:iron_block - minecraft:iron_ingot"
                     }
                     """);
-            assertEquals(80, registry.table().lookup(id("minecraft:leftover")).get(GooTypes.METAL));
+            assertEquals(GooFraction.of(80), registry.table().lookup(id("minecraft:leftover")).exact(GooTypes.METAL));
         }
 
         /**
@@ -1495,7 +1415,7 @@ class GooValueRegistryTest {
                         "minecraft:iron_block": "minecraft:iron_ingot * 9"
                     }
                     """);
-            assertEquals(90, registry.table().lookup(id("minecraft:iron_block")).get(GooTypes.METAL));
+            assertEquals(GooFraction.of(90), registry.table().lookup(id("minecraft:iron_block")).exact(GooTypes.METAL));
         }
 
         /**
@@ -1509,7 +1429,7 @@ class GooValueRegistryTest {
                         "minecraft:iron_ingot": "minecraft:iron_block / 9"
                     }
                     """);
-            assertEquals(10, registry.table().lookup(id("minecraft:iron_ingot")).get(GooTypes.METAL));
+            assertEquals(GooFraction.of(10), registry.table().lookup(id("minecraft:iron_ingot")).exact(GooTypes.METAL));
         }
 
         /**
@@ -1523,7 +1443,7 @@ class GooValueRegistryTest {
                         "minecraft:iron_block": "9 * minecraft:iron_ingot"
                     }
                     """);
-            assertEquals(90, registry.table().lookup(id("minecraft:iron_block")).get(GooTypes.METAL));
+            assertEquals(GooFraction.of(90), registry.table().lookup(id("minecraft:iron_block")).exact(GooTypes.METAL));
         }
 
         /**
@@ -1539,9 +1459,9 @@ class GooValueRegistryTest {
                     }
                     """);
             GooValue thing = registry.table().lookup(id("minecraft:thing"));
-            assertEquals(200, thing.get(GooTypes.METAL));
-            assertEquals(100, thing.get(GooTypes.PULSE));
-            assertEquals(400, thing.get(GooTypes.LEAF));
+            assertEquals(GooFraction.of(200), thing.exact(GooTypes.METAL));
+            assertEquals(GooFraction.of(100), thing.exact(GooTypes.PULSE));
+            assertEquals(GooFraction.of(400), thing.exact(GooTypes.LEAF));
         }
 
         /**
@@ -1556,7 +1476,7 @@ class GooValueRegistryTest {
                         "minecraft:iron_block": "minecraft:iron_ingot * $count"
                     }
                     """);
-            assertEquals(90, registry.table().lookup(id("minecraft:iron_block")).get(GooTypes.METAL));
+            assertEquals(GooFraction.of(90), registry.table().lookup(id("minecraft:iron_block")).exact(GooTypes.METAL));
         }
 
         /**
@@ -1572,8 +1492,8 @@ class GooValueRegistryTest {
                     }
                     """);
             GooValue c = registry.table().lookup(id("minecraft:c"));
-            assertEquals(10, c.get(GooTypes.METAL));
-            assertEquals(15, c.get(GooTypes.ROCK));
+            assertEquals(GooFraction.of(10), c.exact(GooTypes.METAL));
+            assertEquals(GooFraction.of(15), c.exact(GooTypes.ROCK));
         }
 
         /**
@@ -1587,8 +1507,8 @@ class GooValueRegistryTest {
                         "minecraft:thing": { "blaze": "minecraft:coal.blaze" }
                     }
                     """);
-            assertEquals(336, registry.table().lookup(id("minecraft:thing")).get(GooTypes.BLAZE));
-            assertEquals(0, registry.table().lookup(id("minecraft:thing")).get(GooTypes.ROCK));
+            assertEquals(GooFraction.of(336), registry.table().lookup(id("minecraft:thing")).exact(GooTypes.BLAZE));
+            assertEquals(GooFraction.of(0), registry.table().lookup(id("minecraft:thing")).exact(GooTypes.ROCK));
         }
 
         /**
@@ -1602,7 +1522,7 @@ class GooValueRegistryTest {
                         "minecraft:thing": { "blaze": "minecraft:coal.blaze * 2" }
                     }
                     """);
-            assertEquals(672, registry.table().lookup(id("minecraft:thing")).get(GooTypes.BLAZE));
+            assertEquals(GooFraction.of(672), registry.table().lookup(id("minecraft:thing")).exact(GooTypes.BLAZE));
         }
 
         /**
@@ -1618,9 +1538,9 @@ class GooValueRegistryTest {
                     }
                     """);
             GooValue thing = registry.table().lookup(id("minecraft:thing"));
-            assertEquals(10, thing.get(GooTypes.METAL));
-            assertEquals(336, thing.get(GooTypes.BLAZE));
-            assertEquals(0, thing.get(GooTypes.ROCK));
+            assertEquals(GooFraction.of(10), thing.exact(GooTypes.METAL));
+            assertEquals(GooFraction.of(336), thing.exact(GooTypes.BLAZE));
+            assertEquals(GooFraction.of(0), thing.exact(GooTypes.ROCK));
         }
 
         /**
@@ -1634,7 +1554,7 @@ class GooValueRegistryTest {
                         "minecraft:iron_block": "iron_ingot * 9"
                     }
                     """);
-            assertEquals(90, registry.table().lookup(id("minecraft:iron_block")).get(GooTypes.METAL));
+            assertEquals(GooFraction.of(90), registry.table().lookup(id("minecraft:iron_block")).exact(GooTypes.METAL));
         }
 
         /**
@@ -1650,8 +1570,8 @@ class GooValueRegistryTest {
                     }
                     """);
             GooValue val = registry.table().lookup(id("minecraft:stripped_dark_oak_log"));
-            assertEquals(384, val.get(GooTypes.LEAF));
-            assertEquals(50, val.get(GooTypes.NETHER));
+            assertEquals(GooFraction.of(384), val.exact(GooTypes.LEAF));
+            assertEquals(GooFraction.of(50), val.exact(GooTypes.NETHER));
         }
 
         /**
@@ -1667,9 +1587,9 @@ class GooValueRegistryTest {
                     }
                     """);
             GooValue val = registry.table().lookup(id("minecraft:fancy_obsidian"));
-            assertEquals(500, val.get(GooTypes.ROCK));
-            assertEquals(200, val.get(GooTypes.NETHER));
-            assertEquals(200, val.get(GooTypes.CRYSTAL));
+            assertEquals(GooFraction.of(500), val.exact(GooTypes.ROCK));
+            assertEquals(GooFraction.of(200), val.exact(GooTypes.NETHER));
+            assertEquals(GooFraction.of(200), val.exact(GooTypes.CRYSTAL));
         }
 
         /**
@@ -1685,8 +1605,8 @@ class GooValueRegistryTest {
                     }
                     """);
             GooValue val = registry.table().lookup(id("minecraft:thing"));
-            assertEquals(30, val.get(GooTypes.METAL));
-            assertEquals(30, val.get(GooTypes.CRYSTAL));
+            assertEquals(GooFraction.of(30), val.exact(GooTypes.METAL));
+            assertEquals(GooFraction.of(30), val.exact(GooTypes.CRYSTAL));
         }
 
         /**
@@ -1700,7 +1620,7 @@ class GooValueRegistryTest {
                         "minecraft:iron_block": "9 iron_ingot"
                     }
                     """);
-            assertEquals(90, registry.table().lookup(id("minecraft:iron_block")).get(GooTypes.METAL));
+            assertEquals(GooFraction.of(90), registry.table().lookup(id("minecraft:iron_block")).exact(GooTypes.METAL));
         }
 
         /**
@@ -1716,8 +1636,8 @@ class GooValueRegistryTest {
                     }
                     """);
             GooValue val = registry.table().lookup(id("minecraft:thing"));
-            assertEquals(10, val.get(GooTypes.METAL));
-            assertEquals(100, val.get(GooTypes.NETHER));
+            assertEquals(GooFraction.of(10), val.exact(GooTypes.METAL));
+            assertEquals(GooFraction.of(100), val.exact(GooTypes.NETHER));
         }
 
         /**
@@ -1733,9 +1653,9 @@ class GooValueRegistryTest {
                     }
                     """);
             GooValue val = registry.table().lookup(id("minecraft:crying_obsidian"));
-            assertEquals(100, val.get(GooTypes.ROCK));
-            assertEquals(80, val.get(GooTypes.CRYSTAL));
-            assertEquals(40, val.get(GooTypes.YORE));
+            assertEquals(GooFraction.of(100), val.exact(GooTypes.ROCK));
+            assertEquals(GooFraction.of(80), val.exact(GooTypes.CRYSTAL));
+            assertEquals(GooFraction.of(40), val.exact(GooTypes.YORE));
         }
 
         /**
@@ -1772,8 +1692,8 @@ class GooValueRegistryTest {
                     """);
             GooValue val = registry.table().lookup(id("minecraft:exposed_copper"));
             assertNotNull(val);
-            assertEquals(136, val.get(GooTypes.METAL)); // 200 - 64
-            assertEquals(30, val.get(GooTypes.YORE));   // unchanged
+            assertEquals(GooFraction.of(136), val.exact(GooTypes.METAL)); // 200 - 64
+            assertEquals(GooFraction.of(30), val.exact(GooTypes.YORE));   // unchanged
         }
 
         /**
@@ -1790,9 +1710,9 @@ class GooValueRegistryTest {
                     """);
             GooValue val = registry.table().lookup(id("minecraft:exposed_copper"));
             assertNotNull(val);
-            assertEquals(136, val.get(GooTypes.METAL)); // 200 - 64
-            assertEquals(32, val.get(GooTypes.YORE));   // 0 + 32
-            assertEquals(50, val.get(GooTypes.ROCK));   // unchanged
+            assertEquals(GooFraction.of(136), val.exact(GooTypes.METAL)); // 200 - 64
+            assertEquals(GooFraction.of(32), val.exact(GooTypes.YORE));   // 0 + 32
+            assertEquals(GooFraction.of(50), val.exact(GooTypes.ROCK));   // unchanged
         }
 
         /**
@@ -1808,7 +1728,7 @@ class GooValueRegistryTest {
                     """);
             GooValue val = registry.table().lookup(id("minecraft:oak_wood"));
             assertNotNull(val);
-            assertEquals(360, val.get(GooTypes.LEAF)); // 480 * 3 / 4
+            assertEquals(GooFraction.of(360), val.exact(GooTypes.LEAF)); // 480 * 3 / 4
             assertEquals(1, val.typeCount()); // only leaf, not the full tree
         }
 
@@ -1825,7 +1745,7 @@ class GooValueRegistryTest {
                     """);
             GooValue val = registry.table().lookup(id("minecraft:stem"));
             assertNotNull(val);
-            assertEquals(480, val.get(GooTypes.LEAF));
+            assertEquals(GooFraction.of(480), val.exact(GooTypes.LEAF));
         }
 
         /**
@@ -1841,7 +1761,7 @@ class GooValueRegistryTest {
                     """);
             GooValue val = registry.table().lookup(id("minecraft:oak_wood"));
             assertNotNull(val);
-            assertEquals(360, val.get(GooTypes.LEAF));
+            assertEquals(GooFraction.of(360), val.exact(GooTypes.LEAF));
         }
 
         /**
@@ -1856,7 +1776,7 @@ class GooValueRegistryTest {
                         "minecraft:scrap": "iron_block - 2 iron_ingot"
                     }
                     """);
-            assertEquals(70, registry.table().lookup(id("minecraft:scrap")).get(GooTypes.METAL));
+            assertEquals(GooFraction.of(70), registry.table().lookup(id("minecraft:scrap")).exact(GooTypes.METAL));
         }
     }
 
@@ -1882,7 +1802,7 @@ class GooValueRegistryTest {
 
             GooValue val = registry.table().lookup(id("minecraft:iron_ingot"));
             assertNotNull(val);
-            assertEquals(10, val.get(GooTypes.METAL));
+            assertEquals(GooFraction.of(10), val.exact(GooTypes.METAL));
             assertEquals(0, registry.diagnostics().baseSize());
         }
 
@@ -1933,7 +1853,7 @@ class GooValueRegistryTest {
             for (Map.Entry<Identifier, GooValue> entry : before.entrySet()) {
                 GooValue reloaded = registry.table().lookup(entry.getKey());
                 assertNotNull(reloaded, "Missing after reload: " + entry.getKey());
-                assertEquals(entry.getValue().totalGoo(), reloaded.totalGoo(),
+                assertEquals(entry.getValue().totalExact(), reloaded.totalExact(),
                         "Mismatch for " + entry.getKey());
             }
         }
@@ -2375,7 +2295,7 @@ class GooValueRegistryTest {
                     """);
             assertTrue(registry.table().isRestricted(id("minecraft:coal_ore")));
             assertNotNull(registry.table().lookup(id("minecraft:coal_ore")));
-            assertEquals(100, registry.table().lookup(id("minecraft:coal_ore")).get(GooTypes.ROCK));
+            assertEquals(GooFraction.of(100), registry.table().lookup(id("minecraft:coal_ore")).exact(GooTypes.ROCK));
         }
 
         /**
@@ -2458,7 +2378,7 @@ class GooValueRegistryTest {
                     "minecraft:turtle_scute", "minecraft:armadillo_scute", "minecraft:allay_spawn_egg")) {
                 GooValue value = registry.table().lookup(id(item));
                 assertNotNull(value, item);
-                assertTrue(value.get(GooTypes.YORE) > 0, item);
+                assertTrue(value.exact(GooTypes.YORE).isPositive(), item);
             }
         }
 
@@ -2469,7 +2389,7 @@ class GooValueRegistryTest {
         void dirtResolvesNoYore() {
             GooValue dirt = registry.table().lookup(id("minecraft:dirt"));
             assertNotNull(dirt);
-            assertEquals(0, dirt.get(GooTypes.YORE));
+            assertEquals(GooFraction.of(0), dirt.exact(GooTypes.YORE));
         }
 
         /**
@@ -2481,7 +2401,7 @@ class GooValueRegistryTest {
                     "minecraft:dragon_egg", "minecraft:nautilus_shell")) {
                 GooValue value = registry.table().lookup(id(item));
                 assertNotNull(value, item);
-                assertTrue(value.get(GooTypes.YORE) > 0, item + " carries no yore: " + value);
+                assertTrue(value.exact(GooTypes.YORE).isPositive(), item + " carries no yore: " + value);
             }
         }
 
@@ -2492,7 +2412,7 @@ class GooValueRegistryTest {
         @Test
         void noItemResolvesARetiredType() {
             List<String> retired = registry.table().getEffectiveValues().entrySet().stream()
-                    .filter(entry -> !GooTypes.BUNDLED.containsAll(entry.getValue().getAll().keySet()))
+                    .filter(entry -> !GooTypes.BUNDLED.containsAll(entry.getValue().exactAll().keySet()))
                     .map(entry -> entry.getKey() + " " + entry.getValue())
                     .toList();
             assertEquals(List.of(), retired);
@@ -2523,12 +2443,12 @@ class GooValueRegistryTest {
                     "sculk", "sculk_vein", "sculk_shrieker", "sculk_catalyst", "sculk_sensor")) {
                 GooValue value = registry.table().lookup(id("minecraft:" + item));
                 assertNotNull(value, item);
-                assertTrue(value.get(GooTypes.DEEP) > 0, item + " carries no deep: " + value);
+                assertTrue(value.exact(GooTypes.DEEP).isPositive(), item + " carries no deep: " + value);
             }
             GooValue ironOre = registry.table().lookup(id("minecraft:iron_ore"));
             GooValue deepslateIronOre = registry.table().lookup(id("minecraft:deepslate_iron_ore"));
-            assertEquals(ironOre.get(GooTypes.METAL), deepslateIronOre.get(GooTypes.METAL));
-            assertEquals(0, ironOre.get(GooTypes.DEEP));
+            assertEquals(ironOre.exact(GooTypes.METAL), deepslateIronOre.exact(GooTypes.METAL));
+            assertEquals(GooFraction.of(0), ironOre.exact(GooTypes.DEEP));
         }
     }
 
@@ -2555,7 +2475,7 @@ class GooValueRegistryTest {
             for (String item : List.of("minecraft:slime_ball", "minecraft:gunpowder")) {
                 GooValue value = registry.table().lookup(id(item));
                 assertNotNull(value, item);
-                assertTrue(value.get(GooTypes.KINETIC) > 0, item + " resolves no kinetic");
+                assertTrue(value.exact(GooTypes.KINETIC).isPositive(), item + " resolves no kinetic");
             }
         }
 
@@ -2574,8 +2494,8 @@ class GooValueRegistryTest {
             for (String item : List.of("minecraft:end_stone", "minecraft:end_stone_bricks")) {
                 GooValue value = registry.table().lookup(id(item));
                 assertNotNull(value, item + " holds no value");
-                assertTrue(value.get(GooTypes.ASTRAL) > 0, item + " resolves no astral: " + value);
-                assertTrue(value.get(GooTypes.ENDER) > 0, item + " lost its ender: " + value);
+                assertTrue(value.exact(GooTypes.ASTRAL).isPositive(), item + " resolves no astral: " + value);
+                assertTrue(value.exact(GooTypes.ENDER).isPositive(), item + " lost its ender: " + value);
             }
         }
 
@@ -2595,7 +2515,7 @@ class GooValueRegistryTest {
                     "minecraft:honey_bottle")) {
                 GooValue value = registry.table().lookup(id(item));
                 assertNotNull(value, item);
-                assertTrue(value.get(GooTypes.OPULENT) > 0, item + " carries no opulent: " + value);
+                assertTrue(value.exact(GooTypes.OPULENT).isPositive(), item + " carries no opulent: " + value);
             }
         }
 
@@ -2615,10 +2535,10 @@ class GooValueRegistryTest {
                     "minecraft:honeycomb", "minecraft:wet_sponge")) {
                 GooValue value = registry.table().lookup(id(item));
                 assertNotNull(value, item);
-                assertTrue(value.get(GooTypes.WEIRD) > 0, item + " carries no weird: " + value);
+                assertTrue(value.exact(GooTypes.WEIRD).isPositive(), item + " carries no weird: " + value);
             }
             for (String item : SCULK_FAMILY) {
-                assertEquals(0, registry.table().lookup(id(item)).get(GooTypes.WEIRD), item);
+                assertEquals(GooFraction.of(0), registry.table().lookup(id(item)).exact(GooTypes.WEIRD), item);
             }
         }
 
@@ -2639,7 +2559,7 @@ class GooValueRegistryTest {
             for (String item : items) {
                 GooValue value = registry.table().lookup(id(item));
                 assertNotNull(value, item);
-                assertTrue(value.get(GooTypes.XENO) > 0, item + " carries no xeno: " + value);
+                assertTrue(value.exact(GooTypes.XENO).isPositive(), item + " carries no xeno: " + value);
             }
         }
 
@@ -2658,7 +2578,7 @@ class GooValueRegistryTest {
             for (String item : List.of("minecraft:chorus_fruit", "minecraft:chorus_plant", "minecraft:shulker_shell")) {
                 GooValue value = registry.table().lookup(id(item));
                 assertNotNull(value, item);
-                assertTrue(value.get(GooTypes.VOID) > 0, item + " carries no void: " + value);
+                assertTrue(value.exact(GooTypes.VOID).isPositive(), item + " carries no void: " + value);
             }
         }
     }
@@ -2684,10 +2604,10 @@ class GooValueRegistryTest {
             copyBaseToEffective();
 
             Map<Identifier, GooValue> effective = registry.table().getEffectiveValues();
-            assertTrue(effective.values().stream().anyMatch(value -> value.get(GooTypes.ENDER) > 0),
+            assertTrue(effective.values().stream().anyMatch(value -> value.exact(GooTypes.ENDER).isPositive()),
                     "shipped values carry ender, so the scan reads real data");
             List<Identifier> quantumItems = effective.entrySet().stream()
-                    .filter(entry -> entry.getValue().get(GooTypes.QUANTUM) > 0)
+                    .filter(entry -> entry.getValue().exact(GooTypes.QUANTUM).isPositive())
                     .map(Map.Entry::getKey)
                     .toList();
             assertEquals(List.of(), quantumItems);
@@ -2708,7 +2628,7 @@ class GooValueRegistryTest {
 
             assertFalse(effective.isEmpty(), SHIPPED_BASE_VALUES);
             List<Identifier> yieldingInfinity = effective.entrySet().stream()
-                    .filter(entry -> entry.getValue().get(GooTypes.INFINITY) > 0)
+                    .filter(entry -> entry.getValue().exact(GooTypes.INFINITY).isPositive())
                     .map(Map.Entry::getKey)
                     .toList();
             assertEquals(List.of(), yieldingInfinity);
@@ -2742,13 +2662,13 @@ class GooValueRegistryTest {
         void animalItemsResolveZoo() throws IOException {
             loadShipped();
             for (String item : List.of("minecraft:ink_sac", "minecraft:slime_ball", "minecraft:honeycomb")) {
-                assertEquals(0, registry.table().lookup(id(item)).get(GooTypes.ZOO), item);
+                assertEquals(GooFraction.of(0), registry.table().lookup(id(item)).exact(GooTypes.ZOO), item);
             }
             for (String item : List.of("minecraft:cow_spawn_egg", "minecraft:leather", "minecraft:bone",
                     "minecraft:string")) {
                 GooValue value = registry.table().lookup(id(item));
                 assertNotNull(value, item);
-                assertTrue(value.get(GooTypes.ZOO) > 0, item + " resolves no zoo");
+                assertTrue(value.exact(GooTypes.ZOO).isPositive(), item + " resolves no zoo");
             }
         }
 
@@ -2758,12 +2678,12 @@ class GooValueRegistryTest {
         @Test
         void eggsResolveYoreLikeScutes() throws IOException {
             loadShipped();
-            int scuteYore = registry.table().lookup(id("minecraft:turtle_scute")).get(GooTypes.YORE);
-            assertTrue(scuteYore > 0, "turtle_scute resolves no yore");
+            GooFraction scuteYore = registry.table().lookup(id("minecraft:turtle_scute")).exact(GooTypes.YORE);
+            assertTrue(scuteYore.isPositive(), "turtle_scute resolves no yore");
             for (String egg : List.of("minecraft:turtle_egg", "minecraft:sniffer_egg", "minecraft:frogspawn")) {
                 GooValue value = registry.table().lookup(id(egg));
                 assertNotNull(value, egg);
-                assertEquals(scuteYore, value.get(GooTypes.YORE), egg);
+                assertEquals(scuteYore, value.exact(GooTypes.YORE), egg);
             }
         }
 
@@ -2774,11 +2694,11 @@ class GooValueRegistryTest {
         @Test
         void noShippedItemResolvesAnUnbundledType() throws IOException {
             Map<Identifier, GooValue> effective = loadShipped();
-            assertTrue(effective.values().stream().anyMatch(value -> value.get(GooTypes.JELLY) > 0),
+            assertTrue(effective.values().stream().anyMatch(value -> value.exact(GooTypes.JELLY).isPositive()),
                     "the shipped load valued no item in jelly");
             List<String> unbundled = effective.entrySet().stream()
-                    .flatMap(entry -> entry.getValue().getAll().entrySet().stream()
-                            .filter(term -> term.getValue() != 0 && !GooTypes.BUNDLED.contains(term.getKey()))
+                    .flatMap(entry -> entry.getValue().exactAll().entrySet().stream()
+                            .filter(term -> !term.getValue().isZero() && !GooTypes.BUNDLED.contains(term.getKey()))
                             .map(term -> entry.getKey() + " " + term.getKey().identifier()))
                     .toList();
             assertEquals(List.of(), unbundled);

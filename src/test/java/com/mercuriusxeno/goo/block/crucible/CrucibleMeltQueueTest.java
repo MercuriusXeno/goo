@@ -307,7 +307,7 @@ class CrucibleMeltQueueTest {
                     new CrucibleMeltQueue.Entry(OAK_LOG, GooContents.EMPTY.withAdded(GooTypes.LEAF, 8),
                             List.of(0.0, 0.0, 0.0)),
                     new CrucibleMeltQueue.Entry(DIAMOND, GooContents.EMPTY.withAdded(GooTypes.CRYSTAL, 50), List.of(0.0)),
-                    new CrucibleMeltQueue.Entry(STONE, stone.toGooContents(), List.of(0.0, 0.0))), queue.entries());
+                    new CrucibleMeltQueue.Entry(STONE, stone.meltPayout(), List.of(0.0, 0.0))), queue.entries());
         }
     }
 

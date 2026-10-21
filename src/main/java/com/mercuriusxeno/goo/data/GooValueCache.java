@@ -12,7 +12,7 @@ import java.util.Map;
 
 /**
  * Loads and saves the effective goo value cache to disk.
- * The cache contains pre-resolved integer values per goo type,
+ * The cache contains pre-resolved exact values per goo type,
  * so no expression evaluation or base value merging is needed at startup.
  * Pure-static utility with no instance state.
  */
@@ -42,7 +42,7 @@ final class GooValueCache {
 
     /**
      * Loads effective values from the flat cache file into the provided map.
-     * The cache contains pre-resolved integer values per goo type, so no expression
+     * The cache contains pre-resolved exact values per goo type, so no expression
      * evaluation or base value merging is needed.
      *
      * @param cachePath       the path to the cache file (may be null or non-existent)
@@ -70,11 +70,11 @@ final class GooValueCache {
      * @param json            the cache JSON with item ID keys and GooValue objects
      * @param effectiveValues the mutable map to populate
      */
-    private static void deserializeEffectiveValues(JsonObject json, Map<Identifier, GooValue> effectiveValues) {
+    static void deserializeEffectiveValues(JsonObject json, Map<Identifier, GooValue> effectiveValues) {
         effectiveValues.clear();
         for (Map.Entry<String, JsonElement> entry : json.entrySet()) {
             Identifier itemId = Identifier.parse(entry.getKey());
-            effectiveValues.put(itemId, GooValueJsonFormat.parseGooValue(entry.getValue().getAsJsonObject()));
+            effectiveValues.put(itemId, GooValueJsonFormat.parseExactGooValue(entry.getValue().getAsJsonObject()));
         }
     }
 
@@ -108,7 +108,7 @@ final class GooValueCache {
      * @param values the values to serialize
      * @return sorted JSON object with item IDs as keys
      */
-    private static JsonObject serializeValues(Map<Identifier, GooValue> values) {
+    static JsonObject serializeValues(Map<Identifier, GooValue> values) {
         JsonObject json = new JsonObject();
         values.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())

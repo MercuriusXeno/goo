@@ -306,14 +306,13 @@ public class GooValueRegistry {
     private DiagnosticSnapshot buildSnapshot(Set<Identifier> allRefs) {
         if (lastDerivation == null) {
             return new DiagnosticSnapshot(
-                    baseValues.size(), 0, List.of(), List.of(), List.of(), allRefs, Map.of());
+                    baseValues.size(), 0, List.of(), List.of(), allRefs, Map.of());
         }
         return new DiagnosticSnapshot(
                 baseValues.size(),
                 lastDerivation.derivedValues().size(),
                 lastDerivation.cycles(),
                 lastDerivation.conflicts(),
-                lastDerivation.divisibilityLosses(),
                 allRefs,
                 lastDerivation.derivationSources()
         );
@@ -416,22 +415,8 @@ public class GooValueRegistry {
          * @return true if derived is cheaper than hand-keyed
          */
         public boolean isRecipeCheaper() {
-            return recipeValue.totalGoo() < baseValue.totalGoo();
+            return recipeValue.totalExact().compareTo(baseValue.totalExact()) < 0;
         }
-    }
-
-    /**
-     * A recipe where integer division causes value loss in the output.
-     *
-     * @param output       the output item
-     * @param outputCount  the recipe output count
-     * @param inputTotal   the total input value in goo
-     * @param perItemValue the per-item value after division
-     * @param lostGoo    the goo lost to integer truncation
-     * @param recipe       the source recipe input
-     */
-    public record DivisibilityLoss(Identifier output, int outputCount, int inputTotal,
-                                   int perItemValue, int lostGoo, RecipeInput recipe) {
     }
 
     /**
@@ -442,7 +427,6 @@ public class GooValueRegistry {
      * @param derivedSize        number of recipe-derived values
      * @param cycles             recipe dependency cycles
      * @param conflicts          base/derived value conflicts
-     * @param divisibilityLosses recipes with integer division loss
      * @param allReferencedIds   all item IDs in base_values.json (valued + denied + restricted)
      * @param derivationSources  map from derived item ID to the recipe that produced its value
      */
@@ -450,7 +434,6 @@ public class GooValueRegistry {
             int baseSize, int derivedSize,
             List<RecipeCycle> cycles,
             List<ValueConflict> conflicts,
-            List<DivisibilityLoss> divisibilityLosses,
             Set<Identifier> allReferencedIds,
             Map<Identifier, RecipeInput> derivationSources
     ) {
