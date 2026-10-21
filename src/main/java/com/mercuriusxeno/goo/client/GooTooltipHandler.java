@@ -235,7 +235,19 @@ public final class GooTooltipHandler {
             return;
         }
         elements.add(Either.left(PLUS_SEPARATOR));
-        appendGooRows(elements, containerValue.meltFloorAll());
+        appendMeltRows(elements, containerValue);
+    }
+
+    /**
+     * Appends one row per type an item melts into.
+     * Decision values-are-fractions-melt-floors-fabricate-ceils: the tooltip tells what the
+     * item melts into, the floor of each type, so a type flooring to zero shows no row.
+     *
+     * @param elements the tooltip element list
+     * @param value    the item's goo value
+     */
+    static void appendMeltRows(List<Either<FormattedText, TooltipComponent>> elements, GooValue value) {
+        appendGooRows(elements, value.meltFloorAll());
     }
 
     /**
@@ -356,7 +368,7 @@ public final class GooTooltipHandler {
             List<Either<FormattedText, TooltipComponent>> elements, ItemStack stack) {
         GooValue value = knownValue(stack);
         if (value != null && !value.isEmpty()) {
-            appendGooRows(elements, value.meltFloorAll());
+            appendMeltRows(elements, value);
         }
     }
 
