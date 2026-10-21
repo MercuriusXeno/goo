@@ -28,6 +28,7 @@ import java.util.function.Consumer;
 public final class MachineRecipeTests {
     private static final String CRYSTALLIZER_CRAFTED_FROM_GOLD_AND_NETHERITE = "machine_recipe_crystallizer_crafted_from_gold_and_netherite";
     private static final String CRYSTALLIZER_DERIVES_A_VALUE = "machine_recipe_crystallizer_derives_a_value";
+    private static final String MACHINES_CRAFTED_FROM_GOLD = "machine_recipe_machines_crafted_from_gold";
 
     private static final int GRID_SIDE = 3;
 
@@ -35,6 +36,8 @@ public final class MachineRecipeTests {
     private static final String COPPER_GRID_CRAFTED = "The crystallizer grid with copper in place of gold should craft no crystallizer";
     private static final String CRYSTALLIZER_DENIED = "The crystallizer should not be denied a goo value";
     private static final String CRYSTALLIZER_UNVALUED = "The crystallizer should derive a goo value from its recipe";
+    private static final String GOLD_MACHINE_NOT_CRAFTED = "Its gold grid should craft one ";
+    private static final String COPPER_MACHINE_CRAFTED = "Its old copper grid should craft no ";
 
     private MachineRecipeTests() {
     }
@@ -48,6 +51,7 @@ public final class MachineRecipeTests {
         GooTestFunctions.registerTest(registrar, CRYSTALLIZER_CRAFTED_FROM_GOLD_AND_NETHERITE,
                 MachineRecipeTests::crystallizerCraftedFromGoldAndNetherite);
         GooTestFunctions.registerTest(registrar, CRYSTALLIZER_DERIVES_A_VALUE, MachineRecipeTests::crystallizerDerivesAValue);
+        GooTestFunctions.registerTest(registrar, MACHINES_CRAFTED_FROM_GOLD, MachineRecipeTests::machinesCraftedFromGold);
     }
 
     /**
@@ -82,6 +86,53 @@ public final class MachineRecipeTests {
         GooValue value = values.lookup(crystallizerId);
         helper.assertTrue(value != null && !value.isEmpty(), CRYSTALLIZER_UNVALUED);
         helper.succeed();
+    }
+
+    /**
+     * The reactor, plexer, crucible, hub, vat and canister each craft from
+     * their grid with gold in every cell copper held, and their old copper
+     * grid crafts none of them.
+     * decision copper-to-gold-one-to-one-scrap-stays
+     *
+     * @param helper the gametest helper
+     */
+    public static void machinesCraftedFromGold(GameTestHelper helper) {
+        for (GoldMachineGrid machine : goldMachineGrids()) {
+            ItemStack fromGold = craft(helper, grid(machine.pattern(), withMetal(machine.rest(), machine.gold())));
+            helper.assertTrue(fromGold.is(machine.result()) && fromGold.getCount() == 1,
+                    GOLD_MACHINE_NOT_CRAFTED + machine.result());
+            ItemStack fromCopper = craft(helper, grid(machine.pattern(), withMetal(machine.rest(), machine.copper())));
+            helper.assertTrue(!fromCopper.is(machine.result()), COPPER_MACHINE_CRAFTED + machine.result());
+        }
+        helper.succeed();
+    }
+
+    /**
+     * One machine's shaped grid: M marks each cell copper held and gold holds now.
+     */
+    private record GoldMachineGrid(Item result, String[] pattern, Map<Character, Item> rest, Item gold, Item copper) {
+    }
+
+    private static List<GoldMachineGrid> goldMachineGrids() {
+        return List.of(
+                new GoldMachineGrid(GooItems.REACTOR.get(), new String[] {"MRM", "NCN", "MMM"},
+                        Map.of('R', Items.COMPARATOR, 'N', Items.NETHERITE_SCRAP, 'C', Items.CAULDRON),
+                        Items.GOLD_INGOT, Items.CUT_COPPER_SLAB),
+                new GoldMachineGrid(GooItems.PLEXER.get(), new String[] {"MRM", "NC ", "MMM"},
+                        Map.of('R', Items.COMPARATOR, 'N', Items.NETHERITE_SCRAP, 'C', Items.CRAFTER),
+                        Items.GOLD_INGOT, Items.CUT_COPPER_SLAB),
+                new GoldMachineGrid(GooItems.CRUCIBLE.get(), new String[] {"M M", "NCN", "MFM"},
+                        Map.of('N', Items.NETHERITE_SCRAP, 'C', Items.CAULDRON, 'F', Items.BLAST_FURNACE),
+                        Items.GOLD_INGOT, Items.COPPER_INGOT),
+                new GoldMachineGrid(GooItems.HUB.get(), new String[] {"MMM", " I ", "MMM"},
+                        Map.of('I', Items.IRON_BARS),
+                        Items.GOLD_INGOT, Items.COPPER_INGOT),
+                new GoldMachineGrid(GooItems.VAT.get(), new String[] {"QMQ", "G G", "QMQ"},
+                        Map.of('Q', Items.QUARTZ_BLOCK, 'G', Items.GLASS),
+                        Items.GOLD_BLOCK, Items.COPPER_BLOCK),
+                new GoldMachineGrid(GooItems.CANISTER.get(), new String[] {"QMQ", "G G", "QMQ"},
+                        Map.of('Q', Items.QUARTZ, 'G', Items.GLASS_PANE),
+                        Items.GOLD_INGOT, Items.COPPER_INGOT));
     }
 
     private static Map<Character, Item> withMetal(Map<Character, Item> rest, Item metal) {

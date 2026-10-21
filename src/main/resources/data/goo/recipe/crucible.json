@@ -4,7 +4,7 @@
   "key": {
     "C": "minecraft:cauldron",
     "F": "minecraft:blast_furnace",
-    "I": "minecraft:copper_ingot",
+    "I": "minecraft:gold_ingot",
     "N": "minecraft:netherite_scrap"
   },
   "pattern": [
