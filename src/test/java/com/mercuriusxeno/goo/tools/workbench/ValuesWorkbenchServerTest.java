@@ -1,0 +1,169 @@
+package com.mercuriusxeno.goo.tools.workbench;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * Tests the workbench's handlers on a loopback server over temp copies of the files: the model, the
+ * save, the inventory and an item's image (decision workbench-authors-base-values-whole). The criterion
+ * names a real server on an ephemeral port, so this test binds one and writes under a temp folder.
+ */
+class ValuesWorkbenchServerTest {
+
+    private static final List<String> SECTIONS = List.of("_constants", "_groups", "_restricted", "_conversions",
+            "_post_conversions");
+    private static final byte[] NUGGET_PNG = {(byte) 0x89, 'P', 'N', 'G', 1, 2, 3};
+    private static final String INVENTORY = "{\"items\":[{\"id\":\"minecraft:iron_nugget\",\"name\":\"Iron Nugget\"}],"
+            + "\"blocks\":[],\"item_tags\":[],\"block_tags\":[],\"goo_types\":[],\"recipes\":[]}";
+
+    @TempDir
+    Path temp;
+
+    private ValuesWorkbenchServer server;
+    private WorkbenchPaths paths;
+    private final AtomicInteger dumpsRun = new AtomicInteger();
+    private final HttpClient client = HttpClient.newHttpClient();
+
+    @BeforeEach
+    void startServer() throws IOException {
+        paths = new WorkbenchPaths(temp.resolve("base_values.json"), temp.resolve("goo_inventory.json"),
+                temp.resolve("goo_inventory"));
+        Files.write(paths.baseValues(), BaseValuesModelTest.shippedBytes());
+        server = ValuesWorkbenchServer.start(paths, () -> {
+            dumpsRun.incrementAndGet();
+            Files.writeString(paths.inventoryFile(), INVENTORY);
+        }, 0);
+    }
+
+    @AfterEach
+    void stopServer() {
+        server.stop();
+    }
+
+    private HttpResponse<byte[]> get(String path) throws IOException, InterruptedException {
+        return client.send(HttpRequest.newBuilder(URI.create(server.url() + path)).GET().build(),
+                HttpResponse.BodyHandlers.ofByteArray());
+    }
+
+    private static String text(HttpResponse<byte[]> response) {
+        return new String(response.body(), StandardCharsets.UTF_8);
+    }
+
+    /**
+     * The model answers every top-level section of the file, in file order.
+     */
+    @Test
+    void modelAnswersEverySectionInFileOrder() throws IOException, InterruptedException {
+        HttpResponse<byte[]> response = get("/api/model");
+        assertEquals(200, response.statusCode());
+        JsonArray members = JsonParser.parseString(text(response)).getAsJsonObject().getAsJsonArray("members");
+        List<String> keys = members.asList().stream()
+                .map(member -> member.getAsJsonObject().get("key").getAsString()).toList();
+        List<String> sections = keys.stream().filter(SECTIONS::contains).toList();
+        assertEquals(SECTIONS, sections);
+        assertEquals(List.copyOf(JsonParser.parseString(Files.readString(paths.baseValues())).getAsJsonObject()
+                .keySet()), keys);
+    }
+
+    /**
+     * A saved model with one changed entry rewrites the file.
+     */
+    @Test
+    void savedModelRewritesTheFile() throws IOException, InterruptedException {
+        byte[] before = Files.readAllBytes(paths.baseValues());
+        JsonObject model = JsonParser.parseString(text(get("/api/model"))).getAsJsonObject();
+        JsonObject constants = model.getAsJsonArray("members").get(0).getAsJsonObject();
+        constants.getAsJsonArray("entries").get(0).getAsJsonObject().addProperty("text", "193");
+        HttpResponse<byte[]> saved = client.send(HttpRequest.newBuilder(URI.create(server.url() + "/api/model"))
+                .PUT(HttpRequest.BodyPublishers.ofString(model.toString())).build(),
+                HttpResponse.BodyHandlers.ofByteArray());
+        assertEquals(200, saved.statusCode());
+        byte[] after = Files.readAllBytes(paths.baseValues());
+        assertNotEquals(new String(before, StandardCharsets.UTF_8), new String(after, StandardCharsets.UTF_8));
+        assertTrue(new String(after, StandardCharsets.UTF_8).contains("\"base\": 193,"));
+    }
+
+    /**
+     * A standing inventory is served as it stands, with no dump run.
+     */
+    @Test
+    void inventoryIsServed() throws IOException, InterruptedException {
+        Files.writeString(paths.inventoryFile(), INVENTORY);
+        HttpResponse<byte[]> response = get("/api/inventory");
+        assertEquals(200, response.statusCode());
+        JsonObject inventory = JsonParser.parseString(text(response)).getAsJsonObject();
+        for (String section : List.of("items", "blocks", "item_tags", "block_tags", "goo_types", "recipes")) {
+            assertTrue(inventory.has(section), section);
+        }
+        assertEquals(0, dumpsRun.get());
+    }
+
+    /**
+     * An absent inventory runs the dump once and serves what it wrote.
+     */
+    @Test
+    void absentInventoryRunsTheDump() throws IOException, InterruptedException {
+        HttpResponse<byte[]> response = get("/api/inventory");
+        assertEquals(200, response.statusCode());
+        assertEquals(1, dumpsRun.get());
+        JsonElement items = JsonParser.parseString(text(response)).getAsJsonObject().get("items");
+        assertEquals("minecraft:iron_nugget", items.getAsJsonArray().get(0).getAsJsonObject().get("id").getAsString());
+    }
+
+    /**
+     * An item's image is served as PNG bytes from the inventory folder.
+     */
+    @Test
+    void itemImageIsServed() throws IOException, InterruptedException {
+        Path nugget = paths.imageFolder().resolve("minecraft/iron_nugget.png");
+        Files.createDirectories(nugget.getParent());
+        Files.write(nugget, NUGGET_PNG);
+        HttpResponse<byte[]> response = get("/api/image?id=minecraft:iron_nugget");
+        assertEquals(200, response.statusCode());
+        assertEquals("image/png", response.headers().firstValue("Content-Type").orElse(""));
+        assertArrayEquals(NUGGET_PNG, response.body());
+    }
+
+    /**
+     * An id climbing out of the image folder is refused.
+     */
+    @Test
+    void imageIdOutsideTheFolderIsRefused() throws IOException, InterruptedException {
+        assertEquals(400, get("/api/image?id=minecraft:../../base_values").statusCode());
+    }
+
+    /**
+     * The page's root answers the single-page app: the five tabs and the inventory sidebar.
+     */
+    @Test
+    void rootServesThePage() throws IOException, InterruptedException {
+        HttpResponse<byte[]> response = get("/");
+        assertEquals(200, response.statusCode());
+        assertTrue(response.headers().firstValue("Content-Type").orElse("").startsWith("text/html"));
+        String page = text(response);
+        for (String tab : List.of("Values", "Groups", "Variables", "Processes", "Audit")) {
+            assertTrue(page.contains(">" + tab + "<"), tab);
+        }
+        assertTrue(page.contains("id=\"inventory-sidebar\""));
+    }
+}

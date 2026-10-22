@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Goo Values Workbench</title>
+<style>
+:root {
+  --ground: #f3f4f2; --panel: #ffffff; --ink: #1c1f1d; --muted: #5b615e; --line: #d9dcd8; --control: #c9cdca;
+  --accent: #1f6f8b; --accent-ink: #15516a; --accent-soft: #e3eef3; --hover: #eef3f5; --tab-idle: #e9ebe8;
+  --warn: #b45309; --warn-ink: #8a3f06; --warn-soft: #fff4e8;
+  --src-entry: #eef0ee; --src-group: #e9f5ee; --src-denied: #f6e7e7; --src-none: #fff4e8;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 14px 'IBM Plex Sans', system-ui, sans-serif; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: default; opacity: 0.55; }
+.mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+.px { image-rendering: pixelated; image-rendering: crisp-edges; }
+.app { min-height: 100vh; display: flex; flex-direction: column; }
+.topbar { display: flex; align-items: center; gap: 16px; padding: 10px 20px; background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.title { font-weight: 600; font-size: 16px; }
+.path { font-size: 12px; color: var(--muted); flex: 1 1 320px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.status { font-size: 12px; color: var(--muted); }
+.button { padding: 8px 14px; border: 1px solid var(--accent); background: var(--panel); color: var(--accent); border-radius: 6px; font-weight: 500; }
+.button.primary { background: var(--accent); color: #ffffff; }
+.body { display: flex; flex-wrap: wrap; flex: 1 1 auto; min-height: 0; }
+aside { flex: 0 1 300px; min-width: 240px; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; }
+.sidebar-head { padding: 12px 12px 8px; display: flex; flex-direction: column; gap: 8px; }
+.sidebar-head label { font-size: 12px; color: var(--muted); }
+.search { padding: 8px 10px; border: 1px solid var(--control); border-radius: 6px; width: 100%; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--control); background: var(--panel); color: #3a403d; font-size: 12px; }
+.chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
+.chip.warn { border-color: var(--warn); background: var(--warn-soft); color: var(--warn-ink); }
+.chip.warn[aria-pressed="true"] { background: var(--warn); color: #ffffff; }
+.entries { display: flex; flex-direction: column; overflow: auto; flex: 1 1 auto; max-height: calc(100vh - 170px); }
+.entry { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border: 0; border-left: 3px solid transparent; background: var(--panel); text-align: left; width: 100%; }
+.entry:hover { background: var(--hover); }
+.entry[aria-current="true"] { border-left-color: var(--accent); background: var(--hover); }
+.entry img, .entry .noimage { width: 28px; height: 28px; flex: 0 0 auto; }
+.entry .noimage { border: 1px dashed var(--control); border-radius: 4px; }
+.entry-text { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+.entry-name { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.entry-id { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.source { font-size: 11px; padding: 2px 8px; border-radius: 999px; white-space: nowrap; color: #3a403d; }
+.source.entry-src { background: var(--src-entry); }
+.source.group-src { background: var(--src-group); color: #1c6b3a; }
+.source.denied-src { background: var(--src-denied); color: #8f1d1d; }
+.source.none-src { background: var(--src-none); color: var(--warn-ink); }
+.more { padding: 10px 12px; font-size: 12px; color: var(--muted); }
+main { flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; }
+nav { display: flex; gap: 2px; padding: 10px 20px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.tab { padding: 8px 14px; border: 1px solid var(--line); border-bottom: 0; border-radius: 6px 6px 0 0; background: var(--tab-idle); color: var(--ink); font-weight: 500; }
+.tab[aria-selected="true"] { background: var(--panel); }
+.pane { padding: 16px 20px; }
+.pane[hidden] { display: none; }
+.pane-card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; color: var(--muted); }
+.error { color: #8f1d1d; }
+@media (max-width: 640px) {
+  .topbar, nav, .pane { padding-left: 16px; padding-right: 16px; }
+  aside { flex-basis: 100%; border-right: 0; border-bottom: 1px solid var(--line); }
+  .entries { max-height: 320px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="title">Goo Values Workbench</div>
+    <div class="path mono" id="file-path">reading base_values.json</div>
+    <div class="actions">
+      <span class="status" id="status"></span>
+      <button class="button" id="run-button" type="button" disabled title="Reruns the audit and clique dumps">Run audit + cliques</button>
+      <button class="button primary" id="save-button" type="button" disabled>Save</button>
+    </div>
+  </header>
+  <div class="body">
+    <aside id="inventory-sidebar" aria-label="Inventory">
+      <div class="sidebar-head">
+        <label for="inventory-search">Inventory</label>
+        <input id="inventory-search" class="search" type="search" placeholder="Search items, blocks, tags">
+        <div class="chips" id="chips" role="group" aria-label="Show"></div>
+      </div>
+      <div class="entries" id="entries"><div class="more">Loading the inventory; a missing one runs the inventory dump first.</div></div>
+    </aside>
+    <main>
+      <nav role="tablist" aria-label="Workbench">
+        <button class="tab" role="tab" type="button" data-tab="values" aria-selected="true">Values</button>
+        <button class="tab" role="tab" type="button" data-tab="groups" aria-selected="false">Groups</button>
+        <button class="tab" role="tab" type="button" data-tab="variables" aria-selected="false">Variables</button>
+        <button class="tab" role="tab" type="button" data-tab="processes" aria-selected="false">Processes</button>
+        <button class="tab" role="tab" type="button" data-tab="audit" aria-selected="false">Audit</button>
+      </nav>
+      <section class="pane" role="tabpanel" id="pane-values" data-pane="values"><div class="pane-card">Item and #group entries: value objects, expressions, ratios, denied and restricted.</div></section>
+      <section class="pane" role="tabpanel" id="pane-groups" data-pane="groups" hidden><div class="pane-card">_groups: named sets of items, written once as #name.</div></section>
+      <section class="pane" role="tabpanel" id="pane-variables" data-pane="variables" hidden><div class="pane-card">_constants: scalar and tree constants and the expressions over them.</div></section>
+      <section class="pane" role="tabpanel" id="pane-processes" data-pane="processes" hidden><div class="pane-card">_conversions and _post_conversions: formulas, additives, stacks and parallel copies.</div></section>
+      <section class="pane" role="tabpanel" id="pane-audit" data-pane="audit" hidden><div class="pane-card">The audit and clique dumps, read section by section.</div></section>
+    </main>
+  </div>
+</div>
+<script>
+'use strict';
+const SHOWN_AT_ONCE = 400;
+const state = { model: null, inventory: null, filter: 'items', search: '', selected: null, sources: new Map() };
+const $ = (id) => document.getElementById(id);
+
+function setStatus(text, isError) {
+  const status = $('status');
+  status.textContent = text;
+  status.classList.toggle('error', !!isError);
+}
+
+async function fetchJson(url, options) {
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    throw new Error(url + ' answered ' + response.status + ': ' + await response.text());
+  }
+  return response.json();
+}
+
+// A bare id in base_values.json reads in the minecraft namespace, as Identifier.parse reads it.
+function namespaced(id) {
+  return id.includes(':') ? id : 'minecraft:' + id;
+}
+
+function textValue(text) {
+  try { return JSON.parse(text); } catch (e) { return text; }
+}
+
+// How each item gets its value from the file: its own entry, a #group entry over a _groups group, or neither.
+// A #name key resolves against _groups alone, as GooGroupParser.resolvePseudoTag does.
+function sourcesFromModel(model) {
+  const sources = new Map();
+  const groups = new Map();
+  const restricted = new Set();
+  for (const member of model.members) {
+    if (member.key === '_groups') {
+      for (const group of member.entries) {
+        const ids = textValue(group.text);
+        groups.set(group.key, Array.isArray(ids) ? ids.map(namespaced) : []);
+      }
+    }
+    if (member.key === '_restricted') {
+      for (const entry of member.entries) {
+        restricted.add(String(textValue(entry.text)));
+      }
+    }
+  }
+  for (const member of model.members) {
+    if (member.kind !== 'VALUE') {
+      continue;
+    }
+    const denied = textValue(member.text) === 'denied';
+    if (member.key.startsWith('#')) {
+      const name = member.key.slice(1);
+      const ids = groups.get(name) || groups.get(name.replace(/^.*:/, '')) || [];
+      for (const id of ids) {
+        if (!sources.has(id)) {
+          sources.set(id, { label: denied ? 'denied by #' + name : 'group #' + name, kind: denied ? 'denied' : 'group' });
+        }
+      }
+    } else {
+      sources.set(namespaced(member.key), { label: denied ? 'denied' : 'entry', kind: denied ? 'denied' : 'entry' });
+    }
+  }
+  for (const entry of restricted) {
+    const ids = entry.startsWith('#') ? (groups.get(entry.slice(1)) || []) : [namespaced(entry)];
+    for (const id of ids) {
+      const source = sources.get(id) || { label: 'not in the file', kind: 'none' };
+      sources.set(id, { label: source.label + ', restricted', kind: source.kind });
+    }
+  }
+  return sources;
+}
+
+function sourceOf(id) {
+  return state.sources.get(id) || { label: 'not in the file', kind: 'none' };
+}
+
+function imageUrl(id) {
+  return '/api/image?id=' + encodeURIComponent(id);
+}
+
+function listedEntries() {
+  const inventory = state.inventory;
+  if (!inventory) {
+    return [];
+  }
+  const byFilter = {
+    items: () => inventory.items.map((item) => ({ id: item.id, name: item.name, image: !!item.image })),
+    blocks: () => inventory.blocks.map((block) => ({ id: block.id, name: block.name, image: false })),
+    tags: () => inventory.item_tags.map((tag) => ({ id: '#' + tag.id, name: tag.members.length + ' members', image: false })),
+    goo: () => inventory.goo_types.map((type) => ({ id: type.id, name: 'goo type', image: false })),
+    unlisted: () => inventory.items.filter((item) => item.id !== 'minecraft:air' && sourceOf(item.id).kind === 'none')
+      .map((item) => ({ id: item.id, name: item.name, image: !!item.image }))
+  };
+  const search = state.search.trim().toLowerCase();
+  return byFilter[state.filter]().filter((entry) => !search
+    || entry.id.toLowerCase().includes(search) || entry.name.toLowerCase().includes(search));
+}
+
+function renderChips() {
+  const inventory = state.inventory;
+  const unlisted = inventory
+    ? inventory.items.filter((item) => item.id !== 'minecraft:air' && sourceOf(item.id).kind === 'none').length : 0;
+  const chips = [
+    ['items', 'Items'], ['blocks', 'Blocks'], ['tags', 'Tags'], ['goo', 'Goo types'], ['unlisted', 'Not in the file ' + unlisted]
+  ];
+  const holder = $('chips');
+  holder.replaceChildren(...chips.map(([filter, label]) => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'chip' + (filter === 'unlisted' ? ' warn' : '');
+    chip.textContent = label;
+    chip.setAttribute('aria-pressed', String(state.filter === filter));
+    chip.addEventListener('click', () => { state.filter = filter; render(); });
+    return chip;
+  }));
+}
+
+function entryRow(entry) {
+  const row = document.createElement('button');
+  row.type = 'button';
+  row.className = 'entry';
+  row.setAttribute('aria-current', String(state.selected === entry.id));
+  if (entry.image) {
+    const image = document.createElement('img');
+    image.className = 'px';
+    image.loading = 'lazy';
+    image.alt = '';
+    image.src = imageUrl(entry.id);
+    row.append(image);
+  } else {
+    const blank = document.createElement('span');
+    blank.className = 'noimage';
+    row.append(blank);
+  }
+  const text = document.createElement('span');
+  text.className = 'entry-text';
+  const name = document.createElement('span');
+  name.className = 'entry-name';
+  name.textContent = entry.name;
+  const id = document.createElement('span');
+  id.className = 'entry-id mono';
+  id.textContent = entry.id;
+  text.append(name, id);
+  row.append(text);
+  if (state.filter === 'items' || state.filter === 'unlisted') {
+    const source = sourceOf(entry.id);
+    const badge = document.createElement('span');
+    badge.className = 'source ' + source.kind + '-src';
+    badge.textContent = source.label;
+    row.append(badge);
+  }
+  row.addEventListener('click', () => { state.selected = entry.id; renderEntries(); });
+  return row;
+}
+
+function renderEntries() {
+  const holder = $('entries');
+  if (!state.inventory) {
+    return;
+  }
+  const entries = listedEntries();
+  const rows = entries.slice(0, SHOWN_AT_ONCE).map(entryRow);
+  if (entries.length > SHOWN_AT_ONCE) {
+    const more = document.createElement('div');
+    more.className = 'more';
+    more.textContent = (entries.length - SHOWN_AT_ONCE) + ' more; search to narrow the list.';
+    rows.push(more);
+  }
+  if (entries.length === 0) {
+    const none = document.createElement('div');
+    none.className = 'more';
+    none.textContent = 'Nothing matches.';
+    rows.push(none);
+  }
+  holder.replaceChildren(...rows);
+}
+
+function render() {
+  renderChips();
+  renderEntries();
+}
+
+function selectTab(tab) {
+  for (const button of document.querySelectorAll('.tab')) {
+    button.setAttribute('aria-selected', String(button.dataset.tab === tab));
+  }
+  for (const pane of document.querySelectorAll('.pane')) {
+    pane.hidden = pane.dataset.pane !== tab;
+  }
+}
+
+async function loadModel() {
+  state.model = await fetchJson('/api/model');
+  state.sources = sourcesFromModel(state.model);
+  $('file-path').textContent = state.model.path;
+  $('save-button').disabled = false;
+}
+
+async function loadInventory() {
+  state.inventory = await fetchJson('/api/inventory');
+  const inventory = state.inventory;
+  $('file-path').textContent = state.model.path + ' · inventory: ' + inventory.items.length + ' items, '
+    + inventory.item_tags.length + ' item tags, ' + inventory.goo_types.length + ' goo types';
+}
+
+async function save() {
+  setStatus('saving');
+  try {
+    state.model = await fetchJson('/api/model', { method: 'PUT', body: JSON.stringify(state.model) });
+    state.sources = sourcesFromModel(state.model);
+    setStatus('saved');
+    render();
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+}
+
+document.querySelectorAll('.tab').forEach((button) => button.addEventListener('click', () => selectTab(button.dataset.tab)));
+$('inventory-search').addEventListener('input', (event) => { state.search = event.target.value; renderEntries(); });
+$('save-button').addEventListener('click', save);
+
+(async () => {
+  try {
+    await loadModel();
+    render();
+    await loadInventory();
+    render();
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+})();
+</script>
+</body>
+</html>
