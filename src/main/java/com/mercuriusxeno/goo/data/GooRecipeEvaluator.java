@@ -84,7 +84,24 @@ final class GooRecipeEvaluator {
         if (current == null) {
             return candidate;
         }
-        return isCheaper(candidate.value, current.value) ? candidate : current;
+        return isCheaperOrSimpler(candidate.value, current.value) ? candidate : current;
+    }
+
+    /**
+     * Between two recipe-derived values the cheaper wins, and on equal totals the simpler, the value
+     * holding fewer goo types (operator ruling: cheapest wins, simplest breaks a tie). A hand-keyed
+     * value against a recipe still keeps the tie through {@link #isCheaper}.
+     *
+     * @param candidate the proposed replacement value
+     * @param current   the existing value to compare against
+     * @return true if candidate is cheaper, or equal and simpler
+     */
+    static boolean isCheaperOrSimpler(GooValue candidate, GooValue current) {
+        int byTotal = candidate.totalExact().compareTo(current.totalExact());
+        if (byTotal != 0) {
+            return byTotal < 0;
+        }
+        return candidate.typeCount() < current.typeCount();
     }
 
     /**

@@ -241,6 +241,73 @@ public class GooValueRegistry {
     }
 
     /**
+     * The recipes that set a value: where two paths exist the cheapest wins and the simplest breaks a
+     * tie, so each output keeps only its winning recipe and each slot only its cheapest alternative.
+     * A hand-keyed value stops nothing here: the least number reads ratios alone
+     * (decision audit-works-the-least-number-per-type-from-the-recipe-graph).
+     *
+     * @return the winning recipes, empty before the first derivation
+     */
+    public List<RecipeInput> valueSettingRecipes() {
+        if (lastDerivation == null) {
+            return List.of();
+        }
+        Map<Identifier, GooValue> derived = lastDerivation.derivedValues();
+        List<RecipeInput> setting = new ArrayList<>();
+        lastDerivation.derivationSources().values()
+                .forEach(recipe -> setting.add(withCheapestAlternatives(recipe, derived)));
+        return setting;
+    }
+
+    /**
+     * Every alternative of a slot tied with the cheapest and simplest one: equal in total goo and in
+     * goo type count, so each is the same choice and each carries the recipe's demand.
+     *
+     * @param slot    the slot's alternatives
+     * @param derived the values derived so far
+     * @return the tied alternatives, or the whole slot when none holds a value
+     */
+    private Set<Identifier> tiedForCheapest(Set<Identifier> slot, Map<Identifier, GooValue> derived) {
+        Identifier cheapest = IGooValueLookup.findCheapestAmong(
+                slot, id -> GooValueDerivation.lookupForDerivation(id, baseValues, derived));
+        if (cheapest == null) {
+            return slot;
+        }
+        GooValue best = GooValueDerivation.lookupForDerivation(cheapest, baseValues, derived);
+        Set<Identifier> tied = new HashSet<>();
+        for (Identifier alternative : slot) {
+            GooValue value = GooValueDerivation.lookupForDerivation(alternative, baseValues, derived);
+            if (value != null && value.totalExact().equals(best.totalExact()) && value.typeCount() == best.typeCount()) {
+                tied.add(alternative);
+            }
+        }
+        return tied;
+    }
+
+    private RecipeInput withCheapestAlternatives(RecipeInput recipe, Map<Identifier, GooValue> derived) {
+        List<Set<Identifier>> slots = new ArrayList<>();
+        for (Set<Identifier> slot : recipe.ingredientAlternatives()) {
+            slots.add(tiedForCheapest(slot, derived));
+        }
+        return new RecipeInput(recipe.output(), recipe.resultCount(), slots, recipe.containerItems(),
+                recipe.slotTagIds());
+    }
+
+    /**
+     * @return the items denied a value, read-only
+     */
+    public Set<Identifier> deniedItems() {
+        return Collections.unmodifiableSet(deniedItems);
+    }
+
+    /**
+     * @return the recipes the last derivation adapted, empty before the first
+     */
+    public List<RecipeInput> lastRecipes() {
+        return lastRecipes;
+    }
+
+    /**
      * @param name a constant's name, without its $ prefix
      * @return the constant's resolved tree or scalar, or null for a name no constant holds
      */
