@@ -69,6 +69,7 @@ public final class ValuesWorkbenchServer {
         http.createContext("/api/constants/rename", exchange -> server.answer(exchange, server::renameConstant));
         http.createContext("/api/groups/describe", exchange -> server.answer(exchange, server::describeGroups));
         http.createContext("/api/groups/apply", exchange -> server.answer(exchange, server::applyToGroup));
+        http.createContext("/api/template", exchange -> server.answer(exchange, server::template));
         http.setExecutor(Executors.newCachedThreadPool());
         http.start();
         return server;
@@ -195,6 +196,32 @@ public final class ValuesWorkbenchServer {
         String sent = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
         return Reply.of(OK, JSON, GroupsJson.applied(sent, fileLayout(), GroupsJson.Inventory.read(
                 paths.inventoryFile())));
+    }
+
+    /**
+     * Answers the template the inventory builds and what the posted model leaves out of it
+     * (decision template-first-then-defaults-by-convention).
+     */
+    private Reply template(HttpExchange exchange) throws IOException {
+        if (!POST.equals(exchange.getRequestMethod())) {
+            return Reply.of(NOT_ALLOWED, TEXT, exchange.getRequestMethod() + " is not served here");
+        }
+        GroupsJson.Inventory inventory = GroupsJson.Inventory.read(paths.inventoryFile());
+        if (inventory.items().isEmpty()) {
+            return Reply.of(SERVER_ERROR, TEXT, "No inventory stands at " + paths.inventoryFile());
+        }
+        BaseValuesModel model = postedModel(exchange);
+        ValuesTemplate.Leftovers leftovers = ValuesTemplate.leftovers(model, inventory.loadout());
+        JsonObject answer = new JsonObject();
+        answer.add("template", com.google.gson.JsonParser.parseString(
+                ModelJson.toJson(ValuesTemplate.build(inventory.loadout()), paths.baseValues().toString())));
+        com.google.gson.JsonArray tags = new com.google.gson.JsonArray();
+        leftovers.tags().forEach(tags::add);
+        com.google.gson.JsonArray items = new com.google.gson.JsonArray();
+        leftovers.items().forEach(items::add);
+        answer.add("ungroupedTags", tags);
+        answer.add("uncoveredItems", items);
+        return Reply.of(OK, JSON, answer.toString());
     }
 
     private BaseValuesModel postedModel(HttpExchange exchange) throws IOException {
