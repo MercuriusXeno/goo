@@ -23,6 +23,21 @@ public final class GooFormat {
         new Magnitude(1_000L, "K"),
     };
 
+    private static final long TICKS_PER_SECOND = 20;
+    private static final long TICKS_PER_MINUTE = TICKS_PER_SECOND * 60;
+    private static final long TICKS_PER_HOUR = TICKS_PER_MINUTE * 60;
+    private static final long TICKS_PER_DAY = TICKS_PER_HOUR * 24;
+    private static final long TICKS_PER_YEAR = TICKS_PER_DAY * 365;
+    private static final String SECONDS_SUFFIX = "s";
+
+    /** Time units in descending order, each in ticks; a duration under a minute reads in whole seconds. */
+    private static final Magnitude[] TIME_UNITS = {
+        new Magnitude(TICKS_PER_YEAR, "y"),
+        new Magnitude(TICKS_PER_DAY, "d"),
+        new Magnitude(TICKS_PER_HOUR, "h"),
+        new Magnitude(TICKS_PER_MINUTE, "m"),
+    };
+
     /** A magnitude bracket: the divisor an amount at or past it is shown in, and its suffix. */
     private record Magnitude(long divisor, String suffix) {}
 
@@ -42,6 +57,25 @@ public final class GooFormat {
             }
         }
         return Long.toString(amount);
+    }
+
+    /**
+     * Formats a duration in its largest unit of at least 1, years, days, hours or minutes, to
+     * 3 significant digits truncated, or in whole seconds below a minute: 90 seconds reads
+     * "1.5m", 2147687 seconds reads "24.8d", 250 ticks reads "12s".
+     * counts-read-three-significant-digits
+     *
+     * @param ticks the duration in game ticks
+     * @return the display string
+     */
+    public static String formatDuration(long ticks) {
+        for (Magnitude unit : TIME_UNITS) {
+            if (ticks >= unit.divisor) {
+                return formatSignificantDigits(ticks, unit.divisor, unit.suffix);
+            }
+        }
+        // the operator's ruling: below a minute seconds read whole, since ticks are too fine to matter
+        return ticks / TICKS_PER_SECOND + SECONDS_SUFFIX;
     }
 
     /**

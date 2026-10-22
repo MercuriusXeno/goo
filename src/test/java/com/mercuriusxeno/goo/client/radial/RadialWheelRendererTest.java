@@ -320,8 +320,8 @@ class RadialWheelRendererTest {
             ClientAbility cheap = costing(AFFORDABLE);
             ClientAbility dear = costing(UNAFFORDABLE);
 
-            assertEquals("1K", RadialWheelRenderer.fanSlot(cheap, HOLDINGS).costLabel());
-            assertEquals("2K", RadialWheelRenderer.fanSlot(dear, HOLDINGS).costLabel());
+            assertEquals("1K | x1", RadialWheelRenderer.fanSlot(cheap, HOLDINGS).costLabel());
+            assertEquals("2K | x0", RadialWheelRenderer.fanSlot(dear, HOLDINGS).costLabel());
         }
 
         @Test
@@ -347,7 +347,7 @@ class RadialWheelRendererTest {
             ClientAbility held = new ClientAbility(Identifier.fromNamespaceAndPath(Goo.MODID, "held"), "ability.goo.held",
                     "", 0, List.of(), List.of(), 0, Delivery.of(DeliveryKind.SELF), AbilityBadge.BREW, List.of(),
                     AbilityArea.NONE, IndicatorShowing.HELD, List.of(), 1);
-            assertEquals("20/s", RadialWheelRenderer.fanSlot(held, HOLDINGS).costLabel());
+            assertEquals("20/s | 1.25m", RadialWheelRenderer.fanSlot(held, HOLDINGS).costLabel());
             assertFalse(RadialWheelRenderer.fanSlot(held, 20).dimmed());
             assertTrue(RadialWheelRenderer.fanSlot(held, 19).dimmed());
         }

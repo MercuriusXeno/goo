@@ -6,6 +6,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.function.ToIntFunction;
 
 /**
  * Reads and takes the reagents an ability consumes beside its goo cost, the
@@ -48,6 +49,40 @@ public final class ReagentScanner {
      */
     public static boolean holds(Player player, Identifier reagent) {
         return player.getInventory().contains(stack -> isItem(stack, reagent));
+    }
+
+    /**
+     * How many whole sets of the reagents named the player's inventory holds.
+     * reagent-count-is-the-smaller-bound
+     *
+     * @param player   the player whose inventory to read
+     * @param reagents the item ids consumed, one of each
+     * @return the smallest count among the reagents, Integer.MAX_VALUE for none named
+     */
+    public static int setsHeld(Player player, List<Identifier> reagents) {
+        return setsHeld(reagents, reagent -> countHeld(player.getInventory(), reagent));
+    }
+
+    /**
+     * How many whole sets of the reagents named the counts afford.
+     *
+     * @param reagents the item ids consumed, one of each
+     * @param countOf  how many of an item id the inventory holds
+     * @return the smallest count among the reagents, Integer.MAX_VALUE for none named
+     */
+    public static int setsHeld(List<Identifier> reagents, ToIntFunction<Identifier> countOf) {
+        return reagents.stream().mapToInt(countOf).min().orElse(Integer.MAX_VALUE);
+    }
+
+    private static int countHeld(Inventory inventory, Identifier reagent) {
+        int held = 0;
+        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (isItem(stack, reagent)) {
+                held += stack.getCount();
+            }
+        }
+        return held;
     }
 
     /**

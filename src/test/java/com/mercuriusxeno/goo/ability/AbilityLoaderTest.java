@@ -446,6 +446,40 @@ class AbilityLoaderTest {
     }
 
     /**
+     * Each dynamically priced ability carries the short formula its petal reads, and a zero-cost
+     * ability naming cost_mechanics and paying no upkeep must name one.
+     * decision dynamic-costs-keep-the-mb-quantity
+     */
+    @Nested
+    class CostFormula {
+
+        private static final Map<String, String> SHIPPED_FORMULAS = Map.of(
+                "ender_blink", "200 + 100/block",
+                "deep_churn", "1K x r\u00B3",
+                "nether_black_hole", "1K x r\u00B3",
+                "unstable_explode", "1K x r\u00B3",
+                "rock_spire", "value/block",
+                "unstable_unmake", "value/block",
+                "yore_age", "age/block");
+
+        @Test
+        void eachDynamicAbilityCarriesItsFormula() {
+            SHIPPED_FORMULAS.forEach((name, formula) ->
+                    assertEquals(Optional.of(formula), AbilityJson.decode(name).costFormula(), name));
+        }
+
+        @Test
+        void zeroCostAbilityNamingCostMechanicsAndNoFormulaFailsNamingTheField() {
+            String json = AbilityJson.read("rock_spire").replaceAll("\\s*\"cost_formula\"\\s*:\\s*\"[^\"]*\",?", "");
+
+            IllegalStateException refusal = assertThrows(IllegalStateException.class,
+                    () -> AbilityJson.decodeText("rock_spire", json));
+
+            assertTrue(refusal.getMessage().contains("cost_formula"), refusal.getMessage());
+        }
+    }
+
+    /**
      * An ability costing nothing up front names a cost_mechanics key explaining how it
      * charges; one with a plain cost may leave it out.
      * decision zero-cost-field-formats-the-cost-mechanics

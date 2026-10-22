@@ -5,6 +5,7 @@
   "badge": "instant",
   "order": 10,
   "cost": 200,
+  "cost_formula": "200 + 100/block",
   "cost_per_block": 100,
   "wall_cost": 400,
   "node_percent": 10,
