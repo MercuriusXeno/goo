@@ -37,6 +37,26 @@ public interface IRemainderLedger {
     OptionalInt debitExact(ResourceKey<GooTypeDefinition> type, GooFraction exact, int availableWhole);
 
     /**
+     * Credits each positive type's exact amount.
+     *
+     * @param exacts each type's exact amount
+     * @return the whole mB to deposit of each type, a type depositing nothing left out
+     */
+    default Map<ResourceKey<GooTypeDefinition>, Integer> creditAllExact(
+            Map<ResourceKey<GooTypeDefinition>, GooFraction> exacts) {
+        Map<ResourceKey<GooTypeDefinition>, Integer> deposited = new HashMap<>();
+        exacts.forEach((type, exact) -> {
+            if (exact.isPositive()) {
+                int whole = creditExact(type, exact);
+                if (whole > 0) {
+                    deposited.put(type, whole);
+                }
+            }
+        });
+        return deposited;
+    }
+
+    /**
      * Debits several types at once, all or none: each positive type's exact amount
      * debits the ledger only where the available whole of every type covers its own
      * debit, so a refusal changes no remainder.

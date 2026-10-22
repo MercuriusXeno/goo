@@ -4,7 +4,9 @@ import com.mercuriusxeno.goo.GooConfig;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityRegistry;
 import com.mercuriusxeno.goo.ability.program.SiphonRule;
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.gametest.KnownRecipes;
 import com.mercuriusxeno.goo.item.GooContents;
@@ -70,7 +72,18 @@ public final class UnmakeTests {
         GooTestFunctions.registerTest(registrar, UNMAKE_FINISHES_AFTER_RELEASE, UnmakeTests::unmakeFinishesAfterRelease);
         GooTestFunctions.registerTest(registrar, UNMAKE_LEAVES_MOBS_ALONE, UnmakeTests::unmakeLeavesMobsAlone);
         GooTestFunctions.registerTest(registrar, UNMAKE_OVERFLOW_DROPS_AT_FEET, UnmakeTests::unmakeOverflowDropsAtFeet);
+        GooTestFunctions.registerTest(registrar, UNMAKE_PAYS_THREE_THIRDS_BLOCKS_EXACTLY,
+                UnmakeTests::unmakePaysThreeThirdsBlocksExactly);
+        GooTestFunctions.registerTest(registrar, UNMAKE_KEEPS_ONE_THIRDS_BLOCKS_REMAINDER,
+                UnmakeTests::unmakeKeepsOneThirdsBlocksRemainder);
     }
+
+    private static final String UNMAKE_PAYS_THREE_THIRDS_BLOCKS_EXACTLY = "unmake_pays_three_thirds_blocks_exactly";
+    private static final String UNMAKE_KEEPS_ONE_THIRDS_BLOCKS_REMAINDER = "unmake_keeps_one_thirds_blocks_remainder";
+    /** The rock the exact_value_probe datapack prices one smooth basalt at. */
+    private static final GooFraction THIRDS_BLOCK_ROCK = GooFraction.of(64, 3);
+    private static final String INEXACT = "Drinking %d blocks worth 64/3 rock should land %d rock and leave %s on the player,"
+            + " held %s and left %s";
 
 
     private static final Identifier UNMAKE = Identifier.parse("goo:unstable_unmake");
@@ -158,6 +171,63 @@ public final class UnmakeTests {
             helper.assertTrue(new GooContents(expected).getAll().equals(held), String.format(WRONG_YIELD, expected,
                     held));
             helper.assertTrue(dropped.isEmpty(), String.format(DROPPED, dropped));
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A mock player drinks a column of three smooth basalt, which the
+     * exact_value_probe datapack prices at 64/3 rock each: 64 rock lands in the
+     * inventory and the player's remainder ends empty.
+     * decision melt-and-fabricate-move-the-exact-value-through-a-remainder-buffer
+     *
+     * @param helper the gametest helper
+     */
+    public static void unmakePaysThreeThirdsBlocksExactly(GameTestHelper helper) {
+        drinkThirdsBlocks(helper, column(), 64, GooFraction.ZERO);
+    }
+
+    /**
+     * A mock player drinks one smooth basalt worth 64/3 rock: 21 rock lands in
+     * the inventory and 1/3 rock stays on the player's remainder.
+     * decision every-producer-consumer-and-container-holds-a-remainder-buffer
+     *
+     * @param helper the gametest helper
+     */
+    public static void unmakeKeepsOneThirdsBlocksRemainder(GameTestHelper helper) {
+        drinkThirdsBlocks(helper, List.of(AIMED_POS), 21, GooFraction.of(1, 3));
+    }
+
+    /**
+     * Holds Unmake down a run of smooth basalt and checks the rock landed and the player's remainder.
+     *
+     * @param helper the gametest helper
+     * @param blocks the smooth basalt to drink
+     * @param landed the rock the inventory should hold
+     * @param kept   the rock remainder the player should keep
+     */
+    private static void drinkThirdsBlocks(GameTestHelper helper, List<BlockPos> blocks, int landed, GooFraction kept) {
+        AbilityDefinition unmake = AbilityRegistry.of(helper.getLevel()).getAbility(UNMAKE);
+        helper.assertTrue(unmake != null, ABILITY_REQUIRED);
+        GooValue basalt = GooValues.of(helper.getLevel()).lookup(new ItemStack(Blocks.SMOOTH_BASALT));
+        helper.assertTrue(basalt != null && THIRDS_BLOCK_ROCK.equals(basalt.exact(GooTypes.ROCK)),
+                "The exact_value_probe datapack should price smooth basalt at 64/3 rock, read " + basalt);
+        blocks.forEach(pos -> helper.setBlock(pos, Blocks.SMOOTH_BASALT));
+        ServerPlayer player = channeler(helper, GooStacks.THOUSAND);
+        KnownRecipes.teachRequires(player, unmake);
+        int drinkTicks = drinkTicks(helper) + SiphonRule.siphonTicks(THIRDS_BLOCK_ROCK.ceiling(),
+                GooConfig.UNSTABLE_MELT_EXPONENT.get(), 1);
+        int travel = travelTicks(helper, player, blocks);
+        GooStreamPayload tick = aimedAt(player, westFace(helper, AIMED_POS));
+        for (int held = 1; held <= drinkTicks; held++) {
+            helper.runAfterDelay(held, () -> GooStreamHandler.streamTick(player, tick));
+        }
+        helper.runAfterDelay(drinkTicks + travel + 2L, () -> {
+            int rock = heldGoo(player.getInventory()).getOrDefault(GooTypes.ROCK, 0);
+            GooFraction remainder = player.getData(GooAttachments.REMAINDERS).of(GooTypes.ROCK);
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.assertTrue(rock == landed && remainder.equals(kept),
+                    String.format(INEXACT, blocks.size(), landed, kept, rock, remainder));
             helper.succeed();
         });
     }
