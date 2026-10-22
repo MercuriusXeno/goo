@@ -3,9 +3,14 @@ package com.mercuriusxeno.goo.command;
 import com.mojang.brigadier.tree.CommandNode;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.server.permissions.PermissionSet;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests the /goo command tree's dev gate: lab and orphans register only when
@@ -16,6 +21,7 @@ class GooCommandTest {
     private static final String LAB = "lab";
     private static final String ORPHANS = "orphans";
     private static final String LOOKUP = "lookup";
+    private static final String INVENTORY = "inventory";
 
     /**
      * A closed gate leaves lab and orphans out of the tree.
@@ -48,5 +54,23 @@ class GooCommandTest {
         CommandNode<CommandSourceStack> lab = GooCommand.commandTree(true).build().getChild(LAB);
         assertNotNull(lab.getChild("learn"));
         assertNotNull(lab.getChild("forget"));
+    }
+
+    /**
+     * The inventory dump stands under the goo root on any server, and only an operator runs it
+     * (decision inventory-dump-from-a-gametest-and-a-command).
+     */
+    @Test
+    void inventoryIsAnOperatorSubcommand() {
+        CommandNode<CommandSourceStack> inventory = GooCommand.commandTree(false).build().getChild(INVENTORY);
+        assertNotNull(inventory);
+        assertTrue(inventory.canUse(sourceWith(PermissionSet.ALL_PERMISSIONS)));
+        assertFalse(inventory.canUse(sourceWith(PermissionSet.NO_PERMISSIONS)));
+    }
+
+    private static CommandSourceStack sourceWith(PermissionSet permissions) {
+        CommandSourceStack source = mock(CommandSourceStack.class);
+        when(source.permissions()).thenReturn(permissions);
+        return source;
     }
 }
