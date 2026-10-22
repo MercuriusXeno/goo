@@ -95,6 +95,10 @@ tr:hover td { background: var(--hover); }
 .member-name { font-size: 11px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .member-tweak { font-size: 10px; color: var(--warn-ink); }
 .preview { font-size: 12px; background: var(--ground); border-radius: 6px; padding: 10px 12px; white-space: pre-wrap; margin: 0; }
+details.dump-section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+details.dump-section summary { padding: 10px 14px; cursor: pointer; font-weight: 500; display: flex; gap: 10px; align-items: center; }
+details.dump-section pre { margin: 0; padding: 0 14px 12px; font-size: 12px; overflow: auto; max-height: 420px; }
+#audit-progress { max-height: 180px; overflow: auto; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 @media (max-width: 640px) {
   .topbar, nav, .pane { padding-left: 16px; padding-right: 16px; }
@@ -110,7 +114,7 @@ tr:hover td { background: var(--hover); }
     <div class="path mono" id="file-path">reading base_values.json</div>
     <div class="actions">
       <span class="status" id="status"></span>
-      <button class="button" id="run-button" type="button" disabled title="Reruns the audit and clique dumps">Run audit + cliques</button>
+      <button class="button" id="run-button" type="button" title="Saves, then reruns the audit and clique dumps headless">Run audit + cliques</button>
       <button class="button primary" id="save-button" type="button" disabled>Save</button>
     </div>
   </header>
@@ -180,7 +184,16 @@ tr:hover td { background: var(--hover); }
         <p class="hint">The game's lexer reads integers, $name, $tree.type, + - * /, parentheses and a leading count ("9 $iron_nugget"). A tree constant is an object of per-type expressions, such as {"leaf": "$base"}.</p>
       </section>
       <section class="pane" role="tabpanel" id="pane-processes" data-pane="processes" hidden><div class="pane-card">_conversions and _post_conversions: formulas, additives, stacks and parallel copies.</div></section>
-      <section class="pane" role="tabpanel" id="pane-audit" data-pane="audit" hidden><div class="pane-card">The audit and clique dumps, read section by section.</div></section>
+      <section class="pane" role="tabpanel" id="pane-audit" data-pane="audit" hidden>
+        <div class="field-stack">
+          <div class="row-actions">
+            <button class="button primary" type="button" id="audit-run">Run audit + cliques</button>
+            <span class="mono hint" id="audit-line">saves base_values.json, then boots the test server once for both dumps</span>
+          </div>
+          <pre class="preview mono" id="audit-progress" hidden></pre>
+          <div id="audit-sections" class="field-stack"></div>
+        </div>
+      </section>
     </main>
   </div>
 </div>
@@ -868,6 +881,103 @@ $('template-start').addEventListener('click', async () => {
   await checkTemplate();
 });
 
+// --- Audit: save, run both dumps in one headless boot, stream the run, read the dumps section by section ---
+
+const auditView = { running: false, sections: [] };
+const PROGRESS_LINES_SHOWN = 300;
+
+function renderAuditSections() {
+  $('audit-sections').replaceChildren(...auditView.sections.map((section, index) => {
+    const details = document.createElement('details');
+    details.className = 'dump-section';
+    details.open = index < 2;
+    const summary = document.createElement('summary');
+    const header = document.createElement('span');
+    header.textContent = section.header;
+    const dump = document.createElement('span');
+    dump.className = 'mono hint';
+    dump.textContent = section.dump;
+    summary.append(header, dump);
+    const body = document.createElement('pre');
+    body.className = 'mono';
+    body.textContent = section.lines.join('\n');
+    details.append(summary, body);
+    return details;
+  }));
+}
+
+async function loadDumps() {
+  try {
+    auditView.sections = (await fetchJson('/api/dumps')).sections;
+    renderAuditSections();
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+}
+
+function setRunning(running) {
+  auditView.running = running;
+  $('audit-run').disabled = running;
+  $('run-button').disabled = running;
+}
+
+async function runDumps() {
+  if (auditView.running) {
+    return;
+  }
+  setRunning(true);
+  selectTab('audit');
+  const progress = $('audit-progress');
+  progress.hidden = false;
+  progress.textContent = '';
+  $('audit-line').textContent = 'saving base_values.json and booting the test server';
+  try {
+    const response = await fetch('/api/dumps/run', { method: 'POST', body: JSON.stringify(state.model) });
+    if (!response.ok) {
+      throw new Error('/api/dumps/run answered ' + response.status + ': ' + await response.text());
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    const shownProgress = [];
+    let pending = '';
+    for (;;) {
+      const { value, done } = await reader.read();
+      pending += decoder.decode(value || new Uint8Array(), { stream: !done });
+      const lines = pending.split('\n');
+      pending = lines.pop();
+      for (const line of lines.filter((text) => text.trim())) {
+        const event = JSON.parse(line);
+        if (event.progress !== undefined) {
+          // The test server logs at debug level, tens of thousands of lines a run; the latest few show progress.
+          shownProgress.push(event.progress);
+          if (shownProgress.length > PROGRESS_LINES_SHOWN) {
+            shownProgress.shift();
+          }
+          progress.textContent = shownProgress.join('\n');
+          progress.scrollTop = progress.scrollHeight;
+        } else if (event.result) {
+          auditView.sections = event.result.sections;
+          const seconds = Math.round(event.result.durationSeconds);
+          $('audit-line').textContent = (event.result.exitCode === 0 ? 'dumps refreshed' : 'the run failed, exit '
+            + event.result.exitCode) + ' · ' + Math.floor(seconds / 60) + ' m ' + (seconds % 60) + ' s';
+          renderAuditSections();
+        }
+      }
+      if (done) {
+        break;
+      }
+    }
+    setStatus('saved');
+  } catch (error) {
+    setStatus(error.message, true);
+  } finally {
+    setRunning(false);
+  }
+}
+
+$('audit-run').addEventListener('click', runDumps);
+$('run-button').addEventListener('click', runDumps);
+
 $('add-group').addEventListener('click', () => {
   const name = $('new-group').value.trim();
   if (!/^[a-z0-9_./-]+$/.test(name) || groupsView.groups.some((group) => group.name === name)) {
@@ -890,6 +1000,7 @@ $('save-button').addEventListener('click', save);
   try {
     await loadModel();
     render();
+    await loadDumps();
     await evaluateConstants();
     await loadInventory();
     render();
