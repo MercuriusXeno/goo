@@ -32,7 +32,8 @@ public interface DumpRunner {
         return progress -> {
             boolean windows = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
             String wrapper = projectDir.resolve(windows ? "gradlew.bat" : "gradlew").toString();
-            Process process = new ProcessBuilder(wrapper, "runGameTestServer", "-PgameTestSelect=goo:values_dumps")
+            Process process = new ProcessBuilder(wrapper, "runGameTestServer", "-PgameTestSelect=goo:values_dumps",
+                    "--stacktrace")
                     .directory(projectDir.toFile()).redirectErrorStream(true).start();
             try (BufferedReader output = new BufferedReader(
                     new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
