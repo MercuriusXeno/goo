@@ -88,7 +88,7 @@ public final class PlexerHudRenderer {
     }
 
     /**
-     * Paints the target's panel flat on the plexer's front, under the cutaway.
+     * Paints the target's panel flat on the plexer's front, above the plexer.
      *
      * @param poseStack the pose stack for rendering
      * @param camera    the render camera
@@ -99,8 +99,7 @@ public final class PlexerHudRenderer {
     private static void paintPanel(PoseStack poseStack, Camera camera, BlockPos pos, Direction facing,
                                    ItemStack target) {
         PanelPainter.paint(poseStack, camera,
-                PanelPlacement.onFace(PlexerPanelTarget.anchor(pos, facing), PlexerPanelTarget.front(facing), false,
-                        ANIMATOR.pitch(), ANIMATOR.opacity()),
+                PlexerPanelTarget.placement(pos, facing, ANIMATOR.pitch(), ANIMATOR.opacity()),
                 PlexerPanelRows.rows(target.getHoverName().getString(),
                         ItemParticleIcons.of(PlayerKnowledge.idOf(target.getItem())),
                         ClientGooValues.current().lookup(PlayerKnowledge.idOf(target.getItem()))));

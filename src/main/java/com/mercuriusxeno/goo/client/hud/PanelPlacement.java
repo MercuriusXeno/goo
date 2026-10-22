@@ -18,8 +18,14 @@ public record PanelPlacement(Vec3 anchor, Facing facing, Direction face, float p
     /** Offset along the panel normal that lifts a top or bottom panel off the block face. */
     private static final float VERTICAL_FACE_NUDGE = 0.01f;
 
-    /** Offset along the panel normal for a side-face or rim panel. */
-    private static final float SIDE_FACE_NUDGE = -0.01f;
+    /**
+     * Offset along the panel normal for a side-face panel: InWorldHud.faceRotation turns the
+     * panel's +z onto the face's outward normal, so a positive nudge lifts the panel off the face.
+     */
+    private static final float SIDE_FACE_NUDGE = 0.01f;
+
+    /** Offset along the panel normal for a rim panel. */
+    private static final float RIM_NUDGE = -0.01f;
 
     /**
      * Places a panel on a block face: side faces lie flat against the face, top and
@@ -62,7 +68,7 @@ public record PanelPlacement(Vec3 anchor, Facing facing, Direction face, float p
         /** Flat on the Y plane, turned toward the camera in yaw only. */
         FLAT(VERTICAL_FACE_NUDGE),
         /** On a basin rim, turned toward the camera. */
-        RIM(SIDE_FACE_NUDGE);
+        RIM(RIM_NUDGE);
 
         /** Offset along the panel normal that keeps the panel off the surface it stands on. */
         private final float zNudge;
