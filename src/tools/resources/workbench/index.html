@@ -94,6 +94,7 @@ tr:hover td { background: var(--hover); }
 .member .noimage { border: 1px dashed var(--control); border-radius: 4px; }
 .member-name { font-size: 11px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .member-tweak { font-size: 10px; color: var(--warn-ink); }
+#template-body .member-grid { max-height: 420px; overflow: auto; }
 .preview { font-size: 12px; background: var(--ground); border-radius: 6px; padding: 10px 12px; white-space: pre-wrap; margin: 0; }
 details.dump-section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
 details.dump-section summary { padding: 10px 14px; cursor: pointer; font-weight: 500; display: flex; gap: 10px; align-items: center; }
@@ -1373,19 +1374,6 @@ async function checkTemplate() {
   }
 }
 
-function idList(title, ids) {
-  const stack = document.createElement('div');
-  stack.className = 'field-stack';
-  const head = document.createElement('div');
-  head.className = 'hint';
-  head.textContent = title + ' (' + ids.length + ')';
-  const list = document.createElement('div');
-  list.className = 'mono hint';
-  list.textContent = ids.slice(0, 200).join(', ') + (ids.length > 200 ? ', and ' + (ids.length - 200) + ' more' : '');
-  stack.append(head, list);
-  return stack;
-}
-
 function renderTemplate() {
   const answer = templateView.answer;
   if (!answer) {
@@ -1393,7 +1381,41 @@ function renderTemplate() {
   }
   $('template-summary').textContent = answer.uncoveredItems.length + ' items nothing covers';
   $('template-start').textContent = templateView.confirming ? 'Replace the open file? Click again' : 'Start from the template';
-  $('template-body').replaceChildren(idList('Items no entry or valued group covers', answer.uncoveredItems));
+  $('template-body').replaceChildren(itemGrid(answer.uncoveredItems));
+}
+
+// The uncovered items as cards, image and name, each opening its entry in the Values tab.
+function itemGrid(ids) {
+  const byId = new Map((state.inventory ? state.inventory.items : []).map((item) => [item.id, item]));
+  const grid = document.createElement('div');
+  grid.className = 'member-grid';
+  grid.append(...ids.map((id) => {
+    const item = byId.get(id);
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'member';
+    card.title = id;
+    if (item && item.image) {
+      const image = document.createElement('img');
+      image.className = 'px';
+      image.alt = '';
+      image.loading = 'lazy';
+      image.src = imageUrl(id);
+      card.append(image);
+    } else {
+      const blank = document.createElement('span');
+      blank.className = 'noimage';
+      card.append(blank);
+    }
+    const name = document.createElement('span');
+    name.className = 'member-name';
+    name.textContent = item ? item.name : id;
+    card.append(name);
+    card.addEventListener('click', () => { selectTab('values'); selectItem(id); });
+    attachHover(card, id);
+    return card;
+  }));
+  return grid;
 }
 
 $('template-refresh').addEventListener('click', checkTemplate);
