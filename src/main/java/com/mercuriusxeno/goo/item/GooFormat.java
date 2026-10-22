@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.item;
 
+import com.mercuriusxeno.goo.data.GooFraction;
+
 /**
  * Formats a raw goo amount by magnitude, K, M and B, with no unit word
  * (decision amounts-format-by-magnitude-alone). Shared between
@@ -13,6 +15,8 @@ public final class GooFormat {
     private static final int DECIMAL_BASE = 10;
     /** Decimal point separator. */
     private static final String DOT = ".";
+    /** Separator between a mixed number's whole and its fraction. */
+    private static final String MIXED_SEPARATOR = " ";
     /** Separator between a container's total and its capacity. */
     private static final String OF_CAPACITY = " / ";
 
@@ -57,6 +61,24 @@ public final class GooFormat {
             }
         }
         return Long.toString(amount);
+    }
+
+    /**
+     * Formats an exact amount as a mixed number: a whole reads as formatAmount does,
+     * a fraction under 1 reads numerator/denominator, and any other reads its whole,
+     * a space, then the fraction, so 64/3 reads "21 1/3" and 1/3 reads "1/3".
+     * decision tooltip-and-plexer-hud-show-a-mixed-number
+     *
+     * @param amount the exact amount, never negative
+     * @return the display string
+     */
+    public static String formatMixed(GooFraction amount) {
+        int whole = amount.floor();
+        GooFraction part = amount.minus(GooFraction.of(whole));
+        if (part.isZero()) {
+            return formatAmount(whole);
+        }
+        return whole == 0 ? part.toString() : formatAmount(whole) + MIXED_SEPARATOR + part;
     }
 
     /**

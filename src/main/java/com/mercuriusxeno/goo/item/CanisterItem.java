@@ -206,7 +206,7 @@ public class CanisterItem extends BlockItem implements IGooItemInteraction, GooC
      * @param content the fluid content to set
      */
     public static void setFluidContent(ItemStack stack, CanisterFluidContent content) {
-        if (content.isEmpty()) {
+        if (content.holdsNothing()) {
             stack.remove(GooDataComponents.CANISTER_FLUID_CONTENT.get());
         } else {
             stack.set(GooDataComponents.CANISTER_FLUID_CONTENT.get(), content);

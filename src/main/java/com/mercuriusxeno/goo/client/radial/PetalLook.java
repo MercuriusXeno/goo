@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.client.ClientGooTypes;
 import com.mercuriusxeno.goo.client.ClientGooValues;
 import com.mercuriusxeno.goo.client.GooSubmitter;
 import com.mercuriusxeno.goo.client.network.CostMechanicsLookup;
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.client.Minecraft;
@@ -58,7 +59,7 @@ interface PetalLook {
             return new CostMechanicsLookup(Language.getInstance()::getOrDefault,
                     item -> {
                         GooValue value = ClientGooValues.current().lookup(item);
-                        return value == null ? 0 : value.meltFloor(type);
+                        return value == null ? GooFraction.ZERO : value.exact(type);
                     });
         }
     };

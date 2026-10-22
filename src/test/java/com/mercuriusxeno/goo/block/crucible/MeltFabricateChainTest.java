@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
+import com.mercuriusxeno.goo.data.RemainderLedger;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
@@ -16,9 +17,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Melting pays the floor and fabricating costs the ceiling, so no melt and fabricate
- * chain on a fractional value ends with more goo than it started with
- * (decision values-are-fractions-melt-floors-fabricate-ceils).
+ * Melting and fabricating move the exact value through each store's ledger, so no
+ * melt and fabricate chain on a fractional value ends with more whole goo than it
+ * started with (decision melt-and-fabricate-move-the-exact-value-through-a-remainder-buffer).
  */
 class MeltFabricateChainTest {
 
@@ -30,7 +31,7 @@ class MeltFabricateChainTest {
 
     private int meltOneCarpet() {
         when(lookup.lookup(CARPET)).thenReturn(CARPET_VALUE);
-        return CrucibleInsertion.meltArrival(GooContents.EMPTY, CARPET, 1, lookup).arriving()
+        return CrucibleInsertion.meltArrival(GooContents.EMPTY, CARPET, 1, lookup, new RemainderLedger()).arriving()
                 .getVolume(GooTypes.LEAF);
     }
 
@@ -39,7 +40,7 @@ class MeltFabricateChainTest {
         int melted = meltOneCarpet();
         MapGooSupply pool = MapGooSupply.holding(GooTypes.LEAF, melted);
 
-        boolean remade = PlexerBlockEntity.fabricateFrom(CARPET_VALUE, pool);
+        boolean remade = PlexerBlockEntity.fabricateFrom(CARPET_VALUE, pool, new RemainderLedger());
 
         assertFalse(remade);
         GooFraction before = CARPET_VALUE.exact(GooTypes.LEAF);
@@ -50,7 +51,7 @@ class MeltFabricateChainTest {
     void fabricatingThenMeltingGainsNoLeaf() {
         MapGooSupply pool = MapGooSupply.holding(GooTypes.LEAF, CEILING_PLUS_SPARE);
 
-        assertTrue(PlexerBlockEntity.fabricateFrom(CARPET_VALUE, pool));
+        assertTrue(PlexerBlockEntity.fabricateFrom(CARPET_VALUE, pool, new RemainderLedger()));
         int after = pool.available(GooTypes.LEAF) + meltOneCarpet();
 
         assertTrue(after <= CEILING_PLUS_SPARE, "the chain ended with " + after + " leaf");

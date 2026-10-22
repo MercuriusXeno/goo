@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.item;
 
+import com.mercuriusxeno.goo.data.GooFraction;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -9,6 +10,18 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * unit word and no division by 1000 (decision amounts-format-by-magnitude-alone).
  */
 class GooFormatTest {
+
+    /**
+     * An exact amount reads as a mixed number.
+     * decision tooltip-and-plexer-hud-show-a-mixed-number
+     */
+    @Test
+    void anExactAmountReadsAsAMixedNumber() {
+        assertEquals("21 1/3", GooFormat.formatMixed(GooFraction.of(64, 3)));
+        assertEquals("1/3", GooFormat.formatMixed(GooFraction.of(1, 3)));
+        assertEquals("22", GooFormat.formatMixed(GooFraction.of(22)));
+        assertEquals("1.2K", GooFormat.formatMixed(GooFraction.of(1_200)));
+    }
 
     @Test
     void amountUnderAThousandReadsWhole() {
