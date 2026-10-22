@@ -4,7 +4,6 @@ import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.pulse.ExtenderEvents;
 import com.mercuriusxeno.goo.ability.pulse.ZapDevice;
 import com.mercuriusxeno.goo.data.GooValue;
-import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.HoldMarks;
 import com.mercuriusxeno.goo.registry.GooBlocks;
@@ -305,7 +304,7 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
     }
 
     @Override
-    public void siphon(BlockPos pos, GooContents goo, int ticks) {
+    public void siphon(BlockPos pos, GooValue value, int ticks) {
         Drinks.Drink drink = drinks().of(player);
         if (drink == null) {
             return;
@@ -314,7 +313,7 @@ public record PlayerHost(ServerLevel level, ServerPlayer player, OptionalInt bre
         long start = now + SiphonRule.INJECT_TICKS;
         long end = start + ticks;
         long payAt = end + SiphonRule.travelTicks(Vec3.atCenterOf(pos).distanceTo(player.getEyePosition()));
-        drink.start(pos, new Drinks.Siphon(goo, now, start, end, payAt));
+        drink.start(pos, new Drinks.Siphon(value, now, start, end, payAt));
     }
 
     private Drinks drinks() {

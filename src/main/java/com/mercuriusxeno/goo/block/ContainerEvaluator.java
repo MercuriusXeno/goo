@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.block;
 
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
+import com.mercuriusxeno.goo.data.IRemainderLedger;
 import com.mercuriusxeno.goo.item.GooContents;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -41,23 +42,40 @@ public class ContainerEvaluator {
     }
 
     /**
-     * Recursively evaluates a container's contents, summing goo values for
-     * items with known mappings and collecting valueless items for ejection.
+     * Recursively evaluates a container's contents, crediting the exact value of
+     * every item with a known mapping and of the shell through the ledger, and
+     * collecting valueless items for ejection.
      *
      * @param containerId the registry ID of the container item (for shell value lookup)
      * @param container   the container item stack to evaluate
      * @param lookup      goo value lookup for resolving item values
-     * @return evaluation result containing aggregated goo and ejected items
+     * @param ledger      the remainder ledger the melt credits
+     * @return evaluation result containing the whole mB that arrive and ejected items
      */
-    public ContainerEvaluation evaluate(Identifier containerId, ItemStack container, IGooValueLookup lookup) {
-        List<ItemStack> contents = collectContainerContents(container);
+    public ContainerEvaluation evaluate(Identifier containerId, ItemStack container, IGooValueLookup lookup,
+                                        IRemainderLedger ledger) {
         List<ItemStack> ejects = new ArrayList<>();
-        List<ValuedStack> valued = new ArrayList<>();
-        for (ItemStack item : contents) {
-            accumulateItem(item, lookup, valued, ejects);
+        List<ValuedStack> walked = new ArrayList<>();
+        walk(containerId, container, lookup, walked, ejects);
+        return creditWalk(walked, ejects, lookup, ledger);
+    }
+
+    /**
+     * Walks a container and its nested containers, valuing each stack at its floor
+     * and the shell last, collecting valueless items for ejection.
+     *
+     * @param containerId the registry ID of the container item
+     * @param container   the container item stack
+     * @param lookup      goo value lookup
+     * @param walked      accumulator for valued stacks, in walk order
+     * @param ejects      accumulator for ejected items
+     */
+    private void walk(Identifier containerId, ItemStack container, IGooValueLookup lookup,
+                      List<ValuedStack> walked, List<ItemStack> ejects) {
+        for (ItemStack item : collectContainerContents(container)) {
+            accumulateItem(item, lookup, walked, ejects);
         }
-        addValued(valuedStack(containerId, 1, lookup), valued);
-        return new ContainerEvaluation(sumOf(valued, lookup), ejects, valued);
+        addValued(valuedStack(containerId, 1, lookup), walked);
     }
 
     /**
@@ -77,21 +95,29 @@ public class ContainerEvaluator {
     }
 
     /**
-     * Sums the goo the valued stacks carry, typed by each item's goo value.
+     * Credits the exact value of every walked stack through the ledger, the seam
+     * evaluate calls after its walk, free of item registry components.
+     * decision melt-and-fabricate-move-the-exact-value-through-a-remainder-buffer
      *
-     * @param valued the valued stacks
+     * @param walked the valued stacks the walk left, in walk order
+     * @param ejects the items the walk ejects
      * @param lookup the goo value lookup
-     * @return the summed goo
+     * @param ledger the remainder ledger the melt credits
+     * @return the whole mB that arrive, the ejects and the stacks carrying the arrival
      */
-    private static GooContents sumOf(List<ValuedStack> valued, IGooValueLookup lookup) {
+    static ContainerEvaluation creditWalk(List<ValuedStack> walked, List<ItemStack> ejects,
+                                          IGooValueLookup lookup, IRemainderLedger ledger) {
         GooContents goo = GooContents.EMPTY;
-        for (ValuedStack stack : valued) {
+        List<ValuedStack> valued = new ArrayList<>();
+        for (ValuedStack stack : walked) {
             GooValue value = lookup.lookup(stack.item());
             if (value != null) {
-                goo = goo.mergeWith(value.meltPayout(stack.count()));
+                ExactMelt.Melt melt = ExactMelt.credit(stack.item(), stack.count(), value, ledger);
+                goo = goo.mergeWith(melt.arriving());
+                valued.addAll(melt.stacks());
             }
         }
-        return goo;
+        return new ContainerEvaluation(goo, ejects, valued);
     }
 
     /**
@@ -118,9 +144,7 @@ public class ContainerEvaluator {
                                 List<ValuedStack> valued, List<ItemStack> ejects) {
         if (isContainer(item)) {
             Identifier nestedId = BuiltInRegistries.ITEM.getKey(item.getItem());
-            ContainerEvaluation nested = evaluate(nestedId, item, lookup);
-            ejects.addAll(nested.ejects());
-            valued.addAll(nested.valued());
+            walk(nestedId, item, lookup, valued, ejects);
             return;
         }
         evaluateItemOrEject(item, lookup, valued, ejects);

@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.ability;
 
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
+import com.mercuriusxeno.goo.data.IRemainderLedger;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
@@ -10,21 +12,24 @@ import net.minecraft.world.level.BlockGetter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 
 /**
  * What a Spire grows and what it costs: stone fills the cells above each
  * footprint cell, from one above the ground through the rise, and the ground
  * stays as it stood. A column grows only where every cell it would fill can
  * be replaced; the rest of the footprint grows nothing and costs nothing.
- * The rock goo spent is stone's goo value for every stone block grown. The
- * client prices its preview through the same plan the server grows by.
+ * The rock goo spent is stone's exact goo value for every stone block grown,
+ * charged through the caster's ledger. The client prices its preview through
+ * the same plan the server grows by.
  * decision spire-grows-stone-out-of-the-top
+ * decision melt-and-fabricate-move-the-exact-value-through-a-remainder-buffer
  *
  * @param footprint the footprint at the rise planned
  * @param columns   the ground cells whose columns grow
- * @param cost      the goo the stone grown costs, in mB
+ * @param exactCost the exact goo the stone grown costs
  */
-public record SpireGrowth(SpireFootprint footprint, List<BlockPos> columns, int cost) {
+public record SpireGrowth(SpireFootprint footprint, List<BlockPos> columns, GooFraction exactCost) {
 
     /** The item stone's goo value is looked up by, the block every Spire grows. */
     private static final Identifier STONE_ITEM = Identifier.withDefaultNamespace("stone");
@@ -46,7 +51,7 @@ public record SpireGrowth(SpireFootprint footprint, List<BlockPos> columns, int 
                 columns.add(ground);
             }
         }
-        int cost = stonePrice(values, gooType) * columns.size() * footprint.rise();
+        GooFraction cost = stonePrice(values, gooType).times((long) columns.size() * footprint.rise());
         return new SpireGrowth(footprint, List.copyOf(columns), cost);
     }
 
@@ -74,6 +79,29 @@ public record SpireGrowth(SpireFootprint footprint, List<BlockPos> columns, int 
         return Optional.empty();
     }
 
+    /**
+     * The most whole mB the stone may charge, what a caster's holdings must cover
+     * whatever remainder their ledger holds.
+     *
+     * @return the exact cost rounded up, in mB
+     */
+    public int cost() {
+        return exactCost.ceiling();
+    }
+
+    /**
+     * Debits the stone's exact cost through the caster's ledger, the remainder
+     * paying first and the overpayment banked.
+     *
+     * @param ledger   the caster's remainder ledger
+     * @param gooType  the goo type the cost is paid in
+     * @param holdings the whole mB of that type the caster holds
+     * @return the whole mB to take from the holdings, or empty where they cannot cover it
+     */
+    public OptionalInt chargeThrough(IRemainderLedger ledger, ResourceKey<GooTypeDefinition> gooType, int holdings) {
+        return ledger.debitExact(gooType, exactCost, holdings);
+    }
+
     private static boolean columnOpen(BlockGetter blocks, BlockPos ground, int rise) {
         for (int height = 1; height <= rise; height++) {
             if (!blocks.getBlockState(ground.above(height)).canBeReplaced()) {
@@ -83,9 +111,8 @@ public record SpireGrowth(SpireFootprint footprint, List<BlockPos> columns, int 
         return true;
     }
 
-    private static int stonePrice(IGooValueLookup values, ResourceKey<GooTypeDefinition> gooType) {
+    private static GooFraction stonePrice(IGooValueLookup values, ResourceKey<GooTypeDefinition> gooType) {
         GooValue value = values.lookup(STONE_ITEM);
-        // Decision values-are-fractions-melt-floors-fabricate-ceils: making stone costs the ceiling.
-        return value == null ? 0 : value.fabricateCeiling(gooType);
+        return value == null ? GooFraction.ZERO : value.exact(gooType);
     }
 }

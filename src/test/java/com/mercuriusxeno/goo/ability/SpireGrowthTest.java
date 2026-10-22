@@ -1,7 +1,9 @@
 package com.mercuriusxeno.goo.ability;
 
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
+import com.mercuriusxeno.goo.data.RemainderLedger;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
@@ -13,7 +15,9 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 
+import static com.mercuriusxeno.goo.data.TestRecipeBuilder.fraction;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -65,6 +69,41 @@ class SpireGrowthTest {
         void costsStoneRockValuePerStoneBlockGrown() {
             SpireGrowth growth = SpireGrowth.plan(blocks, footprintAt(3), values, GooTypes.ROCK);
             assertEquals(STONE_ROCK_VALUE * 3 * 3, growth.cost());
+        }
+    }
+
+    /**
+     * A Spire charges stone's exact value per block through the player's ledger.
+     * decision melt-and-fabricate-move-the-exact-value-through-a-remainder-buffer
+     */
+    @Nested
+    class Charge {
+
+        private static final int HOLDINGS = 1000;
+
+        @BeforeEach
+        void priceStoneAtSixtyFourThirds() {
+            when(values.lookup(Identifier.withDefaultNamespace("stone"))).thenReturn(fraction(GooTypes.ROCK, 64, 3));
+        }
+
+        private SpireGrowth oneColumnAt(int rise) {
+            return SpireGrowth.plan(blocks, new SpireFootprint(CORNER, CORNER, rise), values, GooTypes.ROCK);
+        }
+
+        @Test
+        void oneBlockChargesTwentyTwoAndBanksTwoThirds() {
+            RemainderLedger ledger = new RemainderLedger();
+
+            assertEquals(OptionalInt.of(22), oneColumnAt(1).chargeThrough(ledger, GooTypes.ROCK, HOLDINGS));
+            assertEquals(GooFraction.of(2, 3), ledger.remainders().of(GooTypes.ROCK));
+        }
+
+        @Test
+        void threeBlocksChargeSixtyFourAndLeaveNoRemainder() {
+            RemainderLedger ledger = new RemainderLedger();
+
+            assertEquals(OptionalInt.of(64), oneColumnAt(3).chargeThrough(ledger, GooTypes.ROCK, HOLDINGS));
+            assertTrue(ledger.remainders().isEmpty());
         }
     }
 

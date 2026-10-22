@@ -631,7 +631,7 @@ public final class AbilitySyncHandler {
                         Integer.toString(distancePrice.nodePercent()));
             }
             if (behaviors.stream().anyMatch(SpireStep.class::isInstance)) {
-                return List.of(GooFormat.formatAmount(lookup.valueOf(SPIRE_BLOCK)));
+                return List.of(GooFormat.formatMixed(lookup.valueOf(SPIRE_BLOCK)));
             }
             return List.of();
         }

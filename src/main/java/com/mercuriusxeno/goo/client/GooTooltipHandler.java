@@ -239,15 +239,19 @@ public final class GooTooltipHandler {
     }
 
     /**
-     * Appends one row per type an item melts into.
-     * Decision values-are-fractions-melt-floors-fabricate-ceils: the tooltip tells what the
-     * item melts into, the floor of each type, so a type flooring to zero shows no row.
+     * Appends one row per type an item melts into, at its exact value, so a type
+     * worth under 1 shows its fraction row.
+     * decision tooltip-and-plexer-hud-show-a-mixed-number
      *
      * @param elements the tooltip element list
      * @param value    the item's goo value
      */
     static void appendMeltRows(List<Either<FormattedText, TooltipComponent>> elements, GooValue value) {
-        appendGooRows(elements, value.meltFloorAll());
+        value.exactAll().forEach((type, exact) -> {
+            if (exact.isPositive()) {
+                elements.add(Either.right(new GooValueTooltipComponent(type, exact)));
+            }
+        });
     }
 
     /**

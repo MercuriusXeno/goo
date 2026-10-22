@@ -52,9 +52,9 @@ public record SiphonStep(Expr radius, Expr speed) implements Step {
             if (value == null || value.isEmpty()) {
                 continue;
             }
-            if (host.burnUnstable(SiphonRule.fuelFor(value.meltFloorTotal(), host.meltExponent(), host.ticksPerMb()))) {
-                host.siphon(pos, value.meltPayout(),
-                        SiphonRule.siphonTicks(value.meltFloorTotal(), host.meltExponent(), speed));
+            int volume = value.totalExact().ceiling();
+            if (host.burnUnstable(SiphonRule.fuelFor(volume, host.meltExponent(), host.ticksPerMb()))) {
+                host.siphon(pos, value, SiphonRule.siphonTicks(volume, host.meltExponent(), speed));
             }
         }
         return true;

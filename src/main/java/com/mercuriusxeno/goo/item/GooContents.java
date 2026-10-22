@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.item;
 
+import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.Codec;
@@ -24,42 +25,85 @@ import java.util.function.Consumer;
  * Unified data component for all goo containers:
  * canisters, vats, crucible reservoirs, and partially melted items.
  *
- * <p>Each entry maps a goo type key to a volume (mB).
+ * <p>Each entry maps a goo type key to a volume (mB). Beside the volumes stand
+ * the store's remainders, each type's part under 1 mB, saved with the volumes.
  * Update methods return new instances; this record is never modified in place.</p>
+ * decision goo-is-an-int-and-only-the-remainder-is-a-fraction
+ * decision every-producer-consumer-and-container-holds-a-remainder-buffer
  *
- * @param contents the map of goo types to volumes
+ * @param contents   the map of goo types to volumes
+ * @param remainders each goo type's part under 1 mB
  */
-public record GooContents(Map<ResourceKey<GooTypeDefinition>, Integer> contents) implements TooltipProvider {
+public record GooContents(Map<ResourceKey<GooTypeDefinition>, Integer> contents, GooRemainders remainders)
+        implements TooltipProvider {
 
     /**
      * Empty container with no goo.
      */
     public static final GooContents EMPTY = new GooContents(Map.of());
 
+    /** The field naming the volumes. */
+    private static final String CONTENTS_FIELD = "contents";
+
+    /** The field naming the remainders. */
+    private static final String REMAINDERS_FIELD = "remainders";
+
     /**
      * Persistent codec: goo type ids to volumes, a bundled type by its bare
-     * id and a datapack type by its namespaced id (decision datapack-goo-registry).
+     * id and a datapack type by its namespaced id (decision datapack-goo-registry),
+     * and the remainders where any stand.
      */
     public static final Codec<GooContents> CODEC = RecordCodecBuilder.create(instance ->
             instance.group(
                     Codec.unboundedMap(GooTypes.ID_CODEC, Codec.INT)
-                            .fieldOf("contents").forGetter(GooContents::contents)
+                            .fieldOf(CONTENTS_FIELD).forGetter(GooContents::contents),
+                    GooRemainders.CODEC.optionalFieldOf(REMAINDERS_FIELD, GooRemainders.EMPTY)
+                            .forGetter(GooContents::remainders)
             ).apply(instance, GooContents::new)
     );
 
     /**
-     * Network codec: each entry as its type key then its volume.
+     * Network codec: each entry as its type key then its volume, then the remainders.
      */
-    public static final StreamCodec<ByteBuf, GooContents> STREAM_CODEC = ByteBufCodecs
-            .<ByteBuf, ResourceKey<GooTypeDefinition>, Integer, Map<ResourceKey<GooTypeDefinition>, Integer>>map(
-                    HashMap::new, GooTypes.KEY_STREAM_CODEC, ByteBufCodecs.VAR_INT)
-            .map(GooContents::new, GooContents::contents);
+    public static final StreamCodec<ByteBuf, GooContents> STREAM_CODEC = StreamCodec.composite(
+            ByteBufCodecs.<ByteBuf, ResourceKey<GooTypeDefinition>, Integer, Map<ResourceKey<GooTypeDefinition>, Integer>>map(
+                    HashMap::new, GooTypes.KEY_STREAM_CODEC, ByteBufCodecs.VAR_INT), GooContents::contents,
+            GooRemainders.STREAM_CODEC, GooContents::remainders,
+            GooContents::new);
 
     /**
      * Defensive copy constructor: filters non-positive values, wraps in an unmodifiable map.
      */
     public GooContents {
         contents = filterPositive(contents);
+    }
+
+    /**
+     * Contents holding volumes and no remainder.
+     *
+     * @param contents the map of goo types to volumes
+     */
+    public GooContents(Map<ResourceKey<GooTypeDefinition>, Integer> contents) {
+        this(contents, GooRemainders.EMPTY);
+    }
+
+    /**
+     * The same volumes beside other remainders.
+     *
+     * @param replaced the remainders to hold
+     * @return the contents holding them
+     */
+    public GooContents withRemainders(GooRemainders replaced) {
+        return new GooContents(contents, replaced);
+    }
+
+    /**
+     * True when neither a volume nor a remainder stands, so a store has nothing to save.
+     *
+     * @return true when bare
+     */
+    public boolean holdsNothing() {
+        return isEmpty() && remainders.isEmpty();
     }
 
     /**
@@ -258,7 +302,7 @@ public record GooContents(Map<ResourceKey<GooTypeDefinition>, Integer> contents)
         Map<ResourceKey<GooTypeDefinition>, Integer> newMap = new HashMap<>();
         newMap.putAll(contents);
         newMap.merge(type, amount, Integer::sum);
-        return new GooContents(newMap);
+        return new GooContents(newMap, remainders);
     }
 
     /**
@@ -293,7 +337,7 @@ public record GooContents(Map<ResourceKey<GooTypeDefinition>, Integer> contents)
         if (amount <= 0 || !contents.containsKey(type)) {
             return this;
         }
-        return new GooContents(removeFromMap(type, amount));
+        return new GooContents(removeFromMap(type, amount), remainders);
     }
 
     /**
