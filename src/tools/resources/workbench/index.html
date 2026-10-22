@@ -77,6 +77,24 @@ tr:hover td { background: var(--hover); }
 .kind.tree { background: var(--accent-soft); }
 .resolves { color: #1c6b3a; }
 .row-actions { display: flex; gap: 4px; flex-wrap: nowrap; }
+.split { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.group-list { flex: 0 1 280px; min-width: 240px; }
+.group-detail { flex: 999 1 520px; min-width: 0; }
+.group-row { display: flex; align-items: center; gap: 8px; padding: 8px 14px; width: 100%; border: 0; border-left: 3px solid transparent; background: var(--panel); text-align: left; }
+.group-row:hover { background: var(--hover); }
+.group-row[aria-current="true"] { border-left-color: var(--accent); background: var(--hover); }
+.detail-body { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.field-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.field-stack { display: flex; flex-direction: column; gap: 6px; }
+.member-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.member { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px; border: 1px solid var(--control); background: var(--panel); border-radius: 6px; min-width: 0; }
+.member[aria-current="true"] { border-color: var(--accent); background: var(--hover); }
+.member.unknown { border-color: var(--warn); background: var(--warn-soft); }
+.member img, .member .noimage { width: 28px; height: 28px; }
+.member .noimage { border: 1px dashed var(--control); border-radius: 4px; }
+.member-name { font-size: 11px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.member-tweak { font-size: 10px; color: var(--warn-ink); }
+.preview { font-size: 12px; background: var(--ground); border-radius: 6px; padding: 10px 12px; white-space: pre-wrap; margin: 0; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 @media (max-width: 640px) {
   .topbar, nav, .pane { padding-left: 16px; padding-right: 16px; }
@@ -114,7 +132,23 @@ tr:hover td { background: var(--hover); }
         <button class="tab" role="tab" type="button" data-tab="audit" aria-selected="false">Audit</button>
       </nav>
       <section class="pane" role="tabpanel" id="pane-values" data-pane="values"><div class="pane-card">Item and #group entries: value objects, expressions, ratios, denied and restricted.</div></section>
-      <section class="pane" role="tabpanel" id="pane-groups" data-pane="groups" hidden><div class="pane-card">_groups: named sets of items, written once as #name.</div></section>
+      <section class="pane" role="tabpanel" id="pane-groups" data-pane="groups" hidden>
+        <div class="split">
+          <div class="card group-list">
+            <div class="card-head">
+              <span class="card-title grow">Groups</span>
+              <label for="new-group" class="visually-hidden">New group name</label>
+              <input id="new-group" class="mono field narrow" placeholder="new group">
+              <button class="small" type="button" id="add-group">New</button>
+            </div>
+            <div id="group-rows"></div>
+          </div>
+          <div class="card group-detail" id="group-detail">
+            <div class="card-head"><span class="hint">Pick a group, or name a new one.</span></div>
+          </div>
+        </div>
+        <datalist id="inventory-ids"></datalist>
+      </section>
       <section class="pane" role="tabpanel" id="pane-variables" data-pane="variables" hidden>
         <div class="card">
           <div class="card-head">
@@ -356,6 +390,7 @@ async function save() {
     setStatus('saved');
     render();
     await evaluateConstants();
+    await describeGroups();
   } catch (error) {
     setStatus(error.message, true);
   }
@@ -450,6 +485,7 @@ async function renameConstant(from, to) {
     });
     constantsView.renaming = null;
     markEdited();
+    await describeGroups();
   } catch (error) {
     setStatus(error.message, true);
   }
@@ -543,6 +579,239 @@ function addConstant(tree) {
   renderConstants();
 }
 
+// --- Groups: _groups members, the #group base line and a count-over-standard-plus-trait line per member ---
+
+const groupsView = { groups: [], selected: null, member: null };
+
+function itemsById() {
+  const byId = new Map();
+  if (state.inventory) {
+    state.inventory.items.forEach((item) => byId.set(item.id, item));
+    state.inventory.blocks.forEach((block) => { if (!byId.has(block.id)) { byId.set(block.id, block); } });
+  }
+  return byId;
+}
+
+async function describeGroups() {
+  try {
+    const answer = await fetchJson('/api/groups/describe', { method: 'POST', body: JSON.stringify(state.model) });
+    groupsView.groups = answer.groups;
+    renderGroups();
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+}
+
+async function applyToGroup(change) {
+  try {
+    const path = state.model.path;
+    const answer = await fetchJson('/api/groups/apply', {
+      method: 'POST', body: JSON.stringify({ members: state.model.members, group: groupsView.selected, ...change })
+    });
+    state.model = { ...answer.model, path };
+    state.sources = sourcesFromModel(state.model);
+    groupsView.groups = answer.groups;
+    markEdited();
+    renderGroups();
+    renderEntries();
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+}
+
+function selectedGroup() {
+  return groupsView.groups.find((group) => group.name === groupsView.selected) || null;
+}
+
+function renderGroupList() {
+  $('group-rows').replaceChildren(...groupsView.groups.map((group) => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'group-row';
+    row.setAttribute('aria-current', String(group.name === groupsView.selected));
+    const name = document.createElement('span');
+    name.className = 'grow';
+    name.textContent = '#' + group.name;
+    const count = document.createElement('span');
+    count.className = 'mono hint';
+    const unknown = group.members.filter((member) => !member.known).length;
+    count.textContent = group.members.length + (unknown ? ' (' + unknown + ' not in the inventory)' : '');
+    row.append(name, count);
+    row.addEventListener('click', () => { groupsView.selected = group.name; groupsView.member = null; renderGroups(); });
+    return row;
+  }));
+}
+
+function labelled(labelText, control) {
+  const stack = document.createElement('div');
+  stack.className = 'field-stack';
+  const label = document.createElement('label');
+  label.className = 'hint';
+  label.textContent = labelText;
+  control.id = control.id || 'field-' + Math.random().toString(36).slice(2);
+  label.htmlFor = control.id;
+  stack.append(label, control);
+  return stack;
+}
+
+function textField(value, mono) {
+  const input = document.createElement('input');
+  input.className = 'field' + (mono ? ' mono' : '');
+  input.value = value || '';
+  return input;
+}
+
+function memberCard(member, group, byId) {
+  const item = byId.get(member.id);
+  const tweak = group.tweaks.find((candidate) => candidate.member === member.id);
+  const card = document.createElement('button');
+  card.type = 'button';
+  card.className = 'member' + (member.known ? '' : ' unknown');
+  card.setAttribute('aria-current', String(groupsView.member === member.id));
+  card.title = member.known ? member.id : member.id + ' is not in the inventory';
+  if (item && item.image) {
+    const image = document.createElement('img');
+    image.className = 'px';
+    image.alt = '';
+    image.loading = 'lazy';
+    image.src = imageUrl(member.id);
+    card.append(image);
+  } else {
+    const blank = document.createElement('span');
+    blank.className = 'noimage';
+    card.append(blank);
+  }
+  const name = document.createElement('span');
+  name.className = 'member-name';
+  name.textContent = item ? item.name : member.id;
+  const note = document.createElement('span');
+  note.className = 'member-tweak mono';
+  note.textContent = !member.known ? 'not in the inventory'
+    : tweak ? (tweak.count !== 1 ? tweak.count + ' × ' : '') + (tweak.trait ? '+$' + tweak.trait : '') : '';
+  card.append(name, note);
+  card.addEventListener('click', () => { groupsView.member = member.id; renderGroups(); });
+  return card;
+}
+
+function tweakEditor(group) {
+  const memberId = groupsView.member;
+  const tweak = group.tweaks.find((candidate) => candidate.member === memberId) || {};
+  const box = document.createElement('div');
+  box.className = 'field-pair';
+  const count = textField(String(tweak.count || 1), true);
+  count.inputMode = 'numeric';
+  const trait = textField(tweak.trait || memberId.replace(/^.*:/, '').replace(/_spawn_egg$/, '') + '_trait', true);
+  const traitText = textField(tweak.traitText || '', true);
+  traitText.placeholder = '{"hex": "$trait"}, empty for no trait';
+  const apply = button('Apply to ' + memberId.replace(/^minecraft:/, ''), () => {
+    const counted = parseInt(count.value, 10);
+    if (!(counted >= 1)) {
+      setStatus('A count is a whole number of at least 1', true);
+      return;
+    }
+    const hasTrait = traitText.value.trim() !== '';
+    applyToGroup({ tweak: { member: memberId, count: counted, trait: hasTrait ? trait.value.trim() : null,
+      traitText: hasTrait ? traitText.value.trim() : null } });
+  });
+  const remove = button('Remove from group', () => {
+    applyToGroup({ picks: group.members.map((member) => member.id).filter((id) => id !== memberId) });
+    groupsView.member = null;
+  });
+  const actions = document.createElement('div');
+  actions.className = 'row-actions';
+  actions.append(apply, remove);
+  box.append(labelled('Count, multiplying the standard plus the trait', count),
+    labelled('Trait constant', trait), labelled('Trait value (a tree constant)', traitText), actions);
+  return box;
+}
+
+function renderGroupDetail() {
+  const holder = $('group-detail');
+  const group = selectedGroup();
+  if (!group) {
+    const head = document.createElement('div');
+    head.className = 'card-head';
+    head.innerHTML = '<span class="hint">Pick a group, or name a new one.</span>';
+    holder.replaceChildren(head);
+    return;
+  }
+  const byId = itemsById();
+  const head = document.createElement('div');
+  head.className = 'card-head';
+  const title = document.createElement('span');
+  title.className = 'card-title';
+  title.textContent = '#' + group.name;
+  const summary = document.createElement('span');
+  summary.className = 'mono hint grow';
+  summary.textContent = group.members.length + ' members';
+  const pick = textField('', true);
+  pick.setAttribute('list', 'inventory-ids');
+  pick.placeholder = 'item, block or #tag';
+  pick.setAttribute('aria-label', 'Add an item, block or tag to #' + group.name);
+  const add = button('Add', () => {
+    const value = pick.value.trim();
+    if (value) {
+      applyToGroup({ picks: group.members.map((member) => member.id).concat([value]) });
+    }
+  });
+  head.append(title, summary, pick, add);
+
+  const body = document.createElement('div');
+  body.className = 'detail-body';
+  const base = textField(group.base || '', true);
+  base.placeholder = '$spawn_egg';
+  base.addEventListener('change', () => applyToGroup({ base: base.value }));
+  body.append(labelled('Common base, written once as "#' + group.name + '"', base));
+  const hint = document.createElement('div');
+  hint.className = 'hint';
+  hint.textContent = 'Members (pick one to give it a count and a trait; its line reads count(base + $trait))';
+  const grid = document.createElement('div');
+  grid.className = 'member-grid';
+  grid.append(...group.members.map((member) => memberCard(member, group, byId)));
+  body.append(hint, grid);
+  if (groupsView.member && group.base) {
+    body.append(tweakEditor(group));
+  } else if (groupsView.member) {
+    const needsBase = document.createElement('div');
+    needsBase.className = 'hint';
+    needsBase.textContent = 'Give the group a base line first; a member\'s line adds to it.';
+    body.append(needsBase);
+  }
+  const preview = document.createElement('pre');
+  preview.className = 'preview mono';
+  preview.textContent = 'What the file will say:\n' + (group.preview.length ? group.preview.join(',\n') : '(no base line yet)');
+  body.append(preview);
+  holder.replaceChildren(head, body);
+}
+
+function renderGroups() {
+  renderGroupList();
+  renderGroupDetail();
+}
+
+function fillInventoryChoices() {
+  const inventory = state.inventory;
+  const ids = inventory.items.map((item) => item.id)
+    .concat(inventory.blocks.map((block) => block.id))
+    .concat(inventory.item_tags.map((tag) => '#' + tag.id));
+  $('inventory-ids').replaceChildren(...[...new Set(ids)].map((id) => {
+    const option = document.createElement('option');
+    option.value = id;
+    return option;
+  }));
+}
+
+$('add-group').addEventListener('click', () => {
+  const name = $('new-group').value.trim();
+  if (!/^[a-z0-9_./-]+$/.test(name) || groupsView.groups.some((group) => group.name === name)) {
+    setStatus('A new group needs a name of lower-case letters, digits and _ . / - that no group holds', true);
+    return;
+  }
+  $('new-group').value = '';
+  groupsView.selected = name;
+  applyToGroup({ picks: [] });
+});
+
 $('add-scalar').addEventListener('click', () => addConstant(false));
 $('add-tree').addEventListener('click', () => addConstant(true));
 
@@ -557,6 +826,8 @@ $('save-button').addEventListener('click', save);
     await evaluateConstants();
     await loadInventory();
     render();
+    fillInventoryChoices();
+    await describeGroups();
   } catch (error) {
     setStatus(error.message, true);
   }

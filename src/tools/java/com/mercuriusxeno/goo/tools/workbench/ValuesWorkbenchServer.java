@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.tools.workbench;
 
+import com.google.gson.JsonObject;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -66,6 +67,8 @@ public final class ValuesWorkbenchServer {
         http.createContext("/api/image", exchange -> server.answer(exchange, server::image));
         http.createContext("/api/constants/evaluate", exchange -> server.answer(exchange, server::evaluateConstants));
         http.createContext("/api/constants/rename", exchange -> server.answer(exchange, server::renameConstant));
+        http.createContext("/api/groups/describe", exchange -> server.answer(exchange, server::describeGroups));
+        http.createContext("/api/groups/apply", exchange -> server.answer(exchange, server::applyToGroup));
         http.setExecutor(Executors.newCachedThreadPool());
         http.start();
         return server;
@@ -169,12 +172,40 @@ public final class ValuesWorkbenchServer {
         return Reply.of(OK, JSON, ModelJson.toJson(renamed, paths.baseValues().toString()));
     }
 
+    /**
+     * Describes every group of the posted model against the inventory.
+     */
+    private Reply describeGroups(HttpExchange exchange) throws IOException {
+        if (!POST.equals(exchange.getRequestMethod())) {
+            return Reply.of(NOT_ALLOWED, TEXT, exchange.getRequestMethod() + " is not served here");
+        }
+        JsonObject answer = new JsonObject();
+        answer.add("groups", GroupsJson.described(postedModel(exchange), GroupsJson.Inventory.read(
+                paths.inventoryFile())));
+        return Reply.of(OK, JSON, answer.toString());
+    }
+
+    /**
+     * Applies one change to a group of the posted model and answers the model with every group described.
+     */
+    private Reply applyToGroup(HttpExchange exchange) throws IOException {
+        if (!POST.equals(exchange.getRequestMethod())) {
+            return Reply.of(NOT_ALLOWED, TEXT, exchange.getRequestMethod() + " is not served here");
+        }
+        String sent = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        return Reply.of(OK, JSON, GroupsJson.applied(sent, fileLayout(), GroupsJson.Inventory.read(
+                paths.inventoryFile())));
+    }
+
     private BaseValuesModel postedModel(HttpExchange exchange) throws IOException {
         String sent = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-        BaseValuesModel layout = Files.isRegularFile(paths.baseValues())
+        return fileLayout().withMembers(ModelJson.membersFrom(sent));
+    }
+
+    private BaseValuesModel fileLayout() throws IOException {
+        return Files.isRegularFile(paths.baseValues())
                 ? BaseValuesModel.parse(Files.readString(paths.baseValues()))
                 : BaseValuesModel.parse("{\n}\n");
-        return layout.withMembers(ModelJson.membersFrom(sent));
     }
 
     private Reply inventory(HttpExchange exchange) throws IOException, InterruptedException {

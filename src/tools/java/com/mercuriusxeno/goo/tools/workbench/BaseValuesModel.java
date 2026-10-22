@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.tools.workbench;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -31,6 +32,8 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
     private static final String DEFAULT_KEY_SEPARATOR = ": ";
     private static final String STRUCTURAL_END = ",}]\n";
     private static final String CONSTANTS = "_constants";
+    // The sections the shipped file closes with; a new item entry stands above them.
+    private static final Set<String> CLOSING_SECTIONS = Set.of("_restricted", "_conversions", "_post_conversions");
     private static final String CONSTANT_PREFIX = "$";
 
     /**
@@ -159,6 +162,88 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
     }
 
     /**
+     * Sets a section's entry, replacing its text where it stands and adding it last where it does not.
+     *
+     * @param section the section's key
+     * @param key     the entry's key
+     * @param text    the entry's text
+     * @return the model holding it
+     * @throws IllegalArgumentException where the file holds no such section
+     */
+    public BaseValuesModel withEntry(String section, String key, String text) {
+        List<Member> changed = new ArrayList<>();
+        boolean sectionFound = false;
+        for (Member member : members) {
+            if (!section.equals(member.key())) {
+                changed.add(member);
+                continue;
+            }
+            sectionFound = true;
+            List<Member> entries = new ArrayList<>(member.entries());
+            int index = indexOfKey(entries, key);
+            if (index < 0) {
+                entries.add(Member.entry(key, text));
+            } else {
+                entries.set(index, entries.get(index).withText(text));
+            }
+            changed.add(member.withEntries(entries));
+        }
+        if (!sectionFound) {
+            throw new IllegalArgumentException("The file holds no section " + section);
+        }
+        return withMembers(changed);
+    }
+
+    /**
+     * Sets a top-level item or #group entry, replacing its text where it stands and adding it above the
+     * sections that close the file where it does not.
+     *
+     * @param key  the entry's key
+     * @param text the entry's text
+     * @return the model holding it
+     */
+    public BaseValuesModel withTopLevel(String key, String text) {
+        List<Member> changed = new ArrayList<>(members);
+        int index = indexOfKey(changed, key);
+        if (index >= 0) {
+            changed.set(index, changed.get(index).withText(text));
+            return withMembers(changed);
+        }
+        int insertAt = changed.size();
+        for (int i = changed.size() - 1; i >= 0 && CLOSING_SECTIONS.contains(changed.get(i).key()); i--) {
+            insertAt = i;
+        }
+        changed.add(insertAt, Member.entry(key, text));
+        return withMembers(changed);
+    }
+
+    /**
+     * @param key a top-level entry's key
+     * @return the model without that entry
+     */
+    public BaseValuesModel withoutTopLevel(String key) {
+        return withMembers(members.stream().filter(member -> !key.equals(member.key())).toList());
+    }
+
+    /**
+     * @param key a top-level key
+     * @return the member under it, or null where none stands
+     */
+    public @Nullable Member member(String key) {
+        int index = indexOfKey(members, key);
+        return index < 0 ? null : members.get(index);
+    }
+
+    private static int indexOfKey(List<Member> entries, String key) {
+        for (int i = 0; i < entries.size(); i++) {
+            if (key.equals(entries.get(i).key())) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /**
      * Renames a constant and rewrites every reference to it, $name and $name.type alike, across the
      * constants and every entry of the file.
      *
@@ -234,7 +319,10 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
         StringBuilder out = new StringBuilder().append(open);
         appendEntries(out, member.entries(), depth + 1);
         String usualClosing = member.entries().isEmpty() ? "" : NEWLINE + indentUnit.repeat(depth);
-        return out.append(orElse(member.closingGap(), usualClosing)).append(close).toString();
+        // A section the file wrote as {} closes on its own line once it gains an entry.
+        String closing = member.closingGap() == null || member.closingGap().isEmpty() ? usualClosing
+                : member.closingGap();
+        return out.append(closing).append(close).toString();
     }
 
     private static String orElse(@Nullable String value, String usual) {
