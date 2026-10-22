@@ -2736,7 +2736,7 @@ class GooValueRegistryTest {
 
     /**
      * The recipes that set a value: where two paths exist the smaller value wins, so only the
-     * winning recipe and its cheapest alternative per slot carry a divisor.
+     * winning recipe and its cheapest alternatives per slot carry a bound.
      */
     @Nested
     class ValueSettingRecipes {
@@ -2753,6 +2753,18 @@ class GooValueRegistryTest {
 
             assertEquals(1, setting.size());
             assertEquals(List.of(Set.of(id("minecraft:dandelion"))), setting.getFirst().ingredientAlternatives());
+        }
+
+        @Test
+        void fewerTypedOfTwoEqualRecipesSetsTheValue() {
+            setBaseValues(Map.of(id("minecraft:oak_log"), goo(GooTypes.LEAF, 16),
+                    id("minecraft:stripped_oak_log"), goo(GooTypes.LEAF, 12, GooTypes.NETHER, 4)));
+            registry.deriveFromRecipeInputs(List.of(
+                    recipe("minecraft:oak_planks", 4, slot("minecraft:stripped_oak_log")),
+                    recipe("minecraft:oak_planks", 4, slot("minecraft:oak_log"))), false);
+
+            assertEquals(List.of(List.of(Set.of(id("minecraft:oak_log")))),
+                    registry.valueSettingRecipes().stream().map(RecipeInput::ingredientAlternatives).toList());
         }
 
         @Test

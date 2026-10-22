@@ -190,24 +190,24 @@ public final class GooAuditReport {
      */
     private static final String CYCLE_DEAD_SUFFIX = " (no base values - unresolvable)";
 
-    // --- Least number constants (private) ---
+    // --- Least value constants (private) ---
 
     /**
-     * Least number section header prefix.
+     * Least value section header prefix.
      */
-    private static final String HDR_LEAST_NUMBER_PREFIX = "LEAST NUMBER PER TYPE (";
+    private static final String HDR_LEAST_VALUE_PREFIX = "LEAST VALUE PER TYPE (";
     /**
-     * Least number section header suffix.
+     * Least value section header suffix.
      */
-    private static final String HDR_LEAST_NUMBER_SUFFIX = " types)";
+    private static final String HDR_LEAST_VALUE_SUFFIX = " types)";
     /**
-     * Least number message when no goo type stands.
+     * Least value message when no goo type stands.
      */
     private static final String MSG_NO_TYPES = "  No goo types.";
     /**
-     * Heads the per-item smallest values inside the least number section.
+     * Heads the per-item least values inside the least value section.
      */
-    private static final String LEAST_VALUE_BY_ITEM = "  smallest value by item:";
+    private static final String LEAST_VALUE_BY_ITEM = "  least value by item:";
 
     // --- No-value constants (private) ---
 
@@ -272,7 +272,7 @@ public final class GooAuditReport {
         report.add(AUDIT_UNDERLINE);
         report.add(EMPTY_LINE);
         int issues = appendIssueSections(values, report);
-        appendLeastNumberSection(values, report);
+        appendLeastValueSection(values, report);
         appendNoValueSection(values, report);
         GooAuditFlows.appendFormulasSection(values, report);
         GooAuditFlows.appendReactionsSection(reactions, report);
@@ -504,21 +504,21 @@ public final class GooAuditReport {
     // --- Least Number Per Type ---
 
     /**
-     * Appends each goo type's least number, worked from the recipe graph. It walks every recipe, so it
+     * Appends each goo type's least values, worked from the recipe graph. It walks every recipe, so it
      * runs here alone, never at server start
      * (decision audit-works-the-least-number-per-type-from-the-recipe-graph).
      *
      * @param values the server's goo value registry
      * @param report the report lines list to append to
      */
-    private static void appendLeastNumberSection(GooValueRegistry values, List<String> report) {
-        List<LeastNumberPerType.TypeLeastNumber> answers = LeastNumberPerType.work(values.valueSettingRecipes(),
+    private static void appendLeastValueSection(GooValueRegistry values, List<String> report) {
+        List<LeastNumberPerType.TypeLeastValue> answers = LeastNumberPerType.work(values.valueSettingRecipes(),
                 values.table().getEffectiveValues(), values.deniedItems(), GooTypes.BUNDLED);
         List<String> lines = new ArrayList<>(answers.stream().flatMap(answer -> answer.lines().stream()).toList());
         lines.add(LEAST_VALUE_BY_ITEM);
         lines.addAll(LeastNumberPerType.smallestValueLines(values.valueSettingRecipes(),
                 values.table().getEffectiveValues(), values.deniedItems()));
-        appendSectionBody(report, HDR_LEAST_NUMBER_PREFIX + answers.size() + HDR_LEAST_NUMBER_SUFFIX,
+        appendSectionBody(report, HDR_LEAST_VALUE_PREFIX + answers.size() + HDR_LEAST_VALUE_SUFFIX,
                 MSG_NO_TYPES, lines, Function.identity());
     }
 

@@ -15,27 +15,25 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * Works out, per goo type, the smallest number every value-setting recipe divides evenly, from the
- * recipe graph itself. A recipe making n items, with an item admitted by k of its slots, needs that
- * item's value to be a multiple of n / gcd(k, n); an output that must be a multiple of d carries that
- * back to each input as (n * d) / gcd(k, n * d), iterated to a fixpoint. Each item's divisor is held
- * as prime powers, each with the recipe that forced it, so every factor of every number is traced to
- * the recipe chain proving it. A hand-keyed value stops nothing: the ratios alone decide, so a stick's
- * demand carries into the planks and the log. A type's number is the least common multiple of the
- * divisors of the items holding it. The audit runs it, never a server load.
+ * Works out each item's least value per goo type from the recipe graph itself, so every goo type
+ * every item holds comes out at 1 or more. Every item starts at 1 in each type it holds; a recipe
+ * making n items, with an input admitted by k of its slots, needs that input's share in each type to
+ * be at least n / k times the output's least value, carried back to a fixpoint. Each bound is an exact
+ * fraction with the floor it melts into and the ceiling it costs, traced to the recipe chain forcing
+ * it. A hand-keyed value stops nothing: the ratios alone decide. The audit runs it, never a server load.
  * Decision audit-works-the-least-number-per-type-from-the-recipe-graph.
  */
 public final class LeastNumberPerType {
 
     /**
-     * A divisor past this never settles: only a cycle demanding ever more grows it this far.
+     * A bound past this never settles: only a cycle demanding ever more grows it this far.
      */
-    static final long DIVERGENT_DIVISOR = 1L << 40;
-    private static final long SMALLEST_PRIME = 2;
+    static final GooFraction DIVERGENT_BOUND = GooFraction.of(1L << 30);
+    private static final GooFraction ONE = GooFraction.of(1);
     private static final String STEP_SEPARATOR = " ";
     private static final String MAKES = " -> ";
     private static final String LINE_INDENT = "  ";
@@ -44,47 +42,36 @@ public final class LeastNumberPerType {
     private static final String LIST_SEPARATOR = ", ";
     private static final String NET_OF = " net of ";
     private static final String EQUALS = " = ";
-    private static final String TIMES = " * ";
-    private static final String POWER = "^";
-    private static final String OPEN = " (";
-    private static final String NO_NUMBER = "resolvable by no number";
+    private static final String AT = " at ";
+    private static final String MELTS = " (melts ";
+    private static final String COSTS = ", costs ";
+    private static final String ITEM_COSTS = "; costs ";
+    private static final String NO_LEAST_VALUE = "no least value";
     private static final String CYCLE = " (cycle: ";
-    private static final String OTHER_ITEMS = " (the other items read ";
-    private static final String NO_ITEM = " (no item in the recipe graph)";
+    private static final String CYCLE_NEVER_SETTLES = " (a cycle never settles)";
+    private static final String NO_ITEM = "1 (no item in the recipe graph)";
     private static final String CLOSE = ")";
     private static final String NOTHING = "";
-    private static final String MULTIPLE = " (multiple ";
-    private static final String REMAINDER = " LEAVES A REMAINDER";
 
     private LeastNumberPerType() {
     }
 
-    /**
-     * One prime power of a divisor and the recipe chain forcing it.
-     *
-     * @param prime    the prime
-     * @param exponent its power in the divisor
-     * @param steps    each recipe step forcing it, root first, as "k input -> n output"
-     */
-    public record FactorProof(long prime, int exponent, List<String> steps) {
-
-        private String text() {
-            return prime + POWER + exponent + OPEN + String.join(LIST_SEPARATOR, steps) + CLOSE;
-        }
+    private static String meltAndCost(GooFraction bound) {
+        return MELTS + bound.floor() + COSTS + bound.ceiling() + CLOSE;
     }
 
     /**
-     * One item's divisor.
+     * One item's least value in one goo type.
      *
      * @param item       the item
-     * @param divisor    the number its value must be a multiple of, 0 when resolvable by no number
+     * @param bound      the least value the type must hold, 1 or more
      * @param resolvable false when a cycle's demand never settles
-     * @param netOf      the container a recipe hands back for it, whose value its divisor is net of, or null
-     * @param factors    each prime power of the divisor with the chain forcing it, smallest prime first
+     * @param netOf      the container a recipe hands back for it, whose value its bound is net of, or null
+     * @param steps      each recipe step forcing the bound, the item first, as "k input -> n output"
      * @param cycle      the steps forming the cycle when unresolvable, else empty
      */
-    public record ItemDivisor(Identifier item, long divisor, boolean resolvable, @Nullable Identifier netOf,
-                              List<FactorProof> factors, List<String> cycle) {
+    public record ItemBound(Identifier item, GooFraction bound, boolean resolvable, @Nullable Identifier netOf,
+                            List<String> steps, List<String> cycle) {
 
         /**
          * @return the item's report line
@@ -92,165 +79,107 @@ public final class LeastNumberPerType {
         public String line() {
             String head = ROOT_INDENT + item + SEPARATOR;
             if (!resolvable) {
-                return head + NO_NUMBER + CYCLE + String.join(LIST_SEPARATOR, cycle) + CLOSE;
+                return head + NO_LEAST_VALUE + CYCLE + String.join(LIST_SEPARATOR, cycle) + CLOSE;
             }
             String net = netOf == null ? NOTHING : NET_OF + netOf;
-            String proof = factors.isEmpty() ? NOTHING
-                    : EQUALS + factors.stream().map(FactorProof::text).collect(Collectors.joining(TIMES));
-            return head + divisor + net + proof;
+            String chain = steps.isEmpty() ? NOTHING : EQUALS + String.join(LIST_SEPARATOR, steps);
+            return head + bound + net + meltAndCost(bound) + chain;
         }
     }
 
     /**
-     * One goo type's number.
+     * One goo type's least values.
      *
      * @param type       the type's id
-     * @param number     the least common multiple of its resolvable items' divisors
-     * @param resolvable false when any of its items is resolvable by no number
+     * @param highest    the item holding the highest bound, or null when no resolvable item holds the type
+     * @param resolvable false when any of its items holds no least value
      * @param items      the items in the recipe graph holding the type, by id
      */
-    public record TypeLeastNumber(String type, long number, boolean resolvable, List<ItemDivisor> items) {
+    public record TypeLeastValue(String type, @Nullable ItemBound highest, boolean resolvable,
+                                 List<ItemBound> items) {
 
         /**
-         * @return the type's line, naming the item supplying each prime power, then one line per item
+         * @return the type's line, naming the item with the highest bound, then one line per item
          */
         public List<String> lines() {
             List<String> lines = new ArrayList<>();
             String verdict;
-            if (items.isEmpty()) {
-                verdict = number + NO_ITEM;
+            if (items.isEmpty() || highest == null) {
+                verdict = NO_ITEM;
             } else if (resolvable) {
-                verdict = number + factorSources();
+                verdict = highest.bound() + AT + highest.item() + meltAndCost(highest.bound());
             } else {
-                verdict = NO_NUMBER + OTHER_ITEMS + number + CLOSE;
+                verdict = NO_LEAST_VALUE + CYCLE_NEVER_SETTLES;
             }
             lines.add(LINE_INDENT + type + SEPARATOR + verdict);
             items.forEach(item -> lines.add(item.line()));
             return lines;
         }
-
-        private String factorSources() {
-            Map<Long, FactorProof> highest = new TreeMap<>();
-            Map<Long, Identifier> source = new HashMap<>();
-            for (ItemDivisor item : items) {
-                for (FactorProof factor : item.factors()) {
-                    FactorProof held = highest.get(factor.prime());
-                    if (held == null || factor.exponent() > held.exponent()) {
-                        highest.put(factor.prime(), factor);
-                        source.put(factor.prime(), item.item());
-                    }
-                }
-            }
-            if (highest.isEmpty()) {
-                return NOTHING;
-            }
-            return EQUALS + highest.values().stream()
-                    .map(f -> f.prime() + POWER + f.exponent() + OPEN + source.get(f.prime()) + CLOSE)
-                    .collect(Collectors.joining(TIMES));
-        }
     }
 
     /**
-     * Works every type's number.
+     * Works every type's least values.
      *
      * @param recipes         the recipes that set a value, one per output
-     * @param effectiveValues every item holding a value, whose goo types group the report
+     * @param effectiveValues every item holding a value, whose goo types each item must hold at 1 or more
      * @param deniedItems     items denied a value; a recipe making one forces nothing
      * @param types           the goo types to answer, in report order
      * @return one answer per type, listing every item of the recipe graph holding it
      */
-    public static List<TypeLeastNumber> work(List<RecipeInput> recipes, Map<Identifier, GooValue> effectiveValues,
-                                             Set<Identifier> deniedItems, List<ResourceKey<GooTypeDefinition>> types) {
-        Graph graph = new Graph(recipes, effectiveValues.keySet(), deniedItems);
+    public static List<TypeLeastValue> work(List<RecipeInput> recipes, Map<Identifier, GooValue> effectiveValues,
+                                            Set<Identifier> deniedItems, List<ResourceKey<GooTypeDefinition>> types) {
+        Graph graph = new Graph(recipes, effectiveValues, deniedItems);
         graph.settle();
-        Map<String, List<ItemDivisor>> itemsByType = new LinkedHashMap<>();
-        types.forEach(type -> itemsByType.put(GooTypes.id(type), new ArrayList<>()));
-        graph.items().stream().filter(effectiveValues::containsKey).sorted().forEach(item -> {
-            ItemDivisor divisor = graph.itemDivisor(item);
-            effectiveValues.get(item).exactAll().keySet().forEach(type -> {
-                List<ItemDivisor> items = itemsByType.get(GooTypes.id(type));
-                if (items != null) {
-                    items.add(divisor);
-                }
-            });
-        });
-        List<TypeLeastNumber> answers = new ArrayList<>();
-        itemsByType.forEach((type, items) -> answers.add(typeLeastNumber(type, items)));
+        List<TypeLeastValue> answers = new ArrayList<>();
+        for (ResourceKey<GooTypeDefinition> type : types) {
+            List<ItemBound> items = graph.items().stream().filter(item -> graph.holds(item, type)).sorted()
+                    .map(item -> graph.itemBound(item, type)).toList();
+            answers.add(typeLeastValue(GooTypes.id(type), items));
+        }
         return answers;
     }
 
+    private static TypeLeastValue typeLeastValue(String type, List<ItemBound> items) {
+        ItemBound highest = null;
+        boolean resolvable = true;
+        for (ItemBound item : items) {
+            if (!item.resolvable()) {
+                resolvable = false;
+            } else if (highest == null || item.bound().compareTo(highest.bound()) > 0) {
+                highest = item;
+            }
+        }
+        return new TypeLeastValue(type, highest, resolvable, items);
+    }
+
     /**
-     * Every item of the recipe graph once, with its smallest value: an item no winning recipe makes
-     * sits at its multiple in each goo type it holds, and every other item derives from those through
-     * its winning recipe. A division that leaves a remainder is flagged, since the multiples should
-     * leave none.
+     * Every item of the recipe graph once, with its least value: an item no winning recipe makes
+     * starts at its bound in each goo type it holds, and every other item derives from those through
+     * its winning recipe, dividing exactly.
      *
      * @param recipes         the recipes that set a value, one per output
      * @param effectiveValues every item holding a value, whose goo types a starting item holds
      * @param deniedItems     items denied a value; a recipe making one forces nothing
-     * @return one line per item, by id
+     * @return one line per item, by id, with the floor it melts into and the ceiling it costs
      */
     public static List<String> smallestValueLines(List<RecipeInput> recipes, Map<Identifier, GooValue> effectiveValues,
                                                   Set<Identifier> deniedItems) {
-        Graph graph = new Graph(recipes, effectiveValues.keySet(), deniedItems);
+        Graph graph = new Graph(recipes, effectiveValues, deniedItems);
         graph.settle();
-        Map<Identifier, GooValue> values = graph.smallestValues(effectiveValues);
+        Map<Identifier, GooValue> values = graph.smallestValues();
         List<String> lines = new ArrayList<>();
         values.keySet().stream().sorted().forEach(item -> lines.add(ROOT_INDENT + item + SEPARATOR
-                + valueText(values.get(item)) + MULTIPLE + graph.divisor(item) + CLOSE
-                + (graph.leftRemainder(item) ? REMAINDER : NOTHING)));
+                + amountsText(values.get(item), fraction -> fraction) + MELTS
+                + amountsText(values.get(item), fraction -> fraction.floor()) + ITEM_COSTS
+                + amountsText(values.get(item), fraction -> fraction.ceiling()) + CLOSE));
         return lines;
     }
 
-    private static String valueText(GooValue value) {
+    private static String amountsText(GooValue value, Function<GooFraction, Object> shown) {
         return value.exactAll().entrySet().stream()
                 .sorted(Map.Entry.comparingByKey(GooTypes.ORDER))
-                .map(e -> GooTypes.id(e.getKey()) + STEP_SEPARATOR + e.getValue())
+                .map(e -> GooTypes.id(e.getKey()) + STEP_SEPARATOR + shown.apply(e.getValue()))
                 .collect(Collectors.joining(LIST_SEPARATOR));
-    }
-
-    private static TypeLeastNumber typeLeastNumber(String type, List<ItemDivisor> items) {
-        long number = 1;
-        boolean resolvable = true;
-        for (ItemDivisor item : items) {
-            if (item.resolvable()) {
-                number = lcm(number, item.divisor());
-            } else {
-                resolvable = false;
-            }
-        }
-        return new TypeLeastNumber(type, number, resolvable, items);
-    }
-
-    private static long gcd(long a, long b) {
-        return b == 0 ? a : gcd(b, a % b);
-    }
-
-    private static long lcm(long a, long b) {
-        try {
-            return Math.multiplyExact(a / gcd(a, b), b);
-        } catch (ArithmeticException overflow) {
-            return Long.MAX_VALUE;
-        }
-    }
-
-    /**
-     * @param value a positive number
-     * @return its prime factorization, prime to exponent, smallest prime first
-     */
-    static Map<Long, Integer> primePowers(long value) {
-        Map<Long, Integer> powers = new TreeMap<>();
-        long rest = value;
-        for (long prime = SMALLEST_PRIME; prime * prime <= rest; prime++) {
-            while (rest % prime == 0) {
-                powers.merge(prime, 1, Integer::sum);
-                rest /= prime;
-            }
-        }
-        if (rest > 1) {
-            powers.merge(rest, 1, Integer::sum);
-        }
-        return powers;
     }
 
     /**
@@ -271,23 +200,34 @@ public final class LeastNumberPerType {
     }
 
     /**
-     * The recipe graph and each item's divisor, as prime powers, as it settles.
+     * The recipe graph and each item's bound per goo type, as it settles.
      */
     private static final class Graph {
         private final Map<Identifier, List<Edge>> edgesByOutput = new HashMap<>();
         private final List<Edge> edges = new ArrayList<>();
-        private final Map<Identifier, Map<Long, Integer>> exponents = new HashMap<>();
-        private final Map<Identifier, Map<Long, Edge>> forcedBy = new HashMap<>();
+        private final Map<Identifier, GooValue> effectiveValues;
+        private final Map<Identifier, Map<ResourceKey<GooTypeDefinition>, GooFraction>> bounds = new HashMap<>();
+        private final Map<Identifier, Map<ResourceKey<GooTypeDefinition>, Edge>> forcedBy = new HashMap<>();
         private final Map<Identifier, Edge> lastRaisedBy = new HashMap<>();
         private final Set<Identifier> divergent = new HashSet<>();
         private final Map<Identifier, Identifier> netOf = new HashMap<>();
+        private final Set<Identifier> seededNet = new HashSet<>();
 
-        Graph(List<RecipeInput> recipes, Set<Identifier> valued, Set<Identifier> denied) {
+        Graph(List<RecipeInput> recipes, Map<Identifier, GooValue> effectiveValues, Set<Identifier> denied) {
+            this.effectiveValues = effectiveValues;
             for (RecipeInput recipe : recipes) {
-                Edge edge = denied.contains(recipe.output()) ? null : edgeOf(recipe, valued);
+                Edge edge = denied.contains(recipe.output()) ? null : edgeOf(recipe, effectiveValues.keySet());
                 if (edge != null) {
                     edges.add(edge);
                     edgesByOutput.computeIfAbsent(edge.output(), k -> new ArrayList<>()).add(edge);
+                }
+            }
+            for (Identifier item : items()) {
+                GooValue held = effectiveValues.get(item);
+                if (held != null) {
+                    Map<ResourceKey<GooTypeDefinition>, GooFraction> floor = new HashMap<>();
+                    held.exactAll().keySet().forEach(type -> floor.put(type, ONE));
+                    bounds.put(item, floor);
                 }
             }
         }
@@ -332,22 +272,8 @@ public final class LeastNumberPerType {
             return true;
         }
 
-        private int exponent(Identifier item, long prime) {
-            return exponents.getOrDefault(item, Map.of()).getOrDefault(prime, 0);
-        }
-
-        long divisor(Identifier item) {
-            long divisor = 1;
-            try {
-                for (var power : exponents.getOrDefault(item, Map.of()).entrySet()) {
-                    for (int i = 0; i < power.getValue(); i++) {
-                        divisor = Math.multiplyExact(divisor, power.getKey());
-                    }
-                }
-            } catch (ArithmeticException overflow) {
-                return Long.MAX_VALUE;
-            }
-            return divisor;
+        boolean holds(Identifier item, ResourceKey<GooTypeDefinition> type) {
+            return bounds.getOrDefault(item, Map.of()).containsKey(type);
         }
 
         void settle() {
@@ -369,7 +295,6 @@ public final class LeastNumberPerType {
         private List<Identifier> carryBack(Edge edge) {
             List<Identifier> raised = new ArrayList<>();
             boolean outputDivergent = divergent.contains(edge.output());
-            long demand = edge.count() * divisor(edge.output());
             for (var input : edge.inputs().entrySet()) {
                 Identifier item = input.getKey();
                 Identifier container = edge.containers().get(item);
@@ -382,39 +307,54 @@ public final class LeastNumberPerType {
                 if (outputDivergent) {
                     markDivergent(item, edge, raised);
                 } else {
-                    raiseInput(edge, item, demand / gcd(input.getValue(), demand), raised);
+                    raiseInput(edge, item, input.getValue(), raised);
                 }
             }
             return raised;
         }
 
         /**
-         * Raises each prime power of one input's divisor that the edge requires higher, recording the
-         * edge as what forced it.
+         * Raises each type of one input's bound that the edge requires higher, to n / k times the
+         * output's bound in that type, recording the edge as what forced it. A type the input does not
+         * hold takes no bound.
          *
-         * @param edge     the recipe requiring it
-         * @param item     the input
-         * @param required the multiple the recipe requires of the input
-         * @param raised   the items raised so far, added to
+         * @param edge   the recipe requiring it
+         * @param item   the input
+         * @param slots  the number of the recipe's slots admitting the input
+         * @param raised the items raised so far, added to
          */
-        private void raiseInput(Edge edge, Identifier item, long required, List<Identifier> raised) {
-            boolean changed = false;
-            for (var power : primePowers(required).entrySet()) {
-                if (power.getValue() > exponent(item, power.getKey())) {
-                    exponents.computeIfAbsent(item, k -> new TreeMap<>()).put(power.getKey(), power.getValue());
-                    forcedBy.computeIfAbsent(item, k -> new HashMap<>()).put(power.getKey(), edge);
-                    changed = true;
-                }
+        private void raiseInput(Edge edge, Identifier item, int slots, List<Identifier> raised) {
+            boolean changed;
+            try {
+                changed = raiseTypes(edge, item, slots);
+            } catch (ArithmeticException overflow) {
+                markDivergent(item, edge, raised);
+                return;
             }
             if (!changed) {
                 return;
             }
-            if (divisor(item) > DIVERGENT_DIVISOR) {
+            if (bounds.get(item).values().stream().anyMatch(bound -> bound.compareTo(DIVERGENT_BOUND) > 0)) {
                 markDivergent(item, edge, raised);
                 return;
             }
             lastRaisedBy.put(item, edge);
             raised.add(item);
+        }
+
+        private boolean raiseTypes(Edge edge, Identifier item, int slots) {
+            Map<ResourceKey<GooTypeDefinition>, GooFraction> held = bounds.get(item);
+            boolean changed = false;
+            for (var output : bounds.getOrDefault(edge.output(), Map.of()).entrySet()) {
+                GooFraction current = held.get(output.getKey());
+                GooFraction required = output.getValue().times(edge.count()).dividedBy(slots);
+                if (current != null && required.compareTo(current) > 0) {
+                    held.put(output.getKey(), required);
+                    forcedBy.computeIfAbsent(item, k -> new HashMap<>()).put(output.getKey(), edge);
+                    changed = true;
+                }
+            }
+            return changed;
         }
 
         private void markDivergent(Identifier item, Edge edge, List<Identifier> raised) {
@@ -423,36 +363,44 @@ public final class LeastNumberPerType {
             raised.add(item);
         }
 
-        private final Set<Identifier> remainders = new HashSet<>();
-
-        boolean leftRemainder(Identifier item) {
-            return remainders.contains(item);
-        }
-
         /**
-         * Seeds each item no winning recipe makes at its multiple in each goo type it holds, then
-         * derives every other item through its winning recipe until nothing more resolves.
+         * Seeds each item no winning recipe makes at its bound in each goo type it holds, then derives
+         * every other item through its winning recipe until nothing more resolves.
          *
-         * @param effectiveValues every item holding a value, for the goo types a starting item holds
-         * @return each item's smallest value
+         * @return each item's least value
          */
-        Map<Identifier, GooValue> smallestValues(Map<Identifier, GooValue> effectiveValues) {
+        Map<Identifier, GooValue> smallestValues() {
             Map<Identifier, GooValue> values = new HashMap<>();
             Set<Identifier> starting = new HashSet<>(items());
             edges.forEach(edge -> starting.addAll(edge.containers().values()));
             starting.removeAll(edgesByOutput.keySet());
             for (Identifier item : starting) {
-                GooValue held = effectiveValues.get(item);
-                if (held != null && !divergent.contains(item)) {
-                    Map<ResourceKey<GooTypeDefinition>, Integer> amounts = new HashMap<>();
-                    held.exactAll().keySet().forEach(type -> amounts.put(type, (int) divisor(item)));
-                    values.put(item, new GooValue(amounts));
+                if (canSeed(item, values)) {
+                    seed(item, values);
                 }
             }
             do {
                 deriveAll(values);
-            } while (seedStalledLoop(values, effectiveValues));
+            } while (seedStalledLoop(values));
             return values;
+        }
+
+        /**
+         * Seeds an item at its bound per type, 1 for a type no recipe bounds. An item handed back as
+         * a container is bounded net of it, so its seed is net of the container too.
+         *
+         * @param item   the item
+         * @param values the values resolved so far, added to
+         */
+        private void seed(Identifier item, Map<Identifier, GooValue> values) {
+            Map<ResourceKey<GooTypeDefinition>, GooFraction> amounts = new HashMap<>();
+            Map<ResourceKey<GooTypeDefinition>, GooFraction> bound = bounds.getOrDefault(item, Map.of());
+            effectiveValues.get(item).exactAll().keySet()
+                    .forEach(type -> amounts.put(type, bound.getOrDefault(type, ONE)));
+            values.put(item, GooValue.ofExact(amounts));
+            if (netOf.containsKey(item)) {
+                seededNet.add(item);
+            }
         }
 
         private void deriveAll(Map<Identifier, GooValue> values) {
@@ -469,44 +417,41 @@ public final class LeastNumberPerType {
 
         /**
          * A loop of winning recipes (ingot into nuggets, nuggets into ingot) holds no item to start
-         * from, so the unresolved item with the largest multiple starts at that multiple.
+         * from, so the unresolved item with the highest bound starts at its bound.
          *
-         * @param values          the values resolved so far, added to
-         * @param effectiveValues every item holding a value, for the goo types the seed holds
+         * @param values the values resolved so far, added to
          * @return true when an item was seeded, so derivation runs again
          */
-        private boolean seedStalledLoop(Map<Identifier, GooValue> values, Map<Identifier, GooValue> effectiveValues) {
-            Identifier seed = null;
-            for (Edge edge : edges) {
-                if (values.containsKey(edge.output())) {
-                    continue;
-                }
-                for (Identifier item : edge.picks()) {
-                    if (canSeed(item, values, effectiveValues) && outranks(item, seed)) {
-                        seed = item;
-                    }
+        private boolean seedStalledLoop(Map<Identifier, GooValue> values) {
+            Identifier chosen = null;
+            List<Identifier> unresolvedPicks = edges.stream().filter(edge -> !values.containsKey(edge.output()))
+                    .flatMap(edge -> edge.picks().stream()).toList();
+            for (Identifier item : unresolvedPicks) {
+                if (canSeed(item, values) && outranks(item, chosen)) {
+                    chosen = item;
                 }
             }
-            if (seed == null) {
+            if (chosen == null) {
                 return false;
             }
-            Map<ResourceKey<GooTypeDefinition>, Integer> amounts = new HashMap<>();
-            long multiple = divisor(seed);
-            effectiveValues.get(seed).exactAll().keySet().forEach(type -> amounts.put(type, (int) multiple));
-            values.put(seed, new GooValue(amounts));
+            seed(chosen, values);
             return true;
         }
 
-        private boolean canSeed(Identifier item, Map<Identifier, GooValue> values,
-                                Map<Identifier, GooValue> effectiveValues) {
+        private boolean canSeed(Identifier item, Map<Identifier, GooValue> values) {
             return !values.containsKey(item) && effectiveValues.containsKey(item) && !divergent.contains(item);
         }
 
-        private boolean outranks(Identifier item, @Nullable Identifier seed) {
-            if (seed == null || divisor(item) != divisor(seed)) {
-                return seed == null || divisor(item) > divisor(seed);
+        private GooFraction boundTotal(Identifier item) {
+            return bounds.getOrDefault(item, Map.of()).values().stream().reduce(GooFraction.ZERO, GooFraction::plus);
+        }
+
+        private boolean outranks(Identifier item, @Nullable Identifier chosen) {
+            if (chosen == null) {
+                return true;
             }
-            return item.compareTo(seed) < 0;
+            int byBound = boundTotal(item).compareTo(boundTotal(chosen));
+            return byBound != 0 ? byBound > 0 : item.compareTo(chosen) < 0;
         }
 
         private boolean deriveSmallest(Edge edge, Map<Identifier, GooValue> values) {
@@ -517,13 +462,8 @@ public final class LeastNumberPerType {
                     return false;
                 }
                 Identifier container = edge.containers().get(pick);
-                GooValue containerValue = container == null ? null : values.get(container);
+                GooValue containerValue = container == null || seededNet.contains(pick) ? null : values.get(container);
                 total = total.add(containerValue == null ? value : value.subtract(containerValue), 1);
-            }
-            for (GooFraction amount : total.exactAll().values()) {
-                if (!amount.dividedBy(edge.count()).isWhole()) {
-                    remainders.add(edge.output());
-                }
             }
             values.put(edge.output(), total.divide(edge.count()));
             return true;
@@ -538,37 +478,32 @@ public final class LeastNumberPerType {
             return items;
         }
 
-        ItemDivisor itemDivisor(Identifier item) {
+        ItemBound itemBound(Identifier item, ResourceKey<GooTypeDefinition> type) {
             if (divergent.contains(item)) {
-                return new ItemDivisor(item, 0, false, netOf.get(item), List.of(), cycleSteps(item));
+                return new ItemBound(item, ONE, false, netOf.get(item), List.of(), cycleSteps(item));
             }
-            List<FactorProof> factors = new ArrayList<>();
-            exponents.getOrDefault(item, Map.of()).forEach((prime, exponent) ->
-                    factors.add(new FactorProof(prime, exponent, factorSteps(item, prime))));
-            return new ItemDivisor(item, divisor(item), true, netOf.get(item), factors, List.of());
+            return new ItemBound(item, bounds.get(item).get(type), true, netOf.get(item), boundSteps(item, type),
+                    List.of());
         }
 
         /**
-         * Follows one prime from an item through the recipe forcing it, on into that recipe's output while
-         * the output's own divisor holds the prime too.
+         * Follows one type's bound from an item through the recipe forcing it, on into that recipe's
+         * output while the output's own bound in the type was forced by a recipe too.
          *
-         * @param item  the item
-         * @param prime the prime
+         * @param item the item
+         * @param type the goo type
          * @return each step, item first
          */
-        private List<String> factorSteps(Identifier item, long prime) {
+        private List<String> boundSteps(Identifier item, ResourceKey<GooTypeDefinition> type) {
             List<String> steps = new ArrayList<>();
             Set<Identifier> seen = new HashSet<>();
             Identifier at = item;
             while (seen.add(at)) {
-                Edge edge = forcedBy.getOrDefault(at, Map.of()).get(prime);
+                Edge edge = forcedBy.getOrDefault(at, Map.of()).get(type);
                 if (edge == null) {
                     break;
                 }
                 steps.add(edge.step(at));
-                if (exponent(edge.output(), prime) == 0) {
-                    break;
-                }
                 at = edge.output();
             }
             return steps;
