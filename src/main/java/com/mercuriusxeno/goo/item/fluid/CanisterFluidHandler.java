@@ -136,7 +136,7 @@ public class CanisterFluidHandler implements ResourceHandler<FluidResource> {
      * @param item the item resource to read fluid data from
      * @return the stored fluid content, or EMPTY if none
      */
-    private static CanisterFluidContent readContent(ItemResource item) {
+    static CanisterFluidContent readContent(ItemResource item) {
         CanisterFluidContent content = item.getComponents().get(
             GooDataComponents.CANISTER_FLUID_CONTENT.get());
         return content != null ? content : CanisterFluidContent.EMPTY;
@@ -153,13 +153,15 @@ public class CanisterFluidHandler implements ResourceHandler<FluidResource> {
     }
 
     /**
-     * Writes canister fluid content onto the item, dropping the component when empty.
+     * Writes canister fluid content onto the item, dropping the component only once it
+     * holds neither goo nor a remainder.
+     * decision every-producer-consumer-and-container-holds-a-remainder-buffer
      * @param item    the item resource to update
      * @param content the content to write
      * @return the updated item resource
      */
-    private static ItemResource writeContent(ItemResource item, CanisterFluidContent content) {
-        return content.isEmpty()
+    static ItemResource writeContent(ItemResource item, CanisterFluidContent content) {
+        return content.holdsNothing()
             ? item.without(GooDataComponents.CANISTER_FLUID_CONTENT)
             : item.with(GooDataComponents.CANISTER_FLUID_CONTENT, content);
     }

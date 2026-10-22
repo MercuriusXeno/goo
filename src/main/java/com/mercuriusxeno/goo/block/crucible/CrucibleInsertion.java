@@ -12,6 +12,7 @@ import com.mercuriusxeno.goo.data.RemainderLedger;
 import com.mercuriusxeno.goo.item.ChrysmItem;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
+import com.mercuriusxeno.goo.registry.GooCapabilities;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -78,7 +79,7 @@ final class CrucibleInsertion {
      * @return the number of items melted in, from zero to {@code count}
      */
     static int insertItem(CrucibleBlockEntity be, Identifier itemId, int count, IGooValueLookup lookup) {
-        MeltArrival arrival = meltArrival(poolContents(be), itemId, count, lookup, be.reservoir.ledger());
+        MeltArrival arrival = meltArrival(poolContents(be), itemId, count, lookup, GooCapabilities.remainderLedgerOf(be));
         if (arrival == null) {
             return 0;
         }
@@ -274,7 +275,7 @@ final class CrucibleInsertion {
      */
     static ContainerEvaluator.@Nullable ContainerEvaluation insertContainer(
             CrucibleBlockEntity be, Identifier containerId, ItemStack container, IGooValueLookup lookup) {
-        RemainderLedger credited = new RemainderLedger(be.reservoir.ledger().remainders());
+        RemainderLedger credited = new RemainderLedger(GooCapabilities.remainderLedgerOf(be).remainders());
         ContainerEvaluator.ContainerEvaluation eval = be.containerEvaluator.evaluate(containerId, container, lookup,
                 credited);
         if (eval.goo().isEmpty() && eval.ejects().isEmpty()) {

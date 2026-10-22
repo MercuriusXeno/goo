@@ -6,6 +6,15 @@
       "entries": [
         {
           "type": "minecraft:item",
+          "functions": [
+            {
+              "function": "minecraft:copy_components",
+              "include": [
+                "goo:remainders"
+              ],
+              "source": "block_entity"
+            }
+          ],
           "name": "goo:plexer"
         }
       ],

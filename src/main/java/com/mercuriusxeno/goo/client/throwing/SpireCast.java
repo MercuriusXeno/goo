@@ -12,6 +12,7 @@ import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
 import com.mercuriusxeno.goo.network.GooSpirePayload;
 import com.mercuriusxeno.goo.network.GooThrowHandler;
+import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -144,7 +145,7 @@ public final class SpireCast {
         }
         int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(selection.getGooType(), 0);
         return SpireGrowth.affordable(player.level(), footprint.get(), GooValues.of(player.level()),
-                selection.getGooType(), holdings);
+                selection.getGooType(), player.getData(GooAttachments.REMAINDERS), holdings);
     }
 
     /**

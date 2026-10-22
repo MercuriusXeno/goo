@@ -1,14 +1,17 @@
 package com.mercuriusxeno.goo.registry;
 
+import com.mercuriusxeno.goo.ability.program.PlayerRemainderLedger;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.CanisterSlotFluidHandler;
 import com.mercuriusxeno.goo.block.canister.ICanisterHolder;
 import com.mercuriusxeno.goo.block.fluid.PlayerInventorySlotHandler;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
+import com.mercuriusxeno.goo.data.IRemainderLedger;
 import com.mercuriusxeno.goo.fluid.GooBucketResourceHandler;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.item.fluid.CanisterFluidHandler;
+import com.mercuriusxeno.goo.item.fluid.CanisterRemainderLedger;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.registry.GooCapabilities;
@@ -45,6 +48,51 @@ final class GooCapabilityRegistration {
         registerBlockFluidCapabilities(event);
         registerGasketBlockCapabilities(event);
         registerGasketEntityCapabilities(event);
+        registerRemainderCapabilities(event);
+    }
+
+    /**
+     * Registers the one shared remainder capability on every store of goo: the
+     * crucible, the vat and the plexer answer their own store, every canister-slot
+     * block answers the canister in the slot its context names, the player answers
+     * their attachment and the canister item its content.
+     * decision one-remainder-capability-injected-into-every-fluid-capability
+     *
+     * @param event the capability registration event
+     */
+    static void registerRemainderCapabilities(RegisterCapabilitiesEvent event) {
+        event.registerBlockEntity(GooCapabilities.REMAINDER_BLOCK, GooBlockEntities.CRUCIBLE.get(),
+                (be, slot) -> slot == null ? be.reservoirHandler().ledger() : null);
+        event.registerBlockEntity(GooCapabilities.REMAINDER_BLOCK, GooBlockEntities.VAT.get(),
+                (be, slot) -> slot == null ? be.getFluidHandler().ledger() : null);
+        event.registerBlockEntity(GooCapabilities.REMAINDER_BLOCK, GooBlockEntities.PLEXER.get(),
+                (be, slot) -> slot == null ? be.ledger() : null);
+        event.registerBlockEntity(GooCapabilities.REMAINDER_BLOCK, GooBlockEntities.CANISTER.get(),
+                (be, slot) -> slotLedger(be, CanisterBlockEntity.MAX_SLOTS, slot));
+        event.registerBlockEntity(GooCapabilities.REMAINDER_BLOCK, GooBlockEntities.HUB.get(),
+                (be, slot) -> slotLedger(be, HubBlockEntity.MAX_CANISTERS, slot));
+        event.registerBlockEntity(GooCapabilities.REMAINDER_BLOCK, GooBlockEntities.REACTOR.get(),
+                (be, slot) -> slotLedger(be, be.containerState().maxSlots(), slot));
+        event.registerEntity(GooCapabilities.REMAINDER_ENTITY, net.minecraft.world.entity.EntityType.PLAYER,
+                (player, ignored) -> PlayerRemainderLedger.of(player));
+        event.registerItem(GooCapabilities.REMAINDER_ITEM,
+                (stack, access) -> CanisterRemainderLedger.of(access), GooItems.CANISTER.get());
+    }
+
+    /**
+     * The ledger of the canister in a slot.
+     *
+     * @param container the canister-slot block
+     * @param slotCount its slot count
+     * @param slot      the slot the context names, or null
+     * @return the canister's ledger, or null for no slot, a slot out of range or an empty slot
+     */
+    @Nullable
+    private static IRemainderLedger slotLedger(ICanisterHolder container, int slotCount, @Nullable Integer slot) {
+        if (slot == null || slot < 0 || slot >= slotCount || container.getCanister(slot).isEmpty()) {
+            return null;
+        }
+        return container.containerState().getSlotFluidHandler(slot).ledger();
     }
 
     /**

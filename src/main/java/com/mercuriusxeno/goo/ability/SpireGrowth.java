@@ -1,9 +1,11 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.data.IRemainderLedger;
+import com.mercuriusxeno.goo.data.RemainderLedger;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
@@ -63,16 +65,20 @@ public record SpireGrowth(SpireFootprint footprint, List<BlockPos> columns, GooF
      * @param blocks    the world the footprint stands in
      * @param footprint the footprint at the rise asked
      * @param values    the goo values the stone is priced by
-     * @param gooType   the goo type the cost is paid in
-     * @param holdings  the mB of that type the caster holds
+     * @param gooType    the goo type the cost is paid in
+     * @param remainders the caster's remainders, which pay first
+     * @param holdings   the mB of that type the caster holds
      * @return the plan, or empty where no rise grows a column the holdings pay for
      */
     public static Optional<SpireGrowth> affordable(BlockGetter blocks, SpireFootprint footprint,
                                                    IGooValueLookup values, ResourceKey<GooTypeDefinition> gooType,
-                                                   int holdings) {
+                                                   GooRemainders remainders, int holdings) {
         for (int rise = footprint.rise(); rise >= SpireFootprint.MIN_RISE; rise--) {
             SpireGrowth growth = plan(blocks, footprint.withRise(rise), values, gooType);
-            if (!growth.columns().isEmpty() && growth.cost() <= holdings) {
+            // decision melt-and-fabricate-move-the-exact-value-through-a-remainder-buffer
+            boolean paidFor = new RemainderLedger(remainders).debitExact(gooType, growth.exactCost(), holdings)
+                    .isPresent();
+            if (!growth.columns().isEmpty() && paidFor) {
                 return Optional.of(growth);
             }
         }
