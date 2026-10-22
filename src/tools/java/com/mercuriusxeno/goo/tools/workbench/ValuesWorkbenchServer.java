@@ -83,6 +83,7 @@ public final class ValuesWorkbenchServer {
         http.createContext("/api/template", exchange -> server.answer(exchange, server::template));
         http.createContext("/api/dumps", exchange -> server.answer(exchange, server::standingDumps));
         http.createContext("/api/dumps/run", server::runDumps);
+        http.createContext("/api/audit", exchange -> server.answer(exchange, server::auditSections));
         http.setExecutor(Executors.newCachedThreadPool());
         http.start();
         return server;
@@ -235,6 +236,19 @@ public final class ValuesWorkbenchServer {
         answer.add("ungroupedTags", tags);
         answer.add("uncoveredItems", items);
         return Reply.of(OK, JSON, answer.toString());
+    }
+
+    /**
+     * Answers the sections goo_audit.json carries, each rule's section, lines and flags, read afresh on every
+     * request so a rule added later shows with no restart (decision each-check-is-one-rule-added-alone).
+     */
+    private Reply auditSections(HttpExchange exchange) throws IOException {
+        if (!Files.isRegularFile(paths.auditJson())) {
+            JsonObject none = new JsonObject();
+            none.add(SECTIONS, new com.google.gson.JsonArray());
+            return Reply.of(OK, JSON, none.toString());
+        }
+        return new Reply(OK, JSON, Files.readAllBytes(paths.auditJson()));
     }
 
     /**

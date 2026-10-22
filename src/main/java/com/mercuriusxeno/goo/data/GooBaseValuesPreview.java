@@ -34,6 +34,16 @@ public final class GooBaseValuesPreview {
     }
 
     /**
+     * @param json base_values.json text
+     * @return a registry holding its base values as the game loads them, before any recipe derives
+     */
+    public static GooValueRegistry registry(String json) {
+        GooValueRegistry registry = new GooValueRegistry();
+        registry.loadBaseValuesFromText(json);
+        return registry;
+    }
+
+    /**
      * @param members a _groups entry's array
      * @return the item ids the loader reads from it
      */

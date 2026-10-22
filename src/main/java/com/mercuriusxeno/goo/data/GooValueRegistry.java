@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.data;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooConfig;
 import net.minecraft.core.HolderLookup;
@@ -132,6 +133,22 @@ public class GooValueRegistry {
             return;
         }
         applyPackLayers(stack, state);
+        publishEffectiveValues(loadedEffective);
+    }
+
+    /**
+     * Loads base values from one base_values.json text as a single pack layer, so a tool or a test builds a
+     * registry the audit reads with no server (decision each-check-is-one-rule-added-alone).
+     *
+     * @param json the base_values.json text
+     */
+    void loadBaseValuesFromText(String json) {
+        Map<Identifier, GooValue> loadedEffective = new HashMap<>();
+        var state = createParseState(loadedEffective);
+        GooValueLoader.clearRegistryState(state);
+        GooValueLoader.applyMergedLayers(List.of(JsonParser.parseString(json).getAsJsonObject()), state);
+        postConversions = state.postConversions;
+        lastMergedBaseValues = state.lastMergedBaseValues;
         publishEffectiveValues(loadedEffective);
     }
 

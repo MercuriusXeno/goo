@@ -10,9 +10,10 @@ import java.nio.file.Path;
  * @param imageFolder   the inventory dump's image folder, one PNG per item at namespace/path.png
  * @param auditDump     the audit dump the values-dumps run writes
  * @param cliqueDump    the clique dump the values-dumps run writes
+ * @param auditJson     the audit's sections as data, each rule's section, lines and flags
  */
 public record WorkbenchPaths(Path baseValues, Path inventoryFile, Path imageFolder, Path auditDump,
-                             Path cliqueDump) {
+                             Path cliqueDump, Path auditJson) {
 
     /**
      * @param projectDir the repository root
@@ -22,6 +23,6 @@ public record WorkbenchPaths(Path baseValues, Path inventoryFile, Path imageFold
         Path config = projectDir.resolve("runs/gameTestServer/config");
         return new WorkbenchPaths(projectDir.resolve("src/main/resources/data/goo/goo_values/base_values.json"),
                 config.resolve("goo_inventory.json"), config.resolve("goo_inventory"), config.resolve("goo_audit.txt"),
-                config.resolve("goo_cliques.txt"));
+                config.resolve("goo_cliques.txt"), config.resolve("goo_audit.json"));
     }
 }
