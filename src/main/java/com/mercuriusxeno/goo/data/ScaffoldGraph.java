@@ -112,10 +112,9 @@ final class ScaffoldGraph {
 
 
     /**
-     * Simulates value propagation through recipes (forward only).
-     * Forward: all inputs valued -> output valued.
-     * No reverse propagation -- matches the actual derivation system which
-     * does not reverse-derive (reverted due to stonecutter value collapse).
+     * Simulates value propagation through recipes in both directions, as derivation solves them:
+     * all inputs valued values the output, and a valued output values its one unknown ingredient.
+     * decision derivation-solves-whichever-side-of-a-recipe-is-unknown
      *
      * @param valued  mutable set of valued item IDs (grows during propagation)
      * @param recipes all recipes to propagate through
@@ -151,7 +150,8 @@ final class ScaffoldGraph {
 
     /**
      * Attempts to propagate a single recipe: if output is not denied and all
-     * inputs are valued, marks the output as valued.
+     * inputs are valued, marks the output as valued; a valued output then values
+     * its one unknown ingredient's unvalued alternatives.
      *
      * @param valued mutable valued set (may be mutated)
      * @param recipe the recipe to check
@@ -166,7 +166,31 @@ final class ScaffoldGraph {
 
         boolean allInputsValued = recipe.ingredientAlternatives().stream()
                 .allMatch(alts -> alts.stream().anyMatch(valued::contains));
-        return allInputsValued && valued.add(output);
+        boolean outputValued = allInputsValued && valued.add(output);
+        boolean inputSolved = valued.contains(output) && trySolveTheOneUnknown(valued, recipe, denied);
+        return outputValued || inputSolved;
+    }
+
+    /**
+     * Values the unvalued alternatives of a valued recipe's one ingredient holding any, where every other
+     * ingredient holds a value.
+     *
+     * @param valued mutable valued set (may be mutated)
+     * @param recipe a recipe whose output holds a value
+     * @param denied excluded items
+     * @return true if a new item was valued
+     */
+    private static boolean trySolveTheOneUnknown(Set<Identifier> valued, RecipeInput recipe, Set<Identifier> denied) {
+        List<Set<Identifier>> unknowns = new ArrayList<>();
+        for (Set<Identifier> alternatives : new HashSet<>(recipe.ingredientAlternatives())) {
+            Set<Identifier> unvalued = new HashSet<>(alternatives);
+            unvalued.removeAll(valued);
+            unvalued.removeAll(denied);
+            if (!unvalued.isEmpty() || alternatives.stream().noneMatch(valued::contains)) {
+                unknowns.add(alternatives.contains(recipe.output()) ? Set.of() : unvalued);
+            }
+        }
+        return unknowns.size() == 1 && valued.addAll(unknowns.getFirst());
     }
 
 

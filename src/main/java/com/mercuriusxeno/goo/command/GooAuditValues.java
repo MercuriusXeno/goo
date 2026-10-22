@@ -116,6 +116,10 @@ final class GooAuditValues {
      * Arrow to result count in recipe format.
      */
     private static final String RECIPE_ARROW = " -> ";
+    /**
+     * Gap between a solving recipe's result count and its output.
+     */
+    private static final String RECIPE_COUNT_GAP = " ";
 
     private GooAuditValues() {
     }
@@ -223,26 +227,35 @@ final class GooAuditValues {
         boolean hasBase = values.table().hasBaseValue(itemId);
         RecipeInput source = values.diagnostics().derivationSources().get(itemId);
         if (hasBase && source != null) {
-            sb.append(PROV_BASE_DERIVED).append(formatSourceRecipe(values, source)).append(GooAuditReport.MSG_CLOSE_PAREN);
+            sb.append(PROV_BASE_DERIVED).append(formatSourceRecipe(values, source, itemId))
+                    .append(GooAuditReport.MSG_CLOSE_PAREN);
         } else if (hasBase) {
             sb.append(LABEL_BASE);
         } else if (source != null) {
-            sb.append(PROV_DERIVED).append(formatSourceRecipe(values, source)).append(GooAuditReport.MSG_CLOSE_PAREN);
+            sb.append(PROV_DERIVED).append(formatSourceRecipe(values, source, itemId))
+                    .append(GooAuditReport.MSG_CLOSE_PAREN);
         }
     }
 
     /**
-     * Formats a source recipe as a compact ingredient list.
+     * Formats a source recipe as a compact ingredient list, naming its output where the recipe solved
+     * the item as an input (decision derivation-solves-whichever-side-of-a-recipe-is-unknown).
      *
      * @param values the server's goo value registry
      * @param recipe the source recipe input
+     * @param itemId the item the recipe valued
      * @return the formatted recipe string
      */
-    private static String formatSourceRecipe(GooValueRegistry values, RecipeInput recipe) {
+    private static String formatSourceRecipe(GooValueRegistry values, RecipeInput recipe, Identifier itemId) {
         Map<Identifier, Integer> counts = countIngredients(values, recipe);
         String ingredientStr = counts.entrySet().stream()
                 .map(e -> e.getValue() > 1 ? e.getValue() + RECIPE_TIMES_PREFIX + e.getKey() : e.getKey().toString())
                 .collect(Collectors.joining(RECIPE_PLUS));
+        if (!recipe.output().equals(itemId)) {
+            String output = recipe.resultCount() > 1
+                    ? recipe.resultCount() + RECIPE_COUNT_GAP + recipe.output() : recipe.output().toString();
+            return ingredientStr + RECIPE_ARROW + output;
+        }
         return recipe.resultCount() > 1
                 ? ingredientStr + RECIPE_ARROW + recipe.resultCount() : ingredientStr;
     }
