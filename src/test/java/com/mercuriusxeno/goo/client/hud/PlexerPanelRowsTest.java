@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * Covers the plexer panel's rows: the target item's icon beside its name, then what it
- * costs to make in each type (decision values-are-fractions-melt-floors-fabricate-ceils).
+ * costs to make in each type as a mixed number (decision tooltip-and-plexer-hud-show-a-mixed-number).
  */
 class PlexerPanelRowsTest {
 
@@ -40,12 +40,16 @@ class PlexerPanelRowsTest {
     }
 
     @Test
-    void targetReadsWhatItCostsToMakeAtTheCeilingOfEachType() {
-        List<PanelRow> rows = PlexerPanelRows.rows("Carpet", null, fraction(GooTypes.LEAF, 64, 3));
+    void targetReadsItsExactCostAsAMixedNumberInEachType() {
+        List<PanelRow> rows = PlexerPanelRows.rows("Carpet", null,
+                fraction(GooTypes.LEAF, 64, 3, GooTypes.ROCK, 1, 3));
 
-        assertEquals(2, rows.size());
+        assertEquals(3, rows.size());
         PanelRow leaf = rows.get(1);
         assertEquals(PanelPainter.gooIcon(GooTypes.LEAF), leaf.icon());
-        assertEquals("22", leaf.segments().getFirst().text());
+        assertEquals("21 1/3", leaf.segments().getFirst().text());
+        PanelRow rock = rows.get(2);
+        assertEquals(PanelPainter.gooIcon(GooTypes.ROCK), rock.icon());
+        assertEquals("1/3", rock.segments().getFirst().text());
     }
 }

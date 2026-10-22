@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.item;
 
+import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.registry.GooFluids;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -26,11 +27,16 @@ import java.util.Map;
  * <p>Goo types share the canister with each other; a vanilla fluid keeps the
  * canister to itself, since the decision covers goo only.</p>
  *
- * decision canisters-hold-more-than-one-goo-type
+ * <p>Beside the portions stand the canister's remainders, each goo type's part
+ * under 1 mB, so a canister leaving its slot carries them.</p>
  *
- * @param portions each held fluid with its volume, none empty and no resource twice
+ * decision canisters-hold-more-than-one-goo-type
+ * decision every-producer-consumer-and-container-holds-a-remainder-buffer
+ *
+ * @param portions   each held fluid with its volume, none empty and no resource twice
+ * @param remainders each goo type's part under 1 mB
  */
-public record CanisterFluidContent(List<Portion> portions) {
+public record CanisterFluidContent(List<Portion> portions, GooRemainders remainders) {
 
     /**
      * One fluid inside a canister and its volume.
@@ -87,13 +93,16 @@ public record CanisterFluidContent(List<Portion> portions) {
     /** The field naming every portion, in the many-type shape. */
     private static final String PORTIONS_FIELD = "fluids";
 
+    /** The field naming the remainders, in the many-type shape. */
+    private static final String REMAINDERS_FIELD = "remainders";
+
     /** Persistent codec: writes the list shape, reads the list shape or the single-fluid shape. */
     public static final Codec<CanisterFluidContent> CODEC = codecOver(FluidResource.OPTIONAL_CODEC);
 
     /**
      * The persistent codec over a resource codec: writes every portion under
-     * "fluids", and reads that shape or the single-fluid shape a canister saved
-     * before it held many types, one "fluid" and one "amount".
+     * "fluids" beside the remainders, and reads that shape or the single-fluid
+     * shape a canister saved before it held many types, one "fluid" and one "amount".
      *
      * @param fluidCodec the codec for each resource
      * @return the content codec
@@ -102,7 +111,9 @@ public record CanisterFluidContent(List<Portion> portions) {
         Codec<Portion> portionCodec = Portion.codecOver(fluidCodec);
         Codec<CanisterFluidContent> portionsShape = RecordCodecBuilder.create(instance ->
             instance.group(
-                portionCodec.listOf().fieldOf(PORTIONS_FIELD).forGetter(CanisterFluidContent::portions)
+                portionCodec.listOf().fieldOf(PORTIONS_FIELD).forGetter(CanisterFluidContent::portions),
+                GooRemainders.CODEC.optionalFieldOf(REMAINDERS_FIELD, GooRemainders.EMPTY)
+                    .forGetter(CanisterFluidContent::remainders)
             ).apply(instance, CanisterFluidContent::new));
         Codec<CanisterFluidContent> singleFluidShape = portionCodec.xmap(
             portion -> CanisterFluidContent.of(portion.resource(), portion.amount()),
@@ -112,10 +123,12 @@ public record CanisterFluidContent(List<Portion> portions) {
         return Codec.withAlternative(portionsShape, singleFluidShape);
     }
 
-    /** Network codec: the portions as a list. */
+    /** Network codec: the portions as a list, then the remainders. */
     public static final StreamCodec<RegistryFriendlyByteBuf, CanisterFluidContent> STREAM_CODEC =
-        Portion.STREAM_CODEC.apply(ByteBufCodecs.list())
-            .map(CanisterFluidContent::new, CanisterFluidContent::portions);
+        StreamCodec.composite(
+            Portion.STREAM_CODEC.apply(ByteBufCodecs.list()), CanisterFluidContent::portions,
+            GooRemainders.STREAM_CODEC, CanisterFluidContent::remainders,
+            CanisterFluidContent::new);
 
     /** Normalizes: drops empty and non-positive portions, merging a resource listed twice. */
     public CanisterFluidContent {
@@ -132,6 +145,34 @@ public record CanisterFluidContent(List<Portion> portions) {
             }
         }
         portions = List.copyOf(kept);
+    }
+
+    /**
+     * Content holding portions and no remainder.
+     *
+     * @param portions each held fluid with its volume
+     */
+    public CanisterFluidContent(List<Portion> portions) {
+        this(portions, GooRemainders.EMPTY);
+    }
+
+    /**
+     * The same portions beside other remainders.
+     *
+     * @param replaced the remainders to hold
+     * @return the content holding them
+     */
+    public CanisterFluidContent withRemainders(GooRemainders replaced) {
+        return new CanisterFluidContent(portions, replaced);
+    }
+
+    /**
+     * True when neither a fluid nor a remainder stands, so the canister has nothing to carry.
+     *
+     * @return true when bare
+     */
+    public boolean holdsNothing() {
+        return isEmpty() && remainders.isEmpty();
     }
 
     /**
@@ -461,7 +502,7 @@ public record CanisterFluidContent(List<Portion> portions) {
         } else {
             next.add(portion);
         }
-        return new CanisterFluidContent(next);
+        return new CanisterFluidContent(next, remainders);
     }
 
     /**

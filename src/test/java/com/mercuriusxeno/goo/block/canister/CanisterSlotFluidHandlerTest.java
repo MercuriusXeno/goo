@@ -1,6 +1,9 @@
 package com.mercuriusxeno.goo.block.canister;
 
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
+import com.mojang.serialization.JsonOps;
 import com.mercuriusxeno.goo.item.StampedGoo;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.neoforged.neoforge.transfer.fluid.FluidResource;
@@ -55,6 +58,25 @@ class CanisterSlotFluidHandlerTest {
         assertEquals(ROCK_VOLUME, slot.extractFluid(rock, CAPACITY, false));
         assertEquals(BLAZE_VOLUME, slot.toFluidContent().volumeOf(blaze));
         assertEquals(0, slot.toFluidContent().volumeOf(rock));
+    }
+
+    /**
+     * The slot's ledger lives in its content, so a remainder credited to it
+     * survives the content codec into a fresh slot.
+     * decision every-producer-consumer-and-container-holds-a-remainder-buffer
+     */
+    @Test
+    void aCreditedRemainderSurvivesASaveAndLoad() {
+        CanisterSlotFluidHandler saved = new CanisterSlotFluidHandler(CAPACITY, () -> { });
+        saved.ledger().creditExact(GooTypes.LEAF, GooFraction.of(1, 3));
+
+        CanisterFluidContent persisted = CanisterFluidContent.CODEC.parse(JsonOps.INSTANCE,
+                CanisterFluidContent.CODEC.encodeStart(JsonOps.INSTANCE, saved.toFluidContent()).getOrThrow())
+                .getOrThrow();
+        CanisterSlotFluidHandler loaded = new CanisterSlotFluidHandler(CAPACITY, () -> { });
+        loaded.loadFrom(persisted);
+
+        assertEquals(GooFraction.of(1, 3), loaded.ledger().remainders().of(GooTypes.LEAF));
     }
 
     /**

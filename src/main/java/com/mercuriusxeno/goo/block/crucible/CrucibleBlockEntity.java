@@ -311,7 +311,7 @@ public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity implements
         super.saveAdditional(output);
         CrucibleSerialization.saveMeltingState(this, output);
         GooContents reservoirContents = reservoir.toGooContents();
-        if (!reservoirContents.isEmpty()) {
+        if (!reservoirContents.holdsNothing()) {
             output.store(TAG_RESERVOIR, GooContents.CODEC, reservoirContents);
         }
     }

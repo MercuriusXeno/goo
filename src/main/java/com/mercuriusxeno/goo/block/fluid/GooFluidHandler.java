@@ -2,6 +2,10 @@ package com.mercuriusxeno.goo.block.fluid;
 
 import com.mercuriusxeno.goo.block.gasket.DemandRelay;
 import com.mercuriusxeno.goo.block.gasket.GasketDemand;
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooRemainders;
+import com.mercuriusxeno.goo.data.IRemainderLedger;
+import com.mercuriusxeno.goo.data.RemainderLedger;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooLabelRule;
@@ -66,8 +70,6 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
     /** The water index of a handler that holds goo alone. */
     private static final int NO_WATER_TANK = -1;
 
-    private static final FluidResource WATER = FluidResource.of(Fluids.WATER);
-
     /**
      * Reads the goo label type the handler's vessel wears, null where it wears none.
      */
@@ -82,6 +84,72 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
      * Suppresses all side-effect callbacks (stream tracking + onChange) during bulk loads.
      */
     private boolean suppressCallbacks;
+
+    /**
+     * Each goo type's part under 1 mB, saved beside the tank volumes.
+     * decision every-producer-consumer-and-container-holds-a-remainder-buffer
+     */
+    private final RemainderLedger ledger = new RemainderLedger();
+
+    /**
+     * The handler's remainder ledger; a credit or debit that moves a remainder
+     * notifies the owner, so the remainder saves with the tanks.
+     * decision one-remainder-capability-injected-into-every-fluid-capability
+     */
+    private final IRemainderLedger notifyingLedger = new IRemainderLedger() {
+        @Override
+        public int creditExact(ResourceKey<GooTypeDefinition> type, GooFraction exact) {
+            GooRemainders before = ledger.remainders();
+            int whole = ledger.creditExact(type, exact);
+            notifyIfMoved(before);
+            return whole;
+        }
+
+        @Override
+        public OptionalInt debitExact(ResourceKey<GooTypeDefinition> type, GooFraction exact, int availableWhole) {
+            GooRemainders before = ledger.remainders();
+            OptionalInt whole = ledger.debitExact(type, exact, availableWhole);
+            notifyIfMoved(before);
+            return whole;
+        }
+
+        @Override
+        public GooRemainders remainders() {
+            return ledger.remainders();
+        }
+    };
+
+    /**
+     * The handler's remainder ledger.
+     *
+     * @return the ledger
+     */
+    public IRemainderLedger ledger() {
+        return notifyingLedger;
+    }
+
+    /**
+     * Replaces the remainders with ones a caller credited apart, once what it
+     * credited them for has landed, notifying the owner where they moved.
+     *
+     * @param credited the remainders to hold
+     */
+    public void loadRemainders(GooRemainders credited) {
+        GooRemainders before = ledger.remainders();
+        ledger.load(credited);
+        notifyIfMoved(before);
+    }
+
+    /**
+     * Notifies the owner where a remainder moved.
+     *
+     * @param before the remainders before the exchange
+     */
+    private void notifyIfMoved(GooRemainders before) {
+        if (!suppressCallbacks && !before.equals(ledger.remainders())) {
+            onChange.run();
+        }
+    }
 
     /**
      * Creates a handler with shared capacity and a change callback.
@@ -178,7 +246,7 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
             return false;
         }
         if (index == waterIndex) {
-            return WATER.equals(resource);
+            return FluidResource.of(Fluids.WATER).equals(resource);
         }
         ResourceKey<GooTypeDefinition> type = GooFluids.keyOf(resource);
         return type != null && GooTypes.indexOf(type) == index;
@@ -298,7 +366,7 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
         }
         suppressCallbacks = true;
         try {
-            set(waterIndex, volume > 0 ? WATER : FluidResource.EMPTY, Math.max(volume, 0));
+            set(waterIndex, volume > 0 ? FluidResource.of(Fluids.WATER) : FluidResource.EMPTY, Math.max(volume, 0));
         } finally {
             suppressCallbacks = false;
         }
@@ -336,14 +404,15 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
     // --- Bridge methods ---
 
     /**
-     * Creates a {@link GooContents} snapshot from the current tank state.
+     * Creates a {@link GooContents} snapshot from the current tank state and remainders.
      * Used by rendering, serialization and the GooContents-based APIs.
      *
-     * @return immutable GooContents reflecting current volumes
+     * @return immutable GooContents reflecting current volumes and remainders
      */
     public GooContents toGooContents() {
         Map<ResourceKey<GooTypeDefinition>, Integer> map = collectNonEmptyTanks();
-        return map.isEmpty() ? GooContents.EMPTY : new GooContents(map);
+        GooRemainders remainders = ledger.remainders();
+        return map.isEmpty() && remainders.isEmpty() ? GooContents.EMPTY : new GooContents(map, remainders);
     }
 
     /**
@@ -364,7 +433,7 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
     }
 
     /**
-     * Loads volumes from a {@link GooContents} snapshot into the tanks.
+     * Loads volumes and remainders from a {@link GooContents} snapshot.
      * Clears all tanks first, then sets each type's volume. Suppresses
      * all callbacks (stream tracking and onChange) - caller should sync after loading.
      *
@@ -374,6 +443,7 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
         suppressCallbacks = true;
         try {
             applyAllTanks(contents);
+            ledger.load(contents.remainders());
         } finally {
             suppressCallbacks = false;
         }

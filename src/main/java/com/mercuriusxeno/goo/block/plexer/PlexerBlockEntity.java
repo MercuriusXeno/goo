@@ -6,10 +6,13 @@ import com.mercuriusxeno.goo.block.ICutawayMachine;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.canister.ICanisterAttachable;
 import com.mercuriusxeno.goo.block.plexer.CutawayInteractionHelper;
+import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
+import com.mercuriusxeno.goo.data.IRemainderLedger;
+import com.mercuriusxeno.goo.data.RemainderLedger;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -27,6 +30,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Plexer: reconstitutes items from goo in externally-attached canisters.
@@ -44,7 +48,18 @@ public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanister
      */
     private static final String TAG_TARGET_ITEM = "TargetItem";
 
+    /**
+     * NBT key for the plexer's remainders.
+     */
+    private static final String TAG_REMAINDERS = "Remainders";
+
     private ItemStack targetItem = ItemStack.EMPTY;
+
+    /**
+     * The overpayment each fabricate banks, each goo type's part under 1 mB, saved with the plexer.
+     * decision every-producer-consumer-and-container-holds-a-remainder-buffer
+     */
+    private final RemainderLedger ledger = new RemainderLedger();
 
     /**
      * Creates a plexer block entity at the given position.
@@ -182,7 +197,7 @@ public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanister
         }
 
         List<SlotRef> slots = getExternalCanisterSlots();
-        if (slots.isEmpty() || !fabricateFrom(required, new CanisterSlotSupply(slots))) {
+        if (slots.isEmpty() || !fabricateFrom(required, new CanisterSlotSupply(slots), ledger)) {
             return ItemStack.EMPTY;
         }
         setChanged();
@@ -190,24 +205,22 @@ public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanister
     }
 
     /**
-     * Consumes what fabricating the target costs from the supply, or nothing when the
-     * supply holds too little of any type.
-     * Decision values-are-fractions-melt-floors-fabricate-ceils: the cost is the ceiling of each
-     * type, so melting what the plexer made never pays back more than it cost.
+     * Debits the target's exact value through the plexer's ledger, the remainder paying
+     * first, and consumes the whole mB each debit answers from the supply, the
+     * overpayment banked as remainder; where the supply cannot cover any type, nothing
+     * is consumed and the remainder stands.
+     * decision melt-and-fabricate-move-the-exact-value-through-a-remainder-buffer
      *
      * @param target the target's goo value
      * @param supply the goo to fabricate from
+     * @param ledger the plexer's remainder ledger
      * @return true if the supply paid the cost
      */
-    public static boolean fabricateFrom(GooValue target, PlexerGooSupply supply) {
-        Map<ResourceKey<GooTypeDefinition>, Integer> cost = target.fabricateCeilingAll();
-        for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : cost.entrySet()) {
-            if (supply.available(entry.getKey()) < entry.getValue()) {
-                return false;
-            }
-        }
-        cost.forEach(supply::consume);
-        return true;
+    public static boolean fabricateFrom(GooValue target, PlexerGooSupply supply, IRemainderLedger ledger) {
+        Optional<Map<ResourceKey<GooTypeDefinition>, Integer>> cost =
+                ledger.debitAllExact(target.exactAll(), supply::available);
+        cost.ifPresent(withdrawn -> withdrawn.forEach(supply::consume));
+        return cost.isPresent();
     }
 
     /**
@@ -271,6 +284,9 @@ public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanister
         if (!targetItem.isEmpty()) {
             output.store(TAG_TARGET_ITEM, ItemStack.CODEC, targetItem);
         }
+        if (!ledger.remainders().isEmpty()) {
+            output.store(TAG_REMAINDERS, GooRemainders.CODEC, ledger.remainders());
+        }
     }
 
     // --- Serialization ---
@@ -284,6 +300,7 @@ public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanister
     protected void loadAdditional(@NonNull ValueInput input) {
         super.loadAdditional(input);
         targetItem = input.read(TAG_TARGET_ITEM, ItemStack.CODEC).orElse(ItemStack.EMPTY);
+        ledger.load(input.read(TAG_REMAINDERS, GooRemainders.CODEC).orElse(GooRemainders.EMPTY));
     }
 
     /**
