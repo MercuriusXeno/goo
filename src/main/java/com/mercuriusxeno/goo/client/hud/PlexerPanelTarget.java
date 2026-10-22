@@ -15,11 +15,13 @@ import java.util.function.Predicate;
 final class PlexerPanelTarget {
 
     private static final double BLOCK_CENTER = 0.5;
+    /** How far past the front face the panel stands, in blocks, so the face never cuts it. */
+    private static final double FACE_STAND_OFF = 0.01;
     /**
-     * The panel's bottom edge on the front face, in blocks: low enough that a one-row
-     * panel ends under the cutaway's floor at a half block, high enough to clear the hatch.
+     * The panel's top edge on the front face, in blocks: just under the cutaway's floor at a
+     * half block, so the panel hangs below it at any row count and the cutaway stays visible.
      */
-    private static final double PANEL_BOTTOM = 3.0 / 16.0;
+    private static final double PANEL_TOP = 15.0 / 32.0;
 
     private PlexerPanelTarget() {
     }
@@ -47,12 +49,24 @@ final class PlexerPanelTarget {
     /**
      * @param pos    the plexer's position
      * @param facing the plexer's FACING
-     * @return the panel's anchor, its bottom center, on the front face's horizontal middle
+     * @return the panel's anchor, its top center, a stand-off past the front face's horizontal middle
      */
     static Vec3 anchor(BlockPos pos, Direction facing) {
         Direction front = front(facing);
-        return new Vec3(pos.getX() + BLOCK_CENTER + front.getStepX() * BLOCK_CENTER,
-                pos.getY() + PANEL_BOTTOM,
-                pos.getZ() + BLOCK_CENTER + front.getStepZ() * BLOCK_CENTER);
+        double out = BLOCK_CENTER + FACE_STAND_OFF;
+        return new Vec3(pos.getX() + BLOCK_CENTER + front.getStepX() * out,
+                pos.getY() + PANEL_TOP,
+                pos.getZ() + BLOCK_CENTER + front.getStepZ() * out);
+    }
+
+    /**
+     * @param pos     the plexer's position
+     * @param facing  the plexer's FACING
+     * @param pitch   the billboard pitch factor [0, 1]
+     * @param opacity the fade factor [0, 1]
+     * @return where and how the panel stands on the plexer's front
+     */
+    static PanelPlacement placement(BlockPos pos, Direction facing, float pitch, float opacity) {
+        return PanelPlacement.hangingOnFace(anchor(pos, facing), front(facing), pitch, opacity);
     }
 }

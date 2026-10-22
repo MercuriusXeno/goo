@@ -14,7 +14,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
-import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
@@ -97,11 +96,21 @@ public final class PanelPainter {
         orient(poseStack, camera, placement);
         // scales about the bottom center, the anchor (decision panel-wraps-to-two-columns-then-shrinks)
         poseStack.scale(shrink, shrink, shrink);
-        if (placement.face() == Direction.DOWN) {
-            poseStack.translate(0, layout.size().height(), 0);
-        }
+        poseStack.translate(0, hangDrop(placement, layout.size()), 0);
         paintBody(poseStack, font, layout, rows, placement.opacity());
         poseStack.popPose();
+    }
+
+    /**
+     * Answers how far, in scaled pixels, the panel drops below its anchor: a hanging
+     * panel drops its whole height so its top edge meets the anchor, a standing panel none.
+     *
+     * @param placement where and how the panel stands
+     * @param size      the laid out panel size
+     * @return the downward drop in scaled pixels
+     */
+    static float hangDrop(PanelPlacement placement, PanelSize size) {
+        return placement.hangs() ? size.height() : 0f;
     }
 
     /**
