@@ -29,6 +29,13 @@ public final class ValuesWorkbenchServer {
     private static final String GET = "GET";
     private static final String PUT = "PUT";
     private static final String POST = "POST";
+    private static final String NDJSON = "application/x-ndjson; charset=utf-8";
+    private static final String PROGRESS = "progress";
+    private static final String RESULT = "result";
+    private static final String SECTIONS = "sections";
+    private static final String EXIT_CODE = "exitCode";
+    private static final String DURATION = "durationSeconds";
+    private static final double NANOS_PER_SECOND = 1e9;
     private static final String ID_PARAMETER = "id=";
     // A namespaced item id: no segment may climb out of the image folder.
     private static final Pattern ITEM_ID = Pattern.compile("[a-z0-9_.-]+:[a-z0-9_.-]+(/[a-z0-9_.-]+)*");
@@ -42,11 +49,13 @@ public final class ValuesWorkbenchServer {
     private final HttpServer http;
     private final WorkbenchPaths paths;
     private final InventoryDump dump;
+    private final DumpRunner dumps;
 
-    private ValuesWorkbenchServer(HttpServer http, WorkbenchPaths paths, InventoryDump dump) {
+    private ValuesWorkbenchServer(HttpServer http, WorkbenchPaths paths, InventoryDump dump, DumpRunner dumps) {
         this.http = http;
         this.paths = paths;
         this.dump = dump;
+        this.dumps = dumps;
     }
 
     /**
@@ -54,13 +63,15 @@ public final class ValuesWorkbenchServer {
      *
      * @param paths the files the workbench reads and writes
      * @param dump  writes the inventory when none stands
+     * @param dumps runs the audit and clique dumps
      * @param port  the port, or 0 for any free one
      * @return the running server
      * @throws IOException where the port cannot be bound
      */
-    public static ValuesWorkbenchServer start(WorkbenchPaths paths, InventoryDump dump, int port) throws IOException {
+    public static ValuesWorkbenchServer start(WorkbenchPaths paths, InventoryDump dump, DumpRunner dumps, int port)
+            throws IOException {
         HttpServer http = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), port), 0);
-        ValuesWorkbenchServer server = new ValuesWorkbenchServer(http, paths, dump);
+        ValuesWorkbenchServer server = new ValuesWorkbenchServer(http, paths, dump, dumps);
         http.createContext("/", exchange -> server.answer(exchange, server::page));
         http.createContext("/api/model", exchange -> server.answer(exchange, server::model));
         http.createContext("/api/inventory", exchange -> server.answer(exchange, server::inventory));
@@ -70,6 +81,8 @@ public final class ValuesWorkbenchServer {
         http.createContext("/api/groups/describe", exchange -> server.answer(exchange, server::describeGroups));
         http.createContext("/api/groups/apply", exchange -> server.answer(exchange, server::applyToGroup));
         http.createContext("/api/template", exchange -> server.answer(exchange, server::template));
+        http.createContext("/api/dumps", exchange -> server.answer(exchange, server::standingDumps));
+        http.createContext("/api/dumps/run", server::runDumps);
         http.setExecutor(Executors.newCachedThreadPool());
         http.start();
         return server;
@@ -222,6 +235,62 @@ public final class ValuesWorkbenchServer {
         answer.add("ungroupedTags", tags);
         answer.add("uncoveredItems", items);
         return Reply.of(OK, JSON, answer.toString());
+    }
+
+    /**
+     * Answers the dumps the last run left, section by section, with no run.
+     */
+    private Reply standingDumps(HttpExchange exchange) throws IOException {
+        JsonObject answer = new JsonObject();
+        answer.add(SECTIONS, DumpSections.read(paths.auditDump(), paths.cliqueDump()));
+        return Reply.of(OK, JSON, answer.toString());
+    }
+
+    /**
+     * Saves the posted model, runs the dumps and streams one JSON line per line the run prints, then a last
+     * line holding the run's exit code, its duration and both dumps section by section
+     * (decision workbench-reruns-the-audit-headless). One run at a time: the dumps write one pair of files.
+     */
+    private synchronized void runDumps(HttpExchange exchange) throws IOException {
+        if (!POST.equals(exchange.getRequestMethod())) {
+            answer(exchange, ignored -> Reply.of(NOT_ALLOWED, TEXT, exchange.getRequestMethod()
+                    + " is not served here"));
+            return;
+        }
+        String sent = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        BaseValuesModel saved = fileLayout().withMembers(ModelJson.membersFrom(sent));
+        Files.writeString(paths.baseValues(), saved.serialize());
+        exchange.getResponseHeaders().set("Content-Type", NDJSON);
+        exchange.sendResponseHeaders(OK, 0);
+        try (OutputStream out = exchange.getResponseBody()) {
+            long start = System.nanoTime();
+            int exit;
+            try {
+                exit = dumps.run(line -> streamLine(out, PROGRESS, new com.google.gson.JsonPrimitive(line)));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                exit = -1;
+            } catch (IOException e) {
+                streamLine(out, PROGRESS, new com.google.gson.JsonPrimitive(e.getMessage()));
+                exit = -1;
+            }
+            JsonObject result = new JsonObject();
+            result.addProperty(EXIT_CODE, exit);
+            result.addProperty(DURATION, (System.nanoTime() - start) / NANOS_PER_SECOND);
+            result.add(SECTIONS, DumpSections.read(paths.auditDump(), paths.cliqueDump()));
+            streamLine(out, RESULT, result);
+        }
+    }
+
+    private static void streamLine(OutputStream out, String field, com.google.gson.JsonElement value) {
+        JsonObject line = new JsonObject();
+        line.add(field, value);
+        try {
+            out.write((line + "\n").getBytes(StandardCharsets.UTF_8));
+            out.flush();
+        } catch (IOException e) {
+            // The page closed the stream; the run carries on and its dumps still land.
+        }
     }
 
     private BaseValuesModel postedModel(HttpExchange exchange) throws IOException {

@@ -48,15 +48,77 @@ class ValuesWorkbenchServerTest {
     private final AtomicInteger dumpsRun = new AtomicInteger();
     private final HttpClient client = HttpClient.newHttpClient();
 
+    private static final String CANNED_AUDIT = """
+            Goo Audit Report
+            ================
+
+            EXPRESSION WARNINGS (0 issues in base_values.json expressions)
+            --------------------------------------------------
+              All expressions are valid.
+
+            LEAST VALUE PER TYPE (1 types)
+            --------------------------------------------------
+              metal: 1 at iron_nugget
+
+            NO VALUE (0 registered items have no goo value)
+            --------------------------------------------------
+              All registered items have goo values.
+            """;
+    private static final String CANNED_CLIQUES = """
+            CLIQUES AND LOSSY RECIPES
+
+            A clique is a group of items linked by recipes.
+
+            METAL
+            =====
+
+            Clique: iron_nugget (3 items, 2 recipes)
+            """;
+    private final List<String> savedWhenRunStarted = new java.util.ArrayList<>();
+
     @BeforeEach
     void startServer() throws IOException {
         paths = new WorkbenchPaths(temp.resolve("base_values.json"), temp.resolve("goo_inventory.json"),
-                temp.resolve("goo_inventory"));
+                temp.resolve("goo_inventory"), temp.resolve("goo_audit.txt"), temp.resolve("goo_cliques.txt"));
         Files.write(paths.baseValues(), BaseValuesModelTest.shippedBytes());
         server = ValuesWorkbenchServer.start(paths, () -> {
             dumpsRun.incrementAndGet();
             Files.writeString(paths.inventoryFile(), INVENTORY);
+        }, progress -> {
+            savedWhenRunStarted.add(Files.readString(paths.baseValues()));
+            progress.accept("booting the test server");
+            Files.writeString(paths.auditDump(), CANNED_AUDIT);
+            Files.writeString(paths.cliqueDump(), CANNED_CLIQUES);
+            progress.accept("goo:values_dumps passed");
+            return 0;
         }, 0);
+    }
+
+    /**
+     * The run saves the posted model first, streams the runner's lines, then answers both dumps section by
+     * section, the least value and the clique tables first, with the run's duration.
+     */
+    @Test
+    void runSavesStreamsAndAnswersTheDumps() throws IOException, InterruptedException {
+        JsonObject model = JsonParser.parseString(text(get("/api/model"))).getAsJsonObject();
+        model.getAsJsonArray("members").get(0).getAsJsonObject().getAsJsonArray("entries").get(0).getAsJsonObject()
+                .addProperty("text", "191");
+        HttpResponse<java.util.stream.Stream<String>> response = client.send(HttpRequest.newBuilder(
+                        URI.create(server.url() + "/api/dumps/run")).POST(HttpRequest.BodyPublishers.ofString(
+                        model.toString())).build(), HttpResponse.BodyHandlers.ofLines());
+        assertEquals(200, response.statusCode());
+        List<JsonObject> events = response.body().map(line -> JsonParser.parseString(line).getAsJsonObject())
+                .toList();
+        assertTrue(savedWhenRunStarted.getFirst().contains("\"base\": 191,"));
+        assertEquals(List.of("booting the test server", "goo:values_dumps passed"), events.stream()
+                .filter(event -> event.has("progress")).map(event -> event.get("progress").getAsString()).toList());
+        JsonObject result = events.getLast().getAsJsonObject("result");
+        assertTrue(result.get("durationSeconds").getAsDouble() >= 0);
+        List<String> headers = result.getAsJsonArray("sections").asList().stream()
+                .map(section -> section.getAsJsonObject().get("header").getAsString()).toList();
+        assertEquals(List.of("LEAST VALUE PER TYPE (1 types)", "CLIQUES AND LOSSY RECIPES", "METAL",
+                "Goo Audit Report", "EXPRESSION WARNINGS (0 issues in base_values.json expressions)",
+                "NO VALUE (0 registered items have no goo value)"), headers);
     }
 
     @AfterEach

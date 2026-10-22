@@ -24,7 +24,7 @@ public final class ValuesWorkbench {
         Path projectDir = Path.of(args.length > 0 ? args[0] : ".").toAbsolutePath().normalize();
         int port = args.length > 1 ? Integer.parseInt(args[1]) : ANY_FREE_PORT;
         ValuesWorkbenchServer server = ValuesWorkbenchServer.start(WorkbenchPaths.inProject(projectDir),
-                InventoryDump.headlessGametest(projectDir), port);
+                InventoryDump.headlessGametest(projectDir), DumpRunner.headlessGametest(projectDir), port);
         System.out.println("Values workbench at " + server.url() + " (stop the task to close it)");
         openBrowser(server.url());
     }
