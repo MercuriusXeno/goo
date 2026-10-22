@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.radial;
 
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
@@ -449,7 +450,7 @@ class RadialWheelRendererTest {
 
             @Override
             public CostMechanicsLookup costMechanicsLookup(ResourceKey<GooTypeDefinition> type) {
-                return new CostMechanicsLookup(key -> key, item -> 0);
+                return new CostMechanicsLookup(key -> key, item -> GooFraction.ZERO);
             }
         };
 

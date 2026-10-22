@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.network;
 
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.AbilityJson;
 import com.mercuriusxeno.goo.ability.DistancePrice;
@@ -34,7 +35,7 @@ class CostMechanicsTest {
 
     private static final CostMechanicsLookup LOOKUP = new CostMechanicsLookup(
             key -> LANG.getOrDefault(key, key),
-            item -> STONE.equals(item) ? STONE_ROCK_VALUE : 0);
+            item -> STONE.equals(item) ? GooFraction.of(STONE_ROCK_VALUE) : GooFraction.ZERO);
 
     static Stream<AbilityDefinition> abilitiesNamingCostMechanics() {
         return AbilityJson.files().stream().map(AbilityJson::decode)
