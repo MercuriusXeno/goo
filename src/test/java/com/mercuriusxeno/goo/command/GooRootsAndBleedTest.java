@@ -96,14 +96,19 @@ class GooRootsAndBleedTest {
     }
 
     private static GooAuditInputs glass(String extraPlant) {
+        return glass(extraPlant, "");
+    }
+
+    private static GooAuditInputs glass(String extraPlant, String roots) {
         String json = """
                 {
                     "_constants": {},
+                    %s
                     "sea_pickle": {"deep": 4},
                     %s
                     "glass": {"rock": 1}
                 }
-                """.formatted(extraPlant.isEmpty() ? "" : "\"" + extraPlant + "\": {\"deep\": 2},");
+                """.formatted(roots, extraPlant.isEmpty() ? "" : "\"" + extraPlant + "\": {\"deep\": 2},");
         List<String> stainedInputs = new ArrayList<>(repeat("glass", 8));
         stainedInputs.add("gray_dye");
         if (!extraPlant.isEmpty()) {
@@ -128,6 +133,21 @@ class GooRootsAndBleedTest {
                 .toString());
         assertTrue(provenance.flags().contains("deep enters its family through sea_pickle alone: sea_pickle -> "
                 + "gray_dye -> gray_stained_glass -> gray_stained_glass_pane"), provenance.flags().toString());
+    }
+
+    /**
+     * A root named for the glass family leaves deep's lone-source flag standing: only naming the lone entry
+     * itself as a root marks the bleed as intended.
+     */
+    @Test
+    void rootOfAnotherFamilyLeavesTheBleedFlagged() {
+        GooAuditSection glassRooted = new TypeProvenanceAuditRule()
+                .run(glass("", "\"_roots\": [\"gray_stained_glass\"],"));
+        assertTrue(glassRooted.flags().contains("deep enters its family through sea_pickle alone: sea_pickle -> "
+                + "gray_dye -> gray_stained_glass -> gray_stained_glass_pane"), glassRooted.flags().toString());
+        GooAuditSection pickleRooted = new TypeProvenanceAuditRule().run(glass("", "\"_roots\": [\"sea_pickle\"],"));
+        assertFalse(pickleRooted.flags().stream().anyMatch(flag -> flag.startsWith("deep")),
+                pickleRooted.flags().toString());
     }
 
     /**
