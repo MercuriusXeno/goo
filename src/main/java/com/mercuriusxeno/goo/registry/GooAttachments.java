@@ -153,6 +153,7 @@ public final class GooAttachments {
                     () -> AttachmentType.builder(() -> GooRemainders.EMPTY)
                             .serialize(GooRemainders.CODEC.fieldOf("remainders"), remainders -> !remainders.isEmpty())
                             .copyOnDeath()
+                            .sync(GooAttachments::syncsToOwner, GooRemainders.STREAM_CODEC)
                             .build());
 
     /**

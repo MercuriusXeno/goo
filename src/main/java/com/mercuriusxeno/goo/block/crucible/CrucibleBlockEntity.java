@@ -5,13 +5,17 @@ import com.mercuriusxeno.goo.block.*;
 import com.mercuriusxeno.goo.block.fluid.GooFluidHandler;
 import com.mercuriusxeno.goo.block.gasket.GasketAttachment;
 import com.mercuriusxeno.goo.block.gasket.GasketPusher;
+import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
 import com.mercuriusxeno.goo.item.gasket.GasketRegionResolver;
 import com.mercuriusxeno.goo.item.gasket.GasketRole;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
+import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.component.DataComponentGetter;
+import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -321,6 +325,33 @@ public class CrucibleBlockEntity extends GooGlowingMachineBlockEntity implements
         super.loadAdditional(input);
         CrucibleSerialization.loadMeltingState(this, input);
         reservoir.loadFrom(input.read(TAG_RESERVOIR, GooContents.CODEC).orElse(GooContents.EMPTY));
+    }
+
+    /**
+     * Carries the reservoir's remainders on the dropped crucible, since the whole goo
+     * drops as goo and a part under 1 mB cannot.
+     * decision every-producer-consumer-and-container-holds-a-remainder-buffer
+     *
+     * @param builder the component builder
+     */
+    @Override
+    protected void collectImplicitComponents(DataComponentMap.Builder builder) {
+        super.collectImplicitComponents(builder);
+        GooRemainders remainders = reservoir.ledger().remainders();
+        if (!remainders.isEmpty()) {
+            builder.set(GooDataComponents.REMAINDERS.get(), remainders);
+        }
+    }
+
+    /**
+     * Restores the remainders the placed crucible's item carried.
+     *
+     * @param getter the item's components
+     */
+    @Override
+    protected void applyImplicitComponents(DataComponentGetter getter) {
+        super.applyImplicitComponents(getter);
+        reservoir.loadRemainders(getter.getOrDefault(GooDataComponents.REMAINDERS.get(), GooRemainders.EMPTY));
     }
 
     /** Marks dirty and syncs to tracking clients. Delegates to the gasket attachment. */

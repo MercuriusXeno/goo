@@ -2,12 +2,12 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.IRemainderLedger;
-import com.mercuriusxeno.goo.data.RemainderLedger;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.DrinkPayload;
 import com.mercuriusxeno.goo.network.EntityVisuals;
 import com.mercuriusxeno.goo.registry.GooBlocks;
+import com.mercuriusxeno.goo.registry.GooCapabilities;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
@@ -228,7 +228,7 @@ public final class Drinks {
             ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
             drink.beginDue(now);
             drink.drainDue(now);
-            drink.payDue(now).forEach((pos, value) -> payOut(drink.level(), player, pos, value));
+            drink.payDue(now).forEach((pos, value) -> payOut(drink.level(), entry.getKey(), player, pos, value));
             if (!drink.heldAt(now) && !drink.streaming()) {
                 entries.remove();
             } else if (player != null && drink.streaming()) {
@@ -239,20 +239,34 @@ public final class Drinks {
 
     /**
      * Pays a finished block's goo into the player's inventory, its exact value
-     * credited through their ledger, dropping at their feet only what has no
-     * space; a player who has left has the whole mB drop where the block stood.
+     * credited through the ledger their remainder capability serves, dropping at
+     * their feet only what has no space; a player who has left has the whole mB drop
+     * where the block stood and the part under 1 mB kept for them until they return.
+     * decision every-producer-consumer-and-container-holds-a-remainder-buffer
      *
-     * @param level  the level
-     * @param player the drinking player, or null once they have left
-     * @param pos    the finished block
-     * @param value  its exact goo value
+     * @param level    the level
+     * @param drinker  the drinking player's id
+     * @param player   the drinking player, or null once they have left
+     * @param pos      the finished block
+     * @param value    its exact goo value
      */
-    static void payOut(ServerLevel level, @Nullable ServerPlayer player, BlockPos pos, GooValue value) {
+    static void payOut(ServerLevel level, UUID drinker, @Nullable ServerPlayer player, BlockPos pos,
+                       GooValue value) {
         if (player == null) {
-            GooStacks.dropAll(payoutThrough(value, new RemainderLedger()), level, pos);
+            GooStacks.dropAll(payoutThrough(value, OfflineRemainders.get(level).ledgerOf(drinker)), level, pos);
             return;
         }
-        GooContents goo = payoutThrough(value, new PlayerRemainderLedger(player));
+        give(level, player, payoutThrough(value, GooCapabilities.remainderLedgerOf(player)));
+    }
+
+    /**
+     * Puts whole goo into a player's inventory, dropping at their feet what has no space.
+     *
+     * @param level  the level
+     * @param player the player
+     * @param goo    the whole mB to give
+     */
+    static void give(ServerLevel level, ServerPlayer player, GooContents goo) {
         for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : goo.getAll().entrySet()) {
             ItemStack stack = GooStacks.createForOutput(entry.getKey(), entry.getValue());
             if (!stack.isEmpty() && !player.addItem(stack) && !stack.isEmpty()) {

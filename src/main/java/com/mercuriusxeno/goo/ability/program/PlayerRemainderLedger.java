@@ -1,42 +1,30 @@
 package com.mercuriusxeno.goo.ability.program;
 
-import com.mercuriusxeno.goo.data.GooFraction;
-import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.data.IRemainderLedger;
-import com.mercuriusxeno.goo.data.RemainderLedger;
+import com.mercuriusxeno.goo.data.StoredRemainderLedger;
 import com.mercuriusxeno.goo.registry.GooAttachments;
-import com.mercuriusxeno.goo.type.GooTypeDefinition;
-import net.minecraft.resources.ResourceKey;
 import net.neoforged.neoforge.attachment.IAttachmentHolder;
-import java.util.OptionalInt;
 
 /**
- * A player's remainder ledger, held in their remainders attachment, which unmake's
- * payout credits and ability costs debit.
+ * The remainder ledger a player serves through GooCapabilities.REMAINDER_ENTITY,
+ * held in their remainders attachment, which unmake's payout credits and ability
+ * costs debit.
  * decision every-producer-consumer-and-container-holds-a-remainder-buffer
- *
- * @param holder the player holding the attachment
+ * decision one-remainder-capability-injected-into-every-fluid-capability
  */
-public record PlayerRemainderLedger(IAttachmentHolder holder) implements IRemainderLedger {
+public final class PlayerRemainderLedger {
 
-    @Override
-    public int creditExact(ResourceKey<GooTypeDefinition> type, GooFraction exact) {
-        RemainderLedger exchange = new RemainderLedger(remainders());
-        int whole = exchange.creditExact(type, exact);
-        holder.setData(GooAttachments.REMAINDERS, exchange.remainders());
-        return whole;
+    private PlayerRemainderLedger() {
     }
 
-    @Override
-    public OptionalInt debitExact(ResourceKey<GooTypeDefinition> type, GooFraction exact, int availableWhole) {
-        RemainderLedger exchange = new RemainderLedger(remainders());
-        OptionalInt whole = exchange.debitExact(type, exact, availableWhole);
-        holder.setData(GooAttachments.REMAINDERS, exchange.remainders());
-        return whole;
-    }
-
-    @Override
-    public GooRemainders remainders() {
-        return holder.getData(GooAttachments.REMAINDERS);
+    /**
+     * The ledger over a holder's remainders attachment.
+     *
+     * @param holder the player holding the attachment
+     * @return the ledger
+     */
+    public static IRemainderLedger of(IAttachmentHolder holder) {
+        return new StoredRemainderLedger(() -> holder.getData(GooAttachments.REMAINDERS),
+                remainders -> holder.setData(GooAttachments.REMAINDERS, remainders));
     }
 }

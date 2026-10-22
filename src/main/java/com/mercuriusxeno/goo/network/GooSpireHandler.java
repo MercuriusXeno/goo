@@ -7,11 +7,12 @@ import com.mercuriusxeno.goo.ability.SpireFootprint;
 import com.mercuriusxeno.goo.ability.SpireGrowth;
 import com.mercuriusxeno.goo.ability.program.FootprintHost;
 import com.mercuriusxeno.goo.ability.program.HostKind;
-import com.mercuriusxeno.goo.ability.program.PlayerRemainderLedger;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.data.GooValues;
+import com.mercuriusxeno.goo.data.IRemainderLedger;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.registry.GooCapabilities;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
@@ -110,12 +111,13 @@ public final class GooSpireHandler {
                              AbilityDefinition ability) {
         ServerLevel level = player.level();
         int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(gooType, 0);
+        IRemainderLedger ledger = GooCapabilities.remainderLedgerOf(player);
         Optional<SpireGrowth> plan = SpireGrowth.affordable(level, payload.footprint(), GooValues.of(level),
-                gooType, holdings);
+                gooType, ledger.remainders(), holdings);
         if (plan.isEmpty()) {
             return;
         }
-        OptionalInt charged = plan.get().chargeThrough(new PlayerRemainderLedger(player), gooType, holdings);
+        OptionalInt charged = plan.get().chargeThrough(ledger, gooType, holdings);
         if (charged.isEmpty()) {
             return;
         }

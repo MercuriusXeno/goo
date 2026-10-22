@@ -15,8 +15,12 @@ public final class GooFormat {
     private static final int DECIMAL_BASE = 10;
     /** Decimal point separator. */
     private static final String DOT = ".";
-    /** Separator between a mixed number's whole and its fraction. */
-    private static final String MIXED_SEPARATOR = " ";
+    /** Superscript digits 0 through 9, for a fraction's numerator. */
+    private static final String SUPERSCRIPT_DIGITS = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+    /** Subscript digits 0 through 9, for a fraction's denominator. */
+    private static final String SUBSCRIPT_DIGITS = "₀₁₂₃₄₅₆₇₈₉";
+    /** The fraction slash that sits between the small numerator and denominator. */
+    private static final String FRACTION_SLASH = "⁄";
     /** Separator between a container's total and its capacity. */
     private static final String OF_CAPACITY = " / ";
 
@@ -65,8 +69,9 @@ public final class GooFormat {
 
     /**
      * Formats an exact amount as a mixed number: a whole reads as formatAmount does,
-     * a fraction under 1 reads numerator/denominator, and any other reads its whole,
-     * a space, then the fraction, so 64/3 reads "21 1/3" and 1/3 reads "1/3".
+     * a fraction under 1 reads alone, and any other reads its whole,
+     * then the fraction with its numerator in superscript digits and its denominator in
+     * subscript digits around a fraction slash, so 64/3 reads "21¹⁄₃" and 1/3 reads "¹⁄₃".
      * decision tooltip-and-plexer-hud-show-a-mixed-number
      *
      * @param amount the exact amount, never negative
@@ -78,7 +83,24 @@ public final class GooFormat {
         if (part.isZero()) {
             return formatAmount(whole);
         }
-        return whole == 0 ? part.toString() : formatAmount(whole) + MIXED_SEPARATOR + part;
+        String fraction = toDigits(part.numerator(), SUPERSCRIPT_DIGITS) + FRACTION_SLASH
+                + toDigits(part.denominator(), SUBSCRIPT_DIGITS);
+        return whole == 0 ? fraction : formatAmount(whole) + fraction;
+    }
+
+    /**
+     * Writes a number in the digit set given, superscript or subscript.
+     *
+     * @param value  the number, never negative
+     * @param digits the ten digits 0 through 9 to write it in
+     * @return the number in those digits
+     */
+    private static String toDigits(long value, String digits) {
+        StringBuilder written = new StringBuilder();
+        for (char digit : Long.toString(value).toCharArray()) {
+            written.append(digits.charAt(digit - '0'));
+        }
+        return written.toString();
     }
 
     /**
