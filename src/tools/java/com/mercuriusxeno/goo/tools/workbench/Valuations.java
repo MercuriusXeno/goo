@@ -318,17 +318,19 @@ final class Valuations {
                 : group != null ? SOURCE_GROUP + group
                 : derived.derived().contains(member) ? "" : NONE);
         if (own == null && group == null && derived.derived().contains(member)) {
-            row.add(ROW_FROM, from(member, inventory, derived));
+            row.add(ROW_FROM, from(member, inventory, derived, loaded.baseValues().keySet()));
         }
         return row;
     }
 
     /**
      * Where a derived item's value comes from: up the chain of single-input recipes to the prime ancestor, the
-     * item no recipe values, which the file keys by hand; or, where the item's own recipe mixes inputs, that
-     * recipe. A chain stopping at a mixed recipe ends at an ancestor that is not prime.
+     * first item the file values rather than derives, though a recipe may make it too, as nine raw iron from a
+     * block; or, where the item's own recipe mixes inputs, that recipe. A chain stopping at a mixed recipe, or
+     * looping back on itself, ends at an ancestor that is not prime.
      */
-    private static JsonObject from(Identifier item, InventoryView inventory, GooBaseValuesPreview.Derived derived) {
+    private static JsonObject from(Identifier item, InventoryView inventory, GooBaseValuesPreview.Derived derived,
+                                   Set<Identifier> handKeyed) {
         Map<Identifier, RecipeInput> byOutput = new HashMap<>();
         derived.recipes().forEach(recipe -> byOutput.putIfAbsent(recipe.output(), recipe));
         List<Identifier> chain = new ArrayList<>();
@@ -339,7 +341,7 @@ final class Valuations {
         while (input != null && seen.add(input)) {
             chain.add(input);
             current = input;
-            recipe = byOutput.get(current);
+            recipe = handKeyed.contains(current) ? null : byOutput.get(current);
             input = recipe == null ? null : soleInput(recipe);
         }
         JsonObject from = new JsonObject();
@@ -357,7 +359,7 @@ final class Valuations {
         JsonArray ids = new JsonArray();
         chain.forEach(id -> ids.add(id.toString()));
         from.add(FROM_CHAIN, ids);
-        from.addProperty(FROM_PRIME, byOutput.get(current) == null);
+        from.addProperty(FROM_PRIME, handKeyed.contains(current));
         return from;
     }
 
