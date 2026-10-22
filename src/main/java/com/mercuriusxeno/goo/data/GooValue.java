@@ -13,8 +13,11 @@ import java.util.function.ToIntFunction;
 
 /**
  * Represents the goo composition of an item: how much goo of each type it contains.
- * Decision values-are-fractions-melt-floors-fabricate-ceils: each amount is an exact
- * fraction; melting reads the floor of each type and fabricating reads the ceiling.
+ * Each amount is an exact fraction; melting credits and fabricating debits the exact
+ * amount through a store's remainder ledger, and the floor and ceiling views serve
+ * visuals and expression operands.
+ * decision values-are-fractions-melt-floors-fabricate-ceils
+ * decision melt-and-fabricate-move-the-exact-value-through-a-remainder-buffer
  */
 public class GooValue {
 
@@ -85,7 +88,7 @@ public class GooValue {
     }
 
     /**
-     * What melting pays in a type: the floor of its exact amount.
+     * The floor of a type's exact amount, the whole mB visuals band by.
      *
      * @param type the goo type to query
      * @return the floor, 0 when absent
@@ -95,7 +98,7 @@ public class GooValue {
     }
 
     /**
-     * What melting pays per type; a type flooring to zero is absent.
+     * Each type's floor; a type flooring to zero is absent.
      *
      * @return map of goo types to floored amounts
      */
@@ -104,7 +107,7 @@ public class GooValue {
     }
 
     /**
-     * The sum of what melting pays across every type.
+     * The sum of every type's floor.
      *
      * @return the total of each type's floor
      */
@@ -113,7 +116,7 @@ public class GooValue {
     }
 
     /**
-     * What fabricating costs in a type: the ceiling of its exact amount.
+     * The ceiling of a type's exact amount.
      *
      * @param type the goo type to query
      * @return the ceiling, 0 when absent
@@ -123,7 +126,7 @@ public class GooValue {
     }
 
     /**
-     * What fabricating costs per type.
+     * Each type's ceiling.
      *
      * @return map of goo types to ceiled amounts
      */
@@ -264,7 +267,7 @@ public class GooValue {
     }
 
     /**
-     * What melting one item pays, as goo contents.
+     * One item's floor of each type, as goo contents.
      *
      * @return the melt floor of each type
      */
@@ -273,7 +276,7 @@ public class GooValue {
     }
 
     /**
-     * What melting count items pays, each item paying its own melt floor.
+     * Count items' floors, each item at its own floor of each type.
      *
      * @param count number of items melted
      * @return the melt floor of each type, times count
