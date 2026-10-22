@@ -8,6 +8,7 @@ import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -48,7 +49,12 @@ public final class CliqueTablesAuditRule implements GooAuditRule {
     private static final String CLIQUE_PREFIX = "Clique: ";
     private static final String CLIQUE_SIZE_ITEMS = " items, ";
     private static final String CLIQUE_SIZE_RECIPES = " recipes)";
-    private static final String LOWEST_PREFIX = "Lowest item: ";
+    private static final String ROOT_PREFIX = "Root: ";
+    private static final String CANDIDATE_ALL = "Candidates: every recipe melts whole at ";
+    private static final String CANDIDATE_WORTH = " worth ";
+    private static final String CANDIDATE_ONE_OUTPUT = "; every recipe making one item per craft at worth ";
+    private static final String UNROOTED_NOTE =
+            "Cliques with no root named; name one of each clique's items in _roots to work it from that item:";
     private static final String MADE_BY_NONE = ", made by no recipe";
     private static final String MADE_BY = ", made by ";
     private static final String WORTH_PREFIX = "If ";
@@ -80,9 +86,9 @@ public final class CliqueTablesAuditRule implements GooAuditRule {
             "whole value of the lowest item either (lowest item, then the clique's size):");
     private static final List<String> PREAMBLE = List.of(
             "A clique is a group of items linked by recipes that carry one goo type (the iron family for metal).",
-            "Its lowest item holds the least of that type. Each table asks: if the lowest item is worth N, how",
-            "many of the clique's recipes make an item worth a fraction, which melting rounds down and loses?",
-            "The recipe list under each table is for the lowest item worth 1.",
+            "Its root is the item _roots names in it. Each table asks: if the root is worth N, how many of the",
+            "clique's recipes make an item worth a fraction, which melting rounds down and loses? The candidates",
+            "are the smallest root worths at which every recipe melts whole. The recipe list is for the root worth 1.",
             "Values come from the recipes alone, starting from items no recipe makes.");
 
     /**
@@ -98,19 +104,113 @@ public final class CliqueTablesAuditRule implements GooAuditRule {
     private record LossyRecipe(GooFraction lostPerCraft, String text, String each, String melts, String lostEach) {
     }
 
-    @Override
-    public GooAuditSection run(GooAuditInputs inputs) {
+    /**
+     * One clique of one goo type, worked from the root _roots names in it
+     * (decision audit-proposes-root-candidates-and-flags-bleed).
+     *
+     * @param type             the goo type the clique's recipes carry
+     * @param root             the named root the clique is worked from, or null where _roots names none of it
+     * @param items            the clique's items
+     * @param recipes          the clique's recipe count
+     * @param allWholeAt       the smallest worth of the root at which every recipe melts whole, 0 with no root
+     * @param oneOutputWholeAt the smallest at which every recipe making one item per craft does, 0 with no root
+     */
+    public record Family(ResourceKey<GooTypeDefinition> type, @Nullable Identifier root, List<Identifier> items,
+                         int recipes, long allWholeAt, long oneOutputWholeAt) {
+    }
+
+    /**
+     * What one clique is worked against: its recipe-only values, its recipes and its root.
+     */
+    private record Clique(ResourceKey<GooTypeDefinition> type, List<Identifier> items, List<WalkedRecipe> recipes,
+                          @Nullable Identifier root, Map<Identifier, GooValue> valued) {
+    }
+
+    /**
+     * @param inputs what the audit reads
+     * @return every clique of every goo type with its root and its candidate root values
+     */
+    public static List<Family> families(GooAuditInputs inputs) {
+        List<Family> families = new ArrayList<>();
+        for (ResourceKey<GooTypeDefinition> type : GooTypes.BUNDLED) {
+            for (Clique clique : cliques(inputs, type)) {
+                long all = clique.root() == null ? 0 : wholeAt(clique, clique.recipes());
+                long oneOutput = clique.root() == null ? 0 : wholeAt(clique,
+                        clique.recipes().stream().filter(walked -> walked.count() == 1).toList());
+                families.add(new Family(type, clique.root(), clique.items(), clique.recipes().size(), all, oneOutput));
+            }
+        }
+        return families;
+    }
+
+    private static List<Clique> cliques(GooAuditInputs inputs, ResourceKey<GooTypeDefinition> type) {
         GooValueRegistry values = inputs.values();
         Map<Identifier, GooValue> effective = values.table().getEffectiveValues();
         List<WalkedRecipe> recipes = walkedRecipes(values, effective);
         Map<Identifier, WalkedRecipe> byOutput = new HashMap<>();
         recipes.forEach(walked -> byOutput.put(walked.recipe().output(), walked));
-        Map<Identifier, GooValue> recipeValues = recipeOnlyValues(recipes, byOutput, effective);
+        return cliquesOf(type, recipes, recipeOnlyValues(recipes, byOutput, effective), values.rootItems());
+    }
+
+    private static List<Clique> cliquesOf(ResourceKey<GooTypeDefinition> type, List<WalkedRecipe> recipes,
+                                          Map<Identifier, GooValue> valued, List<Identifier> roots) {
+        Map<Identifier, Identifier> parent = new HashMap<>();
+        List<WalkedRecipe> carrying = carryingRecipes(type, recipes, valued, parent);
+        Map<Identifier, List<Identifier>> grouped = new HashMap<>();
+        for (Identifier item : new ArrayList<>(parent.keySet())) {
+            grouped.computeIfAbsent(GooItemUnionFind.find(parent, item), key -> new ArrayList<>()).add(item);
+        }
+        List<List<Identifier>> bySize = new ArrayList<>(grouped.values());
+        // Largest first; a tie falls to the smallest item id, so the dump reads the same every run.
+        bySize.sort(Comparator.comparingInt((List<Identifier> clique) -> -clique.size())
+                .thenComparing(clique -> clique.stream().min(Comparator.naturalOrder()).orElseThrow()));
+        List<Clique> cliques = new ArrayList<>();
+        for (List<Identifier> items : bySize) {
+            Identifier cliqueRoot = GooItemUnionFind.find(parent, items.getFirst());
+            List<WalkedRecipe> inClique = carrying.stream()
+                    .filter(walked -> GooItemUnionFind.find(parent, walked.recipe().output()).equals(cliqueRoot)).toList();
+            Identifier named = roots.stream().filter(items::contains).findFirst().orElse(null);
+            cliques.add(new Clique(type, items, inClique, named, valued));
+        }
+        return cliques;
+    }
+
+    /**
+     * The smallest worth of the root at which every one of the recipes' outputs is whole: the least common
+     * multiple of the denominators each output's share reads at a root worth 1.
+     *
+     * @param clique  the clique, its root named
+     * @param recipes the recipes to make whole
+     * @return the smallest whole worth of the root
+     */
+    private static long wholeAt(Clique clique, List<WalkedRecipe> recipes) {
+        GooFraction unit = share(clique.valued(), clique.root(), clique.type());
+        long whole = 1;
+        for (WalkedRecipe walked : recipes) {
+            GooFraction each = scaled(share(clique.valued(), walked.recipe().output(), clique.type()), unit, 1);
+            whole = leastCommonMultiple(whole, each.denominator());
+        }
+        return whole;
+    }
+
+    private static long leastCommonMultiple(long first, long second) {
+        long a = first;
+        long b = second;
+        while (b != 0) {
+            long rest = a % b;
+            a = b;
+            b = rest;
+        }
+        return Math.multiplyExact(first / a, second);
+    }
+
+    @Override
+    public GooAuditSection run(GooAuditInputs inputs) {
         List<String> lines = new ArrayList<>(PREAMBLE);
         lines.add(BLANK);
         int typesWithCliques = 0;
         for (ResourceKey<GooTypeDefinition> type : GooTypes.BUNDLED) {
-            if (writeType(type, recipes, recipeValues, lines)) {
+            if (writeType(cliques(inputs, type), lines)) {
                 typesWithCliques++;
             }
         }
@@ -232,32 +332,37 @@ public final class CliqueTablesAuditRule implements GooAuditRule {
         return value == null ? GooFraction.ZERO : value.exact(type);
     }
 
-    private static boolean writeType(ResourceKey<GooTypeDefinition> type, List<WalkedRecipe> recipes,
-                                     Map<Identifier, GooValue> valued, List<String> out) {
-        Map<Identifier, Identifier> parent = new HashMap<>();
-        List<WalkedRecipe> carrying = carryingRecipes(type, recipes, valued, parent);
-        Map<Identifier, List<Identifier>> cliques = new HashMap<>();
-        for (Identifier item : new ArrayList<>(parent.keySet())) {
-            cliques.computeIfAbsent(find(parent, item), key -> new ArrayList<>()).add(item);
-        }
+    private static boolean writeType(List<Clique> cliques, List<String> out) {
         if (cliques.isEmpty()) {
             return false;
         }
-        String title = GooTypes.id(type).toUpperCase(Locale.ROOT);
+        String title = GooTypes.id(cliques.getFirst().type()).toUpperCase(Locale.ROOT);
         out.add(title);
         out.add(TYPE_UNDERLINE.repeat(title.length()));
         out.add(BLANK);
-        List<List<Identifier>> bySize = new ArrayList<>(cliques.values());
-        // Largest first; a tie falls to the smallest item id, so the dump reads the same every run.
-        bySize.sort(Comparator.comparingInt((List<Identifier> clique) -> -clique.size())
-                .thenComparing(clique -> clique.stream().min(Comparator.naturalOrder()).orElseThrow()));
         List<String> lossless = new ArrayList<>();
-        for (List<Identifier> clique : bySize) {
-            writeClique(new CliqueContext(type, carrying, valued, parent), clique, out, lossless);
+        List<String> unrooted = new ArrayList<>();
+        for (Clique clique : cliques) {
+            if (clique.root() == null) {
+                unrooted.add(name(clique.items().stream().min(Comparator.naturalOrder()).orElseThrow())
+                        + LOSSLESS_SEPARATOR + clique.items().size() + LOSSLESS_ITEMS);
+            } else {
+                writeClique(clique, out, lossless);
+            }
         }
         writeLossless(lossless, out);
+        writeUnrooted(unrooted, out);
         out.add(BLANK);
         return true;
+    }
+
+    private static void writeUnrooted(List<String> unrooted, List<String> out) {
+        if (unrooted.isEmpty()) {
+            return;
+        }
+        out.add(UNROOTED_NOTE);
+        unrooted.forEach(line -> out.add(INDENT + line));
+        out.add(BLANK);
     }
 
     private static void writeLossless(List<String> lossless, List<String> out) {
@@ -281,7 +386,7 @@ public final class CliqueTablesAuditRule implements GooAuditRule {
             boolean joined = false;
             for (Identifier pick : new HashSet<>(walked.picks())) {
                 if (share(valued, pick, type).isPositive()) {
-                    union(parent, output, pick);
+                    GooItemUnionFind.union(parent, output, pick);
                     joined = true;
                 }
             }
@@ -292,36 +397,26 @@ public final class CliqueTablesAuditRule implements GooAuditRule {
         return carrying;
     }
 
-    /**
-     * What every clique of one type is written against.
-     */
-    private record CliqueContext(ResourceKey<GooTypeDefinition> type, List<WalkedRecipe> carrying,
-                                 Map<Identifier, GooValue> valued, Map<Identifier, Identifier> parent) {
-    }
-
-    private static void writeClique(CliqueContext context, List<Identifier> clique, List<String> out,
-                                    List<String> lossless) {
-        Identifier lowest = clique.stream()
-                .min(Comparator.comparing((Identifier item) -> share(context.valued(), item, context.type()))
-                        .thenComparing(Comparator.naturalOrder())).orElseThrow();
-        GooFraction unit = share(context.valued(), lowest, context.type());
-        Identifier cliqueRoot = find(context.parent(), lowest);
-        List<WalkedRecipe> inClique = context.carrying().stream()
-                .filter(walked -> find(context.parent(), walked.recipe().output()).equals(cliqueRoot)).toList();
-        long[] lossyAt = lossyCounts(context, unit, inClique);
+    private static void writeClique(Clique clique, List<String> out, List<String> lossless) {
+        Identifier root = clique.root();
+        GooFraction unit = share(clique.valued(), root, clique.type());
+        long[] lossyAt = lossyCounts(clique, unit);
         if (lossyAt[0] == 0) {
-            lossless.add(name(lowest) + LOSSLESS_SEPARATOR + clique.size() + LOSSLESS_ITEMS);
+            lossless.add(name(root) + LOSSLESS_SEPARATOR + clique.items().size() + LOSSLESS_ITEMS);
             return;
         }
-        WalkedRecipe lowestRecipe = inClique.stream().filter(walked -> walked.recipe().output().equals(lowest))
+        WalkedRecipe rootRecipe = clique.recipes().stream().filter(walked -> walked.recipe().output().equals(root))
                 .findFirst().orElse(null);
-        out.add(CLIQUE_PREFIX + name(lowest) + HEADER_OPEN + clique.size() + CLIQUE_SIZE_ITEMS + inClique.size()
-                + CLIQUE_SIZE_RECIPES);
-        out.add(INDENT + LOWEST_PREFIX + name(lowest)
-                + (lowestRecipe == null ? MADE_BY_NONE : MADE_BY + recipeText(lowestRecipe)));
+        out.add(CLIQUE_PREFIX + name(root) + HEADER_OPEN + clique.items().size() + CLIQUE_SIZE_ITEMS
+                + clique.recipes().size() + CLIQUE_SIZE_RECIPES);
+        out.add(INDENT + ROOT_PREFIX + name(root)
+                + (rootRecipe == null ? MADE_BY_NONE : MADE_BY + recipeText(rootRecipe)));
+        out.add(INDENT + CANDIDATE_ALL + name(root) + CANDIDATE_WORTH + wholeAt(clique, clique.recipes())
+                + CANDIDATE_ONE_OUTPUT + wholeAt(clique, clique.recipes().stream()
+                .filter(walked -> walked.count() == 1).toList()));
         out.add(BLANK);
-        writeWorthTable(name(lowest), lossyAt, inClique.size(), out);
-        writeLossyRecipes(context, lowest, unit, inClique, out);
+        writeWorthTable(name(root), lossyAt, clique.recipes().size(), out);
+        writeLossyRecipes(clique, root, unit, out);
         out.add(BLANK);
         out.add(BLANK);
     }
@@ -329,17 +424,16 @@ public final class CliqueTablesAuditRule implements GooAuditRule {
     /**
      * How many of the clique's recipes melt to a fraction at each worth of the lowest item.
      *
-     * @param context  the clique's type and values
-     * @param unit     the lowest item's share of the type
-     * @param inClique the clique's recipes
+     * @param clique the clique
+     * @param unit   the root's share of the type
      * @return the lossy recipe count at each of ROOT_WORTHS
      */
-    private static long[] lossyCounts(CliqueContext context, GooFraction unit, List<WalkedRecipe> inClique) {
+    private static long[] lossyCounts(Clique clique, GooFraction unit) {
         long[] lossyAt = new long[ROOT_WORTHS.length];
         for (int i = 0; i < ROOT_WORTHS.length; i++) {
             long worth = ROOT_WORTHS[i];
-            lossyAt[i] = inClique.stream().filter(walked -> !scaled(share(context.valued(), walked.recipe().output(),
-                    context.type()), unit, worth).isWhole()).count();
+            lossyAt[i] = clique.recipes().stream().filter(walked -> !scaled(share(clique.valued(),
+                    walked.recipe().output(), clique.type()), unit, worth).isWhole()).count();
         }
         return lossyAt;
     }
@@ -355,11 +449,10 @@ public final class CliqueTablesAuditRule implements GooAuditRule {
         out.add(BLANK);
     }
 
-    private static List<LossyRecipe> lossyRecipes(CliqueContext context, GooFraction unit,
-                                                  List<WalkedRecipe> inClique) {
+    private static List<LossyRecipe> lossyRecipes(Clique clique, GooFraction unit) {
         List<LossyRecipe> lossy = new ArrayList<>();
-        for (WalkedRecipe walked : inClique) {
-            GooFraction each = scaled(share(context.valued(), walked.recipe().output(), context.type()), unit, 1);
+        for (WalkedRecipe walked : clique.recipes()) {
+            GooFraction each = scaled(share(clique.valued(), walked.recipe().output(), clique.type()), unit, 1);
             if (!each.isWhole()) {
                 GooFraction lostEach = each.minus(GooFraction.of(each.floor()));
                 lossy.add(new LossyRecipe(lostEach.times(walked.count()), recipeText(walked), each.toString(),
@@ -370,9 +463,8 @@ public final class CliqueTablesAuditRule implements GooAuditRule {
         return lossy;
     }
 
-    private static void writeLossyRecipes(CliqueContext context, Identifier lowest, GooFraction unit,
-                                          List<WalkedRecipe> inClique, List<String> out) {
-        List<LossyRecipe> lossy = lossyRecipes(context, unit, inClique);
+    private static void writeLossyRecipes(Clique clique, Identifier lowest, GooFraction unit, List<String> out) {
+        List<LossyRecipe> lossy = lossyRecipes(clique, unit);
         if (lossy.isEmpty()) {
             out.add(INDENT + NO_LOSS_PREFIX + name(lowest) + NO_LOSS_SUFFIX);
             return;
@@ -415,24 +507,5 @@ public final class CliqueTablesAuditRule implements GooAuditRule {
     private static GooFraction scaled(GooFraction share, GooFraction unit, long worth) {
         return new GooFraction(Math.multiplyExact(Math.multiplyExact(share.numerator(), unit.denominator()), worth),
                 Math.multiplyExact(share.denominator(), unit.numerator()));
-    }
-
-    private static Identifier find(Map<Identifier, Identifier> parent, Identifier item) {
-        parent.putIfAbsent(item, item);
-        Identifier above = parent.get(item);
-        if (above.equals(item)) {
-            return item;
-        }
-        Identifier root = find(parent, above);
-        parent.put(item, root);
-        return root;
-    }
-
-    private static void union(Map<Identifier, Identifier> parent, Identifier first, Identifier second) {
-        Identifier firstRoot = find(parent, first);
-        Identifier secondRoot = find(parent, second);
-        if (!firstRoot.equals(secondRoot)) {
-            parent.put(firstRoot, secondRoot);
-        }
     }
 }

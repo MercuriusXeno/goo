@@ -93,6 +93,10 @@ public class GooValueRegistry {
      * Last merged base_values JSON from regen, retained for validation.
      */
     private @Nullable JsonObject lastMergedBaseValues;
+    /**
+     * The clique roots the last load's _roots named (decision audit-proposes-root-candidates-and-flags-bleed).
+     */
+    private List<Identifier> rootItems = List.of();
 
     private Path effectiveCachePath;
 
@@ -152,7 +156,22 @@ public class GooValueRegistry {
                 tagResolver);
         postConversions = state.postConversions;
         lastMergedBaseValues = state.lastMergedBaseValues;
+        rootItems = List.copyOf(state.rootItems);
         publishEffectiveValues(loadedEffective);
+    }
+
+    /**
+     * @return the clique roots the last load's _roots named, in file order
+     */
+    public List<Identifier> rootItems() {
+        return rootItems;
+    }
+
+    /**
+     * @return the items base_values.json values by hand, an entry's or a group's, before any recipe derives
+     */
+    public Set<Identifier> handKeyedItems() {
+        return Collections.unmodifiableSet(baseValues.keySet());
     }
 
     /**
@@ -198,6 +217,7 @@ public class GooValueRegistry {
         GooValueLoader.applyMergedLayers(layers, state);
         postConversions = state.postConversions;
         lastMergedBaseValues = state.lastMergedBaseValues;
+        rootItems = List.copyOf(state.rootItems);
     }
 
     /**
