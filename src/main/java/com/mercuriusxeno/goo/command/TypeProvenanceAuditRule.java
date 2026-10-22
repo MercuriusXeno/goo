@@ -22,8 +22,8 @@ import java.util.TreeMap;
 
 /**
  * TYPE PROVENANCE: each type on each derived item traced to the hand-keyed entry it entered from and the
- * chain of recipes it took. A type's family is its clique, the items its recipes join; a family with no root
- * _roots names that one hand-keyed entry alone feeds is a bleed, to fix at that entry rather than downstream,
+ * chain of recipes it took. A type's family is its clique, the items its recipes join; a family that one
+ * hand-keyed entry alone feeds is a bleed, unless _roots names that entry, to fix at that entry rather than downstream,
  * as deep reaching a glass pane through a dye plant (decision audit-proposes-root-candidates-and-flags-bleed).
  */
 @AuditRule(order = 110)
@@ -129,17 +129,17 @@ public final class TypeProvenanceAuditRule implements GooAuditRule {
         }
 
         /**
-         * Flags each of the type's families with no named root that one hand-keyed entry alone feeds, naming
-         * its longest chain.
+         * Flags each of the type's families that one hand-keyed entry alone feeds, naming its longest chain; a
+         * root named elsewhere in the family is another type's unit, so only the entry itself named exempts it.
          *
          * @param chains each traced item's chain
          * @param roots  the roots _roots names
          * @param flags  the flags, added to
          */
         private void flagBleeds(Map<Identifier, List<Identifier>> chains, Set<Identifier> roots, List<String> flags) {
-            Map<Identifier, Family> families = families(chains, roots);
-            families.values().stream().filter(family -> family.entries().size() == 1 && !family.rooted()
-                            && !family.longest().isEmpty())
+            Map<Identifier, Family> families = families(chains);
+            families.values().stream().filter(family -> family.entries().size() == 1
+                            && !roots.contains(family.entries().iterator().next()) && !family.longest().isEmpty())
                     .sorted(Comparator.comparing(family -> family.longest().getLast()))
                     .forEach(family -> flags.add(GooTypes.id(type) + BLEED_PREFIX
                             + name(family.entries().iterator().next()) + BLEED_SUFFIX + chainText(family.longest())));
@@ -147,10 +147,9 @@ public final class TypeProvenanceAuditRule implements GooAuditRule {
 
         /**
          * @param chains each traced item's chain
-         * @param roots  the roots _roots names
          * @return the type's families, joined by the recipes carrying it, by representative
          */
-        private Map<Identifier, Family> families(Map<Identifier, List<Identifier>> chains, Set<Identifier> roots) {
+        private Map<Identifier, Family> families(Map<Identifier, List<Identifier>> chains) {
             Map<Identifier, Identifier> parent = new HashMap<>();
             byOutput.forEach((output, recipe) -> {
                 if (share(output).isPositive()) {
@@ -162,19 +161,18 @@ public final class TypeProvenanceAuditRule implements GooAuditRule {
             for (Identifier item : new ArrayList<>(parent.keySet())) {
                 Family family = families.computeIfAbsent(GooItemUnionFind.find(parent, item),
                         key -> new Family());
-                family.meet(item, handKeyed.contains(item), roots.contains(item), chains.get(item));
+                family.meet(item, handKeyed.contains(item), chains.get(item));
             }
             return families;
         }
     }
 
     /**
-     * One family of one type: its hand-keyed entries, its longest traced chain and whether _roots names a member.
+     * One family of one type: its hand-keyed entries and its longest traced chain.
      */
     private static final class Family {
         private final Set<Identifier> entries = new LinkedHashSet<>();
         private final List<Identifier> longest = new ArrayList<>();
-        private boolean rooted;
 
         Set<Identifier> entries() {
             return entries;
@@ -184,15 +182,10 @@ public final class TypeProvenanceAuditRule implements GooAuditRule {
             return longest;
         }
 
-        boolean rooted() {
-            return rooted;
-        }
-
-        void meet(Identifier item, boolean handKeyed, boolean root, @Nullable List<Identifier> chain) {
+        void meet(Identifier item, boolean handKeyed, @Nullable List<Identifier> chain) {
             if (handKeyed) {
                 entries.add(item);
             }
-            rooted |= root;
             if (chain != null && chain.size() > longest.size()) {
                 longest.clear();
                 longest.addAll(chain);
