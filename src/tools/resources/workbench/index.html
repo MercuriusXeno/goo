@@ -99,6 +99,18 @@ details.dump-section { background: var(--panel); border: 1px solid var(--line); 
 details.dump-section summary { padding: 10px 14px; cursor: pointer; font-weight: 500; display: flex; gap: 10px; align-items: center; }
 details.dump-section pre { margin: 0; padding: 0 14px 12px; font-size: 12px; overflow: auto; max-height: 420px; }
 #audit-progress { max-height: 180px; overflow: auto; }
+.values-split { margin-bottom: 16px; }
+.name-link { border: 0; background: none; padding: 0; color: var(--accent); text-decoration: underline dotted; font-weight: 500; text-align: left; }
+.row-image { width: 24px; height: 24px; display: block; }
+.mode-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.hover-card { position: fixed; z-index: 10; width: 360px; background: var(--panel); border: 1px solid var(--control); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.hover-card[hidden] { display: none; }
+.hover-head { display: flex; align-items: center; gap: 10px; }
+.hover-recipe { display: flex; align-items: center; gap: 12px; }
+.craft-grid { display: grid; grid-template-columns: repeat(3, 32px); gap: 2px; background: var(--control); padding: 2px; border-radius: 4px; }
+.craft-cell { width: 32px; height: 32px; background: #8b8b8b; display: flex; align-items: center; justify-content: center; }
+.craft-cell img { width: 24px; height: 24px; }
+.hover-value { font-size: 12px; background: var(--ground); border-radius: 6px; padding: 6px 10px; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 @media (max-width: 640px) {
   .topbar, nav, .pane { padding-left: 16px; padding-right: 16px; }
@@ -136,6 +148,23 @@ details.dump-section pre { margin: 0; padding: 0 14px 12px; font-size: 12px; ove
         <button class="tab" role="tab" type="button" data-tab="audit" aria-selected="false">Audit</button>
       </nav>
       <section class="pane" role="tabpanel" id="pane-values" data-pane="values">
+        <div class="split values-split">
+          <div class="card group-detail">
+            <div class="card-head">
+              <span class="card-title" id="family-title">Pick an item in the inventory</span>
+              <span class="mono hint grow" id="family-summary"></span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th><span class="visually-hidden">Image</span></th><th>Item</th><th>Defined as</th><th>Amounts</th><th>Melts</th><th>Costs</th><th>Source</th></tr></thead>
+                <tbody id="family-rows"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card group-list" id="value-editor">
+            <div class="card-head"><span class="hint">The selected item's entry</span></div>
+          </div>
+        </div>
         <div class="card">
           <div class="card-head">
             <span class="card-title">Template</span>
@@ -161,7 +190,6 @@ details.dump-section pre { margin: 0; padding: 0 14px 12px; font-size: 12px; ove
             <div class="card-head"><span class="hint">Pick a group, or name a new one.</span></div>
           </div>
         </div>
-        <datalist id="inventory-ids"></datalist>
       </section>
       <section class="pane" role="tabpanel" id="pane-variables" data-pane="variables" hidden>
         <div class="card">
@@ -197,10 +225,13 @@ details.dump-section pre { margin: 0; padding: 0 14px 12px; font-size: 12px; ove
     </main>
   </div>
 </div>
+<datalist id="inventory-ids"></datalist>
+<div class="hover-card" id="hover-card" hidden></div>
 <script>
 'use strict';
 const SHOWN_AT_ONCE = 400;
-const state = { model: null, inventory: null, filter: 'items', search: '', selected: null, sources: new Map() };
+const state = { model: null, inventory: null, filter: 'items', search: '', selected: null, sources: new Map(),
+  uncovered: new Set() };
 const $ = (id) => document.getElementById(id);
 
 function setStatus(text, isError) {
@@ -290,7 +321,7 @@ function listedEntries() {
     blocks: () => inventory.blocks.map((block) => ({ id: block.id, name: block.name, image: false })),
     tags: () => inventory.item_tags.map((tag) => ({ id: '#' + tag.id, name: tag.members.length + ' members', image: false })),
     goo: () => inventory.goo_types.map((type) => ({ id: type.id, name: 'goo type', image: false })),
-    unlisted: () => inventory.items.filter((item) => item.id !== 'minecraft:air' && sourceOf(item.id).kind === 'none')
+    unlisted: () => inventory.items.filter((item) => state.uncovered.has(item.id))
       .map((item) => ({ id: item.id, name: item.name, image: !!item.image }))
   };
   const search = state.search.trim().toLowerCase();
@@ -300,10 +331,9 @@ function listedEntries() {
 
 function renderChips() {
   const inventory = state.inventory;
-  const unlisted = inventory
-    ? inventory.items.filter((item) => item.id !== 'minecraft:air' && sourceOf(item.id).kind === 'none').length : 0;
+  const unlisted = state.uncovered.size;
   const chips = [
-    ['items', 'Items'], ['blocks', 'Blocks'], ['tags', 'Tags'], ['goo', 'Goo types'], ['unlisted', 'Not in the file ' + unlisted]
+    ['items', 'Items'], ['blocks', 'Blocks'], ['tags', 'Tags'], ['goo', 'Goo types'], ['unlisted', 'Uncovered ' + unlisted]
   ];
   const holder = $('chips');
   holder.replaceChildren(...chips.map(([filter, label]) => {
@@ -351,7 +381,15 @@ function entryRow(entry) {
     badge.textContent = source.label;
     row.append(badge);
   }
-  row.addEventListener('click', () => { state.selected = entry.id; renderEntries(); });
+  row.addEventListener('click', () => {
+    state.selected = entry.id;
+    renderEntries();
+    if (state.filter === 'items' || state.filter === 'unlisted' || state.filter === 'blocks') {
+      selectTab('values');
+      selectItem(entry.id);
+    }
+  });
+  attachHover(row, entry.id);
   return row;
 }
 
@@ -824,6 +862,341 @@ function fillInventoryChoices() {
   }));
 }
 
+// --- Values: the selected item's family, its entry in every form the file supports, and the hover card ---
+
+const valuesView = { selected: null, rows: [], resolved: new Map(), hoverTimer: null };
+
+function bareId(id) {
+  return id.replace(/^minecraft:/, '');
+}
+
+function entryKeyOf(id) {
+  const members = state.model.members;
+  if (members.some((member) => member.key === id)) {
+    return id;
+  }
+  return bareId(id);
+}
+
+function entryOf(id) {
+  return state.model.members.find((member) => member.kind === 'VALUE' && member.key === entryKeyOf(id)) || null;
+}
+
+// A new item entry stands above the sections the file closes with, as the server writes one.
+function setEntryText(id, text) {
+  const existing = entryOf(id);
+  if (existing) {
+    existing.text = text;
+    return;
+  }
+  const closing = ['_restricted', '_conversions', '_post_conversions'];
+  let at = state.model.members.length;
+  while (at > 0 && closing.includes(state.model.members[at - 1].key)) {
+    at--;
+  }
+  state.model.members.splice(at, 0, newEntry(entryKeyOf(id), text));
+}
+
+function removeEntry(id) {
+  state.model.members = state.model.members.filter((member) => !(member.kind === 'VALUE' && member.key === entryKeyOf(id)));
+}
+
+function restrictedSection() {
+  return state.model.members.find((member) => member.key === '_restricted');
+}
+
+function isRestricted(id) {
+  const section = restrictedSection();
+  return !!section && section.entries.some((entry) => [id, bareId(id)].includes(textValue(entry.text)));
+}
+
+function setRestricted(id, restricted) {
+  const section = restrictedSection();
+  if (!section) {
+    return;
+  }
+  section.entries = section.entries.filter((entry) => ![id, bareId(id)].includes(textValue(entry.text)));
+  if (restricted) {
+    section.entries.push(newEntry(null, JSON.stringify(bareId(id))));
+  }
+}
+
+async function refreshValues() {
+  try {
+    const resolved = await fetchJson('/api/values/resolve', { method: 'POST', body: JSON.stringify(state.model) });
+    valuesView.resolved = new Map(resolved.entries.map((entry) => [entry.key, entry]));
+    const uncovered = await fetchJson('/api/values/uncovered', { method: 'POST', body: JSON.stringify(state.model) });
+    state.uncovered = new Set(uncovered.items);
+    renderChips();
+    if (valuesView.selected) {
+      await selectItem(valuesView.selected);
+    }
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+}
+
+async function selectItem(id) {
+  valuesView.selected = id;
+  try {
+    const family = await fetchJson('/api/values/family', {
+      method: 'POST', body: JSON.stringify({ members: state.model.members, id })
+    });
+    valuesView.rows = family.rows;
+  } catch (error) {
+    valuesView.rows = [];
+    setStatus(error.message, true);
+  }
+  renderFamily();
+  renderEditor();
+}
+
+function amountsText(amounts) {
+  const entries = Object.entries(amounts || {});
+  return entries.length ? entries.map(([type, amount]) => type + ' ' + amount).join(', ') : '';
+}
+
+function nameButton(id, name) {
+  const link = document.createElement('button');
+  link.type = 'button';
+  link.className = 'name-link';
+  link.textContent = name;
+  link.addEventListener('click', () => selectItem(id));
+  attachHover(link, id);
+  return link;
+}
+
+function itemImage(id, className) {
+  const known = itemsById().get(id);
+  if (!known || !known.image) {
+    const blank = document.createElement('span');
+    blank.className = 'noimage ' + className;
+    return blank;
+  }
+  const image = document.createElement('img');
+  image.className = 'px ' + className;
+  image.alt = '';
+  image.loading = 'lazy';
+  image.src = imageUrl(id);
+  return image;
+}
+
+function textCell(text, className) {
+  const td = document.createElement('td');
+  td.className = className || 'mono';
+  td.textContent = text;
+  return td;
+}
+
+function renderFamily() {
+  const selected = valuesView.rows.find((row) => row.id === valuesView.selected);
+  $('family-title').textContent = selected ? selected.name : 'Pick an item in the inventory';
+  $('family-summary').textContent = selected ? selected.id + ' · its recipe\'s ingredients and the items made from it' : '';
+  $('family-rows').replaceChildren(...valuesView.rows.map((row) => {
+    const tr = document.createElement('tr');
+    const image = document.createElement('td');
+    image.append(itemImage(row.id, 'row-image'));
+    const name = document.createElement('td');
+    name.append(nameButton(row.id, row.name));
+    const source = document.createElement('td');
+    const badge = document.createElement('span');
+    const kind = row.source === 'entry' ? 'entry' : row.source.startsWith('group') ? 'group'
+      : row.source === 'denied' ? 'denied' : row.source === 'none' ? 'none' : 'entry';
+    badge.className = 'source ' + kind + '-src';
+    badge.textContent = row.source;
+    source.append(badge);
+    tr.append(image, name, textCell(row.definedAs), textCell(amountsText(row.amounts)), textCell(row.melts),
+      textCell(row.costs), source);
+    return tr;
+  }));
+}
+
+// The editor writes the selected item's own entry in the form the mode names, as the file spells each.
+function renderEditor() {
+  const holder = $('value-editor');
+  const id = valuesView.selected;
+  if (!id) {
+    return;
+  }
+  const entry = entryOf(id);
+  const resolved = entry ? valuesView.resolved.get(entry.key) : null;
+  const head = document.createElement('div');
+  head.className = 'card-head';
+  head.append(itemImage(id, 'row-image'));
+  const title = document.createElement('span');
+  title.className = 'card-title grow';
+  title.textContent = (itemsById().get(id) || { name: id }).name;
+  head.append(title);
+  const body = document.createElement('div');
+  body.className = 'detail-body';
+  const current = document.createElement('div');
+  current.className = 'mono hint';
+  current.textContent = entry ? 'The file holds "' + entry.key + '": ' + entry.text : 'The file holds no entry for ' + id;
+  body.append(current);
+  if (resolved) {
+    const line = document.createElement('div');
+    line.className = 'mono ' + (resolved.error ? 'error' : 'resolves');
+    line.textContent = resolved.error ? resolved.error
+      : resolved.denied ? 'denied' : 'resolves: ' + (amountsText(resolved.value) || 'nothing');
+    body.append(line);
+  }
+  const forms = [
+    ['Expression', () => {
+      const input = textField(entry && typeof textValue(entry.text) === 'string' && textValue(entry.text) !== 'denied'
+        ? textValue(entry.text) : '', true);
+      input.placeholder = '3 $iron_ingot, or bucket + $food';
+      return [labelled('Expression over items and constants', input), () => JSON.stringify(input.value.trim())];
+    }],
+    ['Per type', () => {
+      const value = entry ? textValue(entry.text) : null;
+      const lines = value && typeof value === 'object' ? Object.entries(value).map(([type, amount]) => type + ': ' + amount) : [];
+      const input = document.createElement('textarea');
+      input.className = 'field mono';
+      input.rows = 4;
+      input.value = lines.join('\n');
+      input.placeholder = 'metal: 4 $copper_nugget.metal\nleaf: 6';
+      return [labelled('One goo type per line: type: amount or expression', input), () => {
+        const object = {};
+        input.value.split('\n').map((line) => line.trim()).filter(Boolean).forEach((line) => {
+          const colon = line.indexOf(':');
+          const amount = line.slice(colon + 1).trim();
+          object[line.slice(0, colon).trim()] = /^-?\d+$/.test(amount) ? Number(amount) : amount;
+        });
+        return JSON.stringify(object).replace(/":/g, '": ').replace(/,"/g, ', "');
+      }];
+    }],
+    ['Ratio of', () => {
+      const times = textField('1', true);
+      const operand = textField('', true);
+      operand.setAttribute('list', 'inventory-ids');
+      operand.placeholder = 'iron_ingot, or $iron_nugget';
+      const type = textField('', true);
+      type.placeholder = 'a goo type, or empty for the whole value';
+      const box = document.createElement('div');
+      box.className = 'field-pair';
+      box.append(labelled('How many', times), labelled('Of', operand), labelled('Type share', type));
+      return [box, () => {
+        const amount = times.value.trim() + ' ' + bareId(operand.value.trim());
+        const share = type.value.trim();
+        return share ? JSON.stringify({ [share]: amount + '.' + share }).replace(/":/g, '": ')
+          : JSON.stringify(amount);
+      }];
+    }],
+    ['Denied', () => {
+      const note = document.createElement('div');
+      note.className = 'hint';
+      note.textContent = 'The item takes no value and melts to nothing.';
+      return [note, () => '"denied"'];
+    }]
+  ];
+  const modeRow = document.createElement('div');
+  modeRow.className = 'mode-row';
+  const formHolder = document.createElement('div');
+  formHolder.className = 'field-stack';
+  let readText = null;
+  const showForm = (index) => {
+    [...modeRow.children].forEach((chip, at) => chip.setAttribute('aria-pressed', String(at === index)));
+    const [control, reader] = forms[index][1]();
+    readText = reader;
+    formHolder.replaceChildren(control);
+  };
+  forms.forEach(([label], index) => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'chip';
+    chip.textContent = label;
+    chip.addEventListener('click', () => showForm(index));
+    modeRow.append(chip);
+  });
+  const value = entry ? textValue(entry.text) : null;
+  showForm(value === 'denied' ? 3 : value && typeof value === 'object' ? 1 : 0);
+  const restricted = document.createElement('input');
+  restricted.type = 'checkbox';
+  restricted.checked = isRestricted(id);
+  const restrictedLabel = document.createElement('label');
+  restrictedLabel.className = 'hint';
+  restrictedLabel.append(restricted, ' Restricted: listed under _restricted');
+  restricted.addEventListener('change', () => { setRestricted(id, restricted.checked); markEdited(); refreshValues(); });
+  const actions = document.createElement('div');
+  actions.className = 'row-actions';
+  actions.append(button('Write the entry', () => { setEntryText(id, readText()); markEdited(); refreshValues(); }),
+    button('Remove the entry', () => { removeEntry(id); markEdited(); refreshValues(); }, entry ? null : 'No entry to remove'));
+  body.append(modeRow, formHolder, restrictedLabel, actions);
+  holder.replaceChildren(head, body);
+}
+
+// The hover card: the recipe grid drawn with the inventory's images, the result count, the ratios through the
+// item and its value, melts and costs.
+function attachHover(element, id) {
+  element.addEventListener('mouseenter', (event) => {
+    clearTimeout(valuesView.hoverTimer);
+    const x = event.clientX;
+    const y = event.clientY;
+    valuesView.hoverTimer = setTimeout(() => showHover(id, x, y), 300);
+  });
+  element.addEventListener('mouseleave', () => {
+    clearTimeout(valuesView.hoverTimer);
+    $('hover-card').hidden = true;
+  });
+}
+
+async function showHover(id, x, y) {
+  let hover;
+  try {
+    hover = await fetchJson('/api/hover', { method: 'POST', body: JSON.stringify({ members: state.model.members, id }) });
+  } catch (error) {
+    return;
+  }
+  const card = $('hover-card');
+  const head = document.createElement('div');
+  head.className = 'hover-head';
+  const names = document.createElement('div');
+  const name = document.createElement('div');
+  name.className = 'card-title';
+  name.textContent = hover.name;
+  const idLine = document.createElement('div');
+  idLine.className = 'mono hint';
+  idLine.textContent = hover.id + (hover.tags.length ? ' · ' + hover.tags.join(', ') : '');
+  names.append(name, idLine);
+  head.append(itemImage(hover.id, 'row-image'), names);
+  const parts = [head];
+  if (hover.count > 0) {
+    const recipe = document.createElement('div');
+    recipe.className = 'hover-recipe';
+    const grid = document.createElement('div');
+    grid.className = 'craft-grid';
+    grid.append(...hover.grid.map((cellId) => {
+      const cell = document.createElement('div');
+      cell.className = 'craft-cell';
+      if (cellId) {
+        cell.title = cellId;
+        cell.append(itemImage(cellId, ''));
+      }
+      return cell;
+    }));
+    const arrow = document.createElement('span');
+    arrow.className = 'hint';
+    arrow.textContent = '→ ×' + hover.count;
+    recipe.append(grid, arrow);
+    parts.push(recipe);
+  }
+  if (hover.ratios.length) {
+    const ratios = document.createElement('div');
+    ratios.className = 'mono hint';
+    ratios.textContent = hover.ratios.join('\n');
+    ratios.style.whiteSpace = 'pre-line';
+    parts.push(ratios);
+  }
+  const value = document.createElement('div');
+  value.className = 'mono hover-value';
+  value.textContent = 'value ' + hover.value + ' · melts ' + hover.melts + ' · costs ' + hover.costs;
+  parts.push(value);
+  card.replaceChildren(...parts);
+  card.style.left = Math.min(x + 16, window.innerWidth - 376) + 'px';
+  card.style.top = Math.min(y + 16, window.innerHeight - 260) + 'px';
+  card.hidden = false;
+}
+
 // --- Template: what the file leaves out of the inventory, or a fresh file naming everything ---
 
 const templateView = { answer: null, confirming: false };
@@ -1028,6 +1401,7 @@ $('save-button').addEventListener('click', save);
     render();
     fillInventoryChoices();
     await describeGroups();
+    await refreshValues();
     await checkTemplate();
   } catch (error) {
     setStatus(error.message, true);

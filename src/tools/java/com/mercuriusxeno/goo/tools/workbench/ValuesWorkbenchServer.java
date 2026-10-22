@@ -84,6 +84,15 @@ public final class ValuesWorkbenchServer {
         http.createContext("/api/dumps", exchange -> server.answer(exchange, server::standingDumps));
         http.createContext("/api/dumps/run", server::runDumps);
         http.createContext("/api/audit", exchange -> server.answer(exchange, server::auditSections));
+        http.createContext("/api/values/resolve", exchange -> server.answer(exchange,
+                posted -> Reply.of(OK, JSON, Files.isRegularFile(paths.inventoryFile())
+                        ? Valuations.resolved(server.postedModel(posted), ValuesJson.inventory(paths.inventoryFile()))
+                        : Valuations.resolved(server.postedModel(posted)))));
+        http.createContext("/api/values/uncovered", exchange -> server.answer(exchange,
+                posted -> Reply.of(OK, JSON, ValuesJson.uncovered(server.postedModel(posted),
+                        ValuesJson.inventory(paths.inventoryFile())))));
+        http.createContext("/api/values/family", exchange -> server.answer(exchange, server::family));
+        http.createContext("/api/hover", exchange -> server.answer(exchange, server::hover));
         http.setExecutor(Executors.newCachedThreadPool());
         http.start();
         return server;
@@ -119,6 +128,9 @@ public final class ValuesWorkbenchServer {
             reply = handler.handle(exchange);
         } catch (IllegalArgumentException e) {
             reply = Reply.of(BAD_REQUEST, TEXT, e.getMessage());
+        } catch (RuntimeException | LinkageError e) {
+            // Every request answers: an unanswered one leaves the page waiting with no word of the cause.
+            reply = Reply.of(SERVER_ERROR, TEXT, e.getClass().getSimpleName() + ": " + e.getMessage());
         } catch (IOException e) {
             reply = Reply.of(SERVER_ERROR, TEXT, e.getMessage());
         } catch (InterruptedException e) {
@@ -305,6 +317,26 @@ public final class ValuesWorkbenchServer {
         } catch (IOException e) {
             // The page closed the stream; the run carries on and its dumps still land.
         }
+    }
+
+    /**
+     * Answers the Values table for the posted item's family, valued from the posted model.
+     */
+    private Reply family(HttpExchange exchange) throws IOException {
+        String sent = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        BaseValuesModel model = fileLayout().withMembers(ModelJson.membersFrom(sent));
+        return Reply.of(OK, JSON, Valuations.family(model, ValuesJson.inventory(paths.inventoryFile()),
+                ValuesJson.idFrom(sent)));
+    }
+
+    /**
+     * Answers the posted item's hover card, valued from the posted model.
+     */
+    private Reply hover(HttpExchange exchange) throws IOException {
+        String sent = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        BaseValuesModel model = fileLayout().withMembers(ModelJson.membersFrom(sent));
+        return Reply.of(OK, JSON, ValuesJson.hover(model, ValuesJson.inventory(paths.inventoryFile()),
+                ValuesJson.idFrom(sent)));
     }
 
     private BaseValuesModel postedModel(HttpExchange exchange) throws IOException {

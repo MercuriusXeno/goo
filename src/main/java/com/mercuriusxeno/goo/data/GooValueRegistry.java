@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.function.Function;
 
 /**
  * The server's pipeline for item goo values: loads base values from JSON,
@@ -140,13 +141,15 @@ public class GooValueRegistry {
      * Loads base values from one base_values.json text as a single pack layer, so a tool or a test builds a
      * registry the audit reads with no server (decision each-check-is-one-rule-added-alone).
      *
-     * @param json the base_values.json text
+     * @param json        the base_values.json text
+     * @param tagResolver resolves an item tag to its member ids
      */
-    void loadBaseValuesFromText(String json) {
+    void loadBaseValuesFromText(String json, Function<Identifier, Set<Identifier>> tagResolver) {
         Map<Identifier, GooValue> loadedEffective = new HashMap<>();
         var state = createParseState(loadedEffective);
         GooValueLoader.clearRegistryState(state);
-        GooValueLoader.applyMergedLayers(List.of(JsonParser.parseString(json).getAsJsonObject()), state);
+        GooValueLoader.applyMergedLayers(List.of(JsonParser.parseString(json).getAsJsonObject()), state,
+                tagResolver);
         postConversions = state.postConversions;
         lastMergedBaseValues = state.lastMergedBaseValues;
         publishEffectiveValues(loadedEffective);
