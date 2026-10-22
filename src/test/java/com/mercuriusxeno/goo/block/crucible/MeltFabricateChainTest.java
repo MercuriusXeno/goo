@@ -5,6 +5,7 @@ import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
+import com.mercuriusxeno.goo.data.RemainderLedger;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
@@ -30,7 +31,7 @@ class MeltFabricateChainTest {
 
     private int meltOneCarpet() {
         when(lookup.lookup(CARPET)).thenReturn(CARPET_VALUE);
-        return CrucibleInsertion.meltArrival(GooContents.EMPTY, CARPET, 1, lookup).arriving()
+        return CrucibleInsertion.meltArrival(GooContents.EMPTY, CARPET, 1, lookup, new RemainderLedger()).arriving()
                 .getVolume(GooTypes.LEAF);
     }
 
