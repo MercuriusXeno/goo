@@ -14,6 +14,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ARGB;
@@ -102,15 +103,15 @@ public final class PanelPainter {
     }
 
     /**
-     * Answers how far, in scaled pixels, the panel drops below its anchor: a hanging
-     * panel drops its whole height so its top edge meets the anchor, a standing panel none.
+     * Answers how far, in scaled pixels, the panel drops below its anchor: a panel on a
+     * DOWN face hangs its whole height so its top edge meets the anchor, any other none.
      *
      * @param placement where and how the panel stands
      * @param size      the laid out panel size
      * @return the downward drop in scaled pixels
      */
     static float hangDrop(PanelPlacement placement, PanelSize size) {
-        return placement.hangs() ? size.height() : 0f;
+        return placement.face() == Direction.DOWN ? size.height() : 0f;
     }
 
     /**

@@ -9,14 +9,11 @@ import net.minecraft.world.phys.Vec3;
  *
  * @param anchor the panel anchor in world coordinates
  * @param facing how the panel turns toward the camera
- * @param face   the block face the panel stands on
+ * @param face   the block face the panel stands on; DOWN hangs the panel below its anchor
  * @param pitch   the billboard pitch factor [0, 1]
  * @param opacity the fade factor every part of the panel draws at [0, 1]
- * @param hangs   whether the anchor is the panel's top center and the panel hangs below it,
- *                rather than its bottom center with the panel standing above it
  */
-public record PanelPlacement(Vec3 anchor, Facing facing, Direction face, float pitch, float opacity,
-                             boolean hangs) {
+public record PanelPlacement(Vec3 anchor, Facing facing, Direction face, float pitch, float opacity) {
 
     /** Offset along the panel normal that lifts a top or bottom panel off the block face. */
     private static final float VERTICAL_FACE_NUDGE = 0.01f;
@@ -45,21 +42,7 @@ public record PanelPlacement(Vec3 anchor, Facing facing, Direction face, float p
                                         float pitch, float opacity) {
         boolean vertical = face == Direction.UP || face == Direction.DOWN;
         Facing facing = vertical ? (flatOnTop ? Facing.FLAT : Facing.BILLBOARD) : Facing.SIDE_FACE;
-        return new PanelPlacement(anchor, facing, face, pitch, opacity, face == Direction.DOWN);
-    }
-
-    /**
-     * Places a panel flat on a horizontal block face, hanging below its anchor, so the
-     * panel grows downward as rows are added.
-     *
-     * @param anchor  the panel's top center in world coordinates
-     * @param face    the horizontal block face the panel stands on
-     * @param pitch   the billboard pitch factor [0, 1]
-     * @param opacity the fade factor [0, 1]
-     * @return the placement
-     */
-    public static PanelPlacement hangingOnFace(Vec3 anchor, Direction face, float pitch, float opacity) {
-        return new PanelPlacement(anchor, Facing.SIDE_FACE, face, pitch, opacity, true);
+        return new PanelPlacement(anchor, facing, face, pitch, opacity);
     }
 
     /**
@@ -71,7 +54,7 @@ public record PanelPlacement(Vec3 anchor, Facing facing, Direction face, float p
      * @return the placement
      */
     public static PanelPlacement onRim(Vec3 anchor, float pitch, float opacity) {
-        return new PanelPlacement(anchor, Facing.RIM, Direction.UP, pitch, opacity, false);
+        return new PanelPlacement(anchor, Facing.RIM, Direction.UP, pitch, opacity);
     }
 
     /**

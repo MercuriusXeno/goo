@@ -27,10 +27,6 @@ class PlexerPanelTargetTest {
     private static final double EPSILON = 1e-9;
     /** How far past the front face the panel stands, in blocks. */
     private static final double STAND_OFF = 0.01;
-    /** The cutaway's floor above the plexer's bottom, model y 8. */
-    private static final double CUTAWAY_FLOOR = 8.0 / 16.0;
-    /** The hatch's height above the plexer's bottom, where ejected items leave. */
-    private static final double HATCH_TOP = 2.0 / 16.0;
 
     @Nested
     class TrackedPos {
@@ -71,12 +67,12 @@ class PlexerPanelTargetTest {
 
     /**
      * A target costing every registered goo type reads one row per type under its name, and
-     * that tallest panel still keeps its top edge under the cutaway's floor at a half block:
-     * the panel hangs from an anchor under the floor, so its rows grow downward.
+     * that tallest panel stands whole above the plexer: its bottom edge just above the plexer's
+     * top, its rows stacking upward, so it covers no cutaway and meets no ground.
      */
     @ParameterizedTest
     @EnumSource(value = Direction.class, names = {"NORTH", "SOUTH", "EAST", "WEST"})
-    void tallestPanelKeepsItsTopUnderTheCutawayFloor(Direction facing) {
+    void tallestPanelStandsWholeAboveThePlexer(Direction facing) {
         Map<ResourceKey<GooTypeDefinition>, Integer> everyType = new LinkedHashMap<>();
         for (ResourceKey<GooTypeDefinition> type : GooTypes.order()) {
             everyType.put(type, 1);
@@ -84,12 +80,11 @@ class PlexerPanelTargetTest {
         List<PanelRow> rows = PlexerPanelRows.rows("Netherite Block", null, new GooValue(everyType));
         PanelPainter.PanelSize size = PanelPainter.measure(rows, text -> 6 * text.length());
         PanelPlacement placement = PlexerPanelTarget.placement(PLEXER, facing, 0f, 1f);
-        double top = placement.anchor().y
-                + (size.height() - PanelPainter.hangDrop(placement, size)) * InWorldHud.PIXEL_SCALE;
+        double bottom = placement.anchor().y - PanelPainter.hangDrop(placement, size) * InWorldHud.PIXEL_SCALE;
 
         assertEquals(GooTypes.order().size() + 1, rows.size());
-        assertTrue(top <= PLEXER.getY() + CUTAWAY_FLOOR,
-                "The panel's top edge stands at " + (top - PLEXER.getY()) + " blocks, over the cutaway's floor");
-        assertTrue(placement.anchor().y - PLEXER.getY() > HATCH_TOP, "The panel's anchor should clear the hatch");
+        assertTrue(bottom > PLEXER.getY() + 1,
+                "The panel's bottom edge stands at " + (bottom - PLEXER.getY()) + " blocks, under the plexer's top");
+        assertEquals(placement.anchor().y, bottom, EPSILON, "The panel should grow upward from its anchor");
     }
 }

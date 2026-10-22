@@ -88,7 +88,7 @@ public final class PlexerHudRenderer {
     }
 
     /**
-     * Paints the target's panel flat on the plexer's front, under the cutaway.
+     * Paints the target's panel flat on the plexer's front, above the plexer.
      *
      * @param poseStack the pose stack for rendering
      * @param camera    the render camera
