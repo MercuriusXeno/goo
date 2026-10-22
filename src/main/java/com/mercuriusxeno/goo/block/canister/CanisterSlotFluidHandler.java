@@ -2,6 +2,10 @@ package com.mercuriusxeno.goo.block.canister;
 
 import com.mercuriusxeno.goo.block.gasket.DemandRelay;
 import com.mercuriusxeno.goo.block.gasket.GasketDemand;
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooRemainders;
+import com.mercuriusxeno.goo.data.IRemainderLedger;
+import com.mercuriusxeno.goo.data.RemainderLedger;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.registry.GooFluids;
@@ -149,6 +153,60 @@ public class CanisterSlotFluidHandler extends SnapshotJournal<CanisterFluidConte
     @Override
     public OptionalInt statedDemand(FluidResource resource) {
         return relay.statedDemand(resource, () -> GasketDemand.restingDemand(resource, capacity(), totalVolume()));
+    }
+
+    /**
+     * The slot's remainder ledger, held in its content so the canister item
+     * carries the remainder when it leaves the slot.
+     * decision one-remainder-capability-injected-into-every-fluid-capability
+     * decision every-producer-consumer-and-container-holds-a-remainder-buffer
+     */
+    private final IRemainderLedger contentLedger = new IRemainderLedger() {
+        @Override
+        public int creditExact(ResourceKey<GooTypeDefinition> type, GooFraction exact) {
+            RemainderLedger exchange = new RemainderLedger(content.remainders());
+            int whole = exchange.creditExact(type, exact);
+            holdRemainders(exchange.remainders());
+            return whole;
+        }
+
+        @Override
+        public OptionalInt debitExact(ResourceKey<GooTypeDefinition> type, GooFraction exact, int availableWhole) {
+            RemainderLedger exchange = new RemainderLedger(content.remainders());
+            OptionalInt whole = exchange.debitExact(type, exact, availableWhole);
+            holdRemainders(exchange.remainders());
+            return whole;
+        }
+
+        @Override
+        public GooRemainders remainders() {
+            return content.remainders();
+        }
+    };
+
+    /**
+     * The slot's remainder ledger.
+     *
+     * @return the ledger
+     */
+    public IRemainderLedger ledger() {
+        return contentLedger;
+    }
+
+    /**
+     * Sets the content's remainders in a root transaction, notifying the owner where they moved.
+     *
+     * @param remainders the remainders to hold
+     */
+    private void holdRemainders(GooRemainders remainders) {
+        if (remainders.equals(content.remainders())) {
+            return;
+        }
+        try (var tx = Transaction.openRoot()) {
+            updateSnapshots(tx);
+            content = content.withRemainders(remainders);
+            tx.commit();
+        }
     }
 
     // --- ResourceHandler ---
@@ -366,11 +424,12 @@ public class CanisterSlotFluidHandler extends SnapshotJournal<CanisterFluidConte
      */
     public GooContents toGooContents() {
         Map<ResourceKey<GooTypeDefinition>, Integer> volumes = content.gooVolumes();
-        return volumes.isEmpty() ? GooContents.EMPTY : new GooContents(volumes);
+        GooRemainders remainders = content.remainders();
+        return volumes.isEmpty() && remainders.isEmpty() ? GooContents.EMPTY : new GooContents(volumes, remainders);
     }
 
     /**
-     * Loads from a GooContents snapshot, every type it holds. Suppresses callbacks.
+     * Loads from a GooContents snapshot, every type it holds and its remainders. Suppresses callbacks.
      *
      * @param contents the goo contents to load
      */
@@ -378,7 +437,7 @@ public class CanisterSlotFluidHandler extends SnapshotJournal<CanisterFluidConte
         List<CanisterFluidContent.Portion> portions = new ArrayList<>();
         contents.getAll().forEach((type, volume) -> portions.add(
                 new CanisterFluidContent.Portion(GooFluids.resource(type), Math.min(volume, Integer.MAX_VALUE))));
-        loadFrom(new CanisterFluidContent(portions));
+        loadFrom(new CanisterFluidContent(portions, contents.remainders()));
     }
 
     // --- CanisterFluidContent bridge ---

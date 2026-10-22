@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.hud;
 
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -45,21 +46,22 @@ final class PlexerPanelRows {
     }
 
     /**
-     * Decision values-are-fractions-melt-floors-fabricate-ceils: the plexer charges the
-     * ceiling of each type, so the panel reads the ceiling.
+     * The target's exact cost in each type, as a mixed number.
+     * decision tooltip-and-plexer-hud-show-a-mixed-number
      *
      * @param value the target's goo value
      * @return one row per type, its icon beside its cost, ordered by type id
      */
     private static List<PanelRow> costRows(GooValue value) {
-        return value.fabricateCeilingAll().entrySet().stream()
+        return value.exactAll().entrySet().stream()
+                .filter(entry -> entry.getValue().isPositive())
                 .sorted(Comparator.comparing(entry -> GooTypes.id(entry.getKey())))
                 .map(PlexerPanelRows::costRow)
                 .toList();
     }
 
-    private static PanelRow costRow(Map.Entry<ResourceKey<GooTypeDefinition>, Integer> cost) {
-        return PanelRow.iconText(PanelPainter.gooIcon(cost.getKey()), GooFormat.formatAmount(cost.getValue()),
+    private static PanelRow costRow(Map.Entry<ResourceKey<GooTypeDefinition>, GooFraction> cost) {
+        return PanelRow.iconText(PanelPainter.gooIcon(cost.getKey()), GooFormat.formatMixed(cost.getValue()),
                 PanelPainter.TEXT_COLOR);
     }
 }

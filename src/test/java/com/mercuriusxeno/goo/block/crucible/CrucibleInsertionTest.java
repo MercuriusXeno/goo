@@ -1,13 +1,18 @@
 package com.mercuriusxeno.goo.block.crucible;
 
+import com.mercuriusxeno.goo.block.ValuedStack;
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
+import com.mercuriusxeno.goo.data.RemainderLedger;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.Map;
 import static com.mercuriusxeno.goo.data.TestRecipeBuilder.fraction;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -33,15 +38,62 @@ class CrucibleInsertionTest {
         verify(lookup).lookup(STONE);
     }
 
-    @Test
-    void meltingAFractionalItemPaysTheFloorOfEachType() {
-        Identifier carpet = Identifier.withDefaultNamespace("white_carpet");
-        when(lookup.lookup(carpet)).thenReturn(fraction(GooTypes.LEAF, 64, 3, GooTypes.JELLY, 1, 2));
+    /**
+     * Melting credits each item's exact value through the crucible's ledger.
+     * decision melt-and-fabricate-move-the-exact-value-through-a-remainder-buffer
+     */
+    @Nested
+    class ExactMelt {
 
-        CrucibleInsertion.MeltArrival arrival = CrucibleInsertion.meltArrival(GooContents.EMPTY, carpet, 1, lookup);
+        private static final Identifier CARPET = Identifier.withDefaultNamespace("white_carpet");
+        private static final Identifier PEBBLE = Identifier.fromNamespaceAndPath("goo", "pebble");
 
-        assertEquals(21, arrival.arriving().getVolume(GooTypes.LEAF));
-        assertEquals(0, arrival.arriving().getVolume(GooTypes.JELLY));
+        private final RemainderLedger ledger = new RemainderLedger();
+
+        @Test
+        void oneItemWorthSixtyFourThirdsPaysTwentyOneAndKeepsAThird() {
+            when(lookup.lookup(CARPET)).thenReturn(fraction(GooTypes.LEAF, 64, 3));
+
+            CrucibleInsertion.MeltArrival arrival = CrucibleInsertion.meltArrival(GooContents.EMPTY, CARPET, 1, lookup, ledger);
+
+            assertEquals(21, arrival.arriving().getVolume(GooTypes.LEAF));
+            assertEquals(GooFraction.of(1, 3), ledger.remainders().of(GooTypes.LEAF));
+        }
+
+        @Test
+        void threeItemsWorthSixtyFourThirdsPaySixtyFourAndKeepNothing() {
+            when(lookup.lookup(CARPET)).thenReturn(fraction(GooTypes.LEAF, 64, 3));
+
+            CrucibleInsertion.MeltArrival arrival = CrucibleInsertion.meltArrival(GooContents.EMPTY, CARPET, 3, lookup, ledger);
+
+            assertEquals(64, arrival.arriving().getVolume(GooTypes.LEAF));
+            assertTrue(ledger.remainders().isEmpty());
+        }
+
+        @Test
+        void anItemWorthAThirdPaysOneOnTheThird() {
+            when(lookup.lookup(PEBBLE)).thenReturn(fraction(GooTypes.ROCK, 1, 3));
+
+            int[] paid = new int[3];
+            for (int i = 0; i < paid.length; i++) {
+                paid[i] = CrucibleInsertion.meltArrival(GooContents.EMPTY, PEBBLE, 1, lookup, ledger)
+                        .arriving().getVolume(GooTypes.ROCK);
+            }
+
+            assertArrayEquals(new int[] {0, 0, 1}, paid);
+        }
+
+        @Test
+        void theQueuedStacksCarryEveryMbThatArrives() {
+            when(lookup.lookup(CARPET)).thenReturn(fraction(GooTypes.LEAF, 64, 3));
+
+            CrucibleInsertion.MeltArrival arrival = CrucibleInsertion.meltArrival(GooContents.EMPTY, CARPET, 3, lookup, ledger);
+
+            int queued = arrival.stacks().stream().mapToInt(stack -> stack.count() * stack.unit().getVolume(GooTypes.LEAF)).sum();
+            int items = arrival.stacks().stream().mapToInt(ValuedStack::count).sum();
+            assertEquals(64, queued);
+            assertEquals(3, items);
+        }
     }
 
     @Test

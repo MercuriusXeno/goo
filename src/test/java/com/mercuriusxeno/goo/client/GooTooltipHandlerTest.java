@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client;
 
 import com.mercuriusxeno.goo.client.tooltip.GooValueTooltipComponent;
 import com.mercuriusxeno.goo.client.tooltip.VanillaFluidTooltipComponent;
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
@@ -101,11 +102,19 @@ class GooTooltipHandlerTest {
                     new GooValueTooltipComponent(GooTypes.NETHER, CONTAINER_AMOUNT)), shapes(elements));
         }
 
+        /**
+         * An item's melt rows read its exact value, a share under 1 included.
+         * decision tooltip-and-plexer-hud-show-a-mixed-number
+         */
         @Test
-        void anItemReadsWhatItMeltsIntoAndNoRowForAShareUnderOne() {
-            GooTooltipHandler.appendMeltRows(elements, fraction(GooTypes.LEAF, 64, 3, GooTypes.JELLY, 1, 2));
+        void anItemReadsItsExactValueEvenAShareUnderOne() {
+            GooTooltipHandler.appendMeltRows(elements, fraction(GooTypes.LEAF, 64, 3, GooTypes.ROCK, 1, 3));
 
-            assertEquals(List.of(TITLE, new GooValueTooltipComponent(GooTypes.LEAF, 21)), shapes(elements));
+            List<Object> rows = shapes(elements);
+            assertEquals(3, rows.size());
+            assertTrue(rows.containsAll(List.of(new GooValueTooltipComponent(GooTypes.LEAF, GooFraction.of(64, 3)),
+                    new GooValueTooltipComponent(GooTypes.ROCK, GooFraction.of(1, 3)))));
+            assertEquals("21 1/3", GooFormat.formatMixed(GooFraction.of(64, 3)));
         }
 
         @Test

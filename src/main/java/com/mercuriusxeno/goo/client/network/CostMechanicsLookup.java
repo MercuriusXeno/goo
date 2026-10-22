@@ -1,8 +1,8 @@
 package com.mercuriusxeno.goo.client.network;
 
+import com.mercuriusxeno.goo.data.GooFraction;
 import net.minecraft.resources.Identifier;
 import java.util.function.Function;
-import java.util.function.ToIntFunction;
 
 /**
  * What a cost-mechanics format string fills from on the client: the lang
@@ -10,9 +10,9 @@ import java.util.function.ToIntFunction;
  * decision zero-cost-field-formats-the-cost-mechanics
  *
  * @param lang  resolves a translation key to its text
- * @param value the goo value of an item in the ability's type, in mB
+ * @param value the exact goo value of an item in the ability's type
  */
-public record CostMechanicsLookup(Function<String, String> lang, ToIntFunction<Identifier> value) {
+public record CostMechanicsLookup(Function<String, String> lang, Function<Identifier, GooFraction> value) {
 
     /**
      * The text a translation key resolves to.
@@ -25,12 +25,13 @@ public record CostMechanicsLookup(Function<String, String> lang, ToIntFunction<I
     }
 
     /**
-     * The goo value of an item in the ability's type.
+     * The exact goo value of an item in the ability's type.
+     * decision tooltip-and-plexer-hud-show-a-mixed-number
      *
      * @param item the item id
-     * @return the value in mB
+     * @return the exact value
      */
-    public int valueOf(Identifier item) {
-        return value.applyAsInt(item);
+    public GooFraction valueOf(Identifier item) {
+        return value.apply(item);
     }
 }

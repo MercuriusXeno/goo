@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.item;
 
 import com.google.gson.JsonObject;
+import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.type.GooTypes;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
@@ -136,6 +138,24 @@ class CanisterFluidContentTest {
 
     @Nested
     class SavedShape {
+
+        /**
+         * A canister leaving its slot carries its remainder in its component.
+         * decision every-producer-consumer-and-container-holds-a-remainder-buffer
+         */
+        @Test
+        void theCodecCarriesTheRemainder() {
+            Codec<FluidResource> byName = Codec.STRING.xmap(name -> blaze, resource -> BLAZE_NAME);
+            Codec<CanisterFluidContent> codec = CanisterFluidContent.codecOver(byName);
+            CanisterFluidContent held = CanisterFluidContent.of(blaze, SAVED_VOLUME)
+                    .withRemainders(GooRemainders.EMPTY.with(GooTypes.BLAZE, GooFraction.of(1, 3)));
+
+            CanisterFluidContent loaded = codec.parse(JsonOps.INSTANCE,
+                    codec.encodeStart(JsonOps.INSTANCE, held).getOrThrow()).getOrThrow();
+
+            assertEquals(GooFraction.of(1, 3), loaded.remainders().of(GooTypes.BLAZE));
+            assertEquals(SAVED_VOLUME, loaded.volumeOf(blaze));
+        }
 
         @Test
         void theSingleFluidShapeLoadsWithItsOneTypeAndVolume() {

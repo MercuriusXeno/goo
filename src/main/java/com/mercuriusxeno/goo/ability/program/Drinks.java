@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.ability.program;
 
+import com.mercuriusxeno.goo.data.GooValue;
+import com.mercuriusxeno.goo.data.IRemainderLedger;
+import com.mercuriusxeno.goo.data.RemainderLedger;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooStacks;
 import com.mercuriusxeno.goo.network.DrinkPayload;
@@ -42,13 +45,13 @@ public final class Drinks {
     /**
      * One block picked into the glove.
      *
-     * @param goo    the goo it gives
+     * @param value  its exact goo value, credited through the player's ledger when it is paid
      * @param picked the game time it was picked, the square leaving the hand
      * @param start  the game time the square lands and it starts to melt
      * @param end    the game time it is drained and the stand-in goes
      * @param payAt  the game time its tail has reached the hand and its goo is paid
      */
-    public record Siphon(GooContents goo, long picked, long start, long end, long payAt) {
+    public record Siphon(GooValue value, long picked, long start, long end, long payAt) {
     }
 
     /**
@@ -149,10 +152,10 @@ public final class Drinks {
          * Ends each siphon whose goo has reached the hand.
          *
          * @param now the game time
-         * @return each such block with the goo it gives
+         * @return each such block with its exact goo value
          */
-        Map<BlockPos, GooContents> payDue(long now) {
-            Map<BlockPos, GooContents> paid = new LinkedHashMap<>();
+        Map<BlockPos, GooValue> payDue(long now) {
+            Map<BlockPos, GooValue> paid = new LinkedHashMap<>();
             Iterator<Map.Entry<BlockPos, Siphon>> due = siphons.entrySet().iterator();
             while (due.hasNext()) {
                 Map.Entry<BlockPos, Siphon> siphon = due.next();
@@ -160,7 +163,7 @@ public final class Drinks {
                     due.remove();
                     begun.remove(siphon.getKey());
                     drained.remove(siphon.getKey());
-                    paid.put(siphon.getKey(), siphon.getValue().goo());
+                    paid.put(siphon.getKey(), siphon.getValue().value());
                 }
             }
             return paid;
@@ -225,7 +228,7 @@ public final class Drinks {
             ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
             drink.beginDue(now);
             drink.drainDue(now);
-            drink.payDue(now).forEach((pos, goo) -> payOut(drink.level(), player, pos, goo));
+            drink.payDue(now).forEach((pos, value) -> payOut(drink.level(), player, pos, value));
             if (!drink.heldAt(now) && !drink.streaming()) {
                 entries.remove();
             } else if (player != null && drink.streaming()) {
@@ -235,20 +238,21 @@ public final class Drinks {
     }
 
     /**
-     * Pays a finished block's goo into the player's inventory, dropping at
-     * their feet only what has no space; a player who has left has it drop
-     * where the block stood.
+     * Pays a finished block's goo into the player's inventory, its exact value
+     * credited through their ledger, dropping at their feet only what has no
+     * space; a player who has left has the whole mB drop where the block stood.
      *
      * @param level  the level
      * @param player the drinking player, or null once they have left
      * @param pos    the finished block
-     * @param goo    its goo
+     * @param value  its exact goo value
      */
-    static void payOut(ServerLevel level, @Nullable ServerPlayer player, BlockPos pos, GooContents goo) {
+    static void payOut(ServerLevel level, @Nullable ServerPlayer player, BlockPos pos, GooValue value) {
         if (player == null) {
-            GooStacks.dropAll(goo, level, pos);
+            GooStacks.dropAll(payoutThrough(value, new RemainderLedger()), level, pos);
             return;
         }
+        GooContents goo = payoutThrough(value, new PlayerRemainderLedger(player));
         for (Map.Entry<ResourceKey<GooTypeDefinition>, Integer> entry : goo.getAll().entrySet()) {
             ItemStack stack = GooStacks.createForOutput(entry.getKey(), entry.getValue());
             if (!stack.isEmpty() && !player.addItem(stack) && !stack.isEmpty()) {
@@ -257,6 +261,19 @@ public final class Drinks {
                 level.addFreshEntity(item);
             }
         }
+    }
+
+    /**
+     * What a drunk block lands: its exact value credited through the ledger, the
+     * whole mB the credit answers landing and the part under 1 mB staying on the ledger.
+     * decision melt-and-fabricate-move-the-exact-value-through-a-remainder-buffer
+     *
+     * @param value  the block's exact goo value
+     * @param ledger the drinking player's ledger
+     * @return the whole mB that land
+     */
+    static GooContents payoutThrough(GooValue value, IRemainderLedger ledger) {
+        return new GooContents(ledger.creditAllExact(value.exactAll()));
     }
 
     /** Forgets every drink, as a server stop does. */

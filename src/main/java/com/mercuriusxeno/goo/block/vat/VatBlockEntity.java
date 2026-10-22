@@ -382,7 +382,7 @@ public class VatBlockEntity extends GooGlowingMachineBlockEntity implements IGoo
     protected void applyImplicitComponents(@NonNull DataComponentGetter getter) {
         super.applyImplicitComponents(getter);
         GooContents contents = VatSerialization.applyContents(getter);
-        if (!contents.isEmpty()) {
+        if (!contents.holdsNothing()) {
             fluidHandler.loadFrom(contents);
         }
         gooLabel = getter.get(GooDataComponents.GOO_LABEL.get());

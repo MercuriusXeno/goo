@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.SpireFootprint;
 import com.mercuriusxeno.goo.ability.SpireGrowth;
 import com.mercuriusxeno.goo.ability.program.FootprintHost;
 import com.mercuriusxeno.goo.ability.program.HostKind;
+import com.mercuriusxeno.goo.ability.program.PlayerRemainderLedger;
 import com.mercuriusxeno.goo.ability.program.ProgramBehavior;
 import com.mercuriusxeno.goo.ability.program.ProgramLoadException;
 import com.mercuriusxeno.goo.data.GooValues;
@@ -21,6 +22,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.Nullable;
 import java.util.Optional;
+import java.util.OptionalInt;
 
 /**
  * Server side of a Spire's submit: the footprint is checked against the caps
@@ -110,10 +112,14 @@ public final class GooSpireHandler {
         int holdings = GooSourceScanner.aggregateAvailable(player).getOrDefault(gooType, 0);
         Optional<SpireGrowth> plan = SpireGrowth.affordable(level, payload.footprint(), GooValues.of(level),
                 gooType, holdings);
-        if (plan.isEmpty() || !GooSourceScanner.hasEnough(player, gooType, plan.get().cost())) {
+        if (plan.isEmpty()) {
             return;
         }
-        GooSourceScanner.deplete(player, gooType, plan.get().cost());
+        OptionalInt charged = plan.get().chargeThrough(new PlayerRemainderLedger(player), gooType, holdings);
+        if (charged.isEmpty()) {
+            return;
+        }
+        GooSourceScanner.deplete(player, gooType, charged.getAsInt());
         GooThrowHandler.consumeReagents(player, payload.abilityId(), gooType);
         try {
             ProgramBehavior.forHost(ability.behaviors(), HostKind.FOOTPRINT).tick(new FootprintHost(level, plan.get()));
