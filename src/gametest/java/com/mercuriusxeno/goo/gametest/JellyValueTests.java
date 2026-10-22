@@ -53,13 +53,13 @@ public final class JellyValueTests {
         // decision goo-values-reviewed-against-the-new-types: a denied food, such as a fish bucket, holds no value to carry jelly
         List<Identifier> unjellied = foods.stream()
                 .filter(id -> !values.isDenied(id))
-                .filter(id -> jellyOf(values.lookup(id)) <= 0)
+                .filter(id -> !holdsJelly(values.lookup(id)))
                 .toList();
         helper.assertTrue(unjellied.isEmpty(), UNJELLIED_FOODS + unjellied);
         helper.succeed();
     }
 
-    private static int jellyOf(GooValue value) {
-        return value == null ? 0 : value.get(GooTypes.JELLY);
+    private static boolean holdsJelly(GooValue value) {
+        return value != null && value.exact(GooTypes.JELLY).isPositive();
     }
 }

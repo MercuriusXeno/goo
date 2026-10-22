@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import static com.mercuriusxeno.goo.data.TestRecipeBuilder.fraction;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -98,6 +99,13 @@ class GooTooltipHandlerTest {
                     new GooValueTooltipComponent(GooTypes.ROCK, CONTENT_AMOUNT),
                     "+",
                     new GooValueTooltipComponent(GooTypes.NETHER, CONTAINER_AMOUNT)), shapes(elements));
+        }
+
+        @Test
+        void anItemReadsWhatItMeltsIntoAndNoRowForAShareUnderOne() {
+            GooTooltipHandler.appendMeltRows(elements, fraction(GooTypes.LEAF, 64, 3, GooTypes.JELLY, 1, 2));
+
+            assertEquals(List.of(TITLE, new GooValueTooltipComponent(GooTypes.LEAF, 21)), shapes(elements));
         }
 
         @Test

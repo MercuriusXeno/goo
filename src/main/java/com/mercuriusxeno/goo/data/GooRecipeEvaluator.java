@@ -26,7 +26,7 @@ final class GooRecipeEvaluator {
      * @return true if candidate is cheaper than current
      */
     static boolean isCheaper(GooValue candidate, GooValue current) {
-        return candidate.totalGoo() < current.totalGoo();
+        return candidate.totalExact().compareTo(current.totalExact()) < 0;
     }
 
     /**
@@ -97,8 +97,9 @@ final class GooRecipeEvaluator {
      * @return true if candidate is cheaper, or equal and simpler
      */
     static boolean isCheaperOrSimpler(GooValue candidate, GooValue current) {
-        if (candidate.totalGoo() != current.totalGoo()) {
-            return candidate.totalGoo() < current.totalGoo();
+        int byTotal = candidate.totalExact().compareTo(current.totalExact());
+        if (byTotal != 0) {
+            return byTotal < 0;
         }
         return candidate.typeCount() < current.typeCount();
     }

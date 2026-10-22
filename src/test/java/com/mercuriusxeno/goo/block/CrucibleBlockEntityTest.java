@@ -16,14 +16,14 @@ import static org.junit.jupiter.api.Assertions.*;
 @ExtendWith(MockitoExtension.class)
 class CrucibleBlockEntityTest {
 
-    // -- GooValue.toGooContents ------------------------------------------
+    // -- GooValue.meltPayout ---------------------------------------------
 
     /**
      * Empty GooValue produces EMPTY GooContents.
      */
     @Test
     void emptyGooValueProducesEmptyGooContents() {
-        GooContents result = GooValue.EMPTY.toGooContents();
+        GooContents result = GooValue.EMPTY.meltPayout();
         assertTrue(result.isEmpty());
     }
 
@@ -33,7 +33,7 @@ class CrucibleBlockEntityTest {
     @Test
     void singleTypeGooValueConvertsToGooContents() {
         GooValue value = new GooValue(Map.of(GooTypes.ROCK, 500));
-        GooContents result = value.toGooContents();
+        GooContents result = value.meltPayout();
         assertEquals(500, result.getVolume(GooTypes.ROCK));
         assertEquals(1, result.typeCount());
     }
@@ -48,7 +48,7 @@ class CrucibleBlockEntityTest {
                 GooTypes.METAL, 250,
                 GooTypes.JELLY, 50
         ));
-        GooContents result = value.toGooContents();
+        GooContents result = value.meltPayout();
         assertEquals(100, result.getVolume(GooTypes.ROCK));
         assertEquals(250, result.getVolume(GooTypes.METAL));
         assertEquals(50, result.getVolume(GooTypes.JELLY));

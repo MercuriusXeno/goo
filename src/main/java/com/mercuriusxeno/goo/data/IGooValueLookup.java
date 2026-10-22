@@ -15,7 +15,7 @@ import java.util.function.Function;
 public interface IGooValueLookup {
 
     /**
-     * Returns the item ID with the lowest {@link GooValue#totalGoo()} among {@code candidates},
+     * Returns the item ID with the lowest {@link GooValue#totalExact()} among {@code candidates},
      * using {@code lookup} to resolve each ID. Null and empty values are skipped. On equal totals
      * the simplest, the value holding fewer goo types, wins (operator ruling: cheapest wins, simplest
      * breaks a tie), then the lower ID, so the pick never rests on set order.
@@ -40,8 +40,9 @@ public interface IGooValueLookup {
     }
 
     private static boolean beats(GooValue candidate, Identifier candidateId, GooValue held, Identifier heldId) {
-        if (candidate.totalGoo() != held.totalGoo()) {
-            return candidate.totalGoo() < held.totalGoo();
+        int byTotal = candidate.totalExact().compareTo(held.totalExact());
+        if (byTotal != 0) {
+            return byTotal < 0;
         }
         if (candidate.typeCount() != held.typeCount()) {
             return candidate.typeCount() < held.typeCount();

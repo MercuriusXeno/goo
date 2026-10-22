@@ -85,6 +85,7 @@ public record SpireGrowth(SpireFootprint footprint, List<BlockPos> columns, int 
 
     private static int stonePrice(IGooValueLookup values, ResourceKey<GooTypeDefinition> gooType) {
         GooValue value = values.lookup(STONE_ITEM);
-        return value == null ? 0 : value.get(gooType);
+        // Decision values-are-fractions-melt-floors-fabricate-ceils: making stone costs the ceiling.
+        return value == null ? 0 : value.fabricateCeiling(gooType);
     }
 }

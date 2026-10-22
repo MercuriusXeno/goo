@@ -167,7 +167,7 @@ final class GooValueDerivation {
         GooValue base = baseValues.get(itemId);
         GooValue derived = derivedValues.get(itemId);
         if (base != null && derived != null) {
-            return base.totalGoo() <= derived.totalGoo() ? base : derived;
+            return base.totalExact().compareTo(derived.totalExact()) <= 0 ? base : derived;
         }
         return base != null ? base : derived;
     }
@@ -201,8 +201,7 @@ final class GooValueDerivation {
                 Map.copyOf(derivationSources),
                 buildEffectiveValues(baseValues, derivedValues, baseOverride),
                 GooDerivationDiagnostics.detectConflicts(baseValues, derivedValues),
-                GooDerivationDiagnostics.detectCycles(byOutput, baseValues),
-                GooDerivationDiagnostics.detectDivisibilityLoss(byOutput, baseValues, derivedValues)
+                GooDerivationDiagnostics.detectCycles(byOutput, baseValues)
         );
     }
 
