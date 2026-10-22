@@ -17,8 +17,8 @@ class GooFormatTest {
      */
     @Test
     void anExactAmountReadsAsAMixedNumber() {
-        assertEquals("21 1/3", GooFormat.formatMixed(GooFraction.of(64, 3)));
-        assertEquals("1/3", GooFormat.formatMixed(GooFraction.of(1, 3)));
+        assertEquals("21¹⁄₃", GooFormat.formatMixed(GooFraction.of(64, 3)));
+        assertEquals("¹⁄₃", GooFormat.formatMixed(GooFraction.of(1, 3)));
         assertEquals("22", GooFormat.formatMixed(GooFraction.of(22)));
         assertEquals("1.2K", GooFormat.formatMixed(GooFraction.of(1_200)));
     }
