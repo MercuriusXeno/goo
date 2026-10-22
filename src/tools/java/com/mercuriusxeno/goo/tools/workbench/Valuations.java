@@ -15,6 +15,7 @@ import org.jspecify.annotations.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -61,8 +62,15 @@ final class Valuations {
     private static final String ROW_SOURCE = "source";
     private static final String SOURCE_ENTRY = "entry";
     private static final String SOURCE_GROUP = "group #";
-    private static final String SOURCE_DERIVED = "derived from recipe";
-    private static final String SOURCE_RECIPE = "(recipe)";
+    private static final String ROW_FROM = "from";
+    private static final String FROM_KIND = "kind";
+    private static final String FROM_ANCESTOR = "ancestor";
+    private static final String FROM_RECIPE = "recipe";
+    private static final String FROM_ITEM = "item";
+    private static final String FROM_CHAIN = "chain";
+    private static final String FROM_PRIME = "prime";
+    private static final String FROM_GRID = "grid";
+    private static final String FROM_COUNT = "count";
     // A #name the file reads anywhere, whose group's members it then covers.
     private static final Pattern GROUP_REFERENCE = Pattern.compile("#([A-Za-z0-9_:./-]+)");
 
@@ -301,15 +309,69 @@ final class Valuations {
         row.addProperty(ROW_NAME, inventory.nameOf(id));
         row.addProperty(ROW_DEFINED_AS, own != null ? own.text()
                 : group != null ? TAG_PREFIX + group + CONTEXT_END + " " + model.member(TAG_PREFIX + group).text()
-                : derived.derived().contains(member) ? SOURCE_RECIPE : "");
+                : "");
         row.add(ROW_AMOUNTS, amountsJson(value));
         row.addProperty(ROW_MELTS, amounts(value, amount -> Integer.toString(amount.floor())));
         row.addProperty(ROW_COSTS, amounts(value, amount -> Integer.toString(amount.ceiling())));
         row.addProperty(ROW_SOURCE, loaded.denied().contains(member) ? DENIED
                 : own != null ? SOURCE_ENTRY
                 : group != null ? SOURCE_GROUP + group
-                : derived.derived().contains(member) ? SOURCE_DERIVED : NONE);
+                : derived.derived().contains(member) ? "" : NONE);
+        if (own == null && group == null && derived.derived().contains(member)) {
+            row.add(ROW_FROM, from(member, inventory, derived));
+        }
         return row;
+    }
+
+    /**
+     * Where a derived item's value comes from: up the chain of single-input recipes to the prime ancestor, the
+     * item no recipe values, which the file keys by hand; or, where the item's own recipe mixes inputs, that
+     * recipe. A chain stopping at a mixed recipe ends at an ancestor that is not prime.
+     */
+    private static JsonObject from(Identifier item, InventoryView inventory, GooBaseValuesPreview.Derived derived) {
+        Map<Identifier, RecipeInput> byOutput = new HashMap<>();
+        derived.recipes().forEach(recipe -> byOutput.putIfAbsent(recipe.output(), recipe));
+        List<Identifier> chain = new ArrayList<>();
+        Set<Identifier> seen = new HashSet<>(Set.of(item));
+        Identifier current = item;
+        RecipeInput recipe = byOutput.get(current);
+        Identifier input = recipe == null ? null : soleInput(recipe);
+        while (input != null && seen.add(input)) {
+            chain.add(input);
+            current = input;
+            recipe = byOutput.get(current);
+            input = recipe == null ? null : soleInput(recipe);
+        }
+        JsonObject from = new JsonObject();
+        if (chain.isEmpty()) {
+            InventoryView.Recipe drawn = recipeFor(item.toString(), inventory, derived.recipes());
+            from.addProperty(FROM_KIND, FROM_RECIPE);
+            JsonArray grid = new JsonArray();
+            (drawn == null ? Arrays.asList(new String[GRID_SIDE * GRID_SIDE]) : grid(drawn)).forEach(grid::add);
+            from.add(FROM_GRID, grid);
+            from.addProperty(FROM_COUNT, drawn == null ? 0 : drawn.count());
+            return from;
+        }
+        from.addProperty(FROM_KIND, FROM_ANCESTOR);
+        from.addProperty(FROM_ITEM, current.toString());
+        JsonArray ids = new JsonArray();
+        chain.forEach(id -> ids.add(id.toString()));
+        from.add(FROM_CHAIN, ids);
+        from.addProperty(FROM_PRIME, byOutput.get(current) == null);
+        return from;
+    }
+
+    /**
+     * @param recipe a valuing recipe
+     * @return the one item every slot takes, or null where the slots mix items or take a tag's alternatives
+     */
+    private static @Nullable Identifier soleInput(RecipeInput recipe) {
+        Set<Set<Identifier>> slots = new HashSet<>(recipe.ingredientAlternatives());
+        if (slots.size() != 1) {
+            return null;
+        }
+        Set<Identifier> only = slots.iterator().next();
+        return only.size() == 1 ? only.iterator().next() : null;
     }
 
     private static @Nullable String groupValuing(BaseValuesModel model, String id) {

@@ -111,6 +111,9 @@ details.dump-section pre { margin: 0; padding: 0 14px 12px; font-size: 12px; ove
 .craft-grid { display: grid; grid-template-columns: repeat(3, 32px); gap: 2px; background: var(--control); padding: 2px; border-radius: 4px; }
 .craft-cell { width: 32px; height: 32px; background: #8b8b8b; display: flex; align-items: center; justify-content: center; }
 .craft-cell img { width: 24px; height: 24px; }
+.from-cell { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; font-size: 12px; }
+.name-link.prime { font-weight: 600; }
+.craft-grid[hidden] { display: none; }
 .hover-value { font-size: 12px; background: var(--ground); border-radius: 6px; padding: 6px 10px; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 @media (max-width: 640px) {
@@ -1032,16 +1035,69 @@ function renderFamily() {
     const name = document.createElement('td');
     name.append(nameButton(row.id, row.name));
     const source = document.createElement('td');
-    const badge = document.createElement('span');
-    const kind = row.source === 'entry' ? 'entry' : row.source.startsWith('group') ? 'group'
-      : row.source === 'denied' ? 'denied' : row.source === 'none' ? 'none' : 'entry';
-    badge.className = 'source ' + kind + '-src';
-    badge.textContent = row.source;
-    source.append(badge);
+    if (row.from) {
+      source.append(fromCell(row.from));
+    } else if (row.source) {
+      const badge = document.createElement('span');
+      const kind = row.source === 'entry' ? 'entry' : row.source.startsWith('group') ? 'group'
+        : row.source === 'denied' ? 'denied' : row.source === 'none' ? 'none' : 'entry';
+      badge.className = 'source ' + kind + '-src';
+      badge.textContent = row.source;
+      source.append(badge);
+    }
     tr.append(image, name, textCell(row.definedAs), textCell(amountsText(row.amounts)), textCell(row.melts),
       textCell(row.costs), source);
     return tr;
   }));
+}
+
+// A derived row's source: its chain of single-input recipes up to the prime ancestor, each a link, or the
+// mixed recipe that values it, drawn on click.
+function fromCell(from) {
+  const holder = document.createElement('div');
+  holder.className = 'from-cell';
+  if (from.kind === 'ancestor') {
+    from.chain.forEach((id) => {
+      const arrow = document.createElement('span');
+      arrow.className = 'hint';
+      arrow.textContent = '← ';
+      const link = nameButton(id, (itemsById().get(id) || { name: id }).name);
+      if (id === from.item && from.prime) {
+        link.classList.add('prime');
+        link.title = 'prime ancestor: no recipe values it';
+      }
+      holder.append(arrow, link, ' ');
+    });
+    if (!from.prime) {
+      const more = document.createElement('button');
+      more.type = 'button';
+      more.className = 'name-link hint';
+      more.textContent = '← recipe';
+      more.addEventListener('click', () => selectItem(from.item));
+      holder.append(more);
+    }
+    return holder;
+  }
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'name-link';
+  toggle.textContent = 'recipe';
+  const grid = document.createElement('div');
+  grid.className = 'craft-grid';
+  grid.hidden = true;
+  grid.append(...from.grid.map((cellId) => {
+    const cell = document.createElement('div');
+    cell.className = 'craft-cell';
+    if (cellId) {
+      cell.title = cellId;
+      cell.append(itemImage(cellId, ''));
+      cell.addEventListener('click', () => selectItem(cellId));
+    }
+    return cell;
+  }));
+  toggle.addEventListener('click', () => { grid.hidden = !grid.hidden; });
+  holder.append(toggle, grid);
+  return holder;
 }
 
 // The editor writes the selected item's own entry in the form the mode names, as the file spells each.

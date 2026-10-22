@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.tools.workbench;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.data.GooBaseValuesPreview;
@@ -14,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -233,5 +235,39 @@ class ValuationsTest {
         assertEquals("metal 12672", hover.melts());
         assertEquals("metal 12672", hover.costs());
         assertEquals(List.of("minecraft:chains"), hover.tags());
+    }
+
+    private static JsonObject familyRow(JsonArray rows, String id) {
+        for (JsonElement row : rows) {
+            if (id.equals(row.getAsJsonObject().get("id").getAsString())) {
+                return row.getAsJsonObject();
+            }
+        }
+        throw new AssertionError(id + " is not in " + rows);
+    }
+
+    /**
+     * A derived row's source names where its value comes from rather than saying it was derived: up the chain
+     * of single-input recipes to the prime ancestor, the hand-keyed item no recipe values, as the ingot made of
+     * raw iron alone; and the recipe itself, its grid drawn, where the first recipe mixes inputs, as the chain of
+     * nuggets and an ingot.
+     */
+    @Test
+    void derivedRowLinksItsPrimeAncestorOrItsRecipe() throws IOException {
+        JsonArray rows = JsonParser.parseString(Valuations.family(shipped(), InventoryView.parse(ironInventory()),
+                "minecraft:iron_chain")).getAsJsonObject().getAsJsonArray("rows");
+        JsonObject chain = familyRow(rows, "minecraft:iron_chain");
+        assertEquals("", chain.get("source").getAsString());
+        assertEquals("", chain.get("definedAs").getAsString());
+        JsonObject chainFrom = chain.getAsJsonObject("from");
+        assertEquals("recipe", chainFrom.get("kind").getAsString());
+        assertTrue(chainFrom.getAsJsonArray("grid").toString().contains("minecraft:iron_ingot"), chainFrom.toString());
+        JsonObject ingotFrom = familyRow(rows, "minecraft:iron_ingot").getAsJsonObject("from");
+        assertEquals("ancestor", ingotFrom.get("kind").getAsString());
+        assertTrue(ingotFrom.get("prime").getAsBoolean(), ingotFrom.toString());
+        JsonArray ancestors = ingotFrom.getAsJsonArray("chain");
+        String prime = ancestors.get(ancestors.size() - 1).getAsString();
+        assertEquals(prime, ingotFrom.get("item").getAsString());
+        assertTrue(Set.of("minecraft:raw_iron", "minecraft:iron_nugget").contains(prime), ingotFrom.toString());
     }
 }
