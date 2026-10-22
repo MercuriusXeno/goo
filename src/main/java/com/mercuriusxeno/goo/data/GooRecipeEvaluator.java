@@ -84,7 +84,32 @@ final class GooRecipeEvaluator {
         if (current == null) {
             return candidate;
         }
-        return isCheaperOrSimpler(candidate.value, current.value) ? candidate : current;
+        return isBetter(candidate, current) ? candidate : current;
+    }
+
+    /**
+     * Between two recipe-derived values the one from an explicit recipe wins whatever the amounts, and at
+     * equal specificity the cheaper, then the simpler.
+     * decision manual-then-explicit-then-generic-then-smaller-then-simpler
+     *
+     * @param candidate the proposed replacement result
+     * @param current   the standing result
+     * @return true if candidate outranks current
+     */
+    static boolean isBetter(RecipeResult candidate, RecipeResult current) {
+        boolean candidateExplicit = isExplicit(candidate.source);
+        if (candidateExplicit != isExplicit(current.source)) {
+            return candidateExplicit;
+        }
+        return isCheaperOrSimpler(candidate.value, current.value);
+    }
+
+    /**
+     * @param recipe a recipe
+     * @return true where no slot comes from a tag
+     */
+    static boolean isExplicit(RecipeInput recipe) {
+        return recipe.slotTagIds().stream().noneMatch(Optional::isPresent);
     }
 
     /**
