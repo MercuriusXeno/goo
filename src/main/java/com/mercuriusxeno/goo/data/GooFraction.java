@@ -9,8 +9,9 @@ import net.minecraft.network.codec.StreamCodec;
 /**
  * An exact amount of goo: a reduced fraction whose denominator is positive.
  * Arithmetic overflows loudly rather than wrapping.
- * Decision values-are-fractions-melt-floors-fabricate-ceils: derivation divides exactly,
- * so a share of a recipe keeps every part of its input.
+ * Derivation divides exactly, so a share of a recipe keeps every part of its input,
+ * and a remainder ledger exchanges any value whole.
+ * decision values-are-fractions-melt-floors-fabricate-ceils
  *
  * @param numerator   the signed numerator, sharing no factor with the denominator
  * @param denominator the positive denominator
@@ -160,7 +161,7 @@ public record GooFraction(long numerator, long denominator) implements Comparabl
     }
 
     /**
-     * The greatest integer at or below this fraction: what melting pays.
+     * The greatest integer at or below this fraction.
      *
      * @return the floor as an int
      */
@@ -169,7 +170,7 @@ public record GooFraction(long numerator, long denominator) implements Comparabl
     }
 
     /**
-     * The least integer at or above this fraction: what fabricating costs.
+     * The least integer at or above this fraction.
      *
      * @return the ceiling as an int
      */
