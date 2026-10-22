@@ -109,7 +109,9 @@ public final class VatStackRedistributor {
      * @param pool the mutable goo pool to take from
      */
     private static void applySlice(VatBlockEntity vat, Map<ResourceKey<GooTypeDefinition>, Integer> pool) {
-        GooContents slice = takeSlice(pool, ContainerCapacity.VAT_BASE, vat.getGooLabel());
+        // decision every-producer-consumer-and-container-holds-a-remainder-buffer
+        GooContents slice = takeSlice(pool, ContainerCapacity.VAT_BASE, vat.getGooLabel())
+                .withRemainders(vat.getContents().remainders());
         if (!slice.equals(vat.getContents())) {
             vat.getFluidHandler().loadFrom(slice);
             vat.syncAfterRedistribution();

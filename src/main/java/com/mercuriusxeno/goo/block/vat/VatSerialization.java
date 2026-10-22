@@ -127,7 +127,7 @@ final class VatSerialization {
      */
     private static void saveContentsAndLabel(VatBlockEntity be, ValueOutput output) {
         GooContents contents = be.fluidHandler.toGooContents();
-        if (!contents.isEmpty()) {
+        if (!contents.holdsNothing()) {
             output.store(TAG_CONTENTS, GooContents.CODEC, contents);
         }
         int water = be.fluidHandler.waterVolume();
@@ -215,7 +215,7 @@ final class VatSerialization {
      * @param contents the goo contents snapshot
      */
     static void collectContents(DataComponentMap.Builder builder, GooContents contents) {
-        if (!contents.isEmpty()) {
+        if (!contents.holdsNothing()) {
             builder.set(GooDataComponents.GOO_CONTENTS.get(), contents);
         }
     }

@@ -30,6 +30,7 @@ import com.mercuriusxeno.goo.ability.xeno.Eldritch;
 import com.mercuriusxeno.goo.ability.zone.Shifter;
 import com.mercuriusxeno.goo.ability.zone.ZoneCurse;
 import com.mercuriusxeno.goo.ability.zoo.Rallied;
+import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.SoulBoundStacks;
 import com.mojang.serialization.Codec;
@@ -139,6 +140,18 @@ public final class GooAttachments {
             ATTACHMENT_TYPES.register("known_items",
                     () -> AttachmentType.builder(() -> KnownItems.NONE)
                             .serialize(KnownItems.CODEC)
+                            .copyOnDeath()
+                            .build());
+
+    /**
+     * A player's remainders, each goo type's part under 1 mB that unmake pays
+     * and ability costs draw, saved with the player and kept through death.
+     * decision every-producer-consumer-and-container-holds-a-remainder-buffer
+     */
+    public static final Supplier<AttachmentType<GooRemainders>> REMAINDERS =
+            ATTACHMENT_TYPES.register("remainders",
+                    () -> AttachmentType.builder(() -> GooRemainders.EMPTY)
+                            .serialize(GooRemainders.CODEC.fieldOf("remainders"), remainders -> !remainders.isEmpty())
                             .copyOnDeath()
                             .build());
 

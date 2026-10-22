@@ -1,5 +1,11 @@
 package com.mercuriusxeno.goo.data;
 
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import io.netty.buffer.ByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+
 /**
  * An exact amount of goo: a reduced fraction whose denominator is positive.
  * Arithmetic overflows loudly rather than wrapping.
@@ -12,6 +18,18 @@ package com.mercuriusxeno.goo.data;
 public record GooFraction(long numerator, long denominator) implements Comparable<GooFraction> {
 
     public static final GooFraction ZERO = new GooFraction(0, 1);
+
+    /** Persistent codec: the numerator and the denominator as longs. */
+    public static final Codec<GooFraction> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+            Codec.LONG.fieldOf("numerator").forGetter(GooFraction::numerator),
+            Codec.LONG.fieldOf("denominator").forGetter(GooFraction::denominator)
+    ).apply(instance, GooFraction::new));
+
+    /** Network codec: the numerator then the denominator as variable-length longs. */
+    public static final StreamCodec<ByteBuf, GooFraction> STREAM_CODEC = StreamCodec.composite(
+            ByteBufCodecs.VAR_LONG, GooFraction::numerator,
+            ByteBufCodecs.VAR_LONG, GooFraction::denominator,
+            GooFraction::new);
 
     private static final String ERR_ZERO_DENOMINATOR = "Goo fraction with a zero denominator: ";
     private static final String DIVIDER = "/";
