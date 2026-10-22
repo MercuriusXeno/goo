@@ -195,8 +195,12 @@ public final class EffectExecutorTests {
     private static final int BARRIER_FLOOR_MAX = 6;
     /** Blocks around the marker searched for popped goo, the reach of the barrier floor. */
     private static final double ITEM_SEARCH_RADIUS = 4;
-    /** Blocks around the marker cleared of leftovers, the one-stack black hole's pull reach. */
-    private static final double LEFTOVER_CLEAR_RADIUS = 9;
+    /**
+     * Blocks past the test's own bay the leftover clear reaches, under the
+     * five-block gap the game test grid leaves between bays, so the clear
+     * never reaches into a neighbouring test's bay.
+     */
+    private static final double LEFTOVER_CLEAR_MARGIN = 2;
     private static final String HOLE_LEFT_STONE = "The black hole left the stone it faced standing";
     private static final String HOLE_SPARED_ZOMBIE = "The black hole left the zombie inside it alive";
     private static final String HOLE_SHOULD_CUT_PLAYER = "A player at full health inside the hole should come out hurt "
@@ -775,16 +779,19 @@ public final class EffectExecutorTests {
     }
 
     /**
-     * Discards every entity but a player within reach of the marker. The
-     * game test server lays tests a few blocks apart and never clears a
-     * finished one, so a pig or an item an earlier test left can stand in
-     * a field effect's radius; a test alone in its environment's batch
-     * runs with nothing else live, so what stands there is a leftover.
+     * Discards every entity but a player within the test's own bay. The game
+     * test server never clears a finished test, so a stray an earlier test
+     * left can stand there. It runs a batch's tests side by side, five
+     * blocks apart, and starts each once its own chunks load, so a neighbour
+     * can start ticks after this test; a clear reaching into the neighbour's
+     * bay discards what that live test spawned, as a nine-block clear once
+     * discarded the diamond black_hole_leaves_a_sphere spawned.
+     * decision black-hole-sphere-test-cause-found-and-removed
      *
      * @param helper the gametest helper
      */
     private static void discardLeftoverEntities(GameTestHelper helper) {
-        AABB reach = new AABB(helper.absolutePos(MARKER_POS)).inflate(LEFTOVER_CLEAR_RADIUS);
+        AABB reach = helper.getBounds().inflate(LEFTOVER_CLEAR_MARGIN);
         helper.getLevel().getEntities((Entity) null, reach, entity -> !(entity instanceof Player))
                 .forEach(Entity::discard);
     }
