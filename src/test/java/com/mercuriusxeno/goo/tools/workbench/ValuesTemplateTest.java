@@ -5,17 +5,17 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.data.GooBaseValuesPreview;
 import org.junit.jupiter.api.Test;
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
- * Tests the template a loadout starts from: every item named, a group and an empty #group entry per tag of
- * two or more members, every item no such tag covers as an empty entry ({}: the loader throws on an empty
- * expression string), the goo types for reference, and the
- * text read by the game's loader (decision template-first-then-defaults-by-convention).
+ * Tests the template a loadout starts from: every item no entry or group covers as an empty entry ({}: the
+ * loader throws on an empty expression string), no group made from a tag, since tags are supported for valuing
+ * and not mandated, the goo types for reference, and the text read by the game's loader
+ * (decision template-first-then-defaults-by-convention).
  */
 class ValuesTemplateTest {
 
@@ -27,19 +27,15 @@ class ValuesTemplateTest {
             List.of("metal", "leaf", "jelly"));
 
     /**
-     * The two-member tag alone becomes a group with an empty #group entry, the four items it leaves stand empty,
-     * and the loader reads the text.
+     * No tag becomes a group, all six items stand empty, and the loader reads the text.
      */
     @Test
-    void templateNamesEveryItemGroupedByTag() throws IOException {
+    void templateNamesEveryItemAndGroupsNoTag() {
         String text = ValuesTemplate.build(LOADOUT).serialize();
         JsonObject root = JsonParser.parseString(text).getAsJsonObject();
-        JsonObject groups = root.getAsJsonObject("_groups");
-        assertEquals(List.of("logs"), List.copyOf(groups.keySet()));
-        assertEquals(List.of("oak_log", "birch_log"),
-                groups.getAsJsonArray("logs").asList().stream().map(JsonElement::getAsString).toList());
-        assertEquals(new JsonObject(), root.get("#logs"));
-        for (String uncovered : List.of("apple", "goo:widget", "stick", "bread")) {
+        assertEquals(new JsonObject(), root.getAsJsonObject("_groups"));
+        assertFalse(root.has("#logs"));
+        for (String uncovered : List.of("oak_log", "birch_log", "apple", "goo:widget", "stick", "bread")) {
             assertEquals(new JsonObject(), root.get(uncovered), uncovered);
         }
         assertEquals(List.of("metal", "leaf", "jelly"),
@@ -48,10 +44,10 @@ class ValuesTemplateTest {
     }
 
     /**
-     * For a file that already stands, the template lists the tags no group carries and the items nothing covers.
+     * For a file that already stands, the template lists the items nothing covers and no tag.
      */
     @Test
-    void leftoversListWhatTheFileLeavesOut() {
+    void leftoversListTheItemsTheFileLeavesOut() {
         BaseValuesModel model = BaseValuesModel.parse("""
                 {
                     "_constants": {},
@@ -59,9 +55,19 @@ class ValuesTemplateTest {
                     "stick": {"leaf": 1}
                 }
                 """);
-        ValuesTemplate.Leftovers leftovers = ValuesTemplate.leftovers(model, LOADOUT);
-        assertEquals(List.of("minecraft:logs"), leftovers.tags());
+        List<String> leftovers = ValuesTemplate.leftovers(model, LOADOUT);
         assertEquals(List.of("minecraft:oak_log", "minecraft:birch_log", "minecraft:apple", "goo:widget",
-                "minecraft:bread"), leftovers.items());
+                "minecraft:bread"), leftovers);
+    }
+
+    /**
+     * The template answer carries the uncovered items and no tag list.
+     */
+    @Test
+    void templateAnswerCarriesNoTagList() {
+        BaseValuesModel model = BaseValuesModel.parse("{\"_constants\": {}, \"_groups\": {}}");
+        JsonObject answer = ValuesTemplate.answer(model, LOADOUT, "base_values.json");
+        assertFalse(answer.has("ungroupedTags"), answer.keySet().toString());
+        assertEquals(6, answer.getAsJsonArray("uncoveredItems").size());
     }
 }

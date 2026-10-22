@@ -238,17 +238,8 @@ public final class ValuesWorkbenchServer {
         if (inventory.items().isEmpty()) {
             return Reply.of(SERVER_ERROR, TEXT, "No inventory stands at " + paths.inventoryFile());
         }
-        BaseValuesModel model = postedModel(exchange);
-        ValuesTemplate.Leftovers leftovers = ValuesTemplate.leftovers(model, inventory.loadout());
-        JsonObject answer = new JsonObject();
-        answer.add("template", com.google.gson.JsonParser.parseString(
-                ModelJson.toJson(ValuesTemplate.build(inventory.loadout()), paths.baseValues().toString())));
-        com.google.gson.JsonArray tags = new com.google.gson.JsonArray();
-        leftovers.tags().forEach(tags::add);
-        com.google.gson.JsonArray items = new com.google.gson.JsonArray();
-        leftovers.items().forEach(items::add);
-        answer.add("ungroupedTags", tags);
-        answer.add("uncoveredItems", items);
+        JsonObject answer = ValuesTemplate.answer(postedModel(exchange), inventory.loadout(),
+                paths.baseValues().toString());
         return Reply.of(OK, JSON, answer.toString());
     }
 

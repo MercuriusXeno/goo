@@ -1391,11 +1391,9 @@ function renderTemplate() {
   if (!answer) {
     return;
   }
-  $('template-summary').textContent = answer.ungroupedTags.length + ' tags no group carries · '
-    + answer.uncoveredItems.length + ' items nothing covers';
+  $('template-summary').textContent = answer.uncoveredItems.length + ' items nothing covers';
   $('template-start').textContent = templateView.confirming ? 'Replace the open file? Click again' : 'Start from the template';
-  $('template-body').replaceChildren(idList('Tags of two or more items no group carries', answer.ungroupedTags),
-    idList('Items no entry or valued group covers', answer.uncoveredItems));
+  $('template-body').replaceChildren(idList('Items no entry or valued group covers', answer.uncoveredItems));
 }
 
 $('template-refresh').addEventListener('click', checkTemplate);
