@@ -211,7 +211,10 @@ details.dump-section pre { margin: 0; padding: 0 14px 12px; font-size: 12px; ove
         </div>
         <p class="hint">The game's lexer reads integers, $name, $tree.type, + - * /, parentheses and a leading count ("9 $iron_nugget"). A tree constant is an object of per-type expressions, such as {"leaf": "$base"}.</p>
       </section>
-      <section class="pane" role="tabpanel" id="pane-processes" data-pane="processes" hidden><div class="pane-card">_conversions and _post_conversions: formulas, additives, stacks and parallel copies.</div></section>
+      <section class="pane" role="tabpanel" id="pane-processes" data-pane="processes" hidden>
+        <div class="field-stack" id="process-sections"></div>
+        <p class="hint">The parser applies each block top to bottom: a formula ("metal / 4 -&gt; yore / 9", "type / N -&gt; 0"), an additive ("+$waxed"), a stack ("2 @oxidation_metal"), then an assignment keyed by its target group ("#exposed": "#copper @exposed_metal @exposed_pulse", a parallel copy "#source * 3 / 4").</p>
+      </section>
       <section class="pane" role="tabpanel" id="pane-audit" data-pane="audit" hidden>
         <div class="field-stack">
           <div class="row-actions">
@@ -1197,6 +1200,130 @@ async function showHover(id, x, y) {
   card.hidden = false;
 }
 
+// --- Processes: _conversions and _post_conversions, each entry checked by the game's conversion parser ---
+
+const PROCESS_FORMS = {
+  FORMULA: 'metal / 4 -> yore / 9',
+  ADDITIVE: '+$waxed',
+  STACK: '2 @oxidation_metal',
+  ASSIGNMENT: '#copper @exposed_metal'
+};
+
+async function describeProcesses() {
+  try {
+    const answer = await fetchJson('/api/processes', { method: 'POST', body: JSON.stringify(state.model) });
+    renderProcesses(answer.sections);
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+}
+
+function processEdited() {
+  markEdited();
+  describeProcesses();
+}
+
+function processRow(section, process, index, block) {
+  const entry = section.entries[index];
+  const row = document.createElement('tr');
+  const kind = document.createElement('span');
+  kind.className = 'kind' + (process.kind === 'ASSIGNMENT' ? ' tree' : '');
+  kind.textContent = process.kind.toLowerCase();
+  const value = textField(shownText(entry.text), true);
+  value.setAttribute('aria-label', 'Process ' + entry.key);
+  value.setAttribute('aria-invalid', String(!process.parsed));
+  value.addEventListener('change', () => { entry.text = JSON.stringify(value.value.trim()); processEdited(); });
+  const verdict = document.createElement('span');
+  verdict.className = 'mono ' + (process.parsed ? 'resolves' : 'error');
+  verdict.textContent = process.parsed ? 'parsed' : (process.error || 'the parser refuses it');
+  const move = (by) => {
+    const target = index + by;
+    if (target < 0 || target >= block.length) {
+      return;
+    }
+    [section.entries[index], section.entries[target]] = [section.entries[target], section.entries[index]];
+    processEdited();
+  };
+  const actions = document.createElement('div');
+  actions.className = 'row-actions';
+  actions.append(button('Up', () => move(-1), index === 0 ? 'Already first' : null),
+    button('Down', () => move(1), index === block.length - 1 ? 'Already last' : null),
+    button('Delete', () => { section.entries.splice(index, 1); processEdited(); }));
+  const key = document.createElement('span');
+  key.className = 'mono';
+  key.textContent = entry.key;
+  row.append(cell(key), cell(kind), cell(value), cell(verdict), cell(actions));
+  return row;
+}
+
+function addProcessForm(section) {
+  const box = document.createElement('div');
+  box.className = 'row-actions';
+  const form = document.createElement('select');
+  form.className = 'field narrow';
+  form.setAttribute('aria-label', 'Form of the new process in ' + section.key);
+  Object.keys(PROCESS_FORMS).forEach((name) => {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = name.toLowerCase();
+    form.append(option);
+  });
+  const key = textField('', true);
+  key.placeholder = 'name, or #target for an assignment';
+  key.setAttribute('aria-label', 'Key of the new process');
+  const value = textField('', true);
+  value.placeholder = PROCESS_FORMS.FORMULA;
+  value.setAttribute('aria-label', 'Value of the new process');
+  form.addEventListener('change', () => { value.placeholder = PROCESS_FORMS[form.value]; });
+  const add = button('Add', () => {
+    const name = key.value.trim();
+    if (!name || section.entries.some((entry) => entry.key === name)) {
+      setStatus('A new process needs a key no entry of ' + section.key + ' holds', true);
+      return;
+    }
+    section.entries.push(newEntry(name, JSON.stringify(value.value.trim())));
+    processEdited();
+  });
+  box.append(form, key, value, add);
+  return box;
+}
+
+function renderProcesses(sections) {
+  $('process-sections').replaceChildren(...sections.map((described) => {
+    const section = state.model.members.find((member) => member.key === described.section);
+    const card = document.createElement('div');
+    card.className = 'card';
+    const head = document.createElement('div');
+    head.className = 'card-head';
+    const title = document.createElement('span');
+    title.className = 'card-title';
+    title.textContent = described.section;
+    const summary = document.createElement('span');
+    summary.className = 'mono hint grow';
+    const refused = described.processes.filter((process) => !process.parsed).length;
+    summary.textContent = described.processes.length + ' entries' + (refused ? ', ' + refused + ' refused' : '');
+    head.append(title, summary);
+    card.append(head);
+    if (!section) {
+      return card;
+    }
+    const table = document.createElement('table');
+    const thead = document.createElement('thead');
+    thead.innerHTML = '<tr><th>Key</th><th>Form</th><th>Value</th><th>Parser</th><th><span class="visually-hidden">Actions</span></th></tr>';
+    const body = document.createElement('tbody');
+    body.append(...described.processes.map((process, index, block) => processRow(section, process, index, block)));
+    table.append(thead, body);
+    const wrap = document.createElement('div');
+    wrap.className = 'table-wrap';
+    wrap.append(table);
+    const footer = document.createElement('div');
+    footer.className = 'detail-body';
+    footer.append(addProcessForm(section));
+    card.append(wrap, footer);
+    return card;
+  }));
+}
+
 // --- Template: what the file leaves out of the inventory, or a fresh file naming everything ---
 
 const templateView = { answer: null, confirming: false };
@@ -1395,6 +1522,7 @@ $('save-button').addEventListener('click', save);
   try {
     await loadModel();
     render();
+    await describeProcesses();
     await loadDumps();
     await evaluateConstants();
     await loadInventory();

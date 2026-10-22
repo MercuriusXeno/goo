@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.data;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
 import net.minecraft.resources.Identifier;
+import org.jspecify.annotations.Nullable;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -125,6 +126,30 @@ public final class GooBaseValuesPreview {
         registry.deriveFromRecipeInputs(recipes, false);
         return new Derived(registry.table().getEffectiveValues(), registry.lastDerivedValues().keySet(),
                 registry.valueSettingRecipes());
+    }
+
+    /**
+     * The _conversions and _post_conversions blocks as the game's conversion parser reads them.
+     *
+     * @param pre  the _conversions block, applied before recipes derive
+     * @param post the _post_conversions block, applied after
+     */
+    public record Conversions(GooConversion.ParsedConversions pre, GooConversion.ParsedConversions post) {
+    }
+
+    /**
+     * @param json base_values.json text
+     * @return both conversion blocks as the loader parses them, each empty where the file holds none
+     */
+    public static Conversions conversions(String json) {
+        GooValueLoader.ParseState state = new GooValueLoader.ParseState(new LinkedHashMap<>(), new HashMap<>(),
+                new HashSet<>(), new HashSet<>(), new LinkedHashMap<>(), new LinkedHashMap<>(), new HashMap<>());
+        GooValueLoader.applyMergedLayers(List.of(JsonParser.parseString(json).getAsJsonObject()), state, NO_TAGS);
+        return new Conversions(orEmpty(state.preConversions), orEmpty(state.postConversions));
+    }
+
+    private static GooConversion.ParsedConversions orEmpty(GooConversion.@Nullable ParsedConversions parsed) {
+        return parsed != null ? parsed : GooConversion.parseBlock(Map.of());
     }
 
     /**

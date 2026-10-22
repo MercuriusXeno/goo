@@ -93,6 +93,8 @@ public final class ValuesWorkbenchServer {
                         ValuesJson.inventory(paths.inventoryFile())))));
         http.createContext("/api/values/family", exchange -> server.answer(exchange, server::family));
         http.createContext("/api/hover", exchange -> server.answer(exchange, server::hover));
+        http.createContext("/api/processes", exchange -> server.answer(exchange,
+                posted -> Reply.of(OK, JSON, ProcessesJson.described(server.postedModel(posted)))));
         http.setExecutor(Executors.newCachedThreadPool());
         http.start();
         return server;
