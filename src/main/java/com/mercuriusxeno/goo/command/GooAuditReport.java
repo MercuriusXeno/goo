@@ -1,5 +1,9 @@
 package com.mercuriusxeno.goo.command;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.data.GooReaction;
 import com.mercuriusxeno.goo.data.GooReactionLoader;
@@ -21,6 +25,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -80,6 +85,17 @@ public final class GooAuditReport {
      * Audit file output path.
      */
     public static final String FILE_AUDIT = "goo_audit.txt";
+    /**
+     * The audit's sections as data, beside the text, which the workbench's Audit tab reads.
+     */
+    public static final String FILE_AUDIT_JSON = "goo_audit.json";
+    private static final String JSON_SECTIONS = "sections";
+    private static final String JSON_SECTION = "section";
+    private static final String JSON_HEADER = "header";
+    private static final String JSON_LINES = "lines";
+    private static final String JSON_ISSUES = "issues";
+    private static final String JSON_FLAGS = "flags";
+    private static final Gson JSON_WRITER = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
     /**
      * All checks passed message.
      */
@@ -244,6 +260,58 @@ public final class GooAuditReport {
     }
 
     /**
+     * The audit as text and as data.
+     *
+     * @param lines  the report's text lines
+     * @param json   each rule's section, lines and flags as JSON, which the workbench reads
+     * @param issues the issues every rule counted
+     */
+    public record Built(List<String> lines, String json, int issues) {
+    }
+
+    /**
+     * Walks the rules in order, each section in the text as header, separator, lines and a blank line, and
+     * each as an entry in the JSON (decision each-check-is-one-rule-added-alone).
+     *
+     * @param inputs what the rules read
+     * @param rules  the rules, in report order
+     * @return the report
+     */
+    public static Built build(GooAuditInputs inputs, List<GooAuditRule> rules) {
+        List<String> report = new ArrayList<>(List.of(AUDIT_TITLE, AUDIT_UNDERLINE, EMPTY_LINE));
+        JsonArray sections = new JsonArray();
+        int issues = 0;
+        for (GooAuditRule rule : rules) {
+            GooAuditSection section = rule.run(inputs);
+            report.add(section.header());
+            report.add(SEPARATOR_CHAR.repeat(SEPARATOR_WIDTH));
+            report.addAll(section.lines());
+            report.add(EMPTY_LINE);
+            issues += section.issues();
+            sections.add(sectionJson(section));
+        }
+        JsonObject json = new JsonObject();
+        json.add(JSON_SECTIONS, sections);
+        return new Built(report, JSON_WRITER.toJson(json), issues);
+    }
+
+    private static JsonObject sectionJson(GooAuditSection section) {
+        JsonObject json = new JsonObject();
+        json.addProperty(JSON_SECTION, section.section());
+        json.addProperty(JSON_HEADER, section.header());
+        json.add(JSON_LINES, stringArray(section.lines()));
+        json.addProperty(JSON_ISSUES, section.issues());
+        json.add(JSON_FLAGS, stringArray(section.flags()));
+        return json;
+    }
+
+    private static JsonArray stringArray(List<String> values) {
+        JsonArray array = new JsonArray();
+        values.forEach(array::add);
+        return array;
+    }
+
+    /**
      * Runs the full audit: builds report, writes file, sends results to chat.
      *
      * @param ctx the command context
@@ -267,33 +335,11 @@ public final class GooAuditReport {
      * @return the total number of issues found
      */
     public static int writeReport(GooValueRegistry values, List<GooReaction> reactions) {
-        List<String> report = new ArrayList<>();
-        report.add(AUDIT_TITLE);
-        report.add(AUDIT_UNDERLINE);
-        report.add(EMPTY_LINE);
-        int issues = appendIssueSections(values, report);
-        appendLeastValueSection(values, report);
-        appendNoValueSection(values, report);
-        GooAuditFlows.appendFormulasSection(values, report);
-        GooAuditFlows.appendReactionsSection(reactions, report);
-        GooAuditValues.appendAllValuesSection(values, report);
-        writeDiagnosticFile(FILE_AUDIT, report);
-        return issues;
-    }
-
-    /**
-     * Appends all issue-counting sections and returns the total issue count.
-     *
-     * @param values the server's goo value registry
-     * @param report the report lines list
-     * @return the combined issue count
-     */
-    private static int appendIssueSections(GooValueRegistry values, List<String> report) {
-        int issues = appendExpressionWarningsSection(values, report);
-        issues += appendPhantomIdsSection(values, report);
-        issues += appendCyclesSection(values, report);
-        issues += GooAuditValues.appendConflictsSection(values, report);
-        return issues;
+        Built report = build(new GooAuditInputs(values, reactions, BuiltInRegistries.ITEM.keySet()),
+                GooAuditRules.discovered());
+        writeDiagnosticFile(FILE_AUDIT, report.lines());
+        writeDiagnosticFile(FILE_AUDIT_JSON, List.of(report.json()));
+        return report.issues();
     }
 
     /**
@@ -374,7 +420,7 @@ public final class GooAuditReport {
      * @param report the report lines list to append to
      * @return the number of warnings found
      */
-    private static int appendExpressionWarningsSection(GooValueRegistry values, List<String> report) {
+    static int appendExpressionWarningsSection(GooValueRegistry values, List<String> report) {
         List<String> warnings = values.validateBaseValues();
         appendSectionBody(report, HDR_EXPR_PREFIX + warnings.size() + HDR_EXPR_SUFFIX,
                 MSG_EXPR_VALID, warnings, w -> INDENT + w);
@@ -402,13 +448,14 @@ public final class GooAuditReport {
     /**
      * Finds identifiers in base_values.json that don't match any registered item.
      *
-     * @param values the server's goo value registry
+     * @param values          the server's goo value registry
+     * @param registeredItems every registered item's id
      * @return sorted list of phantom identifiers
      */
-    private static List<Identifier> findPhantomIds(GooValueRegistry values) {
+    static List<Identifier> findPhantomIds(GooValueRegistry values, Set<Identifier> registeredItems) {
         List<Identifier> phantoms = new ArrayList<>();
         for (Identifier id : values.diagnostics().allReferencedIds()) {
-            if (!BuiltInRegistries.ITEM.containsKey(id)) {
+            if (!registeredItems.contains(id)) {
                 phantoms.add(id);
             }
         }
@@ -419,12 +466,14 @@ public final class GooAuditReport {
     /**
      * Appends the phantom IDs section to the report, returns count of phantoms.
      *
-     * @param values the server's goo value registry
+     * @param values          the server's goo value registry
+     * @param registeredItems every registered item's id
      * @param report the report lines list to append to
      * @return the number of phantom IDs found
      */
-    private static int appendPhantomIdsSection(GooValueRegistry values, List<String> report) {
-        List<Identifier> phantoms = findPhantomIds(values);
+    static int appendPhantomIdsSection(GooValueRegistry values, Set<Identifier> registeredItems,
+                                       List<String> report) {
+        List<Identifier> phantoms = findPhantomIds(values, registeredItems);
         appendSectionBody(report, HDR_PHANTOM_PREFIX + phantoms.size() + HDR_PHANTOM_SUFFIX,
                 MSG_IDS_VALID, phantoms, id -> INDENT + id + SEP_SPACE
                         + (values.table().isDenied(id) ? LABEL_DENIED : LABEL_VALUED));
@@ -438,7 +487,7 @@ public final class GooAuditReport {
      * @param ctx the command context
      */
     private static void sendPhantomIdsSummary(GooValueRegistry values, CommandContext<CommandSourceStack> ctx) {
-        List<Identifier> phantoms = findPhantomIds(values);
+        List<Identifier> phantoms = findPhantomIds(values, BuiltInRegistries.ITEM.keySet());
         if (phantoms.isEmpty()) {
             return;
         }
@@ -457,7 +506,7 @@ public final class GooAuditReport {
      * @param report the report lines list to append to
      * @return the number of dead (unanchored) cycles
      */
-    private static int appendCyclesSection(GooValueRegistry values, List<String> report) {
+    static int appendCyclesSection(GooValueRegistry values, List<String> report) {
         List<GooValueRegistry.RecipeCycle> cycles = values.diagnostics().cycles();
         long deadCount = cycles.stream().filter(c -> !c.hasAnchor()).count();
         appendSectionBody(report,
@@ -511,7 +560,7 @@ public final class GooAuditReport {
      * @param values the server's goo value registry
      * @param report the report lines list to append to
      */
-    private static void appendLeastValueSection(GooValueRegistry values, List<String> report) {
+    static void appendLeastValueSection(GooValueRegistry values, List<String> report) {
         List<LeastNumberPerType.TypeLeastValue> answers = LeastNumberPerType.work(values.valueSettingRecipes(),
                 values.table().getEffectiveValues(), values.deniedItems(), GooTypes.BUNDLED);
         List<String> lines = new ArrayList<>(answers.stream().flatMap(answer -> answer.lines().stream()).toList());
@@ -527,11 +576,12 @@ public final class GooAuditReport {
     /**
      * Appends a section listing all registered items with no effective goo value.
      *
-     * @param values the server's goo value registry
+     * @param values          the server's goo value registry
+     * @param registeredItems every registered item's id
      * @param report the report lines list to append to
      */
-    private static void appendNoValueSection(GooValueRegistry values, List<String> report) {
-        List<Identifier> noValue = findItemsWithNoValue(values);
+    static void appendNoValueSection(GooValueRegistry values, Set<Identifier> registeredItems, List<String> report) {
+        List<Identifier> noValue = findItemsWithNoValue(values, registeredItems);
         appendSectionBody(report, HDR_NO_VALUE_PREFIX + noValue.size() + HDR_NO_VALUE_SUFFIX,
                 MSG_ALL_VALUED, noValue, id -> NO_VALUE_QUOTE + id + NO_VALUE_SUFFIX);
     }
@@ -539,12 +589,13 @@ public final class GooAuditReport {
     /**
      * Finds all registered items that have no effective goo value, excluding denied items.
      *
-     * @param values the server's goo value registry
+     * @param values          the server's goo value registry
+     * @param registeredItems every registered item's id
      * @return sorted list of unvalued item identifiers
      */
-    private static List<Identifier> findItemsWithNoValue(GooValueRegistry values) {
+    private static List<Identifier> findItemsWithNoValue(GooValueRegistry values, Set<Identifier> registeredItems) {
         List<Identifier> noValue = new ArrayList<>();
-        for (Identifier id : BuiltInRegistries.ITEM.keySet()) {
+        for (Identifier id : registeredItems) {
             if (values.table().lookup(id) == null && !values.table().isDenied(id)) {
                 noValue.add(id);
             }
@@ -560,7 +611,7 @@ public final class GooAuditReport {
      * @param ctx the command context
      */
     private static void sendNoValueSummary(GooValueRegistry values, CommandContext<CommandSourceStack> ctx) {
-        List<Identifier> noValue = findItemsWithNoValue(values);
+        List<Identifier> noValue = findItemsWithNoValue(values, BuiltInRegistries.ITEM.keySet());
         if (noValue.isEmpty()) {
             return;
         }

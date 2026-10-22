@@ -79,7 +79,8 @@ class ValuesWorkbenchServerTest {
     @BeforeEach
     void startServer() throws IOException {
         paths = new WorkbenchPaths(temp.resolve("base_values.json"), temp.resolve("goo_inventory.json"),
-                temp.resolve("goo_inventory"), temp.resolve("goo_audit.txt"), temp.resolve("goo_cliques.txt"));
+                temp.resolve("goo_inventory"), temp.resolve("goo_audit.txt"), temp.resolve("goo_cliques.txt"),
+                temp.resolve("goo_audit.json"));
         Files.write(paths.baseValues(), BaseValuesModelTest.shippedBytes());
         server = ValuesWorkbenchServer.start(paths, () -> {
             dumpsRun.incrementAndGet();
@@ -92,6 +93,45 @@ class ValuesWorkbenchServerTest {
             progress.accept("goo:values_dumps passed");
             return 0;
         }, 0);
+    }
+
+    private static String auditJson(int sections) {
+        JsonArray array = new JsonArray();
+        for (int i = 1; i <= sections; i++) {
+            JsonObject section = new JsonObject();
+            section.addProperty("section", "RULE " + i);
+            section.addProperty("header", "RULE " + i + " (1 lines)");
+            JsonArray lines = new JsonArray();
+            lines.add("  line of rule " + i);
+            section.add("lines", lines);
+            JsonArray flags = new JsonArray();
+            if (i == 2) {
+                flags.add("rule 2 flags this");
+            }
+            section.add("flags", flags);
+            array.add(section);
+        }
+        JsonObject root = new JsonObject();
+        root.add("sections", array);
+        return root.toString();
+    }
+
+    /**
+     * The audit endpoint answers the sections goo_audit.json carries, in its order with each one's flags,
+     * and reads the file afresh on every request, so a rule added later shows with no restart.
+     */
+    @Test
+    void auditAnswersTheJsonSections() throws IOException, InterruptedException {
+        Files.writeString(paths.auditJson(), auditJson(3));
+        JsonArray sections = JsonParser.parseString(text(get("/api/audit"))).getAsJsonObject()
+                .getAsJsonArray("sections");
+        assertEquals(List.of("RULE 1", "RULE 2", "RULE 3"), sections.asList().stream()
+                .map(section -> section.getAsJsonObject().get("section").getAsString()).toList());
+        assertEquals("rule 2 flags this", sections.get(1).getAsJsonObject().getAsJsonArray("flags").get(0)
+                .getAsString());
+        Files.writeString(paths.auditJson(), auditJson(4));
+        assertEquals(4, JsonParser.parseString(text(get("/api/audit"))).getAsJsonObject()
+                .getAsJsonArray("sections").size());
     }
 
     /**

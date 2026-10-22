@@ -886,29 +886,50 @@ $('template-start').addEventListener('click', async () => {
 const auditView = { running: false, sections: [] };
 const PROGRESS_LINES_SHOWN = 300;
 
+// Each section is one audit rule's, as goo_audit.json carries it, so a rule added later shows with no page
+// change; a flagged section leads.
 function renderAuditSections() {
-  $('audit-sections').replaceChildren(...auditView.sections.map((section, index) => {
+  const flagged = auditView.sections.filter((section) => (section.flags || []).length);
+  const quiet = auditView.sections.filter((section) => !(section.flags || []).length);
+  $('audit-sections').replaceChildren(...flagged.concat(quiet).map((section, index) => {
     const details = document.createElement('details');
     details.className = 'dump-section';
     details.open = index < 2;
     const summary = document.createElement('summary');
     const header = document.createElement('span');
     header.textContent = section.header;
-    const dump = document.createElement('span');
-    dump.className = 'mono hint';
-    dump.textContent = section.dump;
-    summary.append(header, dump);
+    summary.append(header);
+    const flags = section.flags || [];
+    if (flags.length) {
+      const badge = document.createElement('span');
+      badge.className = 'source none-src';
+      badge.textContent = flags.length + (flags.length === 1 ? ' flag' : ' flags');
+      summary.append(badge);
+    }
+    const source = document.createElement('span');
+    source.className = 'mono hint';
+    source.textContent = section.dump || 'goo_audit.json';
+    summary.append(source);
+    details.append(summary);
+    if (flags.length) {
+      const flagList = document.createElement('pre');
+      flagList.className = 'mono error';
+      flagList.textContent = flags.join('\n');
+      details.append(flagList);
+    }
     const body = document.createElement('pre');
     body.className = 'mono';
     body.textContent = section.lines.join('\n');
-    details.append(summary, body);
+    details.append(body);
     return details;
   }));
 }
 
+// The rules' JSON when a run wrote one, else the text dumps read section by section.
 async function loadDumps() {
   try {
-    auditView.sections = (await fetchJson('/api/dumps')).sections;
+    const audit = await fetchJson('/api/audit');
+    auditView.sections = audit.sections.length ? audit.sections : (await fetchJson('/api/dumps')).sections;
     renderAuditSections();
   } catch (error) {
     setStatus(error.message, true);
@@ -967,6 +988,7 @@ async function runDumps() {
         break;
       }
     }
+    await loadDumps();
     setStatus('saved');
   } catch (error) {
     setStatus(error.message, true);
