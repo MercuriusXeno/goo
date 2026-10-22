@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.hud;
 
 import net.minecraft.core.Direction;
 import org.joml.Vector3f;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
@@ -29,5 +30,14 @@ class PanelPlacementTest {
         assertTrue(outward > 0, "The nudge moves the panel " + outward + " blocks along " + face + "'s outward normal");
         assertEquals(Math.abs(nudge), outward, EPSILON);
         assertEquals(0f, world.y, EPSILON);
+    }
+
+    /**
+     * The crucible and crystallizer rim panels billboard rather than lie on a face, so the
+     * side-face correction leaves their nudge where it stood.
+     */
+    @Test
+    void rimNudgeKeepsItsStandingOffset() {
+        assertEquals(-0.01f, PanelPlacement.Facing.RIM.zNudge(), EPSILON);
     }
 }
