@@ -289,13 +289,25 @@ public class GooValueRegistry {
      * @return the winning recipes, empty before the first derivation
      */
     public List<RecipeInput> valueSettingRecipes() {
+        return List.copyOf(new LinkedHashSet<>(valueSettingRecipeByItem().values()));
+    }
+
+    /**
+     * Each derived item's value-setting recipe, keyed by the item it valued: a recipe solving an
+     * input backward values that input, not its own output
+     * (decision derivation-solves-whichever-side-of-a-recipe-is-unknown).
+     *
+     * @return the winning recipe per derived item, empty before the first derivation
+     */
+    public Map<Identifier, RecipeInput> valueSettingRecipeByItem() {
         if (lastDerivation == null) {
-            return List.of();
+            return Map.of();
         }
         Map<Identifier, GooValue> derived = lastDerivation.derivedValues();
-        List<RecipeInput> setting = new ArrayList<>();
-        lastDerivation.derivationSources().values()
-                .forEach(recipe -> setting.add(withCheapestAlternatives(recipe, derived)));
+        Map<RecipeInput, RecipeInput> narrowed = new HashMap<>();
+        Map<Identifier, RecipeInput> setting = new HashMap<>();
+        lastDerivation.derivationSources().forEach((item, recipe) -> setting.put(item,
+                narrowed.computeIfAbsent(recipe, source -> withCheapestAlternatives(source, derived))));
         return setting;
     }
 

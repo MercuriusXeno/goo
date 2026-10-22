@@ -48,8 +48,7 @@ public final class TypeProvenanceAuditRule implements GooAuditRule {
         GooValueRegistry values = inputs.values();
         Map<Identifier, GooValue> effective = values.table().getEffectiveValues();
         Set<Identifier> handKeyed = values.handKeyedItems();
-        Map<Identifier, RecipeInput> byOutput = new HashMap<>();
-        values.valueSettingRecipes().forEach(recipe -> byOutput.put(recipe.output(), recipe));
+        Map<Identifier, RecipeInput> byOutput = values.valueSettingRecipeByItem();
         Set<Identifier> roots = new HashSet<>(values.rootItems());
         List<String> lines = new ArrayList<>();
         List<String> flags = new ArrayList<>();
@@ -83,6 +82,10 @@ public final class TypeProvenanceAuditRule implements GooAuditRule {
             RecipeInput recipe = byOutput.get(item);
             if (recipe == null) {
                 return null;
+            }
+            if (!recipe.output().equals(item)) {
+                // decision derivation-solves-whichever-side-of-a-recipe-is-unknown
+                return share(recipe.output()).isPositive() ? recipe.output() : null;
             }
             return recipe.ingredientAlternatives().stream().flatMap(slot -> slot.stream().sorted())
                     .filter(pick -> !pick.equals(item) && share(pick).isPositive())
@@ -151,7 +154,8 @@ public final class TypeProvenanceAuditRule implements GooAuditRule {
          */
         private Map<Identifier, Family> families(Map<Identifier, List<Identifier>> chains) {
             Map<Identifier, Identifier> parent = new HashMap<>();
-            byOutput.forEach((output, recipe) -> {
+            byOutput.forEach((valued, recipe) -> {
+                Identifier output = recipe.output();
                 if (share(output).isPositive()) {
                     recipe.ingredientAlternatives().forEach(slot -> slot.stream().filter(pick -> share(pick).isPositive())
                             .forEach(pick -> GooItemUnionFind.union(parent, output, pick)));
