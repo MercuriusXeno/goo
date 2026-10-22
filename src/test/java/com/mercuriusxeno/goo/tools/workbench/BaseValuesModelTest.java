@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests the workbench's model of base_values.json on the shipped file: a parse and serialize hands the
@@ -52,5 +54,31 @@ class BaseValuesModelTest {
             }
         }
         assertEquals(List.of("        \"low\": \"5 $base\","), changed);
+    }
+
+    /**
+     * Renaming a constant renames its key and every reference to it, its dotted type reads included,
+     * and leaves a longer name sharing its prefix alone.
+     */
+    @Test
+    void renameRewritesEveryReference() throws IOException {
+        BaseValuesModel renamed = BaseValuesModel.parse(new String(shippedBytes(), StandardCharsets.UTF_8))
+                .renameConstant("iron_nugget", "iron_bit");
+        String text = renamed.serialize();
+        assertFalse(text.contains("$iron_nugget"));
+        assertTrue(text.contains("\"iron_ingot\": \"9 $iron_bit\""));
+        assertTrue(text.contains("\"gold_nugget\": {\"metal\": \"4 $iron_bit.metal\""));
+        assertTrue(text.contains("        \"iron_bit\": {\"metal\": \"4 $copper_nugget.metal\" },"));
+    }
+
+    /**
+     * A constant's usage list names each constant and entry reading it.
+     */
+    @Test
+    void usagesNameEveryReader() throws IOException {
+        BaseValuesModel renamed = BaseValuesModel.parse(new String(shippedBytes(), StandardCharsets.UTF_8))
+                .renameConstant("iron_nugget", "iron_bit");
+        assertEquals(List.of("iron_ingot", "gold_nugget", "chainmail_boots", "chainmail_helmet",
+                "chainmail_chestplate", "chainmail_leggings"), renamed.usagesOf("iron_bit"));
     }
 }

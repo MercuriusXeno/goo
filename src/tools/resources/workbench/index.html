@@ -59,6 +59,25 @@ nav { display: flex; gap: 2px; padding: 10px 20px 0; border-bottom: 1px solid va
 .pane[hidden] { display: none; }
 .pane-card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; color: var(--muted); }
 .error { color: #8f1d1d; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.card-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.card-title { font-weight: 600; }
+.grow { flex: 1 1 auto; }
+.hint { font-size: 12px; color: var(--muted); }
+.field { padding: 6px 8px; border: 1px solid var(--control); border-radius: 6px; width: 100%; font-size: 12px; }
+.field.narrow { width: 160px; }
+.field[aria-invalid="true"] { border-color: #b42318; }
+.small { padding: 4px 8px; border: 1px solid var(--control); background: var(--panel); border-radius: 6px; font-size: 12px; }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; }
+th { text-align: left; font-weight: 500; color: var(--muted); font-size: 12px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+td { padding: 6px 10px; border-bottom: 1px solid #e6e8e5; vertical-align: middle; font-size: 12px; }
+tr:hover td { background: var(--hover); }
+.kind { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--src-entry); }
+.kind.tree { background: var(--accent-soft); }
+.resolves { color: #1c6b3a; }
+.row-actions { display: flex; gap: 4px; flex-wrap: nowrap; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 @media (max-width: 640px) {
   .topbar, nav, .pane { padding-left: 16px; padding-right: 16px; }
   aside { flex-basis: 100%; border-right: 0; border-bottom: 1px solid var(--line); }
@@ -96,7 +115,26 @@ nav { display: flex; gap: 2px; padding: 10px 20px 0; border-bottom: 1px solid va
       </nav>
       <section class="pane" role="tabpanel" id="pane-values" data-pane="values"><div class="pane-card">Item and #group entries: value objects, expressions, ratios, denied and restricted.</div></section>
       <section class="pane" role="tabpanel" id="pane-groups" data-pane="groups" hidden><div class="pane-card">_groups: named sets of items, written once as #name.</div></section>
-      <section class="pane" role="tabpanel" id="pane-variables" data-pane="variables" hidden><div class="pane-card">_constants: scalar and tree constants and the expressions over them.</div></section>
+      <section class="pane" role="tabpanel" id="pane-variables" data-pane="variables" hidden>
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">_constants</span>
+            <span class="mono hint">each constant reads only the constants above it; the game's parser checks each as you type</span>
+            <span class="grow"></span>
+            <label for="new-constant" class="hint">New</label>
+            <input id="new-constant" class="mono field narrow" placeholder="name">
+            <button class="small" type="button" id="add-scalar">Add scalar</button>
+            <button class="small" type="button" id="add-tree">Add tree</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Name</th><th>Kind</th><th>Expression</th><th>Resolves</th><th>Used by</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+              <tbody id="constants-rows"></tbody>
+            </table>
+          </div>
+        </div>
+        <p class="hint">The game's lexer reads integers, $name, $tree.type, + - * /, parentheses and a leading count ("9 $iron_nugget"). A tree constant is an object of per-type expressions, such as {"leaf": "$base"}.</p>
+      </section>
       <section class="pane" role="tabpanel" id="pane-processes" data-pane="processes" hidden><div class="pane-card">_conversions and _post_conversions: formulas, additives, stacks and parallel copies.</div></section>
       <section class="pane" role="tabpanel" id="pane-audit" data-pane="audit" hidden><div class="pane-card">The audit and clique dumps, read section by section.</div></section>
     </main>
@@ -317,10 +355,196 @@ async function save() {
     state.sources = sourcesFromModel(state.model);
     setStatus('saved');
     render();
+    await evaluateConstants();
   } catch (error) {
     setStatus(error.message, true);
   }
 }
+
+// --- Variables: the _constants section, each constant resolved by the game's parser on the server ---
+
+const constantsView = { results: new Map(), renaming: null, timer: null };
+
+function constantsSection() {
+  return state.model.members.find((member) => member.key === '_constants');
+}
+
+function newEntry(key, text) {
+  return { key, keySeparator: null, kind: 'VALUE', text, entries: [], leading: null, trailing: null, closingGap: null };
+}
+
+// The input shows an expression string without its JSON quotes; a number or an object stays as written.
+function shownText(text) {
+  const value = textValue(text);
+  return typeof value === 'string' ? value : text;
+}
+
+function storedText(typed) {
+  const trimmed = typed.trim();
+  if (/^-?\d+$/.test(trimmed) || trimmed.startsWith('{')) {
+    return trimmed;
+  }
+  return JSON.stringify(typed);
+}
+
+function markEdited() {
+  setStatus('unsaved changes');
+  clearTimeout(constantsView.timer);
+  constantsView.timer = setTimeout(evaluateConstants, 250);
+}
+
+async function evaluateConstants() {
+  try {
+    const answer = await fetchJson('/api/constants/evaluate', { method: 'POST', body: JSON.stringify(state.model) });
+    constantsView.results = new Map(answer.constants.map((constant) => [constant.name, constant]));
+    renderConstants();
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+}
+
+function resolvedText(result) {
+  if (!result) {
+    return '';
+  }
+  if (result.kind === 'tree') {
+    return Object.entries(result.tree).map(([type, amount]) => type + ' ' + amount).join(', ') || 'empty';
+  }
+  return result.value === null ? '' : result.value;
+}
+
+function button(label, onClick, disabledTitle) {
+  const element = document.createElement('button');
+  element.type = 'button';
+  element.className = 'small';
+  element.textContent = label;
+  if (disabledTitle) {
+    element.disabled = true;
+    element.title = disabledTitle;
+  }
+  element.addEventListener('click', onClick);
+  return element;
+}
+
+function cell(...children) {
+  const td = document.createElement('td');
+  td.append(...children);
+  return td;
+}
+
+function moveConstant(index, by) {
+  const entries = constantsSection().entries;
+  const target = index + by;
+  if (target < 0 || target >= entries.length) {
+    return;
+  }
+  [entries[index], entries[target]] = [entries[target], entries[index]];
+  markEdited();
+  renderConstants();
+}
+
+async function renameConstant(from, to) {
+  try {
+    state.model = await fetchJson('/api/constants/rename', {
+      method: 'POST', body: JSON.stringify({ from, to, members: state.model.members })
+    });
+    constantsView.renaming = null;
+    markEdited();
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+}
+
+function nameCell(entry) {
+  if (constantsView.renaming !== entry.key) {
+    const name = document.createElement('span');
+    name.className = 'mono';
+    name.textContent = '$' + entry.key;
+    return cell(name);
+  }
+  const input = document.createElement('input');
+  input.className = 'mono field narrow';
+  input.value = entry.key;
+  input.setAttribute('aria-label', 'New name for $' + entry.key);
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      renameConstant(entry.key, input.value.trim());
+    } else if (event.key === 'Escape') {
+      constantsView.renaming = null;
+      renderConstants();
+    }
+  });
+  setTimeout(() => input.focus(), 0);
+  return cell(input);
+}
+
+function constantRow(entry, index, entries) {
+  const result = constantsView.results.get(entry.key);
+  const row = document.createElement('tr');
+  const kind = document.createElement('span');
+  const isTree = result ? result.kind === 'tree' : entry.text.trim().startsWith('{');
+  kind.className = 'kind' + (isTree ? ' tree' : '');
+  kind.textContent = isTree ? 'tree' : 'scalar';
+  const expression = document.createElement('input');
+  expression.className = 'mono field';
+  expression.value = shownText(entry.text);
+  expression.setAttribute('aria-label', 'Expression for $' + entry.key);
+  expression.setAttribute('aria-invalid', String(!!(result && result.error)));
+  expression.addEventListener('input', () => { entry.text = storedText(expression.value); markEdited(); });
+  const resolves = document.createElement('span');
+  resolves.className = 'mono ' + (result && result.error ? 'error' : 'resolves');
+  resolves.textContent = result && result.error ? result.error : resolvedText(result);
+  const usedBy = result ? result.usedBy : [];
+  const users = document.createElement('span');
+  users.className = 'mono hint';
+  users.textContent = usedBy.join(', ');
+  const actions = document.createElement('div');
+  actions.className = 'row-actions';
+  actions.append(
+    button('Up', () => moveConstant(index, -1), index === 0 ? 'Already first' : null),
+    button('Down', () => moveConstant(index, 1), index === entries.length - 1 ? 'Already last' : null),
+    button('Rename', () => { constantsView.renaming = entry.key; renderConstants(); }),
+    button('Delete', () => { entries.splice(index, 1); markEdited(); renderConstants(); },
+      usedBy.length ? 'Read by ' + usedBy.join(', ') : null));
+  row.append(nameCell(entry), cell(kind), cell(expression), cell(resolves), cell(users), cell(actions));
+  return row;
+}
+
+function renderConstants() {
+  const section = state.model && constantsSection();
+  if (!section) {
+    return;
+  }
+  const rows = $('constants-rows');
+  const focused = document.activeElement && rows.contains(document.activeElement)
+    ? document.activeElement.getAttribute('aria-label') : null;
+  rows.replaceChildren(...section.entries.map(constantRow));
+  if (focused) {
+    const again = [...rows.querySelectorAll('input')].find((input) => input.getAttribute('aria-label') === focused);
+    if (again) {
+      again.focus();
+      again.setSelectionRange(again.value.length, again.value.length);
+    }
+  }
+}
+
+function addConstant(tree) {
+  const name = $('new-constant').value.trim();
+  const section = constantsSection();
+  if (!/^[A-Za-z0-9_]+$/.test(name) || section.entries.some((entry) => entry.key === name)) {
+    $('new-constant').setAttribute('aria-invalid', 'true');
+    setStatus('A new constant needs a name of letters, digits and underscores that no constant holds', true);
+    return;
+  }
+  $('new-constant').setAttribute('aria-invalid', 'false');
+  $('new-constant').value = '';
+  section.entries.push(newEntry(name, tree ? '{}' : '0'));
+  markEdited();
+  renderConstants();
+}
+
+$('add-scalar').addEventListener('click', () => addConstant(false));
+$('add-tree').addEventListener('click', () => addConstant(true));
 
 document.querySelectorAll('.tab').forEach((button) => button.addEventListener('click', () => selectTab(button.dataset.tab)));
 $('inventory-search').addEventListener('input', (event) => { state.search = event.target.value; renderEntries(); });
@@ -330,6 +554,7 @@ $('save-button').addEventListener('click', save);
   try {
     await loadModel();
     render();
+    await evaluateConstants();
     await loadInventory();
     render();
   } catch (error) {
