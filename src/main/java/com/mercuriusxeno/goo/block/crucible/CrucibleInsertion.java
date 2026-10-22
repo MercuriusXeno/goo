@@ -1,11 +1,14 @@
 package com.mercuriusxeno.goo.block.crucible;
 
 import com.mercuriusxeno.goo.block.ContainerEvaluator;
+import com.mercuriusxeno.goo.block.ExactMelt;
 import com.mercuriusxeno.goo.block.ValuedStack;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.GooValueTable;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
+import com.mercuriusxeno.goo.data.IRemainderLedger;
+import com.mercuriusxeno.goo.data.RemainderLedger;
 import com.mercuriusxeno.goo.item.ChrysmItem;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.PartiallyMeltedItem;
@@ -75,35 +78,38 @@ final class CrucibleInsertion {
      * @return the number of items melted in, from zero to {@code count}
      */
     static int insertItem(CrucibleBlockEntity be, Identifier itemId, int count, IGooValueLookup lookup) {
-        MeltArrival arrival = meltArrival(poolContents(be), itemId, count, lookup);
+        MeltArrival arrival = meltArrival(poolContents(be), itemId, count, lookup, be.reservoir.ledger());
         if (arrival == null) {
             return 0;
         }
-        if (arrival.fitting() > 0 && mergeIntoPool(be, arrival.arriving(),
-                List.of(new ValuedStack(itemId, arrival.fitting(), arrival.perItem())))) {
+        if (arrival.fitting() > 0 && mergeIntoPool(be, arrival.arriving(), arrival.stacks())) {
             be.syncToClients();
         }
         return arrival.fitting();
     }
 
     /**
-     * What melting the whole items that fit the pool pays, free of the block entity.
-     * Decision values-are-fractions-melt-floors-fabricate-ceils: each item pays the floor of each type.
+     * What melting the whole items that fit the pool pays, free of the block entity: the
+     * items' exact value credits the ledger and the whole mB it answers arrive. An item
+     * fits while each type's ceiling fits, so the credit never overruns the cap.
+     * decision melt-and-fabricate-move-the-exact-value-through-a-remainder-buffer
      *
      * @param pool   the goo already melting
      * @param itemId the item registry ID
      * @param count  the number of items offered
      * @param lookup the goo value lookup
+     * @param ledger the crucible's remainder ledger, credited with what melts
      * @return the arrival, or null when the item has no goo value
      */
-    static @Nullable MeltArrival meltArrival(GooContents pool, Identifier itemId, int count, IGooValueLookup lookup) {
+    static @Nullable MeltArrival meltArrival(GooContents pool, Identifier itemId, int count, IGooValueLookup lookup,
+                                            IRemainderLedger ledger) {
         GooValue value = lookup.lookup(itemId);
         if (value == null || value.isEmpty()) {
             return null;
         }
-        GooContents perItem = value.meltPayout();
-        int fitting = CrucibleCapacity.wholeUnitsThatFit(pool, perItem, count);
-        return new MeltArrival(fitting, value.meltPayout(fitting), perItem);
+        int fitting = CrucibleCapacity.wholeUnitsThatFit(pool, ExactMelt.roomPerItem(value), count);
+        ExactMelt.Melt melt = ExactMelt.credit(itemId, fitting, value, ledger);
+        return new MeltArrival(fitting, melt.arriving(), melt.stacks());
     }
 
     /**
@@ -111,9 +117,9 @@ final class CrucibleInsertion {
      *
      * @param fitting  the whole items that fit the pool
      * @param arriving the goo those items pay
-     * @param perItem  the goo one item pays
+     * @param stacks   the stacks the melt queue takes, every item of them carrying the goo it pays
      */
-    record MeltArrival(int fitting, GooContents arriving, GooContents perItem) {
+    record MeltArrival(int fitting, GooContents arriving, List<ValuedStack> stacks) {
     }
 
     /**
@@ -268,13 +274,16 @@ final class CrucibleInsertion {
      */
     static ContainerEvaluator.@Nullable ContainerEvaluation insertContainer(
             CrucibleBlockEntity be, Identifier containerId, ItemStack container, IGooValueLookup lookup) {
-        ContainerEvaluator.ContainerEvaluation eval = be.containerEvaluator.evaluate(containerId, container, lookup);
+        RemainderLedger credited = new RemainderLedger(be.reservoir.ledger().remainders());
+        ContainerEvaluator.ContainerEvaluation eval = be.containerEvaluator.evaluate(containerId, container, lookup,
+                credited);
         if (eval.goo().isEmpty() && eval.ejects().isEmpty()) {
             return null;
         }
         if (!eval.goo().isEmpty() && !mergeIntoPool(be, eval.goo(), eval.valued())) {
             return null;
         }
+        be.reservoir.loadRemainders(credited.remainders());
         be.syncToClients();
         return eval;
     }

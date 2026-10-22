@@ -129,6 +129,18 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
     }
 
     /**
+     * Replaces the remainders with ones a caller credited apart, once what it
+     * credited them for has landed, notifying the owner where they moved.
+     *
+     * @param credited the remainders to hold
+     */
+    public void loadRemainders(GooRemainders credited) {
+        GooRemainders before = ledger.remainders();
+        ledger.load(credited);
+        notifyIfMoved(before);
+    }
+
+    /**
      * Notifies the owner where a remainder moved.
      *
      * @param before the remainders before the exchange
