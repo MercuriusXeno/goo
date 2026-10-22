@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.tools.workbench;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -8,10 +11,10 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The template a loadout starts from: a group per item tag of two or more members, an empty #group entry for
- * each, every item no such tag covers as an empty entry, and the goo types listed for reference, so a heavily
- * modded loadout starts from a file naming everything; and, for a file that stands, what it leaves out
- * (decision template-first-then-defaults-by-convention).
+ * The template a loadout starts from: every item as an empty entry and the goo types listed for reference, so a
+ * heavily modded loadout starts from a file naming everything; and, for a file that stands, the items it leaves
+ * out (decision template-first-then-defaults-by-convention). Tags are supported for valuing, not mandated: the
+ * template makes no group from a tag and reports no tag as uncovered.
  */
 final class ValuesTemplate {
     private static final String NEWLINE = "\n";
@@ -19,13 +22,11 @@ final class ValuesTemplate {
     private static final String DEFAULT_NAMESPACE = "minecraft:";
     // An empty value object: the loader reads {} as no value, and throws on an empty expression string.
     private static final String EMPTY_VALUE = "{}";
-    private static final String GROUPS = "_groups";
     private static final String TAG_PREFIX = "#";
     private static final String AIR = "minecraft:air";
-    private static final int GROUPED_AT = 2;
     // Sections the loader reads, empty in a template; _goo_types is a list the loader passes over, for reference.
     private static final List<String> EMPTY_SECTIONS = List.of(
-            "\"_restricted\": []", "\"_conversions\": {}", "\"_post_conversions\": {}");
+            "\"_groups\": {}", "\"_restricted\": []", "\"_conversions\": {}", "\"_post_conversions\": {}");
 
     private ValuesTemplate() {
     }
@@ -41,29 +42,15 @@ final class ValuesTemplate {
     }
 
     /**
-     * What a standing file leaves out.
-     *
-     * @param tags  the item tags of two or more members no group carries
-     * @param items the items no entry or valued group covers, in inventory order
-     */
-    record Leftovers(List<String> tags, List<String> items) {
-    }
-
-    /**
      * @param loadout the loadout
      * @return the template as a model
      */
     static BaseValuesModel build(Loadout loadout) {
-        List<String> tags = groupedTags(loadout);
-        Set<String> grouped = new HashSet<>();
-        tags.forEach(tag -> grouped.addAll(loadout.itemTags().get(tag)));
         List<String> lines = new ArrayList<>();
         lines.add("\"_constants\": {}");
-        lines.add(groupsSection(tags, loadout));
-        tags.forEach(tag -> lines.add(quote(TAG_PREFIX + groupName(tag)) + ": " + EMPTY_VALUE));
-        loadout.items().stream().filter(item -> !AIR.equals(item) && !grouped.contains(item))
-                .forEach(item -> lines.add(quote(fileId(item)) + ": " + EMPTY_VALUE));
         lines.addAll(EMPTY_SECTIONS);
+        loadout.items().stream().filter(item -> !AIR.equals(item))
+                .forEach(item -> lines.add(quote(fileId(item)) + ": " + EMPTY_VALUE));
         lines.add("\"_goo_types\": [" + String.join(", ", loadout.gooTypes().stream().map(ValuesTemplate::quote)
                 .toList()) + "]");
         return BaseValuesModel.parse("{" + NEWLINE + INDENT + String.join("," + NEWLINE + INDENT, lines) + NEWLINE
@@ -73,52 +60,34 @@ final class ValuesTemplate {
     /**
      * @param model   the standing file
      * @param loadout the loadout
-     * @return the grouped tags no group carries and the items nothing covers
+     * @return the items no entry or valued group covers, in inventory order
      */
-    static Leftovers leftovers(BaseValuesModel model, Loadout loadout) {
-        List<GroupConvention.Group> groups = GroupConvention.describe(model);
-        Set<String> groupNames = new HashSet<>();
+    static List<String> leftovers(BaseValuesModel model, Loadout loadout) {
         Set<String> covered = new HashSet<>();
-        for (GroupConvention.Group group : groups) {
-            groupNames.add(group.name());
+        for (GroupConvention.Group group : GroupConvention.describe(model)) {
             if (model.member(TAG_PREFIX + group.name()) != null) {
                 covered.addAll(group.members());
             }
         }
-        List<String> tags = groupedTags(loadout).stream()
-                .filter(tag -> !groupNames.contains(groupName(tag)) && !groupNames.contains(tag)).toList();
-        List<String> items = loadout.items().stream()
+        return loadout.items().stream()
                 .filter(item -> !AIR.equals(item) && !covered.contains(item))
                 .filter(item -> model.member(item) == null && model.member(fileId(item)) == null)
                 .toList();
-        return new Leftovers(tags, items);
-    }
-
-    private static List<String> groupedTags(Loadout loadout) {
-        return loadout.itemTags().entrySet().stream().filter(tag -> tag.getValue().size() >= GROUPED_AT)
-                .map(Map.Entry::getKey).sorted().toList();
-    }
-
-    private static String groupsSection(List<String> tags, Loadout loadout) {
-        if (tags.isEmpty()) {
-            return quote(GROUPS) + ": {}";
-        }
-        List<String> groups = new ArrayList<>();
-        String memberIndent = INDENT.repeat(3);
-        for (String tag : tags) {
-            List<String> members = loadout.itemTags().get(tag).stream().map(id -> memberIndent + quote(fileId(id)))
-                    .toList();
-            groups.add(INDENT.repeat(2) + quote(groupName(tag)) + ": [" + NEWLINE
-                    + String.join("," + NEWLINE, members) + NEWLINE + INDENT.repeat(2) + "]");
-        }
-        return quote(GROUPS) + ": {" + NEWLINE + String.join("," + NEWLINE, groups) + NEWLINE + INDENT + "}";
     }
 
     /**
-     * A minecraft tag's group takes its bare path, which #name resolves through; any other keeps its id.
+     * @param model   the standing file
+     * @param loadout the loadout
+     * @param path    the file the template would be saved to
+     * @return the template and the items the standing file leaves out of it
      */
-    private static String groupName(String tag) {
-        return fileId(tag);
+    static JsonObject answer(BaseValuesModel model, Loadout loadout, String path) {
+        JsonObject answer = new JsonObject();
+        answer.add("template", JsonParser.parseString(ModelJson.toJson(build(loadout), path)));
+        JsonArray items = new JsonArray();
+        leftovers(model, loadout).forEach(items::add);
+        answer.add("uncoveredItems", items);
+        return answer;
     }
 
     private static String fileId(String id) {
