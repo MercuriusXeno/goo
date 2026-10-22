@@ -264,6 +264,17 @@ tasks.register('generateTextures', JavaExec) {
     workingDir = project.projectDir
 }
 
+// The values workbench: a loopback page that reads and writes base_values.json in place
+// (decision workbench-authors-base-values-whole). It serves until the task is stopped.
+tasks.register('valuesWorkbench', JavaExec) {
+    description = 'Serves the values workbench page and opens it in the browser'
+    group = 'goo'
+    classpath = sourceSets.tools.runtimeClasspath
+    mainClass = 'com.mercuriusxeno.goo.tools.workbench.ValuesWorkbench'
+    workingDir = project.projectDir
+    args project.projectDir.absolutePath, project.findProperty('workbenchPort') ?: '0'
+}
+
 // The Goo Lab template tracked at dev/lab/ (decision lab-built-from-code)
 tasks.register('generateLabTemplate', JavaExec) {
     description = 'Rewrites the Goo Lab level template under dev/lab/'

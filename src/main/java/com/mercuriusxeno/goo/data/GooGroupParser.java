@@ -17,6 +17,7 @@ final class GooGroupParser {
 
     private static final String GROUPS_SUFFIX = "_groups";
     private static final String KEY_RESTRICTED = "_restricted";
+    private static final String KEY_ROOTS = "_roots";
 
     private GooGroupParser() {
     }
@@ -49,6 +50,30 @@ final class GooGroupParser {
             members.add(Identifier.parse(item.getAsString()));
         }
         return members;
+    }
+
+    /**
+     * Parses the _roots array, the clique roots the audit works each family from, resolving #group references
+     * against pseudo-tags (decision audit-proposes-root-candidates-and-flags-bleed).
+     *
+     * @param json  the root JSON object containing the optional _roots key
+     * @param state mutable parsing state
+     */
+    static void parseRoots(JsonObject json, GooValueLoader.ParseState state) {
+        if (!json.has(KEY_ROOTS) || !json.get(KEY_ROOTS).isJsonArray()) {
+            return;
+        }
+        for (JsonElement elem : json.getAsJsonArray(KEY_ROOTS)) {
+            String entry = elem.getAsString();
+            if (entry.startsWith(GooValueLoader.PREFIX_TAG)) {
+                Set<Identifier> members = resolvePseudoTag(entry.substring(1), state.pseudoTags);
+                if (members != null) {
+                    state.rootItems.addAll(members);
+                }
+            } else {
+                state.rootItems.add(Identifier.parse(entry));
+            }
+        }
     }
 
     /**

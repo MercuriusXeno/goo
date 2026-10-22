@@ -71,6 +71,10 @@ public final class GooCommand {
      */
     private static final String CMD_AUDIT = "audit";
     /**
+     * Subcommand name for the inventory dump (decision inventory-dump-from-a-gametest-and-a-command).
+     */
+    private static final String CMD_INVENTORY = "inventory";
+    /**
      * Subcommand name for scaffold.
      */
     private static final String CMD_SCAFFOLD = "scaffold";
@@ -311,6 +315,7 @@ public final class GooCommand {
                 .then(opSubcommand(CMD_RELOAD, GooCommand::reload))
                 .then(opSubcommand(CMD_REGEN, GooCommand::regen))
                 .then(opSubcommand(CMD_AUDIT, GooAuditReport::run))
+                .then(opSubcommand(CMD_INVENTORY, GooInventoryReport::run))
                 .then(scaffoldSubcommand())
                 .then(opSubcommand(CMD_INIT, GooCommand::init));
         if (devGateOpen) {
