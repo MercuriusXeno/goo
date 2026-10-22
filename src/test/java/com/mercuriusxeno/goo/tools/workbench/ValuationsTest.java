@@ -168,7 +168,7 @@ class ValuationsTest {
     private static String ironInventory() {
         JsonObject root = new JsonObject();
         JsonArray items = new JsonArray();
-        for (String path : List.of("iron_chain", "iron_nugget", "iron_ingot", "raw_iron")) {
+        for (String path : List.of("iron_chain", "iron_nugget", "iron_ingot", "raw_iron", "raw_iron_block")) {
             JsonObject item = new JsonObject();
             item.addProperty("id", "minecraft:" + path);
             item.addProperty("name", path);
@@ -195,6 +195,11 @@ class ValuationsTest {
                 "minecraft:iron_ingot", 1));
         recipes.add(plainRecipe("minecraft:iron_ingot_from_smelting_raw_iron", "minecraft:smelting",
                 "minecraft:iron_ingot", 1, "minecraft:raw_iron", 1));
+        // A recipe making a hand-keyed item: the walk to the prime ancestor stops at the hand-keyed raw iron.
+        recipes.add(plainRecipe("minecraft:raw_iron", "minecraft:crafting", "minecraft:raw_iron", 9,
+                "minecraft:raw_iron_block", 1));
+        recipes.add(plainRecipe("minecraft:raw_iron_block", "minecraft:crafting", "minecraft:raw_iron_block", 1,
+                "minecraft:raw_iron", 9));
         root.add("recipes", recipes);
         return root.toString();
     }
@@ -249,7 +254,7 @@ class ValuationsTest {
     /**
      * A derived row's source names where its value comes from rather than saying it was derived: up the chain
      * of single-input recipes to the prime ancestor, the hand-keyed item no recipe values, as the ingot made of
-     * raw iron alone; and the recipe itself, its grid drawn, where the first recipe mixes inputs, as the chain of
+     * raw iron alone, stopping there though a recipe makes raw iron too; and the recipe itself, its grid drawn, where the first recipe mixes inputs, as the chain of
      * nuggets and an ingot.
      */
     @Test
@@ -268,6 +273,6 @@ class ValuationsTest {
         JsonArray ancestors = ingotFrom.getAsJsonArray("chain");
         String prime = ancestors.get(ancestors.size() - 1).getAsString();
         assertEquals(prime, ingotFrom.get("item").getAsString());
-        assertTrue(Set.of("minecraft:raw_iron", "minecraft:iron_nugget").contains(prime), ingotFrom.toString());
+        assertEquals("minecraft:raw_iron", prime, ingotFrom.toString());
     }
 }
