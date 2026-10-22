@@ -49,6 +49,14 @@ final class GooValueExpression {
      */
     private static final String LOG_MISSING_PAREN = "Missing closing parenthesis in GooValue expression";
     /**
+     * Log: an expression ran out of tokens where an operand belongs.
+     */
+    private static final String LOG_MISSING_OPERAND = "GooValue expression ends where an operand belongs: '{}'";
+    /**
+     * Separator joining an expression's tokens back into its text for a warning.
+     */
+    private static final String TOKEN_SEPARATOR = " ";
+    /**
      * Log: unknown item in expression.
      */
     private static final String LOG_UNKNOWN_ITEM = "Unknown item in expression: {}";
@@ -241,6 +249,13 @@ final class GooValueExpression {
             pos[0]++;
             ExprVal inner = evalAtom(tokens, pos, baseValues, constants, treeConstants);
             return ExpressionOperators.negate(inner);
+        }
+        if (pos[0] >= tokens.size()) {
+            // An expression that runs out of tokens, empty or ending on an operator, values nothing and warns.
+            if (LOGGER.isWarnEnabled()) {
+                LOGGER.warn(LOG_MISSING_OPERAND, String.join(TOKEN_SEPARATOR, tokens));
+            }
+            return new GooVal(GooValue.EMPTY);
         }
         String token = tokens.get(pos[0]);
         pos[0]++;

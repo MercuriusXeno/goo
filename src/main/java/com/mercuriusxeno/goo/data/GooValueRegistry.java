@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.data;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.GooConfig;
 import net.minecraft.core.HolderLookup;
@@ -14,6 +15,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.function.Function;
 
 /**
  * The server's pipeline for item goo values: loads base values from JSON,
@@ -91,6 +93,10 @@ public class GooValueRegistry {
      * Last merged base_values JSON from regen, retained for validation.
      */
     private @Nullable JsonObject lastMergedBaseValues;
+    /**
+     * The clique roots the last load's _roots named (decision audit-proposes-root-candidates-and-flags-bleed).
+     */
+    private List<Identifier> rootItems = List.of();
 
     private Path effectiveCachePath;
 
@@ -136,6 +142,39 @@ public class GooValueRegistry {
     }
 
     /**
+     * Loads base values from one base_values.json text as a single pack layer, so a tool or a test builds a
+     * registry the audit reads with no server (decision each-check-is-one-rule-added-alone).
+     *
+     * @param json        the base_values.json text
+     * @param tagResolver resolves an item tag to its member ids
+     */
+    void loadBaseValuesFromText(String json, Function<Identifier, Set<Identifier>> tagResolver) {
+        Map<Identifier, GooValue> loadedEffective = new HashMap<>();
+        var state = createParseState(loadedEffective);
+        GooValueLoader.clearRegistryState(state);
+        GooValueLoader.applyMergedLayers(List.of(JsonParser.parseString(json).getAsJsonObject()), state,
+                tagResolver);
+        postConversions = state.postConversions;
+        lastMergedBaseValues = state.lastMergedBaseValues;
+        rootItems = List.copyOf(state.rootItems);
+        publishEffectiveValues(loadedEffective);
+    }
+
+    /**
+     * @return the clique roots the last load's _roots named, in file order
+     */
+    public List<Identifier> rootItems() {
+        return rootItems;
+    }
+
+    /**
+     * @return the items base_values.json values by hand, an entry's or a group's, before any recipe derives
+     */
+    public Set<Identifier> handKeyedItems() {
+        return Collections.unmodifiableSet(baseValues.keySet());
+    }
+
+    /**
      * Creates a fresh ParseState backed by this registry's maps and a scratch
      * effective map the caller publishes once the load completes.
      *
@@ -178,6 +217,7 @@ public class GooValueRegistry {
         GooValueLoader.applyMergedLayers(layers, state);
         postConversions = state.postConversions;
         lastMergedBaseValues = state.lastMergedBaseValues;
+        rootItems = List.copyOf(state.rootItems);
     }
 
     /**

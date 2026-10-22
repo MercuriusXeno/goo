@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * Parses base_values.json into registry state: constants, groups (pseudo-tags),
@@ -91,8 +92,21 @@ final class GooValueLoader {
      * @param state  mutable parsing state to populate
      */
     static void applyMergedLayers(List<JsonObject> layers, ParseState state) {
+        applyMergedLayers(layers, state, GooValueMerger::resolveItemTag);
+    }
+
+    /**
+     * Merges, expands and applies parsed JSON layers, reading item tags through the resolver handed in, so a
+     * tool with no game registry expands tags from its own listing (decision workbench-authors-base-values-whole).
+     *
+     * @param layers      parsed JSON objects in pack order
+     * @param state       mutable parsing state to populate
+     * @param tagResolver resolves an item tag to its member ids
+     */
+    static void applyMergedLayers(List<JsonObject> layers, ParseState state,
+                                  Function<Identifier, Set<Identifier>> tagResolver) {
         JsonObject merged = GooValueMerger.mergeBaseValueJsonLayers(layers);
-        merged = GooValueMerger.expandTagEntries(merged, GooValueMerger::resolveItemTag);
+        merged = GooValueMerger.expandTagEntries(merged, tagResolver);
         state.lastMergedBaseValues = merged;
         GooConstantParser.parseConstants(merged, state);
         parseItemValues(merged, state);
@@ -116,6 +130,7 @@ final class GooValueLoader {
             classifyItemEntry(entry.getKey(), entry.getValue(), state);
         }
         GooGroupParser.parseRestricted(json, state);
+        GooGroupParser.parseRoots(json, state);
     }
 
     /**
@@ -231,6 +246,10 @@ final class GooValueLoader {
         final Map<String, Integer> constants;
         final Map<String, GooValue> treeConstants;
         final Map<String, Set<Identifier>> pseudoTags;
+        /**
+         * The clique roots _roots names, in file order (decision audit-proposes-root-candidates-and-flags-bleed).
+         */
+        final Set<Identifier> rootItems = new java.util.LinkedHashSet<>();
         GooConversion.ParsedConversions preConversions;
         GooConversion.ParsedConversions postConversions;
         JsonObject lastMergedBaseValues;
