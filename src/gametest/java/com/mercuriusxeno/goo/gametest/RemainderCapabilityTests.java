@@ -3,10 +3,12 @@ package com.mercuriusxeno.goo.gametest;
 import com.mercuriusxeno.goo.block.canister.CanisterBlockEntity;
 import com.mercuriusxeno.goo.block.hub.HubBlockEntity;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
+import com.mercuriusxeno.goo.block.vat.VatBlockEntity;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.IRemainderLedger;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterItem;
+import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.registry.GooBlocks;
 import com.mercuriusxeno.goo.registry.GooCapabilities;
 import com.mercuriusxeno.goo.registry.GooDataComponents;
@@ -45,6 +47,11 @@ public final class RemainderCapabilityTests {
     private static final String REMAINDER_CAPABILITY_SURVIVES_SAVE_AND_LOAD =
             "remainder_capability_survives_save_and_load";
     private static final String PLEXER_REMAINDER_SURVIVES_A_BREAK = "plexer_remainder_survives_a_break";
+    private static final String VAT_GOO_SURVIVES_A_BREAK = "vat_goo_survives_a_break";
+    private static final String CRUCIBLE_REMAINDER_SURVIVES_A_BREAK = "crucible_remainder_survives_a_break";
+    private static final String CRUCIBLE_LOST = "The crucible placed from the broken crucible's item should read 1/3 rock, read %s";
+    private static final int VAT_ROCK = 100;
+    private static final String VAT_LOST = "The vat placed from the broken vat's item should hold %s, held %s";
 
     private static final GooFraction THIRD = GooFraction.of(1, 3);
     private static final GooFraction TWO_THIRDS = GooFraction.of(2, 3);
@@ -75,6 +82,50 @@ public final class RemainderCapabilityTests {
                 RemainderCapabilityTests::remainderCapabilitySurvivesSaveAndLoad);
         GooTestFunctions.registerTest(registrar, PLEXER_REMAINDER_SURVIVES_A_BREAK,
                 RemainderCapabilityTests::plexerRemainderSurvivesABreak);
+        GooTestFunctions.registerTest(registrar, VAT_GOO_SURVIVES_A_BREAK,
+                RemainderCapabilityTests::vatGooSurvivesABreak);
+        GooTestFunctions.registerTest(registrar, CRUCIBLE_REMAINDER_SURVIVES_A_BREAK,
+                RemainderCapabilityTests::crucibleRemainderSurvivesABreak);
+    }
+
+    /**
+     * A crucible holding a remainder of 1/3 rock, broken, drops an item carrying it,
+     * and the crucible placed from the item reads 1/3 rock.
+     *
+     * @param helper the gametest helper
+     */
+    public static void crucibleRemainderSurvivesABreak(GameTestHelper helper) {
+        helper.setBlock(STORE_POS, GooBlocks.CRUCIBLE.get());
+        blockLedger(helper, STORE_POS, null).creditExact(GooTypes.ROCK, THIRD);
+        helper.getLevel().destroyBlock(helper.absolutePos(STORE_POS), true);
+        ItemStack dropped = droppedItem(helper, STORE_POS, GooItems.CRUCIBLE.get());
+        helper.setBlock(STORE_POS, GooBlocks.CRUCIBLE.get());
+        helper.getBlockEntity(STORE_POS, com.mercuriusxeno.goo.block.crucible.CrucibleBlockEntity.class)
+                .applyComponentsFromItemStack(dropped);
+        GooFraction restored = blockLedger(helper, STORE_POS, null).remainders().of(GooTypes.ROCK);
+        helper.assertTrue(THIRD.equals(restored), String.format(CRUCIBLE_LOST, restored));
+        helper.succeed();
+    }
+
+    /**
+     * A vat holding 100 rock and a remainder of 1/3 rock, broken, drops an item
+     * carrying both, and the vat placed from the item holds both.
+     *
+     * @param helper the gametest helper
+     */
+    public static void vatGooSurvivesABreak(GameTestHelper helper) {
+        GooContents held = new GooContents(java.util.Map.of(GooTypes.ROCK, VAT_ROCK),
+                com.mercuriusxeno.goo.data.GooRemainders.EMPTY.with(GooTypes.ROCK, THIRD));
+        helper.setBlock(STORE_POS, GooBlocks.VAT.get());
+        helper.getBlockEntity(STORE_POS, VatBlockEntity.class).getFluidHandler().loadFrom(held);
+        helper.getLevel().destroyBlock(helper.absolutePos(STORE_POS), true);
+        ItemStack dropped = droppedItem(helper, STORE_POS, GooItems.VAT.get());
+        helper.setBlock(STORE_POS, GooBlocks.VAT.get());
+        VatBlockEntity placed = helper.getBlockEntity(STORE_POS, VatBlockEntity.class);
+        placed.applyComponentsFromItemStack(dropped);
+        GooContents restored = placed.getFluidHandler().toGooContents();
+        helper.assertTrue(held.equals(restored), String.format(VAT_LOST, held, restored));
+        helper.succeed();
     }
 
     /**
@@ -190,13 +241,18 @@ public final class RemainderCapabilityTests {
     }
 
     private static ItemStack droppedPlexer(GameTestHelper helper) {
-        BlockPos at = helper.absolutePos(PLEXER_POS);
+        ItemStack dropped = droppedItem(helper, PLEXER_POS, GooItems.PLEXER.get());
+        helper.assertTrue(dropped.has(GooDataComponents.REMAINDERS.get()), UNCARRIED);
+        return dropped;
+    }
+
+    private static ItemStack droppedItem(GameTestHelper helper, BlockPos pos, net.minecraft.world.item.Item item) {
+        BlockPos at = helper.absolutePos(pos);
         List<ItemEntity> drops = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
-                new AABB(at).inflate(DROP_REACH), item -> item.getItem().is(GooItems.PLEXER.get()));
+                new AABB(at).inflate(DROP_REACH), entity -> entity.getItem().is(item));
         helper.assertFalse(drops.isEmpty(), NO_DROP);
         ItemStack dropped = drops.getFirst().getItem().copy();
         drops.forEach(ItemEntity::discard);
-        helper.assertTrue(dropped.has(GooDataComponents.REMAINDERS.get()), UNCARRIED);
         return dropped;
     }
 }
