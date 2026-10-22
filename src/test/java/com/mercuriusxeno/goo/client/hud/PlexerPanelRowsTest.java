@@ -47,9 +47,9 @@ class PlexerPanelRowsTest {
         assertEquals(3, rows.size());
         PanelRow leaf = rows.get(1);
         assertEquals(PanelPainter.gooIcon(GooTypes.LEAF), leaf.icon());
-        assertEquals("21 1/3", leaf.segments().getFirst().text());
+        assertEquals("21¹⁄₃", leaf.segments().getFirst().text());
         PanelRow rock = rows.get(2);
         assertEquals(PanelPainter.gooIcon(GooTypes.ROCK), rock.icon());
-        assertEquals("1/3", rock.segments().getFirst().text());
+        assertEquals("¹⁄₃", rock.segments().getFirst().text());
     }
 }
