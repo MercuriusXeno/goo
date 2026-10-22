@@ -50,7 +50,7 @@ public class GooValueClientTooltipComponent implements ClientTooltipComponent {
      * @return the styled text component for display
      */
     private static Component buildDisplayText(GooValueTooltipComponent data) {
-        String formatted = GooFormat.formatAmount(data.amount());
+        String formatted = GooFormat.formatMixed(data.amount());
         return Component.literal(formatted + AMOUNT_TYPE_SEPARATOR)
                 .append(Component.translatable(GooTypeNames.translationKey(data.type()))
                         .withStyle(Style.EMPTY.withColor(ClientGooTypes.color(data.type()))));
