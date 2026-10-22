@@ -924,6 +924,35 @@ function setRestricted(id, restricted) {
   }
 }
 
+// _roots names the clique roots the audit works each family from; a file without one gains it above
+// _restricted the first time a root is named.
+function rootsSection(create) {
+  let section = state.model.members.find((member) => member.key === '_roots');
+  if (!section && create) {
+    section = { key: '_roots', keySeparator: null, kind: 'ARRAY', text: '', entries: [], leading: null,
+      trailing: null, closingGap: null };
+    const at = state.model.members.findIndex((member) => member.key === '_restricted');
+    state.model.members.splice(at < 0 ? state.model.members.length : at, 0, section);
+  }
+  return section;
+}
+
+function isRoot(id) {
+  const section = rootsSection(false);
+  return !!section && section.entries.some((entry) => [id, bareId(id)].includes(textValue(entry.text)));
+}
+
+function setRoot(id, root) {
+  const section = rootsSection(root);
+  if (!section) {
+    return;
+  }
+  section.entries = section.entries.filter((entry) => ![id, bareId(id)].includes(textValue(entry.text)));
+  if (root) {
+    section.entries.push(newEntry(null, JSON.stringify(bareId(id))));
+  }
+}
+
 async function refreshValues() {
   try {
     const resolved = await fetchJson('/api/values/resolve', { method: 'POST', body: JSON.stringify(state.model) });
@@ -1120,11 +1149,18 @@ function renderEditor() {
   restrictedLabel.className = 'hint';
   restrictedLabel.append(restricted, ' Restricted: listed under _restricted');
   restricted.addEventListener('change', () => { setRestricted(id, restricted.checked); markEdited(); refreshValues(); });
+  const root = document.createElement('input');
+  root.type = 'checkbox';
+  root.checked = isRoot(id);
+  const rootLabel = document.createElement('label');
+  rootLabel.className = 'hint';
+  rootLabel.append(root, ' Root: the audit works this item\'s families from it (_roots)');
+  root.addEventListener('change', () => { setRoot(id, root.checked); markEdited(); });
   const actions = document.createElement('div');
   actions.className = 'row-actions';
   actions.append(button('Write the entry', () => { setEntryText(id, readText()); markEdited(); refreshValues(); }),
     button('Remove the entry', () => { removeEntry(id); markEdited(); refreshValues(); }, entry ? null : 'No entry to remove'));
-  body.append(modeRow, formHolder, restrictedLabel, actions);
+  body.append(modeRow, formHolder, restrictedLabel, rootLabel, actions);
   holder.replaceChildren(head, body);
 }
 

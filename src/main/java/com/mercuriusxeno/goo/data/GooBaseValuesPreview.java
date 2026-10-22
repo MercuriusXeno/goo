@@ -68,9 +68,10 @@ public final class GooBaseValuesPreview {
      * @param denied     the items denied a value
      * @param restricted the items restricted from melting
      * @param warnings   the validator's warnings, each led by the entry it names
+     * @param roots      the clique roots _roots names, in file order
      */
     public record Loaded(Map<Identifier, GooValue> baseValues, Set<Identifier> denied, Set<Identifier> restricted,
-                         List<String> warnings) {
+                         List<String> warnings, List<Identifier> roots) {
     }
 
     /**
@@ -92,7 +93,8 @@ public final class GooBaseValuesPreview {
         GooValueLoader.applyMergedLayers(List.of(JsonParser.parseString(json).getAsJsonObject()), state, tagResolver);
         List<String> warnings = new ArrayList<>();
         GooValueValidator.validateJson(JsonParser.parseString(json).getAsJsonObject(), warnings);
-        return new Loaded(state.baseValues, state.deniedItems, state.restrictedItems, warnings);
+        return new Loaded(state.baseValues, state.deniedItems, state.restrictedItems, warnings,
+                List.copyOf(state.rootItems));
     }
 
     /**
@@ -150,6 +152,17 @@ public final class GooBaseValuesPreview {
 
     private static GooConversion.ParsedConversions orEmpty(GooConversion.@Nullable ParsedConversions parsed) {
         return parsed != null ? parsed : GooConversion.parseBlock(Map.of());
+    }
+
+    /**
+     * @param json    base_values.json text
+     * @param recipes the loadout's recipes
+     * @return a registry holding the text's values derived over the recipes, as the server holds it after load
+     */
+    public static GooValueRegistry derivedRegistry(String json, List<RecipeInput> recipes) {
+        GooValueRegistry registry = registry(json);
+        registry.deriveFromRecipeInputs(recipes, false);
+        return registry;
     }
 
     /**

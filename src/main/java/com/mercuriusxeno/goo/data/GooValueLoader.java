@@ -130,6 +130,7 @@ final class GooValueLoader {
             classifyItemEntry(entry.getKey(), entry.getValue(), state);
         }
         GooGroupParser.parseRestricted(json, state);
+        GooGroupParser.parseRoots(json, state);
     }
 
     /**
@@ -245,6 +246,10 @@ final class GooValueLoader {
         final Map<String, Integer> constants;
         final Map<String, GooValue> treeConstants;
         final Map<String, Set<Identifier>> pseudoTags;
+        /**
+         * The clique roots _roots names, in file order (decision audit-proposes-root-candidates-and-flags-bleed).
+         */
+        final Set<Identifier> rootItems = new java.util.LinkedHashSet<>();
         GooConversion.ParsedConversions preConversions;
         GooConversion.ParsedConversions postConversions;
         JsonObject lastMergedBaseValues;
