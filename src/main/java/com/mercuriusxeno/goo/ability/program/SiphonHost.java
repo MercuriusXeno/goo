@@ -2,7 +2,6 @@ package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.GooConfig;
 import com.mercuriusxeno.goo.data.GooValue;
-import com.mercuriusxeno.goo.item.GooContents;
 import net.minecraft.core.BlockPos;
 import org.jspecify.annotations.Nullable;
 import java.util.List;
@@ -48,10 +47,10 @@ public interface SiphonHost extends StepHost {
      * Starts a block streaming into the glove: it goes until it is done.
      *
      * @param pos   the block
-     * @param goo   the goo it gives
+     * @param value its exact goo value, paid when its tail reaches the hand
      * @param ticks the ticks it takes, the unstable crucible's time for it over the drink's speed
      */
-    void siphon(BlockPos pos, GooContents goo, int ticks);
+    void siphon(BlockPos pos, GooValue value, int ticks);
 
     /**
      * @return the unstable crucible's melt exponent, the clock the fuel cost is read on

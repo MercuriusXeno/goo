@@ -1,7 +1,6 @@
 package com.mercuriusxeno.goo.ability.program;
 
 import com.mercuriusxeno.goo.data.GooValue;
-import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
@@ -74,20 +73,20 @@ class SiphonStepTest {
             tick(host);
 
             verify(host).holdDrink();
-            verify(host).siphon(AIMED, new GooContents(Map.of(GooTypes.ROCK, 1152)), COBBLESTONE_TICKS);
-            verify(host).siphon(BESIDE, new GooContents(Map.of(GooTypes.ROCK, 1152)), COBBLESTONE_TICKS);
+            verify(host).siphon(AIMED, COBBLESTONE, COBBLESTONE_TICKS);
+            verify(host).siphon(BESIDE, COBBLESTONE, COBBLESTONE_TICKS);
             verify(host, times(2)).burnUnstable(COBBLESTONE_FUEL);
         }
 
         @Test
-        void aFractionalBlockPaysTheFloorOfEachType() {
+        void aFractionalBlockHandsTheDrinkItsExactValue() {
             SiphonHost host = facing(List.of(AIMED));
             when(host.siphonValue(AIMED)).thenReturn(fraction(GooTypes.LEAF, 64, 3));
             when(host.burnUnstable(anyInt())).thenReturn(true);
 
             tick(host);
 
-            verify(host).siphon(eq(AIMED), eq(new GooContents(Map.of(GooTypes.LEAF, 21))), anyInt());
+            verify(host).siphon(eq(AIMED), eq(fraction(GooTypes.LEAF, 64, 3)), anyInt());
         }
 
         @Test
