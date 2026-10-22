@@ -224,6 +224,16 @@ public final class InWorldHud {
      * @param face      the block face direction
      */
     public static void applyFaceRotation(PoseStack poseStack, Direction face) {
+        poseStack.mulPose(faceRotation(face));
+    }
+
+    /**
+     * Turns a panel's local +z, the side its text reads from, onto a horizontal face's outward normal.
+     *
+     * @param face the block face direction
+     * @return the rotation {@link #applyFaceRotation} applies
+     */
+    public static Quaternionf faceRotation(Direction face) {
         float yRot = switch (face) {
             case NORTH -> (float) Math.PI;        // 180 degrees
             case SOUTH -> 0f;
@@ -231,7 +241,7 @@ public final class InWorldHud {
             case WEST -> (float) -Math.PI / HALF;  // -90 degrees
             default -> 0f;
         };
-        poseStack.mulPose(new Quaternionf().rotationY(yRot));
+        return new Quaternionf().rotationY(yRot);
     }
 
     /**
