@@ -131,7 +131,17 @@ tr:hover td { background: var(--hover); }
         <button class="tab" role="tab" type="button" data-tab="processes" aria-selected="false">Processes</button>
         <button class="tab" role="tab" type="button" data-tab="audit" aria-selected="false">Audit</button>
       </nav>
-      <section class="pane" role="tabpanel" id="pane-values" data-pane="values"><div class="pane-card">Item and #group entries: value objects, expressions, ratios, denied and restricted.</div></section>
+      <section class="pane" role="tabpanel" id="pane-values" data-pane="values">
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">Template</span>
+            <span class="mono hint grow" id="template-summary">what the file leaves out of the inventory</span>
+            <button class="small" type="button" id="template-refresh">Check the file</button>
+            <button class="small" type="button" id="template-start" title="Replaces the open file with the template; nothing is written until Save">Start from the template</button>
+          </div>
+          <div class="detail-body" id="template-body"></div>
+        </div>
+      </section>
       <section class="pane" role="tabpanel" id="pane-groups" data-pane="groups" hidden>
         <div class="split">
           <div class="card group-list">
@@ -801,6 +811,63 @@ function fillInventoryChoices() {
   }));
 }
 
+// --- Template: what the file leaves out of the inventory, or a fresh file naming everything ---
+
+const templateView = { answer: null, confirming: false };
+
+async function checkTemplate() {
+  try {
+    templateView.answer = await fetchJson('/api/template', { method: 'POST', body: JSON.stringify(state.model) });
+    renderTemplate();
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+}
+
+function idList(title, ids) {
+  const stack = document.createElement('div');
+  stack.className = 'field-stack';
+  const head = document.createElement('div');
+  head.className = 'hint';
+  head.textContent = title + ' (' + ids.length + ')';
+  const list = document.createElement('div');
+  list.className = 'mono hint';
+  list.textContent = ids.slice(0, 200).join(', ') + (ids.length > 200 ? ', and ' + (ids.length - 200) + ' more' : '');
+  stack.append(head, list);
+  return stack;
+}
+
+function renderTemplate() {
+  const answer = templateView.answer;
+  if (!answer) {
+    return;
+  }
+  $('template-summary').textContent = answer.ungroupedTags.length + ' tags no group carries · '
+    + answer.uncoveredItems.length + ' items nothing covers';
+  $('template-start').textContent = templateView.confirming ? 'Replace the open file? Click again' : 'Start from the template';
+  $('template-body').replaceChildren(idList('Tags of two or more items no group carries', answer.ungroupedTags),
+    idList('Items no entry or valued group covers', answer.uncoveredItems));
+}
+
+$('template-refresh').addEventListener('click', checkTemplate);
+$('template-start').addEventListener('click', async () => {
+  if (!templateView.answer) {
+    await checkTemplate();
+  }
+  if (!templateView.confirming) {
+    templateView.confirming = true;
+    renderTemplate();
+    return;
+  }
+  templateView.confirming = false;
+  state.model = templateView.answer.template;
+  state.sources = sourcesFromModel(state.model);
+  markEdited();
+  render();
+  await describeGroups();
+  await checkTemplate();
+});
+
 $('add-group').addEventListener('click', () => {
   const name = $('new-group').value.trim();
   if (!/^[a-z0-9_./-]+$/.test(name) || groupsView.groups.some((group) => group.name === name)) {
@@ -828,6 +895,7 @@ $('save-button').addEventListener('click', save);
     render();
     fillInventoryChoices();
     await describeGroups();
+    await checkTemplate();
   } catch (error) {
     setStatus(error.message, true);
   }

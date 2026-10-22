@@ -40,6 +40,7 @@ final class GroupsJson {
     private static final String ITEMS = "items";
     private static final String BLOCKS = "blocks";
     private static final String ITEM_TAGS = "item_tags";
+    private static final String GOO_TYPES = "goo_types";
     private static final String CONSTANTS = "_constants";
     private static final String TAG_PREFIX = "#";
     private static final String KEY_SEPARATOR = ": ";
@@ -53,10 +54,10 @@ final class GroupsJson {
      * @param ids  every item and block id
      * @param tags each item tag's member ids
      */
-    record Inventory(Set<String> ids, Map<String, List<String>> tags) {
+    record Inventory(Set<String> ids, Map<String, List<String>> tags, List<String> items, List<String> gooTypes) {
         static Inventory read(Path file) throws IOException {
             if (!Files.isRegularFile(file)) {
-                return new Inventory(Set.of(), Map.of());
+                return new Inventory(Set.of(), Map.of(), List.of(), List.of());
             }
             JsonObject root = JsonParser.parseString(Files.readString(file)).getAsJsonObject();
             Set<String> ids = new HashSet<>();
@@ -69,7 +70,19 @@ final class GroupsJson {
                 tags.put(json.get(ID).getAsString(),
                         json.getAsJsonArray(MEMBERS).asList().stream().map(JsonElement::getAsString).toList());
             }
-            return new Inventory(ids, tags);
+            return new Inventory(ids, tags, idsIn(root, ITEMS), idsIn(root, GOO_TYPES));
+        }
+
+        private static List<String> idsIn(JsonObject root, String section) {
+            return root.getAsJsonArray(section).asList().stream()
+                    .map(entry -> entry.getAsJsonObject().get(ID).getAsString()).toList();
+        }
+
+        /**
+         * @return the loadout the template is built from
+         */
+        ValuesTemplate.Loadout loadout() {
+            return new ValuesTemplate.Loadout(items, tags, gooTypes);
         }
     }
 
