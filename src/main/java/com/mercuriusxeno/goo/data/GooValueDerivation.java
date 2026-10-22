@@ -249,7 +249,7 @@ final class GooValueDerivation {
             return false;
         }
         GooValue existing = derivedValues.get(itemId);
-        if (existing != null && !GooRecipeEvaluator.isCheaper(best.value(), existing)) {
+        if (existing != null && !GooRecipeEvaluator.isCheaperOrSimpler(best.value(), existing)) {
             return false;
         }
         derivedValues.put(itemId, best.value());
