@@ -73,7 +73,7 @@ public class ContainerEvaluator {
         if (value == null || value.isEmpty()) {
             return null;
         }
-        return new ValuedStack(itemId, count, value.toGooContents());
+        return new ValuedStack(itemId, count, value.meltPayout());
     }
 
     /**
@@ -88,7 +88,7 @@ public class ContainerEvaluator {
         for (ValuedStack stack : valued) {
             GooValue value = lookup.lookup(stack.item());
             if (value != null) {
-                goo = goo.mergeWith(value.toGooContents(stack.count()));
+                goo = goo.mergeWith(value.meltPayout(stack.count()));
             }
         }
         return goo;

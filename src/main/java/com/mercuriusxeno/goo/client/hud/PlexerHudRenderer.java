@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.hud;
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlock;
 import com.mercuriusxeno.goo.block.plexer.PlexerBlockEntity;
+import com.mercuriusxeno.goo.client.ClientGooValues;
 import com.mercuriusxeno.goo.network.PlayerKnowledge;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -101,6 +102,7 @@ public final class PlexerHudRenderer {
                 PanelPlacement.onFace(PlexerPanelTarget.anchor(pos, facing), PlexerPanelTarget.front(facing), false,
                         ANIMATOR.pitch(), ANIMATOR.opacity()),
                 PlexerPanelRows.rows(target.getHoverName().getString(),
-                        ItemParticleIcons.of(PlayerKnowledge.idOf(target.getItem()))));
+                        ItemParticleIcons.of(PlayerKnowledge.idOf(target.getItem())),
+                        ClientGooValues.current().lookup(PlayerKnowledge.idOf(target.getItem()))));
     }
 }

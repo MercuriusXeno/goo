@@ -88,7 +88,7 @@ class GooConversionTest {
 
             GooConversion.ParsedConversions parsed = GooConversion.parseBlock(entries, Map.of(), treeConstants);
             assertNotNull(parsed.additives().get("waxed"));
-            assertEquals(48, parsed.additives().get("waxed").get(GooTypes.ZOO));
+            assertEquals(GooFraction.of(48), parsed.additives().get("waxed").exact(GooTypes.ZOO));
         }
 
         /**
@@ -100,8 +100,8 @@ class GooConversionTest {
             GooValue waxBonus = goo(GooTypes.ZOO, 48);
 
             GooValue result = copper.add(waxBonus, 1);
-            assertEquals(160, result.get(GooTypes.METAL));
-            assertEquals(48, result.get(GooTypes.ZOO));
+            assertEquals(GooFraction.of(160), result.exact(GooTypes.METAL));
+            assertEquals(GooFraction.of(48), result.exact(GooTypes.ZOO));
         }
 
         /**
@@ -113,8 +113,8 @@ class GooConversionTest {
             GooValue waxBonus = goo(GooTypes.ZOO, 48);
 
             GooValue result = copper.add(waxBonus, 2);
-            assertEquals(160, result.get(GooTypes.METAL));
-            assertEquals(96, result.get(GooTypes.ZOO));
+            assertEquals(GooFraction.of(160), result.exact(GooTypes.METAL));
+            assertEquals(GooFraction.of(96), result.exact(GooTypes.ZOO));
         }
     }
 
@@ -132,8 +132,8 @@ class GooConversionTest {
             GooValue copper = goo(GooTypes.METAL, 160);
 
             GooValue result = GooConversion.apply(copper, oxidation, 1);
-            assertEquals(120, result.get(GooTypes.METAL)); // 160 - 40
-            assertEquals(20, result.get(GooTypes.YORE));    // 40 / 2
+            assertEquals(GooFraction.of(120), result.exact(GooTypes.METAL)); // 160 - 40
+            assertEquals(GooFraction.of(20), result.exact(GooTypes.YORE));    // 40 / 2
         }
 
         /**
@@ -145,8 +145,8 @@ class GooConversionTest {
             GooValue copper = goo(GooTypes.METAL, 160);
 
             GooValue result = GooConversion.apply(copper, oxidation, 2);
-            assertEquals(80, result.get(GooTypes.METAL));  // 160 - 2*40
-            assertEquals(40, result.get(GooTypes.YORE));    // 2 * (40/2)
+            assertEquals(GooFraction.of(80), result.exact(GooTypes.METAL));  // 160 - 2*40
+            assertEquals(GooFraction.of(40), result.exact(GooTypes.YORE));    // 2 * (40/2)
         }
 
         /**
@@ -158,8 +158,8 @@ class GooConversionTest {
             GooValue copper = goo(GooTypes.METAL, 160);
 
             GooValue result = GooConversion.apply(copper, oxidation, 3);
-            assertEquals(40, result.get(GooTypes.METAL));  // 160 - 3*40
-            assertEquals(60, result.get(GooTypes.YORE));    // 3 * (40/2)
+            assertEquals(GooFraction.of(40), result.exact(GooTypes.METAL));  // 160 - 3*40
+            assertEquals(GooFraction.of(60), result.exact(GooTypes.YORE));    // 3 * (40/2)
         }
 
         /**
@@ -171,9 +171,9 @@ class GooConversionTest {
             GooValue copper = goo(GooTypes.METAL, 160, GooTypes.ROCK, 50);
 
             GooValue result = GooConversion.apply(copper, oxidation, 1);
-            assertEquals(120, result.get(GooTypes.METAL));
-            assertEquals(20, result.get(GooTypes.YORE));
-            assertEquals(50, result.get(GooTypes.ROCK)); // untouched
+            assertEquals(GooFraction.of(120), result.exact(GooTypes.METAL));
+            assertEquals(GooFraction.of(20), result.exact(GooTypes.YORE));
+            assertEquals(GooFraction.of(50), result.exact(GooTypes.ROCK)); // untouched
         }
 
         /**
@@ -185,33 +185,35 @@ class GooConversionTest {
             GooValue noMetal = goo(GooTypes.ROCK, 100);
 
             GooValue result = GooConversion.apply(noMetal, oxidation, 1);
-            assertEquals(100, result.get(GooTypes.ROCK));
-            assertEquals(0, result.get(GooTypes.METAL));
-            assertEquals(0, result.get(GooTypes.YORE));
+            assertEquals(GooFraction.of(100), result.exact(GooTypes.ROCK));
+            assertEquals(GooFraction.of(0), result.exact(GooTypes.METAL));
+            assertEquals(GooFraction.of(0), result.exact(GooTypes.YORE));
         }
 
         /**
-         * Lossy source division throws.
+         * A source division with a remainder moves the exact share
+         * (decision values-are-fractions-melt-floors-fabricate-ceils).
          */
         @Test
-        void lossySourceDivisionThrows() {
+        void sourceDivisionWithARemainderMovesTheExactShare() {
             GooConversion.Formula f = GooConversion.parseFormula("metal / 3 -> yore / 1");
-            GooValue copper = goo(GooTypes.METAL, 100); // 100/3 = 33.3
+            GooValue result = GooConversion.apply(goo(GooTypes.METAL, 100), f, 1);
 
-            assertThrows(ArithmeticException.class,
-                    () -> GooConversion.apply(copper, f, 1));
+            assertEquals(GooFraction.of(200, 3), result.exact(GooTypes.METAL));
+            assertEquals(GooFraction.of(100, 3), result.exact(GooTypes.YORE));
         }
 
         /**
-         * Lossy target division throws.
+         * A target division with a remainder adds the exact share
+         * (decision values-are-fractions-melt-floors-fabricate-ceils).
          */
         @Test
-        void lossyTargetDivisionThrows() {
+        void targetDivisionWithARemainderAddsTheExactShare() {
             GooConversion.Formula f = GooConversion.parseFormula("metal / 4 -> yore / 3");
-            GooValue copper = goo(GooTypes.METAL, 160); // 40/3 = 13.3
+            GooValue result = GooConversion.apply(goo(GooTypes.METAL, 160), f, 1);
 
-            assertThrows(ArithmeticException.class,
-                    () -> GooConversion.apply(copper, f, 1));
+            assertEquals(GooFraction.of(120), result.exact(GooTypes.METAL));
+            assertEquals(GooFraction.of(40, 3), result.exact(GooTypes.YORE));
         }
     }
 
@@ -330,9 +332,9 @@ class GooConversionTest {
             GooConversion.applyAssignment(effective, targets, null, assignment, formulas, Map.of());
 
             GooValue copper = effective.get(id("minecraft:weathered_copper"));
-            assertEquals(80, copper.get(GooTypes.METAL));
-            assertEquals(40, copper.get(GooTypes.YORE));
-            assertEquals(50, copper.get(GooTypes.ROCK));
+            assertEquals(GooFraction.of(80), copper.exact(GooTypes.METAL));
+            assertEquals(GooFraction.of(40), copper.exact(GooTypes.YORE));
+            assertEquals(GooFraction.of(50), copper.exact(GooTypes.ROCK));
         }
 
         /**
@@ -362,13 +364,13 @@ class GooConversionTest {
 
             // copper_block (160 metal) copied to exposed_copper, then 1x oxidation
             GooValue exposed = effective.get(id("minecraft:exposed_copper"));
-            assertEquals(120, exposed.get(GooTypes.METAL)); // 160 - 40
-            assertEquals(20, exposed.get(GooTypes.YORE));    // 40 / 2
+            assertEquals(GooFraction.of(120), exposed.exact(GooTypes.METAL)); // 160 - 40
+            assertEquals(GooFraction.of(20), exposed.exact(GooTypes.YORE));    // 40 / 2
 
             // cut_copper (80 metal) copied to exposed_cut_copper, then 1x oxidation
             GooValue exposedCut = effective.get(id("minecraft:exposed_cut_copper"));
-            assertEquals(60, exposedCut.get(GooTypes.METAL)); // 80 - 20
-            assertEquals(10, exposedCut.get(GooTypes.YORE));   // 20 / 2
+            assertEquals(GooFraction.of(60), exposedCut.exact(GooTypes.METAL)); // 80 - 20
+            assertEquals(GooFraction.of(10), exposedCut.exact(GooTypes.YORE));   // 20 / 2
         }
 
         /**
@@ -389,15 +391,16 @@ class GooConversionTest {
                     "#wood", "#logs", 3, 4, java.util.List.of());
             GooConversion.applyAssignment(effective, targets, sources, assignment, Map.of(), Map.of());
 
-            assertEquals(90, effective.get(id("oak_wood")).get(GooTypes.LEAF));   // 120 * 3 / 4
-            assertEquals(60, effective.get(id("birch_wood")).get(GooTypes.LEAF)); // 80 * 3 / 4
+            assertEquals(GooFraction.of(90), effective.get(id("oak_wood")).exact(GooTypes.LEAF));   // 120 * 3 / 4
+            assertEquals(GooFraction.of(60), effective.get(id("birch_wood")).exact(GooTypes.LEAF)); // 80 * 3 / 4
         }
 
         /**
-         * Scale with lossy division throws.
+         * A scale whose divisor leaves a remainder keeps the exact fraction
+         * (decision values-are-fractions-melt-floors-fabricate-ceils).
          */
         @Test
-        void parallelCopyScaleLossyThrows() {
+        void parallelCopyScaleWithARemainderKeepsTheFraction() {
             Map<Identifier, GooValue> effective = new HashMap<>();
             effective.put(id("a"), goo(GooTypes.METAL, 10));
 
@@ -408,8 +411,7 @@ class GooConversionTest {
                     "b", "#src", 3, 4, java.util.List.of());
             GooConversion.applyAssignment(effective, targets, sources, assignment, Map.of(), Map.of());
 
-            // 10 * 3 = 30, 30 / 4 has remainder -- logged as error, value unchanged
-            assertTrue(effective.get(id("b")).isEmpty() || effective.get(id("b")).get(GooTypes.METAL) == 10);
+            assertEquals(GooFraction.of(15, 2), effective.get(id("b")).exact(GooTypes.METAL));
         }
 
         /**

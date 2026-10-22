@@ -21,15 +21,16 @@ class GooValueJsonFormatTest {
     class ParseGooValue {
 
         /**
-         * Plain integer value is parsed directly.
+         * A root value keyed as an integer parses to exactly that whole
+         * (decision values-are-fractions-melt-floors-fabricate-ceils).
          */
         @Test
-        void plainIntegerParsed() {
+        void integerRootValueParsesToThatExactWhole() {
             JsonObject json = new JsonObject();
             json.addProperty("metal", 42);
 
             GooValue result = GooValueJsonFormat.parseGooValue(json, Map.of());
-            assertEquals(42, result.get(GooTypes.METAL));
+            assertEquals(GooFraction.of(42), result.exact(GooTypes.METAL));
         }
 
         /**
@@ -41,7 +42,7 @@ class GooValueJsonFormatTest {
             json.addProperty("rock", "$base");
 
             GooValue result = GooValueJsonFormat.parseGooValue(json, Map.of("base", 10));
-            assertEquals(10, result.get(GooTypes.ROCK));
+            assertEquals(GooFraction.of(10), result.exact(GooTypes.ROCK));
         }
 
         /**
@@ -53,7 +54,7 @@ class GooValueJsonFormatTest {
             json.addProperty("leaf", "$base * 3");
 
             GooValue result = GooValueJsonFormat.parseGooValue(json, Map.of("base", 5));
-            assertEquals(15, result.get(GooTypes.LEAF));
+            assertEquals(GooFraction.of(15), result.exact(GooTypes.LEAF));
         }
 
         /**
@@ -65,7 +66,7 @@ class GooValueJsonFormatTest {
             json.addProperty("metal", "$base + 7");
 
             GooValue result = GooValueJsonFormat.parseGooValue(json, Map.of("base", 3));
-            assertEquals(10, result.get(GooTypes.METAL));
+            assertEquals(GooFraction.of(10), result.exact(GooTypes.METAL));
         }
 
         /**
@@ -77,7 +78,7 @@ class GooValueJsonFormatTest {
             json.addProperty("rock", "$base - 2");
 
             GooValue result = GooValueJsonFormat.parseGooValue(json, Map.of("base", 10));
-            assertEquals(8, result.get(GooTypes.ROCK));
+            assertEquals(GooFraction.of(8), result.exact(GooTypes.ROCK));
         }
 
         /**
@@ -89,7 +90,7 @@ class GooValueJsonFormatTest {
             json.addProperty("metal", "$base / 4");
 
             GooValue result = GooValueJsonFormat.parseGooValue(json, Map.of("base", 20));
-            assertEquals(5, result.get(GooTypes.METAL));
+            assertEquals(GooFraction.of(5), result.exact(GooTypes.METAL));
         }
 
         /**
@@ -101,7 +102,7 @@ class GooValueJsonFormatTest {
             json.addProperty("rock", "$base * 3 + 2");
 
             GooValue result = GooValueJsonFormat.parseGooValue(json, Map.of("base", 10));
-            assertEquals(32, result.get(GooTypes.ROCK));
+            assertEquals(GooFraction.of(32), result.exact(GooTypes.ROCK));
         }
 
         /**
@@ -113,7 +114,7 @@ class GooValueJsonFormatTest {
             json.addProperty("metal", "$x + 1 * 2 - 3");
 
             GooValue result = GooValueJsonFormat.parseGooValue(json, Map.of("x", 5));
-            assertEquals(4, result.get(GooTypes.METAL));
+            assertEquals(GooFraction.of(4), result.exact(GooTypes.METAL));
         }
 
         /**
@@ -126,7 +127,7 @@ class GooValueJsonFormatTest {
 
             GooValue result = GooValueJsonFormat.parseGooValue(json,
                     Map.of("a", 10, "b", 5, "c", 3));
-            assertEquals(25, result.get(GooTypes.LEAF));
+            assertEquals(GooFraction.of(25), result.exact(GooTypes.LEAF));
         }
 
         /**
@@ -138,7 +139,7 @@ class GooValueJsonFormatTest {
             json.addProperty("rock", "100 - 20 / 4");
 
             GooValue result = GooValueJsonFormat.parseGooValue(json, Map.of());
-            assertEquals(95, result.get(GooTypes.ROCK));
+            assertEquals(GooFraction.of(95), result.exact(GooTypes.ROCK));
         }
 
         /**
@@ -150,7 +151,7 @@ class GooValueJsonFormatTest {
             json.addProperty("rock", "240");
 
             GooValue result = GooValueJsonFormat.parseGooValue(json, Map.of());
-            assertEquals(240, result.get(GooTypes.ROCK));
+            assertEquals(GooFraction.of(240), result.exact(GooTypes.ROCK));
         }
 
         /**
@@ -162,7 +163,7 @@ class GooValueJsonFormatTest {
             json.addProperty("rock", "$a + ( 1 * 2 )");
 
             GooValue result = GooValueJsonFormat.parseGooValue(json, Map.of("a", 5));
-            assertEquals(7, result.get(GooTypes.ROCK));
+            assertEquals(GooFraction.of(7), result.exact(GooTypes.ROCK));
         }
 
         /**
@@ -174,7 +175,7 @@ class GooValueJsonFormatTest {
             json.addProperty("metal", "( ( $a + 1 ) * 2 )");
 
             GooValue result = GooValueJsonFormat.parseGooValue(json, Map.of("a", 3));
-            assertEquals(8, result.get(GooTypes.METAL));
+            assertEquals(GooFraction.of(8), result.exact(GooTypes.METAL));
         }
 
         /**
@@ -187,7 +188,7 @@ class GooValueJsonFormatTest {
 
             GooValue result = GooValueJsonFormat.parseGooValue(json,
                     Map.of("a", 2, "b", 4));
-            assertEquals(18, result.get(GooTypes.LEAF));
+            assertEquals(GooFraction.of(18), result.exact(GooTypes.LEAF));
         }
 
         /**
@@ -200,7 +201,7 @@ class GooValueJsonFormatTest {
 
             GooValue result = GooValueJsonFormat.parseGooValue(json,
                     Map.of("a", 3, "b", 5));
-            assertEquals(16, result.get(GooTypes.ROCK));
+            assertEquals(GooFraction.of(16), result.exact(GooTypes.ROCK));
         }
 
         /**
@@ -212,7 +213,7 @@ class GooValueJsonFormatTest {
             json.addProperty("rock", "($a+1)*2");
 
             GooValue result = GooValueJsonFormat.parseGooValue(json, Map.of("a", 5));
-            assertEquals(12, result.get(GooTypes.ROCK));
+            assertEquals(GooFraction.of(12), result.exact(GooTypes.ROCK));
         }
 
         /**
@@ -224,7 +225,7 @@ class GooValueJsonFormatTest {
             json.addProperty("metal", "$a*3+2");
 
             GooValue result = GooValueJsonFormat.parseGooValue(json, Map.of("a", 10));
-            assertEquals(32, result.get(GooTypes.METAL));
+            assertEquals(GooFraction.of(32), result.exact(GooTypes.METAL));
         }
 
         /**
@@ -237,7 +238,7 @@ class GooValueJsonFormatTest {
 
             GooValue result = GooValueJsonFormat.parseGooValue(json,
                     Map.of("a", 2, "b", 4, "c", 3));
-            assertEquals(18, result.get(GooTypes.LEAF));
+            assertEquals(GooFraction.of(18), result.exact(GooTypes.LEAF));
         }
 
         /**
@@ -249,7 +250,7 @@ class GooValueJsonFormatTest {
             json.addProperty("rock", "(($a+1)*2)");
 
             GooValue result = GooValueJsonFormat.parseGooValue(json, Map.of("a", 3));
-            assertEquals(8, result.get(GooTypes.ROCK));
+            assertEquals(GooFraction.of(8), result.exact(GooTypes.ROCK));
         }
 
         /**
@@ -264,7 +265,7 @@ class GooValueJsonFormatTest {
             json.addProperty("metal", "coal.blaze * 2");
 
             GooValue result = GooValueJsonFormat.parseGooValue(json, Map.of(), baseValues);
-            assertEquals(672, result.get(GooTypes.METAL));
+            assertEquals(GooFraction.of(672), result.exact(GooTypes.METAL));
         }
 
         /**
@@ -276,7 +277,7 @@ class GooValueJsonFormatTest {
             json.addProperty("metal", "3 $base");
 
             GooValue result = GooValueJsonFormat.parseGooValue(json, Map.of("base", 10));
-            assertEquals(30, result.get(GooTypes.METAL));
+            assertEquals(GooFraction.of(30), result.exact(GooTypes.METAL));
         }
 
         /**
@@ -289,7 +290,7 @@ class GooValueJsonFormatTest {
 
             GooValue result = GooValueJsonFormat.parseGooValue(json,
                     Map.of("a", 5, "b", 10));
-            assertEquals(25, result.get(GooTypes.ROCK));
+            assertEquals(GooFraction.of(25), result.exact(GooTypes.ROCK));
         }
 
         /**
@@ -305,8 +306,8 @@ class GooValueJsonFormatTest {
             json.addProperty("yore", "cut_copper.metal / 8");
 
             GooValue result = GooValueJsonFormat.parseGooValue(json, Map.of(), baseValues);
-            assertEquals(-50, result.get(GooTypes.METAL)); // -(200) / 4
-            assertEquals(25, result.get(GooTypes.YORE));    // 200 / 8
+            assertEquals(GooFraction.of(-50), result.exact(GooTypes.METAL)); // -(200) / 4
+            assertEquals(GooFraction.of(25), result.exact(GooTypes.YORE));    // 200 / 8
         }
 
         /**
@@ -318,7 +319,7 @@ class GooValueJsonFormatTest {
             json.addProperty("metal", "-$base");
 
             GooValue result = GooValueJsonFormat.parseGooValue(json, Map.of("base", 64));
-            assertEquals(-64, result.get(GooTypes.METAL));
+            assertEquals(GooFraction.of(-64), result.exact(GooTypes.METAL));
         }
 
         /**
@@ -330,7 +331,7 @@ class GooValueJsonFormatTest {
             json.addProperty("metal", "$missing");
 
             GooValue result = GooValueJsonFormat.parseGooValue(json, Map.of());
-            assertEquals(0, result.get(GooTypes.METAL));
+            assertEquals(GooFraction.of(0), result.exact(GooTypes.METAL));
         }
 
         /**
@@ -343,8 +344,8 @@ class GooValueJsonFormatTest {
             json.addProperty("rock", 3);
 
             GooValue result = GooValueJsonFormat.parseGooValue(json, Map.of());
-            assertEquals(5, result.get(GooTypes.METAL));
-            assertEquals(3, result.get(GooTypes.ROCK));
+            assertEquals(GooFraction.of(5), result.exact(GooTypes.METAL));
+            assertEquals(GooFraction.of(3), result.exact(GooTypes.ROCK));
         }
     }
 

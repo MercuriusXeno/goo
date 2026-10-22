@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.ability;
 
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -112,10 +113,10 @@ public final class AbilityMath {
         if (value == null || value.isEmpty()) {
             return false;
         }
-        int rockTotal = 0;
+        GooFraction rockTotal = GooFraction.ZERO;
         for (ResourceKey<GooTypeDefinition> type : ROCK_FAMILY) {
-            rockTotal += value.get(type);
+            rockTotal = rockTotal.plus(value.exact(type));
         }
-        return rockTotal * MAJORITY_MULTIPLIER > value.totalGoo();
+        return rockTotal.times(MAJORITY_MULTIPLIER).compareTo(value.totalExact()) > 0;
     }
 }

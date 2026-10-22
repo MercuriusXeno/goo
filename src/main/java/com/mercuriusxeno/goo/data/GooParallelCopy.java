@@ -197,7 +197,7 @@ final class GooParallelCopy {
                                      int multiplier, int divisor,
                                      Map<Identifier, GooValue> baseValues) {
         try {
-            GooValue scaled = sourceVal.multiply(multiplier).divideExact(divisor);
+            GooValue scaled = sourceVal.multiply(multiplier).divide(divisor);
             if (scaled.hasNegative()) {
                 if (Goo.LOGGER.isErrorEnabled()) {
                     Goo.LOGGER.error(LOG_PARALLEL_NEGATIVE, target, scaled);

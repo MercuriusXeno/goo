@@ -86,7 +86,7 @@ public final class LabStock {
     public static List<Item> itemsHolding(IGooValueLookup values, ResourceKey<GooTypeDefinition> type) {
         Map<Identifier, GooValue> effective = values.getEffectiveValues();
         return effective.keySet().stream()
-                .filter(id -> effective.get(id).get(type) > 0)
+                .filter(id -> effective.get(id).exact(type).isPositive())
                 .sorted(Comparator.comparing(Identifier::toString))
                 .map(BuiltInRegistries.ITEM::getValue)
                 .filter(item -> item != Items.AIR)

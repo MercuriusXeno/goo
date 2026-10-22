@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.command;
 
+import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.GooValueRegistry;
 import com.mercuriusxeno.goo.data.GooValues;
@@ -440,14 +441,14 @@ public final class GooCommand {
     private static MutableComponent formatGooValue(HolderLookup.Provider registries, String itemName, GooValue value) {
         MutableComponent msg = Component.literal(itemName + MSG_COLON_SPACE);
         boolean first = true;
-        for (var entry : value.getAll().entrySet()) {
+        for (var entry : value.exactAll().entrySet()) {
             if (!first) {
                 msg.append(Component.literal(MSG_COMMA));
             }
             appendTypeEntry(msg, GooColors.get(registries, entry.getKey()), entry.getKey(), entry.getValue());
             first = false;
         }
-        msg.append(Component.literal(MSG_TOTAL_PREFIX + value.totalGoo() + MSG_CLOSE_PAREN));
+        msg.append(Component.literal(MSG_TOTAL_PREFIX + value.totalExact() + MSG_CLOSE_PAREN));
         return msg;
     }
 
@@ -459,7 +460,7 @@ public final class GooCommand {
      * @param type   the goo type
      * @param amount the goo amount
      */
-    private static void appendTypeEntry(MutableComponent msg, int color, ResourceKey<GooTypeDefinition> type, int amount) {
+    private static void appendTypeEntry(MutableComponent msg, int color, ResourceKey<GooTypeDefinition> type, GooFraction amount) {
         msg.append(Component.literal(GooTypes.id(type)).withStyle(Style.EMPTY.withColor(color)));
         msg.append(Component.literal(MSG_TIMES + amount));
     }

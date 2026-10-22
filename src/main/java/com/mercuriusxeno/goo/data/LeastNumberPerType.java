@@ -167,7 +167,7 @@ public final class LeastNumberPerType {
         types.forEach(type -> itemsByType.put(GooTypes.id(type), new ArrayList<>()));
         graph.items().stream().filter(effectiveValues::containsKey).sorted().forEach(item -> {
             ItemDivisor divisor = graph.itemDivisor(item);
-            effectiveValues.get(item).getAll().keySet().forEach(type -> {
+            effectiveValues.get(item).exactAll().keySet().forEach(type -> {
                 List<ItemDivisor> items = itemsByType.get(GooTypes.id(type));
                 if (items != null) {
                     items.add(divisor);
@@ -203,7 +203,7 @@ public final class LeastNumberPerType {
     }
 
     private static String valueText(GooValue value) {
-        return value.getAll().entrySet().stream()
+        return value.exactAll().entrySet().stream()
                 .sorted(Map.Entry.comparingByKey(GooTypes.ORDER))
                 .map(e -> GooTypes.id(e.getKey()) + STEP_SEPARATOR + e.getValue())
                 .collect(Collectors.joining(LIST_SEPARATOR));
@@ -445,7 +445,7 @@ public final class LeastNumberPerType {
                 GooValue held = effectiveValues.get(item);
                 if (held != null && !divergent.contains(item)) {
                     Map<ResourceKey<GooTypeDefinition>, Integer> amounts = new HashMap<>();
-                    held.getAll().keySet().forEach(type -> amounts.put(type, (int) divisor(item)));
+                    held.exactAll().keySet().forEach(type -> amounts.put(type, (int) divisor(item)));
                     values.put(item, new GooValue(amounts));
                 }
             }
@@ -492,7 +492,7 @@ public final class LeastNumberPerType {
             }
             Map<ResourceKey<GooTypeDefinition>, Integer> amounts = new HashMap<>();
             long multiple = divisor(seed);
-            effectiveValues.get(seed).getAll().keySet().forEach(type -> amounts.put(type, (int) multiple));
+            effectiveValues.get(seed).exactAll().keySet().forEach(type -> amounts.put(type, (int) multiple));
             values.put(seed, new GooValue(amounts));
             return true;
         }
@@ -520,8 +520,8 @@ public final class LeastNumberPerType {
                 GooValue containerValue = container == null ? null : values.get(container);
                 total = total.add(containerValue == null ? value : value.subtract(containerValue), 1);
             }
-            for (int amount : total.getAll().values()) {
-                if (amount % edge.count() != 0) {
+            for (GooFraction amount : total.exactAll().values()) {
+                if (!amount.dividedBy(edge.count()).isWhole()) {
                     remainders.add(edge.output());
                 }
             }
