@@ -20,7 +20,7 @@ import java.util.*;
  * enabling the derivation engine to operate without MC dependencies.
  * Pure-static utility with no instance state.
  */
-final class GooValueRecipeAdapter {
+public final class GooValueRecipeAdapter {
 
     /**
      * Suppress-warnings key for unchecked casts.
@@ -49,7 +49,7 @@ final class GooValueRecipeAdapter {
                                           HolderLookup.Provider registries) {
         List<RecipeInput> result = new ArrayList<>();
         for (RecipeHolder<?> holder : holders) {
-            RecipeInput adapted = adaptOneRecipe(holder.value(), registries);
+            RecipeInput adapted = adaptRecipe(holder.value(), registries);
             if (adapted != null) {
                 result.add(adapted);
             }
@@ -65,7 +65,7 @@ final class GooValueRecipeAdapter {
      * @return the adapted RecipeInput, or null if unsupported
      */
     @Nullable
-    private static RecipeInput adaptOneRecipe(Recipe<?> recipe, HolderLookup.Provider registries) {
+    public static RecipeInput adaptRecipe(Recipe<?> recipe, HolderLookup.Provider registries) {
         ItemStack resultStack = getRecipeResult(recipe, registries);
         if (resultStack == null || resultStack.isEmpty()) {
             return null;
@@ -155,7 +155,7 @@ final class GooValueRecipeAdapter {
      * @param ingredient the ingredient to extract a tag from
      * @return the tag ID if present, otherwise empty
      */
-    private static Optional<Identifier> extractTagId(Ingredient ingredient) {
+    public static Optional<Identifier> extractTagId(Ingredient ingredient) {
         if (ingredient.isCustom()) {
             return Optional.empty();
         }
@@ -170,7 +170,7 @@ final class GooValueRecipeAdapter {
      * @param ingredient the ingredient to resolve
      * @return set of alternative item IDs
      */
-    private static Set<Identifier> adaptOneIngredient(Ingredient ingredient) {
+    public static Set<Identifier> adaptOneIngredient(Ingredient ingredient) {
         Set<Identifier> alternatives = new HashSet<>();
         for (Holder<Item> holder : resolveIngredientItems(ingredient)) {
             alternatives.add(BuiltInRegistries.ITEM.getKey(holder.value()));
