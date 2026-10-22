@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.ability;
 
 import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.data.RemainderLedger;
@@ -105,6 +106,23 @@ class SpireGrowthTest {
             assertEquals(OptionalInt.of(64), oneColumnAt(3).chargeThrough(ledger, GooTypes.ROCK, HOLDINGS));
             assertTrue(ledger.remainders().isEmpty());
         }
+
+        /**
+         * The remainder pays first, so holdings of 21 beside a remainder of 2/3 afford one
+         * block worth 64/3, are charged 21 and keep 1/3.
+         * decision melt-and-fabricate-move-the-exact-value-through-a-remainder-buffer
+         */
+        @Test
+        void theRemainderPaysFirstSoTwentyOneAffordsOneBlock() {
+            int holdings = 21;
+            RemainderLedger ledger = new RemainderLedger(GooRemainders.EMPTY.with(GooTypes.ROCK, GooFraction.of(2, 3)));
+
+            Optional<SpireGrowth> growth = SpireGrowth.affordable(blocks, new SpireFootprint(CORNER, CORNER, 1),
+                    values, GooTypes.ROCK, ledger.remainders(), holdings);
+
+            assertEquals(OptionalInt.of(holdings), growth.orElseThrow().chargeThrough(ledger, GooTypes.ROCK, holdings));
+            assertEquals(GooFraction.of(1, 3), ledger.remainders().of(GooTypes.ROCK));
+        }
     }
 
     @Nested
@@ -114,14 +132,14 @@ class SpireGrowthTest {
         void lowersTheRiseToWhatTheHoldingsPayFor() {
             int threeBlocksPerOpenColumn = STONE_ROCK_VALUE * 3 * 3;
             Optional<SpireGrowth> growth = SpireGrowth.affordable(blocks, footprintAt(8), values,
-                    GooTypes.ROCK, threeBlocksPerOpenColumn);
+                    GooTypes.ROCK, GooRemainders.EMPTY, threeBlocksPerOpenColumn);
             assertEquals(3, growth.orElseThrow().footprint().rise());
         }
 
         @Test
         void growsNothingWhereTheHoldingsPayForNoBlock() {
             Optional<SpireGrowth> growth = SpireGrowth.affordable(blocks, footprintAt(8), values, GooTypes.ROCK,
-                    STONE_ROCK_VALUE - 1);
+                    GooRemainders.EMPTY, STONE_ROCK_VALUE - 1);
             assertTrue(growth.isEmpty());
         }
     }

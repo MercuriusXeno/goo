@@ -2,10 +2,9 @@ package com.mercuriusxeno.goo.block.canister;
 
 import com.mercuriusxeno.goo.block.gasket.DemandRelay;
 import com.mercuriusxeno.goo.block.gasket.GasketDemand;
-import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.data.IRemainderLedger;
-import com.mercuriusxeno.goo.data.RemainderLedger;
+import com.mercuriusxeno.goo.data.StoredRemainderLedger;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.registry.GooFluids;
@@ -161,28 +160,8 @@ public class CanisterSlotFluidHandler extends SnapshotJournal<CanisterFluidConte
      * decision one-remainder-capability-injected-into-every-fluid-capability
      * decision every-producer-consumer-and-container-holds-a-remainder-buffer
      */
-    private final IRemainderLedger contentLedger = new IRemainderLedger() {
-        @Override
-        public int creditExact(ResourceKey<GooTypeDefinition> type, GooFraction exact) {
-            RemainderLedger exchange = new RemainderLedger(content.remainders());
-            int whole = exchange.creditExact(type, exact);
-            holdRemainders(exchange.remainders());
-            return whole;
-        }
-
-        @Override
-        public OptionalInt debitExact(ResourceKey<GooTypeDefinition> type, GooFraction exact, int availableWhole) {
-            RemainderLedger exchange = new RemainderLedger(content.remainders());
-            OptionalInt whole = exchange.debitExact(type, exact, availableWhole);
-            holdRemainders(exchange.remainders());
-            return whole;
-        }
-
-        @Override
-        public GooRemainders remainders() {
-            return content.remainders();
-        }
-    };
+    private final IRemainderLedger contentLedger = new StoredRemainderLedger(() -> content.remainders(),
+            this::holdRemainders);
 
     /**
      * The slot's remainder ledger.

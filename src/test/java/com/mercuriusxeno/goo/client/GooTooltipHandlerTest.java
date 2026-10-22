@@ -114,7 +114,7 @@ class GooTooltipHandlerTest {
             assertEquals(3, rows.size());
             assertTrue(rows.containsAll(List.of(new GooValueTooltipComponent(GooTypes.LEAF, GooFraction.of(64, 3)),
                     new GooValueTooltipComponent(GooTypes.ROCK, GooFraction.of(1, 3)))));
-            assertEquals("21 1/3", GooFormat.formatMixed(GooFraction.of(64, 3)));
+            assertEquals("21¹⁄₃", GooFormat.formatMixed(GooFraction.of(64, 3)));
         }
 
         @Test
