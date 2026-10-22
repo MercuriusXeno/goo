@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.registry;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.GloveSelection;
+import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.item.CanisterFluidContent;
 import com.mercuriusxeno.goo.item.CanisterMetadata;
 import com.mercuriusxeno.goo.item.GooContents;
@@ -22,6 +23,18 @@ import java.util.List;
 public class GooDataComponents {
     public static final DeferredRegister<DataComponentType<?>> DATA_COMPONENTS =
             DeferredRegister.create(Registries.DATA_COMPONENT_TYPE, Goo.MODID);
+
+    /**
+     * The remainders a block carries on its item while broken, each goo type's part
+     * under 1 mB, which the placed block takes back.
+     * decision every-producer-consumer-and-container-holds-a-remainder-buffer
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<GooRemainders>> REMAINDERS =
+            DATA_COMPONENTS.register("remainders",
+                    () -> DataComponentType.<GooRemainders>builder()
+                            .persistent(GooRemainders.CODEC)
+                            .networkSynchronized(GooRemainders.STREAM_CODEC)
+                            .build());
 
     /**
      * Unified multi-type goo volume storage for all containers.

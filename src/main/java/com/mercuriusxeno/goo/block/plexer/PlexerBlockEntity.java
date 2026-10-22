@@ -13,10 +13,15 @@ import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.data.IGooValueLookup;
 import com.mercuriusxeno.goo.data.IRemainderLedger;
 import com.mercuriusxeno.goo.data.RemainderLedger;
+import com.mercuriusxeno.goo.data.StoredRemainderLedger;
 import com.mercuriusxeno.goo.item.CanisterItem;
 import com.mercuriusxeno.goo.registry.GooBlockEntities;
+import com.mercuriusxeno.goo.registry.GooCapabilities;
+import com.mercuriusxeno.goo.registry.GooDataComponents;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.component.DataComponentGetter;
+import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -60,6 +65,12 @@ public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanister
      * decision every-producer-consumer-and-container-holds-a-remainder-buffer
      */
     private final RemainderLedger ledger = new RemainderLedger();
+
+    /** The view of the ledger the plexer serves, marking the plexer changed on every exchange that moves it. */
+    private final IRemainderLedger servedLedger = new StoredRemainderLedger(ledger::remainders, remainders -> {
+        ledger.load(remainders);
+        setChanged();
+    });
 
     /**
      * Creates a plexer block entity at the given position.
@@ -114,6 +125,16 @@ public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanister
             }
         }
         return count;
+    }
+
+    /**
+     * The plexer's remainder ledger, which GooCapabilities.REMAINDER_BLOCK serves.
+     * decision one-remainder-capability-injected-into-every-fluid-capability
+     *
+     * @return the ledger
+     */
+    public IRemainderLedger ledger() {
+        return servedLedger;
     }
 
     // --- Target item ---
@@ -197,7 +218,8 @@ public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanister
         }
 
         List<SlotRef> slots = getExternalCanisterSlots();
-        if (slots.isEmpty() || !fabricateFrom(required, new CanisterSlotSupply(slots), ledger)) {
+        if (slots.isEmpty()
+                || !fabricateFrom(required, new CanisterSlotSupply(slots), GooCapabilities.remainderLedgerOf(this))) {
             return ItemStack.EMPTY;
         }
         setChanged();
@@ -301,6 +323,31 @@ public class PlexerBlockEntity extends GooSyncedBlockEntity implements ICanister
         super.loadAdditional(input);
         targetItem = input.read(TAG_TARGET_ITEM, ItemStack.CODEC).orElse(ItemStack.EMPTY);
         ledger.load(input.read(TAG_REMAINDERS, GooRemainders.CODEC).orElse(GooRemainders.EMPTY));
+    }
+
+    /**
+     * Carries the banked remainder on the dropped plexer.
+     * decision every-producer-consumer-and-container-holds-a-remainder-buffer
+     *
+     * @param builder the component builder
+     */
+    @Override
+    protected void collectImplicitComponents(DataComponentMap.@NonNull Builder builder) {
+        super.collectImplicitComponents(builder);
+        if (!ledger.remainders().isEmpty()) {
+            builder.set(GooDataComponents.REMAINDERS.get(), ledger.remainders());
+        }
+    }
+
+    /**
+     * Restores the banked remainder the placed plexer's item carried.
+     *
+     * @param getter the item's components
+     */
+    @Override
+    protected void applyImplicitComponents(@NonNull DataComponentGetter getter) {
+        super.applyImplicitComponents(getter);
+        ledger.load(getter.getOrDefault(GooDataComponents.REMAINDERS.get(), GooRemainders.EMPTY));
     }
 
     /**

@@ -2,10 +2,10 @@ package com.mercuriusxeno.goo.block.fluid;
 
 import com.mercuriusxeno.goo.block.gasket.DemandRelay;
 import com.mercuriusxeno.goo.block.gasket.GasketDemand;
-import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooRemainders;
 import com.mercuriusxeno.goo.data.IRemainderLedger;
 import com.mercuriusxeno.goo.data.RemainderLedger;
+import com.mercuriusxeno.goo.data.StoredRemainderLedger;
 import com.mercuriusxeno.goo.item.ContainerCapacity;
 import com.mercuriusxeno.goo.item.GooContents;
 import com.mercuriusxeno.goo.item.GooLabelRule;
@@ -96,28 +96,8 @@ public class GooFluidHandler extends FluidStacksResourceHandler implements Gaske
      * notifies the owner, so the remainder saves with the tanks.
      * decision one-remainder-capability-injected-into-every-fluid-capability
      */
-    private final IRemainderLedger notifyingLedger = new IRemainderLedger() {
-        @Override
-        public int creditExact(ResourceKey<GooTypeDefinition> type, GooFraction exact) {
-            GooRemainders before = ledger.remainders();
-            int whole = ledger.creditExact(type, exact);
-            notifyIfMoved(before);
-            return whole;
-        }
-
-        @Override
-        public OptionalInt debitExact(ResourceKey<GooTypeDefinition> type, GooFraction exact, int availableWhole) {
-            GooRemainders before = ledger.remainders();
-            OptionalInt whole = ledger.debitExact(type, exact, availableWhole);
-            notifyIfMoved(before);
-            return whole;
-        }
-
-        @Override
-        public GooRemainders remainders() {
-            return ledger.remainders();
-        }
-    };
+    private final IRemainderLedger notifyingLedger = new StoredRemainderLedger(ledger::remainders,
+            this::loadRemainders);
 
     /**
      * The handler's remainder ledger.
