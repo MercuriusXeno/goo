@@ -46,7 +46,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
-import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
@@ -483,19 +482,6 @@ public final class GloveThrowSender {
             return OptionalInt.of(SpireCast.plannedGrowth(local).map(SpireGrowth::cost).orElse(0));
         }
         return OptionalInt.empty();
-    }
-
-    /**
-     * The items the held glove's throw consumes beside its goo cost
-     * (decision ability-json-names-its-reagent).
-     *
-     * @param player the local player
-     * @return the consumed item ids, empty when the glove holds no selection or the ability consumes none
-     */
-    public static List<Identifier> aimedReagents(Player player) {
-        GloveSelection selection = heldSelection(player);
-        ClientAbility ability = selection == null ? null : AbilitySyncHandler.findAbility(selection.abilityId());
-        return ability == null ? List.of() : ability.consumes();
     }
 
     /**

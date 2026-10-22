@@ -9,6 +9,7 @@ import com.mercuriusxeno.goo.client.network.OfferedAbility;
 import com.mercuriusxeno.goo.data.KnownItems;
 import com.mercuriusxeno.goo.item.GooGloveItem;
 import com.mercuriusxeno.goo.item.GooSourceScanner;
+import com.mercuriusxeno.goo.item.ReagentScanner;
 import com.mercuriusxeno.goo.network.GloveSelectPayload;
 import com.mercuriusxeno.goo.registry.GooAttachments;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
@@ -95,13 +96,33 @@ public final class GloveRadialScreen extends Screen {
      * @return the held abilities' ids, empty with no player
      */
     private static Set<Identifier> activeAbilities() {
-        Player player = Minecraft.getInstance().player;
-        if (player == null) {
-            return Set.of();
-        }
-        return player.getData(GooAttachments.HELD_EFFECTS).held().stream()
+        return standingEffects().held().stream()
                 .map(HeldEffects.Held::ability)
                 .collect(Collectors.toUnmodifiableSet());
+    }
+
+    /**
+     * The effects standing on the local player, synced from the server, whose upkeep the
+     * petals' time counts subtract.
+     * time-counts-net-standing-upkeep
+     *
+     * @return the standing effects, none with no player
+     */
+    private static HeldEffects standingEffects() {
+        Player player = Minecraft.getInstance().player;
+        return player == null ? HeldEffects.NONE : player.getData(GooAttachments.HELD_EFFECTS);
+    }
+
+    /**
+     * The whole sets of consumed items the local player's inventory holds, which bound a petal's count.
+     * reagent-count-is-the-smaller-bound
+     *
+     * @param reagents the item ids an ability consumes, one of each
+     * @return the smallest count among them, Integer.MAX_VALUE for none named, 0 with no player
+     */
+    private static int reagentSetsHeld(List<Identifier> reagents) {
+        Player player = Minecraft.getInstance().player;
+        return player == null ? 0 : ReagentScanner.setsHeld(player, reagents);
     }
 
     /**
@@ -153,7 +174,7 @@ public final class GloveRadialScreen extends Screen {
         RadialWheelRenderer.Hoverables drawn = RadialWheelRenderer.render(graphics, font,
                 new RadialWheelRenderer.Frame(wheel, types, abilities, available,
                         width / HALF, height / HALF, radius(), PetalLook.LIVE, partialTick, activeAbilities(),
-                        gameTime(partialTick)));
+                        gameTime(partialTick), GloveRadialScreen::reagentSetsHeld, standingEffects()));
         RadialWheelRenderer.nameWhatTheCursorRestsOn(graphics, font, drawn, mouseX, mouseY);
     }
 

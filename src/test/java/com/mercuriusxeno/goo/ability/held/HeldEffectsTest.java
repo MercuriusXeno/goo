@@ -153,6 +153,31 @@ class HeldEffectsTest {
             assertEquals(Map.of(GooTypes.BLAZE, 1000), holding(first, second).ticksLeft(type -> 2000));
         }
 
+        /** The per-type upkeep a tick, which ticksLeft divides by and the wheel's counts subtract (decision time-counts-net-standing-upkeep). */
+        @Test
+        void standingUpkeepsOnATypeSumPerTick() {
+            HeldEffects.Held first = new HeldEffects.Held(KINDLE, GooTypes.BLAZE, 1, Set.of(), STARTED);
+            HeldEffects.Held second = new HeldEffects.Held(GLUTTONY, GooTypes.BLAZE, 2, Set.of(), STARTED);
+            HeldEffects held = holding(first, second);
+
+            assertEquals(Map.of(GooTypes.BLAZE, 3.0), held.upkeepPerTick());
+            assertEquals(Map.of(GooTypes.BLAZE, (int) (3000 / 3.0)), held.ticksLeft(type -> 3000));
+        }
+
+        @Test
+        void anExtenderHalvesTheOthersAndPaysItsOwn() {
+            HeldEffects.Held first = new HeldEffects.Held(KINDLE, GooTypes.BLAZE, 1, Set.of(), STARTED);
+            HeldEffects.Held second = new HeldEffects.Held(GLUTTONY, GooTypes.BLAZE, 2, Set.of(), STARTED);
+            HeldEffects.Held extender = new HeldEffects.Held(Identifier.fromNamespaceAndPath("goo", "pulse_extender"),
+                    GooTypes.PULSE, 1, Set.of(LaidState.EXTENDER), STARTED);
+            HeldEffects held = holding(first, second, extender);
+
+            assertEquals(Map.of(GooTypes.BLAZE, 1.5, GooTypes.PULSE, 1.0), held.upkeepPerTick());
+            assertTrue(held.extended());
+            assertEquals(Map.of(GooTypes.BLAZE, (int) (3000 / 1.5), GooTypes.PULSE, 3000),
+                    held.ticksLeft(type -> 3000));
+        }
+
         @Test
         void aPrepaidBrewCountsNoUpkeep() {
             HeldEffects.Held brewed = new HeldEffects.Held(KINDLE, GooTypes.BLAZE, UPKEEP,

@@ -7,8 +7,10 @@ import com.mercuriusxeno.goo.ability.AbilityDefinition;
 import com.mercuriusxeno.goo.ability.ArmPose;
 import com.mercuriusxeno.goo.ability.Delivery;
 import com.mercuriusxeno.goo.ability.DistancePrice;
+import com.mercuriusxeno.goo.ability.HeldRoute;
 import com.mercuriusxeno.goo.ability.IndicatorShowing;
 import com.mercuriusxeno.goo.ability.program.BlinkLanding;
+import com.mercuriusxeno.goo.ability.program.ExtenderStep;
 import com.mercuriusxeno.goo.ability.program.SpireStep;
 import com.mercuriusxeno.goo.ability.program.Step;
 import com.mercuriusxeno.goo.client.throwing.BlinkAim;
@@ -111,6 +113,8 @@ public final class AbilitySyncHandler {
      *                    (decision ability-json-carries-a-description)
      * @param costMechanics the format key explaining how a zero-cost ability charges, empty for none
      *                    (decision zero-cost-field-formats-the-cost-mechanics)
+     * @param costFormula the short formula a dynamically priced ability's petal reads, empty for none
+     *                    (decision dynamic-costs-keep-the-mb-quantity)
      */
     public record ClientAbility(Identifier id, String displayName, String icon,
                                 int order, List<String> tags,
@@ -118,10 +122,47 @@ public final class AbilitySyncHandler {
                                 List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
                                 List<Identifier> consumes, int upkeep, DistancePrice distancePrice,
                                 List<Step> onPrism, ArmPose pose, String description,
-                                Optional<String> costMechanics) {
+                                Optional<String> costMechanics, Optional<String> costFormula) {
+
+        /**
+         * A client ability naming no cost formula.
+         *
+         * @param id            the ability resource identifier
+         * @param displayName   the translation key
+         * @param icon          the icon texture path override
+         * @param order         the sort order
+         * @param tags          categorical tags
+         * @param behaviors     the ability's step program
+         * @param cost          the mB a throw costs
+         * @param delivery      how the ability leaves the glove
+         * @param badge         the target kind the radial marks on the icon
+         * @param requires      the items the player must know before its radial petal unlocks
+         * @param area          the area the glove draws while right click is held
+         * @param indicator     when the ability's indicator shows
+         * @param consumes      the items a throw takes, one of each
+         * @param upkeep        the mB a held self + brew effect pays each tick it stands
+         * @param distancePrice what a blink adds to the cost for its trip
+         * @param onPrism       the steps a landing on a prism runs, empty for none
+         * @param pose          the arm pose the glove arm takes in place of the swing
+         * @param description   the translation key for what the ability does
+         * @param costMechanics the format key explaining how a zero-cost ability charges, empty for none
+         */
+        public ClientAbility(Identifier id, String displayName, String icon, int order, List<String> tags,
+                             List<Step> behaviors, int cost, Delivery delivery, AbilityBadge badge,
+                             List<Identifier> requires, AbilityArea area, IndicatorShowing indicator,
+                             List<Identifier> consumes, int upkeep, DistancePrice distancePrice,
+                             List<Step> onPrism, ArmPose pose, String description, Optional<String> costMechanics) {
+            this(id, displayName, icon, order, tags, behaviors, cost, delivery, badge, requires, area, indicator,
+                    consumes, upkeep, distancePrice, onPrism, pose, description, costMechanics, Optional.empty());
+        }
 
         private static final int TICKS_PER_SECOND = 20;
         private static final String PER_SECOND = "/s";
+        private static final String COUNT_SEPARATOR = " | ";
+        private static final String NO_COUNT = "";
+        private static final String ABILITY_ICON_PREFIX = "textures/goo/ability/";
+        private static final String ICON_SUFFIX = ".png";
+        private static final char NAMESPACE_SEPARATOR = ':';
         private static final Identifier SPIRE_BLOCK = Identifier.withDefaultNamespace("stone");
 
         /**
@@ -368,7 +409,23 @@ public final class AbilitySyncHandler {
                     entry.order(), entry.tags(), entry.behaviors(),
                     entry.cost(), entry.delivery(), entry.badge(), entry.requires(), entry.area(),
                     entry.indicator(), entry.consumes(), entry.upkeep(), entry.distancePrice(), entry.onPrism(),
-                    entry.pose(), entry.description(), entry.costMechanics());
+                    entry.pose(), entry.description(), entry.costMechanics(), entry.costFormula());
+        }
+
+        /**
+         * The ability's icon texture, which the wheel and the crosshair panel draw: the explicit
+         * override where the JSON names one, otherwise the convention path.
+         *
+         * @return the icon texture identifier
+         */
+        public Identifier iconTexture() {
+            String override = icon();
+            if (!override.isEmpty()) {
+                // diagnose-then-fix-radial-icon-id: a namespaced icon keeps its namespace rather than taking a second goo:
+                return override.indexOf(NAMESPACE_SEPARATOR) >= 0 ? Identifier.parse(override)
+                        : Identifier.fromNamespaceAndPath(Goo.MODID, override);
+            }
+            return Identifier.fromNamespaceAndPath(Goo.MODID, ABILITY_ICON_PREFIX + id.getPath() + ICON_SUFFIX);
         }
 
         /**
@@ -418,16 +475,106 @@ public final class AbilitySyncHandler {
         }
 
         /**
-         * What the ability costs for a trip: a held effect's upkeep a second,
-         * and every other ability's one-shot cost plus what the trip adds.
+         * What the ability costs for a trip: a held effect's upkeep a second, a
+         * fixed-cost stream's or channel's cost a second, and every other
+         * ability's one-shot cost plus what the trip adds.
          * blink-lands-safely-costed-by-distance
          *
          * @param trip the blink's trip, empty for an ability making none
          * @return the cost, formatted
          */
         public String costLabel(Optional<BlinkLanding> trip) {
-            return upkeep > 0 ? GooFormat.formatAmount(upkeepPerSecond()) + PER_SECOND
-                    : GooFormat.formatAmount(BlinkAim.tripCost(distancePrice, cost, trip));
+            if (upkeep > 0) {
+                return GooFormat.formatAmount(upkeepPerSecond()) + PER_SECOND;
+            }
+            // panel-and-petals-count-uses-or-seconds: a stream or channel reads its cost a second
+            if (!pricedDynamically() && paysWhileHeld()) {
+                return GooFormat.formatAmount((long) cost * TICKS_PER_SECOND / delivery.ticksPerCharge()) + PER_SECOND;
+            }
+            return GooFormat.formatAmount(BlinkAim.tripCost(distancePrice, cost, trip));
+        }
+
+        /**
+         * Whether the ability's price moves with the target, the trip, the drag or the stone it
+         * plans, so no fixed cost counts its uses: one naming a cost formula.
+         * dynamic-costs-keep-the-mb-quantity
+         *
+         * @return true for a dynamically priced ability
+         */
+        public boolean pricedDynamically() {
+            return costFormula.isPresent();
+        }
+
+        /**
+         * Whether a fixed price counts the ability's uses or seconds.
+         *
+         * @return true for a fixed-cost ability with a price above 0
+         */
+        public boolean countsUses() {
+            return !pricedDynamically() && price() > 0;
+        }
+
+        /**
+         * Whether the ability pays as it is held, so the holdings sustain it for seconds: a brew's
+         * upkeep, or a stream's or channel's cost each ticksPerCharge.
+         *
+         * @return true for a brew, a stream or a channel
+         */
+        public boolean paysWhileHeld() {
+            return upkeep > 0 || HeldRoute.runsWhileHeld(delivery, badge);
+        }
+
+        /**
+         * Whether the ability is the glove's Extender, whose own upkeep a standing Extender
+         * never halves (decision extender-multiplies-the-next-self-duration).
+         *
+         * @return true for an ability running the extender step
+         */
+        public boolean extendsOthers() {
+            return behaviors.stream().anyMatch(ExtenderStep.class::isInstance);
+        }
+
+        /**
+         * What the petal reads with nothing standing on the ability's type.
+         *
+         * @param holdings    the mB the player holds of the ability's type across the inventory
+         * @param reagentSets the whole sets of the ability's consumed items the inventory holds
+         * @return the petal's cost line
+         */
+        public String petalLabel(int holdings, int reagentSets) {
+            return petalLabel(holdings, reagentSets, StandingUpkeep.NONE);
+        }
+
+        /**
+         * What the petal reads: the shorthand cost, then the uses or time the holdings afford
+         * beside the upkeep standing on the type, or a dynamically priced ability's formula.
+         * panel-and-petals-count-uses-or-seconds
+         * dynamic-costs-keep-the-mb-quantity
+         * time-counts-net-standing-upkeep
+         *
+         * @param holdings    the mB the player holds of the ability's type across the inventory
+         * @param reagentSets the whole sets of the ability's consumed items the inventory holds
+         * @param standing    the upkeep already standing on the ability's type
+         * @return "1K | x3" for a one-shot, "1K/s | 12s" for a stream, channel or brew, "200 + 100/block" for a blink
+         */
+        public String petalLabel(int holdings, int reagentSets, StandingUpkeep standing) {
+            return costFormula.orElseGet(() -> costLabel()
+                    + AffordedCount.reckon(this, holdings, reagentSets, standing)
+                    .map(count -> COUNT_SEPARATOR + count.label()).orElse(NO_COUNT));
+        }
+
+        /**
+         * Whether the petal dims: the holdings afford no use beside the upkeep standing on the
+         * type, or a dynamically priced ability's base price exceeds them.
+         *
+         * @param holdings    the mB the player holds of the ability's type across the inventory
+         * @param reagentSets the whole sets of the ability's consumed items the inventory holds
+         * @param standing    the upkeep already standing on the ability's type
+         * @return true when the petal reads unaffordable
+         */
+        public boolean dimsAt(int holdings, int reagentSets, StandingUpkeep standing) {
+            return AffordedCount.reckon(this, holdings, reagentSets, standing).map(AffordedCount::affordsNone)
+                    .orElse(price() > holdings);
         }
 
         /**

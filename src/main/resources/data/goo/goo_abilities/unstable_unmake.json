@@ -5,6 +5,7 @@
   "badge": "channeled",
   "order": 30,
   "cost": 0,
+  "cost_formula": "value/block",
   "requires": ["minecraft:dragon_breath"],
   "delivery": { "kind": "self", "ticks_per_charge": 20 },
   "behaviors": [

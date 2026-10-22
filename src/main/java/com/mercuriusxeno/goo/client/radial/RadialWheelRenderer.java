@@ -2,8 +2,10 @@ package com.mercuriusxeno.goo.client.radial;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.ability.AbilityBadge;
+import com.mercuriusxeno.goo.ability.held.HeldEffects;
 import com.mercuriusxeno.goo.client.network.AbilitySyncHandler.ClientAbility;
 import com.mercuriusxeno.goo.client.network.OfferedAbility;
+import com.mercuriusxeno.goo.client.network.StandingUpkeep;
 import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypeNames;
@@ -22,6 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.ToIntFunction;
 import java.util.stream.IntStream;
 
 /**
@@ -93,9 +96,7 @@ final class RadialWheelRenderer {
     static final int PRISM_BADGE_NUDGE_DOWN = 6;
 
     private static final String TYPE_ICON_PREFIX = "textures/goo/type/";
-    private static final String ABILITY_ICON_PREFIX = "textures/goo/ability/";
     private static final String ICON_SUFFIX = ".png";
-    private static final char NAMESPACE_SEPARATOR = ':';
     private static final String BADGE_ICON_PREFIX = "textures/goo/badge/";
     /** hovering-a-badge-names-its-kind */
     private static final String BADGE_NAME_PREFIX = "goo.badge.";
@@ -119,11 +120,35 @@ final class RadialWheelRenderer {
      * @param partialTick the fraction of a tick since the last one, for the petals' ease
      * @param active      the abilities whose effect the player holds, which pulse
      * @param gameTime    the game time, fraction included, which the pulse runs on
+     * @param reagentSets the whole sets of a list of consumed items the inventory holds
+     * @param standing    the effects standing on the player, whose upkeep the time counts subtract
      */
     record Frame(RadialWheel wheel, List<ResourceKey<GooTypeDefinition>> types,
                  List<List<OfferedAbility>> abilities, Map<ResourceKey<GooTypeDefinition>, Integer> available,
                  int centerX, int centerY, int radius, PetalLook look, float partialTick, Set<Identifier> active,
-                 float gameTime) {
+                 float gameTime, ToIntFunction<List<Identifier>> reagentSets, HeldEffects standing) {
+
+        /**
+         * A frame whose inventory reads every reagent as plentiful and holds no standing effect.
+         *
+         * @param wheel       the wheel's state
+         * @param types       the types, one per petal at rest
+         * @param abilities   the abilities each type opens to
+         * @param available   the amount the player holds per type
+         * @param centerX     the wheel's center x
+         * @param centerY     the wheel's center y
+         * @param radius      the wheel's outer radius
+         * @param look        the fluid, edge and colors a petal draws with
+         * @param partialTick the fraction of a tick since the last one
+         * @param active      the abilities whose effect the player holds
+         * @param gameTime    the game time, fraction included
+         */
+        Frame(RadialWheel wheel, List<ResourceKey<GooTypeDefinition>> types, List<List<OfferedAbility>> abilities,
+              Map<ResourceKey<GooTypeDefinition>, Integer> available, int centerX, int centerY, int radius,
+              PetalLook look, float partialTick, Set<Identifier> active, float gameTime) {
+            this(wheel, types, abilities, available, centerX, centerY, radius, look, partialTick, active, gameTime,
+                    reagents -> Integer.MAX_VALUE, HeldEffects.NONE);
+        }
 
         /**
          * A frame holding no active effect.
@@ -369,7 +394,8 @@ final class RadialWheelRenderer {
         OfferedAbility offered = frame.abilities().get(petal.type()).get(petal.ability());
         ClientAbility ability = offered.ability();
         boolean hovered = petal.ability() == frame.wheel().hoveredAbility();
-        FanSlot slotLabels = fanSlot(ability, frame.available().getOrDefault(key, 0));
+        FanSlot slotLabels = fanSlot(ability, frame.available().getOrDefault(key, 0),
+                frame.reagentSets().applyAsInt(ability.consumes()), StandingUpkeep.on(frame.standing(), key));
         // locked-petal-stays-on-the-wheel: a locked petal takes the unaffordable petal's dimmed look
         boolean dimmed = offered.locked() || slotLabels.dimmed();
         // wheel-pulses-the-active-effect: a held effect's petal pulses
@@ -774,15 +800,33 @@ final class RadialWheelRenderer {
     }
 
     /**
-     * Reads an ability wedge's first-throw cost against the type's holdings.
+     * Reads an ability wedge's cost and the uses or seconds the type's holdings afford.
      *
      * @param ability  the synced ability
      * @param holdings the amount the player holds of its type
      * @return the wedge's labels
      */
     static FanSlot fanSlot(ClientAbility ability, int holdings) {
-        // self-effects-trickle-until-ended: a held effect reads its upkeep a second, dimmed short of a second's worth
-        return new FanSlot(ability.costLabel(), ability.price() > holdings);
+        return fanSlot(ability, holdings, Integer.MAX_VALUE, StandingUpkeep.NONE);
+    }
+
+    /**
+     * Reads an ability wedge's cost and the uses or time the type's holdings and the
+     * inventory's reagents afford beside the upkeep standing on the type, dimmed when they
+     * afford none.
+     * panel-and-petals-count-uses-or-seconds
+     * reagent-count-is-the-smaller-bound
+     * time-counts-net-standing-upkeep
+     *
+     * @param ability     the synced ability
+     * @param holdings    the amount the player holds of its type
+     * @param reagentSets the whole sets of the ability's consumed items the inventory holds
+     * @param standing    the upkeep already standing on its type
+     * @return the wedge's labels
+     */
+    static FanSlot fanSlot(ClientAbility ability, int holdings, int reagentSets, StandingUpkeep standing) {
+        return new FanSlot(ability.petalLabel(holdings, reagentSets, standing),
+                ability.dimsAt(holdings, reagentSets, standing));
     }
 
     /**
@@ -900,12 +944,6 @@ final class RadialWheelRenderer {
      * @return the icon texture identifier
      */
     static Identifier resolveAbilityIcon(ClientAbility ability) {
-        if (!ability.icon().isEmpty()) {
-            // diagnose-then-fix-radial-icon-id: a namespaced icon keeps its namespace rather than taking a second goo:
-            return ability.icon().indexOf(NAMESPACE_SEPARATOR) >= 0
-                    ? Identifier.parse(ability.icon())
-                    : Identifier.fromNamespaceAndPath(Goo.MODID, ability.icon());
-        }
-        return Identifier.fromNamespaceAndPath(Goo.MODID, ABILITY_ICON_PREFIX + ability.id().getPath() + ICON_SUFFIX);
+        return ability.iconTexture();
     }
 }

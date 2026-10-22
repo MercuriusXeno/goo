@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.item;
 
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -60,5 +61,56 @@ class GooFormatTest {
     @Test
     void fractionTruncatingToZeroReadsWhole() {
         assertEquals("1M", GooFormat.formatAmount(1_001_000));
+    }
+
+    /**
+     * A duration reads in its largest unit of at least 1, y, d, h, m or s, to 3 significant
+     * digits truncated, with whole seconds below a minute (decision counts-read-three-significant-digits).
+     */
+    @Nested
+    class Duration {
+
+        private static final long TICKS_PER_SECOND = 20;
+        private static final long SECONDS_PER_DAY = 86_400;
+
+        private static String seconds(long seconds) {
+            return GooFormat.formatDuration(seconds * TICKS_PER_SECOND);
+        }
+
+        @Test
+        void overADayReadsDays() {
+            assertEquals("24.8d", seconds(2_147_687));
+        }
+
+        @Test
+        void ninetySecondsReadsOneAndAHalfMinutes() {
+            assertEquals("1.5m", seconds(90));
+        }
+
+        @Test
+        void underAMinuteReadsWholeSeconds() {
+            assertEquals("59s", seconds(59));
+            assertEquals("12s", seconds(12));
+        }
+
+        @Test
+        void anHourReadsOneHour() {
+            assertEquals("1h", seconds(3600));
+        }
+
+        @Test
+        void overAYearReadsYears() {
+            assertEquals("3.4y", seconds(1243 * SECONDS_PER_DAY));
+        }
+
+        @Test
+        void nothingReadsZeroSeconds() {
+            assertEquals("0s", seconds(0));
+        }
+
+        @Test
+        void fractionOfASecondTruncatesToWholeSeconds() {
+            assertEquals("12s", GooFormat.formatDuration(250));
+        }
     }
 }
