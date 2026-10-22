@@ -27,6 +27,7 @@ public final class ValuesWorkbenchServer {
     private static final String TEXT = "text/plain; charset=utf-8";
     private static final String GET = "GET";
     private static final String PUT = "PUT";
+    private static final String POST = "POST";
     private static final String ID_PARAMETER = "id=";
     // A namespaced item id: no segment may climb out of the image folder.
     private static final Pattern ITEM_ID = Pattern.compile("[a-z0-9_.-]+:[a-z0-9_.-]+(/[a-z0-9_.-]+)*");
@@ -63,6 +64,8 @@ public final class ValuesWorkbenchServer {
         http.createContext("/api/model", exchange -> server.answer(exchange, server::model));
         http.createContext("/api/inventory", exchange -> server.answer(exchange, server::inventory));
         http.createContext("/api/image", exchange -> server.answer(exchange, server::image));
+        http.createContext("/api/constants/evaluate", exchange -> server.answer(exchange, server::evaluateConstants));
+        http.createContext("/api/constants/rename", exchange -> server.answer(exchange, server::renameConstant));
         http.setExecutor(Executors.newCachedThreadPool());
         http.start();
         return server;
@@ -138,6 +141,40 @@ public final class ValuesWorkbenchServer {
             return Reply.of(OK, JSON, ModelJson.toJson(saved, paths.baseValues().toString()));
         }
         return Reply.of(NOT_ALLOWED, TEXT, method + " is not served here");
+    }
+
+    /**
+     * Resolves the posted model's constants through the game's parser, each with its error and its readers.
+     */
+    private Reply evaluateConstants(HttpExchange exchange) throws IOException {
+        if (!POST.equals(exchange.getRequestMethod())) {
+            return Reply.of(NOT_ALLOWED, TEXT, exchange.getRequestMethod() + " is not served here");
+        }
+        BaseValuesModel model = postedModel(exchange);
+        return Reply.of(OK, JSON, ConstantsJson.evaluated(model));
+    }
+
+    /**
+     * Renames a constant in the posted model and answers the model with every reference rewritten.
+     */
+    private Reply renameConstant(HttpExchange exchange) throws IOException {
+        if (!POST.equals(exchange.getRequestMethod())) {
+            return Reply.of(NOT_ALLOWED, TEXT, exchange.getRequestMethod() + " is not served here");
+        }
+        String sent = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        ConstantsJson.Rename rename = ConstantsJson.renameFrom(sent);
+        BaseValuesModel current = BaseValuesModel.parse(Files.readString(paths.baseValues()));
+        BaseValuesModel renamed = current.withMembers(ModelJson.membersFrom(sent))
+                .renameConstant(rename.from(), rename.to());
+        return Reply.of(OK, JSON, ModelJson.toJson(renamed, paths.baseValues().toString()));
+    }
+
+    private BaseValuesModel postedModel(HttpExchange exchange) throws IOException {
+        String sent = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        BaseValuesModel layout = Files.isRegularFile(paths.baseValues())
+                ? BaseValuesModel.parse(Files.readString(paths.baseValues()))
+                : BaseValuesModel.parse("{\n}\n");
+        return layout.withMembers(ModelJson.membersFrom(sent));
     }
 
     private Reply inventory(HttpExchange exchange) throws IOException, InterruptedException {

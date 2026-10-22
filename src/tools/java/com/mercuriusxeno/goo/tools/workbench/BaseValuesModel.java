@@ -3,6 +3,8 @@ package com.mercuriusxeno.goo.tools.workbench;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * base_values.json as the workbench edits it: every top-level member in file order, each section's
@@ -28,6 +30,8 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
     private static final String DEFAULT_INDENT = "    ";
     private static final String DEFAULT_KEY_SEPARATOR = ": ";
     private static final String STRUCTURAL_END = ",}]\n";
+    private static final String CONSTANTS = "_constants";
+    private static final String CONSTANT_PREFIX = "$";
 
     /**
      * How a top-level member holds its value.
@@ -70,6 +74,14 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
          */
         public static Member entry(@Nullable String key, String text) {
             return new Member(key, null, Kind.VALUE, text, List.of(), null, null, null);
+        }
+
+        /**
+         * @param newKey the entry's new key
+         * @return this entry under it
+         */
+        public Member withKey(String newKey) {
+            return new Member(newKey, keySeparator, kind, text, entries, leading, trailing, closingGap);
         }
 
         /**
@@ -144,6 +156,57 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
      */
     public BaseValuesModel withMembers(List<Member> changedMembers) {
         return new BaseValuesModel(List.copyOf(changedMembers), lineSeparator, indentUnit, closingGap, tail);
+    }
+
+    /**
+     * Renames a constant and rewrites every reference to it, $name and $name.type alike, across the
+     * constants and every entry of the file.
+     *
+     * @param from the constant's name
+     * @param to   its new name
+     * @return the renamed model
+     */
+    public BaseValuesModel renameConstant(String from, String to) {
+        Pattern reference = referenceTo(from);
+        String replacement = Matcher.quoteReplacement(CONSTANT_PREFIX + to);
+        List<Member> renamed = new ArrayList<>();
+        for (Member member : members) {
+            List<Member> entries = new ArrayList<>();
+            for (Member entry : member.entries()) {
+                Member rewritten = entry.withText(reference.matcher(entry.text()).replaceAll(replacement));
+                boolean renamedConstant = CONSTANTS.equals(member.key()) && from.equals(entry.key());
+                entries.add(renamedConstant ? rewritten.withKey(to) : rewritten);
+            }
+            renamed.add(member.withText(reference.matcher(member.text()).replaceAll(replacement))
+                    .withEntries(entries));
+        }
+        return withMembers(renamed);
+    }
+
+    /**
+     * @param constant a constant's name
+     * @return each constant and entry reading it, in file order: a constant or a section's entry by its key,
+     *         a top-level entry by its key
+     */
+    public List<String> usagesOf(String constant) {
+        Pattern reference = referenceTo(constant);
+        List<String> readers = new ArrayList<>();
+        for (Member member : members) {
+            for (Member entry : member.entries()) {
+                if (entry.key() != null && reference.matcher(entry.text()).find()
+                        && !(CONSTANTS.equals(member.key()) && constant.equals(entry.key()))) {
+                    readers.add(entry.key());
+                }
+            }
+            if (member.kind() == Kind.VALUE && reference.matcher(member.text()).find()) {
+                readers.add(member.key());
+            }
+        }
+        return readers;
+    }
+
+    private static Pattern referenceTo(String constant) {
+        return Pattern.compile(Pattern.quote(CONSTANT_PREFIX + constant) + "(?![A-Za-z0-9_])");
     }
 
     private void appendEntries(StringBuilder out, List<Member> entries, int depth) {

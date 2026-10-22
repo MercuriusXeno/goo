@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.data.GooConstantResolver;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,7 +18,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -150,6 +154,100 @@ class ValuesWorkbenchServerTest {
     @Test
     void imageIdOutsideTheFolderIsRefused() throws IOException, InterruptedException {
         assertEquals(400, get("/api/image?id=minecraft:../../base_values").statusCode());
+    }
+
+    private JsonArray evaluated(String fileText) throws IOException, InterruptedException {
+        String model = ModelJson.toJson(BaseValuesModel.parse(fileText), "posted");
+        HttpResponse<byte[]> response = client.send(HttpRequest.newBuilder(URI.create(server.url()
+                        + "/api/constants/evaluate")).POST(HttpRequest.BodyPublishers.ofString(model)).build(),
+                HttpResponse.BodyHandlers.ofByteArray());
+        assertEquals(200, response.statusCode());
+        return JsonParser.parseString(text(response)).getAsJsonObject().getAsJsonArray("constants");
+    }
+
+    private static JsonObject constantNamed(JsonArray constants, String name) {
+        return constants.asList().stream().map(JsonElement::getAsJsonObject)
+                .filter(constant -> name.equals(constant.get("name").getAsString())).findFirst().orElseThrow();
+    }
+
+    /**
+     * A scalar constant resolves through the game's parser.
+     */
+    @Test
+    void scalarConstantResolves() throws IOException, InterruptedException {
+        JsonObject doubled = constantNamed(evaluated("""
+                {
+                    "_constants": {
+                        "base": 192,
+                        "doubled": "2 $base"
+                    }
+                }
+                """), "doubled");
+        assertEquals("384", doubled.get("value").getAsString());
+        assertTrue(doubled.get("error").isJsonNull());
+    }
+
+    /**
+     * A tree constant reading another tree's type resolves per type.
+     */
+    @Test
+    void treeConstantResolves() throws IOException, InterruptedException {
+        JsonObject stripped = constantNamed(evaluated("""
+                {
+                    "_constants": {
+                        "log": {"leaf": 32},
+                        "stripped_log": {"leaf": "$log.leaf * 3 / 4"}
+                    }
+                }
+                """), "stripped_log");
+        assertEquals("tree", stripped.get("kind").getAsString());
+        assertEquals("24", stripped.getAsJsonObject("tree").get("leaf").getAsString());
+    }
+
+    /**
+     * An unknown name is refused with an error naming it.
+     */
+    @Test
+    void unknownConstantIsRefused() throws IOException, InterruptedException {
+        JsonObject broken = constantNamed(evaluated("""
+                {
+                    "_constants": {
+                        "broken": "$nope + 1"
+                    }
+                }
+                """), "broken");
+        assertTrue(broken.get("error").getAsString().contains("$nope") || broken.get("error").getAsString()
+                .contains("nope"), broken.toString());
+    }
+
+    /**
+     * The shipped _constants block resolves whole, each constant to the value the game's parser gives it.
+     */
+    @Test
+    void shippedConstantsResolveAsTheGameResolvesThem() throws IOException, InterruptedException {
+        String shipped = new String(BaseValuesModelTest.shippedBytes(), StandardCharsets.UTF_8);
+        JsonArray constants = evaluated(shipped);
+        JsonObject block = JsonParser.parseString(shipped).getAsJsonObject().getAsJsonObject("_constants");
+        assertEquals(List.copyOf(block.keySet()), constants.asList().stream()
+                .map(constant -> constant.getAsJsonObject().get("name").getAsString()).toList());
+        Map<String, GooConstantResolver.ResolvedConstant> game = GooConstantResolver.resolve(block).stream()
+                .collect(Collectors.toMap(GooConstantResolver.ResolvedConstant::name, Function.identity()));
+        for (JsonElement element : constants) {
+            JsonObject constant = element.getAsJsonObject();
+            String name = constant.get("name").getAsString();
+            assertTrue(constant.get("error").isJsonNull(), name + ": " + constant.get("error"));
+            GooConstantResolver.ResolvedConstant expected = game.get(name);
+            if (expected.tree()) {
+                expected.perType().forEach((type, amount) ->
+                        assertEquals(amount, constant.getAsJsonObject("tree").get(type).getAsString(), name));
+            } else {
+                assertEquals(String.valueOf(expected.scalar()), constant.get("value").getAsString(), name);
+            }
+        }
+        assertEquals("192", constantNamed(constants, "base").get("value").getAsString());
+        assertEquals("384", constantNamed(constants, "low").get("value").getAsString());
+        assertEquals("10368", constantNamed(constants, "iron_ingot").getAsJsonObject("tree").get("metal")
+                .getAsString());
     }
 
     /**
