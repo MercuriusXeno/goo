@@ -240,6 +240,8 @@ class ValuesWorkbenchServerTest {
         assertEquals(200, promoted.statusCode(), text(promoted));
         assertFalse(Files.exists(paths.draft()));
         assertEquals(drafted, Files.readString(paths.baseValues()));
+        assertFalse(JsonParser.parseString(text(promoted)).getAsJsonObject().getAsJsonObject("draft")
+                .get("differs").getAsBoolean());
     }
 
     /**
