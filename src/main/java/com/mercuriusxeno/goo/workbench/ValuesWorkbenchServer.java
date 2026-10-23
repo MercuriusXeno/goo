@@ -4,6 +4,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import com.mercuriusxeno.goo.workbench.checks.CheckResult;
+import com.mercuriusxeno.goo.workbench.checks.ValuesChecks;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -15,6 +17,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -86,6 +89,7 @@ public final class ValuesWorkbenchServer {
     private static final String PROMOTE_ROUTE = "/api/promote";
     private static final String DISCARD_ROUTE = "/api/discard";
     private static final int CONFLICT = 409;
+    private static final String FAILING = "failing";
     private static final String NO_DRAFT_AT = "No draft stands to promote at ";
     private static final String NO_LIVE_FILE_AT = "No live file stands to discard back to at ";
 
@@ -509,23 +513,47 @@ public final class ValuesWorkbenchServer {
 
     private Reply modelReply(BaseValuesModel model) throws IOException {
         return Reply.of(OK, JSON, ModelJson.toJson(model, paths.baseValues().toString(), paths.draft().toString(),
-                draftDiffers()));
+                draftDiffers(), ChecksJson.toJson(checked(model))));
+    }
+
+    /**
+     * Runs the type-source checks over a model, expanding #tag entries through the inventory where one stands
+     * (decision type-source-checks-are-rules-that-gate-promote).
+     *
+     * @param model the model checked
+     * @return every check's answer
+     */
+    private List<CheckResult> checked(BaseValuesModel model) throws IOException {
+        return Files.isRegularFile(paths.inventoryFile())
+                ? ValuesChecks.run(model.serialize(), ValuesJson.inventory(paths.inventoryFile()).tagResolver())
+                : ValuesChecks.run(model.serialize());
     }
 
     /**
      * Renames the draft over the live file, the one write the live file takes, and answers the live model; the
-     * next read seeds a fresh draft (decision workbench-authors-a-draft-and-promotes-by-rename).
+     * next read seeds a fresh draft (decision workbench-authors-a-draft-and-promotes-by-rename). A draft failing a
+     * type-source check promotes only when the request acknowledges the failures
+     * (decision type-source-checks-are-rules-that-gate-promote).
      *
-     * @param exchange the promote request
-     * @return the promoted model, or a conflict where no draft stands
+     * @param exchange the promote request, its body carrying acknowledged true to promote over failing checks
+     * @return the promoted model, or a conflict where no draft stands or a check fails unacknowledged
      */
     private Reply promote(HttpExchange exchange) throws IOException {
         if (!POST.equals(exchange.getRequestMethod())) {
             return Reply.of(NOT_ALLOWED, TEXT, exchange.getRequestMethod() + NOT_SERVED_HERE);
         }
+        boolean acknowledged = ChecksJson.acknowledged(new String(exchange.getRequestBody().readAllBytes(),
+                StandardCharsets.UTF_8));
         synchronized (draftLock) {
             if (!Files.isRegularFile(paths.draft())) {
                 return Reply.of(CONFLICT, TEXT, NO_DRAFT_AT + paths.draft());
+            }
+            List<CheckResult> failing = checked(BaseValuesModel.parse(Files.readString(paths.draft()))).stream()
+                    .filter(result -> !result.passed()).toList();
+            if (!failing.isEmpty() && !acknowledged) {
+                JsonObject refusal = new JsonObject();
+                refusal.add(FAILING, ChecksJson.toJson(failing));
+                return Reply.of(CONFLICT, JSON, refusal.toString());
             }
             Files.move(paths.draft(), paths.baseValues(), StandardCopyOption.REPLACE_EXISTING,
                     StandardCopyOption.ATOMIC_MOVE);
