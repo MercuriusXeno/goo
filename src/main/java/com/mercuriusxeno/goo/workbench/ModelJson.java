@@ -17,6 +17,8 @@ import java.util.List;
  */
 final class ModelJson {
     private static final String PATH = "path";
+    private static final String DRAFT = "draft";
+    private static final String DIFFERS = "differs";
     private static final String MEMBERS = "members";
     private static final String KEY = "key";
     private static final String KEY_SEPARATOR = "keySeparator";
@@ -38,10 +40,30 @@ final class ModelJson {
      * @return the model's JSON text
      */
     static String toJson(BaseValuesModel model, String path) {
+        return toJsonObject(model, path).toString();
+    }
+
+    /**
+     * @param model     the model
+     * @param path      the live file's path, as the top bar shows it
+     * @param draftPath the draft's path
+     * @param differs   whether a draft stands and differs from the live file, which the page's draft badge shows
+     * @return the model's JSON text, carrying the draft beside the live path
+     */
+    static String toJson(BaseValuesModel model, String path, String draftPath, boolean differs) {
+        JsonObject root = toJsonObject(model, path);
+        JsonObject draft = new JsonObject();
+        draft.addProperty(PATH, draftPath);
+        draft.addProperty(DIFFERS, differs);
+        root.add(DRAFT, draft);
+        return root.toString();
+    }
+
+    private static JsonObject toJsonObject(BaseValuesModel model, String path) {
         JsonObject root = new JsonObject();
         root.addProperty(PATH, path);
         root.add(MEMBERS, membersJson(model.members()));
-        return root.toString();
+        return root;
     }
 
     /**

@@ -74,8 +74,10 @@ runs {
         if (project.hasProperty('gameTestSelect')) {
             arguments.addAll '--tests', project.property('gameTestSelect').toString()
         }
-        // Folder datapacks the gametest world loads, such as the seventeenth goo type
-        arguments.addAll '--packs', file('src/test/resources/datapacks').absolutePath
+        // Folder datapacks the gametest world loads, such as the seventeenth goo type. --packs takes one folder,
+        // so the workbench's dump run names a root holding its draft pack in its place
+        // (decision workbench-authors-a-draft-and-promotes-by-rename).
+        arguments.addAll '--packs', project.findProperty('gameTestPacks') ?: file('src/test/resources/datapacks').absolutePath
         // The Goo Lab template that goo:lab_template_loads opens through the game's save loader
         systemProperty 'goo.labTemplate', file('dev/lab').absolutePath
         // JaCoCo agent so gametest coverage merges with unit-test coverage.
