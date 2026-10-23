@@ -238,6 +238,20 @@ class ValuesWorkbenchServerTest {
     }
 
     /**
+     * The template check on a fresh tree waits on the same one-time dump the inventory runs, rather than
+     * refusing while the dump is still writing.
+     */
+    @Test
+    void templateOnAbsentInventoryWaitsForTheDump() throws IOException, InterruptedException {
+        String model = text(get("/api/model"));
+        HttpResponse<byte[]> response = client.send(HttpRequest.newBuilder(URI.create(server.url()
+                        + "/api/template")).POST(HttpRequest.BodyPublishers.ofString(model)).build(),
+                HttpResponse.BodyHandlers.ofByteArray());
+        assertEquals(200, response.statusCode(), text(response));
+        assertEquals(1, dumpsRun.get());
+    }
+
+    /**
      * An item's image is served as PNG bytes from the inventory folder.
      */
     @Test

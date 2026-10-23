@@ -458,8 +458,12 @@ async function loadModel() {
   $('save-button').disabled = false;
 }
 
+// A fresh tree holds no inventory; the server dumps it from a headless game server first, which takes about a
+// minute, so the page says so rather than standing empty.
 async function loadInventory() {
+  setStatus('Reading the inventory; a fresh tree dumps it from a headless server first, about a minute…');
   state.inventory = await fetchJson('/api/inventory');
+  setStatus('');
   const inventory = state.inventory;
   $('file-path').textContent = state.model.path + ' · inventory: ' + inventory.items.length + ' items, '
     + inventory.item_tags.length + ' item tags, ' + inventory.goo_types.length + ' goo types';
