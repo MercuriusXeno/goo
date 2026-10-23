@@ -77,6 +77,10 @@ tr:hover td { background: var(--hover); }
 .kind.tree { background: var(--accent-soft); }
 .resolves { color: #1c6b3a; }
 .row-actions { display: flex; gap: 4px; flex-wrap: nowrap; }
+.constant-stack { display: flex; flex-direction: column; }
+.constant-block { display: flex; flex-direction: column; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.constant-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.expression-field { resize: vertical; field-sizing: content; min-height: 2.2em; line-height: 1.4; }
 .split { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
 .group-list { flex: 0 1 280px; min-width: 240px; }
 .group-detail { flex: 999 1 520px; min-width: 0; }
@@ -206,12 +210,7 @@ details.dump-section pre { margin: 0; padding: 0 14px 12px; font-size: 12px; ove
             <button class="small" type="button" id="add-scalar">Add scalar</button>
             <button class="small" type="button" id="add-tree">Add tree</button>
           </div>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Name</th><th>Kind</th><th>Expression</th><th>Resolves</th><th>Used by</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
-              <tbody id="constants-rows"></tbody>
-            </table>
-          </div>
+          <div class="constant-stack" id="constants-rows"></div>
         </div>
         <p class="hint">The game's lexer reads integers, $name, $tree.type, + - * /, parentheses and a leading count ("9 $iron_nugget"). A tree constant is an object of per-type expressions, such as {"leaf": "$base"}.</p>
       </section>
@@ -559,12 +558,12 @@ async function renameConstant(from, to) {
   }
 }
 
-function nameCell(entry) {
+function constantName(entry) {
   if (constantsView.renaming !== entry.key) {
     const name = document.createElement('span');
-    name.className = 'mono';
+    name.className = 'mono card-title';
     name.textContent = '$' + entry.key;
-    return cell(name);
+    return name;
   }
   const input = document.createElement('input');
   input.className = 'mono field narrow';
@@ -579,22 +578,35 @@ function nameCell(entry) {
     }
   });
   setTimeout(() => input.focus(), 0);
-  return cell(input);
+  return input;
 }
 
+// Where the browser lacks field-sizing: content, the rows follow the line count so the field still grows.
+function fitRows(field) {
+  field.rows = Math.max(1, field.value.split('\n').length);
+}
+
+// Each constant is a block: its head line, then its expression across the pane's width
+// (decision constants-stack-with-a-growing-expression-field).
 function constantRow(entry, index, entries) {
   const result = constantsView.results.get(entry.key);
-  const row = document.createElement('tr');
+  const row = document.createElement('div');
+  row.className = 'constant-block';
   const kind = document.createElement('span');
   const isTree = result ? result.kind === 'tree' : entry.text.trim().startsWith('{');
   kind.className = 'kind' + (isTree ? ' tree' : '');
   kind.textContent = isTree ? 'tree' : 'scalar';
-  const expression = document.createElement('input');
-  expression.className = 'mono field';
+  const expression = document.createElement('textarea');
+  expression.className = 'mono field expression-field';
   expression.value = shownText(entry.text);
+  fitRows(expression);
   expression.setAttribute('aria-label', 'Expression for $' + entry.key);
   expression.setAttribute('aria-invalid', String(!!(result && result.error)));
-  expression.addEventListener('input', () => { entry.text = storedText(expression.value); markEdited(); });
+  expression.addEventListener('input', () => {
+    fitRows(expression);
+    entry.text = storedText(expression.value);
+    markEdited();
+  });
   const resolves = document.createElement('span');
   resolves.className = 'mono ' + (result && result.error ? 'error' : 'resolves');
   resolves.textContent = result && result.error ? result.error : resolvedText(result);
@@ -610,7 +622,15 @@ function constantRow(entry, index, entries) {
     button('Rename', () => { constantsView.renaming = entry.key; renderConstants(); }),
     button('Delete', () => { entries.splice(index, 1); markEdited(); renderConstants(); },
       usedBy.length ? 'Read by ' + usedBy.join(', ') : null));
-  row.append(nameCell(entry), cell(kind), cell(expression), cell(resolves), cell(users), cell(actions));
+  const head = document.createElement('div');
+  head.className = 'constant-head';
+  resolves.classList.add('grow');
+  head.append(constantName(entry), kind, resolves, actions);
+  const usedByLine = document.createElement('div');
+  usedByLine.className = 'hint';
+  usedByLine.append('Used by ', users);
+  usedByLine.hidden = !usedBy.length;
+  row.append(head, expression, usedByLine);
   return row;
 }
 
@@ -624,7 +644,8 @@ function renderConstants() {
     ? document.activeElement.getAttribute('aria-label') : null;
   rows.replaceChildren(...section.entries.map(constantRow));
   if (focused) {
-    const again = [...rows.querySelectorAll('input')].find((input) => input.getAttribute('aria-label') === focused);
+    const again = [...rows.querySelectorAll('input, textarea')]
+      .find((input) => input.getAttribute('aria-label') === focused);
     if (again) {
       again.focus();
       again.setSelectionRange(again.value.length, again.value.length);

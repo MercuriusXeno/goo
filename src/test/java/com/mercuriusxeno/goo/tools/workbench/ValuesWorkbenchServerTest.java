@@ -383,4 +383,20 @@ class ValuesWorkbenchServerTest {
         assertFalse(page.contains("' · melts '"), "hover text still reads melts");
         assertFalse(page.contains("hover.costs"), "hover text still reads costs");
     }
+
+    /**
+     * The Variables pane stacks each constant over its expression field rather than tabling them, and the
+     * constants script builds that field as a textarea (decision constants-stack-with-a-growing-expression-field).
+     */
+    @Test
+    void variablesPaneStacksConstantsOverATextarea() throws IOException, InterruptedException {
+        String page = text(get("/"));
+        int start = page.indexOf("id=\"pane-variables\"");
+        String pane = page.substring(start, page.indexOf("</section>", start));
+        assertFalse(pane.contains("<table"), pane);
+        int row = page.indexOf("function constantRow(");
+        String script = page.substring(row, page.indexOf("\nfunction ", row + 1));
+        assertTrue(script.contains("document.createElement('textarea')"), script);
+        assertTrue(script.contains("'Expression for $' + entry.key"), script);
+    }
 }
