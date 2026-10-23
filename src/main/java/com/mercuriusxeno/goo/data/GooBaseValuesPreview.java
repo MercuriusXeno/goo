@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.data;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.MinecraftServer;
 import org.jspecify.annotations.Nullable;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -58,6 +59,37 @@ public final class GooBaseValuesPreview {
     public static GooValueRegistry registry(String json, Function<Identifier, Set<Identifier>> tagResolver) {
         GooValueRegistry registry = new GooValueRegistry();
         registry.loadBaseValuesFromText(json, tagResolver);
+        return registry;
+    }
+
+    /**
+     * Each item's value as the game holds it before any recipe derives: the base values with the
+     * _post_conversions applied over them, as the type-source checks read a draft
+     * (decision type-source-checks-are-rules-that-gate-promote).
+     *
+     * @param json        base_values.json text
+     * @param tagResolver resolves an item tag to its member ids, standing in for the game's registry
+     * @return each item's value, base and post-converted
+     */
+    public static Map<Identifier, GooValue> postConverted(String json,
+                                                          Function<Identifier, Set<Identifier>> tagResolver) {
+        GooValueRegistry registry = registry(json, tagResolver);
+        registry.publishBaseAsEffective();
+        return registry.table().getEffectiveValues();
+    }
+
+    /**
+     * A scratch registry holding a draft's values derived over a running server's recipes, its item tags read
+     * from the server's registries, and never the server's own registry, so the in-game workbench audits what
+     * the page holds (decision goo-workbench-command-serves-the-page-from-the-game). Call it on the server thread.
+     *
+     * @param json   base_values.json text
+     * @param server the running server whose recipes and tags the derivation reads
+     * @return the derived scratch registry
+     */
+    public static GooValueRegistry derivedOnServer(String json, MinecraftServer server) {
+        GooValueRegistry registry = registry(json, GooValueMerger::resolveItemTag);
+        registry.deriveFromRecipes(server);
         return registry;
     }
 

@@ -100,7 +100,19 @@ public final class GooInventoryReport {
      * @return the inventory written
      */
     public static GooInventory writeInventory(MinecraftServer server) {
-        Path folder = FMLPaths.CONFIGDIR.get().resolve(DIR_IMAGES);
+        return writeInventory(server, FMLPaths.CONFIGDIR.get());
+    }
+
+    /**
+     * Writes the inventory file and its image folder into a folder, as the in-game workbench writes them under the
+     * world (decision goo-workbench-command-serves-the-page-from-the-game).
+     *
+     * @param server the running server
+     * @param target the folder goo_inventory.json and goo_inventory/ land in
+     * @return the inventory written
+     */
+    public static GooInventory writeInventory(MinecraftServer server, Path target) {
+        Path folder = target.resolve(DIR_IMAGES);
         clearFolder(folder);
         RegistryAccess registries = server.registryAccess();
         List<GooInventory.NamedEntry> items;
@@ -114,7 +126,7 @@ public final class GooInventoryReport {
                 tags(registries.lookupOrThrow(Registries.BLOCK), BuiltInRegistries.BLOCK),
                 GooTypes.all(registries).stream().map(GooTypes::id).toList(),
                 recipes(server.getRecipeManager().getRecipes(), registries));
-        GooAuditReport.writeDiagnosticFile(FILE_INVENTORY, List.of(GooInventoryJson.toJson(inventory)));
+        GooAuditReport.writeFile(target, FILE_INVENTORY, List.of(GooInventoryJson.toJson(inventory)));
         return inventory;
     }
 

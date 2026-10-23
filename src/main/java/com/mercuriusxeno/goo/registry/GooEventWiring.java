@@ -14,6 +14,7 @@ import com.mercuriusxeno.goo.item.gasket.ChoralGasketItem;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.GooValueSync;
 import com.mercuriusxeno.goo.network.PlayerKnowledge;
+import com.mercuriusxeno.goo.workbench.InGameWorkbench;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
@@ -23,6 +24,7 @@ import net.neoforged.neoforge.event.OnDatapackSyncEvent;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -84,6 +86,17 @@ public final class GooEventWiring {
     @SubscribeEvent
     public static void onServerStarting(ServerStartingEvent event) {
         GooValues.attach(event.getServer());
+    }
+
+    /**
+     * Closes the values workbench page the stopping server serves, so no listener outlives its game
+     * (decision goo-workbench-command-serves-the-page-from-the-game).
+     *
+     * @param event the server stopping event
+     */
+    @SubscribeEvent
+    public static void onServerStopping(ServerStoppingEvent event) {
+        InGameWorkbench.close(event.getServer());
     }
 
     /**

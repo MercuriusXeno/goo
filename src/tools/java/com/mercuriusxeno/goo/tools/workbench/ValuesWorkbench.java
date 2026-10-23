@@ -1,5 +1,7 @@
 package com.mercuriusxeno.goo.tools.workbench;
 
+import com.mercuriusxeno.goo.workbench.ValuesWorkbenchServer;
+import com.mercuriusxeno.goo.workbench.WorkbenchPaths;
 import java.awt.Desktop;
 import java.io.IOException;
 import java.net.URI;
@@ -8,7 +10,8 @@ import java.nio.file.Path;
 /**
  * Runs the values workbench: serves the page on a loopback port and opens the browser on it, with no
  * Minecraft client (decision workbench-authors-base-values-whole). The gradle task valuesWorkbench runs
- * it from the repository root and it serves until the page's Stop ends it.
+ * it from the repository root, feeding it the gametest dumps, and it serves until the page's Stop ends it
+ * (decision gradle-run-stays-on-the-gametest-dump).
  */
 public final class ValuesWorkbench {
     private static final int ANY_FREE_PORT = 0;
@@ -24,7 +27,7 @@ public final class ValuesWorkbench {
         Path projectDir = Path.of(args.length > 0 ? args[0] : ".").toAbsolutePath().normalize();
         int port = args.length > 1 ? Integer.parseInt(args[1]) : ANY_FREE_PORT;
         ValuesWorkbenchServer server = ValuesWorkbenchServer.start(WorkbenchPaths.inProject(projectDir),
-                InventoryDump.headlessGametest(projectDir), DumpRunner.headlessGametest(projectDir), port);
+                new HeadlessGametestInventoryDump(projectDir), new HeadlessGametestDumpRunner(projectDir), port);
         System.out.println("Values workbench at " + server.url() + " (Stop in the page closes it)");
         openBrowser(server.url());
         // The page's Stop ends the server; main returning then lets the JVM exit and the gradle task end

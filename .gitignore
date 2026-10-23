@@ -33,6 +33,9 @@ net/
 .gate/
 gate.ps1
 
+# The values workbench's draft, which only Promote turns into the shipped file
+src/main/resources/data/goo/goo_values/base_values.draft.json
+
 # JVM crash dumps
 hs_err_pid*.log
 replay_pid*.log
