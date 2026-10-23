@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.workbench;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
@@ -12,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
@@ -29,6 +31,7 @@ final class ConstantsJson {
     private static final String ERROR = "error";
     private static final String USED_BY = "usedBy";
     private static final String READERS = "readers";
+    private static final String EXPRESSION = "expression";
     private static final String ID = "id";
     private static final String FROM = "from";
     private static final String TO = "to";
@@ -65,10 +68,10 @@ final class ConstantsJson {
     }
 
     /**
-     * @param json the posted delete, carrying name and the model's members
-     * @return the name of the constant it deletes
+     * @param json a posted delete or hover, carrying name and the model's members
+     * @return the name of the constant it acts on
      */
-    static String deleteFrom(String json) {
+    static String nameFrom(String json) {
         return JsonParser.parseString(json).getAsJsonObject().get(NAME).getAsString();
     }
 
@@ -116,6 +119,30 @@ final class ConstantsJson {
         JsonObject root = new JsonObject();
         root.add(CONSTANTS, constants);
         return root.toString();
+    }
+
+    /**
+     * The constant hover card's answer: the constant as evaluated answers it beside its expression as the file
+     * spells it (decision references-link-to-their-variable-and-hover-a-card).
+     *
+     * @param name       the hovered constant's name
+     * @param model      the posted model
+     * @param tagMembers each item tag's member ids, keyed by the tag's namespaced id
+     * @return the hovered constant's name, expression, kind, value or per-type tree, error and usedBy, or empty
+     *         where no constant holds the name
+     */
+    static Optional<String> hovered(String name, BaseValuesModel model, Map<String, List<String>> tagMembers) {
+        BaseValuesModel.Member section = model.member(CONSTANTS_SECTION);
+        Optional<BaseValuesModel.Member> entry = section == null ? Optional.empty()
+                : section.entries().stream().filter(constant -> name.equals(constant.key())).findFirst();
+        return entry.map(constant -> {
+            JsonObject answer = JsonParser.parseString(evaluated(model, tagMembers)).getAsJsonObject()
+                    .getAsJsonArray(CONSTANTS).asList().stream().map(JsonElement::getAsJsonObject)
+                    .filter(evaluatedConstant -> name.equals(evaluatedConstant.get(NAME).getAsString()))
+                    .findFirst().orElseThrow();
+            answer.addProperty(EXPRESSION, constant.text());
+            return answer.toString();
+        });
     }
 
     private static void addUsage(JsonObject json, BaseValuesModel model, String name,
