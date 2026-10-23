@@ -228,10 +228,10 @@ public class GooValueRegistry {
      */
     public int deriveFromRecipes(MinecraftServer server) {
         HolderLookup.Provider registries = server.registryAccess();
-        lastRecipes = GooValueRecipeAdapter.adaptRecipes(
+        List<RecipeInput> adapted = GooValueRecipeAdapter.adaptRecipes(
                 server.getRecipeManager().getRecipes(), registries);
         boolean baseOverride = GooConfig.BASE_VALUES_OVERRIDE_RECIPES.get();
-        int derived = deriveFromRecipeInputs(lastRecipes, baseOverride);
+        int derived = deriveFromRecipeInputs(adapted, baseOverride);
         Goo.LOGGER.info(LOG_DERIVED, derived);
         return derived;
     }
@@ -445,6 +445,7 @@ public class GooValueRegistry {
      * @return the number of items that received derived values
      */
     int deriveFromRecipeInputs(List<RecipeInput> recipes, boolean baseOverride) {
+        lastRecipes = List.copyOf(recipes);
         lastDerivation = GooValueDerivation.derive(recipes, baseValues, deniedItems, baseOverride);
         Map<Identifier, GooValue> derivedEffective = new HashMap<>(lastDerivation.effectiveValues());
         GooConversionLoader.applyConversions(postConversions, derivedEffective, pseudoTags);
