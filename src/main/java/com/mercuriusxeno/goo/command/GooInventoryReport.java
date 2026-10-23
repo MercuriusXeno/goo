@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.command;
 
-import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.data.GooValueRecipeAdapter;
 import com.mercuriusxeno.goo.data.RecipeInput;
 import com.mercuriusxeno.goo.type.GooTypes;
@@ -24,13 +23,7 @@ import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.item.crafting.ShapedRecipePattern;
 import net.minecraft.world.level.block.Block;
 import net.neoforged.fml.loading.FMLPaths;
-import org.jspecify.annotations.Nullable;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URISyntaxException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.CodeSource;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -40,17 +33,15 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.function.Function;
-import java.util.stream.Stream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 
 /**
  * Writes config/goo_inventory.json, every item, block, item tag, block tag, goo type and recipe the
- * loadout registers, and config/goo_inventory/ beside it holding an image per item. The /goo inventory
- * command and the inventory-dump gametest both call it, so a headless run and a modded server each
- * write the inventory the values workbench data-drives from
- * (decision inventory-dump-from-a-gametest-and-a-command).
+ * loadout registers. The /goo inventory command and the inventory-dump gametest both call it, so a headless run and
+ * a modded server each write the inventory the values workbench data-drives from
+ * (decision inventory-dump-from-a-gametest-and-a-command). Each item names the image a slot capture draws at
+ * goo_inventory/namespace/path.png; the report writes no image, since only a client's renderer draws an item as
+ * its slot does.
+ * decision images-are-slot-captures-taken-on-detection
  */
 public final class GooInventoryReport {
     /**
@@ -69,11 +60,7 @@ public final class GooInventoryReport {
     private static final char EMPTY_CELL = ' ';
     private static final String MSG_WRITTEN = "Inventory written to config/goo_inventory.json: ";
     private static final String MSG_ITEMS = " items, ";
-    private static final String MSG_IMAGES = " images, ";
     private static final String MSG_RECIPES = " recipes";
-    private static final String LOG_IMAGE_FAIL = "Failed to write inventory image {}: {}";
-    private static final String LOG_FOLDER_FAIL = "Failed to clear the inventory image folder: {}";
-    private static final String LOG_GAME_JAR_FAIL = "Failed to read the game jar's assets: {}";
 
     private GooInventoryReport() {
     }
@@ -86,15 +73,14 @@ public final class GooInventoryReport {
      */
     static int run(CommandContext<CommandSourceStack> ctx) {
         GooInventory inventory = writeInventory(ctx.getSource().getServer());
-        long images = inventory.items().stream().filter(item -> item.image() != null).count();
         ctx.getSource().sendSuccess(() -> Component.literal(MSG_WRITTEN + inventory.items().size() + MSG_ITEMS
-                + images + MSG_IMAGES + inventory.recipes().size() + MSG_RECIPES).withStyle(ChatFormatting.GREEN), false);
+                + inventory.recipes().size() + MSG_RECIPES).withStyle(ChatFormatting.GREEN), false);
         return 1;
     }
 
     /**
-     * Collects the loadout from the server, writes the inventory file and the image folder, and answers
-     * what it wrote. The inventory-dump gametest calls it headless.
+     * Collects the loadout from the server, writes the inventory file, and answers what it wrote. The
+     * inventory-dump gametest calls it headless.
      *
      * @param server the running server
      * @return the inventory written
@@ -104,23 +90,17 @@ public final class GooInventoryReport {
     }
 
     /**
-     * Writes the inventory file and its image folder into a folder, as the in-game workbench writes them under the
-     * world (decision goo-workbench-command-serves-the-page-from-the-game).
+     * Writes the inventory file into a folder, as the in-game workbench writes it under the world
+     * (decision goo-workbench-command-serves-the-page-from-the-game).
      *
      * @param server the running server
-     * @param target the folder goo_inventory.json and goo_inventory/ land in
+     * @param target the folder goo_inventory.json lands in, beside the goo_inventory/ image folder
      * @return the inventory written
      */
     public static GooInventory writeInventory(MinecraftServer server, Path target) {
-        Path folder = target.resolve(DIR_IMAGES);
-        clearFolder(folder);
         RegistryAccess registries = server.registryAccess();
-        List<GooInventory.NamedEntry> items;
-        try (GameJarAssets gameJar = GameJarAssets.open()) {
-            items = items(folder, path -> readClasspathAsset(path).or(() -> gameJar.read(path)));
-        }
         GooInventory inventory = new GooInventory(
-                items,
+                items(),
                 blocks(),
                 tags(registries.lookupOrThrow(Registries.ITEM), BuiltInRegistries.ITEM),
                 tags(registries.lookupOrThrow(Registries.BLOCK), BuiltInRegistries.BLOCK),
@@ -130,14 +110,22 @@ public final class GooInventoryReport {
         return inventory;
     }
 
-    private static List<GooInventory.NamedEntry> items(Path folder, Function<String, Optional<byte[]>> assets) {
+    private static List<GooInventory.NamedEntry> items() {
         List<GooInventory.NamedEntry> items = new ArrayList<>();
         for (Identifier id : sortedKeys(BuiltInRegistries.ITEM)) {
             Item item = BuiltInRegistries.ITEM.getValue(id);
             String name = item.getName(item.getDefaultInstance()).getString();
-            items.add(new GooInventory.NamedEntry(id.toString(), name, copyImage(id, folder, assets)));
+            items.add(new GooInventory.NamedEntry(id.toString(), name, imagePath(id)));
         }
         return items;
+    }
+
+    /**
+     * @param item the item's id
+     * @return the path under the image folder its slot capture lands at
+     */
+    private static String imagePath(Identifier item) {
+        return item.getNamespace() + PATH_SEPARATOR + item.getPath() + IMAGE_SUFFIX;
     }
 
     private static List<GooInventory.NamedEntry> blocks() {
@@ -237,111 +225,5 @@ public final class GooInventoryReport {
 
     private static List<String> sorted(Set<Identifier> ids) {
         return ids.stream().sorted().map(Identifier::toString).toList();
-    }
-
-    /**
-     * Copies the item's texture into the image folder at namespace/path.png.
-     *
-     * @param item   the item's id
-     * @param folder the image folder
-     * @param assets reads an asset by its path
-     * @return the image path relative to the folder, or null where no texture was found
-     */
-    private static @Nullable String copyImage(Identifier item, Path folder, Function<String, Optional<byte[]>> assets) {
-        Optional<byte[]> image = GooInventoryImages.texturePathFor(item, assets).flatMap(assets);
-        if (image.isEmpty()) {
-            return null;
-        }
-        String relative = item.getNamespace() + PATH_SEPARATOR + item.getPath() + IMAGE_SUFFIX;
-        try {
-            Path target = folder.resolve(relative);
-            Files.createDirectories(target.getParent());
-            Files.write(target, image.get());
-            return relative;
-        } catch (IOException e) {
-            Goo.LOGGER.error(LOG_IMAGE_FAIL, relative, e.getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * Reads a client asset from the classpath, where a mod jar carries its own.
-     *
-     * @param path the asset's path
-     * @return the asset's bytes, or empty where no loader answers it
-     */
-    private static Optional<byte[]> readClasspathAsset(String path) {
-        ClassLoader loader = Thread.currentThread().getContextClassLoader();
-        try (InputStream stream = loader == null ? null : loader.getResourceAsStream(path)) {
-            return stream == null ? Optional.empty() : Optional.of(stream.readAllBytes());
-        } catch (IOException e) {
-            return Optional.empty();
-        }
-    }
-
-    /**
-     * The jar Minecraft's classes load from, read as a zip. On a dedicated server FML's class loader hides
-     * the client assets that jar carries, so the dev jar's textures are read from the jar itself.
-     */
-    private static final class GameJarAssets implements AutoCloseable {
-        private final @Nullable ZipFile jar;
-
-        private GameJarAssets(@Nullable ZipFile jar) {
-            this.jar = jar;
-        }
-
-        static GameJarAssets open() {
-            try {
-                CodeSource source = Item.class.getProtectionDomain().getCodeSource();
-                Path location = source == null ? null : Path.of(source.getLocation().toURI());
-                return new GameJarAssets(location != null && Files.isRegularFile(location)
-                        ? new ZipFile(location.toFile()) : null);
-            } catch (IOException | URISyntaxException | IllegalArgumentException e) {
-                Goo.LOGGER.warn(LOG_GAME_JAR_FAIL, e.getMessage());
-                return new GameJarAssets(null);
-            }
-        }
-
-        Optional<byte[]> read(String path) {
-            ZipEntry entry = jar == null ? null : jar.getEntry(path);
-            if (entry == null) {
-                return Optional.empty();
-            }
-            try (InputStream stream = jar.getInputStream(entry)) {
-                return Optional.of(stream.readAllBytes());
-            } catch (IOException e) {
-                return Optional.empty();
-            }
-        }
-
-        @Override
-        public void close() {
-            if (jar == null) {
-                return;
-            }
-            try {
-                jar.close();
-            } catch (IOException e) {
-                Goo.LOGGER.warn(LOG_GAME_JAR_FAIL, e.getMessage());
-            }
-        }
-    }
-
-    /**
-     * Empties the image folder, so an item a removed mod registered leaves no image behind.
-     *
-     * @param folder the image folder
-     */
-    private static void clearFolder(Path folder) {
-        if (!Files.isDirectory(folder)) {
-            return;
-        }
-        try (Stream<Path> paths = Files.walk(folder)) {
-            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
-                Files.delete(path);
-            }
-        } catch (IOException e) {
-            Goo.LOGGER.error(LOG_FOLDER_FAIL, e.getMessage());
-        }
     }
 }
