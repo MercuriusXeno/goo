@@ -2805,4 +2805,158 @@ class GooValueRegistryTest {
                     registry.valueSettingRecipes().getFirst().ingredientAlternatives());
         }
     }
+
+    /**
+     * A recipe whose output holds a value and whose slots are all valued but one solves that slot's
+     * ingredient (decision derivation-solves-whichever-side-of-a-recipe-is-unknown).
+     */
+    @Nested
+    class SolvingInputs {
+
+        @Test
+        void singleInputRecipeSolvesItsInputFromTheOutput() {
+            setBaseValues(Map.of(id("minecraft:stick"), goo(GooTypes.LEAF, 4)));
+            RecipeInput sticks = recipe("minecraft:stick", 4, slot("minecraft:oak_planks"), slot("minecraft:oak_planks"));
+            registry.deriveFromRecipeInputs(List.of(sticks), false);
+
+            assertEquals(goo(GooTypes.LEAF, 8), registry.table().lookup(id("minecraft:oak_planks")));
+            assertEquals(sticks, registry.diagnostics().derivationSources().get(id("minecraft:oak_planks")));
+        }
+
+        @Test
+        void mixedRecipeSolvesItsOneUnknownSlot() {
+            setBaseValues(Map.of(id("minecraft:torch"), goo(GooTypes.LEAF, 2, GooTypes.ROCK, 3),
+                    id("minecraft:stick"), goo(GooTypes.LEAF, 8)));
+            registry.deriveFromRecipeInputs(List.of(recipe("minecraft:torch", 4,
+                    slot("minecraft:coal"), slot("minecraft:coal"), slot("minecraft:stick"))), false);
+
+            assertEquals(goo(GooTypes.ROCK, 6), registry.table().lookup(id("minecraft:coal")));
+        }
+
+        @Test
+        void twoUnknownSlotsSolveNothing() {
+            setBaseValues(Map.of(id("minecraft:torch"), goo(GooTypes.LEAF, 2, GooTypes.ROCK, 3)));
+            registry.deriveFromRecipeInputs(List.of(recipe("minecraft:torch", 4,
+                    slot("minecraft:coal"), slot("minecraft:stick"))), false);
+
+            assertNull(registry.table().lookup(id("minecraft:coal")));
+            assertNull(registry.table().lookup(id("minecraft:stick")));
+        }
+
+        @Test
+        void bambooSolvesSticksPlanksAndLogs() {
+            setBaseValues(Map.of(id("minecraft:bamboo"), goo(GooTypes.LEAF, 1)));
+            RecipeInput sticksFromBamboo = recipe("minecraft:stick", 1, slot("minecraft:bamboo"), slot("minecraft:bamboo"));
+            RecipeInput sticksFromPlanks = recipe("minecraft:stick", 4,
+                    slot("minecraft:oak_planks"), slot("minecraft:oak_planks"));
+            RecipeInput planksFromLog = recipe("minecraft:oak_planks", 4, slot("minecraft:oak_log"));
+            registry.deriveFromRecipeInputs(List.of(sticksFromBamboo, sticksFromPlanks, planksFromLog), false);
+
+            assertEquals(goo(GooTypes.LEAF, 2), registry.table().lookup(id("minecraft:stick")));
+            assertEquals(goo(GooTypes.LEAF, 4), registry.table().lookup(id("minecraft:oak_planks")));
+            assertEquals(goo(GooTypes.LEAF, 16), registry.table().lookup(id("minecraft:oak_log")));
+            Map<Identifier, RecipeInput> sources = registry.diagnostics().derivationSources();
+            assertEquals(sticksFromBamboo, sources.get(id("minecraft:stick")));
+            assertEquals(sticksFromPlanks, sources.get(id("minecraft:oak_planks")));
+            assertEquals(planksFromLog, sources.get(id("minecraft:oak_log")));
+            assertEquals(Set.of(id("minecraft:stick"), id("minecraft:oak_planks")),
+                    registry.valueSettingRecipes().stream().map(RecipeInput::output).collect(java.util.stream.Collectors.toSet()));
+            assertEquals(3, registry.valueSettingRecipes().size());
+        }
+
+        @Test
+        void solvedInputNeverOverwritesAHandKeyedValue() {
+            setBaseValues(Map.of(id("minecraft:stick"), goo(GooTypes.LEAF, 4),
+                    id("minecraft:oak_planks"), goo(GooTypes.LEAF, 20)));
+            registry.deriveFromRecipeInputs(List.of(recipe("minecraft:stick", 4,
+                    slot("minecraft:oak_planks"), slot("minecraft:oak_planks"))), false);
+
+            assertFalse(getDerivedValues().containsKey(id("minecraft:oak_planks")));
+            assertEquals(goo(GooTypes.LEAF, 20), registry.table().lookup(id("minecraft:oak_planks")));
+        }
+
+        @Test
+        void tagSlotSolvesEachUnvaluedAlternative() {
+            setBaseValues(Map.of(id("minecraft:stick"), goo(GooTypes.LEAF, 4),
+                    id("minecraft:oak_planks"), goo(GooTypes.LEAF, 8)));
+            String[] planks = slot("minecraft:oak_planks", "minecraft:birch_planks", "minecraft:spruce_planks");
+            registry.deriveFromRecipeInputs(List.of(tagRecipe("minecraft:stick", 4,
+                    Arrays.asList("minecraft:planks", "minecraft:planks"), planks, planks)), false);
+
+            assertEquals(goo(GooTypes.LEAF, 8), registry.table().lookup(id("minecraft:birch_planks")));
+            assertEquals(goo(GooTypes.LEAF, 8), registry.table().lookup(id("minecraft:spruce_planks")));
+            assertFalse(getDerivedValues().containsKey(id("minecraft:oak_planks")));
+        }
+    }
+
+    /**
+     * A hand-keyed value holds a tie and yields to a smaller derived value; among derived values an explicit
+     * recipe beats a tag recipe whatever the amount, then smaller, then simpler
+     * (decision manual-then-explicit-then-generic-then-smaller-then-simpler).
+     */
+    @Nested
+    class ExplicitBeforeGeneric {
+
+        private static final String PLANKS_TAG = "minecraft:planks";
+        private static final String LOGS_TAG = "minecraft:logs";
+
+        private final RecipeInput planksFromAcaciaLog =
+                recipe("minecraft:acacia_planks", 4, slot("minecraft:acacia_log"));
+        private final RecipeInput planksFromAnyLog = tagRecipe("minecraft:acacia_planks", 4,
+                Arrays.asList(LOGS_TAG), slot("minecraft:birch_log"));
+
+        @Test
+        void explicitRecipeBeatsTagRecipeWhateverTheAmount() {
+            setBaseValues(Map.of(id("minecraft:acacia_log"), goo(GooTypes.LEAF, 64),
+                    id("minecraft:birch_log"), goo(GooTypes.LEAF, 4)));
+            registry.deriveFromRecipeInputs(List.of(planksFromAnyLog, planksFromAcaciaLog), false);
+
+            assertEquals(goo(GooTypes.LEAF, 16), registry.table().lookup(id("minecraft:acacia_planks")));
+            assertEquals(planksFromAcaciaLog,
+                    registry.diagnostics().derivationSources().get(id("minecraft:acacia_planks")));
+        }
+
+        @Test
+        void explicitWinsWhenTheTagValueArrivesFirst() {
+            setBaseValues(Map.of(id("minecraft:stick"), goo(GooTypes.LEAF, 4),
+                    id("minecraft:acacia_wood"), goo(GooTypes.LEAF, 64)));
+            RecipeInput sticks = tagRecipe("minecraft:stick", 4, Arrays.asList(PLANKS_TAG, PLANKS_TAG),
+                    slot("minecraft:acacia_planks"), slot("minecraft:acacia_planks"));
+            RecipeInput wood = recipe("minecraft:acacia_wood", 3, slot("minecraft:acacia_log"),
+                    slot("minecraft:acacia_log"), slot("minecraft:acacia_log"), slot("minecraft:acacia_log"));
+            registry.deriveFromRecipeInputs(List.of(sticks, wood, planksFromAcaciaLog), false);
+
+            assertEquals(goo(GooTypes.LEAF, 48), registry.table().lookup(id("minecraft:acacia_log")));
+            assertEquals(goo(GooTypes.LEAF, 12), registry.table().lookup(id("minecraft:acacia_planks")));
+            assertEquals(planksFromAcaciaLog,
+                    registry.diagnostics().derivationSources().get(id("minecraft:acacia_planks")));
+        }
+
+        @Test
+        void handKeyedDyeStandsOverTheFlowerDerivation() {
+            GooValue keyedDye = goo(GooTypes.LEAF, 2, GooTypes.JELLY, 2);
+            setBaseValues(Map.of(id("minecraft:red_dye"), keyedDye, id("minecraft:poppy"), goo(GooTypes.LEAF, 4),
+                    id("minecraft:blue_dye"), goo(GooTypes.LEAF, 4), id("minecraft:cornflower"), goo(GooTypes.LEAF, 2)));
+            registry.deriveFromRecipeInputs(List.of(recipe("minecraft:red_dye", 1, slot("minecraft:poppy")),
+                    recipe("minecraft:blue_dye", 1, slot("minecraft:cornflower"))), false);
+
+            assertEquals(keyedDye, registry.table().lookup(id("minecraft:red_dye")));
+            assertEquals(goo(GooTypes.LEAF, 2), registry.table().lookup(id("minecraft:blue_dye")));
+        }
+
+        @Test
+        void winningRecipeIsTheOneReported() {
+            setBaseValues(Map.of(id("minecraft:acacia_log"), goo(GooTypes.LEAF, 64),
+                    id("minecraft:birch_log"), goo(GooTypes.LEAF, 4),
+                    id("minecraft:dandelion"), goo(GooTypes.LEAF, 2),
+                    id("minecraft:golden_dandelion"), goo(GooTypes.METAL, 100)));
+            RecipeInput cheapDye = recipe("minecraft:yellow_dye", 1, slot("minecraft:dandelion"));
+            registry.deriveFromRecipeInputs(List.of(planksFromAnyLog, planksFromAcaciaLog, cheapDye,
+                    recipe("minecraft:yellow_dye", 1, slot("minecraft:golden_dandelion"))), false);
+
+            Map<Identifier, RecipeInput> setting = registry.valueSettingRecipeByItem();
+            assertEquals(planksFromAcaciaLog, setting.get(id("minecraft:acacia_planks")));
+            assertEquals(cheapDye, setting.get(id("minecraft:yellow_dye")));
+        }
+    }
 }

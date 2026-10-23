@@ -103,13 +103,11 @@ class ScaffoldGeneratorTest {
         }
 
         /**
-         * A recipeless input still appears even when its downstream is already valued.
+         * A recipeless input its valued output solves needs no hand value, so it is no root
+         * (decision derivation-solves-whichever-side-of-a-recipe-is-unknown).
          */
         @Test
-        void recipelessInputAppearsEvenWhenDownstreamValued() {
-            // raw_copper -> copper_ingot -> copper_block
-            // copper_ingot is valued, so raw_copper has empty downstream.
-            // But raw_copper still needs a manual value (it's a game item with no recipe).
+        void recipelessInputItsValuedOutputSolvesIsNoRoot() {
             List<RecipeInput> recipes = List.of(
                     recipe("minecraft:copper_ingot", 1, slot("minecraft:raw_copper")),
                     recipe("minecraft:copper_block", 1, slot("minecraft:copper_ingot"))
@@ -121,9 +119,8 @@ class ScaffoldGeneratorTest {
             List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, baseValues, Set.of());
 
-            assertTrue(roots.stream().anyMatch(r ->
-                            r.itemId().equals(id("minecraft:raw_copper"))),
-                    "raw_copper should still be a root -- it needs a value even if downstream is covered");
+            assertTrue(roots.stream().noneMatch(r -> r.itemId().equals(id("minecraft:raw_copper"))),
+                    "copper_ingot solves raw_copper: " + roots);
         }
 
         /**
@@ -206,13 +203,11 @@ class ScaffoldGeneratorTest {
         }
 
         /**
-         * No reverse propagation: valuing an output doesn't value its inputs.
+         * A valued output solves its one unknown input, so a chain valued at its far end leaves no root
+         * behind it (decision derivation-solves-whichever-side-of-a-recipe-is-unknown).
          */
         @Test
-        void noReversePropagation() {
-            // 1 log -> 4 planks -> 4 sticks. Only stick is valued.
-            // Without reverse propagation, log is still a recipeless root
-            // (planks and log can't derive from stick).
+        void valuedOutputSolvesItsInputsBackward() {
             List<RecipeInput> recipes = List.of(
                     recipe("minecraft:oak_planks", 4, slot("minecraft:oak_log")),
                     recipe("minecraft:stick", 4, slot("minecraft:oak_planks"))
@@ -224,18 +219,37 @@ class ScaffoldGeneratorTest {
             List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, baseValues, Set.of());
 
-            assertTrue(roots.stream().anyMatch(r ->
-                            r.itemId().equals(id("minecraft:oak_log"))),
-                    "oak_log should be a root -- no reverse propagation from stick: " + roots);
+            assertEquals(List.of(), roots, "stick solves planks and planks solve the log: " + roots);
         }
 
         /**
-         * Mixed-input recipes do NOT reverse-propagate from the output.
+         * A mixed recipe with one unknown input solves it from the output.
          */
         @Test
-        void mixedInputRecipeDoesNotReversePropagateFromOutput() {
+        void mixedRecipeSolvesItsOneUnknownInput() {
+            List<RecipeInput> recipes = List.of(
+                    recipe("minecraft:torch", 4, slot("minecraft:stick"), slot("minecraft:coal")),
+                    recipe("minecraft:ladder", 3, slot("minecraft:stick"))
+            );
+            Map<Identifier, GooValue> baseValues = Map.of(
+                    id("minecraft:torch"), goo(GooTypes.JELLY, 10),
+                    id("minecraft:coal"), goo(GooTypes.ROCK, 20)
+            );
+
+            List<ScaffoldGenerator.Root> roots = findRecipeRoots(
+                    recipes, baseValues, Set.of());
+
+            assertTrue(roots.stream().noneMatch(r -> r.itemId().equals(id("minecraft:stick"))),
+                    "torch and coal solve stick: " + roots);
+        }
+
+        /**
+         * A mixed recipe with two unknown inputs solves neither.
+         */
+        @Test
+        void mixedRecipeWithTwoUnknownInputsSolvesNeither() {
             // stick + coal -> torch (mixed), stick -> ladder (homogenous)
-            // Valuing torch alone can't reverse-derive stick or coal.
+            // Valuing torch alone leaves stick and coal both unknown.
             // So ladder remains underivable and stick should be a root.
             List<RecipeInput> recipes = List.of(
                     recipe("minecraft:torch", 4, slot("minecraft:stick"), slot("minecraft:coal")),
@@ -276,14 +290,11 @@ class ScaffoldGeneratorTest {
         }
 
         /**
-         * Unvalued input with a valued alternative in its slot is still a Phase 1 root.
+         * An unvalued alternative beside a valued one in a slot is solved from the valued output, so it is
+         * no root (decision derivation-solves-whichever-side-of-a-recipe-is-unknown).
          */
         @Test
-        void unvaluedAlternativeInMultiSlotIsRoot() {
-            // Smithing: trimmed_armor = (diamond_armor | iron_armor) + template.
-            // iron_armor and template are valued, so the recipe resolves.
-            // diamond_armor has no recipe producing it and no value -- Phase 1
-            // catches it as "no recipe" even though the slot has a valued alt.
+        void unvaluedAlternativeInMultiSlotIsSolved() {
             List<RecipeInput> recipes = List.of(
                     recipe("minecraft:trimmed_armor", 1,
                             slot("minecraft:diamond_armor", "minecraft:iron_armor"),
@@ -297,10 +308,7 @@ class ScaffoldGeneratorTest {
             List<ScaffoldGenerator.Root> roots = findRecipeRoots(
                     recipes, baseValues, Set.of());
 
-            assertTrue(roots.stream().anyMatch(r ->
-                            r.itemId().equals(id("minecraft:diamond_armor"))
-                                    && r.reason().equals("no recipe")),
-                    "diamond_armor should be a no-recipe root: " + roots);
+            assertEquals(List.of(), roots, "trimmed_armor solves diamond_armor: " + roots);
         }
 
         /**
