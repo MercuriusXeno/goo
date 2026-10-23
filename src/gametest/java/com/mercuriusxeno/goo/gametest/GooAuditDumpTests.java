@@ -23,8 +23,9 @@ import java.util.function.Consumer;
 public final class GooAuditDumpTests {
     private static final String VALUES_AUDIT_DUMP = "values_audit_dump";
     private static final List<String> SECTIONS_IN_ORDER = List.of(
-            "EXPRESSION WARNINGS", "PHANTOM IDS", "CYCLES", "CONFLICTS",
-            "LEAST VALUE PER TYPE", "NO VALUE", "FORMULAS", "REACTIONS", "ALL VALUES");
+            "EXPRESSION WARNINGS", "PHANTOM IDS", "CYCLES", "CONFLICTS", "UNDERCUT MANUAL VALUES",
+            "LEAST VALUE PER TYPE", "NO VALUE", "FORMULAS", "REACTIONS", "ALL VALUES", "TYPE PROVENANCE",
+            "ROOT REMAINDERS", "CONVERSION FLOWS");
     // Decision values-are-fractions-melt-floors-fabricate-ceils: division is exact, so nothing is lost to report.
     // Decision audit-works-the-least-number-per-type-from-the-recipe-graph: the floor rule replaced divisibility.
     private static final List<String> RETIRED_SECTIONS = List.of("DIVISIBILITY LOSS", "LEAST NUMBER PER TYPE");
