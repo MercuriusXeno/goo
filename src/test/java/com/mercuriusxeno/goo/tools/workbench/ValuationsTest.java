@@ -98,15 +98,19 @@ class ValuationsTest {
     }
 
     /**
-     * Against an inventory holding every id the shipped file names and one more, the one more is all that
-     * nothing covers; dropping a member from its group uncovers it.
+     * Against an inventory holding every id the sample names and one more, with no recipes: the one more is
+     * uncovered, no item the loader values is, and dropping a member from its group uncovers it.
      */
     @Test
     void uncoveredListsWhatNothingCovers() throws IOException {
         BaseValuesModel model = sample();
         List<String> inventory = new ArrayList<>(Valuations.namedIds(model));
         inventory.add("minecraft:not_valued_yet");
-        assertEquals(List.of("minecraft:not_valued_yet"), Valuations.uncovered(model, inventory));
+        List<String> uncovered = Valuations.uncovered(model, inventory);
+        assertTrue(uncovered.contains("minecraft:not_valued_yet"), uncovered.toString());
+        Map<Identifier, GooValue> valued = GooBaseValuesPreview.load(model.serialize()).baseValues();
+        assertEquals(List.of(), uncovered.stream().filter(id -> valued.containsKey(Identifier.parse(id))
+                && !valued.get(Identifier.parse(id)).isEmpty()).toList());
 
         GroupConvention.Group simpleLogs = GroupConvention.describe(model).stream()
                 .filter(group -> "simple_logs".equals(group.name())).findFirst().orElseThrow();
@@ -114,6 +118,61 @@ class ValuationsTest {
         BaseValuesModel without = GroupConvention.withGroup(model, "simple_logs",
                 simpleLogs.members().subList(1, simpleLogs.members().size()));
         assertTrue(Valuations.uncovered(without, inventory).contains(dropped), dropped);
+    }
+
+    private static String plankInventory() {
+        JsonObject root = new JsonObject();
+        JsonArray items = new JsonArray();
+        for (String path : List.of("oak_planks", "stick", "mystery")) {
+            JsonObject item = new JsonObject();
+            item.addProperty("id", "minecraft:" + path);
+            item.addProperty("name", path);
+            items.add(item);
+        }
+        root.add("items", items);
+        root.add("blocks", new JsonArray());
+        root.add("item_tags", new JsonArray());
+        root.add("block_tags", new JsonArray());
+        root.add("goo_types", new JsonArray());
+        JsonArray recipes = new JsonArray();
+        recipes.add(shapedRecipe("minecraft:stick", "minecraft:stick", 4, List.of("P", "P"),
+                Map.of("P", "minecraft:oak_planks")));
+        root.add("recipes", recipes);
+        return root.toString();
+    }
+
+    /**
+     * A missing value is an item the Values tab reads as none: a recipe-derived item is never uncovered, and an
+     * item nothing values is (decision inventory-hydrates-the-tool-and-writes-no-template).
+     */
+    @Test
+    void uncoveredHoldsOnlyWhatReadsAsNone() {
+        BaseValuesModel model = BaseValuesModel.parse("""
+                {
+                    "oak_planks": {"leaf": 4}
+                }
+                """);
+        assertEquals(List.of("minecraft:mystery"), Valuations.uncovered(model, InventoryView.parse(plankInventory())));
+    }
+
+    /**
+     * An entry reading {} values nothing, so it reads as none with nothing defined and stands uncovered
+     * (decision inventory-hydrates-the-tool-and-writes-no-template).
+     */
+    @Test
+    void emptyEntryReadsAsNone() throws IOException {
+        BaseValuesModel model = BaseValuesModel.parse("""
+                {
+                    "oak_planks": {"leaf": 4},
+                    "mystery": {}
+                }
+                """);
+        InventoryView inventory = InventoryView.parse(plankInventory());
+        JsonObject row = familyRow(JsonParser.parseString(Valuations.family(model, inventory, "minecraft:mystery"))
+                .getAsJsonObject().getAsJsonArray("rows"), "minecraft:mystery");
+        assertEquals("none", row.get("source").getAsString());
+        assertEquals("", row.get("definedAs").getAsString());
+        assertTrue(Valuations.uncovered(model, inventory).contains("minecraft:mystery"));
     }
 
     private static JsonObject shapedRecipe(String recipeId, String output, int count, List<String> pattern,
