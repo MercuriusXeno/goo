@@ -647,6 +647,20 @@ class ValuesWorkbenchServerTest {
     }
 
     /**
+     * The page's script declares each function name once: a second declaration silently replaces the first
+     * everywhere, as a second itemImage once replaced the Used by images' drawer.
+     */
+    @Test
+    void pageDeclaresEachFunctionOnce() throws IOException, InterruptedException {
+        java.util.regex.Matcher declaration = java.util.regex.Pattern.compile("function ([A-Za-z0-9_]+)\\(")
+                .matcher(text(get("/")));
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        while (declaration.find()) {
+            assertTrue(seen.add(declaration.group(1)), declaration.group(1) + " is declared twice");
+        }
+    }
+
+    /**
      * The Values table heads read the item, its definition, amounts, remainder and source, and the hover line
      * reads the value with no melts or costs (decision values-tab-drops-melts-and-costs).
      */
