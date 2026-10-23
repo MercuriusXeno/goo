@@ -324,6 +324,9 @@ tasks.withType(ProcessResources).configureEach {
         mod_description        : mod_description,
     ]
     inputs.properties replaceProperties
+    // The workbench's draft stands beside the shipped file until Promote; the jar carries the shipped file alone
+    // (decision workbench-authors-a-draft-and-promotes-by-rename).
+    exclude '**/base_values.draft.json'
     filesMatching(['META-INF/neoforge.mods.toml']) {
         expand replaceProperties
     }
