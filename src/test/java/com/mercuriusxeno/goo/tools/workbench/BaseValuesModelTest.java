@@ -81,4 +81,23 @@ class BaseValuesModelTest {
         assertEquals(List.of("iron_ingot", "gold_nugget", "chainmail_boots", "chainmail_helmet",
                 "chainmail_chestplate", "chainmail_leggings"), renamed.usagesOf("iron_bit"));
     }
+
+    /**
+     * Each reader carries its kind: a constant where it stands in _constants, a group where its key is a #group
+     * or tag, an item otherwise (decision used-by-draws-item-images-and-name-chips).
+     */
+    @Test
+    void readersCarryTheirKind() throws IOException {
+        BaseValuesModel model = BaseValuesModel.parse(new String(shippedBytes(), StandardCharsets.UTF_8));
+        assertEquals(List.of(
+                new BaseValuesModel.Reader("iron_ingot", BaseValuesModel.ReaderKind.CONSTANT),
+                new BaseValuesModel.Reader("gold_nugget", BaseValuesModel.ReaderKind.CONSTANT),
+                new BaseValuesModel.Reader("chainmail_boots", BaseValuesModel.ReaderKind.ITEM),
+                new BaseValuesModel.Reader("chainmail_helmet", BaseValuesModel.ReaderKind.ITEM),
+                new BaseValuesModel.Reader("chainmail_chestplate", BaseValuesModel.ReaderKind.ITEM),
+                new BaseValuesModel.Reader("chainmail_leggings", BaseValuesModel.ReaderKind.ITEM)),
+                model.readersOf("iron_nugget"));
+        assertTrue(model.readersOf("mundane_block").contains(
+                new BaseValuesModel.Reader("#mundane_blocks", BaseValuesModel.ReaderKind.GROUP)));
+    }
 }

@@ -291,6 +291,27 @@ class ValuesWorkbenchServerTest {
     }
 
     /**
+     * Each reader in usedBy answers its id and its kind (decision used-by-draws-item-images-and-name-chips).
+     */
+    @Test
+    void usedByAnswersEachReadersIdAndKind() throws IOException, InterruptedException {
+        JsonObject base = constantNamed(evaluated("""
+                {
+                    "_constants": {
+                        "base": 192,
+                        "doubled": "2 $base"
+                    },
+                    "#logs": "$base",
+                    "stick": "$base / 4"
+                }
+                """), "base");
+        JsonArray usedBy = base.getAsJsonArray("usedBy");
+        assertEquals(List.of("doubled constant", "#logs group", "stick item"), usedBy.asList().stream()
+                .map(reader -> reader.getAsJsonObject().get("id").getAsString() + " "
+                        + reader.getAsJsonObject().get("kind").getAsString()).toList());
+    }
+
+    /**
      * A tree constant reading another tree's type resolves per type.
      */
     @Test

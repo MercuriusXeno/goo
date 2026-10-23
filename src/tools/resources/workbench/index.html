@@ -80,6 +80,9 @@ tr:hover td { background: var(--hover); }
 .constant-stack { display: flex; flex-direction: column; }
 .constant-block { display: flex; flex-direction: column; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
 .constant-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.used-by { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.readers { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.reader-chip { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--control); background: var(--panel); }
 .expression-field { resize: vertical; field-sizing: content; min-height: 2.2em; line-height: 1.4; }
 .split { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
 .group-list { flex: 0 1 280px; min-width: 240px; }
@@ -581,6 +584,40 @@ function constantName(entry) {
   return input;
 }
 
+function readerChip(text, title) {
+  const chip = document.createElement('span');
+  chip.className = 'mono reader-chip';
+  chip.textContent = text;
+  chip.title = title;
+  return chip;
+}
+
+// An item reader draws as its image, a constant as a $name chip and a group or tag as a #name chip, each
+// naming its id on hover (decision used-by-draws-item-images-and-name-chips).
+function readerView(reader) {
+  if (reader.kind === 'constant') {
+    return readerChip('$' + reader.id, reader.id);
+  }
+  if (reader.kind === 'group') {
+    return readerChip(reader.id, reader.id);
+  }
+  const image = document.createElement('img');
+  image.className = 'px row-image';
+  image.alt = reader.id;
+  image.title = reader.id;
+  image.loading = 'lazy';
+  image.src = imageUrl(namespaced(reader.id));
+  image.addEventListener('error', () => image.replaceWith(readerChip(reader.id, reader.id)));
+  return image;
+}
+
+function readersView(readers) {
+  const holder = document.createElement('span');
+  holder.className = 'readers';
+  holder.append(...readers.map(readerView));
+  return holder;
+}
+
 // Where the browser lacks field-sizing: content, the rows follow the line count so the field still grows.
 function fitRows(field) {
   field.rows = Math.max(1, field.value.split('\n').length);
@@ -611,9 +648,7 @@ function constantRow(entry, index, entries) {
   resolves.className = 'mono ' + (result && result.error ? 'error' : 'resolves');
   resolves.textContent = result && result.error ? result.error : resolvedText(result);
   const usedBy = result ? result.usedBy : [];
-  const users = document.createElement('span');
-  users.className = 'mono hint';
-  users.textContent = usedBy.join(', ');
+  const users = readersView(usedBy);
   const actions = document.createElement('div');
   actions.className = 'row-actions';
   actions.append(
@@ -621,13 +656,13 @@ function constantRow(entry, index, entries) {
     button('Down', () => moveConstant(index, 1), index === entries.length - 1 ? 'Already last' : null),
     button('Rename', () => { constantsView.renaming = entry.key; renderConstants(); }),
     button('Delete', () => { entries.splice(index, 1); markEdited(); renderConstants(); },
-      usedBy.length ? 'Read by ' + usedBy.join(', ') : null));
+      usedBy.length ? 'Read by ' + usedBy.map((reader) => reader.id).join(', ') : null));
   const head = document.createElement('div');
   head.className = 'constant-head';
   resolves.classList.add('grow');
   head.append(constantName(entry), kind, resolves, actions);
   const usedByLine = document.createElement('div');
-  usedByLine.className = 'hint';
+  usedByLine.className = 'hint used-by';
   usedByLine.append('Used by ', users);
   usedByLine.hidden = !usedBy.length;
   row.append(head, expression, usedByLine);

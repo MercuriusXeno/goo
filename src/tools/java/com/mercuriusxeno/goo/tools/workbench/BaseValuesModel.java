@@ -35,6 +35,8 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
     // The sections the shipped file closes with; a new item entry stands above them.
     private static final Set<String> CLOSING_SECTIONS = Set.of("_restricted", "_conversions", "_post_conversions");
     private static final String CONSTANT_PREFIX = "$";
+    // A #group or tag key: both read as a #name chip.
+    private static final String GROUP_PREFIX = "#";
 
     /**
      * How a top-level member holds its value.
@@ -269,25 +271,56 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
     }
 
     /**
+     * What a reader of a constant is, so Used by can draw it (decision used-by-draws-item-images-and-name-chips).
+     */
+    public enum ReaderKind {
+        CONSTANT,
+        GROUP,
+        ITEM
+    }
+
+    /**
+     * One reader of a constant.
+     *
+     * @param id   the reader's key
+     * @param kind what it is
+     */
+    public record Reader(String id, ReaderKind kind) {
+    }
+
+    /**
      * @param constant a constant's name
      * @return each constant and entry reading it, in file order: a constant or a section's entry by its key,
      *         a top-level entry by its key
      */
     public List<String> usagesOf(String constant) {
+        return readersOf(constant).stream().map(Reader::id).toList();
+    }
+
+    /**
+     * @param constant a constant's name
+     * @return each constant and entry reading it, in file order, each with its kind
+     */
+    public List<Reader> readersOf(String constant) {
         Pattern reference = referenceTo(constant);
-        List<String> readers = new ArrayList<>();
+        List<Reader> readers = new ArrayList<>();
         for (Member member : members) {
             for (Member entry : member.entries()) {
                 if (entry.key() != null && reference.matcher(entry.text()).find()
                         && !(CONSTANTS.equals(member.key()) && constant.equals(entry.key()))) {
-                    readers.add(entry.key());
+                    readers.add(new Reader(entry.key(), CONSTANTS.equals(member.key()) ? ReaderKind.CONSTANT
+                            : kindOfKey(entry.key())));
                 }
             }
             if (member.kind() == Kind.VALUE && reference.matcher(member.text()).find()) {
-                readers.add(member.key());
+                readers.add(new Reader(member.key(), kindOfKey(member.key())));
             }
         }
         return readers;
+    }
+
+    private static ReaderKind kindOfKey(String key) {
+        return key.startsWith(GROUP_PREFIX) ? ReaderKind.GROUP : ReaderKind.ITEM;
     }
 
     private static Pattern referenceTo(String constant) {
