@@ -10,6 +10,7 @@ import com.mercuriusxeno.goo.data.GooConstantResolver;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -27,6 +28,7 @@ final class ConstantsJson {
     private static final String VALUE = "value";
     private static final String ERROR = "error";
     private static final String USED_BY = "usedBy";
+    private static final String ID = "id";
     private static final String FROM = "from";
     private static final String TO = "to";
     private static final String NOT_JSON = "not JSON: ";
@@ -58,6 +60,14 @@ final class ConstantsJson {
             throw new IllegalArgumentException("A constant's name holds letters, digits and underscores: " + to);
         }
         return new Rename(from, to);
+    }
+
+    /**
+     * @param json the posted delete, carrying name and the model's members
+     * @return the name of the constant it deletes
+     */
+    static String deleteFrom(String json) {
+        return JsonParser.parseString(json).getAsJsonObject().get(NAME).getAsString();
     }
 
     /**
@@ -95,14 +105,27 @@ final class ConstantsJson {
             } else {
                 describe(constant, json);
             }
-            JsonArray usedBy = new JsonArray();
-            model.usagesOf(name).forEach(usedBy::add);
-            json.add(USED_BY, usedBy);
+            json.add(USED_BY, readersJson(model.readersOf(name)));
             constants.add(json);
         }
         JsonObject root = new JsonObject();
         root.add(CONSTANTS, constants);
         return root.toString();
+    }
+
+    /**
+     * @param readers a constant's readers
+     * @return each as {id, kind}, the kind lower case
+     */
+    static JsonArray readersJson(List<BaseValuesModel.Reader> readers) {
+        JsonArray array = new JsonArray();
+        for (BaseValuesModel.Reader reader : readers) {
+            JsonObject json = new JsonObject();
+            json.addProperty(ID, reader.id());
+            json.addProperty(KIND, reader.kind().name().toLowerCase(Locale.ROOT));
+            array.add(json);
+        }
+        return array;
     }
 
     private static void describe(GooConstantResolver.ResolvedConstant constant, JsonObject json) {

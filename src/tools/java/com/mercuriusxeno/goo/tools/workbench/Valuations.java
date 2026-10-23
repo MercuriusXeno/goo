@@ -62,8 +62,6 @@ final class Valuations {
     private static final String ROW_NAME = "name";
     private static final String ROW_DEFINED_AS = "definedAs";
     private static final String ROW_AMOUNTS = "amounts";
-    private static final String ROW_MELTS = "melts";
-    private static final String ROW_COSTS = "costs";
     private static final String ROW_SOURCE = "source";
     private static final String SOURCE_ENTRY = "entry";
     private static final String SOURCE_GROUP = "group #";
@@ -103,12 +101,10 @@ final class Valuations {
      * @param count  the recipe's result count, 0 where no recipe makes the item
      * @param ratios the ratios through the item, each "1 item = k ingredient"
      * @param value  the item's value per type
-     * @param melts  what melting the item yields per type, each amount rounded down
-     * @param costs  what fabricating the item costs per type, each amount rounded up
      * @param tags   the item tags holding it
      */
-    record Hover(List<String> grid, int count, List<String> ratios, String value, String melts, String costs,
-                 List<String> tags) {
+    // values-tab-drops-melts-and-costs
+    record Hover(List<String> grid, int count, List<String> ratios, String value, List<String> tags) {
     }
 
     /**
@@ -272,14 +268,13 @@ final class Valuations {
         List<String> grid = recipe == null ? Arrays.asList(new String[GRID_SIDE * GRID_SIDE]) : grid(recipe);
         List<String> ratios = recipe == null || value == null ? List.of() : ratios(id, value, recipe, values);
         return new Hover(grid, recipe == null ? 0 : recipe.count(), ratios, amounts(value, GooFraction::toString),
-                amounts(value, amount -> Integer.toString(amount.floor())),
-                amounts(value, amount -> Integer.toString(amount.ceiling())), inventory.tagsOf(id));
+                inventory.tagsOf(id));
     }
 
     /**
      * The Values table for an item's family: the item, the ingredients of the recipe that values it, and the
-     * items whose valuing recipe takes it, each with how the file defines it, its amounts, what it melts to,
-     * what it costs and where its value comes from.
+     * items whose valuing recipe takes it, each with how the file defines it, its amounts and where its value
+     * comes from.
      *
      * @param model     the model
      * @param inventory the inventory
@@ -366,8 +361,6 @@ final class Valuations {
                 : group != null ? TAG_PREFIX + group + CONTEXT_END + " " + model.member(TAG_PREFIX + group).text()
                 : "");
         row.add(ROW_AMOUNTS, amountsJson(value));
-        row.addProperty(ROW_MELTS, amounts(value, amount -> Integer.toString(amount.floor())));
-        row.addProperty(ROW_COSTS, amounts(value, amount -> Integer.toString(amount.ceiling())));
         row.addProperty(ROW_SOURCE, loaded.denied().contains(member) ? DENIED
                 : own != null ? SOURCE_ENTRY
                 : group != null ? SOURCE_GROUP + group

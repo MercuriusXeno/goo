@@ -1,8 +1,13 @@
 package com.mercuriusxeno.goo.tools.workbench;
 
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -35,6 +40,8 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
     // The sections the shipped file closes with; a new item entry stands above them.
     private static final Set<String> CLOSING_SECTIONS = Set.of("_restricted", "_conversions", "_post_conversions");
     private static final String CONSTANT_PREFIX = "$";
+    // A #group or tag key: both read as a #name chip.
+    private static final String GROUP_PREFIX = "#";
 
     /**
      * How a top-level member holds its value.
@@ -269,25 +276,131 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
     }
 
     /**
+     * What a reader of a constant is, so Used by can draw it (decision used-by-draws-item-images-and-name-chips).
+     */
+    public enum ReaderKind {
+        CONSTANT,
+        GROUP,
+        ITEM
+    }
+
+    /**
+     * One reader of a constant.
+     *
+     * @param id   the reader's key
+     * @param kind what it is
+     */
+    public record Reader(String id, ReaderKind kind) {
+    }
+
+    /**
      * @param constant a constant's name
      * @return each constant and entry reading it, in file order: a constant or a section's entry by its key,
      *         a top-level entry by its key
      */
     public List<String> usagesOf(String constant) {
+        return readersOf(constant).stream().map(Reader::id).toList();
+    }
+
+    /**
+     * @param constant a constant's name
+     * @return each constant and entry reading it, in file order, each with its kind
+     */
+    public List<Reader> readersOf(String constant) {
         Pattern reference = referenceTo(constant);
-        List<String> readers = new ArrayList<>();
+        List<Reader> readers = new ArrayList<>();
         for (Member member : members) {
             for (Member entry : member.entries()) {
                 if (entry.key() != null && reference.matcher(entry.text()).find()
                         && !(CONSTANTS.equals(member.key()) && constant.equals(entry.key()))) {
-                    readers.add(entry.key());
+                    readers.add(new Reader(entry.key(), CONSTANTS.equals(member.key()) ? ReaderKind.CONSTANT
+                            : kindOfKey(entry.key())));
                 }
             }
             if (member.kind() == Kind.VALUE && reference.matcher(member.text()).find()) {
-                readers.add(member.key());
+                readers.add(new Reader(member.key(), kindOfKey(member.key())));
             }
         }
         return readers;
+    }
+
+    // Where an entry stands: its section's key, or null for a top-level entry, and its own key.
+    private record Site(@Nullable String section, String key) {
+    }
+
+    /**
+     * @param constant a constant's name
+     * @return every entry deleting it removes, in the order the cascade reaches them
+     * @throws IllegalArgumentException where no constant holds the name
+     */
+    public List<Reader> deletionCascade(String constant) {
+        return List.copyOf(cascadeOf(constant).values());
+    }
+
+    /**
+     * Deletes a constant with every reader whole, each removed constant's readers following, so nothing left
+     * reads a removed entry (decision deleting-a-variable-inlines-its-expression-into-each-reader).
+     *
+     * @param constant a constant's name
+     * @return the model without the constant and its cascade
+     * @throws IllegalArgumentException where no constant holds the name
+     */
+    public BaseValuesModel deleteConstant(String constant) {
+        Set<Site> gone = new HashSet<>(cascadeOf(constant).keySet());
+        gone.add(new Site(CONSTANTS, constant));
+        List<Member> kept = new ArrayList<>();
+        for (Member member : members) {
+            if (gone.contains(new Site(null, member.key()))) {
+                continue;
+            }
+            List<Member> entries = member.entries().stream()
+                    .filter(entry -> entry.key() == null || !gone.contains(new Site(member.key(), entry.key())))
+                    .toList();
+            kept.add(entries.size() == member.entries().size() ? member : member.withEntries(entries));
+        }
+        return withMembers(kept);
+    }
+
+    private Map<Site, Reader> cascadeOf(String constant) {
+        Member section = member(CONSTANTS);
+        if (section == null || section.entries().stream().noneMatch(entry -> constant.equals(entry.key()))) {
+            throw new IllegalArgumentException("No constant is named $" + constant);
+        }
+        Map<Site, Reader> removed = new LinkedHashMap<>();
+        // The visited guard: a constant already deleted, the first among them, is never read again.
+        Set<String> visited = new HashSet<>(List.of(constant));
+        Deque<String> pending = new ArrayDeque<>(List.of(constant));
+        while (!pending.isEmpty()) {
+            Pattern reference = referenceTo(pending.removeFirst());
+            for (Member member : members) {
+                for (Member entry : member.entries()) {
+                    if (entry.key() != null && reference.matcher(entry.text()).find()) {
+                        removeReader(member.key(), entry.key(), removed, visited, pending);
+                    }
+                }
+                if (member.kind() == Kind.VALUE && reference.matcher(member.text()).find()) {
+                    removeReader(null, member.key(), removed, visited, pending);
+                }
+            }
+        }
+        return removed;
+    }
+
+    private static void removeReader(@Nullable String section, String key, Map<Site, Reader> removed,
+                                     Set<String> visited, Deque<String> pending) {
+        boolean constant = CONSTANTS.equals(section);
+        Site site = new Site(section, key);
+        if ((constant && !visited.add(key)) || removed.containsKey(site)) {
+            return;
+        }
+        removed.put(site, new Reader(key, constant ? ReaderKind.CONSTANT : kindOfKey(key)));
+        if (constant) {
+            pending.addLast(key);
+        }
+    }
+
+    private static ReaderKind kindOfKey(String key) {
+        return key.startsWith(GROUP_PREFIX) ? ReaderKind.GROUP : ReaderKind.ITEM;
     }
 
     private static Pattern referenceTo(String constant) {
