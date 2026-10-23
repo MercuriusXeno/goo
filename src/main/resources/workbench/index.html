@@ -723,10 +723,10 @@ function readerView(reader) {
   if (reader.kind === 'group') {
     return readerChip(reader.id, reader.id);
   }
-  return itemImage(reader.id);
+  return readerImage(reader.id);
 }
 
-function itemImage(id) {
+function readerImage(id) {
   const image = document.createElement('img');
   image.className = 'px row-image';
   image.alt = id;
@@ -748,7 +748,7 @@ function itemImage(id) {
 function terminusView(itemIds) {
   const holder = document.createElement('span');
   holder.className = 'readers';
-  holder.append(...itemIds.map(itemImage));
+  holder.append(...itemIds.map((id) => readerImage(id)));
   return holder;
 }
 
