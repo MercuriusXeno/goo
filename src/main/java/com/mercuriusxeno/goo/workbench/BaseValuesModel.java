@@ -391,10 +391,8 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
 
         private void reachReadersOf(Pattern reference) {
             for (Member member : members) {
-                for (Member entry : member.entries()) {
-                    if (entry.key() != null && reference.matcher(entry.text()).find()) {
-                        reachEntry(member.key(), entry.key());
-                    }
+                for (String key : keysMatching(member, reference)) {
+                    reachEntry(member.key(), key);
                 }
                 if (member.kind() == Kind.VALUE && reference.matcher(member.text()).find()) {
                     reachTopLevel(member.key());
@@ -429,13 +427,17 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
             if (!followed.add(section + STACK_PREFIX + key)) {
                 return;
             }
-            Pattern stacking = Pattern.compile(Pattern.quote(STACK_PREFIX + key) + NAME_END);
             Member block = member(section);
-            for (Member entry : block == null ? List.<Member>of() : block.entries()) {
-                if (entry.key() != null && stacking.matcher(entry.text()).find()) {
-                    reachProcess(section, entry.key());
+            if (block != null) {
+                for (String stacking : keysMatching(block, Pattern.compile(Pattern.quote(STACK_PREFIX + key) + NAME_END))) {
+                    reachProcess(section, stacking);
                 }
             }
+        }
+
+        private static List<String> keysMatching(Member section, Pattern pattern) {
+            return section.entries().stream().filter(entry -> entry.key() != null)
+                    .filter(entry -> pattern.matcher(entry.text()).find()).map(Member::key).toList();
         }
 
         // A _groups array names its members, a #tag among them expanding in turn; a name no group holds is a tag.
