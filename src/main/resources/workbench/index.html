@@ -23,6 +23,9 @@ button:disabled { cursor: default; opacity: 0.55; }
 .title { font-weight: 600; font-size: 16px; }
 .path { font-size: 12px; color: var(--muted); flex: 1 1 320px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.check { border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 6px; background: var(--panel); padding: 8px 12px; }
+.check.failing { border-left-color: var(--warn); background: var(--warn-soft); }
+.check .wants { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--warn-ink); }
 .draft-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--warn); color: var(--warn-ink); background: var(--warn-soft); }
 .status { font-size: 12px; color: var(--muted); }
 .button { padding: 8px 14px; border: 1px solid var(--accent); background: var(--panel); color: var(--accent); border-radius: 6px; font-weight: 500; }
@@ -173,6 +176,7 @@ details.dump-section pre { margin: 0; padding: 0 14px 12px; font-size: 12px; ove
         <button class="tab" role="tab" type="button" data-tab="variables" aria-selected="false">Variables</button>
         <button class="tab" role="tab" type="button" data-tab="processes" aria-selected="false">Processes</button>
         <button class="tab" role="tab" type="button" data-tab="audit" aria-selected="false">Audit</button>
+        <button class="tab" role="tab" type="button" data-tab="checks" aria-selected="false">Checks <span class="mono" id="checks-count"></span></button>
       </nav>
       <section class="pane" role="tabpanel" id="pane-values" data-pane="values">
         <div class="split values-split">
@@ -249,6 +253,10 @@ details.dump-section pre { margin: 0; padding: 0 14px 12px; font-size: 12px; ove
           <pre class="preview mono" id="audit-progress" hidden></pre>
           <div id="audit-sections" class="field-stack"></div>
         </div>
+      </section>
+      <section class="pane" role="tabpanel" id="pane-checks" data-pane="checks" hidden>
+        <div class="field-stack" id="check-rows"></div>
+        <p class="hint">Each check stands for a content decision and runs over the draft on every save. A red check never stops a save; Promote lists it and asks again.</p>
       </section>
     </main>
   </div>
@@ -471,9 +479,38 @@ async function loadModel() {
   showDraft(state.model);
 }
 
-// The badge reads whether the draft differs from the value file, as the server's last model answer said.
+// The badge reads whether the draft differs from the value file, and the Checks tab what the type-source checks
+// answered over it, as the server's last model answer said.
 function showDraft(model) {
   $('draft-badge').hidden = !(model.draft && model.draft.differs);
+  if (model.checks) {
+    renderChecks(model.checks);
+  }
+}
+
+// Each check green or red, a red one listing the items it wants (decision type-source-checks-are-rules-that-gate-promote).
+function renderChecks(checks) {
+  const failing = checks.filter((check) => !check.passed);
+  $('checks-count').textContent = failing.length ? '(' + failing.length + ' red)' : '';
+  $('check-rows').replaceChildren(...checks.map((check) => {
+    const card = document.createElement('div');
+    card.className = check.passed ? 'check' : 'check failing';
+    const title = document.createElement('div');
+    title.className = 'mono';
+    title.textContent = (check.passed ? 'pass  ' : 'FAIL  ') + check.title;
+    card.append(title);
+    if (!check.passed) {
+      const wants = document.createElement('ul');
+      wants.className = 'wants mono';
+      for (const want of check.wants) {
+        const line = document.createElement('li');
+        line.textContent = want.item + ': ' + want.lacks;
+        wants.append(line);
+      }
+      card.append(wants);
+    }
+    return card;
+  }));
 }
 
 // A fresh tree holds no inventory; the server dumps it from a headless game server first, which takes about a
@@ -1723,11 +1760,12 @@ $('stop-button').addEventListener('click', stopWorkbench);
 
 // --- Promote and Discard: the draft over the value file, or the value file back over the draft ---
 
-const draftView = { action: null };
+const draftView = { action: null, acknowledging: false };
 
 // Promote asks first, naming the value file it overwrites (decision workbench-authors-a-draft-and-promotes-by-rename).
 function askPromote() {
   draftView.action = 'promote';
+  draftView.acknowledging = false;
   $('draft-title').textContent = 'Promote the draft?';
   $('draft-text').textContent = 'This will overwrite the value file at ' + state.model.path + ' with the draft'
     + (state.unsaved ? ', saving your unsaved changes into the draft first.' : '.');
@@ -1736,9 +1774,21 @@ function askPromote() {
 
 function askDiscard() {
   draftView.action = 'discard';
+  draftView.acknowledging = false;
   $('draft-title').textContent = 'Discard the draft?';
   $('draft-text').textContent = 'This copies ' + state.model.path + ' back over the draft: every change not yet'
     + ' promoted, saved or unsaved, is lost.';
+  $('draft-dialog').showModal();
+}
+
+// A Promote over failing checks answers 409 listing them; the second confirm lists them and resends acknowledging
+// them (decision type-source-checks-are-rules-that-gate-promote).
+function askOverFailingChecks(failing) {
+  draftView.acknowledging = true;
+  $('draft-title').textContent = failing.length + ' check' + (failing.length === 1 ? '' : 's') + ' fail on the draft';
+  $('draft-text').textContent = 'Promote anyway? It will overwrite the value file at ' + state.model.path
+    + ' though these fail: ' + failing.map((check) => check.title + ' (wants '
+      + check.wants.map((want) => want.item).join(', ') + ')').join('; ') + '.';
   $('draft-dialog').showModal();
 }
 
@@ -1748,7 +1798,20 @@ async function confirmDraftAction() {
     if (draftView.action === 'promote' && state.unsaved) {
       await save();
     }
-    state.model = await fetchJson('/api/' + draftView.action, { method: 'POST', body: '{}' });
+    const response = await fetch('/api/' + draftView.action, {
+      method: 'POST', body: JSON.stringify({ acknowledged: draftView.acknowledging === true })
+    });
+    const answer = await response.text();
+    if (response.status === 409 && draftView.action === 'promote' && !draftView.acknowledging
+        && answer.trim().startsWith('{')) {
+      askOverFailingChecks(JSON.parse(answer).failing);
+      return;
+    }
+    draftView.acknowledging = false;
+    if (!response.ok) {
+      throw new Error('/api/' + draftView.action + ' answered ' + response.status + ': ' + answer);
+    }
+    state.model = JSON.parse(answer);
     state.sources = sourcesFromModel(state.model);
     state.unsaved = false;
     showDraft(state.model);
@@ -1763,7 +1826,10 @@ async function confirmDraftAction() {
 
 $('promote-button').addEventListener('click', askPromote);
 $('discard-button').addEventListener('click', askDiscard);
-$('draft-cancel').addEventListener('click', () => $('draft-dialog').close());
+$('draft-cancel').addEventListener('click', () => {
+  draftView.acknowledging = false;
+  $('draft-dialog').close();
+});
 $('draft-confirm').addEventListener('click', confirmDraftAction);
 
 $('add-group').addEventListener('click', () => {

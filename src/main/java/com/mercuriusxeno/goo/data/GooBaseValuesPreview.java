@@ -62,6 +62,22 @@ public final class GooBaseValuesPreview {
     }
 
     /**
+     * Each item's value as the game holds it before any recipe derives: the base values with the
+     * _post_conversions applied over them, as the type-source checks read a draft
+     * (decision type-source-checks-are-rules-that-gate-promote).
+     *
+     * @param json        base_values.json text
+     * @param tagResolver resolves an item tag to its member ids, standing in for the game's registry
+     * @return each item's value, base and post-converted
+     */
+    public static Map<Identifier, GooValue> postConverted(String json,
+                                                          Function<Identifier, Set<Identifier>> tagResolver) {
+        GooValueRegistry registry = registry(json, tagResolver);
+        registry.publishBaseAsEffective();
+        return registry.table().getEffectiveValues();
+    }
+
+    /**
      * base_values.json as the loader reads it.
      *
      * @param baseValues each item's base value

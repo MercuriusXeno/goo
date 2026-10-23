@@ -255,6 +255,49 @@ class ValuesWorkbenchServerTest {
                 .get("differs").getAsBoolean());
     }
 
+    private HttpResponse<byte[]> savedWithDiamondLackingYore() throws IOException, InterruptedException {
+        String model = ModelJson.toJson(BaseValuesModel.parse(SampleDrafts.diamondLackingYore()), "posted");
+        return client.send(HttpRequest.newBuilder(URI.create(server.url() + "/api/model"))
+                .PUT(HttpRequest.BodyPublishers.ofString(model)).build(), HttpResponse.BodyHandlers.ofByteArray());
+    }
+
+    private static List<String> failingTitles(JsonArray checks) {
+        return checks.asList().stream().map(JsonElement::getAsJsonObject)
+                .filter(check -> !check.get("passed").getAsBoolean())
+                .map(check -> check.get("title").getAsString()).toList();
+    }
+
+    /**
+     * A save of a draft lacking diamond's yore still answers the model, with the old rule failing beside it
+     * (decision type-source-checks-are-rules-that-gate-promote).
+     */
+    @Test
+    void saveAnswersTheFailingCheckBesideTheModel() throws IOException, InterruptedException {
+        HttpResponse<byte[]> saved = savedWithDiamondLackingYore();
+        assertEquals(200, saved.statusCode(), text(saved));
+        JsonObject answer = JsonParser.parseString(text(saved)).getAsJsonObject();
+        assertTrue(answer.has("members"));
+        assertEquals(List.of("old-ships-from-scutes-diamonds-and-scrap"), failingTitles(answer.getAsJsonArray("checks")));
+    }
+
+    /**
+     * Promote over a failing check answers 409 listing it, and the same post acknowledging the failures promotes
+     * (decision type-source-checks-are-rules-that-gate-promote).
+     */
+    @Test
+    void promoteOverAFailingCheckWaitsOnAcknowledgement() throws IOException, InterruptedException {
+        savedWithDiamondLackingYore();
+        String drafted = Files.readString(paths.draft());
+        HttpResponse<byte[]> refused = post("/api/promote", "{}");
+        assertEquals(409, refused.statusCode());
+        assertEquals(List.of("old-ships-from-scutes-diamonds-and-scrap"),
+                failingTitles(JsonParser.parseString(text(refused)).getAsJsonObject().getAsJsonArray("failing")));
+        assertArrayEquals(BaseValuesModelTest.sampleBytes(), Files.readAllBytes(paths.baseValues()));
+        HttpResponse<byte[]> promoted = post("/api/promote", "{\"acknowledged\": true}");
+        assertEquals(200, promoted.statusCode(), text(promoted));
+        assertEquals(drafted, Files.readString(paths.baseValues()));
+    }
+
     /**
      * Promote with no draft standing is refused with a conflict and leaves the live file as it was.
      */
