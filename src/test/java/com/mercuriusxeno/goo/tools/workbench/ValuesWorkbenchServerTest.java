@@ -290,6 +290,44 @@ class ValuesWorkbenchServerTest {
         assertTrue(doubled.get("error").isJsonNull());
     }
 
+    private HttpResponse<byte[]> deleted(String name, String fileText) throws IOException, InterruptedException {
+        JsonObject body = JsonParser.parseString(ModelJson.toJson(BaseValuesModel.parse(fileText), "posted"))
+                .getAsJsonObject();
+        body.addProperty("name", name);
+        return client.send(HttpRequest.newBuilder(URI.create(server.url() + "/api/constants/delete"))
+                .POST(HttpRequest.BodyPublishers.ofString(body.toString())).build(),
+                HttpResponse.BodyHandlers.ofByteArray());
+    }
+
+    /**
+     * A delete answers the model with the constant and its reader cascade gone, and refuses a name no
+     * constant holds (decision deleting-a-variable-inlines-its-expression-into-each-reader).
+     */
+    @Test
+    void deleteAnswersTheModelWithoutTheCascade() throws IOException, InterruptedException {
+        String file = """
+                {
+                    "_constants": {
+                        "base": 192,
+                        "doubled": "2 $base",
+                        "kept": 4
+                    },
+                    "stick": "$doubled / 4",
+                    "torch": "$kept"
+                }
+                """;
+        HttpResponse<byte[]> response = deleted("base", file);
+        assertEquals(200, response.statusCode());
+        JsonArray members = JsonParser.parseString(text(response)).getAsJsonObject().getAsJsonArray("members");
+        List<String> keys = members.asList().stream().map(member -> member.getAsJsonObject().get("key"))
+                .map(JsonElement::getAsString).toList();
+        assertEquals(List.of("_constants", "torch"), keys);
+        List<String> constants = members.get(0).getAsJsonObject().getAsJsonArray("entries").asList().stream()
+                .map(entry -> entry.getAsJsonObject().get("key").getAsString()).toList();
+        assertEquals(List.of("kept"), constants);
+        assertNotEquals(200, deleted("nope", file).statusCode());
+    }
+
     /**
      * Each reader in usedBy answers its id and its kind (decision used-by-draws-item-images-and-name-chips).
      */

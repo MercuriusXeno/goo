@@ -83,6 +83,7 @@ tr:hover td { background: var(--hover); }
 .used-by { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .readers { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .reader-chip { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--control); background: var(--panel); }
+.delete-dialog { border: 1px solid var(--control); border-radius: 8px; background: var(--panel); padding: 16px; max-width: min(560px, calc(100vw - 32px)); }
 .expression-field { resize: vertical; field-sizing: content; min-height: 2.2em; line-height: 1.4; }
 .split { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
 .group-list { flex: 0 1 280px; min-width: 240px; }
@@ -214,6 +215,18 @@ details.dump-section pre { margin: 0; padding: 0 14px 12px; font-size: 12px; ove
             <button class="small" type="button" id="add-tree">Add tree</button>
           </div>
           <div class="constant-stack" id="constants-rows"></div>
+          <dialog class="delete-dialog" id="delete-dialog" aria-labelledby="delete-title">
+            <div class="field-stack">
+              <span class="card-title" id="delete-title"></span>
+              <span class="hint">Deleting it removes every entry below whole, and each removed constant's readers with it.</span>
+              <div class="readers" id="delete-readers"></div>
+              <div class="row-actions">
+                <span class="grow"></span>
+                <button class="small" type="button" id="delete-cancel">Cancel</button>
+                <button class="small" type="button" id="delete-confirm">Confirm</button>
+              </div>
+            </div>
+          </dialog>
         </div>
         <p class="hint">The game's lexer reads integers, $name, $tree.type, + - * /, parentheses and a leading count ("9 $iron_nugget"). A tree constant is an object of per-type expressions, such as {"leaf": "$base"}.</p>
       </section>
@@ -468,7 +481,7 @@ async function save() {
 
 // --- Variables: the _constants section, each constant resolved by the game's parser on the server ---
 
-const constantsView = { results: new Map(), renaming: null, timer: null };
+const constantsView = { results: new Map(), renaming: null, timer: null, deleting: null };
 
 function constantsSection() {
   return state.model.members.find((member) => member.key === '_constants');
@@ -584,6 +597,53 @@ function constantName(entry) {
   return input;
 }
 
+// Every entry deleting the constant removes: its readers, then each removed constant's readers, each once,
+// as BaseValuesModel.deletionCascade walks them (decision deleting-a-variable-inlines-its-expression-into-each-reader).
+function deletionCascade(name) {
+  const visited = new Set([name]);
+  const seen = new Set();
+  const removed = [];
+  const pending = [name];
+  while (pending.length) {
+    const result = constantsView.results.get(pending.shift());
+    for (const reader of result ? result.usedBy : []) {
+      if (reader.kind === 'constant' ? visited.has(reader.id) : seen.has(reader.kind + ' ' + reader.id)) {
+        continue;
+      }
+      removed.push(reader);
+      if (reader.kind === 'constant') {
+        visited.add(reader.id);
+        pending.push(reader.id);
+      } else {
+        seen.add(reader.kind + ' ' + reader.id);
+      }
+    }
+  }
+  return removed;
+}
+
+function openDeleteDialog(name) {
+  $('delete-title').textContent = 'Delete $' + name + ' and what reads it';
+  $('delete-readers').replaceChildren(...deletionCascade(name).map(readerView));
+  constantsView.deleting = name;
+  $('delete-dialog').showModal();
+}
+
+async function confirmDelete() {
+  const name = constantsView.deleting;
+  $('delete-dialog').close();
+  try {
+    state.model = await fetchJson('/api/constants/delete', {
+      method: 'POST', body: JSON.stringify({ name, members: state.model.members })
+    });
+    markEdited();
+    renderConstants();
+    await describeGroups();
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+}
+
 function readerChip(text, title) {
   const chip = document.createElement('span');
   chip.className = 'mono reader-chip';
@@ -655,8 +715,15 @@ function constantRow(entry, index, entries) {
     button('Up', () => moveConstant(index, -1), index === 0 ? 'Already first' : null),
     button('Down', () => moveConstant(index, 1), index === entries.length - 1 ? 'Already last' : null),
     button('Rename', () => { constantsView.renaming = entry.key; renderConstants(); }),
-    button('Delete', () => { entries.splice(index, 1); markEdited(); renderConstants(); },
-      usedBy.length ? 'Read by ' + usedBy.map((reader) => reader.id).join(', ') : null));
+    button('Delete', () => {
+      if (usedBy.length) {
+        openDeleteDialog(entry.key);
+        return;
+      }
+      entries.splice(index, 1);
+      markEdited();
+      renderConstants();
+    }));
   const head = document.createElement('div');
   head.className = 'constant-head';
   resolves.classList.add('grow');
@@ -1687,6 +1754,8 @@ $('add-group').addEventListener('click', () => {
 
 $('add-scalar').addEventListener('click', () => addConstant(false));
 $('add-tree').addEventListener('click', () => addConstant(true));
+$('delete-cancel').addEventListener('click', () => $('delete-dialog').close());
+$('delete-confirm').addEventListener('click', confirmDelete);
 
 document.querySelectorAll('.tab').forEach((button) => button.addEventListener('click', () => selectTab(button.dataset.tab)));
 $('inventory-search').addEventListener('input', (event) => { state.search = event.target.value; renderEntries(); });
