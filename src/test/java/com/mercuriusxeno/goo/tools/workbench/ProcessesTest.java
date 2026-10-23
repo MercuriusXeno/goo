@@ -67,7 +67,7 @@ class ProcessesTest {
      */
     @Test
     void paneReportsTheParsersVerdict() throws IOException {
-        BaseValuesModel model = BaseValuesModel.parse(new String(BaseValuesModelTest.shippedBytes(),
+        BaseValuesModel model = BaseValuesModel.parse(new String(BaseValuesModelTest.sampleBytes(),
                 StandardCharsets.UTF_8));
         com.google.gson.JsonArray processes = com.google.gson.JsonParser.parseString(ProcessesJson.described(model))
                 .getAsJsonObject().getAsJsonArray("sections").get(1).getAsJsonObject().getAsJsonArray("processes");
@@ -87,7 +87,7 @@ class ProcessesTest {
      */
     @Test
     void shippedProcessesRoundTripThroughTheForms() throws IOException {
-        byte[] shipped = BaseValuesModelTest.shippedBytes();
+        byte[] shipped = BaseValuesModelTest.sampleBytes();
         BaseValuesModel model = BaseValuesModel.parse(new String(shipped, StandardCharsets.UTF_8));
         BaseValuesModel rewritten = model;
         for (Processes.Process process : Processes.read(model, POST)) {
