@@ -139,6 +139,7 @@ details.dump-section pre { margin: 0; padding: 0 14px 12px; font-size: 12px; ove
       <span class="status" id="status"></span>
       <button class="button" id="run-button" type="button" title="Saves, then reruns the audit and clique dumps headless">Run audit + cliques</button>
       <button class="button primary" id="save-button" type="button" disabled>Save</button>
+      <button class="button" id="stop-button" type="button" title="Ends the workbench server and every process it started, freeing the tree it serves from">Stop</button>
     </div>
   </header>
   <div class="body">
@@ -243,10 +244,14 @@ details.dump-section pre { margin: 0; padding: 0 14px 12px; font-size: 12px; ove
 'use strict';
 const SHOWN_AT_ONCE = 400;
 const state = { model: null, inventory: null, filter: 'items', search: '', selected: null, sources: new Map(),
-  uncovered: new Set() };
+  uncovered: new Set(), unsaved: false, stopped: false, confirmingStop: false };
 const $ = (id) => document.getElementById(id);
 
 function setStatus(text, isError) {
+  // A stopped page keeps its last word: requests the stop cut short answer errors no one needs to read.
+  if (state.stopped) {
+    return;
+  }
   const status = $('status');
   status.textContent = text;
   status.classList.toggle('error', !!isError);
@@ -464,6 +469,7 @@ async function save() {
   try {
     state.model = await fetchJson('/api/model', { method: 'PUT', body: JSON.stringify(state.model) });
     state.sources = sourcesFromModel(state.model);
+    state.unsaved = false;
     setStatus('saved');
     render();
     await evaluateConstants();
@@ -500,6 +506,7 @@ function storedText(typed) {
 }
 
 function markEdited() {
+  state.unsaved = true;
   setStatus('unsaved changes');
   clearTimeout(constantsView.timer);
   constantsView.timer = setTimeout(evaluateConstants, 250);
@@ -1597,6 +1604,9 @@ async function loadDumps() {
 
 function setRunning(running) {
   auditView.running = running;
+  if (state.stopped) {
+    return;
+  }
   $('audit-run').disabled = running;
   $('run-button').disabled = running;
 }
@@ -1658,6 +1668,32 @@ async function runDumps() {
 
 $('audit-run').addEventListener('click', runDumps);
 $('run-button').addEventListener('click', runDumps);
+
+// --- Stop: end the server and every process it started, so the tree it serves from is free ---
+
+// Unsaved changes or an audit run in flight make Stop ask first, the label naming what it drops, and act on
+// the second click (decision topbar-stop-ends-every-workbench-process).
+async function stopWorkbench() {
+  if ((state.unsaved || auditView.running) && !state.confirmingStop) {
+    state.confirmingStop = true;
+    const dropped = [state.unsaved ? 'unsaved changes' : null, auditView.running ? 'the audit run' : null]
+      .filter(Boolean).join(' and ');
+    $('stop-button').textContent = 'Drop ' + dropped + '? Stop again';
+    return;
+  }
+  try {
+    await fetch('/api/stop', { method: 'POST' });
+  } catch (error) {
+    setStatus(error.message, true);
+    return;
+  }
+  setStatus('Stopped: the workbench server has ended. Close this tab.');
+  state.stopped = true;
+  $('stop-button').textContent = 'Stopped';
+  document.querySelectorAll('button, input, textarea, select').forEach((control) => { control.disabled = true; });
+}
+
+$('stop-button').addEventListener('click', stopWorkbench);
 
 $('add-group').addEventListener('click', () => {
   const name = $('new-group').value.trim();
