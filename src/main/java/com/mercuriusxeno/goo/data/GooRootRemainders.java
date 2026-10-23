@@ -69,7 +69,7 @@ public final class GooRootRemainders {
      * @return each root its _roots names, in file order, with what it solves; a root holding no value is left out
      */
     public static List<RootSolution> solveEachRoot(GooValueRegistry values) {
-        return solveEachRoot(values.rootItems(), values.handKeyedItems(), values.valueSettingRecipeByItem(),
+        return solveRoots(values.rootItems(), values.handKeyedItems(), values.valueSettingRecipeByItem(),
                 values.table().getEffectiveValues());
     }
 
@@ -80,7 +80,7 @@ public final class GooRootRemainders {
      * @param values    each item's effective value
      * @return each root with what it solves; a root holding no value is left out
      */
-    static List<RootSolution> solveEachRoot(List<Identifier> roots, Set<Identifier> handKeyed,
+    private static List<RootSolution> solveRoots(List<Identifier> roots, Set<Identifier> handKeyed,
                                             Map<Identifier, RecipeInput> sources, Map<Identifier, GooValue> values) {
         Map<Identifier, Set<Identifier>> solvedFrom = itemsSolvedFrom(handKeyed, sources);
         List<RootSolution> solutions = new ArrayList<>();

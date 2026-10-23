@@ -160,7 +160,7 @@ details.dump-section pre { margin: 0; padding: 0 14px 12px; font-size: 12px; ove
             </div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th><span class="visually-hidden">Image</span></th><th>Item</th><th>Defined as</th><th>Amounts</th><th>Melts</th><th>Costs</th><th>Source</th></tr></thead>
+                <thead><tr><th><span class="visually-hidden">Image</span></th><th>Item</th><th>Defined as</th><th>Amounts</th><th>Melts</th><th>Costs</th><th>Remainder</th><th>Source</th></tr></thead>
                 <tbody id="family-rows"></tbody>
               </table>
             </div>
@@ -871,7 +871,7 @@ function fillInventoryChoices() {
 
 // --- Values: the selected item's family, its entry in every form the file supports, and the hover card ---
 
-const valuesView = { selected: null, rows: [], resolved: new Map(), hoverTimer: null };
+const valuesView = { selected: null, rows: [], root: null, resolved: new Map(), hoverTimer: null };
 
 function bareId(id) {
   return id.replace(/^minecraft:/, '');
@@ -979,8 +979,10 @@ async function selectItem(id) {
       method: 'POST', body: JSON.stringify({ members: state.model.members, id })
     });
     valuesView.rows = family.rows;
+    valuesView.root = family.root;
   } catch (error) {
     valuesView.rows = [];
+    valuesView.root = null;
     setStatus(error.message, true);
   }
   renderFamily();
@@ -1027,7 +1029,11 @@ function textCell(text, className) {
 function renderFamily() {
   const selected = valuesView.rows.find((row) => row.id === valuesView.selected);
   $('family-title').textContent = selected ? selected.name : 'Pick an item in the inventory';
-  $('family-summary').textContent = selected ? selected.id + ' · its recipe\'s ingredients and the items made from it' : '';
+  // The root is the family's unit: the items it solves and the smallest remainder any of their recipes leaves.
+  const root = valuesView.root;
+  $('family-summary').textContent = !selected ? ''
+    : root ? 'root ' + root.name + ' · solves ' + root.solved + ' items · smallest remainder ' + root.smallestRemainder
+    : selected.id + ' · no root in _roots solves it';
   $('family-rows').replaceChildren(...valuesView.rows.map((row) => {
     const tr = document.createElement('tr');
     const image = document.createElement('td');
@@ -1046,7 +1052,7 @@ function renderFamily() {
       source.append(badge);
     }
     tr.append(image, name, textCell(row.definedAs), textCell(amountsText(row.amounts)), textCell(row.melts),
-      textCell(row.costs), source);
+      textCell(row.costs), textCell(row.remainder === undefined ? '' : row.remainder), source);
     return tr;
   }));
 }
