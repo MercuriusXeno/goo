@@ -1,0 +1,672 @@
+package com.mercuriusxeno.goo.workbench;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.data.GooConstantResolver;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * Tests the workbench's handlers on a loopback server over temp copies of the files: the model, the
+ * save, the inventory and an item's image (decision workbench-authors-base-values-whole). The criterion
+ * names a real server on an ephemeral port, so this test binds one and writes under a temp folder.
+ */
+class ValuesWorkbenchServerTest {
+
+    private static final List<String> SECTIONS = List.of("_constants", "_groups", "_restricted", "_conversions",
+            "_post_conversions");
+    private static final byte[] NUGGET_PNG = {(byte) 0x89, 'P', 'N', 'G', 1, 2, 3};
+    private static final String INVENTORY = "{\"items\":[{\"id\":\"minecraft:iron_nugget\",\"name\":\"Iron Nugget\"}],"
+            + "\"blocks\":[],\"item_tags\":[],\"block_tags\":[],\"goo_types\":[],\"recipes\":[]}";
+
+    @TempDir
+    Path temp;
+
+    private ValuesWorkbenchServer server;
+    private WorkbenchPaths paths;
+    private final AtomicInteger dumpsRun = new AtomicInteger();
+    private final HttpClient client = HttpClient.newHttpClient();
+
+    private static final String CANNED_AUDIT = """
+            Goo Audit Report
+            ================
+
+            EXPRESSION WARNINGS (0 issues in base_values.json expressions)
+            --------------------------------------------------
+              All expressions are valid.
+
+            LEAST VALUE PER TYPE (1 types)
+            --------------------------------------------------
+              metal: 1 at iron_nugget
+
+            NO VALUE (0 registered items have no goo value)
+            --------------------------------------------------
+              All registered items have goo values.
+            """;
+    private static final String CANNED_CLIQUES = """
+            CLIQUES AND LOSSY RECIPES
+
+            A clique is a group of items linked by recipes.
+
+            METAL
+            =====
+
+            Clique: iron_nugget (3 items, 2 recipes)
+            """;
+    private final List<String> savedWhenRunStarted = new java.util.ArrayList<>();
+
+    @BeforeEach
+    void startServer() throws IOException {
+        paths = new WorkbenchPaths(temp.resolve("base_values.json"), temp.resolve("goo_inventory.json"),
+                temp.resolve("goo_inventory"), temp.resolve("goo_audit.txt"), temp.resolve("goo_cliques.txt"),
+                temp.resolve("goo_audit.json"));
+        Files.write(paths.baseValues(), BaseValuesModelTest.sampleBytes());
+        server = ValuesWorkbenchServer.start(paths, () -> {
+            dumpsRun.incrementAndGet();
+            Files.writeString(paths.inventoryFile(), INVENTORY);
+        }, (draft, progress) -> {
+            savedWhenRunStarted.add(Files.readString(draft));
+            progress.accept("booting the test server");
+            Files.writeString(paths.auditDump(), CANNED_AUDIT);
+            Files.writeString(paths.cliqueDump(), CANNED_CLIQUES);
+            progress.accept("goo:values_dumps passed");
+            return 0;
+        }, 0);
+    }
+
+    private static String auditJson(int sections) {
+        JsonArray array = new JsonArray();
+        for (int i = 1; i <= sections; i++) {
+            JsonObject section = new JsonObject();
+            section.addProperty("section", "RULE " + i);
+            section.addProperty("header", "RULE " + i + " (1 lines)");
+            JsonArray lines = new JsonArray();
+            lines.add("  line of rule " + i);
+            section.add("lines", lines);
+            JsonArray flags = new JsonArray();
+            if (i == 2) {
+                flags.add("rule 2 flags this");
+            }
+            section.add("flags", flags);
+            array.add(section);
+        }
+        JsonObject root = new JsonObject();
+        root.add("sections", array);
+        return root.toString();
+    }
+
+    /**
+     * The audit endpoint answers the sections goo_audit.json carries, in its order with each one's flags,
+     * and reads the file afresh on every request, so a rule added later shows with no restart.
+     */
+    @Test
+    void auditAnswersTheJsonSections() throws IOException, InterruptedException {
+        Files.writeString(paths.auditJson(), auditJson(3));
+        JsonArray sections = JsonParser.parseString(text(get("/api/audit"))).getAsJsonObject()
+                .getAsJsonArray("sections");
+        assertEquals(List.of("RULE 1", "RULE 2", "RULE 3"), sections.asList().stream()
+                .map(section -> section.getAsJsonObject().get("section").getAsString()).toList());
+        assertEquals("rule 2 flags this", sections.get(1).getAsJsonObject().getAsJsonArray("flags").get(0)
+                .getAsString());
+        Files.writeString(paths.auditJson(), auditJson(4));
+        assertEquals(4, JsonParser.parseString(text(get("/api/audit"))).getAsJsonObject()
+                .getAsJsonArray("sections").size());
+    }
+
+    /**
+     * The run saves the posted model first, streams the runner's lines, then answers both dumps section by
+     * section, the least value and the clique tables first, with the run's duration.
+     */
+    @Test
+    void runSavesStreamsAndAnswersTheDumps() throws IOException, InterruptedException {
+        JsonObject model = JsonParser.parseString(text(get("/api/model"))).getAsJsonObject();
+        model.getAsJsonArray("members").get(0).getAsJsonObject().getAsJsonArray("entries").get(0).getAsJsonObject()
+                .addProperty("text", "191");
+        HttpResponse<java.util.stream.Stream<String>> response = client.send(HttpRequest.newBuilder(
+                        URI.create(server.url() + "/api/dumps/run")).POST(HttpRequest.BodyPublishers.ofString(
+                        model.toString())).build(), HttpResponse.BodyHandlers.ofLines());
+        assertEquals(200, response.statusCode());
+        List<JsonObject> events = response.body().map(line -> JsonParser.parseString(line).getAsJsonObject())
+                .toList();
+        assertTrue(savedWhenRunStarted.getFirst().contains("\"base\": 191,"));
+        assertEquals(List.of("booting the test server", "goo:values_dumps passed"), events.stream()
+                .filter(event -> event.has("progress")).map(event -> event.get("progress").getAsString()).toList());
+        JsonObject result = events.getLast().getAsJsonObject("result");
+        assertTrue(result.get("durationSeconds").getAsDouble() >= 0);
+        List<String> headers = result.getAsJsonArray("sections").asList().stream()
+                .map(section -> section.getAsJsonObject().get("header").getAsString()).toList();
+        assertEquals(List.of("LEAST VALUE PER TYPE (1 types)", "CLIQUES AND LOSSY RECIPES", "METAL",
+                "Goo Audit Report", "EXPRESSION WARNINGS (0 issues in base_values.json expressions)",
+                "NO VALUE (0 registered items have no goo value)"), headers);
+    }
+
+    @AfterEach
+    void stopServer() {
+        server.stop();
+    }
+
+    private HttpResponse<byte[]> get(String path) throws IOException, InterruptedException {
+        return client.send(HttpRequest.newBuilder(URI.create(server.url() + path)).GET().build(),
+                HttpResponse.BodyHandlers.ofByteArray());
+    }
+
+    private static String text(HttpResponse<byte[]> response) {
+        return new String(response.body(), StandardCharsets.UTF_8);
+    }
+
+    /**
+     * The model answers every top-level section of the file, in file order.
+     */
+    @Test
+    void modelAnswersEverySectionInFileOrder() throws IOException, InterruptedException {
+        HttpResponse<byte[]> response = get("/api/model");
+        assertEquals(200, response.statusCode());
+        JsonArray members = JsonParser.parseString(text(response)).getAsJsonObject().getAsJsonArray("members");
+        List<String> keys = members.asList().stream()
+                .map(member -> member.getAsJsonObject().get("key").getAsString()).toList();
+        List<String> sections = keys.stream().filter(SECTIONS::contains).toList();
+        assertEquals(SECTIONS, sections);
+        assertEquals(List.copyOf(JsonParser.parseString(Files.readString(paths.baseValues())).getAsJsonObject()
+                .keySet()), keys);
+    }
+
+    /**
+     * A model read with no draft standing seeds base_values.draft.json from the live file
+     * (decision workbench-authors-a-draft-and-promotes-by-rename).
+     */
+    @Test
+    void modelReadSeedsTheDraftFromTheLiveFile() throws IOException, InterruptedException {
+        assertFalse(Files.exists(paths.draft()));
+        assertEquals(200, get("/api/model").statusCode());
+        assertEquals(temp.resolve("base_values.draft.json"), paths.draft());
+        assertArrayEquals(BaseValuesModelTest.sampleBytes(), Files.readAllBytes(paths.draft()));
+    }
+
+    private HttpResponse<byte[]> savedWithBase(String base) throws IOException, InterruptedException {
+        JsonObject model = JsonParser.parseString(text(get("/api/model"))).getAsJsonObject();
+        JsonObject constants = model.getAsJsonArray("members").get(0).getAsJsonObject();
+        constants.getAsJsonArray("entries").get(0).getAsJsonObject().addProperty("text", base);
+        return client.send(HttpRequest.newBuilder(URI.create(server.url() + "/api/model"))
+                .PUT(HttpRequest.BodyPublishers.ofString(model.toString())).build(),
+                HttpResponse.BodyHandlers.ofByteArray());
+    }
+
+    /**
+     * A save writes the draft and leaves the live file's bytes as they were, and the answer says the draft
+     * differs from the live file (decision workbench-authors-a-draft-and-promotes-by-rename).
+     */
+    @Test
+    void saveWritesTheDraftAndLeavesTheLiveFile() throws IOException, InterruptedException {
+        HttpResponse<byte[]> saved = savedWithBase("193");
+        assertEquals(200, saved.statusCode());
+        assertTrue(Files.readString(paths.draft()).contains("\"base\": 193,"));
+        assertArrayEquals(BaseValuesModelTest.sampleBytes(), Files.readAllBytes(paths.baseValues()));
+        JsonObject draft = JsonParser.parseString(text(saved)).getAsJsonObject().getAsJsonObject("draft");
+        assertTrue(draft.get("differs").getAsBoolean());
+        assertEquals(paths.draft().toString(), draft.get("path").getAsString());
+    }
+
+    /**
+     * Promote renames the draft over the live file, leaving no draft behind
+     * (decision workbench-authors-a-draft-and-promotes-by-rename).
+     */
+    @Test
+    void promoteRenamesTheDraftOverTheLiveFile() throws IOException, InterruptedException {
+        savedWithBase("194");
+        String drafted = Files.readString(paths.draft());
+        HttpResponse<byte[]> promoted = post("/api/promote", "{}");
+        assertEquals(200, promoted.statusCode(), text(promoted));
+        assertFalse(Files.exists(paths.draft()));
+        assertEquals(drafted, Files.readString(paths.baseValues()));
+        assertFalse(JsonParser.parseString(text(promoted)).getAsJsonObject().getAsJsonObject("draft")
+                .get("differs").getAsBoolean());
+    }
+
+    /**
+     * Discard copies the live file back over the draft (decision workbench-authors-a-draft-and-promotes-by-rename).
+     */
+    @Test
+    void discardCopiesTheLiveFileOverTheDraft() throws IOException, InterruptedException {
+        savedWithBase("195");
+        HttpResponse<byte[]> discarded = post("/api/discard", "{}");
+        assertEquals(200, discarded.statusCode(), text(discarded));
+        assertEquals(Files.readString(paths.baseValues()), Files.readString(paths.draft()));
+        assertFalse(JsonParser.parseString(text(discarded)).getAsJsonObject().getAsJsonObject("draft")
+                .get("differs").getAsBoolean());
+    }
+
+    private HttpResponse<byte[]> savedWithDiamondLackingYore() throws IOException, InterruptedException {
+        String model = ModelJson.toJson(BaseValuesModel.parse(SampleDrafts.diamondLackingYore()), "posted");
+        return client.send(HttpRequest.newBuilder(URI.create(server.url() + "/api/model"))
+                .PUT(HttpRequest.BodyPublishers.ofString(model)).build(), HttpResponse.BodyHandlers.ofByteArray());
+    }
+
+    private static List<String> failingTitles(JsonArray checks) {
+        return checks.asList().stream().map(JsonElement::getAsJsonObject)
+                .filter(check -> !check.get("passed").getAsBoolean())
+                .map(check -> check.get("title").getAsString()).toList();
+    }
+
+    /**
+     * A save of a draft lacking diamond's yore still answers the model, with the old rule failing beside it
+     * (decision type-source-checks-are-rules-that-gate-promote).
+     */
+    @Test
+    void saveAnswersTheFailingCheckBesideTheModel() throws IOException, InterruptedException {
+        HttpResponse<byte[]> saved = savedWithDiamondLackingYore();
+        assertEquals(200, saved.statusCode(), text(saved));
+        JsonObject answer = JsonParser.parseString(text(saved)).getAsJsonObject();
+        assertTrue(answer.has("members"));
+        assertEquals(List.of("old-ships-from-scutes-diamonds-and-scrap"), failingTitles(answer.getAsJsonArray("checks")));
+    }
+
+    /**
+     * Promote over a failing check answers 409 listing it, and the same post acknowledging the failures promotes
+     * (decision type-source-checks-are-rules-that-gate-promote).
+     */
+    @Test
+    void promoteOverAFailingCheckWaitsOnAcknowledgement() throws IOException, InterruptedException {
+        savedWithDiamondLackingYore();
+        String drafted = Files.readString(paths.draft());
+        HttpResponse<byte[]> refused = post("/api/promote", "{}");
+        assertEquals(409, refused.statusCode());
+        assertEquals(List.of("old-ships-from-scutes-diamonds-and-scrap"),
+                failingTitles(JsonParser.parseString(text(refused)).getAsJsonObject().getAsJsonArray("failing")));
+        assertArrayEquals(BaseValuesModelTest.sampleBytes(), Files.readAllBytes(paths.baseValues()));
+        HttpResponse<byte[]> promoted = post("/api/promote", "{\"acknowledged\": true}");
+        assertEquals(200, promoted.statusCode(), text(promoted));
+        assertEquals(drafted, Files.readString(paths.baseValues()));
+    }
+
+    /**
+     * Promote with no draft standing is refused with a conflict and leaves the live file as it was.
+     */
+    @Test
+    void promoteWithNoDraftIsRefused() throws IOException, InterruptedException {
+        assertEquals(409, post("/api/promote", "{}").statusCode());
+        assertArrayEquals(BaseValuesModelTest.sampleBytes(), Files.readAllBytes(paths.baseValues()));
+    }
+
+    /**
+     * The topbar holds Promote and Discard, each opening a confirm before its post, and Promote's confirm names
+     * the live path it overwrites (decision workbench-authors-a-draft-and-promotes-by-rename).
+     */
+    @Test
+    void pageConfirmsPromoteAndDiscardBeforePosting() throws IOException, InterruptedException {
+        String page = text(get("/"));
+        assertTrue(page.contains("id=\"promote-button\"") && page.contains("id=\"discard-button\""), "topbar");
+        assertTrue(page.contains("id=\"draft-badge\""), "draft badge");
+        int opening = page.indexOf("function askPromote(");
+        String ask = page.substring(opening, page.indexOf("\n}", opening));
+        assertTrue(ask.contains("will overwrite the value file") && ask.contains("state.model.path"), ask);
+        assertTrue(ask.contains(".showModal()") && !ask.contains("'/api/promote'"), ask);
+        int confirming = page.indexOf("async function confirmDraftAction(");
+        String confirm = page.substring(confirming, page.indexOf("\n}", confirming));
+        assertTrue(confirm.contains("'/api/' + draftView.action"), confirm);
+    }
+
+    /**
+     * A standing inventory is served as it stands, with no dump run.
+     */
+    @Test
+    void inventoryIsServed() throws IOException, InterruptedException {
+        Files.writeString(paths.inventoryFile(), INVENTORY);
+        HttpResponse<byte[]> response = get("/api/inventory");
+        assertEquals(200, response.statusCode());
+        JsonObject inventory = JsonParser.parseString(text(response)).getAsJsonObject();
+        for (String section : List.of("items", "blocks", "item_tags", "block_tags", "goo_types", "recipes")) {
+            assertTrue(inventory.has(section), section);
+        }
+        assertEquals(0, dumpsRun.get());
+    }
+
+    /**
+     * An absent inventory runs the dump once and serves what it wrote.
+     */
+    @Test
+    void absentInventoryRunsTheDump() throws IOException, InterruptedException {
+        HttpResponse<byte[]> response = get("/api/inventory");
+        assertEquals(200, response.statusCode());
+        assertEquals(1, dumpsRun.get());
+        JsonElement items = JsonParser.parseString(text(response)).getAsJsonObject().get("items");
+        assertEquals("minecraft:iron_nugget", items.getAsJsonArray().get(0).getAsJsonObject().get("id").getAsString());
+    }
+
+    private HttpResponse<byte[]> post(String path, String body) throws IOException, InterruptedException {
+        return client.send(HttpRequest.newBuilder(URI.create(server.url() + path))
+                .POST(HttpRequest.BodyPublishers.ofString(body)).build(), HttpResponse.BodyHandlers.ofByteArray());
+    }
+
+    /**
+     * Stop answers OK, then the server stops: its stop wait returns and its port refuses the next request
+     * (decision topbar-stop-ends-every-workbench-process).
+     */
+    @Test
+    void stopRouteEndsTheServer() throws IOException, InterruptedException {
+        assertEquals(200, post("/api/stop", "").statusCode());
+        assertTrue(server.awaitStop(java.time.Duration.ofSeconds(10)), "the server's stop wait never returned");
+        org.junit.jupiter.api.Assertions.assertThrows(java.net.ConnectException.class, () -> get("/api/model"));
+    }
+
+    /**
+     * Stop during a dump run ends the run through its runner, and the run's streamed response completes
+     * (decision topbar-stop-ends-every-workbench-process).
+     */
+    @Test
+    void stopEndsTheDumpRunInFlight() throws Exception {
+        java.util.concurrent.CountDownLatch stopped = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch running = new java.util.concurrent.CountDownLatch(1);
+        DumpRunner blocking = new DumpRunner() {
+            @Override
+            public int run(Path draft, java.util.function.Consumer<String> progress) throws InterruptedException {
+                progress.accept("booting");
+                running.countDown();
+                stopped.await();
+                return 1;
+            }
+
+            @Override
+            public void stop() {
+                stopped.countDown();
+            }
+        };
+        server.stop();
+        server = ValuesWorkbenchServer.start(paths, () -> Files.writeString(paths.inventoryFile(), INVENTORY),
+                blocking, 0);
+        String model = text(get("/api/model"));
+        java.util.concurrent.CompletableFuture<List<String>> run = java.util.concurrent.CompletableFuture
+                .supplyAsync(() -> {
+                    try {
+                        return client.send(HttpRequest.newBuilder(URI.create(server.url() + "/api/dumps/run"))
+                                .POST(HttpRequest.BodyPublishers.ofString(model)).build(),
+                                HttpResponse.BodyHandlers.ofLines()).body().toList();
+                    } catch (IOException | InterruptedException e) {
+                        throw new java.util.concurrent.CompletionException(e);
+                    }
+                });
+        assertTrue(running.await(10, java.util.concurrent.TimeUnit.SECONDS), "the run never started");
+        assertEquals(200, post("/api/stop", "").statusCode());
+        assertEquals(0, stopped.getCount(), "the runner's stop was not called");
+        List<String> lines = run.get(10, java.util.concurrent.TimeUnit.SECONDS);
+        assertTrue(lines.getFirst().contains("booting"), lines.toString());
+    }
+
+    /**
+     * The topbar holds a Stop beside Run and Save whose handler confirms on unsaved changes or a running
+     * audit before posting /api/stop, then disables the page (decision topbar-stop-ends-every-workbench-process).
+     */
+    @Test
+    void pageHoldsAStopThatConfirmsBeforePosting() throws IOException, InterruptedException {
+        String page = text(get("/"));
+        int run = page.indexOf("id=\"run-button\"");
+        int save = page.indexOf("id=\"save-button\"");
+        int stop = page.indexOf("id=\"stop-button\"");
+        assertTrue(run > 0 && save > 0 && stop > 0 && page.substring(Math.min(run, stop), Math.max(save, stop))
+                .lines().count() < 6, "Stop stands beside Run and Save");
+        int handler = page.indexOf("async function stopWorkbench(");
+        String script = page.substring(handler, page.indexOf("\n}", handler));
+        int guard = script.indexOf("state.unsaved || auditView.running");
+        int posting = script.indexOf("'/api/stop'");
+        int disabling = script.indexOf(".disabled = true");
+        assertTrue(guard >= 0 && script.indexOf("confirming", guard) > guard, script);
+        assertTrue(posting > guard && disabling > posting, script);
+    }
+
+    /**
+     * A groups read on a fresh tree waits on the same one-time dump the inventory runs, rather than
+     * refusing while the dump is still writing.
+     */
+    @Test
+    void groupsOnAbsentInventoryWaitForTheDump() throws IOException, InterruptedException {
+        String model = text(get("/api/model"));
+        HttpResponse<byte[]> response = client.send(HttpRequest.newBuilder(URI.create(server.url()
+                        + "/api/groups/describe")).POST(HttpRequest.BodyPublishers.ofString(model)).build(),
+                HttpResponse.BodyHandlers.ofByteArray());
+        assertEquals(200, response.statusCode(), text(response));
+        assertEquals(1, dumpsRun.get());
+    }
+
+    /**
+     * An item's image is served as PNG bytes from the inventory folder.
+     */
+    @Test
+    void itemImageIsServed() throws IOException, InterruptedException {
+        Path nugget = paths.imageFolder().resolve("minecraft/iron_nugget.png");
+        Files.createDirectories(nugget.getParent());
+        Files.write(nugget, NUGGET_PNG);
+        HttpResponse<byte[]> response = get("/api/image?id=minecraft:iron_nugget");
+        assertEquals(200, response.statusCode());
+        assertEquals("image/png", response.headers().firstValue("Content-Type").orElse(""));
+        assertArrayEquals(NUGGET_PNG, response.body());
+    }
+
+    /**
+     * An id climbing out of the image folder is refused.
+     */
+    @Test
+    void imageIdOutsideTheFolderIsRefused() throws IOException, InterruptedException {
+        assertEquals(400, get("/api/image?id=minecraft:../../base_values").statusCode());
+    }
+
+    private JsonArray evaluated(String fileText) throws IOException, InterruptedException {
+        String model = ModelJson.toJson(BaseValuesModel.parse(fileText), "posted");
+        HttpResponse<byte[]> response = client.send(HttpRequest.newBuilder(URI.create(server.url()
+                        + "/api/constants/evaluate")).POST(HttpRequest.BodyPublishers.ofString(model)).build(),
+                HttpResponse.BodyHandlers.ofByteArray());
+        assertEquals(200, response.statusCode());
+        return JsonParser.parseString(text(response)).getAsJsonObject().getAsJsonArray("constants");
+    }
+
+    private static JsonObject constantNamed(JsonArray constants, String name) {
+        return constants.asList().stream().map(JsonElement::getAsJsonObject)
+                .filter(constant -> name.equals(constant.get("name").getAsString())).findFirst().orElseThrow();
+    }
+
+    /**
+     * A scalar constant resolves through the game's parser.
+     */
+    @Test
+    void scalarConstantResolves() throws IOException, InterruptedException {
+        JsonObject doubled = constantNamed(evaluated("""
+                {
+                    "_constants": {
+                        "base": 192,
+                        "doubled": "2 $base"
+                    }
+                }
+                """), "doubled");
+        assertEquals("384", doubled.get("value").getAsString());
+        assertTrue(doubled.get("error").isJsonNull());
+    }
+
+    private HttpResponse<byte[]> deleted(String name, String fileText) throws IOException, InterruptedException {
+        JsonObject body = JsonParser.parseString(ModelJson.toJson(BaseValuesModel.parse(fileText), "posted"))
+                .getAsJsonObject();
+        body.addProperty("name", name);
+        return client.send(HttpRequest.newBuilder(URI.create(server.url() + "/api/constants/delete"))
+                .POST(HttpRequest.BodyPublishers.ofString(body.toString())).build(),
+                HttpResponse.BodyHandlers.ofByteArray());
+    }
+
+    /**
+     * A delete answers the model with the constant and its reader cascade gone, and refuses a name no
+     * constant holds (decision deleting-a-variable-inlines-its-expression-into-each-reader).
+     */
+    @Test
+    void deleteAnswersTheModelWithoutTheCascade() throws IOException, InterruptedException {
+        String file = """
+                {
+                    "_constants": {
+                        "base": 192,
+                        "doubled": "2 $base",
+                        "kept": 4
+                    },
+                    "stick": "$doubled / 4",
+                    "torch": "$kept"
+                }
+                """;
+        HttpResponse<byte[]> response = deleted("base", file);
+        assertEquals(200, response.statusCode());
+        JsonArray members = JsonParser.parseString(text(response)).getAsJsonObject().getAsJsonArray("members");
+        List<String> keys = members.asList().stream().map(member -> member.getAsJsonObject().get("key"))
+                .map(JsonElement::getAsString).toList();
+        assertEquals(List.of("_constants", "torch"), keys);
+        List<String> constants = members.get(0).getAsJsonObject().getAsJsonArray("entries").asList().stream()
+                .map(entry -> entry.getAsJsonObject().get("key").getAsString()).toList();
+        assertEquals(List.of("kept"), constants);
+        assertNotEquals(200, deleted("nope", file).statusCode());
+    }
+
+    /**
+     * Each reader in usedBy answers its id and its kind (decision used-by-draws-item-images-and-name-chips).
+     */
+    @Test
+    void usedByAnswersEachReadersIdAndKind() throws IOException, InterruptedException {
+        JsonObject base = constantNamed(evaluated("""
+                {
+                    "_constants": {
+                        "base": 192,
+                        "doubled": "2 $base"
+                    },
+                    "#logs": "$base",
+                    "stick": "$base / 4"
+                }
+                """), "base");
+        JsonArray usedBy = base.getAsJsonArray("usedBy");
+        assertEquals(List.of("doubled constant", "#logs group", "stick item"), usedBy.asList().stream()
+                .map(reader -> reader.getAsJsonObject().get("id").getAsString() + " "
+                        + reader.getAsJsonObject().get("kind").getAsString()).toList());
+    }
+
+    /**
+     * A tree constant reading another tree's type resolves per type.
+     */
+    @Test
+    void treeConstantResolves() throws IOException, InterruptedException {
+        JsonObject stripped = constantNamed(evaluated("""
+                {
+                    "_constants": {
+                        "log": {"leaf": 32},
+                        "stripped_log": {"leaf": "$log.leaf * 3 / 4"}
+                    }
+                }
+                """), "stripped_log");
+        assertEquals("tree", stripped.get("kind").getAsString());
+        assertEquals("24", stripped.getAsJsonObject("tree").get("leaf").getAsString());
+    }
+
+    /**
+     * An unknown name is refused with an error naming it.
+     */
+    @Test
+    void unknownConstantIsRefused() throws IOException, InterruptedException {
+        JsonObject broken = constantNamed(evaluated("""
+                {
+                    "_constants": {
+                        "broken": "$nope + 1"
+                    }
+                }
+                """), "broken");
+        assertTrue(broken.get("error").getAsString().contains("$nope") || broken.get("error").getAsString()
+                .contains("nope"), broken.toString());
+    }
+
+    /**
+     * The shipped _constants block resolves whole, each constant to the value the game's parser gives it.
+     */
+    @Test
+    void shippedConstantsResolveAsTheGameResolvesThem() throws IOException, InterruptedException {
+        String shipped = new String(BaseValuesModelTest.sampleBytes(), StandardCharsets.UTF_8);
+        JsonArray constants = evaluated(shipped);
+        JsonObject block = JsonParser.parseString(shipped).getAsJsonObject().getAsJsonObject("_constants");
+        assertEquals(List.copyOf(block.keySet()), constants.asList().stream()
+                .map(constant -> constant.getAsJsonObject().get("name").getAsString()).toList());
+        Map<String, GooConstantResolver.ResolvedConstant> game = GooConstantResolver.resolve(block).stream()
+                .collect(Collectors.toMap(GooConstantResolver.ResolvedConstant::name, Function.identity()));
+        for (JsonElement element : constants) {
+            JsonObject constant = element.getAsJsonObject();
+            String name = constant.get("name").getAsString();
+            assertTrue(constant.get("error").isJsonNull(), name + ": " + constant.get("error"));
+            GooConstantResolver.ResolvedConstant expected = game.get(name);
+            if (expected.tree()) {
+                expected.perType().forEach((type, amount) ->
+                        assertEquals(amount, constant.getAsJsonObject("tree").get(type).getAsString(), name));
+            } else {
+                assertEquals(String.valueOf(expected.scalar()), constant.get("value").getAsString(), name);
+            }
+        }
+        assertEquals("192", constantNamed(constants, "base").get("value").getAsString());
+        assertEquals("384", constantNamed(constants, "low").get("value").getAsString());
+        assertEquals("10368", constantNamed(constants, "iron_ingot").getAsJsonObject("tree").get("metal")
+                .getAsString());
+    }
+
+    /**
+     * The page's root answers the single-page app: the five tabs and the inventory sidebar.
+     */
+    @Test
+    void rootServesThePage() throws IOException, InterruptedException {
+        HttpResponse<byte[]> response = get("/");
+        assertEquals(200, response.statusCode());
+        assertTrue(response.headers().firstValue("Content-Type").orElse("").startsWith("text/html"));
+        String page = text(response);
+        for (String tab : List.of("Values", "Groups", "Variables", "Processes", "Audit")) {
+            assertTrue(page.contains(">" + tab + "<"), tab);
+        }
+        assertTrue(page.contains("id=\"inventory-sidebar\""));
+    }
+
+    /**
+     * The Values table heads read the item, its definition, amounts, remainder and source, and the hover line
+     * reads the value with no melts or costs (decision values-tab-drops-melts-and-costs).
+     */
+    @Test
+    void valuesTableHeadsReadNoMeltsOrCosts() throws IOException, InterruptedException {
+        String page = text(get("/"));
+        int body = page.indexOf("id=\"family-rows\"");
+        String head = page.substring(page.lastIndexOf("<thead>", body), body);
+        List<String> heads = java.util.regex.Pattern.compile("<th>([^<]+)</th>").matcher(head).results()
+                .map(match -> match.group(1)).toList();
+        assertEquals(List.of("Item", "Defined as", "Amounts", "Remainder", "Source"), heads);
+        assertFalse(page.contains("' · melts '"), "hover text still reads melts");
+        assertFalse(page.contains("hover.costs"), "hover text still reads costs");
+    }
+
+    /**
+     * The Variables pane stacks each constant over its expression field rather than tabling them, and the
+     * constants script builds that field as a textarea (decision constants-stack-with-a-growing-expression-field).
+     */
+    @Test
+    void variablesPaneStacksConstantsOverATextarea() throws IOException, InterruptedException {
+        String page = text(get("/"));
+        int start = page.indexOf("id=\"pane-variables\"");
+        String pane = page.substring(start, page.indexOf("</section>", start));
+        assertFalse(pane.contains("<table"), pane);
+        int row = page.indexOf("function constantRow(");
+        String script = page.substring(row, page.indexOf("\nfunction ", row + 1));
+        assertTrue(script.contains("document.createElement('textarea')"), script);
+        assertTrue(script.contains("'Expression for $' + entry.key"), script);
+    }
+}

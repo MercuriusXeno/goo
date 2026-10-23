@@ -26,7 +26,8 @@ sourceSets {
         compileClasspath += sourceSets.main.output
         runtimeClasspath += sourceSets.main.output
     }
-    // Texture, lab-template and architecture generators run from Gradle, never from the jar.
+    // Texture, lab-template and architecture generators and the workbench's gradle launcher run from
+    // Gradle, never from the jar; the workbench itself ships in main (decision gradle-run-stays-on-the-gametest-dump).
     tools {
         compileClasspath += sourceSets.main.output
         runtimeClasspath += sourceSets.main.output
@@ -73,8 +74,10 @@ runs {
         if (project.hasProperty('gameTestSelect')) {
             arguments.addAll '--tests', project.property('gameTestSelect').toString()
         }
-        // Folder datapacks the gametest world loads, such as the seventeenth goo type
-        arguments.addAll '--packs', file('src/test/resources/datapacks').absolutePath
+        // Folder datapacks the gametest world loads, such as the seventeenth goo type. --packs takes one folder,
+        // so the workbench's dump run names a root holding its draft pack in its place
+        // (decision workbench-authors-a-draft-and-promotes-by-rename).
+        arguments.addAll '--packs', project.findProperty('gameTestPacks') ?: file('src/test/resources/datapacks').absolutePath
         // The Goo Lab template that goo:lab_template_loads opens through the game's save loader
         systemProperty 'goo.labTemplate', file('dev/lab').absolutePath
         // JaCoCo agent so gametest coverage merges with unit-test coverage.
@@ -264,8 +267,8 @@ tasks.register('generateTextures', JavaExec) {
     workingDir = project.projectDir
 }
 
-// The values workbench: a loopback page that reads and writes base_values.json in place
-// (decision workbench-authors-base-values-whole). It serves until the task is stopped.
+// The values workbench's gradle run: the page main ships, fed by the gametest dumps
+// (decision gradle-run-stays-on-the-gametest-dump). It serves until the page's Stop ends it.
 tasks.register('valuesWorkbench', JavaExec) {
     description = 'Serves the values workbench page and opens it in the browser'
     group = 'goo'
@@ -321,6 +324,9 @@ tasks.withType(ProcessResources).configureEach {
         mod_description        : mod_description,
     ]
     inputs.properties replaceProperties
+    // The workbench's draft stands beside the shipped file until Promote; the jar carries the shipped file alone
+    // (decision workbench-authors-a-draft-and-promotes-by-rename).
+    exclude '**/base_values.draft.json'
     filesMatching(['META-INF/neoforge.mods.toml']) {
         expand replaceProperties
     }

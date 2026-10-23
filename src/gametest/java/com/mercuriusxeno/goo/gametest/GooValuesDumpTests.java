@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.gametest;
 
 import com.mercuriusxeno.goo.command.GooAuditReport;
+import com.mercuriusxeno.goo.command.GooCliqueDump;
 import com.mercuriusxeno.goo.data.GooReactionLoader;
 import com.mercuriusxeno.goo.data.GooValueRegistry;
 import com.mercuriusxeno.goo.data.GooValues;

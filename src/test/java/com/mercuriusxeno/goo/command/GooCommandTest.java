@@ -68,6 +68,19 @@ class GooCommandTest {
         assertFalse(inventory.canUse(sourceWith(PermissionSet.NO_PERMISSIONS)));
     }
 
+    /**
+     * The workbench stands under the goo root with the dev gate closed, as a shipped jar runs it, and only an
+     * operator runs it, its stop beneath it (decision goo-workbench-command-serves-the-page-from-the-game).
+     */
+    @Test
+    void workbenchIsAnOperatorSubcommandOutsideTheDevGate() {
+        CommandNode<CommandSourceStack> workbench = GooCommand.commandTree(false).build().getChild("workbench");
+        assertNotNull(workbench);
+        assertNotNull(workbench.getChild("stop"));
+        assertTrue(workbench.canUse(sourceWith(PermissionSet.ALL_PERMISSIONS)));
+        assertFalse(workbench.canUse(sourceWith(PermissionSet.NO_PERMISSIONS)));
+    }
+
     private static CommandSourceStack sourceWith(PermissionSet permissions) {
         CommandSourceStack source = mock(CommandSourceStack.class);
         when(source.permissions()).thenReturn(permissions);
