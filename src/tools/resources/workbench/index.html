@@ -160,7 +160,7 @@ details.dump-section pre { margin: 0; padding: 0 14px 12px; font-size: 12px; ove
             </div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th><span class="visually-hidden">Image</span></th><th>Item</th><th>Defined as</th><th>Amounts</th><th>Melts</th><th>Costs</th><th>Remainder</th><th>Source</th></tr></thead>
+                <thead><tr><th><span class="visually-hidden">Image</span></th><th>Item</th><th>Defined as</th><th>Amounts</th><th>Remainder</th><th>Source</th></tr></thead>
                 <tbody id="family-rows"></tbody>
               </table>
             </div>
@@ -1051,8 +1051,8 @@ function renderFamily() {
       badge.textContent = row.source;
       source.append(badge);
     }
-    tr.append(image, name, textCell(row.definedAs), textCell(amountsText(row.amounts)), textCell(row.melts),
-      textCell(row.costs), textCell(row.remainder === undefined ? '' : row.remainder), source);
+    tr.append(image, name, textCell(row.definedAs), textCell(amountsText(row.amounts)),
+      textCell(row.remainder === undefined ? '' : row.remainder), source);
     return tr;
   }));
 }
@@ -1228,7 +1228,7 @@ function renderEditor() {
 }
 
 // The hover card: the recipe grid drawn with the inventory's images, the result count, the ratios through the
-// item and its value, melts and costs.
+// item and its value (decision values-tab-drops-melts-and-costs).
 function attachHover(element, id) {
   element.addEventListener('mouseenter', (event) => {
     clearTimeout(valuesView.hoverTimer);
@@ -1291,7 +1291,7 @@ async function showHover(id, x, y) {
   }
   const value = document.createElement('div');
   value.className = 'mono hover-value';
-  value.textContent = 'value ' + hover.value + ' · melts ' + hover.melts + ' · costs ' + hover.costs;
+  value.textContent = 'value ' + hover.value;
   parts.push(value);
   card.replaceChildren(...parts);
   card.style.left = Math.min(x + 16, window.innerWidth - 376) + 'px';

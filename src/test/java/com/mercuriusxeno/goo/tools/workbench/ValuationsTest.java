@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -237,9 +238,25 @@ class ValuationsTest {
         assertTrue(hover.ratios().contains("1 iron_chain = 11 iron_nugget"), hover.ratios().toString());
         assertTrue(hover.ratios().contains("1 iron_chain = 11/9 iron_ingot"), hover.ratios().toString());
         assertEquals("metal 12672", hover.value());
-        assertEquals("metal 12672", hover.melts());
-        assertEquals("metal 12672", hover.costs());
         assertEquals(List.of("minecraft:chains"), hover.tags());
+    }
+
+    /**
+     * The hover and every Values row answer the value alone, with no floor or ceiling rounding beside it
+     * (decision values-tab-drops-melts-and-costs).
+     */
+    @Test
+    void hoverAndRowsCarryNoMeltsOrCosts() throws IOException {
+        InventoryView inventory = InventoryView.parse(ironInventory());
+        JsonObject hover = JsonParser.parseString(ValuesJson.hover(shipped(), inventory, "minecraft:iron_chain"))
+                .getAsJsonObject();
+        assertEquals("metal 12672", hover.get("value").getAsString());
+        assertFalse(hover.has("melts") || hover.has("costs"), hover.toString());
+        JsonArray rows = JsonParser.parseString(Valuations.family(shipped(), inventory, "minecraft:iron_chain"))
+                .getAsJsonObject().getAsJsonArray("rows");
+        for (JsonElement row : rows) {
+            assertFalse(row.getAsJsonObject().has("melts") || row.getAsJsonObject().has("costs"), row.toString());
+        }
     }
 
     private static JsonObject familyRow(JsonArray rows, String id) {
