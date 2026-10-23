@@ -63,6 +63,14 @@ final class ConstantsJson {
     }
 
     /**
+     * @param json the posted delete, carrying name and the model's members
+     * @return the name of the constant it deletes
+     */
+    static String deleteFrom(String json) {
+        return JsonParser.parseString(json).getAsJsonObject().get(NAME).getAsString();
+    }
+
+    /**
      * @param model the model whose constants to resolve
      * @return each constant in file order: its kind, its value or per-type tree, its error and its readers
      */

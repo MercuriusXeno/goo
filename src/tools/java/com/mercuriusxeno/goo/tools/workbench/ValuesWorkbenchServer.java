@@ -78,6 +78,7 @@ public final class ValuesWorkbenchServer {
         http.createContext("/api/image", exchange -> server.answer(exchange, server::image));
         http.createContext("/api/constants/evaluate", exchange -> server.answer(exchange, server::evaluateConstants));
         http.createContext("/api/constants/rename", exchange -> server.answer(exchange, server::renameConstant));
+        http.createContext("/api/constants/delete", exchange -> server.answer(exchange, server::deleteConstant));
         http.createContext("/api/groups/describe", exchange -> server.answer(exchange, server::describeGroups));
         http.createContext("/api/groups/apply", exchange -> server.answer(exchange, server::applyToGroup));
         http.createContext("/api/template", exchange -> server.answer(exchange, server::template));
@@ -199,6 +200,21 @@ public final class ValuesWorkbenchServer {
         BaseValuesModel renamed = current.withMembers(ModelJson.membersFrom(sent))
                 .renameConstant(rename.from(), rename.to());
         return Reply.of(OK, JSON, ModelJson.toJson(renamed, paths.baseValues().toString()));
+    }
+
+    /**
+     * Deletes a constant from the posted model with its cascade of readers and answers the model left
+     * (decision deleting-a-variable-inlines-its-expression-into-each-reader).
+     */
+    private Reply deleteConstant(HttpExchange exchange) throws IOException {
+        if (!POST.equals(exchange.getRequestMethod())) {
+            return Reply.of(NOT_ALLOWED, TEXT, exchange.getRequestMethod() + " is not served here");
+        }
+        String sent = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        BaseValuesModel current = BaseValuesModel.parse(Files.readString(paths.baseValues()));
+        BaseValuesModel deleted = current.withMembers(ModelJson.membersFrom(sent))
+                .deleteConstant(ConstantsJson.deleteFrom(sent));
+        return Reply.of(OK, JSON, ModelJson.toJson(deleted, paths.baseValues().toString()));
     }
 
     /**
