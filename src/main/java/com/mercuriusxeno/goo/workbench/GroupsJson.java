@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.tools.workbench;
+package com.mercuriusxeno.goo.workbench;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -44,6 +44,9 @@ final class GroupsJson {
     private static final String CONSTANTS = "_constants";
     private static final String TAG_PREFIX = "#";
     private static final String KEY_SEPARATOR = ": ";
+    private static final String QUOTE = "\"";
+    private static final String DEFAULT_NAMESPACE_PATTERN = "^minecraft:";
+    private static final String BLANK = "";
 
     private GroupsJson() {
     }
@@ -133,7 +136,7 @@ final class GroupsJson {
                     tweak.get(COUNT).getAsInt(), text(tweak, TRAIT), text(tweak, TRAIT_TEXT));
         }
         JsonObject answer = new JsonObject();
-        answer.add(MODEL, JsonParser.parseString(ModelJson.toJson(model, "")));
+        answer.add(MODEL, JsonParser.parseString(ModelJson.toJson(model, BLANK)));
         answer.add(GROUPS, described(model, inventory));
         return answer.toString();
     }
@@ -149,6 +152,10 @@ final class GroupsJson {
 
     /**
      * The lines the file holds for a group's convention: its base line, each trait constant and each member line.
+     *
+     * @param model the model
+     * @param group the group described
+     * @return the group's lines, each as the file writes it
      */
     private static JsonArray preview(BaseValuesModel model, GroupConvention.Group group) {
         JsonArray lines = new JsonArray();
@@ -162,7 +169,7 @@ final class GroupsJson {
                 constants.entries().stream().filter(entry -> tweak.trait().equals(entry.key())).findFirst()
                         .ifPresent(entry -> lines.add(line(entry.key(), entry.text())));
             }
-            for (String key : List.of(tweak.member(), tweak.member().replaceFirst("^minecraft:", ""))) {
+            for (String key : List.of(tweak.member(), tweak.member().replaceFirst(DEFAULT_NAMESPACE_PATTERN, BLANK))) {
                 BaseValuesModel.Member member = model.member(key);
                 if (member != null) {
                     lines.add(line(member.key(), member.text()));
@@ -174,7 +181,7 @@ final class GroupsJson {
     }
 
     private static String line(String key, String text) {
-        return "\"" + key + "\"" + KEY_SEPARATOR + text;
+        return QUOTE + key + QUOTE + KEY_SEPARATOR + text;
     }
 
     private static JsonElement nullable(@Nullable String value) {

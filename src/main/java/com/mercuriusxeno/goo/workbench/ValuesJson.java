@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.tools.workbench;
+package com.mercuriusxeno.goo.workbench;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -22,6 +22,7 @@ final class ValuesJson {
     private static final String RATIOS = "ratios";
     private static final String VALUE = "value";
     private static final String TAGS = "tags";
+    private static final String NO_INVENTORY = "No inventory stands at ";
 
     private static Path cachedFile;
     private static FileTime cachedTime;
@@ -37,7 +38,7 @@ final class ValuesJson {
      */
     static synchronized InventoryView inventory(Path file) throws IOException {
         if (!Files.isRegularFile(file)) {
-            throw new IOException("No inventory stands at " + file);
+            throw new IOException(NO_INVENTORY + file);
         }
         FileTime modified = Files.getLastModifiedTime(file);
         if (!file.equals(cachedFile) || !modified.equals(cachedTime)) {

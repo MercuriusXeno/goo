@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.tools.workbench;
+package com.mercuriusxeno.goo.workbench;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -30,7 +30,15 @@ final class GroupConvention {
     private static final String MEMBER_SEPARATOR = ",\n";
     private static final String NEWLINE = "\n";
     private static final String PLUS = " + ";
+    private static final String EMPTY_ARRAY = "[]";
+    private static final String ARRAY_OPEN = "[";
+    private static final String NO_SEPARATOR = "";
+    private static final String SUM_OPEN = "(";
+    private static final String SUM_CLOSE = ")";
+    private static final String NO_BASE_TO_TWEAK = " holds no base line to tweak";
     private static final int PLAIN_COUNT = 1;
+    private static final int COUNT_GROUP = 1;
+    private static final int TRAIT_GROUP = 2;
     // A member line: an optional count, then the base alone or the base plus one $trait, in parentheses or not.
     private static final String TWEAK_FORMAT = "^(?:(\\d+)\\s*)?\\(?\\s*%s(?:\\s*\\+\\s*\\$([A-Za-z0-9_]+))?\\s*\\)?$";
 
@@ -84,11 +92,11 @@ final class GroupConvention {
      */
     static BaseValuesModel withGroup(BaseValuesModel model, String group, List<String> members) {
         if (members.isEmpty()) {
-            return model.withEntry(GROUPS, group, "[]");
+            return model.withEntry(GROUPS, group, EMPTY_ARRAY);
         }
-        StringBuilder text = new StringBuilder("[").append(NEWLINE);
+        StringBuilder text = new StringBuilder(ARRAY_OPEN).append(NEWLINE);
         for (int i = 0; i < members.size(); i++) {
-            text.append(i == 0 ? "" : MEMBER_SEPARATOR).append(model.indentUnit())
+            text.append(i == 0 ? NO_SEPARATOR : MEMBER_SEPARATOR).append(model.indentUnit())
                     .append(QUOTE).append(fileId(members.get(i))).append(QUOTE);
         }
         return model.withEntry(GROUPS, group, text.append(NEWLINE).append(']').toString());
@@ -121,7 +129,7 @@ final class GroupConvention {
                                      @Nullable String trait, @Nullable String traitText) {
         String base = baseOf(model, group);
         if (base == null) {
-            throw new IllegalArgumentException("#" + group + " holds no base line to tweak");
+            throw new IllegalArgumentException(TAG_PREFIX + group + NO_BASE_TO_TWEAK);
         }
         BaseValuesModel withTrait = trait != null && traitText != null
                 ? model.withEntry(CONSTANTS, trait, traitText) : model;
@@ -130,7 +138,7 @@ final class GroupConvention {
             return withTrait.withoutTopLevel(key);
         }
         String sum = trait == null ? base : base + PLUS + CONSTANT_PREFIX + trait;
-        String line = count == PLAIN_COUNT ? sum : count + "(" + sum + ")";
+        String line = count == PLAIN_COUNT ? sum : count + SUM_OPEN + sum + SUM_CLOSE;
         return withTrait.withTopLevel(key, quoted(line));
     }
 
@@ -173,8 +181,8 @@ final class GroupConvention {
             if (match == null || !match.matches()) {
                 continue;
             }
-            int count = match.group(1) == null ? PLAIN_COUNT : Integer.parseInt(match.group(1));
-            String trait = match.group(2);
+            int count = match.group(COUNT_GROUP) == null ? PLAIN_COUNT : Integer.parseInt(match.group(COUNT_GROUP));
+            String trait = match.group(TRAIT_GROUP);
             if (count != PLAIN_COUNT || trait != null) {
                 tweaks.add(new Tweak(member, count, trait, trait == null ? null : constantText(model, trait)));
             }
@@ -234,6 +242,10 @@ final class GroupConvention {
     /**
      * The key the file already spells the member's line under, bare or namespaced, else the file's usual
      * spelling.
+     *
+     * @param model  the model
+     * @param member the member's id
+     * @return the key the member's line stands under
      */
     private static String existingKey(BaseValuesModel model, String member) {
         String namespacedId = namespaced(member);
@@ -242,6 +254,9 @@ final class GroupConvention {
 
     /**
      * An id as the file spells it: bare in the minecraft namespace, which Identifier.parse reads back.
+     *
+     * @param id the id, bare or namespaced
+     * @return the id as the file spells it
      */
     private static String fileId(String id) {
         String namespacedId = namespaced(id);

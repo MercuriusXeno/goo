@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.tools.workbench;
+package com.mercuriusxeno.goo.workbench;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
@@ -25,12 +25,28 @@ final class Processes {
     private static final String TIMES = " * ";
     private static final String SPACE = " ";
     private static final String ZERO_TARGET = "0";
+    private static final String DIVIDE_OPERATOR = "/";
+    // A stack applied once spells no count.
+    private static final String NO_COUNT = "";
     private static final Pattern FORMULA = Pattern.compile(
             "^([a-z0-9_:]+) / (\\d+) -> (?:(0)|([a-z0-9_:]+) ([/*]) (\\d+))$");
+    private static final int FORMULA_SOURCE = 1;
+    private static final int FORMULA_SOURCE_DIVISOR = 2;
+    private static final int FORMULA_ZERO_TARGET = 3;
+    private static final int FORMULA_TARGET = 4;
+    private static final int FORMULA_OPERATOR = 5;
+    private static final int FORMULA_AMOUNT = 6;
     private static final Pattern ADDITIVE = Pattern.compile("^\\+\\$([A-Za-z0-9_]+)$");
+    private static final int ADDITIVE_CONSTANT = 1;
     private static final Pattern STACK = Pattern.compile("^(?:(\\d+) )?@([A-Za-z0-9_]+)$");
+    private static final int STACK_COUNT = 1;
+    private static final int STACK_FORMULA = 2;
     private static final Pattern ASSIGNMENT = Pattern.compile(
             "^#(\\S+?)(?: \\* (\\d+) / (\\d+))?((?: [@+]\\S+)*)$");
+    private static final int ASSIGNMENT_SOURCE = 1;
+    private static final int ASSIGNMENT_MULTIPLIER = 2;
+    private static final int ASSIGNMENT_DIVISOR = 3;
+    private static final int ASSIGNMENT_CHAIN = 4;
 
     private Processes() {
     }
@@ -88,7 +104,7 @@ final class Processes {
      * @return the stack
      */
     static String stack(int count, String formula) {
-        return quoted((count == 1 ? "" : count + SPACE) + STACK_PREFIX + formula);
+        return quoted((count == 1 ? NO_COUNT : count + SPACE) + STACK_PREFIX + formula);
     }
 
     /**
@@ -145,27 +161,30 @@ final class Processes {
         }
         Matcher formula = FORMULA.matcher(value);
         if (!key.startsWith(TAG_PREFIX) && formula.matches()) {
-            return new Process(key, Kind.FORMULA, formula(formula.group(1), Integer.parseInt(formula.group(2)),
-                    formula.group(3) != null ? ZERO_TARGET : formula.group(4),
-                    formula.group(5) == null ? "/" : formula.group(5),
-                    formula.group(6) == null ? 0 : Integer.parseInt(formula.group(6))));
+            return new Process(key, Kind.FORMULA, formula(formula.group(FORMULA_SOURCE),
+                    Integer.parseInt(formula.group(FORMULA_SOURCE_DIVISOR)),
+                    formula.group(FORMULA_ZERO_TARGET) != null ? ZERO_TARGET : formula.group(FORMULA_TARGET),
+                    formula.group(FORMULA_OPERATOR) == null ? DIVIDE_OPERATOR : formula.group(FORMULA_OPERATOR),
+                    formula.group(FORMULA_AMOUNT) == null ? 0 : Integer.parseInt(formula.group(FORMULA_AMOUNT))));
         }
         Matcher additive = ADDITIVE.matcher(value);
         if (!key.startsWith(TAG_PREFIX) && additive.matches()) {
-            return new Process(key, Kind.ADDITIVE, additive(additive.group(1)));
+            return new Process(key, Kind.ADDITIVE, additive(additive.group(ADDITIVE_CONSTANT)));
         }
         Matcher stack = STACK.matcher(value);
         if (!key.startsWith(TAG_PREFIX) && stack.matches()) {
-            return new Process(key, Kind.STACK, stack(stack.group(1) == null ? 1 : Integer.parseInt(stack.group(1)),
-                    stack.group(2)));
+            return new Process(key, Kind.STACK, stack(stack.group(STACK_COUNT) == null ? 1
+                    : Integer.parseInt(stack.group(STACK_COUNT)), stack.group(STACK_FORMULA)));
         }
         Matcher assignment = ASSIGNMENT.matcher(value);
         if (key.startsWith(TAG_PREFIX) && assignment.matches()) {
-            List<String> chain = List.of(assignment.group(4).trim().split(" ")).stream()
+            List<String> chain = List.of(assignment.group(ASSIGNMENT_CHAIN).trim().split(SPACE)).stream()
                     .filter(link -> !link.isEmpty()).toList();
-            return new Process(key, Kind.ASSIGNMENT, assignment(assignment.group(1),
-                    assignment.group(2) == null ? 1 : Integer.parseInt(assignment.group(2)),
-                    assignment.group(3) == null ? 1 : Integer.parseInt(assignment.group(3)), chain));
+            return new Process(key, Kind.ASSIGNMENT, assignment(assignment.group(ASSIGNMENT_SOURCE),
+                    assignment.group(ASSIGNMENT_MULTIPLIER) == null ? 1
+                            : Integer.parseInt(assignment.group(ASSIGNMENT_MULTIPLIER)),
+                    assignment.group(ASSIGNMENT_DIVISOR) == null ? 1
+                            : Integer.parseInt(assignment.group(ASSIGNMENT_DIVISOR)), chain));
         }
         return new Process(key, Kind.UNREAD, text);
     }

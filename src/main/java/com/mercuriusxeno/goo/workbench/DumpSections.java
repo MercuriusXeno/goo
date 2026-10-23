@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.tools.workbench;
+package com.mercuriusxeno.goo.workbench;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -20,6 +20,10 @@ final class DumpSections {
     private static final String DUMP = "dump";
     private static final String HEADER = "header";
     private static final String LINES = "lines";
+    private static final String WINDOWS_LINE_END = "\r\n";
+    private static final String LINE_END = "\n";
+    // String.split drops trailing empty lines unless its limit is negative.
+    private static final int KEEP_TRAILING_EMPTY = -1;
 
     private DumpSections() {
     }
@@ -40,7 +44,7 @@ final class DumpSections {
      * @return its sections, in file order
      */
     static List<Section> parse(String dump, String text) {
-        List<String> lines = List.of(text.replace("\r\n", "\n").split("\n", -1));
+        List<String> lines = List.of(text.replace(WINDOWS_LINE_END, LINE_END).split(LINE_END, KEEP_TRAILING_EMPTY));
         List<Section> sections = new ArrayList<>();
         String header = null;
         List<String> body = new ArrayList<>();

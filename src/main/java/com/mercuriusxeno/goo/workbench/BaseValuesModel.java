@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.tools.workbench;
+package com.mercuriusxeno.goo.workbench;
 
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayDeque;
@@ -42,6 +42,25 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
     private static final String CONSTANT_PREFIX = "$";
     // A #group or tag key: both read as a #name chip.
     private static final String GROUP_PREFIX = "#";
+    private static final String EMPTY = "";
+    private static final String OPEN_BRACE = "{";
+    private static final String SINGLE_QUOTE = "'";
+    // Ends a $name reference so $iron does not also match $iron_ingot.
+    private static final String NAME_END = "(?![A-Za-z0-9_])";
+    private static final String NO_ENTRY = "No entry ";
+    private static final String IN_SECTION = " in ";
+    private static final String NO_SECTION = "The file holds no section ";
+    private static final String NO_CONSTANT = "No constant is named $";
+    private static final String MORE_TEXT = "more text";
+    private static final String CONTINUATION_INDENT =
+            "a value's continuation lines indented at least as deep as its entry";
+    private static final String ERROR_LINE = "base_values.json line ";
+    private static final String ERROR_EXPECTED = ": expected ";
+    private static final int NOT_FOUND = -1;
+    // A negative split limit keeps trailing empty lines, so the text round-trips.
+    private static final int KEEP_TRAILING_EMPTY = -1;
+    // A backslash and the character it escapes.
+    private static final int ESCAPE_WIDTH = 2;
 
     /**
      * How a top-level member holds its value.
@@ -125,7 +144,7 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
      * @return the file's text
      */
     public String serialize() {
-        StringBuilder out = new StringBuilder("{");
+        StringBuilder out = new StringBuilder(OPEN_BRACE);
         appendEntries(out, members, 1);
         out.append(closingGap).append('}').append(tail);
         return out.toString().replace(NEWLINE, lineSeparator);
@@ -155,7 +174,7 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
             changed.add(member.withEntries(entries));
         }
         if (!found) {
-            throw new IllegalArgumentException("No entry " + key + " in " + section);
+            throw new IllegalArgumentException(NO_ENTRY + key + IN_SECTION + section);
         }
         return withMembers(changed);
     }
@@ -196,7 +215,7 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
             changed.add(member.withEntries(entries));
         }
         if (!sectionFound) {
-            throw new IllegalArgumentException("The file holds no section " + section);
+            throw new IllegalArgumentException(NO_SECTION + section);
         }
         return withMembers(changed);
     }
@@ -247,7 +266,7 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
                 return i;
             }
         }
-        return -1;
+        return NOT_FOUND;
     }
 
     /**
@@ -364,7 +383,7 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
     private Map<Site, Reader> cascadeOf(String constant) {
         Member section = member(CONSTANTS);
         if (section == null || section.entries().stream().noneMatch(entry -> constant.equals(entry.key()))) {
-            throw new IllegalArgumentException("No constant is named $" + constant);
+            throw new IllegalArgumentException(NO_CONSTANT + constant);
         }
         Map<Site, Reader> removed = new LinkedHashMap<>();
         // The visited guard: a constant already deleted, the first among them, is never read again.
@@ -404,19 +423,19 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
     }
 
     private static Pattern referenceTo(String constant) {
-        return Pattern.compile(Pattern.quote(CONSTANT_PREFIX + constant) + "(?![A-Za-z0-9_])");
+        return Pattern.compile(Pattern.quote(CONSTANT_PREFIX + constant) + NAME_END);
     }
 
     private void appendEntries(StringBuilder out, List<Member> entries, int depth) {
         String indent = indentUnit.repeat(depth);
         for (int i = 0; i < entries.size(); i++) {
             Member entry = entries.get(i);
-            out.append(i == 0 ? "" : COMMA).append(orElse(entry.leading(), NEWLINE + indent));
+            out.append(i == 0 ? EMPTY : COMMA).append(orElse(entry.leading(), NEWLINE + indent));
             if (entry.key() != null) {
                 out.append(QUOTE).append(entry.key()).append(QUOTE)
                         .append(orElse(entry.keySeparator(), DEFAULT_KEY_SEPARATOR));
             }
-            out.append(body(entry, depth)).append(orElse(entry.trailing(), ""));
+            out.append(body(entry, depth)).append(orElse(entry.trailing(), EMPTY));
         }
     }
 
@@ -431,7 +450,7 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
     private String section(Member member, int depth, char open, char close) {
         StringBuilder out = new StringBuilder().append(open);
         appendEntries(out, member.entries(), depth + 1);
-        String usualClosing = member.entries().isEmpty() ? "" : NEWLINE + indentUnit.repeat(depth);
+        String usualClosing = member.entries().isEmpty() ? EMPTY : NEWLINE + indentUnit.repeat(depth);
         // A section the file wrote as {} closes on its own line once it gains an entry.
         String closing = member.closingGap() == null || member.closingGap().isEmpty() ? usualClosing
                 : member.closingGap();
@@ -443,10 +462,10 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
     }
 
     private static String indented(String text, String indent) {
-        List<String> lines = List.of(text.split(NEWLINE, -1));
+        List<String> lines = List.of(text.split(NEWLINE, KEEP_TRAILING_EMPTY));
         StringBuilder out = new StringBuilder(lines.getFirst());
         for (String line : lines.subList(1, lines.size())) {
-            out.append(NEWLINE).append(line.isEmpty() ? "" : indent + line);
+            out.append(NEWLINE).append(line.isEmpty() ? EMPTY : indent + line);
         }
         return out.toString();
     }
@@ -483,6 +502,12 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
 
         /**
          * Reads entries up to the closing bracket and answers the whitespace before it.
+         *
+         * @param into  the list the entries are added to
+         * @param close the closing bracket
+         * @param depth the nesting depth of the entries
+         * @param keyed whether each entry has a key
+         * @return the whitespace before the closing bracket
          */
         private String entries(List<Member> into, char close, int depth, boolean keyed) {
             while (true) {
@@ -507,15 +532,21 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
                 separator = keySeparator();
             }
             char open = peek();
-            if (depth == 1 && key != null && key.startsWith(SECTION_PREFIX) && (open == '{' || open == '[')) {
+            if (opensSection(depth, key, open)) {
                 position++;
                 List<Member> sectionEntries = new ArrayList<>();
                 String closingGap = entries(sectionEntries, open == '{' ? '}' : ']', depth + 1, open == '{');
-                return new Member(key, separator, open == '{' ? Kind.OBJECT : Kind.ARRAY, "", sectionEntries,
+                return new Member(key, separator, open == '{' ? Kind.OBJECT : Kind.ARRAY, EMPTY, sectionEntries,
                         leading, spaces(), closingGap);
             }
             String value = valueText(indentUnit.repeat(depth));
             return new Member(key, separator, Kind.VALUE, value, List.of(), leading, spaces(), null);
+        }
+
+        // Only a top-level _key holding an object or array is a section; anything else is held as text.
+        private static boolean opensSection(int depth, @Nullable String key, char open) {
+            boolean sectionKey = depth == 1 && key != null && key.startsWith(SECTION_PREFIX);
+            return sectionKey && (open == '{' || open == '[');
         }
 
         private String whitespace() {
@@ -536,6 +567,8 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
 
         /**
          * Reads the colon after a key and the spaces around it, which the file spells more than one way.
+         *
+         * @return the colon and its surrounding spaces as the file spells them
          */
         private String keySeparator() {
             int start = position;
@@ -553,13 +586,13 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
                 end--;
             }
             position = end;
-            List<String> lines = List.of(text.substring(start, end).split(NEWLINE, -1));
+            List<String> lines = List.of(text.substring(start, end).split(NEWLINE, KEEP_TRAILING_EMPTY));
             StringBuilder out = new StringBuilder(lines.getFirst());
             for (String line : lines.subList(1, lines.size())) {
                 if (!line.isEmpty() && !line.startsWith(indent)) {
-                    throw error("a value's continuation lines indented at least as deep as its entry");
+                    throw error(CONTINUATION_INDENT);
                 }
-                out.append(NEWLINE).append(line.isEmpty() ? "" : line.substring(indent.length()));
+                out.append(NEWLINE).append(line.isEmpty() ? EMPTY : line.substring(indent.length()));
             }
             return out.toString();
         }
@@ -600,7 +633,7 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
             int start = position;
             expect('"');
             while (peek() != '"') {
-                position += peek() == '\\' ? 2 : 1;
+                position += peek() == '\\' ? ESCAPE_WIDTH : 1;
             }
             position++;
             return text.substring(start, position);
@@ -608,21 +641,21 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
 
         private char peek() {
             if (position >= text.length()) {
-                throw error("more text");
+                throw error(MORE_TEXT);
             }
             return text.charAt(position);
         }
 
         private void expect(char wanted) {
             if (peek() != wanted) {
-                throw error("'" + wanted + "'");
+                throw error(SINGLE_QUOTE + wanted + SINGLE_QUOTE);
             }
             position++;
         }
 
         private IllegalArgumentException error(String wanted) {
             long line = text.substring(0, Math.min(position, text.length())).chars().filter(c -> c == '\n').count() + 1;
-            return new IllegalArgumentException("base_values.json line " + line + ": expected " + wanted);
+            return new IllegalArgumentException(ERROR_LINE + line + ERROR_EXPECTED + wanted);
         }
     }
 }

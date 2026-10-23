@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.tools.workbench;
+package com.mercuriusxeno.goo.workbench;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonNull;
@@ -32,6 +32,7 @@ final class ConstantsJson {
     private static final String FROM = "from";
     private static final String TO = "to";
     private static final String NOT_JSON = "not JSON: ";
+    private static final String NOT_A_CONSTANT_NAME = "A constant's name holds letters, digits and underscores: ";
     // A constant's name is what $name reads: letters, digits and underscores.
     private static final Pattern CONSTANT_NAME = Pattern.compile("[A-Za-z0-9_]+");
 
@@ -57,7 +58,7 @@ final class ConstantsJson {
         String from = root.get(FROM).getAsString();
         String to = root.get(TO).getAsString();
         if (!CONSTANT_NAME.matcher(to).matches()) {
-            throw new IllegalArgumentException("A constant's name holds letters, digits and underscores: " + to);
+            throw new IllegalArgumentException(NOT_A_CONSTANT_NAME + to);
         }
         return new Rename(from, to);
     }

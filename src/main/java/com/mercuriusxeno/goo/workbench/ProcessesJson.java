@@ -1,10 +1,11 @@
-package com.mercuriusxeno.goo.tools.workbench;
+package com.mercuriusxeno.goo.workbench;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.mercuriusxeno.goo.data.GooBaseValuesPreview;
 import com.mercuriusxeno.goo.data.GooConversion;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The Processes pane's read: each conversion entry's form and whether the game's conversion parser accepted
@@ -23,6 +24,8 @@ final class ProcessesJson {
     private static final String TAG_PREFIX = "#";
     private static final String ERROR = "error";
     private static final String NOT_REACHED = "not reached: the parser stops at ";
+    // A verdict's stop index where the parser threw on no entry.
+    private static final int READ_EVERY_ENTRY = -1;
 
     private ProcessesJson() {
     }
@@ -71,12 +74,17 @@ final class ProcessesJson {
     /**
      * The parser throws on a malformed formula rather than refusing that entry alone, so a throwing block is
      * read again one entry longer at a time to find the entry it stops at.
+     *
+     * @param model   the model
+     * @param section _conversions or _post_conversions
+     * @param read    the block's entries, in the order the parser applies them
+     * @return the parsed block, the index it stopped at and the parser's message
      */
     private static Verdict verdict(BaseValuesModel model, String section, List<Processes.Process> read) {
         try {
-            return new Verdict(parsedBlock(model, section), -1, null);
+            return new Verdict(parsedBlock(model, section), READ_EVERY_ENTRY, null);
         } catch (IllegalArgumentException whole) {
-            GooConversion.ParsedConversions last = GooConversion.parseBlock(java.util.Map.of());
+            GooConversion.ParsedConversions last = GooConversion.parseBlock(Map.of());
             BaseValuesModel prefix = withoutEntries(model, section);
             for (int i = 0; i < read.size(); i++) {
                 prefix = Processes.with(prefix, section, read.get(i).key(), read.get(i).text());
@@ -86,7 +94,7 @@ final class ProcessesJson {
                     return new Verdict(last, i, stop.getMessage());
                 }
             }
-            return new Verdict(last, -1, null);
+            return new Verdict(last, READ_EVERY_ENTRY, null);
         }
     }
 
