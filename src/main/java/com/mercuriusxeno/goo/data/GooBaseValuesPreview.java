@@ -103,8 +103,10 @@ public final class GooBaseValuesPreview {
      * @param effective each item's value, base and derived
      * @param derived   the items a recipe valued
      * @param recipes   the recipes that set a value, the winning one per output
+     * @param registry  the registry the derivation ran in, which every further read of it takes
      */
-    public record Derived(Map<Identifier, GooValue> effective, Set<Identifier> derived, List<RecipeInput> recipes) {
+    public record Derived(Map<Identifier, GooValue> effective, Set<Identifier> derived, List<RecipeInput> recipes,
+                          GooValueRegistry registry) {
     }
 
     /**
@@ -127,7 +129,7 @@ public final class GooBaseValuesPreview {
         GooValueRegistry registry = registry(json, tagResolver);
         registry.deriveFromRecipeInputs(recipes, false);
         return new Derived(registry.table().getEffectiveValues(), registry.lastDerivedValues().keySet(),
-                registry.valueSettingRecipes());
+                registry.valueSettingRecipes(), registry);
     }
 
     /**

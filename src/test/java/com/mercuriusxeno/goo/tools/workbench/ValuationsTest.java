@@ -275,4 +275,78 @@ class ValuationsTest {
         assertEquals(prime, ingotFrom.get("item").getAsString());
         assertEquals("minecraft:raw_iron", prime, ingotFrom.toString());
     }
+
+    private static final String GLASS_ROOTED = """
+            {
+                "_roots": ["glass"],
+                "glass": {"rock": 8}
+            }
+            """;
+
+    private static String glassInventory() {
+        JsonObject root = new JsonObject();
+        JsonArray items = new JsonArray();
+        for (String path : List.of("glass", "glass_pane", "glass_bottle")) {
+            JsonObject item = new JsonObject();
+            item.addProperty("id", "minecraft:" + path);
+            item.addProperty("name", path);
+            items.add(item);
+        }
+        root.add("items", items);
+        root.add("blocks", new JsonArray());
+        root.add("item_tags", new JsonArray());
+        root.add("block_tags", new JsonArray());
+        root.add("goo_types", new JsonArray());
+        JsonArray recipes = new JsonArray();
+        recipes.add(plainRecipe("minecraft:glass_pane", "minecraft:crafting", "minecraft:glass_pane", 16,
+                "minecraft:glass", 6));
+        recipes.add(plainRecipe("minecraft:glass_bottle", "minecraft:crafting", "minecraft:glass_bottle", 3,
+                "minecraft:glass", 3));
+        root.add("recipes", recipes);
+        return root.toString();
+    }
+
+    private static JsonObject glassFamily(String id) throws IOException {
+        return JsonParser.parseString(Valuations.family(BaseValuesModel.parse(GLASS_ROOTED),
+                InventoryView.parse(glassInventory()), id)).getAsJsonObject();
+    }
+
+    /**
+     * The family reads its root, the count of items the root solves and the smallest remainder, whether the root
+     * itself is selected or an item it solves; each row reads its recipe's remainder at the root as a mixed number,
+     * non-dividing rows first (decision workbench-shows-each-roots-remainders-and-items-solved).
+     */
+    @Test
+    void familyReadsTheRootItsCountAndRemaindersInOrder() throws IOException {
+        for (String selected : List.of("minecraft:glass", "minecraft:glass_pane")) {
+            JsonObject family = glassFamily(selected);
+            JsonObject root = family.getAsJsonObject("root");
+            assertEquals("minecraft:glass", root.get("id").getAsString());
+            assertEquals(2, root.get("solved").getAsInt());
+            assertEquals("³⁄₈", root.get("smallestRemainder").getAsString());
+        }
+        JsonArray rows = glassFamily("minecraft:glass").getAsJsonArray("rows");
+        assertEquals(List.of("minecraft:glass_pane", "minecraft:glass_bottle", "minecraft:glass"),
+                rows.asList().stream().map(row -> row.getAsJsonObject().get("id").getAsString()).toList());
+        assertEquals("³⁄₈", familyRow(rows, "minecraft:glass_pane").get("remainder").getAsString());
+        assertEquals("0", familyRow(rows, "minecraft:glass_bottle").get("remainder").getAsString());
+    }
+
+    /**
+     * The family's remainder for a recipe is the audit section's for the same recipe at the same root, since both
+     * read GooRootRemainders.
+     */
+    @Test
+    void auditAndFamilyAgreeOnEachRemainder() throws IOException {
+        JsonArray rows = glassFamily("minecraft:glass").getAsJsonArray("rows");
+        com.mercuriusxeno.goo.command.GooAuditSection section = new com.mercuriusxeno.goo.command
+                .RootRemaindersAuditRule().run(new com.mercuriusxeno.goo.command.GooAuditInputs(
+                GooBaseValuesPreview.derivedRegistry(GLASS_ROOTED, InventoryView.parse(glassInventory()).recipeInputs()),
+                List.of(), Set.of()));
+        for (String output : List.of("glass_pane", "glass_bottle")) {
+            String exact = familyRow(rows, "minecraft:" + output).get("remainderExact").getAsString();
+            assertTrue(section.lines().stream().anyMatch(line -> line.contains(" " + output + ":")
+                    && line.endsWith("remainder " + exact)), output + " " + exact + " " + section.lines());
+        }
+    }
 }
