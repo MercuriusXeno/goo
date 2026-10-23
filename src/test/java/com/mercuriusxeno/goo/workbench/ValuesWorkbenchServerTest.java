@@ -86,8 +86,8 @@ class ValuesWorkbenchServerTest {
         server = ValuesWorkbenchServer.start(paths, () -> {
             dumpsRun.incrementAndGet();
             Files.writeString(paths.inventoryFile(), INVENTORY);
-        }, progress -> {
-            savedWhenRunStarted.add(Files.readString(paths.baseValues()));
+        }, (draft, progress) -> {
+            savedWhenRunStarted.add(Files.readString(draft));
             progress.accept("booting the test server");
             Files.writeString(paths.auditDump(), CANNED_AUDIT);
             Files.writeString(paths.cliqueDump(), CANNED_CLIQUES);
@@ -193,21 +193,93 @@ class ValuesWorkbenchServerTest {
     }
 
     /**
-     * A saved model with one changed entry rewrites the file.
+     * A model read with no draft standing seeds base_values.draft.json from the live file
+     * (decision workbench-authors-a-draft-and-promotes-by-rename).
      */
     @Test
-    void savedModelRewritesTheFile() throws IOException, InterruptedException {
-        byte[] before = Files.readAllBytes(paths.baseValues());
+    void modelReadSeedsTheDraftFromTheLiveFile() throws IOException, InterruptedException {
+        assertFalse(Files.exists(paths.draft()));
+        assertEquals(200, get("/api/model").statusCode());
+        assertEquals(temp.resolve("base_values.draft.json"), paths.draft());
+        assertArrayEquals(BaseValuesModelTest.sampleBytes(), Files.readAllBytes(paths.draft()));
+    }
+
+    private HttpResponse<byte[]> savedWithBase(String base) throws IOException, InterruptedException {
         JsonObject model = JsonParser.parseString(text(get("/api/model"))).getAsJsonObject();
         JsonObject constants = model.getAsJsonArray("members").get(0).getAsJsonObject();
-        constants.getAsJsonArray("entries").get(0).getAsJsonObject().addProperty("text", "193");
-        HttpResponse<byte[]> saved = client.send(HttpRequest.newBuilder(URI.create(server.url() + "/api/model"))
+        constants.getAsJsonArray("entries").get(0).getAsJsonObject().addProperty("text", base);
+        return client.send(HttpRequest.newBuilder(URI.create(server.url() + "/api/model"))
                 .PUT(HttpRequest.BodyPublishers.ofString(model.toString())).build(),
                 HttpResponse.BodyHandlers.ofByteArray());
+    }
+
+    /**
+     * A save writes the draft and leaves the live file's bytes as they were, and the answer says the draft
+     * differs from the live file (decision workbench-authors-a-draft-and-promotes-by-rename).
+     */
+    @Test
+    void saveWritesTheDraftAndLeavesTheLiveFile() throws IOException, InterruptedException {
+        HttpResponse<byte[]> saved = savedWithBase("193");
         assertEquals(200, saved.statusCode());
-        byte[] after = Files.readAllBytes(paths.baseValues());
-        assertNotEquals(new String(before, StandardCharsets.UTF_8), new String(after, StandardCharsets.UTF_8));
-        assertTrue(new String(after, StandardCharsets.UTF_8).contains("\"base\": 193,"));
+        assertTrue(Files.readString(paths.draft()).contains("\"base\": 193,"));
+        assertArrayEquals(BaseValuesModelTest.sampleBytes(), Files.readAllBytes(paths.baseValues()));
+        JsonObject draft = JsonParser.parseString(text(saved)).getAsJsonObject().getAsJsonObject("draft");
+        assertTrue(draft.get("differs").getAsBoolean());
+        assertEquals(paths.draft().toString(), draft.get("path").getAsString());
+    }
+
+    /**
+     * Promote renames the draft over the live file, leaving no draft behind
+     * (decision workbench-authors-a-draft-and-promotes-by-rename).
+     */
+    @Test
+    void promoteRenamesTheDraftOverTheLiveFile() throws IOException, InterruptedException {
+        savedWithBase("194");
+        String drafted = Files.readString(paths.draft());
+        HttpResponse<byte[]> promoted = post("/api/promote", "{}");
+        assertEquals(200, promoted.statusCode(), text(promoted));
+        assertFalse(Files.exists(paths.draft()));
+        assertEquals(drafted, Files.readString(paths.baseValues()));
+    }
+
+    /**
+     * Discard copies the live file back over the draft (decision workbench-authors-a-draft-and-promotes-by-rename).
+     */
+    @Test
+    void discardCopiesTheLiveFileOverTheDraft() throws IOException, InterruptedException {
+        savedWithBase("195");
+        HttpResponse<byte[]> discarded = post("/api/discard", "{}");
+        assertEquals(200, discarded.statusCode(), text(discarded));
+        assertEquals(Files.readString(paths.baseValues()), Files.readString(paths.draft()));
+        assertFalse(JsonParser.parseString(text(discarded)).getAsJsonObject().getAsJsonObject("draft")
+                .get("differs").getAsBoolean());
+    }
+
+    /**
+     * Promote with no draft standing is refused with a conflict and leaves the live file as it was.
+     */
+    @Test
+    void promoteWithNoDraftIsRefused() throws IOException, InterruptedException {
+        assertEquals(409, post("/api/promote", "{}").statusCode());
+        assertArrayEquals(BaseValuesModelTest.sampleBytes(), Files.readAllBytes(paths.baseValues()));
+    }
+
+    /**
+     * The topbar holds Promote and Discard, each opening a confirm before its post, and Promote's confirm names
+     * the live path it overwrites (decision workbench-authors-a-draft-and-promotes-by-rename).
+     */
+    @Test
+    void pageConfirmsPromoteAndDiscardBeforePosting() throws IOException, InterruptedException {
+        String page = text(get("/"));
+        assertTrue(page.contains("id=\"promote-button\"") && page.contains("id=\"discard-button\""), "topbar");
+        assertTrue(page.contains("id=\"draft-badge\""), "draft badge");
+        int opening = page.indexOf("function askPromote(");
+        String ask = page.substring(opening, page.indexOf("\n}", opening));
+        assertTrue(ask.contains("will overwrite the value file") && ask.contains("state.model.path"), ask);
+        assertTrue(ask.contains(".showModal()") && !ask.contains("'/api/promote'"), ask);
+        int confirming = page.indexOf("async function confirmDraftAction(");
+        String confirm = page.substring(confirming, page.indexOf("\n}", confirming));
+        assertTrue(confirm.contains("'/api/' + draftView.action"), confirm);
     }
 
     /**
@@ -263,7 +335,7 @@ class ValuesWorkbenchServerTest {
         java.util.concurrent.CountDownLatch running = new java.util.concurrent.CountDownLatch(1);
         DumpRunner blocking = new DumpRunner() {
             @Override
-            public int run(java.util.function.Consumer<String> progress) throws InterruptedException {
+            public int run(Path draft, java.util.function.Consumer<String> progress) throws InterruptedException {
                 progress.accept("booting");
                 running.countDown();
                 stopped.await();

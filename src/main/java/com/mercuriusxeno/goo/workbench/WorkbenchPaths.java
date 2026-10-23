@@ -5,7 +5,8 @@ import java.nio.file.Path;
 /**
  * The files the workbench reads and writes.
  *
- * @param baseValues    base_values.json, read and written in place
+ * @param baseValues    the live base_values.json, which only Promote writes
+ *                      (decision workbench-authors-a-draft-and-promotes-by-rename)
  * @param inventoryFile the inventory dump's JSON
  * @param imageFolder   the inventory dump's image folder, one PNG per item at namespace/path.png
  * @param auditDump     the audit dump the values-dumps run writes
@@ -21,6 +22,14 @@ public record WorkbenchPaths(Path baseValues, Path inventoryFile, Path imageFold
     private static final String AUDIT_DUMP = "goo_audit.txt";
     private static final String CLIQUE_DUMP = "goo_cliques.txt";
     private static final String AUDIT_JSON = "goo_audit.json";
+    private static final String DRAFT_FILE = "base_values.draft.json";
+
+    /**
+     * @return base_values.draft.json beside the live file, which every save writes and Promote renames over it
+     */
+    public Path draft() {
+        return baseValues.resolveSibling(DRAFT_FILE);
+    }
 
     /**
      * @param projectDir the repository root

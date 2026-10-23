@@ -13,6 +13,7 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
@@ -25,8 +26,9 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
 /**
- * The values workbench's loopback server: the single-page app, base_values.json read and saved in place,
- * the inventory, and each item's image (decision workbench-authors-base-values-whole).
+ * The values workbench's loopback server: the single-page app, the draft beside base_values.json read and
+ * saved, Promote and Discard between them, the inventory, and each item's image (decisions
+ * workbench-authors-base-values-whole, workbench-authors-a-draft-and-promotes-by-rename).
  */
 public final class ValuesWorkbenchServer {
     private static final String PAGE = "/workbench/index.html";
@@ -81,6 +83,11 @@ public final class ValuesWorkbenchServer {
     private static final String HOVER_ROUTE = "/api/hover";
     private static final String PROCESSES_ROUTE = "/api/processes";
     private static final String STOP_ROUTE = "/api/stop";
+    private static final String PROMOTE_ROUTE = "/api/promote";
+    private static final String DISCARD_ROUTE = "/api/discard";
+    private static final int CONFLICT = 409;
+    private static final String NO_DRAFT_AT = "No draft stands to promote at ";
+    private static final String NO_LIVE_FILE_AT = "No live file stands to discard back to at ";
 
     private static final String HTTP_SCHEME = "http://";
     private static final String PORT_SEPARATOR = ":";
@@ -106,6 +113,9 @@ public final class ValuesWorkbenchServer {
     private final ExecutorService executor = Executors.newCachedThreadPool();
     private final CountDownLatch stopped = new CountDownLatch(1);
     private final AtomicBoolean stopping = new AtomicBoolean();
+    // Guards the draft file alone: a dump run holds the server's own monitor for minutes, and a seed, Promote
+    // or Discard must not wait on it.
+    private final Object draftLock = new Object();
 
     private ValuesWorkbenchServer(HttpServer http, WorkbenchPaths paths, InventoryDump dump, DumpRunner dumps) {
         this.http = http;
@@ -151,6 +161,8 @@ public final class ValuesWorkbenchServer {
         http.createContext(HOVER_ROUTE, exchange -> server.answer(exchange, server::hover));
         http.createContext(PROCESSES_ROUTE, exchange -> server.answer(exchange,
                 posted -> Reply.of(OK, JSON, ProcessesJson.described(server.postedModel(posted)))));
+        http.createContext(PROMOTE_ROUTE, exchange -> server.answer(exchange, server::promote));
+        http.createContext(DISCARD_ROUTE, exchange -> server.answer(exchange, server::discard));
         http.createContext(STOP_ROUTE, exchange -> server.answer(exchange, server::stopRequested));
         http.setExecutor(server.executor);
         http.start();
@@ -262,15 +274,13 @@ public final class ValuesWorkbenchServer {
     private Reply model(HttpExchange exchange) throws IOException {
         String method = exchange.getRequestMethod();
         if (GET.equals(method)) {
-            BaseValuesModel model = BaseValuesModel.parse(Files.readString(paths.baseValues()));
-            return Reply.of(OK, JSON, ModelJson.toJson(model, paths.baseValues().toString()));
+            return modelReply(fileLayout());
         }
         if (PUT.equals(method)) {
             String sent = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-            BaseValuesModel current = BaseValuesModel.parse(Files.readString(paths.baseValues()));
-            BaseValuesModel saved = current.withMembers(ModelJson.membersFrom(sent));
-            Files.writeString(paths.baseValues(), saved.serialize());
-            return Reply.of(OK, JSON, ModelJson.toJson(saved, paths.baseValues().toString()));
+            BaseValuesModel saved = fileLayout().withMembers(ModelJson.membersFrom(sent));
+            Files.writeString(paths.draft(), saved.serialize());
+            return modelReply(saved);
         }
         return Reply.of(NOT_ALLOWED, TEXT, method + NOT_SERVED_HERE);
     }
@@ -301,10 +311,9 @@ public final class ValuesWorkbenchServer {
         }
         String sent = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
         ConstantsJson.Rename rename = ConstantsJson.renameFrom(sent);
-        BaseValuesModel current = BaseValuesModel.parse(Files.readString(paths.baseValues()));
-        BaseValuesModel renamed = current.withMembers(ModelJson.membersFrom(sent))
+        BaseValuesModel renamed = fileLayout().withMembers(ModelJson.membersFrom(sent))
                 .renameConstant(rename.from(), rename.to());
-        return Reply.of(OK, JSON, ModelJson.toJson(renamed, paths.baseValues().toString()));
+        return modelReply(renamed);
     }
 
     /**
@@ -319,10 +328,9 @@ public final class ValuesWorkbenchServer {
             return Reply.of(NOT_ALLOWED, TEXT, exchange.getRequestMethod() + NOT_SERVED_HERE);
         }
         String sent = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-        BaseValuesModel current = BaseValuesModel.parse(Files.readString(paths.baseValues()));
-        BaseValuesModel deleted = current.withMembers(ModelJson.membersFrom(sent))
+        BaseValuesModel deleted = fileLayout().withMembers(ModelJson.membersFrom(sent))
                 .deleteConstant(ConstantsJson.deleteFrom(sent));
-        return Reply.of(OK, JSON, ModelJson.toJson(deleted, paths.baseValues().toString()));
+        return modelReply(deleted);
     }
 
     /**
@@ -399,14 +407,14 @@ public final class ValuesWorkbenchServer {
         }
         String sent = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
         BaseValuesModel saved = fileLayout().withMembers(ModelJson.membersFrom(sent));
-        Files.writeString(paths.baseValues(), saved.serialize());
+        Files.writeString(paths.draft(), saved.serialize());
         exchange.getResponseHeaders().set(CONTENT_TYPE_HEADER, NDJSON);
         exchange.sendResponseHeaders(OK, 0);
         try (OutputStream out = exchange.getResponseBody()) {
             long start = System.nanoTime();
             int exit;
             try {
-                exit = dumps.run(line -> streamLine(out, PROGRESS, new JsonPrimitive(line)));
+                exit = dumps.run(paths.draft(), line -> streamLine(out, PROGRESS, new JsonPrimitive(line)));
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 exit = RUN_FAILED_EXIT;
@@ -464,10 +472,85 @@ public final class ValuesWorkbenchServer {
         return fileLayout().withMembers(ModelJson.membersFrom(sent));
     }
 
+    /**
+     * @return the draft's model, the draft seeded first where none stands
+     */
     private BaseValuesModel fileLayout() throws IOException {
-        return Files.isRegularFile(paths.baseValues())
-                ? BaseValuesModel.parse(Files.readString(paths.baseValues()))
-                : BaseValuesModel.parse(EMPTY_MODEL);
+        return BaseValuesModel.parse(Files.readString(seededDraft()));
+    }
+
+    /**
+     * Seeds the draft from the live file where no draft stands, or from an empty model where no live file
+     * stands either, so every read and save works on the draft (decision workbench-authors-a-draft-and-promotes-by-rename).
+     *
+     * @return the draft's path
+     */
+    private Path seededDraft() throws IOException {
+        Path draft = paths.draft();
+        synchronized (draftLock) {
+            if (Files.isRegularFile(draft)) {
+                return draft;
+            }
+            Files.createDirectories(draft.getParent());
+            if (Files.isRegularFile(paths.baseValues())) {
+                Files.copy(paths.baseValues(), draft);
+            } else {
+                Files.writeString(draft, EMPTY_MODEL);
+            }
+        }
+        return draft;
+    }
+
+    private boolean draftDiffers() throws IOException {
+        Path draft = paths.draft();
+        return Files.isRegularFile(draft)
+                && (!Files.isRegularFile(paths.baseValues()) || Files.mismatch(draft, paths.baseValues()) >= 0);
+    }
+
+    private Reply modelReply(BaseValuesModel model) throws IOException {
+        return Reply.of(OK, JSON, ModelJson.toJson(model, paths.baseValues().toString(), paths.draft().toString(),
+                draftDiffers()));
+    }
+
+    /**
+     * Renames the draft over the live file, the one write the live file takes, and answers the live model; the
+     * next read seeds a fresh draft (decision workbench-authors-a-draft-and-promotes-by-rename).
+     *
+     * @param exchange the promote request
+     * @return the promoted model, or a conflict where no draft stands
+     */
+    private Reply promote(HttpExchange exchange) throws IOException {
+        if (!POST.equals(exchange.getRequestMethod())) {
+            return Reply.of(NOT_ALLOWED, TEXT, exchange.getRequestMethod() + NOT_SERVED_HERE);
+        }
+        synchronized (draftLock) {
+            if (!Files.isRegularFile(paths.draft())) {
+                return Reply.of(CONFLICT, TEXT, NO_DRAFT_AT + paths.draft());
+            }
+            Files.move(paths.draft(), paths.baseValues(), StandardCopyOption.REPLACE_EXISTING,
+                    StandardCopyOption.ATOMIC_MOVE);
+        }
+        return modelReply(BaseValuesModel.parse(Files.readString(paths.baseValues())));
+    }
+
+    /**
+     * Copies the live file back over the draft, dropping every unpromoted change
+     * (decision workbench-authors-a-draft-and-promotes-by-rename).
+     *
+     * @param exchange the discard request
+     * @return the live model, now the draft's, or a conflict where no live file stands
+     */
+    private Reply discard(HttpExchange exchange) throws IOException {
+        if (!POST.equals(exchange.getRequestMethod())) {
+            return Reply.of(NOT_ALLOWED, TEXT, exchange.getRequestMethod() + NOT_SERVED_HERE);
+        }
+        synchronized (draftLock) {
+            if (!Files.isRegularFile(paths.baseValues())) {
+                return Reply.of(CONFLICT, TEXT, NO_LIVE_FILE_AT + paths.baseValues());
+            }
+            Files.copy(paths.baseValues(), paths.draft(), StandardCopyOption.REPLACE_EXISTING);
+        }
+        return modelReply(BaseValuesModel.parse(Files.readString(paths.draft())));
     }
 
     private Reply inventory(HttpExchange exchange) throws IOException, InterruptedException {

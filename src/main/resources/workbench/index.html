@@ -23,6 +23,7 @@ button:disabled { cursor: default; opacity: 0.55; }
 .title { font-weight: 600; font-size: 16px; }
 .path { font-size: 12px; color: var(--muted); flex: 1 1 320px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.draft-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--warn); color: var(--warn-ink); background: var(--warn-soft); }
 .status { font-size: 12px; color: var(--muted); }
 .button { padding: 8px 14px; border: 1px solid var(--accent); background: var(--panel); color: var(--accent); border-radius: 6px; font-weight: 500; }
 .button.primary { background: var(--accent); color: #ffffff; }
@@ -134,14 +135,28 @@ details.dump-section pre { margin: 0; padding: 0 14px 12px; font-size: 12px; ove
 <div class="app">
   <header class="topbar">
     <div class="title">Goo Values Workbench</div>
+    <span class="draft-badge" id="draft-badge" title="The draft holds changes the value file does not; Promote writes them into it" hidden>draft</span>
     <div class="path mono" id="file-path">reading base_values.json</div>
     <div class="actions">
       <span class="status" id="status"></span>
       <button class="button" id="run-button" type="button" title="Saves, then reruns the audit and clique dumps headless">Run audit + cliques</button>
-      <button class="button primary" id="save-button" type="button" disabled>Save</button>
+      <button class="button primary" id="save-button" type="button" title="Writes the draft beside the value file; the value file itself changes only on Promote" disabled>Save</button>
+      <button class="button" id="promote-button" type="button" title="Renames the draft over the value file, after a confirm" disabled>Promote</button>
+      <button class="button" id="discard-button" type="button" title="Copies the value file back over the draft, after a confirm" disabled>Discard</button>
       <button class="button" id="stop-button" type="button" title="Ends the workbench server and every process it started, freeing the tree it serves from">Stop</button>
     </div>
   </header>
+  <dialog class="delete-dialog" id="draft-dialog" aria-labelledby="draft-title">
+    <div class="field-stack">
+      <span class="card-title" id="draft-title"></span>
+      <span class="hint" id="draft-text"></span>
+      <div class="row-actions">
+        <span class="grow"></span>
+        <button class="small" type="button" id="draft-cancel">Cancel</button>
+        <button class="small" type="button" id="draft-confirm">Confirm</button>
+      </div>
+    </div>
+  </dialog>
   <div class="body">
     <aside id="inventory-sidebar" aria-label="Inventory">
       <div class="sidebar-head">
@@ -229,7 +244,7 @@ details.dump-section pre { margin: 0; padding: 0 14px 12px; font-size: 12px; ove
         <div class="field-stack">
           <div class="row-actions">
             <button class="button primary" type="button" id="audit-run">Run audit + cliques</button>
-            <span class="mono hint" id="audit-line">saves base_values.json, then boots the test server once for both dumps</span>
+            <span class="mono hint" id="audit-line">saves the draft, then boots the test server over it once for both dumps</span>
           </div>
           <pre class="preview mono" id="audit-progress" hidden></pre>
           <div id="audit-sections" class="field-stack"></div>
@@ -451,6 +466,14 @@ async function loadModel() {
   state.sources = sourcesFromModel(state.model);
   $('file-path').textContent = state.model.path;
   $('save-button').disabled = false;
+  $('promote-button').disabled = false;
+  $('discard-button').disabled = false;
+  showDraft(state.model);
+}
+
+// The badge reads whether the draft differs from the value file, as the server's last model answer said.
+function showDraft(model) {
+  $('draft-badge').hidden = !(model.draft && model.draft.differs);
 }
 
 // A fresh tree holds no inventory; the server dumps it from a headless game server first, which takes about a
@@ -470,7 +493,8 @@ async function save() {
     state.model = await fetchJson('/api/model', { method: 'PUT', body: JSON.stringify(state.model) });
     state.sources = sourcesFromModel(state.model);
     state.unsaved = false;
-    setStatus('saved');
+    showDraft(state.model);
+    setStatus('saved to the draft');
     render();
     await evaluateConstants();
     await describeGroups();
@@ -1620,7 +1644,7 @@ async function runDumps() {
   const progress = $('audit-progress');
   progress.hidden = false;
   progress.textContent = '';
-  $('audit-line').textContent = 'saving base_values.json and booting the test server';
+  $('audit-line').textContent = 'saving the draft and booting the test server over it';
   try {
     const response = await fetch('/api/dumps/run', { method: 'POST', body: JSON.stringify(state.model) });
     if (!response.ok) {
@@ -1658,7 +1682,9 @@ async function runDumps() {
       }
     }
     await loadDumps();
-    setStatus('saved');
+    state.unsaved = false;
+    showDraft(await fetchJson('/api/model'));
+    setStatus('saved to the draft');
   } catch (error) {
     setStatus(error.message, true);
   } finally {
@@ -1694,6 +1720,51 @@ async function stopWorkbench() {
 }
 
 $('stop-button').addEventListener('click', stopWorkbench);
+
+// --- Promote and Discard: the draft over the value file, or the value file back over the draft ---
+
+const draftView = { action: null };
+
+// Promote asks first, naming the value file it overwrites (decision workbench-authors-a-draft-and-promotes-by-rename).
+function askPromote() {
+  draftView.action = 'promote';
+  $('draft-title').textContent = 'Promote the draft?';
+  $('draft-text').textContent = 'This will overwrite the value file at ' + state.model.path + ' with the draft'
+    + (state.unsaved ? ', saving your unsaved changes into the draft first.' : '.');
+  $('draft-dialog').showModal();
+}
+
+function askDiscard() {
+  draftView.action = 'discard';
+  $('draft-title').textContent = 'Discard the draft?';
+  $('draft-text').textContent = 'This copies ' + state.model.path + ' back over the draft: every change not yet'
+    + ' promoted, saved or unsaved, is lost.';
+  $('draft-dialog').showModal();
+}
+
+async function confirmDraftAction() {
+  $('draft-dialog').close();
+  try {
+    if (draftView.action === 'promote' && state.unsaved) {
+      await save();
+    }
+    state.model = await fetchJson('/api/' + draftView.action, { method: 'POST', body: '{}' });
+    state.sources = sourcesFromModel(state.model);
+    state.unsaved = false;
+    showDraft(state.model);
+    setStatus(draftView.action === 'promote' ? 'promoted into ' + state.model.path : 'draft discarded');
+    render();
+    await evaluateConstants();
+    await describeGroups();
+  } catch (error) {
+    setStatus(error.message, true);
+  }
+}
+
+$('promote-button').addEventListener('click', askPromote);
+$('discard-button').addEventListener('click', askDiscard);
+$('draft-cancel').addEventListener('click', () => $('draft-dialog').close());
+$('draft-confirm').addEventListener('click', confirmDraftAction);
 
 $('add-group').addEventListener('click', () => {
   const name = $('new-group').value.trim();
