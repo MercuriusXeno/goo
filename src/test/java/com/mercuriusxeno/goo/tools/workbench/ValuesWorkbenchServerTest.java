@@ -24,6 +24,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -365,5 +366,21 @@ class ValuesWorkbenchServerTest {
             assertTrue(page.contains(">" + tab + "<"), tab);
         }
         assertTrue(page.contains("id=\"inventory-sidebar\""));
+    }
+
+    /**
+     * The Values table heads read the item, its definition, amounts, remainder and source, and the hover line
+     * reads the value with no melts or costs (decision values-tab-drops-melts-and-costs).
+     */
+    @Test
+    void valuesTableHeadsReadNoMeltsOrCosts() throws IOException, InterruptedException {
+        String page = text(get("/"));
+        int body = page.indexOf("id=\"family-rows\"");
+        String head = page.substring(page.lastIndexOf("<thead>", body), body);
+        List<String> heads = java.util.regex.Pattern.compile("<th>([^<]+)</th>").matcher(head).results()
+                .map(match -> match.group(1)).toList();
+        assertEquals(List.of("Item", "Defined as", "Amounts", "Remainder", "Source"), heads);
+        assertFalse(page.contains("' · melts '"), "hover text still reads melts");
+        assertFalse(page.contains("hover.costs"), "hover text still reads costs");
     }
 }

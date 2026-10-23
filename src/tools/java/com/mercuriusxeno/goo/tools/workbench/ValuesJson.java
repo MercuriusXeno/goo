@@ -21,8 +21,6 @@ final class ValuesJson {
     private static final String COUNT = "count";
     private static final String RATIOS = "ratios";
     private static final String VALUE = "value";
-    private static final String MELTS = "melts";
-    private static final String COSTS = "costs";
     private static final String TAGS = "tags";
 
     private static Path cachedFile;
@@ -92,8 +90,6 @@ final class ValuesJson {
         hover.ratios().forEach(ratios::add);
         root.add(RATIOS, ratios);
         root.addProperty(VALUE, hover.value());
-        root.addProperty(MELTS, hover.melts());
-        root.addProperty(COSTS, hover.costs());
         JsonArray tags = new JsonArray();
         hover.tags().forEach(tags::add);
         root.add(TAGS, tags);
