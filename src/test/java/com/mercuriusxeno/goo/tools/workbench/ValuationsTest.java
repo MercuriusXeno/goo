@@ -41,8 +41,8 @@ class ValuationsTest {
             }
             """;
 
-    private static BaseValuesModel shipped() throws IOException {
-        return BaseValuesModel.parse(new String(BaseValuesModelTest.shippedBytes(), StandardCharsets.UTF_8));
+    private static BaseValuesModel sample() throws IOException {
+        return BaseValuesModel.parse(new String(BaseValuesModelTest.sampleBytes(), StandardCharsets.UTF_8));
     }
 
     private static Identifier id(String path) {
@@ -103,7 +103,7 @@ class ValuationsTest {
      */
     @Test
     void uncoveredListsWhatNothingCovers() throws IOException {
-        BaseValuesModel model = shipped();
+        BaseValuesModel model = sample();
         List<String> inventory = new ArrayList<>(Valuations.namedIds(model));
         inventory.add("minecraft:not_valued_yet");
         assertEquals(List.of("minecraft:not_valued_yet"), Valuations.uncovered(model, inventory));
@@ -230,7 +230,7 @@ class ValuationsTest {
      */
     @Test
     void hoverCardReadsTheChain() throws IOException {
-        Valuations.Hover hover = Valuations.hover(shipped(), InventoryView.parse(ironInventory()),
+        Valuations.Hover hover = Valuations.hover(sample(), InventoryView.parse(ironInventory()),
                 "minecraft:iron_chain");
         assertEquals(java.util.Arrays.asList(null, "minecraft:iron_nugget", null, null, "minecraft:iron_ingot", null,
                 null, "minecraft:iron_nugget", null), hover.grid());
@@ -248,11 +248,11 @@ class ValuationsTest {
     @Test
     void hoverAndRowsCarryNoMeltsOrCosts() throws IOException {
         InventoryView inventory = InventoryView.parse(ironInventory());
-        JsonObject hover = JsonParser.parseString(ValuesJson.hover(shipped(), inventory, "minecraft:iron_chain"))
+        JsonObject hover = JsonParser.parseString(ValuesJson.hover(sample(), inventory, "minecraft:iron_chain"))
                 .getAsJsonObject();
         assertEquals("metal 12672", hover.get("value").getAsString());
         assertFalse(hover.has("melts") || hover.has("costs"), hover.toString());
-        JsonArray rows = JsonParser.parseString(Valuations.family(shipped(), inventory, "minecraft:iron_chain"))
+        JsonArray rows = JsonParser.parseString(Valuations.family(sample(), inventory, "minecraft:iron_chain"))
                 .getAsJsonObject().getAsJsonArray("rows");
         for (JsonElement row : rows) {
             assertFalse(row.getAsJsonObject().has("melts") || row.getAsJsonObject().has("costs"), row.toString());
@@ -276,7 +276,7 @@ class ValuationsTest {
      */
     @Test
     void derivedRowLinksItsPrimeAncestorOrItsRecipe() throws IOException {
-        JsonArray rows = JsonParser.parseString(Valuations.family(shipped(), InventoryView.parse(ironInventory()),
+        JsonArray rows = JsonParser.parseString(Valuations.family(sample(), InventoryView.parse(ironInventory()),
                 "minecraft:iron_chain")).getAsJsonObject().getAsJsonArray("rows");
         JsonObject chain = familyRow(rows, "minecraft:iron_chain");
         assertEquals("", chain.get("source").getAsString());
