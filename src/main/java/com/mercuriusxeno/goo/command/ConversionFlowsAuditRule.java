@@ -6,10 +6,11 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.StringJoiner;
 import static com.mercuriusxeno.goo.command.GooAuditRecipeText.recipeText;
 
 /**
- * CONVERSION FLOWS: per source-to-target goo type pair, each recipe whose craft loses the source type and gains
+ * CONVERSION FLOWS: per source-to-target goo type pair, each crafting path whose crafts lose the source type and gain
  * the target, with the goo lost and gained per craft, the pair holding the largest gain first. It flags nothing:
  * no threshold separates a loophole from a fair recipe, so the operator judges each path.
  * decision workbench-lists-type-to-type-paths-worst-first
@@ -28,6 +29,7 @@ public final class ConversionFlowsAuditRule implements GooAuditRule {
     private static final String LOSES = ": loses ";
     private static final String GAINS = ", gains ";
     private static final String PER_CRAFT = " per craft";
+    private static final String PATH_JOIN = " then ";
 
     @Override
     public GooAuditSection run(GooAuditInputs inputs) {
@@ -36,7 +38,7 @@ public final class ConversionFlowsAuditRule implements GooAuditRule {
             String source = GooTypes.id(flow.source());
             String target = GooTypes.id(flow.target());
             linesByPair.computeIfAbsent(source + PAIR_ARROW + target, pair -> new ArrayList<>())
-                    .add(INDENT + recipeText(flow.recipe()) + LOSES + flow.sourceLost() + SPACE + source + GAINS
+                    .add(INDENT + pathText(flow) + LOSES + flow.sourceLost() + SPACE + source + GAINS
                             + flow.targetGained() + SPACE + target + PER_CRAFT);
         }
         List<String> lines = new ArrayList<>();
@@ -46,5 +48,11 @@ public final class ConversionFlowsAuditRule implements GooAuditRule {
         });
         return new GooAuditSection(SECTION, SECTION + HEADER_OPEN + linesByPair.size() + HEADER_SUFFIX,
                 List.copyOf(lines), 0, List.of());
+    }
+
+    private static String pathText(GooConversionFlows.Flow flow) {
+        StringJoiner path = new StringJoiner(PATH_JOIN);
+        flow.recipes().forEach(recipe -> path.add(recipeText(recipe)));
+        return path.toString();
     }
 }

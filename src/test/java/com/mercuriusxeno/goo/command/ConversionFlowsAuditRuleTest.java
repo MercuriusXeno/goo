@@ -33,4 +33,20 @@ class ConversionFlowsAuditRuleTest {
         assertEquals(List.of("metal -> rock", "  2 iron_ingot -> 1 chain: loses 18 metal, gains 4 rock per craft"),
                 section.lines());
     }
+
+    @Test
+    void pathLineJoinsItsRecipesInOrder() {
+        String nugget = "minecraft:iron_nugget";
+        List<RecipeInput> recipes = List.of(recipe(nugget, 9, slot(IRON)),
+                recipe("minecraft:chain", 1, slot(nugget), slot(nugget), slot(nugget)));
+
+        GooAuditSection section = new ConversionFlowsAuditRule().run(new GooAuditInputs(
+                GooBaseValuesPreview.derivedRegistry("""
+                        {"iron_ingot": {"metal": 9}, "chain": {"rock": 2}}
+                        """, recipes), List.of(), Set.of()));
+
+        assertEquals(List.of("metal -> rock", "  3 iron_nugget -> 1 chain: loses 3 metal, gains 2 rock per craft",
+                "  1 iron_ingot -> 9 iron_nugget then 3 iron_nugget -> 1 chain: loses 3 metal, gains 2 rock per craft"),
+                section.lines());
+    }
 }
