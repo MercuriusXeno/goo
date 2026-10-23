@@ -23,6 +23,30 @@ public record WorkbenchPaths(Path baseValues, Path inventoryFile, Path imageFold
     private static final String CLIQUE_DUMP = "goo_cliques.txt";
     private static final String AUDIT_JSON = "goo_audit.json";
     private static final String DRAFT_FILE = "base_values.draft.json";
+    private static final String WORLD_PACK = "datapacks/goo_values";
+    private static final String PACK_VALUES = "data/goo/goo_values/base_values.json";
+    private static final String WORLD_WORKBENCH = "goo_workbench";
+
+    /**
+     * @param world a world's save folder
+     * @return the goo_values datapack the in-game workbench promotes into, which the game loads over the jar's file
+     */
+    public static Path packRoot(Path world) {
+        return world.resolve(WORLD_PACK);
+    }
+
+    /**
+     * @param world a world's save folder
+     * @return the live file and draft in the world's goo_values datapack, and the inventory and dumps in the
+     *         world's goo_workbench folder, outside the datapacks the game scans
+     *         (decision goo-workbench-command-serves-the-page-from-the-game)
+     */
+    public static WorkbenchPaths inWorld(Path world) {
+        Path folder = world.resolve(WORLD_WORKBENCH);
+        return new WorkbenchPaths(packRoot(world).resolve(PACK_VALUES), folder.resolve(INVENTORY_FILE),
+                folder.resolve(IMAGE_FOLDER), folder.resolve(AUDIT_DUMP), folder.resolve(CLIQUE_DUMP),
+                folder.resolve(AUDIT_JSON));
+    }
 
     /**
      * @return base_values.draft.json beside the live file, which every save writes and Promote renames over it

@@ -1,6 +1,5 @@
-package com.mercuriusxeno.goo.command;
+package com.mercuriusxeno.goo;
 
-import com.mercuriusxeno.goo.Goo;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforgespi.language.ModFileScanData;
 import org.objectweb.asm.Type;

@@ -316,6 +316,7 @@ public final class GooCommand {
                 .then(opSubcommand(CMD_REGEN, GooCommand::regen))
                 .then(opSubcommand(CMD_AUDIT, GooAuditReport::run))
                 .then(opSubcommand(CMD_INVENTORY, GooInventoryReport::run))
+                .then(WorkbenchCommand.subcommand(GooCommand::requiresOp))
                 .then(scaffoldSubcommand())
                 .then(opSubcommand(CMD_INIT, GooCommand::init));
         if (devGateOpen) {

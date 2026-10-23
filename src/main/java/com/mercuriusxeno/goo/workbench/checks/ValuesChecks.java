@@ -1,6 +1,6 @@
 package com.mercuriusxeno.goo.workbench.checks;
 
-import com.mercuriusxeno.goo.command.AnnotatedClasses;
+import com.mercuriusxeno.goo.AnnotatedClasses;
 import com.mercuriusxeno.goo.data.GooBaseValuesPreview;
 import net.minecraft.resources.Identifier;
 import java.util.List;

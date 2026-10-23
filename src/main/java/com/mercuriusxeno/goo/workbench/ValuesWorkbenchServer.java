@@ -94,6 +94,9 @@ public final class ValuesWorkbenchServer {
     private static final String NO_LIVE_FILE_AT = "No live file stands to discard back to at ";
 
     private static final String HTTP_SCHEME = "http://";
+    // 127.0.0.1 rather than the JVM's preferred loopback: a game JVM preferring IPv6 binds ::1, whose bare host
+    // string makes no URL a browser opens.
+    private static final byte[] IPV4_LOOPBACK = {127, 0, 0, 1};
     private static final String PORT_SEPARATOR = ":";
     private static final String CONTENT_TYPE_HEADER = "Content-Type";
     private static final String STOP_THREAD_NAME = "values-workbench-stop";
@@ -111,6 +114,7 @@ public final class ValuesWorkbenchServer {
 
     private final HttpServer http;
     private final WorkbenchPaths paths;
+    private final DraftSeed seed;
     private final InventoryDump dump;
     private final DumpRunner dumps;
     // Held so Stop can shut it down: its threads are not daemons, and one left alive keeps the JVM serving.
@@ -121,9 +125,11 @@ public final class ValuesWorkbenchServer {
     // or Discard must not wait on it.
     private final Object draftLock = new Object();
 
-    private ValuesWorkbenchServer(HttpServer http, WorkbenchPaths paths, InventoryDump dump, DumpRunner dumps) {
+    private ValuesWorkbenchServer(HttpServer http, WorkbenchPaths paths, DraftSeed seed, InventoryDump dump,
+                                  DumpRunner dumps) {
         this.http = http;
         this.paths = paths;
+        this.seed = seed;
         this.dump = dump;
         this.dumps = dumps;
     }
@@ -140,8 +146,24 @@ public final class ValuesWorkbenchServer {
      */
     public static ValuesWorkbenchServer start(WorkbenchPaths paths, InventoryDump dump, DumpRunner dumps, int port)
             throws IOException {
-        HttpServer http = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), port), 0);
-        ValuesWorkbenchServer server = new ValuesWorkbenchServer(http, paths, dump, dumps);
+        return start(paths, () -> EMPTY_MODEL.getBytes(StandardCharsets.UTF_8), dump, dumps, port);
+    }
+
+    /**
+     * Binds the loopback address and starts serving, seeding a draft from the seed where no live file stands.
+     *
+     * @param paths the files the workbench reads and writes
+     * @param seed  the text a draft starts from where no live file stands
+     * @param dump  writes the inventory when none stands
+     * @param dumps runs the audit and clique dumps
+     * @param port  the port, or 0 for any free one
+     * @return the running server
+     * @throws IOException where the port cannot be bound
+     */
+    public static ValuesWorkbenchServer start(WorkbenchPaths paths, DraftSeed seed, InventoryDump dump,
+                                              DumpRunner dumps, int port) throws IOException {
+        HttpServer http = HttpServer.create(new InetSocketAddress(InetAddress.getByAddress(IPV4_LOOPBACK), port), 0);
+        ValuesWorkbenchServer server = new ValuesWorkbenchServer(http, paths, seed, dump, dumps);
         http.createContext(ROOT_PATH, exchange -> server.answer(exchange, server::page));
         http.createContext(MODEL_ROUTE, exchange -> server.answer(exchange, server::model));
         http.createContext(INVENTORY_ROUTE, exchange -> server.answer(exchange, server::inventory));
@@ -192,6 +214,13 @@ public final class ValuesWorkbenchServer {
         http.stop(STOP_GRACE_SECONDS);
         executor.shutdownNow();
         stopped.countDown();
+    }
+
+    /**
+     * @return whether the server has stopped, by the page's Stop or a call to stop
+     */
+    public boolean stopped() {
+        return stopped.getCount() == 0;
     }
 
     /**
@@ -484,8 +513,8 @@ public final class ValuesWorkbenchServer {
     }
 
     /**
-     * Seeds the draft from the live file where no draft stands, or from an empty model where no live file
-     * stands either, so every read and save works on the draft (decision workbench-authors-a-draft-and-promotes-by-rename).
+     * Seeds the draft from the live file where no draft stands, or from the seed where no live file stands
+     * either, so every read and save works on the draft (decision workbench-authors-a-draft-and-promotes-by-rename).
      *
      * @return the draft's path
      */
@@ -499,7 +528,7 @@ public final class ValuesWorkbenchServer {
             if (Files.isRegularFile(paths.baseValues())) {
                 Files.copy(paths.baseValues(), draft);
             } else {
-                Files.writeString(draft, EMPTY_MODEL);
+                Files.write(draft, seed.read());
             }
         }
         return draft;
