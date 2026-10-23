@@ -1,13 +1,18 @@
 package com.mercuriusxeno.goo.workbench;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonParser;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -39,6 +44,12 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
     private static final String CONSTANTS = "_constants";
     // The sections the shipped file closes with; a new item entry stands above them.
     private static final Set<String> CLOSING_SECTIONS = Set.of("_restricted", "_conversions", "_post_conversions");
+    private static final String GROUPS = "_groups";
+    private static final Set<String> PROCESS_SECTIONS = Set.of("_conversions", "_post_conversions");
+    // An assignment stacks a named process as @name.
+    private static final String STACK_PREFIX = "@";
+    private static final String DEFAULT_NAMESPACE = "minecraft:";
+    private static final String NAMESPACE_SEPARATOR = ":";
     private static final String CONSTANT_PREFIX = "$";
     // A #group or tag key: both read as a #name chip.
     private static final String GROUP_PREFIX = "#";
@@ -341,6 +352,123 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
             }
         }
         return readers;
+    }
+
+    /**
+     * The items a constant cascades into, the keys between them followed and left out: a constant reader
+     * through its own readers, a #group or tag reader through its members, and a process through the target
+     * groups of the assignments stacking it (decision used-by-draws-the-terminus-items-alone).
+     *
+     * @param constant   a constant's name
+     * @param tagMembers each item tag's member ids, keyed by the tag's namespaced id
+     * @return the item ids reached, each once, in the order the walk reaches them
+     */
+    public List<String> terminusOf(String constant, Map<String, List<String>> tagMembers) {
+        return new TerminusWalk(tagMembers).from(constant);
+    }
+
+    /**
+     * One terminus walk: the constants pending, and the constants, groups and processes already followed.
+     */
+    private final class TerminusWalk {
+        private final Map<String, List<String>> tagMembers;
+        private final Set<String> items = new LinkedHashSet<>();
+        private final Set<String> followed = new HashSet<>();
+        private final Deque<String> pending = new ArrayDeque<>();
+
+        TerminusWalk(Map<String, List<String>> tagMembers) {
+            this.tagMembers = tagMembers;
+        }
+
+        List<String> from(String constant) {
+            followed.add(CONSTANT_PREFIX + constant);
+            pending.add(constant);
+            while (!pending.isEmpty()) {
+                reachReadersOf(referenceTo(pending.removeFirst()));
+            }
+            return List.copyOf(items);
+        }
+
+        private void reachReadersOf(Pattern reference) {
+            for (Member member : members) {
+                for (Member entry : member.entries()) {
+                    if (entry.key() != null && reference.matcher(entry.text()).find()) {
+                        reachEntry(member.key(), entry.key());
+                    }
+                }
+                if (member.kind() == Kind.VALUE && reference.matcher(member.text()).find()) {
+                    reachTopLevel(member.key());
+                }
+            }
+        }
+
+        private void reachEntry(@Nullable String section, String key) {
+            if (CONSTANTS.equals(section)) {
+                if (followed.add(CONSTANT_PREFIX + key)) {
+                    pending.addLast(key);
+                }
+            } else if (section != null && PROCESS_SECTIONS.contains(section)) {
+                reachProcess(section, key);
+            }
+        }
+
+        private void reachTopLevel(String key) {
+            if (key.startsWith(GROUP_PREFIX)) {
+                reachGroup(key.substring(GROUP_PREFIX.length()));
+            } else {
+                items.add(key);
+            }
+        }
+
+        // An assignment's key is its target group; any other process reaches the assignments stacking it.
+        private void reachProcess(String section, String key) {
+            if (key.startsWith(GROUP_PREFIX)) {
+                reachGroup(key.substring(GROUP_PREFIX.length()));
+                return;
+            }
+            if (!followed.add(section + STACK_PREFIX + key)) {
+                return;
+            }
+            Pattern stacking = Pattern.compile(Pattern.quote(STACK_PREFIX + key) + NAME_END);
+            Member block = member(section);
+            for (Member entry : block == null ? List.<Member>of() : block.entries()) {
+                if (entry.key() != null && stacking.matcher(entry.text()).find()) {
+                    reachProcess(section, entry.key());
+                }
+            }
+        }
+
+        // A _groups array names its members, a #tag among them expanding in turn; a name no group holds is a tag.
+        private void reachGroup(String name) {
+            if (!followed.add(GROUP_PREFIX + name)) {
+                return;
+            }
+            Optional<List<String>> groupMembers = groupMembers(name);
+            if (groupMembers.isEmpty()) {
+                items.addAll(tagMembers.getOrDefault(name.contains(NAMESPACE_SEPARATOR) ? name
+                        : DEFAULT_NAMESPACE + name, List.of()));
+                return;
+            }
+            for (String groupMember : groupMembers.get()) {
+                reachTopLevel(groupMember);
+            }
+        }
+
+        private Optional<List<String>> groupMembers(String name) {
+            Member groups = member(GROUPS);
+            return groups == null ? Optional.empty() : groups.entries().stream()
+                    .filter(entry -> name.equals(entry.key())).findFirst().map(entry -> memberIds(entry.text()));
+        }
+
+        private static List<String> memberIds(String text) {
+            try {
+                JsonElement parsed = JsonParser.parseString(text);
+                return parsed.isJsonArray() ? parsed.getAsJsonArray().asList().stream()
+                        .filter(JsonElement::isJsonPrimitive).map(JsonElement::getAsString).toList() : List.of();
+            } catch (JsonParseException e) {
+                return List.of();
+            }
+        }
     }
 
     // Where an entry stands: its section's key, or null for a top-level entry, and its own key.

@@ -329,7 +329,8 @@ public final class ValuesWorkbenchServer {
             return Reply.of(NOT_ALLOWED, TEXT, exchange.getRequestMethod() + NOT_SERVED_HERE);
         }
         BaseValuesModel model = postedModel(exchange);
-        return Reply.of(OK, JSON, ConstantsJson.evaluated(model));
+        return Reply.of(OK, JSON, ConstantsJson.evaluated(model,
+                GroupsJson.Inventory.read(paths.inventoryFile()).tags()));
     }
 
     /**

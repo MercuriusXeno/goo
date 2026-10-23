@@ -540,24 +540,32 @@ class ValuesWorkbenchServerTest {
     }
 
     /**
-     * Each reader in usedBy answers its id and its kind (decision used-by-draws-item-images-and-name-chips).
+     * usedBy answers the terminus items alone, the #logs group expanded to its member and $doubled followed to
+     * the plank reading it, while readers keeps each direct reader with its kind for the delete cascade
+     * (decision used-by-draws-the-terminus-items-alone).
      */
     @Test
-    void usedByAnswersEachReadersIdAndKind() throws IOException, InterruptedException {
+    void usedByAnswersTheTerminusItemsAlone() throws IOException, InterruptedException {
         JsonObject base = constantNamed(evaluated("""
                 {
                     "_constants": {
                         "base": 192,
                         "doubled": "2 $base"
                     },
+                    "_groups": {
+                        "logs": ["oak_log"]
+                    },
                     "#logs": "$base",
-                    "stick": "$base / 4"
+                    "stick": "$base / 4",
+                    "plank": "$doubled"
                 }
                 """), "base");
-        JsonArray usedBy = base.getAsJsonArray("usedBy");
-        assertEquals(List.of("doubled constant", "#logs group", "stick item"), usedBy.asList().stream()
-                .map(reader -> reader.getAsJsonObject().get("id").getAsString() + " "
-                        + reader.getAsJsonObject().get("kind").getAsString()).toList());
+        assertEquals(List.of("oak_log", "stick", "plank"), base.getAsJsonArray("usedBy").asList().stream()
+                .map(JsonElement::getAsString).toList());
+        assertEquals(List.of("doubled constant", "#logs group", "stick item"),
+                base.getAsJsonArray("readers").asList().stream()
+                        .map(reader -> reader.getAsJsonObject().get("id").getAsString() + " "
+                                + reader.getAsJsonObject().get("kind").getAsString()).toList());
     }
 
     /**
