@@ -77,13 +77,6 @@ final class GroupsJson {
             return root.getAsJsonArray(section).asList().stream()
                     .map(entry -> entry.getAsJsonObject().get(ID).getAsString()).toList();
         }
-
-        /**
-         * @return the loadout the template is built from
-         */
-        ValuesTemplate.Loadout loadout() {
-            return new ValuesTemplate.Loadout(items, tags, gooTypes);
-        }
     }
 
     /**

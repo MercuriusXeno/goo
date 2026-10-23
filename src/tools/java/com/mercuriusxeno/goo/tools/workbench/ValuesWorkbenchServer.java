@@ -13,7 +13,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 
 /**
@@ -45,11 +50,16 @@ public final class ValuesWorkbenchServer {
     private static final int NOT_FOUND = 404;
     private static final int NOT_ALLOWED = 405;
     private static final int SERVER_ERROR = 500;
+    private static final int STOP_GRACE_SECONDS = 2;
 
     private final HttpServer http;
     private final WorkbenchPaths paths;
     private final InventoryDump dump;
     private final DumpRunner dumps;
+    // Held so Stop can shut it down: its threads are not daemons, and one left alive keeps the JVM serving.
+    private final ExecutorService executor = Executors.newCachedThreadPool();
+    private final CountDownLatch stopped = new CountDownLatch(1);
+    private final AtomicBoolean stopping = new AtomicBoolean();
 
     private ValuesWorkbenchServer(HttpServer http, WorkbenchPaths paths, InventoryDump dump, DumpRunner dumps) {
         this.http = http;
@@ -81,7 +91,6 @@ public final class ValuesWorkbenchServer {
         http.createContext("/api/constants/delete", exchange -> server.answer(exchange, server::deleteConstant));
         http.createContext("/api/groups/describe", exchange -> server.answer(exchange, server::describeGroups));
         http.createContext("/api/groups/apply", exchange -> server.answer(exchange, server::applyToGroup));
-        http.createContext("/api/template", exchange -> server.answer(exchange, server::template));
         http.createContext("/api/dumps", exchange -> server.answer(exchange, server::standingDumps));
         http.createContext("/api/dumps/run", server::runDumps);
         http.createContext("/api/audit", exchange -> server.answer(exchange, server::auditSections));
@@ -96,7 +105,8 @@ public final class ValuesWorkbenchServer {
         http.createContext("/api/hover", exchange -> server.answer(exchange, server::hover));
         http.createContext("/api/processes", exchange -> server.answer(exchange,
                 posted -> Reply.of(OK, JSON, ProcessesJson.described(server.postedModel(posted)))));
-        http.setExecutor(Executors.newCachedThreadPool());
+        http.createContext("/api/stop", exchange -> server.answer(exchange, server::stopRequested));
+        http.setExecutor(server.executor);
         http.start();
         return server;
     }
@@ -109,10 +119,49 @@ public final class ValuesWorkbenchServer {
     }
 
     /**
-     * Stops serving.
+     * Stops serving, ending the dump run in flight first; a second call does nothing.
      */
     public void stop() {
-        http.stop(0);
+        if (!stopping.compareAndSet(false, true)) {
+            return;
+        }
+        dumps.stop();
+        // The run's handler finishes its stream once the runner returns, so the stop waits on it briefly.
+        http.stop(STOP_GRACE_SECONDS);
+        executor.shutdownNow();
+        stopped.countDown();
+    }
+
+    /**
+     * Waits until the server stops, as the workbench's main does so the JVM exits once Stop is pressed.
+     *
+     * @throws InterruptedException where the wait is interrupted
+     */
+    public void awaitStop() throws InterruptedException {
+        stopped.await();
+    }
+
+    /**
+     * @param timeout how long to wait
+     * @return whether the server stopped within it
+     * @throws InterruptedException where the wait is interrupted
+     */
+    public boolean awaitStop(Duration timeout) throws InterruptedException {
+        return stopped.await(timeout.toMillis(), TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * Answers OK, then stops on a thread of its own, since a handler cannot wait out the server it runs on
+     * (decision topbar-stop-ends-every-workbench-process).
+     */
+    private Reply stopRequested(HttpExchange exchange) {
+        if (!POST.equals(exchange.getRequestMethod())) {
+            return Reply.of(NOT_ALLOWED, TEXT, exchange.getRequestMethod() + " is not served here");
+        }
+        dumps.stop();
+        Thread stopper = new Thread(this::stop, "values-workbench-stop");
+        stopper.start();
+        return Reply.of(OK, TEXT, "stopping");
     }
 
     private interface Handler {
@@ -240,23 +289,6 @@ public final class ValuesWorkbenchServer {
         String sent = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
         return Reply.of(OK, JSON, GroupsJson.applied(sent, fileLayout(), GroupsJson.Inventory.read(
                 dumpedInventory())));
-    }
-
-    /**
-     * Answers the template the inventory builds and what the posted model leaves out of it
-     * (decision template-first-then-defaults-by-convention).
-     */
-    private Reply template(HttpExchange exchange) throws IOException, InterruptedException {
-        if (!POST.equals(exchange.getRequestMethod())) {
-            return Reply.of(NOT_ALLOWED, TEXT, exchange.getRequestMethod() + " is not served here");
-        }
-        GroupsJson.Inventory inventory = GroupsJson.Inventory.read(dumpedInventory());
-        if (inventory.items().isEmpty()) {
-            return Reply.of(SERVER_ERROR, TEXT, "The inventory dump wrote no items to " + paths.inventoryFile());
-        }
-        JsonObject answer = ValuesTemplate.answer(postedModel(exchange), inventory.loadout(),
-                paths.baseValues().toString());
-        return Reply.of(OK, JSON, answer.toString());
     }
 
     /**

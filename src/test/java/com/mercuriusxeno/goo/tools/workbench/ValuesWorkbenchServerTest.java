@@ -82,7 +82,7 @@ class ValuesWorkbenchServerTest {
         paths = new WorkbenchPaths(temp.resolve("base_values.json"), temp.resolve("goo_inventory.json"),
                 temp.resolve("goo_inventory"), temp.resolve("goo_audit.txt"), temp.resolve("goo_cliques.txt"),
                 temp.resolve("goo_audit.json"));
-        Files.write(paths.baseValues(), BaseValuesModelTest.shippedBytes());
+        Files.write(paths.baseValues(), BaseValuesModelTest.sampleBytes());
         server = ValuesWorkbenchServer.start(paths, () -> {
             dumpsRun.incrementAndGet();
             Files.writeString(paths.inventoryFile(), INVENTORY);
@@ -237,15 +237,95 @@ class ValuesWorkbenchServerTest {
         assertEquals("minecraft:iron_nugget", items.getAsJsonArray().get(0).getAsJsonObject().get("id").getAsString());
     }
 
+    private HttpResponse<byte[]> post(String path, String body) throws IOException, InterruptedException {
+        return client.send(HttpRequest.newBuilder(URI.create(server.url() + path))
+                .POST(HttpRequest.BodyPublishers.ofString(body)).build(), HttpResponse.BodyHandlers.ofByteArray());
+    }
+
     /**
-     * The template check on a fresh tree waits on the same one-time dump the inventory runs, rather than
+     * Stop answers OK, then the server stops: its stop wait returns and its port refuses the next request
+     * (decision topbar-stop-ends-every-workbench-process).
+     */
+    @Test
+    void stopRouteEndsTheServer() throws IOException, InterruptedException {
+        assertEquals(200, post("/api/stop", "").statusCode());
+        assertTrue(server.awaitStop(java.time.Duration.ofSeconds(10)), "the server's stop wait never returned");
+        org.junit.jupiter.api.Assertions.assertThrows(java.net.ConnectException.class, () -> get("/api/model"));
+    }
+
+    /**
+     * Stop during a dump run ends the run through its runner, and the run's streamed response completes
+     * (decision topbar-stop-ends-every-workbench-process).
+     */
+    @Test
+    void stopEndsTheDumpRunInFlight() throws Exception {
+        java.util.concurrent.CountDownLatch stopped = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch running = new java.util.concurrent.CountDownLatch(1);
+        DumpRunner blocking = new DumpRunner() {
+            @Override
+            public int run(java.util.function.Consumer<String> progress) throws InterruptedException {
+                progress.accept("booting");
+                running.countDown();
+                stopped.await();
+                return 1;
+            }
+
+            @Override
+            public void stop() {
+                stopped.countDown();
+            }
+        };
+        server.stop();
+        server = ValuesWorkbenchServer.start(paths, () -> Files.writeString(paths.inventoryFile(), INVENTORY),
+                blocking, 0);
+        String model = text(get("/api/model"));
+        java.util.concurrent.CompletableFuture<List<String>> run = java.util.concurrent.CompletableFuture
+                .supplyAsync(() -> {
+                    try {
+                        return client.send(HttpRequest.newBuilder(URI.create(server.url() + "/api/dumps/run"))
+                                .POST(HttpRequest.BodyPublishers.ofString(model)).build(),
+                                HttpResponse.BodyHandlers.ofLines()).body().toList();
+                    } catch (IOException | InterruptedException e) {
+                        throw new java.util.concurrent.CompletionException(e);
+                    }
+                });
+        assertTrue(running.await(10, java.util.concurrent.TimeUnit.SECONDS), "the run never started");
+        assertEquals(200, post("/api/stop", "").statusCode());
+        assertEquals(0, stopped.getCount(), "the runner's stop was not called");
+        List<String> lines = run.get(10, java.util.concurrent.TimeUnit.SECONDS);
+        assertTrue(lines.getFirst().contains("booting"), lines.toString());
+    }
+
+    /**
+     * The topbar holds a Stop beside Run and Save whose handler confirms on unsaved changes or a running
+     * audit before posting /api/stop, then disables the page (decision topbar-stop-ends-every-workbench-process).
+     */
+    @Test
+    void pageHoldsAStopThatConfirmsBeforePosting() throws IOException, InterruptedException {
+        String page = text(get("/"));
+        int run = page.indexOf("id=\"run-button\"");
+        int save = page.indexOf("id=\"save-button\"");
+        int stop = page.indexOf("id=\"stop-button\"");
+        assertTrue(run > 0 && save > 0 && stop > 0 && page.substring(Math.min(run, stop), Math.max(save, stop))
+                .lines().count() < 6, "Stop stands beside Run and Save");
+        int handler = page.indexOf("async function stopWorkbench(");
+        String script = page.substring(handler, page.indexOf("\n}", handler));
+        int guard = script.indexOf("state.unsaved || auditView.running");
+        int posting = script.indexOf("'/api/stop'");
+        int disabling = script.indexOf(".disabled = true");
+        assertTrue(guard >= 0 && script.indexOf("confirming", guard) > guard, script);
+        assertTrue(posting > guard && disabling > posting, script);
+    }
+
+    /**
+     * A groups read on a fresh tree waits on the same one-time dump the inventory runs, rather than
      * refusing while the dump is still writing.
      */
     @Test
-    void templateOnAbsentInventoryWaitsForTheDump() throws IOException, InterruptedException {
+    void groupsOnAbsentInventoryWaitForTheDump() throws IOException, InterruptedException {
         String model = text(get("/api/model"));
         HttpResponse<byte[]> response = client.send(HttpRequest.newBuilder(URI.create(server.url()
-                        + "/api/template")).POST(HttpRequest.BodyPublishers.ofString(model)).build(),
+                        + "/api/groups/describe")).POST(HttpRequest.BodyPublishers.ofString(model)).build(),
                 HttpResponse.BodyHandlers.ofByteArray());
         assertEquals(200, response.statusCode(), text(response));
         assertEquals(1, dumpsRun.get());
@@ -401,7 +481,7 @@ class ValuesWorkbenchServerTest {
      */
     @Test
     void shippedConstantsResolveAsTheGameResolvesThem() throws IOException, InterruptedException {
-        String shipped = new String(BaseValuesModelTest.shippedBytes(), StandardCharsets.UTF_8);
+        String shipped = new String(BaseValuesModelTest.sampleBytes(), StandardCharsets.UTF_8);
         JsonArray constants = evaluated(shipped);
         JsonObject block = JsonParser.parseString(shipped).getAsJsonObject().getAsJsonObject("_constants");
         assertEquals(List.copyOf(block.keySet()), constants.asList().stream()

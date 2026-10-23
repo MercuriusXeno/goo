@@ -28,7 +28,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.function.Function;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -44,7 +43,6 @@ final class Valuations {
     private static final String RESTRICTED = "restricted";
     private static final String ERROR = "error";
     private static final String DENIED_TEXT = "\"denied\"";
-    private static final String GROUPS = "_groups";
     private static final String RESTRICTED_SECTION = "_restricted";
     private static final String SECTION_PREFIX = "_";
     private static final String TAG_PREFIX = "#";
@@ -84,8 +82,8 @@ final class Valuations {
     private static final Comparator<GooRootRemainders.Row> REMAINDER_ORDER = Comparator
             .comparing((GooRootRemainders.Row row) -> row.remainder().isZero())
             .thenComparing(GooRootRemainders.Row::remainder);
-    // A #name the file reads anywhere, whose group's members it then covers.
-    private static final Pattern GROUP_REFERENCE = Pattern.compile("#([A-Za-z0-9_:./-]+)");
+    // An entry reading {}: an object of no types, which values nothing.
+    private static final Pattern EMPTY_OBJECT = Pattern.compile("\\s*\\{\\s*}\\s*");
 
     private static String lastDerivedText;
     private static InventoryView lastDerivedInventory;
@@ -194,64 +192,70 @@ final class Valuations {
     }
 
     /**
-     * An item is covered by its own entry or denial or restriction, or by belonging to a group the file reads
-     * anywhere, as a #group entry or in a conversion.
+     * A missing value is an item the Values tab reads as none: no entry valuing it, no #group entry over it, no
+     * derivation and no value from any other line (decision inventory-hydrates-the-tool-and-writes-no-template).
      *
      * @param model     the model
-     * @param inventory the inventory's item ids
-     * @return the items nothing covers, in inventory order
-     * @throws IOException where the model's text cannot be read
+     * @param inventory the inventory's item ids, valued with no recipes
+     * @return the items reading as none, in inventory order
      */
-    static List<String> uncovered(BaseValuesModel model, List<String> inventory) throws IOException {
-        return uncovered(model, inventory, GooBaseValuesPreview.load(model.serialize()));
+    static List<String> uncovered(BaseValuesModel model, List<String> inventory) {
+        String text = model.serialize();
+        return uncovered(model, inventory, GooBaseValuesPreview.derive(text, List.of()),
+                GooBaseValuesPreview.load(text));
     }
 
     /**
      * @param model     the model
-     * @param inventory the inventory, whose tags a #tag entry expands through
-     * @return the items nothing covers, in inventory order
+     * @param inventory the inventory, whose recipes derive and whose tags a #tag entry expands through
+     * @return the items reading as none, in inventory order
      */
     static List<String> uncovered(BaseValuesModel model, InventoryView inventory) {
-        return uncovered(model, inventory.itemIds(), GooBaseValuesPreview.load(model.serialize(),
-                inventory.tagResolver()));
+        return uncovered(model, inventory.itemIds(), derivedFor(model, inventory),
+                GooBaseValuesPreview.load(model.serialize(), inventory.tagResolver()));
     }
 
     private static List<String> uncovered(BaseValuesModel model, List<String> inventory,
-                                          GooBaseValuesPreview.Loaded loaded) {
-        Set<String> covered = new HashSet<>();
-        loaded.baseValues().keySet().forEach(id -> covered.add(id.toString()));
-        loaded.denied().forEach(id -> covered.add(id.toString()));
-        loaded.restricted().forEach(id -> covered.add(id.toString()));
-        Set<String> referenced = referencedGroups(model);
-        GroupConvention.describe(model).stream().filter(group -> referenced.contains(group.name()))
-                .forEach(group -> covered.addAll(group.members()));
-        return inventory.stream().filter(id -> !AIR.equals(id) && !covered.contains(id)).toList();
+                                          GooBaseValuesPreview.Derived derived, GooBaseValuesPreview.Loaded loaded) {
+        Set<String> grouped = groupedMembers(model);
+        return inventory.stream().filter(id -> !AIR.equals(id) && !grouped.contains(id)).filter(id -> {
+            Identifier item = Identifier.tryParse(id);
+            return item != null && valuesNothing(derived.effective().get(item))
+                    && valuesNothing(loaded.baseValues().get(item))
+                    && NONE.equals(sourceOf(model, derived, loaded, item, null));
+        }).toList();
     }
 
-    private static Set<String> referencedGroups(BaseValuesModel model) {
-        Set<String> referenced = new HashSet<>();
-        for (BaseValuesModel.Member member : model.members()) {
-            if (GROUPS.equals(member.key())) {
-                continue;
-            }
-            collectReferences(member.key(), referenced);
-            collectReferences(member.text(), referenced);
-            for (BaseValuesModel.Member entry : member.entries()) {
-                collectReferences(entry.key(), referenced);
-                collectReferences(entry.text(), referenced);
-            }
-        }
-        return referenced;
+    private static boolean valuesNothing(@Nullable GooValue value) {
+        return value == null || value.isEmpty();
     }
 
-    private static void collectReferences(@Nullable String text, Set<String> into) {
-        if (text == null) {
-            return;
-        }
-        Matcher match = GROUP_REFERENCE.matcher(text);
-        while (match.find()) {
-            into.add(match.group(1));
-        }
+    private static Set<String> groupedMembers(BaseValuesModel model) {
+        Set<String> grouped = new HashSet<>();
+        GroupConvention.describe(model).stream().filter(group -> model.member(TAG_PREFIX + group.name()) != null)
+                .forEach(group -> grouped.addAll(group.members()));
+        return grouped;
+    }
+
+    /**
+     * An entry reading {} values nothing, so it stands as no entry at all and hides no missing value.
+     */
+    private static BaseValuesModel.@Nullable Member ownEntry(BaseValuesModel model, String id) {
+        BaseValuesModel.Member own = model.member(bare(id)) != null ? model.member(bare(id)) : model.member(id);
+        return own == null || EMPTY_OBJECT.matcher(own.text()).matches() ? null : own;
+    }
+
+    /**
+     * Where an item's value comes from, as the Values tab names it: denied, its entry, its group, a
+     * derivation (blank, the row's from naming it) or none.
+     */
+    private static String sourceOf(BaseValuesModel model, GooBaseValuesPreview.Derived derived,
+                                   GooBaseValuesPreview.Loaded loaded, Identifier member, @Nullable String group) {
+        String id = member.toString();
+        return loaded.denied().contains(member) ? DENIED
+                : ownEntry(model, id) != null ? SOURCE_ENTRY
+                : group != null ? SOURCE_GROUP + group
+                : derived.derived().contains(member) ? "" : NONE;
     }
 
     /**
@@ -352,7 +356,7 @@ final class Valuations {
                                         Identifier member) {
         String id = member.toString();
         GooValue value = derived.effective().get(member);
-        BaseValuesModel.Member own = model.member(bare(id)) != null ? model.member(bare(id)) : model.member(id);
+        BaseValuesModel.Member own = ownEntry(model, id);
         String group = groupValuing(model, id);
         JsonObject row = new JsonObject();
         row.addProperty(ROW_ID, id);
@@ -361,10 +365,8 @@ final class Valuations {
                 : group != null ? TAG_PREFIX + group + CONTEXT_END + " " + model.member(TAG_PREFIX + group).text()
                 : "");
         row.add(ROW_AMOUNTS, amountsJson(value));
-        row.addProperty(ROW_SOURCE, loaded.denied().contains(member) ? DENIED
-                : own != null ? SOURCE_ENTRY
-                : group != null ? SOURCE_GROUP + group
-                : derived.derived().contains(member) ? "" : NONE);
+        row.addProperty(ROW_SOURCE, sourceOf(model, derived, loaded, member, group));
+
         if (own == null && group == null && derived.derived().contains(member)) {
             row.add(ROW_FROM, from(member, inventory, derived, loaded.baseValues().keySet()));
         }
