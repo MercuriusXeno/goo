@@ -18,10 +18,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class BaseValuesModelTest {
 
-    private static final String SHIPPED = "/data/goo/goo_values/base_values.json";
+    // The last curated base_values.json, frozen: the shipped file is rebuilt from nothing, so tests needing a
+    // realistic file read this copy rather than whatever ships.
+    private static final String SAMPLE = "/workbench/sample_base_values.json";
 
-    static byte[] shippedBytes() throws IOException {
-        try (InputStream stream = BaseValuesModelTest.class.getResourceAsStream(SHIPPED)) {
+    static byte[] sampleBytes() throws IOException {
+        try (InputStream stream = BaseValuesModelTest.class.getResourceAsStream(SAMPLE)) {
             return stream.readAllBytes();
         }
     }
@@ -31,7 +33,7 @@ class BaseValuesModelTest {
      */
     @Test
     void shippedFileRoundTripsUnchanged() throws IOException {
-        byte[] shipped = shippedBytes();
+        byte[] shipped = sampleBytes();
         BaseValuesModel model = BaseValuesModel.parse(new String(shipped, StandardCharsets.UTF_8));
         assertArrayEquals(shipped, model.serialize().getBytes(StandardCharsets.UTF_8));
     }
@@ -41,7 +43,7 @@ class BaseValuesModelTest {
      */
     @Test
     void oneEditChangesOneLine() throws IOException {
-        String shipped = new String(shippedBytes(), StandardCharsets.UTF_8);
+        String shipped = new String(sampleBytes(), StandardCharsets.UTF_8);
         BaseValuesModel model = BaseValuesModel.parse(shipped);
         BaseValuesModel edited = model.withEntryText("_constants", "low", "\"5 $base\"");
         List<String> before = List.of(shipped.split("\r\n", -1));
@@ -62,7 +64,7 @@ class BaseValuesModelTest {
      */
     @Test
     void renameRewritesEveryReference() throws IOException {
-        BaseValuesModel renamed = BaseValuesModel.parse(new String(shippedBytes(), StandardCharsets.UTF_8))
+        BaseValuesModel renamed = BaseValuesModel.parse(new String(sampleBytes(), StandardCharsets.UTF_8))
                 .renameConstant("iron_nugget", "iron_bit");
         String text = renamed.serialize();
         assertFalse(text.contains("$iron_nugget"));
@@ -76,7 +78,7 @@ class BaseValuesModelTest {
      */
     @Test
     void usagesNameEveryReader() throws IOException {
-        BaseValuesModel renamed = BaseValuesModel.parse(new String(shippedBytes(), StandardCharsets.UTF_8))
+        BaseValuesModel renamed = BaseValuesModel.parse(new String(sampleBytes(), StandardCharsets.UTF_8))
                 .renameConstant("iron_nugget", "iron_bit");
         assertEquals(List.of("iron_ingot", "gold_nugget", "chainmail_boots", "chainmail_helmet",
                 "chainmail_chestplate", "chainmail_leggings"), renamed.usagesOf("iron_bit"));
@@ -89,7 +91,7 @@ class BaseValuesModelTest {
      */
     @Test
     void deleteRemovesTheConstantAndItsReaderCascade() throws IOException {
-        BaseValuesModel model = BaseValuesModel.parse(new String(shippedBytes(), StandardCharsets.UTF_8));
+        BaseValuesModel model = BaseValuesModel.parse(new String(sampleBytes(), StandardCharsets.UTF_8));
         List<String> removed = model.deletionCascade("iron_nugget").stream().map(BaseValuesModel.Reader::id)
                 .toList();
         BaseValuesModel deleted = model.deleteConstant("iron_nugget");
@@ -145,7 +147,7 @@ class BaseValuesModelTest {
      */
     @Test
     void readersCarryTheirKind() throws IOException {
-        BaseValuesModel model = BaseValuesModel.parse(new String(shippedBytes(), StandardCharsets.UTF_8));
+        BaseValuesModel model = BaseValuesModel.parse(new String(sampleBytes(), StandardCharsets.UTF_8));
         assertEquals(List.of(
                 new BaseValuesModel.Reader("iron_ingot", BaseValuesModel.ReaderKind.CONSTANT),
                 new BaseValuesModel.Reader("gold_nugget", BaseValuesModel.ReaderKind.CONSTANT),

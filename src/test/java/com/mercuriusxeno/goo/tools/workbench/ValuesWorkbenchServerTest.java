@@ -82,7 +82,7 @@ class ValuesWorkbenchServerTest {
         paths = new WorkbenchPaths(temp.resolve("base_values.json"), temp.resolve("goo_inventory.json"),
                 temp.resolve("goo_inventory"), temp.resolve("goo_audit.txt"), temp.resolve("goo_cliques.txt"),
                 temp.resolve("goo_audit.json"));
-        Files.write(paths.baseValues(), BaseValuesModelTest.shippedBytes());
+        Files.write(paths.baseValues(), BaseValuesModelTest.sampleBytes());
         server = ValuesWorkbenchServer.start(paths, () -> {
             dumpsRun.incrementAndGet();
             Files.writeString(paths.inventoryFile(), INVENTORY);
@@ -401,7 +401,7 @@ class ValuesWorkbenchServerTest {
      */
     @Test
     void shippedConstantsResolveAsTheGameResolvesThem() throws IOException, InterruptedException {
-        String shipped = new String(BaseValuesModelTest.shippedBytes(), StandardCharsets.UTF_8);
+        String shipped = new String(BaseValuesModelTest.sampleBytes(), StandardCharsets.UTF_8);
         JsonArray constants = evaluated(shipped);
         JsonObject block = JsonParser.parseString(shipped).getAsJsonObject().getAsJsonObject("_constants");
         assertEquals(List.copyOf(block.keySet()), constants.asList().stream()
