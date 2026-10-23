@@ -56,7 +56,7 @@ class ConventionTest {
             "com.mercuriusxeno.goo", "com.mercuriusxeno.goo.block..", "com.mercuriusxeno.goo.item..",
             "com.mercuriusxeno.goo.ability..", "com.mercuriusxeno.goo.data..", "com.mercuriusxeno.goo.network..",
             "com.mercuriusxeno.goo.registry..", "com.mercuriusxeno.goo.command..", "com.mercuriusxeno.goo.lab..",
-            "com.mercuriusxeno.goo.fluid.."
+            "com.mercuriusxeno.goo.fluid..", "com.mercuriusxeno.goo.workbench.."
     };
     private static final String[] CLIENT_PACKAGES = {
             "net.minecraft.client..", "com.mercuriusxeno.goo.client..", "com.mojang.blaze3d.."

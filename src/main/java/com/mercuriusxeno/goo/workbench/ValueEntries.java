@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.tools.workbench;
+package com.mercuriusxeno.goo.workbench;
 
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
@@ -17,6 +17,11 @@ final class ValueEntries {
     private static final String RESTRICTED = "_restricted";
     private static final String DENIED = "denied";
     private static final String TYPE_SEPARATOR = ".";
+    private static final String MEMBER_SEPARATOR = ", ";
+    private static final String OBJECT_OPEN = "{";
+    private static final String OBJECT_CLOSE = "}";
+    private static final String KEY_SEPARATOR = ": ";
+    private static final String TERM_SEPARATOR = " ";
     private static final Pattern WHOLE_NUMBER = Pattern.compile("-?\\d+");
 
     private ValueEntries() {
@@ -27,8 +32,8 @@ final class ValueEntries {
      * @return the value object, a whole amount written as a number
      */
     static String perType(Map<String, String> amounts) {
-        StringJoiner object = new StringJoiner(", ", "{", "}");
-        amounts.forEach((type, amount) -> object.add(quoted(type) + ": "
+        StringJoiner object = new StringJoiner(MEMBER_SEPARATOR, OBJECT_OPEN, OBJECT_CLOSE);
+        amounts.forEach((type, amount) -> object.add(quoted(type) + KEY_SEPARATOR
                 + (WHOLE_NUMBER.matcher(amount.trim()).matches() ? amount.trim() : quoted(amount.trim()))));
         return object.toString();
     }
@@ -47,7 +52,7 @@ final class ValueEntries {
      * @return the expression valuing the item at that many of the operand
      */
     static String ratio(String times, String operand) {
-        return expression(times.trim() + " " + operand.trim());
+        return expression(times.trim() + TERM_SEPARATOR + operand.trim());
     }
 
     /**
@@ -57,7 +62,7 @@ final class ValueEntries {
      * @return the value object holding that type as a share of the operand's
      */
     static String typeShare(String type, String times, String operand) {
-        return perType(Map.of(type, times.trim() + " " + operand.trim() + TYPE_SEPARATOR + type));
+        return perType(Map.of(type, times.trim() + TERM_SEPARATOR + operand.trim() + TYPE_SEPARATOR + type));
     }
 
     /**

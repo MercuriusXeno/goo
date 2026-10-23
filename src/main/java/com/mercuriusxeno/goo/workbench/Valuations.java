@@ -1,4 +1,4 @@
-package com.mercuriusxeno.goo.tools.workbench;
+package com.mercuriusxeno.goo.workbench;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -55,6 +55,10 @@ final class Valuations {
     private static final String EQUALS = " = ";
     private static final String ONE = "1 ";
     private static final int GRID_SIDE = 3;
+    // A narrow pattern is centred by splitting the grid's spare cells evenly to either side.
+    private static final int SIDES = 2;
+    private static final String BLANK = "";
+    private static final String SPACE = " ";
     private static final String ROWS = "rows";
     private static final String ROW_ID = "id";
     private static final String ROW_NAME = "name";
@@ -239,6 +243,10 @@ final class Valuations {
 
     /**
      * An entry reading {} values nothing, so it stands as no entry at all and hides no missing value.
+     *
+     * @param model the model
+     * @param id    the item's namespaced id
+     * @return the item's own entry, or null where none stands or it reads {}
      */
     private static BaseValuesModel.@Nullable Member ownEntry(BaseValuesModel model, String id) {
         BaseValuesModel.Member own = model.member(bare(id)) != null ? model.member(bare(id)) : model.member(id);
@@ -248,6 +256,13 @@ final class Valuations {
     /**
      * Where an item's value comes from, as the Values tab names it: denied, its entry, its group, a
      * derivation (blank, the row's from naming it) or none.
+     *
+     * @param model   the model
+     * @param derived the derivation over the inventory's recipes
+     * @param loaded  the loader's reading of the model
+     * @param member  the item
+     * @param group   the group valuing the item, or null where none does
+     * @return the source's name
      */
     private static String sourceOf(BaseValuesModel model, GooBaseValuesPreview.Derived derived,
                                    GooBaseValuesPreview.Loaded loaded, Identifier member, @Nullable String group) {
@@ -255,7 +270,7 @@ final class Valuations {
         return loaded.denied().contains(member) ? DENIED
                 : ownEntry(model, id) != null ? SOURCE_ENTRY
                 : group != null ? SOURCE_GROUP + group
-                : derived.derived().contains(member) ? "" : NONE;
+                : derived.derived().contains(member) ? BLANK : NONE;
     }
 
     /**
@@ -331,6 +346,10 @@ final class Valuations {
     /**
      * The root is the unit of the family: the selected item where _roots names it, else the first root that
      * solves it (decision workbench-shows-each-roots-remainders-and-items-solved).
+     *
+     * @param selected  the selected item
+     * @param solutions each root's solution
+     * @return the family's root solution, or null where no root solves the item
      */
     private static GooRootRemainders.@Nullable RootSolution rootOf(Identifier selected,
                                                                   List<GooRootRemainders.RootSolution> solutions) {
@@ -362,8 +381,8 @@ final class Valuations {
         row.addProperty(ROW_ID, id);
         row.addProperty(ROW_NAME, inventory.nameOf(id));
         row.addProperty(ROW_DEFINED_AS, own != null ? own.text()
-                : group != null ? TAG_PREFIX + group + CONTEXT_END + " " + model.member(TAG_PREFIX + group).text()
-                : "");
+                : group != null ? TAG_PREFIX + group + CONTEXT_END + SPACE + model.member(TAG_PREFIX + group).text()
+                : BLANK);
         row.add(ROW_AMOUNTS, amountsJson(value));
         row.addProperty(ROW_SOURCE, sourceOf(model, derived, loaded, member, group));
 
@@ -378,6 +397,12 @@ final class Valuations {
      * first item the file values rather than derives, though a recipe may make it too, as nine raw iron from a
      * block; or, where the item's own recipe mixes inputs, that recipe. A chain stopping at a mixed recipe, or
      * looping back on itself, ends at an ancestor that is not prime.
+     *
+     * @param item      the derived item
+     * @param inventory the inventory, whose recipe grid a mixed recipe draws
+     * @param derived   the derivation over the inventory's recipes
+     * @param handKeyed the items the file values directly
+     * @return the ancestor chain, or the item's recipe grid, as JSON
      */
     private static JsonObject from(Identifier item, InventoryView inventory, GooBaseValuesPreview.Derived derived,
                                    Set<Identifier> handKeyed) {
@@ -435,6 +460,10 @@ final class Valuations {
     /**
      * Derives once per model text and inventory: a hover and a family read derive over every recipe the
      * loadout holds, so the last derivation answers until the text changes.
+     *
+     * @param model     the model
+     * @param inventory the inventory, whose recipes derive
+     * @return the derivation for the model's text and the inventory
      */
     private static synchronized GooBaseValuesPreview.Derived derivedFor(BaseValuesModel model,
                                                                       InventoryView inventory) {
@@ -449,6 +478,11 @@ final class Valuations {
 
     /**
      * The inventory recipe the derivation chose for the item, else the first making it.
+     *
+     * @param id        the item's id
+     * @param inventory the inventory
+     * @param winning   the recipes the derivation chose
+     * @return the recipe, or null where none makes the item
      */
     private static InventoryView.@Nullable Recipe recipeFor(String id, InventoryView inventory,
                                                            List<RecipeInput> winning) {
@@ -465,6 +499,9 @@ final class Valuations {
     /**
      * A shaped recipe's pattern centred in the grid, as the mockup draws a narrow one; any other's slots in
      * reading order.
+     *
+     * @param recipe the recipe
+     * @return the grid's nine cells in reading order, null for an empty cell
      */
     private static List<String> grid(InventoryView.Recipe recipe) {
         String[] cells = new String[GRID_SIDE * GRID_SIDE];
@@ -476,8 +513,8 @@ final class Valuations {
         }
         int height = recipe.pattern().size();
         int width = recipe.pattern().stream().mapToInt(String::length).max().orElse(0);
-        int top = (GRID_SIDE - height) / 2;
-        int left = (GRID_SIDE - width) / 2;
+        int top = (GRID_SIDE - height) / SIDES;
+        int left = (GRID_SIDE - width) / SIDES;
         for (int row = 0; row < height; row++) {
             String line = recipe.pattern().get(row);
             for (int column = 0; column < line.length(); column++) {
@@ -493,6 +530,12 @@ final class Valuations {
     /**
      * For each distinct ingredient, how many of it one item is worth: the item's total goo over the
      * ingredient's.
+     *
+     * @param id     the item's id
+     * @param value  the item's value
+     * @param recipe the recipe making the item
+     * @param values every item's value
+     * @return each ingredient's ratio, as "1 item = k ingredient"
      */
     private static List<String> ratios(String id, GooValue value, InventoryView.Recipe recipe,
                                        Map<Identifier, GooValue> values) {
@@ -508,7 +551,7 @@ final class Valuations {
             GooFraction each = ingredientValue.totalExact();
             GooFraction times = GooFraction.of(Math.multiplyExact(item.numerator(), each.denominator()),
                     Math.multiplyExact(item.denominator(), each.numerator()));
-            ratios.add(ONE + bare(id) + EQUALS + times + " " + bare(ingredient));
+            ratios.add(ONE + bare(id) + EQUALS + times + SPACE + bare(ingredient));
         }
         return ratios;
     }
@@ -521,7 +564,7 @@ final class Valuations {
         for (ResourceKey<GooTypeDefinition> type : GooTypes.BUNDLED) {
             GooFraction amount = value.exact(type);
             if (!amount.isZero()) {
-                joined.add(GooTypes.id(type) + " " + shown.apply(amount));
+                joined.add(GooTypes.id(type) + SPACE + shown.apply(amount));
             }
         }
         return joined.toString();

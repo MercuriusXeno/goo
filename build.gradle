@@ -26,7 +26,8 @@ sourceSets {
         compileClasspath += sourceSets.main.output
         runtimeClasspath += sourceSets.main.output
     }
-    // Texture, lab-template and architecture generators run from Gradle, never from the jar.
+    // Texture, lab-template and architecture generators and the workbench's gradle launcher run from
+    // Gradle, never from the jar; the workbench itself ships in main (decision gradle-run-stays-on-the-gametest-dump).
     tools {
         compileClasspath += sourceSets.main.output
         runtimeClasspath += sourceSets.main.output
@@ -264,8 +265,8 @@ tasks.register('generateTextures', JavaExec) {
     workingDir = project.projectDir
 }
 
-// The values workbench: a loopback page that reads and writes base_values.json in place
-// (decision workbench-authors-base-values-whole). It serves until the task is stopped.
+// The values workbench's gradle run: the page main ships, fed by the gametest dumps
+// (decision gradle-run-stays-on-the-gametest-dump). It serves until the page's Stop ends it.
 tasks.register('valuesWorkbench', JavaExec) {
     description = 'Serves the values workbench page and opens it in the browser'
     group = 'goo'

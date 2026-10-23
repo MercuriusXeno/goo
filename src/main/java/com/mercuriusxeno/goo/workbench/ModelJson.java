@@ -1,10 +1,11 @@
-package com.mercuriusxeno.goo.tools.workbench;
+package com.mercuriusxeno.goo.workbench;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +26,8 @@ final class ModelJson {
     private static final String LEADING = "leading";
     private static final String TRAILING = "trailing";
     private static final String CLOSING_GAP = "closingGap";
+    private static final String NO_MEMBERS_ARRAY = "The saved model holds no members array";
+    private static final String NO_TEXT = "";
 
     private ModelJson() {
     }
@@ -49,7 +52,7 @@ final class ModelJson {
     static List<BaseValuesModel.Member> membersFrom(String json) {
         JsonElement members = JsonParser.parseString(json).getAsJsonObject().get(MEMBERS);
         if (members == null || !members.isJsonArray()) {
-            throw new IllegalArgumentException("The saved model holds no members array");
+            throw new IllegalArgumentException(NO_MEMBERS_ARRAY);
         }
         return membersFrom(members.getAsJsonArray());
     }
@@ -81,7 +84,7 @@ final class ModelJson {
                     string(json, KEY_SEPARATOR),
                     json.has(KIND) ? BaseValuesModel.Kind.valueOf(json.get(KIND).getAsString())
                             : BaseValuesModel.Kind.VALUE,
-                    json.has(TEXT) ? json.get(TEXT).getAsString() : "",
+                    json.has(TEXT) ? json.get(TEXT).getAsString() : NO_TEXT,
                     entries != null && entries.isJsonArray() ? membersFrom(entries.getAsJsonArray()) : List.of(),
                     string(json, LEADING),
                     string(json, TRAILING),
@@ -91,7 +94,7 @@ final class ModelJson {
     }
 
     private static JsonElement nullable(@Nullable String value) {
-        return value == null ? JsonNull.INSTANCE : new com.google.gson.JsonPrimitive(value);
+        return value == null ? JsonNull.INSTANCE : new JsonPrimitive(value);
     }
 
     private static @Nullable String string(JsonObject json, String field) {
