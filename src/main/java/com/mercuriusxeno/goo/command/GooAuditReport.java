@@ -335,10 +335,23 @@ public final class GooAuditReport {
      * @return the total number of issues found
      */
     public static int writeReport(GooValueRegistry values, List<GooReaction> reactions) {
+        return writeReport(values, reactions, FMLPaths.CONFIGDIR.get());
+    }
+
+    /**
+     * Builds the full audit report and writes goo_audit.txt and goo_audit.json into a folder, as the in-game
+     * workbench writes them under the world (decision goo-workbench-command-serves-the-page-from-the-game).
+     *
+     * @param values    the goo value registry audited
+     * @param reactions the reactions the server loaded from goo_reactions
+     * @param folder    the folder the report lands in
+     * @return the total number of issues found
+     */
+    public static int writeReport(GooValueRegistry values, List<GooReaction> reactions, Path folder) {
         Built report = build(new GooAuditInputs(values, reactions, BuiltInRegistries.ITEM.keySet()),
                 GooAuditRules.discovered());
-        writeDiagnosticFile(FILE_AUDIT, report.lines());
-        writeDiagnosticFile(FILE_AUDIT_JSON, List.of(report.json()));
+        writeFile(folder, FILE_AUDIT, report.lines());
+        writeFile(folder, FILE_AUDIT_JSON, List.of(report.json()));
         return report.issues();
     }
 
@@ -403,9 +416,20 @@ public final class GooAuditReport {
      * @param lines    the lines to write
      */
     static void writeDiagnosticFile(String filename, List<String> lines) {
+        writeFile(FMLPaths.CONFIGDIR.get(), filename, lines);
+    }
+
+    /**
+     * Writes lines to a file in a folder, creating the folder where none stands.
+     *
+     * @param folder   the folder
+     * @param filename the output filename
+     * @param lines    the lines to write
+     */
+    static void writeFile(Path folder, String filename, List<String> lines) {
         try {
-            Path path = FMLPaths.CONFIGDIR.get().resolve(filename);
-            Files.write(path, lines, StandardCharsets.UTF_8);
+            Files.createDirectories(folder);
+            Files.write(folder.resolve(filename), lines, StandardCharsets.UTF_8);
         } catch (IOException e) {
             Goo.LOGGER.error(LOG_WRITE_FAIL, filename, e);
         }

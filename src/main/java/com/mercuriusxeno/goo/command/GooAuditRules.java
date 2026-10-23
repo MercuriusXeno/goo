@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.command;
 
+import com.mercuriusxeno.goo.AnnotatedClasses;
 import java.util.List;
 
 /**
