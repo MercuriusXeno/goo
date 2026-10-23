@@ -206,17 +206,36 @@ final class GooValueDerivation {
     }
 
     /**
-     * Iterates derivation passes until no new values are found or the pass limit is hit.
+     * Derives outputs pass by pass until a pass changes nothing, then solves each recipe's one unknown
+     * input, and repeats while the solving finds anything. The pass limit bounds each forward run; the
+     * solving ends on its own, since it values only items that held no value.
+     * decision derivation-solves-whichever-side-of-a-recipe-is-unknown
      *
      * @param byOutput recipes grouped by output item ID
      */
     private void multiPassDerive(Map<Identifier, List<RecipeInput>> byOutput) {
-        boolean changed = true;
-        int passes = 0;
-        while (changed && passes < GooValueRegistry.MAX_DERIVATION_PASSES) {
-            changed = runSinglePass(byOutput);
-            passes++;
-        }
+        do {
+            boolean changed = true;
+            int passes = 0;
+            while (changed && passes < GooValueRegistry.MAX_DERIVATION_PASSES) {
+                changed = runSinglePass(byOutput);
+                passes++;
+            }
+        } while (solveUnknownInputs(byOutput));
+    }
+
+    /**
+     * @param byOutput recipes grouped by output item ID
+     * @return true if any input was solved
+     */
+    private boolean solveUnknownInputs(Map<Identifier, List<RecipeInput>> byOutput) {
+        List<RecipeInput> recipes = byOutput.values().stream().flatMap(List::stream).toList();
+        var solved = GooInputSolver.solveUnknownInputs(recipes, baseValues, derivedValues, deniedItems);
+        solved.forEach((item, result) -> {
+            derivedValues.put(item, result.value());
+            derivationSources.put(item, result.source());
+        });
+        return !solved.isEmpty();
     }
 
     /**
@@ -249,7 +268,8 @@ final class GooValueDerivation {
             return false;
         }
         GooValue existing = derivedValues.get(itemId);
-        if (existing != null && !GooRecipeEvaluator.isCheaperOrSimpler(best.value(), existing)) {
+        if (existing != null && !GooRecipeEvaluator.isBetter(best,
+                new GooRecipeEvaluator.RecipeResult(existing, derivationSources.get(itemId)))) {
             return false;
         }
         derivedValues.put(itemId, best.value());

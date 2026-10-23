@@ -1,12 +1,16 @@
 package com.mercuriusxeno.goo.tools.workbench;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.data.GooBaseValuesPreview;
 import com.mercuriusxeno.goo.data.GooFraction;
+import com.mercuriusxeno.goo.data.GooRootRemainders;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.RecipeInput;
+import com.mercuriusxeno.goo.item.GooFormat;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.resources.Identifier;
@@ -15,6 +19,7 @@ import org.jspecify.annotations.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -71,6 +76,16 @@ final class Valuations {
     private static final String FROM_PRIME = "prime";
     private static final String FROM_GRID = "grid";
     private static final String FROM_COUNT = "count";
+    private static final String FAMILY_ROOT = "root";
+    private static final String ROOT_SOLVED = "solved";
+    private static final String ROOT_SMALLEST_REMAINDER = "smallestRemainder";
+    private static final String ROW_REMAINDER = "remainder";
+    private static final String ROW_REMAINDER_EXACT = "remainderExact";
+    // Rows whose recipe leaves a remainder at the root lead, the smallest first, then the recipes dividing whole;
+    // a row with no recipe among the root's trails them all.
+    private static final Comparator<GooRootRemainders.Row> REMAINDER_ORDER = Comparator
+            .comparing((GooRootRemainders.Row row) -> row.remainder().isZero())
+            .thenComparing(GooRootRemainders.Row::remainder);
     // A #name the file reads anywhere, whose group's members it then covers.
     private static final Pattern GROUP_REFERENCE = Pattern.compile("#([A-Za-z0-9_:./-]+)");
 
@@ -288,13 +303,53 @@ final class Valuations {
                 members.add(recipe.output());
             }
         }
+        GooRootRemainders.RootSolution rootSolution = rootOf(selected,
+                GooRootRemainders.solveEachRoot(derived.registry()));
+        Map<RecipeInput, GooRootRemainders.Row> atRoot = new HashMap<>();
+        if (rootSolution != null) {
+            rootSolution.rows().forEach(row -> atRoot.put(row.recipe(), row));
+        }
+        Map<Identifier, RecipeInput> setting = derived.registry().valueSettingRecipeByItem();
+        List<Identifier> ordered = new ArrayList<>(members);
+        ordered.sort(Comparator.comparing(member -> atRoot.get(setting.get(member)),
+                Comparator.nullsLast(REMAINDER_ORDER)));
         JsonArray rows = new JsonArray();
-        for (Identifier member : members) {
-            rows.add(familyRow(model, inventory, derived, loaded, member));
+        for (Identifier member : ordered) {
+            JsonObject row = familyRow(model, inventory, derived, loaded, member);
+            GooRootRemainders.Row remainder = atRoot.get(setting.get(member));
+            if (remainder != null) {
+                row.addProperty(ROW_REMAINDER, GooFormat.formatMixed(remainder.remainder()));
+                row.addProperty(ROW_REMAINDER_EXACT, remainder.remainder().toString());
+            }
+            rows.add(row);
         }
         JsonObject root = new JsonObject();
+        root.add(FAMILY_ROOT, rootJson(rootSolution, inventory));
         root.add(ROWS, rows);
         return root.toString();
+    }
+
+    /**
+     * The root is the unit of the family: the selected item where _roots names it, else the first root that
+     * solves it (decision workbench-shows-each-roots-remainders-and-items-solved).
+     */
+    private static GooRootRemainders.@Nullable RootSolution rootOf(Identifier selected,
+                                                                  List<GooRootRemainders.RootSolution> solutions) {
+        return solutions.stream().filter(solution -> solution.root().equals(selected)).findFirst()
+                .or(() -> solutions.stream().filter(solution -> solution.solved().contains(selected)).findFirst())
+                .orElse(null);
+    }
+
+    private static JsonElement rootJson(GooRootRemainders.@Nullable RootSolution solution, InventoryView inventory) {
+        if (solution == null) {
+            return JsonNull.INSTANCE;
+        }
+        JsonObject root = new JsonObject();
+        root.addProperty(ROW_ID, solution.root().toString());
+        root.addProperty(ROW_NAME, inventory.nameOf(solution.root().toString()));
+        root.addProperty(ROOT_SOLVED, solution.solved().size());
+        root.addProperty(ROOT_SMALLEST_REMAINDER, GooFormat.formatMixed(solution.smallestRemainder()));
+        return root;
     }
 
     private static JsonObject familyRow(BaseValuesModel model, InventoryView inventory,
