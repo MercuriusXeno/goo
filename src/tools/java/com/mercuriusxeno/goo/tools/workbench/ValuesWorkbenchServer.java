@@ -81,7 +81,6 @@ public final class ValuesWorkbenchServer {
         http.createContext("/api/constants/delete", exchange -> server.answer(exchange, server::deleteConstant));
         http.createContext("/api/groups/describe", exchange -> server.answer(exchange, server::describeGroups));
         http.createContext("/api/groups/apply", exchange -> server.answer(exchange, server::applyToGroup));
-        http.createContext("/api/template", exchange -> server.answer(exchange, server::template));
         http.createContext("/api/dumps", exchange -> server.answer(exchange, server::standingDumps));
         http.createContext("/api/dumps/run", server::runDumps);
         http.createContext("/api/audit", exchange -> server.answer(exchange, server::auditSections));
@@ -240,23 +239,6 @@ public final class ValuesWorkbenchServer {
         String sent = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
         return Reply.of(OK, JSON, GroupsJson.applied(sent, fileLayout(), GroupsJson.Inventory.read(
                 dumpedInventory())));
-    }
-
-    /**
-     * Answers the template the inventory builds and what the posted model leaves out of it
-     * (decision template-first-then-defaults-by-convention).
-     */
-    private Reply template(HttpExchange exchange) throws IOException, InterruptedException {
-        if (!POST.equals(exchange.getRequestMethod())) {
-            return Reply.of(NOT_ALLOWED, TEXT, exchange.getRequestMethod() + " is not served here");
-        }
-        GroupsJson.Inventory inventory = GroupsJson.Inventory.read(dumpedInventory());
-        if (inventory.items().isEmpty()) {
-            return Reply.of(SERVER_ERROR, TEXT, "The inventory dump wrote no items to " + paths.inventoryFile());
-        }
-        JsonObject answer = ValuesTemplate.answer(postedModel(exchange), inventory.loadout(),
-                paths.baseValues().toString());
-        return Reply.of(OK, JSON, answer.toString());
     }
 
     /**
