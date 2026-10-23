@@ -81,4 +81,80 @@ class BaseValuesModelTest {
         assertEquals(List.of("iron_ingot", "gold_nugget", "chainmail_boots", "chainmail_helmet",
                 "chainmail_chestplate", "chainmail_leggings"), renamed.usagesOf("iron_bit"));
     }
+
+    /**
+     * Deleting a read constant removes it and every reader whole, cascading through each removed constant's
+     * readers, and leaves no reference to anything removed (decision
+     * deleting-a-variable-inlines-its-expression-into-each-reader).
+     */
+    @Test
+    void deleteRemovesTheConstantAndItsReaderCascade() throws IOException {
+        BaseValuesModel model = BaseValuesModel.parse(new String(shippedBytes(), StandardCharsets.UTF_8));
+        List<String> removed = model.deletionCascade("iron_nugget").stream().map(BaseValuesModel.Reader::id)
+                .toList();
+        BaseValuesModel deleted = model.deleteConstant("iron_nugget");
+        BaseValuesModel.Member constants = deleted.member("_constants");
+        for (String key : List.of("iron_nugget", "iron_ingot", "gold_nugget", "gold_ingot")) {
+            assertTrue(constants.entries().stream().noneMatch(entry -> key.equals(entry.key())), key);
+            assertTrue(removed.contains(key) || "iron_nugget".equals(key), key);
+        }
+        for (String key : List.of("chainmail_boots", "chainmail_helmet", "chainmail_chestplate",
+                "chainmail_leggings")) {
+            assertEquals(null, deleted.member(key), key);
+        }
+        String text = deleted.serialize();
+        for (String key : removed) {
+            assertFalse(java.util.regex.Pattern.compile("\\$" + key + "(?![A-Za-z0-9_])").matcher(text).find(),
+                    key);
+        }
+        assertTrue(text.contains("\"copper_nugget\""), "an unread constant stays");
+    }
+
+    /**
+     * A reader reaching the deleted constant through two paths is removed once, and readers referencing each
+     * other in a cycle end the cascade.
+     */
+    @Test
+    void deleteVisitsEachReaderOnce() {
+        BaseValuesModel twoPaths = BaseValuesModel.parse("""
+                {
+                    "_constants": {
+                        "base": 1,
+                        "x": "$base",
+                        "y": "$base + $x"
+                    },
+                    "stick": "$y"
+                }
+                """);
+        assertEquals(List.of("x", "y", "stick"), twoPaths.deletionCascade("base").stream()
+                .map(BaseValuesModel.Reader::id).toList());
+        BaseValuesModel cycle = BaseValuesModel.parse("""
+                {
+                    "_constants": {
+                        "a": "$b",
+                        "b": "$a"
+                    }
+                }
+                """);
+        assertTrue(cycle.deleteConstant("a").member("_constants").entries().isEmpty());
+    }
+
+    /**
+     * Each reader carries its kind: a constant where it stands in _constants, a group where its key is a #group
+     * or tag, an item otherwise (decision used-by-draws-item-images-and-name-chips).
+     */
+    @Test
+    void readersCarryTheirKind() throws IOException {
+        BaseValuesModel model = BaseValuesModel.parse(new String(shippedBytes(), StandardCharsets.UTF_8));
+        assertEquals(List.of(
+                new BaseValuesModel.Reader("iron_ingot", BaseValuesModel.ReaderKind.CONSTANT),
+                new BaseValuesModel.Reader("gold_nugget", BaseValuesModel.ReaderKind.CONSTANT),
+                new BaseValuesModel.Reader("chainmail_boots", BaseValuesModel.ReaderKind.ITEM),
+                new BaseValuesModel.Reader("chainmail_helmet", BaseValuesModel.ReaderKind.ITEM),
+                new BaseValuesModel.Reader("chainmail_chestplate", BaseValuesModel.ReaderKind.ITEM),
+                new BaseValuesModel.Reader("chainmail_leggings", BaseValuesModel.ReaderKind.ITEM)),
+                model.readersOf("iron_nugget"));
+        assertTrue(model.readersOf("mundane_block").contains(
+                new BaseValuesModel.Reader("#mundane_blocks", BaseValuesModel.ReaderKind.GROUP)));
+    }
 }

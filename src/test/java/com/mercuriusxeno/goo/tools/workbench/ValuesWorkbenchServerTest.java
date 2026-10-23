@@ -24,6 +24,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -237,6 +238,20 @@ class ValuesWorkbenchServerTest {
     }
 
     /**
+     * The template check on a fresh tree waits on the same one-time dump the inventory runs, rather than
+     * refusing while the dump is still writing.
+     */
+    @Test
+    void templateOnAbsentInventoryWaitsForTheDump() throws IOException, InterruptedException {
+        String model = text(get("/api/model"));
+        HttpResponse<byte[]> response = client.send(HttpRequest.newBuilder(URI.create(server.url()
+                        + "/api/template")).POST(HttpRequest.BodyPublishers.ofString(model)).build(),
+                HttpResponse.BodyHandlers.ofByteArray());
+        assertEquals(200, response.statusCode(), text(response));
+        assertEquals(1, dumpsRun.get());
+    }
+
+    /**
      * An item's image is served as PNG bytes from the inventory folder.
      */
     @Test
@@ -287,6 +302,65 @@ class ValuesWorkbenchServerTest {
                 """), "doubled");
         assertEquals("384", doubled.get("value").getAsString());
         assertTrue(doubled.get("error").isJsonNull());
+    }
+
+    private HttpResponse<byte[]> deleted(String name, String fileText) throws IOException, InterruptedException {
+        JsonObject body = JsonParser.parseString(ModelJson.toJson(BaseValuesModel.parse(fileText), "posted"))
+                .getAsJsonObject();
+        body.addProperty("name", name);
+        return client.send(HttpRequest.newBuilder(URI.create(server.url() + "/api/constants/delete"))
+                .POST(HttpRequest.BodyPublishers.ofString(body.toString())).build(),
+                HttpResponse.BodyHandlers.ofByteArray());
+    }
+
+    /**
+     * A delete answers the model with the constant and its reader cascade gone, and refuses a name no
+     * constant holds (decision deleting-a-variable-inlines-its-expression-into-each-reader).
+     */
+    @Test
+    void deleteAnswersTheModelWithoutTheCascade() throws IOException, InterruptedException {
+        String file = """
+                {
+                    "_constants": {
+                        "base": 192,
+                        "doubled": "2 $base",
+                        "kept": 4
+                    },
+                    "stick": "$doubled / 4",
+                    "torch": "$kept"
+                }
+                """;
+        HttpResponse<byte[]> response = deleted("base", file);
+        assertEquals(200, response.statusCode());
+        JsonArray members = JsonParser.parseString(text(response)).getAsJsonObject().getAsJsonArray("members");
+        List<String> keys = members.asList().stream().map(member -> member.getAsJsonObject().get("key"))
+                .map(JsonElement::getAsString).toList();
+        assertEquals(List.of("_constants", "torch"), keys);
+        List<String> constants = members.get(0).getAsJsonObject().getAsJsonArray("entries").asList().stream()
+                .map(entry -> entry.getAsJsonObject().get("key").getAsString()).toList();
+        assertEquals(List.of("kept"), constants);
+        assertNotEquals(200, deleted("nope", file).statusCode());
+    }
+
+    /**
+     * Each reader in usedBy answers its id and its kind (decision used-by-draws-item-images-and-name-chips).
+     */
+    @Test
+    void usedByAnswersEachReadersIdAndKind() throws IOException, InterruptedException {
+        JsonObject base = constantNamed(evaluated("""
+                {
+                    "_constants": {
+                        "base": 192,
+                        "doubled": "2 $base"
+                    },
+                    "#logs": "$base",
+                    "stick": "$base / 4"
+                }
+                """), "base");
+        JsonArray usedBy = base.getAsJsonArray("usedBy");
+        assertEquals(List.of("doubled constant", "#logs group", "stick item"), usedBy.asList().stream()
+                .map(reader -> reader.getAsJsonObject().get("id").getAsString() + " "
+                        + reader.getAsJsonObject().get("kind").getAsString()).toList());
     }
 
     /**
@@ -365,5 +439,37 @@ class ValuesWorkbenchServerTest {
             assertTrue(page.contains(">" + tab + "<"), tab);
         }
         assertTrue(page.contains("id=\"inventory-sidebar\""));
+    }
+
+    /**
+     * The Values table heads read the item, its definition, amounts, remainder and source, and the hover line
+     * reads the value with no melts or costs (decision values-tab-drops-melts-and-costs).
+     */
+    @Test
+    void valuesTableHeadsReadNoMeltsOrCosts() throws IOException, InterruptedException {
+        String page = text(get("/"));
+        int body = page.indexOf("id=\"family-rows\"");
+        String head = page.substring(page.lastIndexOf("<thead>", body), body);
+        List<String> heads = java.util.regex.Pattern.compile("<th>([^<]+)</th>").matcher(head).results()
+                .map(match -> match.group(1)).toList();
+        assertEquals(List.of("Item", "Defined as", "Amounts", "Remainder", "Source"), heads);
+        assertFalse(page.contains("' · melts '"), "hover text still reads melts");
+        assertFalse(page.contains("hover.costs"), "hover text still reads costs");
+    }
+
+    /**
+     * The Variables pane stacks each constant over its expression field rather than tabling them, and the
+     * constants script builds that field as a textarea (decision constants-stack-with-a-growing-expression-field).
+     */
+    @Test
+    void variablesPaneStacksConstantsOverATextarea() throws IOException, InterruptedException {
+        String page = text(get("/"));
+        int start = page.indexOf("id=\"pane-variables\"");
+        String pane = page.substring(start, page.indexOf("</section>", start));
+        assertFalse(pane.contains("<table"), pane);
+        int row = page.indexOf("function constantRow(");
+        String script = page.substring(row, page.indexOf("\nfunction ", row + 1));
+        assertTrue(script.contains("document.createElement('textarea')"), script);
+        assertTrue(script.contains("'Expression for $' + entry.key"), script);
     }
 }

@@ -78,6 +78,7 @@ public final class ValuesWorkbenchServer {
         http.createContext("/api/image", exchange -> server.answer(exchange, server::image));
         http.createContext("/api/constants/evaluate", exchange -> server.answer(exchange, server::evaluateConstants));
         http.createContext("/api/constants/rename", exchange -> server.answer(exchange, server::renameConstant));
+        http.createContext("/api/constants/delete", exchange -> server.answer(exchange, server::deleteConstant));
         http.createContext("/api/groups/describe", exchange -> server.answer(exchange, server::describeGroups));
         http.createContext("/api/groups/apply", exchange -> server.answer(exchange, server::applyToGroup));
         http.createContext("/api/template", exchange -> server.answer(exchange, server::template));
@@ -90,7 +91,7 @@ public final class ValuesWorkbenchServer {
                         : Valuations.resolved(server.postedModel(posted)))));
         http.createContext("/api/values/uncovered", exchange -> server.answer(exchange,
                 posted -> Reply.of(OK, JSON, ValuesJson.uncovered(server.postedModel(posted),
-                        ValuesJson.inventory(paths.inventoryFile())))));
+                        ValuesJson.inventory(server.dumpedInventory())))));
         http.createContext("/api/values/family", exchange -> server.answer(exchange, server::family));
         http.createContext("/api/hover", exchange -> server.answer(exchange, server::hover));
         http.createContext("/api/processes", exchange -> server.answer(exchange,
@@ -202,41 +203,56 @@ public final class ValuesWorkbenchServer {
     }
 
     /**
+     * Deletes a constant from the posted model with its cascade of readers and answers the model left
+     * (decision deleting-a-variable-inlines-its-expression-into-each-reader).
+     */
+    private Reply deleteConstant(HttpExchange exchange) throws IOException {
+        if (!POST.equals(exchange.getRequestMethod())) {
+            return Reply.of(NOT_ALLOWED, TEXT, exchange.getRequestMethod() + " is not served here");
+        }
+        String sent = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        BaseValuesModel current = BaseValuesModel.parse(Files.readString(paths.baseValues()));
+        BaseValuesModel deleted = current.withMembers(ModelJson.membersFrom(sent))
+                .deleteConstant(ConstantsJson.deleteFrom(sent));
+        return Reply.of(OK, JSON, ModelJson.toJson(deleted, paths.baseValues().toString()));
+    }
+
+    /**
      * Describes every group of the posted model against the inventory.
      */
-    private Reply describeGroups(HttpExchange exchange) throws IOException {
+    private Reply describeGroups(HttpExchange exchange) throws IOException, InterruptedException {
         if (!POST.equals(exchange.getRequestMethod())) {
             return Reply.of(NOT_ALLOWED, TEXT, exchange.getRequestMethod() + " is not served here");
         }
         JsonObject answer = new JsonObject();
         answer.add("groups", GroupsJson.described(postedModel(exchange), GroupsJson.Inventory.read(
-                paths.inventoryFile())));
+                dumpedInventory())));
         return Reply.of(OK, JSON, answer.toString());
     }
 
     /**
      * Applies one change to a group of the posted model and answers the model with every group described.
      */
-    private Reply applyToGroup(HttpExchange exchange) throws IOException {
+    private Reply applyToGroup(HttpExchange exchange) throws IOException, InterruptedException {
         if (!POST.equals(exchange.getRequestMethod())) {
             return Reply.of(NOT_ALLOWED, TEXT, exchange.getRequestMethod() + " is not served here");
         }
         String sent = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
         return Reply.of(OK, JSON, GroupsJson.applied(sent, fileLayout(), GroupsJson.Inventory.read(
-                paths.inventoryFile())));
+                dumpedInventory())));
     }
 
     /**
      * Answers the template the inventory builds and what the posted model leaves out of it
      * (decision template-first-then-defaults-by-convention).
      */
-    private Reply template(HttpExchange exchange) throws IOException {
+    private Reply template(HttpExchange exchange) throws IOException, InterruptedException {
         if (!POST.equals(exchange.getRequestMethod())) {
             return Reply.of(NOT_ALLOWED, TEXT, exchange.getRequestMethod() + " is not served here");
         }
-        GroupsJson.Inventory inventory = GroupsJson.Inventory.read(paths.inventoryFile());
+        GroupsJson.Inventory inventory = GroupsJson.Inventory.read(dumpedInventory());
         if (inventory.items().isEmpty()) {
-            return Reply.of(SERVER_ERROR, TEXT, "No inventory stands at " + paths.inventoryFile());
+            return Reply.of(SERVER_ERROR, TEXT, "The inventory dump wrote no items to " + paths.inventoryFile());
         }
         JsonObject answer = ValuesTemplate.answer(postedModel(exchange), inventory.loadout(),
                 paths.baseValues().toString());
@@ -315,20 +331,20 @@ public final class ValuesWorkbenchServer {
     /**
      * Answers the Values table for the posted item's family, valued from the posted model.
      */
-    private Reply family(HttpExchange exchange) throws IOException {
+    private Reply family(HttpExchange exchange) throws IOException, InterruptedException {
         String sent = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
         BaseValuesModel model = fileLayout().withMembers(ModelJson.membersFrom(sent));
-        return Reply.of(OK, JSON, Valuations.family(model, ValuesJson.inventory(paths.inventoryFile()),
+        return Reply.of(OK, JSON, Valuations.family(model, ValuesJson.inventory(dumpedInventory()),
                 ValuesJson.idFrom(sent)));
     }
 
     /**
      * Answers the posted item's hover card, valued from the posted model.
      */
-    private Reply hover(HttpExchange exchange) throws IOException {
+    private Reply hover(HttpExchange exchange) throws IOException, InterruptedException {
         String sent = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
         BaseValuesModel model = fileLayout().withMembers(ModelJson.membersFrom(sent));
-        return Reply.of(OK, JSON, ValuesJson.hover(model, ValuesJson.inventory(paths.inventoryFile()),
+        return Reply.of(OK, JSON, ValuesJson.hover(model, ValuesJson.inventory(dumpedInventory()),
                 ValuesJson.idFrom(sent)));
     }
 
@@ -358,6 +374,15 @@ public final class ValuesWorkbenchServer {
         if (!Files.isRegularFile(paths.inventoryFile())) {
             dump.run();
         }
+    }
+
+    /**
+     * A fresh tree holds no inventory, so every reader of it waits on the one dump rather than refusing while
+     * the dump still writes.
+     */
+    private Path dumpedInventory() throws IOException, InterruptedException {
+        dumpInventoryIfAbsent();
+        return paths.inventoryFile();
     }
 
     private Reply image(HttpExchange exchange) throws IOException {
