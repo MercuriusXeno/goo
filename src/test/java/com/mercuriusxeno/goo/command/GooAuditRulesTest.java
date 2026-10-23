@@ -24,7 +24,8 @@ class GooAuditRulesTest {
 
     private static final List<String> SECTIONS_IN_ORDER = List.of(
             "EXPRESSION WARNINGS", "PHANTOM IDS", "CYCLES", "CONFLICTS",
-            "LEAST VALUE PER TYPE", "NO VALUE", "FORMULAS", "REACTIONS", "ALL VALUES");
+            "LEAST VALUE PER TYPE", "NO VALUE", "FORMULAS", "REACTIONS", "ALL VALUES", "TYPE PROVENANCE",
+            "ROOT REMAINDERS", "CONVERSION FLOWS");
     private static final String SMALL_VALUES = """
             {
                 "_constants": {"base": 4},
