@@ -75,6 +75,18 @@ class GooAuditRulesTest {
     }
 
     /**
+     * The root remainders rule is discovered with no change to discovery and writes its section after TYPE
+     * PROVENANCE (decision workbench-shows-each-roots-remainders-and-items-solved).
+     */
+    @Test
+    void rootRemaindersSectionFollowsTypeProvenance() throws IOException {
+        GooAuditReport.Built report = GooAuditReport.build(smallInputs(), GooAuditRules.discovered());
+        int provenance = headerIndex(report.lines(), "TYPE PROVENANCE", 0);
+        assertTrue(provenance >= 0);
+        assertTrue(headerIndex(report.lines(), "ROOT REMAINDERS", provenance + 1) > provenance);
+    }
+
+    /**
      * A rule registered beside the discovered ones adds its header and lines after the standing sections,
      * and its section, lines and flag to the JSON.
      */
