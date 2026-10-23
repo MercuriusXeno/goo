@@ -28,6 +28,7 @@ final class ConstantsJson {
     private static final String VALUE = "value";
     private static final String ERROR = "error";
     private static final String USED_BY = "usedBy";
+    private static final String READERS = "readers";
     private static final String ID = "id";
     private static final String FROM = "from";
     private static final String TO = "to";
@@ -72,10 +73,13 @@ final class ConstantsJson {
     }
 
     /**
-     * @param model the model whose constants to resolve
-     * @return each constant in file order: its kind, its value or per-type tree, its error and its readers
+     * @param model      the model whose constants to resolve
+     * @param tagMembers each item tag's member ids, keyed by the tag's namespaced id
+     * @return each constant in file order: its kind, its value or per-type tree, its error, the terminus items
+     *         it cascades into as usedBy (decision used-by-draws-the-terminus-items-alone) and its direct
+     *         readers, which the delete modal's cascade walks
      */
-    static String evaluated(BaseValuesModel model) {
+    static String evaluated(BaseValuesModel model, Map<String, List<String>> tagMembers) {
         Map<String, String> unparsed = new LinkedHashMap<>();
         JsonObject block = new JsonObject();
         List<String> order = new ArrayList<>();
@@ -106,12 +110,20 @@ final class ConstantsJson {
             } else {
                 describe(constant, json);
             }
-            json.add(USED_BY, readersJson(model.readersOf(name)));
+            addUsage(json, model, name, tagMembers);
             constants.add(json);
         }
         JsonObject root = new JsonObject();
         root.add(CONSTANTS, constants);
         return root.toString();
+    }
+
+    private static void addUsage(JsonObject json, BaseValuesModel model, String name,
+                                 Map<String, List<String>> tagMembers) {
+        JsonArray terminus = new JsonArray();
+        model.terminusOf(name, tagMembers).forEach(terminus::add);
+        json.add(USED_BY, terminus);
+        json.add(READERS, readersJson(model.readersOf(name)));
     }
 
     /**
