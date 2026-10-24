@@ -130,9 +130,7 @@ class ValuationsTest {
             items.add(item);
         }
         root.add("items", items);
-        root.add("blocks", new JsonArray());
         root.add("item_tags", new JsonArray());
-        root.add("block_tags", new JsonArray());
         root.add("goo_types", new JsonArray());
         JsonArray recipes = new JsonArray();
         recipes.add(shapedRecipe("minecraft:stick", "minecraft:stick", 4, List.of("P", "P"),
@@ -235,7 +233,6 @@ class ValuationsTest {
             items.add(item);
         }
         root.add("items", items);
-        root.add("blocks", new JsonArray());
         JsonArray tags = new JsonArray();
         JsonObject chains = new JsonObject();
         chains.addProperty("id", "minecraft:chains");
@@ -244,7 +241,6 @@ class ValuationsTest {
         chains.add("members", members);
         tags.add(chains);
         root.add("item_tags", tags);
-        root.add("block_tags", new JsonArray());
         root.add("goo_types", new JsonArray());
         JsonArray recipes = new JsonArray();
         recipes.add(shapedRecipe("minecraft:iron_chain", "minecraft:iron_chain", 1, List.of("N", "I", "N"),
@@ -369,9 +365,7 @@ class ValuationsTest {
             items.add(item);
         }
         root.add("items", items);
-        root.add("blocks", new JsonArray());
         root.add("item_tags", new JsonArray());
-        root.add("block_tags", new JsonArray());
         root.add("goo_types", new JsonArray());
         JsonArray recipes = new JsonArray();
         recipes.add(plainRecipe("minecraft:glass_pane", "minecraft:crafting", "minecraft:glass_pane", 16,

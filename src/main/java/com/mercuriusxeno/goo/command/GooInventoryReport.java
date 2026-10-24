@@ -21,7 +21,6 @@ import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.item.crafting.ShapedRecipePattern;
-import net.minecraft.world.level.block.Block;
 import net.neoforged.fml.loading.FMLPaths;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -35,8 +34,8 @@ import java.util.Set;
 import java.util.TreeMap;
 
 /**
- * Writes config/goo_inventory.json, every item, block, item tag, block tag, goo type and recipe the
- * loadout registers. The /goo inventory command and the inventory-dump gametest both call it, so a headless run and
+ * Writes config/goo_inventory.json, every item, item tag, goo type and recipe the loadout registers; no block,
+ * since the mod values a block only through its item (decision workbench-drops-the-blocks-list). The /goo inventory command and the inventory-dump gametest both call it, so a headless run and
  * a modded server each write the inventory the values workbench data-drives from
  * (decision inventory-dump-from-a-gametest-and-a-command). Each item names the image a slot capture draws at
  * goo_inventory/namespace/path.png; the report writes no image, since only a client's renderer draws an item as
@@ -101,9 +100,7 @@ public final class GooInventoryReport {
         RegistryAccess registries = server.registryAccess();
         GooInventory inventory = new GooInventory(
                 items(),
-                blocks(),
                 tags(registries.lookupOrThrow(Registries.ITEM), BuiltInRegistries.ITEM),
-                tags(registries.lookupOrThrow(Registries.BLOCK), BuiltInRegistries.BLOCK),
                 GooTypes.all(registries).stream().map(GooTypes::id).toList(),
                 recipes(server.getRecipeManager().getRecipes(), registries));
         GooAuditReport.writeFile(target, FILE_INVENTORY, List.of(GooInventoryJson.toJson(inventory)));
@@ -126,15 +123,6 @@ public final class GooInventoryReport {
      */
     private static String imagePath(Identifier item) {
         return item.getNamespace() + PATH_SEPARATOR + item.getPath() + IMAGE_SUFFIX;
-    }
-
-    private static List<GooInventory.NamedEntry> blocks() {
-        List<GooInventory.NamedEntry> blocks = new ArrayList<>();
-        for (Identifier id : sortedKeys(BuiltInRegistries.BLOCK)) {
-            Block block = BuiltInRegistries.BLOCK.getValue(id);
-            blocks.add(new GooInventory.NamedEntry(id.toString(), block.getName().getString(), null));
-        }
-        return blocks;
     }
 
     private static List<Identifier> sortedKeys(Registry<?> registry) {
