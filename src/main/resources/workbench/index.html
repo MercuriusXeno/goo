@@ -89,6 +89,8 @@ tr:hover td { background: var(--hover); }
 .reader-chip { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--control); background: var(--panel); }
 .delete-dialog { border: 1px solid var(--control); border-radius: 8px; background: var(--panel); padding: 16px; max-width: min(560px, calc(100vw - 32px)); }
 .expression-field { resize: vertical; field-sizing: content; min-height: 2.2em; line-height: 1.4; }
+.expression-view { white-space: pre-wrap; cursor: text; resize: none; }
+.var-link { color: var(--accent); text-decoration: underline dotted; }
 .split { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
 .group-list { flex: 0 1 280px; min-width: 240px; }
 .group-detail { flex: 999 1 520px; min-width: 0; }
@@ -542,7 +544,92 @@ async function save() {
 
 // --- Variables: the _constants section, each constant resolved by the game's parser on the server ---
 
-const constantsView = { results: new Map(), renaming: null, timer: null, deleting: null };
+const constantsView = { results: new Map(), renaming: null, timer: null, deleting: null, editing: null };
+
+// Every expression the page draws passes through referenceNodes: each $name or $name.type becomes a link
+// that opens the variable's field and hovers its card, and the rest stays text
+// (decision references-link-to-their-variable-and-hover-a-card).
+const REFERENCE = /\$([A-Za-z0-9_]+)(\.[A-Za-z0-9_]+)?/g;
+
+function referenceNodes(text) {
+  const nodes = [];
+  let last = 0;
+  for (const match of String(text).matchAll(REFERENCE)) {
+    if (match.index > last) {
+      nodes.push(document.createTextNode(text.slice(last, match.index)));
+    }
+    nodes.push(referenceLink(match[1], match[0]));
+    last = match.index + match[0].length;
+  }
+  if (last < String(text).length) {
+    nodes.push(document.createTextNode(String(text).slice(last)));
+  }
+  return nodes;
+}
+
+function referenceLink(name, label) {
+  const link = document.createElement('a');
+  link.href = '#';
+  link.className = 'mono var-link';
+  link.textContent = label;
+  link.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    jumpToConstant(name);
+  });
+  attachCard(link, (x, y) => showConstantHover(name, x, y));
+  return link;
+}
+
+function jumpToConstant(name) {
+  $('hover-card').hidden = true;
+  if ($('delete-dialog').open) {
+    $('delete-dialog').close();
+  }
+  selectTab('variables');
+  constantsView.editing = name;
+  renderConstants();
+  const field = [...$('constants-rows').querySelectorAll('textarea')]
+    .find((candidate) => candidate.getAttribute('aria-label') === 'Expression for $' + name);
+  if (field) {
+    field.scrollIntoView({ block: 'center' });
+    field.focus();
+  }
+}
+
+// The constant's card in the recipe hover's shape: its name, its expression, one line per type it resolves
+// to and the items it cascades into.
+async function showConstantHover(name, x, y) {
+  let hover;
+  try {
+    hover = await fetchJson('/api/constants/hover', {
+      method: 'POST', body: JSON.stringify({ members: state.model.members, name })
+    });
+  } catch (error) {
+    return;
+  }
+  const head = document.createElement('div');
+  head.className = 'card-title mono';
+  head.textContent = '$' + hover.name;
+  const expression = document.createElement('div');
+  expression.className = 'mono hint';
+  expression.style.whiteSpace = 'pre-wrap';
+  expression.append(...referenceNodes(shownText(hover.expression)));
+  const value = document.createElement('div');
+  value.className = 'mono hover-value';
+  value.style.whiteSpace = 'pre-line';
+  value.textContent = hover.error ? hover.error
+    : hover.kind === 'tree' ? Object.entries(hover.tree).map(([type, amount]) => type + ' ' + amount).join('\n')
+    : 'value ' + hover.value;
+  const parts = [head, expression, value];
+  if (hover.usedBy.length) {
+    const users = document.createElement('div');
+    users.className = 'hint';
+    users.append('Used by ', terminusView(hover.usedBy));
+    parts.push(users);
+  }
+  placeCard(parts, x, y);
+}
 
 function constantsSection() {
   return state.model.members.find((member) => member.key === '_constants');
@@ -668,7 +755,7 @@ function deletionCascade(name) {
   const pending = [name];
   while (pending.length) {
     const result = constantsView.results.get(pending.shift());
-    for (const reader of result ? result.usedBy : []) {
+    for (const reader of result ? result.readers : []) {
       if (reader.kind === 'constant' ? visited.has(reader.id) : seen.has(reader.kind + ' ' + reader.id)) {
         continue;
       }
@@ -685,7 +772,7 @@ function deletionCascade(name) {
 }
 
 function openDeleteDialog(name) {
-  $('delete-title').textContent = 'Delete $' + name + ' and what reads it';
+  $('delete-title').replaceChildren('Delete ', ...referenceNodes('$' + name), ' and what reads it');
   $('delete-readers').replaceChildren(...deletionCascade(name).map(readerView));
   constantsView.deleting = name;
   $('delete-dialog').showModal();
@@ -714,35 +801,100 @@ function readerChip(text, title) {
   return chip;
 }
 
-// An item reader draws as its image, a constant as a $name chip and a group or tag as a #name chip, each
-// naming its id on hover (decision used-by-draws-item-images-and-name-chips).
+// The delete modal lists what the delete removes: an item reader as its image, a constant as a $name chip
+// and a group or tag as a #name chip, each naming its id on hover.
 function readerView(reader) {
   if (reader.kind === 'constant') {
-    return readerChip('$' + reader.id, reader.id);
+    const chip = readerChip('', reader.id);
+    chip.append(...referenceNodes('$' + reader.id));
+    return chip;
   }
   if (reader.kind === 'group') {
     return readerChip(reader.id, reader.id);
   }
+  return readerImage(reader.id);
+}
+
+function readerImage(id) {
   const image = document.createElement('img');
   image.className = 'px row-image';
-  image.alt = reader.id;
-  image.title = reader.id;
+  image.alt = id;
+  image.title = id;
   image.loading = 'lazy';
-  image.src = imageUrl(namespaced(reader.id));
-  image.addEventListener('error', () => image.replaceWith(readerChip(reader.id, reader.id)));
+  image.src = imageUrl(namespaced(id));
+  image.addEventListener('error', () => {
+    const fallback = document.createElement('span');
+    fallback.className = 'mono hint';
+    fallback.textContent = id;
+    fallback.title = id;
+    image.replaceWith(fallback);
+  });
   return image;
 }
 
-function readersView(readers) {
+// Used by draws only the terminus items the variable cascades into, each as its image naming its id on hover
+// (decision used-by-draws-the-terminus-items-alone).
+function terminusView(itemIds) {
   const holder = document.createElement('span');
   holder.className = 'readers';
-  holder.append(...readers.map(readerView));
+  holder.append(...itemIds.map((id) => readerImage(id)));
   return holder;
 }
 
 // Where the browser lacks field-sizing: content, the rows follow the line count so the field still grows.
 function fitRows(field) {
   field.rows = Math.max(1, field.value.split('\n').length);
+}
+
+function expressionField(entry, result) {
+  const field = document.createElement('textarea');
+  field.className = 'mono field expression-field';
+  field.value = shownText(entry.text);
+  fitRows(field);
+  field.setAttribute('aria-label', 'Expression for $' + entry.key);
+  field.setAttribute('aria-invalid', String(!!(result && result.error)));
+  field.addEventListener('input', () => {
+    fitRows(field);
+    entry.text = storedText(field.value);
+    markEdited();
+  });
+  // A re-render removing the focused field blurs it after its replacement stands, so only a field still on the
+  // page swaps back to the read view.
+  field.addEventListener('blur', () => {
+    if (field.isConnected && constantsView.editing === entry.key) {
+      constantsView.editing = null;
+      field.replaceWith(expressionView(entry, constantsView.results.get(entry.key)));
+    }
+  });
+  return field;
+}
+
+// While its field is not being edited, an expression draws as a read view whose $ references are links; a
+// click anywhere else on it swaps in the growing field with focus (decision
+// references-link-to-their-variable-and-hover-a-card).
+function expressionView(entry, result) {
+  const view = document.createElement('div');
+  view.className = 'mono field expression-field expression-view';
+  view.tabIndex = 0;
+  view.setAttribute('role', 'button');
+  view.setAttribute('aria-label', 'Edit the expression for $' + entry.key);
+  view.setAttribute('aria-invalid', String(!!(result && result.error)));
+  view.append(...referenceNodes(shownText(entry.text)));
+  const edit = () => {
+    constantsView.editing = entry.key;
+    const field = expressionField(entry, result);
+    view.replaceWith(field);
+    field.focus();
+    field.setSelectionRange(field.value.length, field.value.length);
+  };
+  view.addEventListener('click', edit);
+  view.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && event.target === view) {
+      event.preventDefault();
+      edit();
+    }
+  });
+  return view;
 }
 
 // Each constant is a block: its head line, then its expression across the pane's width
@@ -755,22 +907,14 @@ function constantRow(entry, index, entries) {
   const isTree = result ? result.kind === 'tree' : entry.text.trim().startsWith('{');
   kind.className = 'kind' + (isTree ? ' tree' : '');
   kind.textContent = isTree ? 'tree' : 'scalar';
-  const expression = document.createElement('textarea');
-  expression.className = 'mono field expression-field';
-  expression.value = shownText(entry.text);
-  fitRows(expression);
-  expression.setAttribute('aria-label', 'Expression for $' + entry.key);
-  expression.setAttribute('aria-invalid', String(!!(result && result.error)));
-  expression.addEventListener('input', () => {
-    fitRows(expression);
-    entry.text = storedText(expression.value);
-    markEdited();
-  });
+  const expression = constantsView.editing === entry.key ? expressionField(entry, result)
+    : expressionView(entry, result);
   const resolves = document.createElement('span');
   resolves.className = 'mono ' + (result && result.error ? 'error' : 'resolves');
   resolves.textContent = result && result.error ? result.error : resolvedText(result);
   const usedBy = result ? result.usedBy : [];
-  const users = readersView(usedBy);
+  const readers = result ? result.readers : [];
+  const users = terminusView(usedBy);
   const actions = document.createElement('div');
   actions.className = 'row-actions';
   actions.append(
@@ -778,7 +922,7 @@ function constantRow(entry, index, entries) {
     button('Down', () => moveConstant(index, 1), index === entries.length - 1 ? 'Already last' : null),
     button('Rename', () => { constantsView.renaming = entry.key; renderConstants(); }),
     button('Delete', () => {
-      if (usedBy.length) {
+      if (readers.length) {
         openDeleteDialog(entry.key);
         return;
       }
@@ -1236,7 +1380,9 @@ function renderFamily() {
       badge.textContent = row.source;
       source.append(badge);
     }
-    tr.append(image, name, textCell(row.definedAs), textCell(amountsText(row.amounts)),
+    const definedAs = textCell('');
+    definedAs.append(...referenceNodes(row.definedAs || ''));
+    tr.append(image, name, definedAs, textCell(amountsText(row.amounts)),
       textCell(row.remainder === undefined ? '' : row.remainder), source);
     return tr;
   }));
@@ -1311,7 +1457,8 @@ function renderEditor() {
   body.className = 'detail-body';
   const current = document.createElement('div');
   current.className = 'mono hint';
-  current.textContent = entry ? 'The file holds "' + entry.key + '": ' + entry.text : 'The file holds no entry for ' + id;
+  current.replaceChildren(...(entry ? referenceNodes('The file holds "' + entry.key + '": ' + entry.text)
+    : ['The file holds no entry for ' + id]));
   body.append(current);
   if (resolved) {
     const line = document.createElement('div');
@@ -1415,16 +1562,29 @@ function renderEditor() {
 // The hover card: the recipe grid drawn with the inventory's images, the result count, the ratios through the
 // item and its value (decision values-tab-drops-melts-and-costs).
 function attachHover(element, id) {
+  attachCard(element, (x, y) => showHover(id, x, y));
+}
+
+// The card stays while the pointer moves onto it, so a $ reference in its ratios can be clicked.
+function attachCard(element, show) {
   element.addEventListener('mouseenter', (event) => {
     clearTimeout(valuesView.hoverTimer);
     const x = event.clientX;
     const y = event.clientY;
-    valuesView.hoverTimer = setTimeout(() => showHover(id, x, y), 300);
+    valuesView.hoverTimer = setTimeout(() => show(x, y), 300);
   });
   element.addEventListener('mouseleave', () => {
     clearTimeout(valuesView.hoverTimer);
-    $('hover-card').hidden = true;
+    valuesView.hoverTimer = setTimeout(() => { $('hover-card').hidden = true; }, 200);
   });
+}
+
+function placeCard(parts, x, y) {
+  const card = $('hover-card');
+  card.replaceChildren(...parts);
+  card.style.left = Math.min(x + 16, window.innerWidth - 376) + 'px';
+  card.style.top = Math.min(y + 16, window.innerHeight - 260) + 'px';
+  card.hidden = false;
 }
 
 async function showHover(id, x, y) {
@@ -1434,7 +1594,6 @@ async function showHover(id, x, y) {
   } catch (error) {
     return;
   }
-  const card = $('hover-card');
   const head = document.createElement('div');
   head.className = 'hover-head';
   const names = document.createElement('div');
@@ -1470,7 +1629,7 @@ async function showHover(id, x, y) {
   if (hover.ratios.length) {
     const ratios = document.createElement('div');
     ratios.className = 'mono hint';
-    ratios.textContent = hover.ratios.join('\n');
+    ratios.append(...referenceNodes(hover.ratios.join('\n')));
     ratios.style.whiteSpace = 'pre-line';
     parts.push(ratios);
   }
@@ -1478,10 +1637,7 @@ async function showHover(id, x, y) {
   value.className = 'mono hover-value';
   value.textContent = 'value ' + hover.value;
   parts.push(value);
-  card.replaceChildren(...parts);
-  card.style.left = Math.min(x + 16, window.innerWidth - 376) + 'px';
-  card.style.top = Math.min(y + 16, window.innerHeight - 260) + 'px';
-  card.hidden = false;
+  placeCard(parts, x, y);
 }
 
 // --- Processes: _conversions and _post_conversions, each entry checked by the game's conversion parser ---
@@ -1849,6 +2005,8 @@ $('delete-cancel').addEventListener('click', () => $('delete-dialog').close());
 $('delete-confirm').addEventListener('click', confirmDelete);
 
 document.querySelectorAll('.tab').forEach((button) => button.addEventListener('click', () => selectTab(button.dataset.tab)));
+$('hover-card').addEventListener('mouseenter', () => clearTimeout(valuesView.hoverTimer));
+$('hover-card').addEventListener('mouseleave', () => { $('hover-card').hidden = true; });
 $('inventory-search').addEventListener('input', (event) => { state.search = event.target.value; renderEntries(); });
 $('save-button').addEventListener('click', save);
 

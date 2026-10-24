@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -158,5 +159,75 @@ class BaseValuesModelTest {
                 model.readersOf("iron_nugget"));
         assertTrue(model.readersOf("mundane_block").contains(
                 new BaseValuesModel.Reader("#mundane_blocks", BaseValuesModel.ReaderKind.GROUP)));
+    }
+
+    /**
+     * $copper_nugget is read by constants alone, so its terminus is the items at the end of each constant chain
+     * (decision used-by-draws-the-terminus-items-alone).
+     */
+    @Test
+    void terminusFollowsConstantReadersToTheirItems() throws IOException {
+        BaseValuesModel model = BaseValuesModel.parse(new String(sampleBytes(), StandardCharsets.UTF_8));
+        assertTrue(model.readersOf("copper_nugget").stream()
+                .allMatch(reader -> reader.kind() == BaseValuesModel.ReaderKind.CONSTANT));
+        List<String> terminus = model.terminusOf("copper_nugget", Map.of());
+        assertTrue(terminus.containsAll(List.of("raw_copper", "copper_horse_armor", "copper_golem_statue",
+                "chainmail_boots")), terminus.toString());
+        assertNoKeyOfASection(model, terminus);
+    }
+
+    /**
+     * $mundane_block is read by the #mundane_blocks entry, so its terminus holds that group's members, and
+     * $wool by the #wool tag, so its terminus holds the tag's members from the inventory.
+     */
+    @Test
+    void terminusExpandsGroupAndTagReaders() throws IOException {
+        BaseValuesModel model = BaseValuesModel.parse(new String(sampleBytes(), StandardCharsets.UTF_8));
+        List<String> terminus = model.terminusOf("mundane_block", Map.of());
+        assertTrue(terminus.containsAll(groupMembers(model, "mundane_blocks")), terminus.toString());
+        assertNoKeyOfASection(model, terminus);
+        List<String> wool = model.terminusOf("wool", Map.of("minecraft:wool",
+                List.of("minecraft:white_wool", "minecraft:red_wool")));
+        assertEquals(List.of("minecraft:white_wool", "minecraft:red_wool"), wool);
+    }
+
+    /**
+     * $waxed is read by the waxed post-conversion, which the #waxed_* assignments stack, so its terminus holds
+     * those target groups' members beside the honeycomb that reads it directly.
+     */
+    @Test
+    void terminusFollowsAProcessToTheItemsItConverts() throws IOException {
+        BaseValuesModel model = BaseValuesModel.parse(new String(sampleBytes(), StandardCharsets.UTF_8));
+        List<String> terminus = model.terminusOf("waxed", Map.of());
+        assertTrue(terminus.contains("honeycomb"), terminus.toString());
+        for (String group : List.of("waxed_copper", "waxed_exposed", "waxed_weathered", "waxed_oxidized")) {
+            assertTrue(terminus.containsAll(groupMembers(model, group)), group);
+        }
+        assertNoKeyOfASection(model, terminus);
+    }
+
+    private static List<String> groupMembers(BaseValuesModel model, String group) {
+        return model.member("_groups").entries().stream().filter(entry -> group.equals(entry.key())).findFirst()
+                .map(entry -> com.google.gson.JsonParser.parseString(entry.text()).getAsJsonArray().asList()
+                        .stream().map(com.google.gson.JsonElement::getAsString).toList())
+                .orElseThrow();
+    }
+
+    // An item can share a constant's name, as "gold_nugget": "$gold_nugget" does, so an id passes where the file
+    // holds it as a top-level item entry or a group member, and never as a #group or a process key.
+    private static void assertNoKeyOfASection(BaseValuesModel model, List<String> terminus) {
+        assertFalse(terminus.isEmpty());
+        java.util.Set<String> items = new java.util.HashSet<>();
+        model.members().stream().filter(member -> member.kind() == BaseValuesModel.Kind.VALUE)
+                .map(BaseValuesModel.Member::key).filter(key -> !key.startsWith("#")).forEach(items::add);
+        model.member("_groups").entries().forEach(group -> items.addAll(groupMembers(model, group.key())));
+        java.util.Set<String> processes = new java.util.HashSet<>();
+        for (String section : List.of("_conversions", "_post_conversions")) {
+            model.member(section).entries().forEach(entry -> processes.add(entry.key()));
+        }
+        for (String id : terminus) {
+            assertTrue(items.contains(id), id + " is no item entry or group member");
+            assertFalse(id.startsWith("#") || processes.contains(id), id + " is a group or process key");
+        }
     }
 }

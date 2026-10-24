@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.workbench;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
@@ -12,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
@@ -28,6 +30,8 @@ final class ConstantsJson {
     private static final String VALUE = "value";
     private static final String ERROR = "error";
     private static final String USED_BY = "usedBy";
+    private static final String READERS = "readers";
+    private static final String EXPRESSION = "expression";
     private static final String ID = "id";
     private static final String FROM = "from";
     private static final String TO = "to";
@@ -64,18 +68,21 @@ final class ConstantsJson {
     }
 
     /**
-     * @param json the posted delete, carrying name and the model's members
-     * @return the name of the constant it deletes
+     * @param json a posted delete or hover, carrying name and the model's members
+     * @return the name of the constant it acts on
      */
-    static String deleteFrom(String json) {
+    static String nameFrom(String json) {
         return JsonParser.parseString(json).getAsJsonObject().get(NAME).getAsString();
     }
 
     /**
-     * @param model the model whose constants to resolve
-     * @return each constant in file order: its kind, its value or per-type tree, its error and its readers
+     * @param model      the model whose constants to resolve
+     * @param tagMembers each item tag's member ids, keyed by the tag's namespaced id
+     * @return each constant in file order: its kind, its value or per-type tree, its error, the terminus items
+     *         it cascades into as usedBy (decision used-by-draws-the-terminus-items-alone) and its direct
+     *         readers, which the delete modal's cascade walks
      */
-    static String evaluated(BaseValuesModel model) {
+    static String evaluated(BaseValuesModel model, Map<String, List<String>> tagMembers) {
         Map<String, String> unparsed = new LinkedHashMap<>();
         JsonObject block = new JsonObject();
         List<String> order = new ArrayList<>();
@@ -106,12 +113,44 @@ final class ConstantsJson {
             } else {
                 describe(constant, json);
             }
-            json.add(USED_BY, readersJson(model.readersOf(name)));
+            addUsage(json, model, name, tagMembers);
             constants.add(json);
         }
         JsonObject root = new JsonObject();
         root.add(CONSTANTS, constants);
         return root.toString();
+    }
+
+    /**
+     * The constant hover card's answer: the constant as evaluated answers it beside its expression as the file
+     * spells it (decision references-link-to-their-variable-and-hover-a-card).
+     *
+     * @param name       the hovered constant's name
+     * @param model      the posted model
+     * @param tagMembers each item tag's member ids, keyed by the tag's namespaced id
+     * @return the hovered constant's name, expression, kind, value or per-type tree, error and usedBy, or empty
+     *         where no constant holds the name
+     */
+    static Optional<String> hovered(String name, BaseValuesModel model, Map<String, List<String>> tagMembers) {
+        BaseValuesModel.Member section = model.member(CONSTANTS_SECTION);
+        Optional<BaseValuesModel.Member> entry = section == null ? Optional.empty()
+                : section.entries().stream().filter(constant -> name.equals(constant.key())).findFirst();
+        return entry.map(constant -> {
+            JsonObject answer = JsonParser.parseString(evaluated(model, tagMembers)).getAsJsonObject()
+                    .getAsJsonArray(CONSTANTS).asList().stream().map(JsonElement::getAsJsonObject)
+                    .filter(evaluatedConstant -> name.equals(evaluatedConstant.get(NAME).getAsString()))
+                    .findFirst().orElseThrow();
+            answer.addProperty(EXPRESSION, constant.text());
+            return answer.toString();
+        });
+    }
+
+    private static void addUsage(JsonObject json, BaseValuesModel model, String name,
+                                 Map<String, List<String>> tagMembers) {
+        JsonArray terminus = new JsonArray();
+        model.terminusOf(name, tagMembers).forEach(terminus::add);
+        json.add(USED_BY, terminus);
+        json.add(READERS, readersJson(model.readersOf(name)));
     }
 
     /**
