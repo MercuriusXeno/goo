@@ -110,6 +110,8 @@ public final class ValuesWorkbenchServer {
     private static final String NO_ITEM_NAMED = "Name an item: ?id=";
     private static final String NOT_AN_ITEM_ID = "Not an item id: ";
     private static final String NO_IMAGE_FOR = "No image for ";
+    private static final String NO_CONSTANT_NAMED = "No constant is named $";
+    private static final String CONSTANT_HOVER_ROUTE = "/api/constants/hover";
     private static final String LINE_END = "\n";
     private static final String EMPTY_MODEL = "{\n}\n";
 
@@ -169,9 +171,7 @@ public final class ValuesWorkbenchServer {
         http.createContext(MODEL_ROUTE, exchange -> server.answer(exchange, server::model));
         http.createContext(INVENTORY_ROUTE, exchange -> server.answer(exchange, server::inventory));
         http.createContext(IMAGE_ROUTE, exchange -> server.answer(exchange, server::image));
-        http.createContext(EVALUATE_CONSTANTS_ROUTE, exchange -> server.answer(exchange, server::evaluateConstants));
-        http.createContext(RENAME_CONSTANT_ROUTE, exchange -> server.answer(exchange, server::renameConstant));
-        http.createContext(DELETE_CONSTANT_ROUTE, exchange -> server.answer(exchange, server::deleteConstant));
+        server.serveConstants();
         http.createContext(DESCRIBE_GROUPS_ROUTE, exchange -> server.answer(exchange, server::describeGroups));
         http.createContext(APPLY_TO_GROUP_ROUTE, exchange -> server.answer(exchange, server::applyToGroup));
         http.createContext(DUMPS_ROUTE, exchange -> server.answer(exchange, server::standingDumps));
@@ -330,7 +330,35 @@ public final class ValuesWorkbenchServer {
             return Reply.of(NOT_ALLOWED, TEXT, exchange.getRequestMethod() + NOT_SERVED_HERE);
         }
         BaseValuesModel model = postedModel(exchange);
-        return Reply.of(OK, JSON, ConstantsJson.evaluated(model));
+        return Reply.of(OK, JSON, ConstantsJson.evaluated(model,
+                GroupsJson.Inventory.read(paths.inventoryFile()).tags()));
+    }
+
+    private void serveConstants() {
+        http.createContext(EVALUATE_CONSTANTS_ROUTE, exchange -> answer(exchange, this::evaluateConstants));
+        http.createContext(RENAME_CONSTANT_ROUTE, exchange -> answer(exchange, this::renameConstant));
+        http.createContext(DELETE_CONSTANT_ROUTE, exchange -> answer(exchange, this::deleteConstant));
+        http.createContext(CONSTANT_HOVER_ROUTE, exchange -> answer(exchange, this::constantHover));
+    }
+
+    /**
+     * Answers the hover card of the constant the posted name holds in the posted model (decision
+     * references-link-to-their-variable-and-hover-a-card).
+     *
+     * @param exchange the request carrying the name and the model
+     * @return the constant's card, not found where no constant holds the name, or not allowed for any method but
+     *         POST
+     */
+    private Reply constantHover(HttpExchange exchange) throws IOException {
+        if (!POST.equals(exchange.getRequestMethod())) {
+            return Reply.of(NOT_ALLOWED, TEXT, exchange.getRequestMethod() + NOT_SERVED_HERE);
+        }
+        String sent = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        BaseValuesModel model = fileLayout().withMembers(ModelJson.membersFrom(sent));
+        String name = ConstantsJson.nameFrom(sent);
+        return ConstantsJson.hovered(name, model, GroupsJson.Inventory.read(paths.inventoryFile()).tags())
+                .map(card -> Reply.of(OK, JSON, card))
+                .orElseGet(() -> Reply.of(NOT_FOUND, TEXT, NO_CONSTANT_NAMED + name));
     }
 
     /**
@@ -363,7 +391,7 @@ public final class ValuesWorkbenchServer {
         }
         String sent = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
         BaseValuesModel deleted = fileLayout().withMembers(ModelJson.membersFrom(sent))
-                .deleteConstant(ConstantsJson.deleteFrom(sent));
+                .deleteConstant(ConstantsJson.nameFrom(sent));
         return modelReply(deleted);
     }
 
