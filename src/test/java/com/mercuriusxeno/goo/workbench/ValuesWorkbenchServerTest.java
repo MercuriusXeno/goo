@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -460,6 +461,23 @@ class ValuesWorkbenchServerTest {
         assertEquals(200, response.statusCode());
         assertEquals("image/png", response.headers().firstValue("Content-Type").orElse(""));
         assertArrayEquals(NUGGET_PNG, response.body());
+    }
+
+    /**
+     * An item with no capture answers the placeholder image, so a page mid-capture or on a dedicated server draws a
+     * slot-shaped blank rather than a broken image (decision images-are-slot-captures-taken-on-detection).
+     */
+    @Test
+    void uncapturedItemAnswersThePlaceholder() throws IOException, InterruptedException {
+        byte[] placeholder;
+        try (var stream = ValuesWorkbenchServer.class.getResourceAsStream("/workbench/placeholder.png")) {
+            assertNotNull(stream, "no workbench/placeholder.png on the classpath");
+            placeholder = stream.readAllBytes();
+        }
+        HttpResponse<byte[]> response = get("/api/image?id=minecraft:chest");
+        assertEquals(200, response.statusCode());
+        assertEquals("image/png", response.headers().firstValue("Content-Type").orElse(""));
+        assertArrayEquals(placeholder, response.body());
     }
 
     /**
