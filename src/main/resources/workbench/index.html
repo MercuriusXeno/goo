@@ -44,7 +44,7 @@ aside { flex: 0 1 300px; min-width: 240px; background: var(--panel); border-righ
 .entry { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border: 0; border-left: 3px solid transparent; background: var(--panel); text-align: left; width: 100%; }
 .entry:hover { background: var(--hover); }
 .entry[aria-current="true"] { border-left-color: var(--accent); background: var(--hover); }
-.entry img, .entry .noimage { width: 28px; height: 28px; flex: 0 0 auto; }
+.entry img, .entry .noimage { width: 32px; height: 32px; flex: 0 0 auto; }
 .entry .noimage { border: 1px dashed var(--control); border-radius: 4px; }
 .entry-text { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
 .entry-name { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -104,7 +104,7 @@ tr:hover td { background: var(--hover); }
 .member { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px; border: 1px solid var(--control); background: var(--panel); border-radius: 6px; min-width: 0; }
 .member[aria-current="true"] { border-color: var(--accent); background: var(--hover); }
 .member.unknown { border-color: var(--warn); background: var(--warn-soft); }
-.member img, .member .noimage { width: 28px; height: 28px; }
+.member img, .member .noimage { width: 32px; height: 32px; }
 .member .noimage { border: 1px dashed var(--control); border-radius: 4px; }
 .member-name { font-size: 11px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .member-tweak { font-size: 10px; color: var(--warn-ink); }
@@ -115,15 +115,15 @@ details.dump-section pre { margin: 0; padding: 0 14px 12px; font-size: 12px; ove
 #audit-progress { max-height: 180px; overflow: auto; }
 .values-split { margin-bottom: 16px; }
 .name-link { border: 0; background: none; padding: 0; color: var(--accent); text-decoration: underline dotted; font-weight: 500; text-align: left; }
-.row-image { width: 24px; height: 24px; display: block; }
+.row-image { width: 32px; height: 32px; display: block; }
 .mode-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .hover-card { position: fixed; z-index: 10; width: 360px; background: var(--panel); border: 1px solid var(--control); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); padding: 12px; display: flex; flex-direction: column; gap: 10px; }
 .hover-card[hidden] { display: none; }
 .hover-head { display: flex; align-items: center; gap: 10px; }
 .hover-recipe { display: flex; align-items: center; gap: 12px; }
-.craft-grid { display: grid; grid-template-columns: repeat(3, 32px); gap: 2px; background: var(--control); padding: 2px; border-radius: 4px; }
-.craft-cell { width: 32px; height: 32px; background: #8b8b8b; display: flex; align-items: center; justify-content: center; }
-.craft-cell img { width: 24px; height: 24px; }
+.craft-grid { display: grid; grid-template-columns: repeat(3, 36px); gap: 2px; background: var(--control); padding: 2px; border-radius: 4px; }
+.craft-cell { width: 36px; height: 36px; background: #8b8b8b; display: flex; align-items: center; justify-content: center; }
+.craft-cell img { width: 32px; height: 32px; }
 .from-cell { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; font-size: 12px; }
 .name-link.prime { font-weight: 600; }
 .craft-grid[hidden] { display: none; }
