@@ -510,6 +510,37 @@ class ValuesWorkbenchServerTest {
                 HttpResponse.BodyHandlers.ofByteArray());
     }
 
+    private HttpResponse<byte[]> constantHover(String name) throws IOException, InterruptedException {
+        JsonObject body = JsonParser.parseString(ModelJson.toJson(BaseValuesModel.parse(
+                new String(BaseValuesModelTest.sampleBytes(), StandardCharsets.UTF_8)), "posted")).getAsJsonObject();
+        body.addProperty("name", name);
+        return post("/api/constants/hover", body.toString());
+    }
+
+    /**
+     * The constant hover card's route answers the tree $gold_nugget's expression as the file spells it, one
+     * resolved value per type and the items terminusOf reaches, and 404 for a name no constant holds (decision
+     * references-link-to-their-variable-and-hover-a-card).
+     */
+    @Test
+    void constantHoverAnswersExpressionResolutionAndTerminus() throws IOException, InterruptedException {
+        HttpResponse<byte[]> response = constantHover("gold_nugget");
+        assertEquals(200, response.statusCode());
+        JsonObject hover = JsonParser.parseString(text(response)).getAsJsonObject();
+        assertEquals("gold_nugget", hover.get("name").getAsString());
+        assertEquals("{\"metal\": \"4 $iron_nugget.metal\", \"glow\": 1440, \"opulent\": \"$wealth.opulent\"}",
+                hover.get("expression").getAsString());
+        JsonObject tree = hover.getAsJsonObject("tree");
+        assertEquals(java.util.Map.of("metal", "4608", "glow", "1440", "opulent", "192"),
+                tree.keySet().stream().collect(java.util.stream.Collectors.toMap(type -> type,
+                        type -> tree.get(type).getAsString())));
+        BaseValuesModel sample = BaseValuesModel.parse(
+                new String(BaseValuesModelTest.sampleBytes(), StandardCharsets.UTF_8));
+        assertEquals(sample.terminusOf("gold_nugget", java.util.Map.of()), hover.getAsJsonArray("usedBy").asList()
+                .stream().map(JsonElement::getAsString).toList());
+        assertEquals(404, constantHover("no_such_constant").statusCode());
+    }
+
     /**
      * A delete answers the model with the constant and its reader cascade gone, and refuses a name no
      * constant holds (decision deleting-a-variable-inlines-its-expression-into-each-reader).
@@ -540,24 +571,32 @@ class ValuesWorkbenchServerTest {
     }
 
     /**
-     * Each reader in usedBy answers its id and its kind (decision used-by-draws-item-images-and-name-chips).
+     * usedBy answers the terminus items alone, the #logs group expanded to its member and $doubled followed to
+     * the plank reading it, while readers keeps each direct reader with its kind for the delete cascade
+     * (decision used-by-draws-the-terminus-items-alone).
      */
     @Test
-    void usedByAnswersEachReadersIdAndKind() throws IOException, InterruptedException {
+    void usedByAnswersTheTerminusItemsAlone() throws IOException, InterruptedException {
         JsonObject base = constantNamed(evaluated("""
                 {
                     "_constants": {
                         "base": 192,
                         "doubled": "2 $base"
                     },
+                    "_groups": {
+                        "logs": ["oak_log"]
+                    },
                     "#logs": "$base",
-                    "stick": "$base / 4"
+                    "stick": "$base / 4",
+                    "plank": "$doubled"
                 }
                 """), "base");
-        JsonArray usedBy = base.getAsJsonArray("usedBy");
-        assertEquals(List.of("doubled constant", "#logs group", "stick item"), usedBy.asList().stream()
-                .map(reader -> reader.getAsJsonObject().get("id").getAsString() + " "
-                        + reader.getAsJsonObject().get("kind").getAsString()).toList());
+        assertEquals(List.of("oak_log", "stick", "plank"), base.getAsJsonArray("usedBy").asList().stream()
+                .map(JsonElement::getAsString).toList());
+        assertEquals(List.of("doubled constant", "#logs group", "stick item"),
+                base.getAsJsonArray("readers").asList().stream()
+                        .map(reader -> reader.getAsJsonObject().get("id").getAsString() + " "
+                                + reader.getAsJsonObject().get("kind").getAsString()).toList());
     }
 
     /**
@@ -639,6 +678,20 @@ class ValuesWorkbenchServerTest {
     }
 
     /**
+     * The page's script declares each function name once: a second declaration silently replaces the first
+     * everywhere, as a second itemImage once replaced the Used by images' drawer.
+     */
+    @Test
+    void pageDeclaresEachFunctionOnce() throws IOException, InterruptedException {
+        java.util.regex.Matcher declaration = java.util.regex.Pattern.compile("function ([A-Za-z0-9_]+)\\(")
+                .matcher(text(get("/")));
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        while (declaration.find()) {
+            assertTrue(seen.add(declaration.group(1)), declaration.group(1) + " is declared twice");
+        }
+    }
+
+    /**
      * The Values table heads read the item, its definition, amounts, remainder and source, and the hover line
      * reads the value with no melts or costs (decision values-tab-drops-melts-and-costs).
      */
@@ -665,7 +718,11 @@ class ValuesWorkbenchServerTest {
         String pane = page.substring(start, page.indexOf("</section>", start));
         assertFalse(pane.contains("<table"), pane);
         int row = page.indexOf("function constantRow(");
-        String script = page.substring(row, page.indexOf("\nfunction ", row + 1));
+        assertTrue(page.substring(row, page.indexOf("\nfunction ", row + 1)).contains("expressionField(entry"));
+        // The field the block edits in, which its read view swaps to on a click (decision
+        // references-link-to-their-variable-and-hover-a-card).
+        int field = page.indexOf("function expressionField(");
+        String script = page.substring(field, page.indexOf("\nfunction ", field + 1));
         assertTrue(script.contains("document.createElement('textarea')"), script);
         assertTrue(script.contains("'Expression for $' + entry.key"), script);
     }
