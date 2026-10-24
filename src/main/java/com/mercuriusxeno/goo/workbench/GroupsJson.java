@@ -38,7 +38,6 @@ final class GroupsJson {
     private static final String TWEAK = "tweak";
     private static final String MODEL = "model";
     private static final String ITEMS = "items";
-    private static final String BLOCKS = "blocks";
     private static final String ITEM_TAGS = "item_tags";
     private static final String GOO_TYPES = "goo_types";
     private static final String CONSTANTS = "_constants";
@@ -54,7 +53,7 @@ final class GroupsJson {
     /**
      * The inventory's ids and tags, read from its file where one stands.
      *
-     * @param ids  every item and block id
+     * @param ids  every item id
      * @param tags each item tag's member ids
      */
     record Inventory(Set<String> ids, Map<String, List<String>> tags, List<String> items, List<String> gooTypes) {
@@ -63,10 +62,9 @@ final class GroupsJson {
                 return new Inventory(Set.of(), Map.of(), List.of(), List.of());
             }
             JsonObject root = JsonParser.parseString(Files.readString(file)).getAsJsonObject();
-            Set<String> ids = new HashSet<>();
-            for (String section : List.of(ITEMS, BLOCKS)) {
-                root.getAsJsonArray(section).forEach(entry -> ids.add(entry.getAsJsonObject().get(ID).getAsString()));
-            }
+            // Known ids come from items alone; a standing file's blocks section goes unread
+            // (decision workbench-drops-the-blocks-list).
+            Set<String> ids = new HashSet<>(idsIn(root, ITEMS));
             Map<String, List<String>> tags = new HashMap<>();
             for (JsonElement tag : root.getAsJsonArray(ITEM_TAGS)) {
                 JsonObject json = tag.getAsJsonObject();

@@ -166,7 +166,7 @@ details.dump-section pre { margin: 0; padding: 0 14px 12px; font-size: 12px; ove
     <aside id="inventory-sidebar" aria-label="Inventory">
       <div class="sidebar-head">
         <label for="inventory-search">Inventory</label>
-        <input id="inventory-search" class="search" type="search" placeholder="Search items, blocks, tags">
+        <input id="inventory-search" class="search" type="search" placeholder="Search items, tags">
         <div class="chips" id="chips" role="group" aria-label="Show"></div>
       </div>
       <div class="entries" id="entries"><div class="more">Loading the inventory; a missing one runs the inventory dump first.</div></div>
@@ -360,7 +360,6 @@ function listedEntries() {
   }
   const byFilter = {
     items: () => inventory.items.map((item) => ({ id: item.id, name: item.name, image: !!item.image })),
-    blocks: () => inventory.blocks.map((block) => ({ id: block.id, name: block.name, image: false })),
     tags: () => inventory.item_tags.map((tag) => ({ id: '#' + tag.id, name: tag.members.length + ' members', image: false })),
     goo: () => inventory.goo_types.map((type) => ({ id: type.id, name: 'goo type', image: false })),
     unlisted: () => inventory.items.filter((item) => state.uncovered.has(item.id))
@@ -375,7 +374,7 @@ function renderChips() {
   const inventory = state.inventory;
   const unlisted = state.uncovered.size;
   const chips = [
-    ['items', 'Items'], ['blocks', 'Blocks'], ['tags', 'Tags'], ['goo', 'Goo types'], ['unlisted', 'Uncovered ' + unlisted]
+    ['items', 'Items'], ['tags', 'Tags'], ['goo', 'Goo types'], ['unlisted', 'Uncovered ' + unlisted]
   ];
   const holder = $('chips');
   holder.replaceChildren(...chips.map(([filter, label]) => {
@@ -426,7 +425,7 @@ function entryRow(entry) {
   row.addEventListener('click', () => {
     state.selected = entry.id;
     renderEntries();
-    if (state.filter === 'items' || state.filter === 'unlisted' || state.filter === 'blocks') {
+    if (state.filter === 'items' || state.filter === 'unlisted') {
       selectTab('values');
       selectItem(entry.id);
     }
@@ -984,7 +983,6 @@ function itemsById() {
   const byId = new Map();
   if (state.inventory) {
     state.inventory.items.forEach((item) => byId.set(item.id, item));
-    state.inventory.blocks.forEach((block) => { if (!byId.has(block.id)) { byId.set(block.id, block); } });
   }
   return byId;
 }
@@ -1143,8 +1141,8 @@ function renderGroupDetail() {
   summary.textContent = group.members.length + ' members';
   const pick = textField('', true);
   pick.setAttribute('list', 'inventory-ids');
-  pick.placeholder = 'item, block or #tag';
-  pick.setAttribute('aria-label', 'Add an item, block or tag to #' + group.name);
+  pick.placeholder = 'item or #tag';
+  pick.setAttribute('aria-label', 'Add an item or tag to #' + group.name);
   const add = button('Add', () => {
     const value = pick.value.trim();
     if (value) {
@@ -1189,7 +1187,6 @@ function renderGroups() {
 function fillInventoryChoices() {
   const inventory = state.inventory;
   const ids = inventory.items.map((item) => item.id)
-    .concat(inventory.blocks.map((block) => block.id))
     .concat(inventory.item_tags.map((tag) => '#' + tag.id));
   $('inventory-ids').replaceChildren(...[...new Set(ids)].map((id) => {
     const option = document.createElement('option');

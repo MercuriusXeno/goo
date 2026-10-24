@@ -30,9 +30,11 @@ import java.util.stream.Stream;
 @RegistersGameTests
 public final class GooInventoryDumpTests {
     private static final String INVENTORY_DUMP = "inventory_dump";
-    private static final List<String> SECTIONS = List.of(GooInventoryJson.ITEMS, GooInventoryJson.BLOCKS,
-            GooInventoryJson.ITEM_TAGS, GooInventoryJson.BLOCK_TAGS, GooInventoryJson.GOO_TYPES,
-            GooInventoryJson.RECIPES);
+    private static final List<String> SECTIONS = List.of(GooInventoryJson.ITEMS, GooInventoryJson.ITEM_TAGS,
+            GooInventoryJson.GOO_TYPES, GooInventoryJson.RECIPES);
+    // The mod values a block only through its item (decision workbench-drops-the-blocks-list).
+    private static final List<String> DROPPED_SECTIONS = List.of("blocks", "block_tags");
+    private static final String SECTION_WRITTEN = "The inventory dump still writes the section ";
     private static final String ID = "id";
     private static final String UNREADABLE = "The inventory dump could not be read back: ";
     private static final String SECTION_MISSING = "The inventory dump holds no section ";
@@ -78,8 +80,10 @@ public final class GooInventoryDumpTests {
         for (String section : SECTIONS) {
             helper.assertTrue(root.has(section), SECTION_MISSING + section);
         }
+        for (String section : DROPPED_SECTIONS) {
+            helper.assertFalse(root.has(section), SECTION_WRITTEN + section);
+        }
         assertListed(helper, root, GooInventoryJson.ITEMS, "minecraft:iron_nugget");
-        assertListed(helper, root, GooInventoryJson.BLOCKS, "minecraft:stone");
         GooTypes.BUNDLED.forEach(type -> assertListed(helper, root, GooInventoryJson.GOO_TYPES, GooTypes.id(type)));
         JsonObject logs = entry(root, GooInventoryJson.ITEM_TAGS, "minecraft:logs").orElse(new JsonObject());
         helper.assertTrue(logs.has("members") && strings(logs.getAsJsonArray("members")).contains("minecraft:oak_log"),
