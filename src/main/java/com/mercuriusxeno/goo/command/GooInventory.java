@@ -7,24 +7,23 @@ import java.util.Map;
 /**
  * Everything the loadout registers, as namespaced ids, which the values workbench data-drives from
  * (decision inventory-dump-from-a-gametest-and-a-command). Minecraft-free, so the writer is tested
- * on a fake listing.
+ * on a fake listing. It lists no block: the mod values a block only through its item
+ * (decision workbench-drops-the-blocks-list).
  *
- * @param items     every item, with its display name and image
- * @param blocks    every block, with its display name
- * @param itemTags  every item tag and its members
- * @param blockTags every block tag and its members
- * @param gooTypes  every goo type's id
- * @param recipes   every recipe the server loaded
+ * @param items    every item, with its display name and image
+ * @param itemTags every item tag and its members
+ * @param gooTypes every goo type's id
+ * @param recipes  every recipe the server loaded
  */
-public record GooInventory(List<NamedEntry> items, List<NamedEntry> blocks, List<TagEntry> itemTags,
-                           List<TagEntry> blockTags, List<String> gooTypes, List<RecipeEntry> recipes) {
+public record GooInventory(List<NamedEntry> items, List<TagEntry> itemTags, List<String> gooTypes,
+                           List<RecipeEntry> recipes) {
 
     /**
-     * An item or a block.
+     * An item.
      *
      * @param id    the namespaced id
      * @param name  the display name
-     * @param image the path under the inventory folder an item's slot capture lands at, null for a block
+     * @param image the path under the inventory folder the item's slot capture lands at, or null
      */
     public record NamedEntry(String id, String name, @Nullable String image) {
     }
