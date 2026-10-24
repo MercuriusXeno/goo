@@ -35,6 +35,7 @@ import com.sun.net.httpserver.HttpServer;
  */
 public final class ValuesWorkbenchServer {
     private static final String PAGE = "/workbench/index.html";
+    private static final String PLACEHOLDER = "/workbench/placeholder.png";
     private static final String HTML = "text/html; charset=utf-8";
     private static final String JSON = "application/json; charset=utf-8";
     private static final String PNG = "image/png";
@@ -647,9 +648,25 @@ public final class ValuesWorkbenchServer {
         Path image = paths.imageFolder().resolve(id.substring(0, colon))
                 .resolve(id.substring(colon + 1) + PNG_EXTENSION);
         if (!Files.isRegularFile(image)) {
-            return Reply.of(NOT_FOUND, TEXT, NO_IMAGE_FOR + id);
+            return placeholder(id);
         }
         return new Reply(OK, PNG, Files.readAllBytes(image));
+    }
+
+    /**
+     * An item no capture has drawn yet, on a page mid-capture or on a dedicated server, draws a slot-shaped blank.
+     * decision images-are-slot-captures-taken-on-detection
+     *
+     * @param id the uncaptured item's id
+     * @return the placeholder image
+     */
+    private static Reply placeholder(String id) throws IOException {
+        try (InputStream blank = ValuesWorkbenchServer.class.getResourceAsStream(PLACEHOLDER)) {
+            if (blank == null) {
+                return Reply.of(NOT_FOUND, TEXT, NO_IMAGE_FOR + id);
+            }
+            return new Reply(OK, PNG, blank.readAllBytes());
+        }
     }
 
     private static Optional<String> idParameter(HttpExchange exchange) {
