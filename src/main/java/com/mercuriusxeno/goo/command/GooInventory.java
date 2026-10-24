@@ -24,7 +24,7 @@ public record GooInventory(List<NamedEntry> items, List<NamedEntry> blocks, List
      *
      * @param id    the namespaced id
      * @param name  the display name
-     * @param image the image path under the inventory folder, or null where no texture was found
+     * @param image the path under the inventory folder an item's slot capture lands at, null for a block
      */
     public record NamedEntry(String id, String name, @Nullable String image) {
     }

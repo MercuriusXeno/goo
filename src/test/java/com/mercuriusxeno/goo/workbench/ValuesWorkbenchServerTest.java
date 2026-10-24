@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -463,6 +464,23 @@ class ValuesWorkbenchServerTest {
     }
 
     /**
+     * An item with no capture answers the placeholder image, so a page mid-capture or on a dedicated server draws a
+     * slot-shaped blank rather than a broken image (decision images-are-slot-captures-taken-on-detection).
+     */
+    @Test
+    void uncapturedItemAnswersThePlaceholder() throws IOException, InterruptedException {
+        byte[] placeholder;
+        try (var stream = ValuesWorkbenchServer.class.getResourceAsStream("/workbench/placeholder.png")) {
+            assertNotNull(stream, "no workbench/placeholder.png on the classpath");
+            placeholder = stream.readAllBytes();
+        }
+        HttpResponse<byte[]> response = get("/api/image?id=minecraft:chest");
+        assertEquals(200, response.statusCode());
+        assertEquals("image/png", response.headers().firstValue("Content-Type").orElse(""));
+        assertArrayEquals(placeholder, response.body());
+    }
+
+    /**
      * An id climbing out of the image folder is refused.
      */
     @Test
@@ -689,6 +707,30 @@ class ValuesWorkbenchServerTest {
         while (declaration.find()) {
             assertTrue(seen.add(declaration.group(1)), declaration.group(1) + " is declared twice");
         }
+    }
+
+    /**
+     * Every item image draws at 32px, half the 64px capture, so pixelated scaling drops and doubles no pixel row.
+     * decision page-draws-items-at-half-the-capture
+     */
+    @Test
+    void pageDrawsItemImagesAtAWholeFractionOfTheCapture() throws IOException, InterruptedException,
+            ReflectiveOperationException {
+        String page = text(get("/"));
+        int imageSize = 32;
+        for (String selector : List.of(".entry img, .entry .noimage", ".member img, .member .noimage", ".row-image",
+                ".craft-cell img")) {
+            assertTrue(page.contains(selector + " { width: " + imageSize + "px; height: " + imageSize + "px;"),
+                    selector + " does not draw at " + imageSize + "px");
+        }
+        assertTrue(page.contains(".craft-cell { width: 36px; height: 36px;"), ".craft-cell is not 36px");
+        java.util.regex.Matcher offSize = java.util.regex.Pattern.compile("img[^{]*\\{[^}]*\\b(28|24)px").matcher(page);
+        assertFalse(offSize.find(), "an img rule still reads 28px or 24px");
+        // The capture size is read reflectively: the shared test package may not reference the client package.
+        java.lang.reflect.Field captureSize = Class.forName("com.mercuriusxeno.goo.client.capture.SlotCapturer", false,
+                getClass().getClassLoader()).getDeclaredField("CAPTURE_SIZE");
+        captureSize.setAccessible(true);
+        assertEquals(0, captureSize.getInt(null) % imageSize, "the capture is no whole multiple of the image size");
     }
 
     /**

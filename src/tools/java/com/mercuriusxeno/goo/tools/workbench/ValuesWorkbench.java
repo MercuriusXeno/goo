@@ -26,8 +26,13 @@ public final class ValuesWorkbench {
     public static void main(String[] args) throws IOException, InterruptedException {
         Path projectDir = Path.of(args.length > 0 ? args[0] : ".").toAbsolutePath().normalize();
         int port = args.length > 1 ? Integer.parseInt(args[1]) : ANY_FREE_PORT;
-        ValuesWorkbenchServer server = ValuesWorkbenchServer.start(WorkbenchPaths.inProject(projectDir),
-                new HeadlessGametestInventoryDump(projectDir), new HeadlessGametestDumpRunner(projectDir), port);
+        WorkbenchPaths paths = WorkbenchPaths.inProject(projectDir);
+        HeadlessGametestInventoryDump inventoryDump = new HeadlessGametestInventoryDump(projectDir, paths);
+        // Images are captured before serving where a standing inventory lists items the manifest lacks
+        // (decision images-are-slot-captures-taken-on-detection).
+        inventoryDump.captureMissing();
+        ValuesWorkbenchServer server = ValuesWorkbenchServer.start(paths, inventoryDump,
+                new HeadlessGametestDumpRunner(projectDir), port);
         System.out.println("Values workbench at " + server.url() + " (Stop in the page closes it)");
         openBrowser(server.url());
         // The page's Stop ends the server; main returning then lets the JVM exit and the gradle task end

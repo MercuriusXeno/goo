@@ -3,6 +3,9 @@ package com.mercuriusxeno.goo;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.HitResult;
 import org.jspecify.annotations.Nullable;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Dist-safe proxy for operations that differ between client and server.
@@ -59,5 +62,19 @@ public interface ISidedProxy {
      */
     default boolean syncedAbilityEats(String abilityId) {
         return false;
+    }
+
+    /**
+     * Captures each item as its inventory slot draws it into the image folder at namespace/path.png and names each
+     * in the manifest beside the folder. Server: captures nothing and answers done, since a dedicated server has no
+     * renderer and the page draws a placeholder for an uncaptured item.
+     * decision images-are-slot-captures-taken-on-detection
+     *
+     * @param imageFolder the folder the captures land in
+     * @param itemIds     the ids of the items to capture
+     * @return done once every capture is written and the manifest names it
+     */
+    default CompletableFuture<Void> captureSlots(Path imageFolder, List<String> itemIds) {
+        return CompletableFuture.completedFuture(null);
     }
 }
