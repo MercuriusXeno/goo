@@ -40,7 +40,13 @@ class ValuesWorkbenchServerTest {
             "_post_conversions");
     private static final byte[] NUGGET_PNG = {(byte) 0x89, 'P', 'N', 'G', 1, 2, 3};
     private static final String INVENTORY = "{\"items\":[{\"id\":\"minecraft:iron_nugget\",\"name\":\"Iron Nugget\"}],"
-            + "\"blocks\":[],\"item_tags\":[],\"block_tags\":[],\"goo_types\":[],\"recipes\":[]}";
+            + "\"item_tags\":[],\"goo_types\":[],\"recipes\":[]}";
+    // An inventory written before the dump dropped its block sections, which stands until the next dump
+    // (decision workbench-drops-the-blocks-list).
+    private static final String INVENTORY_WITH_BLOCKS = "{\"items\":[{\"id\":\"minecraft:iron_nugget\","
+            + "\"name\":\"Iron Nugget\"}],\"blocks\":[{\"id\":\"minecraft:fire\",\"name\":\"Fire\"}],"
+            + "\"item_tags\":[],\"block_tags\":[{\"id\":\"minecraft:fire\",\"members\":[\"minecraft:fire\"]}],"
+            + "\"goo_types\":[],\"recipes\":[]}";
 
     @TempDir
     Path temp;
@@ -337,10 +343,52 @@ class ValuesWorkbenchServerTest {
         HttpResponse<byte[]> response = get("/api/inventory");
         assertEquals(200, response.statusCode());
         JsonObject inventory = JsonParser.parseString(text(response)).getAsJsonObject();
-        for (String section : List.of("items", "blocks", "item_tags", "block_tags", "goo_types", "recipes")) {
+        for (String section : List.of("items", "item_tags", "goo_types", "recipes")) {
             assertTrue(inventory.has(section), section);
         }
         assertEquals(0, dumpsRun.get());
+    }
+
+    /**
+     * An inventory still carrying blocks and block_tags serves, and the groups route reads its known ids from the
+     * items section alone, so a block id with no item form reads unknown (decision workbench-drops-the-blocks-list).
+     */
+    @Test
+    void inventoryStillCarryingBlocksReadsKnownIdsFromItemsAlone() throws IOException, InterruptedException {
+        Files.writeString(paths.inventoryFile(), INVENTORY_WITH_BLOCKS);
+        assertEquals(200, get("/api/inventory").statusCode());
+        String model = ModelJson.toJson(BaseValuesModel.parse("""
+                {
+                    "_groups": {
+                        "hot": ["fire", "iron_nugget"]
+                    },
+                    "#hot": 1
+                }
+                """), "posted");
+        HttpResponse<byte[]> response = post("/api/groups/describe", model);
+        assertEquals(200, response.statusCode(), text(response));
+        JsonArray groups = JsonParser.parseString(text(response)).getAsJsonObject().getAsJsonArray("groups");
+        JsonArray members = groups.asList().stream().map(JsonElement::getAsJsonObject)
+                .filter(group -> "hot".equals(group.get("name").getAsString())).findFirst().orElseThrow()
+                .getAsJsonArray("members");
+        Map<String, Boolean> known = members.asList().stream().map(JsonElement::getAsJsonObject)
+                .collect(Collectors.toMap(member -> member.get("id").getAsString(),
+                        member -> member.get("known").getAsBoolean()));
+        assertEquals(Map.of("minecraft:fire", false, "minecraft:iron_nugget", true), known,
+                "a block id with no item form must read unknown; an items-section id known");
+    }
+
+    /**
+     * The page offers no Blocks chip, reads no inventory.blocks and names no blocks in its search or group picker,
+     * so each id lists once, under Items (decision workbench-drops-the-blocks-list).
+     */
+    @Test
+    void pageListsNoBlocks() throws IOException, InterruptedException {
+        String page = text(get("/"));
+        assertFalse(page.contains("['blocks', 'Blocks']"), "the page still offers a Blocks chip");
+        assertFalse(page.contains("inventory.blocks"), "the page still reads inventory.blocks");
+        assertFalse(page.contains("Search items, blocks"), "the search placeholder still names blocks");
+        assertFalse(page.contains("item, block or"), "the group picker still names blocks");
     }
 
     /**

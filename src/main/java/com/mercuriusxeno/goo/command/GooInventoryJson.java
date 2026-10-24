@@ -16,9 +16,7 @@ import java.util.function.Function;
  */
 public final class GooInventoryJson {
     public static final String ITEMS = "items";
-    public static final String BLOCKS = "blocks";
     public static final String ITEM_TAGS = "item_tags";
-    public static final String BLOCK_TAGS = "block_tags";
     public static final String GOO_TYPES = "goo_types";
     public static final String RECIPES = "recipes";
 
@@ -48,9 +46,7 @@ public final class GooInventoryJson {
     public static String toJson(GooInventory inventory) {
         JsonObject root = new JsonObject();
         root.add(ITEMS, arrayOf(inventory.items(), GooInventoryJson::namedEntry));
-        root.add(BLOCKS, arrayOf(inventory.blocks(), GooInventoryJson::namedEntry));
         root.add(ITEM_TAGS, arrayOf(inventory.itemTags(), GooInventoryJson::tagEntry));
-        root.add(BLOCK_TAGS, arrayOf(inventory.blockTags(), GooInventoryJson::tagEntry));
         root.add(GOO_TYPES, arrayOf(inventory.gooTypes(), GooInventoryJson::gooType));
         root.add(RECIPES, arrayOf(inventory.recipes(), GooInventoryJson::recipeEntry));
         return GSON.toJson(root);

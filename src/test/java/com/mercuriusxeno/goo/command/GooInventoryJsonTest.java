@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -24,9 +25,7 @@ class GooInventoryJsonTest {
     private static final GooInventory LISTING = new GooInventory(
             List.of(new GooInventory.NamedEntry("minecraft:iron_nugget", "Iron Nugget", "minecraft/iron_nugget.png"),
                     new GooInventory.NamedEntry("othermod:widget", "Widget", null)),
-            List.of(new GooInventory.NamedEntry("minecraft:stone", "Stone", null)),
             List.of(new GooInventory.TagEntry("minecraft:logs", List.of("minecraft:oak_log", "minecraft:birch_log"))),
-            List.of(new GooInventory.TagEntry("minecraft:mineable/pickaxe", List.of("minecraft:stone"))),
             List.of("metal", "othermod:sludge"),
             List.of(new GooInventory.RecipeEntry("minecraft:iron_chain", "minecraft:crafting",
                     "minecraft:iron_chain", 1, List.of(NUGGET, IRON, NUGGET), Map.of(),
@@ -52,11 +51,12 @@ class GooInventoryJsonTest {
     void eachIdLandsUnderItsSection() {
         JsonObject root = written();
         assertEquals(List.of("minecraft:iron_nugget", "othermod:widget"), idsUnder(root, GooInventoryJson.ITEMS));
-        assertEquals(List.of("minecraft:stone"), idsUnder(root, GooInventoryJson.BLOCKS));
         assertEquals(List.of("minecraft:logs"), idsUnder(root, GooInventoryJson.ITEM_TAGS));
-        assertEquals(List.of("minecraft:mineable/pickaxe"), idsUnder(root, GooInventoryJson.BLOCK_TAGS));
         assertEquals(List.of("metal", "othermod:sludge"), idsUnder(root, GooInventoryJson.GOO_TYPES));
         assertEquals(List.of("minecraft:iron_chain"), idsUnder(root, GooInventoryJson.RECIPES));
+        // decision workbench-drops-the-blocks-list
+        assertFalse(root.has("blocks"), "the inventory still writes a blocks section");
+        assertFalse(root.has("block_tags"), "the inventory still writes a block_tags section");
     }
 
     /**
