@@ -2,26 +2,25 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
-import net.minecraft.world.item.ItemStack;
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * The values manager /goo workbench opens: a tab bar carrying every tab of the page, the Values tab listing the
- * inventory's items and tags beside the selected entry's expression and resolved values, and Save writing the draft
- * on the server (decision goo-workbench-opens-the-in-game-manager-screen). The state lives in {@link ValuesTab} and
- * {@link ManagerConnection}; this class draws it and forwards input.
+ * The values manager /goo workbench opens: a tab bar carrying every tab of the page over one shared draft; the
+ * Values tab lists the inventory's items and tags beside the selected entry's expression and resolved values, the
+ * Groups and Variables tabs draw through their panes, and Save writes the draft on the server
+ * (decision goo-workbench-opens-the-in-game-manager-screen). The state lives in {@link ValuesTab},
+ * {@link GroupsTab}, {@link VariablesTab} and {@link ManagerConnection}; this class draws it and forwards input.
  */
 public final class ValuesManagerScreen extends Screen {
     private static final int MARGIN = 8;
@@ -61,14 +60,19 @@ public final class ValuesManagerScreen extends Screen {
     private static final String SAVING = "saving";
     private static final String SAVED = "saved to the draft";
     private static final String UNSAVED = "unsaved changes";
-    private static final String TAG_PREFIX = "#";
     private static final String NOTHING_POSTED = "";
     private static final String NO_STATUS = "";
 
     private final ManagerConnection connection;
-    private final ValuesTab values = new ValuesTab();
-    private final Map<String, ItemStack> icons = new HashMap<>();
+    private final ManagerDraft draft = new ManagerDraft();
+    private final ValuesTab values = new ValuesTab(draft);
+    private final GroupsTab groupsTab = new GroupsTab(draft);
+    private final VariablesTab variablesTab = new VariablesTab(draft);
+    private final ItemIcons icons = new ItemIcons();
+    private final ClickTargets targets = new ClickTargets();
     private final Map<ManagerTab, Button> tabButtons = new EnumMap<>(ManagerTab.class);
+    private final GroupsPane groupsPane;
+    private final VariablesPane variablesPane;
     private ManagerTab tab = ManagerTab.VALUES;
     private EditBox search;
     private EditBox expression;
@@ -83,6 +87,41 @@ public final class ValuesManagerScreen extends Screen {
     public ValuesManagerScreen(ManagerConnection connection) {
         super(Component.literal(TITLE));
         this.connection = connection;
+        ManagerActions actions = new ScreenActions();
+        groupsPane = new GroupsPane(groupsTab, values, icons, actions);
+        variablesPane = new VariablesPane(variablesTab, draft, icons, actions);
+    }
+
+    /**
+     * The panes' line back to this screen.
+     */
+    private final class ScreenActions implements ManagerActions {
+        @Override
+        public void request(String operation, String text, Consumer<String> answered) {
+            ValuesManagerScreen.this.request(operation, text, answered);
+        }
+
+        @Override
+        public void draftChanged() {
+            setStatus(UNSAVED, false);
+            readDraftAfresh();
+        }
+
+        @Override
+        public void openVariable(String name) {
+            selectTab(ManagerTab.VARIABLES);
+            variablesPane.jumpTo(name);
+        }
+
+        @Override
+        public <W extends AbstractWidget> W addWidget(W widget) {
+            return addRenderableWidget(widget);
+        }
+
+        @Override
+        public void focus(AbstractWidget widget) {
+            setFocused(widget);
+        }
     }
 
     @Override
@@ -108,6 +147,8 @@ public final class ValuesManagerScreen extends Screen {
                 width - paneLeft() - MARGIN, EDIT_HEIGHT, Component.literal(EXPRESSION_LABEL)));
         expression.setMaxLength(EXPRESSION_MAX_LENGTH);
         expression.setResponder(this::edited);
+        groupsPane.init(font);
+        variablesPane.init(font);
         selectTab(tab);
         refreshExpression();
         if (!loaded) {
@@ -120,12 +161,18 @@ public final class ValuesManagerScreen extends Screen {
         return MARGIN + SIDEBAR_WIDTH + PANE_GAP;
     }
 
+    private GroupsPane.Bounds contentBounds() {
+        return new GroupsPane.Bounds(MARGIN, CONTENT_Y, width - MARGIN, height - STATUS_INSET - LINE_HEIGHT);
+    }
+
     private void selectTab(ManagerTab chosen) {
         tab = chosen;
         tabButtons.forEach((each, button) -> button.active = each != chosen);
         boolean onValues = chosen == ManagerTab.VALUES;
         search.visible = onValues;
         expression.visible = onValues && values.selectedRow().isPresent();
+        groupsPane.show(chosen == ManagerTab.GROUPS);
+        variablesPane.show(chosen == ManagerTab.VARIABLES);
     }
 
     private void load() {
@@ -134,9 +181,19 @@ public final class ValuesManagerScreen extends Screen {
             request(WorkbenchOperations.INVENTORY, NOTHING_POSTED, inventory -> {
                 values.readInventory(inventory);
                 setStatus(NO_STATUS, false);
-                resolve();
+                readDraftAfresh();
             });
         });
+    }
+
+    /**
+     * Has every tab read the draft afresh: the Values tab's resolve, the Groups tab's describe and the Variables
+     * tab's evaluate.
+     */
+    private void readDraftAfresh() {
+        resolve();
+        groupsPane.refresh();
+        variablesPane.refresh();
     }
 
     private void resolve() {
@@ -151,7 +208,7 @@ public final class ValuesManagerScreen extends Screen {
         request(WorkbenchOperations.SAVE_MODEL, values.modelText(), saved -> {
             values.readModel(saved);
             setStatus(SAVED, false);
-            resolve();
+            readDraftAfresh();
         });
     }
 
@@ -198,6 +255,13 @@ public final class ValuesManagerScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (super.mouseClicked(event, doubleClick)) {
+            return true;
+        }
+        setFocused(null);
+        if (targets.click(event.x(), event.y())) {
+            return true;
+        }
         if (tab == ManagerTab.VALUES && event.x() >= MARGIN && event.x() < MARGIN + SIDEBAR_WIDTH
                 && event.y() >= listTop()) {
             int index = scroll + (int) ((event.y() - listTop()) / ROW_HEIGHT);
@@ -208,15 +272,37 @@ public final class ValuesManagerScreen extends Screen {
                 return true;
             }
         }
-        return super.mouseClicked(event, doubleClick);
+        return false;
+    }
+
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        if (tab == ManagerTab.VARIABLES && variablesPane.keyPressed(event.key())) {
+            return true;
+        }
+        return super.keyPressed(event);
     }
 
     @Override
     public boolean mouseScrolled(double x, double y, double scrollX, double scrollY) {
-        if (tab == ManagerTab.VALUES && x < MARGIN + SIDEBAR_WIDTH) {
-            int most = Math.max(0, values.listed().size() - visibleRows());
-            scroll = Math.clamp(scroll - (long) Math.signum(scrollY), 0, most);
-            return true;
+        switch (tab) {
+            case VALUES -> {
+                if (x < MARGIN + SIDEBAR_WIDTH) {
+                    int most = Math.max(0, values.listed().size() - visibleRows());
+                    scroll = Math.clamp(scroll - (long) Math.signum(scrollY), 0, most);
+                    return true;
+                }
+            }
+            case GROUPS -> {
+                groupsPane.scroll(x, MARGIN, scrollY);
+                return true;
+            }
+            case VARIABLES -> {
+                variablesPane.scroll(scrollY);
+                return true;
+            }
+            default -> {
+            }
         }
         return super.mouseScrolled(x, y, scrollX, scrollY);
     }
@@ -230,12 +316,16 @@ public final class ValuesManagerScreen extends Screen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+        targets.clear();
         graphics.text(font, title, MARGIN, TITLE_Y, WHITE);
-        if (tab == ManagerTab.VALUES) {
-            drawEntries(graphics);
-            drawSelected(graphics);
-        } else {
-            graphics.centeredText(font, tab.label(), width / HALF, CONTENT_Y, GRAY);
+        switch (tab) {
+            case VALUES -> {
+                drawEntries(graphics);
+                drawSelected(graphics);
+            }
+            case GROUPS -> groupsPane.extract(graphics, font, contentBounds(), targets);
+            case VARIABLES -> variablesPane.extract(graphics, font, contentBounds(), targets, mouseX, mouseY);
+            default -> graphics.centeredText(font, tab.label(), width / HALF, CONTENT_Y, GRAY);
         }
         graphics.text(font, status, MARGIN, height - STATUS_INSET, statusIsError ? RED : GRAY);
     }
@@ -250,7 +340,7 @@ public final class ValuesManagerScreen extends Screen {
             if (selectedId.isPresent() && selectedId.get().equals(entry.id())) {
                 graphics.fill(MARGIN, y, MARGIN + SIDEBAR_WIDTH, y + ROW_HEIGHT, SELECTED_ROW_COLOR);
             }
-            graphics.item(iconOf(entry.id()), MARGIN, y + HALF);
+            graphics.item(icons.of(entry.id()), MARGIN, y + HALF);
             int textX = MARGIN + ICON_SIZE + ICON_GAP;
             graphics.text(font, font.plainSubstrByWidth(entry.name(), SIDEBAR_WIDTH - ICON_SIZE - ICON_GAP),
                     textX, y + TEXT_OFFSET_Y, WHITE);
@@ -266,7 +356,7 @@ public final class ValuesManagerScreen extends Screen {
             return;
         }
         ValuesTab.EntryRow row = selected.get();
-        graphics.item(iconOf(row.id()), x, CONTENT_Y - HALF);
+        graphics.item(icons.of(row.id()), x, CONTENT_Y - HALF);
         graphics.text(font, row.name() + AMOUNT_SEPARATOR + row.id(), x + ICON_SIZE + ICON_GAP, CONTENT_Y + HALF,
                 WHITE);
         graphics.text(font, EXPRESSION_LABEL, x, CONTENT_Y + LINE_HEIGHT + HALF, GRAY);
@@ -285,19 +375,6 @@ public final class ValuesManagerScreen extends Screen {
         if (!row.error().isEmpty()) {
             graphics.text(font, font.plainSubstrByWidth(row.error(), width - x - MARGIN), x, y, RED);
         }
-    }
-
-    /**
-     * Each item draws from its own ItemStack, with no capture and no image route in-game; a tag draws no icon.
-     *
-     * @param id the entry's item id or #tag
-     * @return the item's stack, empty for a tag or an unknown id
-     */
-    private ItemStack iconOf(String id) {
-        return icons.computeIfAbsent(id, key -> {
-            Identifier parsed = key.startsWith(TAG_PREFIX) ? null : Identifier.tryParse(key);
-            return parsed == null ? ItemStack.EMPTY : BuiltInRegistries.ITEM.getValue(parsed).getDefaultInstance();
-        });
     }
 
     @Override
