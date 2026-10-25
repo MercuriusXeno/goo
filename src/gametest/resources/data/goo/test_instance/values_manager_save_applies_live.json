@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:function",
+  "function": "goo:values_manager_save_applies_live",
+  "environment": "goo:values_manager_alone",
+  "structure": "goo:test_bay",
+  "max_ticks": 200,
+  "setup_ticks": 0,
+  "required": true
+}

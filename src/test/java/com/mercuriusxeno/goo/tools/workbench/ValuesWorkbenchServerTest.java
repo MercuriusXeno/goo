@@ -1,10 +1,10 @@
-package com.mercuriusxeno.goo.workbench;
+package com.mercuriusxeno.goo.tools.workbench;
 
 import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.mercuriusxeno.goo.data.GooConstantResolver;
+import com.mercuriusxeno.goo.workbench.DumpRunner;
+import com.mercuriusxeno.goo.workbench.WorkbenchPaths;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,14 +18,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -36,17 +32,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class ValuesWorkbenchServerTest {
 
-    private static final List<String> SECTIONS = List.of("_constants", "_groups", "_restricted", "_conversions",
-            "_post_conversions");
     private static final byte[] NUGGET_PNG = {(byte) 0x89, 'P', 'N', 'G', 1, 2, 3};
     private static final String INVENTORY = "{\"items\":[{\"id\":\"minecraft:iron_nugget\",\"name\":\"Iron Nugget\"}],"
             + "\"item_tags\":[],\"goo_types\":[],\"recipes\":[]}";
-    // An inventory written before the dump dropped its block sections, which stands until the next dump
-    // (decision workbench-drops-the-blocks-list).
-    private static final String INVENTORY_WITH_BLOCKS = "{\"items\":[{\"id\":\"minecraft:iron_nugget\","
-            + "\"name\":\"Iron Nugget\"}],\"blocks\":[{\"id\":\"minecraft:fire\",\"name\":\"Fire\"}],"
-            + "\"item_tags\":[],\"block_tags\":[{\"id\":\"minecraft:fire\",\"members\":[\"minecraft:fire\"]}],"
-            + "\"goo_types\":[],\"recipes\":[]}";
 
     @TempDir
     Path temp;
@@ -83,13 +71,21 @@ class ValuesWorkbenchServerTest {
             Clique: iron_nugget (3 items, 2 recipes)
             """;
     private final List<String> savedWhenRunStarted = new java.util.ArrayList<>();
+    private static final String SAMPLE = "/workbench/sample_base_values.json";
+
+    private static byte[] sampleBytes() throws IOException {
+        try (java.io.InputStream stream = ValuesWorkbenchServerTest.class.getResourceAsStream(SAMPLE)) {
+            assertNotNull(stream, "no " + SAMPLE + " on the test classpath");
+            return stream.readAllBytes();
+        }
+    }
 
     @BeforeEach
     void startServer() throws IOException {
         paths = new WorkbenchPaths(temp.resolve("base_values.json"), temp.resolve("goo_inventory.json"),
                 temp.resolve("goo_inventory"), temp.resolve("goo_audit.txt"), temp.resolve("goo_cliques.txt"),
                 temp.resolve("goo_audit.json"));
-        Files.write(paths.baseValues(), BaseValuesModelTest.sampleBytes());
+        Files.write(paths.baseValues(), sampleBytes());
         server = ValuesWorkbenchServer.start(paths, () -> {
             dumpsRun.incrementAndGet();
             Files.writeString(paths.inventoryFile(), INVENTORY);
@@ -183,21 +179,6 @@ class ValuesWorkbenchServerTest {
         return new String(response.body(), StandardCharsets.UTF_8);
     }
 
-    /**
-     * The model answers every top-level section of the file, in file order.
-     */
-    @Test
-    void modelAnswersEverySectionInFileOrder() throws IOException, InterruptedException {
-        HttpResponse<byte[]> response = get("/api/model");
-        assertEquals(200, response.statusCode());
-        JsonArray members = JsonParser.parseString(text(response)).getAsJsonObject().getAsJsonArray("members");
-        List<String> keys = members.asList().stream()
-                .map(member -> member.getAsJsonObject().get("key").getAsString()).toList();
-        List<String> sections = keys.stream().filter(SECTIONS::contains).toList();
-        assertEquals(SECTIONS, sections);
-        assertEquals(List.copyOf(JsonParser.parseString(Files.readString(paths.baseValues())).getAsJsonObject()
-                .keySet()), keys);
-    }
 
     /**
      * A model read with no draft standing seeds base_values.draft.json from the live file
@@ -208,7 +189,7 @@ class ValuesWorkbenchServerTest {
         assertFalse(Files.exists(paths.draft()));
         assertEquals(200, get("/api/model").statusCode());
         assertEquals(temp.resolve("base_values.draft.json"), paths.draft());
-        assertArrayEquals(BaseValuesModelTest.sampleBytes(), Files.readAllBytes(paths.draft()));
+        assertArrayEquals(sampleBytes(), Files.readAllBytes(paths.draft()));
     }
 
     private HttpResponse<byte[]> savedWithBase(String base) throws IOException, InterruptedException {
@@ -229,92 +210,18 @@ class ValuesWorkbenchServerTest {
         HttpResponse<byte[]> saved = savedWithBase("193");
         assertEquals(200, saved.statusCode());
         assertTrue(Files.readString(paths.draft()).contains("\"base\": 193,"));
-        assertArrayEquals(BaseValuesModelTest.sampleBytes(), Files.readAllBytes(paths.baseValues()));
+        assertArrayEquals(sampleBytes(), Files.readAllBytes(paths.baseValues()));
         JsonObject draft = JsonParser.parseString(text(saved)).getAsJsonObject().getAsJsonObject("draft");
         assertTrue(draft.get("differs").getAsBoolean());
         assertEquals(paths.draft().toString(), draft.get("path").getAsString());
     }
 
-    /**
-     * Promote renames the draft over the live file, leaving no draft behind
-     * (decision workbench-authors-a-draft-and-promotes-by-rename).
-     */
-    @Test
-    void promoteRenamesTheDraftOverTheLiveFile() throws IOException, InterruptedException {
-        savedWithBase("194");
-        String drafted = Files.readString(paths.draft());
-        HttpResponse<byte[]> promoted = post("/api/promote", "{}");
-        assertEquals(200, promoted.statusCode(), text(promoted));
-        assertFalse(Files.exists(paths.draft()));
-        assertEquals(drafted, Files.readString(paths.baseValues()));
-        assertFalse(JsonParser.parseString(text(promoted)).getAsJsonObject().getAsJsonObject("draft")
-                .get("differs").getAsBoolean());
-    }
 
-    /**
-     * Discard copies the live file back over the draft (decision workbench-authors-a-draft-and-promotes-by-rename).
-     */
-    @Test
-    void discardCopiesTheLiveFileOverTheDraft() throws IOException, InterruptedException {
-        savedWithBase("195");
-        HttpResponse<byte[]> discarded = post("/api/discard", "{}");
-        assertEquals(200, discarded.statusCode(), text(discarded));
-        assertEquals(Files.readString(paths.baseValues()), Files.readString(paths.draft()));
-        assertFalse(JsonParser.parseString(text(discarded)).getAsJsonObject().getAsJsonObject("draft")
-                .get("differs").getAsBoolean());
-    }
 
-    private HttpResponse<byte[]> savedWithDiamondLackingYore() throws IOException, InterruptedException {
-        String model = ModelJson.toJson(BaseValuesModel.parse(SampleDrafts.diamondLackingYore()), "posted");
-        return client.send(HttpRequest.newBuilder(URI.create(server.url() + "/api/model"))
-                .PUT(HttpRequest.BodyPublishers.ofString(model)).build(), HttpResponse.BodyHandlers.ofByteArray());
-    }
 
-    private static List<String> failingTitles(JsonArray checks) {
-        return checks.asList().stream().map(JsonElement::getAsJsonObject)
-                .filter(check -> !check.get("passed").getAsBoolean())
-                .map(check -> check.get("title").getAsString()).toList();
-    }
 
-    /**
-     * A save of a draft lacking diamond's yore still answers the model, with the old rule failing beside it
-     * (decision type-source-checks-are-rules-that-gate-promote).
-     */
-    @Test
-    void saveAnswersTheFailingCheckBesideTheModel() throws IOException, InterruptedException {
-        HttpResponse<byte[]> saved = savedWithDiamondLackingYore();
-        assertEquals(200, saved.statusCode(), text(saved));
-        JsonObject answer = JsonParser.parseString(text(saved)).getAsJsonObject();
-        assertTrue(answer.has("members"));
-        assertEquals(List.of("old-ships-from-scutes-diamonds-and-scrap"), failingTitles(answer.getAsJsonArray("checks")));
-    }
 
-    /**
-     * Promote over a failing check answers 409 listing it, and the same post acknowledging the failures promotes
-     * (decision type-source-checks-are-rules-that-gate-promote).
-     */
-    @Test
-    void promoteOverAFailingCheckWaitsOnAcknowledgement() throws IOException, InterruptedException {
-        savedWithDiamondLackingYore();
-        String drafted = Files.readString(paths.draft());
-        HttpResponse<byte[]> refused = post("/api/promote", "{}");
-        assertEquals(409, refused.statusCode());
-        assertEquals(List.of("old-ships-from-scutes-diamonds-and-scrap"),
-                failingTitles(JsonParser.parseString(text(refused)).getAsJsonObject().getAsJsonArray("failing")));
-        assertArrayEquals(BaseValuesModelTest.sampleBytes(), Files.readAllBytes(paths.baseValues()));
-        HttpResponse<byte[]> promoted = post("/api/promote", "{\"acknowledged\": true}");
-        assertEquals(200, promoted.statusCode(), text(promoted));
-        assertEquals(drafted, Files.readString(paths.baseValues()));
-    }
 
-    /**
-     * Promote with no draft standing is refused with a conflict and leaves the live file as it was.
-     */
-    @Test
-    void promoteWithNoDraftIsRefused() throws IOException, InterruptedException {
-        assertEquals(409, post("/api/promote", "{}").statusCode());
-        assertArrayEquals(BaseValuesModelTest.sampleBytes(), Files.readAllBytes(paths.baseValues()));
-    }
 
     /**
      * The topbar holds Promote and Discard, each opening a confirm before its post, and Promote's confirm names
@@ -349,34 +256,6 @@ class ValuesWorkbenchServerTest {
         assertEquals(0, dumpsRun.get());
     }
 
-    /**
-     * An inventory still carrying blocks and block_tags serves, and the groups route reads its known ids from the
-     * items section alone, so a block id with no item form reads unknown (decision workbench-drops-the-blocks-list).
-     */
-    @Test
-    void inventoryStillCarryingBlocksReadsKnownIdsFromItemsAlone() throws IOException, InterruptedException {
-        Files.writeString(paths.inventoryFile(), INVENTORY_WITH_BLOCKS);
-        assertEquals(200, get("/api/inventory").statusCode());
-        String model = ModelJson.toJson(BaseValuesModel.parse("""
-                {
-                    "_groups": {
-                        "hot": ["fire", "iron_nugget"]
-                    },
-                    "#hot": 1
-                }
-                """), "posted");
-        HttpResponse<byte[]> response = post("/api/groups/describe", model);
-        assertEquals(200, response.statusCode(), text(response));
-        JsonArray groups = JsonParser.parseString(text(response)).getAsJsonObject().getAsJsonArray("groups");
-        JsonArray members = groups.asList().stream().map(JsonElement::getAsJsonObject)
-                .filter(group -> "hot".equals(group.get("name").getAsString())).findFirst().orElseThrow()
-                .getAsJsonArray("members");
-        Map<String, Boolean> known = members.asList().stream().map(JsonElement::getAsJsonObject)
-                .collect(Collectors.toMap(member -> member.get("id").getAsString(),
-                        member -> member.get("known").getAsBoolean()));
-        assertEquals(Map.of("minecraft:fire", false, "minecraft:iron_nugget", true), known,
-                "a block id with no item form must read unknown; an items-section id known");
-    }
 
     /**
      * The page offers no Blocks chip, reads no inventory.blocks and names no blocks in its search or group picker,
@@ -391,17 +270,6 @@ class ValuesWorkbenchServerTest {
         assertFalse(page.contains("item, block or"), "the group picker still names blocks");
     }
 
-    /**
-     * An absent inventory runs the dump once and serves what it wrote.
-     */
-    @Test
-    void absentInventoryRunsTheDump() throws IOException, InterruptedException {
-        HttpResponse<byte[]> response = get("/api/inventory");
-        assertEquals(200, response.statusCode());
-        assertEquals(1, dumpsRun.get());
-        JsonElement items = JsonParser.parseString(text(response)).getAsJsonObject().get("items");
-        assertEquals("minecraft:iron_nugget", items.getAsJsonArray().get(0).getAsJsonObject().get("id").getAsString());
-    }
 
     private HttpResponse<byte[]> post(String path, String body) throws IOException, InterruptedException {
         return client.send(HttpRequest.newBuilder(URI.create(server.url() + path))
@@ -483,19 +351,6 @@ class ValuesWorkbenchServerTest {
         assertTrue(posting > guard && disabling > posting, script);
     }
 
-    /**
-     * A groups read on a fresh tree waits on the same one-time dump the inventory runs, rather than
-     * refusing while the dump is still writing.
-     */
-    @Test
-    void groupsOnAbsentInventoryWaitForTheDump() throws IOException, InterruptedException {
-        String model = text(get("/api/model"));
-        HttpResponse<byte[]> response = client.send(HttpRequest.newBuilder(URI.create(server.url()
-                        + "/api/groups/describe")).POST(HttpRequest.BodyPublishers.ofString(model)).build(),
-                HttpResponse.BodyHandlers.ofByteArray());
-        assertEquals(200, response.statusCode(), text(response));
-        assertEquals(1, dumpsRun.get());
-    }
 
     /**
      * An item's image is served as PNG bytes from the inventory folder.
@@ -536,197 +391,16 @@ class ValuesWorkbenchServerTest {
         assertEquals(400, get("/api/image?id=minecraft:../../base_values").statusCode());
     }
 
-    private JsonArray evaluated(String fileText) throws IOException, InterruptedException {
-        String model = ModelJson.toJson(BaseValuesModel.parse(fileText), "posted");
-        HttpResponse<byte[]> response = client.send(HttpRequest.newBuilder(URI.create(server.url()
-                        + "/api/constants/evaluate")).POST(HttpRequest.BodyPublishers.ofString(model)).build(),
-                HttpResponse.BodyHandlers.ofByteArray());
-        assertEquals(200, response.statusCode());
-        return JsonParser.parseString(text(response)).getAsJsonObject().getAsJsonArray("constants");
-    }
 
-    private static JsonObject constantNamed(JsonArray constants, String name) {
-        return constants.asList().stream().map(JsonElement::getAsJsonObject)
-                .filter(constant -> name.equals(constant.get("name").getAsString())).findFirst().orElseThrow();
-    }
 
-    /**
-     * A scalar constant resolves through the game's parser.
-     */
-    @Test
-    void scalarConstantResolves() throws IOException, InterruptedException {
-        JsonObject doubled = constantNamed(evaluated("""
-                {
-                    "_constants": {
-                        "base": 192,
-                        "doubled": "2 $base"
-                    }
-                }
-                """), "doubled");
-        assertEquals("384", doubled.get("value").getAsString());
-        assertTrue(doubled.get("error").isJsonNull());
-    }
 
-    private HttpResponse<byte[]> deleted(String name, String fileText) throws IOException, InterruptedException {
-        JsonObject body = JsonParser.parseString(ModelJson.toJson(BaseValuesModel.parse(fileText), "posted"))
-                .getAsJsonObject();
-        body.addProperty("name", name);
-        return client.send(HttpRequest.newBuilder(URI.create(server.url() + "/api/constants/delete"))
-                .POST(HttpRequest.BodyPublishers.ofString(body.toString())).build(),
-                HttpResponse.BodyHandlers.ofByteArray());
-    }
 
-    private HttpResponse<byte[]> constantHover(String name) throws IOException, InterruptedException {
-        JsonObject body = JsonParser.parseString(ModelJson.toJson(BaseValuesModel.parse(
-                new String(BaseValuesModelTest.sampleBytes(), StandardCharsets.UTF_8)), "posted")).getAsJsonObject();
-        body.addProperty("name", name);
-        return post("/api/constants/hover", body.toString());
-    }
 
-    /**
-     * The constant hover card's route answers the tree $gold_nugget's expression as the file spells it, one
-     * resolved value per type and the items terminusOf reaches, and 404 for a name no constant holds (decision
-     * references-link-to-their-variable-and-hover-a-card).
-     */
-    @Test
-    void constantHoverAnswersExpressionResolutionAndTerminus() throws IOException, InterruptedException {
-        HttpResponse<byte[]> response = constantHover("gold_nugget");
-        assertEquals(200, response.statusCode());
-        JsonObject hover = JsonParser.parseString(text(response)).getAsJsonObject();
-        assertEquals("gold_nugget", hover.get("name").getAsString());
-        assertEquals("{\"metal\": \"4 $iron_nugget.metal\", \"glow\": 1440, \"opulent\": \"$wealth.opulent\"}",
-                hover.get("expression").getAsString());
-        JsonObject tree = hover.getAsJsonObject("tree");
-        assertEquals(java.util.Map.of("metal", "4608", "glow", "1440", "opulent", "192"),
-                tree.keySet().stream().collect(java.util.stream.Collectors.toMap(type -> type,
-                        type -> tree.get(type).getAsString())));
-        BaseValuesModel sample = BaseValuesModel.parse(
-                new String(BaseValuesModelTest.sampleBytes(), StandardCharsets.UTF_8));
-        assertEquals(sample.terminusOf("gold_nugget", java.util.Map.of()), hover.getAsJsonArray("usedBy").asList()
-                .stream().map(JsonElement::getAsString).toList());
-        assertEquals(404, constantHover("no_such_constant").statusCode());
-    }
 
-    /**
-     * A delete answers the model with the constant and its reader cascade gone, and refuses a name no
-     * constant holds (decision deleting-a-variable-inlines-its-expression-into-each-reader).
-     */
-    @Test
-    void deleteAnswersTheModelWithoutTheCascade() throws IOException, InterruptedException {
-        String file = """
-                {
-                    "_constants": {
-                        "base": 192,
-                        "doubled": "2 $base",
-                        "kept": 4
-                    },
-                    "stick": "$doubled / 4",
-                    "torch": "$kept"
-                }
-                """;
-        HttpResponse<byte[]> response = deleted("base", file);
-        assertEquals(200, response.statusCode());
-        JsonArray members = JsonParser.parseString(text(response)).getAsJsonObject().getAsJsonArray("members");
-        List<String> keys = members.asList().stream().map(member -> member.getAsJsonObject().get("key"))
-                .map(JsonElement::getAsString).toList();
-        assertEquals(List.of("_constants", "torch"), keys);
-        List<String> constants = members.get(0).getAsJsonObject().getAsJsonArray("entries").asList().stream()
-                .map(entry -> entry.getAsJsonObject().get("key").getAsString()).toList();
-        assertEquals(List.of("kept"), constants);
-        assertNotEquals(200, deleted("nope", file).statusCode());
-    }
 
-    /**
-     * usedBy answers the terminus items alone, the #logs group expanded to its member and $doubled followed to
-     * the plank reading it, while readers keeps each direct reader with its kind for the delete cascade
-     * (decision used-by-draws-the-terminus-items-alone).
-     */
-    @Test
-    void usedByAnswersTheTerminusItemsAlone() throws IOException, InterruptedException {
-        JsonObject base = constantNamed(evaluated("""
-                {
-                    "_constants": {
-                        "base": 192,
-                        "doubled": "2 $base"
-                    },
-                    "_groups": {
-                        "logs": ["oak_log"]
-                    },
-                    "#logs": "$base",
-                    "stick": "$base / 4",
-                    "plank": "$doubled"
-                }
-                """), "base");
-        assertEquals(List.of("oak_log", "stick", "plank"), base.getAsJsonArray("usedBy").asList().stream()
-                .map(JsonElement::getAsString).toList());
-        assertEquals(List.of("doubled constant", "#logs group", "stick item"),
-                base.getAsJsonArray("readers").asList().stream()
-                        .map(reader -> reader.getAsJsonObject().get("id").getAsString() + " "
-                                + reader.getAsJsonObject().get("kind").getAsString()).toList());
-    }
 
-    /**
-     * A tree constant reading another tree's type resolves per type.
-     */
-    @Test
-    void treeConstantResolves() throws IOException, InterruptedException {
-        JsonObject stripped = constantNamed(evaluated("""
-                {
-                    "_constants": {
-                        "log": {"leaf": 32},
-                        "stripped_log": {"leaf": "$log.leaf * 3 / 4"}
-                    }
-                }
-                """), "stripped_log");
-        assertEquals("tree", stripped.get("kind").getAsString());
-        assertEquals("24", stripped.getAsJsonObject("tree").get("leaf").getAsString());
-    }
 
-    /**
-     * An unknown name is refused with an error naming it.
-     */
-    @Test
-    void unknownConstantIsRefused() throws IOException, InterruptedException {
-        JsonObject broken = constantNamed(evaluated("""
-                {
-                    "_constants": {
-                        "broken": "$nope + 1"
-                    }
-                }
-                """), "broken");
-        assertTrue(broken.get("error").getAsString().contains("$nope") || broken.get("error").getAsString()
-                .contains("nope"), broken.toString());
-    }
 
-    /**
-     * The shipped _constants block resolves whole, each constant to the value the game's parser gives it.
-     */
-    @Test
-    void shippedConstantsResolveAsTheGameResolvesThem() throws IOException, InterruptedException {
-        String shipped = new String(BaseValuesModelTest.sampleBytes(), StandardCharsets.UTF_8);
-        JsonArray constants = evaluated(shipped);
-        JsonObject block = JsonParser.parseString(shipped).getAsJsonObject().getAsJsonObject("_constants");
-        assertEquals(List.copyOf(block.keySet()), constants.asList().stream()
-                .map(constant -> constant.getAsJsonObject().get("name").getAsString()).toList());
-        Map<String, GooConstantResolver.ResolvedConstant> game = GooConstantResolver.resolve(block).stream()
-                .collect(Collectors.toMap(GooConstantResolver.ResolvedConstant::name, Function.identity()));
-        for (JsonElement element : constants) {
-            JsonObject constant = element.getAsJsonObject();
-            String name = constant.get("name").getAsString();
-            assertTrue(constant.get("error").isJsonNull(), name + ": " + constant.get("error"));
-            GooConstantResolver.ResolvedConstant expected = game.get(name);
-            if (expected.tree()) {
-                expected.perType().forEach((type, amount) ->
-                        assertEquals(amount, constant.getAsJsonObject("tree").get(type).getAsString(), name));
-            } else {
-                assertEquals(String.valueOf(expected.scalar()), constant.get("value").getAsString(), name);
-            }
-        }
-        assertEquals("192", constantNamed(constants, "base").get("value").getAsString());
-        assertEquals("384", constantNamed(constants, "low").get("value").getAsString());
-        assertEquals("10368", constantNamed(constants, "iron_ingot").getAsJsonObject("tree").get("metal")
-                .getAsString());
-    }
 
     /**
      * The page's root answers the single-page app: the five tabs and the inventory sidebar.
