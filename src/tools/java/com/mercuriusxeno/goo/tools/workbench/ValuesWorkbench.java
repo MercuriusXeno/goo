@@ -1,6 +1,5 @@
 package com.mercuriusxeno.goo.tools.workbench;
 
-import com.mercuriusxeno.goo.workbench.ValuesWorkbenchServer;
 import com.mercuriusxeno.goo.workbench.WorkbenchPaths;
 import java.awt.Desktop;
 import java.io.IOException;

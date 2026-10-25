@@ -1,8 +1,10 @@
-package com.mercuriusxeno.goo.workbench;
+package com.mercuriusxeno.goo.tools.workbench;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.workbench.DumpRunner;
+import com.mercuriusxeno.goo.workbench.WorkbenchPaths;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -69,13 +71,21 @@ class ValuesWorkbenchServerTest {
             Clique: iron_nugget (3 items, 2 recipes)
             """;
     private final List<String> savedWhenRunStarted = new java.util.ArrayList<>();
+    private static final String SAMPLE = "/workbench/sample_base_values.json";
+
+    private static byte[] sampleBytes() throws IOException {
+        try (java.io.InputStream stream = ValuesWorkbenchServerTest.class.getResourceAsStream(SAMPLE)) {
+            assertNotNull(stream, "no " + SAMPLE + " on the test classpath");
+            return stream.readAllBytes();
+        }
+    }
 
     @BeforeEach
     void startServer() throws IOException {
         paths = new WorkbenchPaths(temp.resolve("base_values.json"), temp.resolve("goo_inventory.json"),
                 temp.resolve("goo_inventory"), temp.resolve("goo_audit.txt"), temp.resolve("goo_cliques.txt"),
                 temp.resolve("goo_audit.json"));
-        Files.write(paths.baseValues(), BaseValuesModelTest.sampleBytes());
+        Files.write(paths.baseValues(), sampleBytes());
         server = ValuesWorkbenchServer.start(paths, () -> {
             dumpsRun.incrementAndGet();
             Files.writeString(paths.inventoryFile(), INVENTORY);
@@ -179,7 +189,7 @@ class ValuesWorkbenchServerTest {
         assertFalse(Files.exists(paths.draft()));
         assertEquals(200, get("/api/model").statusCode());
         assertEquals(temp.resolve("base_values.draft.json"), paths.draft());
-        assertArrayEquals(BaseValuesModelTest.sampleBytes(), Files.readAllBytes(paths.draft()));
+        assertArrayEquals(sampleBytes(), Files.readAllBytes(paths.draft()));
     }
 
     private HttpResponse<byte[]> savedWithBase(String base) throws IOException, InterruptedException {
@@ -200,7 +210,7 @@ class ValuesWorkbenchServerTest {
         HttpResponse<byte[]> saved = savedWithBase("193");
         assertEquals(200, saved.statusCode());
         assertTrue(Files.readString(paths.draft()).contains("\"base\": 193,"));
-        assertArrayEquals(BaseValuesModelTest.sampleBytes(), Files.readAllBytes(paths.baseValues()));
+        assertArrayEquals(sampleBytes(), Files.readAllBytes(paths.baseValues()));
         JsonObject draft = JsonParser.parseString(text(saved)).getAsJsonObject().getAsJsonObject("draft");
         assertTrue(draft.get("differs").getAsBoolean());
         assertEquals(paths.draft().toString(), draft.get("path").getAsString());
