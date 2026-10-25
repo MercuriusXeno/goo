@@ -4,10 +4,12 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -21,6 +23,8 @@ import java.util.Set;
  * them, over the draft every tab shares (decision goo-workbench-opens-the-in-game-manager-screen).
  */
 public final class ValuesTab {
+    /** The mark a tag's id starts with. */
+    public static final String TAG_MARK = "#";
     private static final String ITEMS = "items";
     private static final String ITEM_TAGS = "item_tags";
     private static final String ID = "id";
@@ -38,6 +42,14 @@ public final class ValuesTab {
     private static final String DEFAULT_NAMESPACE = "minecraft:";
     private static final String MEMBERS_SUFFIX = " members";
     private static final String NO_TEXT = "";
+    private static final String GROUPS_SECTION = "_groups";
+    private static final String RESTRICTED_SECTION = "_restricted";
+    private static final String NAMESPACE_SEPARATOR = ":";
+    private static final String ENTRY_SOURCE = "entry";
+    private static final String GROUP_SOURCE = "group #";
+    private static final String DENIED_BY = "denied by #";
+    private static final String NOT_IN_FILE = "not in the file";
+    private static final String RESTRICTED_SUFFIX = ", restricted";
     // A new entry stands above the sections the file closes with, as the page and the server write one.
     private static final Set<String> CLOSING_SECTIONS = Set.of("_restricted", "_conversions", "_post_conversions");
     private static final String[] LAYOUT_FIELDS = {"keySeparator", "leading", "trailing", "closingGap"};
@@ -45,6 +57,8 @@ public final class ValuesTab {
     private final ManagerDraft draft;
     private final List<ManagerEntry> entries = new ArrayList<>();
     private final Map<String, JsonObject> resolved = new HashMap<>();
+    private final Set<String> uncovered = new HashSet<>();
+    private Filter filter = Filter.ITEMS;
     private String search = NO_TEXT;
     private @Nullable String selected;
 
@@ -138,12 +152,158 @@ public final class ValuesTab {
     }
 
     /**
-     * @return the entries whose id or name holds the search text, every entry while it is blank
+     * @return the entries the filter keeps whose id or name holds the search text, every one while it is blank
      */
     public List<ManagerEntry> listed() {
-        return entries.stream().filter(entry -> search.isEmpty()
+        return entries.stream().filter(this::keptByFilter).filter(entry -> search.isEmpty()
                 || entry.id().toLowerCase(Locale.ROOT).contains(search)
                 || entry.name().toLowerCase(Locale.ROOT).contains(search)).toList();
+    }
+
+    private boolean keptByFilter(ManagerEntry entry) {
+        return switch (filter) {
+            case ITEMS -> !entry.tag();
+            case TAGS -> entry.tag();
+            case UNCOVERED -> !entry.tag() && uncovered.contains(entry.id());
+        };
+    }
+
+    /**
+     * Which entries the sidebar lists, as the page's chips choose them.
+     */
+    public enum Filter {
+        /** Every item. */
+        ITEMS,
+        /** Every item tag. */
+        TAGS,
+        /** The items the draft leaves with no value. */
+        UNCOVERED
+    }
+
+    /**
+     * Where an item's value comes from, as the page's source badge reads it.
+     */
+    public enum SourceKind {
+        /** Its own entry. */
+        ENTRY,
+        /** A #group entry over a _groups group. */
+        GROUP,
+        /** A denial. */
+        DENIED,
+        /** Nothing in the file. */
+        NONE
+    }
+
+    /**
+     * An item's source badge.
+     *
+     * @param label what the badge reads
+     * @param kind  where the value comes from
+     */
+    public record Source(String label, SourceKind kind) {
+    }
+
+    /**
+     * @param chosen which entries the sidebar lists from now
+     */
+    public void filter(Filter chosen) {
+        filter = chosen;
+    }
+
+    /**
+     * @return which entries the sidebar lists
+     */
+    public Filter filter() {
+        return filter;
+    }
+
+    /**
+     * @param uncoveredJson the uncovered values operation's reply: the items the draft leaves with no value
+     */
+    public void readUncovered(String uncoveredJson) {
+        uncovered.clear();
+        array(JsonParser.parseString(uncoveredJson).getAsJsonObject(), ITEMS)
+                .forEach(item -> uncovered.add(item.getAsString()));
+    }
+
+    /**
+     * @return how many items the draft leaves with no value
+     */
+    public int uncoveredCount() {
+        return uncovered.size();
+    }
+
+    /**
+     * Reads where an item's value comes from in the draft: its own entry, a #group entry over a _groups group,
+     * a denial, or nothing in the file, with a restriction appended, as the page's sourcesFromModel does.
+     *
+     * @param id the item's namespaced id
+     * @return its source badge
+     */
+    public Source sourceOf(String id) {
+        Map<String, List<String>> groups = groupsOf();
+        Source source = null;
+        for (JsonElement element : draft.members()) {
+            JsonObject member = element.getAsJsonObject();
+            String key = keyOf(member);
+            if (key == null || !VALUE_KIND.equals(kindOf(member))) {
+                continue;
+            }
+            boolean denied = DENIED.equals(ManagerDraft.shownText(member.get(TEXT).getAsString()));
+            if (key.startsWith(TAG_PREFIX)) {
+                String group = key.substring(TAG_PREFIX.length());
+                if (source == null && groups.getOrDefault(group, List.of()).contains(id)) {
+                    source = denied ? new Source(DENIED_BY + group, SourceKind.DENIED)
+                            : new Source(GROUP_SOURCE + group, SourceKind.GROUP);
+                }
+            } else if (namespaced(key).equals(id)) {
+                source = denied ? new Source(DENIED, SourceKind.DENIED) : new Source(ENTRY_SOURCE, SourceKind.ENTRY);
+            }
+        }
+        Source found = source == null ? new Source(NOT_IN_FILE, SourceKind.NONE) : source;
+        return restricted(groups).contains(id) ? new Source(found.label() + RESTRICTED_SUFFIX, found.kind()) : found;
+    }
+
+    private Map<String, List<String>> groupsOf() {
+        Map<String, List<String>> groups = new HashMap<>();
+        for (JsonElement element : draft.sectionEntries(GROUPS_SECTION)) {
+            JsonObject group = element.getAsJsonObject();
+            JsonElement members = parsedText(group);
+            groups.put(keyOf(group), members != null && members.isJsonArray()
+                    ? members.getAsJsonArray().asList().stream().map(JsonElement::getAsString)
+                            .map(ValuesTab::namespaced).toList()
+                    : List.of());
+        }
+        return groups;
+    }
+
+    private Set<String> restricted(Map<String, List<String>> groups) {
+        Set<String> restricted = new HashSet<>();
+        for (JsonElement element : draft.sectionEntries(RESTRICTED_SECTION)) {
+            String entry = ManagerDraft.shownText(element.getAsJsonObject().get(TEXT).getAsString());
+            if (entry.startsWith(TAG_PREFIX)) {
+                restricted.addAll(groups.getOrDefault(entry.substring(TAG_PREFIX.length()), List.of()));
+            } else {
+                restricted.add(namespaced(entry));
+            }
+        }
+        return restricted;
+    }
+
+    private static @Nullable JsonElement parsedText(JsonObject member) {
+        try {
+            return JsonParser.parseString(member.get(TEXT).getAsString());
+        } catch (JsonParseException e) {
+            return null;
+        }
+    }
+
+    private static String kindOf(JsonObject member) {
+        return member.has(KIND) ? member.get(KIND).getAsString() : VALUE_KIND;
+    }
+
+    private static String namespaced(String id) {
+        return id.contains(NAMESPACE_SEPARATOR) ? id : DEFAULT_NAMESPACE + id;
     }
 
     /**

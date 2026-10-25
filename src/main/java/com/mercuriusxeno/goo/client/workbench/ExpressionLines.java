@@ -11,7 +11,7 @@ import java.util.List;
  * references-link-to-their-variable-and-hover-a-card).
  */
 final class ExpressionLines {
-    private static final int LINE_HEIGHT = 11;
+    private static final int LINE_HEIGHT = 10;
 
     private ExpressionLines() {
     }

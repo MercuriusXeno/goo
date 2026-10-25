@@ -32,6 +32,11 @@ interface ManagerActions {
     void draftChanged();
 
     /**
+     * The draft took an edit still being typed: the screen marks it unsaved and reads nothing afresh yet.
+     */
+    void markUnsaved();
+
+    /**
      * The server saved the draft itself, as a dump run does: the screen reads it back and has every tab read it.
      */
     void reloadDraft();
