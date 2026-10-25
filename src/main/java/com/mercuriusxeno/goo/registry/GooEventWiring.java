@@ -7,6 +7,7 @@ import com.mercuriusxeno.goo.ability.aging.Aging;
 import com.mercuriusxeno.goo.ability.aging.AgingTable;
 import com.mercuriusxeno.goo.ability.blockmap.BlockMaps;
 import com.mercuriusxeno.goo.command.GooCommand;
+import com.mercuriusxeno.goo.command.ValuesManagers;
 import com.mercuriusxeno.goo.data.GooReactionLoader;
 import com.mercuriusxeno.goo.data.GooReactionSource;
 import com.mercuriusxeno.goo.data.GooValues;
@@ -14,7 +15,6 @@ import com.mercuriusxeno.goo.item.gasket.ChoralGasketItem;
 import com.mercuriusxeno.goo.network.AbilitySyncPayload;
 import com.mercuriusxeno.goo.network.GooValueSync;
 import com.mercuriusxeno.goo.network.PlayerKnowledge;
-import com.mercuriusxeno.goo.workbench.InGameWorkbench;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
@@ -89,14 +89,14 @@ public final class GooEventWiring {
     }
 
     /**
-     * Closes the values workbench page the stopping server serves, so no listener outlives its game
-     * (decision goo-workbench-command-serves-the-page-from-the-game).
+     * Ends the values manager's dump run and worker for the stopping server, so nothing outlives its game
+     * (decision goo-workbench-opens-the-in-game-manager-screen).
      *
      * @param event the server stopping event
      */
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent event) {
-        InGameWorkbench.close(event.getServer());
+        ValuesManagers.close(event.getServer());
     }
 
     /**
