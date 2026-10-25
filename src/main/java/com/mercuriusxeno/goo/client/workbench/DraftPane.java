@@ -13,7 +13,7 @@ import java.util.Optional;
 final class DraftPane {
     private static final int WIDTH = 320;
     private static final int PADDING = 8;
-    private static final int LINE_HEIGHT = 11;
+    private static final int LINE_HEIGHT = 10;
     private static final int ACTION_GAP = 12;
     private static final int HALF = 2;
     private static final int WHITE = 0xFFFFFFFF;

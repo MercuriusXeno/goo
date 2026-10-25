@@ -4,62 +4,42 @@ import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import java.util.EnumMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * The values manager /goo workbench opens: a tab bar carrying every tab of the page over one shared draft; the
- * Values tab lists the inventory's items and tags beside the selected entry's expression and resolved values, the
- * Groups and Variables tabs draw through their panes, and Save writes the draft on the server
- * (decision goo-workbench-opens-the-in-game-manager-screen). The state lives in {@link ValuesTab},
- * {@link GroupsTab}, {@link VariablesTab} and {@link ManagerConnection}; this class draws it and forwards input.
+ * The values manager /goo workbench opens: the title row carrying Promote, Discard and Save, a tab bar carrying every
+ * tab of the page over one shared draft, each tab drawn by its pane, and a status line beneath
+ * (decisions goo-workbench-opens-the-in-game-manager-screen, save-applies-the-draft-live-promote-renames-it). The
+ * state lives in the tab classes and {@link ManagerConnection}; this class lays the panes out and forwards input.
  */
 public final class ValuesManagerScreen extends Screen {
     private static final int MARGIN = 8;
-    private static final int TITLE_Y = 8;
-    private static final int TAB_Y = 22;
-    private static final int TAB_PADDING = 12;
+    private static final int TITLE_Y = 6;
+    private static final int TOPBAR_Y = 3;
+    private static final int TAB_Y = 20;
+    private static final int CONTENT_Y = 40;
+    private static final int BUTTON_HEIGHT = 14;
+    private static final int BUTTON_PADDING = 10;
     private static final int TAB_GAP = 2;
-    private static final int CONTENT_Y = 48;
-    private static final int SIDEBAR_WIDTH = 180;
-    private static final int SEARCH_HEIGHT = 18;
-    private static final int ROW_HEIGHT = 20;
-    private static final int ICON_SIZE = 16;
-    private static final int ICON_GAP = 4;
-    private static final int TEXT_OFFSET_Y = 6;
-    private static final int LINE_HEIGHT = 11;
-    private static final int PANE_GAP = 12;
-    private static final int EDIT_HEIGHT = 20;
-    private static final int BUTTON_WIDTH = 60;
-    private static final int BUTTON_HEIGHT = 20;
-    private static final int STATUS_INSET = 14;
-    private static final int EXPRESSION_MAX_LENGTH = 32767;
-    private static final int HALF = 2;
+    private static final int TITLE_GAP = 8;
+    private static final int STATUS_INSET = 12;
+    private static final int STATUS_GAP = 4;
     private static final int PANEL_COLOR = 0xC0101010;
-    private static final int SELECTED_ROW_COLOR = 0x60FFFFFF;
     private static final int WHITE = 0xFFFFFFFF;
     private static final int GRAY = 0xFFA0A0A0;
     private static final int RED = 0xFFFF5555;
+    private static final int DRAFT_COLOR = 0xFFE0C060;
     private static final String TITLE = "Values manager";
     private static final String SAVE = "Save";
     private static final String PROMOTE = "Promote";
     private static final String DISCARD = "Discard";
     private static final String DRAFT_BADGE = "draft";
-    private static final int DRAFT_COLOR = 0xFFE0C060;
-    private static final String SEARCH_HINT = "Search items and tags";
-    private static final String EXPRESSION_LABEL = "Expression";
-    private static final String NO_SELECTION = "Select an item or tag to read and edit its entry.";
-    private static final String DENIED_LINE = "denied";
-    private static final String NO_VALUE_LINE = "values nothing";
-    private static final String AMOUNT_SEPARATOR = "  ";
     private static final String READING = "Reading the draft and the inventory; a fresh world dumps the inventory first.";
     private static final String SAVING = "saving";
     private static final String SAVED = "saved to the draft";
@@ -79,6 +59,7 @@ public final class ValuesManagerScreen extends Screen {
     private final ItemIcons icons = new ItemIcons();
     private final ClickTargets targets = new ClickTargets();
     private final Map<ManagerTab, Button> tabButtons = new EnumMap<>(ManagerTab.class);
+    private final ValuesPane valuesPane;
     private final GroupsPane groupsPane;
     private final VariablesPane variablesPane;
     private final ProcessesPane processesPane;
@@ -88,9 +69,6 @@ public final class ValuesManagerScreen extends Screen {
     private final DraftPane draftPane = new DraftPane(draftConfirm, this::runDraftAction);
     private boolean unsaved;
     private ManagerTab tab = ManagerTab.VALUES;
-    private EditBox search;
-    private EditBox expression;
-    private int scroll;
     private String status = READING;
     private boolean statusIsError;
     private boolean loaded;
@@ -102,6 +80,7 @@ public final class ValuesManagerScreen extends Screen {
         super(Component.literal(TITLE));
         this.connection = connection;
         ManagerActions actions = new ScreenActions();
+        valuesPane = new ValuesPane(values, icons, actions);
         groupsPane = new GroupsPane(groupsTab, values, icons, actions);
         variablesPane = new VariablesPane(variablesTab, draft, icons, actions);
         processesPane = new ProcessesPane(processesTab, draft, actions);
@@ -138,6 +117,11 @@ public final class ValuesManagerScreen extends Screen {
         }
 
         @Override
+        public void markUnsaved() {
+            ValuesManagerScreen.this.markUnsaved();
+        }
+
+        @Override
         public void reloadDraft() {
             request(WorkbenchOperations.MODEL, NOTHING_POSTED, model -> {
                 values.readModel(model);
@@ -170,58 +154,44 @@ public final class ValuesManagerScreen extends Screen {
         for (ManagerTab each : ManagerTab.values()) {
             // The Checks tab's label grows by its badge, so its button stands wide enough for one.
             String widest = each == ManagerTab.CHECKS ? each.label() + WIDEST_BADGE : each.label();
-            int tabWidth = font.width(widest) + TAB_PADDING;
+            int tabWidth = font.width(widest) + BUTTON_PADDING;
             Button button = Button.builder(Component.literal(each.label()), pressed -> selectTab(each))
                     .bounds(x, TAB_Y, tabWidth, BUTTON_HEIGHT).build();
             tabButtons.put(each, addRenderableWidget(button));
             x += tabWidth + TAB_GAP;
         }
-        int topbarX = width - MARGIN - BUTTON_WIDTH;
-        addRenderableWidget(Button.builder(Component.literal(SAVE), pressed -> save(() -> { }))
-                .bounds(topbarX, TAB_Y, BUTTON_WIDTH, BUTTON_HEIGHT).build());
-        topbarX -= BUTTON_WIDTH + TAB_GAP;
-        addRenderableWidget(Button.builder(Component.literal(DISCARD), pressed -> draftConfirm.askDiscard(draft.path()))
-                .bounds(topbarX, TAB_Y, BUTTON_WIDTH, BUTTON_HEIGHT).build());
-        topbarX -= BUTTON_WIDTH + TAB_GAP;
-        addRenderableWidget(Button.builder(Component.literal(PROMOTE),
-                pressed -> draftConfirm.askPromote(draft.path(), unsaved))
-                .bounds(topbarX, TAB_Y, BUTTON_WIDTH, BUTTON_HEIGHT).build());
-        search = addRenderableWidget(new EditBox(font, MARGIN, CONTENT_Y, SIDEBAR_WIDTH, SEARCH_HEIGHT,
-                Component.literal(SEARCH_HINT)));
-        search.setHint(Component.literal(SEARCH_HINT));
-        search.setResponder(text -> {
-            values.search(text);
-            scroll = 0;
-        });
-        expression = addRenderableWidget(new EditBox(font, paneLeft(), CONTENT_Y + LINE_HEIGHT * HALF,
-                width - paneLeft() - MARGIN, EDIT_HEIGHT, Component.literal(EXPRESSION_LABEL)));
-        expression.setMaxLength(EXPRESSION_MAX_LENGTH);
-        expression.setResponder(this::edited);
+        // The topbar stands on the title row, right-aligned and sized to its labels, so the tab row keeps the width.
+        int right = width - MARGIN;
+        right = topbarButton(SAVE, right, () -> save(() -> { }));
+        right = topbarButton(DISCARD, right, () -> draftConfirm.askDiscard(draft.path()));
+        topbarButton(PROMOTE, right, () -> draftConfirm.askPromote(draft.path(), unsaved));
+        valuesPane.init(font);
         groupsPane.init(font);
         variablesPane.init(font);
         processesPane.init(font);
         selectTab(tab);
-        refreshExpression();
         if (!loaded) {
             loaded = true;
             load();
         }
     }
 
-    private int paneLeft() {
-        return MARGIN + SIDEBAR_WIDTH + PANE_GAP;
+    // Answers the x the next button to its left ends at.
+    private int topbarButton(String label, int right, Runnable pressed) {
+        int buttonWidth = font.width(label) + BUTTON_PADDING;
+        addRenderableWidget(Button.builder(Component.literal(label), button -> pressed.run())
+                .bounds(right - buttonWidth, TOPBAR_Y, buttonWidth, BUTTON_HEIGHT).build());
+        return right - buttonWidth - TAB_GAP;
     }
 
     private GroupsPane.Bounds contentBounds() {
-        return new GroupsPane.Bounds(MARGIN, CONTENT_Y, width - MARGIN, height - STATUS_INSET - LINE_HEIGHT);
+        return new GroupsPane.Bounds(MARGIN, CONTENT_Y, width - MARGIN, height - STATUS_INSET - STATUS_GAP);
     }
 
     private void selectTab(ManagerTab chosen) {
         tab = chosen;
         tabButtons.forEach((each, button) -> button.active = each != chosen);
-        boolean onValues = chosen == ManagerTab.VALUES;
-        search.visible = onValues;
-        expression.visible = onValues && values.selectedRow().isPresent();
+        valuesPane.show(chosen == ManagerTab.VALUES);
         groupsPane.show(chosen == ManagerTab.GROUPS);
         variablesPane.show(chosen == ManagerTab.VARIABLES);
         processesPane.show(chosen == ManagerTab.PROCESSES);
@@ -240,21 +210,19 @@ public final class ValuesManagerScreen extends Screen {
     }
 
     /**
-     * Has every tab read the draft afresh: the Values tab's resolve, the Groups tab's describe, the Variables tab's
-     * evaluate and the Processes tab's description; the Checks tab reads the checks the last model reply carried.
+     * Has every tab read the draft afresh: the Values tab's resolve and uncovered items, the Groups tab's describe,
+     * the Variables tab's evaluate and the Processes tab's description; the Checks tab reads the checks the last
+     * model reply carried.
      */
     private void readDraftAfresh() {
-        resolve();
+        request(WorkbenchOperations.RESOLVE_VALUES, values.modelText(), resolved -> {
+            values.readResolved(resolved);
+            valuesPane.refresh();
+        });
+        request(WorkbenchOperations.UNCOVERED_VALUES, values.modelText(), values::readUncovered);
         groupsPane.refresh();
         variablesPane.refresh();
         processesPane.refresh();
-    }
-
-    private void resolve() {
-        request(WorkbenchOperations.RESOLVE_VALUES, values.modelText(), resolved -> {
-            values.readResolved(resolved);
-            refreshExpression();
-        });
     }
 
     /**
@@ -320,32 +288,6 @@ public final class ValuesManagerScreen extends Screen {
         statusIsError = error;
     }
 
-    private void edited(String typed) {
-        Optional<ValuesTab.EntryRow> row = values.selectedRow();
-        if (row.isPresent() && !row.get().expression().equals(typed)) {
-            values.edit(typed);
-            markUnsaved();
-        }
-    }
-
-    private void refreshExpression() {
-        Optional<ValuesTab.EntryRow> row = values.selectedRow();
-        expression.visible = tab == ManagerTab.VALUES && row.isPresent();
-        row.ifPresent(selected -> {
-            if (!expression.getValue().equals(selected.expression())) {
-                expression.setValue(selected.expression());
-            }
-        });
-    }
-
-    private int visibleRows() {
-        return Math.max(0, (height - CONTENT_Y - SEARCH_HEIGHT - STATUS_INSET * HALF) / ROW_HEIGHT);
-    }
-
-    private int listTop() {
-        return CONTENT_Y + SEARCH_HEIGHT + ICON_GAP;
-    }
-
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (draftPane.open()) {
@@ -355,20 +297,7 @@ public final class ValuesManagerScreen extends Screen {
             return true;
         }
         setFocused(null);
-        if (targets.click(event.x(), event.y())) {
-            return true;
-        }
-        if (tab == ManagerTab.VALUES && event.x() >= MARGIN && event.x() < MARGIN + SIDEBAR_WIDTH
-                && event.y() >= listTop()) {
-            int index = scroll + (int) ((event.y() - listTop()) / ROW_HEIGHT);
-            List<ValuesTab.ManagerEntry> listed = values.listed();
-            if (index < listed.size() && index - scroll < visibleRows()) {
-                values.select(listed.get(index).id());
-                refreshExpression();
-                return true;
-            }
-        }
-        return false;
+        return targets.click(event.x(), event.y());
     }
 
     @Override
@@ -382,38 +311,18 @@ public final class ValuesManagerScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double x, double y, double scrollX, double scrollY) {
-        switch (tab) {
-            case VALUES -> {
-                if (x < MARGIN + SIDEBAR_WIDTH) {
-                    int most = Math.max(0, values.listed().size() - visibleRows());
-                    scroll = Math.clamp(scroll - (long) Math.signum(scrollY), 0, most);
-                    return true;
-                }
-            }
-            case GROUPS -> {
-                groupsPane.scroll(x, MARGIN, scrollY);
-                return true;
-            }
-            case VARIABLES -> {
-                variablesPane.scroll(scrollY);
-                return true;
-            }
-            case PROCESSES -> {
-                processesPane.scroll(scrollY);
-                return true;
-            }
-            case AUDIT -> {
-                auditPane.scroll(scrollY);
-                return true;
-            }
-            case CHECKS -> {
-                checksPane.scroll(scrollY);
-                return true;
-            }
-            default -> {
-            }
+        if (draftPane.open()) {
+            return true;
         }
-        return super.mouseScrolled(x, y, scrollX, scrollY);
+        switch (tab) {
+            case VALUES -> valuesPane.scroll(x, MARGIN, scrollY);
+            case GROUPS -> groupsPane.scroll(x, y, MARGIN, scrollY);
+            case VARIABLES -> variablesPane.scroll(scrollY);
+            case PROCESSES -> processesPane.scroll(scrollY);
+            case AUDIT -> auditPane.scroll(y, scrollY);
+            case CHECKS -> checksPane.scroll(scrollY);
+        }
+        return true;
     }
 
     @Override
@@ -427,22 +336,21 @@ public final class ValuesManagerScreen extends Screen {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         targets.clear();
         showChecksBadge();
+        GroupsPane.Bounds content = contentBounds();
+        switch (tab) {
+            case VALUES -> valuesPane.extract(graphics, font, content, targets);
+            case GROUPS -> groupsPane.extract(graphics, font, content, targets);
+            case VARIABLES -> variablesPane.extract(graphics, font, content, targets, mouseX, mouseY);
+            case PROCESSES -> processesPane.extract(graphics, font, content, targets);
+            case AUDIT -> auditPane.extract(graphics, font, content, targets);
+            case CHECKS -> checksPane.extract(graphics, font, content);
+        }
         graphics.text(font, title, MARGIN, TITLE_Y, WHITE);
         if (draft.differs()) {
-            graphics.text(font, DRAFT_BADGE, MARGIN + font.width(title) + TAB_PADDING, TITLE_Y, DRAFT_COLOR);
+            graphics.text(font, DRAFT_BADGE, MARGIN + font.width(title) + TITLE_GAP, TITLE_Y, DRAFT_COLOR);
         }
-        switch (tab) {
-            case VALUES -> {
-                drawEntries(graphics);
-                drawSelected(graphics);
-            }
-            case GROUPS -> groupsPane.extract(graphics, font, contentBounds(), targets);
-            case VARIABLES -> variablesPane.extract(graphics, font, contentBounds(), targets, mouseX, mouseY);
-            case PROCESSES -> processesPane.extract(graphics, font, contentBounds(), targets);
-            case AUDIT -> auditPane.extract(graphics, font, contentBounds(), targets);
-            case CHECKS -> checksPane.extract(graphics, font, contentBounds());
-        }
-        graphics.text(font, status, MARGIN, height - STATUS_INSET, statusIsError ? RED : GRAY);
+        graphics.text(font, font.plainSubstrByWidth(status, width - MARGIN - MARGIN), MARGIN, height - STATUS_INSET,
+                statusIsError ? RED : GRAY);
         draftPane.extract(graphics, font, width, height, targets);
     }
 
@@ -451,53 +359,6 @@ public final class ValuesManagerScreen extends Screen {
         String badge = checksTab.badge(ManagerTab.CHECKS.label());
         if (checks != null && !checks.getMessage().getString().equals(badge)) {
             checks.setMessage(Component.literal(badge));
-        }
-    }
-
-    private void drawEntries(GuiGraphicsExtractor graphics) {
-        List<ValuesTab.ManagerEntry> listed = values.listed();
-        Optional<String> selectedId = values.selectedRow().map(ValuesTab.EntryRow::id);
-        int y = listTop();
-        int last = Math.min(listed.size(), scroll + visibleRows());
-        for (int index = scroll; index < last; index++) {
-            ValuesTab.ManagerEntry entry = listed.get(index);
-            if (selectedId.isPresent() && selectedId.get().equals(entry.id())) {
-                graphics.fill(MARGIN, y, MARGIN + SIDEBAR_WIDTH, y + ROW_HEIGHT, SELECTED_ROW_COLOR);
-            }
-            graphics.item(icons.of(entry.id()), MARGIN, y + HALF);
-            int textX = MARGIN + ICON_SIZE + ICON_GAP;
-            graphics.text(font, font.plainSubstrByWidth(entry.name(), SIDEBAR_WIDTH - ICON_SIZE - ICON_GAP),
-                    textX, y + TEXT_OFFSET_Y, WHITE);
-            y += ROW_HEIGHT;
-        }
-    }
-
-    private void drawSelected(GuiGraphicsExtractor graphics) {
-        Optional<ValuesTab.EntryRow> selected = values.selectedRow();
-        int x = paneLeft();
-        if (selected.isEmpty()) {
-            graphics.text(font, NO_SELECTION, x, CONTENT_Y, GRAY);
-            return;
-        }
-        ValuesTab.EntryRow row = selected.get();
-        graphics.item(icons.of(row.id()), x, CONTENT_Y - HALF);
-        graphics.text(font, row.name() + AMOUNT_SEPARATOR + row.id(), x + ICON_SIZE + ICON_GAP, CONTENT_Y + HALF,
-                WHITE);
-        graphics.text(font, EXPRESSION_LABEL, x, CONTENT_Y + LINE_HEIGHT + HALF, GRAY);
-        int y = CONTENT_Y + LINE_HEIGHT * HALF + EDIT_HEIGHT + ICON_GAP;
-        if (row.denied()) {
-            graphics.text(font, DENIED_LINE, x, y, GRAY);
-            y += LINE_HEIGHT;
-        } else if (row.amounts().isEmpty()) {
-            graphics.text(font, NO_VALUE_LINE, x, y, GRAY);
-            y += LINE_HEIGHT;
-        }
-        for (Map.Entry<String, String> amount : row.amounts().entrySet()) {
-            graphics.text(font, amount.getKey() + AMOUNT_SEPARATOR + amount.getValue(), x, y, WHITE);
-            y += LINE_HEIGHT;
-        }
-        if (!row.error().isEmpty()) {
-            graphics.text(font, font.plainSubstrByWidth(row.error(), width - x - MARGIN), x, y, RED);
         }
     }
 

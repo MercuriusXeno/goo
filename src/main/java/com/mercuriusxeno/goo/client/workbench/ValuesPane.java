@@ -1,0 +1,267 @@
+package com.mercuriusxeno.goo.client.workbench;
+
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.network.chat.Component;
+import org.jspecify.annotations.Nullable;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+/**
+ * Draws the Values tab: the Items, Tags and Uncovered chips, the search box, each entry with its icon and where its
+ * value comes from, and the selected entry's expression and resolved values, each list scrolling under the wheel, as
+ * index.html's values section does (decision goo-workbench-opens-the-in-game-manager-screen). The state lives in
+ * {@link ValuesTab}.
+ */
+final class ValuesPane {
+    private static final int SIDEBAR_WIDTH = 180;
+    private static final int PANE_GAP = 12;
+    private static final int LINE_HEIGHT = 10;
+    private static final int BOX_HEIGHT = 14;
+    private static final int ROW_HEIGHT = 20;
+    private static final int ICON_SIZE = 16;
+    private static final int ICON_GAP = 4;
+    private static final int CHIP_GAP = 8;
+    private static final int GAP = 3;
+    private static final int HALF = 2;
+    private static final int SCROLL_STEP = LINE_HEIGHT * 3;
+    private static final int EXPRESSION_MAX_LENGTH = 32767;
+    private static final int WHITE = 0xFFFFFFFF;
+    private static final int GRAY = 0xFFA0A0A0;
+    private static final int RED = 0xFFFF5555;
+    private static final int GREEN = 0xFF80E080;
+    private static final int GOLD = 0xFFE0C060;
+    private static final int CHIP_OFF = 0xFF808080;
+    private static final int SELECTED_ROW_COLOR = 0x60FFFFFF;
+    private static final String ITEMS_CHIP = "Items";
+    private static final String TAGS_CHIP = "Tags";
+    private static final String UNCOVERED_CHIP = "Uncovered ";
+    private static final String SEARCH_HINT = "Search items and tags";
+    private static final String EXPRESSION_LABEL = "Expression";
+    private static final String NO_SELECTION = "Select an item or tag to read and edit its entry.";
+    private static final String NO_ENTRIES = "Nothing listed here.";
+    private static final String DENIED_LINE = "denied";
+    private static final String NO_VALUE_LINE = "no value: nothing in the file or the recipes values it";
+    private static final String AMOUNT_SEPARATOR = "  ";
+    private static final String NO_TEXT = "";
+
+    private final ValuesTab values;
+    private final ItemIcons icons;
+    private final ManagerActions actions;
+    private @Nullable EditBox search;
+    private @Nullable EditBox expression;
+    private int listScroll;
+    private int detailScroll;
+    private boolean visible;
+
+    ValuesPane(ValuesTab values, ItemIcons icons, ManagerActions actions) {
+        this.values = values;
+        this.icons = icons;
+        this.actions = actions;
+    }
+
+    /**
+     * @param font the screen's font
+     */
+    void init(Font font) {
+        String searched = search == null ? NO_TEXT : search.getValue();
+        search = actions.addWidget(new EditBox(font, 0, 0, SIDEBAR_WIDTH, BOX_HEIGHT, Component.literal(SEARCH_HINT)));
+        search.setHint(Component.literal(SEARCH_HINT));
+        search.setValue(searched);
+        search.setResponder(text -> {
+            values.search(text);
+            listScroll = 0;
+        });
+        String typed = expression == null ? NO_TEXT : expression.getValue();
+        expression = actions.addWidget(new EditBox(font, 0, 0, SIDEBAR_WIDTH, BOX_HEIGHT,
+                Component.literal(EXPRESSION_LABEL)));
+        expression.setMaxLength(EXPRESSION_MAX_LENGTH);
+        expression.setValue(typed);
+        expression.setResponder(this::edited);
+        show(visible);
+    }
+
+    /**
+     * @param shown whether the Values tab is the one drawn
+     */
+    void show(boolean shown) {
+        visible = shown;
+        if (search != null) {
+            search.visible = shown;
+        }
+        refresh();
+    }
+
+    /**
+     * Shows the selected entry's expression in the edit box, as a new resolve or a new selection leaves it.
+     */
+    void refresh() {
+        if (expression == null) {
+            return;
+        }
+        Optional<ValuesTab.EntryRow> row = values.selectedRow();
+        expression.visible = visible && row.isPresent();
+        row.ifPresent(selected -> {
+            if (!expression.getValue().equals(selected.expression())) {
+                expression.setValue(selected.expression());
+            }
+        });
+    }
+
+    private void edited(String typed) {
+        Optional<ValuesTab.EntryRow> row = values.selectedRow();
+        if (row.isPresent() && !row.get().expression().equals(typed)) {
+            values.edit(typed);
+            actions.markUnsaved();
+        }
+    }
+
+    /**
+     * @param x      the cursor's x
+     * @param left   the pane's left edge
+     * @param amount the wheel's turn, positive away from the player
+     */
+    void scroll(double x, int left, double amount) {
+        int step = (int) -Math.signum(amount);
+        if (x < left + SIDEBAR_WIDTH) {
+            listScroll = Math.max(0, listScroll + step);
+        } else {
+            detailScroll = Math.max(0, detailScroll + step * SCROLL_STEP);
+        }
+    }
+
+    void extract(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds bounds, ClickTargets targets) {
+        int y = drawChips(graphics, font, bounds.left(), bounds.top(), targets);
+        if (search != null) {
+            search.setPosition(bounds.left(), y);
+        }
+        drawEntries(graphics, font, new GroupsPane.Bounds(bounds.left(), y + BOX_HEIGHT + GAP,
+                bounds.left() + SIDEBAR_WIDTH, bounds.bottom()), targets);
+        drawSelected(graphics, font, new GroupsPane.Bounds(bounds.left() + SIDEBAR_WIDTH + PANE_GAP, bounds.top(),
+                bounds.right(), bounds.bottom()));
+    }
+
+    // Answers the y below the chips.
+    private int drawChips(GuiGraphicsExtractor graphics, Font font, int left, int top, ClickTargets targets) {
+        int x = left;
+        x = drawChip(graphics, font, ITEMS_CHIP, ValuesTab.Filter.ITEMS, x, top, WHITE, targets);
+        x = drawChip(graphics, font, TAGS_CHIP, ValuesTab.Filter.TAGS, x, top, WHITE, targets);
+        int uncovered = values.uncoveredCount();
+        drawChip(graphics, font, UNCOVERED_CHIP + uncovered, ValuesTab.Filter.UNCOVERED, x, top,
+                uncovered == 0 ? WHITE : RED, targets);
+        return top + LINE_HEIGHT + GAP;
+    }
+
+    // Answers the x past the chip; the chip the filter stands on draws in its color, the others dim.
+    private int drawChip(GuiGraphicsExtractor graphics, Font font, String label, ValuesTab.Filter filter, int x,
+                         int y, int color, ClickTargets targets) {
+        boolean on = values.filter() == filter;
+        graphics.text(font, label, x, y, on ? color : CHIP_OFF);
+        if (on) {
+            graphics.fill(x, y + LINE_HEIGHT - 1, x + font.width(label), y + LINE_HEIGHT, color);
+        }
+        targets.add(x, y, font.width(label), LINE_HEIGHT, () -> {
+            values.filter(filter);
+            listScroll = 0;
+        });
+        return x + font.width(label) + CHIP_GAP;
+    }
+
+    private void drawEntries(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds list, ClickTargets targets) {
+        List<ValuesTab.ManagerEntry> listed = values.listed();
+        if (listed.isEmpty()) {
+            graphics.text(font, NO_ENTRIES, list.left(), list.top(), GRAY);
+            return;
+        }
+        int shown = Math.max(1, (list.bottom() - list.top()) / ROW_HEIGHT);
+        listScroll = Math.min(listScroll, Math.max(0, listed.size() - shown));
+        Optional<String> selectedId = values.selectedRow().map(ValuesTab.EntryRow::id);
+        int textX = list.left() + ICON_SIZE + ICON_GAP;
+        int textWidth = list.right() - textX;
+        int y = list.top();
+        for (int index = listScroll; index < Math.min(listed.size(), listScroll + shown); index++) {
+            ValuesTab.ManagerEntry entry = listed.get(index);
+            if (selectedId.filter(entry.id()::equals).isPresent()) {
+                graphics.fill(list.left(), y, list.right(), y + ROW_HEIGHT, SELECTED_ROW_COLOR);
+            }
+            graphics.item(icons.of(entry.id()), list.left(), y + HALF);
+            String first = entry.tag() ? entry.id() : entry.name();
+            graphics.text(font, font.plainSubstrByWidth(first, textWidth), textX, y + 1, WHITE);
+            if (entry.tag()) {
+                graphics.text(font, font.plainSubstrByWidth(entry.name(), textWidth), textX, y + LINE_HEIGHT, GRAY);
+            } else {
+                ValuesTab.Source source = values.sourceOf(entry.id());
+                graphics.text(font, font.plainSubstrByWidth(source.label(), textWidth), textX, y + LINE_HEIGHT,
+                        colorOf(source.kind()));
+            }
+            targets.add(list.left(), y, list.right() - list.left(), ROW_HEIGHT, () -> {
+                values.select(entry.id());
+                detailScroll = 0;
+                refresh();
+            });
+            y += ROW_HEIGHT;
+        }
+    }
+
+    private static int colorOf(ValuesTab.SourceKind kind) {
+        return switch (kind) {
+            case ENTRY -> GREEN;
+            case GROUP -> GOLD;
+            case DENIED -> GRAY;
+            case NONE -> RED;
+        };
+    }
+
+    private void drawSelected(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds pane) {
+        Optional<ValuesTab.EntryRow> selected = values.selectedRow();
+        int x = pane.left();
+        int width = pane.right() - x;
+        if (selected.isEmpty()) {
+            graphics.text(font, NO_SELECTION, x, pane.top(), GRAY);
+            return;
+        }
+        ValuesTab.EntryRow row = selected.get();
+        graphics.item(icons.of(row.id()), x, pane.top());
+        int textX = x + ICON_SIZE + ICON_GAP;
+        graphics.text(font, font.plainSubstrByWidth(row.name() + AMOUNT_SEPARATOR + row.id(), pane.right() - textX),
+                textX, pane.top(), WHITE);
+        if (!row.id().startsWith(ValuesTab.TAG_MARK)) {
+            ValuesTab.Source source = values.sourceOf(row.id());
+            graphics.text(font, source.label(), textX, pane.top() + LINE_HEIGHT, colorOf(source.kind()));
+        }
+        int y = pane.top() + LINE_HEIGHT * HALF + GAP;
+        graphics.text(font, EXPRESSION_LABEL, x, y, GRAY);
+        y += LINE_HEIGHT;
+        if (expression != null) {
+            expression.setPosition(x, y);
+            expression.setWidth(width);
+        }
+        drawAmounts(graphics, font, row, new GroupsPane.Bounds(x, y + BOX_HEIGHT + GAP, pane.right(), pane.bottom()));
+    }
+
+    private void drawAmounts(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row,
+                             GroupsPane.Bounds area) {
+        int lines = row.amounts().size() + (row.denied() || row.amounts().isEmpty() ? 1 : 0)
+                + (row.error().isEmpty() ? 0 : 1);
+        detailScroll = Math.min(detailScroll, Math.max(0, lines * LINE_HEIGHT - (area.bottom() - area.top())));
+        graphics.enableScissor(area.left(), area.top(), area.right(), area.bottom());
+        int y = area.top() - detailScroll;
+        if (row.denied()) {
+            graphics.text(font, DENIED_LINE, area.left(), y, GRAY);
+            y += LINE_HEIGHT;
+        } else if (row.amounts().isEmpty()) {
+            graphics.text(font, NO_VALUE_LINE, area.left(), y, RED);
+            y += LINE_HEIGHT;
+        }
+        for (Map.Entry<String, String> amount : row.amounts().entrySet()) {
+            graphics.text(font, amount.getKey() + AMOUNT_SEPARATOR + amount.getValue(), area.left(), y, WHITE);
+            y += LINE_HEIGHT;
+        }
+        if (!row.error().isEmpty()) {
+            graphics.text(font, font.plainSubstrByWidth(row.error(), area.right() - area.left()), area.left(), y, RED);
+        }
+        graphics.disableScissor();
+    }
+}

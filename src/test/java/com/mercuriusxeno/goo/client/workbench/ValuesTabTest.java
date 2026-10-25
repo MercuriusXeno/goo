@@ -53,14 +53,17 @@ class ValuesTabTest {
     class Listing {
 
         /**
-         * A blank search lists every item, then every item tag after #, the tag named by its member count.
+         * A blank search lists every item under the Items filter, and every item tag after # under the Tags
+         * filter, the tag named by its member count.
          */
         @Test
-        void blankSearchListsItemsThenTags() {
-            List<ValuesTab.ManagerEntry> listed = tab.listed();
-            assertEquals(List.of("minecraft:stick", "minecraft:torch", "goo:gasket", "#minecraft:logs"), ids(listed));
-            assertEquals("2 members", listed.getLast().name());
-            assertTrue(listed.getLast().tag());
+        void blankSearchListsItemsAndTagsUnderTheirFilters() {
+            assertEquals(List.of("minecraft:stick", "minecraft:torch", "goo:gasket"), ids(tab.listed()));
+            tab.filter(ValuesTab.Filter.TAGS);
+            List<ValuesTab.ManagerEntry> tags = tab.listed();
+            assertEquals(List.of("#minecraft:logs"), ids(tags));
+            assertEquals("2 members", tags.getFirst().name());
+            assertTrue(tags.getFirst().tag());
         }
 
         /**
@@ -71,7 +74,7 @@ class ValuesTabTest {
             tab.search("  CHORAL ");
             assertEquals(List.of("goo:gasket"), ids(tab.listed()));
             tab.search("minecraft:");
-            assertEquals(List.of("minecraft:stick", "minecraft:torch", "#minecraft:logs"), ids(tab.listed()));
+            assertEquals(List.of("minecraft:stick", "minecraft:torch"), ids(tab.listed()));
         }
     }
 
@@ -101,6 +104,64 @@ class ValuesTabTest {
             ValuesTab.EntryRow row = tab.selectedRow().orElseThrow();
             assertEquals("", row.expression());
             assertTrue(row.amounts().isEmpty());
+        }
+    }
+
+    @Nested
+    class MissingValues {
+
+        private static final String GROUPED_MODEL = """
+                {"path": "base_values.json", "members": [
+                  {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "lights", "keySeparator": null, "kind": "VALUE", "text": "[\\"torch\\"]",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null},
+                  {"key": "stick", "keySeparator": null, "kind": "VALUE", "text": "\\"$base / 4\\"", "entries": [],
+                   "leading": null, "trailing": null, "closingGap": null},
+                  {"key": "#lights", "keySeparator": null, "kind": "VALUE", "text": "{\\"glow\\": 4}", "entries": [],
+                   "leading": null, "trailing": null, "closingGap": null},
+                  {"key": "goo:gasket", "keySeparator": null, "kind": "VALUE", "text": "\\"denied\\"", "entries": [],
+                   "leading": null, "trailing": null, "closingGap": null},
+                  {"key": "_restricted", "keySeparator": null, "kind": "ARRAY", "text": "", "entries": [
+                     {"key": null, "keySeparator": null, "kind": "VALUE", "text": "\\"stick\\"", "entries": [],
+                      "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}
+                ]}
+                """;
+
+        /**
+         * Each item names where its value comes from, as the page's source badge does: its own entry, a #group
+         * entry over a _groups group, a denial, or nothing in the file, with a restriction appended.
+         */
+        @Test
+        void eachItemNamesWhereItsValueComesFrom() {
+            tab.readModel(GROUPED_MODEL);
+            assertEquals(new ValuesTab.Source("entry, restricted", ValuesTab.SourceKind.ENTRY),
+                    tab.sourceOf("minecraft:stick"));
+            assertEquals(new ValuesTab.Source("group #lights", ValuesTab.SourceKind.GROUP),
+                    tab.sourceOf("minecraft:torch"));
+            assertEquals(new ValuesTab.Source("denied", ValuesTab.SourceKind.DENIED), tab.sourceOf("goo:gasket"));
+            tab.readInventory("""
+                    {"items": [{"id": "minecraft:dirt", "name": "Dirt"}], "item_tags": []}
+                    """);
+            assertEquals(new ValuesTab.Source("not in the file", ValuesTab.SourceKind.NONE),
+                    tab.sourceOf("minecraft:dirt"));
+        }
+
+        /**
+         * The Uncovered filter lists the items the uncovered reply names, its chip counts them, and the Tags filter
+         * lists the tags alone.
+         */
+        @Test
+        void uncoveredFilterListsTheItemsWithNoValue() {
+            tab.readUncovered("{\"items\": [\"minecraft:torch\"]}");
+            assertEquals(1, tab.uncoveredCount());
+            tab.filter(ValuesTab.Filter.UNCOVERED);
+            assertEquals(List.of("minecraft:torch"), ids(tab.listed()));
+            tab.filter(ValuesTab.Filter.TAGS);
+            assertEquals(List.of("#minecraft:logs"), ids(tab.listed()));
+            tab.filter(ValuesTab.Filter.ITEMS);
+            assertEquals(List.of("minecraft:stick", "minecraft:torch", "goo:gasket"), ids(tab.listed()));
         }
     }
 

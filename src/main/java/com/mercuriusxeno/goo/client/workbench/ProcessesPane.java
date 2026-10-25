@@ -15,16 +15,16 @@ import org.lwjgl.glfw.GLFW;
  * state lives in {@link ProcessesTab}.
  */
 final class ProcessesPane {
-    private static final int LINE_HEIGHT = 11;
-    private static final int ROW_HEIGHT = 14;
-    private static final int BOX_HEIGHT = 14;
+    private static final int LINE_HEIGHT = 10;
+    private static final int ROW_HEIGHT = 13;
+    private static final int BOX_HEIGHT = 12;
     // The edit box's text sits lower in the box than a row's text, so the box stands a little above the row.
     private static final int BOX_NUDGE = 2;
     private static final int KEY_WIDTH = 120;
     private static final int KIND_WIDTH = 70;
     private static final int VERDICT_WIDTH = 160;
     private static final int GAP = 6;
-    private static final int SECTION_GAP = 10;
+    private static final int SECTION_GAP = 6;
     private static final int SCROLL_STEP = ROW_HEIGHT * 3;
     private static final int WHITE = 0xFFFFFFFF;
     private static final int GRAY = 0xFFA0A0A0;

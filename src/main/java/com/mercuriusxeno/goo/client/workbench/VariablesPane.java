@@ -22,9 +22,9 @@ import java.util.Set;
  * references-link-to-their-variable-and-hover-a-card). The state lives in {@link VariablesTab}.
  */
 final class VariablesPane {
-    private static final int LINE_HEIGHT = 11;
-    private static final int BOX_HEIGHT = 16;
-    private static final int BLOCK_GAP = 8;
+    private static final int LINE_HEIGHT = 10;
+    private static final int BOX_HEIGHT = 14;
+    private static final int BLOCK_GAP = 5;
     private static final int ICON_SIZE = 16;
     private static final int ICON_GAP = 2;
     private static final int NAME_WIDTH = 140;
@@ -68,6 +68,8 @@ final class VariablesPane {
     private final ManagerActions actions;
     private final Map<String, VariablesTab.HoverCard> cards = new HashMap<>();
     private final Set<String> cardsAsked = new HashSet<>();
+    private final Set<String> expandedUsedBy = new HashSet<>();
+    private int cascadeScroll;
     private final Map<String, Integer> blockTops = new HashMap<>();
     private @Nullable EditBox expression;
     private @Nullable EditBox rename;
@@ -148,6 +150,10 @@ final class VariablesPane {
      * @param amount the wheel's turn, positive away from the player
      */
     void scroll(double amount) {
+        if (deleting != null) {
+            cascadeScroll = Math.max(0, cascadeScroll - (int) Math.signum(amount));
+            return;
+        }
         scroll = Math.max(0, scroll - (int) Math.signum(amount) * SCROLL_STEP);
     }
 
@@ -201,7 +207,8 @@ final class VariablesPane {
             boolean editingThis = variables.editing().filter(block.name()::equals).isPresent();
             editShown |= editingThis && placeExpression(bounds, y);
             y += editingThis ? BOX_HEIGHT : drawReadView(graphics, font, block, bounds, y, targets);
-            y += drawUsedBy(graphics, font, block.usedBy(), bounds.left(), y + HALF) + BLOCK_GAP;
+            y += drawUsedBy(graphics, font, block.usedBy(), bounds.left(), y + HALF, bounds.right() - bounds.left(),
+                    block.name(), targets) + BLOCK_GAP;
         }
         scroll = Math.min(scroll, Math.max(0, y + scroll - bounds.bottom()));
         targets.unclip();
@@ -295,18 +302,37 @@ final class VariablesPane {
         return height;
     }
 
-    // Answers the height the line took, none where the constant reaches no item.
-    private int drawUsedBy(GuiGraphicsExtractor graphics, Font font, List<String> usedBy, int x, int y) {
+    // Answers the height the used-by items took, none where the constant reaches no item. A line too narrow for
+    // them stops at an "... and N more" link, which expands the block's line onto as many rows as it needs; a null
+    // expandKey draws the link as plain text, as the hover card does.
+    private int drawUsedBy(GuiGraphicsExtractor graphics, Font font, List<String> usedBy, int x, int y, int width,
+                           @Nullable String expandKey, ClickTargets targets) {
         if (usedBy.isEmpty()) {
             return 0;
         }
         graphics.text(font, USED_BY, x, y + TEXT_NUDGE, GRAY);
-        int itemX = x + font.width(USED_BY);
-        for (String item : usedBy) {
-            graphics.item(icons.of(item), itemX, y);
-            itemX += ICON_SIZE + ICON_GAP;
+        int itemsX = x + font.width(USED_BY);
+        int itemsWidth = x + width - itemsX;
+        int step = ICON_SIZE + ICON_GAP;
+        boolean expanded = expandKey != null && expandedUsedBy.contains(expandKey);
+        UsedByLine.Fit fit = expanded ? UsedByLine.expanded(usedBy.size())
+                : UsedByLine.fit(usedBy.size(), itemsWidth, step, hidden -> font.width(UsedByLine.moreLabel(hidden)));
+        int perRow = Math.max(1, itemsWidth / step);
+        for (int index = 0; index < fit.shown(); index++) {
+            int row = expanded ? index / perRow : 0;
+            int column = expanded ? index % perRow : index;
+            graphics.item(icons.of(usedBy.get(index)), itemsX + column * step, y + row * (ICON_SIZE + HALF));
         }
-        return ICON_SIZE + HALF;
+        if (fit.hidden() > 0) {
+            String more = UsedByLine.moreLabel(fit.hidden());
+            int moreX = itemsX + fit.shown() * step;
+            graphics.text(font, more, moreX, y + TEXT_NUDGE, expandKey == null ? GRAY : LINK);
+            if (expandKey != null) {
+                targets.add(moreX, y, font.width(more), ICON_SIZE, () -> expandedUsedBy.add(expandKey));
+            }
+        }
+        int rows = expanded ? (fit.shown() + perRow - 1) / perRow : 1;
+        return rows * (ICON_SIZE + HALF);
     }
 
     private void startEditing(String name) {
@@ -357,6 +383,7 @@ final class VariablesPane {
             return;
         }
         deleting = name;
+        cascadeScroll = 0;
         show(visible);
     }
 
@@ -392,21 +419,39 @@ final class VariablesPane {
         drawDialogButtons(graphics, font, name, dialog, targets);
     }
 
+    // The readers lay out in rows; the wheel scrolls the rows, so a cascade longer than the dialog stays reachable.
     private void drawCascade(GuiGraphicsExtractor graphics, Font font, String name, GroupsPane.Bounds dialog,
                              ClickTargets targets) {
         int x = dialog.left() + CARD_PADDING;
-        int y = dialog.top() + CARD_PADDING + LINE_HEIGHT + CARD_PADDING;
+        int top = dialog.top() + CARD_PADDING + LINE_HEIGHT + CARD_PADDING;
+        int rowHeight = ICON_SIZE + HALF;
+        int rowsShown = Math.max(1, (dialog.bottom() - LINE_HEIGHT * HALF - CARD_PADDING - top) / rowHeight);
+        int right = dialog.right() - CARD_PADDING;
+        int row = 0;
         int readerX = x;
         for (VariablesTab.Reader reader : variables.deletionCascade(name)) {
-            readerX += drawReader(graphics, font, reader, readerX, y, targets) + READER_GAP;
-            if (readerX > dialog.right() - CARD_PADDING - ICON_SIZE) {
+            int readerWidth = readerWidth(font, reader);
+            if (readerX + readerWidth > right && readerX > x) {
+                row++;
                 readerX = x;
-                y += ICON_SIZE + HALF;
             }
-            if (y > dialog.bottom() - LINE_HEIGHT * HALF - CARD_PADDING) {
-                return;
+            int shownRow = row - cascadeScroll;
+            if (shownRow >= 0 && shownRow < rowsShown) {
+                drawReader(graphics, font, reader, readerX, top + shownRow * rowHeight, targets);
             }
+            readerX += readerWidth + READER_GAP;
         }
+        cascadeScroll = Math.min(cascadeScroll, Math.max(0, row + 1 - rowsShown));
+    }
+
+    private static int readerWidth(Font font, VariablesTab.Reader reader) {
+        if (CONSTANT_KIND.equals(reader.kind())) {
+            return font.width(REFERENCE_MARK + reader.id());
+        }
+        if (GROUP_KIND.equals(reader.kind())) {
+            return font.width(reader.id().startsWith(TAG_PREFIX) ? reader.id() : TAG_PREFIX + reader.id());
+        }
+        return ICON_SIZE;
     }
 
     private void drawDialogButtons(GuiGraphicsExtractor graphics, Font font, String name, GroupsPane.Bounds dialog,
@@ -451,7 +496,7 @@ final class VariablesPane {
         String name = hovered.get();
         VariablesTab.HoverCard card = cards.get(name);
         if (card != null) {
-            drawCard(graphics, font, card, bounds, mouseX, mouseY);
+            drawCard(graphics, font, card, bounds, mouseX, mouseY, targets);
         } else if (cardsAsked.add(name)) {
             actions.request(WorkbenchOperations.CONSTANT_HOVER, variables.hoverRequest(name),
                     answered -> cards.put(name, variables.readHover(answered)));
@@ -459,7 +504,7 @@ final class VariablesPane {
     }
 
     private void drawCard(GuiGraphicsExtractor graphics, Font font, VariablesTab.HoverCard card,
-                          GroupsPane.Bounds bounds, int mouseX, int mouseY) {
+                          GroupsPane.Bounds bounds, int mouseX, int mouseY, ClickTargets targets) {
         int textWidth = CARD_WIDTH - CARD_PADDING * HALF;
         int expressionLines = ExpressionLines.measure(font, ExpressionReferences.nodes(card.expression()), textWidth);
         int height = CARD_PADDING * HALF + LINE_HEIGHT * (1 + expressionLines + card.lines().size())
@@ -479,6 +524,6 @@ final class VariablesPane {
             graphics.text(font, font.plainSubstrByWidth(line, textWidth), x, y, GREEN);
             y += LINE_HEIGHT;
         }
-        drawUsedBy(graphics, font, card.usedBy(), x, y);
+        drawUsedBy(graphics, font, card.usedBy(), x, y, textWidth, null, targets);
     }
 }

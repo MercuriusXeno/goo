@@ -11,8 +11,8 @@ import java.util.List;
  * in {@link ChecksTab}.
  */
 final class ChecksPane {
-    private static final int LINE_HEIGHT = 11;
-    private static final int GAP = 6;
+    private static final int LINE_HEIGHT = 10;
+    private static final int GAP = 4;
     private static final int INDENT = 12;
     private static final int SCROLL_STEP = LINE_HEIGHT * 3;
     private static final int GRAY = 0xFFA0A0A0;
