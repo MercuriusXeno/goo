@@ -210,6 +210,75 @@ class WorkbenchOperationsTest {
     }
 
     @Nested
+    class LiveApply {
+
+        private final List<String> applied = new java.util.ArrayList<>();
+        private WorkbenchOperations live;
+
+        @BeforeEach
+        void bindTheFakeApplier() {
+            live = new WorkbenchOperations(paths, () -> new byte[0], () -> { }, (draft, progress) -> 0,
+                    applied::add);
+        }
+
+        private void saveWithBase(String base) {
+            WorkbenchReply model = live.answer(WorkbenchOperations.MODEL, "");
+            JsonObject json = JsonParser.parseString(model.text()).getAsJsonObject();
+            json.getAsJsonArray("members").get(0).getAsJsonObject().getAsJsonArray("entries").get(0)
+                    .getAsJsonObject().addProperty("text", base);
+            assertEquals(200, live.answer(WorkbenchOperations.SAVE_MODEL, json.toString()).status());
+        }
+
+        /**
+         * A save hands the applier the draft it wrote, so the world runs the draft at once
+         * (decision save-applies-the-draft-live-promote-renames-it).
+         */
+        @Test
+        void saveHandsTheApplierTheDraftItWrote() throws IOException {
+            saveWithBase("196");
+            assertEquals(List.of(Files.readString(paths.draft())), applied);
+        }
+
+        /**
+         * Promote renames the draft over the live file and hands the applier the live file, which now holds the
+         * former draft (decision save-applies-the-draft-live-promote-renames-it).
+         */
+        @Test
+        void promoteHandsTheApplierTheLiveFile() throws IOException {
+            saveWithBase("197");
+            String drafted = Files.readString(paths.draft());
+            assertEquals(200, live.answer(WorkbenchOperations.PROMOTE, "{\"acknowledged\": true}").status());
+            assertEquals(drafted, Files.readString(paths.baseValues()));
+            assertEquals(List.of(drafted, drafted), applied);
+        }
+
+        /**
+         * Discard copies the live file over the draft and hands the applier the live file, so the world runs the
+         * live values again (decision save-applies-the-draft-live-promote-renames-it).
+         */
+        @Test
+        void discardHandsTheApplierTheLiveFile() throws IOException {
+            saveWithBase("198");
+            assertEquals(200, live.answer(WorkbenchOperations.DISCARD, "{}").status());
+            String liveText = Files.readString(paths.baseValues());
+            assertEquals(liveText, Files.readString(paths.draft()));
+            assertEquals(liveText, applied.getLast());
+        }
+
+        /**
+         * A promote the checks refuse renames nothing and applies nothing.
+         */
+        @Test
+        void refusedPromoteAppliesNothing() throws IOException {
+            assertEquals(200, live.answer(WorkbenchOperations.SAVE_MODEL, posted(SampleDrafts.diamondLackingYore()))
+                    .status());
+            applied.clear();
+            assertEquals(409, live.answer(WorkbenchOperations.PROMOTE, "{}").status());
+            assertTrue(applied.isEmpty());
+        }
+    }
+
+    @Nested
     class Inventory {
 
         /**

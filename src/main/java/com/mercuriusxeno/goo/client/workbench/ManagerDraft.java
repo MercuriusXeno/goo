@@ -16,6 +16,10 @@ public final class ManagerDraft {
     private static final String MEMBERS = "members";
     private static final String KEY = "key";
     private static final String ENTRIES = "entries";
+    private static final String PATH = "path";
+    private static final String DRAFT = "draft";
+    private static final String DIFFERS = "differs";
+    private static final String NO_PATH = "the value file";
     private static final String OBJECT_START = "{";
     // An integer stays as written; anything else the box holds is an expression string, stored quoted.
     private static final Pattern INTEGER = Pattern.compile("-?\\d+");
@@ -56,6 +60,23 @@ public final class ManagerDraft {
             return none;
         }
         return members.getAsJsonArray();
+    }
+
+    /**
+     * @return the value file the last model reply named, the one Promote overwrites
+     */
+    public String path() {
+        JsonElement path = model.get(PATH);
+        return path == null || path.isJsonNull() ? NO_PATH : path.getAsString();
+    }
+
+    /**
+     * @return whether the last model reply said the draft holds changes the value file does not
+     */
+    public boolean differs() {
+        JsonElement draft = model.get(DRAFT);
+        return draft != null && draft.isJsonObject() && draft.getAsJsonObject().has(DIFFERS)
+                && draft.getAsJsonObject().get(DIFFERS).getAsBoolean();
     }
 
     /**
