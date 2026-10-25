@@ -10,9 +10,10 @@ import org.lwjgl.glfw.GLFW;
 
 /**
  * Draws the Mutators tab: each block's summary and its entries, each on two lines, the key, the form, the parser's
- * verdict and Delete on the first and the text at full width on the second (decision mutator-rows-take-an-extra-line); a click on an entry's text swaps in an edit box that writes the draft on Enter or blur, and Delete drops
- * the entry, as index.html's processes section does (decision goo-workbench-opens-the-in-game-manager-screen). The
- * state lives in {@link ProcessesTab}.
+ * verdict and Delete on the first and the text at full width on the second (decision mutator-rows-take-an-extra-line);
+ * a click on an entry's text swaps in an edit box that writes the draft on Enter or blur, and Delete drops the entry,
+ * as index.html's processes section does (decision goo-workbench-opens-the-in-game-manager-screen). The rows scroll
+ * under a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in {@link ProcessesTab}.
  */
 final class ProcessesPane {
     private static final int LINE_HEIGHT = 10;
@@ -46,7 +47,7 @@ final class ProcessesPane {
     private @Nullable String editingKey;
     private boolean fieldHeldFocus;
     private boolean visible;
-    private int scroll;
+    private final ScrollBar bar = new ScrollBar(SCROLL_STEP);
 
     ProcessesPane(ProcessesTab processes, ManagerDraft draft, ManagerActions actions) {
         this.processes = processes;
@@ -88,7 +89,7 @@ final class ProcessesPane {
      * @param amount the wheel's turn, positive away from the player
      */
     void scroll(double amount) {
-        scroll = Math.max(0, scroll - (int) Math.signum(amount) * SCROLL_STEP);
+        bar.wheel(amount);
     }
 
     /**
@@ -108,19 +109,21 @@ final class ProcessesPane {
         graphics.enableScissor(bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
         targets.clip(bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
         boolean fieldShown = false;
-        int y = bounds.top() - scroll;
+        GroupsPane.Bounds rows = new GroupsPane.Bounds(bounds.left(), bounds.top(),
+                bounds.right() - ScrollBar.WIDTH - ScrollBar.GAP, bounds.bottom());
+        int y = bounds.top() - bar.offset();
         for (ProcessesTab.ProcessSection section : processes.sections()) {
             graphics.text(font, section.section() + SUMMARY_GAP + section.summary(), bounds.left(), y, WHITE);
             y += LINE_HEIGHT + GAP;
             for (ProcessesTab.ProcessRow row : section.rows()) {
-                fieldShown |= drawRow(graphics, font, section.section(), row, bounds, y, targets);
-                y += ProcessesTab.layoutRow(bounds.left(), bounds.right(), y).height();
+                fieldShown |= drawRow(graphics, font, section.section(), row, rows, y, targets);
+                y += ProcessesTab.layoutRow(rows.left(), rows.right(), y).height();
             }
             y += SECTION_GAP;
         }
-        scroll = Math.min(scroll, Math.max(0, y + scroll - bounds.bottom()));
         targets.unclip();
         graphics.disableScissor();
+        bar.measureAndDraw(graphics, targets, y, bounds.right(), bounds.top(), bounds.bottom());
         if (field != null) {
             field.visible = visible && fieldShown;
         }
@@ -129,15 +132,7 @@ final class ProcessesPane {
     // Answers whether the edit box stands on this row, inside the pane.
     private boolean drawRow(GuiGraphicsExtractor graphics, Font font, String section, ProcessesTab.ProcessRow row,
                             GroupsPane.Bounds bounds, int y, ClickTargets targets) {
-        int x = bounds.left();
-        graphics.text(font, font.plainSubstrByWidth(row.key(), KEY_WIDTH - GAP), x, y, WHITE);
-        graphics.text(font, row.kind(), x + KEY_WIDTH, y, ASSIGNMENT.equals(row.kind()) ? TREE_COLOR : GRAY);
-        int deleteX = bounds.right() - font.width(DELETE);
-        int verdictX = Math.max(x + KEY_WIDTH + KIND_WIDTH, deleteX - GAP - VERDICT_WIDTH);
-        graphics.text(font, font.plainSubstrByWidth(row.verdict(), deleteX - GAP - verdictX), verdictX, y,
-                row.parsed() ? GREEN : RED);
-        graphics.text(font, DELETE, deleteX, y, LINK);
-        targets.add(deleteX, y, font.width(DELETE), LINE_HEIGHT, () -> delete(section, row.key()));
+        drawHeadLine(graphics, font, section, row, bounds, y, targets);
         ProcessesTab.RowLayout layout = ProcessesTab.layoutRow(bounds.left(), bounds.right(), y);
         int textX = layout.textX();
         int textY = layout.textY();
@@ -153,6 +148,20 @@ final class ProcessesPane {
             targets.add(textX, textY - 1, textWidth, LINE_HEIGHT + 1, () -> startEditing(section, row));
         }
         return editingThis && textY - BOX_NUDGE >= bounds.top() && textY - BOX_NUDGE + BOX_HEIGHT <= bounds.bottom();
+    }
+
+    // The row's first line: its key, its form, the parser's verdict and Delete.
+    private void drawHeadLine(GuiGraphicsExtractor graphics, Font font, String section, ProcessesTab.ProcessRow row,
+                              GroupsPane.Bounds bounds, int y, ClickTargets targets) {
+        int x = bounds.left();
+        graphics.text(font, font.plainSubstrByWidth(row.key(), KEY_WIDTH - GAP), x, y, WHITE);
+        graphics.text(font, row.kind(), x + KEY_WIDTH, y, ASSIGNMENT.equals(row.kind()) ? TREE_COLOR : GRAY);
+        int deleteX = bounds.right() - font.width(DELETE);
+        int verdictX = Math.max(x + KEY_WIDTH + KIND_WIDTH, deleteX - GAP - VERDICT_WIDTH);
+        graphics.text(font, font.plainSubstrByWidth(row.verdict(), deleteX - GAP - verdictX), verdictX, y,
+                row.parsed() ? GREEN : RED);
+        graphics.text(font, DELETE, deleteX, y, LINK);
+        targets.add(deleteX, y, font.width(DELETE), LINE_HEIGHT, () -> delete(section, row.key()));
     }
 
     private void startEditing(String section, ProcessesTab.ProcessRow row) {

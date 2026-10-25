@@ -301,6 +301,16 @@ public final class ValuesManagerScreen extends Screen {
     }
 
     @Override
+    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        return targets.drag(event.y()) || super.mouseDragged(event, dragX, dragY);
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        return targets.release() || super.mouseReleased(event);
+    }
+
+    @Override
     public boolean keyPressed(KeyEvent event) {
         if (tab == ManagerTab.VARIABLES && variablesPane.keyPressed(event.key())
                 || tab == ManagerTab.PROCESSES && processesPane.keyPressed(event.key())) {
@@ -343,7 +353,7 @@ public final class ValuesManagerScreen extends Screen {
             case VARIABLES -> variablesPane.extract(graphics, font, content, targets, mouseX, mouseY);
             case PROCESSES -> processesPane.extract(graphics, font, content, targets);
             case AUDIT -> auditPane.extract(graphics, font, content, targets);
-            case CHECKS -> checksPane.extract(graphics, font, content);
+            case CHECKS -> checksPane.extract(graphics, font, content, targets);
         }
         graphics.text(font, title, MARGIN, TITLE_Y, WHITE);
         if (draft.differs()) {

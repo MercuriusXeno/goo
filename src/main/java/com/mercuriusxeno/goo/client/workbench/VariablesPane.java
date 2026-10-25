@@ -19,7 +19,8 @@ import java.util.Set;
  * items it cascades into; a click on an expression swaps in the edit box and a blur swaps it back; every $name
  * link opens its variable and hovers its card; rename edits the name in place and delete confirms the readers it
  * removes, as index.html's variables section does (decisions goo-workbench-opens-the-in-game-manager-screen,
- * references-link-to-their-variable-and-hover-a-card). The state lives in {@link VariablesTab}.
+ * references-link-to-their-variable-and-hover-a-card). The blocks and the delete confirm's readers each draw a
+ * {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in {@link VariablesTab}.
  */
 final class VariablesPane {
     private static final int LINE_HEIGHT = 10;
@@ -69,7 +70,7 @@ final class VariablesPane {
     private final Map<String, VariablesTab.HoverCard> cards = new HashMap<>();
     private final Set<String> cardsAsked = new HashSet<>();
     private final Set<String> expandedUsedBy = new HashSet<>();
-    private int cascadeScroll;
+    private final ScrollBar cascadeBar = new ScrollBar(1);
     private final Map<String, Integer> blockTops = new HashMap<>();
     private @Nullable EditBox expression;
     private @Nullable EditBox rename;
@@ -79,7 +80,7 @@ final class VariablesPane {
     private boolean expressionHeldFocus;
     private boolean loadingBox;
     private boolean visible;
-    private int scroll;
+    private final ScrollBar bar = new ScrollBar(SCROLL_STEP);
 
     VariablesPane(VariablesTab variables, ManagerDraft draft, ItemIcons icons, ManagerActions actions) {
         this.variables = variables;
@@ -151,10 +152,10 @@ final class VariablesPane {
      */
     void scroll(double amount) {
         if (deleting != null) {
-            cascadeScroll = Math.max(0, cascadeScroll - (int) Math.signum(amount));
+            cascadeBar.wheel(amount);
             return;
         }
-        scroll = Math.max(0, scroll - (int) Math.signum(amount) * SCROLL_STEP);
+        bar.wheel(amount);
     }
 
     /**
@@ -186,22 +187,24 @@ final class VariablesPane {
         return key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER;
     }
 
-    void extract(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds bounds, ClickTargets targets,
+    void extract(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds view, ClickTargets targets,
                  int mouseX, int mouseY) {
         swapBackOnBlur();
         List<VariablesTab.ConstantBlock> blocks = variables.blocks();
         if (blocks.isEmpty()) {
-            graphics.text(font, NO_CONSTANTS, bounds.left(), bounds.top(), GRAY);
+            graphics.text(font, NO_CONSTANTS, view.left(), view.top(), GRAY);
             return;
         }
         applyPendingJump();
+        GroupsPane.Bounds bounds = new GroupsPane.Bounds(view.left(), view.top(),
+                view.right() - ScrollBar.WIDTH - ScrollBar.GAP, view.bottom());
         graphics.enableScissor(bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
         targets.clip(bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
         boolean editShown = false;
         boolean renameShown = false;
-        int y = bounds.top() - scroll;
+        int y = bounds.top() - bar.offset();
         for (VariablesTab.ConstantBlock block : blocks) {
-            blockTops.put(block.name(), y + scroll - bounds.top());
+            blockTops.put(block.name(), y + bar.offset() - bounds.top());
             renameShown |= drawHead(graphics, font, block, bounds, y, targets);
             y += LINE_HEIGHT + HALF;
             boolean editingThis = variables.editing().filter(block.name()::equals).isPresent();
@@ -210,12 +213,12 @@ final class VariablesPane {
             y += drawUsedBy(graphics, font, block.usedBy(), bounds.left(), y + HALF, bounds.right() - bounds.left(),
                     block.name(), targets) + BLOCK_GAP;
         }
-        scroll = Math.min(scroll, Math.max(0, y + scroll - bounds.bottom()));
         targets.unclip();
         graphics.disableScissor();
+        bar.measureAndDraw(graphics, targets, y, view.right(), view.top(), view.bottom());
         showBoxes(editShown, renameShown);
-        drawDeleteDialog(graphics, font, bounds, targets);
-        drawHoverCard(graphics, font, bounds, targets, mouseX, mouseY);
+        drawDeleteDialog(graphics, font, view, targets);
+        drawHoverCard(graphics, font, view, targets, mouseX, mouseY);
     }
 
     // Answers whether the edit box stands wholly inside the pane, where it may show.
@@ -255,7 +258,7 @@ final class VariablesPane {
 
     private void applyPendingJump() {
         if (jumpPending != null && blockTops.containsKey(jumpPending)) {
-            scroll = Math.max(0, blockTops.get(jumpPending) - LINE_HEIGHT);
+            bar.scrollTo(blockTops.get(jumpPending) - LINE_HEIGHT);
             jumpPending = null;
         }
     }
@@ -383,7 +386,7 @@ final class VariablesPane {
             return;
         }
         deleting = name;
-        cascadeScroll = 0;
+        cascadeBar.reset();
         show(visible);
     }
 
@@ -426,7 +429,8 @@ final class VariablesPane {
         int top = dialog.top() + CARD_PADDING + LINE_HEIGHT + CARD_PADDING;
         int rowHeight = ICON_SIZE + HALF;
         int rowsShown = Math.max(1, (dialog.bottom() - LINE_HEIGHT * HALF - CARD_PADDING - top) / rowHeight);
-        int right = dialog.right() - CARD_PADDING;
+        int right = dialog.right() - CARD_PADDING - ScrollBar.WIDTH - ScrollBar.GAP;
+        int first = cascadeBar.offset();
         int row = 0;
         int readerX = x;
         for (VariablesTab.Reader reader : variables.deletionCascade(name)) {
@@ -435,13 +439,14 @@ final class VariablesPane {
                 row++;
                 readerX = x;
             }
-            int shownRow = row - cascadeScroll;
+            int shownRow = row - first;
             if (shownRow >= 0 && shownRow < rowsShown) {
                 drawReader(graphics, font, reader, readerX, top + shownRow * rowHeight, targets);
             }
             readerX += readerWidth + READER_GAP;
         }
-        cascadeScroll = Math.min(cascadeScroll, Math.max(0, row + 1 - rowsShown));
+        cascadeBar.measure(row + 1, rowsShown);
+        cascadeBar.draw(graphics, targets, dialog.right() - CARD_PADDING, top, top + rowsShown * rowHeight);
     }
 
     private static int readerWidth(Font font, VariablesTab.Reader reader) {

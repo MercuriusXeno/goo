@@ -12,8 +12,8 @@ import java.util.Optional;
 /**
  * Draws the Values tab: the Items, Tags and Uncovered chips, the search box, each entry with its icon and where its
  * value comes from, and the selected entry's expression and resolved values, each list scrolling under the wheel, as
- * index.html's values section does (decision goo-workbench-opens-the-in-game-manager-screen). The state lives in
- * {@link ValuesTab}.
+ * index.html's values section does (decision goo-workbench-opens-the-in-game-manager-screen); the list and the detail
+ * each draw a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in {@link ValuesTab}.
  */
 final class ValuesPane {
     private static final int SIDEBAR_WIDTH = 180;
@@ -52,8 +52,8 @@ final class ValuesPane {
     private final ManagerActions actions;
     private @Nullable EditBox search;
     private @Nullable EditBox expression;
-    private int listScroll;
-    private int detailScroll;
+    private final ScrollBar listBar = new ScrollBar(1);
+    private final ScrollBar detailBar = new ScrollBar(SCROLL_STEP);
     private boolean visible;
 
     ValuesPane(ValuesTab values, ItemIcons icons, ManagerActions actions) {
@@ -72,7 +72,7 @@ final class ValuesPane {
         search.setValue(searched);
         search.setResponder(text -> {
             values.search(text);
-            listScroll = 0;
+            listBar.reset();
         });
         String typed = expression == null ? NO_TEXT : expression.getValue();
         expression = actions.addWidget(new EditBox(font, 0, 0, SIDEBAR_WIDTH, BOX_HEIGHT,
@@ -124,11 +124,10 @@ final class ValuesPane {
      * @param amount the wheel's turn, positive away from the player
      */
     void scroll(double x, int left, double amount) {
-        int step = (int) -Math.signum(amount);
         if (x < left + SIDEBAR_WIDTH) {
-            listScroll = Math.max(0, listScroll + step);
+            listBar.wheel(amount);
         } else {
-            detailScroll = Math.max(0, detailScroll + step * SCROLL_STEP);
+            detailBar.wheel(amount);
         }
     }
 
@@ -140,7 +139,7 @@ final class ValuesPane {
         drawEntries(graphics, font, new GroupsPane.Bounds(bounds.left(), y + BOX_HEIGHT + GAP,
                 bounds.left() + SIDEBAR_WIDTH, bounds.bottom()), targets);
         drawSelected(graphics, font, new GroupsPane.Bounds(bounds.left() + SIDEBAR_WIDTH + PANE_GAP, bounds.top(),
-                bounds.right(), bounds.bottom()));
+                bounds.right(), bounds.bottom()), targets);
     }
 
     // Answers the y below the chips.
@@ -164,7 +163,7 @@ final class ValuesPane {
         }
         targets.add(x, y, font.width(label), LINE_HEIGHT, () -> {
             values.filter(filter);
-            listScroll = 0;
+            listBar.reset();
         });
         return x + font.width(label) + CHIP_GAP;
     }
@@ -176,15 +175,17 @@ final class ValuesPane {
             return;
         }
         int shown = Math.max(1, (list.bottom() - list.top()) / ROW_HEIGHT);
-        listScroll = Math.min(listScroll, Math.max(0, listed.size() - shown));
+        listBar.measure(listed.size(), shown);
+        int firstShown = listBar.offset();
         Optional<String> selectedId = values.selectedRow().map(ValuesTab.EntryRow::id);
         int textX = list.left() + ICON_SIZE + ICON_GAP;
-        int textWidth = list.right() - textX;
+        int rowRight = list.right() - ScrollBar.WIDTH - ScrollBar.GAP;
+        int textWidth = rowRight - textX;
         int y = list.top();
-        for (int index = listScroll; index < Math.min(listed.size(), listScroll + shown); index++) {
+        for (int index = firstShown; index < Math.min(listed.size(), firstShown + shown); index++) {
             ValuesTab.ManagerEntry entry = listed.get(index);
             if (selectedId.filter(entry.id()::equals).isPresent()) {
-                graphics.fill(list.left(), y, list.right(), y + ROW_HEIGHT, SELECTED_ROW_COLOR);
+                graphics.fill(list.left(), y, rowRight, y + ROW_HEIGHT, SELECTED_ROW_COLOR);
             }
             graphics.item(icons.of(entry.id()), list.left(), y + HALF);
             String first = entry.tag() ? entry.id() : entry.name();
@@ -196,13 +197,14 @@ final class ValuesPane {
                 graphics.text(font, font.plainSubstrByWidth(source.label(), textWidth), textX, y + LINE_HEIGHT,
                         colorOf(source.kind()));
             }
-            targets.add(list.left(), y, list.right() - list.left(), ROW_HEIGHT, () -> {
+            targets.add(list.left(), y, rowRight - list.left(), ROW_HEIGHT, () -> {
                 values.select(entry.id());
-                detailScroll = 0;
+                detailBar.reset();
                 refresh();
             });
             y += ROW_HEIGHT;
         }
+        listBar.draw(graphics, targets, list.right(), list.top(), list.top() + shown * ROW_HEIGHT);
     }
 
     private static int colorOf(ValuesTab.SourceKind kind) {
@@ -214,7 +216,8 @@ final class ValuesPane {
         };
     }
 
-    private void drawSelected(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds pane) {
+    private void drawSelected(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds pane,
+                              ClickTargets targets) {
         Optional<ValuesTab.EntryRow> selected = values.selectedRow();
         int x = pane.left();
         int width = pane.right() - x;
@@ -223,14 +226,7 @@ final class ValuesPane {
             return;
         }
         ValuesTab.EntryRow row = selected.get();
-        graphics.item(icons.of(row.id()), x, pane.top());
-        int textX = x + ICON_SIZE + ICON_GAP;
-        graphics.text(font, font.plainSubstrByWidth(row.name() + AMOUNT_SEPARATOR + row.id(), pane.right() - textX),
-                textX, pane.top(), WHITE);
-        if (!row.id().startsWith(ValuesTab.TAG_MARK)) {
-            ValuesTab.Source source = values.sourceOf(row.id());
-            graphics.text(font, source.label(), textX, pane.top() + LINE_HEIGHT, colorOf(source.kind()));
-        }
+        drawHeading(graphics, font, row, pane);
         int y = pane.top() + LINE_HEIGHT * HALF + GAP;
         graphics.text(font, EXPRESSION_LABEL, x, y, GRAY);
         y += LINE_HEIGHT;
@@ -238,16 +234,30 @@ final class ValuesPane {
             expression.setPosition(x, y);
             expression.setWidth(width);
         }
-        drawAmounts(graphics, font, row, new GroupsPane.Bounds(x, y + BOX_HEIGHT + GAP, pane.right(), pane.bottom()));
+        drawAmounts(graphics, font, row, new GroupsPane.Bounds(x, y + BOX_HEIGHT + GAP, pane.right(), pane.bottom()),
+                targets);
+    }
+
+    // The selected entry's icon, name and id, and where its value comes from.
+    private void drawHeading(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row, GroupsPane.Bounds pane) {
+        graphics.item(icons.of(row.id()), pane.left(), pane.top());
+        int textX = pane.left() + ICON_SIZE + ICON_GAP;
+        graphics.text(font, font.plainSubstrByWidth(row.name() + AMOUNT_SEPARATOR + row.id(), pane.right() - textX),
+                textX, pane.top(), WHITE);
+        if (!row.id().startsWith(ValuesTab.TAG_MARK)) {
+            ValuesTab.Source source = values.sourceOf(row.id());
+            graphics.text(font, source.label(), textX, pane.top() + LINE_HEIGHT, colorOf(source.kind()));
+        }
     }
 
     private void drawAmounts(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row,
-                             GroupsPane.Bounds area) {
+                             GroupsPane.Bounds area, ClickTargets targets) {
         int lines = row.amounts().size() + (row.denied() || row.amounts().isEmpty() ? 1 : 0)
                 + (row.error().isEmpty() ? 0 : 1);
-        detailScroll = Math.min(detailScroll, Math.max(0, lines * LINE_HEIGHT - (area.bottom() - area.top())));
+        detailBar.measure(lines * LINE_HEIGHT, area.bottom() - area.top());
+        int width = area.right() - area.left() - ScrollBar.WIDTH - ScrollBar.GAP;
         graphics.enableScissor(area.left(), area.top(), area.right(), area.bottom());
-        int y = area.top() - detailScroll;
+        int y = area.top() - detailBar.offset();
         if (row.denied()) {
             graphics.text(font, DENIED_LINE, area.left(), y, GRAY);
             y += LINE_HEIGHT;
@@ -260,8 +270,9 @@ final class ValuesPane {
             y += LINE_HEIGHT;
         }
         if (!row.error().isEmpty()) {
-            graphics.text(font, font.plainSubstrByWidth(row.error(), area.right() - area.left()), area.left(), y, RED);
+            graphics.text(font, font.plainSubstrByWidth(row.error(), width), area.left(), y, RED);
         }
         graphics.disableScissor();
+        detailBar.draw(graphics, targets, area.right(), area.top(), area.bottom());
     }
 }
