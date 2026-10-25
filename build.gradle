@@ -322,8 +322,38 @@ tasks.register('seedLab', Copy) {
     onlyIf('the Goo Lab save is absent') { !labSave.exists() }
 }
 
+// One volume across every worktree's dev instance (decision runclient-seeds-sound-volume-from-a-shared-file)
+var sharedSoundOptions = new File(System.getProperty('user.home'), '.goo/sound-options.txt')
+var clientOptions = file('runs/client/options.txt')
+var isSoundLine = { String line -> line.startsWith('soundCategory_') }
+
+tasks.register('seedSoundOptions') {
+    description = "Replaces the soundCategory_ lines of runs/client/options.txt with those of ${sharedSoundOptions} when that file exists"
+    group = 'goo'
+    onlyIf('the shared sound options file exists') { sharedSoundOptions.exists() }
+    doLast {
+        clientOptions.parentFile.mkdirs()
+        var kept = clientOptions.exists() ? clientOptions.readLines().findAll { !isSoundLine(it) } : []
+        var shared = sharedSoundOptions.readLines().findAll { isSoundLine(it) }
+        clientOptions.text = (kept + shared).join('\n') + '\n'
+    }
+}
+
+tasks.register('saveSoundOptions') {
+    description = "Writes the soundCategory_ lines of runs/client/options.txt to ${sharedSoundOptions}"
+    group = 'goo'
+    onlyIf('runs/client/options.txt exists') { clientOptions.exists() }
+    doLast {
+        sharedSoundOptions.parentFile.mkdirs()
+        sharedSoundOptions.text = clientOptions.readLines().findAll { isSoundLine(it) }.join('\n') + '\n'
+    }
+}
+
 afterEvaluate {
-    tasks.named('runClient').configure { dependsOn 'seedLab' }
+    tasks.named('runClient').configure {
+        dependsOn 'seedLab', 'seedSoundOptions'
+        finalizedBy 'saveSoundOptions'
+    }
     tasks.named('runCaptureInventory').configure {
         dependsOn 'seedCaptureLab'
         // A first launch's accessibility screen holds quick play on the title screen until someone dismisses it.
