@@ -14,6 +14,8 @@ import java.util.regex.Pattern;
  */
 public final class ManagerDraft {
     private static final String MEMBERS = "members";
+    private static final String KEY = "key";
+    private static final String ENTRIES = "entries";
     private static final String OBJECT_START = "{";
     // An integer stays as written; anything else the box holds is an expression string, stored quoted.
     private static final Pattern INTEGER = Pattern.compile("-?\\d+");
@@ -54,6 +56,35 @@ public final class ManagerDraft {
             return none;
         }
         return members.getAsJsonArray();
+    }
+
+    /**
+     * @param field a field the last model reply carried beside the members, such as its checks
+     * @return that field's array, empty where the reply carried none
+     */
+    public JsonArray array(String field) {
+        JsonElement value = model.get(field);
+        return value != null && value.isJsonArray() ? value.getAsJsonArray() : new JsonArray();
+    }
+
+    /**
+     * @param section the key of a section member, such as _conversions
+     * @return that section's entries, live, empty where the draft holds no such section
+     */
+    public JsonArray sectionEntries(String section) {
+        for (JsonElement element : members()) {
+            JsonObject member = element.getAsJsonObject();
+            JsonElement entries = member.get(ENTRIES);
+            if (isKeyed(member, section) && entries != null && entries.isJsonArray()) {
+                return entries.getAsJsonArray();
+            }
+        }
+        return new JsonArray();
+    }
+
+    private static boolean isKeyed(JsonObject member, String key) {
+        JsonElement held = member.get(KEY);
+        return held != null && !held.isJsonNull() && key.equals(held.getAsString());
     }
 
     /**

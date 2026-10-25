@@ -61,6 +61,7 @@ public final class ValuesManagerScreen extends Screen {
     private static final String SAVED = "saved to the draft";
     private static final String UNSAVED = "unsaved changes";
     private static final String NOTHING_POSTED = "";
+    private static final String WIDEST_BADGE = " (99 red)";
     private static final String NO_STATUS = "";
 
     private final ManagerConnection connection;
@@ -68,11 +69,17 @@ public final class ValuesManagerScreen extends Screen {
     private final ValuesTab values = new ValuesTab(draft);
     private final GroupsTab groupsTab = new GroupsTab(draft);
     private final VariablesTab variablesTab = new VariablesTab(draft);
+    private final ProcessesTab processesTab = new ProcessesTab(draft);
+    private final AuditTab auditTab = new AuditTab();
+    private final ChecksTab checksTab = new ChecksTab(draft);
     private final ItemIcons icons = new ItemIcons();
     private final ClickTargets targets = new ClickTargets();
     private final Map<ManagerTab, Button> tabButtons = new EnumMap<>(ManagerTab.class);
     private final GroupsPane groupsPane;
     private final VariablesPane variablesPane;
+    private final ProcessesPane processesPane;
+    private final AuditPane auditPane;
+    private final ChecksPane checksPane;
     private ManagerTab tab = ManagerTab.VALUES;
     private EditBox search;
     private EditBox expression;
@@ -90,6 +97,9 @@ public final class ValuesManagerScreen extends Screen {
         ManagerActions actions = new ScreenActions();
         groupsPane = new GroupsPane(groupsTab, values, icons, actions);
         variablesPane = new VariablesPane(variablesTab, draft, icons, actions);
+        processesPane = new ProcessesPane(processesTab, draft, actions);
+        auditPane = new AuditPane(auditTab, draft, actions);
+        checksPane = new ChecksPane(checksTab);
     }
 
     /**
@@ -102,9 +112,31 @@ public final class ValuesManagerScreen extends Screen {
         }
 
         @Override
+        public void stream(String operation, String text, Consumer<String> progress, Consumer<String> answered,
+                           Consumer<String> refused) {
+            connection.request(operation, text, progress).thenAccept(reply -> {
+                if (reply.answered()) {
+                    answered.accept(reply.text());
+                } else {
+                    setStatus(reply.text(), true);
+                    refused.accept(reply.text());
+                }
+            });
+        }
+
+        @Override
         public void draftChanged() {
             setStatus(UNSAVED, false);
             readDraftAfresh();
+        }
+
+        @Override
+        public void reloadDraft() {
+            request(WorkbenchOperations.MODEL, NOTHING_POSTED, model -> {
+                values.readModel(model);
+                setStatus(SAVED, false);
+                readDraftAfresh();
+            });
         }
 
         @Override
@@ -128,7 +160,9 @@ public final class ValuesManagerScreen extends Screen {
     protected void init() {
         int x = MARGIN;
         for (ManagerTab each : ManagerTab.values()) {
-            int tabWidth = font.width(each.label()) + TAB_PADDING;
+            // The Checks tab's label grows by its badge, so its button stands wide enough for one.
+            String widest = each == ManagerTab.CHECKS ? each.label() + WIDEST_BADGE : each.label();
+            int tabWidth = font.width(widest) + TAB_PADDING;
             Button button = Button.builder(Component.literal(each.label()), pressed -> selectTab(each))
                     .bounds(x, TAB_Y, tabWidth, BUTTON_HEIGHT).build();
             tabButtons.put(each, addRenderableWidget(button));
@@ -149,6 +183,7 @@ public final class ValuesManagerScreen extends Screen {
         expression.setResponder(this::edited);
         groupsPane.init(font);
         variablesPane.init(font);
+        processesPane.init(font);
         selectTab(tab);
         refreshExpression();
         if (!loaded) {
@@ -173,6 +208,7 @@ public final class ValuesManagerScreen extends Screen {
         expression.visible = onValues && values.selectedRow().isPresent();
         groupsPane.show(chosen == ManagerTab.GROUPS);
         variablesPane.show(chosen == ManagerTab.VARIABLES);
+        processesPane.show(chosen == ManagerTab.PROCESSES);
     }
 
     private void load() {
@@ -184,16 +220,18 @@ public final class ValuesManagerScreen extends Screen {
                 readDraftAfresh();
             });
         });
+        auditPane.refresh();
     }
 
     /**
-     * Has every tab read the draft afresh: the Values tab's resolve, the Groups tab's describe and the Variables
-     * tab's evaluate.
+     * Has every tab read the draft afresh: the Values tab's resolve, the Groups tab's describe, the Variables tab's
+     * evaluate and the Processes tab's description; the Checks tab reads the checks the last model reply carried.
      */
     private void readDraftAfresh() {
         resolve();
         groupsPane.refresh();
         variablesPane.refresh();
+        processesPane.refresh();
     }
 
     private void resolve() {
@@ -277,7 +315,8 @@ public final class ValuesManagerScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
-        if (tab == ManagerTab.VARIABLES && variablesPane.keyPressed(event.key())) {
+        if (tab == ManagerTab.VARIABLES && variablesPane.keyPressed(event.key())
+                || tab == ManagerTab.PROCESSES && processesPane.keyPressed(event.key())) {
             return true;
         }
         return super.keyPressed(event);
@@ -301,6 +340,18 @@ public final class ValuesManagerScreen extends Screen {
                 variablesPane.scroll(scrollY);
                 return true;
             }
+            case PROCESSES -> {
+                processesPane.scroll(scrollY);
+                return true;
+            }
+            case AUDIT -> {
+                auditPane.scroll(scrollY);
+                return true;
+            }
+            case CHECKS -> {
+                checksPane.scroll(scrollY);
+                return true;
+            }
             default -> {
             }
         }
@@ -317,6 +368,7 @@ public final class ValuesManagerScreen extends Screen {
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         targets.clear();
+        showChecksBadge();
         graphics.text(font, title, MARGIN, TITLE_Y, WHITE);
         switch (tab) {
             case VALUES -> {
@@ -325,9 +377,19 @@ public final class ValuesManagerScreen extends Screen {
             }
             case GROUPS -> groupsPane.extract(graphics, font, contentBounds(), targets);
             case VARIABLES -> variablesPane.extract(graphics, font, contentBounds(), targets, mouseX, mouseY);
-            default -> graphics.centeredText(font, tab.label(), width / HALF, CONTENT_Y, GRAY);
+            case PROCESSES -> processesPane.extract(graphics, font, contentBounds(), targets);
+            case AUDIT -> auditPane.extract(graphics, font, contentBounds(), targets);
+            case CHECKS -> checksPane.extract(graphics, font, contentBounds());
         }
         graphics.text(font, status, MARGIN, height - STATUS_INSET, statusIsError ? RED : GRAY);
+    }
+
+    private void showChecksBadge() {
+        Button checks = tabButtons.get(ManagerTab.CHECKS);
+        String badge = checksTab.badge(ManagerTab.CHECKS.label());
+        if (checks != null && !checks.getMessage().getString().equals(badge)) {
+            checks.setMessage(Component.literal(badge));
+        }
     }
 
     private void drawEntries(GuiGraphicsExtractor graphics) {

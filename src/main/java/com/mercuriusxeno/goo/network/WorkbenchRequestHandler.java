@@ -9,6 +9,7 @@ import net.minecraft.server.permissions.PermissionLevel;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import java.io.IOException;
+import java.util.function.Consumer;
 
 /**
  * Server-side handler for values manager requests: reads the sending player as a {@link WorkbenchRequests.Sender}
@@ -51,8 +52,8 @@ public final class WorkbenchRequestHandler {
                 }
             };
             try {
-                ValuesManagers.requestsFor(server).accept(sender, payload, (operation, text) -> answer(server,
-                        operation, text));
+                ValuesManagers.requestsFor(server).accept(sender, payload, (operation, text, progress) ->
+                        answer(server, operation, text, progress));
             } catch (IOException e) {
                 WorkbenchReplyPayload.parts(payload.requestId(), SERVER_ERROR, String.valueOf(e.getMessage()))
                         .forEach(sender::send);
@@ -60,9 +61,10 @@ public final class WorkbenchRequestHandler {
         });
     }
 
-    private static WorkbenchRequests.Answer answer(MinecraftServer server, String operation, String text) {
+    private static WorkbenchRequests.Answer answer(MinecraftServer server, String operation, String text,
+                                                   Consumer<String> progress) {
         try {
-            WorkbenchReply reply = ValuesManagers.operationsFor(server).answer(operation, text);
+            WorkbenchReply reply = ValuesManagers.operationsFor(server).answer(operation, text, progress);
             return new WorkbenchRequests.Answer(reply.status(), reply.text());
         } catch (IOException e) {
             return new WorkbenchRequests.Answer(SERVER_ERROR, String.valueOf(e.getMessage()));

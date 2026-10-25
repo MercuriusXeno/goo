@@ -86,7 +86,9 @@ public final class ValuesManagers {
         Path world = server.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize();
         writePackMeta(WorkbenchPaths.packRoot(world));
         WorkbenchPaths paths = WorkbenchPaths.inWorld(world);
-        ExecutorService worker = Executors.newSingleThreadExecutor(runnable -> {
+        // A pool rather than one thread: a dump run holds its thread for minutes, and a save or a resolve sent while
+        // it runs answers beside it.
+        ExecutorService worker = Executors.newCachedThreadPool(runnable -> {
             Thread thread = new Thread(runnable, WORKER_NAME);
             thread.setDaemon(true);
             return thread;

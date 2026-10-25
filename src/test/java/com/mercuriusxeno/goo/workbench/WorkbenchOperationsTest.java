@@ -302,6 +302,32 @@ class WorkbenchOperationsTest {
     }
 
     @Nested
+    class DumpRun {
+
+        /**
+         * A dump run saves the posted model as the draft, hands each line the run prints to progress in order, and
+         * answers its exit code with the dumps' sections.
+         */
+        @Test
+        void runHandsProgressOnAndAnswersTheExitCode() throws IOException {
+            WorkbenchOperations running = new WorkbenchOperations(paths, () -> new byte[0], () -> { },
+                    (draft, progress) -> {
+                        progress.accept("booting");
+                        progress.accept("auditing");
+                        return 0;
+                    });
+            List<String> progress = new java.util.ArrayList<>();
+            WorkbenchReply reply = running.answer(WorkbenchOperations.RUN_DUMPS, posted(sample()), progress::add);
+            assertEquals(200, reply.status(), reply.text());
+            assertEquals(List.of("booting", "auditing"), progress);
+            JsonObject result = JsonParser.parseString(reply.text()).getAsJsonObject();
+            assertEquals(0, result.get("exitCode").getAsInt());
+            assertTrue(result.has("sections"));
+            assertTrue(Files.isRegularFile(paths.draft()));
+        }
+    }
+
+    @Nested
     class Constants {
 
         private JsonArray evaluated(String fileText) {

@@ -17,9 +17,24 @@ interface ManagerActions {
     void request(String operation, String text, Consumer<String> answered);
 
     /**
+     * @param operation the workbench operation's name
+     * @param text      the posted text
+     * @param progress  takes each progress line the operation sends before it answers
+     * @param answered  takes the reply's text where the server answered
+     * @param refused   takes the refusal's text where it did not
+     */
+    void stream(String operation, String text, Consumer<String> progress, Consumer<String> answered,
+                Consumer<String> refused);
+
+    /**
      * The draft changed: the screen marks it unsaved and has every tab read it afresh.
      */
     void draftChanged();
+
+    /**
+     * The server saved the draft itself, as a dump run does: the screen reads it back and has every tab read it.
+     */
+    void reloadDraft();
 
     /**
      * Opens the Variables tab on a variable, as a $name link does.
