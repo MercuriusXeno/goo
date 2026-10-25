@@ -16,6 +16,7 @@ import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 /**
  * The server's pipeline for item goo values: loads base values from JSON,
@@ -138,6 +139,30 @@ public class GooValueRegistry {
             return;
         }
         applyPackLayers(stack, state);
+        publishEffectiveValues(loadedEffective);
+    }
+
+    /**
+     * Loads base values from the server's pack stack with one pack's base_values.json replaced by the text handed
+     * in, laid over every other pack as that pack's layer would be, so the values manager applies a draft with no
+     * /reload and every other pack's layer still holds (decision save-applies-the-draft-live-promote-renames-it).
+     *
+     * @param server       the running server whose packs provide the other layers
+     * @param json         the base_values.json text the replaced pack would hold
+     * @param replacedPack whether a resource's pack id names the pack the text stands for
+     */
+    public void loadBaseValuesOverPacks(MinecraftServer server, String json, Predicate<String> replacedPack) {
+        Map<Identifier, GooValue> loadedEffective = new HashMap<>();
+        var state = createParseState(loadedEffective);
+        GooValueLoader.clearRegistryState(state);
+        List<Resource> others = loadResourceStack(server).stream()
+                .filter(resource -> !replacedPack.test(resource.sourcePackId())).toList();
+        List<JsonObject> layers = new ArrayList<>(GooValueLoader.parseResourceLayers(others));
+        layers.add(JsonParser.parseString(json).getAsJsonObject());
+        GooValueLoader.applyMergedLayers(layers, state);
+        postConversions = state.postConversions;
+        lastMergedBaseValues = state.lastMergedBaseValues;
+        rootItems = List.copyOf(state.rootItems);
         publishEffectiveValues(loadedEffective);
     }
 

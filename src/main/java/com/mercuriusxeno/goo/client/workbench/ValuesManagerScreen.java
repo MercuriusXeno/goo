@@ -1,0 +1,369 @@
+package com.mercuriusxeno.goo.client.workbench;
+
+import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
+import java.util.EnumMap;
+import java.util.Map;
+import java.util.function.Consumer;
+
+/**
+ * The values manager /goo workbench opens: the title row carrying Promote, Discard and Save, a tab bar carrying every
+ * tab of the page over one shared draft, each tab drawn by its pane, and a status line beneath
+ * (decisions goo-workbench-opens-the-in-game-manager-screen, save-applies-the-draft-live-promote-renames-it). The
+ * state lives in the tab classes and {@link ManagerConnection}; this class lays the panes out and forwards input.
+ */
+public final class ValuesManagerScreen extends Screen {
+    private static final int MARGIN = 8;
+    private static final int TITLE_Y = 6;
+    private static final int TOPBAR_Y = 3;
+    private static final int TAB_Y = 20;
+    private static final int CONTENT_Y = 40;
+    private static final int BUTTON_HEIGHT = 14;
+    private static final int BUTTON_PADDING = 10;
+    private static final int TAB_GAP = 2;
+    private static final int TITLE_GAP = 8;
+    private static final int STATUS_INSET = 12;
+    private static final int STATUS_GAP = 4;
+    private static final int PANEL_COLOR = 0xC0101010;
+    private static final int WHITE = 0xFFFFFFFF;
+    private static final int GRAY = 0xFFA0A0A0;
+    private static final int RED = 0xFFFF5555;
+    private static final int DRAFT_COLOR = 0xFFE0C060;
+    private static final String TITLE = "Values manager";
+    private static final String SAVE = "Save";
+    private static final String PROMOTE = "Promote";
+    private static final String DISCARD = "Discard";
+    private static final String DRAFT_BADGE = "draft";
+    private static final String READING = "Reading the draft and the inventory; a fresh world dumps the inventory first.";
+    private static final String SAVING = "saving";
+    private static final String SAVED = "saved to the draft";
+    private static final String UNSAVED = "unsaved changes";
+    private static final String NOTHING_POSTED = "";
+    private static final String WIDEST_BADGE = " (99 red)";
+    private static final String NO_STATUS = "";
+
+    private final ManagerConnection connection;
+    private final ManagerDraft draft = new ManagerDraft();
+    private final ValuesTab values = new ValuesTab(draft);
+    private final GroupsTab groupsTab = new GroupsTab(draft);
+    private final VariablesTab variablesTab = new VariablesTab(draft);
+    private final ProcessesTab processesTab = new ProcessesTab(draft);
+    private final AuditTab auditTab = new AuditTab();
+    private final ChecksTab checksTab = new ChecksTab(draft);
+    private final ItemIcons icons = new ItemIcons();
+    private final ClickTargets targets = new ClickTargets();
+    private final Map<ManagerTab, Button> tabButtons = new EnumMap<>(ManagerTab.class);
+    private final ValuesPane valuesPane;
+    private final GroupsPane groupsPane;
+    private final VariablesPane variablesPane;
+    private final ProcessesPane processesPane;
+    private final AuditPane auditPane;
+    private final ChecksPane checksPane;
+    private final DraftConfirm draftConfirm = new DraftConfirm();
+    private final DraftPane draftPane = new DraftPane(draftConfirm, this::runDraftAction);
+    private boolean unsaved;
+    private ManagerTab tab = ManagerTab.VALUES;
+    private String status = READING;
+    private boolean statusIsError;
+    private boolean loaded;
+
+    /**
+     * @param connection the line to the server's workbench operations
+     */
+    public ValuesManagerScreen(ManagerConnection connection) {
+        super(Component.literal(TITLE));
+        this.connection = connection;
+        ManagerActions actions = new ScreenActions();
+        valuesPane = new ValuesPane(values, icons, actions);
+        groupsPane = new GroupsPane(groupsTab, values, icons, actions);
+        variablesPane = new VariablesPane(variablesTab, draft, icons, actions);
+        processesPane = new ProcessesPane(processesTab, draft, actions);
+        auditPane = new AuditPane(auditTab, draft, actions);
+        checksPane = new ChecksPane(checksTab);
+    }
+
+    /**
+     * The panes' line back to this screen.
+     */
+    private final class ScreenActions implements ManagerActions {
+        @Override
+        public void request(String operation, String text, Consumer<String> answered) {
+            ValuesManagerScreen.this.request(operation, text, answered);
+        }
+
+        @Override
+        public void stream(String operation, String text, Consumer<String> progress, Consumer<String> answered,
+                           Consumer<String> refused) {
+            connection.request(operation, text, progress).thenAccept(reply -> {
+                if (reply.answered()) {
+                    answered.accept(reply.text());
+                } else {
+                    setStatus(reply.text(), true);
+                    refused.accept(reply.text());
+                }
+            });
+        }
+
+        @Override
+        public void draftChanged() {
+            markUnsaved();
+            readDraftAfresh();
+        }
+
+        @Override
+        public void markUnsaved() {
+            ValuesManagerScreen.this.markUnsaved();
+        }
+
+        @Override
+        public void reloadDraft() {
+            request(WorkbenchOperations.MODEL, NOTHING_POSTED, model -> {
+                values.readModel(model);
+                unsaved = false;
+                setStatus(SAVED, false);
+                readDraftAfresh();
+            });
+        }
+
+        @Override
+        public void openVariable(String name) {
+            selectTab(ManagerTab.VARIABLES);
+            variablesPane.jumpTo(name);
+        }
+
+        @Override
+        public <W extends AbstractWidget> W addWidget(W widget) {
+            return addRenderableWidget(widget);
+        }
+
+        @Override
+        public void focus(AbstractWidget widget) {
+            setFocused(widget);
+        }
+    }
+
+    @Override
+    protected void init() {
+        int x = MARGIN;
+        for (ManagerTab each : ManagerTab.values()) {
+            // The Checks tab's label grows by its badge, so its button stands wide enough for one.
+            String widest = each == ManagerTab.CHECKS ? each.label() + WIDEST_BADGE : each.label();
+            int tabWidth = font.width(widest) + BUTTON_PADDING;
+            Button button = Button.builder(Component.literal(each.label()), pressed -> selectTab(each))
+                    .bounds(x, TAB_Y, tabWidth, BUTTON_HEIGHT).build();
+            tabButtons.put(each, addRenderableWidget(button));
+            x += tabWidth + TAB_GAP;
+        }
+        // The topbar stands on the title row, right-aligned and sized to its labels, so the tab row keeps the width.
+        int right = width - MARGIN;
+        right = topbarButton(SAVE, right, () -> save(() -> { }));
+        right = topbarButton(DISCARD, right, () -> draftConfirm.askDiscard(draft.path()));
+        topbarButton(PROMOTE, right, () -> draftConfirm.askPromote(draft.path(), unsaved));
+        valuesPane.init(font);
+        groupsPane.init(font);
+        variablesPane.init(font);
+        processesPane.init(font);
+        selectTab(tab);
+        if (!loaded) {
+            loaded = true;
+            load();
+        }
+    }
+
+    // Answers the x the next button to its left ends at.
+    private int topbarButton(String label, int right, Runnable pressed) {
+        int buttonWidth = font.width(label) + BUTTON_PADDING;
+        addRenderableWidget(Button.builder(Component.literal(label), button -> pressed.run())
+                .bounds(right - buttonWidth, TOPBAR_Y, buttonWidth, BUTTON_HEIGHT).build());
+        return right - buttonWidth - TAB_GAP;
+    }
+
+    private GroupsPane.Bounds contentBounds() {
+        return new GroupsPane.Bounds(MARGIN, CONTENT_Y, width - MARGIN, height - STATUS_INSET - STATUS_GAP);
+    }
+
+    private void selectTab(ManagerTab chosen) {
+        tab = chosen;
+        tabButtons.forEach((each, button) -> button.active = each != chosen);
+        valuesPane.show(chosen == ManagerTab.VALUES);
+        groupsPane.show(chosen == ManagerTab.GROUPS);
+        variablesPane.show(chosen == ManagerTab.VARIABLES);
+        processesPane.show(chosen == ManagerTab.PROCESSES);
+    }
+
+    private void load() {
+        request(WorkbenchOperations.MODEL, NOTHING_POSTED, model -> {
+            values.readModel(model);
+            request(WorkbenchOperations.INVENTORY, NOTHING_POSTED, inventory -> {
+                values.readInventory(inventory);
+                setStatus(NO_STATUS, false);
+                readDraftAfresh();
+            });
+        });
+        auditPane.refresh();
+    }
+
+    /**
+     * Has every tab read the draft afresh: the Values tab's resolve and uncovered items, the Groups tab's describe,
+     * the Variables tab's evaluate and the Processes tab's description; the Checks tab reads the checks the last
+     * model reply carried.
+     */
+    private void readDraftAfresh() {
+        request(WorkbenchOperations.RESOLVE_VALUES, values.modelText(), resolved -> {
+            values.readResolved(resolved);
+            valuesPane.refresh();
+        });
+        request(WorkbenchOperations.UNCOVERED_VALUES, values.modelText(), values::readUncovered);
+        groupsPane.refresh();
+        variablesPane.refresh();
+        processesPane.refresh();
+    }
+
+    /**
+     * Writes the draft, which the server applies to every player at once
+     * (decision save-applies-the-draft-live-promote-renames-it).
+     *
+     * @param after runs once the save answered
+     */
+    private void save(Runnable after) {
+        setStatus(SAVING, false);
+        request(WorkbenchOperations.SAVE_MODEL, values.modelText(), saved -> {
+            values.readModel(saved);
+            unsaved = false;
+            setStatus(SAVED, false);
+            readDraftAfresh();
+            after.run();
+        });
+    }
+
+    private void markUnsaved() {
+        unsaved = true;
+        setStatus(UNSAVED, false);
+    }
+
+    /**
+     * Runs the confirmed Promote or Discard, saving unsaved changes first for a Promote; a promote the checks
+     * refuse opens the second confirm listing them.
+     */
+    private void runDraftAction() {
+        boolean savesFirst = draftConfirm.savesFirst();
+        draftConfirm.confirmed();
+        Runnable send = () -> connection.request(draftConfirm.operation(), draftConfirm.requestText())
+                .thenAccept(reply -> {
+                    if (reply.answered()) {
+                        values.readModel(reply.text());
+                        unsaved = false;
+                        setStatus(draftConfirm.doneStatus(draft.path()), false);
+                        draftConfirm.cancel();
+                        readDraftAfresh();
+                    } else if (!draftConfirm.readRefusal(reply.status(), reply.text(), draft.path())) {
+                        setStatus(reply.text(), true);
+                    }
+                });
+        if (savesFirst) {
+            save(send);
+        } else {
+            send.run();
+        }
+    }
+
+    private void request(String operation, String text, Consumer<String> answered) {
+        connection.request(operation, text).thenAccept(reply -> {
+            if (reply.answered()) {
+                answered.accept(reply.text());
+            } else {
+                setStatus(reply.text(), true);
+            }
+        });
+    }
+
+    private void setStatus(String text, boolean error) {
+        status = text;
+        statusIsError = error;
+    }
+
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (draftPane.open()) {
+            return targets.click(event.x(), event.y());
+        }
+        if (super.mouseClicked(event, doubleClick)) {
+            return true;
+        }
+        setFocused(null);
+        return targets.click(event.x(), event.y());
+    }
+
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        if (tab == ManagerTab.VARIABLES && variablesPane.keyPressed(event.key())
+                || tab == ManagerTab.PROCESSES && processesPane.keyPressed(event.key())) {
+            return true;
+        }
+        return super.keyPressed(event);
+    }
+
+    @Override
+    public boolean mouseScrolled(double x, double y, double scrollX, double scrollY) {
+        if (draftPane.open()) {
+            return true;
+        }
+        switch (tab) {
+            case VALUES -> valuesPane.scroll(x, MARGIN, scrollY);
+            case GROUPS -> groupsPane.scroll(x, y, MARGIN, scrollY);
+            case VARIABLES -> variablesPane.scroll(scrollY);
+            case PROCESSES -> processesPane.scroll(scrollY);
+            case AUDIT -> auditPane.scroll(y, scrollY);
+            case CHECKS -> checksPane.scroll(scrollY);
+        }
+        return true;
+    }
+
+    @Override
+    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        super.extractBackground(graphics, mouseX, mouseY, partialTick);
+        graphics.fill(0, 0, width, height, PANEL_COLOR);
+    }
+
+    @Override
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+        targets.clear();
+        showChecksBadge();
+        GroupsPane.Bounds content = contentBounds();
+        switch (tab) {
+            case VALUES -> valuesPane.extract(graphics, font, content, targets);
+            case GROUPS -> groupsPane.extract(graphics, font, content, targets);
+            case VARIABLES -> variablesPane.extract(graphics, font, content, targets, mouseX, mouseY);
+            case PROCESSES -> processesPane.extract(graphics, font, content, targets);
+            case AUDIT -> auditPane.extract(graphics, font, content, targets);
+            case CHECKS -> checksPane.extract(graphics, font, content);
+        }
+        graphics.text(font, title, MARGIN, TITLE_Y, WHITE);
+        if (draft.differs()) {
+            graphics.text(font, DRAFT_BADGE, MARGIN + font.width(title) + TITLE_GAP, TITLE_Y, DRAFT_COLOR);
+        }
+        graphics.text(font, font.plainSubstrByWidth(status, width - MARGIN - MARGIN), MARGIN, height - STATUS_INSET,
+                statusIsError ? RED : GRAY);
+        draftPane.extract(graphics, font, width, height, targets);
+    }
+
+    private void showChecksBadge() {
+        Button checks = tabButtons.get(ManagerTab.CHECKS);
+        String badge = checksTab.badge(ManagerTab.CHECKS.label());
+        if (checks != null && !checks.getMessage().getString().equals(badge)) {
+            checks.setMessage(Component.literal(badge));
+        }
+    }
+
+    @Override
+    public boolean isPauseScreen() {
+        return false;
+    }
+}

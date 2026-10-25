@@ -10,7 +10,7 @@ import java.util.Map;
  * Scalar constants resolve to a single integer; tree constants resolve to a full
  * GooValue (multi-type map).
  */
-final class GooConstantParser {
+public final class GooConstantParser {
 
     private static final String CONSTANTS_SUFFIX = "_constants";
     private static final String LOG_LOADED_CONSTANTS = "Loaded {} constants ({} scalar, {} tree)";
@@ -108,13 +108,15 @@ final class GooConstantParser {
     }
 
     /**
-     * Scans forward from {@code start} while characters are word-like (letter, digit, or '_').
+     * Scans forward from {@code start} while characters are word-like (letter, digit, or '_'); the values manager
+     * reads its $name links through this scan, so a link names what the loader resolves
+     * (decision references-link-to-their-variable-and-hover-a-card).
      *
      * @param expr  the string to scan
      * @param start the starting index
      * @return the index of the first non-word character (or string length)
      */
-    static int scanIdentifier(String expr, int start) {
+    public static int scanIdentifier(String expr, int start) {
         int end = start;
         while (end < expr.length() && (Character.isLetterOrDigit(expr.charAt(end)) || expr.charAt(end) == '_')) {
             end++;
