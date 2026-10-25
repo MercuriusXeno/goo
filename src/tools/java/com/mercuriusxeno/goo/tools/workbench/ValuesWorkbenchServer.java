@@ -1,8 +1,14 @@
-package com.mercuriusxeno.goo.workbench;
+package com.mercuriusxeno.goo.tools.workbench;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import com.mercuriusxeno.goo.workbench.DraftSeed;
+import com.mercuriusxeno.goo.workbench.DumpRunner;
+import com.mercuriusxeno.goo.workbench.InventoryDump;
+import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
+import com.mercuriusxeno.goo.workbench.WorkbenchPaths;
+import com.mercuriusxeno.goo.workbench.WorkbenchReply;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -25,8 +31,9 @@ import com.sun.net.httpserver.HttpServer;
 
 /**
  * The values workbench's loopback server: the single-page app and each item's image, with every other route's body
- * answered by {@link WorkbenchOperations} (decisions workbench-authors-base-values-whole,
- * goo-workbench-opens-the-in-game-manager-screen).
+ * answered by {@link WorkbenchOperations}. It lives in the tools source set behind the gradle valuesWorkbench run,
+ * so the jar ships the in-game manager alone (decisions workbench-authors-base-values-whole,
+ * web-page-moves-to-tools-and-leaves-the-jar).
  */
 public final class ValuesWorkbenchServer {
     private static final String PAGE = "/workbench/index.html";
