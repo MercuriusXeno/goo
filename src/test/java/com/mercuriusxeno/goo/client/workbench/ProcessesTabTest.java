@@ -77,4 +77,24 @@ class ProcessesTabTest {
         tab.delete("_conversions", "broken");
         assertTrue(!draft.text().contains("\"broken\""), draft.text());
     }
+
+    /**
+     * A Mutators row lays out on two lines, its text on the second at the row's full width, so a formula wider
+     * than the old text column (the row less the key, kind, verdict and Delete columns) draws whole
+     * (decision mutator-rows-take-an-extra-line).
+     */
+    @Test
+    void rowLaysItsTextOnASecondLineAtFullWidth() {
+        int left = 20;
+        int right = 420;
+        int top = 100;
+        int formulaWidth = 320;
+        ProcessesTab.RowLayout layout = ProcessesTab.layoutRow(left, right, top);
+        assertEquals(2, layout.lines());
+        assertEquals(left, layout.textX());
+        assertEquals(right - left, layout.textWidth());
+        assertTrue(layout.textY() > top, "the text draws below the key line");
+        assertTrue(layout.textY() + 10 <= top + layout.height(), "the text line stands inside the row");
+        assertTrue(layout.textWidth() >= formulaWidth, "the formula draws whole");
+    }
 }

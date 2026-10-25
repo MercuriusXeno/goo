@@ -9,8 +9,8 @@ import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * Draws the Processes tab: each block's summary and its entries with their form, their text and the parser's
- * verdict; a click on an entry's text swaps in an edit box that writes the draft on Enter or blur, and Delete drops
+ * Draws the Mutators tab: each block's summary and its entries, each on two lines, the key, the form, the parser's
+ * verdict and Delete on the first and the text at full width on the second (decision mutator-rows-take-an-extra-line); a click on an entry's text swaps in an edit box that writes the draft on Enter or blur, and Delete drops
  * the entry, as index.html's processes section does (decision goo-workbench-opens-the-in-game-manager-screen). The
  * state lives in {@link ProcessesTab}.
  */
@@ -68,7 +68,7 @@ final class ProcessesPane {
     }
 
     /**
-     * @param shown whether the Processes tab is the one drawn
+     * @param shown whether the Mutators tab is the one drawn
      */
     void show(boolean shown) {
         visible = shown;
@@ -114,7 +114,7 @@ final class ProcessesPane {
             y += LINE_HEIGHT + GAP;
             for (ProcessesTab.ProcessRow row : section.rows()) {
                 fieldShown |= drawRow(graphics, font, section.section(), row, bounds, y, targets);
-                y += ROW_HEIGHT;
+                y += ProcessesTab.layoutRow(bounds.left(), bounds.right(), y).height();
             }
             y += SECTION_GAP;
         }
@@ -132,24 +132,27 @@ final class ProcessesPane {
         int x = bounds.left();
         graphics.text(font, font.plainSubstrByWidth(row.key(), KEY_WIDTH - GAP), x, y, WHITE);
         graphics.text(font, row.kind(), x + KEY_WIDTH, y, ASSIGNMENT.equals(row.kind()) ? TREE_COLOR : GRAY);
-        int textX = x + KEY_WIDTH + KIND_WIDTH;
         int deleteX = bounds.right() - font.width(DELETE);
-        int verdictX = deleteX - GAP - VERDICT_WIDTH;
-        int textWidth = verdictX - GAP - textX;
-        boolean editingThis = section.equals(editingSection) && row.key().equals(editingKey) && field != null;
-        if (editingThis) {
-            field.setPosition(textX, y - BOX_NUDGE);
-            field.setWidth(textWidth);
-        } else {
-            graphics.fill(textX, y - 1, textX + textWidth, y + LINE_HEIGHT, TEXT_COLOR);
-            graphics.text(font, font.plainSubstrByWidth(row.text(), textWidth), textX, y, row.parsed() ? WHITE : RED);
-            targets.add(textX, y - 1, textWidth, LINE_HEIGHT + 1, () -> startEditing(section, row));
-        }
-        graphics.text(font, font.plainSubstrByWidth(row.verdict(), VERDICT_WIDTH), verdictX, y,
+        int verdictX = Math.max(x + KEY_WIDTH + KIND_WIDTH, deleteX - GAP - VERDICT_WIDTH);
+        graphics.text(font, font.plainSubstrByWidth(row.verdict(), deleteX - GAP - verdictX), verdictX, y,
                 row.parsed() ? GREEN : RED);
         graphics.text(font, DELETE, deleteX, y, LINK);
         targets.add(deleteX, y, font.width(DELETE), LINE_HEIGHT, () -> delete(section, row.key()));
-        return editingThis && y >= bounds.top() && y + BOX_HEIGHT <= bounds.bottom();
+        ProcessesTab.RowLayout layout = ProcessesTab.layoutRow(bounds.left(), bounds.right(), y);
+        int textX = layout.textX();
+        int textY = layout.textY();
+        int textWidth = layout.textWidth();
+        boolean editingThis = section.equals(editingSection) && row.key().equals(editingKey) && field != null;
+        if (editingThis) {
+            field.setPosition(textX, textY - BOX_NUDGE);
+            field.setWidth(textWidth);
+        } else {
+            graphics.fill(textX, textY - 1, textX + textWidth, textY + LINE_HEIGHT, TEXT_COLOR);
+            graphics.text(font, font.plainSubstrByWidth(row.text(), textWidth), textX, textY,
+                    row.parsed() ? WHITE : RED);
+            targets.add(textX, textY - 1, textWidth, LINE_HEIGHT + 1, () -> startEditing(section, row));
+        }
+        return editingThis && textY - BOX_NUDGE >= bounds.top() && textY - BOX_NUDGE + BOX_HEIGHT <= bounds.bottom();
     }
 
     private void startEditing(String section, ProcessesTab.ProcessRow row) {

@@ -29,6 +29,8 @@ public final class ProcessesTab {
     private static final String REFUSED_START = ", ";
     private static final String REFUSED_SUFFIX = " refused";
     private static final String NO_TEXT = "";
+    private static final int ROW_LINES = 2;
+    private static final int ROW_LINE_HEIGHT = 13;
 
     private final ManagerDraft draft;
     private final List<ProcessSection> sections = new ArrayList<>();
@@ -60,6 +62,30 @@ public final class ProcessesTab {
      * @param rows    its entries in the order the parser applies them
      */
     public record ProcessSection(String section, String summary, List<ProcessRow> rows) {
+    }
+
+    /**
+     * Where a row draws its text: the key, the form, the verdict and Delete on the first line, the text alone on the
+     * second at the row's full width, so it draws whole and its edit box spans the row.
+     *
+     * @param lines     how many lines the row takes
+     * @param height    the row's height
+     * @param textX     the text's left edge
+     * @param textY     the text line's top
+     * @param textWidth the width the text draws in
+     */
+    public record RowLayout(int lines, int height, int textX, int textY, int textWidth) {
+    }
+
+    /**
+     * @param left  the row's left edge
+     * @param right the row's right edge
+     * @param top   the row's top
+     * @return where the row draws its text
+     */
+    public static RowLayout layoutRow(int left, int right, int top) {
+        // decision mutator-rows-take-an-extra-line
+        return new RowLayout(ROW_LINES, ROW_LINES * ROW_LINE_HEIGHT, left, top + ROW_LINE_HEIGHT, right - left);
     }
 
     /**
