@@ -13,7 +13,8 @@ import java.util.Optional;
  * Draws the Groups tab: the headed group list, and the selected group's detail as one column scrolling under the
  * wheel: its picker, its base line, its member cards with their icons, the selected member's count and trait, and
  * the lines the file will hold, as index.html's groups section does
- * (decision goo-workbench-opens-the-in-game-manager-screen). The state lives in {@link GroupsTab}.
+ * (decision goo-workbench-opens-the-in-game-manager-screen). The list, the detail column and the picker's choices
+ * each draw a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in {@link GroupsTab}.
  */
 final class GroupsPane {
     private static final int LIST_WIDTH = 150;
@@ -83,9 +84,9 @@ final class GroupsPane {
     private @Nullable EditBox trait;
     private @Nullable EditBox traitText;
     private @Nullable Bounds choicesArea;
-    private int listScroll;
-    private int detailScroll;
-    private int choiceScroll;
+    private final ScrollBar listBar = new ScrollBar(1);
+    private final ScrollBar detailBar = new ScrollBar(SCROLL_STEP);
+    private final ScrollBar choiceBar = new ScrollBar(1);
     private boolean visible;
     private String notice = NO_TEXT;
 
@@ -103,7 +104,7 @@ final class GroupsPane {
      */
     void init(Font font) {
         picker = box(font, PICKER_WIDTH, picker, PICK_HINT);
-        picker.setResponder(typed -> choiceScroll = 0);
+        picker.setResponder(typed -> choiceBar.reset());
         base = box(font, BASE_WIDTH, base, NO_TEXT);
         count = box(font, TWEAK_BOX_WIDTH, count, NO_TEXT);
         trait = box(font, TWEAK_BOX_WIDTH, trait, NO_TEXT);
@@ -152,13 +153,12 @@ final class GroupsPane {
      * @param amount the wheel's turn, positive away from the player
      */
     void scroll(double x, double y, int left, double amount) {
-        int step = (int) -Math.signum(amount);
         if (choicesArea != null && choicesArea.contains(x, y)) {
-            choiceScroll = Math.max(0, choiceScroll + step);
+            choiceBar.wheel(amount);
         } else if (x < left + LIST_WIDTH) {
-            listScroll = Math.max(0, listScroll + step);
+            listBar.wheel(amount);
         } else {
-            detailScroll = Math.max(0, detailScroll + step * SCROLL_STEP);
+            detailBar.wheel(amount);
         }
     }
 
@@ -168,7 +168,8 @@ final class GroupsPane {
         }
         choicesArea = null;
         drawList(graphics, font, bounds, targets);
-        Bounds detail = new Bounds(bounds.left() + LIST_WIDTH + GAP, bounds.top(), bounds.right(), bounds.bottom());
+        Bounds detail = new Bounds(bounds.left() + LIST_WIDTH + GAP, bounds.top(),
+                bounds.right() - ScrollBar.WIDTH - ScrollBar.GAP, bounds.bottom());
         Optional<GroupsTab.Group> selected = groups.selected();
         if (selected.isEmpty()) {
             graphics.text(font, groups.groupRows().isEmpty() ? NO_GROUPS : NO_GROUP, detail.left(), detail.top(),
@@ -184,26 +185,29 @@ final class GroupsPane {
         int top = bounds.top() + LINE_HEIGHT + HALF;
         List<GroupsTab.GroupRow> rows = groups.groupRows();
         int shown = Math.max(1, (bounds.bottom() - top) / ROW_HEIGHT);
-        listScroll = Math.min(listScroll, Math.max(0, rows.size() - shown));
+        listBar.measure(rows.size(), shown);
+        int first = listBar.offset();
+        int rowWidth = LIST_WIDTH - ScrollBar.WIDTH - ScrollBar.GAP;
         String selected = groups.selected().map(GroupsTab.Group::name).orElse(NO_TEXT);
         int y = top;
-        for (int index = listScroll; index < Math.min(rows.size(), listScroll + shown); index++) {
+        for (int index = first; index < Math.min(rows.size(), first + shown); index++) {
             GroupsTab.GroupRow row = rows.get(index);
             if (row.name().equals(selected)) {
-                graphics.fill(bounds.left(), y, bounds.left() + LIST_WIDTH, y + ROW_HEIGHT, SELECTED_COLOR);
+                graphics.fill(bounds.left(), y, bounds.left() + rowWidth, y + ROW_HEIGHT, SELECTED_COLOR);
             }
             graphics.text(font, font.plainSubstrByWidth(TAG_PREFIX + row.name(), COUNT_X - LABEL_GAP), bounds.left(),
                     y + HALF, WHITE);
             String counted = row.members() + (row.unknownCount() == 0 ? NO_TEXT : UNKNOWN_SHORT);
             graphics.text(font, counted, bounds.left() + COUNT_X, y + HALF, row.unknownCount() == 0 ? GRAY : RED);
-            targets.add(bounds.left(), y, LIST_WIDTH, ROW_HEIGHT, () -> pickGroup(row.name()));
+            targets.add(bounds.left(), y, rowWidth, ROW_HEIGHT, () -> pickGroup(row.name()));
             y += ROW_HEIGHT;
         }
+        listBar.draw(graphics, targets, bounds.left() + LIST_WIDTH, top, top + shown * ROW_HEIGHT);
     }
 
     private void pickGroup(String name) {
         groups.selectGroup(name);
-        detailScroll = 0;
+        detailBar.reset();
         notice = NO_TEXT;
         groups.selected().ifPresent(group -> {
             if (base != null) {
@@ -217,7 +221,7 @@ final class GroupsPane {
         graphics.enableScissor(detail.left(), detail.top(), detail.right(), detail.bottom());
         targets.clip(detail.left(), detail.top(), detail.right(), detail.bottom());
         int x = detail.left();
-        int y = detail.top() - detailScroll;
+        int y = detail.top() - detailBar.offset();
         long unknown = group.members().stream().filter(member -> !member.known()).count();
         graphics.text(font, TAG_PREFIX + group.name() + NAME_GAP + group.members().size() + MEMBERS_SUFFIX
                 + (unknown == 0 ? NO_TEXT : UNKNOWN_OPEN + unknown + UNKNOWN_CLOSE), x, y, WHITE);
@@ -230,9 +234,10 @@ final class GroupsPane {
         y = drawCards(graphics, font, detail, y, targets);
         y = drawTweak(graphics, font, detail, x, y + SECTION_GAP, group, targets);
         y = drawPreview(graphics, font, x, y + SECTION_GAP, detail.right() - x, group);
-        detailScroll = Math.min(detailScroll, Math.max(0, y + detailScroll - detail.bottom()));
         targets.unclip();
         graphics.disableScissor();
+        detailBar.measureAndDraw(graphics, targets, y, detail.right() + ScrollBar.GAP + ScrollBar.WIDTH, detail.top(),
+                detail.bottom());
         if (picker != null && picker.visible) {
             drawChoices(graphics, font, x, pickerY + BOX_HEIGHT, targets);
         }
@@ -350,8 +355,9 @@ final class GroupsPane {
             return;
         }
         List<String> choices = groups.pickerChoices(picker.getValue(), values.entries());
-        choiceScroll = Math.min(choiceScroll, Math.max(0, choices.size() - CHOICES_SHOWN));
-        int shown = Math.min(CHOICES_SHOWN, choices.size() - choiceScroll);
+        choiceBar.measure(choices.size(), CHOICES_SHOWN);
+        int first = choiceBar.offset();
+        int shown = Math.min(CHOICES_SHOWN, choices.size() - first);
         if (shown <= 0) {
             return;
         }
@@ -360,11 +366,13 @@ final class GroupsPane {
         graphics.fill(x, top, x + width, top + shown * ROW_HEIGHT, CHOICES_COLOR);
         choicesArea = new Bounds(x, top, x + width, top + shown * ROW_HEIGHT);
         for (int index = 0; index < shown; index++) {
-            String choice = choices.get(choiceScroll + index);
+            String choice = choices.get(first + index);
             int y = top + index * ROW_HEIGHT;
-            graphics.text(font, font.plainSubstrByWidth(choice, width - HALF), x + HALF, y + HALF, WHITE);
-            targets.add(x, y, width, ROW_HEIGHT, () -> picker.setValue(choice));
+            graphics.text(font, font.plainSubstrByWidth(choice, width - HALF - ScrollBar.WIDTH - ScrollBar.GAP),
+                    x + HALF, y + HALF, WHITE);
+            targets.add(x, y, width - ScrollBar.WIDTH, ROW_HEIGHT, () -> picker.setValue(choice));
         }
+        choiceBar.draw(graphics, targets, x + width, top, top + shown * ROW_HEIGHT);
     }
 
     // A box shows only while the frame places it wholly inside the pane.
