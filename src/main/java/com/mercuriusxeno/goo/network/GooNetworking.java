@@ -44,6 +44,8 @@ public final class GooNetworking {
         r.playToClient(AbilitySyncPayload.TYPE, AbilitySyncPayload.STREAM_CODEC);
         r.playToClient(KnownItemsSyncPayload.TYPE, KnownItemsSyncPayload.STREAM_CODEC);
         r.playToClient(KnownItemLearnedPayload.TYPE, KnownItemLearnedPayload.STREAM_CODEC);
+        r.playToClient(OpenValuesManagerPayload.TYPE, OpenValuesManagerPayload.STREAM_CODEC);
+        r.playToClient(WorkbenchReplyPayload.TYPE, WorkbenchReplyPayload.STREAM_CODEC);
         registerAbilityVisualPayloads(r);
     }
 
@@ -114,5 +116,7 @@ public final class GooNetworking {
         r.playToServer(GooChargePayload.TYPE, GooChargePayload.STREAM_CODEC, GooThrowHandler::handleCharge);
         r.playToServer(GlovePosePayload.TYPE, GlovePosePayload.STREAM_CODEC, GooThrowHandler::handleGlovePose);
         r.playToServer(GloveSelectPayload.TYPE, GloveSelectPayload.STREAM_CODEC, GloveSelectHandler::handle);
+        r.playToServer(WorkbenchRequestPayload.TYPE, WorkbenchRequestPayload.STREAM_CODEC,
+                WorkbenchRequestHandler::handle);
     }
 }

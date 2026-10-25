@@ -34,6 +34,7 @@ import com.mercuriusxeno.goo.network.MobHitPayload;
 import com.mercuriusxeno.goo.network.ModelShrinkPayload;
 import com.mercuriusxeno.goo.network.NovaRingPayload;
 import com.mercuriusxeno.goo.network.OpenNamingScreenPayload;
+import com.mercuriusxeno.goo.network.OpenValuesManagerPayload;
 import com.mercuriusxeno.goo.network.OreRevealPayload;
 import com.mercuriusxeno.goo.network.ReapSwellPayload;
 import com.mercuriusxeno.goo.network.ScryPayload;
@@ -43,6 +44,7 @@ import com.mercuriusxeno.goo.network.TomePayload;
 import com.mercuriusxeno.goo.network.TransformationPayload;
 import com.mercuriusxeno.goo.network.TunerFeedbackPayload;
 import com.mercuriusxeno.goo.network.UnmadePayload;
+import com.mercuriusxeno.goo.network.WorkbenchReplyPayload;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -73,6 +75,8 @@ public final class GooClientNetworking {
         event.register(AbilitySyncPayload.TYPE, AbilitySyncHandler::handle);
         event.register(KnownItemsSyncPayload.TYPE, KnownItemsHandler::handleSync);
         event.register(KnownItemLearnedPayload.TYPE, KnownItemsHandler::handleLearned);
+        event.register(OpenValuesManagerPayload.TYPE, ValuesManagerHandlers::handleOpen);
+        event.register(WorkbenchReplyPayload.TYPE, ValuesManagerHandlers::handleReply);
         registerAbilityVisualHandlers(event);
     }
 
