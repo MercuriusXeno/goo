@@ -49,4 +49,23 @@ class ManagerConnectionTest {
         connection.accept(new WorkbenchReplyPayload(id, 200, 0, 2, "first-"));
         assertEquals("first-second", reply.join().text());
     }
+
+    /**
+     * A dump run's progress parts reach its progress consumer in order and leave the request open, and the part
+     * after them completes it with the run's exit code.
+     */
+    @Test
+    void progressPartsReachTheConsumerInOrderBeforeTheResult() {
+        List<WorkbenchRequestPayload> sent = new ArrayList<>();
+        List<String> progress = new ArrayList<>();
+        ManagerConnection connection = new ManagerConnection(sent::add);
+        CompletableFuture<ManagerConnection.ManagerReply> run = connection.request("dumps/run", "{}", progress::add);
+        int id = sent.getFirst().requestId();
+        connection.accept(new WorkbenchReplyPayload(id, 102, 0, 1, "booting"));
+        connection.accept(new WorkbenchReplyPayload(id, 102, 0, 1, "auditing"));
+        assertFalse(run.isDone());
+        connection.accept(new WorkbenchReplyPayload(id, 200, 0, 1, "{\"exitCode\":0}"));
+        assertEquals(List.of("booting", "auditing"), progress);
+        assertEquals("{\"exitCode\":0}", run.join().text());
+    }
 }

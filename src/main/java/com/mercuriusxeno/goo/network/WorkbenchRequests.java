@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.network;
 
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 
 /**
  * Joins a values manager request's parts, refuses a sender lacking the operator level /goo workbench requires, runs
@@ -10,6 +11,11 @@ import java.util.concurrent.Executor;
 public final class WorkbenchRequests {
     /** The status a refused request answers. */
     static final int FORBIDDEN = 403;
+    /**
+     * The status a progress part carries: one line a dump run printed, sent before the run's answer under the same
+     * request id, since the run takes minutes and the Audit tab shows it as it goes.
+     */
+    public static final int PROGRESS = 102;
     /** The text a refused request answers. */
     static final String REFUSED = "Only an operator may manage the world's values: /goo workbench needs op level 2.";
     private static final String KEY_SEPARATOR = "#";
@@ -47,9 +53,10 @@ public final class WorkbenchRequests {
         /**
          * @param operation the operation's name
          * @param text      the posted text
+         * @param progress  takes each line a long operation prints before it answers
          * @return the reply's status and text
          */
-        Answer answer(String operation, String text);
+        Answer answer(String operation, String text, Consumer<String> progress);
     }
 
     /**
@@ -86,8 +93,8 @@ public final class WorkbenchRequests {
             return;
         }
         joiner.accept(sender.key() + KEY_SEPARATOR + part.requestId(), part.part(), part.parts(), part.text())
-                .ifPresent(text -> executor.execute(() ->
-                        send(sender, part.requestId(), runner.answer(part.operation(), text))));
+                .ifPresent(text -> executor.execute(() -> send(sender, part.requestId(), runner.answer(
+                        part.operation(), text, line -> send(sender, part.requestId(), new Answer(PROGRESS, line))))));
     }
 
     private static void send(Sender sender, int requestId, Answer answer) {

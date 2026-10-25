@@ -44,7 +44,7 @@ class WorkbenchRequestsTest {
         AtomicInteger ran = new AtomicInteger();
         FakeSender sender = new FakeSender(false);
         new WorkbenchRequests(Runnable::run).accept(sender, new WorkbenchRequestPayload(5, "model", 0, 1, ""),
-                (operation, text) -> {
+                (operation, text, progress) -> {
                     ran.incrementAndGet();
                     return new WorkbenchRequests.Answer(200, "{}");
                 });
@@ -62,7 +62,7 @@ class WorkbenchRequestsTest {
         List<String> ran = new ArrayList<>();
         FakeSender sender = new FakeSender(true);
         WorkbenchRequests requests = new WorkbenchRequests(Runnable::run);
-        WorkbenchRequests.Runner runner = (operation, text) -> {
+        WorkbenchRequests.Runner runner = (operation, text, progress) -> {
             ran.add(operation + " " + text);
             return new WorkbenchRequests.Answer(200, "saved");
         };
@@ -71,5 +71,24 @@ class WorkbenchRequestsTest {
         requests.accept(sender, new WorkbenchRequestPayload(8, "model/save", 1, 2, ":[]}"), runner);
         assertEquals(List.of("model/save {\"members\":[]}"), ran);
         assertEquals(List.of(new WorkbenchReplyPayload(8, 200, 0, 1, "saved")), sender.replies);
+    }
+
+    /**
+     * A dump run's progress lines go out under its request id in the order the run prints them, each as a
+     * progress part, and the last part carries the run's result with its exit code.
+     */
+    @Test
+    void dumpRunSendsProgressInOrderThenTheResult() {
+        FakeSender sender = new FakeSender(true);
+        new WorkbenchRequests(Runnable::run).accept(sender, new WorkbenchRequestPayload(9, "dumps/run", 0, 1, "{}"),
+                (operation, text, progress) -> {
+                    progress.accept("booting");
+                    progress.accept("auditing");
+                    return new WorkbenchRequests.Answer(200, "{\"exitCode\":0}");
+                });
+        assertEquals(List.of(
+                new WorkbenchReplyPayload(9, WorkbenchRequests.PROGRESS, 0, 1, "booting"),
+                new WorkbenchReplyPayload(9, WorkbenchRequests.PROGRESS, 0, 1, "auditing"),
+                new WorkbenchReplyPayload(9, 200, 0, 1, "{\"exitCode\":0}")), sender.replies);
     }
 }

@@ -38,6 +38,8 @@ public final class WorkbenchOperations {
     public static final String APPLY_TO_GROUP = "groups/apply";
     /** Reads the dumps the last run left. */
     public static final String STANDING_DUMPS = "dumps";
+    /** Saves the posted model as the draft and runs the dumps over it, its progress line by line. */
+    public static final String RUN_DUMPS = "dumps/run";
     /** Reads the audit's sections. */
     public static final String AUDIT_SECTIONS = "audit";
     /** Resolves every entry of the posted model. */
@@ -132,7 +134,21 @@ public final class WorkbenchOperations {
      * @return the operation's reply
      */
     public WorkbenchReply answer(String operation, String posted) {
-        Operation chosen = operations.get(operation);
+        return answer(operation, posted, line -> { });
+    }
+
+    /**
+     * Runs the named operation over the posted text, handing each line a dump run prints to progress before it
+     * answers, as the Audit tab shows the run going (decision goo-workbench-opens-the-in-game-manager-screen).
+     *
+     * @param operation the operation's name, one of this class's constants
+     * @param posted    the posted text, empty for a read
+     * @param progress  takes each line a dump run prints
+     * @return the operation's reply
+     */
+    public WorkbenchReply answer(String operation, String posted, Consumer<String> progress) {
+        Operation chosen = RUN_DUMPS.equals(operation) ? text -> json(runDumps(text, progress).toString())
+                : operations.get(operation);
         if (chosen == null) {
             return WorkbenchReply.of(NOT_FOUND, WorkbenchReply.TEXT, NO_OPERATION_NAMED + operation);
         }
