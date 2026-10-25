@@ -80,6 +80,7 @@ public final class WorkbenchOperations {
     private final DraftSeed seed;
     private final InventoryDump dump;
     private final DumpRunner dumps;
+    private final LiveApplier applier;
     // Guards the draft file alone: a dump run holds this object's own monitor for minutes, and a seed, Promote or
     // Discard must not wait on it.
     private final Object draftLock = new Object();
@@ -114,10 +115,23 @@ public final class WorkbenchOperations {
      * @param dumps runs the audit and clique dumps
      */
     public WorkbenchOperations(WorkbenchPaths paths, DraftSeed seed, InventoryDump dump, DumpRunner dumps) {
+        this(paths, seed, dump, dumps, LiveApplier.NONE);
+    }
+
+    /**
+     * @param paths   the files the workbench reads and writes
+     * @param seed    the text a draft starts from where no live file stands
+     * @param dump    writes the inventory when none stands
+     * @param dumps   runs the audit and clique dumps
+     * @param applier applies the text a Save, a Promote or a Discard leaves standing to the running server
+     */
+    public WorkbenchOperations(WorkbenchPaths paths, DraftSeed seed, InventoryDump dump, DumpRunner dumps,
+                               LiveApplier applier) {
         this.paths = paths;
         this.seed = seed;
         this.dump = dump;
         this.dumps = dumps;
+        this.applier = applier;
     }
 
     @FunctionalInterface
@@ -177,7 +191,11 @@ public final class WorkbenchOperations {
      * @throws IOException where the draft cannot be written
      */
     public synchronized JsonObject runDumps(String posted, Consumer<String> progress) throws IOException {
-        Files.writeString(paths.draft(), postedModel(posted).serialize());
+        String text = postedModel(posted).serialize();
+        Files.writeString(paths.draft(), text);
+        // A run saves the draft as Save does, so the world runs what the audit reads
+        // (decision save-applies-the-draft-live-promote-renames-it).
+        applier.apply(text);
         long start = System.nanoTime();
         int exit;
         try {
@@ -207,9 +225,18 @@ public final class WorkbenchOperations {
         return WorkbenchReply.of(WorkbenchReply.OK, WorkbenchReply.JSON, body);
     }
 
+    /**
+     * Writes the draft and applies it to the running server, so a player tests a value as they edit it
+     * (decision save-applies-the-draft-live-promote-renames-it).
+     *
+     * @param posted the model to save
+     * @return the saved model
+     */
     private WorkbenchReply saveModel(String posted) throws IOException {
         BaseValuesModel saved = postedModel(posted);
-        Files.writeString(paths.draft(), saved.serialize());
+        String text = saved.serialize();
+        Files.writeString(paths.draft(), text);
+        applier.apply(text);
         return modelReply(saved);
     }
 
@@ -369,7 +396,9 @@ public final class WorkbenchOperations {
             Files.move(paths.draft(), paths.baseValues(), StandardCopyOption.REPLACE_EXISTING,
                     StandardCopyOption.ATOMIC_MOVE);
         }
-        return modelReply(BaseValuesModel.parse(Files.readString(paths.baseValues())));
+        String live = Files.readString(paths.baseValues());
+        applier.apply(live);
+        return modelReply(BaseValuesModel.parse(live));
     }
 
     /**
@@ -385,7 +414,9 @@ public final class WorkbenchOperations {
             }
             Files.copy(paths.baseValues(), paths.draft(), StandardCopyOption.REPLACE_EXISTING);
         }
-        return modelReply(BaseValuesModel.parse(Files.readString(paths.draft())));
+        String live = Files.readString(paths.baseValues());
+        applier.apply(live);
+        return modelReply(BaseValuesModel.parse(live));
     }
 
     private WorkbenchReply inventory() throws IOException, InterruptedException {

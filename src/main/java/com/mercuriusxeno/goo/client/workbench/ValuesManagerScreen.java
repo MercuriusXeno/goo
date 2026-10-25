@@ -50,6 +50,10 @@ public final class ValuesManagerScreen extends Screen {
     private static final int RED = 0xFFFF5555;
     private static final String TITLE = "Values manager";
     private static final String SAVE = "Save";
+    private static final String PROMOTE = "Promote";
+    private static final String DISCARD = "Discard";
+    private static final String DRAFT_BADGE = "draft";
+    private static final int DRAFT_COLOR = 0xFFE0C060;
     private static final String SEARCH_HINT = "Search items and tags";
     private static final String EXPRESSION_LABEL = "Expression";
     private static final String NO_SELECTION = "Select an item or tag to read and edit its entry.";
@@ -80,6 +84,9 @@ public final class ValuesManagerScreen extends Screen {
     private final ProcessesPane processesPane;
     private final AuditPane auditPane;
     private final ChecksPane checksPane;
+    private final DraftConfirm draftConfirm = new DraftConfirm();
+    private final DraftPane draftPane = new DraftPane(draftConfirm, this::runDraftAction);
+    private boolean unsaved;
     private ManagerTab tab = ManagerTab.VALUES;
     private EditBox search;
     private EditBox expression;
@@ -126,7 +133,7 @@ public final class ValuesManagerScreen extends Screen {
 
         @Override
         public void draftChanged() {
-            setStatus(UNSAVED, false);
+            markUnsaved();
             readDraftAfresh();
         }
 
@@ -134,6 +141,7 @@ public final class ValuesManagerScreen extends Screen {
         public void reloadDraft() {
             request(WorkbenchOperations.MODEL, NOTHING_POSTED, model -> {
                 values.readModel(model);
+                unsaved = false;
                 setStatus(SAVED, false);
                 readDraftAfresh();
             });
@@ -168,8 +176,16 @@ public final class ValuesManagerScreen extends Screen {
             tabButtons.put(each, addRenderableWidget(button));
             x += tabWidth + TAB_GAP;
         }
-        addRenderableWidget(Button.builder(Component.literal(SAVE), pressed -> save())
-                .bounds(width - MARGIN - BUTTON_WIDTH, TAB_Y, BUTTON_WIDTH, BUTTON_HEIGHT).build());
+        int topbarX = width - MARGIN - BUTTON_WIDTH;
+        addRenderableWidget(Button.builder(Component.literal(SAVE), pressed -> save(() -> { }))
+                .bounds(topbarX, TAB_Y, BUTTON_WIDTH, BUTTON_HEIGHT).build());
+        topbarX -= BUTTON_WIDTH + TAB_GAP;
+        addRenderableWidget(Button.builder(Component.literal(DISCARD), pressed -> draftConfirm.askDiscard(draft.path()))
+                .bounds(topbarX, TAB_Y, BUTTON_WIDTH, BUTTON_HEIGHT).build());
+        topbarX -= BUTTON_WIDTH + TAB_GAP;
+        addRenderableWidget(Button.builder(Component.literal(PROMOTE),
+                pressed -> draftConfirm.askPromote(draft.path(), unsaved))
+                .bounds(topbarX, TAB_Y, BUTTON_WIDTH, BUTTON_HEIGHT).build());
         search = addRenderableWidget(new EditBox(font, MARGIN, CONTENT_Y, SIDEBAR_WIDTH, SEARCH_HEIGHT,
                 Component.literal(SEARCH_HINT)));
         search.setHint(Component.literal(SEARCH_HINT));
@@ -241,13 +257,52 @@ public final class ValuesManagerScreen extends Screen {
         });
     }
 
-    private void save() {
+    /**
+     * Writes the draft, which the server applies to every player at once
+     * (decision save-applies-the-draft-live-promote-renames-it).
+     *
+     * @param after runs once the save answered
+     */
+    private void save(Runnable after) {
         setStatus(SAVING, false);
         request(WorkbenchOperations.SAVE_MODEL, values.modelText(), saved -> {
             values.readModel(saved);
+            unsaved = false;
             setStatus(SAVED, false);
             readDraftAfresh();
+            after.run();
         });
+    }
+
+    private void markUnsaved() {
+        unsaved = true;
+        setStatus(UNSAVED, false);
+    }
+
+    /**
+     * Runs the confirmed Promote or Discard, saving unsaved changes first for a Promote; a promote the checks
+     * refuse opens the second confirm listing them.
+     */
+    private void runDraftAction() {
+        boolean savesFirst = draftConfirm.savesFirst();
+        draftConfirm.confirmed();
+        Runnable send = () -> connection.request(draftConfirm.operation(), draftConfirm.requestText())
+                .thenAccept(reply -> {
+                    if (reply.answered()) {
+                        values.readModel(reply.text());
+                        unsaved = false;
+                        setStatus(draftConfirm.doneStatus(draft.path()), false);
+                        draftConfirm.cancel();
+                        readDraftAfresh();
+                    } else if (!draftConfirm.readRefusal(reply.status(), reply.text(), draft.path())) {
+                        setStatus(reply.text(), true);
+                    }
+                });
+        if (savesFirst) {
+            save(send);
+        } else {
+            send.run();
+        }
     }
 
     private void request(String operation, String text, Consumer<String> answered) {
@@ -269,7 +324,7 @@ public final class ValuesManagerScreen extends Screen {
         Optional<ValuesTab.EntryRow> row = values.selectedRow();
         if (row.isPresent() && !row.get().expression().equals(typed)) {
             values.edit(typed);
-            setStatus(UNSAVED, false);
+            markUnsaved();
         }
     }
 
@@ -293,6 +348,9 @@ public final class ValuesManagerScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (draftPane.open()) {
+            return targets.click(event.x(), event.y());
+        }
         if (super.mouseClicked(event, doubleClick)) {
             return true;
         }
@@ -370,6 +428,9 @@ public final class ValuesManagerScreen extends Screen {
         targets.clear();
         showChecksBadge();
         graphics.text(font, title, MARGIN, TITLE_Y, WHITE);
+        if (draft.differs()) {
+            graphics.text(font, DRAFT_BADGE, MARGIN + font.width(title) + TAB_PADDING, TITLE_Y, DRAFT_COLOR);
+        }
         switch (tab) {
             case VALUES -> {
                 drawEntries(graphics);
@@ -382,6 +443,7 @@ public final class ValuesManagerScreen extends Screen {
             case CHECKS -> checksPane.extract(graphics, font, contentBounds());
         }
         graphics.text(font, status, MARGIN, height - STATUS_INSET, statusIsError ? RED : GRAY);
+        draftPane.extract(graphics, font, width, height, targets);
     }
 
     private void showChecksBadge() {

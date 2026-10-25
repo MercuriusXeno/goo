@@ -41,13 +41,19 @@ public final class GooValueSync {
     }
 
     /**
-     * Sends the full effective value map to all connected players.
+     * Sends the full effective value map to every connected player whose connection carries the channel; a
+     * connection lacking it, as a gametest's mock player's does, throws on a send, so it is passed over as every
+     * other goo broadcast passes it over.
      *
      * @param server the running server instance
      */
     public static void sendToAll(MinecraftServer server) {
         GooValueSyncPayload payload = buildPayload(server);
-        PacketDistributor.sendToAllPlayers(payload);
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (player.connection.hasChannel(payload)) {
+                PacketDistributor.sendToPlayer(player, payload);
+            }
+        }
         if (Goo.LOGGER.isInfoEnabled()) {
             Goo.LOGGER.info(LOG_BROADCAST, payload.values().size());
         }

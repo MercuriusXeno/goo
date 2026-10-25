@@ -1,5 +1,8 @@
 package com.mercuriusxeno.goo.command;
 
+import com.mercuriusxeno.goo.data.GooValueRegistry;
+import com.mercuriusxeno.goo.data.GooValues;
+import com.mercuriusxeno.goo.network.GooValueSync;
 import com.mercuriusxeno.goo.network.WorkbenchRequests;
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
 import com.mercuriusxeno.goo.workbench.WorkbenchPaths;
@@ -36,6 +39,8 @@ public final class ValuesManagers {
             """;
     private static final String NO_JAR_VALUES = "The jar holds no ";
     private static final String WORKER_NAME = "goo-values-manager";
+    // A world's folder datapack answers this prefix before its folder's name as its pack id.
+    private static final String FILE_PACK_PREFIX = "file/";
     private static final Map<MinecraftServer, Standing> STANDING = new ConcurrentHashMap<>();
 
     private ValuesManagers() {
@@ -93,11 +98,32 @@ public final class ValuesManagers {
             thread.setDaemon(true);
             return thread;
         });
+        String packId = FILE_PACK_PREFIX + WorkbenchPaths.packRoot(world).getFileName();
         Standing stood = new Standing(new WorkbenchOperations(paths, ValuesManagers::jarValues,
-                InGameDumps.inventory(server, paths), InGameDumps.dumps(server, paths)),
-                new WorkbenchRequests(worker), worker);
+                InGameDumps.inventory(server, paths), InGameDumps.dumps(server, paths),
+                text -> applyLive(server, text, packId)), new WorkbenchRequests(worker), worker);
         STANDING.put(server, stood);
         return stood;
+    }
+
+    /**
+     * Applies base_values.json text to the values every player holds, as /goo regen does but from the text the
+     * manager left standing in place of the goo_values pack's file: the server's registry loads it over the other
+     * packs, derives from the server's recipes, saves the effective cache and syncs every client, on the server
+     * thread, with no /reload (decision save-applies-the-draft-live-promote-renames-it).
+     *
+     * @param server the running server
+     * @param text   the base_values.json text now standing
+     * @param packId the goo_values pack's id, whose own file the text stands in for
+     */
+    static void applyLive(MinecraftServer server, String text, String packId) {
+        server.submit(() -> {
+            GooValueRegistry registry = GooValues.registryOf(server);
+            registry.loadBaseValuesOverPacks(server, text, packId::equals);
+            registry.deriveFromRecipes(server);
+            registry.saveEffectiveValues();
+            GooValueSync.sendToAll(server);
+        }).join();
     }
 
     private static void writePackMeta(Path packRoot) throws IOException {
