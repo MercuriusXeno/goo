@@ -35,8 +35,8 @@ final class ExpressionBuilderPane {
     private static final String PER_TYPE = "per goo type";
     private static final String PER_TYPE_HINT = "A separate amount for each goo type";
     private static final String ITEMS_GOO_KIND = "from other items";
-    private static final String ITEMS_GOO_KIND_HINT = "Worth what other items and per-type prefabs are worth, scaled"
-            + " and summed";
+    // decision items-kind-hint-says-worth-based-on-other-items-prefabs
+    private static final String ITEMS_GOO_KIND_HINT = "worth based on other items/prefabs";
     private static final String PREFABS_GOO_KIND = "from other prefabs";
     private static final String PREFABS_GOO_KIND_HINT = "Worth what the per-type prefabs above this one are worth,"
             + " scaled and summed";
@@ -281,8 +281,17 @@ final class ExpressionBuilderPane {
 
     private void drawGooKind(ControlFlow flow, ExpressionBuilder edited, boolean chosen) {
         boolean items = grammar.readsItems();
-        flow.choiceAt(items ? ITEMS_GOO_KIND : PREFABS_GOO_KIND, items ? ITEMS_GOO_KIND_HINT : PREFABS_GOO_KIND_HINT,
-                chosen, at -> switchToGoo(at, edited));
+        flow.choiceAt(items ? ITEMS_GOO_KIND : PREFABS_GOO_KIND, gooKindHint(items), chosen,
+                at -> switchToGoo(at, edited));
+    }
+
+    /**
+     * @param readsItems whether the value reads items, as an item's or group's does
+     * @return the hover hint of the goo kind choice: the Items tab's "from other items" or a prefab's "from other
+     *         prefabs"
+     */
+    static String gooKindHint(boolean readsItems) {
+        return readsItems ? ITEMS_GOO_KIND_HINT : PREFABS_GOO_KIND_HINT;
     }
 
     // A goo value starts from what it held before, or from the item or prefab picked first.
