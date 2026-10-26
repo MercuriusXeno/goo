@@ -5,6 +5,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.data.GooConstantResolver;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -58,7 +61,7 @@ class WorkbenchOperationsTest {
         operations = new WorkbenchOperations(paths, () -> "{\n}\n".getBytes(StandardCharsets.UTF_8), () -> {
             dumpsRun.incrementAndGet();
             Files.writeString(paths.inventoryFile(), INVENTORY);
-        }, (draft, progress) -> 0);
+        }, (draft, progress) -> 0, () -> GooTypes.BUNDLED);
     }
 
     private WorkbenchReply answered(String operation, String posted) {
@@ -208,7 +211,7 @@ class WorkbenchOperationsTest {
         @BeforeEach
         void bindTheFakeApplier() {
             live = new WorkbenchOperations(paths, () -> new byte[0], () -> { }, (draft, progress) -> 0,
-                    applied::add);
+                    applied::add, () -> GooTypes.BUNDLED);
         }
 
         private void saveWithBase(String base) {
@@ -253,6 +256,82 @@ class WorkbenchOperationsTest {
             String liveText = Files.readString(paths.baseValues());
             assertEquals(liveText, Files.readString(paths.draft()));
             assertEquals(liveText, applied.getLast());
+        }
+    }
+
+    /**
+     * A draft read drops each entry naming a goo type the known set does not hold
+     * (decision draft-load-drops-entries-naming-an-unknown-type).
+     */
+    @Nested
+    class UnknownTypes {
+        private static final String DRAFT_WITH_AEON = """
+                {
+                    "_constants": {
+                        "x": {"leaf": 4},
+                        "old": {"aeon": 2}
+                    },
+                    "stick": {"leaf": 1},
+                    "relic": {"aeon": 3},
+                    "fossil": "$x.aeon",
+                    "plank": "$x.leaf"
+                }
+                """;
+        private static final String DRAFT_WITHOUT_AEON = """
+                {
+                    "_constants": {
+                        "x": {"leaf": 4}
+                    },
+                    "stick": {"leaf": 1},
+                    "plank": "$x.leaf"
+                }
+                """;
+        private static final String DRAFT_WITH_A_DATAPACK_TYPE = """
+                {
+                    "stick": {"leaf": 1},
+                    "relic": {"mypack:aeon": 3}
+                }
+                """;
+
+        private WorkbenchOperations knowing(List<ResourceKey<GooTypeDefinition>> known) {
+            return new WorkbenchOperations(paths, () -> new byte[0], () -> { }, (draft, progress) -> 0, () -> known);
+        }
+
+        private static List<String> keys(JsonArray members) {
+            return members.asList().stream().map(member -> member.getAsJsonObject().get("key").getAsString())
+                    .toList();
+        }
+
+        /**
+         * A per-type key and a $prefab.type term naming aeon each drop their entry from the model and the draft
+         * file, and every other entry stays as the draft spelled it.
+         */
+        @Test
+        void entriesNamingAnUnknownTypeDropFromTheModelAndTheDraft() throws IOException {
+            Files.writeString(paths.draft(), DRAFT_WITH_AEON);
+            WorkbenchReply reply = knowing(GooTypes.BUNDLED).answer(WorkbenchOperations.MODEL, "");
+            assertEquals(200, reply.status(), reply.text());
+            JsonArray members = JsonParser.parseString(reply.text()).getAsJsonObject().getAsJsonArray("members");
+            assertEquals(List.of("_constants", "stick", "plank"), keys(members));
+            assertEquals(List.of("x"), keys(members.get(0).getAsJsonObject().getAsJsonArray("entries")));
+            assertEquals(DRAFT_WITHOUT_AEON, Files.readString(paths.draft()));
+        }
+
+        /**
+         * An entry keyed by a datapack type the known set holds reads back intact.
+         */
+        @Test
+        void entryNamingAKnownDatapackTypeSurvives() throws IOException {
+            Files.writeString(paths.draft(), DRAFT_WITH_A_DATAPACK_TYPE);
+            List<ResourceKey<GooTypeDefinition>> known = new java.util.ArrayList<>(GooTypes.BUNDLED);
+            known.add(GooTypes.byId("mypack:aeon"));
+            WorkbenchReply reply = knowing(known).answer(WorkbenchOperations.MODEL, "");
+            assertEquals(200, reply.status(), reply.text());
+            JsonObject relic = JsonParser.parseString(reply.text()).getAsJsonObject().getAsJsonArray("members")
+                    .asList().stream().map(JsonElement::getAsJsonObject)
+                    .filter(member -> "relic".equals(member.get("key").getAsString())).findFirst().orElseThrow();
+            assertEquals("{\"mypack:aeon\": 3}", relic.get("text").getAsString());
+            assertEquals(DRAFT_WITH_A_DATAPACK_TYPE, Files.readString(paths.draft()));
         }
     }
 
@@ -429,7 +508,7 @@ class WorkbenchOperationsTest {
                         progress.accept("booting");
                         progress.accept("auditing");
                         return 0;
-                    });
+                    }, () -> GooTypes.BUNDLED);
             List<String> progress = new java.util.ArrayList<>();
             WorkbenchReply reply = running.answer(WorkbenchOperations.RUN_DUMPS, posted(sample()), progress::add);
             assertEquals(200, reply.status(), reply.text());
