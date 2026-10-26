@@ -355,6 +355,18 @@ public record BaseValuesModel(List<Member> members, String lineSeparator, String
     }
 
     /**
+     * @param constant a constant's name
+     * @return the items whose own entry names it, in file order, a #group entry left out
+     *         (decision used-by-draws-the-terminus-items-alone)
+     */
+    public List<String> directItemsOf(String constant) {
+        Pattern reference = referenceTo(constant);
+        return members.stream().filter(member -> member.kind() == Kind.VALUE && member.key() != null
+                        && !member.key().startsWith(GROUP_PREFIX) && reference.matcher(member.text()).find())
+                .map(Member::key).toList();
+    }
+
+    /**
      * The items a constant cascades into, the keys between them followed and left out: a constant reader
      * through its own readers, a #group or tag reader through its members, and a process through the target
      * groups of the assignments stacking it (decision used-by-draws-the-terminus-items-alone).

@@ -55,6 +55,9 @@ final class VariablesPane {
     private static final String DELETE = "[Delete]";
     private static final String CANCEL = "[Cancel]";
     private static final String USED_BY = "Used by ";
+    private static final String INDIRECTLY = "(indirectly) ";
+    private static final String DIRECT_KEY = ":direct";
+    private static final String INDIRECT_KEY = ":indirect";
     private static final String DELETE_TITLE_START = "Delete ";
     private static final String DELETE_TITLE_END = " and what reads it";
     private static final String NO_CONSTANTS = "The file names no constants.";
@@ -210,8 +213,8 @@ final class VariablesPane {
             boolean editingThis = variables.editing().filter(block.name()::equals).isPresent();
             editShown |= editingThis && placeExpression(bounds, y);
             y += editingThis ? BOX_HEIGHT : drawReadView(graphics, font, block, bounds, y, targets);
-            y += drawUsedBy(graphics, font, block.usedBy(), bounds.left(), y + HALF, bounds.right() - bounds.left(),
-                    block.name(), targets) + BLOCK_GAP;
+            y += drawUsedByLines(graphics, font, block.direct(), block.indirect(), bounds.left(), y + HALF,
+                    bounds.right() - bounds.left(), block.name(), targets) + BLOCK_GAP;
         }
         targets.unclip();
         graphics.disableScissor();
@@ -315,16 +318,28 @@ final class VariablesPane {
         return height;
     }
 
+    // Used by holds the items naming the constant themselves and (indirectly) the terminus items its cascade
+    // reaches, each line drawn only where it holds an item (decision used-by-draws-the-terminus-items-alone);
+    // answers the height both took.
+    private int drawUsedByLines(GuiGraphicsExtractor graphics, Font font, List<String> direct, List<String> indirect,
+                                int x, int y, int width, @Nullable String expandKey, ClickTargets targets) {
+        int directHeight = drawUsedBy(graphics, font, USED_BY, direct, x, y, width,
+                expandKey == null ? null : expandKey + DIRECT_KEY, targets);
+        int gap = directHeight > 0 && !indirect.isEmpty() ? HALF : 0;
+        return directHeight + gap + drawUsedBy(graphics, font, INDIRECTLY, indirect, x, y + directHeight + gap,
+                width, expandKey == null ? null : expandKey + INDIRECT_KEY, targets);
+    }
+
     // Answers the height the used-by items took, none where the constant reaches no item. A line too narrow for
     // them stops at an "... and N more" link, which expands the block's line onto as many rows as it needs; a null
     // expandKey draws the link as plain text, as the hover card does.
-    private int drawUsedBy(GuiGraphicsExtractor graphics, Font font, List<String> usedBy, int x, int y, int width,
-                           @Nullable String expandKey, ClickTargets targets) {
+    private int drawUsedBy(GuiGraphicsExtractor graphics, Font font, String label, List<String> usedBy, int x, int y,
+                           int width, @Nullable String expandKey, ClickTargets targets) {
         if (usedBy.isEmpty()) {
             return 0;
         }
-        graphics.text(font, USED_BY, x, y + TEXT_NUDGE, GRAY);
-        int itemsX = x + font.width(USED_BY);
+        graphics.text(font, label, x, y + TEXT_NUDGE, GRAY);
+        int itemsX = x + Math.max(font.width(USED_BY), font.width(INDIRECTLY));
         int itemsWidth = x + width - itemsX;
         int step = ICON_SIZE + ICON_GAP;
         boolean expanded = expandKey != null && expandedUsedBy.contains(expandKey);
@@ -521,6 +536,12 @@ final class VariablesPane {
         }
     }
 
+    // The card's Used by lines stay collapsed, a row each.
+    private static int usedByHeight(VariablesTab.HoverCard card) {
+        int lines = (card.direct().isEmpty() ? 0 : 1) + (card.indirect().isEmpty() ? 0 : 1);
+        return lines * (ICON_SIZE + HALF) + (lines > 1 ? HALF : 0);
+    }
+
     private void drawCard(GuiGraphicsExtractor graphics, Font font, VariablesTab.HoverCard card,
                           GroupsPane.Bounds bounds, int mouseX, int mouseY, ClickTargets targets) {
         int textWidth = CARD_WIDTH - CARD_PADDING * HALF;
@@ -529,8 +550,7 @@ final class VariablesPane {
                 card.lines()));
         int expressionHeight = ExpressionLines.height(font, expression, textWidth);
         int resolvedHeight = ExpressionLines.height(font, resolved, textWidth);
-        int height = CARD_PADDING * HALF + LINE_HEIGHT + expressionHeight + resolvedHeight
-                + (card.usedBy().isEmpty() ? 0 : ICON_SIZE + HALF);
+        int height = CARD_PADDING * HALF + LINE_HEIGHT + expressionHeight + resolvedHeight + usedByHeight(card);
         int left = Math.min(mouseX + CARD_OFFSET, bounds.right() - CARD_WIDTH);
         int top = Math.min(mouseY + CARD_OFFSET, bounds.bottom() - height);
         graphics.nextStratum();
@@ -545,6 +565,6 @@ final class VariablesPane {
         ExpressionLines.draw(font, resolved, x, y, textWidth, new ExpressionLines.Painter(graphics, icons, targets,
                 GREEN, LINK, (link, linkX, linkY, linkWidth) -> { }));
         y += resolvedHeight;
-        drawUsedBy(graphics, font, card.usedBy(), x, y, textWidth, null, targets);
+        drawUsedByLines(graphics, font, card.direct(), card.indirect(), x, y, textWidth, null, targets);
     }
 }
