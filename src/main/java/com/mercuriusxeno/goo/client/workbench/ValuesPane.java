@@ -12,8 +12,8 @@ import java.util.Optional;
 /**
  * Draws the Values tab: the Items, Tags and Uncovered chips, the search box, each entry with its icon and where its
  * value comes from, and the selected entry's expression and resolved values, each list scrolling under the wheel, as
- * index.html's values section does (decision goo-workbench-opens-the-in-game-manager-screen). The state lives in
- * {@link ValuesTab}.
+ * index.html's values section does (decision goo-workbench-opens-the-in-game-manager-screen); the list and the detail
+ * each draw a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in {@link ValuesTab}.
  */
 final class ValuesPane {
     private static final int SIDEBAR_WIDTH = 180;
@@ -27,7 +27,6 @@ final class ValuesPane {
     private static final int GAP = 3;
     private static final int HALF = 2;
     private static final int SCROLL_STEP = LINE_HEIGHT * 3;
-    private static final int EXPRESSION_MAX_LENGTH = 32767;
     private static final int WHITE = 0xFFFFFFFF;
     private static final int GRAY = 0xFFA0A0A0;
     private static final int RED = 0xFFFF5555;
@@ -39,27 +38,30 @@ final class ValuesPane {
     private static final String TAGS_CHIP = "Tags";
     private static final String UNCOVERED_CHIP = "Uncovered ";
     private static final String SEARCH_HINT = "Search items and tags";
-    private static final String EXPRESSION_LABEL = "Expression";
+    private static final String EXPRESSION_LABEL = "Value";
+    private static final String NO_EXPRESSION = "(no entry)";
+    private static final int READ_VIEW_COLOR = 0x30FFFFFF;
+    private static final int LINK = 0xFF80C0FF;
     private static final String NO_SELECTION = "Select an item or tag to read and edit its entry.";
     private static final String NO_ENTRIES = "Nothing listed here.";
     private static final String DENIED_LINE = "denied";
     private static final String NO_VALUE_LINE = "no value: nothing in the file or the recipes values it";
-    private static final String AMOUNT_SEPARATOR = "  ";
     private static final String NO_TEXT = "";
 
     private final ValuesTab values;
     private final ItemIcons icons;
     private final ManagerActions actions;
     private @Nullable EditBox search;
-    private @Nullable EditBox expression;
-    private int listScroll;
-    private int detailScroll;
+    private final ExpressionBuilderPane builder;
+    private final ScrollBar listBar = new ScrollBar(1);
+    private final ScrollBar detailBar = new ScrollBar(SCROLL_STEP);
     private boolean visible;
 
-    ValuesPane(ValuesTab values, ItemIcons icons, ManagerActions actions) {
+    ValuesPane(ValuesTab values, ItemIcons icons, ManagerActions actions, ExpressionBuilderPane builder) {
         this.values = values;
         this.icons = icons;
         this.actions = actions;
+        this.builder = builder;
     }
 
     /**
@@ -72,14 +74,9 @@ final class ValuesPane {
         search.setValue(searched);
         search.setResponder(text -> {
             values.search(text);
-            listScroll = 0;
+            listBar.reset();
         });
-        String typed = expression == null ? NO_TEXT : expression.getValue();
-        expression = actions.addWidget(new EditBox(font, 0, 0, SIDEBAR_WIDTH, BOX_HEIGHT,
-                Component.literal(EXPRESSION_LABEL)));
-        expression.setMaxLength(EXPRESSION_MAX_LENGTH);
-        expression.setValue(typed);
-        expression.setResponder(this::edited);
+        builder.init(font);
         show(visible);
     }
 
@@ -91,31 +88,15 @@ final class ValuesPane {
         if (search != null) {
             search.visible = shown;
         }
-        refresh();
+        builder.show(shown);
     }
 
     /**
-     * Shows the selected entry's expression in the edit box, as a new resolve or a new selection leaves it.
+     * @param key the GLFW key pressed
+     * @return whether the builder took the key
      */
-    void refresh() {
-        if (expression == null) {
-            return;
-        }
-        Optional<ValuesTab.EntryRow> row = values.selectedRow();
-        expression.visible = visible && row.isPresent();
-        row.ifPresent(selected -> {
-            if (!expression.getValue().equals(selected.expression())) {
-                expression.setValue(selected.expression());
-            }
-        });
-    }
-
-    private void edited(String typed) {
-        Optional<ValuesTab.EntryRow> row = values.selectedRow();
-        if (row.isPresent() && !row.get().expression().equals(typed)) {
-            values.edit(typed);
-            actions.markUnsaved();
-        }
+    boolean keyPressed(int key) {
+        return builder.keyPressed(key);
     }
 
     /**
@@ -124,11 +105,10 @@ final class ValuesPane {
      * @param amount the wheel's turn, positive away from the player
      */
     void scroll(double x, int left, double amount) {
-        int step = (int) -Math.signum(amount);
         if (x < left + SIDEBAR_WIDTH) {
-            listScroll = Math.max(0, listScroll + step);
+            listBar.wheel(amount);
         } else {
-            detailScroll = Math.max(0, detailScroll + step * SCROLL_STEP);
+            detailBar.wheel(amount);
         }
     }
 
@@ -140,7 +120,8 @@ final class ValuesPane {
         drawEntries(graphics, font, new GroupsPane.Bounds(bounds.left(), y + BOX_HEIGHT + GAP,
                 bounds.left() + SIDEBAR_WIDTH, bounds.bottom()), targets);
         drawSelected(graphics, font, new GroupsPane.Bounds(bounds.left() + SIDEBAR_WIDTH + PANE_GAP, bounds.top(),
-                bounds.right(), bounds.bottom()));
+                bounds.right(), bounds.bottom()), targets);
+        builder.drawOverlays(graphics, font, targets);
     }
 
     // Answers the y below the chips.
@@ -164,7 +145,7 @@ final class ValuesPane {
         }
         targets.add(x, y, font.width(label), LINE_HEIGHT, () -> {
             values.filter(filter);
-            listScroll = 0;
+            listBar.reset();
         });
         return x + font.width(label) + CHIP_GAP;
     }
@@ -176,15 +157,17 @@ final class ValuesPane {
             return;
         }
         int shown = Math.max(1, (list.bottom() - list.top()) / ROW_HEIGHT);
-        listScroll = Math.min(listScroll, Math.max(0, listed.size() - shown));
+        listBar.measure(listed.size(), shown);
+        int firstShown = listBar.offset();
         Optional<String> selectedId = values.selectedRow().map(ValuesTab.EntryRow::id);
         int textX = list.left() + ICON_SIZE + ICON_GAP;
-        int textWidth = list.right() - textX;
+        int rowRight = list.right() - ScrollBar.WIDTH - ScrollBar.GAP;
+        int textWidth = rowRight - textX;
         int y = list.top();
-        for (int index = listScroll; index < Math.min(listed.size(), listScroll + shown); index++) {
+        for (int index = firstShown; index < Math.min(listed.size(), firstShown + shown); index++) {
             ValuesTab.ManagerEntry entry = listed.get(index);
             if (selectedId.filter(entry.id()::equals).isPresent()) {
-                graphics.fill(list.left(), y, list.right(), y + ROW_HEIGHT, SELECTED_ROW_COLOR);
+                graphics.fill(list.left(), y, rowRight, y + ROW_HEIGHT, SELECTED_ROW_COLOR);
             }
             graphics.item(icons.of(entry.id()), list.left(), y + HALF);
             String first = entry.tag() ? entry.id() : entry.name();
@@ -196,13 +179,14 @@ final class ValuesPane {
                 graphics.text(font, font.plainSubstrByWidth(source.label(), textWidth), textX, y + LINE_HEIGHT,
                         colorOf(source.kind()));
             }
-            targets.add(list.left(), y, list.right() - list.left(), ROW_HEIGHT, () -> {
+            targets.add(list.left(), y, rowRight - list.left(), ROW_HEIGHT, () -> {
                 values.select(entry.id());
-                detailScroll = 0;
-                refresh();
+                detailBar.reset();
+                builder.close();
             });
             y += ROW_HEIGHT;
         }
+        listBar.draw(graphics, targets, list.right(), list.top(), list.top() + shown * ROW_HEIGHT);
     }
 
     private static int colorOf(ValuesTab.SourceKind kind) {
@@ -214,7 +198,8 @@ final class ValuesPane {
         };
     }
 
-    private void drawSelected(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds pane) {
+    private void drawSelected(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds pane,
+                              ClickTargets targets) {
         Optional<ValuesTab.EntryRow> selected = values.selectedRow();
         int x = pane.left();
         int width = pane.right() - x;
@@ -223,31 +208,69 @@ final class ValuesPane {
             return;
         }
         ValuesTab.EntryRow row = selected.get();
-        graphics.item(icons.of(row.id()), x, pane.top());
-        int textX = x + ICON_SIZE + ICON_GAP;
-        graphics.text(font, font.plainSubstrByWidth(row.name() + AMOUNT_SEPARATOR + row.id(), pane.right() - textX),
-                textX, pane.top(), WHITE);
+        drawHeading(graphics, font, row, pane);
+        int y = pane.top() + LINE_HEIGHT * HALF + GAP;
+        graphics.text(font, EXPRESSION_LABEL, x, y, GRAY);
+        y += LINE_HEIGHT;
+        y += builder.isOpen() ? builder.extract(graphics, font, pane, y, targets)
+                : drawValueView(graphics, font, row, x, y, width, targets);
+        drawAmounts(graphics, font, row, new GroupsPane.Bounds(x, y + GAP, pane.right(), pane.bottom()), targets);
+    }
+
+    // The entry's value curated, a click on it opening the builder over it
+    // (decision expression-builder-composes-every-form-without-typing); answers the height it took.
+    private int drawValueView(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row, int x, int y,
+                              int width, ClickTargets targets) {
+        List<ExpressionLines.Run> runs = row.expression().isBlank() ? ExpressionLines.textRuns(NO_EXPRESSION)
+                : ExpressionLines.shownRuns(row.expression(), icons::nameOf);
+        int height = ExpressionLines.height(font, runs, width);
+        graphics.fill(x, y, x + width, y + height, READ_VIEW_COLOR);
+        targets.add(x, y, width, height, () -> builder.open(row.expression(), typed -> {
+            values.edit(typed);
+            actions.markUnsaved();
+        }, actions::draftChanged));
+        ExpressionLines.draw(font, runs, x, y, width, new ExpressionLines.Painter(graphics, icons, targets, WHITE,
+                LINK, (name, linkX, linkY, linkWidth) -> { }));
+        return height;
+    }
+
+    // The selected entry's icon, name and id, and where its value comes from.
+    private void drawHeading(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row, GroupsPane.Bounds pane) {
+        graphics.item(icons.of(row.id()), pane.left(), pane.top());
+        int textX = pane.left() + ICON_SIZE + ICON_GAP;
+        String heading = row.id().startsWith(ValuesTab.TAG_MARK) ? row.id() : row.name();
+        graphics.text(font, font.plainSubstrByWidth(heading, pane.right() - textX), textX, pane.top(), WHITE);
         if (!row.id().startsWith(ValuesTab.TAG_MARK)) {
             ValuesTab.Source source = values.sourceOf(row.id());
             graphics.text(font, source.label(), textX, pane.top() + LINE_HEIGHT, colorOf(source.kind()));
         }
-        int y = pane.top() + LINE_HEIGHT * HALF + GAP;
-        graphics.text(font, EXPRESSION_LABEL, x, y, GRAY);
-        y += LINE_HEIGHT;
-        if (expression != null) {
-            expression.setPosition(x, y);
-            expression.setWidth(width);
+    }
+
+    // Each type draws as its icon beside its amount, a line each (decision goo-types-draw-as-icons-named-on-hover);
+    // answers the y below them.
+    private int drawAmountLines(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row,
+                                GroupsPane.Bounds area, int top, ClickTargets targets) {
+        int width = area.right() - area.left() - ScrollBar.WIDTH - ScrollBar.GAP;
+        int y = top;
+        targets.clip(area.left(), area.top(), area.right(), area.bottom());
+        for (Map.Entry<String, String> amount : row.amounts().entrySet()) {
+            ExpressionLines.draw(font, ExpressionLines.amountRuns(Map.of(amount.getKey(), amount.getValue())),
+                    area.left(), y, width, new ExpressionLines.Painter(graphics, icons, targets, WHITE, WHITE,
+                            (name, linkX, linkY, linkWidth) -> { }));
+            y += ExpressionLines.ICON_LINE_HEIGHT;
         }
-        drawAmounts(graphics, font, row, new GroupsPane.Bounds(x, y + BOX_HEIGHT + GAP, pane.right(), pane.bottom()));
+        targets.unclip();
+        return y;
     }
 
     private void drawAmounts(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row,
-                             GroupsPane.Bounds area) {
-        int lines = row.amounts().size() + (row.denied() || row.amounts().isEmpty() ? 1 : 0)
-                + (row.error().isEmpty() ? 0 : 1);
-        detailScroll = Math.min(detailScroll, Math.max(0, lines * LINE_HEIGHT - (area.bottom() - area.top())));
+                             GroupsPane.Bounds area, ClickTargets targets) {
+        int textLines = (row.denied() || row.amounts().isEmpty() ? 1 : 0) + (row.error().isEmpty() ? 0 : 1);
+        detailBar.measure(textLines * LINE_HEIGHT + row.amounts().size() * ExpressionLines.ICON_LINE_HEIGHT,
+                area.bottom() - area.top());
+        int width = area.right() - area.left() - ScrollBar.WIDTH - ScrollBar.GAP;
         graphics.enableScissor(area.left(), area.top(), area.right(), area.bottom());
-        int y = area.top() - detailScroll;
+        int y = area.top() - detailBar.offset();
         if (row.denied()) {
             graphics.text(font, DENIED_LINE, area.left(), y, GRAY);
             y += LINE_HEIGHT;
@@ -255,13 +278,11 @@ final class ValuesPane {
             graphics.text(font, NO_VALUE_LINE, area.left(), y, RED);
             y += LINE_HEIGHT;
         }
-        for (Map.Entry<String, String> amount : row.amounts().entrySet()) {
-            graphics.text(font, amount.getKey() + AMOUNT_SEPARATOR + amount.getValue(), area.left(), y, WHITE);
-            y += LINE_HEIGHT;
-        }
+        y = drawAmountLines(graphics, font, row, area, y, targets);
         if (!row.error().isEmpty()) {
-            graphics.text(font, font.plainSubstrByWidth(row.error(), area.right() - area.left()), area.left(), y, RED);
+            graphics.text(font, font.plainSubstrByWidth(row.error(), width), area.left(), y, RED);
         }
         graphics.disableScissor();
+        detailBar.draw(graphics, targets, area.right(), area.top(), area.bottom());
     }
 }

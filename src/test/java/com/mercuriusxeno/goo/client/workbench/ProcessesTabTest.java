@@ -1,6 +1,9 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.google.gson.JsonElement;
+import com.mercuriusxeno.goo.workbench.Processes;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -68,13 +71,179 @@ class ProcessesTabTest {
     }
 
     /**
-     * An edit stores the entry's text as a JSON string in the draft, and a delete drops the entry.
+     * A delete drops the entry.
      */
     @Test
-    void editAndDeleteChangeTheDraftsEntries() {
-        tab.edit("_conversions", "rust", " metal / 2 -> yore / 9 ");
-        assertTrue(draft.text().contains("\\\"metal / 2 -> yore / 9\\\""), draft.text());
+    void deleteDropsTheDraftsEntry() {
         tab.delete("_conversions", "broken");
         assertTrue(!draft.text().contains("\"broken\""), draft.text());
+    }
+
+    /**
+     * A Mutators row lays out on two lines, its text on the second at the row's full width, so a formula wider
+     * than the old text column (the row less the key, kind, verdict and Delete columns) draws whole
+     * (decision mutator-rows-take-an-extra-line).
+     */
+    @Test
+    void rowLaysItsTextOnASecondLineAtFullWidth() {
+        int left = 20;
+        int right = 420;
+        int top = 100;
+        int formulaWidth = 320;
+        ProcessesTab.RowLayout layout = ProcessesTab.layoutRow(left, right, top);
+        assertEquals(2, layout.lines());
+        assertEquals(left, layout.textX());
+        assertEquals(right - left, layout.textWidth());
+        assertTrue(layout.textY() > top, "the text draws below the key line");
+        assertTrue(layout.textY() + 10 <= top + layout.height(), "the text line stands inside the row");
+        assertTrue(layout.textWidth() >= formulaWidth, "the formula draws whole");
+    }
+
+    /**
+     * Each form's controls pick its types, prefab, formula or group, and the draft holds the value Processes parses
+     * back to the same form (decision expression-builder-composes-every-form-without-typing).
+     */
+    @Nested
+    class Controls {
+        private static final String POST = "_post_conversions";
+        private static final String FORMS = """
+                {"path": "base_values.json", "members": [
+                  {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "copper", "keySeparator": null, "kind": "VALUE", "text": "[\\"copper_block\\"]",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null},
+                  {"key": "_post_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "oxidation_metal", "keySeparator": null, "kind": "VALUE",
+                      "text": "\\"pulse / 2 -> leaf * 3\\"", "entries": [], "leading": null, "trailing": null,
+                      "closingGap": null},
+                     {"key": "waxed", "keySeparator": null, "kind": "VALUE", "text": "\\"+$other\\"",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null},
+                     {"key": "weathered_metal", "keySeparator": null, "kind": "VALUE", "text": "\\"@waxed\\"",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null},
+                     {"key": "#exposed", "keySeparator": null, "kind": "VALUE", "text": "\\"#iron @waxed\\"",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}
+                ]}
+                """;
+        private ProcessesTab forms;
+        private ManagerDraft formsDraft;
+
+        @BeforeEach
+        void readForms() {
+            formsDraft = new ManagerDraft();
+            formsDraft.read(FORMS);
+            forms = new ProcessesTab(formsDraft);
+        }
+
+        private String textOf(String key) {
+            return formsDraft.sectionEntries(POST).asList().stream().map(JsonElement::getAsJsonObject)
+                    .filter(entry -> key.equals(entry.get("key").getAsString())).findFirst().orElseThrow()
+                    .get("text").getAsString();
+        }
+
+        @Test
+        void formulaPicksItsTypesAndNumbers() {
+            forms.setFormulaSource(POST, "oxidation_metal", "metal");
+            forms.setFormulaDivisor(POST, "oxidation_metal", 4);
+            forms.setFormulaTarget(POST, "oxidation_metal", "yore");
+            forms.toggleFormulaOperator(POST, "oxidation_metal");
+            forms.setFormulaAmount(POST, "oxidation_metal", 9);
+            assertEquals("\"metal / 4 -> yore / 9\"", textOf("oxidation_metal"));
+            assertEquals(new Processes.Formula("metal", 4, "yore", "/", 9),
+                    Processes.parse("oxidation_metal", textOf("oxidation_metal")));
+        }
+
+        @Test
+        void additivePicksItsPrefab() {
+            forms.setAdditive(POST, "waxed", "waxed");
+            assertEquals("\"+$waxed\"", textOf("waxed"));
+            assertEquals(new Processes.Additive("waxed"), Processes.parse("waxed", textOf("waxed")));
+        }
+
+        @Test
+        void stackPicksItsFormulaAndCount() {
+            assertEquals(List.of("oxidation_metal", "waxed", "weathered_metal"), forms.processNames(POST));
+            forms.setStackFormula(POST, "weathered_metal", "oxidation_metal");
+            forms.setStackCount(POST, "weathered_metal", 2);
+            assertEquals("\"2 @oxidation_metal\"", textOf("weathered_metal"));
+            assertEquals(new Processes.Stack(2, "oxidation_metal"),
+                    Processes.parse("weathered_metal", textOf("weathered_metal")));
+        }
+
+        @Test
+        void assignmentPicksItsGroupAndChain() {
+            assertEquals(List.of("copper"), forms.groupNames());
+            forms.setAssignmentSource(POST, "#exposed", "copper");
+            forms.removeAssignmentLink(POST, "#exposed", 0);
+            forms.addAssignmentLink(POST, "#exposed", "@exposed_metal");
+            assertEquals("\"#copper @exposed_metal\"", textOf("#exposed"));
+            assertEquals(new Processes.Assignment("copper", 1, 1, List.of("@exposed_metal")),
+                    Processes.parse("#exposed", textOf("#exposed")));
+            forms.setAssignmentScale(POST, "#exposed", 3, 4);
+            assertEquals("\"#copper * 3 / 4 @exposed_metal\"", textOf("#exposed"));
+        }
+
+        /**
+         * An entry's kind changes to another form, written as that form.
+         */
+        @Test
+        void entryChangesItsKind() {
+            forms.setForm(POST, "waxed", new Processes.Formula("metal", 1, "0", "/", 0));
+            assertEquals("\"metal / 1 -> 0\"", textOf("waxed"));
+            forms.setForm(POST, "waxed", new Processes.Stack(1, "oxidation_metal"));
+            assertEquals(new Processes.Stack(1, "oxidation_metal"), forms.formOf(POST, "waxed"));
+        }
+
+        /**
+         * An assignment's source group can be dropped, the chain then applying to the target's own values.
+         */
+        @Test
+        void assignmentDropsItsSource() {
+            forms.setAssignmentSource(POST, "#exposed", "");
+            assertEquals("\"@waxed\"", textOf("#exposed"));
+            assertEquals(new Processes.Assignment("", 1, 1, List.of("@waxed")), forms.formOf(POST, "#exposed"));
+        }
+    }
+
+    /**
+     * Processes reads every spelling the game's conversion parser reads, so no such entry falls to raw text
+     * (decision expression-builder-composes-every-form-without-typing).
+     */
+    @Nested
+    class Spellings {
+        @Test
+        void itemKeyedEntryIsAnAssignment() {
+            assertEquals(new Processes.Assignment("copper", 1, 1, List.of("@waxed")),
+                    Processes.parse("minecraft:copper_door", "\"#copper @waxed\""));
+        }
+
+        @Test
+        void assignmentWithNoSourceIsItsChain() {
+            assertEquals(new Processes.Assignment("", 1, 1, List.of("@waxed", "@oxidation_metal")),
+                    Processes.parse("#waxed_copper", "\"@waxed @oxidation_metal\""));
+        }
+
+        /**
+         * The game's parser drops a chain token that is not an @ link, so such an entry reads as unread, not as
+         * the assignment the game would not apply.
+         */
+        @Test
+        void chainTokenTheGameDropsReadsAsUnread() {
+            assertEquals(Processes.Kind.UNREAD, Processes.parse("#waxed_copper", "\"#copper +$waxed\"").kind());
+        }
+
+        @Test
+        void scaleWithNoDivisorDividesByOne() {
+            assertEquals(new Processes.Assignment("copper", 3, 1, List.of()),
+                    Processes.parse("#big_copper", "\"#copper * 3\""));
+        }
+
+        @Test
+        void formulaReadsWithoutSpaces() {
+            assertEquals(new Processes.Formula("metal", 4, "yore", "/", 9),
+                    Processes.parse("oxidation_metal", "\"metal/4->yore/9\""));
+            assertEquals(new Processes.Formula("pulse", 2, "0", "/", 0),
+                    Processes.parse("drain", "\"pulse / 2 -> 0\""));
+        }
     }
 }

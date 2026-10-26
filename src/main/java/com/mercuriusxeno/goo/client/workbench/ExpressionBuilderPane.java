@@ -1,0 +1,562 @@
+package com.mercuriusxeno.goo.client.workbench;
+
+import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+
+/**
+ * Draws the expression builder over a value's curated view (decisions
+ * expression-builder-composes-every-form-without-typing, goo-type-picker-is-a-seven-by-four-icon-grid). Its first
+ * line chooses the value's kind: a number (a prefab's alone), an amount per goo type, or a goo value summed from
+ * other items or prefabs. Each control offers only what the game's evaluator accepts where the value is read, as
+ * {@link BuilderGrammar} answers, so no choice ends in an error: a number stands unscaled, a reference offers a
+ * factor, the goo type picker hides the types a value holds, and a list holds only what the value may read. Several
+ * terms stand as one sum, drawn as "the sum of:" with its terms indented below it, each edited in place, and the
+ * whole value scales as one sum; these are the two ways the game's files use parentheses. Every control names what
+ * it does on hover, the lines wrap inside the pane, and [done] closes the builder below the value. Each change
+ * writes the string the file grammar reads; a value is never written empty. The state lives in
+ * {@link ExpressionBuilder}.
+ */
+final class ExpressionBuilderPane {
+    private static final int GRAY = 0xFFA0A0A0;
+    private static final int RED = 0xFFFF5555;
+    private static final int PANEL_COLOR = 0x30FFFFFF;
+    private static final String KIND = "Kind:";
+    private static final String NUMBER_KIND = "a number";
+    private static final String NUMBER_KIND_HINT = "One number: a count, or a sum of numbers and the number prefabs"
+            + " above this one";
+    private static final String PER_TYPE = "per goo type";
+    private static final String PER_TYPE_HINT = "A separate amount for each goo type";
+    private static final String ITEMS_GOO_KIND = "from other items";
+    private static final String ITEMS_GOO_KIND_HINT = "Worth what other items and per-type prefabs are worth, scaled"
+            + " and summed";
+    private static final String PREFABS_GOO_KIND = "from other prefabs";
+    private static final String PREFABS_GOO_KIND_HINT = "Worth what the per-type prefabs above this one are worth,"
+            + " scaled and summed";
+    private static final String AMOUNT_FROM = "amount from";
+    private static final String NUMBER_MODE = "number";
+    private static final String NUMBER_MODE_HINT = "The amount is a number you set";
+    private static final String PREFAB_MODE = "prefab";
+    private static final String PREFAB_MODE_HINT = "The amount is a number prefab's value";
+    private static final String ITEM_MODE = "item";
+    private static final String ITEM_MODE_HINT = "The amount is one goo type of an item's or per-type prefab's value";
+    private static final String PREFAB_TYPE_MODE = "another prefab";
+    private static final String PREFAB_TYPE_MODE_HINT = "The amount is one goo type of a per-type prefab's value";
+    private static final String ITS = "its";
+    private static final String NUMBER_HINT = "Click to change the number";
+    private static final String PREFAB_HINT = "Click to pick a different number prefab";
+    private static final String REF_HINT = "Click to pick a different one";
+    private static final String PLUS = "plus";
+    private static final String MINUS = "minus";
+    private static final String JOIN_HINT = "Click to switch between adding and subtracting this";
+    private static final String TIMES = "times";
+    private static final String DIVIDED_BY = "divided by";
+    private static final String OP_HINT = "Click to switch between multiplying and dividing";
+    private static final String FACTOR_HINT = "Click to change the number; 1 removes it";
+    private static final String SCALE = "[scale]";
+    private static final String SCALE_HINT = "Multiply or divide this by a number";
+    private static final String SCALE_SUM = "[scale the sum]";
+    private static final String SCALE_SUM_HINT = "Multiply or divide the whole sum by a number";
+    private static final String SCALE_WHOLE = "[scale the whole value]";
+    private static final String SCALE_WHOLE_HINT = "Multiply or divide everything above by one number, as one sum";
+    private static final String SUM_OF = "the sum of:";
+    private static final String ONE_TYPE = "[only one goo type]";
+    private static final String ONE_TYPE_HINT = "Use only one goo type of this value";
+    private static final String ONLY = "only";
+    private static final String KEPT_HINT = "No control builds this term; remove it to rebuild it";
+    private static final String REMOVE = "[remove]";
+    private static final String REMOVE_TERM_HINT = "Remove this term";
+    private static final String REMOVE_SUM_HINT = "Remove this sum and every term in it";
+    private static final String REMOVE_ROW_HINT = "Remove this goo type's amount";
+    private static final String ADD_TYPE = "[+ goo type]";
+    private static final String ADD_TYPE_HINT = "Add an amount for another goo type";
+    private static final String ADD_NUMBER = "[+ number]";
+    private static final String ADD_NUMBER_HINT = "Add a number";
+    private static final String ADD_ITEM_OR_PREFAB = "[+ item or prefab]";
+    private static final String ADD_ITEM_OR_PREFAB_HINT = "Add what an item or per-type prefab is worth";
+    private static final String ADD_PREFAB = "[+ prefab]";
+    private static final String ADD_PREFAB_HINT = "Add a prefab's value";
+    private static final String ADD_SUM = "[+ sum of terms]";
+    private static final String ADD_SUM_HINT = "Add several terms as one, to subtract or scale them together";
+    private static final String PICK_TYPE = "Pick the first goo type:";
+    private static final String UNREAD = "This value cannot be read; pick a kind to start over.";
+    private static final String EMPTY = "No value yet: pick a kind to give it one.";
+    private static final String DENIED = "Denied: this holds no goo. Pick a kind to give it a value.";
+    private static final String DONE = "[done]";
+    private static final String DONE_HINT = "Close the builder; every change is already in the draft";
+    private static final String BLANK = "";
+
+    private final ItemIcons icons;
+    private final BuilderOverlays overlays;
+    private final Supplier<List<ValuesTab.ManagerEntry>> inventory;
+    private final Supplier<List<BuilderGrammar.Prefab>> prefabs;
+    private BuilderGrammar grammar;
+    private @Nullable ExpressionBuilder builder;
+    private @Nullable Consumer<String> writes;
+    private @Nullable Runnable done;
+
+    /**
+     * @param actions   the panes' line back to the screen
+     * @param icons     the items' icons
+     * @param inventory the server's items, which item terms and amounts list
+     * @param prefabs   every prefab, in the file's order
+     */
+    ExpressionBuilderPane(ManagerActions actions, ItemIcons icons, Supplier<List<ValuesTab.ManagerEntry>> inventory,
+                          Supplier<List<BuilderGrammar.Prefab>> prefabs) {
+        this.icons = icons;
+        this.overlays = new BuilderOverlays(actions, icons);
+        this.inventory = inventory;
+        this.prefabs = prefabs;
+        this.grammar = BuilderGrammar.forItems(List.of());
+    }
+
+    /**
+     * @param font the screen's font
+     */
+    void init(Font font) {
+        overlays.init(font);
+    }
+
+    /**
+     * Opens the builder over an item's or group's value, which reads items and every prefab.
+     *
+     * @param shown  the value as the draft's edit box shows it
+     * @param change takes the string each change writes
+     * @param finish runs when [done] closes the builder
+     */
+    void open(String shown, Consumer<String> change, Runnable finish) {
+        openUnder(BuilderGrammar.forItems(prefabs.get()), shown, change, finish);
+    }
+
+    /**
+     * Opens the builder over a prefab's value, which reads only the prefabs above it.
+     *
+     * @param prefab the prefab's name
+     * @param shown  the value as the draft's edit box shows it
+     * @param change takes the string each change writes
+     * @param finish runs when [done] closes the builder
+     */
+    void openPrefab(String prefab, String shown, Consumer<String> change, Runnable finish) {
+        openUnder(BuilderGrammar.forPrefab(prefabs.get(), prefab), shown, change, finish);
+    }
+
+    private void openUnder(BuilderGrammar read, String shown, Consumer<String> change, Runnable finish) {
+        overlays.close();
+        grammar = read;
+        ExpressionBuilder opened = ExpressionBuilder.of(shown);
+        if (!opened.isPerType() && !opened.terms().isEmpty()) {
+            opened.nameWholeSort(read.sortOf(opened));
+        }
+        builder = opened;
+        writes = change;
+        done = finish;
+    }
+
+    /**
+     * Closes the builder, keeping what it wrote.
+     */
+    void close() {
+        overlays.close();
+        builder = null;
+    }
+
+    /**
+     * @return whether the builder stands open
+     */
+    boolean isOpen() {
+        return builder != null;
+    }
+
+    /**
+     * @param shown whether the builder's tab is the one drawn
+     */
+    void show(boolean shown) {
+        overlays.show(shown);
+    }
+
+    /**
+     * @param key the GLFW key pressed
+     * @return whether the builder took the key
+     */
+    boolean keyPressed(int key) {
+        return overlays.keyPressed(key);
+    }
+
+    /**
+     * Draws the builder at a top edge across an area's width; its lists and grid draw later, through
+     * {@link #drawOverlays}.
+     *
+     * @param graphics the frame's graphics
+     * @param font     the font
+     * @param area     the area the builder spans
+     * @param top      the builder's top edge
+     * @param targets  the frame's click areas
+     * @return the height the builder took
+     */
+    int extract(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds area, int top, ClickTargets targets) {
+        ExpressionBuilder edited = builder;
+        if (edited == null) {
+            return 0;
+        }
+        overlays.commitOnBlur();
+        ControlFlow flow = new ControlFlow(graphics, font, targets, icons, area.left(), area.right(), top);
+        drawKind(flow, edited);
+        drawValue(flow, edited);
+        flow.newLine();
+        flow.control(DONE, DONE_HINT, at -> finish());
+        int bottom = flow.bottom();
+        graphics.fill(area.left() - 1, top - 1, area.right(), bottom, PANEL_COLOR);
+        return bottom - top;
+    }
+
+    /**
+     * Draws the builder's open list or grid above everything the pane drew; the pane calls it once its own clip is
+     * lifted.
+     *
+     * @param graphics the frame's graphics
+     * @param font     the font
+     * @param targets  the frame's click areas
+     */
+    void drawOverlays(GuiGraphicsExtractor graphics, Font font, ClickTargets targets) {
+        if (builder != null) {
+            overlays.draw(graphics, font, targets);
+        }
+    }
+
+    /**
+     * @return whether the builder's list or grid stands open, so nothing else draws over it
+     */
+    boolean listOpen() {
+        return builder != null && overlays.listOpen();
+    }
+
+    // The rows or the terms, or why there are none: denied, empty, or unreadable.
+    private void drawValue(ControlFlow flow, ExpressionBuilder edited) {
+        if (edited.isPerType()) {
+            drawRows(flow, edited);
+        } else if (edited.terms().isEmpty()) {
+            drawNoTerms(flow, edited);
+        } else {
+            drawTerms(flow, edited);
+        }
+    }
+
+    private static void drawNoTerms(ControlFlow flow, ExpressionBuilder edited) {
+        if (edited.isDenied()) {
+            flow.note(DENIED, GRAY);
+        } else {
+            boolean empty = edited.text().isBlank();
+            flow.note(empty ? EMPTY : UNREAD, empty ? GRAY : RED);
+        }
+    }
+
+    // A number is a prefab's kind alone, and a goo value is offered only where the value has something to read.
+    private void drawKind(ControlFlow flow, ExpressionBuilder edited) {
+        flow.text(KIND, GRAY);
+        boolean perType = edited.isPerType();
+        String sort = perType || edited.terms().isEmpty() ? BLANK : grammar.sortOf(edited);
+        if (grammar.offersNumberKind()) {
+            flow.choice(NUMBER_KIND, NUMBER_KIND_HINT, BuilderGrammar.NUMBER_SORT.equals(sort),
+                    () -> apply(ExpressionBuilder::switchToWhole));
+        }
+        flow.choice(PER_TYPE, PER_TYPE_HINT, perType, () -> apply(ExpressionBuilder::switchToPerType));
+        if (grammar.offersGooKind()) {
+            drawGooKind(flow, edited, BuilderGrammar.GOO_SORT.equals(sort));
+        }
+    }
+
+    private void drawGooKind(ControlFlow flow, ExpressionBuilder edited, boolean chosen) {
+        boolean items = grammar.readsItems();
+        flow.choiceAt(items ? ITEMS_GOO_KIND : PREFABS_GOO_KIND, items ? ITEMS_GOO_KIND_HINT : PREFABS_GOO_KIND_HINT,
+                chosen, at -> switchToGoo(at, edited));
+    }
+
+    // A goo value starts from what it held before, or from the item or prefab picked first.
+    private void switchToGoo(BuilderOverlays.Anchor at, ExpressionBuilder edited) {
+        if (edited.holdsKept(BuilderGrammar.GOO_SORT)) {
+            apply(b -> b.switchToWhole(BuilderGrammar.GOO_SORT, List.of()));
+            return;
+        }
+        overlays.openDropdown(at, termList(BuilderGrammar.GOO_SORT), choice -> apply(b -> b.switchToWhole(
+                BuilderGrammar.GOO_SORT, List.of(ExpressionBuilder.firstTerm(refOf(choice))))));
+    }
+
+    private void drawRows(ControlFlow flow, ExpressionBuilder edited) {
+        List<ExpressionBuilder.Row> rows = edited.rows();
+        Set<String> held = BuilderGrammar.heldTypes(edited);
+        for (int index = 0; index < rows.size(); index++) {
+            flow.newLine();
+            drawRow(flow, index, rows.get(index), rows.size() > 1, held);
+        }
+        flow.newLine();
+        if (rows.isEmpty()) {
+            flow.text(PICK_TYPE, GRAY);
+        }
+        if (held.size() < GooTypes.order().size()) {
+            flow.control(ADD_TYPE, ADD_TYPE_HINT, at -> overlays.openPicker(at, type -> apply(b -> b.addType(type)),
+                    null, held));
+        }
+    }
+
+    private void drawRow(ControlFlow flow, int row, ExpressionBuilder.Row amount, boolean removable,
+                         Set<String> held) {
+        flow.typeIcon(amount.type(), at -> overlays.openPicker(at, type -> apply(b -> b.setRowType(row, type)),
+                null, held));
+        ExpressionBuilder.Piece piece = amount.pieces().getFirst();
+        if (amount.pieces().size() == 1 && !(piece.operand() instanceof ExpressionBuilder.Kept)) {
+            drawAmount(flow, row, amount.type(), piece);
+        } else {
+            flow.runs(ExpressionLines.runs(new ExpressionTerms.Expression(ExpressionBuilder.rowSum(amount)),
+                    icons::nameOf), KEPT_HINT, null);
+        }
+        if (removable) {
+            flow.control(REMOVE, REMOVE_ROW_HINT, at -> apply(b -> b.removeRow(row)));
+        }
+    }
+
+    // The amount's source, number, prefab or a goo type of another value, each offered only where the value has
+    // one to read, then the operand and its factor.
+    private void drawAmount(ControlFlow flow, int row, String type, ExpressionBuilder.Piece piece) {
+        flow.text(AMOUNT_FROM, GRAY);
+        ExpressionBuilder.Operand operand = piece.operand();
+        boolean isNumber = operand instanceof ExpressionBuilder.Num;
+        boolean isPrefab = operand instanceof ExpressionBuilder.Ref ref && ref.member() == null;
+        flow.choice(NUMBER_MODE, NUMBER_MODE_HINT, isNumber, () -> apply(b -> b.setRowNumber(row,
+                ExpressionBuilder.ONE_TEXT)));
+        if (isPrefab || !grammar.scalarPrefabs().isEmpty()) {
+            flow.choiceAt(PREFAB_MODE, PREFAB_MODE_HINT, isPrefab, at -> pickRowPrefab(at, row));
+        }
+        drawMemberMode(flow, row, type, !isNumber && !isPrefab);
+        if (drawAmountOperand(flow, row, type, operand)) {
+            drawFactor(flow, piece, SCALE, SCALE_HINT, (op, factor) -> apply(b -> b.setRowScale(row, op, factor)));
+        }
+    }
+
+    private void drawMemberMode(ControlFlow flow, int row, String type, boolean chosen) {
+        if (chosen || hasRowMemberChoices()) {
+            boolean items = grammar.readsItems();
+            flow.choiceAt(items ? ITEM_MODE : PREFAB_TYPE_MODE, items ? ITEM_MODE_HINT : PREFAB_TYPE_MODE_HINT,
+                    chosen, at -> pickRowMember(at, row, type));
+        }
+    }
+
+    // The amount's number, prefab, or item or prefab with the goo type taken from it; answers whether it drew one.
+    private boolean drawAmountOperand(ControlFlow flow, int row, String type, ExpressionBuilder.Operand operand) {
+        switch (operand) {
+            case ExpressionBuilder.Num num -> flow.control(num.digits(), NUMBER_HINT, at -> overlays.openNumber(at,
+                    num.digits(), digits -> apply(b -> b.setRowNumber(row, digits))));
+            case ExpressionBuilder.Ref ref when ref.member() == null -> flow.runs(refRuns(ref), PREFAB_HINT,
+                    at -> pickRowPrefab(at, row));
+            case ExpressionBuilder.Ref ref -> {
+                flow.runs(refRuns(ref), REF_HINT, at -> pickRowMember(at, row, type));
+                flow.text(ITS, GRAY);
+                flow.typeIcon(ref.member(), at -> overlays.openPicker(at, member -> apply(b -> b.setRowMember(row,
+                        member))));
+            }
+            default -> {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void pickRowPrefab(BuilderOverlays.Anchor at, int row) {
+        overlays.openDropdown(at, SearchDropdown.over(List.of(), grammar.scalarPrefabs(), false),
+                choice -> apply(b -> b.setRowVar(row, choice.id())));
+    }
+
+    // The row's own goo type is the one taken from what is picked; its icon after it picks another.
+    private void pickRowMember(BuilderOverlays.Anchor at, int row, String type) {
+        boolean items = grammar.readsItems();
+        overlays.openDropdown(at, SearchDropdown.over(items ? inventory.get() : List.of(), grammar.perTypePrefabs(),
+                items), choice -> apply(b -> b.setRowRelative(row, choice, type)));
+    }
+
+    private boolean hasRowMemberChoices() {
+        return grammar.readsItems() || !grammar.perTypePrefabs().isEmpty();
+    }
+
+    private void drawTerms(ControlFlow flow, ExpressionBuilder edited) {
+        String sort = grammar.sortOf(edited);
+        List<ExpressionBuilder.Piece> pieces = edited.terms();
+        drawSum(flow, List.of(), pieces, sort);
+        if (grammar.termTakesNumbers(sort)) {
+            flow.control(ADD_SUM, ADD_SUM_HINT, at -> apply(b -> b.addSum(new ExpressionBuilder.Num(
+                    ExpressionBuilder.ONE_TEXT))));
+        } else if (hasTermChoices(sort)) {
+            flow.control(ADD_SUM, ADD_SUM_HINT, at -> overlays.openDropdown(at, termList(sort),
+                    choice -> apply(b -> b.addSum(refOf(choice)))));
+        }
+        if (pieces.size() > 1) {
+            flow.control(SCALE_WHOLE, SCALE_WHOLE_HINT, at -> overlays.openNumber(at, BLANK,
+                    factor -> apply(b -> b.scaleWhole(factor)), true));
+        }
+    }
+
+    // A sum's terms, a line each, then what may join them.
+    private void drawSum(ControlFlow flow, List<Integer> sum, List<ExpressionBuilder.Piece> pieces, String sort) {
+        for (int index = 0; index < pieces.size(); index++) {
+            flow.newLine();
+            drawTerm(flow, placeOf(sum, index), pieces.get(index), pieces.size(), sort);
+        }
+        flow.newLine();
+        if (grammar.termTakesNumbers(sort)) {
+            flow.control(ADD_NUMBER, ADD_NUMBER_HINT, at -> apply(b -> b.addNumber(sum)));
+        }
+        if (hasTermChoices(sort)) {
+            boolean items = grammar.termTakesItems(sort);
+            flow.control(items ? ADD_ITEM_OR_PREFAB : ADD_PREFAB, items ? ADD_ITEM_OR_PREFAB_HINT : ADD_PREFAB_HINT,
+                    at -> overlays.openDropdown(at, termList(sort), choice -> apply(b -> b.relate(sum, choice))));
+        }
+    }
+
+    private void drawTerm(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece, int count,
+                          String sort) {
+        if (path.getLast() > 0) {
+            drawJoin(flow, path, piece);
+        }
+        if (piece.operand() instanceof ExpressionBuilder.Nest nest) {
+            drawNest(flow, path, piece, nest, count, sort);
+            return;
+        }
+        drawOperand(flow, path, piece, sort);
+        if (!(piece.operand() instanceof ExpressionBuilder.Kept)) {
+            drawFactor(flow, piece, SCALE, SCALE_HINT, (op, factor) -> apply(b -> b.setScale(path, op, factor)));
+        }
+        if (count > 1) {
+            flow.control(REMOVE, REMOVE_TERM_HINT, at -> apply(b -> b.remove(path)));
+        }
+    }
+
+    private void drawJoin(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece) {
+        boolean plus = piece.join() == ExpressionTerms.Join.PLUS;
+        flow.control(plus ? PLUS : MINUS, JOIN_HINT, at -> apply(b -> b.setJoin(path,
+                plus ? ExpressionTerms.Join.MINUS : ExpressionTerms.Join.PLUS)));
+    }
+
+    private void drawOperand(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece, String sort) {
+        switch (piece.operand()) {
+            case ExpressionBuilder.Num num -> flow.control(num.digits(), NUMBER_HINT, at -> overlays.openNumber(at,
+                    num.digits(), digits -> apply(b -> b.setNumber(path, digits))));
+            case ExpressionBuilder.Ref ref -> {
+                flow.runs(refRuns(ref), REF_HINT, at -> overlays.openDropdown(at, termList(sort),
+                        choice -> apply(b -> b.setRef(path, choice))));
+                if (grammar.memberOptional(sort)) {
+                    drawMember(flow, path, ref);
+                }
+            }
+            case ExpressionBuilder.Nest _, ExpressionBuilder.Kept _ -> flow.runs(operandRuns(piece), KEPT_HINT,
+                    null);
+        }
+    }
+
+    // "the sum of:" with its terms indented below it, each edited in place, then the sum's factor.
+    private void drawNest(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece,
+                          ExpressionBuilder.Nest nest, int count, String sort) {
+        flow.text(SUM_OF, GRAY);
+        if (count > 1) {
+            flow.control(REMOVE, REMOVE_SUM_HINT, at -> apply(b -> b.remove(path)));
+        }
+        flow.indent();
+        drawSum(flow, path, nest.pieces(), sort);
+        flow.outdent();
+        drawFactor(flow, piece, SCALE_SUM, SCALE_SUM_HINT, (op, factor) -> apply(b -> b.setScale(path, op, factor)));
+    }
+
+    // A goo type taken from the item or prefab: its icon picks another or the whole value again.
+    private void drawMember(ControlFlow flow, List<Integer> path, ExpressionBuilder.Ref ref) {
+        String member = ref.member();
+        if (member == null) {
+            flow.control(ONE_TYPE, ONE_TYPE_HINT, at -> overlays.openPicker(at,
+                    type -> apply(b -> b.setMember(path, type))));
+            return;
+        }
+        flow.text(ONLY, GRAY);
+        flow.typeIcon(member, at -> overlays.openPicker(at, type -> apply(b -> b.setMember(path, type)),
+                () -> apply(b -> b.setMember(path, null))));
+    }
+
+    /**
+     * A factor's change.
+     */
+    @FunctionalInterface
+    private interface ScaleChange {
+        void changed(ExpressionBuilder.Op op, String factor);
+    }
+
+    // A number shows no factor, a reference or a sum offers one, and a factor other than 1 reads "times" or
+    // "divided by" and its number, a click on either changing it.
+    private void drawFactor(ControlFlow flow, ExpressionBuilder.Piece piece, String offer, String offerHint,
+                            ScaleChange change) {
+        switch (BuilderGrammar.factorOf(piece)) {
+            case HIDDEN -> {
+            }
+            case OFFERED -> flow.control(offer, offerHint, at -> overlays.openNumber(at, BLANK,
+                    factor -> change.changed(ExpressionBuilder.Op.MULTIPLY, factor), true));
+            case SHOWN -> {
+                boolean multiplies = piece.op() == ExpressionBuilder.Op.MULTIPLY;
+                flow.control(multiplies ? TIMES : DIVIDED_BY, OP_HINT, at -> change.changed(
+                        multiplies ? ExpressionBuilder.Op.DIVIDE : ExpressionBuilder.Op.MULTIPLY, piece.factor()));
+                flow.control(piece.factor(), FACTOR_HINT, at -> overlays.openNumber(at, piece.factor(),
+                        factor -> change.changed(piece.op(), factor), true));
+            }
+        }
+    }
+
+    private SearchDropdown termList(String sort) {
+        boolean items = grammar.termTakesItems(sort);
+        return SearchDropdown.over(items ? inventory.get() : List.of(), grammar.termPrefabs(sort), items);
+    }
+
+    private boolean hasTermChoices(String sort) {
+        return grammar.termTakesItems(sort) || !grammar.termPrefabs(sort).isEmpty();
+    }
+
+    private static ExpressionBuilder.Ref refOf(SearchDropdown.Choice choice) {
+        return new ExpressionBuilder.Ref(choice.kind(), choice.id(), null);
+    }
+
+    private static List<Integer> placeOf(List<Integer> sum, int index) {
+        List<Integer> path = new ArrayList<>(sum);
+        path.add(index);
+        return List.copyOf(path);
+    }
+
+    // The item or prefab alone, its goo type drawn by its own control.
+    private List<ExpressionLines.Run> refRuns(ExpressionBuilder.Ref ref) {
+        return operandRuns(ExpressionBuilder.firstTerm(new ExpressionBuilder.Ref(ref.kind(), ref.id(), null)));
+    }
+
+    private List<ExpressionLines.Run> operandRuns(ExpressionBuilder.Piece piece) {
+        return ExpressionLines.runs(new ExpressionTerms.Expression(ExpressionBuilder.operandSum(piece)),
+                icons::nameOf);
+    }
+
+    private void apply(Consumer<ExpressionBuilder> edit) {
+        ExpressionBuilder edited = builder;
+        if (edited == null) {
+            return;
+        }
+        Optional<String> before = edited.written();
+        edit.accept(edited);
+        Optional<String> after = edited.written();
+        if (writes != null && after.isPresent() && !after.equals(before)) {
+            writes.accept(after.get());
+        }
+    }
+
+    private void finish() {
+        Runnable finished = done;
+        close();
+        if (finished != null) {
+            finished.run();
+        }
+    }
+}

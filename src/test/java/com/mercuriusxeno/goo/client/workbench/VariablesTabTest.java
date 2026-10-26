@@ -29,7 +29,8 @@ class VariablesTabTest {
             """;
     private static final String EVALUATED = """
             {"constants": [
-              {"name": "base", "kind": "scalar", "value": "8", "error": null, "usedBy": ["minecraft:egg"],
+              {"name": "base", "kind": "scalar", "value": "8", "error": null,
+               "usedBy": ["minecraft:stick", "oak_log", "plank"], "direct": ["stick"],
                "readers": [{"id": "egg", "kind": "constant"}, {"id": "stick", "kind": "item"}]},
               {"name": "broken", "kind": "scalar", "value": null, "error": "Unknown constant $missing",
                "usedBy": [], "readers": []},
@@ -39,7 +40,7 @@ class VariablesTabTest {
             """;
     private static final String HOVER = """
             {"name": "egg", "kind": "tree", "tree": {"zoo": "8", "hex": "1/2"}, "value": null, "error": null,
-             "usedBy": ["minecraft:egg"], "readers": [], "expression": "{\\"zoo\\": \\"$base\\"}"}
+             "usedBy": ["minecraft:egg"], "direct": [], "readers": [], "expression": "{\\"zoo\\": \\"$base\\"}"}
             """;
 
     private ManagerDraft draft;
@@ -62,7 +63,8 @@ class VariablesTabTest {
 
         /**
          * Each constant reads as a block in file order: its expression unquoted, its kind, what it resolves to,
-         * its readers and the items it cascades into.
+         * its readers, the items whose own expression names it and, apart from those, the terminus items it
+         * cascades into (decision used-by-draws-the-terminus-items-alone).
          */
         @Test
         void blocksReadExpressionResolvedAndReaders() {
@@ -75,7 +77,8 @@ class VariablesTabTest {
             assertEquals("8", base.resolved());
             assertEquals(List.of(new VariablesTab.Reader("egg", "constant"), new VariablesTab.Reader("stick", "item")),
                     base.readers());
-            assertEquals(List.of("minecraft:egg"), base.usedBy());
+            assertEquals(List.of("stick"), base.direct());
+            assertEquals(List.of("oak_log", "plank"), base.indirect());
         }
 
         /**
@@ -120,6 +123,22 @@ class VariablesTabTest {
         void jumpOpensTheVariablesEditBox() {
             tab.jumpTo("egg");
             assertEquals("egg", tab.editing().orElseThrow());
+        }
+
+        /**
+         * A pick from the builder's dropdown on a Prefabs expression lands the prefab in the draft by name, none
+         * typed (decision expression-builder-composes-every-form-without-typing).
+         */
+        @Test
+        void builderPickOnAPrefabExpressionLandsInTheDraft() {
+            SearchDropdown dropdown = SearchDropdown.over(List.of(), tab.blocks().stream()
+                    .map(VariablesTab.ConstantBlock::name).toList(), false);
+            dropdown.search("bro");
+            ExpressionBuilder builder = ExpressionBuilder.of("");
+            builder.relate(dropdown.choices().getFirst());
+            builder.setScale(0, ExpressionBuilder.Op.DIVIDE, "4");
+            tab.edit("base", builder.text());
+            assertEquals("$broken / 4", tab.blocks().get(0).expression());
         }
 
         /**
@@ -176,10 +195,11 @@ class VariablesTabTest {
         @Test
         void hoverCardReadsExpressionTypesAndTerminus() {
             VariablesTab.HoverCard card = tab.readHover(HOVER);
-            assertEquals("$egg", card.title());
+            assertEquals("egg", card.title());
             assertEquals("{\"zoo\": \"$base\"}", card.expression());
             assertEquals(List.of("zoo 8", "hex 1/2"), card.lines());
-            assertEquals(List.of("minecraft:egg"), card.usedBy());
+            assertEquals(List.of(), card.direct());
+            assertEquals(List.of("minecraft:egg"), card.indirect());
         }
     }
 }

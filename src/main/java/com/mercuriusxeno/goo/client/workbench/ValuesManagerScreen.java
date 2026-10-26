@@ -80,12 +80,22 @@ public final class ValuesManagerScreen extends Screen {
         super(Component.literal(TITLE));
         this.connection = connection;
         ManagerActions actions = new ScreenActions();
-        valuesPane = new ValuesPane(values, icons, actions);
-        groupsPane = new GroupsPane(groupsTab, values, icons, actions);
-        variablesPane = new VariablesPane(variablesTab, draft, icons, actions);
-        processesPane = new ProcessesPane(processesTab, draft, actions);
+        valuesPane = new ValuesPane(values, icons, actions, builderPane(actions));
+        groupsPane = new GroupsPane(groupsTab, values, icons, actions, builderPane(actions));
+        variablesPane = new VariablesPane(variablesTab, draft, icons, actions, builderPane(actions));
+        processesPane = new ProcessesPane(processesTab, draft, actions, icons, () -> variablesTab.blocks().stream()
+                .filter(block -> VariablesTab.TREE_KIND.equals(block.kind())).map(VariablesTab.ConstantBlock::name)
+                .toList());
         auditPane = new AuditPane(auditTab, draft, actions);
         checksPane = new ChecksPane(checksTab);
+    }
+
+    // A builder over the server's items and the draft's prefabs (decision
+    // expression-builder-composes-every-form-without-typing).
+    private ExpressionBuilderPane builderPane(ManagerActions actions) {
+        return new ExpressionBuilderPane(actions, icons, values::entries, () -> variablesTab.blocks().stream()
+                .map(block -> new BuilderGrammar.Prefab(block.name(), VariablesTab.TREE_KIND.equals(block.kind())))
+                .toList());
     }
 
     /**
@@ -217,7 +227,6 @@ public final class ValuesManagerScreen extends Screen {
     private void readDraftAfresh() {
         request(WorkbenchOperations.RESOLVE_VALUES, values.modelText(), resolved -> {
             values.readResolved(resolved);
-            valuesPane.refresh();
         });
         request(WorkbenchOperations.UNCOVERED_VALUES, values.modelText(), values::readUncovered);
         groupsPane.refresh();
@@ -301,12 +310,28 @@ public final class ValuesManagerScreen extends Screen {
     }
 
     @Override
+    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        return targets.drag(event.y()) || super.mouseDragged(event, dragX, dragY);
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        return targets.release() || super.mouseReleased(event);
+    }
+
+    @Override
     public boolean keyPressed(KeyEvent event) {
-        if (tab == ManagerTab.VARIABLES && variablesPane.keyPressed(event.key())
-                || tab == ManagerTab.PROCESSES && processesPane.keyPressed(event.key())) {
-            return true;
-        }
-        return super.keyPressed(event);
+        return paneTakesKey(event.key()) || super.keyPressed(event);
+    }
+
+    private boolean paneTakesKey(int key) {
+        return switch (tab) {
+            case VALUES -> valuesPane.keyPressed(key);
+            case GROUPS -> groupsPane.keyPressed(key);
+            case VARIABLES -> variablesPane.keyPressed(key);
+            case PROCESSES -> processesPane.keyPressed(key);
+            default -> false;
+        };
     }
 
     @Override
@@ -343,7 +368,7 @@ public final class ValuesManagerScreen extends Screen {
             case VARIABLES -> variablesPane.extract(graphics, font, content, targets, mouseX, mouseY);
             case PROCESSES -> processesPane.extract(graphics, font, content, targets);
             case AUDIT -> auditPane.extract(graphics, font, content, targets);
-            case CHECKS -> checksPane.extract(graphics, font, content);
+            case CHECKS -> checksPane.extract(graphics, font, content, targets);
         }
         graphics.text(font, title, MARGIN, TITLE_Y, WHITE);
         if (draft.differs()) {
@@ -352,6 +377,10 @@ public final class ValuesManagerScreen extends Screen {
         graphics.text(font, font.plainSubstrByWidth(status, width - MARGIN - MARGIN), MARGIN, height - STATUS_INSET,
                 statusIsError ? RED : GRAY);
         draftPane.extract(graphics, font, width, height, targets);
+        // decision goo-types-draw-as-icons-named-on-hover
+        targets.hovered(mouseX, mouseY).flatMap(key -> GooTypeIcons.tooltipFor(key).or(() -> icons.tooltipFor(key))
+                        .or(() -> BuilderOverlays.tooltipFor(key)))
+                .ifPresent(name -> graphics.setTooltipForNextFrame(font, name, mouseX, mouseY));
     }
 
     private void showChecksBadge() {
