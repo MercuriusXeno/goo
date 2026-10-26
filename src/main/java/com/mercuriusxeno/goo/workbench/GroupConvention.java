@@ -105,6 +105,16 @@ final class GroupConvention {
     /**
      * @param model the model
      * @param group the group's name
+     * @return whether _groups names it
+     */
+    static boolean holdsGroup(BaseValuesModel model, String group) {
+        BaseValuesModel.Member groups = model.member(GROUPS);
+        return groups != null && groups.entries().stream().anyMatch(entry -> group.equals(entry.key()));
+    }
+
+    /**
+     * @param model the model
+     * @param group the group's name
      * @param base  the base expression every member takes, or blank to drop the base line
      * @return the model with the #group line set
      */

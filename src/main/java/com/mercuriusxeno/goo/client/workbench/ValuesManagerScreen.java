@@ -81,7 +81,7 @@ public final class ValuesManagerScreen extends Screen {
         this.connection = connection;
         ManagerActions actions = new ScreenActions();
         valuesPane = new ValuesPane(values, icons, actions, builderPane(actions));
-        groupsPane = new GroupsPane(groupsTab, values, icons, actions);
+        groupsPane = new GroupsPane(groupsTab, values, icons, actions, builderPane(actions));
         variablesPane = new VariablesPane(variablesTab, draft, icons, actions, builderPane(actions));
         processesPane = new ProcessesPane(processesTab, draft, actions, icons, () -> variablesTab.blocks().stream()
                 .filter(block -> VariablesTab.TREE_KIND.equals(block.kind())).map(VariablesTab.ConstantBlock::name)
@@ -328,6 +328,7 @@ public final class ValuesManagerScreen extends Screen {
     private boolean paneTakesKey(int key) {
         return switch (tab) {
             case VALUES -> valuesPane.keyPressed(key);
+            case GROUPS -> groupsPane.keyPressed(key);
             case VARIABLES -> variablesPane.keyPressed(key);
             case PROCESSES -> processesPane.keyPressed(key);
             default -> false;
@@ -378,7 +379,7 @@ public final class ValuesManagerScreen extends Screen {
                 statusIsError ? RED : GRAY);
         draftPane.extract(graphics, font, width, height, targets);
         // decision goo-types-draw-as-icons-named-on-hover
-        targets.hovered(mouseX, mouseY).flatMap(GooTypeIcons::tooltipFor)
+        targets.hovered(mouseX, mouseY).flatMap(key -> GooTypeIcons.tooltipFor(key).or(() -> icons.tooltipFor(key)))
                 .ifPresent(name -> graphics.setTooltipForNextFrame(font, name, mouseX, mouseY));
     }
 

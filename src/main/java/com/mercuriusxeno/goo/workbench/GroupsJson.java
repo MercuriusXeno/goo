@@ -36,6 +36,7 @@ final class GroupsJson {
     private static final String GROUP = "group";
     private static final String PICKS = "picks";
     private static final String TWEAK = "tweak";
+    private static final String CREATE = "create";
     private static final String MODEL = "model";
     private static final String ITEMS = "items";
     private static final String ITEM_TAGS = "item_tags";
@@ -110,7 +111,8 @@ final class GroupsJson {
     }
 
     /**
-     * Applies the posted change, in order: the picked members, the base line, one member's tweak.
+     * Applies the posted change, in order: the group created where it stands nowhere, the picked members, the base
+     * line, one member's tweak.
      *
      * @param sent      the posted JSON: the model's members, the group's name and the change
      * @param layout    the file's layout the posted members take
@@ -121,6 +123,7 @@ final class GroupsJson {
         JsonObject root = JsonParser.parseString(sent).getAsJsonObject();
         BaseValuesModel model = layout.withMembers(ModelJson.membersFrom(sent));
         String group = root.get(GROUP).getAsString();
+        model = created(model, root, group);
         if (root.has(PICKS)) {
             List<String> picks = root.getAsJsonArray(PICKS).asList().stream().map(JsonElement::getAsString).toList();
             model = GroupConvention.withGroup(model, group, GroupConvention.expand(picks, inventory.tags()));
@@ -137,6 +140,12 @@ final class GroupsJson {
         answer.add(MODEL, JsonParser.parseString(ModelJson.toJson(model, BLANK)));
         answer.add(GROUPS, described(model, inventory));
         return answer.toString();
+    }
+
+    // The create form lands a group no _groups entry names, with no member (decision group-controls-name-add-and-build).
+    private static BaseValuesModel created(BaseValuesModel model, JsonObject root, String group) {
+        return root.has(CREATE) && !GroupConvention.holdsGroup(model, group)
+                ? GroupConvention.withGroup(model, group, List.of()) : model;
     }
 
     private static JsonObject tweakJson(GroupConvention.Tweak tweak) {
