@@ -29,6 +29,9 @@ final class SearchDropdown {
     private static final int LINK = ButtonPainter.LINK;
 
     private final List<Choice> all;
+    // The list scrolls a row per wheel notch, so every match is reachable however few rows fit under the opener.
+    private final ScrollBar bar = new ScrollBar(1);
+    private int shownRows = SHOWN;
     private String query = NOTHING;
     private boolean open;
 
@@ -95,14 +98,15 @@ final class SearchDropdown {
      */
     void search(String typed) {
         query = typed.trim().toLowerCase(Locale.ROOT);
+        bar.reset();
     }
 
     /**
-     * @return the choices whose label or id holds the search text, ignoring case, at most {@link #SHOWN}
+     * @return every choice whose label or id holds the search text, ignoring case
      */
     List<Choice> choices() {
         return all.stream().filter(choice -> query.isEmpty() || choice.label().toLowerCase(Locale.ROOT).contains(query)
-                || choice.id().toLowerCase(Locale.ROOT).contains(query)).limit(SHOWN).toList();
+                || choice.id().toLowerCase(Locale.ROOT).contains(query)).toList();
     }
 
     /**
@@ -117,6 +121,15 @@ final class SearchDropdown {
      */
     void open() {
         open = true;
+        bar.reset();
+    }
+
+    /**
+     * @param amount the wheel's turn, positive away from the player, which moves toward the list's start
+     */
+    void scroll(double amount) {
+        bar.measure(choices().size(), shownRows);
+        bar.wheel(amount);
     }
 
     /**
@@ -192,6 +205,8 @@ final class SearchDropdown {
         graphics.nextStratum();
         graphics.fill(x - 1, y - 1, x + width + 1, y + height + 1, BORDER);
         graphics.fill(x, y, x + width, y + height, BACKGROUND);
+        boolean scrolls = choices().size() > rows;
+        int labelWidth = width - LABEL_X - (scrolls ? ScrollBar.WIDTH + ScrollBar.GAP : 0);
         for (int index = 0; index < shown.size(); index++) {
             Choice choice = shown.get(index);
             int rowY = y + index * ROW_HEIGHT;
@@ -199,15 +214,22 @@ final class SearchDropdown {
             if (iconId != null) {
                 graphics.item(icons.of(iconId), x + ICON_INSET, rowY + ICON_INSET);
             }
-            graphics.text(font, font.plainSubstrByWidth(choice.label(), width - LABEL_X), x + LABEL_X,
+            graphics.text(font, font.plainSubstrByWidth(choice.label(), labelWidth), x + LABEL_X,
                     rowY + TEXT_NUDGE, choice.kind() == Kind.PREFAB ? LINK : WHITE);
         }
         targets.add(x, y, width, height, () -> { });
         layTargets(targets, x, y, width, rows, picked);
+        if (scrolls) {
+            bar.draw(graphics, targets, x + width, y, y + height);
+        }
     }
 
+    // The rows the list stands scrolled to; the bar clamps its offset to the matches each time.
     private List<Choice> shown(int rows) {
         List<Choice> choices = choices();
-        return choices.subList(0, Math.min(choices.size(), rows));
+        shownRows = rows;
+        bar.measure(choices.size(), rows);
+        int first = bar.offset();
+        return choices.subList(first, Math.min(choices.size(), first + rows));
     }
 }
