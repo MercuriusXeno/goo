@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -87,16 +88,6 @@ class ExpressionBuilderTest {
             builder.relate(IRON_BLOCK);
             builder.setJoin(1, ExpressionTerms.Join.MINUS);
             assertEquals("anvil - $iron_block", builder.text());
-        }
-
-        @Test
-        void parenthesesWrapTermsTheCountMultiplies() {
-            ExpressionBuilder builder = ExpressionBuilder.of("");
-            builder.relate(BUCKET);
-            builder.relate(STICK);
-            builder.wrap(0, 1);
-            builder.setCount(0, "2");
-            assertEquals("2 (bucket + $stick)", builder.text());
         }
 
         @Test
@@ -188,12 +179,55 @@ class ExpressionBuilderTest {
         }
 
         @Test
-        void termWrapsWithTheNextAndUnwraps() {
-            ExpressionBuilder builder = ExpressionBuilder.of("bucket + $stick");
-            builder.wrapWithNext(0);
-            assertEquals("(bucket + $stick)", builder.text());
-            builder.unwrap(0);
-            assertEquals("bucket + $stick", builder.text());
+        void rowMemberChanges() {
+            ExpressionBuilder builder = ExpressionBuilder.of("{\"metal\": \"bucket.metal / 2\"}");
+            builder.setRowMember(0, "pulse");
+            assertEquals("{\"metal\": \"bucket.pulse / 2\"}", builder.text());
+        }
+    }
+
+    /**
+     * A sum of terms stands as one term, its own terms edited in place, and the whole value scales as one sum, the
+     * two ways the game's files use parentheses.
+     */
+    @Nested
+    class Sums {
+        private static final List<Integer> FIRST_SUM = List.of(1);
+
+        @Test
+        void sumOfTermsIsSubtracted() {
+            ExpressionBuilder builder = ExpressionBuilder.of("$dye.leaf");
+            builder.addSum(new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "food", "jelly"));
+            builder.setJoin(FIRST_SUM, ExpressionTerms.Join.MINUS);
+            builder.relate(FIRST_SUM, new SearchDropdown.Choice(SearchDropdown.Kind.PREFAB, "saturation",
+                    "saturation"));
+            builder.setMember(List.of(1, 1), "jelly");
+            builder.setScale(List.of(1, 1), ExpressionBuilder.Op.MULTIPLY, "12");
+            assertEquals("$dye.leaf - ($food.jelly + 12 $saturation.jelly)", builder.text());
+        }
+
+        @Test
+        void loadedSumEditsInPlace() {
+            ExpressionBuilder builder = ExpressionBuilder.of("$dye.leaf - ($food.jelly + 1)");
+            builder.setNumber(List.of(1, 1), "4");
+            assertEquals("$dye.leaf - ($food.jelly + 4)", builder.text());
+            builder.remove(List.of(1, 0));
+            assertEquals("$dye.leaf - (4)", builder.text());
+        }
+
+        @Test
+        void wholeValueScalesAsOneSum() {
+            ExpressionBuilder builder = ExpressionBuilder.of("$medium - 4 $food.jelly");
+            builder.scaleWhole("2");
+            builder.setScale(List.of(0), ExpressionBuilder.Op.DIVIDE, "2");
+            assertEquals("($medium - 4 $food.jelly) / 2", builder.text());
+        }
+
+        @Test
+        void wholeSumScaledByOneComesApart() {
+            ExpressionBuilder builder = ExpressionBuilder.of("($medium - $food.jelly) / 2");
+            builder.setScale(List.of(0), ExpressionBuilder.Op.MULTIPLY, "1");
+            assertEquals("$medium - $food.jelly", builder.text());
         }
     }
 
@@ -213,6 +247,18 @@ class ExpressionBuilderTest {
             assertEquals("{\"metal\": \"1\"}", builder.text());
             builder.switchToWhole();
             assertEquals("192", builder.text());
+        }
+
+        @Test
+        void eachWholeKindKeepsItsOwnTerms() {
+            ExpressionBuilder builder = ExpressionBuilder.of("192");
+            builder.nameWholeSort(BuilderGrammar.NUMBER_SORT);
+            builder.switchToWhole(BuilderGrammar.GOO_SORT, List.of(ExpressionBuilder.firstTerm(
+                    new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "stick", null))));
+            assertEquals("$stick", builder.text());
+            builder.switchToWhole(BuilderGrammar.NUMBER_SORT, List.of());
+            assertEquals("192", builder.text());
+            assertTrue(builder.holdsKept(BuilderGrammar.GOO_SORT));
         }
 
         @Test

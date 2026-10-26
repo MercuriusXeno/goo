@@ -57,12 +57,6 @@ public final class ValuesManagerScreen extends Screen {
     private final AuditTab auditTab = new AuditTab();
     private final ChecksTab checksTab = new ChecksTab(draft);
     private final ItemIcons icons = new ItemIcons();
-    // A prefab's value is a scalar or per goo type; an item's or a group's relates it to other items or is per
-    // goo type (decision expression-builder-composes-every-form-without-typing).
-    private static final ExpressionBuilderPane.Kinds SCALAR_KIND = new ExpressionBuilderPane.Kinds("scalar",
-            "One amount: a number, or a sum of numbers, items and prefabs");
-    private static final ExpressionBuilderPane.Kinds RELATIVE_KIND = new ExpressionBuilderPane.Kinds(
-            "from other items", "Worth what other items and prefabs are worth, scaled and summed");
     private final ClickTargets targets = new ClickTargets();
     private final Map<ManagerTab, Button> tabButtons = new EnumMap<>(ManagerTab.class);
     private final ValuesPane valuesPane;
@@ -86,9 +80,9 @@ public final class ValuesManagerScreen extends Screen {
         super(Component.literal(TITLE));
         this.connection = connection;
         ManagerActions actions = new ScreenActions();
-        valuesPane = new ValuesPane(values, icons, actions, builderPane(actions, RELATIVE_KIND));
-        groupsPane = new GroupsPane(groupsTab, values, icons, actions, builderPane(actions, RELATIVE_KIND));
-        variablesPane = new VariablesPane(variablesTab, draft, icons, actions, builderPane(actions, SCALAR_KIND));
+        valuesPane = new ValuesPane(values, icons, actions, builderPane(actions));
+        groupsPane = new GroupsPane(groupsTab, values, icons, actions, builderPane(actions));
+        variablesPane = new VariablesPane(variablesTab, draft, icons, actions, builderPane(actions));
         processesPane = new ProcessesPane(processesTab, draft, actions, icons, () -> variablesTab.blocks().stream()
                 .filter(block -> VariablesTab.TREE_KIND.equals(block.kind())).map(VariablesTab.ConstantBlock::name)
                 .toList());
@@ -98,11 +92,10 @@ public final class ValuesManagerScreen extends Screen {
 
     // A builder over the server's items and the draft's prefabs (decision
     // expression-builder-composes-every-form-without-typing).
-    private ExpressionBuilderPane builderPane(ManagerActions actions, ExpressionBuilderPane.Kinds kinds) {
+    private ExpressionBuilderPane builderPane(ManagerActions actions) {
         return new ExpressionBuilderPane(actions, icons, values::entries, () -> variablesTab.blocks().stream()
-                .map(VariablesTab.ConstantBlock::name).toList(), () -> variablesTab.blocks().stream()
-                .filter(block -> !VariablesTab.TREE_KIND.equals(block.kind()))
-                .map(VariablesTab.ConstantBlock::name).toList(), kinds);
+                .map(block -> new BuilderGrammar.Prefab(block.name(), VariablesTab.TREE_KIND.equals(block.kind())))
+                .toList());
     }
 
     /**
