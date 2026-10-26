@@ -5,12 +5,14 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.ToIntFunction;
 
 /**
- * Draws the Values tab: the Items, Tags and Uncovered chips, the search box, each entry with its icon and where its
+ * Draws the Values tab: the Items, Tags and Uncovered set on a line of its own, the search box, each entry with its icon and where its
  * value comes from, and the selected entry's expression and resolved values, each list scrolling under the wheel, as
  * index.html's values section does (decision goo-workbench-opens-the-in-game-manager-screen); the list and the detail
  * each draw a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in {@link ValuesTab}.
@@ -23,7 +25,9 @@ final class ValuesPane {
     private static final int ROW_HEIGHT = 20;
     private static final int ICON_SIZE = 16;
     private static final int ICON_GAP = 4;
-    private static final int CHIP_GAP = 8;
+    /** The room between the filter set and the search box below it. */
+    static final int CHIP_LINE_GAP = 3;
+    private static final int CHIP_TEXT_NUDGE = 3;
     private static final int GAP = 3;
     private static final int HALF = 2;
     private static final int SCROLL_STEP = LINE_HEIGHT * 3;
@@ -33,6 +37,8 @@ final class ValuesPane {
     private static final int GREEN = 0xFF80E080;
     private static final int GOLD = 0xFFE0C060;
     private static final int CHIP_OFF = 0xFF808080;
+    private static final int CHIP_HOLLOW = 0xFF202020;
+    private static final int CHIP_FILLED_TEXT = 0xFF000000;
     private static final int SELECTED_ROW_COLOR = 0x60FFFFFF;
     private static final String ITEMS_CHIP = "Items";
     private static final String TAGS_CHIP = "Tags";
@@ -127,30 +133,76 @@ final class ValuesPane {
         builder.drawOverlays(graphics, font, targets);
     }
 
-    // Answers the y below the chips.
-    private int drawChips(GuiGraphicsExtractor graphics, Font font, int left, int top, ClickTargets targets) {
-        int x = left;
-        x = drawChip(graphics, font, ITEMS_CHIP, ValuesTab.Filter.ITEMS, x, top, WHITE, targets);
-        x = drawChip(graphics, font, TAGS_CHIP, ValuesTab.Filter.TAGS, x, top, WHITE, targets);
-        int uncovered = values.uncoveredCount();
-        drawChip(graphics, font, UNCOVERED_CHIP + uncovered, ValuesTab.Filter.UNCOVERED, x, top,
-                uncovered == 0 ? WHITE : RED, targets);
-        return top + LINE_HEIGHT + GAP;
+    /**
+     * One box of the Items, Tags and Uncovered set.
+     *
+     * @param filter what clicking it lists
+     * @param label  its label
+     * @param left   its left edge
+     * @param top    its top edge
+     * @param width  its width
+     * @param height its height
+     * @param filled whether it is the filter the tab holds
+     */
+    record Chip(ValuesTab.Filter filter, String label, int left, int top, int width, int height, boolean filled) {
     }
 
-    // Answers the x past the chip; the chip the filter stands on draws in its color, the others dim.
-    private int drawChip(GuiGraphicsExtractor graphics, Font font, String label, ValuesTab.Filter filter, int x,
-                         int y, int color, ClickTargets targets) {
-        boolean on = values.filter() == filter;
-        graphics.text(font, label, x, y, on ? color : CHIP_OFF);
-        if (on) {
-            graphics.fill(x, y + LINE_HEIGHT - 1, x + font.width(label), y + LINE_HEIGHT, color);
+    /**
+     * @param chips     the set's boxes, left to right
+     * @param searchTop the search box's top, one line below them
+     */
+    record ChipLayout(List<Chip> chips, int searchTop) {
+    }
+
+    /**
+     * Lays the filters as one segmented set on a line of their own: adjoining boxes sharing their inner borders,
+     * the one the tab holds filled (decision items-filters-sit-on-their-own-line-as-one-set).
+     *
+     * @param labels   the Items, Tags and Uncovered labels, in that order
+     * @param width    a label's width
+     * @param left     the set's left edge
+     * @param top      the set's top edge
+     * @param selected the filter the tab holds
+     * @return the boxes and the search box's top below them
+     */
+    static ChipLayout layChips(List<String> labels, ToIntFunction<String> width, int left, int top,
+                               ValuesTab.Filter selected) {
+        List<Chip> chips = new ArrayList<>();
+        int x = left;
+        for (int index = 0; index < labels.size(); index++) {
+            ValuesTab.Filter filter = ValuesTab.Filter.values()[index];
+            String label = labels.get(index);
+            int chipWidth = width.applyAsInt(label) + ButtonPainter.PADDING + ButtonPainter.PADDING;
+            chips.add(new Chip(filter, label, x, top, chipWidth, ButtonPainter.HEIGHT, filter == selected));
+            x += chipWidth - 1;
         }
-        targets.add(x, y, font.width(label), LINE_HEIGHT, () -> {
-            values.filter(filter);
+        return new ChipLayout(chips, top + ButtonPainter.HEIGHT + CHIP_LINE_GAP);
+    }
+
+    // Answers the search box's top below the set.
+    private int drawChips(GuiGraphicsExtractor graphics, Font font, int left, int top, ClickTargets targets) {
+        int uncovered = values.uncoveredCount();
+        ChipLayout layout = layChips(List.of(ITEMS_CHIP, TAGS_CHIP, UNCOVERED_CHIP + uncovered), font::width, left,
+                top, values.filter());
+        for (Chip chip : layout.chips()) {
+            drawChip(graphics, font, chip, chip.filter() == ValuesTab.Filter.UNCOVERED && uncovered > 0 ? RED : WHITE,
+                    targets);
+        }
+        return layout.searchTop();
+    }
+
+    // The filled box reads its label dark on its color; a hollow one reads its label in the color, dimmed.
+    private void drawChip(GuiGraphicsExtractor graphics, Font font, Chip chip, int color, ClickTargets targets) {
+        int right = chip.left() + chip.width();
+        int bottom = chip.top() + chip.height();
+        graphics.fill(chip.left(), chip.top(), right, bottom, chip.filled() ? color : CHIP_OFF);
+        graphics.fill(chip.left() + 1, chip.top() + 1, right - 1, bottom - 1, chip.filled() ? color : CHIP_HOLLOW);
+        graphics.text(font, chip.label(), chip.left() + ButtonPainter.PADDING, chip.top() + CHIP_TEXT_NUDGE,
+                chip.filled() ? CHIP_FILLED_TEXT : color);
+        targets.add(chip.left(), chip.top(), chip.width(), chip.height(), () -> {
+            values.filter(chip.filter());
             listBar.reset();
         });
-        return x + font.width(label) + CHIP_GAP;
     }
 
     private void drawEntries(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds list, ClickTargets targets) {
