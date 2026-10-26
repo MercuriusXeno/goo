@@ -57,7 +57,7 @@ final class MutatorControls {
     private static final String OWN_HINT = "Click to take the values from a group instead";
     private static final String DROP_SOURCE = "use its own values";
     private static final String DROP_SOURCE_HINT = "Apply the chain to the target's own values, no source group";
-    private static final String OVER = "over";
+    private static final String RATIO = ":";
     private static final String MULTIPLIER_HINT = "Click to change what the values are multiplied by";
     private static final String SCALE_DIVISOR_HINT = "Click to change what the values are divided by";
     private static final String THEN = "then applies";
@@ -212,10 +212,10 @@ final class MutatorControls {
             nameControl(flow, GROUP_MARK + assignment.source(), GROUP_HINT, processes.groupNames(), setSource);
             flow.control(DROP_SOURCE, DROP_SOURCE_HINT, at -> edit(() -> setSource.accept(NO_SOURCE)));
         }
-        flow.text(TIMES, GRAY);
+        // Decision factor-reads-as-a-ratio: "times 1 over 1" reads "1:1", each number its own box.
         numberControl(flow, assignment.multiplier(), MULTIPLIER_HINT, multiplier -> processes.setAssignmentScale(
                 section, key, multiplier, assignment.divisor()));
-        flow.text(OVER, GRAY);
+        flow.text(RATIO, GRAY);
         numberControl(flow, assignment.divisor(), SCALE_DIVISOR_HINT, divisor -> processes.setAssignmentScale(section,
                 key, assignment.multiplier(), divisor));
         drawChain(entry, assignment.chain());

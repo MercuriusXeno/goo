@@ -56,10 +56,9 @@ final class ExpressionBuilderPane {
     private static final String PLUS = "plus";
     private static final String MINUS = "minus";
     private static final String JOIN_HINT = "Click to switch between adding and subtracting this";
-    private static final String TIMES = "times";
-    private static final String DIVIDED_BY = "divided by";
-    private static final String OP_HINT = "Click to switch between multiplying and dividing";
-    private static final String FACTOR_HINT = "Click to change the number; 1 removes it";
+    private static final String RATIO = ":";
+    private static final String MULTIPLIER_HINT = "Click to change what this is multiplied by; 1 removes it";
+    private static final String DIVISOR_HINT = "Click to change what this is divided by; 1 removes it";
     private static final String SCALE = "scale";
     private static final String SCALE_HINT = "Multiply or divide this by a number";
     private static final String SCALE_SUM = "scale the sum";
@@ -499,8 +498,9 @@ final class ExpressionBuilderPane {
         void changed(ExpressionBuilder.Op op, String factor);
     }
 
-    // A number shows no factor, a reference or a sum offers one, and a factor other than 1 reads "times" or
-    // "divided by" and its number, a click on either changing it.
+    // A number shows no factor, a reference or a sum offers one, and a factor other than 1 reads as a ratio,
+    // multiplier:divisor, one side the factor and the other 1, each a number box; setting a side multiplies or
+    // divides by it (decision factor-reads-as-a-ratio).
     private void drawFactor(ControlFlow flow, ExpressionBuilder.Piece piece, String offer, String offerHint,
                             ScaleChange change) {
         switch (BuilderGrammar.factorOf(piece)) {
@@ -510,12 +510,22 @@ final class ExpressionBuilderPane {
                     factor -> change.changed(ExpressionBuilder.Op.MULTIPLY, factor), true));
             case SHOWN -> {
                 boolean multiplies = piece.op() == ExpressionBuilder.Op.MULTIPLY;
-                flow.control(multiplies ? TIMES : DIVIDED_BY, OP_HINT, at -> change.changed(
-                        multiplies ? ExpressionBuilder.Op.DIVIDE : ExpressionBuilder.Op.MULTIPLY, piece.factor()));
-                flow.control(piece.factor(), FACTOR_HINT, at -> overlays.openNumber(at, piece.factor(),
-                        factor -> change.changed(piece.op(), factor), true));
+                ratioSide(flow, multiplies ? piece.factor() : ExpressionBuilder.ONE_TEXT, MULTIPLIER_HINT,
+                        ExpressionBuilder.Op.MULTIPLY, change);
+                flow.text(RATIO, GRAY);
+                ratioSide(flow, multiplies ? ExpressionBuilder.ONE_TEXT : piece.factor(), DIVISOR_HINT,
+                        ExpressionBuilder.Op.DIVIDE, change);
             }
         }
+    }
+
+    private void ratioSide(ControlFlow flow, String shown, String hint, ExpressionBuilder.Op op, ScaleChange change) {
+        // A side committed unchanged changes nothing, so the 1 opposite the factor never drops it.
+        flow.control(shown, hint, at -> overlays.openNumber(at, shown, factor -> {
+            if (!factor.equals(shown)) {
+                change.changed(op, factor);
+            }
+        }, true));
     }
 
     private SearchDropdown termList(String sort) {
