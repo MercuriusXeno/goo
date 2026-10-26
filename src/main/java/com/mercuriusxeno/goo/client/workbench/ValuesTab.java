@@ -51,6 +51,9 @@ public final class ValuesTab {
     private static final String DENIED_BY = "denied by #";
     /** What an item recipes value, and no entry does, reads before its inputs. */
     static final String DERIVED_SOURCE = "derived from";
+    private static final String INDIRECT_SOURCE = "valued indirectly";
+    private static final String CONVERSIONS_SECTION = "_conversions";
+    private static final String POST_CONVERSIONS_SECTION = "_post_conversions";
     private static final String NO_VALUE = "no value";
     private static final String RESTRICTED_SUFFIX = ", restricted";
     // A new entry stands above the sections the file closes with, as the page and the server write one.
@@ -267,30 +270,54 @@ public final class ValuesTab {
     public Source sourceOf(String id) {
         Map<String, List<String>> groups = groupsOf();
         Source source = null;
-        for (JsonElement element : draft.members()) {
-            JsonObject member = element.getAsJsonObject();
-            String key = keyOf(member);
-            if (key == null || !VALUE_KIND.equals(kindOf(member))) {
-                continue;
-            }
-            boolean denied = DENIED.equals(ManagerDraft.shownText(member.get(TEXT).getAsString()));
-            if (key.startsWith(TAG_PREFIX)) {
-                String group = key.substring(TAG_PREFIX.length());
-                if (source == null && groups.getOrDefault(group, List.of()).contains(id)) {
-                    source = denied ? new Source(DENIED_BY + group, SourceKind.DENIED)
-                            : new Source(GROUP_SOURCE + group, SourceKind.GROUP);
-                }
-            } else if (namespaced(key).equals(id)) {
-                source = denied ? new Source(DENIED, SourceKind.DENIED) : new Source(ENTRY_SOURCE, SourceKind.ENTRY);
-            }
+        for (JsonObject entry : valueEntries()) {
+            source = sourceFrom(entry, id, groups, source);
         }
         Source found = source != null ? source : unentered(id);
         return restricted(groups).contains(id) ? new Source(found.label() + RESTRICTED_SUFFIX, found.kind()) : found;
     }
 
-    // An item no entry or group names reads derived from its recipes where they value it, else no value.
+    // The file's top-level value entries, then its conversions' and post-conversions', which value an item or a
+    // group as an entry does; the 26.1 file values #concrete in _post_conversions alone
+    // (decision diagnose-and-correct-group-derived-reading-derived-from).
+    private List<JsonObject> valueEntries() {
+        List<JsonObject> found = new ArrayList<>();
+        for (JsonArray section : List.of(draft.members(), draft.sectionEntries(CONVERSIONS_SECTION),
+                draft.sectionEntries(POST_CONVERSIONS_SECTION))) {
+            for (JsonElement element : section) {
+                JsonObject entry = element.getAsJsonObject();
+                if (keyOf(entry) != null && VALUE_KIND.equals(kindOf(entry))) {
+                    found.add(entry);
+                }
+            }
+        }
+        return found;
+    }
+
+    // An item's own entry overrides what stands; a group's entry stands only where nothing named the item first.
+    private static @Nullable Source sourceFrom(JsonObject entry, String id, Map<String, List<String>> groups,
+                                               @Nullable Source standing) {
+        String key = String.valueOf(keyOf(entry));
+        boolean denied = DENIED.equals(ManagerDraft.shownText(entry.get(TEXT).getAsString()));
+        if (!key.startsWith(TAG_PREFIX)) {
+            return !namespaced(key).equals(id) ? standing
+                    : denied ? new Source(DENIED, SourceKind.DENIED) : new Source(ENTRY_SOURCE, SourceKind.ENTRY);
+        }
+        String group = key.substring(TAG_PREFIX.length());
+        if (standing != null || !groups.getOrDefault(group, List.of()).contains(id)) {
+            return standing;
+        }
+        return denied ? new Source(DENIED_BY + group, SourceKind.DENIED)
+                : new Source(GROUP_SOURCE + group, SourceKind.GROUP);
+    }
+
+    // An item no entry or group names reads derived from its recipe inputs where it has some; one valued with no
+    // inputs to name reads valued indirectly, never a bare "derived from"; else no value.
     private Source unentered(String id) {
-        return worthOf(id).isEmpty() ? new Source(NO_VALUE, SourceKind.NONE)
+        if (worthOf(id).isEmpty()) {
+            return new Source(NO_VALUE, SourceKind.NONE);
+        }
+        return derivedFrom(id).isEmpty() ? new Source(INDIRECT_SOURCE, SourceKind.DERIVED)
                 : new Source(DERIVED_SOURCE, SourceKind.DERIVED);
     }
 
