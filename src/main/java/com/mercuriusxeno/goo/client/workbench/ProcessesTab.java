@@ -297,6 +297,17 @@ public final class ProcessesTab {
                 .orElseGet(() -> new Processes.Unread(NO_TEXT));
     }
 
+    /**
+     * Writes an entry as a form of another kind, or the same kind afresh.
+     *
+     * @param section _conversions or _post_conversions
+     * @param key     the entry's key
+     * @param form    the form it now holds
+     */
+    public void setForm(String section, String key, Processes.Form form) {
+        change(section, key, standing -> form);
+    }
+
     private void changeFormula(String section, String key, UnaryOperator<Processes.Formula> edit) {
         change(section, key, form -> form instanceof Processes.Formula formula ? edit.apply(formula) : form);
     }

@@ -182,5 +182,68 @@ class ProcessesTabTest {
             forms.setAssignmentScale(POST, "#exposed", 3, 4);
             assertEquals("\"#copper * 3 / 4 @exposed_metal\"", textOf("#exposed"));
         }
+
+        /**
+         * An entry's kind changes to another form, written as that form.
+         */
+        @Test
+        void entryChangesItsKind() {
+            forms.setForm(POST, "waxed", new Processes.Formula("metal", 1, "0", "/", 0));
+            assertEquals("\"metal / 1 -> 0\"", textOf("waxed"));
+            forms.setForm(POST, "waxed", new Processes.Stack(1, "oxidation_metal"));
+            assertEquals(new Processes.Stack(1, "oxidation_metal"), forms.formOf(POST, "waxed"));
+        }
+
+        /**
+         * An assignment's source group can be dropped, the chain then applying to the target's own values.
+         */
+        @Test
+        void assignmentDropsItsSource() {
+            forms.setAssignmentSource(POST, "#exposed", "");
+            assertEquals("\"@waxed\"", textOf("#exposed"));
+            assertEquals(new Processes.Assignment("", 1, 1, List.of("@waxed")), forms.formOf(POST, "#exposed"));
+        }
+    }
+
+    /**
+     * Processes reads every spelling the game's conversion parser reads, so no such entry falls to raw text
+     * (decision expression-builder-composes-every-form-without-typing).
+     */
+    @Nested
+    class Spellings {
+        @Test
+        void itemKeyedEntryIsAnAssignment() {
+            assertEquals(new Processes.Assignment("copper", 1, 1, List.of("@waxed")),
+                    Processes.parse("minecraft:copper_door", "\"#copper @waxed\""));
+        }
+
+        @Test
+        void assignmentWithNoSourceIsItsChain() {
+            assertEquals(new Processes.Assignment("", 1, 1, List.of("@waxed", "@oxidation_metal")),
+                    Processes.parse("#waxed_copper", "\"@waxed @oxidation_metal\""));
+        }
+
+        /**
+         * The game's parser drops a chain token that is not an @ link, so such an entry reads as unread, not as
+         * the assignment the game would not apply.
+         */
+        @Test
+        void chainTokenTheGameDropsReadsAsUnread() {
+            assertEquals(Processes.Kind.UNREAD, Processes.parse("#waxed_copper", "\"#copper +$waxed\"").kind());
+        }
+
+        @Test
+        void scaleWithNoDivisorDividesByOne() {
+            assertEquals(new Processes.Assignment("copper", 3, 1, List.of()),
+                    Processes.parse("#big_copper", "\"#copper * 3\""));
+        }
+
+        @Test
+        void formulaReadsWithoutSpaces() {
+            assertEquals(new Processes.Formula("metal", 4, "yore", "/", 9),
+                    Processes.parse("oxidation_metal", "\"metal/4->yore/9\""));
+            assertEquals(new Processes.Formula("pulse", 2, "0", "/", 0),
+                    Processes.parse("drain", "\"pulse / 2 -> 0\""));
+        }
     }
 }

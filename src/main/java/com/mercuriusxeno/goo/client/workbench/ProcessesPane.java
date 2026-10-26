@@ -1,17 +1,17 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * Draws the Mutators tab: each block's summary and its entries, each on two lines, the key, the form, the parser's
- * verdict and Delete on the first and the text at full width on the second (decision mutator-rows-take-an-extra-line);
- * a click on an entry's text opens its controls on a line below it, which build the entry with nothing typed but a
- * number or a search (decision expression-builder-composes-every-form-without-typing), and Delete drops the entry, as
+ * Draws the Mutators tab: each block's summary and its entries, the key, the form, the parser's verdict and Delete on
+ * an entry's first line and its sentence of controls at full width below (decision mutator-rows-take-an-extra-line),
+ * which build the entry with nothing typed but a number or a search (decision
+ * expression-builder-composes-every-form-without-typing), and Delete drops the entry, as
  * index.html's processes section does (decision goo-workbench-opens-the-in-game-manager-screen). The rows scroll
  * under a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in {@link ProcessesTab}.
  */
@@ -30,8 +30,7 @@ final class ProcessesPane {
     private static final int GREEN = 0xFF80E080;
     private static final int LINK = 0xFF80C0FF;
     private static final int TREE_COLOR = 0xFFE0C060;
-    private static final int TEXT_COLOR = 0x30FFFFFF;
-    private static final int OPEN_COLOR = 0x50FFFFFF;
+    private static final int ROW_COLOR = 0x20FFFFFF;
     private static final String ASSIGNMENT = "assignment";
     private static final String DELETE = "[Delete]";
     private static final String SUMMARY_GAP = "  ";
@@ -42,8 +41,6 @@ final class ProcessesPane {
     private final BuilderOverlays overlays;
     private final MutatorControls controls;
     private final ScrollBar bar = new ScrollBar(SCROLL_STEP);
-    private @Nullable String openSection;
-    private @Nullable String openKey;
 
     /**
      * @param processes   the Mutators tab's state
@@ -58,7 +55,8 @@ final class ProcessesPane {
         this.draft = draft;
         this.actions = actions;
         this.overlays = new BuilderOverlays(actions, icons);
-        this.controls = new MutatorControls(processes, overlays, treePrefabs, actions::draftChanged);
+        this.controls = new MutatorControls(processes, overlays, treePrefabs,
+                () -> GooTypes.order().stream().map(GooTypes::id).toList(), actions::draftChanged);
     }
 
     /**
@@ -118,28 +116,16 @@ final class ProcessesPane {
         overlays.draw(graphics, font, targets);
     }
 
-    // Answers the y below the row and, where it stands open, its controls' line.
+    // Answers the y below the row: its head line, then its sentence of controls wrapping at full width.
     private int drawRow(GuiGraphicsExtractor graphics, Font font, String section, ProcessesTab.ProcessRow row,
                         GroupsPane.Bounds bounds, int y, ClickTargets targets) {
         drawHeadLine(graphics, font, section, row, bounds, y, targets);
         ProcessesTab.RowLayout layout = ProcessesTab.layoutRow(bounds.left(), bounds.right(), y);
-        boolean open = section.equals(openSection) && row.key().equals(openKey);
-        // decision curated-view-shows-no-brace-quote-or-raw-id
-        List<ExpressionLines.Run> runs = ExpressionLines.mutatorRuns(row.text());
-        int textHeight = ExpressionLines.lineHeight(runs);
-        graphics.fill(layout.textX(), layout.textY() - 1, layout.textX() + layout.textWidth(),
-                layout.textY() + textHeight, open ? OPEN_COLOR : TEXT_COLOR);
-        targets.add(layout.textX(), layout.textY() - 1, layout.textWidth(), textHeight + 1,
-                () -> toggleOpen(section, row.key()));
-        ExpressionLines.draw(font, runs, layout.textX(), layout.textY(), layout.textWidth(),
-                new ExpressionLines.Painter(graphics, null, targets, row.parsed() ? WHITE : RED, LINK,
-                        (name, linkX, linkY, linkWidth) -> { }));
-        int below = y + layout.height();
-        if (!open) {
-            return below;
-        }
-        controls.draw(graphics, font, section, row.key(), bounds.left(), below, targets);
-        return below + BuilderOverlays.LINE;
+        int sentenceTop = layout.textY() - 1;
+        int below = controls.draw(graphics, font, section, row.key(), new GroupsPane.Bounds(layout.textX(),
+                sentenceTop, layout.textX() + layout.textWidth(), bounds.bottom()), sentenceTop, targets);
+        graphics.fill(bounds.left(), y - 1, bounds.right(), below, ROW_COLOR);
+        return below + GAP;
     }
 
     // The row's first line: its key, its form, the parser's verdict and Delete.
@@ -156,19 +142,8 @@ final class ProcessesPane {
         targets.add(deleteX, y, font.width(DELETE), LINE_HEIGHT, () -> delete(section, row.key()));
     }
 
-    private void toggleOpen(String section, String key) {
-        overlays.close();
-        boolean wasOpen = section.equals(openSection) && key.equals(openKey);
-        openSection = wasOpen ? null : section;
-        openKey = wasOpen ? null : key;
-    }
-
     private void delete(String section, String key) {
-        if (key.equals(openKey)) {
-            overlays.close();
-            openSection = null;
-            openKey = null;
-        }
+        overlays.close();
         processes.delete(section, key);
         actions.draftChanged();
     }

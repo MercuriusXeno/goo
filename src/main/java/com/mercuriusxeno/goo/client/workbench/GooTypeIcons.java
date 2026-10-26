@@ -20,6 +20,8 @@ final class GooTypeIcons {
     private static final String TEXTURE_SUFFIX = ".png";
     // A hover key a prefab name never spells, since a name holds no colon.
     private static final String HOVER_PREFIX = "goo-type:";
+    private static final String PICK_PREFIX = "goo-type-pick:";
+    private static final String PICK_NOTE = " (click to pick another)";
     private static final int OPAQUE = 0xFFFFFFFF;
 
     private GooTypeIcons() {
@@ -82,11 +84,25 @@ final class GooTypeIcons {
      * @return the type's name where the area is a type icon's, empty otherwise
      */
     static Optional<Component> tooltipFor(String hoverKey) {
+        if (hoverKey.startsWith(PICK_PREFIX)) {
+            return Optional.of(nameOf(hoverKey.substring(PICK_PREFIX.length())).copy().append(PICK_NOTE));
+        }
         if (!hoverKey.startsWith(HOVER_PREFIX)) {
             return Optional.empty();
         }
-        String type = hoverKey.substring(HOVER_PREFIX.length());
-        return Optional.of(Component.translatable(GooTypeNames.translationKey(GooTypes.bundled(type))));
+        return Optional.of(nameOf(hoverKey.substring(HOVER_PREFIX.length())));
+    }
+
+    /**
+     * @param type a goo type's id
+     * @return the hover key whose tooltip names it and says a click picks another
+     */
+    static String pickHoverKey(String type) {
+        return PICK_PREFIX + type;
+    }
+
+    private static Component nameOf(String type) {
+        return Component.translatable(GooTypeNames.translationKey(GooTypes.bundled(type)));
     }
 
 }

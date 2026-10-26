@@ -319,6 +319,21 @@ final class ExpressionLines {
     }
 
     /**
+     * @param font the font
+     * @param runs a value's runs
+     * @return the width the runs take laid on one line
+     */
+    static int width(Font font, List<Run> runs) {
+        int width = 0;
+        for (Run run : runs) {
+            if (run.kind() != Kind.BREAK) {
+                width += (width == 0 ? 0 : RUN_GAP) + runWidth(font, run);
+            }
+        }
+        return width;
+    }
+
+    /**
      * @param font    the font
      * @param runs    a value's runs
      * @param x       the lines' left edge

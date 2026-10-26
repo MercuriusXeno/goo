@@ -204,8 +204,11 @@ final class VariablesPane {
         graphics.disableScissor();
         bar.measureAndDraw(graphics, targets, y, view.right(), view.top(), view.bottom());
         showBoxes(renameShown);
+        builder.drawOverlays(graphics, font, targets);
         drawDeleteDialog(graphics, font, view, targets);
-        drawHoverCard(graphics, font, view, targets, mouseX, mouseY);
+        if (!builder.listOpen()) {
+            drawHoverCard(graphics, font, view, targets, mouseX, mouseY);
+        }
     }
 
     // The builder over the block being edited, each change written to the draft and [done] evaluating it afresh
