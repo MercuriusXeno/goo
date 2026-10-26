@@ -44,7 +44,7 @@ final class VariablesPane {
     private static final int GRAY = 0xFFA0A0A0;
     private static final int RED = 0xFFFF5555;
     private static final int GREEN = 0xFF80E080;
-    private static final int LINK = 0xFF80C0FF;
+    private static final int LINK = ButtonPainter.LINK;
     private static final int TREE_COLOR = 0xFFE0C060;
     private static final int CARD_COLOR = 0xF0181818;
     private static final int DIM_COLOR = 0xA0000000;
@@ -52,9 +52,9 @@ final class VariablesPane {
     private static final String RESOLVED_SEPARATOR = ", ";
     private static final char HOVER_KEY_MARK = ':';
     private static final String TAG_PREFIX = "#";
-    private static final String RENAME = "[Rename]";
-    private static final String DELETE = "[Delete]";
-    private static final String CANCEL = "[Cancel]";
+    private static final String RENAME = "Rename";
+    private static final String DELETE = "Delete";
+    private static final String CANCEL = "Cancel";
     private static final String USED_BY = "Used by ";
     private static final String INDIRECTLY = "(indirectly) ";
     private static final String DIRECT_KEY = ":direct";
@@ -214,7 +214,7 @@ final class VariablesPane {
         }
     }
 
-    // The builder over the block being edited, each change written to the draft and [done] evaluating it afresh
+    // The builder over the block being edited, each change written to the draft and done evaluating it afresh
     // (decision expression-builder-composes-every-form-without-typing); answers the height it took.
     private int drawBuilder(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
                             GroupsPane.Bounds bounds, int y, ClickTargets targets) {
@@ -258,16 +258,14 @@ final class VariablesPane {
         }
         int kindX = x + Math.max(NAME_WIDTH, font.width(block.name())) + KIND_GAP;
         graphics.text(font, block.kind(), kindX, y, VariablesTab.TREE_KIND.equals(block.kind()) ? TREE_COLOR : GRAY);
-        int actionsWidth = font.width(RENAME) + ACTION_GAP + font.width(DELETE);
+        int actionsWidth = ButtonPainter.width(font, RENAME) + ACTION_GAP + ButtonPainter.width(font, DELETE);
         int resolvedX = kindX + font.width(block.kind()) + KIND_GAP;
         int resolvedWidth = bounds.right() - actionsWidth - ACTION_GAP - resolvedX;
         drawResolved(graphics, font, block, resolvedX, y, resolvedWidth, targets);
-        int renameX = bounds.right() - actionsWidth;
-        graphics.text(font, RENAME, renameX, y, LINK);
-        targets.add(renameX, y, font.width(RENAME), LINE_HEIGHT, () -> startRename(block.name()));
-        int deleteX = renameX + font.width(RENAME) + ACTION_GAP;
-        graphics.text(font, DELETE, deleteX, y, LINK);
-        targets.add(deleteX, y, font.width(DELETE), LINE_HEIGHT, () -> askDelete(block.name()));
+        ButtonPainter.Box renameBox = ButtonPainter.drawAtText(graphics, font, RENAME, bounds.right() - actionsWidth,
+                y, targets, () -> startRename(block.name()));
+        ButtonPainter.drawAtText(graphics, font, DELETE, renameBox.right() + ACTION_GAP, y, targets,
+                () -> askDelete(block.name()));
         return renamingThis;
     }
 
@@ -311,8 +309,8 @@ final class VariablesPane {
     }
 
     // Answers the height the used-by items took, none where the constant reaches no item. A line too narrow for
-    // them stops at an "... and N more" link, which expands the block's line onto as many rows as it needs; a null
-    // expandKey draws the link as plain text, as the hover card does.
+    // them stops at an "... and N more" button, which expands the block's line onto as many rows as it needs; a null
+    // expandKey draws the label as plain text, as the hover card does.
     private int drawUsedBy(GuiGraphicsExtractor graphics, Font font, String label, List<String> usedBy, int x, int y,
                            int width, @Nullable String expandKey, ClickTargets targets) {
         if (usedBy.isEmpty()) {
@@ -324,7 +322,8 @@ final class VariablesPane {
         int step = ICON_SIZE + ICON_GAP;
         boolean expanded = expandKey != null && expandedUsedBy.contains(expandKey);
         UsedByLine.Fit fit = expanded ? UsedByLine.expanded(usedBy.size())
-                : UsedByLine.fit(usedBy.size(), itemsWidth, step, hidden -> font.width(UsedByLine.moreLabel(hidden)));
+                : UsedByLine.fit(usedBy.size(), itemsWidth, step,
+                        hidden -> ButtonPainter.width(font, UsedByLine.moreLabel(hidden)));
         int perRow = Math.max(1, itemsWidth / step);
         for (int index = 0; index < fit.shown(); index++) {
             int row = expanded ? index / perRow : 0;
@@ -337,9 +336,11 @@ final class VariablesPane {
         if (fit.hidden() > 0) {
             String more = UsedByLine.moreLabel(fit.hidden());
             int moreX = itemsX + fit.shown() * step;
-            graphics.text(font, more, moreX, y + TEXT_NUDGE, expandKey == null ? GRAY : LINK);
-            if (expandKey != null) {
-                targets.add(moreX, y, font.width(more), ICON_SIZE, () -> expandedUsedBy.add(expandKey));
+            if (expandKey == null) {
+                graphics.text(font, more, moreX, y + TEXT_NUDGE, GRAY);
+            } else {
+                ButtonPainter.draw(graphics, font, more, moreX, y, ICON_SIZE, targets,
+                        () -> expandedUsedBy.add(expandKey));
             }
         }
         int rows = expanded ? (fit.shown() + perRow - 1) / perRow : 1;
@@ -451,7 +452,7 @@ final class VariablesPane {
 
     private static int readerWidth(Font font, VariablesTab.Reader reader) {
         if (CONSTANT_KIND.equals(reader.kind())) {
-            return font.width(reader.id());
+            return ButtonPainter.width(font, reader.id());
         }
         if (GROUP_KIND.equals(reader.kind())) {
             return font.width(reader.id().startsWith(TAG_PREFIX) ? reader.id() : TAG_PREFIX + reader.id());
@@ -463,25 +464,21 @@ final class VariablesPane {
                                    ClickTargets targets) {
         int x = dialog.left() + CARD_PADDING;
         int buttonY = dialog.bottom() - LINE_HEIGHT - CARD_PADDING;
-        graphics.text(font, DELETE, x, buttonY, RED);
-        targets.add(x, buttonY, font.width(DELETE), LINE_HEIGHT, () -> delete(name));
-        int cancelX = x + font.width(DELETE) + ACTION_GAP * HALF;
-        graphics.text(font, CANCEL, cancelX, buttonY, LINK);
-        targets.add(cancelX, buttonY, font.width(CANCEL), LINE_HEIGHT, () -> {
+        ButtonPainter.Box deleteBox = ButtonPainter.drawColored(graphics, font, DELETE, RED, x,
+                buttonY - ButtonPainter.PADDING, ButtonPainter.HEIGHT, targets, () -> delete(name), null);
+        ButtonPainter.drawAtText(graphics, font, CANCEL, deleteBox.right() + ACTION_GAP * HALF, buttonY, targets, () -> {
             deleting = null;
             show(visible);
         });
     }
 
-    // A constant reads as a $name link, a group or tag as its #name, and an item as its icon; answers the width the
+    // A constant reads as a $name button, a group or tag as its #name, and an item as its icon; answers the width the
     // reader took.
     private int drawReader(GuiGraphicsExtractor graphics, Font font, VariablesTab.Reader reader, int x, int y,
                            ClickTargets targets) {
         if (CONSTANT_KIND.equals(reader.kind())) {
-            String label = reader.id();
-            graphics.text(font, label, x, y + TEXT_NUDGE, LINK);
-            targets.add(x, y, font.width(label), ICON_SIZE, () -> actions.openVariable(reader.id()), reader.id());
-            return font.width(label);
+            return ButtonPainter.draw(graphics, font, reader.id(), x, y, ICON_SIZE, targets,
+                    () -> actions.openVariable(reader.id()), reader.id()).width();
         }
         if (GROUP_KIND.equals(reader.kind())) {
             String label = reader.id().startsWith(TAG_PREFIX) ? reader.id() : TAG_PREFIX + reader.id();

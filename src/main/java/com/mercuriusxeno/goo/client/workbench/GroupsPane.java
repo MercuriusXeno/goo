@@ -15,7 +15,7 @@ import java.util.Set;
 /**
  * Draws the Groups tab: each group's row, its #name and its members as item icons named on hover, the rest behind an
  * "and N more" link, with no header and no count (decision groups-list-members-as-icons-without-headers-or-count);
- * and the selected group's detail: [New group] names a group, [Add member] picks an item or #tag into it, the
+ * and the selected group's detail: New group names a group, Add member picks an item or #tag into it, the
  * group's value is built in the expression builder as what every member is worth, and a member's own line is built
  * too, its count times the group's value plus its extra (decision group-controls-name-add-and-build). The list and
  * the detail column each draw a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in
@@ -42,23 +42,23 @@ final class GroupsPane {
     private static final int WHITE = 0xFFFFFFFF;
     private static final int GRAY = 0xFFA0A0A0;
     private static final int RED = 0xFFFF5555;
-    private static final int LINK = 0xFF80C0FF;
+    private static final int LINK = ButtonPainter.LINK;
+    private static final int BUTTON_PADDING = ButtonPainter.PADDING + ButtonPainter.PADDING;
     private static final int SELECTED_COLOR = 0x60FFFFFF;
     private static final int READ_VIEW_COLOR = 0x30FFFFFF;
-    private static final String NEW_GROUP = "[New group]";
+    private static final String NEW_GROUP = "New group";
     private static final String NEW_GROUP_HINT = "group name, Enter";
-    private static final String ADD_MEMBER = "[Add member]";
+    private static final String ADD_MEMBER = "Add member";
     private static final String NO_GROUP = "Pick a group, or name a new one.";
     private static final String NO_GROUPS = "The file names no groups.";
     private static final String WORTH_LABEL = "What every member is worth:";
     private static final String NO_WORTH = "nothing yet";
     private static final String LINE_LABEL = "This member's line: count times the group's value, plus its extra";
-    private static final String COUNT_START = "[count ";
-    private static final String COUNT_END = "]";
+    private static final String COUNT_START = "count ";
     private static final String EXTRA_LABEL = "extra:";
     private static final String NO_EXTRA = "none";
     private static final String NEEDS_WORTH = "Build the group's value first; a member's line adds to it.";
-    private static final String REMOVE = "[Remove from group]";
+    private static final String REMOVE = "Remove from group";
     private static final String BASE_TARGET = "base:";
     private static final String EXTRA_TARGET = "extra:";
     private static final String NO_TEXT = "";
@@ -193,7 +193,7 @@ final class GroupsPane {
         listBar.measureAndDraw(graphics, targets, y, left + LIST_WIDTH, top, bounds.bottom());
     }
 
-    // Answers the list's top below the [New group] control or its name box.
+    // Answers the list's top below the New group button or its name box.
     private int drawNewGroup(GuiGraphicsExtractor graphics, Font font, int left, int top, ClickTargets targets) {
         if (naming && nameBox != null) {
             nameBox.setPosition(left, top + HALF);
@@ -215,7 +215,7 @@ final class GroupsPane {
         int perRow = Math.max(1, (right - itemsX) / step);
         boolean expanded = expandedRows.contains(row.name());
         UsedByLine.Fit fit = expanded ? UsedByLine.expanded(members.size())
-                : UsedByLine.fit(members.size(), right - itemsX, step, hidden -> font.width(UsedByLine.moreLabel(hidden)));
+                : UsedByLine.fit(members.size(), right - itemsX, step, hidden -> font.width(UsedByLine.moreLabel(hidden)) + BUTTON_PADDING);
         int lines = expanded ? Math.max(1, (fit.shown() + perRow - 1) / perRow) : 1;
         int height = lines * ROW_HEIGHT;
         if (selected) {
@@ -230,13 +230,12 @@ final class GroupsPane {
         return height;
     }
 
-    // The "and N more" link a collapsed row stops at, which expands the row onto as many lines as it needs.
+    // The "and N more" button a collapsed row stops at, which expands the row onto as many lines as it needs.
     private void drawMore(GuiGraphicsExtractor graphics, Font font, String name, UsedByLine.Fit fit, int x, int y,
                           ClickTargets targets) {
         if (fit.hidden() > 0) {
             String more = UsedByLine.moreLabel(fit.hidden());
-            graphics.text(font, more, x, y + TEXT_NUDGE, LINK);
-            targets.add(x, y, font.width(more), ROW_HEIGHT, () -> expandedRows.add(name));
+            ButtonPainter.draw(graphics, font, more, x, y, ROW_HEIGHT, targets, () -> expandedRows.add(name));
         }
     }
 
@@ -368,7 +367,7 @@ final class GroupsPane {
         GroupsTab.MemberLine line = groups.memberLine(id);
         graphics.text(font, LINE_LABEL, x, top, GRAY);
         int y = top + LINE_HEIGHT;
-        int afterCount = BuilderOverlays.control(graphics, font, COUNT_START + line.count() + COUNT_END, x, y, targets,
+        int afterCount = BuilderOverlays.control(graphics, font, COUNT_START + line.count(), x, y, targets,
                 at -> overlays.openNumber(at, String.valueOf(line.count()), typed -> countOf(typed).ifPresent(
                         count -> apply(groups.tweakRequest(id, count, line.trait(), line.extra())))));
         BuilderOverlays.control(graphics, font, REMOVE, afterCount, y, targets, at -> removeMember(id));

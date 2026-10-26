@@ -41,7 +41,7 @@ final class MutatorControls {
     private static final String DIVIDED_BY = "divided by";
     private static final String BECOMES = "becomes";
     private static final String TIMES = "times";
-    private static final String NOTHING = "[nothing]";
+    private static final String NOTHING = "nothing";
     private static final String TARGET_HINT = "Click to pick the goo type it becomes";
     private static final String DIVISOR_HINT = "Click to change how much of the source is taken";
     private static final String OPERATOR_HINT = "Click to switch between multiplying and dividing the result";
@@ -53,20 +53,20 @@ final class MutatorControls {
     private static final String COUNT_HINT = "Click to change how many times it applies";
     private static final String TAKES = "takes the values of";
     private static final String GROUP_HINT = "Click to pick another source group";
-    private static final String OWN_VALUES = "[its own values]";
+    private static final String OWN_VALUES = "its own values";
     private static final String OWN_HINT = "Click to take the values from a group instead";
-    private static final String DROP_SOURCE = "[use its own values]";
+    private static final String DROP_SOURCE = "use its own values";
     private static final String DROP_SOURCE_HINT = "Apply the chain to the target's own values, no source group";
     private static final String OVER = "over";
     private static final String MULTIPLIER_HINT = "Click to change what the values are multiplied by";
     private static final String SCALE_DIVISOR_HINT = "Click to change what the values are divided by";
     private static final String THEN = "then applies";
-    private static final String REMOVE_LINK = "[x]";
+    private static final String REMOVE_LINK = "x";
     private static final String REMOVE_LINK_HINT = "Remove this mutator from the chain";
-    private static final String ADD_LINK = "[+ mutator]";
+    private static final String ADD_LINK = "+ mutator";
     private static final String ADD_LINK_HINT = "Apply another mutator after these";
     private static final String UNREAD = "No form reads this line:";
-    private static final String START_OVER = "[start over]";
+    private static final String START_OVER = "start over";
     private static final String START_OVER_HINT = "Replace this line with an assignment from the first group";
 
     private final ProcessesTab processes;

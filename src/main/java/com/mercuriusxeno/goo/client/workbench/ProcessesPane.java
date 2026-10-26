@@ -28,11 +28,10 @@ final class ProcessesPane {
     private static final int GRAY = 0xFFA0A0A0;
     private static final int RED = 0xFFFF5555;
     private static final int GREEN = 0xFF80E080;
-    private static final int LINK = 0xFF80C0FF;
     private static final int TREE_COLOR = 0xFFE0C060;
     private static final int ROW_COLOR = 0x20FFFFFF;
     private static final String ASSIGNMENT = "assignment";
-    private static final String DELETE = "[Delete]";
+    private static final String DELETE = "Delete";
     private static final String SUMMARY_GAP = "  ";
 
     private final ProcessesTab processes;
@@ -137,12 +136,11 @@ final class ProcessesPane {
         int x = bounds.left();
         graphics.text(font, font.plainSubstrByWidth(row.key(), KEY_WIDTH - GAP), x, y, WHITE);
         graphics.text(font, row.kind(), x + KEY_WIDTH, y, ASSIGNMENT.equals(row.kind()) ? TREE_COLOR : GRAY);
-        int deleteX = bounds.right() - font.width(DELETE);
+        int deleteX = bounds.right() - ButtonPainter.width(font, DELETE);
         int verdictX = Math.max(x + KEY_WIDTH + KIND_WIDTH, deleteX - GAP - VERDICT_WIDTH);
         graphics.text(font, font.plainSubstrByWidth(row.verdict(), deleteX - GAP - verdictX), verdictX, y,
                 row.parsed() ? GREEN : RED);
-        graphics.text(font, DELETE, deleteX, y, LINK);
-        targets.add(deleteX, y, font.width(DELETE), LINE_HEIGHT, () -> delete(section, row.key()));
+        ButtonPainter.drawAtText(graphics, font, DELETE, deleteX, y, targets, () -> delete(section, row.key()));
     }
 
     private void delete(String section, String key) {

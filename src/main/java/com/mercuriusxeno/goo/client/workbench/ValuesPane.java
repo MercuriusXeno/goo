@@ -41,7 +41,7 @@ final class ValuesPane {
     private static final String EXPRESSION_LABEL = "Value";
     private static final String NO_EXPRESSION = "(no entry)";
     private static final int READ_VIEW_COLOR = 0x30FFFFFF;
-    private static final int LINK = 0xFF80C0FF;
+    private static final int LINK = ButtonPainter.LINK;
     private static final String NO_SELECTION = "Select an item or tag to read and edit its entry.";
     private static final String NO_ENTRIES = "Nothing listed here.";
     private static final String DENIED_LINE = "denied";
