@@ -183,6 +183,56 @@ class ValuesTabTest {
             assertTrue(notRed.stream().noneMatch(source -> ValuesPane.colorOf(source.kind()) == ValuesPane.RED));
         }
 
+        private static final String POST_CONVERTED_MODEL = """
+                {"path": "base_values.json", "members": [
+                  {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "concrete_powder", "keySeparator": null, "kind": "VALUE",
+                      "text": "[\\"brown_concrete_powder\\"]", "entries": [], "leading": null, "trailing": null,
+                      "closingGap": null},
+                     {"key": "concrete", "keySeparator": null, "kind": "VALUE", "text": "[\\"brown_concrete\\"]",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null},
+                  {"key": "#concrete_powder", "keySeparator": null, "kind": "VALUE", "text": "\\"$base\\"",
+                   "entries": [], "leading": null, "trailing": null, "closingGap": null},
+                  {"key": "_post_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "#concrete", "keySeparator": null, "kind": "VALUE", "text": "\\"#concrete_powder\\"",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}
+                ]}
+                """;
+
+        /**
+         * Brown concrete, which the 26.1 file values through the #concrete group's post-conversion and no recipe
+         * input, reads the group that values it rather than a bare "derived from" (decision
+         * diagnose-and-correct-group-derived-reading-derived-from).
+         */
+        @Test
+        void postConvertedGroupMemberReadsTheGroupThatValuesIt() {
+            tab.readModel(POST_CONVERTED_MODEL);
+            tab.readResolved("""
+                    {"entries": [{"key": "brown_concrete", "value": {"rock": "192"}, "denied": false,
+                                  "restricted": false, "error": null}]}
+                    """);
+            tab.readDerivedFrom("{\"items\": {}}");
+            assertEquals(new ValuesTab.Source("group #concrete", ValuesTab.SourceKind.GROUP),
+                    tab.sourceOf("minecraft:brown_concrete"));
+        }
+
+        /**
+         * An item valued with no entry, no group and no recipe inputs to name reads "valued indirectly", so no row
+         * reads a bare "derived from" (decision diagnose-and-correct-group-derived-reading-derived-from).
+         */
+        @Test
+        void valuedItemWithNoInputsNeverReadsABareDerivedFrom() {
+            tab.readResolved("""
+                    {"entries": [{"key": "torch", "value": {"glow": "4"}, "denied": false,
+                                  "restricted": false, "error": null}]}
+                    """);
+            tab.readDerivedFrom("{\"items\": {}}");
+            assertEquals(new ValuesTab.Source("valued indirectly", ValuesTab.SourceKind.DERIVED),
+                    tab.sourceOf("minecraft:torch"));
+        }
+
         /**
          * The Uncovered filter lists the items the uncovered reply names, its chip counts them, and the Tags filter
          * lists the tags alone.
