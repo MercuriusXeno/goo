@@ -424,10 +424,12 @@ public final class ValuesManagerScreen extends Screen {
                         mouseX, mouseY, ItemStack.EMPTY));
     }
 
-    // A goo type or a control names itself on one line; an item or a prefab names itself, then its value.
+    // A goo type, a control or a truncated group name names itself on one line; an item or a prefab names itself,
+    // then its value.
     private Optional<List<TooltipLine>> tooltipLines(String hoverKey) {
-        Optional<Component> line = GooTypeIcons.tooltipFor(hoverKey).or(() -> BuilderOverlays.tooltipFor(hoverKey));
-        return line.isPresent() ? Optional.of(List.of(new TooltipLine.Text(line.get())))
+        Optional<TooltipLine> line = GooTypeIcons.tooltipFor(hoverKey).or(() -> BuilderOverlays.tooltipFor(hoverKey))
+                .<TooltipLine>map(TooltipLine.Text::new).or(() -> GroupsPane.nameTooltipFor(hoverKey));
+        return line.isPresent() ? Optional.of(List.of(line.get()))
                 : icons.tooltipFor(hoverKey).or(() -> PrefabHovers.tooltipFor(variablesTab, hoverKey));
     }
 
