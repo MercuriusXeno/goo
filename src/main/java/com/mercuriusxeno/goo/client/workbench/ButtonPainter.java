@@ -16,8 +16,10 @@ final class ButtonPainter {
     static final int HEIGHT = 14;
     /** The room between the border and the label on either side. */
     static final int PADDING = 3;
-    private static final int BORDER = 0xFF5070A0;
-    private static final int FILL = 0xFF182030;
+    /** A button's border color. */
+    static final int BORDER = 0xFF5070A0;
+    /** A button's inner fill. */
+    static final int FILL = 0xFF182030;
     private static final int TEXT_NUDGE = 3;
 
     private ButtonPainter() {
@@ -101,12 +103,22 @@ final class ButtonPainter {
     static Box drawColored(GuiGraphicsExtractor graphics, Font font, String label, int color, int x, int lineTop,
                            int lineHeight, ClickTargets targets, Runnable pressed, @Nullable String hoverKey) {
         Box box = layout(font.width(label), x, lineTop, lineHeight);
-        int bottom = box.top() + box.height();
-        graphics.fill(box.left(), box.top(), box.right(), bottom, BORDER);
-        graphics.fill(box.left() + 1, box.top() + 1, box.right() - 1, bottom - 1, FILL);
+        drawFrame(graphics, box);
         graphics.text(font, label, box.left() + PADDING, box.top() + TEXT_NUDGE, color);
         reserve(targets, box, pressed, hoverKey);
         return box;
+    }
+
+    /**
+     * Draws a button's border and inner fill, for content a caller draws inside it, as the builder's clickable runs.
+     *
+     * @param graphics the frame's graphics
+     * @param box      the button's box
+     */
+    static void drawFrame(GuiGraphicsExtractor graphics, Box box) {
+        int bottom = box.top() + box.height();
+        graphics.fill(box.left(), box.top(), box.right(), bottom, BORDER);
+        graphics.fill(box.left() + 1, box.top() + 1, box.right() - 1, bottom - 1, FILL);
     }
 
     /**
