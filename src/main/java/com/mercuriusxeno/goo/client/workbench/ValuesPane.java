@@ -22,9 +22,12 @@ final class ValuesPane {
     private static final int PANE_GAP = 12;
     private static final int LINE_HEIGHT = 10;
     private static final int BOX_HEIGHT = 14;
-    private static final int ROW_HEIGHT = 20;
+    /** An Items row's height, its sprite's and margin. */
+    static final int ROW_HEIGHT = 18;
     private static final int ICON_SIZE = 16;
     private static final int ICON_GAP = 4;
+    // An 18px row's second text line, clear of the separator under it.
+    private static final int SECOND_LINE = 9;
     /** The room between the filter set and the search box below it. */
     static final int CHIP_LINE_GAP = 3;
     private static final int CHIP_TEXT_NUDGE = 3;
@@ -240,17 +243,18 @@ final class ValuesPane {
         int y = list.top();
         for (int index = firstShown; index < Math.min(listed.size(), firstShown + shown); index++) {
             ValuesTab.ManagerEntry entry = listed.get(index);
+            RowLayout.drawSeparatorAbove(graphics, index - firstShown, y, list.left(), rowRight);
             if (selectedId.filter(entry.id()::equals).isPresent()) {
                 graphics.fill(list.left(), y, rowRight, y + ROW_HEIGHT, SELECTED_ROW_COLOR);
             }
-            graphics.item(icons.of(entry.id()), list.left(), y + HALF);
+            graphics.item(icons.of(entry.id()), list.left(), y + 1);
             String first = entry.tag() ? entry.id() : entry.name();
             graphics.text(font, font.plainSubstrByWidth(first, textWidth), textX, y + 1, WHITE);
             if (entry.tag()) {
-                graphics.text(font, font.plainSubstrByWidth(entry.name(), textWidth), textX, y + LINE_HEIGHT, GRAY);
+                graphics.text(font, font.plainSubstrByWidth(entry.name(), textWidth), textX, y + SECOND_LINE, GRAY);
             } else {
                 ValuesTab.Source source = values.sourceOf(entry.id());
-                graphics.text(font, font.plainSubstrByWidth(source.label(), textWidth), textX, y + LINE_HEIGHT,
+                graphics.text(font, font.plainSubstrByWidth(source.label(), textWidth), textX, y + SECOND_LINE,
                         colorOf(source.kind()));
             }
             targets.add(list.left(), y, rowRight - list.left(), ROW_HEIGHT, () -> {

@@ -23,12 +23,14 @@ final class GroupsPane {
     private static final int LIST_WIDTH = 220;
     private static final int NAME_WIDTH = 80;
     private static final int GAP = 12;
-    private static final int ROW_HEIGHT = 18;
+    /** A group row's height, its sprites' and margin. */
+    static final int ROW_HEIGHT = 18;
     private static final int LINE_HEIGHT = 10;
     private static final int BOX_HEIGHT = 14;
     private static final int NAME_BOX_WIDTH = 140;
     private static final int CARD_WIDTH = 130;
-    private static final int CARD_HEIGHT = 20;
+    /** A member card's height, its sprite's and margin. */
+    static final int CARD_HEIGHT = 18;
     private static final int ICON_SIZE = 16;
     private static final int ICON_GAP = 2;
     private static final int TEXT_NUDGE = 5;
@@ -181,9 +183,11 @@ final class GroupsPane {
         targets.clip(left, top, rowRight, bounds.bottom());
         String selected = groups.selected().map(GroupsTab.Group::name).orElse(NO_TEXT);
         int y = top - listBar.offset();
-        for (GroupsTab.GroupRow row : groups.groupRows()) {
-            int height = drawGroupRow(graphics, font, row, left, rowRight, y, row.name().equals(selected), targets);
-            y += height;
+        List<GroupsTab.GroupRow> rows = groups.groupRows();
+        for (int index = 0; index < rows.size(); index++) {
+            GroupsTab.GroupRow row = rows.get(index);
+            RowLayout.drawSeparatorAbove(graphics, index, y, left, rowRight);
+            y += drawGroupRow(graphics, font, row, left, rowRight, y, row.name().equals(selected), targets);
         }
         targets.unclip();
         graphics.disableScissor();
@@ -217,18 +221,26 @@ final class GroupsPane {
         UsedByLine.Slot end = UsedByLine.endSlot(fit, expanded, perRow, step, right - itemsX,
                 ButtonPainter.width(font, UsedByLine.HIDE));
         int height = (end.row() + 1) * ROW_HEIGHT;
-        if (selected) {
-            graphics.fill(left, y, right, y + height, SELECTED_COLOR);
-        }
-        targets.add(left, y, right - left, height, () -> pickGroup(row.name()));
-        graphics.text(font, font.plainSubstrByWidth(runs.getFirst().text(), NAME_WIDTH - HALF), left, y + TEXT_NUDGE,
-                row.unknownCount() == 0 ? WHITE : RED);
+        drawRowName(graphics, font, row, runs.getFirst().text(), new Bounds(left, y, right, y + height), selected,
+                targets);
         drawMemberIcons(graphics, members.subList(0, fit.shown()), itemsX, y, expanded ? perRow : fit.shown(),
                 targets);
         UsedByLine.endLabel(fit, expanded).ifPresent(label -> ButtonPainter.draw(graphics, font, label,
                 itemsX + end.x(), y + end.row() * ROW_HEIGHT, ROW_HEIGHT, targets,
                 () -> toggle(row.name(), expanded)));
         return height;
+    }
+
+    // The row's #name, red where it names an unknown member, and the click that selects the group.
+    private void drawRowName(GuiGraphicsExtractor graphics, Font font, GroupsTab.GroupRow row, String name,
+                             Bounds area, boolean selected, ClickTargets targets) {
+        if (selected) {
+            graphics.fill(area.left(), area.top(), area.right(), area.bottom(), SELECTED_COLOR);
+        }
+        targets.add(area.left(), area.top(), area.right() - area.left(), area.bottom() - area.top(),
+                () -> pickGroup(row.name()));
+        graphics.text(font, font.plainSubstrByWidth(name, NAME_WIDTH - HALF), area.left(), area.top() + TEXT_NUDGE,
+                row.unknownCount() == 0 ? WHITE : RED);
     }
 
     // Decision expanded-used-by-lists-take-a-hide-button: "and N more" expands the row, Hide collapses it again.
@@ -324,27 +336,32 @@ final class GroupsPane {
         List<GroupsTab.MemberRow> members = groups.memberRows(values.entries());
         int columns = Math.max(1, (detail.right() - detail.left()) / CARD_WIDTH);
         String selected = groups.selectedMember().orElse(NO_TEXT);
-        int textWidth = CARD_WIDTH - ICON_SIZE - ICON_GAP - HALF;
         for (int index = 0; index < members.size(); index++) {
             int cardX = detail.left() + index % columns * CARD_WIDTH;
             int cardY = top + index / columns * CARD_HEIGHT;
             if (cardY < detail.top() || cardY + CARD_HEIGHT > detail.bottom()) {
                 continue;
             }
-            GroupsTab.MemberRow member = members.get(index);
-            if (member.id().equals(selected)) {
-                graphics.fill(cardX, cardY, cardX + CARD_WIDTH - HALF, cardY + CARD_HEIGHT, SELECTED_COLOR);
-            }
-            graphics.item(icons.of(member.id()), cardX, cardY + HALF);
-            int textX = cardX + ICON_SIZE + ICON_GAP;
-            graphics.text(font, font.plainSubstrByWidth(member.name(), textWidth), textX, cardY + 1,
-                    member.known() ? WHITE : RED);
-            graphics.text(font, font.plainSubstrByWidth(member.note(), textWidth), textX, cardY + LINE_HEIGHT,
-                    GRAY);
-            targets.add(cardX, cardY, CARD_WIDTH, CARD_HEIGHT, () -> pickMember(member.id()));
+            RowLayout.drawSeparatorAbove(graphics, index / columns, cardY, cardX, cardX + CARD_WIDTH - HALF);
+            drawCard(graphics, font, members.get(index), cardX, cardY, selected, targets);
         }
         int rows = (members.size() + columns - 1) / columns;
         return top + rows * CARD_HEIGHT;
+    }
+
+    // A card's sprite and two text lines fit its 18px row, clear of the separator under it.
+    private void drawCard(GuiGraphicsExtractor graphics, Font font, GroupsTab.MemberRow member, int cardX, int cardY,
+                          String selected, ClickTargets targets) {
+        if (member.id().equals(selected)) {
+            graphics.fill(cardX, cardY, cardX + CARD_WIDTH - HALF, cardY + CARD_HEIGHT, SELECTED_COLOR);
+        }
+        graphics.item(icons.of(member.id()), cardX, cardY + 1);
+        int textX = cardX + ICON_SIZE + ICON_GAP;
+        int textWidth = CARD_WIDTH - ICON_SIZE - ICON_GAP - HALF;
+        graphics.text(font, font.plainSubstrByWidth(member.name(), textWidth), textX, cardY, member.known() ? WHITE
+                : RED);
+        graphics.text(font, font.plainSubstrByWidth(member.note(), textWidth), textX, cardY + LINE_HEIGHT - 1, GRAY);
+        targets.add(cardX, cardY, CARD_WIDTH, CARD_HEIGHT, () -> pickMember(member.id()));
     }
 
     private void pickMember(String id) {

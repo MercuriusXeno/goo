@@ -107,8 +107,10 @@ final class ProcessesPane {
         for (ProcessesTab.ProcessSection section : processes.sections()) {
             graphics.text(font, section.section() + SUMMARY_GAP + section.summary(), bounds.left(), y, WHITE);
             y += LINE_HEIGHT + GAP;
-            for (ProcessesTab.ProcessRow row : section.rows()) {
-                y = drawRow(graphics, font, section.section(), row, rows, y, targets);
+            List<ProcessesTab.ProcessRow> sectionRows = section.rows();
+            for (int index = 0; index < sectionRows.size(); index++) {
+                RowLayout.drawSeparatorAbove(graphics, index, y - 1, rows.left(), rows.right());
+                y = drawRow(graphics, font, section.section(), sectionRows.get(index), rows, y, targets);
             }
             y += SECTION_GAP;
         }

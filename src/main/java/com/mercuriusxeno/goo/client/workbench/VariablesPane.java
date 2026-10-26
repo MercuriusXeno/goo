@@ -179,6 +179,20 @@ final class VariablesPane {
         return key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER;
     }
 
+    // A block's head, its read view or builder, and its used-by lines; answers the height it took with its gap.
+    private int drawBlock(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
+                          GroupsPane.Bounds bounds, int top, ClickTargets targets) {
+        blockTops.put(block.name(), top + bar.offset() - bounds.top());
+        drawHead(graphics, font, block, bounds, top, targets);
+        int y = top + ExpressionLines.ICON_LINE_HEIGHT;
+        boolean editingThis = variables.editing().filter(block.name()::equals).isPresent();
+        y += editingThis ? drawBuilder(graphics, font, block, bounds, y, targets)
+                : drawReadView(graphics, font, block, bounds, y, targets);
+        y += drawUsedByLines(graphics, font, block.direct(), block.indirect(), bounds.left(), y + HALF,
+                bounds.right() - bounds.left(), block.name(), targets) + BLOCK_GAP;
+        return y - top;
+    }
+
     void extract(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds view, ClickTargets targets,
                  int mouseX, int mouseY) {
         List<VariablesTab.ConstantBlock> blocks = variables.blocks();
@@ -191,22 +205,15 @@ final class VariablesPane {
                 view.right() - ScrollBar.WIDTH - ScrollBar.GAP, view.bottom());
         graphics.enableScissor(bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
         targets.clip(bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
-        boolean renameShown = false;
         int y = bounds.top() - bar.offset();
-        for (VariablesTab.ConstantBlock block : blocks) {
-            blockTops.put(block.name(), y + bar.offset() - bounds.top());
-            renameShown |= drawHead(graphics, font, block, bounds, y, targets);
-            y += ExpressionLines.ICON_LINE_HEIGHT;
-            boolean editingThis = variables.editing().filter(block.name()::equals).isPresent();
-            y += editingThis ? drawBuilder(graphics, font, block, bounds, y, targets)
-                    : drawReadView(graphics, font, block, bounds, y, targets);
-            y += drawUsedByLines(graphics, font, block.direct(), block.indirect(), bounds.left(), y + HALF,
-                    bounds.right() - bounds.left(), block.name(), targets) + BLOCK_GAP;
+        for (int index = 0; index < blocks.size(); index++) {
+            RowLayout.drawSeparatorAbove(graphics, index, y - HALF, bounds.left(), bounds.right());
+            y += drawBlock(graphics, font, blocks.get(index), bounds, y, targets);
         }
         targets.unclip();
         graphics.disableScissor();
         bar.measureAndDraw(graphics, targets, y, view.right(), view.top(), view.bottom());
-        showBoxes(renameShown);
+        showBoxes(rename != null && blocks.stream().anyMatch(block -> block.name().equals(renaming)));
         builder.drawOverlays(graphics, font, targets);
         drawDeleteDialog(graphics, font, view, targets);
         if (!builder.listOpen()) {
@@ -246,8 +253,8 @@ final class VariablesPane {
         }
     }
 
-    // Answers whether the rename box stands on this block.
-    private boolean drawHead(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
+    // The rename box stands in place of the name while the block is renamed.
+    private void drawHead(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
                              GroupsPane.Bounds bounds, int y, ClickTargets targets) {
         int x = bounds.left();
         boolean renamingThis = block.name().equals(renaming) && rename != null;
@@ -266,7 +273,6 @@ final class VariablesPane {
                 y, targets, () -> startRename(block.name()));
         ButtonPainter.drawAtText(graphics, font, DELETE, renameBox.right() + ACTION_GAP, y, targets,
                 () -> askDelete(block.name()));
-        return renamingThis;
     }
 
     // A resolved tree draws each type as its icon beside its amount (decision goo-types-draw-as-icons-named-on-hover).
