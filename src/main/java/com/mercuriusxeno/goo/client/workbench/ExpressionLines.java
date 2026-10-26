@@ -458,6 +458,9 @@ final class ExpressionLines {
             case ITEM -> drawItem(font, run, piece, x, top, painter);
             case LINK -> {
                 graphics.text(font, piece, x, textTop, painter.linkColor());
+                // Decision every-prefab-reference-hovers-its-value; a link sink's own area, laid after, stands over it.
+                painter.targets().addHover(x, textTop, font.width(piece), TEXT_LINE_HEIGHT,
+                        PrefabHovers.hoverKey(String.valueOf(run.ref())));
                 painter.links().landed(String.valueOf(run.ref()), x, textTop, font.width(piece));
             }
             case ERROR -> graphics.text(font, piece, x, textTop, RED);

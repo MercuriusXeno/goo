@@ -390,10 +390,11 @@ public final class ValuesManagerScreen extends Screen {
                 .ifPresent(lines -> graphics.setComponentTooltipForNextFrame(font, lines, mouseX, mouseY));
     }
 
-    // A goo type or a control names itself on one line; an item names itself, then its value a line per type.
+    // A goo type or a control names itself on one line; an item or a prefab names itself, then its value.
     private Optional<List<Component>> tooltipLines(String hoverKey) {
         Optional<Component> line = GooTypeIcons.tooltipFor(hoverKey).or(() -> BuilderOverlays.tooltipFor(hoverKey));
-        return line.isPresent() ? Optional.of(List.of(line.get())) : icons.tooltipFor(hoverKey);
+        return line.isPresent() ? Optional.of(List.of(line.get()))
+                : icons.tooltipFor(hoverKey).or(() -> PrefabHovers.tooltipFor(variablesTab, hoverKey));
     }
 
     private void showChecksBadge() {
