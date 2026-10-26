@@ -35,9 +35,15 @@ final class ExpressionBuilder {
             + " join them: remove the terms first.";
     private static final String TYPE_TAKEN = "This entry already holds a row for that goo type.";
     private static final String NOT_A_NUMBER = "A number box holds digits alone.";
+    private static final String LAST_TERM = "A value keeps at least one term: change this one instead.";
+    private static final String LAST_ROW = "A per-type value keeps at least one goo type: change this one instead.";
+    private static final String SCALED_NEST = "Set the factor on the parentheses to 1 before removing them.";
 
     private final List<Piece> whole = new ArrayList<>();
     private final List<Row> rows = new ArrayList<>();
+    private List<Piece> keptWhole = List.of();
+    private List<Row> keptRows = List.of();
+    private boolean perTypeChosen;
     private boolean denied;
     private @Nullable String unread;
     private @Nullable String refusal;
@@ -109,6 +115,141 @@ final class ExpressionBuilder {
     }
 
     /**
+     * @return the string to write to the draft, empty while the builder holds no term or row, since the resolver
+     *         throws on an empty expression
+     */
+    Optional<String> written() {
+        String text = text();
+        return text.isBlank() ? Optional.empty() : Optional.of(text);
+    }
+
+    /**
+     * @return whether the value is denied, holding no goo
+     */
+    boolean isDenied() {
+        return denied;
+    }
+
+    /**
+     * @return whether the value is per goo type, a row per type, rather than one scalar expression
+     */
+    boolean isPerType() {
+        return !rows.isEmpty() || whole.isEmpty() && perTypeChosen;
+    }
+
+    /**
+     * Makes the value per goo type, keeping its scalar terms to restore should it switch back.
+     */
+    void switchToPerType() {
+        if (isPerType()) {
+            return;
+        }
+        changed();
+        keptWhole = List.copyOf(whole);
+        whole.clear();
+        rows.addAll(keptRows);
+        perTypeChosen = true;
+    }
+
+    /**
+     * Makes the value one scalar expression, keeping its rows to restore should it switch back; with no terms kept
+     * it starts as the number 1.
+     */
+    void switchToWhole() {
+        if (!isPerType() && !whole.isEmpty()) {
+            return;
+        }
+        changed();
+        keptRows = List.copyOf(rows);
+        rows.clear();
+        perTypeChosen = false;
+        whole.addAll(keptWhole.isEmpty()
+                ? List.of(new Piece(ExpressionTerms.Join.FIRST, new Num(ONE), Op.MULTIPLY, ONE)) : keptWhole);
+    }
+
+    /**
+     * Adds a term holding the number 1, joined by plus after the first.
+     *
+     * @return whether the term was added; per-type rows refuse it
+     */
+    boolean addNumber() {
+        if (!rows.isEmpty()) {
+            return refuse(ROWS_REFUSE_TERMS);
+        }
+        changed();
+        whole.add(new Piece(whole.isEmpty() ? ExpressionTerms.Join.FIRST : ExpressionTerms.Join.PLUS, new Num(ONE),
+                Op.MULTIPLY, ONE));
+        return true;
+    }
+
+    /**
+     * @param piece  the term's index
+     * @param digits the number the term holds in place of its operand
+     */
+    void setNumber(int piece, String digits) {
+        if (isNumber(digits)) {
+            changed();
+            whole.set(piece, whole.get(piece).withOperand(new Num(digits.trim())));
+        }
+    }
+
+    /**
+     * @param piece  the term's index
+     * @param choice the item or prefab the term relates to in place of its operand, its whole value
+     */
+    void setRef(int piece, SearchDropdown.Choice choice) {
+        changed();
+        whole.set(piece, whole.get(piece).withOperand(new Ref(choice.kind(), choice.id(), null)));
+    }
+
+    /**
+     * @param row  the row's index
+     * @param type the goo type the row holds in place of its own
+     */
+    void setRowType(int row, String type) {
+        if (rows.stream().anyMatch(other -> other.type().equals(type))) {
+            refuse(TYPE_TAKEN);
+            return;
+        }
+        changed();
+        rows.set(row, new Row(type, rows.get(row).pieces()));
+    }
+
+    /**
+     * Puts a term and the one after it inside parentheses, as one term.
+     *
+     * @param piece the first term's index, before the last
+     */
+    void wrapWithNext(int piece) {
+        if (piece + 1 < whole.size()) {
+            wrap(piece, piece + 1);
+        }
+    }
+
+    /**
+     * Lifts a parenthesized term's terms out of their parentheses; a factor on the parentheses refuses it, since
+     * the factor would then scale the first term alone.
+     *
+     * @param piece the parenthesized term's index
+     */
+    void unwrap(int piece) {
+        Piece wrapped = whole.get(piece);
+        if (!(wrapped.operand() instanceof Nest nest)) {
+            return;
+        }
+        if (!ONE.equals(wrapped.factor())) {
+            refuse(SCALED_NEST);
+            return;
+        }
+        changed();
+        List<Piece> inner = new ArrayList<>(nest.pieces());
+        Piece first = inner.getFirst();
+        inner.set(0, new Piece(wrapped.join(), first.operand(), first.op(), first.factor()));
+        whole.remove(piece);
+        whole.addAll(piece, inner);
+    }
+
+    /**
      * @param shown a value as the draft's edit box shows it
      * @return the builder over it; a value the terms cannot read is kept as its text until a control replaces it
      */
@@ -162,10 +303,10 @@ final class ExpressionBuilder {
             return DENIED;
         }
         if (!rows.isEmpty()) {
-            return rows.stream().map(row -> QUOTE + row.type() + KEY_END + written(row.pieces()) + QUOTE)
+            return rows.stream().map(row -> QUOTE + row.type() + KEY_END + writtenOf(row.pieces()) + QUOTE)
                     .collect(Collectors.joining(ROW_SEPARATOR, OBJECT_START, OBJECT_END));
         }
-        return written(whole);
+        return writtenOf(whole);
     }
 
     /**
@@ -190,6 +331,10 @@ final class ExpressionBuilder {
      * @param row the row's index
      */
     void removeRow(int row) {
+        if (rows.size() == 1) {
+            refuse(LAST_ROW);
+            return;
+        }
         changed();
         rows.remove(row);
     }
@@ -321,6 +466,10 @@ final class ExpressionBuilder {
      * @param piece the term's index
      */
     void remove(int piece) {
+        if (whole.size() == 1) {
+            refuse(LAST_TERM);
+            return;
+        }
         changed();
         whole.remove(piece);
         if (piece == 0 && !whole.isEmpty()) {
@@ -372,7 +521,7 @@ final class ExpressionBuilder {
         return sumOf(row.pieces());
     }
 
-    private static String written(List<Piece> pieces) {
+    private static String writtenOf(List<Piece> pieces) {
         return pieces.isEmpty() ? NOTHING : ExpressionTerms.write(sumOf(pieces));
     }
 

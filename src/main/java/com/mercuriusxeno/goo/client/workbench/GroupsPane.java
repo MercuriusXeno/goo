@@ -50,12 +50,12 @@ final class GroupsPane {
     private static final String ADD_MEMBER = "[Add member]";
     private static final String NO_GROUP = "Pick a group, or name a new one.";
     private static final String NO_GROUPS = "The file names no groups.";
-    private static final String WORTH_LABEL = "What every member is worth (click to build):";
+    private static final String WORTH_LABEL = "What every member is worth:";
     private static final String NO_WORTH = "nothing yet";
     private static final String LINE_LABEL = "This member's line: count times the group's value, plus its extra";
     private static final String COUNT_START = "[count ";
     private static final String COUNT_END = "]";
-    private static final String EXTRA_LABEL = "extra (click to build):";
+    private static final String EXTRA_LABEL = "extra:";
     private static final String NO_EXTRA = "none";
     private static final String NEEDS_WORTH = "Build the group's value first; a member's line adds to it.";
     private static final String REMOVE = "[Remove from group]";
@@ -169,6 +169,7 @@ final class GroupsPane {
         } else {
             drawDetail(graphics, font, detail, selected.get(), targets);
         }
+        builder.drawOverlays(graphics, font, targets);
         overlays.draw(graphics, font, targets);
     }
 

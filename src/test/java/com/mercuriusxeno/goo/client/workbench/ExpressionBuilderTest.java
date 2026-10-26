@@ -129,6 +129,102 @@ class ExpressionBuilderTest {
     }
 
     /**
+     * A value never empties: the last term or row is kept, and a builder holding nothing writes nothing, since the
+     * resolver throws on an empty expression.
+     */
+    @Nested
+    class NeverEmpty {
+        @Test
+        void removingTheLastTermIsRefused() {
+            ExpressionBuilder builder = ExpressionBuilder.of("192");
+            builder.remove(0);
+            assertTrue(builder.refusal().isPresent());
+            assertEquals("192", builder.text());
+        }
+
+        @Test
+        void removingTheLastRowIsRefused() {
+            ExpressionBuilder builder = ExpressionBuilder.of("{\"metal\": \"5\"}");
+            builder.removeRow(0);
+            assertTrue(builder.refusal().isPresent());
+            assertEquals("{\"metal\": \"5\"}", builder.text());
+        }
+
+        @Test
+        void emptyBuilderWritesNothing() {
+            assertTrue(ExpressionBuilder.of("").written().isEmpty());
+            ExpressionBuilder perType = ExpressionBuilder.of("192");
+            perType.switchToPerType();
+            assertTrue(perType.written().isEmpty());
+        }
+    }
+
+    /**
+     * Every piece the builder shows can be changed in place.
+     */
+    @Nested
+    class ChangeInPlace {
+        @Test
+        void scalarNumberChanges() {
+            ExpressionBuilder builder = ExpressionBuilder.of("192");
+            builder.setNumber(0, "200");
+            assertEquals("200", builder.text());
+        }
+
+        @Test
+        void relatedItemIsReplaced() {
+            ExpressionBuilder builder = ExpressionBuilder.of("3 bucket");
+            builder.setRef(0, STICK);
+            assertEquals("3 $stick", builder.text());
+        }
+
+        @Test
+        void rowTypeChanges() {
+            ExpressionBuilder builder = ExpressionBuilder.of("{\"metal\": \"5\", \"pulse\": \"2\"}");
+            builder.setRowType(0, "blaze");
+            assertEquals("{\"blaze\": \"5\", \"pulse\": \"2\"}", builder.text());
+            builder.setRowType(0, "pulse");
+            assertTrue(builder.refusal().isPresent());
+        }
+
+        @Test
+        void termWrapsWithTheNextAndUnwraps() {
+            ExpressionBuilder builder = ExpressionBuilder.of("bucket + $stick");
+            builder.wrapWithNext(0);
+            assertEquals("(bucket + $stick)", builder.text());
+            builder.unwrap(0);
+            assertEquals("bucket + $stick", builder.text());
+        }
+    }
+
+    /**
+     * The value's kind is chosen: scalar, one expression, or per goo type, a row per type; switching back restores
+     * what the other kind held.
+     */
+    @Nested
+    class Kind {
+        @Test
+        void scalarSwitchesToPerTypeAndBack() {
+            ExpressionBuilder builder = ExpressionBuilder.of("192");
+            assertFalse(builder.isPerType());
+            builder.switchToPerType();
+            assertTrue(builder.isPerType());
+            builder.addType("metal");
+            assertEquals("{\"metal\": \"1\"}", builder.text());
+            builder.switchToWhole();
+            assertEquals("192", builder.text());
+        }
+
+        @Test
+        void perTypeSwitchesToAScalarOfOne() {
+            ExpressionBuilder builder = ExpressionBuilder.of("{\"metal\": \"5\"}");
+            builder.switchToWhole();
+            assertFalse(builder.isPerType());
+            assertEquals("1", builder.text());
+        }
+    }
+
+    /**
      * A value loaded into the builder writes back unchanged, a form no control builds kept whole.
      */
     @Test

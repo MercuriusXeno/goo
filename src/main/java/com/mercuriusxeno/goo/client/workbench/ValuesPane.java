@@ -38,7 +38,7 @@ final class ValuesPane {
     private static final String TAGS_CHIP = "Tags";
     private static final String UNCOVERED_CHIP = "Uncovered ";
     private static final String SEARCH_HINT = "Search items and tags";
-    private static final String EXPRESSION_LABEL = "Value: click it to build";
+    private static final String EXPRESSION_LABEL = "Value";
     private static final String NO_EXPRESSION = "(no entry)";
     private static final int READ_VIEW_COLOR = 0x30FFFFFF;
     private static final int LINK = 0xFF80C0FF;
@@ -121,6 +121,7 @@ final class ValuesPane {
                 bounds.left() + SIDEBAR_WIDTH, bounds.bottom()), targets);
         drawSelected(graphics, font, new GroupsPane.Bounds(bounds.left() + SIDEBAR_WIDTH + PANE_GAP, bounds.top(),
                 bounds.right(), bounds.bottom()), targets);
+        builder.drawOverlays(graphics, font, targets);
     }
 
     // Answers the y below the chips.

@@ -6,13 +6,16 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
  * What the builders' controls open below themselves: one number box, one searchable dropdown with its search box,
  * and the goo type picker, at most one standing at a time, so the Items, Prefabs and Mutators builders pick and
  * count with nothing typed but a number or a search (decisions expression-builder-composes-every-form-without-typing,
- * goo-type-picker-is-a-seven-by-four-icon-grid).
+ * goo-type-picker-is-a-seven-by-four-icon-grid). They draw after the pane they open over, outside its clip, so they
+ * stand above everything the pane drew, and a click outside the open list or grid closes it. A control names what it
+ * does on hover through its hint.
  */
 final class BuilderOverlays {
     /** A control line's height, an icon's. */
@@ -26,6 +29,13 @@ final class BuilderOverlays {
     private static final int LINK = 0xFF80C0FF;
     private static final String SEARCH_HINT = "Search";
     private static final String NOTHING = "";
+    // A hover key no prefab name or item id spells, since neither holds a space after a colon.
+    private static final String HINT_PREFIX = "hint: ";
+    // Wider than any GUI, so a click anywhere outside the open list lands on it.
+    private static final int EVERYWHERE = 100_000;
+    private static final int EVERYWHERE_SPAN = EVERYWHERE + EVERYWHERE;
+    private static final int GRID_WIDTH = GooTypePicker.COLUMNS * GooTypePicker.CELL;
+    private static final int GRID_HEIGHT = GooTypePicker.ROWS * GooTypePicker.CELL;
 
     private final ManagerActions actions;
     private final ItemIcons icons;
@@ -35,6 +45,7 @@ final class BuilderOverlays {
     private @Nullable SearchDropdown dropdown;
     private @Nullable Consumer<SearchDropdown.Choice> dropdownPicks;
     private @Nullable Consumer<String> pickerPicks;
+    private @Nullable Runnable pickerNothing;
     private @Nullable Consumer<String> numberCommits;
     private boolean numberHeldFocus;
     private boolean visible;
@@ -101,10 +112,52 @@ final class BuilderOverlays {
      */
     static int control(GuiGraphicsExtractor graphics, Font font, String label, int x, int y, ClickTargets targets,
                        Consumer<Anchor> pressed) {
+        return control(graphics, font, label, null, x, y, targets, pressed);
+    }
+
+    /**
+     * Draws a control as a link that names what it does on hover, and takes its click.
+     *
+     * @param graphics the frame's graphics
+     * @param font     the font
+     * @param label    the control's label
+     * @param hint     what the control does, shown on hover, null for nothing
+     * @param x        its left edge
+     * @param y        its line's top
+     * @param targets  the frame's click areas
+     * @param pressed  takes where it was clicked
+     * @return the x past the control
+     */
+    static int control(GuiGraphicsExtractor graphics, Font font, String label, @Nullable String hint, int x, int y,
+                       ClickTargets targets, Consumer<Anchor> pressed) {
         graphics.text(font, label, x, y + TEXT_NUDGE, LINK);
         int width = font.width(label);
-        targets.add(x, y, width, LINE, () -> pressed.accept(new Anchor(x, y)));
+        targets.add(x, y, width, LINE, () -> pressed.accept(new Anchor(x, y)), hint == null ? null : hintKey(hint));
         return x + width + GAP;
+    }
+
+    /**
+     * @param hint what a control does
+     * @return the hover key whose tooltip shows it
+     */
+    static String hintKey(String hint) {
+        return HINT_PREFIX + hint;
+    }
+
+    /**
+     * @param hoverKey what the hovered area names
+     * @return the hint where the area is a control's, empty otherwise
+     */
+    static Optional<Component> tooltipFor(String hoverKey) {
+        return hoverKey.startsWith(HINT_PREFIX)
+                ? Optional.of(Component.literal(hoverKey.substring(HINT_PREFIX.length()))) : Optional.empty();
+    }
+
+    /**
+     * @return whether a list or the grid stands open
+     */
+    boolean listOpen() {
+        return dropdown != null || picker.isOpen();
     }
 
     /**
@@ -162,9 +215,19 @@ final class BuilderOverlays {
      * @param picks takes the goo type picked
      */
     void openPicker(Anchor at, Consumer<String> picks) {
+        openPicker(at, picks, null);
+    }
+
+    /**
+     * @param at      where the control was clicked
+     * @param picks   takes the goo type picked
+     * @param nothing runs where no goo type is picked, null where none is allowed
+     */
+    void openPicker(Anchor at, Consumer<String> picks, @Nullable Runnable nothing) {
         closeLists();
         anchor(at);
         pickerPicks = picks;
+        pickerNothing = nothing;
         picker.open();
     }
 
@@ -217,13 +280,29 @@ final class BuilderOverlays {
      */
     void draw(GuiGraphicsExtractor graphics, Font font, ClickTargets targets) {
         drawDropdown(graphics, font, targets);
-        picker.draw(graphics, targets, anchorX, anchorY, type -> {
+        Runnable nothing = pickerNothing;
+        int gridX = Math.max(0, Math.min(anchorX, graphics.guiWidth() - GRID_WIDTH - 1));
+        int gridY = anchorY + GRID_HEIGHT < graphics.guiHeight() ? anchorY : anchorY - LINE - GRID_HEIGHT - 1;
+        picker.draw(graphics, font, targets, gridX, gridY, type -> {
             Consumer<String> picks = pickerPicks;
-            pickerPicks = null;
+            closeLists();
             if (picks != null) {
                 picks.accept(type);
             }
+        }, nothing == null ? null : () -> {
+            closeLists();
+            nothing.run();
         });
+        drawOnTop(graphics, searchField);
+        drawOnTop(graphics, numberField);
+    }
+
+    // The screen draws its boxes before the panes, so a box standing open draws again above what the pane drew.
+    private static void drawOnTop(GuiGraphicsExtractor graphics, @Nullable EditBox box) {
+        if (box != null && box.visible) {
+            graphics.nextStratum();
+            box.extractRenderState(graphics, 0, 0, 0.0f);
+        }
     }
 
     // The dropdown stands below its search box; a pick closes both and hands the choice on.
@@ -236,6 +315,7 @@ final class BuilderOverlays {
             closeDropdown();
             return;
         }
+        targets.add(-EVERYWHERE, -EVERYWHERE, EVERYWHERE_SPAN, EVERYWHERE_SPAN, this::closeLists);
         searchField.setPosition(anchorX, anchorY);
         open.draw(graphics, font, icons, targets, anchorX, anchorY + BOX_HEIGHT + 1, SEARCH_WIDTH, choice -> {
             Consumer<SearchDropdown.Choice> picks = dropdownPicks;
@@ -262,6 +342,7 @@ final class BuilderOverlays {
         closeDropdown();
         picker.close();
         pickerPicks = null;
+        pickerNothing = null;
     }
 
     private void closeDropdown() {

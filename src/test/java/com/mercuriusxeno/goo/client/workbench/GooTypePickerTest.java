@@ -52,12 +52,66 @@ class GooTypePickerTest {
         assertTrue(targets.click(5, 5));
         assertTrue(picker.isOpen());
         targets.clear();
-        picker.layTargets(targets, LEFT, TOP, picked::set);
+        picker.layTargets(targets, LEFT, TOP, picked::set, null);
         GooTypePicker.Cell cell = picker.cells().get(12);
         assertEquals("goo.type." + cell.type(), ((TranslatableContents) targets.hovered(centerX(cell), centerY(cell))
                 .flatMap(GooTypeIcons::tooltipFor).orElseThrow().getContents()).getKey());
         assertTrue(targets.click(centerX(cell), centerY(cell)));
         assertEquals(cell.type(), picked.get());
         assertFalse(picker.isOpen());
+    }
+
+    private static GooTypePicker opened(ClickTargets targets, AtomicReference<String> picked,
+                                        Runnable nothing) {
+        GooTypePicker picker = new GooTypePicker(TYPES);
+        picker.open();
+        picker.layTargets(targets, LEFT, TOP, picked::set, nothing);
+        return picker;
+    }
+
+    /**
+     * The cell past the last type closes the grid with no pick.
+     */
+    @Test
+    void closeCellClosesWithNoPick() {
+        ClickTargets targets = new ClickTargets();
+        AtomicReference<String> picked = new AtomicReference<>();
+        GooTypePicker picker = opened(targets, picked, null);
+        GooTypePicker.Cell close = picker.closeCell();
+        assertEquals(new GooTypePicker.Cell(GooTypePicker.CLOSE, 5, 3), close);
+        assertTrue(targets.click(centerX(close), centerY(close)));
+        assertFalse(picker.isOpen());
+        assertEquals(null, picked.get());
+    }
+
+    /**
+     * Where the caller allows no goo type, the cell after close picks nothing.
+     */
+    @Test
+    void nothingCellPicksNoType() {
+        ClickTargets targets = new ClickTargets();
+        AtomicReference<String> picked = new AtomicReference<>();
+        AtomicReference<Boolean> chose = new AtomicReference<>(false);
+        GooTypePicker picker = opened(targets, picked, () -> chose.set(true));
+        GooTypePicker.Cell nothing = new GooTypePicker.Cell(GooTypePicker.NOTHING, 6, 3);
+        assertTrue(targets.click(centerX(nothing), centerY(nothing)));
+        assertTrue(chose.get());
+        assertFalse(picker.isOpen());
+    }
+
+    /**
+     * A click outside the grid closes it with no pick, and the click goes no further.
+     */
+    @Test
+    void clickOutsideClosesWithNoPick() {
+        ClickTargets targets = new ClickTargets();
+        AtomicReference<Boolean> under = new AtomicReference<>(false);
+        targets.add(0, 0, 20, 20, () -> under.set(true));
+        AtomicReference<String> picked = new AtomicReference<>();
+        GooTypePicker picker = opened(targets, picked, null);
+        assertTrue(targets.click(5, 5));
+        assertFalse(picker.isOpen());
+        assertFalse(under.get());
+        assertEquals(null, picked.get());
     }
 }
