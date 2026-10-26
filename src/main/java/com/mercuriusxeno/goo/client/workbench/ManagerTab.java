@@ -1,9 +1,9 @@
 package com.mercuriusxeno.goo.client.workbench;
 
 /**
- * The values manager's tabs, in the page's order, labeled Items, Groups, Prefabs, Mutators, Audit, Checks: the page's
- * Values, Variables and Processes renamed to plain words, the constants keeping their names
- * (decision goo-workbench-opens-the-in-game-manager-screen).
+ * The values manager's tabs, in the page's order, labeled Items, Groups, Prefabs, Mutators, Audit: the page's Values,
+ * Variables and Processes renamed to plain words, the constants keeping their names
+ * (decisions goo-workbench-opens-the-in-game-manager-screen, values-checks-go-with-the-checks-tab).
  */
 public enum ManagerTab {
     /** Each item and tag's entry and its resolved values. */
@@ -15,9 +15,7 @@ public enum ManagerTab {
     /** The conversions, post-conversions, additives and parallel copies. */
     PROCESSES("Mutators"),
     /** The audit's sections. */
-    AUDIT("Audit"),
-    /** The type-source checks. */
-    CHECKS("Checks");
+    AUDIT("Audit");
 
     private final String label;
 

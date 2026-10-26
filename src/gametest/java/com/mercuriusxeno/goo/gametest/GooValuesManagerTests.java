@@ -7,14 +7,19 @@ import com.mercuriusxeno.goo.command.ValuesManagers;
 import com.mercuriusxeno.goo.data.GooFraction;
 import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.data.GooValues;
+import com.mercuriusxeno.goo.workbench.BaseValuesModel;
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
+import com.mercuriusxeno.goo.workbench.WorkbenchPaths;
 import com.mercuriusxeno.goo.workbench.WorkbenchReply;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.storage.LevelResource;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.function.Consumer;
 
 /**
@@ -30,6 +35,9 @@ public final class GooValuesManagerTests {
     private static final Identifier EDITED_ITEM = Identifier.withDefaultNamespace(EDITED_KEY);
     private static final String EDITED_TEXT = "{\"void\": 1234}";
     private static final long EDITED_TOTAL = 1234;
+    private static final String DRAFT_DROPS_UNKNOWN_TYPES = "values_draft_drops_unknown_types";
+    private static final String RETIRED_KEY = "goo_retired_type_probe";
+    private static final String RETIRED_TEXT = "{\"aeon\": 3}";
 
     private GooValuesManagerTests() {
     }
@@ -41,6 +49,8 @@ public final class GooValuesManagerTests {
      */
     public static void register(RegisterEvent.RegisterHelper<Consumer<GameTestHelper>> registrar) {
         GooTestFunctions.registerTest(registrar, SAVE_APPLIES_LIVE, GooValuesManagerTests::saveAppliesLive);
+        GooTestFunctions.registerTest(registrar, DRAFT_DROPS_UNKNOWN_TYPES,
+                GooValuesManagerTests::draftLoadDropsUnknownTypes);
     }
 
     /**
@@ -74,6 +84,37 @@ public final class GooValuesManagerTests {
         helper.assertTrue(held != null && held.typeCount() == 1
                 && held.totalExact().equals(GooFraction.of(EDITED_TOTAL)),
                 "after the save the server holds " + held + " for " + EDITED_ITEM + ", not " + EDITED_TEXT);
+        helper.succeed();
+    }
+
+    /**
+     * Writes a draft holding an entry keyed by aeon, a type the server's goo_type registry does not hold, and reads
+     * the model: the reply and the draft file both lack the entry
+     * (decision draft-load-drops-entries-naming-an-unknown-type).
+     *
+     * @param helper the gametest helper
+     */
+    public static void draftLoadDropsUnknownTypes(GameTestHelper helper) {
+        MinecraftServer server = helper.getLevel().getServer();
+        Path draft = WorkbenchPaths.inWorld(server.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize())
+                .draft();
+        try {
+            WorkbenchOperations operations = ValuesManagers.operationsFor(server);
+            answered(helper, operations, WorkbenchOperations.MODEL, "");
+            String standing = Files.readString(draft);
+            Files.writeString(draft, BaseValuesModel.parse(standing).withTopLevel(RETIRED_KEY, RETIRED_TEXT)
+                    .serialize());
+            String model = answered(helper, operations, WorkbenchOperations.MODEL, "");
+            boolean inReply = JsonParser.parseString(model).getAsJsonObject().getAsJsonArray("members").asList()
+                    .stream().map(JsonElement::getAsJsonObject)
+                    .anyMatch(member -> member.get("key") != null && !member.get("key").isJsonNull()
+                            && RETIRED_KEY.equals(member.get("key").getAsString()));
+            helper.assertTrue(!inReply, "the model reply still holds " + RETIRED_KEY);
+            helper.assertTrue(!Files.readString(draft).contains(RETIRED_KEY),
+                    "the draft file still holds " + RETIRED_KEY);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
         helper.succeed();
     }
 

@@ -6,7 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 /**
- * The frozen sample of the last curated base_values.json and the drafts the checks' tests edit from it.
+ * The frozen sample of the last curated base_values.json and the drafts the workbench tests edit from it.
  */
 public final class SampleDrafts {
     private static final String SAMPLE = "/workbench/sample_base_values.json";
