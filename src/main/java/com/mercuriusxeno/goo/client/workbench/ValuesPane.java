@@ -53,6 +53,7 @@ final class ValuesPane {
     private static final String DENIED_LINE = "denied";
     private static final String NO_VALUE_LINE = "no value: nothing in the file or the recipes values it";
     private static final String NO_TEXT = "";
+    private static final int NO_REVEAL = -1;
 
     private final ValuesTab values;
     private final ItemIcons icons;
@@ -62,6 +63,7 @@ final class ValuesPane {
     private final ScrollBar listBar = new ScrollBar(1);
     private final ScrollBar detailBar = new ScrollBar(SCROLL_STEP);
     private boolean visible;
+    private int revealRow = NO_REVEAL;
 
     ValuesPane(ValuesTab values, ItemIcons icons, ManagerActions actions, ExpressionBuilderPane builder) {
         this.values = values;
@@ -103,6 +105,22 @@ final class ValuesPane {
      */
     boolean keyPressed(int key) {
         return builder.keyPressed(key);
+    }
+
+    /**
+     * Selects an item under the Items filter, the search cleared, and scrolls the list to it on the next frame
+     * (decision used-by-icons-link-to-items-and-hover-their-value).
+     *
+     * @param id the item's id
+     */
+    void reveal(String id) {
+        int index = values.open(id);
+        if (search != null) {
+            search.setValue(NO_TEXT);
+        }
+        builder.close();
+        detailBar.reset();
+        revealRow = index;
     }
 
     /**
@@ -213,6 +231,7 @@ final class ValuesPane {
         }
         int shown = Math.max(1, (list.bottom() - list.top()) / ROW_HEIGHT);
         listBar.measure(listed.size(), shown);
+        scrollToRevealed();
         int firstShown = listBar.offset();
         Optional<String> selectedId = values.selectedRow().map(ValuesTab.EntryRow::id);
         int textX = list.left() + ICON_SIZE + ICON_GAP;
@@ -242,6 +261,13 @@ final class ValuesPane {
             y += ROW_HEIGHT;
         }
         listBar.draw(graphics, targets, list.right(), list.top(), list.top() + shown * ROW_HEIGHT);
+    }
+
+    private void scrollToRevealed() {
+        if (revealRow != NO_REVEAL) {
+            listBar.scrollTo(revealRow);
+            revealRow = NO_REVEAL;
+        }
     }
 
     private static int colorOf(ValuesTab.SourceKind kind) {
