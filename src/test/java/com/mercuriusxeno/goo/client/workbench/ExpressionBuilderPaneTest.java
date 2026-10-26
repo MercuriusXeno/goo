@@ -26,4 +26,24 @@ class ExpressionBuilderPaneTest {
                     ExpressionBuilderPane.gooKindHint(false));
         }
     }
+
+    /**
+     * The done control's hover hint, read from the opened text against the written text (decision
+     * done-hint-reads-no-unsaved-changes-or-changes-already-saved).
+     */
+    @Nested
+    class DoneHint {
+
+        @Test
+        void unchangedValueReadsNoUnsavedChanges() {
+            assertEquals("No unsaved changes", ExpressionBuilderPane.doneHint("4 * minecraft:stone",
+                    "4 * minecraft:stone"));
+        }
+
+        @Test
+        void changedValueReadsChangesAlreadySaved() {
+            assertEquals("Changes already saved to the draft", ExpressionBuilderPane.doneHint("4 * minecraft:stone",
+                    "2 * minecraft:stone"));
+        }
+    }
 }
