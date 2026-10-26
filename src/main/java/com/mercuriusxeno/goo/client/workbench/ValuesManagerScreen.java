@@ -47,7 +47,6 @@ public final class ValuesManagerScreen extends Screen {
     private static final String SAVED = "saved to the draft";
     private static final String UNSAVED = "unsaved changes";
     private static final String NOTHING_POSTED = "";
-    private static final String WIDEST_BADGE = " (99 red)";
     private static final String NO_STATUS = "";
 
     private final ManagerConnection connection;
@@ -57,7 +56,6 @@ public final class ValuesManagerScreen extends Screen {
     private final VariablesTab variablesTab = new VariablesTab(draft);
     private final ProcessesTab processesTab = new ProcessesTab(draft);
     private final AuditTab auditTab = new AuditTab();
-    private final ChecksTab checksTab = new ChecksTab(draft);
     private final ItemIcons icons = new ItemIcons(values::worthOf);
     private final ClickTargets targets = new ClickTargets();
     private final Map<ManagerTab, Button> tabButtons = new EnumMap<>(ManagerTab.class);
@@ -66,7 +64,6 @@ public final class ValuesManagerScreen extends Screen {
     private final VariablesPane variablesPane;
     private final ProcessesPane processesPane;
     private final AuditPane auditPane;
-    private final ChecksPane checksPane;
     private final DraftConfirm draftConfirm = new DraftConfirm();
     private final DraftPane draftPane = new DraftPane(draftConfirm, this::runDraftAction);
     private boolean unsaved;
@@ -89,7 +86,6 @@ public final class ValuesManagerScreen extends Screen {
                 .filter(block -> VariablesTab.TREE_KIND.equals(block.kind())).map(VariablesTab.ConstantBlock::name)
                 .toList());
         auditPane = new AuditPane(auditTab, draft, actions);
-        checksPane = new ChecksPane(checksTab);
     }
 
     // A builder over the server's items and the draft's prefabs (decision
@@ -170,9 +166,7 @@ public final class ValuesManagerScreen extends Screen {
     protected void init() {
         int x = MARGIN;
         for (ManagerTab each : ManagerTab.values()) {
-            // The Checks tab's label grows by its badge, so its button stands wide enough for one.
-            String widest = each == ManagerTab.CHECKS ? each.label() + WIDEST_BADGE : each.label();
-            int tabWidth = font.width(widest) + BUTTON_PADDING;
+            int tabWidth = font.width(each.label()) + BUTTON_PADDING;
             Button button = Button.builder(Component.literal(each.label()), pressed -> selectTab(each))
                     .bounds(x, TAB_Y, tabWidth, BUTTON_HEIGHT).build();
             tabButtons.put(each, addRenderableWidget(button));
@@ -229,8 +223,7 @@ public final class ValuesManagerScreen extends Screen {
 
     /**
      * Has every tab read the draft afresh: the Values tab's resolve and uncovered items, the Groups tab's describe,
-     * the Variables tab's evaluate and the Processes tab's description; the Checks tab reads the checks the last
-     * model reply carried.
+     * the Variables tab's evaluate and the Processes tab's description.
      */
     private void readDraftAfresh() {
         request(WorkbenchOperations.RESOLVE_VALUES, values.modelText(), resolved -> {
@@ -266,8 +259,8 @@ public final class ValuesManagerScreen extends Screen {
     }
 
     /**
-     * Runs the confirmed Promote or Discard, saving unsaved changes first for a Promote; a promote the checks
-     * refuse opens the second confirm listing them.
+     * Runs the confirmed Promote or Discard, saving unsaved changes first for a Promote
+     * (decision values-checks-go-with-the-checks-tab).
      */
     private void runDraftAction() {
         boolean savesFirst = draftConfirm.savesFirst();
@@ -280,7 +273,8 @@ public final class ValuesManagerScreen extends Screen {
                         setStatus(draftConfirm.doneStatus(draft.path()), false);
                         draftConfirm.cancel();
                         readDraftAfresh();
-                    } else if (!draftConfirm.readRefusal(reply.status(), reply.text(), draft.path())) {
+                    } else {
+                        draftConfirm.cancel();
                         setStatus(reply.text(), true);
                     }
                 });
@@ -354,7 +348,6 @@ public final class ValuesManagerScreen extends Screen {
             case VARIABLES -> variablesPane.scroll(scrollY);
             case PROCESSES -> processesPane.scroll(scrollY);
             case AUDIT -> auditPane.scroll(y, scrollY);
-            case CHECKS -> checksPane.scroll(scrollY);
         }
         return true;
     }
@@ -369,7 +362,6 @@ public final class ValuesManagerScreen extends Screen {
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         targets.clear();
-        showChecksBadge();
         GroupsPane.Bounds content = contentBounds();
         switch (tab) {
             case VALUES -> valuesPane.extract(graphics, font, content, targets);
@@ -377,7 +369,6 @@ public final class ValuesManagerScreen extends Screen {
             case VARIABLES -> variablesPane.extract(graphics, font, content, targets, mouseX, mouseY);
             case PROCESSES -> processesPane.extract(graphics, font, content, targets);
             case AUDIT -> auditPane.extract(graphics, font, content, targets);
-            case CHECKS -> checksPane.extract(graphics, font, content, targets);
         }
         graphics.text(font, title, MARGIN, TITLE_Y, WHITE);
         if (draft.differs()) {
@@ -396,14 +387,6 @@ public final class ValuesManagerScreen extends Screen {
         Optional<Component> line = GooTypeIcons.tooltipFor(hoverKey).or(() -> BuilderOverlays.tooltipFor(hoverKey));
         return line.isPresent() ? Optional.of(List.of(line.get()))
                 : icons.tooltipFor(hoverKey).or(() -> PrefabHovers.tooltipFor(variablesTab, hoverKey));
-    }
-
-    private void showChecksBadge() {
-        Button checks = tabButtons.get(ManagerTab.CHECKS);
-        String badge = checksTab.badge(ManagerTab.CHECKS.label());
-        if (checks != null && !checks.getMessage().getString().equals(badge)) {
-            checks.setMessage(Component.literal(badge));
-        }
     }
 
     @Override

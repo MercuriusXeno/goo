@@ -113,7 +113,7 @@ public final class GooWorkbenchCommandTests {
             if (ProcessHandle.current().descendants().anyMatch(GooWorkbenchCommandTests::isGradle)) {
                 return "the in-game run spawned a gradle process";
             }
-            answered(operations, WorkbenchOperations.PROMOTE, "{\"acknowledged\": true}");
+            answered(operations, WorkbenchOperations.PROMOTE, "{}");
             if (!Files.isRegularFile(values.resolve("base_values.json"))
                     || !Files.isRegularFile(world.resolve("datapacks/goo_values/pack.mcmeta"))) {
                 return "Promote left no base_values.json and pack.mcmeta in the datapack";

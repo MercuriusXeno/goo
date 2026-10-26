@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.tools.workbench;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mercuriusxeno.goo.workbench.DraftSeed;
 import com.mercuriusxeno.goo.workbench.DumpRunner;
 import com.mercuriusxeno.goo.workbench.InventoryDump;
@@ -132,7 +133,9 @@ public final class ValuesWorkbenchServer {
                                               DumpRunner dumps, int port) throws IOException {
         HttpServer http = HttpServer.create(new InetSocketAddress(InetAddress.getByAddress(IPV4_LOOPBACK), port), 0);
         ValuesWorkbenchServer server = new ValuesWorkbenchServer(http, paths,
-                new WorkbenchOperations(paths, seed, dump, dumps));
+                // The gradle run holds no server, so the bundled types are the ones it knows
+                // (decision draft-load-drops-entries-naming-an-unknown-type).
+                new WorkbenchOperations(paths, seed, dump, dumps, () -> GooTypes.BUNDLED));
         http.createContext(ROOT_PATH, exchange -> server.answer(exchange, server::page));
         http.createContext(MODEL_ROUTE, exchange -> server.answer(exchange, server::model));
         http.createContext(IMAGE_ROUTE, exchange -> server.answer(exchange, server::image));
