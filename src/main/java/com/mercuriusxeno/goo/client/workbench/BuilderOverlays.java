@@ -346,12 +346,16 @@ final class BuilderOverlays {
     }
 
     /**
-     * Scrolls the open goo type picker's grid where it stands shorter than its rows.
+     * Scrolls the open dropdown's choices, or the open goo type picker's grid, where it stands shorter than its rows.
      *
      * @param amount the wheel's turn
-     * @return whether the picker stood open and took the turn
+     * @return whether a list or the grid stood open and took the turn
      */
     boolean scrollList(double amount) {
+        if (dropdown != null) {
+            dropdown.scroll(amount);
+            return true;
+        }
         if (!picker.isOpen()) {
             return false;
         }
