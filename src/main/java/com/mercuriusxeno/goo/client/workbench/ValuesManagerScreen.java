@@ -15,7 +15,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * The values manager /goo workbench opens: the title row carrying Promote, Discard and Save, a tab bar carrying every
+ * The values manager /goo workbench opens: the title row carrying Promote, Revert and Save, a tab bar carrying every
  * tab of the page over one shared draft, each tab drawn by its pane, and a status line beneath
  * (decisions goo-workbench-opens-the-in-game-manager-screen, save-applies-the-draft-live-promote-renames-it). The
  * state lives in the tab classes and {@link ManagerConnection}; this class lays the panes out and forwards input.
@@ -40,7 +40,8 @@ public final class ValuesManagerScreen extends Screen {
     private static final String TITLE = "Values manager";
     private static final String SAVE = "Save";
     private static final String PROMOTE = "Promote";
-    private static final String DISCARD = "Discard";
+    // decision topbar-discard-reads-revert
+    private static final String REVERT = "Revert";
     private static final String DRAFT_BADGE = "draft";
     private static final String READING = "Reading the draft and the inventory; a fresh world dumps the inventory first.";
     private static final String SAVING = "saving";
@@ -175,7 +176,7 @@ public final class ValuesManagerScreen extends Screen {
         // The topbar stands on the title row, right-aligned and sized to its labels, so the tab row keeps the width.
         int right = width - MARGIN;
         right = topbarButton(SAVE, right, () -> save(() -> { }));
-        right = topbarButton(DISCARD, right, () -> draftConfirm.askDiscard(draft.path()));
+        right = topbarButton(REVERT, right, () -> draftConfirm.askRevert(draft.path()));
         topbarButton(PROMOTE, right, () -> draftConfirm.askPromote(draft.path(), unsaved));
         valuesPane.init(font);
         groupsPane.init(font);
@@ -186,6 +187,13 @@ public final class ValuesManagerScreen extends Screen {
             loaded = true;
             load();
         }
+    }
+
+    /**
+     * @return the topbar's labels in the order init lays them leftward from the title row's right edge
+     */
+    static List<String> topbarLabels() {
+        return List.of(SAVE, REVERT, PROMOTE);
     }
 
     // Answers the x the next button to its left ends at.
@@ -259,7 +267,7 @@ public final class ValuesManagerScreen extends Screen {
     }
 
     /**
-     * Runs the confirmed Promote or Discard, saving unsaved changes first for a Promote
+     * Runs the confirmed Promote or Revert, saving unsaved changes first for a Promote
      * (decision values-checks-go-with-the-checks-tab).
      */
     private void runDraftAction() {

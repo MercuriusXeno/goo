@@ -5,9 +5,10 @@ import org.jspecify.annotations.Nullable;
 import java.util.Optional;
 
 /**
- * The Promote and Discard confirms the manager's topbar opens, as the page's draft dialog runs them: Promote asks
- * once, naming the file it overwrites and saving unsaved changes first, and Discard names the file it copies back
- * (decisions save-applies-the-draft-live-promote-renames-it, values-checks-go-with-the-checks-tab).
+ * The Promote and Revert confirms the manager's topbar opens, as the page's draft dialog runs them: Promote asks
+ * once, naming the file it overwrites and saving unsaved changes first, and Revert names the file it copies back and
+ * runs the workbench's Discard (decisions save-applies-the-draft-live-promote-renames-it,
+ * values-checks-go-with-the-checks-tab, topbar-discard-reads-revert).
  */
 public final class DraftConfirm {
     private static final String EMPTY_REQUEST = "{}";
@@ -15,12 +16,12 @@ public final class DraftConfirm {
     private static final String PROMOTE_START = "This will overwrite the value file at ";
     private static final String PROMOTE_END = " with the draft.";
     private static final String PROMOTE_SAVING_END = " with the draft, saving your unsaved changes into the draft first.";
-    private static final String DISCARD_TITLE = "Discard the draft?";
-    private static final String DISCARD_START = "This copies ";
-    private static final String DISCARD_END = " back over the draft: every change not yet promoted, saved or unsaved, "
+    private static final String REVERT_TITLE = "Revert the draft?";
+    private static final String REVERT_START = "This copies ";
+    private static final String REVERT_END = " back over the draft: every change not yet promoted, saved or unsaved, "
             + "is lost.";
     private static final String PROMOTED = "promoted into ";
-    private static final String DISCARDED = "draft discarded";
+    private static final String REVERTED = "draft reverted";
 
     private @Nullable String operation;
     private @Nullable Dialog dialog;
@@ -46,12 +47,12 @@ public final class DraftConfirm {
     }
 
     /**
-     * @param path the value file Discard copies back
+     * @param path the value file Revert copies back
      */
-    public void askDiscard(String path) {
+    public void askRevert(String path) {
         operation = WorkbenchOperations.DISCARD;
         unsaved = false;
-        dialog = new Dialog(DISCARD_TITLE, DISCARD_START + path + DISCARD_END);
+        dialog = new Dialog(REVERT_TITLE, REVERT_START + path + REVERT_END);
     }
 
     /**
@@ -102,6 +103,6 @@ public final class DraftConfirm {
      * @return the status line the done action leaves
      */
     public String doneStatus(String path) {
-        return WorkbenchOperations.PROMOTE.equals(operation) ? PROMOTED + path : DISCARDED;
+        return WorkbenchOperations.PROMOTE.equals(operation) ? PROMOTED + path : REVERTED;
     }
 }
