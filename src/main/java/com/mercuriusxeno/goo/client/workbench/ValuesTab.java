@@ -49,7 +49,8 @@ public final class ValuesTab {
     private static final String ENTRY_SOURCE = "Valued";
     private static final String GROUP_SOURCE = "group #";
     private static final String DENIED_BY = "denied by #";
-    private static final String DERIVED_SOURCE = "derived from";
+    /** What an item recipes value, and no entry does, reads before its inputs. */
+    static final String DERIVED_SOURCE = "derived from";
     private static final String NO_VALUE = "no value";
     private static final String RESTRICTED_SUFFIX = ", restricted";
     // A new entry stands above the sections the file closes with, as the page and the server write one.

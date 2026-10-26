@@ -270,7 +270,7 @@ final class ValuesPane {
     }
 
     // One Items row: the icon, the name over its source, and the item's goo value inline beside them, wrapped onto
-    // as many 18px rows as it needs, a derived item's inputs on a row after; answers the row's height
+    // as many 18px rows as it needs, then a derived item's "derived from" and its inputs on one line; answers its height
     // (decision items-rows-read-valued-derived-or-no-value-with-values-inline).
     private int drawEntry(GuiGraphicsExtractor graphics, Font font, ValuesTab.ManagerEntry entry,
                           GroupsPane.Bounds row, boolean selected, ClickTargets targets) {
@@ -291,7 +291,7 @@ final class ValuesPane {
         });
         drawEntryText(graphics, font, entry, textX, row.top());
         drawValueRuns(graphics, font, worth, runs, runsX, row.top(), targets);
-        drawDerivedFrom(graphics, from, runsX, row.top() + runs.rows() * ROW_HEIGHT, targets);
+        drawDerivedFrom(graphics, font, from, textX, row.top() + runs.rows() * ROW_HEIGHT, targets);
         return height;
     }
 
@@ -305,6 +305,9 @@ final class ValuesPane {
             return;
         }
         ValuesTab.Source source = values.sourceOf(entry.id());
+        if (source.kind() == ValuesTab.SourceKind.DERIVED && !values.derivedFrom(entry.id()).isEmpty()) {
+            return;
+        }
         graphics.text(font, font.plainSubstrByWidth(source.label(), NAME_COLUMN), textX, top + SECOND_LINE,
                 colorOf(source.kind()));
     }
@@ -321,11 +324,18 @@ final class ValuesPane {
         }
     }
 
-    // A derived item's inputs as icons, each a link to its own row.
-    private void drawDerivedFrom(GuiGraphicsExtractor graphics, List<String> from, int left, int top,
+    // "derived from" and the inputs' icons on one line, each icon a link to its own row, so the words read joined
+    // to the items they name.
+    private void drawDerivedFrom(GuiGraphicsExtractor graphics, Font font, List<String> from, int left, int top,
                                  ClickTargets targets) {
+        if (from.isEmpty()) {
+            return;
+        }
+        String words = ValuesTab.DERIVED_SOURCE;
+        graphics.text(font, words, left, top + RUN_TEXT_NUDGE, colorOf(ValuesTab.SourceKind.DERIVED));
+        int iconsLeft = left + font.width(words) + GAP;
         for (int index = 0; index < from.size(); index++) {
-            int x = left + index * (ICON_SIZE + HALF);
+            int x = iconsLeft + index * (ICON_SIZE + HALF);
             graphics.item(icons.of(from.get(index)), x, top + 1);
             ItemLinks.add(targets, actions, from.get(index), x, top + 1);
         }
