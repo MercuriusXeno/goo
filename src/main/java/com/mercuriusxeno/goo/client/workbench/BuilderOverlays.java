@@ -7,6 +7,7 @@ import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
@@ -224,11 +225,21 @@ final class BuilderOverlays {
      * @param nothing runs where no goo type is picked, null where none is allowed
      */
     void openPicker(Anchor at, Consumer<String> picks, @Nullable Runnable nothing) {
+        openPicker(at, picks, nothing, Set.of());
+    }
+
+    /**
+     * @param at      where the control was clicked
+     * @param picks   takes the goo type picked
+     * @param nothing runs where no goo type is picked, null where none is allowed
+     * @param held    the goo types the value already holds, which the grid leaves out
+     */
+    void openPicker(Anchor at, Consumer<String> picks, @Nullable Runnable nothing, Set<String> held) {
         closeLists();
         anchor(at);
         pickerPicks = picks;
         pickerNothing = nothing;
-        picker.open();
+        picker.open(held);
     }
 
     /**
@@ -255,9 +266,27 @@ final class BuilderOverlays {
      * @param commits takes the box's text on Enter or blur
      */
     void openNumber(Anchor at, String current, Consumer<String> commits) {
+        openNumber(at, current, commits, false);
+    }
+
+    /**
+     * Opens the number box, which takes digits alone and, holding a factor, no 0, so a typed key it would refuse
+     * never lands.
+     *
+     * @param at      where the control was clicked
+     * @param current the number the box starts from
+     * @param commits takes the box's text on Enter or blur, a blank box committing nothing
+     * @param factor  whether the box holds a factor
+     */
+    void openNumber(Anchor at, String current, Consumer<String> commits, boolean factor) {
         closeLists();
-        numberCommits = commits;
+        numberCommits = typed -> {
+            if (!typed.isBlank()) {
+                commits.accept(typed);
+            }
+        };
         if (numberField != null) {
+            numberField.setFilter(typed -> BuilderGrammar.acceptsTyped(typed, factor));
             numberField.setValue(current);
             numberField.setPosition(at.x(), at.y() + LINE - BOX_HEIGHT);
             numberField.visible = visible;

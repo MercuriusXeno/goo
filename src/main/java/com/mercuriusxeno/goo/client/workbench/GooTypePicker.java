@@ -6,6 +6,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
@@ -40,6 +41,7 @@ final class GooTypePicker {
     private static final String NOTHING_HINT = "No goo type";
 
     private final List<String> types;
+    private Set<String> hidden = Set.of();
     private boolean open;
 
     /**
@@ -70,9 +72,10 @@ final class GooTypePicker {
      * @return each type's cell, row by row, the grid holding at most 7 by 4 less its close cell
      */
     List<Cell> cells() {
+        List<String> offered = types.stream().filter(type -> !hidden.contains(type)).toList();
         List<Cell> cells = new ArrayList<>();
-        for (int index = 0; index < Math.min(types.size(), COLUMNS * ROWS - 1); index++) {
-            cells.add(cellAt(types.get(index), index));
+        for (int index = 0; index < Math.min(offered.size(), COLUMNS * ROWS - 1); index++) {
+            cells.add(cellAt(offered.get(index), index));
         }
         return cells;
     }
@@ -103,6 +106,16 @@ final class GooTypePicker {
      * Opens the grid, as its opener's click does.
      */
     void open() {
+        open(Set.of());
+    }
+
+    /**
+     * Opens the grid without the goo types given, so a value never picks a type it already holds.
+     *
+     * @param held the goo types the grid leaves out
+     */
+    void open(Set<String> held) {
+        hidden = Set.copyOf(held);
         open = true;
     }
 
@@ -123,7 +136,7 @@ final class GooTypePicker {
      * @param height  its height
      */
     void addOpener(ClickTargets targets, int x, int y, int width, int height) {
-        targets.add(x, y, width, height, () -> open = true);
+        targets.add(x, y, width, height, this::open);
     }
 
     /**

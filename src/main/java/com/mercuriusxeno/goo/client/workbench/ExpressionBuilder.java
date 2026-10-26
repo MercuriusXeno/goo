@@ -2,8 +2,11 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -37,12 +40,14 @@ final class ExpressionBuilder {
     private static final String NOT_A_NUMBER = "A number box holds digits alone.";
     private static final String LAST_TERM = "A value keeps at least one term: change this one instead.";
     private static final String LAST_ROW = "A per-type value keeps at least one goo type: change this one instead.";
-    private static final String SCALED_NEST = "Set the factor on the parentheses to 1 before removing them.";
+    /** The whole kind holding one number, the kind {@link #switchToWhole()} starts. */
+    static final String NUMBER_SORT = "number";
 
     private final List<Piece> whole = new ArrayList<>();
     private final List<Row> rows = new ArrayList<>();
-    private List<Piece> keptWhole = List.of();
+    private final Map<String, List<Piece>> keptWhole = new HashMap<>();
     private List<Row> keptRows = List.of();
+    private String wholeSort = NUMBER_SORT;
     private boolean perTypeChosen;
     private boolean denied;
     private @Nullable String unread;
@@ -138,33 +143,78 @@ final class ExpressionBuilder {
     }
 
     /**
-     * Makes the value per goo type, keeping its scalar terms to restore should it switch back.
+     * @param operand what the term stands on
+     * @return a first term over it, unscaled
+     */
+    static Piece firstTerm(Operand operand) {
+        return new Piece(ExpressionTerms.Join.FIRST, operand, Op.MULTIPLY, ONE);
+    }
+
+    /**
+     * Names which whole kind the loaded terms are, so a switch to another kind keeps them under it.
+     *
+     * @param sort the whole kind's name
+     */
+    void nameWholeSort(String sort) {
+        wholeSort = sort;
+    }
+
+    /**
+     * @param sort a whole kind's name
+     * @return whether a switch to that kind restores terms it held before
+     */
+    boolean holdsKept(String sort) {
+        return !keptWhole.getOrDefault(sort, List.of()).isEmpty();
+    }
+
+    /**
+     * Makes the value per goo type, keeping its whole terms to restore should it switch back.
      */
     void switchToPerType() {
         if (isPerType()) {
             return;
         }
         changed();
-        keptWhole = List.copyOf(whole);
-        whole.clear();
+        keepWhole();
         rows.addAll(keptRows);
         perTypeChosen = true;
     }
 
     /**
-     * Makes the value one scalar expression, keeping its rows to restore should it switch back; with no terms kept
-     * it starts as the number 1.
+     * Makes the value one number expression, starting as the number 1 where it held none before.
      */
     void switchToWhole() {
-        if (!isPerType() && !whole.isEmpty()) {
+        switchToWhole(NUMBER_SORT, List.of(firstTerm(new Num(ONE))));
+    }
+
+    /**
+     * Makes the value one expression of a whole kind, keeping what the other kind held to restore should it switch
+     * back.
+     *
+     * @param sort    the whole kind's name
+     * @param starter the terms it starts from where it held none before
+     */
+    void switchToWhole(String sort, List<Piece> starter) {
+        if (!isPerType() && !whole.isEmpty() && sort.equals(wholeSort)) {
             return;
         }
         changed();
-        keptRows = List.copyOf(rows);
-        rows.clear();
+        if (isPerType()) {
+            keptRows = List.copyOf(rows);
+            rows.clear();
+        } else {
+            keepWhole();
+        }
         perTypeChosen = false;
-        whole.addAll(keptWhole.isEmpty()
-                ? List.of(new Piece(ExpressionTerms.Join.FIRST, new Num(ONE), Op.MULTIPLY, ONE)) : keptWhole);
+        whole.addAll(holdsKept(sort) ? keptWhole.get(sort) : starter);
+        wholeSort = sort;
+    }
+
+    private void keepWhole() {
+        if (!whole.isEmpty()) {
+            keptWhole.put(wholeSort, List.copyOf(whole));
+        }
+        whole.clear();
     }
 
     /**
@@ -173,12 +223,52 @@ final class ExpressionBuilder {
      * @return whether the term was added; per-type rows refuse it
      */
     boolean addNumber() {
+        return addNumber(List.of());
+    }
+
+    /**
+     * Adds a term holding the number 1 to a sum, joined by plus after the first.
+     *
+     * @param sum the sum's place, empty for the whole value
+     * @return whether the term was added; per-type rows refuse it
+     */
+    boolean addNumber(List<Integer> sum) {
+        return addTerm(sum, new Num(ONE));
+    }
+
+    /**
+     * Adds a sum of terms to the whole value as one term, its first term the operand given.
+     *
+     * @param first what the sum's first term stands on
+     */
+    void addSum(Operand first) {
+        addTerm(List.of(), new Nest(List.of(firstTerm(first))));
+    }
+
+    /**
+     * Scales the whole value as one sum.
+     *
+     * @param factor the number multiplying it
+     */
+    void scaleWhole(String factor) {
+        if (!isNumber(factor) || whole.isEmpty()) {
+            return;
+        }
+        changed();
+        List<Piece> inner = new ArrayList<>(whole);
+        whole.clear();
+        whole.add(new Piece(ExpressionTerms.Join.FIRST, new Nest(List.copyOf(inner)), Op.MULTIPLY, factor.trim()));
+    }
+
+    private boolean addTerm(List<Integer> sum, Operand operand) {
         if (!rows.isEmpty()) {
             return refuse(ROWS_REFUSE_TERMS);
         }
         changed();
-        whole.add(new Piece(whole.isEmpty() ? ExpressionTerms.Join.FIRST : ExpressionTerms.Join.PLUS, new Num(ONE),
+        List<Piece> pieces = new ArrayList<>(sumAt(sum));
+        pieces.add(new Piece(pieces.isEmpty() ? ExpressionTerms.Join.FIRST : ExpressionTerms.Join.PLUS, operand,
                 Op.MULTIPLY, ONE));
+        replaceSum(sum, pieces);
         return true;
     }
 
@@ -187,9 +277,16 @@ final class ExpressionBuilder {
      * @param digits the number the term holds in place of its operand
      */
     void setNumber(int piece, String digits) {
+        setNumber(List.of(piece), digits);
+    }
+
+    /**
+     * @param path   the term's place: the indices of the sums holding it, outermost first, then its own
+     * @param digits the number the term holds in place of its operand
+     */
+    void setNumber(List<Integer> path, String digits) {
         if (isNumber(digits)) {
-            changed();
-            whole.set(piece, whole.get(piece).withOperand(new Num(digits.trim())));
+            editPiece(path, piece -> piece.withOperand(new Num(digits.trim())));
         }
     }
 
@@ -198,8 +295,50 @@ final class ExpressionBuilder {
      * @param choice the item or prefab the term relates to in place of its operand, its whole value
      */
     void setRef(int piece, SearchDropdown.Choice choice) {
+        setRef(List.of(piece), choice);
+    }
+
+    /**
+     * @param path   the term's place
+     * @param choice the item or prefab the term relates to in place of its operand, its whole value
+     */
+    void setRef(List<Integer> path, SearchDropdown.Choice choice) {
+        editPiece(path, piece -> piece.withOperand(new Ref(choice.kind(), choice.id(), null)));
+    }
+
+    // The terms of the sum at a place: the whole value's, or a sum's inside it.
+    private List<Piece> sumAt(List<Integer> sum) {
+        List<Piece> pieces = whole;
+        for (int step : sum) {
+            if (!(pieces.get(step).operand() instanceof Nest nest)) {
+                return List.of();
+            }
+            pieces = nest.pieces();
+        }
+        return pieces;
+    }
+
+    private void replaceSum(List<Integer> sum, List<Piece> pieces) {
+        if (sum.isEmpty()) {
+            List<Piece> replaced = List.copyOf(pieces);
+            whole.clear();
+            whole.addAll(replaced);
+            return;
+        }
+        List<Integer> outer = sum.subList(0, sum.size() - 1);
+        List<Piece> holder = new ArrayList<>(sumAt(outer));
+        int at = sum.getLast();
+        holder.set(at, holder.get(at).withOperand(new Nest(List.copyOf(pieces))));
+        replaceSum(outer, holder);
+    }
+
+    private void editPiece(List<Integer> path, UnaryOperator<Piece> edit) {
         changed();
-        whole.set(piece, whole.get(piece).withOperand(new Ref(choice.kind(), choice.id(), null)));
+        List<Integer> sum = path.subList(0, path.size() - 1);
+        List<Piece> pieces = new ArrayList<>(sumAt(sum));
+        int at = path.getLast();
+        pieces.set(at, edit.apply(pieces.get(at)));
+        replaceSum(sum, pieces);
     }
 
     /**
@@ -213,40 +352,6 @@ final class ExpressionBuilder {
         }
         changed();
         rows.set(row, new Row(type, rows.get(row).pieces()));
-    }
-
-    /**
-     * Puts a term and the one after it inside parentheses, as one term.
-     *
-     * @param piece the first term's index, before the last
-     */
-    void wrapWithNext(int piece) {
-        if (piece + 1 < whole.size()) {
-            wrap(piece, piece + 1);
-        }
-    }
-
-    /**
-     * Lifts a parenthesized term's terms out of their parentheses; a factor on the parentheses refuses it, since
-     * the factor would then scale the first term alone.
-     *
-     * @param piece the parenthesized term's index
-     */
-    void unwrap(int piece) {
-        Piece wrapped = whole.get(piece);
-        if (!(wrapped.operand() instanceof Nest nest)) {
-            return;
-        }
-        if (!ONE.equals(wrapped.factor())) {
-            refuse(SCALED_NEST);
-            return;
-        }
-        changed();
-        List<Piece> inner = new ArrayList<>(nest.pieces());
-        Piece first = inner.getFirst();
-        inner.set(0, new Piece(wrapped.join(), first.operand(), first.op(), first.factor()));
-        whole.remove(piece);
-        whole.addAll(piece, inner);
     }
 
     /**
@@ -368,6 +473,16 @@ final class ExpressionBuilder {
 
     /**
      * @param row    the row's index
+     * @param member the goo type the amount takes from its item or prefab in place of its own
+     */
+    void setRowMember(int row, String member) {
+        if (rows.get(row).pieces().getFirst().operand() instanceof Ref ref) {
+            setRowOperand(row, new Ref(ref.kind(), ref.id(), member));
+        }
+    }
+
+    /**
+     * @param row    the row's index
      * @param op     whether the factor multiplies or divides
      * @param factor the factor
      */
@@ -393,13 +508,18 @@ final class ExpressionBuilder {
      * @return whether the term was added; per-type rows refuse it
      */
     boolean relate(SearchDropdown.Choice choice) {
-        if (!rows.isEmpty()) {
-            return refuse(ROWS_REFUSE_TERMS);
-        }
-        changed();
-        whole.add(new Piece(whole.isEmpty() ? ExpressionTerms.Join.FIRST : ExpressionTerms.Join.PLUS,
-                new Ref(choice.kind(), choice.id(), null), Op.MULTIPLY, ONE));
-        return true;
+        return relate(List.of(), choice);
+    }
+
+    /**
+     * Adds a term to a sum relating it to an item or prefab, joined by plus after the first.
+     *
+     * @param sum    the sum's place, empty for the whole value
+     * @param choice the item or prefab
+     * @return whether the term was added; per-type rows refuse it
+     */
+    boolean relate(List<Integer> sum, SearchDropdown.Choice choice) {
+        return addTerm(sum, new Ref(choice.kind(), choice.id(), null));
     }
 
     /**
@@ -415,9 +535,16 @@ final class ExpressionBuilder {
      * @param member the goo type taken from the operand, null for its whole value
      */
     void setMember(int piece, @Nullable String member) {
-        if (whole.get(piece).operand() instanceof Ref ref) {
-            changed();
-            whole.set(piece, whole.get(piece).withOperand(new Ref(ref.kind(), ref.id(), member)));
+        setMember(List.of(piece), member);
+    }
+
+    /**
+     * @param path   the term's place
+     * @param member the goo type taken from the operand, null for its whole value
+     */
+    void setMember(List<Integer> path, @Nullable String member) {
+        if (pieceAt(path).operand() instanceof Ref ref) {
+            editPiece(path, piece -> piece.withOperand(new Ref(ref.kind(), ref.id(), member)));
         }
     }
 
@@ -427,11 +554,30 @@ final class ExpressionBuilder {
      * @param factor the factor
      */
     void setScale(int piece, Op op, String factor) {
-        if (isNumber(factor)) {
-            List<Piece> edited = scaled(whole, piece, op, factor.trim());
-            whole.clear();
-            whole.addAll(edited);
+        setScale(List.of(piece), op, factor);
+    }
+
+    /**
+     * Scales a term; the whole value standing as one sum scaled by 1 comes apart into its terms, since its
+     * parentheses then mean nothing.
+     *
+     * @param path   the term's place
+     * @param op     whether the factor multiplies or divides
+     * @param factor the factor
+     */
+    void setScale(List<Integer> path, Op op, String factor) {
+        if (!isNumber(factor)) {
+            return;
         }
+        String trimmed = factor.trim();
+        if (path.size() == 1 && whole.size() == 1 && ONE.equals(trimmed)
+                && whole.getFirst().operand() instanceof Nest nest) {
+            changed();
+            whole.clear();
+            whole.addAll(nest.pieces());
+            return;
+        }
+        editPiece(path, piece -> new Piece(piece.join(), piece.operand(), op, trimmed));
     }
 
     /**
@@ -439,43 +585,50 @@ final class ExpressionBuilder {
      * @param join  plus or minus
      */
     void setJoin(int piece, ExpressionTerms.Join join) {
-        if (piece > 0 && join != ExpressionTerms.Join.FIRST) {
-            changed();
-            Piece edited = whole.get(piece);
-            whole.set(piece, new Piece(join, edited.operand(), edited.op(), edited.factor()));
-        }
+        setJoin(List.of(piece), join);
     }
 
     /**
-     * Wraps a run of terms in parentheses, as one term.
-     *
-     * @param from the first term's index
-     * @param to   the last term's index
+     * @param path the term's place, past its sum's first
+     * @param join plus or minus
      */
-    void wrap(int from, int to) {
-        changed();
-        List<Piece> inner = new ArrayList<>(whole.subList(from, to + 1));
-        ExpressionTerms.Join join = inner.getFirst().join();
-        Piece first = inner.getFirst();
-        inner.set(0, new Piece(ExpressionTerms.Join.FIRST, first.operand(), first.op(), first.factor()));
-        whole.subList(from, to + 1).clear();
-        whole.add(from, new Piece(join, new Nest(List.copyOf(inner)), Op.MULTIPLY, ONE));
+    void setJoin(List<Integer> path, ExpressionTerms.Join join) {
+        if (path.getLast() > 0 && join != ExpressionTerms.Join.FIRST) {
+            editPiece(path, piece -> new Piece(join, piece.operand(), piece.op(), piece.factor()));
+        }
     }
 
     /**
      * @param piece the term's index
      */
     void remove(int piece) {
-        if (whole.size() == 1) {
+        remove(List.of(piece));
+    }
+
+    /**
+     * Removes a term; a sum keeps its last term.
+     *
+     * @param path the term's place
+     */
+    void remove(List<Integer> path) {
+        List<Integer> sum = path.subList(0, path.size() - 1);
+        List<Piece> pieces = new ArrayList<>(sumAt(sum));
+        if (pieces.size() == 1) {
             refuse(LAST_TERM);
             return;
         }
         changed();
-        whole.remove(piece);
-        if (piece == 0 && !whole.isEmpty()) {
-            Piece next = whole.getFirst();
-            whole.set(0, new Piece(ExpressionTerms.Join.FIRST, next.operand(), next.op(), next.factor()));
+        int at = path.getLast();
+        pieces.remove(at);
+        if (at == 0) {
+            Piece next = pieces.getFirst();
+            pieces.set(0, new Piece(ExpressionTerms.Join.FIRST, next.operand(), next.op(), next.factor()));
         }
+        replaceSum(sum, pieces);
+    }
+
+    private Piece pieceAt(List<Integer> path) {
+        return sumAt(path.subList(0, path.size() - 1)).get(path.getLast());
     }
 
     private List<Piece> scaled(List<Piece> pieces, int index, Op op, String factor) {

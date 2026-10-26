@@ -217,7 +217,7 @@ final class VariablesPane {
                             GroupsPane.Bounds bounds, int y, ClickTargets targets) {
         if (!builder.isOpen() || !block.name().equals(building)) {
             building = block.name();
-            builder.open(block.expression(), typed -> {
+            builder.openPrefab(block.name(), block.expression(), typed -> {
                 variables.edit(block.name(), typed);
                 actions.markUnsaved();
             }, () -> {

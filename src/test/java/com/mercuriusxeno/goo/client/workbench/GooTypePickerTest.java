@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -113,5 +114,19 @@ class GooTypePickerTest {
         assertFalse(picker.isOpen());
         assertFalse(under.get());
         assertEquals(null, picked.get());
+    }
+
+    /**
+     * A grid opened with goo types hidden offers every other type and none of those, so a value never picks a type
+     * it already holds.
+     */
+    @Test
+    void hiddenTypesTakeNoCell() {
+        GooTypePicker picker = new GooTypePicker(TYPES);
+        picker.open(Set.of(TYPES.get(0), TYPES.get(2)));
+        List<GooTypePicker.Cell> cells = picker.cells();
+        assertEquals(TYPES.size() - 2, cells.size());
+        assertEquals(new GooTypePicker.Cell(TYPES.get(1), 0, 0), cells.getFirst());
+        assertTrue(cells.stream().noneMatch(cell -> cell.type().equals(TYPES.get(2))));
     }
 }

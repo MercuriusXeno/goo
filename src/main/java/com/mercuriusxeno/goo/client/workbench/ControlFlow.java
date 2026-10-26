@@ -26,7 +26,7 @@ final class ControlFlow {
     private final Font font;
     private final ClickTargets targets;
     private final @Nullable ItemIcons icons;
-    private final int left;
+    private int left;
     private final int right;
     private int lineLeft;
     private int x;
@@ -129,11 +129,43 @@ final class ControlFlow {
      * @param choose chooses it
      */
     void choice(String label, String hint, boolean chosen, Runnable choose) {
+        choiceAt(label, hint, chosen, at -> choose.run());
+    }
+
+    /**
+     * One option of a choice whose choosing opens a list below it.
+     *
+     * @param label  the option's label
+     * @param hint   what choosing it does
+     * @param chosen whether it is the one chosen
+     * @param choose takes where it was clicked
+     */
+    void choiceAt(String label, String hint, boolean chosen, Consumer<BuilderOverlays.Anchor> choose) {
         if (chosen) {
             text(label, WHITE);
         } else {
-            control(label, hint, at -> choose.run());
+            control(label, hint, choose);
         }
+    }
+
+    /**
+     * Starts a fresh line indented one step further, for the terms a sum holds.
+     */
+    void indent() {
+        newLine();
+        left += INDENT;
+        lineLeft = left;
+        x = left;
+    }
+
+    /**
+     * Starts a fresh line one step less indented.
+     */
+    void outdent() {
+        newLine();
+        left -= INDENT;
+        lineLeft = left;
+        x = left;
     }
 
     /**
