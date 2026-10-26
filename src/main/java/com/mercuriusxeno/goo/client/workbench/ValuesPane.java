@@ -27,7 +27,6 @@ final class ValuesPane {
     private static final int GAP = 3;
     private static final int HALF = 2;
     private static final int SCROLL_STEP = LINE_HEIGHT * 3;
-    private static final int EXPRESSION_MAX_LENGTH = 32767;
     private static final int WHITE = 0xFFFFFFFF;
     private static final int GRAY = 0xFFA0A0A0;
     private static final int RED = 0xFFFF5555;
@@ -39,7 +38,10 @@ final class ValuesPane {
     private static final String TAGS_CHIP = "Tags";
     private static final String UNCOVERED_CHIP = "Uncovered ";
     private static final String SEARCH_HINT = "Search items and tags";
-    private static final String EXPRESSION_LABEL = "Expression";
+    private static final String EXPRESSION_LABEL = "Value: click it to build";
+    private static final String NO_EXPRESSION = "(no entry)";
+    private static final int READ_VIEW_COLOR = 0x30FFFFFF;
+    private static final int LINK = 0xFF80C0FF;
     private static final String NO_SELECTION = "Select an item or tag to read and edit its entry.";
     private static final String NO_ENTRIES = "Nothing listed here.";
     private static final String DENIED_LINE = "denied";
@@ -50,15 +52,16 @@ final class ValuesPane {
     private final ItemIcons icons;
     private final ManagerActions actions;
     private @Nullable EditBox search;
-    private @Nullable EditBox expression;
+    private final ExpressionBuilderPane builder;
     private final ScrollBar listBar = new ScrollBar(1);
     private final ScrollBar detailBar = new ScrollBar(SCROLL_STEP);
     private boolean visible;
 
-    ValuesPane(ValuesTab values, ItemIcons icons, ManagerActions actions) {
+    ValuesPane(ValuesTab values, ItemIcons icons, ManagerActions actions, ExpressionBuilderPane builder) {
         this.values = values;
         this.icons = icons;
         this.actions = actions;
+        this.builder = builder;
     }
 
     /**
@@ -73,12 +76,7 @@ final class ValuesPane {
             values.search(text);
             listBar.reset();
         });
-        String typed = expression == null ? NO_TEXT : expression.getValue();
-        expression = actions.addWidget(new EditBox(font, 0, 0, SIDEBAR_WIDTH, BOX_HEIGHT,
-                Component.literal(EXPRESSION_LABEL)));
-        expression.setMaxLength(EXPRESSION_MAX_LENGTH);
-        expression.setValue(typed);
-        expression.setResponder(this::edited);
+        builder.init(font);
         show(visible);
     }
 
@@ -90,31 +88,15 @@ final class ValuesPane {
         if (search != null) {
             search.visible = shown;
         }
-        refresh();
+        builder.show(shown);
     }
 
     /**
-     * Shows the selected entry's expression in the edit box, as a new resolve or a new selection leaves it.
+     * @param key the GLFW key pressed
+     * @return whether the builder took the key
      */
-    void refresh() {
-        if (expression == null) {
-            return;
-        }
-        Optional<ValuesTab.EntryRow> row = values.selectedRow();
-        expression.visible = visible && row.isPresent();
-        row.ifPresent(selected -> {
-            if (!expression.getValue().equals(selected.expression())) {
-                expression.setValue(selected.expression());
-            }
-        });
-    }
-
-    private void edited(String typed) {
-        Optional<ValuesTab.EntryRow> row = values.selectedRow();
-        if (row.isPresent() && !row.get().expression().equals(typed)) {
-            values.edit(typed);
-            actions.markUnsaved();
-        }
+    boolean keyPressed(int key) {
+        return builder.keyPressed(key);
     }
 
     /**
@@ -199,7 +181,7 @@ final class ValuesPane {
             targets.add(list.left(), y, rowRight - list.left(), ROW_HEIGHT, () -> {
                 values.select(entry.id());
                 detailBar.reset();
-                refresh();
+                builder.close();
             });
             y += ROW_HEIGHT;
         }
@@ -229,12 +211,26 @@ final class ValuesPane {
         int y = pane.top() + LINE_HEIGHT * HALF + GAP;
         graphics.text(font, EXPRESSION_LABEL, x, y, GRAY);
         y += LINE_HEIGHT;
-        if (expression != null) {
-            expression.setPosition(x, y);
-            expression.setWidth(width);
-        }
-        drawAmounts(graphics, font, row, new GroupsPane.Bounds(x, y + BOX_HEIGHT + GAP, pane.right(), pane.bottom()),
-                targets);
+        y += builder.isOpen() ? builder.extract(graphics, font, pane, y, targets)
+                : drawValueView(graphics, font, row, x, y, width, targets);
+        drawAmounts(graphics, font, row, new GroupsPane.Bounds(x, y + GAP, pane.right(), pane.bottom()), targets);
+    }
+
+    // The entry's value curated, a click on it opening the builder over it
+    // (decision expression-builder-composes-every-form-without-typing); answers the height it took.
+    private int drawValueView(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row, int x, int y,
+                              int width, ClickTargets targets) {
+        List<ExpressionLines.Run> runs = row.expression().isBlank() ? ExpressionLines.textRuns(NO_EXPRESSION)
+                : ExpressionLines.shownRuns(row.expression(), icons::nameOf);
+        int height = ExpressionLines.height(font, runs, width);
+        graphics.fill(x, y, x + width, y + height, READ_VIEW_COLOR);
+        targets.add(x, y, width, height, () -> builder.open(row.expression(), typed -> {
+            values.edit(typed);
+            actions.markUnsaved();
+        }, actions::draftChanged));
+        ExpressionLines.draw(font, runs, x, y, width, new ExpressionLines.Painter(graphics, icons, targets, WHITE,
+                LINK, (name, linkX, linkY, linkWidth) -> { }));
+        return height;
     }
 
     // The selected entry's icon, name and id, and where its value comes from.

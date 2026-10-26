@@ -75,21 +75,22 @@ final class VariablesPane {
     private final Set<String> expandedUsedBy = new HashSet<>();
     private final ScrollBar cascadeBar = new ScrollBar(1);
     private final Map<String, Integer> blockTops = new HashMap<>();
-    private @Nullable EditBox expression;
+    private final ExpressionBuilderPane builder;
+    private @Nullable String building;
     private @Nullable EditBox rename;
     private @Nullable String renaming;
     private @Nullable String deleting;
     private @Nullable String jumpPending;
-    private boolean expressionHeldFocus;
-    private boolean loadingBox;
     private boolean visible;
     private final ScrollBar bar = new ScrollBar(SCROLL_STEP);
 
-    VariablesPane(VariablesTab variables, ManagerDraft draft, ItemIcons icons, ManagerActions actions) {
+    VariablesPane(VariablesTab variables, ManagerDraft draft, ItemIcons icons, ManagerActions actions,
+                  ExpressionBuilderPane builder) {
         this.variables = variables;
         this.draft = draft;
         this.icons = icons;
         this.actions = actions;
+        this.builder = builder;
     }
 
     /**
@@ -98,17 +99,7 @@ final class VariablesPane {
      * @param font the screen's font
      */
     void init(Font font) {
-        EditBox previous = expression;
-        expression = actions.addWidget(new EditBox(font, 0, 0, NAME_WIDTH, BOX_HEIGHT, Component.literal(NO_TEXT)));
-        expression.setMaxLength(Short.MAX_VALUE);
-        if (previous != null) {
-            expression.setValue(previous.getValue());
-        }
-        expression.setResponder(typed -> {
-            if (!loadingBox) {
-                variables.editing().ifPresent(name -> variables.edit(name, typed));
-            }
-        });
+        builder.init(font);
         EditBox previousRename = rename;
         rename = actions.addWidget(new EditBox(font, 0, 0, NAME_WIDTH, BOX_HEIGHT, Component.literal(NO_TEXT)));
         if (previousRename != null) {
@@ -122,9 +113,7 @@ final class VariablesPane {
      */
     void show(boolean shown) {
         visible = shown;
-        if (expression != null) {
-            expression.visible = shown && deleting == null && variables.editing().isPresent();
-        }
+        builder.show(shown && deleting == null);
         if (rename != null) {
             rename.visible = shown && deleting == null && renaming != null;
         }
@@ -179,11 +168,7 @@ final class VariablesPane {
                 return true;
             }
         }
-        if (expression != null && expression.isFocused() && (isEnter(key) || key == GLFW.GLFW_KEY_ESCAPE)) {
-            expression.setFocused(false);
-            return true;
-        }
-        return false;
+        return builder.keyPressed(key);
     }
 
     private static boolean isEnter(int key) {
@@ -192,7 +177,6 @@ final class VariablesPane {
 
     void extract(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds view, ClickTargets targets,
                  int mouseX, int mouseY) {
-        swapBackOnBlur();
         List<VariablesTab.ConstantBlock> blocks = variables.blocks();
         if (blocks.isEmpty()) {
             graphics.text(font, NO_CONSTANTS, view.left(), view.top(), GRAY);
@@ -203,7 +187,6 @@ final class VariablesPane {
                 view.right() - ScrollBar.WIDTH - ScrollBar.GAP, view.bottom());
         graphics.enableScissor(bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
         targets.clip(bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
-        boolean editShown = false;
         boolean renameShown = false;
         int y = bounds.top() - bar.offset();
         for (VariablesTab.ConstantBlock block : blocks) {
@@ -211,51 +194,41 @@ final class VariablesPane {
             renameShown |= drawHead(graphics, font, block, bounds, y, targets);
             y += ExpressionLines.ICON_LINE_HEIGHT;
             boolean editingThis = variables.editing().filter(block.name()::equals).isPresent();
-            editShown |= editingThis && placeExpression(bounds, y);
-            y += editingThis ? BOX_HEIGHT : drawReadView(graphics, font, block, bounds, y, targets);
+            y += editingThis ? drawBuilder(graphics, font, block, bounds, y, targets)
+                    : drawReadView(graphics, font, block, bounds, y, targets);
             y += drawUsedByLines(graphics, font, block.direct(), block.indirect(), bounds.left(), y + HALF,
                     bounds.right() - bounds.left(), block.name(), targets) + BLOCK_GAP;
         }
         targets.unclip();
         graphics.disableScissor();
         bar.measureAndDraw(graphics, targets, y, view.right(), view.top(), view.bottom());
-        showBoxes(editShown, renameShown);
+        showBoxes(renameShown);
         drawDeleteDialog(graphics, font, view, targets);
         drawHoverCard(graphics, font, view, targets, mouseX, mouseY);
     }
 
-    // Answers whether the edit box stands wholly inside the pane, where it may show.
-    private boolean placeExpression(GroupsPane.Bounds bounds, int y) {
-        if (expression == null) {
-            return false;
+    // The builder over the block being edited, each change written to the draft and [done] evaluating it afresh
+    // (decision expression-builder-composes-every-form-without-typing); answers the height it took.
+    private int drawBuilder(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
+                            GroupsPane.Bounds bounds, int y, ClickTargets targets) {
+        if (!builder.isOpen() || !block.name().equals(building)) {
+            building = block.name();
+            builder.open(block.expression(), typed -> {
+                variables.edit(block.name(), typed);
+                actions.markUnsaved();
+            }, () -> {
+                building = null;
+                variables.stopEditing();
+                actions.draftChanged();
+            });
         }
-        expression.setPosition(bounds.left(), y);
-        expression.setWidth(bounds.right() - bounds.left());
-        return y >= bounds.top() && y + BOX_HEIGHT <= bounds.bottom();
+        return builder.extract(graphics, font, bounds, y, targets);
     }
 
-    private void showBoxes(boolean editShown, boolean renameShown) {
+    private void showBoxes(boolean renameShown) {
         boolean open = visible && deleting == null;
-        if (expression != null) {
-            expression.visible = open && editShown;
-        }
         if (rename != null) {
             rename.visible = open && renameShown;
-        }
-    }
-
-    private void swapBackOnBlur() {
-        if (expression == null || variables.editing().isEmpty()) {
-            expressionHeldFocus = false;
-            return;
-        }
-        if (expression.isFocused()) {
-            expressionHeldFocus = true;
-        } else if (expressionHeldFocus) {
-            expressionHeldFocus = false;
-            variables.stopEditing();
-            show(visible);
-            actions.draftChanged();
         }
     }
 
@@ -366,16 +339,8 @@ final class VariablesPane {
     private void startEditing(String name) {
         boolean switching = variables.editing().filter(name::equals).isEmpty() && variables.editing().isPresent();
         variables.startEditing(name);
-        if (expression != null) {
-            String shown = variables.blocks().stream().filter(block -> block.name().equals(name))
-                    .map(VariablesTab.ConstantBlock::expression).findFirst().orElse(NO_TEXT);
-            loadingBox = true;
-            expression.setValue(shown);
-            loadingBox = false;
-            expression.visible = visible;
-            actions.focus(expression);
-        }
-        expressionHeldFocus = false;
+        builder.close();
+        building = null;
         if (switching) {
             actions.draftChanged();
         }

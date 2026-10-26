@@ -43,8 +43,28 @@ final class GooTypeIcons {
      * @param y        the icon's top edge
      */
     static void draw(GuiGraphicsExtractor graphics, ClickTargets targets, String type, int x, int y) {
-        graphics.blit(RenderPipelines.GUI_TEXTURED, texture(type), x, y, 0.0f, 0.0f, SIZE, SIZE, SIZE, SIZE, OPAQUE);
+        blit(graphics, type, x, y);
         addHover(targets, type, x, y);
+    }
+
+    /**
+     * Draws the type's icon alone, for a caller that leaves its own hover area.
+     *
+     * @param graphics the frame's graphics
+     * @param type     the goo type's id
+     * @param x        the icon's left edge
+     * @param y        the icon's top edge
+     */
+    static void blit(GuiGraphicsExtractor graphics, String type, int x, int y) {
+        graphics.blit(RenderPipelines.GUI_TEXTURED, texture(type), x, y, 0.0f, 0.0f, SIZE, SIZE, SIZE, SIZE, OPAQUE);
+    }
+
+    /**
+     * @param type a goo type's id
+     * @return the hover key whose tooltip names it
+     */
+    static String hoverKey(String type) {
+        return HOVER_PREFIX + type;
     }
 
     /**
