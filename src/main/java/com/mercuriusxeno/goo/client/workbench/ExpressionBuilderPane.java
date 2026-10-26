@@ -89,7 +89,9 @@ final class ExpressionBuilderPane {
     private static final String EMPTY = "No value yet: pick a kind to give it one.";
     private static final String DENIED = "Denied: this holds no goo. Pick a kind to give it a value.";
     private static final String DONE = "done";
-    private static final String DONE_HINT = "Close the builder; every change is already in the draft";
+    // decision done-hint-reads-no-unsaved-changes-or-changes-already-saved
+    private static final String NO_CHANGES_HINT = "No unsaved changes";
+    private static final String CHANGES_SAVED_HINT = "Changes already saved to the draft";
     private static final String BLANK = "";
 
     private final ItemIcons icons;
@@ -98,6 +100,7 @@ final class ExpressionBuilderPane {
     private final Supplier<List<BuilderGrammar.Prefab>> prefabs;
     private BuilderGrammar grammar;
     private @Nullable ExpressionBuilder builder;
+    private String openedText = BLANK;
     private @Nullable Consumer<String> writes;
     private @Nullable Runnable done;
 
@@ -154,6 +157,8 @@ final class ExpressionBuilderPane {
             opened.nameWholeSort(read.sortOf(opened));
         }
         builder = opened;
+        // The builder's own text, not the shown string, so its normalized rewrite reads as no change.
+        openedText = opened.text();
         writes = change;
         done = finish;
     }
@@ -217,7 +222,7 @@ final class ExpressionBuilderPane {
         drawKind(flow, edited);
         drawValue(flow, edited);
         flow.newLine();
-        flow.control(DONE, DONE_HINT, at -> finish());
+        flow.control(DONE, doneHint(openedText, edited.text()), at -> finish());
         int bottom = flow.bottom();
         graphics.fill(area.left() - 1, top - 1, area.right(), bottom, PANEL_COLOR);
         return bottom - top;
@@ -292,6 +297,16 @@ final class ExpressionBuilderPane {
      */
     static String gooKindHint(boolean readsItems) {
         return readsItems ? ITEMS_GOO_KIND_HINT : PREFABS_GOO_KIND_HINT;
+    }
+
+    /**
+     * @param opened  the text the builder opened with
+     * @param written the text the builder writes now
+     * @return the done control's hover hint: whether the builder holds no change, or holds changes the draft already
+     *         has
+     */
+    static String doneHint(String opened, String written) {
+        return opened.equals(written) ? NO_CHANGES_HINT : CHANGES_SAVED_HINT;
     }
 
     // A goo value starts from what it held before, or from the item or prefab picked first.
