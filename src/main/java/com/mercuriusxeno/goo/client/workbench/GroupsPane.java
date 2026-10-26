@@ -233,7 +233,7 @@ final class GroupsPane {
         y += LINE_HEIGHT + SECTION_GAP;
         y = drawCards(graphics, font, detail, y, targets);
         y = drawTweak(graphics, font, detail, x, y + SECTION_GAP, group, targets);
-        y = drawPreview(graphics, font, x, y + SECTION_GAP, detail.right() - x, group);
+        y = drawPreview(graphics, font, x, y + SECTION_GAP, detail.right() - x, group, targets);
         targets.unclip();
         graphics.disableScissor();
         detailBar.measureAndDraw(graphics, targets, y, detail.right() + ScrollBar.GAP + ScrollBar.WIDTH, detail.top(),
@@ -338,13 +338,22 @@ final class GroupsPane {
     }
 
     // Answers the y below the preview.
-    private static int drawPreview(GuiGraphicsExtractor graphics, Font font, int x, int top, int width,
-                                   GroupsTab.Group group) {
+    // Each line draws curated, its key and its value's terms (decision curated-view-shows-no-brace-quote-or-raw-id).
+    private int drawPreview(GuiGraphicsExtractor graphics, Font font, int x, int top, int width, GroupsTab.Group group,
+                            ClickTargets targets) {
         graphics.text(font, PREVIEW_LABEL, x, top, GRAY);
         int y = top + LINE_HEIGHT;
-        for (String line : group.preview().isEmpty() ? List.of(NO_BASE_PREVIEW) : group.preview()) {
-            graphics.text(font, font.plainSubstrByWidth(line, width), x, y, WHITE);
-            y += LINE_HEIGHT;
+        if (group.preview().isEmpty()) {
+            graphics.text(font, NO_BASE_PREVIEW, x, y, WHITE);
+            return y + LINE_HEIGHT;
+        }
+        ExpressionLines.Painter painter = new ExpressionLines.Painter(graphics, icons, targets, WHITE, LINK,
+                (name, linkX, linkY, linkWidth) -> targets.add(linkX, linkY, linkWidth, LINE_HEIGHT,
+                        () -> actions.openVariable(name), name));
+        for (String line : group.preview()) {
+            List<ExpressionLines.Run> runs = ExpressionLines.previewRuns(line, icons::nameOf);
+            ExpressionLines.draw(font, runs, x, y, width, painter);
+            y += ExpressionLines.height(font, runs, width);
         }
         return y;
     }

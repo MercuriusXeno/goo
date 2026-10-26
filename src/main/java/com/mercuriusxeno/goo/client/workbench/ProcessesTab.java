@@ -30,7 +30,9 @@ public final class ProcessesTab {
     private static final String REFUSED_SUFFIX = " refused";
     private static final String NO_TEXT = "";
     private static final int ROW_LINES = 2;
-    private static final int ROW_LINE_HEIGHT = 13;
+    private static final int HEAD_LINE_HEIGHT = 13;
+    // The text line draws goo types as 16px icons (decision goo-types-draw-as-icons-named-on-hover).
+    private static final int TEXT_LINE_HEIGHT = 18;
 
     private final ManagerDraft draft;
     private final List<ProcessSection> sections = new ArrayList<>();
@@ -85,7 +87,8 @@ public final class ProcessesTab {
      */
     public static RowLayout layoutRow(int left, int right, int top) {
         // decision mutator-rows-take-an-extra-line
-        return new RowLayout(ROW_LINES, ROW_LINES * ROW_LINE_HEIGHT, left, top + ROW_LINE_HEIGHT, right - left);
+        return new RowLayout(ROW_LINES, HEAD_LINE_HEIGHT + TEXT_LINE_HEIGHT, left, top + HEAD_LINE_HEIGHT,
+                right - left);
     }
 
     /**

@@ -49,7 +49,7 @@ final class VariablesPane {
     private static final int CARD_COLOR = 0xF0181818;
     private static final int DIM_COLOR = 0xA0000000;
     private static final int READ_VIEW_COLOR = 0x30FFFFFF;
-    private static final String REFERENCE_MARK = "$";
+    private static final String RESOLVED_SEPARATOR = ", ";
     private static final String TAG_PREFIX = "#";
     private static final String RENAME = "[Rename]";
     private static final String DELETE = "[Delete]";
@@ -206,7 +206,7 @@ final class VariablesPane {
         for (VariablesTab.ConstantBlock block : blocks) {
             blockTops.put(block.name(), y + bar.offset() - bounds.top());
             renameShown |= drawHead(graphics, font, block, bounds, y, targets);
-            y += LINE_HEIGHT + HALF;
+            y += ExpressionLines.ICON_LINE_HEIGHT;
             boolean editingThis = variables.editing().filter(block.name()::equals).isPresent();
             editShown |= editingThis && placeExpression(bounds, y);
             y += editingThis ? BOX_HEIGHT : drawReadView(graphics, font, block, bounds, y, targets);
@@ -271,16 +271,14 @@ final class VariablesPane {
         if (renamingThis) {
             rename.setPosition(x, y - HALF);
         } else {
-            graphics.text(font, REFERENCE_MARK + block.name(), x, y, WHITE);
+            graphics.text(font, block.name(), x, y, WHITE);
         }
-        int kindX = x + Math.max(NAME_WIDTH, font.width(REFERENCE_MARK + block.name())) + KIND_GAP;
+        int kindX = x + Math.max(NAME_WIDTH, font.width(block.name())) + KIND_GAP;
         graphics.text(font, block.kind(), kindX, y, VariablesTab.TREE_KIND.equals(block.kind()) ? TREE_COLOR : GRAY);
         int actionsWidth = font.width(RENAME) + ACTION_GAP + font.width(DELETE);
         int resolvedX = kindX + font.width(block.kind()) + KIND_GAP;
         int resolvedWidth = bounds.right() - actionsWidth - ACTION_GAP - resolvedX;
-        boolean failed = !block.error().isEmpty();
-        graphics.text(font, font.plainSubstrByWidth(failed ? block.error() : block.resolved(), resolvedWidth),
-                resolvedX, y, failed ? RED : GREEN);
+        drawResolved(graphics, font, block, resolvedX, y, resolvedWidth, targets);
         int renameX = bounds.right() - actionsWidth;
         graphics.text(font, RENAME, renameX, y, LINK);
         targets.add(renameX, y, font.width(RENAME), LINE_HEIGHT, () -> startRename(block.name()));
@@ -290,18 +288,30 @@ final class VariablesPane {
         return renamingThis;
     }
 
+    // A resolved tree draws each type as its icon beside its amount (decision goo-types-draw-as-icons-named-on-hover).
+    private void drawResolved(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block, int x,
+                              int y, int width, ClickTargets targets) {
+        if (!block.error().isEmpty()) {
+            graphics.text(font, font.plainSubstrByWidth(block.error(), width), x, y, RED);
+            return;
+        }
+        List<ExpressionLines.Run> resolved = ExpressionLines.resolvedRuns(block.resolved());
+        ExpressionLines.draw(font, resolved, x, y - ExpressionLines.textOffset(resolved), width,
+                new ExpressionLines.Painter(graphics, icons, targets, GREEN, LINK, (name, linkX, linkY, w) -> { }));
+    }
+
     // Answers the height the read view took.
     private int drawReadView(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
                              GroupsPane.Bounds bounds, int y, ClickTargets targets) {
         int width = bounds.right() - bounds.left();
         String text = block.expression().isEmpty() ? NO_EXPRESSION : block.expression();
-        int lines = ExpressionLines.measure(font, ExpressionReferences.nodes(text), width);
-        int height = lines * LINE_HEIGHT + HALF;
+        List<ExpressionLines.Run> runs = ExpressionLines.shownRuns(text, icons::nameOf);
+        int height = ExpressionLines.height(font, runs, width) + HALF;
         graphics.fill(bounds.left(), y, bounds.right(), y + height, READ_VIEW_COLOR);
         targets.add(bounds.left(), y, width, height, () -> startEditing(block.name()));
-        ExpressionLines.draw(graphics, font, ExpressionReferences.nodes(text), bounds.left(), y + 1, width,
-                block.error().isEmpty() ? WHITE : RED, LINK, (name, linkX, linkY, linkWidth) ->
-                        targets.add(linkX, linkY, linkWidth, LINE_HEIGHT, () -> actions.openVariable(name), name));
+        ExpressionLines.draw(font, runs, bounds.left(), y + 1, width, new ExpressionLines.Painter(graphics, icons,
+                targets, block.error().isEmpty() ? WHITE : RED, LINK, (name, linkX, linkY, linkWidth) ->
+                        targets.add(linkX, linkY, linkWidth, LINE_HEIGHT, () -> actions.openVariable(name), name)));
         return height;
     }
 
@@ -416,7 +426,7 @@ final class VariablesPane {
         int top = (bounds.top() + bounds.bottom() - DIALOG_HEIGHT) / HALF;
         GroupsPane.Bounds dialog = new GroupsPane.Bounds(left, top, left + DIALOG_WIDTH, top + DIALOG_HEIGHT);
         graphics.fill(dialog.left(), dialog.top(), dialog.right(), dialog.bottom(), CARD_COLOR);
-        graphics.text(font, DELETE_TITLE_START + REFERENCE_MARK + name + DELETE_TITLE_END, left + CARD_PADDING,
+        graphics.text(font, DELETE_TITLE_START + name + DELETE_TITLE_END, left + CARD_PADDING,
                 top + CARD_PADDING, WHITE);
         drawCascade(graphics, font, name, dialog, targets);
         drawDialogButtons(graphics, font, name, dialog, targets);
@@ -451,7 +461,7 @@ final class VariablesPane {
 
     private static int readerWidth(Font font, VariablesTab.Reader reader) {
         if (CONSTANT_KIND.equals(reader.kind())) {
-            return font.width(REFERENCE_MARK + reader.id());
+            return font.width(reader.id());
         }
         if (GROUP_KIND.equals(reader.kind())) {
             return font.width(reader.id().startsWith(TAG_PREFIX) ? reader.id() : TAG_PREFIX + reader.id());
@@ -478,7 +488,7 @@ final class VariablesPane {
     private int drawReader(GuiGraphicsExtractor graphics, Font font, VariablesTab.Reader reader, int x, int y,
                            ClickTargets targets) {
         if (CONSTANT_KIND.equals(reader.kind())) {
-            String label = REFERENCE_MARK + reader.id();
+            String label = reader.id();
             graphics.text(font, label, x, y + TEXT_NUDGE, LINK);
             targets.add(x, y, font.width(label), ICON_SIZE, () -> actions.openVariable(reader.id()), reader.id());
             return font.width(label);
@@ -499,6 +509,9 @@ final class VariablesPane {
             return;
         }
         String name = hovered.get();
+        if (GooTypeIcons.isTypeHover(name)) {
+            return;
+        }
         VariablesTab.HoverCard card = cards.get(name);
         if (card != null) {
             drawCard(graphics, font, card, bounds, mouseX, mouseY, targets);
@@ -511,8 +524,12 @@ final class VariablesPane {
     private void drawCard(GuiGraphicsExtractor graphics, Font font, VariablesTab.HoverCard card,
                           GroupsPane.Bounds bounds, int mouseX, int mouseY, ClickTargets targets) {
         int textWidth = CARD_WIDTH - CARD_PADDING * HALF;
-        int expressionLines = ExpressionLines.measure(font, ExpressionReferences.nodes(card.expression()), textWidth);
-        int height = CARD_PADDING * HALF + LINE_HEIGHT * (1 + expressionLines + card.lines().size())
+        List<ExpressionLines.Run> expression = ExpressionLines.shownRuns(card.expression(), icons::nameOf);
+        List<ExpressionLines.Run> resolved = ExpressionLines.resolvedRuns(String.join(RESOLVED_SEPARATOR,
+                card.lines()));
+        int expressionHeight = ExpressionLines.height(font, expression, textWidth);
+        int resolvedHeight = ExpressionLines.height(font, resolved, textWidth);
+        int height = CARD_PADDING * HALF + LINE_HEIGHT + expressionHeight + resolvedHeight
                 + (card.usedBy().isEmpty() ? 0 : ICON_SIZE + HALF);
         int left = Math.min(mouseX + CARD_OFFSET, bounds.right() - CARD_WIDTH);
         int top = Math.min(mouseY + CARD_OFFSET, bounds.bottom() - height);
@@ -522,13 +539,12 @@ final class VariablesPane {
         int y = top + CARD_PADDING;
         graphics.text(font, card.title(), x, y, WHITE);
         y += LINE_HEIGHT;
-        ExpressionLines.draw(graphics, font, ExpressionReferences.nodes(card.expression()), x, y, textWidth, GRAY,
-                LINK, (link, linkX, linkY, linkWidth) -> { });
-        y += expressionLines * LINE_HEIGHT;
-        for (String line : card.lines()) {
-            graphics.text(font, font.plainSubstrByWidth(line, textWidth), x, y, GREEN);
-            y += LINE_HEIGHT;
-        }
+        ExpressionLines.draw(font, expression, x, y, textWidth, new ExpressionLines.Painter(graphics, icons, targets,
+                GRAY, LINK, (link, linkX, linkY, linkWidth) -> { }));
+        y += expressionHeight;
+        ExpressionLines.draw(font, resolved, x, y, textWidth, new ExpressionLines.Painter(graphics, icons, targets,
+                GREEN, LINK, (link, linkX, linkY, linkWidth) -> { }));
+        y += resolvedHeight;
         drawUsedBy(graphics, font, card.usedBy(), x, y, textWidth, null, targets);
     }
 }

@@ -362,6 +362,9 @@ public final class ValuesManagerScreen extends Screen {
         graphics.text(font, font.plainSubstrByWidth(status, width - MARGIN - MARGIN), MARGIN, height - STATUS_INSET,
                 statusIsError ? RED : GRAY);
         draftPane.extract(graphics, font, width, height, targets);
+        // decision goo-types-draw-as-icons-named-on-hover
+        targets.hovered(mouseX, mouseY).flatMap(GooTypeIcons::tooltipFor)
+                .ifPresent(name -> graphics.setTooltipForNextFrame(font, name, mouseX, mouseY));
     }
 
     private void showChecksBadge() {
