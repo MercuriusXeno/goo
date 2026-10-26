@@ -187,6 +187,7 @@ final class MutatorControls {
         flow.text(ADDS, GRAY);
         nameControl(flow, additive.constant(), PREFAB_HINT, treePrefabs.get(),
                 prefab -> processes.setAdditive(entry.section(), entry.key(), prefab));
+        flow.hoverLast(PrefabHovers.hoverKey(additive.constant()));
     }
 
     private void drawStack(Entry entry, Processes.Stack stack) {
@@ -236,7 +237,10 @@ final class MutatorControls {
         chainLead(chain).forEach(words -> flow.text(words, GRAY));
         for (int index = 0; index < chain.size(); index++) {
             int link = index;
-            flow.text(chain.get(index).substring(STACK_MARK.length()), WHITE);
+            String applied = chain.get(index).substring(STACK_MARK.length());
+            flow.text(applied, WHITE);
+            // Decision every-prefab-reference-hovers-its-value: an applied mutator, waxed among them, hovers its value.
+            flow.hoverLast(PrefabHovers.hoverKey(applied));
             flow.control(REMOVE_LINK, REMOVE_LINK_HINT,
                     at -> edit(() -> processes.removeAssignmentLink(section, key, link)));
         }

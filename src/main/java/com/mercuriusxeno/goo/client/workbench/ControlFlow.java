@@ -31,6 +31,9 @@ final class ControlFlow {
     private int lineLeft;
     private int x;
     private int y;
+    private int pieceLeft;
+    private int pieceTop;
+    private int pieceWidth;
 
     /**
      * @param graphics the frame's graphics
@@ -94,7 +97,24 @@ final class ControlFlow {
     void text(String text, int color) {
         reserve(font.width(text));
         graphics.text(font, text, x, y + TEXT_NUDGE, color);
+        markPiece(font.width(text));
         x += font.width(text) + GAP;
+    }
+
+    private void markPiece(int width) {
+        pieceLeft = x;
+        pieceTop = y;
+        pieceWidth = width;
+    }
+
+    /**
+     * Lays a hover area over the piece drawn last, so it names what the hover key shows while a click passes to the
+     * area under it.
+     *
+     * @param hoverKey what hovering the piece names
+     */
+    void hoverLast(String hoverKey) {
+        targets.addHover(pieceLeft, pieceTop, pieceWidth, LINE, hoverKey);
     }
 
     /**
@@ -116,7 +136,8 @@ final class ControlFlow {
      * @param pressed takes where it was clicked
      */
     void control(String label, String hint, Consumer<BuilderOverlays.Anchor> pressed) {
-        reserve(font.width(label) + ButtonPainter.PADDING + ButtonPainter.PADDING);
+        reserve(ButtonPainter.width(font, label));
+        markPiece(ButtonPainter.width(font, label));
         x = BuilderOverlays.control(graphics, font, label, hint, x, y, targets, pressed);
     }
 
