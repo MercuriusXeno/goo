@@ -80,12 +80,21 @@ public final class ValuesManagerScreen extends Screen {
         super(Component.literal(TITLE));
         this.connection = connection;
         ManagerActions actions = new ScreenActions();
-        valuesPane = new ValuesPane(values, icons, actions);
+        valuesPane = new ValuesPane(values, icons, actions, builderPane(actions));
         groupsPane = new GroupsPane(groupsTab, values, icons, actions);
-        variablesPane = new VariablesPane(variablesTab, draft, icons, actions);
+        variablesPane = new VariablesPane(variablesTab, draft, icons, actions, builderPane(actions));
         processesPane = new ProcessesPane(processesTab, draft, actions);
         auditPane = new AuditPane(auditTab, draft, actions);
         checksPane = new ChecksPane(checksTab);
+    }
+
+    // A builder over the server's items and the draft's prefabs (decision
+    // expression-builder-composes-every-form-without-typing).
+    private ExpressionBuilderPane builderPane(ManagerActions actions) {
+        return new ExpressionBuilderPane(actions, icons, values::entries, () -> variablesTab.blocks().stream()
+                .map(VariablesTab.ConstantBlock::name).toList(), () -> variablesTab.blocks().stream()
+                .filter(block -> !VariablesTab.TREE_KIND.equals(block.kind()))
+                .map(VariablesTab.ConstantBlock::name).toList());
     }
 
     /**
@@ -217,7 +226,6 @@ public final class ValuesManagerScreen extends Screen {
     private void readDraftAfresh() {
         request(WorkbenchOperations.RESOLVE_VALUES, values.modelText(), resolved -> {
             values.readResolved(resolved);
-            valuesPane.refresh();
         });
         request(WorkbenchOperations.UNCOVERED_VALUES, values.modelText(), values::readUncovered);
         groupsPane.refresh();
@@ -312,11 +320,16 @@ public final class ValuesManagerScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
-        if (tab == ManagerTab.VARIABLES && variablesPane.keyPressed(event.key())
-                || tab == ManagerTab.PROCESSES && processesPane.keyPressed(event.key())) {
-            return true;
-        }
-        return super.keyPressed(event);
+        return paneTakesKey(event.key()) || super.keyPressed(event);
+    }
+
+    private boolean paneTakesKey(int key) {
+        return switch (tab) {
+            case VALUES -> valuesPane.keyPressed(key);
+            case VARIABLES -> variablesPane.keyPressed(key);
+            case PROCESSES -> processesPane.keyPressed(key);
+            default -> false;
+        };
     }
 
     @Override

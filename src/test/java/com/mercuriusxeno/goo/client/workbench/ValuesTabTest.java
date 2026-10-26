@@ -198,5 +198,21 @@ class ValuesTabTest {
             assertEquals(List.of("stick", "torch", "_restricted"), keys);
             assertEquals("12", memberKeyed("torch").get("text").getAsString());
         }
+
+        /**
+         * A pick from the builder's dropdown on an Items value lands the item in the draft by id, none typed
+         * (decision expression-builder-composes-every-form-without-typing).
+         */
+        @Test
+        void builderPickOnAnItemsValueLandsInTheDraft() {
+            tab.select("minecraft:torch");
+            SearchDropdown dropdown = SearchDropdown.over(tab.entries(), List.of(), true);
+            dropdown.search("stick");
+            ExpressionBuilder builder = ExpressionBuilder.of("");
+            builder.relate(dropdown.choices().getFirst());
+            builder.setCount(0, "2");
+            tab.edit(builder.text());
+            assertEquals("\"2 stick\"", memberKeyed("torch").get("text").getAsString());
+        }
     }
 }

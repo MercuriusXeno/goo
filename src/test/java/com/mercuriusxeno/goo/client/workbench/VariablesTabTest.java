@@ -126,6 +126,22 @@ class VariablesTabTest {
         }
 
         /**
+         * A pick from the builder's dropdown on a Prefabs expression lands the prefab in the draft by name, none
+         * typed (decision expression-builder-composes-every-form-without-typing).
+         */
+        @Test
+        void builderPickOnAPrefabExpressionLandsInTheDraft() {
+            SearchDropdown dropdown = SearchDropdown.over(List.of(), tab.blocks().stream()
+                    .map(VariablesTab.ConstantBlock::name).toList(), false);
+            dropdown.search("bro");
+            ExpressionBuilder builder = ExpressionBuilder.of("");
+            builder.relate(dropdown.choices().getFirst());
+            builder.setScale(0, ExpressionBuilder.Op.DIVIDE, "4");
+            tab.edit("base", builder.text());
+            assertEquals("$broken / 4", tab.blocks().get(0).expression());
+        }
+
+        /**
          * An edit stores an expression as a JSON string in the draft, an integer as written.
          */
         @Test
