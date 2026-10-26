@@ -125,10 +125,33 @@ final class Valuations {
      * @return each item and #group entry as the loader values it
      */
     static String resolved(BaseValuesModel model, InventoryView inventory) {
-        return resolved(model, GooBaseValuesPreview.load(model.serialize(), inventory.tagResolver()));
+        JsonObject root = resolvedRoot(model, GooBaseValuesPreview.load(model.serialize(), inventory.tagResolver()));
+        JsonArray entries = root.getAsJsonArray(ENTRIES);
+        // An item no entry names reads the value its recipes derive, so the Items tab shows what the game gives it
+        // (decision derivation-solves-whichever-side-of-a-recipe-is-unknown).
+        Map<Identifier, GooValue> effective = derivedFor(model, inventory).effective();
+        for (String id : inventory.itemIds()) {
+            Identifier item = Identifier.tryParse(id);
+            GooValue value = item == null ? null : effective.get(item);
+            if (valuesNothing(value) || model.member(bare(id)) != null || model.member(id) != null) {
+                continue;
+            }
+            JsonObject entry = new JsonObject();
+            entry.addProperty(KEY, bare(id));
+            entry.add(VALUE, amountsJson(value));
+            entry.addProperty(DENIED, false);
+            entry.addProperty(RESTRICTED, false);
+            entry.add(ERROR, JsonNull.INSTANCE);
+            entries.add(entry);
+        }
+        return root.toString();
     }
 
     private static String resolved(BaseValuesModel model, GooBaseValuesPreview.Loaded loaded) {
+        return resolvedRoot(model, loaded).toString();
+    }
+
+    private static JsonObject resolvedRoot(BaseValuesModel model, GooBaseValuesPreview.Loaded loaded) {
         JsonArray entries = new JsonArray();
         for (BaseValuesModel.Member member : model.members()) {
             if (member.kind() != BaseValuesModel.Kind.VALUE || member.key().startsWith(SECTION_PREFIX)) {
@@ -153,7 +176,7 @@ final class Valuations {
         }
         JsonObject root = new JsonObject();
         root.add(ENTRIES, entries);
-        return root.toString();
+        return root;
     }
 
     private static @Nullable Identifier firstMember(BaseValuesModel model, String group) {
