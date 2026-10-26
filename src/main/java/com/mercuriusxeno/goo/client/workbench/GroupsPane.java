@@ -150,6 +150,9 @@ final class GroupsPane {
      * @param amount the wheel's turn, positive away from the player
      */
     void scroll(double x, double y, int left, double amount) {
+        if (builder.scrollList(amount) || overlays.scrollList(amount)) {
+            return;
+        }
         if (x < left + LIST_WIDTH) {
             listBar.wheel(amount);
         } else {

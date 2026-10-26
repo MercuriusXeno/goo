@@ -117,6 +117,28 @@ class GooTypePickerTest {
     }
 
     /**
+     * A grid fitted to fewer rows than it fills lays targets for those rows alone, and the wheel turns it down to the
+     * last row and no further.
+     */
+    @Test
+    void clampedGridScrollsItsRows() {
+        ClickTargets targets = new ClickTargets();
+        AtomicReference<String> picked = new AtomicReference<>();
+        GooTypePicker picker = new GooTypePicker(TYPES);
+        picker.open();
+        picker.fitRows(2);
+        picker.scroll(-1);
+        picker.scroll(-1);
+        picker.scroll(-1);
+        assertEquals(2, picker.firstRow());
+        picker.layTargets(targets, LEFT, TOP, picked::set, null);
+        GooTypePicker.Cell close = picker.closeCell();
+        assertTrue(targets.click(LEFT + close.column() * GooTypePicker.CELL + 1, TOP + GooTypePicker.CELL + 1));
+        assertFalse(picker.isOpen());
+        assertEquals(null, picked.get());
+    }
+
+    /**
      * A grid opened with goo types hidden offers every other type and none of those, so a value never picks a type
      * it already holds.
      */
