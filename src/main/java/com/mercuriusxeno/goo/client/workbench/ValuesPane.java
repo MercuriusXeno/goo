@@ -105,6 +105,9 @@ final class ValuesPane {
      * @param amount the wheel's turn, positive away from the player
      */
     void scroll(double x, int left, double amount) {
+        if (builder.scrollList(amount)) {
+            return;
+        }
         if (x < left + SIDEBAR_WIDTH) {
             listBar.wheel(amount);
         } else {

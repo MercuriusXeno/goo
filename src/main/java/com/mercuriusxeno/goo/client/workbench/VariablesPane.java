@@ -144,6 +144,9 @@ final class VariablesPane {
      * @param amount the wheel's turn, positive away from the player
      */
     void scroll(double amount) {
+        if (builder.scrollList(amount)) {
+            return;
+        }
         if (deleting != null) {
             cascadeBar.wheel(amount);
             return;

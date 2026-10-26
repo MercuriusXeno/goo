@@ -11,9 +11,11 @@ import java.util.function.Consumer;
 
 /**
  * The goo type picker: a grid 7 icons wide and 4 high over every goo type, each cell named on hover, opened by one
- * click and answering its type on the next, with no scrolling (decision goo-type-picker-is-a-seven-by-four-icon-grid).
- * The cell past the last type closes it with no pick, the cell after that picks no goo type where the caller allows
- * none, and a click outside the grid or Escape closes it, so an opened picker never holds the screen.
+ * click and answering its type on the next (decision goo-type-picker-is-a-seven-by-four-icon-grid). The cell past the
+ * last type closes it with no pick, the cell after that picks no goo type where the caller allows none, and a click
+ * outside the grid or Escape closes it, so an opened picker never holds the screen. Opened near the screen's bottom it
+ * shows fewer rows and the wheel scrolls them, since it never flips above its opener
+ * (decision popups-anchor-under-the-line-that-opened-them).
  */
 final class GooTypePicker {
     /** A cell's side, the icon and its margin. */
@@ -43,6 +45,8 @@ final class GooTypePicker {
     private final List<String> types;
     private Set<String> hidden = Set.of();
     private boolean open;
+    private int firstRow;
+    private int shownRows = ROWS;
 
     /**
      * One type's place on the grid.
@@ -117,6 +121,36 @@ final class GooTypePicker {
     void open(Set<String> held) {
         hidden = Set.copyOf(held);
         open = true;
+        firstRow = 0;
+    }
+
+    /**
+     * Turns the rows shown where the grid stands shorter than its rows.
+     *
+     * @param amount the wheel's turn, positive toward the top
+     */
+    void scroll(double amount) {
+        int lastFirst = Math.max(0, usedRows() - shownRows);
+        firstRow = Math.clamp(firstRow - (long) Math.signum(amount), 0, lastFirst);
+    }
+
+    /**
+     * @param rows how many rows fit under the opener
+     */
+    void fitRows(int rows) {
+        shownRows = Math.clamp(rows, 1, ROWS);
+        scroll(0);
+    }
+
+    /**
+     * @return the first row shown
+     */
+    int firstRow() {
+        return firstRow;
+    }
+
+    private int usedRows() {
+        return Math.min(ROWS, nothingCell().row() + 1);
     }
 
     /**
@@ -154,30 +188,36 @@ final class GooTypePicker {
             return;
         }
         targets.add(-EVERYWHERE, -EVERYWHERE, EVERYWHERE_SPAN, EVERYWHERE_SPAN, this::close);
-        targets.add(x, y, COLUMNS * CELL, ROWS * CELL, () -> { });
+        targets.add(x, y, COLUMNS * CELL, shownRows * CELL, () -> { });
         for (Cell cell : cells()) {
+            addCellTarget(targets, x, y, cell, () -> picked.accept(cell.type()), GooTypeIcons.hoverKey(cell.type()));
+        }
+        addCellTarget(targets, x, y, closeCell(), () -> { }, BuilderOverlays.hintKey(CLOSE_HINT));
+        if (nothing != null) {
+            addCellTarget(targets, x, y, nothingCell(), nothing, BuilderOverlays.hintKey(NOTHING_HINT));
+        }
+    }
+
+    // A cell scrolled out of the shown rows takes no click; a shown one closes the grid, then answers.
+    private void addCellTarget(ClickTargets targets, int x, int y, Cell cell, Runnable answers, String hoverKey) {
+        if (shows(cell)) {
             targets.add(cellX(x, cell), cellY(y, cell), CELL, CELL, () -> {
                 open = false;
-                picked.accept(cell.type());
-            }, GooTypeIcons.hoverKey(cell.type()));
+                answers.run();
+            }, hoverKey);
         }
-        Cell close = closeCell();
-        targets.add(cellX(x, close), cellY(y, close), CELL, CELL, this::close, BuilderOverlays.hintKey(CLOSE_HINT));
-        if (nothing != null) {
-            Cell none = nothingCell();
-            targets.add(cellX(x, none), cellY(y, none), CELL, CELL, () -> {
-                open = false;
-                nothing.run();
-            }, BuilderOverlays.hintKey(NOTHING_HINT));
-        }
+    }
+
+    private boolean shows(Cell cell) {
+        return cell.row() >= firstRow && cell.row() < firstRow + shownRows;
     }
 
     private static int cellX(int x, Cell cell) {
         return x + cell.column() * CELL;
     }
 
-    private static int cellY(int y, Cell cell) {
-        return y + cell.row() * CELL;
+    private int cellY(int y, Cell cell) {
+        return y + (cell.row() - firstRow) * CELL;
     }
 
     /**
@@ -188,26 +228,34 @@ final class GooTypePicker {
      * @param targets  the frame's click areas
      * @param x        the grid's left edge
      * @param y        the grid's top edge
+     * @param rows     how many rows fit under its opener, the screen's bottom clamping it
      * @param picked   takes the type picked
      * @param nothing  runs where no goo type is picked, null where the caller allows none
      */
-    void draw(GuiGraphicsExtractor graphics, Font font, ClickTargets targets, int x, int y, Consumer<String> picked,
-              @Nullable Runnable nothing) {
+    void draw(GuiGraphicsExtractor graphics, Font font, ClickTargets targets, int x, int y, int rows,
+              Consumer<String> picked, @Nullable Runnable nothing) {
         if (!open) {
             return;
         }
+        fitRows(rows);
         graphics.nextStratum();
-        graphics.fill(x - 1, y - 1, x + COLUMNS * CELL + 1, y + ROWS * CELL + 1, BORDER);
-        graphics.fill(x, y, x + COLUMNS * CELL, y + ROWS * CELL, BACKGROUND);
+        graphics.fill(x - 1, y - 1, x + COLUMNS * CELL + 1, y + shownRows * CELL + 1, BORDER);
+        graphics.fill(x, y, x + COLUMNS * CELL, y + shownRows * CELL, BACKGROUND);
         for (Cell cell : cells()) {
-            GooTypeIcons.blit(graphics, cell.type(), cellX(x, cell) + ICON_INSET, cellY(y, cell) + ICON_INSET);
+            if (shows(cell)) {
+                GooTypeIcons.blit(graphics, cell.type(), cellX(x, cell) + ICON_INSET, cellY(y, cell) + ICON_INSET);
+            }
         }
-        Cell close = closeCell();
-        graphics.text(font, CLOSE_GLYPH, cellX(x, close) + GLYPH_INSET, cellY(y, close) + TEXT_NUDGE, GLYPH);
+        drawGlyph(graphics, font, CLOSE_GLYPH, closeCell(), x, y);
         if (nothing != null) {
-            Cell none = nothingCell();
-            graphics.text(font, NOTHING_GLYPH, cellX(x, none) + GLYPH_INSET, cellY(y, none) + TEXT_NUDGE, GLYPH);
+            drawGlyph(graphics, font, NOTHING_GLYPH, nothingCell(), x, y);
         }
         layTargets(targets, x, y, picked, nothing);
+    }
+
+    private void drawGlyph(GuiGraphicsExtractor graphics, Font font, String glyph, Cell cell, int x, int y) {
+        if (shows(cell)) {
+            graphics.text(font, glyph, cellX(x, cell) + GLYPH_INSET, cellY(y, cell) + TEXT_NUDGE, GLYPH);
+        }
     }
 }

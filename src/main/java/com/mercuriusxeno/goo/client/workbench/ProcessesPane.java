@@ -84,6 +84,9 @@ final class ProcessesPane {
      * @param amount the wheel's turn, positive away from the player
      */
     void scroll(double amount) {
+        if (overlays.scrollList(amount)) {
+            return;
+        }
         bar.wheel(amount);
     }
 

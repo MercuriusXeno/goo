@@ -190,6 +190,14 @@ final class ExpressionBuilderPane {
     }
 
     /**
+     * @param amount the wheel's turn
+     * @return whether the builder's open grid took the turn
+     */
+    boolean scrollList(double amount) {
+        return builder != null && overlays.scrollList(amount);
+    }
+
+    /**
      * Draws the builder at a top edge across an area's width; its lists and grid draw later, through
      * {@link #drawOverlays}.
      *
