@@ -49,6 +49,8 @@ public final class WorkbenchOperations {
     public static final String UNCOVERED_VALUES = "values/uncovered";
     /** Answers the Values table of the posted item's family. */
     public static final String FAMILY = "values/family";
+    /** Answers, for each item recipes value and no entry does, the recipe inputs it is derived from. */
+    public static final String DERIVED_FROM = "values/derived-from";
     /** Answers the posted item's hover card. */
     public static final String HOVER = "hover";
     /** Describes the posted model's processes. */
@@ -103,6 +105,8 @@ public final class WorkbenchOperations {
                     ValuesJson.inventory(dumpedInventory())))),
             Map.entry(FAMILY, posted -> json(Valuations.family(postedModel(posted),
                     ValuesJson.inventory(dumpedInventory()), ValuesJson.idFrom(posted)))),
+            Map.entry(DERIVED_FROM, posted -> json(Valuations.derivedFrom(postedModel(posted),
+                    ValuesJson.inventory(dumpedInventory())))),
             Map.entry(HOVER, posted -> json(ValuesJson.hover(postedModel(posted),
                     ValuesJson.inventory(dumpedInventory()), ValuesJson.idFrom(posted)))),
             Map.entry(PROCESSES, posted -> json(ProcessesJson.described(postedModel(posted)))),

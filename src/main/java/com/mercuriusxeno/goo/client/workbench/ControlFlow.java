@@ -20,7 +20,7 @@ final class ControlFlow {
     private static final int ICON_NUDGE = 1;
     private static final int INDENT = 12;
     private static final int WHITE = 0xFFFFFFFF;
-    private static final int LINK = 0xFF80C0FF;
+    private static final int LINK = ButtonPainter.LINK;
 
     private final GuiGraphicsExtractor graphics;
     private final Font font;
@@ -31,6 +31,9 @@ final class ControlFlow {
     private int lineLeft;
     private int x;
     private int y;
+    private int pieceLeft;
+    private int pieceTop;
+    private int pieceWidth;
 
     /**
      * @param graphics the frame's graphics
@@ -94,7 +97,24 @@ final class ControlFlow {
     void text(String text, int color) {
         reserve(font.width(text));
         graphics.text(font, text, x, y + TEXT_NUDGE, color);
+        markPiece(font.width(text));
         x += font.width(text) + GAP;
+    }
+
+    private void markPiece(int width) {
+        pieceLeft = x;
+        pieceTop = y;
+        pieceWidth = width;
+    }
+
+    /**
+     * Lays a hover area over the piece drawn last, so it names what the hover key shows while a click passes to the
+     * area under it.
+     *
+     * @param hoverKey what hovering the piece names
+     */
+    void hoverLast(String hoverKey) {
+        targets.addHover(pieceLeft, pieceTop, pieceWidth, LINE, hoverKey);
     }
 
     /**
@@ -116,7 +136,8 @@ final class ControlFlow {
      * @param pressed takes where it was clicked
      */
     void control(String label, String hint, Consumer<BuilderOverlays.Anchor> pressed) {
-        reserve(font.width(label));
+        reserve(ButtonPainter.width(font, label));
+        markPiece(ButtonPainter.width(font, label));
         x = BuilderOverlays.control(graphics, font, label, hint, x, y, targets, pressed);
     }
 
@@ -196,12 +217,24 @@ final class ControlFlow {
             return;
         }
         int width = ExpressionLines.width(font, runs);
-        reserve(width);
-        addRunsTarget(width, hint, pressed);
+        int inset = pressed == null ? 0 : ButtonPainter.PADDING;
+        reserve(width + inset + inset);
+        if (pressed != null) {
+            drawRunsFrame(runs, width);
+        }
+        addRunsTarget(width + inset + inset, hint, pressed);
         int runsTop = ExpressionLines.lineHeight(runs) == LINE ? y : y + TEXT_NUDGE;
-        ExpressionLines.draw(font, runs, x, runsTop, width + 1, new ExpressionLines.Painter(graphics, icons,
+        ExpressionLines.draw(font, runs, x + inset, runsTop, width + 1, new ExpressionLines.Painter(graphics, icons,
                 targets, pressed == null ? WHITE : LINK, LINK, (name, linkX, linkY, linkWidth) -> { }));
-        x += width + GAP;
+        x += width + inset + inset + GAP;
+    }
+
+    // Decision blue-text-options-draw-as-bordered-buttons: a clickable run is a button, its runs inside; a run
+    // holding an icon takes the whole line's height.
+    private void drawRunsFrame(List<ExpressionLines.Run> runs, int width) {
+        ButtonPainter.drawFrame(graphics, ExpressionLines.lineHeight(runs) == LINE
+                ? new ButtonPainter.Box(x, y, width + ButtonPainter.PADDING + ButtonPainter.PADDING, LINE)
+                : ButtonPainter.layout(width, x, y, LINE));
     }
 
     // The runs' click, or their hint alone where they take none.

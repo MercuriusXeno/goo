@@ -23,11 +23,9 @@ final class BuilderOverlays {
     static final int LINE = ExpressionLines.ICON_LINE_HEIGHT;
     /** The gap between controls. */
     static final int GAP = 6;
-    private static final int TEXT_NUDGE = 5;
     private static final int BOX_HEIGHT = 14;
     private static final int NUMBER_WIDTH = 44;
     private static final int SEARCH_WIDTH = 160;
-    private static final int LINK = 0xFF80C0FF;
     private static final String SEARCH_HINT = "Search";
     private static final String NOTHING = "";
     // A hover key no prefab name or item id spells, since neither holds a space after a colon.
@@ -37,6 +35,9 @@ final class BuilderOverlays {
     private static final int EVERYWHERE_SPAN = EVERYWHERE + EVERYWHERE;
     private static final int GRID_WIDTH = GooTypePicker.COLUMNS * GooTypePicker.CELL;
     private static final int GRID_HEIGHT = GooTypePicker.ROWS * GooTypePicker.CELL;
+    // The search box, the pixel under it and the list's bottom border.
+    private static final int DROPDOWN_CHROME = BOX_HEIGHT + 1 + 1;
+    private static final int DROPDOWN_HEIGHT = DROPDOWN_CHROME + SearchDropdown.SHOWN * SearchDropdown.ROW_HEIGHT;
 
     private final ManagerActions actions;
     private final ItemIcons icons;
@@ -50,8 +51,8 @@ final class BuilderOverlays {
     private @Nullable Consumer<String> numberCommits;
     private boolean numberHeldFocus;
     private boolean visible;
-    private int anchorX;
-    private int anchorY;
+    private Anchor opener = new Anchor(0, 0);
+    private Anchor numberOpener = new Anchor(0, 0);
 
     /**
      * Where a control was clicked, so what it opens stands below it.
@@ -60,6 +61,54 @@ final class BuilderOverlays {
      * @param y the control's line top
      */
     record Anchor(int x, int y) {
+    }
+
+    /**
+     * Where a popup stands on the screen.
+     *
+     * @param left   its left edge
+     * @param top    its top edge
+     * @param height the height it draws in, clamped to the screen
+     */
+    record Placement(int left, int top, int height) {
+    }
+
+    /**
+     * @param at           where the opening control was clicked
+     * @param screenWidth  the screen's width
+     * @param screenHeight the screen's height
+     * @return where the goo type picker's grid stands
+     */
+    static Placement placePicker(Anchor at, int screenWidth, int screenHeight) {
+        return placeUnder(at, GRID_WIDTH + 1, GRID_HEIGHT + 1, screenWidth, screenHeight);
+    }
+
+    /**
+     * @param at           where the opening control was clicked
+     * @param screenWidth  the screen's width
+     * @param screenHeight the screen's height
+     * @return where the search box and its dropdown stand
+     */
+    static Placement placeDropdown(Anchor at, int screenWidth, int screenHeight) {
+        return placeUnder(at, SEARCH_WIDTH + 1, DROPDOWN_HEIGHT, screenWidth, screenHeight);
+    }
+
+    /**
+     * @param at           where the opening control was clicked
+     * @param screenWidth  the screen's width
+     * @param screenHeight the screen's height
+     * @return where the number box stands
+     */
+    static Placement placeNumber(Anchor at, int screenWidth, int screenHeight) {
+        return placeUnder(at, NUMBER_WIDTH, BOX_HEIGHT, screenWidth, screenHeight);
+    }
+
+    // Decision popups-anchor-under-the-line-that-opened-them: the popup never flips above its line; short of room it
+    // draws shorter, and only a popup that would run off the right edge shifts left.
+    private static Placement placeUnder(Anchor at, int width, int height, int screenWidth, int screenHeight) {
+        int top = at.y() + LINE;
+        int left = Math.max(0, Math.min(at.x(), screenWidth - width));
+        return new Placement(left, top, Math.max(0, Math.min(height, screenHeight - top)));
     }
 
     /**
@@ -100,7 +149,7 @@ final class BuilderOverlays {
     }
 
     /**
-     * Draws a control as a link and takes its click.
+     * Draws a control as a button and takes its click.
      *
      * @param graphics the frame's graphics
      * @param font     the font
@@ -117,7 +166,7 @@ final class BuilderOverlays {
     }
 
     /**
-     * Draws a control as a link that names what it does on hover, and takes its click.
+     * Draws a control as a button that names what it does on hover, and takes its click.
      *
      * @param graphics the frame's graphics
      * @param font     the font
@@ -131,10 +180,9 @@ final class BuilderOverlays {
      */
     static int control(GuiGraphicsExtractor graphics, Font font, String label, @Nullable String hint, int x, int y,
                        ClickTargets targets, Consumer<Anchor> pressed) {
-        graphics.text(font, label, x, y + TEXT_NUDGE, LINK);
-        int width = font.width(label);
-        targets.add(x, y, width, LINE, () -> pressed.accept(new Anchor(x, y)), hint == null ? null : hintKey(hint));
-        return x + width + GAP;
+        ButtonPainter.Box box = ButtonPainter.draw(graphics, font, label, x, y, LINE, targets,
+                () -> pressed.accept(new Anchor(x, y)), hint == null ? null : hintKey(hint));
+        return box.right() + GAP;
     }
 
     /**
@@ -236,7 +284,7 @@ final class BuilderOverlays {
      */
     void openPicker(Anchor at, Consumer<String> picks, @Nullable Runnable nothing, Set<String> held) {
         closeLists();
-        anchor(at);
+        opener = at;
         pickerPicks = picks;
         pickerNothing = nothing;
         picker.open(held);
@@ -249,7 +297,7 @@ final class BuilderOverlays {
      */
     void openDropdown(Anchor at, SearchDropdown list, Consumer<SearchDropdown.Choice> picks) {
         closeLists();
-        anchor(at);
+        opener = at;
         dropdown = list;
         list.open();
         dropdownPicks = picks;
@@ -288,16 +336,27 @@ final class BuilderOverlays {
         if (numberField != null) {
             numberField.setFilter(typed -> BuilderGrammar.acceptsTyped(typed, factor));
             numberField.setValue(current);
-            numberField.setPosition(at.x(), at.y() + LINE - BOX_HEIGHT);
+            numberOpener = at;
+            Placement placed = placeNumber(at, Integer.MAX_VALUE, Integer.MAX_VALUE);
+            numberField.setPosition(placed.left(), placed.top());
             numberField.visible = visible;
             actions.focus(numberField);
             numberHeldFocus = false;
         }
     }
 
-    private void anchor(Anchor at) {
-        anchorX = at.x();
-        anchorY = at.y() + LINE;
+    /**
+     * Scrolls the open goo type picker's grid where it stands shorter than its rows.
+     *
+     * @param amount the wheel's turn
+     * @return whether the picker stood open and took the turn
+     */
+    boolean scrollList(double amount) {
+        if (!picker.isOpen()) {
+            return false;
+        }
+        picker.scroll(amount);
+        return true;
     }
 
     /**
@@ -310,9 +369,9 @@ final class BuilderOverlays {
     void draw(GuiGraphicsExtractor graphics, Font font, ClickTargets targets) {
         drawDropdown(graphics, font, targets);
         Runnable nothing = pickerNothing;
-        int gridX = Math.max(0, Math.min(anchorX, graphics.guiWidth() - GRID_WIDTH - 1));
-        int gridY = anchorY + GRID_HEIGHT < graphics.guiHeight() ? anchorY : anchorY - LINE - GRID_HEIGHT - 1;
-        picker.draw(graphics, font, targets, gridX, gridY, type -> {
+        Placement grid = placePicker(opener, graphics.guiWidth(), graphics.guiHeight());
+        int gridRows = Math.max(1, (grid.height() - 1) / GooTypePicker.CELL);
+        picker.draw(graphics, font, targets, grid.left(), grid.top(), gridRows, type -> {
             Consumer<String> picks = pickerPicks;
             closeLists();
             if (picks != null) {
@@ -322,6 +381,10 @@ final class BuilderOverlays {
             closeLists();
             nothing.run();
         });
+        if (numberField != null) {
+            Placement box = placeNumber(numberOpener, graphics.guiWidth(), graphics.guiHeight());
+            numberField.setPosition(box.left(), box.top());
+        }
         drawOnTop(graphics, searchField);
         drawOnTop(graphics, numberField);
     }
@@ -345,14 +408,19 @@ final class BuilderOverlays {
             return;
         }
         targets.add(-EVERYWHERE, -EVERYWHERE, EVERYWHERE_SPAN, EVERYWHERE_SPAN, this::closeLists);
-        searchField.setPosition(anchorX, anchorY);
-        open.draw(graphics, font, icons, targets, anchorX, anchorY + BOX_HEIGHT + 1, SEARCH_WIDTH, choice -> {
-            Consumer<SearchDropdown.Choice> picks = dropdownPicks;
-            closeLists();
-            if (picks != null) {
-                picks.accept(choice);
-            }
-        });
+        Placement placed = placeDropdown(opener, graphics.guiWidth(), graphics.guiHeight());
+        searchField.setPosition(placed.left(), placed.top());
+        int rows = Math.max(1, (placed.height() - DROPDOWN_CHROME) / SearchDropdown.ROW_HEIGHT);
+        open.draw(graphics, font, icons, targets, placed.left(), placed.top() + BOX_HEIGHT + 1, SEARCH_WIDTH, rows,
+                this::pickChoice);
+    }
+
+    private void pickChoice(SearchDropdown.Choice choice) {
+        Consumer<SearchDropdown.Choice> picks = dropdownPicks;
+        closeLists();
+        if (picks != null) {
+            picks.accept(choice);
+        }
     }
 
     private void commitNumber() {

@@ -7,15 +7,13 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 /**
  * Draws the Groups tab: each group's row, its #name and its members as item icons named on hover, the rest behind an
  * "and N more" link, with no header and no count (decision groups-list-members-as-icons-without-headers-or-count);
- * and the selected group's detail: [New group] names a group, [Add member] picks an item or #tag into it, the
+ * and the selected group's detail: New group names a group, Add member picks an item or #tag into it, the
  * group's value is built in the expression builder as what every member is worth, and a member's own line is built
  * too, its count times the group's value plus its extra (decision group-controls-name-add-and-build). The list and
  * the detail column each draw a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in
@@ -25,12 +23,14 @@ final class GroupsPane {
     private static final int LIST_WIDTH = 220;
     private static final int NAME_WIDTH = 80;
     private static final int GAP = 12;
-    private static final int ROW_HEIGHT = 18;
+    /** A group row's height, its sprites' and margin. */
+    static final int ROW_HEIGHT = 18;
     private static final int LINE_HEIGHT = 10;
     private static final int BOX_HEIGHT = 14;
     private static final int NAME_BOX_WIDTH = 140;
     private static final int CARD_WIDTH = 130;
-    private static final int CARD_HEIGHT = 20;
+    /** A member card's height, its sprite's and margin. */
+    static final int CARD_HEIGHT = 18;
     private static final int ICON_SIZE = 16;
     private static final int ICON_GAP = 2;
     private static final int TEXT_NUDGE = 5;
@@ -42,23 +42,22 @@ final class GroupsPane {
     private static final int WHITE = 0xFFFFFFFF;
     private static final int GRAY = 0xFFA0A0A0;
     private static final int RED = 0xFFFF5555;
-    private static final int LINK = 0xFF80C0FF;
+    private static final int LINK = ButtonPainter.LINK;
     private static final int SELECTED_COLOR = 0x60FFFFFF;
     private static final int READ_VIEW_COLOR = 0x30FFFFFF;
-    private static final String NEW_GROUP = "[New group]";
+    private static final String NEW_GROUP = "New group";
     private static final String NEW_GROUP_HINT = "group name, Enter";
-    private static final String ADD_MEMBER = "[Add member]";
+    private static final String ADD_MEMBER = "Add member";
     private static final String NO_GROUP = "Pick a group, or name a new one.";
     private static final String NO_GROUPS = "The file names no groups.";
     private static final String WORTH_LABEL = "What every member is worth:";
     private static final String NO_WORTH = "nothing yet";
     private static final String LINE_LABEL = "This member's line: count times the group's value, plus its extra";
-    private static final String COUNT_START = "[count ";
-    private static final String COUNT_END = "]";
+    private static final String COUNT_START = "count ";
     private static final String EXTRA_LABEL = "extra:";
     private static final String NO_EXTRA = "none";
     private static final String NEEDS_WORTH = "Build the group's value first; a member's line adds to it.";
-    private static final String REMOVE = "[Remove from group]";
+    private static final String REMOVE = "Remove from group";
     private static final String BASE_TARGET = "base:";
     private static final String EXTRA_TARGET = "extra:";
     private static final String NO_TEXT = "";
@@ -69,7 +68,7 @@ final class GroupsPane {
     private final ManagerActions actions;
     private final ExpressionBuilderPane builder;
     private final BuilderOverlays overlays;
-    private final Set<String> expandedRows = new HashSet<>();
+    private final ExpandedLists expandedRows = new ExpandedLists();
     private final ScrollBar listBar = new ScrollBar(SCROLL_STEP);
     private final ScrollBar detailBar = new ScrollBar(SCROLL_STEP);
     private @Nullable EditBox nameBox;
@@ -150,6 +149,9 @@ final class GroupsPane {
      * @param amount the wheel's turn, positive away from the player
      */
     void scroll(double x, double y, int left, double amount) {
+        if (builder.scrollList(amount) || overlays.scrollList(amount)) {
+            return;
+        }
         if (x < left + LIST_WIDTH) {
             listBar.wheel(amount);
         } else {
@@ -181,16 +183,18 @@ final class GroupsPane {
         targets.clip(left, top, rowRight, bounds.bottom());
         String selected = groups.selected().map(GroupsTab.Group::name).orElse(NO_TEXT);
         int y = top - listBar.offset();
-        for (GroupsTab.GroupRow row : groups.groupRows()) {
-            int height = drawGroupRow(graphics, font, row, left, rowRight, y, row.name().equals(selected), targets);
-            y += height;
+        List<GroupsTab.GroupRow> rows = groups.groupRows();
+        for (int index = 0; index < rows.size(); index++) {
+            GroupsTab.GroupRow row = rows.get(index);
+            RowLayout.drawSeparatorAbove(graphics, index, y, left, rowRight);
+            y += drawGroupRow(graphics, font, row, left, rowRight, y, row.name().equals(selected), targets);
         }
         targets.unclip();
         graphics.disableScissor();
         listBar.measureAndDraw(graphics, targets, y, left + LIST_WIDTH, top, bounds.bottom());
     }
 
-    // Answers the list's top below the [New group] control or its name box.
+    // Answers the list's top below the New group button or its name box.
     private int drawNewGroup(GuiGraphicsExtractor graphics, Font font, int left, int top, ClickTargets targets) {
         if (naming && nameBox != null) {
             nameBox.setPosition(left, top + HALF);
@@ -202,7 +206,7 @@ final class GroupsPane {
     }
 
     // A row draws #name and its members' icons, named on hover; answers its height, more than a line once its
-    // "and N more" link expanded it (decision groups-list-members-as-icons-without-headers-or-count).
+    // "and N more" button expanded it (decision groups-list-members-as-icons-without-headers-or-count).
     private int drawGroupRow(GuiGraphicsExtractor graphics, Font font, GroupsTab.GroupRow row, int left, int right,
                              int y, boolean selected, ClickTargets targets) {
         List<ExpressionLines.Run> runs = GroupsTab.rowRuns(row, icons::nameOf);
@@ -210,30 +214,41 @@ final class GroupsPane {
         int itemsX = left + NAME_WIDTH;
         int step = ICON_SIZE + ICON_GAP;
         int perRow = Math.max(1, (right - itemsX) / step);
-        boolean expanded = expandedRows.contains(row.name());
+        boolean expanded = expandedRows.expanded(row.name());
         UsedByLine.Fit fit = expanded ? UsedByLine.expanded(members.size())
-                : UsedByLine.fit(members.size(), right - itemsX, step, hidden -> font.width(UsedByLine.moreLabel(hidden)));
-        int lines = expanded ? Math.max(1, (fit.shown() + perRow - 1) / perRow) : 1;
-        int height = lines * ROW_HEIGHT;
-        if (selected) {
-            graphics.fill(left, y, right, y + height, SELECTED_COLOR);
-        }
-        targets.add(left, y, right - left, height, () -> pickGroup(row.name()));
-        graphics.text(font, font.plainSubstrByWidth(runs.getFirst().text(), NAME_WIDTH - HALF), left, y + TEXT_NUDGE,
-                row.unknownCount() == 0 ? WHITE : RED);
+                : UsedByLine.fit(members.size(), right - itemsX, step,
+                        hidden -> ButtonPainter.width(font, UsedByLine.moreLabel(hidden)));
+        UsedByLine.Slot end = UsedByLine.endSlot(fit, expanded, perRow, step, right - itemsX,
+                ButtonPainter.width(font, UsedByLine.HIDE));
+        int height = (end.row() + 1) * ROW_HEIGHT;
+        drawRowName(graphics, font, row, runs.getFirst().text(), new Bounds(left, y, right, y + height), selected,
+                targets);
         drawMemberIcons(graphics, members.subList(0, fit.shown()), itemsX, y, expanded ? perRow : fit.shown(),
                 targets);
-        drawMore(graphics, font, row.name(), fit, itemsX + fit.shown() * step, y, targets);
+        UsedByLine.endLabel(fit, expanded).ifPresent(label -> ButtonPainter.draw(graphics, font, label,
+                itemsX + end.x(), y + end.row() * ROW_HEIGHT, ROW_HEIGHT, targets,
+                () -> toggle(row.name(), expanded)));
         return height;
     }
 
-    // The "and N more" link a collapsed row stops at, which expands the row onto as many lines as it needs.
-    private void drawMore(GuiGraphicsExtractor graphics, Font font, String name, UsedByLine.Fit fit, int x, int y,
-                          ClickTargets targets) {
-        if (fit.hidden() > 0) {
-            String more = UsedByLine.moreLabel(fit.hidden());
-            graphics.text(font, more, x, y + TEXT_NUDGE, LINK);
-            targets.add(x, y, font.width(more), ROW_HEIGHT, () -> expandedRows.add(name));
+    // The row's #name, red where it names an unknown member, and the click that selects the group.
+    private void drawRowName(GuiGraphicsExtractor graphics, Font font, GroupsTab.GroupRow row, String name,
+                             Bounds area, boolean selected, ClickTargets targets) {
+        if (selected) {
+            graphics.fill(area.left(), area.top(), area.right(), area.bottom(), SELECTED_COLOR);
+        }
+        targets.add(area.left(), area.top(), area.right() - area.left(), area.bottom() - area.top(),
+                () -> pickGroup(row.name()));
+        graphics.text(font, font.plainSubstrByWidth(name, NAME_WIDTH - HALF), area.left(), area.top() + TEXT_NUDGE,
+                row.unknownCount() == 0 ? WHITE : RED);
+    }
+
+    // Decision expanded-used-by-lists-take-a-hide-button: "and N more" expands the row, Hide collapses it again.
+    private void toggle(String name, boolean expanded) {
+        if (expanded) {
+            expandedRows.hide(name);
+        } else {
+            expandedRows.expand(name);
         }
     }
 
@@ -246,7 +261,7 @@ final class GroupsPane {
             int iconX = left + index % Math.max(1, perRow) * step;
             int iconY = top + index / Math.max(1, perRow) * ROW_HEIGHT + 1;
             graphics.item(icons.of(id), iconX, iconY);
-            targets.addHover(iconX, iconY, ICON_SIZE, ICON_SIZE, ItemIcons.hoverKey(id));
+            ItemLinks.add(targets, actions, id, iconX, iconY);
         }
     }
 
@@ -321,27 +336,32 @@ final class GroupsPane {
         List<GroupsTab.MemberRow> members = groups.memberRows(values.entries());
         int columns = Math.max(1, (detail.right() - detail.left()) / CARD_WIDTH);
         String selected = groups.selectedMember().orElse(NO_TEXT);
-        int textWidth = CARD_WIDTH - ICON_SIZE - ICON_GAP - HALF;
         for (int index = 0; index < members.size(); index++) {
             int cardX = detail.left() + index % columns * CARD_WIDTH;
             int cardY = top + index / columns * CARD_HEIGHT;
             if (cardY < detail.top() || cardY + CARD_HEIGHT > detail.bottom()) {
                 continue;
             }
-            GroupsTab.MemberRow member = members.get(index);
-            if (member.id().equals(selected)) {
-                graphics.fill(cardX, cardY, cardX + CARD_WIDTH - HALF, cardY + CARD_HEIGHT, SELECTED_COLOR);
-            }
-            graphics.item(icons.of(member.id()), cardX, cardY + HALF);
-            int textX = cardX + ICON_SIZE + ICON_GAP;
-            graphics.text(font, font.plainSubstrByWidth(member.name(), textWidth), textX, cardY + 1,
-                    member.known() ? WHITE : RED);
-            graphics.text(font, font.plainSubstrByWidth(member.note(), textWidth), textX, cardY + LINE_HEIGHT,
-                    GRAY);
-            targets.add(cardX, cardY, CARD_WIDTH, CARD_HEIGHT, () -> pickMember(member.id()));
+            RowLayout.drawSeparatorAbove(graphics, index / columns, cardY, cardX, cardX + CARD_WIDTH - HALF);
+            drawCard(graphics, font, members.get(index), cardX, cardY, selected, targets);
         }
         int rows = (members.size() + columns - 1) / columns;
         return top + rows * CARD_HEIGHT;
+    }
+
+    // A card's sprite and two text lines fit its 18px row, clear of the separator under it.
+    private void drawCard(GuiGraphicsExtractor graphics, Font font, GroupsTab.MemberRow member, int cardX, int cardY,
+                          String selected, ClickTargets targets) {
+        if (member.id().equals(selected)) {
+            graphics.fill(cardX, cardY, cardX + CARD_WIDTH - HALF, cardY + CARD_HEIGHT, SELECTED_COLOR);
+        }
+        graphics.item(icons.of(member.id()), cardX, cardY + 1);
+        int textX = cardX + ICON_SIZE + ICON_GAP;
+        int textWidth = CARD_WIDTH - ICON_SIZE - ICON_GAP - HALF;
+        graphics.text(font, font.plainSubstrByWidth(member.name(), textWidth), textX, cardY, member.known() ? WHITE
+                : RED);
+        graphics.text(font, font.plainSubstrByWidth(member.note(), textWidth), textX, cardY + LINE_HEIGHT - 1, GRAY);
+        targets.add(cardX, cardY, CARD_WIDTH, CARD_HEIGHT, () -> pickMember(member.id()));
     }
 
     private void pickMember(String id) {
@@ -365,7 +385,7 @@ final class GroupsPane {
         GroupsTab.MemberLine line = groups.memberLine(id);
         graphics.text(font, LINE_LABEL, x, top, GRAY);
         int y = top + LINE_HEIGHT;
-        int afterCount = BuilderOverlays.control(graphics, font, COUNT_START + line.count() + COUNT_END, x, y, targets,
+        int afterCount = BuilderOverlays.control(graphics, font, COUNT_START + line.count(), x, y, targets,
                 at -> overlays.openNumber(at, String.valueOf(line.count()), typed -> countOf(typed).ifPresent(
                         count -> apply(groups.tweakRequest(id, count, line.trait(), line.extra())))));
         BuilderOverlays.control(graphics, font, REMOVE, afterCount, y, targets, at -> removeMember(id));

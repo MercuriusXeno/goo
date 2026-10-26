@@ -26,13 +26,19 @@ final class ProcessesPane {
     private static final int SCROLL_STEP = ROW_HEIGHT * 3;
     private static final int WHITE = 0xFFFFFFFF;
     private static final int GRAY = 0xFFA0A0A0;
-    private static final int RED = 0xFFFF5555;
-    private static final int GREEN = 0xFF80E080;
-    private static final int LINK = 0xFF80C0FF;
+    /** An Invalid verdict's color. */
+    static final int RED = 0xFFFF5555;
+    /** A Valid verdict's color. */
+    static final int GREEN = 0xFF80E080;
+    private static final String CHECK = "✔";
+    private static final String CROSS = "✘";
+    private static final String MARK_GAP = " ";
+    private static final String REASON_GAP = ": ";
+    private static final String NO_REASON = "";
     private static final int TREE_COLOR = 0xFFE0C060;
     private static final int ROW_COLOR = 0x20FFFFFF;
     private static final String ASSIGNMENT = "assignment";
-    private static final String DELETE = "[Delete]";
+    private static final String DELETE = "Delete";
     private static final String SUMMARY_GAP = "  ";
 
     private final ProcessesTab processes;
@@ -84,6 +90,9 @@ final class ProcessesPane {
      * @param amount the wheel's turn, positive away from the player
      */
     void scroll(double amount) {
+        if (overlays.scrollList(amount)) {
+            return;
+        }
         bar.wheel(amount);
     }
 
@@ -105,8 +114,10 @@ final class ProcessesPane {
         for (ProcessesTab.ProcessSection section : processes.sections()) {
             graphics.text(font, section.section() + SUMMARY_GAP + section.summary(), bounds.left(), y, WHITE);
             y += LINE_HEIGHT + GAP;
-            for (ProcessesTab.ProcessRow row : section.rows()) {
-                y = drawRow(graphics, font, section.section(), row, rows, y, targets);
+            List<ProcessesTab.ProcessRow> sectionRows = section.rows();
+            for (int index = 0; index < sectionRows.size(); index++) {
+                RowLayout.drawSeparatorAbove(graphics, index, y - 1, rows.left(), rows.right());
+                y = drawRow(graphics, font, section.section(), sectionRows.get(index), rows, y, targets);
             }
             y += SECTION_GAP;
         }
@@ -134,12 +145,31 @@ final class ProcessesPane {
         int x = bounds.left();
         graphics.text(font, font.plainSubstrByWidth(row.key(), KEY_WIDTH - GAP), x, y, WHITE);
         graphics.text(font, row.kind(), x + KEY_WIDTH, y, ASSIGNMENT.equals(row.kind()) ? TREE_COLOR : GRAY);
-        int deleteX = bounds.right() - font.width(DELETE);
+        int deleteX = bounds.right() - ButtonPainter.width(font, DELETE);
         int verdictX = Math.max(x + KEY_WIDTH + KIND_WIDTH, deleteX - GAP - VERDICT_WIDTH);
-        graphics.text(font, font.plainSubstrByWidth(row.verdict(), deleteX - GAP - verdictX), verdictX, y,
-                row.parsed() ? GREEN : RED);
-        graphics.text(font, DELETE, deleteX, y, LINK);
-        targets.add(deleteX, y, font.width(DELETE), LINE_HEIGHT, () -> delete(section, row.key()));
+        VerdictMark mark = verdictMark(row);
+        String verdict = mark.glyph() + MARK_GAP + row.verdict() + (row.reason().isEmpty() ? NO_REASON : REASON_GAP
+                + row.reason());
+        graphics.text(font, font.plainSubstrByWidth(verdict, deleteX - GAP - verdictX), verdictX, y, mark.color());
+        ButtonPainter.drawAtText(graphics, font, DELETE, deleteX, y, targets, () -> delete(section, row.key()));
+    }
+
+    /**
+     * The mark a row's verdict draws behind.
+     *
+     * @param glyph the check or the x
+     * @param color green for Valid, red for Invalid
+     */
+    record VerdictMark(String glyph, int color) {
+    }
+
+    /**
+     * @param row a Mutators row
+     * @return a green check for a row the parser accepts, a red x for one it refuses
+     *     (decision mutators-read-valid-or-invalid-with-a-mark)
+     */
+    static VerdictMark verdictMark(ProcessesTab.ProcessRow row) {
+        return row.parsed() ? new VerdictMark(CHECK, GREEN) : new VerdictMark(CROSS, RED);
     }
 
     private void delete(String section, String key) {

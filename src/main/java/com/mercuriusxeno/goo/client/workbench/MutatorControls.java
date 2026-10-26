@@ -41,7 +41,7 @@ final class MutatorControls {
     private static final String DIVIDED_BY = "divided by";
     private static final String BECOMES = "becomes";
     private static final String TIMES = "times";
-    private static final String NOTHING = "[nothing]";
+    private static final String NOTHING = "nothing";
     private static final String TARGET_HINT = "Click to pick the goo type it becomes";
     private static final String DIVISOR_HINT = "Click to change how much of the source is taken";
     private static final String OPERATOR_HINT = "Click to switch between multiplying and dividing the result";
@@ -53,20 +53,20 @@ final class MutatorControls {
     private static final String COUNT_HINT = "Click to change how many times it applies";
     private static final String TAKES = "takes the values of";
     private static final String GROUP_HINT = "Click to pick another source group";
-    private static final String OWN_VALUES = "[its own values]";
+    private static final String OWN_VALUES = "its own values";
     private static final String OWN_HINT = "Click to take the values from a group instead";
-    private static final String DROP_SOURCE = "[use its own values]";
+    private static final String DROP_SOURCE = "use its own values";
     private static final String DROP_SOURCE_HINT = "Apply the chain to the target's own values, no source group";
-    private static final String OVER = "over";
+    private static final String RATIO = ":";
     private static final String MULTIPLIER_HINT = "Click to change what the values are multiplied by";
     private static final String SCALE_DIVISOR_HINT = "Click to change what the values are divided by";
     private static final String THEN = "then applies";
-    private static final String REMOVE_LINK = "[x]";
+    private static final String REMOVE_LINK = "x";
     private static final String REMOVE_LINK_HINT = "Remove this mutator from the chain";
-    private static final String ADD_LINK = "[+ mutator]";
+    private static final String ADD_LINK = "+ mutator";
     private static final String ADD_LINK_HINT = "Apply another mutator after these";
     private static final String UNREAD = "No form reads this line:";
-    private static final String START_OVER = "[start over]";
+    private static final String START_OVER = "start over";
     private static final String START_OVER_HINT = "Replace this line with an assignment from the first group";
 
     private final ProcessesTab processes;
@@ -187,6 +187,7 @@ final class MutatorControls {
         flow.text(ADDS, GRAY);
         nameControl(flow, additive.constant(), PREFAB_HINT, treePrefabs.get(),
                 prefab -> processes.setAdditive(entry.section(), entry.key(), prefab));
+        flow.hoverLast(PrefabHovers.hoverKey(additive.constant()));
     }
 
     private void drawStack(Entry entry, Processes.Stack stack) {
@@ -211,10 +212,10 @@ final class MutatorControls {
             nameControl(flow, GROUP_MARK + assignment.source(), GROUP_HINT, processes.groupNames(), setSource);
             flow.control(DROP_SOURCE, DROP_SOURCE_HINT, at -> edit(() -> setSource.accept(NO_SOURCE)));
         }
-        flow.text(TIMES, GRAY);
+        // Decision factor-reads-as-a-ratio: "times 1 over 1" reads "1:1", each number its own box.
         numberControl(flow, assignment.multiplier(), MULTIPLIER_HINT, multiplier -> processes.setAssignmentScale(
                 section, key, multiplier, assignment.divisor()));
-        flow.text(OVER, GRAY);
+        flow.text(RATIO, GRAY);
         numberControl(flow, assignment.divisor(), SCALE_DIVISOR_HINT, divisor -> processes.setAssignmentScale(section,
                 key, assignment.multiplier(), divisor));
         drawChain(entry, assignment.chain());
@@ -236,7 +237,10 @@ final class MutatorControls {
         chainLead(chain).forEach(words -> flow.text(words, GRAY));
         for (int index = 0; index < chain.size(); index++) {
             int link = index;
-            flow.text(chain.get(index).substring(STACK_MARK.length()), WHITE);
+            String applied = chain.get(index).substring(STACK_MARK.length());
+            flow.text(applied, WHITE);
+            // Decision every-prefab-reference-hovers-its-value: an applied mutator, waxed among them, hovers its value.
+            flow.hoverLast(PrefabHovers.hoverKey(applied));
             flow.control(REMOVE_LINK, REMOVE_LINK_HINT,
                     at -> edit(() -> processes.removeAssignmentLink(section, key, link)));
         }

@@ -37,6 +37,7 @@ import java.util.regex.Pattern;
  */
 final class Valuations {
     private static final String ENTRIES = "entries";
+    private static final String ITEMS = "items";
     private static final String KEY = "key";
     private static final String VALUE = "value";
     private static final String DENIED = "denied";
@@ -413,6 +414,50 @@ final class Valuations {
             row.add(ROW_FROM, from(member, inventory, derived, loaded.baseValues().keySet()));
         }
         return row;
+    }
+
+    /**
+     * The items each derived item's value comes from, as the Items tab draws them after "derived from": for every
+     * inventory item no entry or group values but recipes do, the recipe inputs its family row reports in its from
+     * field, the first link of its ancestor chain or the distinct items its recipe grid takes
+     * (decision items-rows-read-valued-derived-or-no-value-with-values-inline).
+     *
+     * @param model     the model
+     * @param inventory the inventory, whose recipes derive
+     * @return {"items": {id: [input ids]}} as JSON
+     * @throws IOException where the model's text cannot be read
+     */
+    static String derivedFrom(BaseValuesModel model, InventoryView inventory) throws IOException {
+        GooBaseValuesPreview.Derived derived = derivedFor(model, inventory);
+        GooBaseValuesPreview.Loaded loaded = GooBaseValuesPreview.load(model.serialize(), inventory.tagResolver());
+        JsonObject items = new JsonObject();
+        for (String id : inventory.itemIds()) {
+            Identifier item = Identifier.tryParse(id);
+            if (item == null || !derived.derived().contains(item) || ownEntry(model, id) != null
+                    || groupValuing(model, id) != null) {
+                continue;
+            }
+            JsonArray inputs = new JsonArray();
+            inputsOf(from(item, inventory, derived, loaded.baseValues().keySet())).forEach(inputs::add);
+            items.add(id, inputs);
+        }
+        JsonObject root = new JsonObject();
+        root.add(ITEMS, items);
+        return root.toString();
+    }
+
+    private static Set<String> inputsOf(JsonObject from) {
+        Set<String> inputs = new LinkedHashSet<>();
+        if (FROM_ANCESTOR.equals(from.get(FROM_KIND).getAsString())) {
+            inputs.add(from.getAsJsonArray(FROM_CHAIN).get(0).getAsString());
+            return inputs;
+        }
+        from.getAsJsonArray(FROM_GRID).forEach(cell -> {
+            if (!cell.isJsonNull()) {
+                inputs.add(cell.getAsString());
+            }
+        });
+        return inputs;
     }
 
     /**

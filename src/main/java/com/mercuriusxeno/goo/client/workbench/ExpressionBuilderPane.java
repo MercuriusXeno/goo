@@ -20,7 +20,7 @@ import java.util.function.Supplier;
  * factor, the goo type picker hides the types a value holds, and a list holds only what the value may read. Several
  * terms stand as one sum, drawn as "the sum of:" with its terms indented below it, each edited in place, and the
  * whole value scales as one sum; these are the two ways the game's files use parentheses. Every control names what
- * it does on hover, the lines wrap inside the pane, and [done] closes the builder below the value. Each change
+ * it does on hover, the lines wrap inside the pane, and done closes the builder below the value. Each change
  * writes the string the file grammar reads; a value is never written empty. The state lives in
  * {@link ExpressionBuilder}.
  */
@@ -56,40 +56,39 @@ final class ExpressionBuilderPane {
     private static final String PLUS = "plus";
     private static final String MINUS = "minus";
     private static final String JOIN_HINT = "Click to switch between adding and subtracting this";
-    private static final String TIMES = "times";
-    private static final String DIVIDED_BY = "divided by";
-    private static final String OP_HINT = "Click to switch between multiplying and dividing";
-    private static final String FACTOR_HINT = "Click to change the number; 1 removes it";
-    private static final String SCALE = "[scale]";
+    private static final String RATIO = ":";
+    private static final String MULTIPLIER_HINT = "Click to change what this is multiplied by; 1 removes it";
+    private static final String DIVISOR_HINT = "Click to change what this is divided by; 1 removes it";
+    private static final String SCALE = "scale";
     private static final String SCALE_HINT = "Multiply or divide this by a number";
-    private static final String SCALE_SUM = "[scale the sum]";
+    private static final String SCALE_SUM = "scale the sum";
     private static final String SCALE_SUM_HINT = "Multiply or divide the whole sum by a number";
-    private static final String SCALE_WHOLE = "[scale the whole value]";
+    private static final String SCALE_WHOLE = "scale the whole value";
     private static final String SCALE_WHOLE_HINT = "Multiply or divide everything above by one number, as one sum";
     private static final String SUM_OF = "the sum of:";
-    private static final String ONE_TYPE = "[only one goo type]";
+    private static final String ONE_TYPE = "only one goo type";
     private static final String ONE_TYPE_HINT = "Use only one goo type of this value";
     private static final String ONLY = "only";
     private static final String KEPT_HINT = "No control builds this term; remove it to rebuild it";
-    private static final String REMOVE = "[remove]";
+    private static final String REMOVE = "remove";
     private static final String REMOVE_TERM_HINT = "Remove this term";
     private static final String REMOVE_SUM_HINT = "Remove this sum and every term in it";
     private static final String REMOVE_ROW_HINT = "Remove this goo type's amount";
-    private static final String ADD_TYPE = "[+ goo type]";
+    private static final String ADD_TYPE = "+ goo type";
     private static final String ADD_TYPE_HINT = "Add an amount for another goo type";
-    private static final String ADD_NUMBER = "[+ number]";
+    private static final String ADD_NUMBER = "+ number";
     private static final String ADD_NUMBER_HINT = "Add a number";
-    private static final String ADD_ITEM_OR_PREFAB = "[+ item or prefab]";
+    private static final String ADD_ITEM_OR_PREFAB = "+ item or prefab";
     private static final String ADD_ITEM_OR_PREFAB_HINT = "Add what an item or per-type prefab is worth";
-    private static final String ADD_PREFAB = "[+ prefab]";
+    private static final String ADD_PREFAB = "+ prefab";
     private static final String ADD_PREFAB_HINT = "Add a prefab's value";
-    private static final String ADD_SUM = "[+ sum of terms]";
+    private static final String ADD_SUM = "+ sum of terms";
     private static final String ADD_SUM_HINT = "Add several terms as one, to subtract or scale them together";
     private static final String PICK_TYPE = "Pick the first goo type:";
     private static final String UNREAD = "This value cannot be read; pick a kind to start over.";
     private static final String EMPTY = "No value yet: pick a kind to give it one.";
     private static final String DENIED = "Denied: this holds no goo. Pick a kind to give it a value.";
-    private static final String DONE = "[done]";
+    private static final String DONE = "done";
     private static final String DONE_HINT = "Close the builder; every change is already in the draft";
     private static final String BLANK = "";
 
@@ -129,7 +128,7 @@ final class ExpressionBuilderPane {
      *
      * @param shown  the value as the draft's edit box shows it
      * @param change takes the string each change writes
-     * @param finish runs when [done] closes the builder
+     * @param finish runs when done closes the builder
      */
     void open(String shown, Consumer<String> change, Runnable finish) {
         openUnder(BuilderGrammar.forItems(prefabs.get()), shown, change, finish);
@@ -141,7 +140,7 @@ final class ExpressionBuilderPane {
      * @param prefab the prefab's name
      * @param shown  the value as the draft's edit box shows it
      * @param change takes the string each change writes
-     * @param finish runs when [done] closes the builder
+     * @param finish runs when done closes the builder
      */
     void openPrefab(String prefab, String shown, Consumer<String> change, Runnable finish) {
         openUnder(BuilderGrammar.forPrefab(prefabs.get(), prefab), shown, change, finish);
@@ -187,6 +186,14 @@ final class ExpressionBuilderPane {
      */
     boolean keyPressed(int key) {
         return overlays.keyPressed(key);
+    }
+
+    /**
+     * @param amount the wheel's turn
+     * @return whether the builder's open grid took the turn
+     */
+    boolean scrollList(double amount) {
+        return builder != null && overlays.scrollList(amount);
     }
 
     /**
@@ -491,8 +498,9 @@ final class ExpressionBuilderPane {
         void changed(ExpressionBuilder.Op op, String factor);
     }
 
-    // A number shows no factor, a reference or a sum offers one, and a factor other than 1 reads "times" or
-    // "divided by" and its number, a click on either changing it.
+    // A number shows no factor, a reference or a sum offers one, and a factor other than 1 reads as a ratio,
+    // multiplier:divisor, one side the factor and the other 1, each a number box; setting a side multiplies or
+    // divides by it (decision factor-reads-as-a-ratio).
     private void drawFactor(ControlFlow flow, ExpressionBuilder.Piece piece, String offer, String offerHint,
                             ScaleChange change) {
         switch (BuilderGrammar.factorOf(piece)) {
@@ -502,12 +510,22 @@ final class ExpressionBuilderPane {
                     factor -> change.changed(ExpressionBuilder.Op.MULTIPLY, factor), true));
             case SHOWN -> {
                 boolean multiplies = piece.op() == ExpressionBuilder.Op.MULTIPLY;
-                flow.control(multiplies ? TIMES : DIVIDED_BY, OP_HINT, at -> change.changed(
-                        multiplies ? ExpressionBuilder.Op.DIVIDE : ExpressionBuilder.Op.MULTIPLY, piece.factor()));
-                flow.control(piece.factor(), FACTOR_HINT, at -> overlays.openNumber(at, piece.factor(),
-                        factor -> change.changed(piece.op(), factor), true));
+                ratioSide(flow, multiplies ? piece.factor() : ExpressionBuilder.ONE_TEXT, MULTIPLIER_HINT,
+                        ExpressionBuilder.Op.MULTIPLY, change);
+                flow.text(RATIO, GRAY);
+                ratioSide(flow, multiplies ? ExpressionBuilder.ONE_TEXT : piece.factor(), DIVISOR_HINT,
+                        ExpressionBuilder.Op.DIVIDE, change);
             }
         }
+    }
+
+    private void ratioSide(ControlFlow flow, String shown, String hint, ExpressionBuilder.Op op, ScaleChange change) {
+        // A side committed unchanged changes nothing, so the 1 opposite the factor never drops it.
+        flow.control(shown, hint, at -> overlays.openNumber(at, shown, factor -> {
+            if (!factor.equals(shown)) {
+                change.changed(op, factor);
+            }
+        }, true));
     }
 
     private SearchDropdown termList(String sort) {

@@ -26,7 +26,7 @@ final class SearchDropdown {
     private static final int BACKGROUND = 0xF0101010;
     private static final int BORDER = 0xFF606060;
     private static final int WHITE = 0xFFFFFFFF;
-    private static final int LINK = 0xFF80C0FF;
+    private static final int LINK = ButtonPainter.LINK;
 
     private final List<Choice> all;
     private String query = NOTHING;
@@ -152,10 +152,14 @@ final class SearchDropdown {
      * @param picked  takes the choice picked
      */
     void layTargets(ClickTargets targets, int x, int y, int width, Consumer<Choice> picked) {
+        layTargets(targets, x, y, width, SHOWN, picked);
+    }
+
+    private void layTargets(ClickTargets targets, int x, int y, int width, int rows, Consumer<Choice> picked) {
         if (!open) {
             return;
         }
-        List<Choice> shown = choices();
+        List<Choice> shown = shown(rows);
         for (int index = 0; index < shown.size(); index++) {
             Choice choice = shown.get(index);
             targets.add(x, y + index * ROW_HEIGHT, width, ROW_HEIGHT, () -> {
@@ -175,14 +179,15 @@ final class SearchDropdown {
      * @param x        the list's left edge
      * @param y        the list's top edge
      * @param width    its width
+     * @param rows     how many choices fit under its opener, the screen's bottom clamping it
      * @param picked   takes the choice picked
      */
     void draw(GuiGraphicsExtractor graphics, Font font, ItemIcons icons, ClickTargets targets, int x, int y, int width,
-              Consumer<Choice> picked) {
+              int rows, Consumer<Choice> picked) {
         if (!open) {
             return;
         }
-        List<Choice> shown = choices();
+        List<Choice> shown = shown(rows);
         int height = Math.max(1, shown.size()) * ROW_HEIGHT;
         graphics.nextStratum();
         graphics.fill(x - 1, y - 1, x + width + 1, y + height + 1, BORDER);
@@ -198,6 +203,11 @@ final class SearchDropdown {
                     rowY + TEXT_NUDGE, choice.kind() == Kind.PREFAB ? LINK : WHITE);
         }
         targets.add(x, y, width, height, () -> { });
-        layTargets(targets, x, y, width, picked);
+        layTargets(targets, x, y, width, rows, picked);
+    }
+
+    private List<Choice> shown(int rows) {
+        List<Choice> choices = choices();
+        return choices.subList(0, Math.min(choices.size(), rows));
     }
 }

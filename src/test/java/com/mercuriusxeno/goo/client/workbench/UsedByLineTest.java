@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.workbench;
 
 import org.junit.jupiter.api.Test;
+import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
@@ -35,5 +36,25 @@ class UsedByLineTest {
     @Test
     void expandedLineDrawsEveryItem() {
         assertEquals(new UsedByLine.Fit(20, 0), UsedByLine.expanded(20));
+    }
+
+    /**
+     * An expanded list ends on Hide, a collapsed one on its hidden count, and one that fits on nothing
+     * (decision expanded-used-by-lists-take-a-hide-button).
+     */
+    @Test
+    void expandedListEndsOnHideAndCollapsedOnItsCount() {
+        assertEquals(Optional.of("Hide"), UsedByLine.endLabel(UsedByLine.expanded(20), true));
+        assertEquals(Optional.of("... and 18 more"), UsedByLine.endLabel(new UsedByLine.Fit(2, 18), false));
+        assertEquals(Optional.empty(), UsedByLine.endLabel(new UsedByLine.Fit(4, 0), false));
+    }
+
+    /**
+     * Hide stands after the last row's last item, or opens a row of its own where that row has no room for it.
+     */
+    @Test
+    void hideStandsAfterTheLastItem() {
+        assertEquals(new UsedByLine.Slot(2 * STEP, 1), UsedByLine.hideSlot(7, 5, STEP, 100, 30));
+        assertEquals(new UsedByLine.Slot(0, 2), UsedByLine.hideSlot(10, 5, STEP, 100, 30));
     }
 }
