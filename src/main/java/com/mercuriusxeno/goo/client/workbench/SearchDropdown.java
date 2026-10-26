@@ -208,20 +208,23 @@ final class SearchDropdown {
         boolean scrolls = choices().size() > rows;
         int labelWidth = width - LABEL_X - (scrolls ? ScrollBar.WIDTH + ScrollBar.GAP : 0);
         for (int index = 0; index < shown.size(); index++) {
-            Choice choice = shown.get(index);
-            int rowY = y + index * ROW_HEIGHT;
-            String iconId = choice.iconId();
-            if (iconId != null) {
-                graphics.item(icons.of(iconId), x + ICON_INSET, rowY + ICON_INSET);
-            }
-            graphics.text(font, font.plainSubstrByWidth(choice.label(), labelWidth), x + LABEL_X,
-                    rowY + TEXT_NUDGE, choice.kind() == Kind.PREFAB ? LINK : WHITE);
+            drawChoice(graphics, font, icons, shown.get(index), x, y + index * ROW_HEIGHT, labelWidth);
         }
         targets.add(x, y, width, height, () -> { });
         layTargets(targets, x, y, width, rows, picked);
         if (scrolls) {
             bar.draw(graphics, targets, x + width, y, y + height);
         }
+    }
+
+    private static void drawChoice(GuiGraphicsExtractor graphics, Font font, ItemIcons icons, Choice choice, int x,
+                                   int rowY, int labelWidth) {
+        String iconId = choice.iconId();
+        if (iconId != null) {
+            graphics.item(icons.of(iconId), x + ICON_INSET, rowY + ICON_INSET);
+        }
+        graphics.text(font, font.plainSubstrByWidth(choice.label(), labelWidth), x + LABEL_X, rowY + TEXT_NUDGE,
+                choice.kind() == Kind.PREFAB ? LINK : WHITE);
     }
 
     // The rows the list stands scrolled to; the bar clamps its offset to the matches each time.

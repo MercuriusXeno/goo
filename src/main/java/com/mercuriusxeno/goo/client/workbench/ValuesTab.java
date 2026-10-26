@@ -300,13 +300,18 @@ public final class ValuesTab {
         String key = String.valueOf(keyOf(entry));
         boolean denied = DENIED.equals(ManagerDraft.shownText(entry.get(TEXT).getAsString()));
         if (!key.startsWith(TAG_PREFIX)) {
-            return !namespaced(key).equals(id) ? standing
-                    : denied ? new Source(DENIED, SourceKind.DENIED) : new Source(ENTRY_SOURCE, SourceKind.ENTRY);
+            return namespaced(key).equals(id) ? itemSource(denied) : standing;
         }
         String group = key.substring(TAG_PREFIX.length());
-        if (standing != null || !groups.getOrDefault(group, List.of()).contains(id)) {
-            return standing;
-        }
+        return standing == null && groups.getOrDefault(group, List.of()).contains(id) ? groupSource(group, denied)
+                : standing;
+    }
+
+    private static Source itemSource(boolean denied) {
+        return denied ? new Source(DENIED, SourceKind.DENIED) : new Source(ENTRY_SOURCE, SourceKind.ENTRY);
+    }
+
+    private static Source groupSource(String group, boolean denied) {
         return denied ? new Source(DENIED_BY + group, SourceKind.DENIED)
                 : new Source(GROUP_SOURCE + group, SourceKind.GROUP);
     }
