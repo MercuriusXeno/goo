@@ -73,7 +73,7 @@ final class VariablesPane {
     private final ManagerActions actions;
     private final Map<String, VariablesTab.HoverCard> cards = new HashMap<>();
     private final Set<String> cardsAsked = new HashSet<>();
-    private final Set<String> expandedUsedBy = new HashSet<>();
+    private final ExpandedLists expandedUsedBy = new ExpandedLists();
     private final ScrollBar cascadeBar = new ScrollBar(1);
     private final Map<String, Integer> blockTops = new HashMap<>();
     private final ExpressionBuilderPane builder;
@@ -309,8 +309,9 @@ final class VariablesPane {
     }
 
     // Answers the height the used-by items took, none where the constant reaches no item. A line too narrow for
-    // them stops at an "... and N more" button, which expands the block's line onto as many rows as it needs; a null
-    // expandKey draws the label as plain text, as the hover card does.
+    // them stops at an "... and N more" button, which expands the block's line onto as many rows as it needs, and an
+    // expanded line ends on Hide, which collapses it (decision expanded-used-by-lists-take-a-hide-button); a null
+    // expandKey draws the count as plain text and never expands, as the hover card does.
     private int drawUsedBy(GuiGraphicsExtractor graphics, Font font, String label, List<String> usedBy, int x, int y,
                            int width, @Nullable String expandKey, ClickTargets targets) {
         if (usedBy.isEmpty()) {
@@ -320,31 +321,39 @@ final class VariablesPane {
         int itemsX = x + Math.max(font.width(USED_BY), font.width(INDIRECTLY));
         int itemsWidth = x + width - itemsX;
         int step = ICON_SIZE + ICON_GAP;
-        boolean expanded = expandKey != null && expandedUsedBy.contains(expandKey);
+        boolean expanded = expandKey != null && expandedUsedBy.expanded(expandKey);
         UsedByLine.Fit fit = expanded ? UsedByLine.expanded(usedBy.size())
                 : UsedByLine.fit(usedBy.size(), itemsWidth, step,
                         hidden -> ButtonPainter.width(font, UsedByLine.moreLabel(hidden)));
-        int perRow = Math.max(1, itemsWidth / step);
-        for (int index = 0; index < fit.shown(); index++) {
-            int row = expanded ? index / perRow : 0;
-            int column = expanded ? index % perRow : index;
-            int iconX = itemsX + column * step;
-            int iconY = y + row * (ICON_SIZE + HALF);
-            graphics.item(icons.of(usedBy.get(index)), iconX, iconY);
-            targets.addHover(iconX, iconY, ICON_SIZE, ICON_SIZE, ItemIcons.hoverKey(usedBy.get(index)));
+        int perRow = expanded ? Math.max(1, itemsWidth / step) : Math.max(1, fit.shown());
+        drawUsedByIcons(usedBy.subList(0, fit.shown()), itemsX, y, perRow, targets, graphics);
+        UsedByLine.Slot end = UsedByLine.endSlot(fit, expanded, perRow, step, itemsWidth,
+                ButtonPainter.width(font, UsedByLine.HIDE));
+        UsedByLine.endLabel(fit, expanded).ifPresent(endLabel -> drawUsedByEnd(graphics, font, endLabel,
+                itemsX + end.x(), y + end.row() * (ICON_SIZE + HALF), expandKey, expanded, targets));
+        return (end.row() + 1) * (ICON_SIZE + HALF);
+    }
+
+    private void drawUsedByIcons(List<String> shown, int left, int top, int perRow, ClickTargets targets,
+                                 GuiGraphicsExtractor graphics) {
+        int step = ICON_SIZE + ICON_GAP;
+        for (int index = 0; index < shown.size(); index++) {
+            int iconX = left + index % perRow * step;
+            int iconY = top + index / perRow * (ICON_SIZE + HALF);
+            graphics.item(icons.of(shown.get(index)), iconX, iconY);
+            targets.addHover(iconX, iconY, ICON_SIZE, ICON_SIZE, ItemIcons.hoverKey(shown.get(index)));
         }
-        if (fit.hidden() > 0) {
-            String more = UsedByLine.moreLabel(fit.hidden());
-            int moreX = itemsX + fit.shown() * step;
-            if (expandKey == null) {
-                graphics.text(font, more, moreX, y + TEXT_NUDGE, GRAY);
-            } else {
-                ButtonPainter.draw(graphics, font, more, moreX, y, ICON_SIZE, targets,
-                        () -> expandedUsedBy.add(expandKey));
-            }
+    }
+
+    private void drawUsedByEnd(GuiGraphicsExtractor graphics, Font font, String label, int x, int y,
+                               @Nullable String expandKey, boolean expanded, ClickTargets targets) {
+        if (expandKey == null) {
+            graphics.text(font, label, x, y + TEXT_NUDGE, GRAY);
+        } else if (expanded) {
+            ButtonPainter.draw(graphics, font, label, x, y, ICON_SIZE, targets, () -> expandedUsedBy.hide(expandKey));
+        } else {
+            ButtonPainter.draw(graphics, font, label, x, y, ICON_SIZE, targets, () -> expandedUsedBy.expand(expandKey));
         }
-        int rows = expanded ? (fit.shown() + perRow - 1) / perRow : 1;
-        return rows * (ICON_SIZE + HALF);
     }
 
     private void startEditing(String name) {
