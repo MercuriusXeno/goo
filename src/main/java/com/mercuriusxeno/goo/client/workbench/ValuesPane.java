@@ -6,6 +6,7 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -36,8 +37,16 @@ final class ValuesPane {
     private static final int SCROLL_STEP = LINE_HEIGHT * 3;
     private static final int WHITE = 0xFFFFFFFF;
     private static final int GRAY = 0xFFA0A0A0;
-    private static final int RED = 0xFFFF5555;
+    /** The color of no value, the one red source. */
+    static final int RED = 0xFFFF5555;
     private static final int GREEN = 0xFF80E080;
+    private static final int DERIVED_COLOR = 0xFFA0C8F0;
+    /** The room between two runs of an Items row's value. */
+    static final int RUN_GAP = 3;
+    private static final int RUN_ICON_GAP = 2;
+    private static final int RUN_TEXT_NUDGE = 5;
+    // The name and source column beside an Items row's icon; the value takes the rest of the row.
+    private static final int NAME_COLUMN = 70;
     private static final int GOLD = 0xFFE0C060;
     private static final int CHIP_OFF = 0xFF808080;
     private static final int CHIP_HOLLOW = 0xFF202020;
@@ -232,39 +241,137 @@ final class ValuesPane {
             graphics.text(font, NO_ENTRIES, list.left(), list.top(), GRAY);
             return;
         }
-        int shown = Math.max(1, (list.bottom() - list.top()) / ROW_HEIGHT);
-        listBar.measure(listed.size(), shown);
         scrollToRevealed();
-        int firstShown = listBar.offset();
+        int firstShown = Math.min(listBar.offset(), listed.size() - 1);
+        graphics.enableScissor(list.left(), list.top(), list.right(), list.bottom());
+        targets.clip(list.left(), list.top(), list.right(), list.bottom());
+        int whole = drawRowsFrom(graphics, font, listed, firstShown, list, targets);
+        targets.unclip();
+        graphics.disableScissor();
+        listBar.measure(listed.size(), Math.max(1, whole));
+        listBar.draw(graphics, targets, list.right(), list.top(), list.bottom());
+    }
+
+    // Draws rows from the first shown until the list's bottom; answers how many stood whole inside it.
+    private int drawRowsFrom(GuiGraphicsExtractor graphics, Font font, List<ValuesTab.ManagerEntry> listed,
+                             int firstShown, GroupsPane.Bounds list, ClickTargets targets) {
         Optional<String> selectedId = values.selectedRow().map(ValuesTab.EntryRow::id);
-        int textX = list.left() + ICON_SIZE + ICON_GAP;
-        int rowRight = list.right() - ScrollBar.WIDTH - ScrollBar.GAP;
-        int textWidth = rowRight - textX;
+        int right = list.right() - ScrollBar.WIDTH - ScrollBar.GAP;
         int y = list.top();
-        for (int index = firstShown; index < Math.min(listed.size(), firstShown + shown); index++) {
+        int whole = 0;
+        for (int index = firstShown; index < listed.size() && y < list.bottom(); index++) {
             ValuesTab.ManagerEntry entry = listed.get(index);
-            RowLayout.drawSeparatorAbove(graphics, index - firstShown, y, list.left(), rowRight);
-            if (selectedId.filter(entry.id()::equals).isPresent()) {
-                graphics.fill(list.left(), y, rowRight, y + ROW_HEIGHT, SELECTED_ROW_COLOR);
-            }
-            graphics.item(icons.of(entry.id()), list.left(), y + 1);
-            String first = entry.tag() ? entry.id() : entry.name();
-            graphics.text(font, font.plainSubstrByWidth(first, textWidth), textX, y + 1, WHITE);
-            if (entry.tag()) {
-                graphics.text(font, font.plainSubstrByWidth(entry.name(), textWidth), textX, y + SECOND_LINE, GRAY);
-            } else {
-                ValuesTab.Source source = values.sourceOf(entry.id());
-                graphics.text(font, font.plainSubstrByWidth(source.label(), textWidth), textX, y + SECOND_LINE,
-                        colorOf(source.kind()));
-            }
-            targets.add(list.left(), y, rowRight - list.left(), ROW_HEIGHT, () -> {
-                values.select(entry.id());
-                detailBar.reset();
-                builder.close();
-            });
-            y += ROW_HEIGHT;
+            RowLayout.drawSeparatorAbove(graphics, index - firstShown, y, list.left(), right);
+            y += drawEntry(graphics, font, entry, new GroupsPane.Bounds(list.left(), y, right, list.bottom()),
+                    selectedId.filter(entry.id()::equals).isPresent(), targets);
+            whole += y <= list.bottom() ? 1 : 0;
         }
-        listBar.draw(graphics, targets, list.right(), list.top(), list.top() + shown * ROW_HEIGHT);
+        return whole;
+    }
+
+    // One Items row: the icon, the name over its source, and the item's goo value inline beside them, wrapped onto
+    // as many 18px rows as it needs, a derived item's inputs on a row after; answers the row's height
+    // (decision items-rows-read-valued-derived-or-no-value-with-values-inline).
+    private int drawEntry(GuiGraphicsExtractor graphics, Font font, ValuesTab.ManagerEntry entry,
+                          GroupsPane.Bounds row, boolean selected, ClickTargets targets) {
+        int textX = row.left() + ICON_SIZE + ICON_GAP;
+        int runsX = textX + NAME_COLUMN + GAP;
+        Map<String, String> worth = entry.tag() ? Map.of() : values.worthOf(entry.id());
+        List<String> from = entry.tag() ? List.of() : values.derivedFrom(entry.id());
+        ValueRuns runs = layValueRuns(worth.values().stream().map(amount -> runWidth(font, amount)).toList(),
+                row.right() - runsX);
+        int height = (runs.rows() + (from.isEmpty() ? 0 : 1)) * ROW_HEIGHT;
+        if (selected) {
+            graphics.fill(row.left(), row.top(), row.right(), row.top() + height, SELECTED_ROW_COLOR);
+        }
+        targets.add(row.left(), row.top(), row.right() - row.left(), height, () -> {
+            values.select(entry.id());
+            detailBar.reset();
+            builder.close();
+        });
+        drawEntryText(graphics, font, entry, textX, row.top());
+        drawValueRuns(graphics, font, worth, runs, runsX, row.top(), targets);
+        drawDerivedFrom(graphics, from, runsX, row.top() + runs.rows() * ROW_HEIGHT, targets);
+        return height;
+    }
+
+    private void drawEntryText(GuiGraphicsExtractor graphics, Font font, ValuesTab.ManagerEntry entry, int textX,
+                               int top) {
+        graphics.item(icons.of(entry.id()), textX - ICON_SIZE - ICON_GAP, top + 1);
+        graphics.text(font, font.plainSubstrByWidth(entry.tag() ? entry.id() : entry.name(), NAME_COLUMN), textX,
+                top + 1, WHITE);
+        if (entry.tag()) {
+            graphics.text(font, font.plainSubstrByWidth(entry.name(), NAME_COLUMN), textX, top + SECOND_LINE, GRAY);
+            return;
+        }
+        ValuesTab.Source source = values.sourceOf(entry.id());
+        graphics.text(font, font.plainSubstrByWidth(source.label(), NAME_COLUMN), textX, top + SECOND_LINE,
+                colorOf(source.kind()));
+    }
+
+    private static void drawValueRuns(GuiGraphicsExtractor graphics, Font font, Map<String, String> worth,
+                                      ValueRuns runs, int left, int top, ClickTargets targets) {
+        Iterator<Spot> spots = runs.spots().iterator();
+        for (Map.Entry<String, String> amount : worth.entrySet()) {
+            Spot spot = spots.next();
+            int x = left + spot.x();
+            int y = top + spot.row() * ROW_HEIGHT;
+            GooTypeIcons.draw(graphics, targets, amount.getKey(), x, y + 1);
+            graphics.text(font, amount.getValue(), x + ICON_SIZE + RUN_ICON_GAP, y + RUN_TEXT_NUDGE, WHITE);
+        }
+    }
+
+    // A derived item's inputs as icons, each a link to its own row.
+    private void drawDerivedFrom(GuiGraphicsExtractor graphics, List<String> from, int left, int top,
+                                 ClickTargets targets) {
+        for (int index = 0; index < from.size(); index++) {
+            int x = left + index * (ICON_SIZE + HALF);
+            graphics.item(icons.of(from.get(index)), x, top + 1);
+            ItemLinks.add(targets, actions, from.get(index), x, top + 1);
+        }
+    }
+
+    private static int runWidth(Font font, String amount) {
+        return ICON_SIZE + RUN_ICON_GAP + font.width(amount);
+    }
+
+    /**
+     * Where one goo type's run stands in an Items row's value.
+     *
+     * @param x   its offset from the value's left edge
+     * @param row its row, from 0
+     */
+    record Spot(int x, int row) {
+    }
+
+    /**
+     * @param rows  how many 18px rows the value takes, at least one
+     * @param spots each run's place, in order
+     */
+    record ValueRuns(int rows, List<Spot> spots) {
+    }
+
+    /**
+     * Lays an item's goo value as runs, one per type, wrapping onto a new row where the next run would pass the
+     * width (decision items-rows-read-valued-derived-or-no-value-with-values-inline).
+     *
+     * @param runWidths each run's width, its type icon and amount
+     * @param width     the width the value fills
+     * @return the rows it takes and each run's place
+     */
+    static ValueRuns layValueRuns(List<Integer> runWidths, int width) {
+        List<Spot> spots = new ArrayList<>();
+        int x = 0;
+        int row = 0;
+        for (int runWidth : runWidths) {
+            if (x > 0 && x + runWidth > width) {
+                row++;
+                x = 0;
+            }
+            spots.add(new Spot(x, row));
+            x += runWidth + RUN_GAP;
+        }
+        return new ValueRuns(row + 1, spots);
     }
 
     private void scrollToRevealed() {
@@ -274,11 +381,16 @@ final class ValuesPane {
         }
     }
 
-    private static int colorOf(ValuesTab.SourceKind kind) {
+    /**
+     * @param kind where an item's value comes from
+     * @return its source's color, red for no value and nothing else
+     */
+    static int colorOf(ValuesTab.SourceKind kind) {
         return switch (kind) {
             case ENTRY -> GREEN;
             case GROUP -> GOLD;
             case DENIED -> GRAY;
+            case DERIVED -> DERIVED_COLOR;
             case NONE -> RED;
         };
     }

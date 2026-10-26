@@ -152,22 +152,35 @@ class ValuesTabTest {
                 """;
 
         /**
-         * Each item names where its value comes from, as the page's source badge does: its own entry, a #group
-         * entry over a _groups group, a denial, or nothing in the file, with a restriction appended.
+         * Each item names where its value comes from: Valued for its own entry, a #group entry over a _groups
+         * group, a denial, "derived from" its recipe inputs where recipes value an entryless item, and "no value"
+         * where nothing does, with a restriction appended; "no value" alone reads red
+         * (decision items-rows-read-valued-derived-or-no-value-with-values-inline).
          */
         @Test
         void eachItemNamesWhereItsValueComesFrom() {
             tab.readModel(GROUPED_MODEL);
-            assertEquals(new ValuesTab.Source("entry, restricted", ValuesTab.SourceKind.ENTRY),
-                    tab.sourceOf("minecraft:stick"));
-            assertEquals(new ValuesTab.Source("group #lights", ValuesTab.SourceKind.GROUP),
-                    tab.sourceOf("minecraft:torch"));
-            assertEquals(new ValuesTab.Source("denied", ValuesTab.SourceKind.DENIED), tab.sourceOf("goo:gasket"));
-            tab.readInventory("""
-                    {"items": [{"id": "minecraft:dirt", "name": "Dirt"}], "item_tags": []}
+            tab.readResolved("""
+                    {"entries": [{"key": "oak_planks", "value": {"leaf": "4"}, "denied": false,
+                                  "restricted": false, "error": null}]}
                     """);
-            assertEquals(new ValuesTab.Source("not in the file", ValuesTab.SourceKind.NONE),
-                    tab.sourceOf("minecraft:dirt"));
+            tab.readDerivedFrom("""
+                    {"items": {"minecraft:oak_planks": ["minecraft:oak_log"]}}
+                    """);
+            ValuesTab.Source valued = tab.sourceOf("minecraft:stick");
+            assertEquals(new ValuesTab.Source("Valued, restricted", ValuesTab.SourceKind.ENTRY), valued);
+            ValuesTab.Source group = tab.sourceOf("minecraft:torch");
+            assertEquals(new ValuesTab.Source("group #lights", ValuesTab.SourceKind.GROUP), group);
+            ValuesTab.Source denied = tab.sourceOf("goo:gasket");
+            assertEquals(new ValuesTab.Source("denied", ValuesTab.SourceKind.DENIED), denied);
+            ValuesTab.Source derived = tab.sourceOf("minecraft:oak_planks");
+            assertEquals(new ValuesTab.Source("derived from", ValuesTab.SourceKind.DERIVED), derived);
+            assertEquals(List.of("minecraft:oak_log"), tab.derivedFrom("minecraft:oak_planks"));
+            ValuesTab.Source none = tab.sourceOf("minecraft:dirt");
+            assertEquals(new ValuesTab.Source("no value", ValuesTab.SourceKind.NONE), none);
+            List<ValuesTab.Source> notRed = List.of(valued, group, denied, derived);
+            assertEquals(ValuesPane.RED, ValuesPane.colorOf(none.kind()));
+            assertTrue(notRed.stream().noneMatch(source -> ValuesPane.colorOf(source.kind()) == ValuesPane.RED));
         }
 
         /**

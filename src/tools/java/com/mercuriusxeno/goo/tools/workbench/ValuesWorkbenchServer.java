@@ -139,7 +139,7 @@ public final class ValuesWorkbenchServer {
         server.serveAnyMethod(WorkbenchOperations.INVENTORY, WorkbenchOperations.STANDING_DUMPS,
                 WorkbenchOperations.AUDIT_SECTIONS, WorkbenchOperations.RESOLVE_VALUES,
                 WorkbenchOperations.UNCOVERED_VALUES, WorkbenchOperations.FAMILY, WorkbenchOperations.HOVER,
-                WorkbenchOperations.PROCESSES);
+                WorkbenchOperations.DERIVED_FROM, WorkbenchOperations.PROCESSES);
         server.servePostOnly(WorkbenchOperations.EVALUATE_CONSTANTS, WorkbenchOperations.RENAME_CONSTANT,
                 WorkbenchOperations.DELETE_CONSTANT, WorkbenchOperations.CONSTANT_HOVER,
                 WorkbenchOperations.DESCRIBE_GROUPS, WorkbenchOperations.APPLY_TO_GROUP, WorkbenchOperations.PROMOTE,
