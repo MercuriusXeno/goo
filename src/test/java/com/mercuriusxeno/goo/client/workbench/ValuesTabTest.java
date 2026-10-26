@@ -105,6 +105,28 @@ class ValuesTabTest {
             assertEquals("", row.expression());
             assertTrue(row.amounts().isEmpty());
         }
+
+        /**
+         * Opening an item from a used-by icon lists every item, selects it and answers its place in the list, so the
+         * pane scrolls it into view (decision used-by-icons-link-to-items-and-hover-their-value).
+         */
+        @Test
+        void openingAnItemSelectsItUnderTheItemsFilter() {
+            tab.filter(ValuesTab.Filter.TAGS);
+            tab.search("logs");
+            assertEquals(2, tab.open("goo:gasket"));
+            assertEquals(ValuesTab.Filter.ITEMS, tab.filter());
+            assertEquals("goo:gasket", tab.selectedRow().orElseThrow().id());
+        }
+
+        /**
+         * An item's amounts read from the resolve reply by its namespaced id, empty for an item nothing values.
+         */
+        @Test
+        void worthOfReadsAnItemsResolvedValue() {
+            assertEquals(Map.of("leaf", "48", "metal", "3/2"), tab.worthOf("minecraft:stick"));
+            assertTrue(tab.worthOf("minecraft:torch").isEmpty());
+        }
     }
 
     @Nested

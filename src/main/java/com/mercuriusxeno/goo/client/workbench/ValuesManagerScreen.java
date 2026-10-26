@@ -9,7 +9,9 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
@@ -56,7 +58,7 @@ public final class ValuesManagerScreen extends Screen {
     private final ProcessesTab processesTab = new ProcessesTab(draft);
     private final AuditTab auditTab = new AuditTab();
     private final ChecksTab checksTab = new ChecksTab(draft);
-    private final ItemIcons icons = new ItemIcons();
+    private final ItemIcons icons = new ItemIcons(values::worthOf);
     private final ClickTargets targets = new ClickTargets();
     private final Map<ManagerTab, Button> tabButtons = new EnumMap<>(ManagerTab.class);
     private final ValuesPane valuesPane;
@@ -145,6 +147,12 @@ public final class ValuesManagerScreen extends Screen {
         public void openVariable(String name) {
             selectTab(ManagerTab.VARIABLES);
             variablesPane.jumpTo(name);
+        }
+
+        @Override
+        public void openItem(String id) {
+            selectTab(ManagerTab.VALUES);
+            valuesPane.reveal(id);
         }
 
         @Override
@@ -378,9 +386,14 @@ public final class ValuesManagerScreen extends Screen {
                 statusIsError ? RED : GRAY);
         draftPane.extract(graphics, font, width, height, targets);
         // decision goo-types-draw-as-icons-named-on-hover
-        targets.hovered(mouseX, mouseY).flatMap(key -> GooTypeIcons.tooltipFor(key).or(() -> icons.tooltipFor(key))
-                        .or(() -> BuilderOverlays.tooltipFor(key)))
-                .ifPresent(name -> graphics.setTooltipForNextFrame(font, name, mouseX, mouseY));
+        targets.hovered(mouseX, mouseY).flatMap(this::tooltipLines)
+                .ifPresent(lines -> graphics.setComponentTooltipForNextFrame(font, lines, mouseX, mouseY));
+    }
+
+    // A goo type or a control names itself on one line; an item names itself, then its value a line per type.
+    private Optional<List<Component>> tooltipLines(String hoverKey) {
+        Optional<Component> line = GooTypeIcons.tooltipFor(hoverKey).or(() -> BuilderOverlays.tooltipFor(hoverKey));
+        return line.isPresent() ? Optional.of(List.of(line.get())) : icons.tooltipFor(hoverKey);
     }
 
     private void showChecksBadge() {

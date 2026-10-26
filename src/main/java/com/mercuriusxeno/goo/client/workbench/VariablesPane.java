@@ -341,7 +341,7 @@ final class VariablesPane {
             int iconX = left + index % perRow * step;
             int iconY = top + index / perRow * (ICON_SIZE + HALF);
             graphics.item(icons.of(shown.get(index)), iconX, iconY);
-            targets.addHover(iconX, iconY, ICON_SIZE, ICON_SIZE, ItemIcons.hoverKey(shown.get(index)));
+            ItemLinks.add(targets, actions, shown.get(index), iconX, iconY);
         }
     }
 

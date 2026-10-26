@@ -249,7 +249,7 @@ final class GroupsPane {
             int iconX = left + index % Math.max(1, perRow) * step;
             int iconY = top + index / Math.max(1, perRow) * ROW_HEIGHT + 1;
             graphics.item(icons.of(id), iconX, iconY);
-            targets.addHover(iconX, iconY, ICON_SIZE, ICON_SIZE, ItemIcons.hoverKey(id));
+            ItemLinks.add(targets, actions, id, iconX, iconY);
         }
     }
 

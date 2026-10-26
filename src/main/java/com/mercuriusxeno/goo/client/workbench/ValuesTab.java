@@ -314,6 +314,34 @@ public final class ValuesTab {
     }
 
     /**
+     * Lists every item, the search cleared, and selects one, as a used-by icon's click opens it
+     * (decision used-by-icons-link-to-items-and-hover-their-value).
+     *
+     * @param id the item's id
+     * @return its place in the list, for the pane to scroll it into view, 0 where the list holds it nowhere
+     */
+    public int open(String id) {
+        filter = Filter.ITEMS;
+        search = NO_TEXT;
+        selected = id;
+        List<ManagerEntry> listed = listed();
+        for (int index = 0; index < listed.size(); index++) {
+            if (listed.get(index).id().equals(id)) {
+                return index;
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * @param id an item's namespaced id
+     * @return each goo type the item resolves to with its amount, empty where nothing values it
+     */
+    public Map<String, String> worthOf(String id) {
+        return amountsOf(resolved.get(entryKeyOf(id)));
+    }
+
+    /**
      * @return the selected entry's row, empty while none is selected
      */
     public Optional<EntryRow> selectedRow() {
