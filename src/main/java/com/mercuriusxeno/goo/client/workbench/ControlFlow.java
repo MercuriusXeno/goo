@@ -220,16 +220,21 @@ final class ControlFlow {
         int inset = pressed == null ? 0 : ButtonPainter.PADDING;
         reserve(width + inset + inset);
         if (pressed != null) {
-            // Decision blue-text-options-draw-as-bordered-buttons: a clickable run is a button, its runs inside.
-            ButtonPainter.drawFrame(graphics, ExpressionLines.lineHeight(runs) == LINE
-                    ? new ButtonPainter.Box(x, y, width + inset + inset, LINE)
-                    : ButtonPainter.layout(width, x, y, LINE));
+            drawRunsFrame(runs, width);
         }
         addRunsTarget(width + inset + inset, hint, pressed);
         int runsTop = ExpressionLines.lineHeight(runs) == LINE ? y : y + TEXT_NUDGE;
         ExpressionLines.draw(font, runs, x + inset, runsTop, width + 1, new ExpressionLines.Painter(graphics, icons,
                 targets, pressed == null ? WHITE : LINK, LINK, (name, linkX, linkY, linkWidth) -> { }));
         x += width + inset + inset + GAP;
+    }
+
+    // Decision blue-text-options-draw-as-bordered-buttons: a clickable run is a button, its runs inside; a run
+    // holding an icon takes the whole line's height.
+    private void drawRunsFrame(List<ExpressionLines.Run> runs, int width) {
+        ButtonPainter.drawFrame(graphics, ExpressionLines.lineHeight(runs) == LINE
+                ? new ButtonPainter.Box(x, y, width + ButtonPainter.PADDING + ButtonPainter.PADDING, LINE)
+                : ButtonPainter.layout(width, x, y, LINE));
     }
 
     // The runs' click, or their hint alone where they take none.
