@@ -3,12 +3,13 @@ package com.mercuriusxeno.goo.client.workbench;
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Tests the Promote and Discard confirms the manager's topbar opens, as the page's draft dialog runs them, with no
+ * Tests the Promote and Revert confirms the manager's topbar opens, as the page's draft dialog runs them, with no
  * Screen (decisions save-applies-the-draft-live-promote-renames-it, values-checks-go-with-the-checks-tab).
  */
 class DraftConfirmTest {
@@ -34,17 +35,29 @@ class DraftConfirmTest {
     }
 
     /**
-     * Discard asks naming the file it copies back, and its done line names it.
+     * Revert asks naming the file it copies back and reads as Revert, while the operation it runs stays the
+     * workbench's Discard (decision topbar-discard-reads-revert).
      */
     @Test
-    void discardAsksNamingTheFileItCopiesBack() {
+    void revertAsksNamingTheFileItCopiesBack() {
         DraftConfirm confirm = new DraftConfirm();
-        confirm.askDiscard(PATH);
-        assertEquals("Discard the draft?", confirm.dialog().orElseThrow().title());
+        confirm.askRevert(PATH);
+        assertEquals("Revert the draft?", confirm.dialog().orElseThrow().title());
+        assertTrue(confirm.dialog().orElseThrow().text().contains(PATH + " back over the draft"),
+                confirm.dialog().orElseThrow().text());
         assertEquals(WorkbenchOperations.DISCARD, confirm.operation());
         confirm.confirmed();
-        assertEquals("draft discarded", confirm.doneStatus(PATH));
+        assertEquals("draft reverted", confirm.doneStatus(PATH));
         confirm.cancel();
         assertTrue(confirm.dialog().isEmpty());
+    }
+
+    /**
+     * The manager's topbar reads Save, Revert, Promote, laid leftward from the title row's right edge (decision
+     * topbar-discard-reads-revert).
+     */
+    @Test
+    void topbarReadsSaveRevertPromote() {
+        assertEquals(List.of("Save", "Revert", "Promote"), ValuesManagerScreen.topbarLabels());
     }
 }
