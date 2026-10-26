@@ -83,7 +83,9 @@ public final class ValuesManagerScreen extends Screen {
         valuesPane = new ValuesPane(values, icons, actions, builderPane(actions));
         groupsPane = new GroupsPane(groupsTab, values, icons, actions);
         variablesPane = new VariablesPane(variablesTab, draft, icons, actions, builderPane(actions));
-        processesPane = new ProcessesPane(processesTab, draft, actions);
+        processesPane = new ProcessesPane(processesTab, draft, actions, icons, () -> variablesTab.blocks().stream()
+                .filter(block -> VariablesTab.TREE_KIND.equals(block.kind())).map(VariablesTab.ConstantBlock::name)
+                .toList());
         auditPane = new AuditPane(auditTab, draft, actions);
         checksPane = new ChecksPane(checksTab);
     }
