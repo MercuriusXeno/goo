@@ -31,6 +31,7 @@ final class ConstantsJson {
     private static final String ERROR = "error";
     private static final String USED_BY = "usedBy";
     private static final String READERS = "readers";
+    private static final String DIRECT = "direct";
     private static final String EXPRESSION = "expression";
     private static final String ID = "id";
     private static final String FROM = "from";
@@ -79,8 +80,9 @@ final class ConstantsJson {
      * @param model      the model whose constants to resolve
      * @param tagMembers each item tag's member ids, keyed by the tag's namespaced id
      * @return each constant in file order: its kind, its value or per-type tree, its error, the terminus items
-     *         it cascades into as usedBy (decision used-by-draws-the-terminus-items-alone) and its direct
-     *         readers, which the delete modal's cascade walks
+     *         it cascades into as usedBy and the items naming it as direct (decision
+     *         used-by-draws-the-terminus-items-alone), and its direct readers, which the delete modal's cascade
+     *         walks
      */
     static String evaluated(BaseValuesModel model, Map<String, List<String>> tagMembers) {
         Map<String, String> unparsed = new LinkedHashMap<>();
@@ -150,6 +152,9 @@ final class ConstantsJson {
         JsonArray terminus = new JsonArray();
         model.terminusOf(name, tagMembers).forEach(terminus::add);
         json.add(USED_BY, terminus);
+        JsonArray direct = new JsonArray();
+        model.directItemsOf(name).forEach(direct::add);
+        json.add(DIRECT, direct);
         json.add(READERS, readersJson(model.readersOf(name)));
     }
 
