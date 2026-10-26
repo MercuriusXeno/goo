@@ -3,25 +3,21 @@ package com.mercuriusxeno.goo.client.workbench;
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.Nullable;
-import org.lwjgl.glfw.GLFW;
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * Draws the Mutators tab: each block's summary and its entries, each on two lines, the key, the form, the parser's
  * verdict and Delete on the first and the text at full width on the second (decision mutator-rows-take-an-extra-line);
- * a click on an entry's text swaps in an edit box that writes the draft on Enter or blur, and Delete drops the entry,
- * as index.html's processes section does (decision goo-workbench-opens-the-in-game-manager-screen). The rows scroll
+ * a click on an entry's text opens its controls on a line below it, which build the entry with nothing typed but a
+ * number or a search (decision expression-builder-composes-every-form-without-typing), and Delete drops the entry, as
+ * index.html's processes section does (decision goo-workbench-opens-the-in-game-manager-screen). The rows scroll
  * under a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in {@link ProcessesTab}.
  */
 final class ProcessesPane {
     private static final int LINE_HEIGHT = 10;
     private static final int ROW_HEIGHT = 13;
-    private static final int BOX_HEIGHT = 12;
-    // The edit box's text sits lower in the box than a row's text, so the box stands a little above the row.
-    private static final int BOX_NUDGE = 2;
     private static final int KEY_WIDTH = 120;
     private static final int KIND_WIDTH = 70;
     private static final int VERDICT_WIDTH = 160;
@@ -35,48 +31,48 @@ final class ProcessesPane {
     private static final int LINK = 0xFF80C0FF;
     private static final int TREE_COLOR = 0xFFE0C060;
     private static final int TEXT_COLOR = 0x30FFFFFF;
+    private static final int OPEN_COLOR = 0x50FFFFFF;
     private static final String ASSIGNMENT = "assignment";
     private static final String DELETE = "[Delete]";
     private static final String SUMMARY_GAP = "  ";
-    private static final String NO_TEXT = "";
 
     private final ProcessesTab processes;
     private final ManagerDraft draft;
     private final ManagerActions actions;
-    private @Nullable EditBox field;
-    private @Nullable String editingSection;
-    private @Nullable String editingKey;
-    private boolean fieldHeldFocus;
-    private boolean visible;
+    private final BuilderOverlays overlays;
+    private final MutatorControls controls;
     private final ScrollBar bar = new ScrollBar(SCROLL_STEP);
+    private @Nullable String openSection;
+    private @Nullable String openKey;
 
-    ProcessesPane(ProcessesTab processes, ManagerDraft draft, ManagerActions actions) {
+    /**
+     * @param processes   the Mutators tab's state
+     * @param draft       the draft every tab edits
+     * @param actions     the panes' line back to the screen
+     * @param icons       the items' icons
+     * @param treePrefabs the tree prefabs' names, which an additive adds
+     */
+    ProcessesPane(ProcessesTab processes, ManagerDraft draft, ManagerActions actions, ItemIcons icons,
+                  Supplier<List<String>> treePrefabs) {
         this.processes = processes;
         this.draft = draft;
         this.actions = actions;
+        this.overlays = new BuilderOverlays(actions, icons);
+        this.controls = new MutatorControls(processes, overlays, treePrefabs, actions::draftChanged);
     }
 
     /**
      * @param font the screen's font
      */
     void init(Font font) {
-        EditBox previous = field;
-        field = actions.addWidget(new EditBox(font, 0, 0, KEY_WIDTH, BOX_HEIGHT, Component.literal(NO_TEXT)));
-        field.setMaxLength(Short.MAX_VALUE);
-        if (previous != null) {
-            field.setValue(previous.getValue());
-        }
-        show(visible);
+        overlays.init(font);
     }
 
     /**
      * @param shown whether the Mutators tab is the one drawn
      */
     void show(boolean shown) {
-        visible = shown;
-        if (field != null) {
-            field.visible = shown && editingKey != null;
-        }
+        overlays.show(shown);
     }
 
     /**
@@ -95,21 +91,16 @@ final class ProcessesPane {
 
     /**
      * @param key the GLFW key pressed
-     * @return whether the pane took the key: Enter or Escape ends the edit
+     * @return whether the controls took the key: Enter commits a number box and Escape closes a list
      */
     boolean keyPressed(int key) {
-        if (field != null && field.isFocused() && (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_ESCAPE)) {
-            field.setFocused(false);
-            return true;
-        }
-        return false;
+        return overlays.keyPressed(key);
     }
 
     void extract(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds bounds, ClickTargets targets) {
-        commitOnBlur();
+        overlays.commitOnBlur();
         graphics.enableScissor(bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
         targets.clip(bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
-        boolean fieldShown = false;
         GroupsPane.Bounds rows = new GroupsPane.Bounds(bounds.left(), bounds.top(),
                 bounds.right() - ScrollBar.WIDTH - ScrollBar.GAP, bounds.bottom());
         int y = bounds.top() - bar.offset();
@@ -117,41 +108,38 @@ final class ProcessesPane {
             graphics.text(font, section.section() + SUMMARY_GAP + section.summary(), bounds.left(), y, WHITE);
             y += LINE_HEIGHT + GAP;
             for (ProcessesTab.ProcessRow row : section.rows()) {
-                fieldShown |= drawRow(graphics, font, section.section(), row, rows, y, targets);
-                y += ProcessesTab.layoutRow(rows.left(), rows.right(), y).height();
+                y = drawRow(graphics, font, section.section(), row, rows, y, targets);
             }
             y += SECTION_GAP;
         }
         targets.unclip();
         graphics.disableScissor();
         bar.measureAndDraw(graphics, targets, y, bounds.right(), bounds.top(), bounds.bottom());
-        if (field != null) {
-            field.visible = visible && fieldShown;
-        }
+        overlays.draw(graphics, font, targets);
     }
 
-    // Answers whether the edit box stands on this row, inside the pane.
-    private boolean drawRow(GuiGraphicsExtractor graphics, Font font, String section, ProcessesTab.ProcessRow row,
-                            GroupsPane.Bounds bounds, int y, ClickTargets targets) {
+    // Answers the y below the row and, where it stands open, its controls' line.
+    private int drawRow(GuiGraphicsExtractor graphics, Font font, String section, ProcessesTab.ProcessRow row,
+                        GroupsPane.Bounds bounds, int y, ClickTargets targets) {
         drawHeadLine(graphics, font, section, row, bounds, y, targets);
         ProcessesTab.RowLayout layout = ProcessesTab.layoutRow(bounds.left(), bounds.right(), y);
-        int textX = layout.textX();
-        int textY = layout.textY();
-        int textWidth = layout.textWidth();
-        boolean editingThis = section.equals(editingSection) && row.key().equals(editingKey) && field != null;
-        if (editingThis) {
-            field.setPosition(textX, textY - BOX_NUDGE);
-            field.setWidth(textWidth);
-        } else {
-            // decision curated-view-shows-no-brace-quote-or-raw-id
-            List<ExpressionLines.Run> runs = ExpressionLines.mutatorRuns(row.text());
-            int textHeight = ExpressionLines.lineHeight(runs);
-            graphics.fill(textX, textY - 1, textX + textWidth, textY + textHeight, TEXT_COLOR);
-            targets.add(textX, textY - 1, textWidth, textHeight + 1, () -> startEditing(section, row));
-            ExpressionLines.draw(font, runs, textX, textY, textWidth, new ExpressionLines.Painter(graphics, null,
-                    targets, row.parsed() ? WHITE : RED, LINK, (name, linkX, linkY, linkWidth) -> { }));
+        boolean open = section.equals(openSection) && row.key().equals(openKey);
+        // decision curated-view-shows-no-brace-quote-or-raw-id
+        List<ExpressionLines.Run> runs = ExpressionLines.mutatorRuns(row.text());
+        int textHeight = ExpressionLines.lineHeight(runs);
+        graphics.fill(layout.textX(), layout.textY() - 1, layout.textX() + layout.textWidth(),
+                layout.textY() + textHeight, open ? OPEN_COLOR : TEXT_COLOR);
+        targets.add(layout.textX(), layout.textY() - 1, layout.textWidth(), textHeight + 1,
+                () -> toggleOpen(section, row.key()));
+        ExpressionLines.draw(font, runs, layout.textX(), layout.textY(), layout.textWidth(),
+                new ExpressionLines.Painter(graphics, null, targets, row.parsed() ? WHITE : RED, LINK,
+                        (name, linkX, linkY, linkWidth) -> { }));
+        int below = y + layout.height();
+        if (!open) {
+            return below;
         }
-        return editingThis && textY - BOX_NUDGE >= bounds.top() && textY - BOX_NUDGE + BOX_HEIGHT <= bounds.bottom();
+        controls.draw(graphics, font, section, row.key(), bounds.left(), below, targets);
+        return below + BuilderOverlays.LINE;
     }
 
     // The row's first line: its key, its form, the parser's verdict and Delete.
@@ -168,48 +156,20 @@ final class ProcessesPane {
         targets.add(deleteX, y, font.width(DELETE), LINE_HEIGHT, () -> delete(section, row.key()));
     }
 
-    private void startEditing(String section, ProcessesTab.ProcessRow row) {
-        commit();
-        editingSection = section;
-        editingKey = row.key();
-        if (field != null) {
-            field.setValue(row.text());
-            field.visible = visible;
-            actions.focus(field);
-        }
-        fieldHeldFocus = false;
-    }
-
-    private void commitOnBlur() {
-        if (field == null || editingKey == null) {
-            return;
-        }
-        if (field.isFocused()) {
-            fieldHeldFocus = true;
-        } else if (fieldHeldFocus) {
-            commit();
-        }
-    }
-
-    private void commit() {
-        if (field == null || editingSection == null || editingKey == null) {
-            return;
-        }
-        processes.edit(editingSection, editingKey, field.getValue());
-        editingSection = null;
-        editingKey = null;
-        fieldHeldFocus = false;
-        show(visible);
-        actions.draftChanged();
+    private void toggleOpen(String section, String key) {
+        overlays.close();
+        boolean wasOpen = section.equals(openSection) && key.equals(openKey);
+        openSection = wasOpen ? null : section;
+        openKey = wasOpen ? null : key;
     }
 
     private void delete(String section, String key) {
-        if (key.equals(editingKey)) {
-            editingSection = null;
-            editingKey = null;
+        if (key.equals(openKey)) {
+            overlays.close();
+            openSection = null;
+            openKey = null;
         }
         processes.delete(section, key);
-        show(visible);
         actions.draftChanged();
     }
 }

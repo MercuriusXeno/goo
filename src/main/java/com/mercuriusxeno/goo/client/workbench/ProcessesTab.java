@@ -4,10 +4,12 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.google.gson.JsonPrimitive;
+import com.mercuriusxeno.goo.workbench.Processes;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
+import java.util.function.UnaryOperator;
 
 /**
  * The Processes tab's state with no Screen: the draft's conversions and post-conversions as the processes operation
@@ -29,6 +31,11 @@ public final class ProcessesTab {
     private static final String REFUSED_START = ", ";
     private static final String REFUSED_SUFFIX = " refused";
     private static final String NO_TEXT = "";
+    private static final String GROUPS = "_groups";
+    private static final String GROUP_MARK = "#";
+    private static final String NOTHING_TARGET = "0";
+    private static final String DIVIDE_OPERATOR = "/";
+    private static final String TIMES_OPERATOR = "*";
     private static final int ROW_LINES = 2;
     private static final int HEAD_LINE_HEIGHT = 13;
     // The text line draws goo types as 16px icons (decision goo-types-draw-as-icons-named-on-hover).
@@ -125,23 +132,6 @@ public final class ProcessesTab {
     }
 
     /**
-     * Writes an entry's text as the JSON string the file holds, as the page's field does.
-     *
-     * @param section the entry's block
-     * @param key     the entry's key
-     * @param typed   the field's text
-     */
-    public void edit(String section, String key, String typed) {
-        for (JsonElement element : draft.sectionEntries(section)) {
-            JsonObject entry = element.getAsJsonObject();
-            if (key.equals(entry.get(KEY).getAsString())) {
-                entry.addProperty(TEXT, new JsonPrimitive(typed.trim()).toString());
-                return;
-            }
-        }
-    }
-
-    /**
      * @param section the entry's block
      * @param key     the entry to drop
      */
@@ -153,5 +143,176 @@ public final class ProcessesTab {
                 return;
             }
         }
+    }
+
+    /**
+     * @param section _conversions or _post_conversions
+     * @param key     the formula's key
+     * @param type    the goo type it converts from
+     */
+    public void setFormulaSource(String section, String key, String type) {
+        changeFormula(section, key, f -> new Processes.Formula(type, f.sourceDivisor(), f.target(), f.operator(),
+                f.amount()));
+    }
+
+    /**
+     * @param section _conversions or _post_conversions
+     * @param key     the formula's key
+     * @param divisor the source type's divisor
+     */
+    public void setFormulaDivisor(String section, String key, int divisor) {
+        changeFormula(section, key, f -> new Processes.Formula(f.source(), divisor, f.target(), f.operator(),
+                f.amount()));
+    }
+
+    /**
+     * @param section _conversions or _post_conversions
+     * @param key     the formula's key
+     * @param type    the goo type it converts into, or "0" for nothing
+     */
+    public void setFormulaTarget(String section, String key, String type) {
+        changeFormula(section, key, f -> new Processes.Formula(f.source(), f.sourceDivisor(), type, f.operator(),
+                NOTHING_TARGET.equals(type) ? 0 : Math.max(1, f.amount())));
+    }
+
+    /**
+     * Switches the target's amount between dividing and multiplying.
+     *
+     * @param section _conversions or _post_conversions
+     * @param key     the formula's key
+     */
+    public void toggleFormulaOperator(String section, String key) {
+        changeFormula(section, key, f -> new Processes.Formula(f.source(), f.sourceDivisor(), f.target(),
+                DIVIDE_OPERATOR.equals(f.operator()) ? TIMES_OPERATOR : DIVIDE_OPERATOR, f.amount()));
+    }
+
+    /**
+     * @param section _conversions or _post_conversions
+     * @param key     the formula's key
+     * @param amount  the target's divisor or multiplier
+     */
+    public void setFormulaAmount(String section, String key, int amount) {
+        changeFormula(section, key, f -> new Processes.Formula(f.source(), f.sourceDivisor(), f.target(),
+                f.operator(), amount));
+    }
+
+    /**
+     * @param section _conversions or _post_conversions
+     * @param key     the additive's key
+     * @param prefab  the tree prefab whose value it adds
+     */
+    public void setAdditive(String section, String key, String prefab) {
+        change(section, key, form -> form instanceof Processes.Additive ? new Processes.Additive(prefab) : form);
+    }
+
+    /**
+     * @param section _conversions or _post_conversions
+     * @return the keys of the block's processes a stack or a chain names, in order, the assignments left out
+     */
+    public List<String> processNames(String section) {
+        return draft.sectionEntries(section).asList().stream().map(entry -> entry.getAsJsonObject().get(KEY)
+                .getAsString()).filter(key -> !key.startsWith(GROUP_MARK)).toList();
+    }
+
+    /**
+     * @param section _conversions or _post_conversions
+     * @param key     the stack's key
+     * @param formula the formula it applies
+     */
+    public void setStackFormula(String section, String key, String formula) {
+        change(section, key, form -> form instanceof Processes.Stack stack
+                ? new Processes.Stack(stack.count(), formula) : form);
+    }
+
+    /**
+     * @param section _conversions or _post_conversions
+     * @param key     the stack's key
+     * @param count   how many times the formula applies
+     */
+    public void setStackCount(String section, String key, int count) {
+        change(section, key, form -> form instanceof Processes.Stack stack
+                ? new Processes.Stack(count, stack.formula()) : form);
+    }
+
+    /**
+     * @return the groups the draft's _groups names, an assignment's sources
+     */
+    public List<String> groupNames() {
+        return draft.sectionEntries(GROUPS).asList().stream().map(entry -> entry.getAsJsonObject().get(KEY)
+                .getAsString()).toList();
+    }
+
+    /**
+     * @param section _conversions or _post_conversions
+     * @param key     the assignment's key, its target group
+     * @param group   the group whose values it copies
+     */
+    public void setAssignmentSource(String section, String key, String group) {
+        changeAssignment(section, key, a -> new Processes.Assignment(group, a.multiplier(), a.divisor(), a.chain()));
+    }
+
+    /**
+     * @param section    _conversions or _post_conversions
+     * @param key        the assignment's key
+     * @param multiplier the scale's multiplier, 1 for none
+     * @param divisor    the scale's divisor, 1 for none
+     */
+    public void setAssignmentScale(String section, String key, int multiplier, int divisor) {
+        changeAssignment(section, key, a -> new Processes.Assignment(a.source(), multiplier, divisor, a.chain()));
+    }
+
+    /**
+     * @param section _conversions or _post_conversions
+     * @param key     the assignment's key
+     * @param link    a stack as "@name" or an additive as "+$name", applied after the chain's last
+     */
+    public void addAssignmentLink(String section, String key, String link) {
+        changeAssignment(section, key, a -> {
+            List<String> chain = new ArrayList<>(a.chain());
+            chain.add(link);
+            return new Processes.Assignment(a.source(), a.multiplier(), a.divisor(), List.copyOf(chain));
+        });
+    }
+
+    /**
+     * @param section _conversions or _post_conversions
+     * @param key     the assignment's key
+     * @param index   the chain link's index
+     */
+    public void removeAssignmentLink(String section, String key, int index) {
+        changeAssignment(section, key, a -> {
+            List<String> chain = new ArrayList<>(a.chain());
+            chain.remove(index);
+            return new Processes.Assignment(a.source(), a.multiplier(), a.divisor(), List.copyOf(chain));
+        });
+    }
+
+    /**
+     * @param section _conversions or _post_conversions
+     * @param key     an entry's key
+     * @return the entry's form, unread where the block holds no such entry
+     */
+    public Processes.Form formOf(String section, String key) {
+        return entryOf(section, key).map(entry -> Processes.parse(key, entry.get(TEXT).getAsString()))
+                .orElseGet(() -> new Processes.Unread(NO_TEXT));
+    }
+
+    private void changeFormula(String section, String key, UnaryOperator<Processes.Formula> edit) {
+        change(section, key, form -> form instanceof Processes.Formula formula ? edit.apply(formula) : form);
+    }
+
+    private void changeAssignment(String section, String key, UnaryOperator<Processes.Assignment> edit) {
+        change(section, key, form -> form instanceof Processes.Assignment assignment ? edit.apply(assignment) : form);
+    }
+
+    // Writes the entry's changed form through Processes' writers, so the draft holds what the parser reads.
+    private void change(String section, String key, UnaryOperator<Processes.Form> edit) {
+        entryOf(section, key).ifPresent(entry -> entry.addProperty(TEXT,
+                Processes.write(edit.apply(Processes.parse(key, entry.get(TEXT).getAsString())))));
+    }
+
+    private Optional<JsonObject> entryOf(String section, String key) {
+        return draft.sectionEntries(section).asList().stream().map(JsonElement::getAsJsonObject)
+                .filter(entry -> key.equals(entry.get(KEY).getAsString())).findFirst();
     }
 }

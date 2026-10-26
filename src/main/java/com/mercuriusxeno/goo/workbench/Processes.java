@@ -14,9 +14,11 @@ import java.util.regex.Pattern;
  * parser reads it: a formula ("metal / 4 -> yore / 9", "pulse / 4 -> yore * 0", "type / N -> 0"), an additive
  * ("+$waxed"), a stack ("2 @oxidation_metal"), and an assignment of a source group to a target group with an
  * optional scale and a chain of stacks and additives ("#exposed": "#copper @exposed_metal", a parallel copy
- * "#source * N / M") (decision workbench-authors-base-values-whole).
+ * "#source * N / M") (decision workbench-authors-base-values-whole). The values manager's mutator controls edit
+ * an entry through {@link #parse} and {@link #write}, so the draft holds what the parser reads (decision
+ * expression-builder-composes-every-form-without-typing).
  */
-final class Processes {
+public final class Processes {
     private static final String TAG_PREFIX = "#";
     private static final String STACK_PREFIX = "@";
     private static final String ADDITIVE_PREFIX = "+$";
@@ -54,7 +56,7 @@ final class Processes {
     /**
      * Which form a process entry takes.
      */
-    enum Kind {
+    public enum Kind {
         /** A type converted to another at a ratio, or to nothing. */
         FORMULA,
         /** A constant's value added. */
@@ -75,6 +77,146 @@ final class Processes {
      * @param text its value text, written from the form
      */
     record Process(String key, Kind kind, String text) {
+    }
+
+    /**
+     * An entry's value read into its form's fields.
+     */
+    public sealed interface Form permits Formula, Additive, Stack, Assignment, Unread {
+        /**
+         * @return which form it is
+         */
+        Kind kind();
+    }
+
+    /**
+     * @param source        the source type
+     * @param sourceDivisor the source type's divisor
+     * @param target        the target type, or "0" for a conversion to nothing
+     * @param operator      "/" or "*"
+     * @param amount        the target's divisor or multiplier
+     */
+    public record Formula(String source, int sourceDivisor, String target, String operator, int amount)
+            implements Form {
+        @Override
+        public Kind kind() {
+            return Kind.FORMULA;
+        }
+    }
+
+    /**
+     * @param constant the tree constant whose value the process adds
+     */
+    public record Additive(String constant) implements Form {
+        @Override
+        public Kind kind() {
+            return Kind.ADDITIVE;
+        }
+    }
+
+    /**
+     * @param count   how many times the formula applies
+     * @param formula the formula's name
+     */
+    public record Stack(int count, String formula) implements Form {
+        @Override
+        public Kind kind() {
+            return Kind.STACK;
+        }
+    }
+
+    /**
+     * @param source     the source group's name
+     * @param multiplier the scale's multiplier, 1 for none
+     * @param divisor    the scale's divisor, 1 for none
+     * @param chain      the stacks and additives applied in order, a stack as "@name" and an additive as "+$name"
+     */
+    public record Assignment(String source, int multiplier, int divisor, List<String> chain) implements Form {
+        @Override
+        public Kind kind() {
+            return Kind.ASSIGNMENT;
+        }
+    }
+
+    /**
+     * @param text the value text no form reads, as the file spells it
+     */
+    public record Unread(String text) implements Form {
+        @Override
+        public Kind kind() {
+            return Kind.UNREAD;
+        }
+    }
+
+    /**
+     * @param key  the entry's key: a name, or #group for an assignment
+     * @param text the entry's value text as the file holds it
+     * @return its form
+     */
+    public static Form parse(String key, String text) {
+        String value = stringValue(text);
+        if (value == null) {
+            return new Unread(text);
+        }
+        return key.startsWith(TAG_PREFIX) ? assignmentOf(value, text) : processOf(value, text);
+    }
+
+    /**
+     * @param form an entry's form
+     * @return the value text the file holds for it
+     */
+    public static String write(Form form) {
+        return switch (form) {
+            case Formula formula -> formula(formula.source(), formula.sourceDivisor(), formula.target(),
+                    formula.operator(), formula.amount());
+            case Additive additive -> additive(additive.constant());
+            case Stack stack -> stack(stack.count(), stack.formula());
+            case Assignment assignment -> assignment(assignment.source(), assignment.multiplier(),
+                    assignment.divisor(), assignment.chain());
+            case Unread unread -> unread.text();
+        };
+    }
+
+    /**
+     * @param form an entry's form
+     * @return which form it is
+     */
+    public static Kind kindOf(Form form) {
+        return form.kind();
+    }
+
+    private static Form processOf(String value, String text) {
+        Matcher formula = FORMULA.matcher(value);
+        if (formula.matches()) {
+            return new Formula(formula.group(FORMULA_SOURCE), Integer.parseInt(formula.group(FORMULA_SOURCE_DIVISOR)),
+                    formula.group(FORMULA_ZERO_TARGET) != null ? ZERO_TARGET : formula.group(FORMULA_TARGET),
+                    formula.group(FORMULA_OPERATOR) == null ? DIVIDE_OPERATOR : formula.group(FORMULA_OPERATOR),
+                    formula.group(FORMULA_AMOUNT) == null ? 0 : Integer.parseInt(formula.group(FORMULA_AMOUNT)));
+        }
+        Matcher additive = ADDITIVE.matcher(value);
+        if (additive.matches()) {
+            return new Additive(additive.group(ADDITIVE_CONSTANT));
+        }
+        Matcher stack = STACK.matcher(value);
+        if (stack.matches()) {
+            return new Stack(stack.group(STACK_COUNT) == null ? 1 : Integer.parseInt(stack.group(STACK_COUNT)),
+                    stack.group(STACK_FORMULA));
+        }
+        return new Unread(text);
+    }
+
+    private static Form assignmentOf(String value, String text) {
+        Matcher assignment = ASSIGNMENT.matcher(value);
+        if (!assignment.matches()) {
+            return new Unread(text);
+        }
+        List<String> chain = List.of(assignment.group(ASSIGNMENT_CHAIN).trim().split(SPACE)).stream()
+                .filter(link -> !link.isEmpty()).toList();
+        return new Assignment(assignment.group(ASSIGNMENT_SOURCE),
+                assignment.group(ASSIGNMENT_MULTIPLIER) == null ? 1
+                        : Integer.parseInt(assignment.group(ASSIGNMENT_MULTIPLIER)),
+                assignment.group(ASSIGNMENT_DIVISOR) == null ? 1
+                        : Integer.parseInt(assignment.group(ASSIGNMENT_DIVISOR)), chain);
     }
 
     /**
@@ -155,38 +297,8 @@ final class Processes {
     }
 
     private static Process readOne(String key, String text) {
-        String value = stringValue(text);
-        if (value == null) {
-            return new Process(key, Kind.UNREAD, text);
-        }
-        Matcher formula = FORMULA.matcher(value);
-        if (!key.startsWith(TAG_PREFIX) && formula.matches()) {
-            return new Process(key, Kind.FORMULA, formula(formula.group(FORMULA_SOURCE),
-                    Integer.parseInt(formula.group(FORMULA_SOURCE_DIVISOR)),
-                    formula.group(FORMULA_ZERO_TARGET) != null ? ZERO_TARGET : formula.group(FORMULA_TARGET),
-                    formula.group(FORMULA_OPERATOR) == null ? DIVIDE_OPERATOR : formula.group(FORMULA_OPERATOR),
-                    formula.group(FORMULA_AMOUNT) == null ? 0 : Integer.parseInt(formula.group(FORMULA_AMOUNT))));
-        }
-        Matcher additive = ADDITIVE.matcher(value);
-        if (!key.startsWith(TAG_PREFIX) && additive.matches()) {
-            return new Process(key, Kind.ADDITIVE, additive(additive.group(ADDITIVE_CONSTANT)));
-        }
-        Matcher stack = STACK.matcher(value);
-        if (!key.startsWith(TAG_PREFIX) && stack.matches()) {
-            return new Process(key, Kind.STACK, stack(stack.group(STACK_COUNT) == null ? 1
-                    : Integer.parseInt(stack.group(STACK_COUNT)), stack.group(STACK_FORMULA)));
-        }
-        Matcher assignment = ASSIGNMENT.matcher(value);
-        if (key.startsWith(TAG_PREFIX) && assignment.matches()) {
-            List<String> chain = List.of(assignment.group(ASSIGNMENT_CHAIN).trim().split(SPACE)).stream()
-                    .filter(link -> !link.isEmpty()).toList();
-            return new Process(key, Kind.ASSIGNMENT, assignment(assignment.group(ASSIGNMENT_SOURCE),
-                    assignment.group(ASSIGNMENT_MULTIPLIER) == null ? 1
-                            : Integer.parseInt(assignment.group(ASSIGNMENT_MULTIPLIER)),
-                    assignment.group(ASSIGNMENT_DIVISOR) == null ? 1
-                            : Integer.parseInt(assignment.group(ASSIGNMENT_DIVISOR)), chain));
-        }
-        return new Process(key, Kind.UNREAD, text);
+        Form form = parse(key, text);
+        return new Process(key, kindOf(form), write(form));
     }
 
     private static String stringValue(String text) {
