@@ -37,6 +37,9 @@ public final class VariablesTab {
     private static final String VALUE = "value";
     private static final String ERROR = "error";
     private static final String USED_BY = "usedBy";
+    private static final String DIRECT = "direct";
+    private static final char NAMESPACE_SEPARATOR = ':';
+    private static final String DEFAULT_NAMESPACE = "minecraft:";
     private static final String READERS = "readers";
     private static final String ID = "id";
     private static final String FROM = "from";
@@ -44,7 +47,6 @@ public final class VariablesTab {
     private static final String EXPRESSION = "expression";
     private static final String CONSTANT_KIND = "constant";
     private static final String OBJECT_START = "{";
-    private static final String REFERENCE_MARK = "$";
     private static final String TYPE_SEPARATOR = " ";
     private static final String TYPES_SEPARATOR = ", ";
     private static final String VALUE_PREFIX = "value ";
@@ -80,21 +82,24 @@ public final class VariablesTab {
      * @param resolved   what it resolves to, empty before an evaluate answers
      * @param error      the loader's refusal, empty where it resolved
      * @param readers    what reads it directly
-     * @param usedBy     the terminus items it cascades into
+     * @param direct     the items whose own expression names it
+     * @param indirect   the terminus items it cascades into, less the direct ones
      */
     public record ConstantBlock(String name, String expression, String kind, String resolved, String error,
-                                List<Reader> readers, List<String> usedBy) {
+                                List<Reader> readers, List<String> direct, List<String> indirect) {
     }
 
     /**
      * A constant's hover card.
      *
-     * @param title      $name
+     * @param title      the prefab's name
      * @param expression its expression as the file spells it, unquoted
      * @param lines      one line per type it resolves to, its value, or its error
-     * @param usedBy     the terminus items it cascades into
+     * @param direct     the items whose own expression names it
+     * @param indirect   the terminus items it cascades into, less the direct ones
      */
-    public record HoverCard(String title, String expression, List<String> lines, List<String> usedBy) {
+    public record HoverCard(String title, String expression, List<String> lines, List<String> direct,
+                            List<String> indirect) {
     }
 
     /**
@@ -121,7 +126,7 @@ public final class VariablesTab {
             String kind = result != null ? result.get(KIND).getAsString()
                     : text.trim().startsWith(OBJECT_START) ? TREE : SCALAR;
             blocks.add(new ConstantBlock(name, ManagerDraft.shownText(text), kind, resolvedText(result),
-                    result == null ? NO_TEXT : textOf(result, ERROR), readersOf(name), usedByOf(result)));
+                    result == null ? NO_TEXT : textOf(result, ERROR), readersOf(name), idsOf(result, DIRECT), indirectOf(result)));
         }
         return blocks;
     }
@@ -237,8 +242,8 @@ public final class VariablesTab {
         } else {
             lines = List.of(VALUE_PREFIX + textOf(hover, VALUE));
         }
-        return new HoverCard(REFERENCE_MARK + hover.get(NAME).getAsString(),
-                ManagerDraft.shownText(textOf(hover, EXPRESSION)), lines, usedByOf(hover));
+        return new HoverCard(hover.get(NAME).getAsString(),
+                ManagerDraft.shownText(textOf(hover, EXPRESSION)), lines, idsOf(hover, DIRECT), indirectOf(hover));
     }
 
     private String namedRequest(String name) {
@@ -267,12 +272,24 @@ public final class VariablesTab {
                 .map(reader -> new Reader(reader.get(ID).getAsString(), reader.get(KIND).getAsString())).toList();
     }
 
-    private static List<String> usedByOf(@Nullable JsonObject result) {
-        if (result == null || !result.has(USED_BY)) {
+    private static List<String> idsOf(@Nullable JsonObject result, String field) {
+        if (result == null || !result.has(field)) {
             return List.of();
         }
-        JsonArray usedBy = result.getAsJsonArray(USED_BY);
-        return usedBy.asList().stream().map(JsonElement::getAsString).toList();
+        JsonArray ids = result.getAsJsonArray(field);
+        return ids.asList().stream().map(JsonElement::getAsString).toList();
+    }
+
+    // The terminus items less those naming the constant themselves, a bare id and its minecraft: form one item
+    // (decision used-by-draws-the-terminus-items-alone).
+    private static List<String> indirectOf(@Nullable JsonObject result) {
+        Set<String> direct = idsOf(result, DIRECT).stream().map(VariablesTab::namespaced)
+                .collect(Collectors.toSet());
+        return idsOf(result, USED_BY).stream().filter(id -> !direct.contains(namespaced(id))).toList();
+    }
+
+    private static String namespaced(String id) {
+        return id.indexOf(NAMESPACE_SEPARATOR) < 0 ? DEFAULT_NAMESPACE + id : id;
     }
 
     private static String resolvedText(@Nullable JsonObject result) {

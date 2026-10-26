@@ -11,7 +11,8 @@ import java.util.Set;
  * Draws the Audit tab: Run saves the draft and runs both dumps in-process on the server, its latest lines showing
  * as they arrive, then the sections the audit carries, flagged ones first, each opened or closed by its header, as
  * index.html's audit section does (decisions goo-workbench-opens-the-in-game-manager-screen,
- * workbench-reruns-the-audit-headless). The state lives in {@link AuditTab}.
+ * workbench-reruns-the-audit-headless). The progress lines and the sections each scroll under a {@link ScrollBar}
+ * (decision every-tab-draws-a-scroll-bar). The state lives in {@link AuditTab}.
  */
 final class AuditPane {
     private static final int LINE_HEIGHT = 10;
@@ -36,8 +37,8 @@ final class AuditPane {
     private final ManagerDraft draft;
     private final ManagerActions actions;
     private final Set<String> toggled = new HashSet<>();
-    private int scroll;
-    private int progressScroll;
+    private final ScrollBar sectionsBar = new ScrollBar(SCROLL_STEP);
+    private final ScrollBar progressBar = ScrollBar.tailing(1);
     private int progressTop;
     private int progressBottom;
 
@@ -68,12 +69,11 @@ final class AuditPane {
      * @param amount the wheel's turn, positive away from the player
      */
     void scroll(double y, double amount) {
-        int step = (int) Math.signum(amount);
         if (y >= progressTop && y < progressBottom) {
-            progressScroll = Math.max(0, progressScroll + step);
+            progressBar.wheel(amount);
             return;
         }
-        scroll = Math.max(0, scroll - step * SCROLL_STEP);
+        sectionsBar.wheel(amount);
     }
 
     private void run() {
@@ -98,31 +98,34 @@ final class AuditPane {
             graphics.text(font, audit.runLine(), x + font.width(RUN) + GAP, y, GRAY);
         }
         y += LINE_HEIGHT + GAP;
-        y = drawProgress(graphics, font, bounds, y);
+        y = drawProgress(graphics, font, bounds, y, targets);
         drawSections(graphics, font, new GroupsPane.Bounds(x, y, bounds.right(), bounds.bottom()), targets);
     }
 
     // Answers the y below the progress lines, which show while a run is in flight.
-    private int drawProgress(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds bounds, int top) {
+    private int drawProgress(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds bounds, int top,
+                             ClickTargets targets) {
         List<String> lines = audit.progressLines();
         progressTop = 0;
         progressBottom = 0;
         if (!audit.running() || lines.isEmpty()) {
-            progressScroll = 0;
+            progressBar.reset();
             return top;
         }
-        progressScroll = Math.min(progressScroll, Math.max(0, lines.size() - PROGRESS_SHOWN));
-        int end = lines.size() - progressScroll;
-        List<String> latest = lines.subList(Math.max(0, end - PROGRESS_SHOWN), end);
+        progressBar.measure(lines.size(), PROGRESS_SHOWN);
+        int first = progressBar.offset();
+        List<String> latest = lines.subList(first, Math.min(lines.size(), first + PROGRESS_SHOWN));
         int height = latest.size() * LINE_HEIGHT;
+        int width = bounds.right() - bounds.left() - ScrollBar.WIDTH - ScrollBar.GAP;
         progressTop = top;
         progressBottom = top + height;
         graphics.fill(bounds.left(), top, bounds.right(), top + height, PROGRESS_COLOR);
         int y = top;
         for (String line : latest) {
-            graphics.text(font, font.plainSubstrByWidth(line, bounds.right() - bounds.left()), bounds.left(), y, GRAY);
+            graphics.text(font, font.plainSubstrByWidth(line, width), bounds.left(), y, GRAY);
             y += LINE_HEIGHT;
         }
+        progressBar.draw(graphics, targets, bounds.right(), top, top + height);
         return y + GAP;
     }
 
@@ -132,10 +135,10 @@ final class AuditPane {
             graphics.text(font, NO_SECTIONS, area.left(), area.top(), GRAY);
             return;
         }
-        int width = area.right() - area.left();
+        int width = area.right() - area.left() - ScrollBar.WIDTH - ScrollBar.GAP;
         graphics.enableScissor(area.left(), area.top(), area.right(), area.bottom());
         targets.clip(area.left(), area.top(), area.right(), area.bottom());
-        int y = area.top() - scroll;
+        int y = area.top() - sectionsBar.offset();
         for (int index = 0; index < sections.size(); index++) {
             AuditTab.AuditSection section = sections.get(index);
             boolean open = index < SECTIONS_OPEN != toggled.contains(section.header());
@@ -150,9 +153,9 @@ final class AuditPane {
             }
             y += GAP;
         }
-        scroll = Math.min(scroll, Math.max(0, y + scroll - area.bottom()));
         targets.unclip();
         graphics.disableScissor();
+        sectionsBar.measureAndDraw(graphics, targets, y, area.right(), area.top(), area.bottom());
     }
 
     private static int drawLines(GuiGraphicsExtractor graphics, Font font, List<String> lines, int x, int top,

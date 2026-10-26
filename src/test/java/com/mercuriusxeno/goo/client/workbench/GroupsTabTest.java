@@ -65,12 +65,26 @@ class GroupsTabTest {
     class Listing {
 
         /**
-         * Each group lists as #name with its member count and how many of its members the inventory lacks.
+         * Each group lists with its members and how many of them the inventory lacks.
          */
         @Test
-        void groupRowsCountMembersAndUnknowns() {
-            assertEquals(List.of(new GroupsTab.GroupRow("spawn_eggs", 2, 1), new GroupsTab.GroupRow("logs", 0, 0)),
-                    tab.groupRows());
+        void groupRowsHoldTheirMembers() {
+            assertEquals(List.of(new GroupsTab.GroupRow("spawn_eggs",
+                            List.of("minecraft:zombie_spawn_egg", "minecraft:gone_spawn_egg"), 1),
+                    new GroupsTab.GroupRow("logs", List.of(), 0)), tab.groupRows());
+        }
+
+        /**
+         * A group's row draws its #name and then each member as its item icon, no header and no count
+         * (decision groups-list-members-as-icons-without-headers-or-count).
+         */
+        @Test
+        void groupRowRunsAreItsNameAndItsMemberIcons() {
+            List<ExpressionLines.Run> runs = GroupsTab.rowRuns(tab.groupRows().getFirst(),
+                    id -> id.endsWith("zombie_spawn_egg") ? "Zombie Spawn Egg" : "Gone");
+            assertEquals(List.of(new ExpressionLines.Run(ExpressionLines.Kind.TEXT, "#spawn_eggs", null),
+                    new ExpressionLines.Run(ExpressionLines.Kind.ITEM, "Zombie Spawn Egg", "minecraft:zombie_spawn_egg"),
+                    new ExpressionLines.Run(ExpressionLines.Kind.ITEM, "Gone", "minecraft:gone_spawn_egg")), runs);
         }
 
         /**
@@ -88,13 +102,62 @@ class GroupsTabTest {
         }
 
         /**
-         * The picker offers the inventory's items and #tags whose id holds the typed text, ignoring case.
+         * A member's line opens prefilled from its tweak: its count, its trait's name and the extra its trait adds.
          */
         @Test
-        void pickerOffersItemsAndTagsMatchingTheText() {
-            assertEquals(List.of("minecraft:zombie_spawn_egg", "minecraft:oak_log", "#minecraft:logs"),
-                    tab.pickerChoices("", INVENTORY));
-            assertEquals(List.of("minecraft:oak_log", "#minecraft:logs"), tab.pickerChoices("LOG", INVENTORY));
+        void memberLineReadsCountTraitAndExtra() {
+            tab.selectGroup("spawn_eggs");
+            assertEquals(new GroupsTab.MemberLine(2, "zombie_trait", "{\"hex\": 1}"),
+                    tab.memberLine("minecraft:zombie_spawn_egg"));
+            assertEquals(new GroupsTab.MemberLine(1, "gone_trait", ""), tab.memberLine("minecraft:gone_spawn_egg"));
+        }
+    }
+
+    /**
+     * New group names a group, Add member picks an item or #tag into it, and the builder writes the group's value
+     * and a member's line (decision group-controls-name-add-and-build).
+     */
+    @Nested
+    class Controls {
+        @Test
+        void newGroupPostsItsNameToCreate() {
+            JsonObject request = parsed(tab.createRequest("fresh"));
+            assertEquals("fresh", request.get("group").getAsString());
+            assertTrue(request.get("create").getAsBoolean());
+            assertTrue(request.has("members"));
+        }
+
+        @Test
+        void addMemberPostsThePickedTag() {
+            tab.selectGroup("logs");
+            SearchDropdown dropdown = SearchDropdown.overMembers(INVENTORY);
+            dropdown.search("logs");
+            SearchDropdown.Choice tag = dropdown.choices().getFirst();
+            assertEquals("#minecraft:logs", tag.id());
+            JsonObject request = parsed(tab.addPickRequest(tag.id()));
+            assertEquals(List.of("#minecraft:logs"),
+                    request.getAsJsonArray("picks").asList().stream().map(pick -> pick.getAsString()).toList());
+        }
+
+        @Test
+        void builtValueWritesTheGroupsLine() {
+            tab.selectGroup("spawn_eggs");
+            ExpressionBuilder builder = ExpressionBuilder.of(tab.selected().orElseThrow().base());
+            builder.relate(new SearchDropdown.Choice(SearchDropdown.Kind.PREFAB, "trait", "trait"));
+            assertEquals("$spawn_egg + $trait", parsed(tab.baseRequest(builder.text())).get("base").getAsString());
+        }
+
+        @Test
+        void builtMemberLinePostsCountTraitAndExtra() {
+            tab.selectGroup("spawn_eggs");
+            GroupsTab.MemberLine line = tab.memberLine("minecraft:zombie_spawn_egg");
+            ExpressionBuilder extra = ExpressionBuilder.of(line.extra());
+            extra.setRowNumber(0, "3");
+            JsonObject tweak = parsed(tab.tweakRequest("minecraft:zombie_spawn_egg", 2, line.trait(),
+                    extra.text())).getAsJsonObject("tweak");
+            assertEquals(2, tweak.get("count").getAsInt());
+            assertEquals("zombie_trait", tweak.get("trait").getAsString());
+            assertEquals("{\"hex\": \"3\"}", tweak.get("traitText").getAsString());
         }
     }
 
@@ -156,7 +219,7 @@ class GroupsTabTest {
         @Test
         void appliedReplyReplacesDraftAndGroups() {
             tab.readApplied(APPLIED);
-            assertEquals(List.of(new GroupsTab.GroupRow("logs", 1, 0)), tab.groupRows());
+            assertEquals(List.of(new GroupsTab.GroupRow("logs", List.of("minecraft:oak_log"), 0)), tab.groupRows());
             assertEquals(2, parsed(draft.text()).getAsJsonArray("members").size());
             assertFalse(tab.selected().isPresent());
         }

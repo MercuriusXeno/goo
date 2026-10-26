@@ -8,7 +8,7 @@ import java.util.List;
  * Draws the Checks tab: each type-source rule the server ran against the draft on its last read or save, green or
  * red, a red rule listing the items it wants, as index.html's checks section does (decisions
  * goo-workbench-opens-the-in-game-manager-screen, type-source-checks-are-rules-that-gate-promote). The state lives
- * in {@link ChecksTab}.
+ * in {@link ChecksTab}; the rules scroll under a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar).
  */
 final class ChecksPane {
     private static final int LINE_HEIGHT = 10;
@@ -21,7 +21,7 @@ final class ChecksPane {
     private static final String NO_CHECKS = "No checks ran yet: they run against the draft on every read and save.";
 
     private final ChecksTab checks;
-    private int scroll;
+    private final ScrollBar bar = new ScrollBar(SCROLL_STEP);
 
     ChecksPane(ChecksTab checks) {
         this.checks = checks;
@@ -31,18 +31,18 @@ final class ChecksPane {
      * @param amount the wheel's turn, positive away from the player
      */
     void scroll(double amount) {
-        scroll = Math.max(0, scroll - (int) Math.signum(amount) * SCROLL_STEP);
+        bar.wheel(amount);
     }
 
-    void extract(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds bounds) {
+    void extract(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds bounds, ClickTargets targets) {
         List<ChecksTab.CheckRow> rows = checks.rows();
         if (rows.isEmpty()) {
             graphics.text(font, NO_CHECKS, bounds.left(), bounds.top(), GRAY);
             return;
         }
-        int width = bounds.right() - bounds.left();
+        int width = bounds.right() - bounds.left() - ScrollBar.WIDTH - ScrollBar.GAP;
         graphics.enableScissor(bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
-        int y = bounds.top() - scroll;
+        int y = bounds.top() - bar.offset();
         for (ChecksTab.CheckRow row : rows) {
             graphics.text(font, font.plainSubstrByWidth(row.title(), width), bounds.left(), y,
                     row.passed() ? GREEN : RED);
@@ -53,7 +53,7 @@ final class ChecksPane {
             }
             y += GAP;
         }
-        scroll = Math.min(scroll, Math.max(0, y + scroll - bounds.bottom()));
         graphics.disableScissor();
+        bar.measureAndDraw(graphics, targets, y, bounds.right(), bounds.top(), bounds.bottom());
     }
 }

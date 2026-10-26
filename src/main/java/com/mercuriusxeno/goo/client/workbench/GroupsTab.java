@@ -8,8 +8,8 @@ import com.google.gson.JsonParser;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
+import java.util.function.Function;
 
 /**
  * The Groups tab's state with no Screen: each group the groups describe operation answers, the selected group and
@@ -37,6 +37,11 @@ public final class GroupsTab {
     private static final String TIMES = " × ";
     private static final String TRAIT_MARK = "+$";
     private static final String NO_NOTE = "";
+    private static final String CREATE = "create";
+    private static final String TAG_MARK = "#";
+    private static final String NAMESPACE_PATTERN = "^.*:";
+    private static final String SPAWN_EGG_SUFFIX = "_spawn_egg$";
+    private static final String TRAIT_SUFFIX = "_trait";
 
     private final ManagerDraft draft;
     private final List<Group> groups = new ArrayList<>();
@@ -90,7 +95,7 @@ public final class GroupsTab {
      * @param members      how many members it holds
      * @param unknownCount how many of them the inventory lacks
      */
-    public record GroupRow(String name, int members, int unknownCount) {
+    public record GroupRow(String name, List<String> members, int unknownCount) {
     }
 
     /**
@@ -147,7 +152,8 @@ public final class GroupsTab {
      * @return each group's row in file order
      */
     public List<GroupRow> groupRows() {
-        return groups.stream().map(group -> new GroupRow(group.name(), group.members().size(),
+        return groups.stream().map(group -> new GroupRow(group.name(),
+                group.members().stream().map(Member::id).toList(),
                 (int) group.members().stream().filter(member -> !member.known()).count())).toList();
     }
 
@@ -206,17 +212,6 @@ public final class GroupsTab {
         }
         return tweakOf(member.id()).map(tweak -> (tweak.count() == 1 ? NO_NOTE : tweak.count() + TIMES)
                 + (tweak.trait() == null ? NO_NOTE : TRAIT_MARK + tweak.trait())).orElse(NO_NOTE);
-    }
-
-    /**
-     * @param typed     the picker's text
-     * @param inventory the inventory's items and tags
-     * @return each item and #tag whose id holds the text, ignoring case, in inventory order
-     */
-    public List<String> pickerChoices(String typed, List<ValuesTab.ManagerEntry> inventory) {
-        String wanted = typed.trim().toLowerCase(Locale.ROOT);
-        return inventory.stream().map(ValuesTab.ManagerEntry::id)
-                .filter(id -> id.toLowerCase(Locale.ROOT).contains(wanted)).toList();
     }
 
     /**
@@ -294,5 +289,55 @@ public final class GroupsTab {
     private static @Nullable String text(JsonObject json, String field) {
         JsonElement value = json.get(field);
         return value == null || value.isJsonNull() ? null : value.getAsString();
+    }
+
+    /**
+     * A member's own line as the builder opens it: count times the group's value plus the extra its trait adds.
+     *
+     * @param count how many times the line takes the group's value
+     * @param trait the trait prefab's name, which holds the extra
+     * @param extra the trait's value as the draft shows it, empty for none
+     */
+    public record MemberLine(int count, String trait, String extra) {
+    }
+
+    /**
+     * @param row   a group's row
+     * @param names an item's display name by its id
+     * @return the row's runs: its #name, then each member as its item icon
+     *         (decision groups-list-members-as-icons-without-headers-or-count)
+     */
+    public static List<ExpressionLines.Run> rowRuns(GroupRow row, Function<String, String> names) {
+        List<ExpressionLines.Run> runs = new ArrayList<>();
+        runs.add(new ExpressionLines.Run(ExpressionLines.Kind.TEXT, TAG_MARK + row.name(), null));
+        row.members().forEach(id -> runs.add(new ExpressionLines.Run(ExpressionLines.Kind.ITEM, names.apply(id), id)));
+        return runs;
+    }
+
+    /**
+     * @param member a member of the selected group
+     * @return its line prefilled from its tweak, or count 1 and a trait named for it where it holds none
+     *         (decision group-controls-name-add-and-build)
+     */
+    public MemberLine memberLine(String member) {
+        return tweakOf(member).map(tweak -> new MemberLine(tweak.count(),
+                        tweak.trait() == null ? traitNameFor(member) : tweak.trait(),
+                        tweak.traitText() == null ? NO_NOTE : tweak.traitText()))
+                .orElseGet(() -> new MemberLine(1, traitNameFor(member), NO_NOTE));
+    }
+
+    private static String traitNameFor(String member) {
+        return member.replaceFirst(NAMESPACE_PATTERN, NO_NOTE).replaceFirst(SPAWN_EGG_SUFFIX, NO_NOTE) + TRAIT_SUFFIX;
+    }
+
+    /**
+     * @param name the new group's name, after #
+     * @return the apply request creating it with no member (decision group-controls-name-add-and-build)
+     */
+    public String createRequest(String name) {
+        JsonObject request = draft.request();
+        request.addProperty(GROUP, name.trim());
+        request.addProperty(CREATE, true);
+        return request.toString();
     }
 }
