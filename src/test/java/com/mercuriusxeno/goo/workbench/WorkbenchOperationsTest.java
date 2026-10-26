@@ -83,12 +83,6 @@ class WorkbenchOperationsTest {
         }
     }
 
-    private static List<String> failingTitles(JsonArray checks) {
-        return checks.asList().stream().map(JsonElement::getAsJsonObject)
-                .filter(check -> !check.get("passed").getAsBoolean())
-                .map(check -> check.get("title").getAsString()).toList();
-    }
-
     /**
      * An operation no constant names answers not found, naming the name it was given.
      */
@@ -161,31 +155,27 @@ class WorkbenchOperationsTest {
         }
 
         /**
-         * A save of a draft lacking diamond's yore still answers the model, with the old rule failing beside it
-         * (decision type-source-checks-are-rules-that-gate-promote).
+         * The model a read or a save answers carries the members and no checks member
+         * (decision values-checks-go-with-the-checks-tab).
          */
         @Test
-        void saveAnswersTheFailingCheckBesideTheModel() throws IOException {
-            JsonObject answer = answeredJson(WorkbenchOperations.SAVE_MODEL, posted(SampleDrafts.diamondLackingYore()));
-            assertTrue(answer.has("members"));
-            assertEquals(List.of("old-ships-from-scutes-diamonds-and-scrap"),
-                    failingTitles(answer.getAsJsonArray("checks")));
+        void modelReplyCarriesNoChecks() throws IOException {
+            JsonObject read = answeredJson(WorkbenchOperations.MODEL, "");
+            JsonObject saved = answeredJson(WorkbenchOperations.SAVE_MODEL, posted(SampleDrafts.diamondLackingYore()));
+            assertTrue(saved.has("members"));
+            assertFalse(read.has("checks"), read.keySet().toString());
+            assertFalse(saved.has("checks"), saved.keySet().toString());
         }
 
         /**
-         * Promote over a failing check answers 409 listing it, and the same post acknowledging the failures
-         * promotes (decision type-source-checks-are-rules-that-gate-promote).
+         * A promote over a draft holding diamond with no yore term, which the retired old rule failed, answers on
+         * its first post and leaves the draft's text in the live file (decision values-checks-go-with-the-checks-tab).
          */
         @Test
-        void promoteOverAFailingCheckWaitsOnAcknowledgement() throws IOException {
+        void promoteOverAnyDraftAnswersOnce() throws IOException {
             answered(WorkbenchOperations.SAVE_MODEL, posted(SampleDrafts.diamondLackingYore()));
             String drafted = Files.readString(paths.draft());
-            WorkbenchReply refused = operations.answer(WorkbenchOperations.PROMOTE, "{}");
-            assertEquals(409, refused.status());
-            assertEquals(List.of("old-ships-from-scutes-diamonds-and-scrap"),
-                    failingTitles(JsonParser.parseString(refused.text()).getAsJsonObject().getAsJsonArray("failing")));
-            assertArrayEquals(BaseValuesModelTest.sampleBytes(), Files.readAllBytes(paths.baseValues()));
-            answered(WorkbenchOperations.PROMOTE, "{\"acknowledged\": true}");
+            answered(WorkbenchOperations.PROMOTE, "{}");
             assertEquals(drafted, Files.readString(paths.baseValues()));
         }
 
@@ -247,7 +237,7 @@ class WorkbenchOperationsTest {
         void promoteHandsTheApplierTheLiveFile() throws IOException {
             saveWithBase("197");
             String drafted = Files.readString(paths.draft());
-            assertEquals(200, live.answer(WorkbenchOperations.PROMOTE, "{\"acknowledged\": true}").status());
+            assertEquals(200, live.answer(WorkbenchOperations.PROMOTE, "{}").status());
             assertEquals(drafted, Files.readString(paths.baseValues()));
             assertEquals(List.of(drafted, drafted), applied);
         }
@@ -263,18 +253,6 @@ class WorkbenchOperationsTest {
             String liveText = Files.readString(paths.baseValues());
             assertEquals(liveText, Files.readString(paths.draft()));
             assertEquals(liveText, applied.getLast());
-        }
-
-        /**
-         * A promote the checks refuse renames nothing and applies nothing.
-         */
-        @Test
-        void refusedPromoteAppliesNothing() throws IOException {
-            assertEquals(200, live.answer(WorkbenchOperations.SAVE_MODEL, posted(SampleDrafts.diamondLackingYore()))
-                    .status());
-            applied.clear();
-            assertEquals(409, live.answer(WorkbenchOperations.PROMOTE, "{}").status());
-            assertTrue(applied.isEmpty());
         }
     }
 
