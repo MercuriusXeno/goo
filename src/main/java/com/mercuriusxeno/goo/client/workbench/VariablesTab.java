@@ -44,7 +44,6 @@ public final class VariablesTab {
     private static final String EXPRESSION = "expression";
     private static final String CONSTANT_KIND = "constant";
     private static final String OBJECT_START = "{";
-    private static final String REFERENCE_MARK = "$";
     private static final String TYPE_SEPARATOR = " ";
     private static final String TYPES_SEPARATOR = ", ";
     private static final String VALUE_PREFIX = "value ";
@@ -89,7 +88,7 @@ public final class VariablesTab {
     /**
      * A constant's hover card.
      *
-     * @param title      $name
+     * @param title      the prefab's name
      * @param expression its expression as the file spells it, unquoted
      * @param lines      one line per type it resolves to, its value, or its error
      * @param usedBy     the terminus items it cascades into
@@ -237,7 +236,7 @@ public final class VariablesTab {
         } else {
             lines = List.of(VALUE_PREFIX + textOf(hover, VALUE));
         }
-        return new HoverCard(REFERENCE_MARK + hover.get(NAME).getAsString(),
+        return new HoverCard(hover.get(NAME).getAsString(),
                 ManagerDraft.shownText(textOf(hover, EXPRESSION)), lines, usedByOf(hover));
     }
 

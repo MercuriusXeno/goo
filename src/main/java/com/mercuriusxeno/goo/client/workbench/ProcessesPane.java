@@ -7,6 +7,7 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
+import java.util.List;
 
 /**
  * Draws the Mutators tab: each block's summary and its entries, each on two lines, the key, the form, the parser's
@@ -142,10 +143,13 @@ final class ProcessesPane {
             field.setPosition(textX, textY - BOX_NUDGE);
             field.setWidth(textWidth);
         } else {
-            graphics.fill(textX, textY - 1, textX + textWidth, textY + LINE_HEIGHT, TEXT_COLOR);
-            graphics.text(font, font.plainSubstrByWidth(row.text(), textWidth), textX, textY,
-                    row.parsed() ? WHITE : RED);
-            targets.add(textX, textY - 1, textWidth, LINE_HEIGHT + 1, () -> startEditing(section, row));
+            // decision curated-view-shows-no-brace-quote-or-raw-id
+            List<ExpressionLines.Run> runs = ExpressionLines.mutatorRuns(row.text());
+            int textHeight = ExpressionLines.lineHeight(runs);
+            graphics.fill(textX, textY - 1, textX + textWidth, textY + textHeight, TEXT_COLOR);
+            targets.add(textX, textY - 1, textWidth, textHeight + 1, () -> startEditing(section, row));
+            ExpressionLines.draw(font, runs, textX, textY, textWidth, new ExpressionLines.Painter(graphics, null,
+                    targets, row.parsed() ? WHITE : RED, LINK, (name, linkX, linkY, linkWidth) -> { }));
         }
         return editingThis && textY - BOX_NUDGE >= bounds.top() && textY - BOX_NUDGE + BOX_HEIGHT <= bounds.bottom();
     }

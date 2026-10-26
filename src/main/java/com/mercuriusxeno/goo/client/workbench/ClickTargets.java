@@ -17,7 +17,7 @@ final class ClickTargets {
     private @Nullable DoubleConsumer grabbed;
     private double pressedY;
 
-    private record Target(int left, int top, int right, int bottom, Runnable action, @Nullable String hoverKey) {
+    private record Target(int left, int top, int right, int bottom, @Nullable Runnable action, @Nullable String hoverKey) {
         boolean contains(double x, double y) {
             return x >= left && x < right && y >= top && y < bottom;
         }
@@ -73,18 +73,38 @@ final class ClickTargets {
      * @param hoverKey what hovering it names, null for nothing
      */
     void add(int left, int top, int width, int height, Runnable action, @Nullable String hoverKey) {
+        addTarget(left, top, width, height, action, hoverKey);
+    }
+
+    /**
+     * An area that names what hovering it shows and takes no click, so a click passes to the area under it.
+     *
+     * @param left     the area's left edge
+     * @param top      the area's top edge
+     * @param width    its width
+     * @param height   its height
+     * @param hoverKey what hovering it names
+     */
+    void addHover(int left, int top, int width, int height, String hoverKey) {
+        addTarget(left, top, width, height, null, hoverKey);
+    }
+
+    private void addTarget(int left, int top, int width, int height, @Nullable Runnable action,
+                           @Nullable String hoverKey) {
+        int clippedLeft = left;
+        int clippedTop = top;
         int right = left + width;
         int bottom = top + height;
         if (clip != null) {
-            left = Math.max(left, clip.left());
-            top = Math.max(top, clip.top());
+            clippedLeft = Math.max(left, clip.left());
+            clippedTop = Math.max(top, clip.top());
             right = Math.min(right, clip.right());
             bottom = Math.min(bottom, clip.bottom());
-            if (left >= right || top >= bottom) {
+            if (clippedLeft >= right || clippedTop >= bottom) {
                 return;
             }
         }
-        targets.add(new Target(left, top, right, bottom, action, hoverKey));
+        targets.add(new Target(clippedLeft, clippedTop, right, bottom, action, hoverKey));
     }
 
     /**
@@ -134,9 +154,15 @@ final class ClickTargets {
      */
     boolean click(double x, double y) {
         pressedY = y;
-        Optional<Target> hit = topmost(x, y);
-        hit.ifPresent(target -> target.action().run());
-        return hit.isPresent();
+        for (int index = targets.size() - 1; index >= 0; index--) {
+            Target target = targets.get(index);
+            Runnable action = target.action();
+            if (action != null && target.contains(x, y)) {
+                action.run();
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -145,13 +171,9 @@ final class ClickTargets {
      * @return what the topmost area under the cursor names, empty where it names nothing
      */
     Optional<String> hovered(double x, double y) {
-        return topmost(x, y).map(Target::hoverKey);
-    }
-
-    private Optional<Target> topmost(double x, double y) {
         for (int index = targets.size() - 1; index >= 0; index--) {
             if (targets.get(index).contains(x, y)) {
-                return Optional.of(targets.get(index));
+                return Optional.ofNullable(targets.get(index).hoverKey());
             }
         }
         return Optional.empty();

@@ -176,7 +176,7 @@ class VariablesTabTest {
         @Test
         void hoverCardReadsExpressionTypesAndTerminus() {
             VariablesTab.HoverCard card = tab.readHover(HOVER);
-            assertEquals("$egg", card.title());
+            assertEquals("egg", card.title());
             assertEquals("{\"zoo\": \"$base\"}", card.expression());
             assertEquals(List.of("zoo 8", "hex 1/2"), card.lines());
             assertEquals(List.of("minecraft:egg"), card.usedBy());

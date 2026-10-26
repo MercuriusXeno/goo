@@ -30,4 +30,18 @@ final class ItemIcons {
             return parsed == null ? ItemStack.EMPTY : BuiltInRegistries.ITEM.getValue(parsed).getDefaultInstance();
         });
     }
+
+    /**
+     * @param id an item id, bare in the minecraft namespace, or a #tag
+     * @return the item's display name, or the id's path where no item answers it, never its namespace
+     *         (decision curated-view-shows-no-brace-quote-or-raw-id)
+     */
+    String nameOf(String id) {
+        ItemStack stack = of(id);
+        if (!stack.isEmpty()) {
+            return stack.getHoverName().getString();
+        }
+        int separator = id.indexOf(NAMESPACE_SEPARATOR);
+        return separator < 0 ? id : id.substring(separator + 1);
+    }
 }

@@ -44,7 +44,6 @@ final class ValuesPane {
     private static final String NO_ENTRIES = "Nothing listed here.";
     private static final String DENIED_LINE = "denied";
     private static final String NO_VALUE_LINE = "no value: nothing in the file or the recipes values it";
-    private static final String AMOUNT_SEPARATOR = "  ";
     private static final String NO_TEXT = "";
 
     private final ValuesTab values;
@@ -242,19 +241,36 @@ final class ValuesPane {
     private void drawHeading(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row, GroupsPane.Bounds pane) {
         graphics.item(icons.of(row.id()), pane.left(), pane.top());
         int textX = pane.left() + ICON_SIZE + ICON_GAP;
-        graphics.text(font, font.plainSubstrByWidth(row.name() + AMOUNT_SEPARATOR + row.id(), pane.right() - textX),
-                textX, pane.top(), WHITE);
+        String heading = row.id().startsWith(ValuesTab.TAG_MARK) ? row.id() : row.name();
+        graphics.text(font, font.plainSubstrByWidth(heading, pane.right() - textX), textX, pane.top(), WHITE);
         if (!row.id().startsWith(ValuesTab.TAG_MARK)) {
             ValuesTab.Source source = values.sourceOf(row.id());
             graphics.text(font, source.label(), textX, pane.top() + LINE_HEIGHT, colorOf(source.kind()));
         }
     }
 
+    // Each type draws as its icon beside its amount, a line each (decision goo-types-draw-as-icons-named-on-hover);
+    // answers the y below them.
+    private int drawAmountLines(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row,
+                                GroupsPane.Bounds area, int top, ClickTargets targets) {
+        int width = area.right() - area.left() - ScrollBar.WIDTH - ScrollBar.GAP;
+        int y = top;
+        targets.clip(area.left(), area.top(), area.right(), area.bottom());
+        for (Map.Entry<String, String> amount : row.amounts().entrySet()) {
+            ExpressionLines.draw(font, ExpressionLines.amountRuns(Map.of(amount.getKey(), amount.getValue())),
+                    area.left(), y, width, new ExpressionLines.Painter(graphics, icons, targets, WHITE, WHITE,
+                            (name, linkX, linkY, linkWidth) -> { }));
+            y += ExpressionLines.ICON_LINE_HEIGHT;
+        }
+        targets.unclip();
+        return y;
+    }
+
     private void drawAmounts(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row,
                              GroupsPane.Bounds area, ClickTargets targets) {
-        int lines = row.amounts().size() + (row.denied() || row.amounts().isEmpty() ? 1 : 0)
-                + (row.error().isEmpty() ? 0 : 1);
-        detailBar.measure(lines * LINE_HEIGHT, area.bottom() - area.top());
+        int textLines = (row.denied() || row.amounts().isEmpty() ? 1 : 0) + (row.error().isEmpty() ? 0 : 1);
+        detailBar.measure(textLines * LINE_HEIGHT + row.amounts().size() * ExpressionLines.ICON_LINE_HEIGHT,
+                area.bottom() - area.top());
         int width = area.right() - area.left() - ScrollBar.WIDTH - ScrollBar.GAP;
         graphics.enableScissor(area.left(), area.top(), area.right(), area.bottom());
         int y = area.top() - detailBar.offset();
@@ -265,10 +281,7 @@ final class ValuesPane {
             graphics.text(font, NO_VALUE_LINE, area.left(), y, RED);
             y += LINE_HEIGHT;
         }
-        for (Map.Entry<String, String> amount : row.amounts().entrySet()) {
-            graphics.text(font, amount.getKey() + AMOUNT_SEPARATOR + amount.getValue(), area.left(), y, WHITE);
-            y += LINE_HEIGHT;
-        }
+        y = drawAmountLines(graphics, font, row, area, y, targets);
         if (!row.error().isEmpty()) {
             graphics.text(font, font.plainSubstrByWidth(row.error(), width), area.left(), y, RED);
         }

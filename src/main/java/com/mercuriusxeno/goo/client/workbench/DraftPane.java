@@ -49,9 +49,9 @@ final class DraftPane {
         graphics.fill(0, 0, screenWidth, screenHeight, DIM_COLOR);
         targets.add(0, 0, screenWidth, screenHeight, () -> { });
         int textWidth = WIDTH - PADDING * HALF;
-        List<ExpressionReferences.Node> body = List.of(new ExpressionReferences.Node(dialog.get().text(), null));
-        int lines = ExpressionLines.measure(font, body, textWidth);
-        int height = PADDING * HALF + LINE_HEIGHT * (lines + HALF + 1);
+        List<ExpressionLines.Run> body = ExpressionLines.textRuns(dialog.get().text());
+        int bodyHeight = ExpressionLines.height(font, body, textWidth);
+        int height = PADDING * HALF + bodyHeight + LINE_HEIGHT * (HALF + 1);
         int left = (screenWidth - WIDTH) / HALF;
         int top = (screenHeight - height) / HALF;
         graphics.fill(left, top, left + WIDTH, top + height, CARD_COLOR);
@@ -59,8 +59,9 @@ final class DraftPane {
         int y = top + PADDING;
         graphics.text(font, dialog.get().title(), x, y, WHITE);
         y += LINE_HEIGHT * HALF;
-        ExpressionLines.draw(graphics, font, body, x, y, textWidth, GRAY, GRAY, (name, linkX, linkY, width) -> { });
-        y += LINE_HEIGHT * lines + LINE_HEIGHT;
+        ExpressionLines.draw(font, body, x, y, textWidth, new ExpressionLines.Painter(graphics, null, targets, GRAY, GRAY,
+                (name, linkX, linkY, width) -> { }));
+        y += bodyHeight + LINE_HEIGHT;
         graphics.text(font, CONFIRM, x, y, RED);
         targets.add(x, y, font.width(CONFIRM), LINE_HEIGHT, onConfirm);
         int cancelX = x + font.width(CONFIRM) + ACTION_GAP;
