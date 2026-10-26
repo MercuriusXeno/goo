@@ -15,7 +15,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * The values manager /goo workbench opens: the title row carrying Promote, Revert and Save, a tab bar carrying every
+ * The values manager /goo workbench opens: the title row carrying Promote, Revert, Save and an X that closes it, a tab bar carrying every
  * tab of the page over one shared draft, each tab drawn by its pane, and a status line beneath
  * (decisions goo-workbench-opens-the-in-game-manager-screen, save-applies-the-draft-live-promote-renames-it). The
  * state lives in the tab classes and {@link ManagerConnection}; this class lays the panes out and forwards input.
@@ -42,6 +42,7 @@ public final class ValuesManagerScreen extends Screen {
     private static final String PROMOTE = "Promote";
     // decision topbar-discard-reads-revert
     private static final String REVERT = "Revert";
+    private static final String CLOSE = "X";
     private static final String DRAFT_BADGE = "draft";
     private static final String READING = "Reading the draft and the inventory; a fresh world dumps the inventory first.";
     private static final String SAVING = "saving";
@@ -173,11 +174,7 @@ public final class ValuesManagerScreen extends Screen {
             tabButtons.put(each, addRenderableWidget(button));
             x += tabWidth + TAB_GAP;
         }
-        // The topbar stands on the title row, right-aligned and sized to its labels, so the tab row keeps the width.
-        int right = width - MARGIN;
-        right = topbarButton(SAVE, right, () -> save(() -> { }));
-        right = topbarButton(REVERT, right, () -> draftConfirm.askRevert(draft.path()));
-        topbarButton(PROMOTE, right, () -> draftConfirm.askPromote(draft.path(), unsaved));
+        initTitleRow();
         valuesPane.init(font);
         groupsPane.init(font);
         variablesPane.init(font);
@@ -187,6 +184,38 @@ public final class ValuesManagerScreen extends Screen {
             loaded = true;
             load();
         }
+    }
+
+    // The topbar stands on the title row, right-aligned and sized to its labels, so the tab row keeps the width.
+    // decision x-in-the-top-right-closes-the-manager
+    private void initTitleRow() {
+        TitleRow row = titleRowOf(width);
+        addRenderableWidget(Button.builder(Component.literal(CLOSE), button -> onClose())
+                .bounds(row.closeLeft(), TOPBAR_Y, BUTTON_HEIGHT, BUTTON_HEIGHT).build());
+        int right = row.topbarRight();
+        right = topbarButton(SAVE, right, () -> save(() -> { }));
+        right = topbarButton(REVERT, right, () -> draftConfirm.askRevert(draft.path()));
+        topbarButton(PROMOTE, right, () -> draftConfirm.askPromote(draft.path(), unsaved));
+    }
+
+    /**
+     * Where the title row's controls stand across the screen's width.
+     *
+     * @param closeLeft   the X's left edge
+     * @param closeRight  the X's right edge, at the screen's right margin
+     * @param topbarRight the right edge of the topbar's first button
+     */
+    record TitleRow(int closeLeft, int closeRight, int topbarRight) {
+    }
+
+    /**
+     * @param screenWidth the screen's width
+     * @return the title row laid across it
+     */
+    static TitleRow titleRowOf(int screenWidth) {
+        int closeRight = screenWidth - MARGIN;
+        int closeLeft = closeRight - BUTTON_HEIGHT;
+        return new TitleRow(closeLeft, closeRight, closeLeft - TAB_GAP);
     }
 
     /**
