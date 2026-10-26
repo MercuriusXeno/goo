@@ -120,7 +120,7 @@ class ValuationsTest {
         assertTrue(Valuations.uncovered(without, inventory).contains(dropped), dropped);
     }
 
-    private static String plankInventory() {
+    static String plankInventory() {
         JsonObject root = new JsonObject();
         JsonArray items = new JsonArray();
         for (String path : List.of("oak_planks", "stick", "mystery")) {

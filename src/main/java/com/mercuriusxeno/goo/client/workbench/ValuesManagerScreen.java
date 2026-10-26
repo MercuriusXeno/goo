@@ -237,6 +237,7 @@ public final class ValuesManagerScreen extends Screen {
             values.readResolved(resolved);
         });
         request(WorkbenchOperations.UNCOVERED_VALUES, values.modelText(), values::readUncovered);
+        request(WorkbenchOperations.DERIVED_FROM, values.modelText(), values::readDerivedFrom);
         groupsPane.refresh();
         variablesPane.refresh();
         processesPane.refresh();

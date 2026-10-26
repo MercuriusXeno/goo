@@ -35,4 +35,21 @@ class ValuesPaneTest {
         ValuesPane.Chip first = chips.getFirst();
         assertEquals(first.top() + first.height() + ValuesPane.CHIP_LINE_GAP, layout.searchTop());
     }
+
+    /**
+     * An item worth five goo types, at a width fitting two runs, lays them across three 18px rows; a valueless item
+     * takes one row (decision items-rows-read-valued-derived-or-no-value-with-values-inline).
+     */
+    @Test
+    void valueRunsWrapOntoAsManyRowsAsTheWidthNeeds() {
+        int run = 40;
+        int width = run + ValuesPane.RUN_GAP + run + 2;
+        ValuesPane.ValueRuns five = ValuesPane.layValueRuns(List.of(run, run, run, run, run), width);
+        assertEquals(3, five.rows());
+        int second = run + ValuesPane.RUN_GAP;
+        assertEquals(List.of(new ValuesPane.Spot(0, 0), new ValuesPane.Spot(second, 0), new ValuesPane.Spot(0, 1),
+                new ValuesPane.Spot(second, 1), new ValuesPane.Spot(0, 2)), five.spots());
+        assertEquals(3 * ValuesPane.ROW_HEIGHT, five.rows() * ValuesPane.ROW_HEIGHT);
+        assertEquals(1, ValuesPane.layValueRuns(List.of(), width).rows());
+    }
 }
