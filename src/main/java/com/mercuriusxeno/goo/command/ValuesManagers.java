@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.data.GooValueRegistry;
 import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.network.GooValueSync;
 import com.mercuriusxeno.goo.network.WorkbenchRequests;
+import com.mercuriusxeno.goo.type.GooTypes;
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
 import com.mercuriusxeno.goo.workbench.WorkbenchPaths;
 import net.minecraft.SharedConstants;
@@ -101,7 +102,9 @@ public final class ValuesManagers {
         String packId = FILE_PACK_PREFIX + WorkbenchPaths.packRoot(world).getFileName();
         Standing stood = new Standing(new WorkbenchOperations(paths, ValuesManagers::jarValues,
                 InGameDumps.inventory(server, paths), InGameDumps.dumps(server, paths),
-                text -> applyLive(server, text, packId)), new WorkbenchRequests(worker), worker);
+                text -> applyLive(server, text, packId),
+                // A datapack type counts as known (decision draft-load-drops-entries-naming-an-unknown-type).
+                () -> GooTypes.all(server.registryAccess())), new WorkbenchRequests(worker), worker);
         STANDING.put(server, stood);
         return stood;
     }
