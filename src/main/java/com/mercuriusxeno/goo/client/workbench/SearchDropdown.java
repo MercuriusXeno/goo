@@ -26,7 +26,7 @@ final class SearchDropdown {
     private static final int BACKGROUND = 0xF0101010;
     private static final int BORDER = 0xFF606060;
     private static final int WHITE = 0xFFFFFFFF;
-    private static final int LINK = 0xFF80C0FF;
+    private static final int LINK = ButtonPainter.LINK;
 
     private final List<Choice> all;
     private String query = NOTHING;

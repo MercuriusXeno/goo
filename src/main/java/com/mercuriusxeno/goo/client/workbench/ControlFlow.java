@@ -20,7 +20,7 @@ final class ControlFlow {
     private static final int ICON_NUDGE = 1;
     private static final int INDENT = 12;
     private static final int WHITE = 0xFFFFFFFF;
-    private static final int LINK = 0xFF80C0FF;
+    private static final int LINK = ButtonPainter.LINK;
 
     private final GuiGraphicsExtractor graphics;
     private final Font font;
@@ -116,7 +116,7 @@ final class ControlFlow {
      * @param pressed takes where it was clicked
      */
     void control(String label, String hint, Consumer<BuilderOverlays.Anchor> pressed) {
-        reserve(font.width(label));
+        reserve(font.width(label) + ButtonPainter.PADDING + ButtonPainter.PADDING);
         x = BuilderOverlays.control(graphics, font, label, hint, x, y, targets, pressed);
     }
 

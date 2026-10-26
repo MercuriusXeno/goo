@@ -20,7 +20,7 @@ import java.util.function.Supplier;
  * factor, the goo type picker hides the types a value holds, and a list holds only what the value may read. Several
  * terms stand as one sum, drawn as "the sum of:" with its terms indented below it, each edited in place, and the
  * whole value scales as one sum; these are the two ways the game's files use parentheses. Every control names what
- * it does on hover, the lines wrap inside the pane, and [done] closes the builder below the value. Each change
+ * it does on hover, the lines wrap inside the pane, and done closes the builder below the value. Each change
  * writes the string the file grammar reads; a value is never written empty. The state lives in
  * {@link ExpressionBuilder}.
  */
@@ -60,36 +60,36 @@ final class ExpressionBuilderPane {
     private static final String DIVIDED_BY = "divided by";
     private static final String OP_HINT = "Click to switch between multiplying and dividing";
     private static final String FACTOR_HINT = "Click to change the number; 1 removes it";
-    private static final String SCALE = "[scale]";
+    private static final String SCALE = "scale";
     private static final String SCALE_HINT = "Multiply or divide this by a number";
-    private static final String SCALE_SUM = "[scale the sum]";
+    private static final String SCALE_SUM = "scale the sum";
     private static final String SCALE_SUM_HINT = "Multiply or divide the whole sum by a number";
-    private static final String SCALE_WHOLE = "[scale the whole value]";
+    private static final String SCALE_WHOLE = "scale the whole value";
     private static final String SCALE_WHOLE_HINT = "Multiply or divide everything above by one number, as one sum";
     private static final String SUM_OF = "the sum of:";
-    private static final String ONE_TYPE = "[only one goo type]";
+    private static final String ONE_TYPE = "only one goo type";
     private static final String ONE_TYPE_HINT = "Use only one goo type of this value";
     private static final String ONLY = "only";
     private static final String KEPT_HINT = "No control builds this term; remove it to rebuild it";
-    private static final String REMOVE = "[remove]";
+    private static final String REMOVE = "remove";
     private static final String REMOVE_TERM_HINT = "Remove this term";
     private static final String REMOVE_SUM_HINT = "Remove this sum and every term in it";
     private static final String REMOVE_ROW_HINT = "Remove this goo type's amount";
-    private static final String ADD_TYPE = "[+ goo type]";
+    private static final String ADD_TYPE = "+ goo type";
     private static final String ADD_TYPE_HINT = "Add an amount for another goo type";
-    private static final String ADD_NUMBER = "[+ number]";
+    private static final String ADD_NUMBER = "+ number";
     private static final String ADD_NUMBER_HINT = "Add a number";
-    private static final String ADD_ITEM_OR_PREFAB = "[+ item or prefab]";
+    private static final String ADD_ITEM_OR_PREFAB = "+ item or prefab";
     private static final String ADD_ITEM_OR_PREFAB_HINT = "Add what an item or per-type prefab is worth";
-    private static final String ADD_PREFAB = "[+ prefab]";
+    private static final String ADD_PREFAB = "+ prefab";
     private static final String ADD_PREFAB_HINT = "Add a prefab's value";
-    private static final String ADD_SUM = "[+ sum of terms]";
+    private static final String ADD_SUM = "+ sum of terms";
     private static final String ADD_SUM_HINT = "Add several terms as one, to subtract or scale them together";
     private static final String PICK_TYPE = "Pick the first goo type:";
     private static final String UNREAD = "This value cannot be read; pick a kind to start over.";
     private static final String EMPTY = "No value yet: pick a kind to give it one.";
     private static final String DENIED = "Denied: this holds no goo. Pick a kind to give it a value.";
-    private static final String DONE = "[done]";
+    private static final String DONE = "done";
     private static final String DONE_HINT = "Close the builder; every change is already in the draft";
     private static final String BLANK = "";
 
@@ -129,7 +129,7 @@ final class ExpressionBuilderPane {
      *
      * @param shown  the value as the draft's edit box shows it
      * @param change takes the string each change writes
-     * @param finish runs when [done] closes the builder
+     * @param finish runs when done closes the builder
      */
     void open(String shown, Consumer<String> change, Runnable finish) {
         openUnder(BuilderGrammar.forItems(prefabs.get()), shown, change, finish);
@@ -141,7 +141,7 @@ final class ExpressionBuilderPane {
      * @param prefab the prefab's name
      * @param shown  the value as the draft's edit box shows it
      * @param change takes the string each change writes
-     * @param finish runs when [done] closes the builder
+     * @param finish runs when done closes the builder
      */
     void openPrefab(String prefab, String shown, Consumer<String> change, Runnable finish) {
         openUnder(BuilderGrammar.forPrefab(prefabs.get(), prefab), shown, change, finish);

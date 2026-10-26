@@ -23,11 +23,9 @@ final class BuilderOverlays {
     static final int LINE = ExpressionLines.ICON_LINE_HEIGHT;
     /** The gap between controls. */
     static final int GAP = 6;
-    private static final int TEXT_NUDGE = 5;
     private static final int BOX_HEIGHT = 14;
     private static final int NUMBER_WIDTH = 44;
     private static final int SEARCH_WIDTH = 160;
-    private static final int LINK = 0xFF80C0FF;
     private static final String SEARCH_HINT = "Search";
     private static final String NOTHING = "";
     // A hover key no prefab name or item id spells, since neither holds a space after a colon.
@@ -151,7 +149,7 @@ final class BuilderOverlays {
     }
 
     /**
-     * Draws a control as a link and takes its click.
+     * Draws a control as a button and takes its click.
      *
      * @param graphics the frame's graphics
      * @param font     the font
@@ -168,7 +166,7 @@ final class BuilderOverlays {
     }
 
     /**
-     * Draws a control as a link that names what it does on hover, and takes its click.
+     * Draws a control as a button that names what it does on hover, and takes its click.
      *
      * @param graphics the frame's graphics
      * @param font     the font
@@ -182,10 +180,9 @@ final class BuilderOverlays {
      */
     static int control(GuiGraphicsExtractor graphics, Font font, String label, @Nullable String hint, int x, int y,
                        ClickTargets targets, Consumer<Anchor> pressed) {
-        graphics.text(font, label, x, y + TEXT_NUDGE, LINK);
-        int width = font.width(label);
-        targets.add(x, y, width, LINE, () -> pressed.accept(new Anchor(x, y)), hint == null ? null : hintKey(hint));
-        return x + width + GAP;
+        ButtonPainter.Box box = ButtonPainter.draw(graphics, font, label, x, y, LINE, targets,
+                () -> pressed.accept(new Anchor(x, y)), hint == null ? null : hintKey(hint));
+        return box.right() + GAP;
     }
 
     /**

@@ -23,9 +23,8 @@ final class AuditPane {
     private static final int WHITE = 0xFFFFFFFF;
     private static final int GRAY = 0xFFA0A0A0;
     private static final int RED = 0xFFFF5555;
-    private static final int LINK = 0xFF80C0FF;
     private static final int PROGRESS_COLOR = 0x40000000;
-    private static final String RUN = "[Run the audit]";
+    private static final String RUN = "Run the audit";
     private static final String RUNNING = "running: saving the draft and auditing it on the server";
     private static final String NO_SECTIONS = "No audit stands yet: Run writes one.";
     private static final String OPEN_MARK = "v ";
@@ -93,9 +92,8 @@ final class AuditPane {
         if (audit.running()) {
             graphics.text(font, RUNNING, x, y, GRAY);
         } else {
-            graphics.text(font, RUN, x, y, LINK);
-            targets.add(x, y, font.width(RUN), LINE_HEIGHT, this::run);
-            graphics.text(font, audit.runLine(), x + font.width(RUN) + GAP, y, GRAY);
+            ButtonPainter.Box run = ButtonPainter.drawAtText(graphics, font, RUN, x, y, targets, this::run);
+            graphics.text(font, audit.runLine(), run.right() + GAP, y, GRAY);
         }
         y += LINE_HEIGHT + GAP;
         y = drawProgress(graphics, font, bounds, y, targets);
