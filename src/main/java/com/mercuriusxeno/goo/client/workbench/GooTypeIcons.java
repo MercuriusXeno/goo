@@ -89,11 +89,4 @@ final class GooTypeIcons {
         return Optional.of(Component.translatable(GooTypeNames.translationKey(GooTypes.bundled(type))));
     }
 
-    /**
-     * @param hoverKey what the hovered area names
-     * @return whether the area is a type icon's
-     */
-    static boolean isTypeHover(String hoverKey) {
-        return hoverKey.startsWith(HOVER_PREFIX);
-    }
 }

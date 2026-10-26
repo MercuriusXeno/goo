@@ -39,7 +39,9 @@ final class SearchDropdown {
         /** An item, by its namespaced id. */
         ITEM,
         /** A prefab, by its name. */
-        PREFAB
+        PREFAB,
+        /** An item tag, by its #id. */
+        TAG
     }
 
     /**
@@ -76,6 +78,16 @@ final class SearchDropdown {
         }
         prefabs.forEach(name -> choices.add(new Choice(Kind.PREFAB, name, name)));
         return new SearchDropdown(choices);
+    }
+
+    /**
+     * @param inventory the server's items and tags
+     * @return a dropdown over every item, drawn with its icon, and every #tag, as a group's member
+     */
+    static SearchDropdown overMembers(List<ValuesTab.ManagerEntry> inventory) {
+        return new SearchDropdown(inventory.stream().map(entry -> new Choice(entry.tag()
+                || entry.id().startsWith(TAG_MARK) ? Kind.TAG : Kind.ITEM, entry.id(), entry.tag()
+                ? entry.id() : entry.name())).toList());
     }
 
     /**

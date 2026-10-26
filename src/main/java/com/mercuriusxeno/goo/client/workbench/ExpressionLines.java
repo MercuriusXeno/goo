@@ -1,16 +1,11 @@
 package com.mercuriusxeno.goo.client.workbench;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonParser;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
 
 /**
@@ -40,16 +35,12 @@ final class ExpressionLines {
     private static final String DIVIDE = "/";
     private static final String OPEN = "(";
     private static final String CLOSE = ")";
-    private static final String ASSIGN = "=";
     private static final String DENIED = "denied";
     private static final String TYPES_SEPARATOR = ", ";
     private static final String AMOUNT_SEPARATOR = " ";
     private static final String ARROW = "->";
     private static final String OPERATOR_CHARS = "+-*/()";
     private static final char REFERENCE_MARK = '$';
-    private static final char TAG_MARK = '#';
-    private static final String OBJECT_START = "{";
-    private static final String OBJECT_END = "}";
 
     private ExpressionLines() {
     }
@@ -224,31 +215,6 @@ final class ExpressionLines {
         } else {
             runs.add(text(word));
         }
-    }
-
-    /**
-     * @param line  one line the file holds for a group, a key and its value
-     * @param names an item's display name by its id
-     * @return the key, an equals sign and the value's runs, or the line as an error where it does not read
-     */
-    static List<Run> previewRuns(String line, Function<String, String> names) {
-        Optional<Map.Entry<String, JsonElement>> entry;
-        try {
-            JsonObject object = JsonParser.parseString(OBJECT_START + line + OBJECT_END).getAsJsonObject();
-            entry = object.entrySet().stream().findFirst();
-        } catch (JsonParseException | IllegalStateException e) {
-            entry = Optional.empty();
-        }
-        Optional<ExpressionTerms.Value> value = entry.flatMap(found -> ExpressionTerms.parseValue(found.getValue()));
-        if (entry.isEmpty() || value.isEmpty()) {
-            return List.of(new Run(Kind.ERROR, line, null));
-        }
-        String key = entry.get().getKey();
-        List<Run> runs = new ArrayList<>();
-        runs.add(!key.isEmpty() && key.charAt(0) == TAG_MARK ? text(key) : new Run(Kind.ITEM, names.apply(key), key));
-        runs.add(operator(ASSIGN));
-        runs.addAll(runs(value.get(), names));
-        return runs;
     }
 
     /**

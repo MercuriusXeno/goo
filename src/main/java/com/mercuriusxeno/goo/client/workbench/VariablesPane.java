@@ -50,6 +50,7 @@ final class VariablesPane {
     private static final int DIM_COLOR = 0xA0000000;
     private static final int READ_VIEW_COLOR = 0x30FFFFFF;
     private static final String RESOLVED_SEPARATOR = ", ";
+    private static final char HOVER_KEY_MARK = ':';
     private static final String TAG_PREFIX = "#";
     private static final String RENAME = "[Rename]";
     private static final String DELETE = "[Delete]";
@@ -322,7 +323,10 @@ final class VariablesPane {
         for (int index = 0; index < fit.shown(); index++) {
             int row = expanded ? index / perRow : 0;
             int column = expanded ? index % perRow : index;
-            graphics.item(icons.of(usedBy.get(index)), itemsX + column * step, y + row * (ICON_SIZE + HALF));
+            int iconX = itemsX + column * step;
+            int iconY = y + row * (ICON_SIZE + HALF);
+            graphics.item(icons.of(usedBy.get(index)), iconX, iconY);
+            targets.addHover(iconX, iconY, ICON_SIZE, ICON_SIZE, ItemIcons.hoverKey(usedBy.get(index)));
         }
         if (fit.hidden() > 0) {
             String more = UsedByLine.moreLabel(fit.hidden());
@@ -489,7 +493,8 @@ final class VariablesPane {
             return;
         }
         String name = hovered.get();
-        if (GooTypeIcons.isTypeHover(name)) {
+        // A type's or an item's icon names itself; a prefab's link alone opens a card.
+        if (name.indexOf(HOVER_KEY_MARK) >= 0) {
             return;
         }
         VariablesTab.HoverCard card = cards.get(name);

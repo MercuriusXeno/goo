@@ -339,6 +339,73 @@ class WorkbenchOperationsTest {
         }
     }
 
+    /**
+     * The Groups tab's apply forms (decision group-controls-name-add-and-build).
+     */
+    @Nested
+    class GroupApply {
+        private static final String FILE = """
+                {
+                    "_constants": {"log": {"leaf": 4}},
+                    "_groups": {
+                        "logs": ["iron_nugget"]
+                    },
+                    "#logs": "$log"
+                }
+                """;
+
+        private JsonObject applied(JsonObject change) throws IOException {
+            Files.writeString(paths.inventoryFile(), INVENTORY);
+            JsonObject request = JsonParser.parseString(posted(FILE)).getAsJsonObject();
+            change.entrySet().forEach(field -> request.add(field.getKey(), field.getValue()));
+            return answeredJson(WorkbenchOperations.APPLY_TO_GROUP, request.toString()).getAsJsonObject("model");
+        }
+
+        private static JsonObject memberKeyed(JsonObject model, String key) {
+            return model.getAsJsonArray("members").asList().stream().map(JsonElement::getAsJsonObject)
+                    .filter(member -> member.has("key") && !member.get("key").isJsonNull()
+                            && key.equals(member.get("key").getAsString())).findFirst().orElseThrow();
+        }
+
+        /**
+         * The create form lands a named group in _groups with no member, and leaves a standing group as it was.
+         */
+        @Test
+        void createFormLandsAGroupInGroups() throws IOException {
+            JsonObject create = new JsonObject();
+            create.addProperty("group", "fresh");
+            create.addProperty("create", true);
+            JsonObject groups = memberKeyed(applied(create), "_groups");
+            Map<String, String> entries = groups.getAsJsonArray("entries").asList().stream()
+                    .map(JsonElement::getAsJsonObject).collect(Collectors.toMap(entry -> entry.get("key").getAsString(),
+                            entry -> entry.get("text").getAsString()));
+            assertEquals("[]", entries.get("fresh"));
+            assertTrue(entries.get("logs").contains("iron_nugget"), entries.toString());
+            JsonObject again = new JsonObject();
+            again.addProperty("group", "logs");
+            again.addProperty("create", true);
+            assertTrue(memberKeyed(applied(again), "_groups").toString().contains("iron_nugget"));
+        }
+
+        /**
+         * A member line with a count and an extra writes count(base + $trait) and the trait beside the prefabs.
+         */
+        @Test
+        void memberLineWritesCountTimesBasePlusExtra() throws IOException {
+            JsonObject tweak = new JsonObject();
+            tweak.addProperty("member", "minecraft:iron_nugget");
+            tweak.addProperty("count", 2);
+            tweak.addProperty("trait", "nugget_extra");
+            tweak.addProperty("traitText", "{\"hex\": \"3\"}");
+            JsonObject change = new JsonObject();
+            change.addProperty("group", "logs");
+            change.add("tweak", tweak);
+            JsonObject model = applied(change);
+            assertEquals("\"2($log + $nugget_extra)\"", memberKeyed(model, "iron_nugget").get("text").getAsString());
+            assertTrue(memberKeyed(model, "_constants").toString().contains("nugget_extra"));
+        }
+    }
+
     @Nested
     class ValuesAndProcesses {
 
