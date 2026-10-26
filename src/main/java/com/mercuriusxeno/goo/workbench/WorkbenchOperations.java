@@ -2,13 +2,10 @@ package com.mercuriusxeno.goo.workbench;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import com.mercuriusxeno.goo.workbench.checks.CheckResult;
-import com.mercuriusxeno.goo.workbench.checks.ValuesChecks;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -63,7 +60,6 @@ public final class WorkbenchOperations {
     private static final int SERVER_ERROR = 500;
     private static final String SECTIONS = "sections";
     private static final String GROUPS = "groups";
-    private static final String FAILING = "failing";
     private static final String EXIT_CODE = "exitCode";
     private static final String DURATION = "durationSeconds";
     private static final double NANOS_PER_SECOND = 1e9;
@@ -105,7 +101,7 @@ public final class WorkbenchOperations {
             Map.entry(HOVER, posted -> json(ValuesJson.hover(postedModel(posted),
                     ValuesJson.inventory(dumpedInventory()), ValuesJson.idFrom(posted)))),
             Map.entry(PROCESSES, posted -> json(ProcessesJson.described(postedModel(posted)))),
-            Map.entry(PROMOTE, this::promote),
+            Map.entry(PROMOTE, posted -> promote()),
             Map.entry(DISCARD, posted -> discard()));
 
     /**
@@ -355,43 +351,19 @@ public final class WorkbenchOperations {
     }
 
     private WorkbenchReply modelReply(BaseValuesModel model) throws IOException {
-        return json(ModelJson.toJson(model, paths.baseValues().toString(), paths.draft().toString(), draftDiffers(),
-                ChecksJson.toJson(checked(model))));
+        return json(ModelJson.toJson(model, paths.baseValues().toString(), paths.draft().toString(), draftDiffers()));
     }
 
     /**
-     * Runs the type-source checks over a model, expanding #tag entries through the inventory where one stands
-     * (decision type-source-checks-are-rules-that-gate-promote).
+     * Renames the draft over the live file on the first confirm, whatever the draft holds, the one write the live
+     * file takes (decisions workbench-authors-a-draft-and-promotes-by-rename, values-checks-go-with-the-checks-tab).
      *
-     * @param model the model to check
-     * @return every check's result
+     * @return the live model, or a conflict where no draft stands
      */
-    private List<CheckResult> checked(BaseValuesModel model) throws IOException {
-        return Files.isRegularFile(paths.inventoryFile())
-                ? ValuesChecks.run(model.serialize(), ValuesJson.inventory(paths.inventoryFile()).tagResolver())
-                : ValuesChecks.run(model.serialize());
-    }
-
-    /**
-     * Renames the draft over the live file, the one write the live file takes; a draft failing a type-source check
-     * promotes only when the posted text acknowledges the failures (decisions
-     * workbench-authors-a-draft-and-promotes-by-rename, type-source-checks-are-rules-that-gate-promote).
-     *
-     * @param posted the text acknowledging failing checks, or empty
-     * @return the live model, or the refusal naming the failing checks
-     */
-    private WorkbenchReply promote(String posted) throws IOException {
-        boolean acknowledged = ChecksJson.acknowledged(posted);
+    private WorkbenchReply promote() throws IOException {
         synchronized (draftLock) {
             if (!Files.isRegularFile(paths.draft())) {
                 return WorkbenchReply.of(CONFLICT, WorkbenchReply.TEXT, NO_DRAFT_AT + paths.draft());
-            }
-            List<CheckResult> failing = checked(BaseValuesModel.parse(Files.readString(paths.draft()))).stream()
-                    .filter(result -> !result.passed()).toList();
-            if (!failing.isEmpty() && !acknowledged) {
-                JsonObject refusal = new JsonObject();
-                refusal.add(FAILING, ChecksJson.toJson(failing));
-                return WorkbenchReply.of(CONFLICT, WorkbenchReply.JSON, refusal.toString());
             }
             Files.move(paths.draft(), paths.baseValues(), StandardCopyOption.REPLACE_EXISTING,
                     StandardCopyOption.ATOMIC_MOVE);

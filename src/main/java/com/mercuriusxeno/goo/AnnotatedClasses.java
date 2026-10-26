@@ -23,8 +23,8 @@ import java.util.jar.JarFile;
 import java.util.stream.Stream;
 
 /**
- * Finds and builds every class a marker annotation marks, so a seam such as the audit's rules or the
- * workbench's checks walks whatever classes stand and a new one is one class (decision
+ * Finds and builds every class a marker annotation marks, so a seam such as the audit's rules walks whatever
+ * classes stand and a new one is one class (decision
  * each-check-is-one-rule-added-alone). A running game reads FML's annotation scan, as GooTestFunctions finds
  * its RegistersGameTests classes; with no mod list loaded, as in a unit test or the gradle-run workbench, the
  * seam's package is read off the classpath.
