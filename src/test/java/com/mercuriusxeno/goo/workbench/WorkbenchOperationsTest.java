@@ -484,6 +484,32 @@ class WorkbenchOperationsTest {
         }
 
         /**
+         * Derived-from answers, for a crafted item no entry values, the recipe inputs the family read reports in its
+         * from field: sticks from the valued planks (decision
+         * items-rows-read-valued-derived-or-no-value-with-values-inline).
+         */
+        @Test
+        void derivedFromAnswersTheRecipeInputsTheFamilyReports() throws IOException {
+            Files.writeString(paths.inventoryFile(), ValuationsTest.plankInventory());
+            String planks = """
+                    {
+                        "oak_planks": {"leaf": 4}
+                    }
+                    """;
+            JsonObject items = answeredJson(WorkbenchOperations.DERIVED_FROM, posted(planks)).getAsJsonObject("items");
+            JsonObject stickFrom = JsonParser.parseString(Valuations.family(BaseValuesModel.parse(planks),
+                    InventoryView.parse(ValuationsTest.plankInventory()), "minecraft:stick")).getAsJsonObject()
+                    .getAsJsonArray("rows").asList().stream().map(JsonElement::getAsJsonObject)
+                    .filter(row -> "minecraft:stick".equals(row.get("id").getAsString())).findFirst().orElseThrow()
+                    .getAsJsonObject("from");
+            assertEquals(stickFrom.getAsJsonArray("chain").get(0).getAsString(),
+                    items.getAsJsonArray("minecraft:stick").get(0).getAsString());
+            assertEquals(List.of("minecraft:oak_planks"), items.getAsJsonArray("minecraft:stick").asList().stream()
+                    .map(JsonElement::getAsString).toList());
+            assertFalse(items.has("minecraft:oak_planks"), items.toString());
+        }
+
+        /**
          * Processes answers the posted model's conversions described.
          */
         @Test

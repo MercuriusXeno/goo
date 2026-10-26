@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.workbench;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.DoubleConsumer;
 
@@ -163,6 +164,13 @@ final class ClickTargets {
             }
         }
         return false;
+    }
+
+    /**
+     * @return what each area names on hover, in the order the frame laid them, the areas naming nothing left out
+     */
+    List<String> hoverKeys() {
+        return targets.stream().map(Target::hoverKey).filter(Objects::nonNull).toList();
     }
 
     /**

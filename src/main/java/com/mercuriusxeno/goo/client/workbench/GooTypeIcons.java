@@ -101,7 +101,11 @@ final class GooTypeIcons {
         return PICK_PREFIX + type;
     }
 
-    private static Component nameOf(String type) {
+    /**
+     * @param type a goo type's id
+     * @return the type's translated name
+     */
+    static Component nameOf(String type) {
         return Component.translatable(GooTypeNames.translationKey(GooTypes.bundled(type)));
     }
 

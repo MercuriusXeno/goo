@@ -19,11 +19,10 @@ final class DraftPane {
     private static final int WHITE = 0xFFFFFFFF;
     private static final int GRAY = 0xFFC0C0C0;
     private static final int RED = 0xFFFF5555;
-    private static final int LINK = 0xFF80C0FF;
     private static final int DIM_COLOR = 0xB0000000;
     private static final int CARD_COLOR = 0xF0181818;
-    private static final String CONFIRM = "[Confirm]";
-    private static final String CANCEL = "[Cancel]";
+    private static final String CONFIRM = "Confirm";
+    private static final String CANCEL = "Cancel";
 
     private final DraftConfirm confirm;
     private final Runnable onConfirm;
@@ -62,10 +61,8 @@ final class DraftPane {
         ExpressionLines.draw(font, body, x, y, textWidth, new ExpressionLines.Painter(graphics, null, targets, GRAY, GRAY,
                 (name, linkX, linkY, width) -> { }));
         y += bodyHeight + LINE_HEIGHT;
-        graphics.text(font, CONFIRM, x, y, RED);
-        targets.add(x, y, font.width(CONFIRM), LINE_HEIGHT, onConfirm);
-        int cancelX = x + font.width(CONFIRM) + ACTION_GAP;
-        graphics.text(font, CANCEL, cancelX, y, LINK);
-        targets.add(cancelX, y, font.width(CANCEL), LINE_HEIGHT, confirm::cancel);
+        ButtonPainter.Box confirmBox = ButtonPainter.drawColored(graphics, font, CONFIRM, RED, x,
+                y - ButtonPainter.PADDING, ButtonPainter.HEIGHT, targets, onConfirm, null);
+        ButtonPainter.drawAtText(graphics, font, CANCEL, confirmBox.right() + ACTION_GAP, y, targets, confirm::cancel);
     }
 }

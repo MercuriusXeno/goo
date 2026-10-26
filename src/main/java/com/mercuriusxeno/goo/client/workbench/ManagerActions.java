@@ -49,6 +49,13 @@ interface ManagerActions {
     void openVariable(String name);
 
     /**
+     * Opens the Items tab on an item, selected and scrolled into view, as a used-by icon does.
+     *
+     * @param id the item's id
+     */
+    void openItem(String id);
+
+    /**
      * @param widget a widget the pane draws and the screen routes input to
      * @param <W>    the widget's type
      * @return the widget

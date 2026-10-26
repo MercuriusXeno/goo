@@ -103,6 +103,34 @@ public final class VariablesTab {
     }
 
     /**
+     * A prefab's evaluated value, as its hover reads it.
+     *
+     * @param name   the prefab's name
+     * @param tree   each goo type a tree prefab resolves to with its amount, empty for a scalar
+     * @param scalar a scalar prefab's value, empty for a tree
+     * @param error  the evaluation's refusal, empty where it resolved
+     */
+    public record PrefabValue(String name, Map<String, String> tree, String scalar, String error) {
+    }
+
+    /**
+     * @param name a prefab's name
+     * @return its value from the last evaluate reply, empty where the reply names no such prefab
+     */
+    public Optional<PrefabValue> prefabValue(String name) {
+        JsonObject result = results.get(name);
+        if (result == null) {
+            return Optional.empty();
+        }
+        Map<String, String> tree = new LinkedHashMap<>();
+        if (TREE.equals(result.get(KIND).getAsString()) && result.has(TREE) && result.get(TREE).isJsonObject()) {
+            result.getAsJsonObject(TREE).entrySet().forEach(type -> tree.put(type.getKey(),
+                    type.getValue().getAsString()));
+        }
+        return Optional.of(new PrefabValue(name, tree, textOf(result, VALUE), textOf(result, ERROR)));
+    }
+
+    /**
      * @param evaluateJson the constants evaluate operation's reply over the draft
      */
     public void readEvaluated(String evaluateJson) {

@@ -45,10 +45,13 @@ public final class ValuesTab {
     private static final String GROUPS_SECTION = "_groups";
     private static final String RESTRICTED_SECTION = "_restricted";
     private static final String NAMESPACE_SEPARATOR = ":";
-    private static final String ENTRY_SOURCE = "entry";
+    // Decision items-rows-read-valued-derived-or-no-value-with-values-inline.
+    private static final String ENTRY_SOURCE = "Valued";
     private static final String GROUP_SOURCE = "group #";
     private static final String DENIED_BY = "denied by #";
-    private static final String NOT_IN_FILE = "not in the file";
+    /** What an item recipes value, and no entry does, reads before its inputs. */
+    static final String DERIVED_SOURCE = "derived from";
+    private static final String NO_VALUE = "no value";
     private static final String RESTRICTED_SUFFIX = ", restricted";
     // A new entry stands above the sections the file closes with, as the page and the server write one.
     private static final Set<String> CLOSING_SECTIONS = Set.of("_restricted", "_conversions", "_post_conversions");
@@ -57,6 +60,7 @@ public final class ValuesTab {
     private final ManagerDraft draft;
     private final List<ManagerEntry> entries = new ArrayList<>();
     private final Map<String, JsonObject> resolved = new HashMap<>();
+    private final Map<String, List<String>> derivedFrom = new HashMap<>();
     private final Set<String> uncovered = new HashSet<>();
     private Filter filter = Filter.ITEMS;
     private String search = NO_TEXT;
@@ -138,6 +142,24 @@ public final class ValuesTab {
     }
 
     /**
+     * @param derivedFromJson the derived-from operation's reply: each derived item's recipe inputs
+     */
+    public void readDerivedFrom(String derivedFromJson) {
+        derivedFrom.clear();
+        JsonParser.parseString(derivedFromJson).getAsJsonObject().getAsJsonObject(ITEMS).entrySet()
+                .forEach(item -> derivedFrom.put(item.getKey(), item.getValue().getAsJsonArray().asList().stream()
+                        .map(JsonElement::getAsString).toList()));
+    }
+
+    /**
+     * @param id an item's namespaced id
+     * @return the items its derived value comes from, empty where no recipe values it
+     */
+    public List<String> derivedFrom(String id) {
+        return derivedFrom.getOrDefault(id, List.of());
+    }
+
+    /**
      * @param text the search box's text
      */
     public void search(String text) {
@@ -190,7 +212,9 @@ public final class ValuesTab {
         GROUP,
         /** A denial. */
         DENIED,
-        /** Nothing in the file. */
+        /** Recipes value it, and no entry does. */
+        DERIVED,
+        /** Nothing values it. */
         NONE
     }
 
@@ -260,8 +284,14 @@ public final class ValuesTab {
                 source = denied ? new Source(DENIED, SourceKind.DENIED) : new Source(ENTRY_SOURCE, SourceKind.ENTRY);
             }
         }
-        Source found = source == null ? new Source(NOT_IN_FILE, SourceKind.NONE) : source;
+        Source found = source != null ? source : unentered(id);
         return restricted(groups).contains(id) ? new Source(found.label() + RESTRICTED_SUFFIX, found.kind()) : found;
+    }
+
+    // An item no entry or group names reads derived from its recipes where they value it, else no value.
+    private Source unentered(String id) {
+        return worthOf(id).isEmpty() ? new Source(NO_VALUE, SourceKind.NONE)
+                : new Source(DERIVED_SOURCE, SourceKind.DERIVED);
     }
 
     private Map<String, List<String>> groupsOf() {
@@ -311,6 +341,34 @@ public final class ValuesTab {
      */
     public void select(String id) {
         selected = id;
+    }
+
+    /**
+     * Lists every item, the search cleared, and selects one, as a used-by icon's click opens it
+     * (decision used-by-icons-link-to-items-and-hover-their-value).
+     *
+     * @param id the item's id
+     * @return its place in the list, for the pane to scroll it into view, 0 where the list holds it nowhere
+     */
+    public int open(String id) {
+        filter = Filter.ITEMS;
+        search = NO_TEXT;
+        selected = id;
+        List<ManagerEntry> listed = listed();
+        for (int index = 0; index < listed.size(); index++) {
+            if (listed.get(index).id().equals(id)) {
+                return index;
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * @param id an item's namespaced id
+     * @return each goo type the item resolves to with its amount, empty where nothing values it
+     */
+    public Map<String, String> worthOf(String id) {
+        return amountsOf(resolved.get(entryKeyOf(id)));
     }
 
     /**
