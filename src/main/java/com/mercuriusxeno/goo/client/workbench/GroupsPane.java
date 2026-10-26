@@ -7,10 +7,8 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 /**
  * Draws the Groups tab: each group's row, its #name and its members as item icons named on hover, the rest behind an
@@ -43,7 +41,6 @@ final class GroupsPane {
     private static final int GRAY = 0xFFA0A0A0;
     private static final int RED = 0xFFFF5555;
     private static final int LINK = ButtonPainter.LINK;
-    private static final int BUTTON_PADDING = ButtonPainter.PADDING + ButtonPainter.PADDING;
     private static final int SELECTED_COLOR = 0x60FFFFFF;
     private static final int READ_VIEW_COLOR = 0x30FFFFFF;
     private static final String NEW_GROUP = "New group";
@@ -69,7 +66,7 @@ final class GroupsPane {
     private final ManagerActions actions;
     private final ExpressionBuilderPane builder;
     private final BuilderOverlays overlays;
-    private final Set<String> expandedRows = new HashSet<>();
+    private final ExpandedLists expandedRows = new ExpandedLists();
     private final ScrollBar listBar = new ScrollBar(SCROLL_STEP);
     private final ScrollBar detailBar = new ScrollBar(SCROLL_STEP);
     private @Nullable EditBox nameBox;
@@ -205,7 +202,7 @@ final class GroupsPane {
     }
 
     // A row draws #name and its members' icons, named on hover; answers its height, more than a line once its
-    // "and N more" link expanded it (decision groups-list-members-as-icons-without-headers-or-count).
+    // "and N more" button expanded it (decision groups-list-members-as-icons-without-headers-or-count).
     private int drawGroupRow(GuiGraphicsExtractor graphics, Font font, GroupsTab.GroupRow row, int left, int right,
                              int y, boolean selected, ClickTargets targets) {
         List<ExpressionLines.Run> runs = GroupsTab.rowRuns(row, icons::nameOf);
@@ -213,11 +210,13 @@ final class GroupsPane {
         int itemsX = left + NAME_WIDTH;
         int step = ICON_SIZE + ICON_GAP;
         int perRow = Math.max(1, (right - itemsX) / step);
-        boolean expanded = expandedRows.contains(row.name());
+        boolean expanded = expandedRows.expanded(row.name());
         UsedByLine.Fit fit = expanded ? UsedByLine.expanded(members.size())
-                : UsedByLine.fit(members.size(), right - itemsX, step, hidden -> font.width(UsedByLine.moreLabel(hidden)) + BUTTON_PADDING);
-        int lines = expanded ? Math.max(1, (fit.shown() + perRow - 1) / perRow) : 1;
-        int height = lines * ROW_HEIGHT;
+                : UsedByLine.fit(members.size(), right - itemsX, step,
+                        hidden -> ButtonPainter.width(font, UsedByLine.moreLabel(hidden)));
+        UsedByLine.Slot end = UsedByLine.endSlot(fit, expanded, perRow, step, right - itemsX,
+                ButtonPainter.width(font, UsedByLine.HIDE));
+        int height = (end.row() + 1) * ROW_HEIGHT;
         if (selected) {
             graphics.fill(left, y, right, y + height, SELECTED_COLOR);
         }
@@ -226,16 +225,18 @@ final class GroupsPane {
                 row.unknownCount() == 0 ? WHITE : RED);
         drawMemberIcons(graphics, members.subList(0, fit.shown()), itemsX, y, expanded ? perRow : fit.shown(),
                 targets);
-        drawMore(graphics, font, row.name(), fit, itemsX + fit.shown() * step, y, targets);
+        UsedByLine.endLabel(fit, expanded).ifPresent(label -> ButtonPainter.draw(graphics, font, label,
+                itemsX + end.x(), y + end.row() * ROW_HEIGHT, ROW_HEIGHT, targets,
+                () -> toggle(row.name(), expanded)));
         return height;
     }
 
-    // The "and N more" button a collapsed row stops at, which expands the row onto as many lines as it needs.
-    private void drawMore(GuiGraphicsExtractor graphics, Font font, String name, UsedByLine.Fit fit, int x, int y,
-                          ClickTargets targets) {
-        if (fit.hidden() > 0) {
-            String more = UsedByLine.moreLabel(fit.hidden());
-            ButtonPainter.draw(graphics, font, more, x, y, ROW_HEIGHT, targets, () -> expandedRows.add(name));
+    // Decision expanded-used-by-lists-take-a-hide-button: "and N more" expands the row, Hide collapses it again.
+    private void toggle(String name, boolean expanded) {
+        if (expanded) {
+            expandedRows.hide(name);
+        } else {
+            expandedRows.expand(name);
         }
     }
 
