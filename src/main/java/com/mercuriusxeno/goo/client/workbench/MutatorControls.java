@@ -220,12 +220,20 @@ final class MutatorControls {
         drawChain(entry, assignment.chain());
     }
 
+    /**
+     * @param chain the processes an assignment applies, in order
+     * @return the words leading the chain, none while it is empty, so the sentence ends where the value does
+     */
+    static List<String> chainLead(List<String> chain) {
+        return chain.isEmpty() ? List.of() : List.of(THEN);
+    }
+
     // The processes the assignment applies in order, each removable, then one more to add.
     private void drawChain(Entry entry, List<String> chain) {
         ControlFlow flow = entry.flow();
         String section = entry.section();
         String key = entry.key();
-        flow.text(THEN, GRAY);
+        chainLead(chain).forEach(words -> flow.text(words, GRAY));
         for (int index = 0; index < chain.size(); index++) {
             int link = index;
             flow.text(chain.get(index).substring(STACK_MARK.length()), WHITE);
