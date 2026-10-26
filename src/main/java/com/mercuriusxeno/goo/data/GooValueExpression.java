@@ -345,9 +345,10 @@ final class GooValueExpression {
      * @return the extracted goo type amount, or null if no valid dot position
      */
     private static ExprVal tryDotExtraction(String name, Map<String, GooValue> treeConstants) {
-        int dotIdx = name.lastIndexOf('.');
-        if (dotIdx > 0 && dotIdx < name.length() - 1) {
-            return extractDotConstant(name, dotIdx, treeConstants);
+        String typeSuffix = GooTypeNames.typeSuffix(name);
+        if (typeSuffix != null) {
+            return extractDotConstant(name.substring(0, name.length() - typeSuffix.length() - 1), typeSuffix,
+                    treeConstants);
         }
         return null;
     }
@@ -357,19 +358,17 @@ final class GooValueExpression {
      * component from $log). Returns null if the suffix is not a valid goo type key or the
      * constant is not found.
      *
-     * @param name          the full constant name with dot (e.g. "log.leaf")
-     * @param dotIdx        index of the last dot in name
+     * @param constName     the constant's name before the dot (e.g. "log")
+     * @param typeSuffix    the type after the dot (e.g. "leaf")
      * @param treeConstants tree constant symbol table
      * @return a single-type GooVal if extraction succeeds, or null to fall through
      */
-    private static ExprVal extractDotConstant(String name, int dotIdx,
+    private static ExprVal extractDotConstant(String constName, String typeSuffix,
                                               Map<String, GooValue> treeConstants) {
-        String constName = name.substring(0, dotIdx);
         GooValue tree = treeConstants.get(constName);
         if (tree == null) {
             return null;
         }
-        String typeSuffix = name.substring(dotIdx + 1);
         return parseSingleTypeGoo(typeSuffix, tree);
     }
 

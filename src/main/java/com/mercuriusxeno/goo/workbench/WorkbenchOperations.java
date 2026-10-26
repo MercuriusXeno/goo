@@ -2,12 +2,16 @@ package com.mercuriusxeno.goo.workbench;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.mercuriusxeno.goo.type.GooTypeDefinition;
+import net.minecraft.resources.ResourceKey;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Collection;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Every workbench read and write over the draft beside base_values.json, the inventory and the dumps, each taking
@@ -77,6 +81,7 @@ public final class WorkbenchOperations {
     private final InventoryDump dump;
     private final DumpRunner dumps;
     private final LiveApplier applier;
+    private final Supplier<? extends Collection<ResourceKey<GooTypeDefinition>>> knownTypes;
     // Guards the draft file alone: a dump run holds this object's own monitor for minutes, and a seed, Promote or
     // Discard must not wait on it.
     private final Object draftLock = new Object();
@@ -105,29 +110,34 @@ public final class WorkbenchOperations {
             Map.entry(DISCARD, posted -> discard()));
 
     /**
-     * @param paths the files the workbench reads and writes
-     * @param seed  the text a draft starts from where no live file stands
-     * @param dump  writes the inventory when none stands
-     * @param dumps runs the audit and clique dumps
+     * @param paths      the files the workbench reads and writes
+     * @param seed       the text a draft starts from where no live file stands
+     * @param dump       writes the inventory when none stands
+     * @param dumps      runs the audit and clique dumps
+     * @param knownTypes the goo types the game holds, read on every draft load
      */
-    public WorkbenchOperations(WorkbenchPaths paths, DraftSeed seed, InventoryDump dump, DumpRunner dumps) {
-        this(paths, seed, dump, dumps, LiveApplier.NONE);
+    public WorkbenchOperations(WorkbenchPaths paths, DraftSeed seed, InventoryDump dump, DumpRunner dumps,
+                               Supplier<? extends Collection<ResourceKey<GooTypeDefinition>>> knownTypes) {
+        this(paths, seed, dump, dumps, LiveApplier.NONE, knownTypes);
     }
 
     /**
-     * @param paths   the files the workbench reads and writes
-     * @param seed    the text a draft starts from where no live file stands
-     * @param dump    writes the inventory when none stands
-     * @param dumps   runs the audit and clique dumps
-     * @param applier applies the text a Save, a Promote or a Discard leaves standing to the running server
+     * @param paths      the files the workbench reads and writes
+     * @param seed       the text a draft starts from where no live file stands
+     * @param dump       writes the inventory when none stands
+     * @param dumps      runs the audit and clique dumps
+     * @param applier    applies the text a Save, a Promote or a Discard leaves standing to the running server
+     * @param knownTypes the goo types the game holds, read on every draft load
      */
     public WorkbenchOperations(WorkbenchPaths paths, DraftSeed seed, InventoryDump dump, DumpRunner dumps,
-                               LiveApplier applier) {
+                               LiveApplier applier,
+                               Supplier<? extends Collection<ResourceKey<GooTypeDefinition>>> knownTypes) {
         this.paths = paths;
         this.seed = seed;
         this.dump = dump;
         this.dumps = dumps;
         this.applier = applier;
+        this.knownTypes = knownTypes;
     }
 
     @FunctionalInterface
@@ -319,7 +329,25 @@ public final class WorkbenchOperations {
      * @return the draft's model, the draft seeded first where none stands
      */
     private BaseValuesModel fileLayout() throws IOException {
-        return BaseValuesModel.parse(Files.readString(seededDraft()));
+        seededDraft();
+        return datafixedDraft();
+    }
+
+    /**
+     * Reads the draft without each entry naming a goo type the game does not hold, writing the draft back without
+     * them so the file stops naming the type (decision draft-load-drops-entries-naming-an-unknown-type).
+     *
+     * @return the draft's model, datafixed
+     */
+    private BaseValuesModel datafixedDraft() throws IOException {
+        synchronized (draftLock) {
+            BaseValuesModel read = BaseValuesModel.parse(Files.readString(paths.draft()));
+            BaseValuesModel datafixed = UnknownTypeEntries.dropped(read, knownTypes.get());
+            if (datafixed != read) {
+                Files.writeString(paths.draft(), datafixed.serialize());
+            }
+            return datafixed;
+        }
     }
 
     /**
@@ -365,6 +393,7 @@ public final class WorkbenchOperations {
             if (!Files.isRegularFile(paths.draft())) {
                 return WorkbenchReply.of(CONFLICT, WorkbenchReply.TEXT, NO_DRAFT_AT + paths.draft());
             }
+            datafixedDraft();
             Files.move(paths.draft(), paths.baseValues(), StandardCopyOption.REPLACE_EXISTING,
                     StandardCopyOption.ATOMIC_MOVE);
         }
@@ -386,9 +415,8 @@ public final class WorkbenchOperations {
             }
             Files.copy(paths.baseValues(), paths.draft(), StandardCopyOption.REPLACE_EXISTING);
         }
-        String live = Files.readString(paths.baseValues());
-        applier.apply(live);
-        return modelReply(BaseValuesModel.parse(live));
+        applier.apply(Files.readString(paths.baseValues()));
+        return modelReply(datafixedDraft());
     }
 
     private WorkbenchReply inventory() throws IOException, InterruptedException {
