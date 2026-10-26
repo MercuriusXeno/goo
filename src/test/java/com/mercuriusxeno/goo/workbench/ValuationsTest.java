@@ -154,6 +154,25 @@ class ValuationsTest {
     }
 
     /**
+     * An item no entry names but a recipe values resolves to its derived value, keyed as the Items tab looks it up,
+     * so planks solved from valued sticks read their value rather than none
+     * (decision derivation-solves-whichever-side-of-a-recipe-is-unknown).
+     */
+    @Test
+    void resolveAnswersARecipeDerivedItem() {
+        BaseValuesModel model = BaseValuesModel.parse("""
+                {
+                    "stick": {"leaf": 2}
+                }
+                """);
+        JsonArray entries = JsonParser.parseString(Valuations.resolved(model, InventoryView.parse(plankInventory())))
+                .getAsJsonObject().getAsJsonArray("entries");
+        assertEquals("4", entryNamed(entries, "oak_planks").getAsJsonObject("value").get("leaf").getAsString());
+        assertFalse(entries.asList().stream().anyMatch(entry -> "mystery".equals(entry.getAsJsonObject().get("key")
+                .getAsString())));
+    }
+
+    /**
      * An entry reading {} values nothing, so it reads as none with nothing defined and stands uncovered
      * (decision inventory-hydrates-the-tool-and-writes-no-template).
      */
