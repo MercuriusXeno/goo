@@ -25,8 +25,10 @@ public final class ProcessesTab {
     private static final String TEXT = "text";
     private static final String PARSED = "parsed";
     private static final String ERROR = "error";
-    private static final String PARSED_VERDICT = "parsed";
-    private static final String REFUSED_VERDICT = "the parser refuses it";
+    // Decision mutators-read-valid-or-invalid-with-a-mark.
+    private static final String VALID_VERDICT = "Valid";
+    private static final String INVALID_VERDICT = "Invalid";
+    private static final String REFUSED_REASON = "the parser refuses it";
     private static final String ENTRIES_SUFFIX = " entries";
     private static final String REFUSED_START = ", ";
     private static final String REFUSED_SUFFIX = " refused";
@@ -58,9 +60,10 @@ public final class ProcessesTab {
      * @param kind    its form, lower case: formula, additive, stack or assignment
      * @param text    its text unquoted
      * @param parsed  whether the game's conversion parser accepts it
-     * @param verdict parsed, or the parser's refusal
+     * @param verdict Valid, or Invalid where the parser refuses it
+     * @param reason  the parser's refusal, empty for a valid row
      */
-    public record ProcessRow(String key, String kind, String text, boolean parsed, String verdict) {
+    public record ProcessRow(String key, String kind, String text, boolean parsed, String verdict, String reason) {
     }
 
     /**
@@ -117,11 +120,12 @@ public final class ProcessesTab {
     private static ProcessRow rowOf(JsonObject process) {
         boolean parsed = process.get(PARSED).getAsBoolean();
         JsonElement error = process.get(ERROR);
-        String verdict = parsed ? PARSED_VERDICT
-                : error == null || error.isJsonNull() ? REFUSED_VERDICT : error.getAsString();
+        String reason = parsed ? NO_TEXT
+                : error == null || error.isJsonNull() ? REFUSED_REASON : error.getAsString();
         return new ProcessRow(process.get(KEY).getAsString(),
                 process.get(KIND).getAsString().toLowerCase(Locale.ROOT),
-                ManagerDraft.shownText(process.get(TEXT).getAsString()), parsed, verdict);
+                ManagerDraft.shownText(process.get(TEXT).getAsString()), parsed,
+                parsed ? VALID_VERDICT : INVALID_VERDICT, reason);
     }
 
     /**
