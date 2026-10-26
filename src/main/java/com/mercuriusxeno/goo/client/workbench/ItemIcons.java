@@ -19,7 +19,6 @@ final class ItemIcons {
     private static final String TAG_PREFIX = "#";
     private static final String DEFAULT_NAMESPACE = "minecraft:";
     private static final String NAMESPACE_SEPARATOR = ":";
-    private static final String AMOUNT_SEPARATOR = ": ";
 
     // A hover key no prefab name spells, since a name holds no colon.
     private static final String HOVER_PREFIX = "goo-item:";
@@ -46,7 +45,7 @@ final class ItemIcons {
      * @param hoverKey what the hovered area names
      * @return the item's name and value where the area is an item icon's, empty otherwise
      */
-    Optional<List<Component>> tooltipFor(String hoverKey) {
+    Optional<List<TooltipLine>> tooltipFor(String hoverKey) {
         if (!hoverKey.startsWith(HOVER_PREFIX)) {
             return Optional.empty();
         }
@@ -61,11 +60,11 @@ final class ItemIcons {
      * @param amounts each goo type the item is worth with its amount, empty where nothing values it
      * @return the name, then one line per goo type with its amount
      */
-    static List<Component> tooltipLines(String name, Map<String, String> amounts) {
-        List<Component> lines = new ArrayList<>();
-        lines.add(Component.literal(name));
-        amounts.forEach((type, amount) -> lines.add(Component.empty().append(GooTypeIcons.nameOf(type))
-                .append(Component.literal(AMOUNT_SEPARATOR + amount))));
+    static List<TooltipLine> tooltipLines(String name, Map<String, String> amounts) {
+        List<TooltipLine> lines = new ArrayList<>();
+        lines.add(new TooltipLine.Text(Component.literal(name)));
+        // decision value-tooltips-draw-each-types-icon-before-its-amount
+        amounts.forEach((type, amount) -> lines.add(new TooltipLine.GooAmount(type, amount)));
         return lines;
     }
 

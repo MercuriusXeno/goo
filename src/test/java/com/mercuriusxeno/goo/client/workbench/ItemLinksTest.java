@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.Test;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,16 +31,19 @@ class ItemLinksTest {
     }
 
     /**
-     * A valued item's tooltip reads its name then one line per goo type with its amount; a valueless item reads its
-     * name alone.
+     * A valued item's tooltip reads its name then one goo amount line per type, carrying the type's id and its
+     * amount and no type name; a valueless item reads its name alone (decision
+     * value-tooltips-draw-each-types-icon-before-its-amount).
      */
     @Test
     void tooltipReadsNameThenEachTypesAmount() {
-        List<Component> valued = ItemIcons.tooltipLines("Stick", Map.of("leaf", "48"));
-        assertEquals(2, valued.size());
-        assertEquals("Stick", valued.getFirst().getString());
-        assertTrue(valued.get(1).getString().endsWith("48"));
-        List<Component> valueless = ItemIcons.tooltipLines("Torch", Map.of());
-        assertEquals(List.of("Torch"), valueless.stream().map(Component::getString).toList());
+        Map<String, String> amounts = new LinkedHashMap<>();
+        amounts.put("leaf", "48");
+        amounts.put("metal", "3/2");
+        List<TooltipLine> valued = ItemIcons.tooltipLines("Stick", amounts);
+        assertEquals(List.of(new TooltipLine.Text(Component.literal("Stick")),
+                new TooltipLine.GooAmount("leaf", "48"), new TooltipLine.GooAmount("metal", "3/2")), valued);
+        assertEquals(List.of(new TooltipLine.Text(Component.literal("Torch"))),
+                ItemIcons.tooltipLines("Torch", Map.of()));
     }
 }

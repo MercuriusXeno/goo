@@ -1,6 +1,8 @@
 package com.mercuriusxeno.goo.client.tooltip;
 
 import com.mercuriusxeno.goo.Goo;
+import com.mercuriusxeno.goo.client.workbench.GooAmountTooltipComponent;
+import com.mercuriusxeno.goo.client.workbench.TooltipLine;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -24,5 +26,7 @@ public final class GooTooltipComponentFactory {
         event.register(GooValueTooltipComponent.class, GooValueClientTooltipComponent::new);
         event.register(VanillaFluidTooltipComponent.class, VanillaFluidClientTooltipComponent::new);
         event.register(ContainerValueTooltipComponent.class, ContainerValueClientTooltipComponent::new);
+        // decision value-tooltips-draw-each-types-icon-before-its-amount
+        event.register(TooltipLine.GooAmount.class, GooAmountTooltipComponent::new);
     }
 }

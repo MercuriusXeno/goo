@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.workbench;
 
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
+import com.mojang.datafixers.util.Either;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
@@ -8,6 +9,9 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FormattedText;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
+import net.minecraft.world.item.ItemStack;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -416,14 +420,25 @@ public final class ValuesManagerScreen extends Screen {
         draftPane.extract(graphics, font, width, height, targets);
         // decision goo-types-draw-as-icons-named-on-hover
         targets.hovered(mouseX, mouseY).flatMap(this::tooltipLines)
-                .ifPresent(lines -> graphics.setComponentTooltipForNextFrame(font, lines, mouseX, mouseY));
+                .ifPresent(lines -> graphics.setComponentTooltipFromElementsForNextFrame(font, elementsOf(lines),
+                        mouseX, mouseY, ItemStack.EMPTY));
     }
 
     // A goo type or a control names itself on one line; an item or a prefab names itself, then its value.
-    private Optional<List<Component>> tooltipLines(String hoverKey) {
+    private Optional<List<TooltipLine>> tooltipLines(String hoverKey) {
         Optional<Component> line = GooTypeIcons.tooltipFor(hoverKey).or(() -> BuilderOverlays.tooltipFor(hoverKey));
-        return line.isPresent() ? Optional.of(List.of(line.get()))
+        return line.isPresent() ? Optional.of(List.of(new TooltipLine.Text(line.get())))
                 : icons.tooltipFor(hoverKey).or(() -> PrefabHovers.tooltipFor(variablesTab, hoverKey));
+    }
+
+    // Text stays text; a goo amount reaches GooAmountTooltipComponent through the tooltip factory registered for it,
+    // and the deferred call draws the tooltip over the frame (decision
+    // value-tooltips-draw-each-types-icon-before-its-amount).
+    private static List<Either<FormattedText, TooltipComponent>> elementsOf(List<TooltipLine> lines) {
+        return lines.stream().map(line -> switch (line) {
+            case TooltipLine.Text text -> Either.<FormattedText, TooltipComponent>left(text.text());
+            case TooltipLine.GooAmount amount -> Either.<FormattedText, TooltipComponent>right(amount);
+        }).toList();
     }
 
     @Override
