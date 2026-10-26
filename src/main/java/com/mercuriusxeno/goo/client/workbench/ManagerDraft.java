@@ -80,15 +80,6 @@ public final class ManagerDraft {
     }
 
     /**
-     * @param field a field the last model reply carried beside the members, such as its checks
-     * @return that field's array, empty where the reply carried none
-     */
-    public JsonArray array(String field) {
-        JsonElement value = model.get(field);
-        return value != null && value.isJsonArray() ? value.getAsJsonArray() : new JsonArray();
-    }
-
-    /**
      * @param section the key of a section member, such as _conversions
      * @return that section's entries, live, empty where the draft holds no such section
      */

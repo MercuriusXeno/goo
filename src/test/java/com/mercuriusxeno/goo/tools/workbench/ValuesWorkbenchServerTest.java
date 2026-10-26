@@ -242,6 +242,22 @@ class ValuesWorkbenchServerTest {
     }
 
     /**
+     * The page draws no Checks tab, and its promote post carries no acknowledged flag
+     * (decision values-checks-go-with-the-checks-tab).
+     */
+    @Test
+    void pageDrawsNoChecksTab() throws IOException {
+        String page;
+        try (java.io.InputStream stream = ValuesWorkbenchServerTest.class.getClassLoader()
+                .getResourceAsStream("workbench/index.html")) {
+            assertNotNull(stream, "no workbench/index.html on the classpath");
+            page = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        assertFalse(page.contains("data-tab=\"checks\""), "the page still draws a Checks tab");
+        assertFalse(page.contains("acknowledged"), "the page's promote still posts an acknowledged flag");
+    }
+
+    /**
      * A standing inventory is served as it stands, with no dump run.
      */
     @Test
