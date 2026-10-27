@@ -248,16 +248,17 @@ final class ExpressionBuilder {
     /**
      * Scales the whole value as one sum.
      *
-     * @param factor the number multiplying it
+     * @param op     whether the number multiplies or divides it
+     * @param factor the number scaling it
      */
-    void scaleWhole(String factor) {
+    void scaleWhole(Op op, String factor) {
         if (!isNumber(factor) || whole.isEmpty()) {
             return;
         }
         changed();
         List<Piece> inner = new ArrayList<>(whole);
         whole.clear();
-        whole.add(new Piece(ExpressionTerms.Join.FIRST, new Nest(List.copyOf(inner)), Op.MULTIPLY, factor.trim()));
+        whole.add(new Piece(ExpressionTerms.Join.FIRST, new Nest(List.copyOf(inner)), op, factor.trim()));
     }
 
     private boolean addTerm(List<Integer> sum, Operand operand) {

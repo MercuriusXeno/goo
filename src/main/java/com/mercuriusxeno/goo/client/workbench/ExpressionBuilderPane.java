@@ -63,8 +63,7 @@ final class ExpressionBuilderPane {
     private static final String RATIO = ":";
     private static final String MULTIPLIER_HINT = "Click to change what this is multiplied by; 1 removes it";
     private static final String DIVISOR_HINT = "Click to change what this is divided by; 1 removes it";
-    private static final String SCALE_WHOLE = "scale the whole value";
-    private static final String SCALE_WHOLE_HINT = "Multiply or divide everything above by one number, as one sum";
+    private static final String WHOLE_VALUE = "the whole value";
     private static final String SUM_OF = "the sum of:";
     private static final String ONE_TYPE = "only one goo type";
     private static final String ONE_TYPE_HINT = "Use only one goo type of this value";
@@ -445,9 +444,13 @@ final class ExpressionBuilderPane {
             flow.control(ADD_SUM, ADD_SUM_HINT, at -> overlays.openDropdown(at, termList(sort),
                     choice -> apply(b -> b.addSum(refOf(choice)))));
         }
+        // Decision scale-shows-the-ratio-at-once: several terms draw the whole value's ratio 1:1 on a line of its
+        // own; setting a side wraps the value as one sum scaled by it.
         if (pieces.size() > 1) {
-            flow.control(SCALE_WHOLE, SCALE_WHOLE_HINT, at -> overlays.openNumber(at, BLANK,
-                    factor -> apply(b -> b.scaleWhole(factor)), true));
+            flow.newLine();
+            flow.text(WHOLE_VALUE, GRAY);
+            drawRatio(flow, ExpressionBuilder.ONE_TEXT, ExpressionBuilder.ONE_TEXT,
+                    (op, factor) -> apply(b -> b.scaleWhole(op, factor)));
         }
     }
 
@@ -549,12 +552,15 @@ final class ExpressionBuilderPane {
     private void drawFactor(ControlFlow flow, ExpressionBuilder.Piece piece, ScaleChange change) {
         if (BuilderGrammar.factorOf(piece) != BuilderGrammar.Factor.HIDDEN) {
             boolean multiplies = piece.op() == ExpressionBuilder.Op.MULTIPLY;
-            ratioSide(flow, multiplies ? piece.factor() : ExpressionBuilder.ONE_TEXT, MULTIPLIER_HINT,
-                    ExpressionBuilder.Op.MULTIPLY, change);
-            flow.text(RATIO, GRAY);
-            ratioSide(flow, multiplies ? ExpressionBuilder.ONE_TEXT : piece.factor(), DIVISOR_HINT,
-                    ExpressionBuilder.Op.DIVIDE, change);
+            drawRatio(flow, multiplies ? piece.factor() : ExpressionBuilder.ONE_TEXT,
+                    multiplies ? ExpressionBuilder.ONE_TEXT : piece.factor(), change);
         }
+    }
+
+    private void drawRatio(ControlFlow flow, String multiplier, String divisor, ScaleChange change) {
+        ratioSide(flow, multiplier, MULTIPLIER_HINT, ExpressionBuilder.Op.MULTIPLY, change);
+        flow.text(RATIO, GRAY);
+        ratioSide(flow, divisor, DIVISOR_HINT, ExpressionBuilder.Op.DIVIDE, change);
     }
 
     private void ratioSide(ControlFlow flow, String shown, String hint, ExpressionBuilder.Op op, ScaleChange change) {
