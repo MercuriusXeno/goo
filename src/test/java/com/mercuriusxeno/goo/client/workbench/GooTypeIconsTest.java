@@ -5,6 +5,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.resources.Identifier;
 import org.junit.jupiter.api.Test;
+import javax.imageio.ImageIO;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -39,6 +42,34 @@ class GooTypeIconsTest {
             assertTrue(tooltip.isPresent(), type);
             assertEquals("goo.type." + type, ((TranslatableContents) tooltip.get().getContents()).getKey());
         }
+    }
+
+    /**
+     * The size answered for each type is its png's width under textures/goo/type, read from the texture rather than
+     * written as a number (decision items-value-line-draws-type-icons-at-eleven-texels).
+     */
+    @Test
+    void eachTypesSizeIsItsTexturesWidth() throws IOException {
+        for (String type : GooTypes.BUNDLED.stream().map(GooTypes::id).toList()) {
+            int width;
+            try (InputStream png = open(GooTypeIcons.texture(type)).orElseThrow()) {
+                width = ImageIO.read(png).getWidth();
+            }
+            assertEquals(width, GooTypeIcons.sizeOf(type, GooTypeIconsTest::open), type);
+        }
+    }
+
+    /**
+     * A type whose texture is missing answers the icon's declared side.
+     */
+    @Test
+    void aMissingTextureAnswersTheDeclaredSize() {
+        assertEquals(GooTypeIcons.SIZE, GooTypeIcons.sizeOf("metal", id -> Optional.empty()));
+    }
+
+    private static Optional<InputStream> open(Identifier texture) {
+        return Optional.ofNullable(GooTypeIconsTest.class.getResourceAsStream(
+                "/assets/" + texture.getNamespace() + "/" + texture.getPath()));
     }
 
     /**

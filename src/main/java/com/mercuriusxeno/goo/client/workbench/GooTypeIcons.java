@@ -2,11 +2,18 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import com.mercuriusxeno.goo.type.GooTypeNames;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 /**
  * A goo type drawn as its icon from the mod's own type texture, bare beside its amount, as the radial wheel and the
@@ -23,6 +30,8 @@ final class GooTypeIcons {
     private static final String PICK_PREFIX = "goo-type-pick:";
     private static final String PICK_NOTE = " (click to pick another)";
     private static final int OPAQUE = 0xFFFFFFFF;
+    private static final int PNG_WIDTH_OFFSET = 16;
+    private static final Map<String, Integer> SIZES = new ConcurrentHashMap<>();
 
     private GooTypeIcons() {
     }
@@ -33,6 +42,43 @@ final class GooTypeIcons {
      */
     static Identifier texture(String type) {
         return Identifier.fromNamespaceAndPath(GooTypes.NAMESPACE, TEXTURE_PREFIX + type + TEXTURE_SUFFIX);
+    }
+
+    /**
+     * @param type a goo type's id
+     * @return its icon's side as its texture draws it one texel per pixel, read once from the texture
+     */
+    static int sizeOf(String type) {
+        return SIZES.computeIfAbsent(type, each -> sizeOf(each, GooTypeIcons::openTexture));
+    }
+
+    /**
+     * @param type   a goo type's id
+     * @param opener opens a texture's png, empty where the resource is missing
+     * @return the png's width, the icon's declared side where the texture is missing or unreadable
+     */
+    static int sizeOf(String type, Function<Identifier, Optional<InputStream>> opener) {
+        return opener.apply(texture(type)).map(GooTypeIcons::pngWidth).orElse(SIZE);
+    }
+
+    private static Optional<InputStream> openTexture(Identifier texture) {
+        return Minecraft.getInstance().getResourceManager().getResource(texture).flatMap(resource -> {
+            try {
+                return Optional.of(resource.open());
+            } catch (IOException missing) {
+                return Optional.empty();
+            }
+        });
+    }
+
+    // A png's width is the big-endian int after its signature and the IHDR chunk's length and name.
+    private static int pngWidth(InputStream png) {
+        try (DataInputStream in = new DataInputStream(png)) {
+            in.skipNBytes(PNG_WIDTH_OFFSET);
+            return in.readInt();
+        } catch (IOException unreadable) {
+            return SIZE;
+        }
     }
 
     /**
