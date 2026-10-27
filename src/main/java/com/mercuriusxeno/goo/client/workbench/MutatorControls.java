@@ -136,16 +136,31 @@ final class MutatorControls {
     private void drawKind(Entry entry, Processes.Form form) {
         ControlFlow flow = entry.flow();
         flow.text(KIND, GRAY);
-        flow.choice(FORMULA, FORMULA_HINT, form instanceof Processes.Formula, () -> freshFormula(entry));
+        ControlFlow.ChoiceSet kinds = new ControlFlow.ChoiceSet();
+        boolean formula = form instanceof Processes.Formula;
+        kinds.add(new BuilderOverlays.Option(FORMULA, FORMULA_HINT, unlessChosen(formula, () -> freshFormula(entry))),
+                formula);
         if (!treePrefabs.get().isEmpty()) {
-            flow.choice(ADDITIVE, ADDITIVE_HINT, form instanceof Processes.Additive,
-                    () -> write(entry, new Processes.Additive(treePrefabs.get().getFirst())));
+            boolean additive = form instanceof Processes.Additive;
+            kinds.add(new BuilderOverlays.Option(ADDITIVE, ADDITIVE_HINT, unlessChosen(additive,
+                    () -> write(entry, new Processes.Additive(treePrefabs.get().getFirst())))), additive);
         }
         List<String> others = otherProcesses(entry);
         if (!others.isEmpty()) {
-            flow.choice(STACK, STACK_HINT, form instanceof Processes.Stack,
-                    () -> write(entry, new Processes.Stack(1, others.getFirst())));
+            boolean stack = form instanceof Processes.Stack;
+            kinds.add(new BuilderOverlays.Option(STACK, STACK_HINT, unlessChosen(stack,
+                    () -> write(entry, new Processes.Stack(1, others.getFirst())))), stack);
         }
+        flow.choices(kinds, overlays);
+    }
+
+    // Picking the kind the form already is keeps the form, so a misclick wipes nothing.
+    private static Consumer<BuilderOverlays.Anchor> unlessChosen(boolean chosen, Runnable fresh) {
+        return at -> {
+            if (!chosen) {
+                fresh.run();
+            }
+        };
     }
 
     private void freshFormula(Entry entry) {
