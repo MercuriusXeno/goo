@@ -349,9 +349,29 @@ tasks.register('saveSoundOptions') {
     }
 }
 
+// Rewrites an options.txt with each key's line replaced by the value given, keeping every other line
+var replaceOptionLines = { File options, Map<String, String> replacements ->
+    options.parentFile.mkdirs()
+    var isReplaced = { String line -> replacements.keySet().any { line.startsWith(it + ':') } }
+    var kept = options.exists() ? options.readLines().findAll { !isReplaced(it) } : []
+    var seeded = replacements.collect { key, value -> "${key}:${value}".toString() }
+    options.text = (kept + seeded).join('\n') + '\n'
+}
+
+// Every worktree's dev client opens with the movement tutorial and the accessibility screen already dismissed
+// (decision runclient-seeds-options-to-skip-first-launch-prompts)
+tasks.register('seedFirstLaunchOptions') {
+    description = 'Sets tutorialStep:none and onboardAccessibility:false in runs/client/options.txt, keeping its other lines'
+    group = 'goo'
+    mustRunAfter 'seedSoundOptions'
+    doLast {
+        replaceOptionLines(clientOptions, [tutorialStep: 'none', onboardAccessibility: 'false'])
+    }
+}
+
 afterEvaluate {
     tasks.named('runClient').configure {
-        dependsOn 'seedLab', 'seedSoundOptions'
+        dependsOn 'seedLab', 'seedSoundOptions', 'seedFirstLaunchOptions'
         finalizedBy 'saveSoundOptions'
     }
     tasks.named('runCaptureInventory').configure {
@@ -359,9 +379,7 @@ afterEvaluate {
         // A first launch's accessibility screen holds quick play on the title screen until someone dismisses it.
         var options = file('runs/captureInventory/options.txt')
         doFirst {
-            options.parentFile.mkdirs()
-            var lines = options.exists() ? options.readLines().findAll { !it.startsWith('onboardAccessibility:') } : []
-            options.text = (lines + 'onboardAccessibility:false').join('\n') + '\n'
+            replaceOptionLines(options, [onboardAccessibility: 'false'])
         }
     }
 }
