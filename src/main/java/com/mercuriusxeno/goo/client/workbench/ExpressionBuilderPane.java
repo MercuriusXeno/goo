@@ -5,6 +5,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -94,6 +95,8 @@ final class ExpressionBuilderPane {
     private static final String NO_CHANGES_HINT = "No unsaved changes";
     private static final String CHANGES_SAVED_HINT = "Changes already saved to the draft";
     private static final String BLANK = "";
+    private static final String TERM_MARK = "term ";
+    private static final String ROW_MARK = "row ";
 
     private final ItemIcons icons;
     private final BuilderOverlays overlays;
@@ -104,6 +107,8 @@ final class ExpressionBuilderPane {
     private String openedText = BLANK;
     private @Nullable Consumer<String> writes;
     private @Nullable Runnable done;
+    // The pieces whose scale offer was clicked, drawn as the ratio 1:1 until the builder closes or a piece is removed.
+    private final Set<String> openedFactors = new HashSet<>();
 
     /**
      * @param actions   the panes' line back to the screen
@@ -152,6 +157,7 @@ final class ExpressionBuilderPane {
 
     private void openUnder(BuilderGrammar read, String shown, Consumer<String> change, Runnable finish) {
         overlays.close();
+        openedFactors.clear();
         grammar = read;
         ExpressionBuilder opened = ExpressionBuilder.of(shown);
         if (!opened.isPerType() && !opened.terms().isEmpty()) {
@@ -169,6 +175,7 @@ final class ExpressionBuilderPane {
      */
     void close() {
         overlays.close();
+        openedFactors.clear();
         builder = null;
     }
 
@@ -348,7 +355,7 @@ final class ExpressionBuilderPane {
                     icons::nameOf), KEPT_HINT, null);
         }
         if (removable) {
-            flow.control(REMOVE, REMOVE_ROW_HINT, at -> apply(b -> b.removeRow(row)));
+            flow.control(REMOVE, REMOVE_ROW_HINT, at -> removePiece(b -> b.removeRow(row)));
         }
     }
 
@@ -358,7 +365,7 @@ final class ExpressionBuilderPane {
         flow.text(AMOUNT_FROM, GRAY);
         flow.choices(amountModes(row, type, piece.operand()), overlays);
         if (drawAmountOperand(flow, row, type, piece.operand())) {
-            drawFactor(flow, piece, SCALE, SCALE_HINT, (op, factor) -> apply(b -> b.setRowScale(row, op, factor)));
+            drawFactor(flow, piece, ScaleOffer.row(row), (op, factor) -> apply(b -> b.setRowScale(row, op, factor)));
         }
     }
 
@@ -478,10 +485,10 @@ final class ExpressionBuilderPane {
         }
         drawOperand(flow, path, piece, sort);
         if (!(piece.operand() instanceof ExpressionBuilder.Kept)) {
-            drawFactor(flow, piece, SCALE, SCALE_HINT, (op, factor) -> apply(b -> b.setScale(path, op, factor)));
+            drawFactor(flow, piece, ScaleOffer.term(path), (op, factor) -> apply(b -> b.setScale(path, op, factor)));
         }
         if (count > 1) {
-            flow.control(REMOVE, REMOVE_TERM_HINT, at -> apply(b -> b.remove(path)));
+            flow.control(REMOVE, REMOVE_TERM_HINT, at -> removePiece(b -> b.remove(path)));
         }
     }
 
@@ -512,12 +519,12 @@ final class ExpressionBuilderPane {
                           ExpressionBuilder.Nest nest, int count, String sort) {
         flow.text(SUM_OF, GRAY);
         if (count > 1) {
-            flow.control(REMOVE, REMOVE_SUM_HINT, at -> apply(b -> b.remove(path)));
+            flow.control(REMOVE, REMOVE_SUM_HINT, at -> removePiece(b -> b.remove(path)));
         }
         flow.indent();
         drawSum(flow, path, nest.pieces(), sort);
         flow.outdent();
-        drawFactor(flow, piece, SCALE_SUM, SCALE_SUM_HINT, (op, factor) -> apply(b -> b.setScale(path, op, factor)));
+        drawFactor(flow, piece, ScaleOffer.sum(path), (op, factor) -> apply(b -> b.setScale(path, op, factor)));
     }
 
     // A goo type taken from the item or prefab: its icon picks another or the whole value again.
@@ -541,24 +548,43 @@ final class ExpressionBuilderPane {
         void changed(ExpressionBuilder.Op op, String factor);
     }
 
+    /**
+     * A piece's scale offer.
+     *
+     * @param label what the offer reads
+     * @param hint  what clicking it does
+     * @param piece the piece it scales, a term's or sum's path or a goo type row, kept while its ratio stands opened
+     */
+    private record ScaleOffer(String label, String hint, String piece) {
+        static ScaleOffer term(List<Integer> path) {
+            return new ScaleOffer(SCALE, SCALE_HINT, TERM_MARK + path);
+        }
+
+        static ScaleOffer sum(List<Integer> path) {
+            return new ScaleOffer(SCALE_SUM, SCALE_SUM_HINT, TERM_MARK + path);
+        }
+
+        static ScaleOffer row(int row) {
+            return new ScaleOffer(SCALE, SCALE_HINT, ROW_MARK + row);
+        }
+    }
+
     // A number shows no factor, a reference or a sum offers one, and a factor other than 1 reads as a ratio,
     // multiplier:divisor, one side the factor and the other 1, each a number box; setting a side multiplies or
     // divides by it (decision factor-reads-as-a-ratio).
-    private void drawFactor(ControlFlow flow, ExpressionBuilder.Piece piece, String offer, String offerHint,
-                            ScaleChange change) {
-        switch (BuilderGrammar.factorOf(piece)) {
-            case HIDDEN -> {
-            }
-            case OFFERED -> flow.control(offer, offerHint, at -> overlays.openNumber(at, BLANK,
-                    factor -> change.changed(ExpressionBuilder.Op.MULTIPLY, factor), true));
-            case SHOWN -> {
-                boolean multiplies = piece.op() == ExpressionBuilder.Op.MULTIPLY;
-                ratioSide(flow, multiplies ? piece.factor() : ExpressionBuilder.ONE_TEXT, MULTIPLIER_HINT,
-                        ExpressionBuilder.Op.MULTIPLY, change);
-                flow.text(RATIO, GRAY);
-                ratioSide(flow, multiplies ? ExpressionBuilder.ONE_TEXT : piece.factor(), DIVISOR_HINT,
-                        ExpressionBuilder.Op.DIVIDE, change);
-            }
+    // Decision scale-shows-the-ratio-at-once: clicking the offer draws 1:1, so either side is set first; a ratio
+    // back at 1:1 folds to the offer once the builder opens again.
+    private void drawFactor(ControlFlow flow, ExpressionBuilder.Piece piece, ScaleOffer offer, ScaleChange change) {
+        BuilderGrammar.Factor factor = BuilderGrammar.factorOf(piece);
+        if (factor == BuilderGrammar.Factor.OFFERED && !openedFactors.contains(offer.piece())) {
+            flow.control(offer.label(), offer.hint(), at -> openedFactors.add(offer.piece()));
+        } else if (factor != BuilderGrammar.Factor.HIDDEN) {
+            boolean multiplies = piece.op() == ExpressionBuilder.Op.MULTIPLY;
+            ratioSide(flow, multiplies ? piece.factor() : ExpressionBuilder.ONE_TEXT, MULTIPLIER_HINT,
+                    ExpressionBuilder.Op.MULTIPLY, change);
+            flow.text(RATIO, GRAY);
+            ratioSide(flow, multiplies ? ExpressionBuilder.ONE_TEXT : piece.factor(), DIVISOR_HINT,
+                    ExpressionBuilder.Op.DIVIDE, change);
         }
     }
 
@@ -611,6 +637,12 @@ final class ExpressionBuilderPane {
         if (writes != null && after.isPresent() && !after.equals(before)) {
             writes.accept(after.get());
         }
+    }
+
+    // A removal shifts the paths and rows after it, so no opened ratio outlives it.
+    private void removePiece(Consumer<ExpressionBuilder> removal) {
+        openedFactors.clear();
+        apply(removal);
     }
 
     private void finish() {
