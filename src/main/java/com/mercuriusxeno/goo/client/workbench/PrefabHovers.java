@@ -13,7 +13,6 @@ import java.util.Optional;
 final class PrefabHovers {
     // A hover key no prefab name, item id or hint spells.
     private static final String HOVER_PREFIX = "goo-prefab:";
-    private static final String AMOUNT_SEPARATOR = ": ";
 
     private PrefabHovers() {
     }
@@ -32,27 +31,27 @@ final class PrefabHovers {
      * @return the prefab's name, then one line per goo type with its amount for a tree, its value for a scalar, or
      *     its error; empty where the area is no prefab reference's
      */
-    static Optional<List<Component>> tooltipFor(VariablesTab variables, String hoverKey) {
+    static Optional<List<TooltipLine>> tooltipFor(VariablesTab variables, String hoverKey) {
         if (!hoverKey.startsWith(HOVER_PREFIX)) {
             return Optional.empty();
         }
         String name = hoverKey.substring(HOVER_PREFIX.length());
-        List<Component> lines = new ArrayList<>();
-        lines.add(Component.literal(name));
+        List<TooltipLine> lines = new ArrayList<>();
+        lines.add(new TooltipLine.Text(Component.literal(name)));
         variables.prefabValue(name).ifPresent(value -> lines.addAll(valueLines(value)));
         return Optional.of(lines);
     }
 
-    private static List<Component> valueLines(VariablesTab.PrefabValue value) {
+    private static List<TooltipLine> valueLines(VariablesTab.PrefabValue value) {
         if (!value.error().isEmpty()) {
-            return List.of(Component.literal(value.error()));
+            return List.of(new TooltipLine.Text(Component.literal(value.error())));
         }
         if (value.tree().isEmpty()) {
-            return List.of(Component.literal(value.scalar()));
+            return List.of(new TooltipLine.Text(Component.literal(value.scalar())));
         }
-        List<Component> lines = new ArrayList<>();
-        value.tree().forEach((type, amount) -> lines.add(Component.empty().append(GooTypeIcons.nameOf(type))
-                .append(Component.literal(AMOUNT_SEPARATOR + amount))));
+        List<TooltipLine> lines = new ArrayList<>();
+        // decision value-tooltips-draw-each-types-icon-before-its-amount
+        value.tree().forEach((type, amount) -> lines.add(new TooltipLine.GooAmount(type, amount)));
         return lines;
     }
 }

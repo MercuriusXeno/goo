@@ -36,6 +36,9 @@ final class GroupsPane {
     private static final int TEXT_NUDGE = 5;
     private static final int SECTION_GAP = 6;
     private static final int HALF = 2;
+    private static final int NAME_TEXT_WIDTH = NAME_WIDTH - HALF;
+    // A hover key no item id, prefab name or goo type key spells.
+    private static final String NAME_HOVER_PREFIX = "goo-group-name:";
     private static final int SCROLL_STEP = ROW_HEIGHT * 3;
     // Nine digits always fit an int.
     private static final int MAX_DIGITS = 9;
@@ -239,8 +242,31 @@ final class GroupsPane {
         }
         targets.add(area.left(), area.top(), area.right() - area.left(), area.bottom() - area.top(),
                 () -> pickGroup(row.name()));
-        graphics.text(font, font.plainSubstrByWidth(name, NAME_WIDTH - HALF), area.left(), area.top() + TEXT_NUDGE,
+        int textTop = area.top() + TEXT_NUDGE;
+        graphics.text(font, font.plainSubstrByWidth(name, NAME_TEXT_WIDTH), area.left(), textTop,
                 row.unknownCount() == 0 ? WHITE : RED);
+        // decision hovering-a-truncated-group-name-shows-the-full-name
+        nameHoverKey(font, name).ifPresent(key -> targets.addHover(area.left(), textTop, NAME_TEXT_WIDTH,
+                font.lineHeight, key));
+    }
+
+    /**
+     * @param font the font the name draws in
+     * @param name a row's #name as drawn
+     * @return the hover key whose tooltip reads the whole name where the name column truncates it, empty where it fits
+     */
+    static Optional<String> nameHoverKey(Font font, String name) {
+        return font.width(name) > NAME_TEXT_WIDTH ? Optional.of(NAME_HOVER_PREFIX + name) : Optional.empty();
+    }
+
+    /**
+     * @param hoverKey what the hovered area names
+     * @return the whole group name where the area is a truncated name's, empty otherwise
+     */
+    static Optional<TooltipLine> nameTooltipFor(String hoverKey) {
+        return hoverKey.startsWith(NAME_HOVER_PREFIX)
+                ? Optional.of(new TooltipLine.Text(Component.literal(hoverKey.substring(NAME_HOVER_PREFIX.length()))))
+                : Optional.empty();
     }
 
     // Decision expanded-used-by-lists-take-a-hide-button: "and N more" expands the row, Hide collapses it again.

@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Draws the Promote or Discard confirm over the whole manager, as the page's draft dialog stands over its page, and
+ * Draws the Promote or Revert confirm over the whole manager, as the page's draft dialog stands over its page, and
  * takes every click while it stands (decision save-applies-the-draft-live-promote-renames-it). The state lives in
  * {@link DraftConfirm}.
  */
