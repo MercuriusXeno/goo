@@ -270,6 +270,28 @@ class ValuesPaneTest {
     }
 
     /**
+     * The recipe equivalency spaces each input sprite with a small + between inputs, and appends " / n" after the
+     * last only where the recipe makes more than one (decision
+     * recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
+     */
+    @Test
+    void equivalencySpacesInputsWithPlusesAndDividesOnlyPastOne() {
+        int left = 100;
+        int plusWidth = 6;
+        int gap = ValuesPane.EQUIVALENCY_GAP;
+        ValuesPane.Equivalency one = ValuesPane.layEquivalency(left, 2, plusWidth, 1);
+        int second = left + RowLayout.SPRITE_SIZE + gap + plusWidth + gap;
+        assertEquals(List.of(left, second), one.spriteLefts());
+        assertEquals(List.of(left + RowLayout.SPRITE_SIZE + gap), one.plusLefts());
+        assertTrue(one.divideLeft().isEmpty());
+        ValuesPane.Equivalency four = ValuesPane.layEquivalency(left, 2, plusWidth, 4);
+        assertEquals(second + RowLayout.SPRITE_SIZE, four.divideLeft().getAsInt());
+        ValuesPane.Equivalency single = ValuesPane.layEquivalency(left, 1, plusWidth, 4);
+        assertEquals(List.of(left), single.spriteLefts());
+        assertEquals(List.of(), single.plusLefts());
+    }
+
+    /**
      * A run is its type icon at whatever size the texture gives, its gap and the amount's width (decision
      * items-value-line-draws-type-icons-at-eleven-texels).
      */

@@ -29,6 +29,10 @@ public final class ValuesTab {
     private static final String ITEM_TAGS = "item_tags";
     private static final String ID = "id";
     private static final String NAME = "name";
+    private static final String INPUTS = "inputs";
+    private static final String COUNT = "count";
+    private static final String OUTPUT = "output";
+    private static final Recipe NO_RECIPE = new Recipe(List.of(), 1);
     private static final String MEMBERS = "members";
     private static final String ENTRIES = "entries";
     private static final String KEY = "key";
@@ -59,7 +63,7 @@ public final class ValuesTab {
     private final ManagerDraft draft;
     private final List<ManagerEntry> entries = new ArrayList<>();
     private final Map<String, JsonObject> resolved = new HashMap<>();
-    private final Map<String, List<String>> derivedFrom = new HashMap<>();
+    private final Map<String, Recipe> derivedFrom = new HashMap<>();
     private final Set<String> uncovered = new HashSet<>();
     private Filter filter = Filter.ITEMS;
     private String search = NO_TEXT;
@@ -146,16 +150,40 @@ public final class ValuesTab {
     public void readDerivedFrom(String derivedFromJson) {
         derivedFrom.clear();
         JsonParser.parseString(derivedFromJson).getAsJsonObject().getAsJsonObject(ITEMS).entrySet()
-                .forEach(item -> derivedFrom.put(item.getKey(), item.getValue().getAsJsonArray().asList().stream()
-                        .map(JsonElement::getAsString).toList()));
+                .forEach(item -> derivedFrom.put(item.getKey(), recipeOf(item.getValue().getAsJsonObject())));
+    }
+
+    private static Recipe recipeOf(JsonObject recipe) {
+        return new Recipe(array(recipe, INPUTS).asList().stream().map(JsonElement::getAsJsonObject)
+                .map(input -> new Input(input.get(ID).getAsString(), input.get(COUNT).getAsInt())).toList(),
+                recipe.get(OUTPUT).getAsInt());
+    }
+
+    /**
+     * One input of a derived item's recipe.
+     *
+     * @param id    the input item's id
+     * @param count how many the recipe takes, summed across its slots
+     */
+    public record Input(String id, int count) {
+    }
+
+    /**
+     * The recipe a derived item's value comes from, as its equivalency reads it (decision
+     * recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
+     *
+     * @param inputs its inputs, grouped by item
+     * @param output how many the recipe makes
+     */
+    public record Recipe(List<Input> inputs, int output) {
     }
 
     /**
      * @param id an item's namespaced id
-     * @return the items its derived value comes from, empty where no recipe values it
+     * @return the recipe its derived value comes from, no inputs making one where no recipe values it
      */
-    public List<String> derivedFrom(String id) {
-        return derivedFrom.getOrDefault(id, List.of());
+    public Recipe derivedFrom(String id) {
+        return derivedFrom.getOrDefault(id, NO_RECIPE);
     }
 
     /**

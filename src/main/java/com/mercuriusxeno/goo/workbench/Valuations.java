@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +39,8 @@ import java.util.regex.Pattern;
 final class Valuations {
     private static final String ENTRIES = "entries";
     private static final String ITEMS = "items";
+    private static final String INPUTS = "inputs";
+    private static final String OUTPUT = "output";
     private static final String KEY = "key";
     private static final String VALUE = "value";
     private static final String DENIED = "denied";
@@ -417,19 +420,22 @@ final class Valuations {
     }
 
     /**
-     * The items each derived item's value comes from, as the Items tab draws them after "derived from": for every
-     * inventory item no entry or group values but recipes do, the recipe inputs its family row reports in its from
-     * field, the first link of its ancestor chain or the distinct items its recipe grid takes
-     * (decision items-rows-read-valued-derived-or-no-value-with-values-inline).
+     * The recipe each derived item's value comes from, as the Items tab draws its equivalency: for every inventory
+     * item no entry or group values but recipes do, the recipe inputs its family row reports in its from field, the
+     * first link of its ancestor chain or the items its recipe grid takes, each with its count summed, and how many
+     * the recipe makes (decisions items-rows-read-valued-derived-or-no-value-with-values-inline,
+     * recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
      *
      * @param model     the model
      * @param inventory the inventory, whose recipes derive
-     * @return {"items": {id: [input ids]}} as JSON
+     * @return {"items": {id: {"inputs": [{"id", "count"}], "output"}}} as JSON
      * @throws IOException where the model's text cannot be read
      */
     static String derivedFrom(BaseValuesModel model, InventoryView inventory) throws IOException {
         GooBaseValuesPreview.Derived derived = derivedFor(model, inventory);
         GooBaseValuesPreview.Loaded loaded = GooBaseValuesPreview.load(model.serialize(), inventory.tagResolver());
+        Map<Identifier, RecipeInput> byOutput = new HashMap<>();
+        derived.recipes().forEach(recipe -> byOutput.putIfAbsent(recipe.output(), recipe));
         JsonObject items = new JsonObject();
         for (String id : inventory.itemIds()) {
             Identifier item = Identifier.tryParse(id);
@@ -437,25 +443,43 @@ final class Valuations {
                     || groupValuing(model, id) != null) {
                 continue;
             }
-            JsonArray inputs = new JsonArray();
-            inputsOf(from(item, inventory, derived, loaded.baseValues().keySet())).forEach(inputs::add);
-            items.add(id, inputs);
+            items.add(id, equivalencyOf(from(item, inventory, derived, loaded.baseValues().keySet()),
+                    byOutput.get(item)));
         }
         JsonObject root = new JsonObject();
         root.add(ITEMS, items);
         return root.toString();
     }
 
-    private static Set<String> inputsOf(JsonObject from) {
-        Set<String> inputs = new LinkedHashSet<>();
-        if (FROM_ANCESTOR.equals(from.get(FROM_KIND).getAsString())) {
-            inputs.add(from.getAsJsonArray(FROM_CHAIN).get(0).getAsString());
-            return inputs;
+    // The recipe as the Items tab reads it, its inputs grouped by item with each count summed across the slots, and
+    // what it makes: an ancestor chain's first link, as many as the single-input recipe making the item takes, or the
+    // mixed recipe's grid (decision recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
+    private static JsonObject equivalencyOf(JsonObject from, @Nullable RecipeInput making) {
+        boolean chain = FROM_ANCESTOR.equals(from.get(FROM_KIND).getAsString());
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        if (chain) {
+            counts.put(from.getAsJsonArray(FROM_CHAIN).get(0).getAsString(), making == null ? 1 : making.slotCount());
+        } else {
+            from.getAsJsonArray(FROM_GRID).forEach(cell -> {
+                if (!cell.isJsonNull()) {
+                    counts.merge(cell.getAsString(), 1, Integer::sum);
+                }
+            });
         }
-        from.getAsJsonArray(FROM_GRID).forEach(cell -> {
-            if (!cell.isJsonNull()) {
-                inputs.add(cell.getAsString());
-            }
+        int output = chain ? making == null ? 1 : making.resultCount() : from.get(FROM_COUNT).getAsInt();
+        JsonObject equivalency = new JsonObject();
+        equivalency.add(INPUTS, countedInputs(counts));
+        equivalency.addProperty(OUTPUT, Math.max(1, output));
+        return equivalency;
+    }
+
+    private static JsonArray countedInputs(Map<String, Integer> counts) {
+        JsonArray inputs = new JsonArray();
+        counts.forEach((input, count) -> {
+            JsonObject each = new JsonObject();
+            each.addProperty(ROW_ID, input);
+            each.addProperty(FROM_COUNT, count);
+            inputs.add(each);
         });
         return inputs;
     }
