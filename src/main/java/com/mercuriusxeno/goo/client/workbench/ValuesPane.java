@@ -33,6 +33,8 @@ final class ValuesPane {
     static final int CHIP_LINE_GAP = 3;
     private static final int CHIP_TEXT_NUDGE = 3;
     private static final int GAP = 3;
+    /** The room between an Items row's name and its disposition symbol. */
+    static final int SYMBOL_GAP = GAP;
     private static final int HALF = 2;
     private static final int SCROLL_STEP = LINE_HEIGHT * 3;
     private static final int WHITE = 0xFFFFFFFF;
@@ -67,6 +69,11 @@ final class ValuesPane {
     private static final String NO_VALUE_LINE = "no value: nothing in the file or the recipes values it";
     private static final String NO_TEXT = "";
     private static final int NO_REVEAL = -1;
+    private static final Disposition VALUED_SYMBOL = new Disposition("✔", GREEN);
+    private static final Disposition DERIVED_SYMBOL = new Disposition("=", GREEN);
+    private static final Disposition GROUPED_SYMBOL = new Disposition("#", GREEN);
+    private static final Disposition NO_VALUE_SYMBOL = new Disposition("?", RED);
+    private static final Disposition DENIED_SYMBOL = new Disposition("⊘", GRAY);
 
     private final ValuesTab values;
     private final ItemIcons icons;
@@ -282,8 +289,8 @@ final class ValuesPane {
         List<Integer> runWidths = worth.entrySet().stream()
                 .map(amount -> runWidth(font, amount.getValue(), GooTypeIcons.sizeOf(amount.getKey()))).toList();
         int iconSize = worth.keySet().stream().mapToInt(GooTypeIcons::sizeOf).max().orElse(0);
-        EntryLayout layout = layEntry(row, runWidths, !from.isEmpty(),
-                new RowText(labelShown(entry, from), font.lineHeight), iconSize);
+        EntryLayout layout = layEntry(row, runWidths, !from.isEmpty(), new RowText(labelShown(entry, from),
+                font.lineHeight, symbolOf(entry).map(shown -> font.width(shown.glyph())).orElse(0)), iconSize);
         int height = layout.height();
         if (selected) {
             graphics.fill(row.left(), row.top(), row.right(), row.top() + height, SELECTED_ROW_COLOR);
@@ -305,6 +312,11 @@ final class ValuesPane {
         return entry.tag() || values.sourceOf(entry.id()).kind() != ValuesTab.SourceKind.DERIVED || from.isEmpty();
     }
 
+    // A tag row draws no symbol.
+    private Optional<Disposition> symbolOf(ValuesTab.ManagerEntry entry) {
+        return entry.tag() ? Optional.empty() : Optional.of(dispositionOf(values.sourceOf(entry.id()).kind()));
+    }
+
     private void drawEntryText(GuiGraphicsExtractor graphics, Font font, ValuesTab.ManagerEntry entry,
                                EntryLayout layout, int top) {
         int textX = layout.nameLeft();
@@ -312,6 +324,8 @@ final class ValuesPane {
         graphics.item(icons.of(entry.id()), textX - ICON_SIZE - ICON_GAP, top + 1);
         graphics.text(font, font.plainSubstrByWidth(entry.tag() ? entry.id() : entry.name(), width), textX,
                 layout.nameTop(), WHITE);
+        symbolOf(entry).ifPresent(shown -> graphics.text(font, shown.glyph(), layout.symbolLeft(), layout.nameTop(),
+                shown.color()));
         if (entry.tag()) {
             graphics.text(font, font.plainSubstrByWidth(entry.name(), width), textX, top + SECOND_LINE, GRAY);
             return;
@@ -406,10 +420,37 @@ final class ValuesPane {
     /**
      * The text an Items row's first row holds.
      *
-     * @param labelShown whether a label draws under the name
-     * @param lineHeight the font's glyph line height
+     * @param labelShown  whether a label draws under the name
+     * @param lineHeight  the font's glyph line height
+     * @param symbolWidth the disposition symbol's width, 0 for a row drawing none
      */
-    record RowText(boolean labelShown, int lineHeight) {
+    record RowText(boolean labelShown, int lineHeight, int symbolWidth) {
+    }
+
+    /**
+     * How an item's value disposition reads on its title line.
+     *
+     * @param glyph the symbol
+     * @param color its color
+     */
+    record Disposition(String glyph, int color) {
+    }
+
+    /**
+     * Valued a green check, derived a green equals, grouped a green hash, no value a red question mark, denied a gray
+     * cancel circle (decision items-row-title-carries-a-disposition-symbol-at-the-right-edge).
+     *
+     * @param kind where an item's value comes from
+     * @return the symbol its title line reads
+     */
+    static Disposition dispositionOf(ValuesTab.SourceKind kind) {
+        return switch (kind) {
+            case ENTRY -> VALUED_SYMBOL;
+            case DERIVED -> DERIVED_SYMBOL;
+            case GROUP -> GROUPED_SYMBOL;
+            case NONE -> NO_VALUE_SYMBOL;
+            case DENIED -> DENIED_SYMBOL;
+        };
     }
 
     /**
@@ -430,11 +471,13 @@ final class ValuesPane {
      * @param nameLeft   the name's left edge, past the icon
      * @param nameTop    the name's top
      * @param nameWidth  the width the name and its source are cut to
+     * @param symbolLeft the disposition symbol's left edge
      * @param value      the goo value's lines
      * @param derivedTop the derived-from line's top
      * @param height     the row's whole height
      */
-    record EntryLayout(int nameLeft, int nameTop, int nameWidth, ValueLines value, int derivedTop, int height) {
+    record EntryLayout(int nameLeft, int nameTop, int nameWidth, int symbolLeft, ValueLines value, int derivedTop,
+                       int height) {
         int runsLeft() {
             return value.left();
         }
@@ -491,6 +534,10 @@ final class ValuesPane {
         int nameLeft = row.left() + ICON_SIZE + ICON_GAP;
         int nameTop = text.labelShown() ? top + 1 : top + (ROW_HEIGHT - text.lineHeight()) / HALF;
         int width = row.right() - nameLeft;
+        // The symbol stands at the row's right edge, the name cut short of it (decision
+        // items-row-title-carries-a-disposition-symbol-at-the-right-edge).
+        int symbolLeft = row.right() - text.symbolWidth();
+        int nameWidth = text.symbolWidth() == 0 ? width : symbolLeft - SYMBOL_GAP - nameLeft;
         ValueRuns runs = layValueRuns(runWidths, width);
         int lines = runWidths.isEmpty() ? 0 : runs.rows();
         int lineHeight = iconSize + ICON_HAIR * HALF;
@@ -498,7 +545,7 @@ final class ValuesPane {
                 (lineHeight - text.lineHeight()) / HALF);
         int derivedTop = value.top() + lines * lineHeight;
         int height = derivedTop - top + (derived ? ROW_HEIGHT : 0);
-        return new EntryLayout(nameLeft, nameTop, width, value, derivedTop, height);
+        return new EntryLayout(nameLeft, nameTop, nameWidth, symbolLeft, value, derivedTop, height);
     }
 
     private void scrollToRevealed() {
@@ -576,9 +623,17 @@ final class ValuesPane {
         graphics.item(icons.of(row.id()), pane.left(), pane.top());
         int textX = pane.left() + ICON_SIZE + ICON_GAP;
         String heading = row.id().startsWith(ValuesTab.TAG_MARK) ? row.id() : row.name();
-        graphics.text(font, font.plainSubstrByWidth(heading, pane.right() - textX), textX, pane.top(), WHITE);
-        if (!row.id().startsWith(ValuesTab.TAG_MARK)) {
+        if (row.id().startsWith(ValuesTab.TAG_MARK)) {
+            graphics.text(font, font.plainSubstrByWidth(heading, pane.right() - textX), textX, pane.top(), WHITE);
+        } else {
             ValuesTab.Source source = values.sourceOf(row.id());
+            // The heading reads the row's symbol beside the name (decision
+            // items-row-title-carries-a-disposition-symbol-at-the-right-edge).
+            Disposition symbol = dispositionOf(source.kind());
+            int nameRoom = pane.right() - textX - SYMBOL_GAP - font.width(symbol.glyph());
+            String shown = font.plainSubstrByWidth(heading, nameRoom);
+            graphics.text(font, shown, textX, pane.top(), WHITE);
+            graphics.text(font, symbol.glyph(), textX + font.width(shown) + SYMBOL_GAP, pane.top(), symbol.color());
             graphics.text(font, source.label(), textX, pane.top() + LINE_HEIGHT, colorOf(source.kind()));
         }
     }
