@@ -18,6 +18,8 @@ import static org.mockito.Mockito.when;
 class ValuesPaneTest {
     private static final int LEFT = 10;
     private static final int TOP = 30;
+    private static final int RIGHT = 300;
+    private static final int LINE_HEIGHT = 9;
 
     /**
      * The three boxes stand on one line, each sharing its inner border with the next, the search box sits one line
@@ -88,7 +90,7 @@ class ValuesPaneTest {
     }
 
     /**
-     * An item worth five goo types, at a width fitting two runs, lays them across three 18px rows; layValueRuns
+     * An item worth five goo types, at a width fitting two runs, lays them across three value lines; layValueRuns
      * answers one row for an empty worth, which the row layout does not count (decisions
      * items-rows-read-valued-derived-or-no-value-with-values-inline, items-goo-type-line-always-on-the-second-row).
      */
@@ -101,21 +103,27 @@ class ValuesPaneTest {
         int second = run + ValuesPane.RUN_GAP;
         assertEquals(List.of(new ValuesPane.Spot(0, 0), new ValuesPane.Spot(second, 0), new ValuesPane.Spot(0, 1),
                 new ValuesPane.Spot(second, 1), new ValuesPane.Spot(0, 2)), five.spots());
-        assertEquals(3 * ValuesPane.ROW_HEIGHT, five.rows() * ValuesPane.ROW_HEIGHT);
         assertEquals(1, ValuesPane.layValueRuns(List.of(), width).rows());
     }
 
+    // An Items row at LEFT, TOP running to RIGHT, for a font whose glyph line is LINE_HEIGHT tall.
+    private static ValuesPane.EntryLayout lay(List<Integer> runWidths, boolean derived, boolean labelShown) {
+        return ValuesPane.layEntry(new GroupsPane.Bounds(LEFT, TOP, RIGHT, TOP + 200), runWidths, derived, labelShown,
+                LINE_HEIGHT);
+    }
+
     /**
-     * An item with a goo value fitting one row draws its runs on the second 18px row, the first at the name's left
-     * edge, so the row is two rows high (decision items-goo-type-line-always-on-the-second-row).
+     * An item with a goo value fitting one line draws its runs on a 12px value line under the first 18px row, the
+     * first at the name's left edge (decisions items-goo-type-line-always-on-the-second-row,
+     * value-line-is-as-tall-as-its-icon).
      */
     @Test
     void valuedRowDrawsItsRunsOnTheSecondRow() {
-        ValuesPane.EntryLayout layout = ValuesPane.layEntry(LEFT, TOP, 300, List.of(40, 40), false);
+        ValuesPane.EntryLayout layout = lay(List.of(40, 40), false, true);
         assertEquals(TOP + ValuesPane.ROW_HEIGHT, layout.runsTop());
         assertEquals(layout.nameLeft(), layout.runsLeft());
         assertEquals(new ValuesPane.Spot(0, 0), layout.runs().spots().getFirst());
-        assertEquals(2 * ValuesPane.ROW_HEIGHT, layout.height());
+        assertEquals(ValuesPane.ROW_HEIGHT + ValuesPane.VALUE_LINE_HEIGHT, layout.height());
     }
 
     /**
@@ -124,20 +132,64 @@ class ValuesPaneTest {
      */
     @Test
     void nameTakesTheFirstRowsFullWidth() {
-        int right = 300;
-        ValuesPane.EntryLayout layout = ValuesPane.layEntry(LEFT, TOP, right, List.of(40), false);
-        assertEquals(right - layout.nameLeft(), layout.nameWidth());
+        ValuesPane.EntryLayout layout = lay(List.of(40), false, true);
+        assertEquals(RIGHT - layout.nameLeft(), layout.nameWidth());
     }
 
     /**
-     * An item with no goo value takes no runs row: one 18px row high, and two with its derived-from line (decision
+     * An item with no goo value takes no value line: one 18px row high, and two with its derived-from line (decision
      * items-goo-type-line-always-on-the-second-row).
      */
     @Test
     void valuelessRowStaysOneRowHigh() {
-        assertEquals(ValuesPane.ROW_HEIGHT, ValuesPane.layEntry(LEFT, TOP, 300, List.of(), false).height());
-        ValuesPane.EntryLayout derived = ValuesPane.layEntry(LEFT, TOP, 300, List.of(), true);
+        assertEquals(ValuesPane.ROW_HEIGHT, lay(List.of(), false, true).height());
+        ValuesPane.EntryLayout derived = lay(List.of(), true, false);
         assertEquals(2 * ValuesPane.ROW_HEIGHT, derived.height());
         assertEquals(TOP + ValuesPane.ROW_HEIGHT, derived.derivedTop());
+    }
+
+    /**
+     * A run is the 11px type icon, its gap and the amount's width, the icon drawn at its native 11 texels (decision
+     * items-value-line-draws-type-icons-at-eleven-texels).
+     */
+    @Test
+    void runIsTheElevenPixelIconBesideItsAmount() {
+        Font font = mock(Font.class);
+        when(font.width(anyString())).thenAnswer(call -> call.<String>getArgument(0).length() * 6);
+        assertEquals(11, ValuesPane.TYPE_ICON_SIZE);
+        assertEquals(11 + ValuesPane.RUN_ICON_GAP + font.width("1.5k"), ValuesPane.runWidth(font, "1.5k"));
+    }
+
+    /**
+     * Each value line is 12px tall with its amount one pixel under the line's top, and the derived-from line starts
+     * right under the last value line (decision value-line-is-as-tall-as-its-icon).
+     */
+    @Test
+    void valueLinesAreTwelvePixelsTall() {
+        int line = ValuesPane.VALUE_LINE_HEIGHT;
+        assertEquals(12, line);
+        int run = 100;
+        List<Integer> oneLine = List.of(run);
+        List<Integer> twoLines = List.of(run, run, run);
+        assertEquals(ValuesPane.ROW_HEIGHT + line, lay(oneLine, false, true).height());
+        assertEquals(ValuesPane.ROW_HEIGHT + 2 * line, lay(twoLines, false, true).height());
+        ValuesPane.EntryLayout oneDerived = lay(oneLine, true, false);
+        assertEquals(2 * ValuesPane.ROW_HEIGHT + line, oneDerived.height());
+        assertEquals(TOP + ValuesPane.ROW_HEIGHT + line, oneDerived.derivedTop());
+        ValuesPane.EntryLayout twoDerived = lay(twoLines, true, false);
+        assertEquals(2 * ValuesPane.ROW_HEIGHT + 2 * line, twoDerived.height());
+        assertEquals(TOP + ValuesPane.ROW_HEIGHT + 2 * line, twoDerived.derivedTop());
+        assertEquals(twoDerived.lineTop(1) + 1, twoDerived.amountTop(1));
+        assertEquals(TOP + ValuesPane.ROW_HEIGHT + line, twoDerived.lineTop(1));
+    }
+
+    /**
+     * The name centers on the first 18px row when no source label sits under it, and sits at the row's top + 1 over
+     * the label otherwise (decision item-name-centers-on-its-row).
+     */
+    @Test
+    void nameCentersWhenNoLabelSitsUnderIt() {
+        assertEquals(TOP + (ValuesPane.ROW_HEIGHT - LINE_HEIGHT) / 2, lay(List.of(40), true, false).nameTop());
+        assertEquals(TOP + 1, lay(List.of(40), false, true).nameTop());
     }
 }
