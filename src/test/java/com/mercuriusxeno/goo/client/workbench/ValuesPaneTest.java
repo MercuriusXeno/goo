@@ -20,6 +20,9 @@ class ValuesPaneTest {
     private static final int TOP = 30;
     private static final int RIGHT = 300;
     private static final int LINE_HEIGHT = 9;
+    // The goo type icons' side today, and the side they widen to.
+    private static final int SMALL_ICON = 11;
+    private static final int[] ICON_SIZES = {SMALL_ICON, 12};
 
     /**
      * The three boxes stand on one line, each sharing its inner border with the next, the search box sits one line
@@ -106,16 +109,21 @@ class ValuesPaneTest {
         assertEquals(1, ValuesPane.layValueRuns(List.of(), width).rows());
     }
 
-    // An Items row at LEFT, TOP running to RIGHT, for a font whose glyph line is LINE_HEIGHT tall.
+    // An Items row at LEFT, TOP running to RIGHT, for a font whose glyph line is LINE_HEIGHT tall, its goo type icons
+    // iconSize pixels on a side.
+    private static ValuesPane.EntryLayout lay(List<Integer> runWidths, boolean derived, boolean labelShown,
+                                              int iconSize) {
+        return ValuesPane.layEntry(new GroupsPane.Bounds(LEFT, TOP, RIGHT, TOP + 200), runWidths, derived,
+                new ValuesPane.RowText(labelShown, LINE_HEIGHT), iconSize);
+    }
+
     private static ValuesPane.EntryLayout lay(List<Integer> runWidths, boolean derived, boolean labelShown) {
-        return ValuesPane.layEntry(new GroupsPane.Bounds(LEFT, TOP, RIGHT, TOP + 200), runWidths, derived, labelShown,
-                LINE_HEIGHT);
+        return lay(runWidths, derived, labelShown, SMALL_ICON);
     }
 
     /**
-     * An item with a goo value fitting one line draws its runs on a 12px value line under the first 18px row, the
-     * first at the name's left edge (decisions items-goo-type-line-always-on-the-second-row,
-     * value-line-is-as-tall-as-its-icon).
+     * An item with a goo value fitting one line draws its runs on a value line under the first 18px row, the first at
+     * the name's left edge (decisions items-goo-type-line-always-on-the-second-row, value-line-is-as-tall-as-its-icon).
      */
     @Test
     void valuedRowDrawsItsRunsOnTheSecondRow() {
@@ -123,7 +131,7 @@ class ValuesPaneTest {
         assertEquals(TOP + ValuesPane.ROW_HEIGHT, layout.runsTop());
         assertEquals(layout.nameLeft(), layout.runsLeft());
         assertEquals(new ValuesPane.Spot(0, 0), layout.runs().spots().getFirst());
-        assertEquals(ValuesPane.ROW_HEIGHT + ValuesPane.VALUE_LINE_HEIGHT, layout.height());
+        assertEquals(ValuesPane.ROW_HEIGHT + SMALL_ICON + 2, layout.height());
     }
 
     /**
@@ -149,38 +157,42 @@ class ValuesPaneTest {
     }
 
     /**
-     * A run is the 11px type icon, its gap and the amount's width, the icon drawn at its native 11 texels (decision
+     * A run is its type icon at whatever size the texture gives, its gap and the amount's width (decision
      * items-value-line-draws-type-icons-at-eleven-texels).
      */
     @Test
-    void runIsTheElevenPixelIconBesideItsAmount() {
+    void runIsItsIconBesideItsAmountAtAnySize() {
         Font font = mock(Font.class);
         when(font.width(anyString())).thenAnswer(call -> call.<String>getArgument(0).length() * 6);
-        assertEquals(11, ValuesPane.TYPE_ICON_SIZE);
-        assertEquals(11 + ValuesPane.RUN_ICON_GAP + font.width("1.5k"), ValuesPane.runWidth(font, "1.5k"));
+        for (int icon : ICON_SIZES) {
+            assertEquals(icon + ValuesPane.RUN_ICON_GAP + font.width("1.5k"), ValuesPane.runWidth(font, "1.5k", icon));
+        }
     }
 
     /**
-     * Each value line is 12px tall with its amount one pixel under the line's top, and the derived-from line starts
-     * right under the last value line (decision value-line-is-as-tall-as-its-icon).
+     * Each value line is its icon plus a pixel above and below, whatever the icon's size: the icon one pixel under the
+     * line's top, the amount centered on it, and the derived-from line right under the last value line (decision
+     * value-line-is-as-tall-as-its-icon).
      */
     @Test
-    void valueLinesAreTwelvePixelsTall() {
-        int line = ValuesPane.VALUE_LINE_HEIGHT;
-        assertEquals(12, line);
+    void valueLinesAreTheIconPlusAPixelAboveAndBelow() {
         int run = 100;
         List<Integer> oneLine = List.of(run);
         List<Integer> twoLines = List.of(run, run, run);
-        assertEquals(ValuesPane.ROW_HEIGHT + line, lay(oneLine, false, true).height());
-        assertEquals(ValuesPane.ROW_HEIGHT + 2 * line, lay(twoLines, false, true).height());
-        ValuesPane.EntryLayout oneDerived = lay(oneLine, true, false);
-        assertEquals(2 * ValuesPane.ROW_HEIGHT + line, oneDerived.height());
-        assertEquals(TOP + ValuesPane.ROW_HEIGHT + line, oneDerived.derivedTop());
-        ValuesPane.EntryLayout twoDerived = lay(twoLines, true, false);
-        assertEquals(2 * ValuesPane.ROW_HEIGHT + 2 * line, twoDerived.height());
-        assertEquals(TOP + ValuesPane.ROW_HEIGHT + 2 * line, twoDerived.derivedTop());
-        assertEquals(twoDerived.lineTop(1) + 1, twoDerived.amountTop(1));
-        assertEquals(TOP + ValuesPane.ROW_HEIGHT + line, twoDerived.lineTop(1));
+        for (int icon : ICON_SIZES) {
+            int line = icon + 2;
+            assertEquals(ValuesPane.ROW_HEIGHT + line, lay(oneLine, false, true, icon).height());
+            assertEquals(ValuesPane.ROW_HEIGHT + 2 * line, lay(twoLines, false, true, icon).height());
+            ValuesPane.EntryLayout oneDerived = lay(oneLine, true, false, icon);
+            assertEquals(2 * ValuesPane.ROW_HEIGHT + line, oneDerived.height());
+            assertEquals(TOP + ValuesPane.ROW_HEIGHT + line, oneDerived.derivedTop());
+            ValuesPane.EntryLayout twoDerived = lay(twoLines, true, false, icon);
+            assertEquals(2 * ValuesPane.ROW_HEIGHT + 2 * line, twoDerived.height());
+            assertEquals(TOP + ValuesPane.ROW_HEIGHT + 2 * line, twoDerived.derivedTop());
+            assertEquals(TOP + ValuesPane.ROW_HEIGHT + line, twoDerived.lineTop(1));
+            assertEquals(twoDerived.lineTop(1) + 1, twoDerived.iconTop(1));
+            assertEquals(twoDerived.lineTop(1) + (line - LINE_HEIGHT) / 2, twoDerived.amountTop(1));
+        }
     }
 
     /**

@@ -46,12 +46,8 @@ final class ValuesPane {
     /** The room between a run's type icon and its amount. */
     static final int RUN_ICON_GAP = 2;
     private static final int RUN_TEXT_NUDGE = 5;
-    /** A goo type icon's side on an Items row's value line, its texture's native 11 texels. */
-    static final int TYPE_ICON_SIZE = 11;
-    /** A value line's height, its type icon and a 1px breath. */
-    static final int VALUE_LINE_HEIGHT = TYPE_ICON_SIZE + 1;
-    // The amount's offset under its value line's top, centering the 9px glyph line on the 11px icon.
-    private static final int AMOUNT_NUDGE = 1;
+    // The pixel above and the pixel below a value line's type icon.
+    private static final int ICON_HAIR = 1;
     private static final int GOLD = 0xFFE0C060;
     private static final int CHIP_OFF = 0xFF808080;
     private static final int CHIP_HOLLOW = 0xFF202020;
@@ -274,16 +270,20 @@ final class ValuesPane {
         return whole;
     }
 
-    // One Items row: the icon and the name over its source across the first 18px row, the item's goo value on 12px
-    // value lines under it, wrapped onto as many lines as it needs, then a derived item's "derived from" and its
-    // inputs on one 18px line; answers its height (decisions items-rows-read-valued-derived-or-no-value-with-values-
-    // inline, items-goo-type-line-always-on-the-second-row, value-line-is-as-tall-as-its-icon).
+    // One Items row: the icon and the name over its source across the first 18px row, the item's goo value on value
+    // lines under it, each its type icon plus a pixel above and below, wrapped onto as many lines as it needs, then a
+    // derived item's "derived from" and its inputs on one 18px line; answers its height (decisions
+    // items-rows-read-valued-derived-or-no-value-with-values-inline, items-goo-type-line-always-on-the-second-row,
+    // value-line-is-as-tall-as-its-icon).
     private int drawEntry(GuiGraphicsExtractor graphics, Font font, ValuesTab.ManagerEntry entry,
                           GroupsPane.Bounds row, boolean selected, ClickTargets targets) {
         Map<String, String> worth = entry.tag() ? Map.of() : values.worthOf(entry.id());
         List<String> from = entry.tag() ? List.of() : values.derivedFrom(entry.id());
-        EntryLayout layout = layEntry(row, worth.values().stream().map(amount -> runWidth(font, amount)).toList(),
-                !from.isEmpty(), labelShown(entry, from), font.lineHeight);
+        List<Integer> runWidths = worth.entrySet().stream()
+                .map(amount -> runWidth(font, amount.getValue(), GooTypeIcons.sizeOf(amount.getKey()))).toList();
+        int iconSize = worth.keySet().stream().mapToInt(GooTypeIcons::sizeOf).max().orElse(0);
+        EntryLayout layout = layEntry(row, runWidths, !from.isEmpty(),
+                new RowText(labelShown(entry, from), font.lineHeight), iconSize);
         int height = layout.height();
         if (selected) {
             graphics.fill(row.left(), row.top(), row.right(), row.top() + height, SELECTED_ROW_COLOR);
@@ -323,17 +323,17 @@ final class ValuesPane {
         }
     }
 
-    // Each type icon at its native 11 texels at its value line's top, its amount beside it (decisions
-    // items-value-line-draws-type-icons-at-eleven-texels, value-line-is-as-tall-as-its-icon).
+    // Each type icon at its texture's own size, one texel per pixel, a pixel under its value line's top, its amount
+    // beside it (decisions items-value-line-draws-type-icons-at-eleven-texels, value-line-is-as-tall-as-its-icon).
     private static void drawValueRuns(GuiGraphicsExtractor graphics, Font font, Map<String, String> worth,
                                       EntryLayout layout, ClickTargets targets) {
         Iterator<Spot> spots = layout.runs().spots().iterator();
         for (Map.Entry<String, String> amount : worth.entrySet()) {
             Spot spot = spots.next();
             int x = layout.runsLeft() + spot.x();
-            GooTypeIcons.draw(graphics, targets, amount.getKey(), x, layout.lineTop(spot.row()), TYPE_ICON_SIZE);
-            graphics.text(font, amount.getValue(), x + TYPE_ICON_SIZE + RUN_ICON_GAP, layout.amountTop(spot.row()),
-                    WHITE);
+            int size = GooTypeIcons.sizeOf(amount.getKey());
+            GooTypeIcons.draw(graphics, targets, amount.getKey(), x, layout.iconTop(spot.row()), size);
+            graphics.text(font, amount.getValue(), x + size + RUN_ICON_GAP, layout.amountTop(spot.row()), WHITE);
         }
     }
 
@@ -355,12 +355,13 @@ final class ValuesPane {
     }
 
     /**
-     * @param font   the screen's font
-     * @param amount a goo type's amount as drawn
-     * @return the run's width: the 11px type icon, its gap and the amount
+     * @param font     the screen's font
+     * @param amount   a goo type's amount as drawn
+     * @param iconSize the type icon's side
+     * @return the run's width: the type icon, its gap and the amount
      */
-    static int runWidth(Font font, String amount) {
-        return TYPE_ICON_SIZE + RUN_ICON_GAP + font.width(amount);
+    static int runWidth(Font font, String amount, int iconSize) {
+        return iconSize + RUN_ICON_GAP + font.width(amount);
     }
 
     /**
@@ -403,25 +404,63 @@ final class ValuesPane {
     }
 
     /**
+     * The text an Items row's first row holds.
+     *
+     * @param labelShown whether a label draws under the name
+     * @param lineHeight the font's glyph line height
+     */
+    record RowText(boolean labelShown, int lineHeight) {
+    }
+
+    /**
+     * Where an Items row's goo value lines stand.
+     *
+     * @param left         their left edge
+     * @param top          the first line's top
+     * @param runs         the runs, none for an empty worth
+     * @param lineHeight   a line's height, its type icon plus a pixel above and below
+     * @param amountOffset an amount's top under its line's top, the glyph line centered on the icon
+     */
+    record ValueLines(int left, int top, ValueRuns runs, int lineHeight, int amountOffset) {
+    }
+
+    /**
      * Where an Items row's parts stand.
      *
      * @param nameLeft   the name's left edge, past the icon
      * @param nameTop    the name's top
      * @param nameWidth  the width the name and its source are cut to
-     * @param runsLeft   the goo value's left edge
-     * @param runsTop    the goo value's first line's top
-     * @param runs       the goo value's runs, none for an empty worth
+     * @param value      the goo value's lines
      * @param derivedTop the derived-from line's top
      * @param height     the row's whole height
      */
-    record EntryLayout(int nameLeft, int nameTop, int nameWidth, int runsLeft, int runsTop, ValueRuns runs,
-                       int derivedTop, int height) {
+    record EntryLayout(int nameLeft, int nameTop, int nameWidth, ValueLines value, int derivedTop, int height) {
+        int runsLeft() {
+            return value.left();
+        }
+
+        int runsTop() {
+            return value.top();
+        }
+
+        ValueRuns runs() {
+            return value.runs();
+        }
+
         /**
          * @param line a value line, from 0
-         * @return its top, where its type icons draw
+         * @return its top
          */
         int lineTop(int line) {
-            return runsTop + line * VALUE_LINE_HEIGHT;
+            return value.top() + line * value.lineHeight();
+        }
+
+        /**
+         * @param line a value line, from 0
+         * @return its type icons' top, a pixel under the line's top
+         */
+        int iconTop(int line) {
+            return lineTop(line) + ICON_HAIR;
         }
 
         /**
@@ -429,35 +468,37 @@ final class ValuesPane {
          * @return its amounts' top, the glyph line centered on the icon
          */
         int amountTop(int line) {
-            return lineTop(line) + AMOUNT_NUDGE;
+            return lineTop(line) + value.amountOffset();
         }
     }
 
     /**
      * Lays an Items row: the name across the first 18px row to the row's right edge, centered on it when no label
-     * sits under it, the goo value on 12px lines under that row at the name's left edge, an empty worth taking no
-     * line, then the 18px derived-from line where there is one (decisions items-goo-type-line-always-on-the-second-
-     * row, value-line-is-as-tall-as-its-icon, item-name-centers-on-its-row).
+     * sits under it, the goo value under that row at the name's left edge on lines each the type icon plus a pixel
+     * above and below, an empty worth taking no line, then the 18px derived-from line where there is one (decisions
+     * items-goo-type-line-always-on-the-second-row, value-line-is-as-tall-as-its-icon, item-name-centers-on-its-row).
      *
-     * @param row        the row's bounds, its left, top and right edges
-     * @param runWidths  each goo run's width
-     * @param derived    whether the row draws a derived-from line
-     * @param labelShown whether a label draws under the name
-     * @param lineHeight the font's glyph line height
+     * @param row       the row's bounds, its left, top and right edges
+     * @param runWidths each goo run's width
+     * @param derived   whether the row draws a derived-from line
+     * @param text      whether a label sits under the name, and the font's line height
+     * @param iconSize  the goo type icons' side
      * @return each part's place and the row's height
      */
-    static EntryLayout layEntry(GroupsPane.Bounds row, List<Integer> runWidths, boolean derived, boolean labelShown,
-                                int lineHeight) {
+    static EntryLayout layEntry(GroupsPane.Bounds row, List<Integer> runWidths, boolean derived, RowText text,
+                                int iconSize) {
         int top = row.top();
         int nameLeft = row.left() + ICON_SIZE + ICON_GAP;
-        int nameTop = labelShown ? top + 1 : top + (ROW_HEIGHT - lineHeight) / HALF;
+        int nameTop = text.labelShown() ? top + 1 : top + (ROW_HEIGHT - text.lineHeight()) / HALF;
         int width = row.right() - nameLeft;
         ValueRuns runs = layValueRuns(runWidths, width);
         int lines = runWidths.isEmpty() ? 0 : runs.rows();
-        int runsTop = top + ROW_HEIGHT;
-        int derivedTop = runsTop + lines * VALUE_LINE_HEIGHT;
+        int lineHeight = iconSize + ICON_HAIR * HALF;
+        ValueLines value = new ValueLines(nameLeft, top + ROW_HEIGHT, runs, lineHeight,
+                (lineHeight - text.lineHeight()) / HALF);
+        int derivedTop = value.top() + lines * lineHeight;
         int height = derivedTop - top + (derived ? ROW_HEIGHT : 0);
-        return new EntryLayout(nameLeft, nameTop, width, nameLeft, runsTop, runs, derivedTop, height);
+        return new EntryLayout(nameLeft, nameTop, width, value, derivedTop, height);
     }
 
     private void scrollToRevealed() {
