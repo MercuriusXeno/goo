@@ -27,7 +27,10 @@ import java.util.function.Supplier;
  */
 final class ExpressionBuilderPane {
     private static final int GRAY = 0xFFA0A0A0;
-    private static final int RED = 0xFFFF5555;
+    /** An unreadable value's note and a remove control's X. */
+    static final int RED = 0xFFFF5555;
+    /** The done control's check mark and word. */
+    static final int GREEN = 0xFF80E080;
     private static final int PANEL_COLOR = 0x30FFFFFF;
     private static final String KIND = "Kind:";
     private static final String NUMBER_KIND = "a number";
@@ -72,7 +75,8 @@ final class ExpressionBuilderPane {
     private static final String ONE_TYPE_HINT = "Use only one goo type of this value";
     private static final String ONLY = "only";
     private static final String KEPT_HINT = "No control builds this term; remove it to rebuild it";
-    private static final String REMOVE = "remove";
+    // decision remove-draws-as-a-red-x
+    private static final String REMOVE = "X";
     private static final String REMOVE_TERM_HINT = "Remove this term";
     private static final String REMOVE_SUM_HINT = "Remove this sum and every term in it";
     private static final String REMOVE_ROW_HINT = "Remove this goo type's amount";
@@ -90,7 +94,8 @@ final class ExpressionBuilderPane {
     private static final String UNREAD = "This value cannot be read; pick a kind to start over.";
     private static final String EMPTY = "No value yet: pick a kind to give it one.";
     private static final String DENIED = "Denied: this holds no goo. Pick a kind to give it a value.";
-    private static final String DONE = "done";
+    // decision done-draws-green-with-a-check-mark
+    private static final String DONE = "✓ done";
     // decision done-hint-reads-no-unsaved-changes-or-changes-already-saved
     private static final String NO_CHANGES_HINT = "No unsaved changes";
     private static final String CHANGES_SAVED_HINT = "Changes already saved to the draft";
@@ -230,7 +235,7 @@ final class ExpressionBuilderPane {
         drawKind(flow, edited);
         drawValue(flow, edited);
         flow.newLine();
-        flow.control(DONE, doneHint(openedText, edited.text()), at -> finish());
+        flow.coloredControl(DONE, GREEN, doneHint(openedText, edited.text()), at -> finish());
         int bottom = flow.bottom();
         graphics.fill(area.left() - 1, top - 1, area.right(), bottom, PANEL_COLOR);
         return bottom - top;
@@ -355,7 +360,7 @@ final class ExpressionBuilderPane {
                     icons::nameOf), KEPT_HINT, null);
         }
         if (removable) {
-            flow.control(REMOVE, REMOVE_ROW_HINT, at -> removePiece(b -> b.removeRow(row)));
+            flow.coloredControl(REMOVE, RED, REMOVE_ROW_HINT, at -> removePiece(b -> b.removeRow(row)));
         }
     }
 
@@ -488,7 +493,7 @@ final class ExpressionBuilderPane {
             drawFactor(flow, piece, ScaleOffer.term(path), (op, factor) -> apply(b -> b.setScale(path, op, factor)));
         }
         if (count > 1) {
-            flow.control(REMOVE, REMOVE_TERM_HINT, at -> removePiece(b -> b.remove(path)));
+            flow.coloredControl(REMOVE, RED, REMOVE_TERM_HINT, at -> removePiece(b -> b.remove(path)));
         }
     }
 
@@ -519,7 +524,7 @@ final class ExpressionBuilderPane {
                           ExpressionBuilder.Nest nest, int count, String sort) {
         flow.text(SUM_OF, GRAY);
         if (count > 1) {
-            flow.control(REMOVE, REMOVE_SUM_HINT, at -> removePiece(b -> b.remove(path)));
+            flow.coloredControl(REMOVE, RED, REMOVE_SUM_HINT, at -> removePiece(b -> b.remove(path)));
         }
         flow.indent();
         drawSum(flow, path, nest.pieces(), sort);

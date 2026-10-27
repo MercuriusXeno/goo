@@ -307,4 +307,76 @@ class ExpressionBuilderPaneTest {
             assertFalse(texts.contains(":"), texts.toString());
         }
     }
+
+    /**
+     * Remove draws as a red X and done as a green check, their hints unchanged (decisions remove-draws-as-a-red-x,
+     * done-draws-green-with-a-check-mark).
+     */
+    @Nested
+    class RemoveAndDone {
+        private static final String X = "X";
+        private static final String DONE = "✓ done";
+
+        private static List<DrawnFrame.Text> removes(DrawnFrame frame) {
+            return frame.drawn().stream().filter(text -> text.text().equals(X)).toList();
+        }
+
+        @Test
+        void termRemovesDrawAsRedXsWithTheTermHint() {
+            DrawnFrame frame = Builder.item("$waxed + $edited").frame();
+            assertFalse(frame.texts().contains("remove"), frame.texts().toString());
+            List<DrawnFrame.Text> xs = removes(frame);
+            assertEquals(2, xs.size(), frame.texts().toString());
+            xs.forEach(x -> assertEquals(ExpressionBuilderPane.RED, x.color()));
+            assertEquals(BuilderOverlays.hintKey("Remove this term"),
+                    frame.targets.hovered(xs.getFirst().x() + 1, xs.getFirst().y() + 1).orElseThrow());
+        }
+
+        @Test
+        void clickingATermsXRemovesThatTerm() {
+            Builder builder = Builder.item("$waxed + $edited");
+            DrawnFrame frame = builder.frame();
+            clickAt(frame, removes(frame).getFirst());
+            assertEquals("$edited", builder.written.getLast());
+        }
+
+        @Test
+        void rowRemovesDrawAsRedXsWithTheRowHint() {
+            Builder builder = Builder.item("{\"metal\": \"5\", \"pulse\": \"2\"}");
+            DrawnFrame frame = builder.frame();
+            assertFalse(frame.texts().contains("remove"), frame.texts().toString());
+            List<DrawnFrame.Text> xs = removes(frame);
+            assertEquals(2, xs.size(), frame.texts().toString());
+            xs.forEach(x -> assertEquals(ExpressionBuilderPane.RED, x.color()));
+            assertEquals(BuilderOverlays.hintKey("Remove this goo type's amount"),
+                    frame.targets.hovered(xs.getFirst().x() + 1, xs.getFirst().y() + 1).orElseThrow());
+            clickAt(frame, xs.getFirst());
+            assertFalse(builder.written.getLast().contains("metal"), builder.written.toString());
+        }
+
+        @Test
+        void sumRemoveDrawsAsARedXWithTheSumHint() {
+            DrawnFrame frame = Builder.item("$base + ($waxed - $edited)").frame();
+            assertFalse(frame.texts().contains("remove"), frame.texts().toString());
+            List<String> hints = removes(frame).stream().map(x -> frame.targets.hovered(x.x() + 1, x.y() + 1)
+                    .orElseThrow()).toList();
+            assertTrue(hints.contains(BuilderOverlays.hintKey("Remove this sum and every term in it")),
+                    hints.toString());
+        }
+
+        @Test
+        void doneDrawsGreenWithACheckMarkAndItsHint() {
+            boolean[] finished = {false};
+            Builder builder = new Builder(PREFABS);
+            builder.pane.open("$waxed", builder.written::add, () -> finished[0] = true);
+            DrawnFrame frame = builder.frame();
+            DrawnFrame.Text done = frame.find(DONE);
+            assertEquals(ExpressionBuilderPane.GREEN, done.color());
+            assertEquals(BuilderOverlays.hintKey(ExpressionBuilderPane.doneHint("$waxed", "$waxed")),
+                    frame.targets.hovered(done.x() + 1, done.y() + 1).orElseThrow());
+            frame.click(DONE);
+            assertTrue(finished[0]);
+            assertFalse(builder.pane.isOpen());
+        }
+    }
 }
