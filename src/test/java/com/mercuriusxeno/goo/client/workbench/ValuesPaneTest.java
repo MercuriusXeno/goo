@@ -88,8 +88,9 @@ class ValuesPaneTest {
     }
 
     /**
-     * An item worth five goo types, at a width fitting two runs, lays them across three 18px rows; a valueless item
-     * takes one row (decision items-rows-read-valued-derived-or-no-value-with-values-inline).
+     * An item worth five goo types, at a width fitting two runs, lays them across three 18px rows; layValueRuns
+     * answers one row for an empty worth, which the row layout does not count (decisions
+     * items-rows-read-valued-derived-or-no-value-with-values-inline, items-goo-type-line-always-on-the-second-row).
      */
     @Test
     void valueRunsWrapOntoAsManyRowsAsTheWidthNeeds() {
@@ -102,5 +103,41 @@ class ValuesPaneTest {
                 new ValuesPane.Spot(second, 1), new ValuesPane.Spot(0, 2)), five.spots());
         assertEquals(3 * ValuesPane.ROW_HEIGHT, five.rows() * ValuesPane.ROW_HEIGHT);
         assertEquals(1, ValuesPane.layValueRuns(List.of(), width).rows());
+    }
+
+    /**
+     * An item with a goo value fitting one row draws its runs on the second 18px row, the first at the name's left
+     * edge, so the row is two rows high (decision items-goo-type-line-always-on-the-second-row).
+     */
+    @Test
+    void valuedRowDrawsItsRunsOnTheSecondRow() {
+        ValuesPane.EntryLayout layout = ValuesPane.layEntry(LEFT, TOP, 300, List.of(40, 40), false);
+        assertEquals(TOP + ValuesPane.ROW_HEIGHT, layout.runsTop());
+        assertEquals(layout.nameLeft(), layout.runsLeft());
+        assertEquals(new ValuesPane.Spot(0, 0), layout.runs().spots().getFirst());
+        assertEquals(2 * ValuesPane.ROW_HEIGHT, layout.height());
+    }
+
+    /**
+     * The item name is cut to the row's full width from its left edge, not to a column beside the value (decision
+     * items-goo-type-line-always-on-the-second-row).
+     */
+    @Test
+    void nameTakesTheFirstRowsFullWidth() {
+        int right = 300;
+        ValuesPane.EntryLayout layout = ValuesPane.layEntry(LEFT, TOP, right, List.of(40), false);
+        assertEquals(right - layout.nameLeft(), layout.nameWidth());
+    }
+
+    /**
+     * An item with no goo value takes no runs row: one 18px row high, and two with its derived-from line (decision
+     * items-goo-type-line-always-on-the-second-row).
+     */
+    @Test
+    void valuelessRowStaysOneRowHigh() {
+        assertEquals(ValuesPane.ROW_HEIGHT, ValuesPane.layEntry(LEFT, TOP, 300, List.of(), false).height());
+        ValuesPane.EntryLayout derived = ValuesPane.layEntry(LEFT, TOP, 300, List.of(), true);
+        assertEquals(2 * ValuesPane.ROW_HEIGHT, derived.height());
+        assertEquals(TOP + ValuesPane.ROW_HEIGHT, derived.derivedTop());
     }
 }
