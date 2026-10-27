@@ -1,0 +1,133 @@
+package com.mercuriusxeno.goo.client.workbench;
+
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.EditBox;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/**
+ * Tests the Prefabs tab's search box at the pane's layout seam, with Font mocked and no Screen: where the box and the
+ * list stand, when the box shows, and how the list's scroll bar follows the search (decisions
+ * prefabs-tab-searches-its-list-by-name, every-tab-draws-a-scroll-bar).
+ */
+class VariablesPaneTest {
+    private static final int PREFABS = 12;
+    private static final GroupsPane.Bounds VIEW = new GroupsPane.Bounds(0, 20, 400, 120);
+
+    private Font font;
+    private GuiGraphicsExtractor graphics;
+    private VariablesTab variables;
+    private VariablesPane pane;
+
+    private static String model() {
+        String entries = IntStream.range(0, PREFABS).mapToObj(index -> """
+                {"key": "prefab%d", "keySeparator": null, "kind": "VALUE", "text": "8", "entries": [],
+                 "leading": null, "trailing": null, "closingGap": null}""".formatted(index))
+                .collect(Collectors.joining(", "));
+        return """
+                {"path": "base_values.json", "members": [
+                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [%s],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """.formatted(entries);
+    }
+
+    @BeforeEach
+    void standThePane() {
+        font = mock(Font.class);
+        when(font.width(anyString())).thenAnswer(call -> call.<String>getArgument(0).length() * 6);
+        when(font.plainSubstrByWidth(anyString(), anyInt())).thenAnswer(call -> call.getArgument(0));
+        when(font.plainSubstrByWidth(anyString(), anyInt(), anyBoolean())).thenAnswer(call -> call.getArgument(0));
+        graphics = mock(GuiGraphicsExtractor.class);
+        ManagerDraft draft = new ManagerDraft();
+        draft.read(model());
+        variables = new VariablesTab(draft);
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
+        ItemIcons icons = mock(ItemIcons.class);
+        ExpressionBuilderPane builder = new ExpressionBuilderPane(actions, icons, List::of, List::of);
+        pane = new VariablesPane(variables, draft, icons, actions, builder);
+        pane.init(font);
+        pane.show(true);
+    }
+
+    private void draw() {
+        pane.extract(graphics, font, VIEW, new ClickTargets(), 0, 0);
+    }
+
+    private EditBox searchBox() {
+        EditBox box = pane.searchBox();
+        assertNotNull(box);
+        return box;
+    }
+
+    /**
+     * After init and a draw, the search box's top stands at the view's top and the first prefab's name draws below
+     * the box's bottom.
+     */
+    @Test
+    void searchBoxStandsAboveTheList() {
+        draw();
+        EditBox box = searchBox();
+        assertEquals(VIEW.top(), box.getY());
+        ArgumentCaptor<Integer> nameY = ArgumentCaptor.forClass(Integer.class);
+        verify(graphics).text(eq(font), eq("prefab0"), anyInt(), nameY.capture(), anyInt());
+        assertTrue(nameY.getValue() > box.getY() + box.getHeight());
+    }
+
+    /**
+     * The box shows only while the Prefabs tab is the one shown.
+     */
+    @Test
+    void searchBoxShowsWithTheTab() {
+        pane.show(false);
+        assertFalse(searchBox().visible);
+        pane.show(true);
+        assertTrue(searchBox().visible);
+    }
+
+    /**
+     * With the list scrolled by the wheel, typing in the box returns the list to its top.
+     */
+    @Test
+    void typingReturnsTheListToItsTop() {
+        draw();
+        pane.scroll(-1);
+        pane.scroll(-1);
+        assertTrue(pane.listBar().offset() > 0);
+        searchBox().setValue("prefab1");
+        assertEquals(0, pane.listBar().offset());
+    }
+
+    /**
+     * Unsearched, the whole draft overflows the view, so the thumb is shorter than its track; a search keeping one
+     * prefab fits the view, so the bar measures that block alone and the thumb fills the track.
+     */
+    @Test
+    void scrollBarMeasuresTheFilteredPrefabsAlone() {
+        draw();
+        int track = 50;
+        assertTrue(pane.listBar().thumb(0, track).height() < track);
+        searchBox().setValue("prefab11");
+        assertEquals(List.of("prefab11"), variables.listed().stream().map(VariablesTab.ConstantBlock::name).toList());
+        draw();
+        assertEquals(track, pane.listBar().thumb(0, track).height());
+    }
+}
