@@ -103,6 +103,66 @@ class VariablesTabTest {
     }
 
     @Nested
+    class Search {
+
+        private List<String> listedNames() {
+            return tab.listed().stream().map(VariablesTab.ConstantBlock::name).toList();
+        }
+
+        /**
+         * Search text matching one prefab's name lists that prefab alone
+         * (decision prefabs-tab-searches-its-list-by-name).
+         */
+        @Test
+        void searchListsThePrefabWhoseNameHoldsTheText() {
+            tab.search("rok");
+            assertEquals(List.of("broken"), listedNames());
+        }
+
+        /**
+         * Text in another case and with spaces around it lists the same prefab.
+         */
+        @Test
+        void searchIgnoresCaseAndSurroundingSpaces() {
+            tab.search("  BROK ");
+            assertEquals(List.of("broken"), listedNames());
+        }
+
+        /**
+         * Text found only in an expression or a kind lists no prefab: egg's expression holds zoo, broken's holds
+         * missing, and egg's kind reads tree.
+         */
+        @Test
+        void searchMatchesTheNameAloneNotTheExpressionOrKind() {
+            tab.search("zoo");
+            assertEquals(List.of(), listedNames());
+            tab.search("missing");
+            assertEquals(List.of(), listedNames());
+            tab.search("tree");
+            assertEquals(List.of(), listedNames());
+        }
+
+        /**
+         * Blank text lists every prefab in file order.
+         */
+        @Test
+        void blankSearchListsEveryPrefabInFileOrder() {
+            tab.search("egg");
+            tab.search("   ");
+            assertEquals(List.of("base", "broken", "egg"), listedNames());
+        }
+
+        /**
+         * The search narrows the tab's list alone; the blocks the builder's prefab dropdown reads stay whole.
+         */
+        @Test
+        void searchLeavesTheWholeBlocksForTheDropdowns() {
+            tab.search("egg");
+            assertEquals(3, tab.blocks().size());
+        }
+    }
+
+    @Nested
     class Editing {
 
         /**
