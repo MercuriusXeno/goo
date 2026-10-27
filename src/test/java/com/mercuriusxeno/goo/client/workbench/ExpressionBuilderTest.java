@@ -218,7 +218,7 @@ class ExpressionBuilderTest {
         @Test
         void wholeValueScalesAsOneSum() {
             ExpressionBuilder builder = ExpressionBuilder.of("$medium - 4 $food.jelly");
-            builder.scaleWhole("2");
+            builder.scaleWhole(ExpressionBuilder.Op.MULTIPLY, "2");
             builder.setScale(List.of(0), ExpressionBuilder.Op.DIVIDE, "2");
             assertEquals("($medium - 4 $food.jelly) / 2", builder.text());
         }

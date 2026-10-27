@@ -96,7 +96,7 @@ class BuilderGrammarTest {
         void numberShowsNoFactorAndAReferenceOffersOne() {
             assertEquals(BuilderGrammar.Factor.HIDDEN,
                     BuilderGrammar.factorOf(ExpressionBuilder.of("192").terms().getFirst()));
-            assertEquals(BuilderGrammar.Factor.OFFERED,
+            assertEquals(BuilderGrammar.Factor.ONE_TO_ONE,
                     BuilderGrammar.factorOf(ExpressionBuilder.of("$base").terms().getFirst()));
             assertEquals(BuilderGrammar.Factor.SHOWN,
                     BuilderGrammar.factorOf(ExpressionBuilder.of("3 $base").terms().getFirst()));

@@ -39,8 +39,8 @@ final class BuilderGrammar {
     enum Factor {
         /** A number with no factor shows none. */
         HIDDEN,
-        /** A reference or a sum with no factor offers one. */
-        OFFERED,
+        /** A reference or a sum with no factor draws the ratio 1:1. */
+        ONE_TO_ONE,
         /** A factor other than 1 shows with its operation. */
         SHOWN
     }
@@ -175,7 +175,7 @@ final class BuilderGrammar {
             return Factor.SHOWN;
         }
         return piece.operand() instanceof ExpressionBuilder.Ref || piece.operand() instanceof ExpressionBuilder.Nest
-                ? Factor.OFFERED : Factor.HIDDEN;
+                ? Factor.ONE_TO_ONE : Factor.HIDDEN;
     }
 
     /**

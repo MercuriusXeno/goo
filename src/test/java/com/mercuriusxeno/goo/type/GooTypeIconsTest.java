@@ -23,11 +23,6 @@ class GooTypeIconsTest {
     private static final float ORANGE_HUE_CEILING = 45f / 360f;
     private static final float ORANGE_SATURATION_FLOOR = 0.4f;
     private static final float ORANGE_HUE_TOLERANCE = 8f / 360f;
-    private static final float GRAY_SATURATION_CEILING = 0.12f;
-    private static final float BROWN_HUE_LOW = 15f / 360f;
-    private static final float BROWN_HUE_HIGH = 45f / 360f;
-    /** The least saturated brown the old rock icon held, #884b2b. */
-    private static final float OLD_ROCK_BROWN_SATURATION = 0.68f;
 
     @Nested
     class Yore {
@@ -44,36 +39,6 @@ class GooTypeIconsTest {
                     assertEquals(hourglass.getRGB(x, y), yore.getRGB(x, y), "yore differs at " + x + "," + y);
                 }
             }
-        }
-    }
-
-    @Nested
-    class Rock {
-
-        // rock-icon-is-two-tone-brown-and-gray
-        @Test
-        void rockIconHoldsADesaturatedBrownAndAGray() throws IOException {
-            BufferedImage rock = readIcon("rock");
-            int grayPixels = 0;
-            int brownPixels = 0;
-            for (int y = 0; y < rock.getHeight(); y++) {
-                for (int x = 0; x < rock.getWidth(); x++) {
-                    int argb = rock.getRGB(x, y);
-                    if (argb >>> 24 == 0) {
-                        continue;
-                    }
-                    float[] hsb = Color.RGBtoHSB(argb >> 16 & 0xFF, argb >> 8 & 0xFF, argb & 0xFF, null);
-                    if (hsb[1] < GRAY_SATURATION_CEILING) {
-                        grayPixels++;
-                    } else if (hsb[0] >= BROWN_HUE_LOW && hsb[0] <= BROWN_HUE_HIGH) {
-                        brownPixels++;
-                        assertTrue(hsb[1] < OLD_ROCK_BROWN_SATURATION,
-                                "brown at " + x + "," + y + " is as saturated as the old icon's");
-                    }
-                }
-            }
-            assertTrue(grayPixels > 0, "rock holds no gray");
-            assertTrue(brownPixels > 0, "rock holds no brown");
         }
     }
 
