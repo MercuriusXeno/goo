@@ -249,36 +249,48 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
-     * Clicking scale draws the ratio 1:1 at once, either side set first, and a ratio back at 1:1 folds to the offer
-     * on the next open (decision scale-shows-the-ratio-at-once).
+     * Every row that can scale draws its ratio 1 : 1 at rest, either side set first, and no scale offer draws
+     * (decision scale-shows-the-ratio-at-once).
      */
     @Nested
-    class RatioAtOnce {
+    class RatioAtRest {
 
-        private static Builder scaled(Builder builder) {
-            builder.frame().click("scale");
-            return builder;
-        }
-
-        @Test
-        void clickingScaleOnATermDrawsOneToOneAndNoNumberBox() {
-            Builder builder = scaled(Builder.item("$waxed"));
-            assertFalse(builder.pane.keyPressed(GLFW.GLFW_KEY_ENTER), "a number box opened");
-            DrawnFrame frame = builder.frame();
+        // The last ratio's sides read 1 : 1, each a click target, and nothing reads "scale".
+        private static void assertOneToOneAtRest(DrawnFrame frame) {
             List<DrawnFrame.Text> sides = ratioSides(frame);
             assertEquals(List.of("1", "1"), sides.stream().map(DrawnFrame.Text::text).toList());
+            sides.forEach(side -> assertTrue(frame.targets.hovered(side.x() + 1, side.y() + 1).isPresent(),
+                    side + " is no control"));
             assertFalse(frame.texts().contains("scale"), frame.texts().toString());
         }
 
         @Test
-        void clickingScaleOnARowDrawsOneToOne() {
-            Builder builder = scaled(Builder.item("{\"metal\": \"$base\"}"));
-            assertEquals(List.of("1", "1"), ratioSides(builder.frame()).stream().map(DrawnFrame.Text::text).toList());
+        void freshReferenceTermDrawsOneToOne() {
+            assertOneToOneAtRest(Builder.item("$waxed").frame());
+        }
+
+        @Test
+        void freshSumDrawsOneToOne() {
+            DrawnFrame frame = Builder.item("$base - ($waxed + $edited)").frame();
+            assertTrue(frame.texts().contains("the sum of:"), frame.texts().toString());
+            assertEquals(4, frame.texts().stream().filter(":"::equals).count(), frame.texts().toString());
+            assertOneToOneAtRest(frame);
+        }
+
+        @Test
+        void freshGooTypeRowDrawsOneToOne() {
+            assertOneToOneAtRest(Builder.item("{\"metal\": \"$base\"}").frame());
+        }
+
+        @Test
+        void numberTermDrawsNoRatioAndNoScale() {
+            List<String> texts = Builder.prefab(PREFABS, "{\"metal\": \"5\"}").frame().texts();
+            assertFalse(texts.contains(":") || texts.contains("scale"), texts.toString());
         }
 
         @Test
         void committingTheDivisorFirstDividesTheTerm() {
-            Builder builder = scaled(Builder.item("$waxed"));
+            Builder builder = Builder.item("$waxed");
             DrawnFrame frame = builder.frame();
             clickAt(frame, ratioSides(frame).get(1));
             builder.commitNumber("3");
@@ -287,7 +299,7 @@ class ExpressionBuilderPaneTest {
 
         @Test
         void committingTheMultiplierFirstWritesTheCountForm() {
-            Builder builder = scaled(Builder.item("$waxed"));
+            Builder builder = Builder.item("$waxed");
             DrawnFrame frame = builder.frame();
             clickAt(frame, ratioSides(frame).getFirst());
             builder.commitNumber("3");
@@ -295,16 +307,13 @@ class ExpressionBuilderPaneTest {
         }
 
         @Test
-        void ratioBackAtOneToOneFoldsToTheOfferOnTheNextOpen() {
+        void factorSetBackToOneKeepsDrawingOneToOneOnTheNextOpen() {
             Builder builder = Builder.item("3 $waxed");
             DrawnFrame frame = builder.frame();
             clickAt(frame, ratioSides(frame).getFirst());
             builder.commitNumber("1");
-            builder.frame().click("scale");
             builder.pane.open(builder.written.getLast(), builder.written::add, () -> { });
-            List<String> texts = builder.frame().texts();
-            assertTrue(texts.contains("scale"), texts.toString());
-            assertFalse(texts.contains(":"), texts.toString());
+            assertOneToOneAtRest(builder.frame());
         }
     }
 
