@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.function.Supplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -100,30 +99,31 @@ class PrefabHoversTest {
             variables.readEvaluated(EVALUATED);
         }
 
-        private List<String> lines(String name) {
-            return PrefabHovers.tooltipFor(variables, PrefabHovers.hoverKey(name)).orElseThrow().stream()
-                    .map(Component::getString).toList();
+        private List<TooltipLine> lines(String name) {
+            return PrefabHovers.tooltipFor(variables, PrefabHovers.hoverKey(name)).orElseThrow();
+        }
+
+        private static TooltipLine text(String text) {
+            return new TooltipLine.Text(Component.literal(text));
         }
 
         /**
-         * A tree prefab reads its name then one line per goo type with its amount.
+         * A tree prefab reads its name then one goo amount line per type, carrying the type's id and its amount and
+         * no type name (decision value-tooltips-draw-each-types-icon-before-its-amount).
          */
         @Test
         void treeReadsEachTypesAmount() {
-            List<String> waxed = lines("waxed");
-            assertEquals(3, waxed.size());
-            assertEquals("waxed", waxed.getFirst());
-            assertTrue(waxed.get(1).contains("weird") && waxed.get(1).endsWith("3"));
-            assertTrue(waxed.get(2).contains("jelly") && waxed.get(2).endsWith("1/2"));
+            assertEquals(List.of(text("waxed"), new TooltipLine.GooAmount("weird", "3"),
+                    new TooltipLine.GooAmount("jelly", "1/2")), lines("waxed"));
         }
 
         /**
-         * A scalar reads its value, and an errored prefab its error.
+         * A scalar reads its value, and an errored prefab its error, as text lines.
          */
         @Test
         void scalarReadsItsValueAndAnErrorItsText() {
-            assertEquals(List.of("base", "8"), lines("base"));
-            assertEquals(List.of("broken", "Unknown constant $missing"), lines("broken"));
+            assertEquals(List.of(text("base"), text("8")), lines("base"));
+            assertEquals(List.of(text("broken"), text("Unknown constant $missing")), lines("broken"));
         }
     }
 }

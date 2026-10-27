@@ -409,19 +409,32 @@ final class ValuesPane {
                               ClickTargets targets) {
         Optional<ValuesTab.EntryRow> selected = values.selectedRow();
         int x = pane.left();
-        int width = pane.right() - x;
         if (selected.isEmpty()) {
             graphics.text(font, NO_SELECTION, x, pane.top(), GRAY);
             return;
         }
-        ValuesTab.EntryRow row = selected.get();
-        drawHeading(graphics, font, row, pane);
-        int y = pane.top() + LINE_HEIGHT * HALF + GAP;
-        graphics.text(font, EXPRESSION_LABEL, x, y, GRAY);
+        // The heading, the value or its open builder, and the amounts scroll as one page, so a builder taller than
+        // the pane reaches its done control under the wheel (decision every-tab-draws-a-scroll-bar).
+        GroupsPane.Bounds page = new GroupsPane.Bounds(x, pane.top(), pane.right() - ScrollBar.WIDTH - ScrollBar.GAP,
+                pane.bottom());
+        graphics.enableScissor(pane.left(), pane.top(), pane.right(), pane.bottom());
+        targets.clip(pane.left(), pane.top(), pane.right(), pane.bottom());
+        int end = drawPage(graphics, font, selected.get(), page, pane.top() - detailBar.offset(), targets);
+        targets.unclip();
+        graphics.disableScissor();
+        detailBar.measureAndDraw(graphics, targets, end, pane.right(), pane.top(), pane.bottom());
+    }
+
+    // Draws the selected entry's page from a scrolled top; answers the y its content ended at.
+    private int drawPage(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row, GroupsPane.Bounds page,
+                         int top, ClickTargets targets) {
+        drawHeading(graphics, font, row, new GroupsPane.Bounds(page.left(), top, page.right(), page.bottom()));
+        int y = top + LINE_HEIGHT * HALF + GAP;
+        graphics.text(font, EXPRESSION_LABEL, page.left(), y, GRAY);
         y += LINE_HEIGHT;
-        y += builder.isOpen() ? builder.extract(graphics, font, pane, y, targets)
-                : drawValueView(graphics, font, row, x, y, width, targets);
-        drawAmounts(graphics, font, row, new GroupsPane.Bounds(x, y + GAP, pane.right(), pane.bottom()), targets);
+        y += builder.isOpen() ? builder.extract(graphics, font, page, y, targets)
+                : drawValueView(graphics, font, row, page.left(), y, page.right() - page.left(), targets);
+        return drawAmounts(graphics, font, row, page, y + GAP, targets);
     }
 
     // The entry's value curated, a click on it opening the builder over it
@@ -456,40 +469,33 @@ final class ValuesPane {
     // Each type draws as its icon beside its amount, a line each (decision goo-types-draw-as-icons-named-on-hover);
     // answers the y below them.
     private int drawAmountLines(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row,
-                                GroupsPane.Bounds area, int top, ClickTargets targets) {
-        int width = area.right() - area.left() - ScrollBar.WIDTH - ScrollBar.GAP;
+                                GroupsPane.Bounds page, int top, ClickTargets targets) {
         int y = top;
-        targets.clip(area.left(), area.top(), area.right(), area.bottom());
         for (Map.Entry<String, String> amount : row.amounts().entrySet()) {
             ExpressionLines.draw(font, ExpressionLines.amountRuns(Map.of(amount.getKey(), amount.getValue())),
-                    area.left(), y, width, new ExpressionLines.Painter(graphics, icons, targets, WHITE, WHITE,
-                            (name, linkX, linkY, linkWidth) -> { }));
+                    page.left(), y, page.right() - page.left(), new ExpressionLines.Painter(graphics, icons, targets,
+                            WHITE, WHITE, (name, linkX, linkY, linkWidth) -> { }));
             y += ExpressionLines.ICON_LINE_HEIGHT;
         }
-        targets.unclip();
         return y;
     }
 
-    private void drawAmounts(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row,
-                             GroupsPane.Bounds area, ClickTargets targets) {
-        int textLines = (row.denied() || row.amounts().isEmpty() ? 1 : 0) + (row.error().isEmpty() ? 0 : 1);
-        detailBar.measure(textLines * LINE_HEIGHT + row.amounts().size() * ExpressionLines.ICON_LINE_HEIGHT,
-                area.bottom() - area.top());
-        int width = area.right() - area.left() - ScrollBar.WIDTH - ScrollBar.GAP;
-        graphics.enableScissor(area.left(), area.top(), area.right(), area.bottom());
-        int y = area.top() - detailBar.offset();
+    // The denial or no-value line, each type's amount and the loader's error; answers the y below them.
+    private int drawAmounts(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row, GroupsPane.Bounds page,
+                            int top, ClickTargets targets) {
+        int y = top;
         if (row.denied()) {
-            graphics.text(font, DENIED_LINE, area.left(), y, GRAY);
+            graphics.text(font, DENIED_LINE, page.left(), y, GRAY);
             y += LINE_HEIGHT;
         } else if (row.amounts().isEmpty()) {
-            graphics.text(font, NO_VALUE_LINE, area.left(), y, RED);
+            graphics.text(font, NO_VALUE_LINE, page.left(), y, RED);
             y += LINE_HEIGHT;
         }
-        y = drawAmountLines(graphics, font, row, area, y, targets);
+        y = drawAmountLines(graphics, font, row, page, y, targets);
         if (!row.error().isEmpty()) {
-            graphics.text(font, font.plainSubstrByWidth(row.error(), width), area.left(), y, RED);
+            graphics.text(font, font.plainSubstrByWidth(row.error(), page.right() - page.left()), page.left(), y, RED);
+            y += LINE_HEIGHT;
         }
-        graphics.disableScissor();
-        detailBar.draw(graphics, targets, area.right(), area.top(), area.bottom());
+        return y;
     }
 }

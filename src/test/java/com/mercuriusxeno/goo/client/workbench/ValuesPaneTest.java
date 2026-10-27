@@ -1,8 +1,15 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests the Items, Tags and Uncovered set's layout on its own line above the search box, with no Screen
@@ -34,6 +41,50 @@ class ValuesPaneTest {
         assertEquals(List.of(false, true, false), chips.stream().map(ValuesPane.Chip::filled).toList());
         ValuesPane.Chip first = chips.getFirst();
         assertEquals(first.top() + first.height() + ValuesPane.CHIP_LINE_GAP, layout.searchTop());
+    }
+
+    /**
+     * With the builder open over a value in a pane too short to show it whole, the wheel over the detail column
+     * scrolls the builder with the rest of the column, so its done control comes into the pane and answers there
+     * (decision every-tab-draws-a-scroll-bar).
+     */
+    @Test
+    void detailColumnScrollsTheOpenBuilderToItsDoneControl() {
+        Font font = mock(Font.class);
+        when(font.width(anyString())).thenAnswer(call -> call.<String>getArgument(0).length() * 6);
+        when(font.plainSubstrByWidth(anyString(), anyInt())).thenAnswer(call -> call.getArgument(0));
+        ValuesTab values = new ValuesTab();
+        values.readInventory("""
+                {"items": [{"id": "minecraft:stick", "name": "Stick"}], "item_tags": []}
+                """);
+        values.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "stick", "keySeparator": null, "kind": "VALUE", "text": "\\"1 + 2 + 3 + 4 + 5 + 6\\"",
+                   "entries": [], "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        values.select("minecraft:stick");
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ExpressionBuilderPane builder = new ExpressionBuilderPane(actions, icons, List::of, List::of);
+        ValuesPane pane = new ValuesPane(values, icons, actions, builder);
+        builder.open("1 + 2 + 3 + 4 + 5 + 6", typed -> { }, () -> { });
+        GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
+        GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 80);
+        ClickTargets targets = new ClickTargets();
+        pane.extract(graphics, font, bounds, targets);
+        String done = BuilderOverlays.hintKey("No unsaved changes");
+        for (int notch = 0; notch < 40; notch++) {
+            pane.scroll(400, 0, -1);
+        }
+        targets.clear();
+        pane.extract(graphics, font, bounds, targets);
+        boolean doneInPane = false;
+        for (int y = bounds.top(); y < bounds.bottom() && !doneInPane; y++) {
+            for (int x = bounds.left(); x < bounds.right() && !doneInPane; x += 2) {
+                doneInPane = targets.hovered(x, y).filter(done::equals).isPresent();
+            }
+        }
+        assertTrue(doneInPane);
     }
 
     /**

@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.workbench;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -46,6 +47,44 @@ class SearchDropdownTest {
         dropdown.search("");
         assertEquals(List.of("copper_nugget", "base"), dropdown.choices().stream().map(SearchDropdown.Choice::id)
                 .toList());
+    }
+
+    /**
+     * A list longer than the rows it shows scrolls under the wheel, so the last prefab is reachable and a click on
+     * the bottom row picks it; the wheel stops at the list's end.
+     */
+    @Test
+    void wheelScrollsALongListSoTheLastPrefabIsPickable() {
+        SearchDropdown dropdown = SearchDropdown.over(INVENTORY, twelvePrefabs(), false);
+        dropdown.open();
+        for (int notch = 0; notch < 10; notch++) {
+            dropdown.scroll(-1);
+        }
+        assertEquals("prefab11", pickAt(dropdown, SearchDropdown.SHOWN - 1).id());
+    }
+
+    /**
+     * A new search starts the list from its first match again.
+     */
+    @Test
+    void searchReturnsTheListToItsStart() {
+        SearchDropdown dropdown = SearchDropdown.over(INVENTORY, twelvePrefabs(), false);
+        dropdown.open();
+        dropdown.scroll(-1);
+        dropdown.search("prefab");
+        assertEquals("prefab0", pickAt(dropdown, 0).id());
+    }
+
+    private static List<String> twelvePrefabs() {
+        return IntStream.range(0, 12).mapToObj(index -> "prefab" + index).toList();
+    }
+
+    private static SearchDropdown.Choice pickAt(SearchDropdown dropdown, int row) {
+        ClickTargets targets = new ClickTargets();
+        AtomicReference<SearchDropdown.Choice> picked = new AtomicReference<>();
+        dropdown.layTargets(targets, 0, 0, 120, picked::set);
+        assertTrue(targets.click(5, row * SearchDropdown.ROW_HEIGHT + 1));
+        return picked.get();
     }
 
     /**

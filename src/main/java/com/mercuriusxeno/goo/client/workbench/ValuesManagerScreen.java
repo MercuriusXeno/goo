@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.workbench;
 
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
+import com.mojang.datafixers.util.Either;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
@@ -8,6 +9,9 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FormattedText;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
+import net.minecraft.world.item.ItemStack;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -15,7 +19,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * The values manager /goo workbench opens: the title row carrying Promote, Discard and Save, a tab bar carrying every
+ * The values manager /goo workbench opens: the title row carrying Promote, Revert, Save and an X that closes it, a tab bar carrying every
  * tab of the page over one shared draft, each tab drawn by its pane, and a status line beneath
  * (decisions goo-workbench-opens-the-in-game-manager-screen, save-applies-the-draft-live-promote-renames-it). The
  * state lives in the tab classes and {@link ManagerConnection}; this class lays the panes out and forwards input.
@@ -40,7 +44,9 @@ public final class ValuesManagerScreen extends Screen {
     private static final String TITLE = "Values manager";
     private static final String SAVE = "Save";
     private static final String PROMOTE = "Promote";
-    private static final String DISCARD = "Discard";
+    // decision topbar-discard-reads-revert
+    private static final String REVERT = "Revert";
+    private static final String CLOSE = "X";
     private static final String DRAFT_BADGE = "draft";
     private static final String READING = "Reading the draft and the inventory; a fresh world dumps the inventory first.";
     private static final String SAVING = "saving";
@@ -172,11 +178,7 @@ public final class ValuesManagerScreen extends Screen {
             tabButtons.put(each, addRenderableWidget(button));
             x += tabWidth + TAB_GAP;
         }
-        // The topbar stands on the title row, right-aligned and sized to its labels, so the tab row keeps the width.
-        int right = width - MARGIN;
-        right = topbarButton(SAVE, right, () -> save(() -> { }));
-        right = topbarButton(DISCARD, right, () -> draftConfirm.askDiscard(draft.path()));
-        topbarButton(PROMOTE, right, () -> draftConfirm.askPromote(draft.path(), unsaved));
+        initTitleRow();
         valuesPane.init(font);
         groupsPane.init(font);
         variablesPane.init(font);
@@ -186,6 +188,45 @@ public final class ValuesManagerScreen extends Screen {
             loaded = true;
             load();
         }
+    }
+
+    // The topbar stands on the title row, right-aligned and sized to its labels, so the tab row keeps the width.
+    // decision x-in-the-top-right-closes-the-manager
+    private void initTitleRow() {
+        TitleRow row = titleRowOf(width);
+        addRenderableWidget(Button.builder(Component.literal(CLOSE), button -> onClose())
+                .bounds(row.closeLeft(), TOPBAR_Y, BUTTON_HEIGHT, BUTTON_HEIGHT).build());
+        int right = row.topbarRight();
+        right = topbarButton(SAVE, right, () -> save(() -> { }));
+        right = topbarButton(REVERT, right, () -> draftConfirm.askRevert(draft.path()));
+        topbarButton(PROMOTE, right, () -> draftConfirm.askPromote(draft.path(), unsaved));
+    }
+
+    /**
+     * Where the title row's controls stand across the screen's width.
+     *
+     * @param closeLeft   the X's left edge
+     * @param closeRight  the X's right edge, at the screen's right margin
+     * @param topbarRight the right edge of the topbar's first button
+     */
+    record TitleRow(int closeLeft, int closeRight, int topbarRight) {
+    }
+
+    /**
+     * @param screenWidth the screen's width
+     * @return the title row laid across it
+     */
+    static TitleRow titleRowOf(int screenWidth) {
+        int closeRight = screenWidth - MARGIN;
+        int closeLeft = closeRight - BUTTON_HEIGHT;
+        return new TitleRow(closeLeft, closeRight, closeLeft - TAB_GAP);
+    }
+
+    /**
+     * @return the topbar's labels in the order init lays them leftward from the title row's right edge
+     */
+    static List<String> topbarLabels() {
+        return List.of(SAVE, REVERT, PROMOTE);
     }
 
     // Answers the x the next button to its left ends at.
@@ -259,7 +300,7 @@ public final class ValuesManagerScreen extends Screen {
     }
 
     /**
-     * Runs the confirmed Promote or Discard, saving unsaved changes first for a Promote
+     * Runs the confirmed Promote or Revert, saving unsaved changes first for a Promote
      * (decision values-checks-go-with-the-checks-tab).
      */
     private void runDraftAction() {
@@ -379,14 +420,27 @@ public final class ValuesManagerScreen extends Screen {
         draftPane.extract(graphics, font, width, height, targets);
         // decision goo-types-draw-as-icons-named-on-hover
         targets.hovered(mouseX, mouseY).flatMap(this::tooltipLines)
-                .ifPresent(lines -> graphics.setComponentTooltipForNextFrame(font, lines, mouseX, mouseY));
+                .ifPresent(lines -> graphics.setComponentTooltipFromElementsForNextFrame(font, elementsOf(lines),
+                        mouseX, mouseY, ItemStack.EMPTY));
     }
 
-    // A goo type or a control names itself on one line; an item or a prefab names itself, then its value.
-    private Optional<List<Component>> tooltipLines(String hoverKey) {
-        Optional<Component> line = GooTypeIcons.tooltipFor(hoverKey).or(() -> BuilderOverlays.tooltipFor(hoverKey));
+    // A goo type, a control or a truncated group name names itself on one line; an item or a prefab names itself,
+    // then its value.
+    private Optional<List<TooltipLine>> tooltipLines(String hoverKey) {
+        Optional<TooltipLine> line = GooTypeIcons.tooltipFor(hoverKey).or(() -> BuilderOverlays.tooltipFor(hoverKey))
+                .<TooltipLine>map(TooltipLine.Text::new).or(() -> GroupsPane.nameTooltipFor(hoverKey));
         return line.isPresent() ? Optional.of(List.of(line.get()))
                 : icons.tooltipFor(hoverKey).or(() -> PrefabHovers.tooltipFor(variablesTab, hoverKey));
+    }
+
+    // Text stays text; a goo amount reaches GooAmountTooltipComponent through the tooltip factory registered for it,
+    // and the deferred call draws the tooltip over the frame (decision
+    // value-tooltips-draw-each-types-icon-before-its-amount).
+    private static List<Either<FormattedText, TooltipComponent>> elementsOf(List<TooltipLine> lines) {
+        return lines.stream().map(line -> switch (line) {
+            case TooltipLine.Text text -> Either.<FormattedText, TooltipComponent>left(text.text());
+            case TooltipLine.GooAmount amount -> Either.<FormattedText, TooltipComponent>right(amount);
+        }).toList();
     }
 
     @Override
