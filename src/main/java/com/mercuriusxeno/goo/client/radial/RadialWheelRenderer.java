@@ -57,7 +57,7 @@ final class RadialWheelRenderer {
     static final int OUTLINE_COLOR = 0xFF101010;
     /** How many pixels the border reaches past each side of a word. */
     private static final int OUTLINE_WIDTH = 1;
-    private static final int TYPE_ICON_SIZE = 11;
+    private static final int TYPE_ICON_SIZE = 12;
     /** ability-icons-read-16x16 */
     static final int ABILITY_ICON_SIZE = 16;
     private static final int ABILITY_ICON_OFFSET = ABILITY_ICON_SIZE / 2;
