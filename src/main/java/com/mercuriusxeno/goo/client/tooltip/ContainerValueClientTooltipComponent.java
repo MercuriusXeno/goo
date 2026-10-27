@@ -21,7 +21,7 @@ import java.util.List;
  */
 public class ContainerValueClientTooltipComponent implements ClientTooltipComponent {
 
-    private static final int ICON_SIZE = 11;
+    private static final int ICON_SIZE = 12;
     private static final int ICON_GAP = 2;
     private static final int LINE_HEIGHT = 15;
     private static final int ICON_Y_OFFSET = -2;

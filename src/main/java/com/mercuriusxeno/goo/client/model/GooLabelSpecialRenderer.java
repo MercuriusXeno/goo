@@ -39,9 +39,9 @@ public class GooLabelSpecialRenderer implements SpecialModelRenderer<ResourceKey
     private static final float CARD_BACK = 7.5f * PIXEL;
     /** The symbol stands a hair off the card so the two never fight for depth. */
     private static final float SYMBOL_LIFT = 0.01f * PIXEL;
-    /** The type icons are 11 px squares; the symbol sits centered on the card at that size. */
-    private static final float SYMBOL_LOW = 2.5f * PIXEL;
-    private static final float SYMBOL_HIGH = 13.5f * PIXEL;
+    /** The type icons are 12 px squares; the symbol sits centered on the card at that size. */
+    private static final float SYMBOL_LOW = 2f * PIXEL;
+    private static final float SYMBOL_HIGH = 14f * PIXEL;
     /** The north face's emitter lays u from +x to -x, so the texture reads unmirrored from the north. */
     private static final GooRenderUtil.UvRect FROM_NORTH = new GooRenderUtil.UvRect(0f, 0f, 1f, 1f);
     /** The south face's emitter lays u from -x to +x reversed, so its u runs backward to read unmirrored. */
