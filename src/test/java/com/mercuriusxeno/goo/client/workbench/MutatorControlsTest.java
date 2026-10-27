@@ -7,8 +7,10 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -68,6 +70,29 @@ class MutatorControlsTest {
             open.click("formula");
             verify(processes).setForm(SECTION, KEY, new Processes.Formula("metal", 1, "0", "/", 0));
             assertFalse(overlays.listOpen());
+        }
+
+        private void pickTheChosenKind(Processes.Form form, String kind) {
+            when(processes.formOf(SECTION, KEY)).thenReturn(form);
+            frame().click(ControlFlow.dropdownLabel(kind));
+            frame().click(kind);
+            verify(processes, never()).setForm(anyString(), anyString(), any());
+            assertFalse(overlays.listOpen());
+        }
+
+        @Test
+        void pickingFormulaOnAFormulaKeepsItsTerms() {
+            pickTheChosenKind(new Processes.Formula("metal", 4, "2", "/", 1), "formula");
+        }
+
+        @Test
+        void pickingAdditiveOnAnAdditiveKeepsItsPrefab() {
+            pickTheChosenKind(new Processes.Additive("oak"), "additive");
+        }
+
+        @Test
+        void pickingStackOnAStackKeepsItsCountAndProcess() {
+            pickTheChosenKind(new Processes.Stack(3, "smelt"), "stack");
         }
     }
 }

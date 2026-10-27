@@ -137,19 +137,30 @@ final class MutatorControls {
         ControlFlow flow = entry.flow();
         flow.text(KIND, GRAY);
         ControlFlow.ChoiceSet kinds = new ControlFlow.ChoiceSet();
-        kinds.add(new BuilderOverlays.Option(FORMULA, FORMULA_HINT, at -> freshFormula(entry)),
-                form instanceof Processes.Formula);
+        boolean formula = form instanceof Processes.Formula;
+        kinds.add(new BuilderOverlays.Option(FORMULA, FORMULA_HINT, unlessChosen(formula, () -> freshFormula(entry))),
+                formula);
         if (!treePrefabs.get().isEmpty()) {
-            kinds.add(new BuilderOverlays.Option(ADDITIVE, ADDITIVE_HINT,
-                    at -> write(entry, new Processes.Additive(treePrefabs.get().getFirst()))),
-                    form instanceof Processes.Additive);
+            boolean additive = form instanceof Processes.Additive;
+            kinds.add(new BuilderOverlays.Option(ADDITIVE, ADDITIVE_HINT, unlessChosen(additive,
+                    () -> write(entry, new Processes.Additive(treePrefabs.get().getFirst())))), additive);
         }
         List<String> others = otherProcesses(entry);
         if (!others.isEmpty()) {
-            kinds.add(new BuilderOverlays.Option(STACK, STACK_HINT,
-                    at -> write(entry, new Processes.Stack(1, others.getFirst()))), form instanceof Processes.Stack);
+            boolean stack = form instanceof Processes.Stack;
+            kinds.add(new BuilderOverlays.Option(STACK, STACK_HINT, unlessChosen(stack,
+                    () -> write(entry, new Processes.Stack(1, others.getFirst())))), stack);
         }
         flow.choices(kinds, overlays);
+    }
+
+    // Picking the kind the form already is keeps the form, so a misclick wipes nothing.
+    private static Consumer<BuilderOverlays.Anchor> unlessChosen(boolean chosen, Runnable fresh) {
+        return at -> {
+            if (!chosen) {
+                fresh.run();
+            }
+        };
     }
 
     private void freshFormula(Entry entry) {
