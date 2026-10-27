@@ -6,13 +6,14 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 
 /**
  * What the builders' controls open below themselves: one number box, one searchable dropdown with its search box,
- * and the goo type picker, at most one standing at a time, so the Items, Prefabs and Mutators builders pick and
+ * an exclusive set's option list, and the goo type picker, at most one standing at a time, so the Items, Prefabs and Mutators builders pick and
  * count with nothing typed but a number or a search (decisions expression-builder-composes-every-form-without-typing,
  * goo-type-picker-is-a-seven-by-four-icon-grid). They draw after the pane they open over, outside its clip, so they
  * stand above everything the pane drew, and a click outside the open list or grid closes it. A control names what it
@@ -38,6 +39,11 @@ final class BuilderOverlays {
     // The search box, the pixel under it and the list's bottom border.
     private static final int DROPDOWN_CHROME = BOX_HEIGHT + 1 + 1;
     private static final int DROPDOWN_HEIGHT = DROPDOWN_CHROME + SearchDropdown.SHOWN * SearchDropdown.ROW_HEIGHT;
+    private static final int OPTION_ROW = ButtonPainter.HEIGHT;
+    private static final int OPTION_TEXT_NUDGE = 3;
+    private static final int OPTION_BACKGROUND = 0xF0101010;
+    private static final int OPTION_BORDER = 0xFF606060;
+    private static final int WHITE = 0xFFFFFFFF;
 
     private final ManagerActions actions;
     private final ItemIcons icons;
@@ -45,6 +51,7 @@ final class BuilderOverlays {
     private @Nullable EditBox numberField;
     private @Nullable EditBox searchField;
     private @Nullable SearchDropdown dropdown;
+    private @Nullable List<Option> options;
     private @Nullable Consumer<SearchDropdown.Choice> dropdownPicks;
     private @Nullable Consumer<String> pickerPicks;
     private @Nullable Runnable pickerNothing;
@@ -61,6 +68,16 @@ final class BuilderOverlays {
      * @param y the control's line top
      */
     record Anchor(int x, int y) {
+    }
+
+    /**
+     * One option of an exclusive set, listed under the set's dropdown.
+     *
+     * @param label  what the option reads
+     * @param hint   what picking it does, shown on hover
+     * @param picked takes the dropdown's anchor, so a further popup it opens stands under the same button
+     */
+    record Option(String label, String hint, Consumer<Anchor> picked) {
     }
 
     /**
@@ -206,7 +223,7 @@ final class BuilderOverlays {
      * @return whether a list or the grid stands open
      */
     boolean listOpen() {
-        return dropdown != null || picker.isOpen();
+        return dropdown != null || options != null || picker.isOpen();
     }
 
     /**
@@ -217,7 +234,7 @@ final class BuilderOverlays {
         if (numberField != null && numberField.visible) {
             return numberKey(numberField, key);
         }
-        if (key == GLFW.GLFW_KEY_ESCAPE && (dropdown != null || picker.isOpen())) {
+        if (key == GLFW.GLFW_KEY_ESCAPE && listOpen()) {
             closeLists();
             return true;
         }
@@ -309,6 +326,18 @@ final class BuilderOverlays {
     }
 
     /**
+     * Opens an exclusive set's options as a plain list under its dropdown, no search box.
+     *
+     * @param at  where the dropdown was clicked
+     * @param set the set's options, in order
+     */
+    void openOptions(Anchor at, List<Option> set) {
+        closeLists();
+        opener = at;
+        options = List.copyOf(set);
+    }
+
+    /**
      * @param at      where the control was clicked
      * @param current the number the box starts from
      * @param commits takes the box's text on Enter or blur
@@ -372,6 +401,7 @@ final class BuilderOverlays {
      */
     void draw(GuiGraphicsExtractor graphics, Font font, ClickTargets targets) {
         drawDropdown(graphics, font, targets);
+        drawOptions(graphics, font, targets);
         Runnable nothing = pickerNothing;
         Placement grid = placePicker(opener, graphics.guiWidth(), graphics.guiHeight());
         int gridRows = Math.max(1, (grid.height() - 1) / GooTypePicker.CELL);
@@ -419,6 +449,36 @@ final class BuilderOverlays {
                 this::pickChoice);
     }
 
+    // Decision exclusive-choice-sets-draw-as-dropdowns: the set's options stand listed under its button, each
+    // naming what it does on hover; a pick closes the list before the option runs, so a popup it opens stays open.
+    private void drawOptions(GuiGraphicsExtractor graphics, Font font, ClickTargets targets) {
+        List<Option> open = options;
+        if (open == null) {
+            return;
+        }
+        targets.add(-EVERYWHERE, -EVERYWHERE, EVERYWHERE_SPAN, EVERYWHERE_SPAN, this::closeLists);
+        int width = open.stream().mapToInt(option -> ButtonPainter.width(font, option.label())).max().orElse(0);
+        Placement placed = placeUnder(opener, width, open.size() * OPTION_ROW, graphics.guiWidth(),
+                graphics.guiHeight());
+        int left = placed.left();
+        int top = placed.top();
+        graphics.nextStratum();
+        graphics.fill(left - 1, top - 1, left + width + 1, top + open.size() * OPTION_ROW + 1, OPTION_BORDER);
+        graphics.fill(left, top, left + width, top + open.size() * OPTION_ROW, OPTION_BACKGROUND);
+        for (int index = 0; index < open.size(); index++) {
+            Option option = open.get(index);
+            int rowTop = top + index * OPTION_ROW;
+            graphics.text(font, option.label(), left + ButtonPainter.PADDING, rowTop + OPTION_TEXT_NUDGE, WHITE);
+            targets.add(left, rowTop, width, OPTION_ROW, () -> pickOption(option), hintKey(option.hint()));
+        }
+    }
+
+    private void pickOption(Option option) {
+        Anchor at = opener;
+        closeLists();
+        option.picked().accept(at);
+    }
+
     private void pickChoice(SearchDropdown.Choice choice) {
         Consumer<SearchDropdown.Choice> picks = dropdownPicks;
         closeLists();
@@ -441,6 +501,7 @@ final class BuilderOverlays {
 
     private void closeLists() {
         closeDropdown();
+        options = null;
         picker.close();
         pickerPicks = null;
         pickerNothing = null;
