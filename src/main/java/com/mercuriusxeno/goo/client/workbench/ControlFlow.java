@@ -146,6 +146,25 @@ final class ControlFlow {
     }
 
     /**
+     * A control whose label takes a color of its own, as a remove reads red and done green.
+     *
+     * @param label   the control's label
+     * @param color   the label's color
+     * @param hint    what it does, shown on hover
+     * @param pressed takes where it was clicked
+     */
+    void coloredControl(String label, int color, String hint, Consumer<BuilderOverlays.Anchor> pressed) {
+        reserve(ButtonPainter.width(font, label));
+        markPiece(ButtonPainter.width(font, label));
+        int controlX = x;
+        int controlY = y;
+        ButtonPainter.Box box = ButtonPainter.drawColored(graphics, font, label, color, controlX, controlY, LINE,
+                targets, () -> pressed.accept(new BuilderOverlays.Anchor(controlX, controlY)),
+                BuilderOverlays.hintKey(hint));
+        x = box.right() + GAP;
+    }
+
+    /**
      * @param label the chosen option's label
      * @return what the set's dropdown button reads: the label and a down arrow marking that it lists more
      */
