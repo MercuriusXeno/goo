@@ -136,16 +136,20 @@ final class MutatorControls {
     private void drawKind(Entry entry, Processes.Form form) {
         ControlFlow flow = entry.flow();
         flow.text(KIND, GRAY);
-        flow.choice(FORMULA, FORMULA_HINT, form instanceof Processes.Formula, () -> freshFormula(entry));
+        ControlFlow.ChoiceSet kinds = new ControlFlow.ChoiceSet();
+        kinds.add(new BuilderOverlays.Option(FORMULA, FORMULA_HINT, at -> freshFormula(entry)),
+                form instanceof Processes.Formula);
         if (!treePrefabs.get().isEmpty()) {
-            flow.choice(ADDITIVE, ADDITIVE_HINT, form instanceof Processes.Additive,
-                    () -> write(entry, new Processes.Additive(treePrefabs.get().getFirst())));
+            kinds.add(new BuilderOverlays.Option(ADDITIVE, ADDITIVE_HINT,
+                    at -> write(entry, new Processes.Additive(treePrefabs.get().getFirst()))),
+                    form instanceof Processes.Additive);
         }
         List<String> others = otherProcesses(entry);
         if (!others.isEmpty()) {
-            flow.choice(STACK, STACK_HINT, form instanceof Processes.Stack,
-                    () -> write(entry, new Processes.Stack(1, others.getFirst())));
+            kinds.add(new BuilderOverlays.Option(STACK, STACK_HINT,
+                    at -> write(entry, new Processes.Stack(1, others.getFirst()))), form instanceof Processes.Stack);
         }
+        flow.choices(kinds, overlays);
     }
 
     private void freshFormula(Entry entry) {

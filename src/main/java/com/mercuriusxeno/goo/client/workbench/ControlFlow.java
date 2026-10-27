@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.workbench;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.jspecify.annotations.Nullable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -21,6 +22,9 @@ final class ControlFlow {
     private static final int INDENT = 12;
     private static final int WHITE = 0xFFFFFFFF;
     private static final int LINK = ButtonPainter.LINK;
+    private static final String DROPDOWN_MARKER = " ▼";
+    private static final String NONE_CHOSEN = "pick one";
+    private static final String NONE_CHOSEN_HINT = "Click to pick one";
 
     private final GuiGraphicsExtractor graphics;
     private final Font font;
@@ -142,31 +146,63 @@ final class ControlFlow {
     }
 
     /**
-     * One option of a choice: the chosen one plain, the others links that choose them.
-     *
-     * @param label  the option's label
-     * @param hint   what choosing it does
-     * @param chosen whether it is the one chosen
-     * @param choose chooses it
+     * @param label the chosen option's label
+     * @return what the set's dropdown button reads: the label and a down arrow marking that it lists more
      */
-    void choice(String label, String hint, boolean chosen, Runnable choose) {
-        choiceAt(label, hint, chosen, at -> choose.run());
+    static String dropdownLabel(String label) {
+        return label + DROPDOWN_MARKER;
     }
 
     /**
-     * One option of a choice whose choosing opens a list below it.
+     * An exclusive set as one dropdown button reading the chosen option, whose click lists every option under it
+     * (decision exclusive-choice-sets-draw-as-dropdowns).
      *
-     * @param label  the option's label
-     * @param hint   what choosing it does
-     * @param chosen whether it is the one chosen
-     * @param choose takes where it was clicked
+     * @param set      the set's options and which is chosen
+     * @param overlays where the list opens
      */
-    void choiceAt(String label, String hint, boolean chosen, Consumer<BuilderOverlays.Anchor> choose) {
-        if (chosen) {
-            text(label, WHITE);
-        } else {
-            control(label, hint, choose);
+    void choices(ChoiceSet set, BuilderOverlays overlays) {
+        choices(set.options(), set.chosen(), overlays);
+    }
+
+    /**
+     * An exclusive set's options as each is offered, and which of them is chosen.
+     */
+    static final class ChoiceSet {
+        private final List<BuilderOverlays.Option> options = new ArrayList<>();
+        private int chosen = -1;
+
+        /**
+         * @param option   an option the set offers
+         * @param isChosen whether it is the one chosen
+         */
+        void add(BuilderOverlays.Option option, boolean isChosen) {
+            if (isChosen) {
+                chosen = options.size();
+            }
+            options.add(option);
         }
+
+        List<BuilderOverlays.Option> options() {
+            return List.copyOf(options);
+        }
+
+        int chosen() {
+            return chosen;
+        }
+    }
+
+    /**
+     * An exclusive set as one dropdown button reading the chosen option, whose click lists every option under it.
+     *
+     * @param options  the set's options, in order
+     * @param chosen   the chosen option's index, below 0 where none is chosen
+     * @param overlays where the list opens
+     */
+    void choices(List<BuilderOverlays.Option> options, int chosen, BuilderOverlays overlays) {
+        boolean picked = chosen >= 0 && chosen < options.size();
+        String label = picked ? options.get(chosen).label() : NONE_CHOSEN;
+        String hint = picked ? options.get(chosen).hint() : NONE_CHOSEN_HINT;
+        control(dropdownLabel(label), hint, at -> overlays.openOptions(at, options));
     }
 
     /**
