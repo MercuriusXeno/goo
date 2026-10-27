@@ -20,7 +20,8 @@ import java.util.Set;
  * link opens its variable and hovers its card; rename edits the name in place and delete confirms the readers it
  * removes, as index.html's variables section does (decisions goo-workbench-opens-the-in-game-manager-screen,
  * references-link-to-their-variable-and-hover-a-card). The blocks and the delete confirm's readers each draw a
- * {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in {@link VariablesTab}.
+ * {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). A search box above the blocks keeps those whose name
+ * holds its text (decision prefabs-tab-searches-its-list-by-name). The state lives in {@link VariablesTab}.
  */
 final class VariablesPane {
     private static final int LINE_HEIGHT = 10;
@@ -29,6 +30,8 @@ final class VariablesPane {
     private static final int ICON_SIZE = 16;
     private static final int ICON_GAP = 2;
     private static final int NAME_WIDTH = 140;
+    private static final int SEARCH_WIDTH = 180;
+    private static final int SEARCH_GAP = 3;
     private static final int KIND_GAP = 8;
     private static final int ACTION_GAP = 6;
     private static final int SCROLL_STEP = LINE_HEIGHT * 3;
@@ -62,6 +65,7 @@ final class VariablesPane {
     private static final String DELETE_TITLE_START = "Delete ";
     private static final String DELETE_TITLE_END = " and what reads it";
     private static final String NO_CONSTANTS = "The file names no constants.";
+    private static final String SEARCH_HINT = "Search prefabs";
     private static final String NO_EXPRESSION = " ";
     private static final String CONSTANT_KIND = "constant";
     private static final String GROUP_KIND = "group";
@@ -78,6 +82,7 @@ final class VariablesPane {
     private final Map<String, Integer> blockTops = new HashMap<>();
     private final ExpressionBuilderPane builder;
     private @Nullable String building;
+    private @Nullable EditBox search;
     private @Nullable EditBox rename;
     private @Nullable String renaming;
     private @Nullable String deleting;
@@ -101,6 +106,7 @@ final class VariablesPane {
      */
     void init(Font font) {
         builder.init(font);
+        standSearch(font);
         EditBox previousRename = rename;
         rename = actions.addWidget(new EditBox(font, 0, 0, NAME_WIDTH, BOX_HEIGHT, Component.literal(NO_TEXT)));
         if (previousRename != null) {
@@ -109,15 +115,37 @@ final class VariablesPane {
         show(visible);
     }
 
+    // A change to the text returns the list to its top, the bar measuring the filtered blocks from the next frame.
+    // decision prefabs-tab-searches-its-list-by-name
+    // decision every-tab-draws-a-scroll-bar
+    private void standSearch(Font font) {
+        String searched = search == null ? NO_TEXT : search.getValue();
+        EditBox box = actions.addWidget(new EditBox(font, 0, 0, SEARCH_WIDTH, BOX_HEIGHT,
+                Component.literal(SEARCH_HINT)));
+        box.setHint(Component.literal(SEARCH_HINT));
+        box.setValue(searched);
+        box.setResponder(text -> {
+            variables.search(text);
+            bar.reset();
+        });
+        search = box;
+    }
+
+    @Nullable EditBox searchBox() {
+        return search;
+    }
+
+    ScrollBar listBar() {
+        return bar;
+    }
+
     /**
      * @param shown whether the Variables tab is the one drawn
      */
     void show(boolean shown) {
         visible = shown;
         builder.show(shown && deleting == null);
-        if (rename != null) {
-            rename.visible = shown && deleting == null && renaming != null;
-        }
+        showBoxes(renaming != null);
     }
 
     /**
@@ -195,24 +223,17 @@ final class VariablesPane {
 
     void extract(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds view, ClickTargets targets,
                  int mouseX, int mouseY) {
-        List<VariablesTab.ConstantBlock> blocks = variables.blocks();
-        if (blocks.isEmpty()) {
-            graphics.text(font, NO_CONSTANTS, view.left(), view.top(), GRAY);
+        int listTop = placeSearch(view);
+        if (variables.blocks().isEmpty()) {
+            graphics.text(font, NO_CONSTANTS, view.left(), listTop, GRAY);
             return;
         }
+        List<VariablesTab.ConstantBlock> blocks = variables.listed();
         applyPendingJump();
-        GroupsPane.Bounds bounds = new GroupsPane.Bounds(view.left(), view.top(),
+        GroupsPane.Bounds bounds = new GroupsPane.Bounds(view.left(), listTop,
                 view.right() - ScrollBar.WIDTH - ScrollBar.GAP, view.bottom());
-        graphics.enableScissor(bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
-        targets.clip(bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
-        int y = bounds.top() - bar.offset();
-        for (int index = 0; index < blocks.size(); index++) {
-            RowLayout.drawSeparatorAbove(graphics, index, y - HALF, bounds.left(), bounds.right());
-            y += drawBlock(graphics, font, blocks.get(index), bounds, y, targets);
-        }
-        targets.unclip();
-        graphics.disableScissor();
-        bar.measureAndDraw(graphics, targets, y, view.right(), view.top(), view.bottom());
+        int end = drawBlocks(graphics, font, blocks, bounds, targets);
+        bar.measureAndDraw(graphics, targets, end, view.right(), bounds.top(), view.bottom());
         showBoxes(rename != null && blocks.stream().anyMatch(block -> block.name().equals(renaming)));
         builder.drawOverlays(graphics, font, targets);
         drawDeleteDialog(graphics, font, view, targets);
@@ -239,8 +260,34 @@ final class VariablesPane {
         return builder.extract(graphics, font, bounds, y, targets);
     }
 
+    // The listed blocks clipped to the list's bounds; answers the y the last one ended at.
+    private int drawBlocks(GuiGraphicsExtractor graphics, Font font, List<VariablesTab.ConstantBlock> blocks,
+                           GroupsPane.Bounds bounds, ClickTargets targets) {
+        graphics.enableScissor(bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
+        targets.clip(bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
+        int y = bounds.top() - bar.offset();
+        for (int index = 0; index < blocks.size(); index++) {
+            RowLayout.drawSeparatorAbove(graphics, index, y - HALF, bounds.left(), bounds.right());
+            y += drawBlock(graphics, font, blocks.get(index), bounds, y, targets);
+        }
+        targets.unclip();
+        graphics.disableScissor();
+        return y;
+    }
+
+    // Answers the list's top, below the box.
+    private int placeSearch(GroupsPane.Bounds view) {
+        if (search != null) {
+            search.setPosition(view.left(), view.top());
+        }
+        return view.top() + BOX_HEIGHT + SEARCH_GAP;
+    }
+
     private void showBoxes(boolean renameShown) {
         boolean open = visible && deleting == null;
+        if (search != null) {
+            search.visible = open;
+        }
         if (rename != null) {
             rename.visible = open && renameShown;
         }
