@@ -114,7 +114,37 @@ class ValuesPaneTest {
     private static ValuesPane.EntryLayout lay(List<Integer> runWidths, boolean derived, boolean labelShown,
                                               int iconSize) {
         return ValuesPane.layEntry(new GroupsPane.Bounds(LEFT, TOP, RIGHT, TOP + 200), runWidths, derived,
-                new ValuesPane.RowText(labelShown, LINE_HEIGHT), iconSize);
+                new ValuesPane.RowText(labelShown, LINE_HEIGHT, 0), iconSize);
+    }
+
+    /**
+     * Each value disposition reads as its own symbol: valued a green check, derived a green equals, grouped a green
+     * hash, no value a red question mark, denied a gray cancel circle (decision
+     * items-row-title-carries-a-disposition-symbol-at-the-right-edge).
+     */
+    @Test
+    void eachDispositionReadsAsItsSymbolAndColor() {
+        int green = 0xFF80E080;
+        int gray = 0xFFA0A0A0;
+        assertEquals(new ValuesPane.Disposition("✔", green), ValuesPane.dispositionOf(ValuesTab.SourceKind.ENTRY));
+        assertEquals(new ValuesPane.Disposition("=", green), ValuesPane.dispositionOf(ValuesTab.SourceKind.DERIVED));
+        assertEquals(new ValuesPane.Disposition("#", green), ValuesPane.dispositionOf(ValuesTab.SourceKind.GROUP));
+        assertEquals(new ValuesPane.Disposition("?", ValuesPane.RED),
+                ValuesPane.dispositionOf(ValuesTab.SourceKind.NONE));
+        assertEquals(new ValuesPane.Disposition("⊘", gray), ValuesPane.dispositionOf(ValuesTab.SourceKind.DENIED));
+    }
+
+    /**
+     * The symbol stands right-aligned at the row's right edge on the title line, and the name is cut to end a gap
+     * before it (decision items-row-title-carries-a-disposition-symbol-at-the-right-edge).
+     */
+    @Test
+    void symbolStandsAtTheRightEdgeAndCutsTheName() {
+        int symbolWidth = 7;
+        ValuesPane.EntryLayout layout = ValuesPane.layEntry(new GroupsPane.Bounds(LEFT, TOP, RIGHT, TOP + 200),
+                List.of(40), false, new ValuesPane.RowText(true, LINE_HEIGHT, symbolWidth), SMALL_ICON);
+        assertEquals(RIGHT - symbolWidth, layout.symbolLeft());
+        assertEquals(layout.symbolLeft() - ValuesPane.SYMBOL_GAP, layout.nameLeft() + layout.nameWidth());
     }
 
     private static ValuesPane.EntryLayout lay(List<Integer> runWidths, boolean derived, boolean labelShown) {
