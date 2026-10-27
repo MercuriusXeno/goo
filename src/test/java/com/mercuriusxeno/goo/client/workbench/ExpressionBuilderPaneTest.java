@@ -249,19 +249,33 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
-     * Every row that can scale draws its ratio 1 : 1 at rest, either side set first, and no scale offer draws
-     * (decision scale-shows-the-ratio-at-once).
+     * Every reference term, sum, goo type row and multi-term whole value draws its ratio 1 : 1 at rest, either side
+     * set first (decision scale-shows-the-ratio-at-once).
      */
     @Nested
     class RatioAtRest {
 
-        // The last ratio's sides read 1 : 1, each a click target, and nothing reads "scale".
-        private static void assertOneToOneAtRest(DrawnFrame frame) {
-            List<DrawnFrame.Text> sides = ratioSides(frame);
-            assertEquals(List.of("1", "1"), sides.stream().map(DrawnFrame.Text::text).toList());
+        // The sides of every ratio drawn, the text before each colon and the text after it, in drawn order.
+        private static List<List<DrawnFrame.Text>> ratios(DrawnFrame frame) {
+            List<DrawnFrame.Text> drawn = frame.drawn();
+            List<List<DrawnFrame.Text>> ratios = new ArrayList<>();
+            for (int index = 1; index < drawn.size() - 1; index++) {
+                if (drawn.get(index).text().equals(":")) {
+                    ratios.add(List.of(drawn.get(index - 1), drawn.get(index + 1)));
+                }
+            }
+            return ratios;
+        }
+
+        // The ratio's sides read as the digits given, each a click target.
+        private static void assertRatioReads(DrawnFrame frame, List<DrawnFrame.Text> sides, List<String> digits) {
+            assertEquals(digits, sides.stream().map(DrawnFrame.Text::text).toList(), frame.texts().toString());
             sides.forEach(side -> assertTrue(frame.targets.hovered(side.x() + 1, side.y() + 1).isPresent(),
                     side + " is no control"));
-            assertFalse(frame.texts().contains("scale"), frame.texts().toString());
+        }
+
+        private static void assertOneToOneAtRest(DrawnFrame frame) {
+            assertRatioReads(frame, ratioSides(frame), List.of("1", "1"));
         }
 
         @Test
@@ -273,8 +287,10 @@ class ExpressionBuilderPaneTest {
         void freshSumDrawsOneToOne() {
             DrawnFrame frame = Builder.item("$base - ($waxed + $edited)").frame();
             assertTrue(frame.texts().contains("the sum of:"), frame.texts().toString());
-            assertEquals(4, frame.texts().stream().filter(":"::equals).count(), frame.texts().toString());
-            assertOneToOneAtRest(frame);
+            List<List<DrawnFrame.Text>> ratios = ratios(frame);
+            // $base, $waxed, $edited, the sum, then the whole value.
+            assertEquals(5, ratios.size(), frame.texts().toString());
+            ratios.forEach(sides -> assertRatioReads(frame, sides, List.of("1", "1")));
         }
 
         @Test
@@ -283,9 +299,38 @@ class ExpressionBuilderPaneTest {
         }
 
         @Test
-        void numberTermDrawsNoRatioAndNoScale() {
-            List<String> texts = Builder.prefab(PREFABS, "{\"metal\": \"5\"}").frame().texts();
-            assertFalse(texts.contains(":") || texts.contains("scale"), texts.toString());
+        void wholeValueDrawsOneToOneAfterItsTerms() {
+            DrawnFrame frame = Builder.item("$waxed + $edited").frame();
+            List<List<DrawnFrame.Text>> ratios = ratios(frame);
+            assertEquals(3, ratios.size(), frame.texts().toString());
+            DrawnFrame.Text edited = frame.find("edited");
+            assertTrue(ratios.getLast().getFirst().y() > edited.y(), frame.drawn().toString());
+            assertOneToOneAtRest(frame);
+        }
+
+        private static Builder wholeValueCommitted(int side) {
+            Builder builder = Builder.item("$waxed + $edited");
+            DrawnFrame frame = builder.frame();
+            clickAt(frame, ratioSides(frame).get(side));
+            builder.commitNumber("3");
+            return builder;
+        }
+
+        @Test
+        void committingTheWholeValuesDivisorFirstDividesTheSum() {
+            assertEquals("($waxed + $edited) / 3", wholeValueCommitted(1).written.getLast());
+        }
+
+        @Test
+        void committingTheWholeValuesMultiplierFirstMultipliesTheSum() {
+            assertEquals("3 ($waxed + $edited)", wholeValueCommitted(0).written.getLast());
+        }
+
+        @Test
+        void scaledWholeValueDrawsAsOneSumCarryingItsRatio() {
+            DrawnFrame frame = wholeValueCommitted(1).frame();
+            assertTrue(frame.texts().contains("the sum of:"), frame.texts().toString());
+            assertRatioReads(frame, ratioSides(frame), List.of("1", "3"));
         }
 
         @Test
