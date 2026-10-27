@@ -152,10 +152,11 @@ class ValuesTabTest {
                 """;
 
         /**
-         * Each item names where its value comes from: Valued for its own entry, a #group entry over a _groups
-         * group, a denial, "derived from" its recipe inputs where recipes value an entryless item, and "no value"
-         * where nothing does, with a restriction appended; "no value" alone reads red
-         * (decision items-rows-read-valued-derived-or-no-value-with-values-inline).
+         * Each item names where its value comes from: Valued for its own entry, the group's bare name for a #group
+         * entry over a _groups group, a denial, derived where recipes value an entryless item, and "no value" where
+         * nothing does, with its restriction beside; "no value" alone reads red (decisions
+         * items-rows-read-valued-derived-or-no-value-with-values-inline,
+         * items-row-second-line-is-the-equality-expression).
          */
         @Test
         void eachItemNamesWhereItsValueComesFrom() {
@@ -168,16 +169,16 @@ class ValuesTabTest {
                     {"items": {"minecraft:oak_planks": ["minecraft:oak_log"]}}
                     """);
             ValuesTab.Source valued = tab.sourceOf("minecraft:stick");
-            assertEquals(new ValuesTab.Source("Valued, restricted", ValuesTab.SourceKind.ENTRY), valued);
+            assertEquals(new ValuesTab.Source("Valued", ValuesTab.SourceKind.ENTRY, true), valued);
             ValuesTab.Source group = tab.sourceOf("minecraft:torch");
-            assertEquals(new ValuesTab.Source("group #lights", ValuesTab.SourceKind.GROUP), group);
+            assertEquals(new ValuesTab.Source("lights", ValuesTab.SourceKind.GROUP, false), group);
             ValuesTab.Source denied = tab.sourceOf("goo:gasket");
-            assertEquals(new ValuesTab.Source("denied", ValuesTab.SourceKind.DENIED), denied);
+            assertEquals(new ValuesTab.Source("denied", ValuesTab.SourceKind.DENIED, false), denied);
             ValuesTab.Source derived = tab.sourceOf("minecraft:oak_planks");
-            assertEquals(new ValuesTab.Source("derived from", ValuesTab.SourceKind.DERIVED), derived);
+            assertEquals(new ValuesTab.Source("derived", ValuesTab.SourceKind.DERIVED, false), derived);
             assertEquals(List.of("minecraft:oak_log"), tab.derivedFrom("minecraft:oak_planks"));
             ValuesTab.Source none = tab.sourceOf("minecraft:dirt");
-            assertEquals(new ValuesTab.Source("no value", ValuesTab.SourceKind.NONE), none);
+            assertEquals(new ValuesTab.Source("no value", ValuesTab.SourceKind.NONE, false), none);
             List<ValuesTab.Source> notRed = List.of(valued, group, denied, derived);
             assertEquals(ValuesPane.RED, ValuesPane.colorOf(none.kind()));
             assertTrue(notRed.stream().noneMatch(source -> ValuesPane.colorOf(source.kind()) == ValuesPane.RED));
@@ -214,13 +215,14 @@ class ValuesTabTest {
                                   "restricted": false, "error": null}]}
                     """);
             tab.readDerivedFrom("{\"items\": {}}");
-            assertEquals(new ValuesTab.Source("group #concrete", ValuesTab.SourceKind.GROUP),
+            assertEquals(new ValuesTab.Source("concrete", ValuesTab.SourceKind.GROUP, false),
                     tab.sourceOf("minecraft:brown_concrete"));
         }
 
         /**
-         * An item valued with no entry, no group and no recipe inputs to name reads "valued indirectly", so no row
-         * reads a bare "derived from" (decision diagnose-and-correct-group-derived-reading-derived-from).
+         * An item valued with no entry, no group and no recipe inputs to name reads derived, the same as one with
+         * inputs, so no row reads a bare "derived from" (decisions
+         * diagnose-and-correct-group-derived-reading-derived-from, items-row-second-line-is-the-equality-expression).
          */
         @Test
         void valuedItemWithNoInputsNeverReadsABareDerivedFrom() {
@@ -229,7 +231,7 @@ class ValuesTabTest {
                                   "restricted": false, "error": null}]}
                     """);
             tab.readDerivedFrom("{\"items\": {}}");
-            assertEquals(new ValuesTab.Source("valued indirectly", ValuesTab.SourceKind.DERIVED),
+            assertEquals(new ValuesTab.Source("derived", ValuesTab.SourceKind.DERIVED, false),
                     tab.sourceOf("minecraft:torch"));
         }
 

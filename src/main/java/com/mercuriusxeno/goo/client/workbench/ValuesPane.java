@@ -19,16 +19,21 @@ import java.util.function.ToIntFunction;
  * each draw a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in {@link ValuesTab}.
  */
 final class ValuesPane {
-    private static final int SIDEBAR_WIDTH = 180;
+    /** The Items list's width. */
+    static final int SIDEBAR_WIDTH = 180;
     private static final int PANE_GAP = 12;
     private static final int LINE_HEIGHT = 10;
     private static final int BOX_HEIGHT = 14;
-    /** An Items row's height, its sprite's and margin. */
+    /** An Items row's equality line's height, its sprite's and margin. */
     static final int ROW_HEIGHT = 18;
+    /** An Items row's title line's height. */
+    static final int TITLE_HEIGHT = LINE_HEIGHT;
+    /** The pixel above an Items row's first line and below its last (decision items-row-pads-a-hair-all-round). */
+    static final int ROW_PAD = 1;
     private static final int ICON_SIZE = 16;
-    private static final int ICON_GAP = 4;
-    // An 18px row's second text line, clear of the separator under it.
-    private static final int SECOND_LINE = 9;
+    /** The room after an Items row's sprite and after its equals sign. */
+    static final int ICON_GAP = 4;
+    private static final String EQUALS = "=";
     /** The room between the filter set and the search box below it. */
     static final int CHIP_LINE_GAP = 3;
     private static final int CHIP_TEXT_NUDGE = 3;
@@ -47,7 +52,6 @@ final class ValuesPane {
     static final int RUN_GAP = 3;
     /** The room between a run's type icon and its amount. */
     static final int RUN_ICON_GAP = 2;
-    private static final int RUN_TEXT_NUDGE = 5;
     // The pixel above and the pixel below a value line's type icon.
     private static final int ICON_HAIR = 1;
     private static final int GOLD = 0xFFE0C060;
@@ -277,63 +281,90 @@ final class ValuesPane {
         return whole;
     }
 
-    // One Items row: the icon and the name over its source across the first 18px row, the item's goo value on value
-    // lines under it, each its type icon plus a pixel above and below, wrapped onto as many lines as it needs, then a
-    // derived item's "derived from" and its inputs on one 18px line; answers its height (decisions
-    // items-rows-read-valued-derived-or-no-value-with-values-inline, items-goo-type-line-always-on-the-second-row,
-    // value-line-is-as-tall-as-its-icon).
+    // One Items row: the title and its symbol on line 1, then the equality line led by the item's sprite, the goo value
+    // on value lines beside or under it, a pixel above and below the whole; answers its height (decisions
+    // items-row-second-line-is-the-equality-expression, goo-runs-follow-on-their-own-lines-after-line-two,
+    // items-row-pads-a-hair-all-round).
     private int drawEntry(GuiGraphicsExtractor graphics, Font font, ValuesTab.ManagerEntry entry,
                           GroupsPane.Bounds row, boolean selected, ClickTargets targets) {
-        Map<String, String> worth = entry.tag() ? Map.of() : values.worthOf(entry.id());
-        List<String> from = entry.tag() ? List.of() : values.derivedFrom(entry.id());
+        Optional<ValuesTab.Source> source = entry.tag() ? Optional.empty() : Optional.of(values.sourceOf(entry.id()));
+        ValuesTab.SourceKind kind = source.map(ValuesTab.Source::kind).orElse(ValuesTab.SourceKind.NONE);
+        Map<String, String> worth = carriesRuns(kind) ? values.worthOf(entry.id()) : Map.of();
         List<Integer> runWidths = worth.entrySet().stream()
                 .map(amount -> runWidth(font, amount.getValue(), GooTypeIcons.sizeOf(amount.getKey()))).toList();
         int iconSize = worth.keySet().stream().mapToInt(GooTypeIcons::sizeOf).max().orElse(0);
-        EntryLayout layout = layEntry(row, runWidths, !from.isEmpty(), new RowText(labelShown(entry, from),
-                font.lineHeight, symbolOf(entry).map(shown -> font.width(shown.glyph())).orElse(0)), iconSize);
-        int height = layout.height();
+        int symbolWidth = source.map(shown -> font.width(dispositionOf(shown.kind()).glyph())).orElse(0);
+        EntryLayout layout = layEntry(row, runWidths, new RowText(kind, font.lineHeight, symbolWidth,
+                font.width(EQUALS)), iconSize);
         if (selected) {
-            graphics.fill(row.left(), row.top(), row.right(), row.top() + height, SELECTED_ROW_COLOR);
+            graphics.fill(row.left(), row.top(), row.right(), row.top() + layout.height(), SELECTED_ROW_COLOR);
         }
-        targets.add(row.left(), row.top(), row.right() - row.left(), height, () -> {
+        targets.add(row.left(), row.top(), row.right() - row.left(), layout.height(), () -> {
             values.select(entry.id());
             detailBar.reset();
             builder.close();
         });
-        drawEntryText(graphics, font, entry, layout, row.top());
+        drawTitle(graphics, font, entry, source, layout.title());
+        drawEquality(graphics, font, entry, source, layout.equality(), targets);
         drawValueRuns(graphics, font, worth, layout, targets);
-        drawDerivedFrom(graphics, font, from, layout.nameLeft(), layout.derivedTop(), targets);
-        return height;
+        return layout.height();
     }
 
-    // A tag's name under its id, or an item's source label, draws under the name; a derived item with inputs names
-    // them on its derived-from line instead.
-    private boolean labelShown(ValuesTab.ManagerEntry entry, List<String> from) {
-        return entry.tag() || values.sourceOf(entry.id()).kind() != ValuesTab.SourceKind.DERIVED || from.isEmpty();
+    // Valued, derived and grouped items show their goo value; no value and denied have none to show.
+    private static boolean carriesRuns(ValuesTab.SourceKind kind) {
+        return kind == ValuesTab.SourceKind.ENTRY || kind == ValuesTab.SourceKind.DERIVED
+                || kind == ValuesTab.SourceKind.GROUP;
     }
 
-    // A tag row draws no symbol.
-    private Optional<Disposition> symbolOf(ValuesTab.ManagerEntry entry) {
-        return entry.tag() ? Optional.empty() : Optional.of(dispositionOf(values.sourceOf(entry.id()).kind()));
+    // The name, or a tag's id, and the item's disposition symbol at the row's right edge.
+    private static void drawTitle(GuiGraphicsExtractor graphics, Font font, ValuesTab.ManagerEntry entry,
+                                  Optional<ValuesTab.Source> source, Title title) {
+        graphics.text(font, font.plainSubstrByWidth(entry.tag() ? entry.id() : entry.name(), title.nameWidth()),
+                title.nameLeft(), title.nameTop(), WHITE);
+        source.map(shown -> dispositionOf(shown.kind())).ifPresent(symbol -> graphics.text(font, symbol.glyph(),
+                title.symbolLeft(), title.nameTop(), symbol.color()));
     }
 
-    private void drawEntryText(GuiGraphicsExtractor graphics, Font font, ValuesTab.ManagerEntry entry,
-                               EntryLayout layout, int top) {
-        int textX = layout.nameLeft();
-        int width = layout.nameWidth();
-        graphics.item(icons.of(entry.id()), textX - ICON_SIZE - ICON_GAP, top + 1);
-        graphics.text(font, font.plainSubstrByWidth(entry.tag() ? entry.id() : entry.name(), width), textX,
-                layout.nameTop(), WHITE);
-        symbolOf(entry).ifPresent(shown -> graphics.text(font, shown.glyph(), layout.symbolLeft(), layout.nameTop(),
-                shown.color()));
-        if (entry.tag()) {
-            graphics.text(font, font.plainSubstrByWidth(entry.name(), width), textX, top + SECOND_LINE, GRAY);
+    // The sprite, then by disposition: "=" and what the value equals, or the no-value or denied words; a tag reads its
+    // member count.
+    private void drawEquality(GuiGraphicsExtractor graphics, Font font, ValuesTab.ManagerEntry entry,
+                              Optional<ValuesTab.Source> source, Equality line, ClickTargets targets) {
+        graphics.item(icons.of(entry.id()), line.spriteLeft(), line.spriteTop());
+        ValuesTab.Source shown = source.orElse(new ValuesTab.Source(entry.name(), ValuesTab.SourceKind.DENIED, false));
+        if (!carriesRuns(shown.kind())) {
+            graphics.text(font, font.plainSubstrByWidth(shown.label(), line.right() - line.equalsLeft()),
+                    line.equalsLeft(), line.textTop(), colorOf(shown.kind()));
             return;
         }
-        ValuesTab.Source source = values.sourceOf(entry.id());
-        if (labelShown(entry, values.derivedFrom(entry.id()))) {
-            graphics.text(font, font.plainSubstrByWidth(source.label(), width), textX, top + SECOND_LINE,
-                    colorOf(source.kind()));
+        graphics.text(font, EQUALS, line.equalsLeft(), line.textTop(), WHITE);
+        if (shown.kind() == ValuesTab.SourceKind.GROUP) {
+            drawGroupLink(graphics, font, shown.label(), line, targets);
+        } else if (shown.kind() == ValuesTab.SourceKind.DERIVED) {
+            drawInputs(graphics, font, entry.id(), line, targets);
+        }
+    }
+
+    // The group's name, a link to its group on the Groups tab.
+    private void drawGroupLink(GuiGraphicsExtractor graphics, Font font, String group, Equality line,
+                               ClickTargets targets) {
+        String shown = font.plainSubstrByWidth(group, line.right() - line.besideLeft());
+        graphics.text(font, shown, line.besideLeft(), line.textTop(), LINK);
+        targets.add(line.besideLeft(), line.spriteTop(), font.width(shown), ICON_SIZE,
+                () -> actions.openGroup(group));
+    }
+
+    // A derived item's recipe inputs, each sprite a link to its own row; one recipes value with no inputs to name
+    // reads derived.
+    private void drawInputs(GuiGraphicsExtractor graphics, Font font, String id, Equality line, ClickTargets targets) {
+        List<String> from = values.derivedFrom(id);
+        if (from.isEmpty()) {
+            graphics.text(font, values.sourceOf(id).label(), line.besideLeft(), line.textTop(),
+                    colorOf(ValuesTab.SourceKind.DERIVED));
+        }
+        for (int index = 0; index < from.size(); index++) {
+            int x = line.besideLeft() + index * (ICON_SIZE + HALF);
+            graphics.item(icons.of(from.get(index)), x, line.spriteTop());
+            ItemLinks.add(targets, actions, from.get(index), x, line.spriteTop());
         }
     }
 
@@ -348,23 +379,6 @@ final class ValuesPane {
             int size = GooTypeIcons.sizeOf(amount.getKey());
             GooTypeIcons.draw(graphics, targets, amount.getKey(), x, layout.iconTop(spot.row()), size);
             graphics.text(font, amount.getValue(), x + size + RUN_ICON_GAP, layout.amountTop(spot.row()), WHITE);
-        }
-    }
-
-    // "derived from" and the inputs' icons on one line, each icon a link to its own row, so the words read joined
-    // to the items they name.
-    private void drawDerivedFrom(GuiGraphicsExtractor graphics, Font font, List<String> from, int left, int top,
-                                 ClickTargets targets) {
-        if (from.isEmpty()) {
-            return;
-        }
-        String words = ValuesTab.DERIVED_SOURCE;
-        graphics.text(font, words, left, top + RUN_TEXT_NUDGE, colorOf(ValuesTab.SourceKind.DERIVED));
-        int iconsLeft = left + font.width(words) + GAP;
-        for (int index = 0; index < from.size(); index++) {
-            int x = iconsLeft + index * (ICON_SIZE + HALF);
-            graphics.item(icons.of(from.get(index)), x, top + 1);
-            ItemLinks.add(targets, actions, from.get(index), x, top + 1);
         }
     }
 
@@ -418,13 +432,14 @@ final class ValuesPane {
     }
 
     /**
-     * The text an Items row's first row holds.
+     * What an Items row's layout reads from its item and the font.
      *
-     * @param labelShown  whether a label draws under the name
+     * @param kind        where the item's value comes from, which places its goo value; a tag lays as no value
      * @param lineHeight  the font's glyph line height
      * @param symbolWidth the disposition symbol's width, 0 for a row drawing none
+     * @param equalsWidth the equals sign's width
      */
-    record RowText(boolean labelShown, int lineHeight, int symbolWidth) {
+    record RowText(ValuesTab.SourceKind kind, int lineHeight, int symbolWidth, int equalsWidth) {
     }
 
     /**
@@ -461,23 +476,47 @@ final class ValuesPane {
      * @param runs         the runs, none for an empty worth
      * @param lineHeight   a line's height, its type icon plus a pixel above and below
      * @param amountOffset an amount's top under its line's top, the glyph line centered on the icon
+     * @param lines        how many lines the value takes, 0 for none
      */
-    record ValueLines(int left, int top, ValueRuns runs, int lineHeight, int amountOffset) {
+    record ValueLines(int left, int top, ValueRuns runs, int lineHeight, int amountOffset, int lines) {
+        int bottom() {
+            return top + lines * lineHeight;
+        }
+    }
+
+    /**
+     * Where an Items row's title line stands.
+     *
+     * @param nameLeft   the name's left edge
+     * @param nameTop    the name's and the symbol's top
+     * @param nameWidth  the width the name is cut to
+     * @param symbolLeft the disposition symbol's left edge
+     */
+    record Title(int nameLeft, int nameTop, int nameWidth, int symbolLeft) {
+    }
+
+    /**
+     * Where an Items row's equality line stands.
+     *
+     * @param spriteLeft the item sprite's left edge
+     * @param spriteTop  its top, and the top of every sprite on the line
+     * @param equalsLeft the equals sign's left edge, or the no-value words'
+     * @param besideLeft the left edge of what the item equals
+     * @param textTop    the line's text top, the glyph line centered on it
+     * @param right      the line's right edge
+     */
+    record Equality(int spriteLeft, int spriteTop, int equalsLeft, int besideLeft, int textTop, int right) {
     }
 
     /**
      * Where an Items row's parts stand.
      *
-     * @param nameLeft   the name's left edge, past the icon
-     * @param nameTop    the name's top
-     * @param nameWidth  the width the name and its source are cut to
-     * @param symbolLeft the disposition symbol's left edge
-     * @param value      the goo value's lines
-     * @param derivedTop the derived-from line's top
-     * @param height     the row's whole height
+     * @param title    the title line
+     * @param equality the equality line
+     * @param value    the goo value's lines
+     * @param height   the row's whole height
      */
-    record EntryLayout(int nameLeft, int nameTop, int nameWidth, int symbolLeft, ValueLines value, int derivedTop,
-                       int height) {
+    record EntryLayout(Title title, Equality equality, ValueLines value, int height) {
         int runsLeft() {
             return value.left();
         }
@@ -516,36 +555,45 @@ final class ValuesPane {
     }
 
     /**
-     * Lays an Items row: the name across the first 18px row to the row's right edge, centered on it when no label
-     * sits under it, the goo value under that row at the name's left edge on lines each the type icon plus a pixel
-     * above and below, an empty worth taking no line, then the 18px derived-from line where there is one (decisions
-     * items-goo-type-line-always-on-the-second-row, value-line-is-as-tall-as-its-icon, item-name-centers-on-its-row).
+     * Lays an Items row a pixel inside its top and bottom: line 1 the name to the disposition symbol at the right
+     * edge, line 2 an 18px line led by the item's sprite and the equals sign, then the goo value on lines each the type
+     * icon plus a pixel above and below, beside the equals sign for a valued item and from line 3 for a derived or
+     * grouped one (decisions items-row-title-carries-a-disposition-symbol-at-the-right-edge,
+     * items-row-second-line-is-the-equality-expression, goo-runs-follow-on-their-own-lines-after-line-two,
+     * items-row-pads-a-hair-all-round, value-line-is-as-tall-as-its-icon).
      *
      * @param row       the row's bounds, its left, top and right edges
      * @param runWidths each goo run's width
-     * @param derived   whether the row draws a derived-from line
-     * @param text      whether a label sits under the name, and the font's line height
+     * @param text      the item's disposition and the font's measures
      * @param iconSize  the goo type icons' side
      * @return each part's place and the row's height
      */
-    static EntryLayout layEntry(GroupsPane.Bounds row, List<Integer> runWidths, boolean derived, RowText text,
-                                int iconSize) {
-        int top = row.top();
-        int nameLeft = row.left() + ICON_SIZE + ICON_GAP;
-        int nameTop = text.labelShown() ? top + 1 : top + (ROW_HEIGHT - text.lineHeight()) / HALF;
-        int width = row.right() - nameLeft;
-        // The symbol stands at the row's right edge, the name cut short of it (decision
-        // items-row-title-carries-a-disposition-symbol-at-the-right-edge).
+    static EntryLayout layEntry(GroupsPane.Bounds row, List<Integer> runWidths, RowText text, int iconSize) {
+        int left = row.left() + ROW_PAD;
+        int titleTop = row.top() + ROW_PAD;
         int symbolLeft = row.right() - text.symbolWidth();
-        int nameWidth = text.symbolWidth() == 0 ? width : symbolLeft - SYMBOL_GAP - nameLeft;
-        ValueRuns runs = layValueRuns(runWidths, width);
-        int lines = runWidths.isEmpty() ? 0 : runs.rows();
+        int nameWidth = text.symbolWidth() == 0 ? row.right() - left : symbolLeft - SYMBOL_GAP - left;
+        int lineTwo = titleTop + TITLE_HEIGHT;
+        int equalsLeft = left + ICON_SIZE + ICON_GAP;
+        Equality equality = new Equality(left, lineTwo + 1, equalsLeft, equalsLeft + text.equalsWidth() + ICON_GAP,
+                lineTwo + (ROW_HEIGHT - text.lineHeight()) / HALF, row.right());
+        ValueLines value = layValueLines(runWidths, text, iconSize, equality, lineTwo);
+        int bottom = Math.max(lineTwo + ROW_HEIGHT, value.bottom());
+        return new EntryLayout(new Title(left, titleTop, nameWidth, symbolLeft), equality, value,
+                bottom + ROW_PAD - row.top());
+    }
+
+    // A valued item's value starts beside the equals sign, centered on line 2; a derived or grouped item's starts on
+    // line 3 at the row's left edge; the rest show none.
+    private static ValueLines layValueLines(List<Integer> runWidths, RowText text, int iconSize, Equality equality,
+                                            int lineTwo) {
+        boolean beside = text.kind() == ValuesTab.SourceKind.ENTRY;
         int lineHeight = iconSize + ICON_HAIR * HALF;
-        ValueLines value = new ValueLines(nameLeft, top + ROW_HEIGHT, runs, lineHeight,
-                (lineHeight - text.lineHeight()) / HALF);
-        int derivedTop = value.top() + lines * lineHeight;
-        int height = derivedTop - top + (derived ? ROW_HEIGHT : 0);
-        return new EntryLayout(nameLeft, nameTop, nameWidth, symbolLeft, value, derivedTop, height);
+        int left = beside ? equality.besideLeft() : equality.spriteLeft();
+        int top = beside ? lineTwo + (ROW_HEIGHT - lineHeight) / HALF : lineTwo + ROW_HEIGHT;
+        ValueRuns runs = layValueRuns(runWidths, equality.right() - left);
+        int lines = runWidths.isEmpty() || !carriesRuns(text.kind()) ? 0 : runs.rows();
+        return new ValueLines(left, top, runs, lineHeight, (lineHeight - text.lineHeight()) / HALF, lines);
     }
 
     private void scrollToRevealed() {
@@ -618,7 +666,7 @@ final class ValuesPane {
         return height;
     }
 
-    // The selected entry's icon, name and id, and where its value comes from.
+    // The selected entry's icon, its name or a tag's id, and an item's disposition symbol.
     private void drawHeading(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row, GroupsPane.Bounds pane) {
         graphics.item(icons.of(row.id()), pane.left(), pane.top());
         int textX = pane.left() + ICON_SIZE + ICON_GAP;
@@ -634,7 +682,6 @@ final class ValuesPane {
             String shown = font.plainSubstrByWidth(heading, nameRoom);
             graphics.text(font, shown, textX, pane.top(), WHITE);
             graphics.text(font, symbol.glyph(), textX + font.width(shown) + SYMBOL_GAP, pane.top(), symbol.color());
-            graphics.text(font, source.label(), textX, pane.top() + LINE_HEIGHT, colorOf(source.kind()));
         }
     }
 
