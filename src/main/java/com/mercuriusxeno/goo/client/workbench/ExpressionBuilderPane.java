@@ -41,13 +41,14 @@ final class ExpressionBuilderPane {
     private static final String PREFABS_GOO_KIND_HINT = "Worth what the per-type prefabs above this one are worth,"
             + " scaled and summed";
     private static final String AMOUNT_FROM = "amount from";
-    private static final String NUMBER_MODE = "number";
+    // decision amount-modes-name-what-the-amount-comes-from
+    private static final String NUMBER_MODE = "a number";
     private static final String NUMBER_MODE_HINT = "The amount is a number you set";
-    private static final String PREFAB_MODE = "prefab";
+    private static final String PREFAB_MODE = "a number prefab";
     private static final String PREFAB_MODE_HINT = "The amount is a number prefab's value";
-    private static final String ITEM_MODE = "item";
+    private static final String ITEM_MODE = "a goo type of an item or prefab";
     private static final String ITEM_MODE_HINT = "The amount is one goo type of an item's or per-type prefab's value";
-    private static final String PREFAB_TYPE_MODE = "another prefab";
+    private static final String PREFAB_TYPE_MODE = "a goo type of a prefab";
     private static final String PREFAB_TYPE_MODE_HINT = "The amount is one goo type of a per-type prefab's value";
     private static final String ITS = "its";
     private static final String NUMBER_HINT = "Click to change the number";
@@ -274,20 +275,19 @@ final class ExpressionBuilderPane {
         flow.text(KIND, GRAY);
         boolean perType = edited.isPerType();
         String sort = perType || edited.terms().isEmpty() ? BLANK : grammar.sortOf(edited);
+        ControlFlow.ChoiceSet kinds = new ControlFlow.ChoiceSet();
         if (grammar.offersNumberKind()) {
-            flow.choice(NUMBER_KIND, NUMBER_KIND_HINT, BuilderGrammar.NUMBER_SORT.equals(sort),
-                    () -> apply(ExpressionBuilder::switchToWhole));
+            kinds.add(new BuilderOverlays.Option(NUMBER_KIND, NUMBER_KIND_HINT,
+                    at -> apply(ExpressionBuilder::switchToWhole)), BuilderGrammar.NUMBER_SORT.equals(sort));
         }
-        flow.choice(PER_TYPE, PER_TYPE_HINT, perType, () -> apply(ExpressionBuilder::switchToPerType));
+        kinds.add(new BuilderOverlays.Option(PER_TYPE, PER_TYPE_HINT, at -> apply(ExpressionBuilder::switchToPerType)),
+                perType);
         if (grammar.offersGooKind()) {
-            drawGooKind(flow, edited, BuilderGrammar.GOO_SORT.equals(sort));
+            boolean items = grammar.readsItems();
+            kinds.add(new BuilderOverlays.Option(items ? ITEMS_GOO_KIND : PREFABS_GOO_KIND, gooKindHint(items),
+                    at -> switchToGoo(at, edited)), BuilderGrammar.GOO_SORT.equals(sort));
         }
-    }
-
-    private void drawGooKind(ControlFlow flow, ExpressionBuilder edited, boolean chosen) {
-        boolean items = grammar.readsItems();
-        flow.choiceAt(items ? ITEMS_GOO_KIND : PREFABS_GOO_KIND, gooKindHint(items), chosen,
-                at -> switchToGoo(at, edited));
+        flow.choices(kinds, overlays);
     }
 
     /**
@@ -356,26 +356,45 @@ final class ExpressionBuilderPane {
     // one to read, then the operand and its factor.
     private void drawAmount(ControlFlow flow, int row, String type, ExpressionBuilder.Piece piece) {
         flow.text(AMOUNT_FROM, GRAY);
-        ExpressionBuilder.Operand operand = piece.operand();
-        boolean isNumber = operand instanceof ExpressionBuilder.Num;
-        boolean isPrefab = operand instanceof ExpressionBuilder.Ref ref && ref.member() == null;
-        flow.choice(NUMBER_MODE, NUMBER_MODE_HINT, isNumber, () -> apply(b -> b.setRowNumber(row,
-                ExpressionBuilder.ONE_TEXT)));
-        if (isPrefab || !grammar.scalarPrefabs().isEmpty()) {
-            flow.choiceAt(PREFAB_MODE, PREFAB_MODE_HINT, isPrefab, at -> pickRowPrefab(at, row));
-        }
-        drawMemberMode(flow, row, type, !isNumber && !isPrefab);
-        if (drawAmountOperand(flow, row, type, operand)) {
+        flow.choices(amountModes(row, type, piece.operand()), overlays);
+        if (drawAmountOperand(flow, row, type, piece.operand())) {
             drawFactor(flow, piece, SCALE, SCALE_HINT, (op, factor) -> apply(b -> b.setRowScale(row, op, factor)));
         }
     }
 
-    private void drawMemberMode(ControlFlow flow, int row, String type, boolean chosen) {
-        if (chosen || hasRowMemberChoices()) {
-            boolean items = grammar.readsItems();
-            flow.choiceAt(items ? ITEM_MODE : PREFAB_TYPE_MODE, items ? ITEM_MODE_HINT : PREFAB_TYPE_MODE_HINT,
-                    chosen, at -> pickRowMember(at, row, type));
+    private ControlFlow.ChoiceSet amountModes(int row, String type, ExpressionBuilder.Operand operand) {
+        boolean isNumber = operand instanceof ExpressionBuilder.Num;
+        boolean isPrefab = isScalarPrefab(operand);
+        ControlFlow.ChoiceSet modes = new ControlFlow.ChoiceSet();
+        modes.add(numberMode(row, isNumber), isNumber);
+        if (isPrefab || !grammar.scalarPrefabs().isEmpty()) {
+            modes.add(new BuilderOverlays.Option(PREFAB_MODE, PREFAB_MODE_HINT, at -> pickRowPrefab(at, row)),
+                    isPrefab);
         }
+        boolean isMember = !isNumber && !isPrefab;
+        if (isMember || hasRowMemberChoices()) {
+            modes.add(memberMode(row, type), isMember);
+        }
+        return modes;
+    }
+
+    private static boolean isScalarPrefab(ExpressionBuilder.Operand operand) {
+        return operand instanceof ExpressionBuilder.Ref ref && ref.member() == null;
+    }
+
+    // Picking the number it already is keeps the number rather than resetting it to 1.
+    private BuilderOverlays.Option numberMode(int row, boolean isNumber) {
+        return new BuilderOverlays.Option(NUMBER_MODE, NUMBER_MODE_HINT, at -> {
+            if (!isNumber) {
+                apply(b -> b.setRowNumber(row, ExpressionBuilder.ONE_TEXT));
+            }
+        });
+    }
+
+    private BuilderOverlays.Option memberMode(int row, String type) {
+        boolean items = grammar.readsItems();
+        return new BuilderOverlays.Option(items ? ITEM_MODE : PREFAB_TYPE_MODE,
+                items ? ITEM_MODE_HINT : PREFAB_TYPE_MODE_HINT, at -> pickRowMember(at, row, type));
     }
 
     // The amount's number, prefab, or item or prefab with the goo type taken from it; answers whether it drew one.
