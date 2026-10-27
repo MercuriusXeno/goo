@@ -43,6 +43,10 @@ final class VariablesPane {
     private static final int READER_GAP = 6;
     private static final int TEXT_NUDGE = 4;
     private static final int HALF = 2;
+    // The Rename and Delete boxes stand 3px above the head's text, so 4px clears the list's top by a row and the
+    // separator above a later block, drawn 3px above its top, by more.
+    // decision prefabs-buttons-take-padding-above
+    private static final int HEAD_PAD = 4;
     private static final int WHITE = 0xFFFFFFFF;
     private static final int GRAY = 0xFFA0A0A0;
     private static final int RED = 0xFFFF5555;
@@ -211,8 +215,9 @@ final class VariablesPane {
     private int drawBlock(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
                           GroupsPane.Bounds bounds, int top, ClickTargets targets) {
         blockTops.put(block.name(), top + bar.offset() - bounds.top());
-        drawHead(graphics, font, block, bounds, top, targets);
-        int y = top + ExpressionLines.ICON_LINE_HEIGHT;
+        int headY = top + HEAD_PAD;
+        drawHead(graphics, font, block, bounds, headY, targets);
+        int y = headY + ExpressionLines.ICON_LINE_HEIGHT;
         boolean editingThis = variables.editing().filter(block.name()::equals).isPresent();
         y += editingThis ? drawBuilder(graphics, font, block, bounds, y, targets)
                 : drawReadView(graphics, font, block, bounds, y, targets);
