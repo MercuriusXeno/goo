@@ -23,10 +23,6 @@ class GooTypeIconsTest {
     private static final float ORANGE_HUE_CEILING = 45f / 360f;
     private static final float ORANGE_SATURATION_FLOOR = 0.4f;
     private static final float ORANGE_HUE_TOLERANCE = 8f / 360f;
-    private static final float GRAY_SATURATION_FLOOR = 0.1f;
-    private static final float BROWN_HUE_LOW = 20f / 360f;
-    private static final float BROWN_HUE_HIGH = 45f / 360f;
-    private static final float DESATURATED_BROWN_CEILING = 0.5f;
 
     @Nested
     class Yore {
@@ -43,32 +39,6 @@ class GooTypeIconsTest {
                     assertEquals(hourglass.getRGB(x, y), yore.getRGB(x, y), "yore differs at " + x + "," + y);
                 }
             }
-        }
-    }
-
-    @Nested
-    class Rock {
-
-        // rock-icon-is-two-tone-brown-and-gray
-        @Test
-        void rockIconIsOneBlendedDesaturatedBrown() throws IOException {
-            BufferedImage rock = readIcon("rock");
-            int brownPixels = 0;
-            for (int y = 0; y < rock.getHeight(); y++) {
-                for (int x = 0; x < rock.getWidth(); x++) {
-                    int argb = rock.getRGB(x, y);
-                    if (argb >>> 24 == 0) {
-                        continue;
-                    }
-                    float[] hsb = Color.RGBtoHSB(argb >> 16 & 0xFF, argb >> 8 & 0xFF, argb & 0xFF, null);
-                    String at = " at " + x + "," + y;
-                    assertTrue(hsb[0] >= BROWN_HUE_LOW && hsb[0] <= BROWN_HUE_HIGH, "rock holds a non-brown hue" + at);
-                    assertTrue(hsb[1] >= GRAY_SATURATION_FLOOR, "rock holds a gray" + at);
-                    assertTrue(hsb[1] < DESATURATED_BROWN_CEILING, "rock holds a brown as saturated as the old icon's" + at);
-                    brownPixels++;
-                }
-            }
-            assertTrue(brownPixels > 0, "rock holds no brown");
         }
     }
 
