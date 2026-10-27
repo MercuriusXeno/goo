@@ -19,6 +19,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -129,5 +130,39 @@ class VariablesPaneTest {
         assertEquals(List.of("prefab11"), variables.listed().stream().map(VariablesTab.ConstantBlock::name).toList());
         draw();
         assertEquals(track, pane.listBar().thumb(0, track).height());
+    }
+
+    // The tops of every fill the draw made at one color, in draw order.
+    private List<Integer> fillTopsAt(int color) {
+        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+        verify(graphics, atLeastOnce()).fill(anyInt(), tops.capture(), anyInt(), anyInt(), eq(color));
+        return tops.getAllValues();
+    }
+
+    /**
+     * Scrolled to its top, the first prefab's Rename and Delete borders start at least one pixel row below the list's
+     * clip top; each block draws its Rename then its Delete, so the first two border fills are the first block's.
+     */
+    @Test
+    void firstPrefabButtonsPadBelowTheListTop() {
+        draw();
+        ArgumentCaptor<Integer> clipTop = ArgumentCaptor.forClass(Integer.class);
+        verify(graphics).enableScissor(anyInt(), clipTop.capture(), anyInt(), anyInt());
+        List<Integer> borders = fillTopsAt(ButtonPainter.BORDER);
+        assertTrue(borders.get(0) > clipTop.getValue(), "Rename top " + borders.get(0) + " vs " + clipTop.getValue());
+        assertTrue(borders.get(1) > clipTop.getValue(), "Delete top " + borders.get(1) + " vs " + clipTop.getValue());
+    }
+
+    /**
+     * The second prefab's Rename and Delete borders start at least two rows below the separator above it, leaving an
+     * empty row between them.
+     */
+    @Test
+    void laterPrefabButtonsPadBelowTheirSeparator() {
+        draw();
+        int separator = fillTopsAt(RowLayout.SEPARATOR_COLOR).get(0);
+        List<Integer> borders = fillTopsAt(ButtonPainter.BORDER);
+        assertTrue(borders.get(2) >= separator + 2, "Rename top " + borders.get(2) + " vs " + separator);
+        assertTrue(borders.get(3) >= separator + 2, "Delete top " + borders.get(3) + " vs " + separator);
     }
 }
