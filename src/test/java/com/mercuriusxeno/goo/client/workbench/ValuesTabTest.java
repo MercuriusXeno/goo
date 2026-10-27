@@ -166,7 +166,8 @@ class ValuesTabTest {
                                   "restricted": false, "error": null}]}
                     """);
             tab.readDerivedFrom("""
-                    {"items": {"minecraft:oak_planks": ["minecraft:oak_log"]}}
+                    {"items": {"minecraft:oak_planks":
+                        {"inputs": [{"id": "minecraft:oak_log", "count": 1}], "output": 4}}}
                     """);
             ValuesTab.Source valued = tab.sourceOf("minecraft:stick");
             assertEquals(new ValuesTab.Source("Valued", ValuesTab.SourceKind.ENTRY, true), valued);
@@ -176,7 +177,8 @@ class ValuesTabTest {
             assertEquals(new ValuesTab.Source("denied", ValuesTab.SourceKind.DENIED, false), denied);
             ValuesTab.Source derived = tab.sourceOf("minecraft:oak_planks");
             assertEquals(new ValuesTab.Source("derived", ValuesTab.SourceKind.DERIVED, false), derived);
-            assertEquals(List.of("minecraft:oak_log"), tab.derivedFrom("minecraft:oak_planks"));
+            assertEquals(new ValuesTab.Recipe(List.of(new ValuesTab.Input("minecraft:oak_log", 1)), 4),
+                    tab.derivedFrom("minecraft:oak_planks"));
             ValuesTab.Source none = tab.sourceOf("minecraft:dirt");
             assertEquals(new ValuesTab.Source("no value", ValuesTab.SourceKind.NONE, false), none);
             List<ValuesTab.Source> notRed = List.of(valued, group, denied, derived);

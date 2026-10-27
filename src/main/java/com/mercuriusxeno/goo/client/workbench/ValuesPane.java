@@ -4,12 +4,14 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.function.ToIntFunction;
 
 /**
@@ -34,6 +36,10 @@ final class ValuesPane {
     /** The room after an Items row's sprite and after its equals sign. */
     static final int ICON_GAP = 4;
     private static final String EQUALS = "=";
+    private static final String PLUS = "+";
+    private static final String DIVIDE = " / ";
+    /** The room either side of the + between a recipe equivalency's inputs. */
+    static final int EQUIVALENCY_GAP = 2;
     /** The room between the filter set and the search box below it. */
     static final int CHIP_LINE_GAP = 3;
     private static final int CHIP_TEXT_NUDGE = 3;
@@ -353,19 +359,70 @@ final class ValuesPane {
                 () -> actions.openGroup(group));
     }
 
-    // A derived item's recipe inputs, each sprite a link to its own row; one recipes value with no inputs to name
-    // reads derived.
+    // A derived item's recipe equivalency; one recipes value with no inputs to name reads derived.
     private void drawInputs(GuiGraphicsExtractor graphics, Font font, String id, Equality line, ClickTargets targets) {
-        List<String> from = values.derivedFrom(id);
-        if (from.isEmpty()) {
+        ValuesTab.Recipe recipe = values.derivedFrom(id);
+        if (recipe.inputs().isEmpty()) {
             graphics.text(font, values.sourceOf(id).label(), line.besideLeft(), line.textTop(),
                     colorOf(ValuesTab.SourceKind.DERIVED));
+            return;
         }
-        for (int index = 0; index < from.size(); index++) {
-            int x = line.besideLeft() + index * (ICON_SIZE + HALF);
-            graphics.item(icons.of(from.get(index)), x, line.spriteTop());
-            ItemLinks.add(targets, actions, from.get(index), x, line.spriteTop());
+        drawEquivalency(graphics, font, recipe, line, targets);
+    }
+
+    // The inputs' sprites, each its summed count at its bottom right as an inventory draws a stack and a link to its
+    // own row, a small + between them, and " / n" where the recipe makes more than one (decision
+    // recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
+    private void drawEquivalency(GuiGraphicsExtractor graphics, Font font, ValuesTab.Recipe recipe, Equality line,
+                                 ClickTargets targets) {
+        Equivalency laid = layEquivalency(line.besideLeft(), recipe.inputs().size(), font.width(PLUS),
+                recipe.output());
+        for (int index = 0; index < recipe.inputs().size(); index++) {
+            ValuesTab.Input input = recipe.inputs().get(index);
+            int x = laid.spriteLefts().get(index);
+            ItemStack stack = icons.of(input.id());
+            graphics.item(stack, x, line.spriteTop());
+            graphics.itemDecorations(font, stack, x, line.spriteTop(), String.valueOf(input.count()));
+            ItemLinks.add(targets, actions, input.id(), x, line.spriteTop());
         }
+        laid.plusLefts().forEach(x -> graphics.text(font, PLUS, x, line.textTop(), WHITE));
+        laid.divideLeft().ifPresent(x -> graphics.text(font, DIVIDE + recipe.output(), x, line.textTop(), WHITE));
+    }
+
+    /**
+     * Where a recipe equivalency's parts stand.
+     *
+     * @param spriteLefts each input sprite's left edge, in order
+     * @param plusLefts   each + between inputs' left edge
+     * @param divideLeft  the " / n" run's left edge, empty where the recipe makes one
+     */
+    record Equivalency(List<Integer> spriteLefts, List<Integer> plusLefts, OptionalInt divideLeft) {
+    }
+
+    /**
+     * Lays a recipe equivalency's inputs from a left edge: each input sprite, a small + a gap either side between
+     * inputs, and " / n" after the last only where the recipe makes more than one (decision
+     * recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
+     *
+     * @param left      the first sprite's left edge
+     * @param inputs    how many distinct inputs the recipe takes
+     * @param plusWidth the + sign's width
+     * @param output    how many the recipe makes
+     * @return each part's place
+     */
+    static Equivalency layEquivalency(int left, int inputs, int plusWidth, int output) {
+        List<Integer> sprites = new ArrayList<>();
+        List<Integer> pluses = new ArrayList<>();
+        int x = left;
+        for (int index = 0; index < inputs; index++) {
+            if (index > 0) {
+                pluses.add(x + EQUIVALENCY_GAP);
+                x += EQUIVALENCY_GAP + plusWidth + EQUIVALENCY_GAP;
+            }
+            sprites.add(x);
+            x += ICON_SIZE;
+        }
+        return new Equivalency(sprites, pluses, output > 1 ? OptionalInt.of(x) : OptionalInt.empty());
     }
 
     // Each type icon at its texture's own size, one texel per pixel, a pixel under its value line's top, its amount
@@ -641,7 +698,8 @@ final class ValuesPane {
     private int drawPage(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row, GroupsPane.Bounds page,
                          int top, ClickTargets targets) {
         drawHeading(graphics, font, row, new GroupsPane.Bounds(page.left(), top, page.right(), page.bottom()));
-        int y = top + LINE_HEIGHT * HALF + GAP;
+        int y = top + LINE_HEIGHT * HALF + GAP
+                + drawHeadingEquivalency(graphics, font, row.id(), page.left(), top + ROW_HEIGHT, targets);
         graphics.text(font, EXPRESSION_LABEL, page.left(), y, GRAY);
         y += LINE_HEIGHT;
         y += builder.isOpen() ? builder.extract(graphics, font, page, y, targets)
@@ -683,6 +741,24 @@ final class ValuesPane {
             graphics.text(font, shown, textX, pane.top(), WHITE);
             graphics.text(font, symbol.glyph(), textX + font.width(shown) + SYMBOL_GAP, pane.top(), symbol.color());
         }
+    }
+
+    // Under a derived item's heading, its sprite, "=" and its recipe equivalency on an 18px line, as its row draws them
+    // (decision recipe-equivalency-reads-output-equals-grouped-inputs-over-n); answers the height it took.
+    private int drawHeadingEquivalency(GuiGraphicsExtractor graphics, Font font, String id, int left, int top,
+                                       ClickTargets targets) {
+        ValuesTab.Recipe recipe = values.derivedFrom(id);
+        if (id.startsWith(ValuesTab.TAG_MARK) || values.sourceOf(id).kind() != ValuesTab.SourceKind.DERIVED
+                || recipe.inputs().isEmpty()) {
+            return 0;
+        }
+        int equalsLeft = left + ICON_SIZE + ICON_GAP;
+        Equality line = new Equality(left, top + 1, equalsLeft, equalsLeft + font.width(EQUALS) + ICON_GAP,
+                top + (ROW_HEIGHT - font.lineHeight) / HALF, Integer.MAX_VALUE);
+        graphics.item(icons.of(id), line.spriteLeft(), line.spriteTop());
+        graphics.text(font, EQUALS, line.equalsLeft(), line.textTop(), WHITE);
+        drawEquivalency(graphics, font, recipe, line, targets);
+        return ROW_HEIGHT;
     }
 
     // Each type draws as its icon beside its amount, a line each (decision goo-types-draw-as-icons-named-on-hover);
