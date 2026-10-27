@@ -13,7 +13,8 @@ final class RowLayout {
     static final int SPRITE_SIZE = 16;
     /** A row holding a sprite. */
     static final int SPRITE_ROW_HEIGHT = 18;
-    private static final int SEPARATOR_COLOR = 0x40FFFFFF;
+    /** The separator's dim color. */
+    static final int SEPARATOR_COLOR = 0x40FFFFFF;
 
     private RowLayout() {
     }
