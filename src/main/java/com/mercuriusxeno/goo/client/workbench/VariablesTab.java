@@ -11,6 +11,7 @@ import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -56,6 +57,7 @@ public final class VariablesTab {
     private final ManagerDraft draft;
     private final Map<String, JsonObject> results = new LinkedHashMap<>();
     private @Nullable String editing;
+    private String search = NO_TEXT;
 
     /**
      * @param draft the draft every tab of the manager edits
@@ -157,6 +159,23 @@ public final class VariablesTab {
                     result == null ? NO_TEXT : textOf(result, ERROR), readersOf(name), idsOf(result, DIRECT), indirectOf(result)));
         }
         return blocks;
+    }
+
+    /**
+     * @param text the Prefabs search box's text, matched against each prefab's name with case ignored
+     */
+    public void search(String text) {
+        search = text.trim().toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * The blocks the Prefabs list draws: those whose name holds the search, every one while it is blank; the
+     * expression and kind never match (decision prefabs-tab-searches-its-list-by-name).
+     *
+     * @return the listed blocks in file order
+     */
+    public List<ConstantBlock> listed() {
+        return blocks().stream().filter(block -> block.name().toLowerCase(Locale.ROOT).contains(search)).toList();
     }
 
     /**
