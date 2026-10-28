@@ -16,7 +16,7 @@ import java.util.function.ToIntFunction;
 
 /**
  * Draws the Values tab: the Items, Tags and Uncovered set on a line of its own, the search box, each entry with its icon and where its
- * value comes from, and the selected entry's expression and resolved values, each list scrolling under the wheel, as
+ * value comes from, and the selected entry's card above its expression, each list scrolling under the wheel, as
  * index.html's values section does (decision goo-workbench-opens-the-in-game-manager-screen); the list and the detail
  * each draw a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in {@link ValuesTab}.
  */
@@ -24,7 +24,8 @@ final class ValuesPane {
     /** The Items list's width. */
     static final int SIDEBAR_WIDTH = 180;
     private static final int PANE_GAP = 12;
-    private static final int LINE_HEIGHT = 10;
+    /** A text line's height. */
+    static final int LINE_HEIGHT = 10;
     private static final int BOX_HEIGHT = 14;
     /** An Items row's equality line's height, its sprite's and margin. */
     static final int ROW_HEIGHT = 18;
@@ -43,7 +44,8 @@ final class ValuesPane {
     /** The room between the filter set and the search box below it. */
     static final int CHIP_LINE_GAP = 3;
     private static final int CHIP_TEXT_NUDGE = 3;
-    private static final int GAP = 3;
+    /** The room between the detail page's card, its Value label and its error line. */
+    static final int GAP = 3;
     /** The room between an Items row's name and its disposition symbol. */
     static final int SYMBOL_GAP = GAP;
     private static final int HALF = 2;
@@ -75,8 +77,6 @@ final class ValuesPane {
     private static final int LINK = ButtonPainter.LINK;
     private static final String NO_SELECTION = "Select an item or tag to read and edit its entry.";
     private static final String NO_ENTRIES = "Nothing listed here.";
-    private static final String DENIED_LINE = "denied";
-    private static final String NO_VALUE_LINE = "no value: nothing in the file or the recipes values it";
     private static final String NO_TEXT = "";
     private static final int NO_REVEAL = -1;
     private static final Disposition VALUED_SYMBOL = new Disposition("✔", GREEN);
@@ -293,6 +293,26 @@ final class ValuesPane {
     // items-row-pads-a-hair-all-round).
     private int drawEntry(GuiGraphicsExtractor graphics, Font font, ValuesTab.ManagerEntry entry,
                           GroupsPane.Bounds row, boolean selected, ClickTargets targets) {
+        Card card = layCard(font, entry, row);
+        int height = card.layout().height();
+        if (selected) {
+            graphics.fill(row.left(), row.top(), row.right(), row.top() + height, SELECTED_ROW_COLOR);
+        }
+        targets.add(row.left(), row.top(), row.right() - row.left(), height, () -> {
+            values.select(entry.id());
+            detailBar.reset();
+            builder.close();
+        });
+        drawCard(graphics, font, card, targets);
+        return height;
+    }
+
+    // An entry's card as laid at its bounds: where its value comes from, its goo worth and each part's place.
+    private record Card(ValuesTab.ManagerEntry entry, Optional<ValuesTab.Source> source, Map<String, String> worth,
+                        EntryLayout layout) {
+    }
+
+    private Card layCard(Font font, ValuesTab.ManagerEntry entry, GroupsPane.Bounds bounds) {
         Optional<ValuesTab.Source> source = entry.tag() ? Optional.empty() : Optional.of(values.sourceOf(entry.id()));
         ValuesTab.SourceKind kind = source.map(ValuesTab.Source::kind).orElse(ValuesTab.SourceKind.NONE);
         Map<String, String> worth = carriesRuns(kind) ? values.worthOf(entry.id()) : Map.of();
@@ -300,20 +320,16 @@ final class ValuesPane {
                 .map(amount -> runWidth(font, amount.getValue(), GooTypeIcons.sizeOf(amount.getKey()))).toList();
         int iconSize = worth.keySet().stream().mapToInt(GooTypeIcons::sizeOf).max().orElse(0);
         int symbolWidth = source.map(shown -> font.width(dispositionOf(shown.kind()).glyph())).orElse(0);
-        EntryLayout layout = layEntry(row, runWidths, new RowText(kind, font.lineHeight, symbolWidth,
-                font.width(EQUALS)), iconSize);
-        if (selected) {
-            graphics.fill(row.left(), row.top(), row.right(), row.top() + layout.height(), SELECTED_ROW_COLOR);
-        }
-        targets.add(row.left(), row.top(), row.right() - row.left(), layout.height(), () -> {
-            values.select(entry.id());
-            detailBar.reset();
-            builder.close();
-        });
-        drawTitle(graphics, font, entry, source, layout.title());
-        drawEquality(graphics, font, entry, source, layout.equality(), targets);
-        drawValueRuns(graphics, font, worth, layout, targets);
-        return layout.height();
+        return new Card(entry, source, worth, layEntry(bounds, runWidths, new RowText(kind, font.lineHeight,
+                symbolWidth, font.width(EQUALS)), iconSize));
+    }
+
+    // The card the Items list draws and the detail page copies verbatim (decision
+    // detail-pane-top-is-the-items-card-verbatim).
+    private void drawCard(GuiGraphicsExtractor graphics, Font font, Card card, ClickTargets targets) {
+        drawTitle(graphics, font, card.entry(), card.source(), card.layout().title());
+        drawEquality(graphics, font, card.entry(), card.source(), card.layout().equality(), targets);
+        drawValueRuns(graphics, font, card.worth(), card.layout(), targets);
     }
 
     // Valued, derived and grouped items show their goo value; no value and denied have none to show.
@@ -682,7 +698,7 @@ final class ValuesPane {
             graphics.text(font, NO_SELECTION, x, pane.top(), GRAY);
             return;
         }
-        // The heading, the value or its open builder, and the amounts scroll as one page, so a builder taller than
+        // The card, the value or its open builder, and the error line scroll as one page, so a builder taller than
         // the pane reaches its done control under the wheel (decision every-tab-draws-a-scroll-bar).
         GroupsPane.Bounds page = new GroupsPane.Bounds(x, pane.top(), pane.right() - ScrollBar.WIDTH - ScrollBar.GAP,
                 pane.bottom());
@@ -694,17 +710,55 @@ final class ValuesPane {
         detailBar.measureAndDraw(graphics, targets, end, pane.right(), pane.top(), pane.bottom());
     }
 
-    // Draws the selected entry's page from a scrolled top; answers the y its content ended at.
+    // Draws the selected entry's page from a scrolled top: its Items card, the Value label, the value or its open
+    // builder, and the loader error last (decision detail-pane-top-is-the-items-card-verbatim); answers the y its
+    // content ended at.
     private int drawPage(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row, GroupsPane.Bounds page,
                          int top, ClickTargets targets) {
-        drawHeading(graphics, font, row, new GroupsPane.Bounds(page.left(), top, page.right(), page.bottom()));
-        int y = top + LINE_HEIGHT * HALF + GAP
-                + drawHeadingEquivalency(graphics, font, row.id(), page.left(), top + ROW_HEIGHT, targets);
-        graphics.text(font, EXPRESSION_LABEL, page.left(), y, GRAY);
-        y += LINE_HEIGHT;
-        y += builder.isOpen() ? builder.extract(graphics, font, page, y, targets)
-                : drawValueView(graphics, font, row, page.left(), y, page.right() - page.left(), targets);
-        return drawAmounts(graphics, font, row, page, y + GAP, targets);
+        ValuesTab.ManagerEntry entry = new ValuesTab.ManagerEntry(row.id(), row.name(),
+                row.id().startsWith(ValuesTab.TAG_MARK));
+        Card card = layCard(font, entry, new GroupsPane.Bounds(page.left(), top, page.right(), page.bottom()));
+        drawCard(graphics, font, card, targets);
+        int cardHeight = card.layout().height();
+        Page laid = layPage(top, cardHeight, 0, false);
+        graphics.text(font, EXPRESSION_LABEL, page.left(), laid.labelTop(), GRAY);
+        int valueHeight = builder.isOpen() ? builder.extract(graphics, font, page, laid.valueTop(), targets)
+                : drawValueView(graphics, font, row, page.left(), laid.valueTop(), page.right() - page.left(), targets);
+        Page whole = layPage(top, cardHeight, valueHeight, !row.error().isEmpty());
+        if (!row.error().isEmpty()) {
+            graphics.text(font, font.plainSubstrByWidth(row.error(), page.right() - page.left()), page.left(),
+                    whole.errorTop(), RED);
+        }
+        return whole.end();
+    }
+
+    /**
+     * Where the detail page's parts stand under its card.
+     *
+     * @param labelTop the Value label's top
+     * @param valueTop the value's or its open builder's top
+     * @param errorTop the loader error line's top
+     * @param end      the page's end, below the error line where there is one
+     */
+    record Page(int labelTop, int valueTop, int errorTop, int end) {
+    }
+
+    /**
+     * Lays the detail page down from its card: the Value label a gap under the card, the value on the line under the
+     * label, and the loader error a gap under the value as the page's last line (decision
+     * detail-pane-top-is-the-items-card-verbatim).
+     *
+     * @param top         the card's top
+     * @param cardHeight  the card's height
+     * @param valueHeight the value's or its open builder's height
+     * @param hasError    whether the loader answered an error for the entry
+     * @return each part's top and the page's end
+     */
+    static Page layPage(int top, int cardHeight, int valueHeight, boolean hasError) {
+        int labelTop = top + cardHeight + GAP;
+        int valueTop = labelTop + LINE_HEIGHT;
+        int errorTop = valueTop + valueHeight + GAP;
+        return new Page(labelTop, valueTop, errorTop, errorTop + (hasError ? LINE_HEIGHT : 0));
     }
 
     // The entry's value curated, a click on it opening the builder over it
@@ -722,75 +776,5 @@ final class ValuesPane {
         ExpressionLines.draw(font, runs, x, y, width, new ExpressionLines.Painter(graphics, icons, targets, WHITE,
                 LINK, (name, linkX, linkY, linkWidth) -> { }));
         return height;
-    }
-
-    // The selected entry's icon, its name or a tag's id, and an item's disposition symbol.
-    private void drawHeading(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row, GroupsPane.Bounds pane) {
-        graphics.item(icons.of(row.id()), pane.left(), pane.top());
-        int textX = pane.left() + ICON_SIZE + ICON_GAP;
-        String heading = row.id().startsWith(ValuesTab.TAG_MARK) ? row.id() : row.name();
-        if (row.id().startsWith(ValuesTab.TAG_MARK)) {
-            graphics.text(font, font.plainSubstrByWidth(heading, pane.right() - textX), textX, pane.top(), WHITE);
-        } else {
-            ValuesTab.Source source = values.sourceOf(row.id());
-            // The heading reads the row's symbol beside the name (decision
-            // items-row-title-carries-a-disposition-symbol-at-the-right-edge).
-            Disposition symbol = dispositionOf(source.kind());
-            int nameRoom = pane.right() - textX - SYMBOL_GAP - font.width(symbol.glyph());
-            String shown = font.plainSubstrByWidth(heading, nameRoom);
-            graphics.text(font, shown, textX, pane.top(), WHITE);
-            graphics.text(font, symbol.glyph(), textX + font.width(shown) + SYMBOL_GAP, pane.top(), symbol.color());
-        }
-    }
-
-    // Under a derived item's heading, its sprite, "=" and its recipe equivalency on an 18px line, as its row draws them
-    // (decision recipe-equivalency-reads-output-equals-grouped-inputs-over-n); answers the height it took.
-    private int drawHeadingEquivalency(GuiGraphicsExtractor graphics, Font font, String id, int left, int top,
-                                       ClickTargets targets) {
-        ValuesTab.Recipe recipe = values.derivedFrom(id);
-        if (id.startsWith(ValuesTab.TAG_MARK) || values.sourceOf(id).kind() != ValuesTab.SourceKind.DERIVED
-                || recipe.inputs().isEmpty()) {
-            return 0;
-        }
-        int equalsLeft = left + ICON_SIZE + ICON_GAP;
-        Equality line = new Equality(left, top + 1, equalsLeft, equalsLeft + font.width(EQUALS) + ICON_GAP,
-                top + (ROW_HEIGHT - font.lineHeight) / HALF, Integer.MAX_VALUE);
-        graphics.item(icons.of(id), line.spriteLeft(), line.spriteTop());
-        graphics.text(font, EQUALS, line.equalsLeft(), line.textTop(), WHITE);
-        drawEquivalency(graphics, font, recipe, line, targets);
-        return ROW_HEIGHT;
-    }
-
-    // Each type draws as its icon beside its amount, a line each (decision goo-types-draw-as-icons-named-on-hover);
-    // answers the y below them.
-    private int drawAmountLines(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row,
-                                GroupsPane.Bounds page, int top, ClickTargets targets) {
-        int y = top;
-        for (Map.Entry<String, String> amount : row.amounts().entrySet()) {
-            ExpressionLines.draw(font, ExpressionLines.amountRuns(Map.of(amount.getKey(), amount.getValue())),
-                    page.left(), y, page.right() - page.left(), new ExpressionLines.Painter(graphics, icons, targets,
-                            WHITE, WHITE, (name, linkX, linkY, linkWidth) -> { }));
-            y += ExpressionLines.ICON_LINE_HEIGHT;
-        }
-        return y;
-    }
-
-    // The denial or no-value line, each type's amount and the loader's error; answers the y below them.
-    private int drawAmounts(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row, GroupsPane.Bounds page,
-                            int top, ClickTargets targets) {
-        int y = top;
-        if (row.denied()) {
-            graphics.text(font, DENIED_LINE, page.left(), y, GRAY);
-            y += LINE_HEIGHT;
-        } else if (row.amounts().isEmpty()) {
-            graphics.text(font, NO_VALUE_LINE, page.left(), y, RED);
-            y += LINE_HEIGHT;
-        }
-        y = drawAmountLines(graphics, font, row, page, y, targets);
-        if (!row.error().isEmpty()) {
-            graphics.text(font, font.plainSubstrByWidth(row.error(), page.right() - page.left()), page.left(), y, RED);
-            y += LINE_HEIGHT;
-        }
-        return y;
     }
 }
