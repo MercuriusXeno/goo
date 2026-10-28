@@ -158,6 +158,12 @@ public final class ValuesManagerScreen extends Screen {
         }
 
         @Override
+        public void openGroup(String name) {
+            selectTab(ManagerTab.GROUPS);
+            groupsPane.reveal(name);
+        }
+
+        @Override
         public <W extends AbstractWidget> W addWidget(W widget) {
             return addRenderableWidget(widget);
         }

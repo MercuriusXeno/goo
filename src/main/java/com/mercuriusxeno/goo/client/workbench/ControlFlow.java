@@ -18,7 +18,6 @@ final class ControlFlow {
     static final int LINE = BuilderOverlays.LINE;
     private static final int GAP = BuilderOverlays.GAP;
     private static final int TEXT_NUDGE = 5;
-    private static final int ICON_NUDGE = 1;
     private static final int INDENT = 12;
     private static final int WHITE = 0xFFFFFFFF;
     private static final int LINK = ButtonPainter.LINK;
@@ -251,13 +250,15 @@ final class ControlFlow {
      * @param pressed takes where it was clicked
      */
     void typeIcon(String type, Consumer<BuilderOverlays.Anchor> pressed) {
-        reserve(GooTypeIcons.SIZE);
+        // Decision goo-type-icons-draw-native-everywhere.
+        int size = GooTypeIcons.sizeOf(type);
+        reserve(size);
         int iconX = x;
         int iconY = y;
-        GooTypeIcons.blit(graphics, type, iconX, iconY + ICON_NUDGE);
-        targets.add(iconX, iconY, GooTypeIcons.SIZE, LINE,
+        GooTypeIcons.blit(graphics, type, iconX, iconY + GooTypeIcons.centered(LINE, size));
+        targets.add(iconX, iconY, size, LINE,
                 () -> pressed.accept(new BuilderOverlays.Anchor(iconX, iconY)), GooTypeIcons.pickHoverKey(type));
-        x += GooTypeIcons.SIZE + GAP;
+        x += size + GAP;
     }
 
     /**

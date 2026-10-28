@@ -56,6 +56,14 @@ interface ManagerActions {
     void openItem(String id);
 
     /**
+     * Opens the Groups tab on a group, as a grouped item's group link does (decision
+     * items-row-second-line-is-the-equality-expression).
+     *
+     * @param name the group's name
+     */
+    void openGroup(String name);
+
+    /**
      * @param widget a widget the pane draws and the screen routes input to
      * @param <W>    the widget's type
      * @return the widget

@@ -28,6 +28,17 @@ class GooTypePickerTest {
     }
 
     /**
+     * The picker centers each type's icon in its cell at the texture's own size, for an 11 and a 12 icon alike
+     * (decision goo-type-icons-draw-native-everywhere).
+     */
+    @Test
+    void cellCentersItsIconAtItsTextureSize() {
+        for (int size : new int[] {11, 12}) {
+            assertEquals((GooTypePicker.CELL - size) / 2, GooTypePicker.iconInset(size));
+        }
+    }
+
+    /**
      * Every type takes a cell on a grid 7 wide and 4 high, in order, so none needs a scroll.
      */
     @Test

@@ -29,6 +29,10 @@ public final class ValuesTab {
     private static final String ITEM_TAGS = "item_tags";
     private static final String ID = "id";
     private static final String NAME = "name";
+    private static final String INPUTS = "inputs";
+    private static final String COUNT = "count";
+    private static final String OUTPUT = "output";
+    private static final Recipe NO_RECIPE = new Recipe(List.of(), 1);
     private static final String MEMBERS = "members";
     private static final String ENTRIES = "entries";
     private static final String KEY = "key";
@@ -47,15 +51,11 @@ public final class ValuesTab {
     private static final String NAMESPACE_SEPARATOR = ":";
     // Decision items-rows-read-valued-derived-or-no-value-with-values-inline.
     private static final String ENTRY_SOURCE = "Valued";
-    private static final String GROUP_SOURCE = "group #";
     private static final String DENIED_BY = "denied by #";
-    /** What an item recipes value, and no entry does, reads before its inputs. */
-    static final String DERIVED_SOURCE = "derived from";
-    private static final String INDIRECT_SOURCE = "valued indirectly";
+    private static final String DERIVED_SOURCE = "derived";
     private static final String CONVERSIONS_SECTION = "_conversions";
     private static final String POST_CONVERSIONS_SECTION = "_post_conversions";
     private static final String NO_VALUE = "no value";
-    private static final String RESTRICTED_SUFFIX = ", restricted";
     // A new entry stands above the sections the file closes with, as the page and the server write one.
     private static final Set<String> CLOSING_SECTIONS = Set.of("_restricted", "_conversions", "_post_conversions");
     private static final String[] LAYOUT_FIELDS = {"keySeparator", "leading", "trailing", "closingGap"};
@@ -63,7 +63,7 @@ public final class ValuesTab {
     private final ManagerDraft draft;
     private final List<ManagerEntry> entries = new ArrayList<>();
     private final Map<String, JsonObject> resolved = new HashMap<>();
-    private final Map<String, List<String>> derivedFrom = new HashMap<>();
+    private final Map<String, Recipe> derivedFrom = new HashMap<>();
     private final Set<String> uncovered = new HashSet<>();
     private Filter filter = Filter.ITEMS;
     private String search = NO_TEXT;
@@ -150,16 +150,40 @@ public final class ValuesTab {
     public void readDerivedFrom(String derivedFromJson) {
         derivedFrom.clear();
         JsonParser.parseString(derivedFromJson).getAsJsonObject().getAsJsonObject(ITEMS).entrySet()
-                .forEach(item -> derivedFrom.put(item.getKey(), item.getValue().getAsJsonArray().asList().stream()
-                        .map(JsonElement::getAsString).toList()));
+                .forEach(item -> derivedFrom.put(item.getKey(), recipeOf(item.getValue().getAsJsonObject())));
+    }
+
+    private static Recipe recipeOf(JsonObject recipe) {
+        return new Recipe(array(recipe, INPUTS).asList().stream().map(JsonElement::getAsJsonObject)
+                .map(input -> new Input(input.get(ID).getAsString(), input.get(COUNT).getAsInt())).toList(),
+                recipe.get(OUTPUT).getAsInt());
+    }
+
+    /**
+     * One input of a derived item's recipe.
+     *
+     * @param id    the input item's id
+     * @param count how many the recipe takes, summed across its slots
+     */
+    public record Input(String id, int count) {
+    }
+
+    /**
+     * The recipe a derived item's value comes from, as its equivalency reads it (decision
+     * recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
+     *
+     * @param inputs its inputs, grouped by item
+     * @param output how many the recipe makes
+     */
+    public record Recipe(List<Input> inputs, int output) {
     }
 
     /**
      * @param id an item's namespaced id
-     * @return the items its derived value comes from, empty where no recipe values it
+     * @return the recipe its derived value comes from, no inputs making one where no recipe values it
      */
-    public List<String> derivedFrom(String id) {
-        return derivedFrom.getOrDefault(id, List.of());
+    public Recipe derivedFrom(String id) {
+        return derivedFrom.getOrDefault(id, NO_RECIPE);
     }
 
     /**
@@ -224,10 +248,11 @@ public final class ValuesTab {
     /**
      * An item's source badge.
      *
-     * @param label what the badge reads
-     * @param kind  where the value comes from
+     * @param label      what the badge reads: a group's bare name for a group source
+     * @param kind       where the value comes from
+     * @param restricted whether the file's _restricted list names the item
      */
-    public record Source(String label, SourceKind kind) {
+    public record Source(String label, SourceKind kind, boolean restricted) {
     }
 
     /**
@@ -262,7 +287,7 @@ public final class ValuesTab {
 
     /**
      * Reads where an item's value comes from in the draft: its own entry, a #group entry over a _groups group,
-     * a denial, or nothing in the file, with a restriction appended, as the page's sourcesFromModel does.
+     * a denial, or nothing in the file, with its restriction beside, as the page's sourcesFromModel does.
      *
      * @param id the item's namespaced id
      * @return its source badge
@@ -274,7 +299,7 @@ public final class ValuesTab {
             source = sourceFrom(entry, id, groups, source);
         }
         Source found = source != null ? source : unentered(id);
-        return restricted(groups).contains(id) ? new Source(found.label() + RESTRICTED_SUFFIX, found.kind()) : found;
+        return new Source(found.label(), found.kind(), restricted(groups).contains(id));
     }
 
     // The file's top-level value entries, then its conversions' and post-conversions', which value an item or a
@@ -308,22 +333,21 @@ public final class ValuesTab {
     }
 
     private static Source itemSource(boolean denied) {
-        return denied ? new Source(DENIED, SourceKind.DENIED) : new Source(ENTRY_SOURCE, SourceKind.ENTRY);
+        return denied ? new Source(DENIED, SourceKind.DENIED, false)
+                : new Source(ENTRY_SOURCE, SourceKind.ENTRY, false);
     }
 
+    // A group source reads the group's bare name, which the Items row links to its group (decision
+    // items-row-second-line-is-the-equality-expression).
     private static Source groupSource(String group, boolean denied) {
-        return denied ? new Source(DENIED_BY + group, SourceKind.DENIED)
-                : new Source(GROUP_SOURCE + group, SourceKind.GROUP);
+        return denied ? new Source(DENIED_BY + group, SourceKind.DENIED, false)
+                : new Source(group, SourceKind.GROUP, false);
     }
 
-    // An item no entry or group names reads derived from its recipe inputs where it has some; one valued with no
-    // inputs to name reads valued indirectly, never a bare "derived from"; else no value.
+    // An item no entry or group names reads derived where recipes value it, else no value.
     private Source unentered(String id) {
-        if (worthOf(id).isEmpty()) {
-            return new Source(NO_VALUE, SourceKind.NONE);
-        }
-        return derivedFrom(id).isEmpty() ? new Source(INDIRECT_SOURCE, SourceKind.DERIVED)
-                : new Source(DERIVED_SOURCE, SourceKind.DERIVED);
+        return worthOf(id).isEmpty() ? new Source(NO_VALUE, SourceKind.NONE, false)
+                : new Source(DERIVED_SOURCE, SourceKind.DERIVED, false);
     }
 
     private Map<String, List<String>> groupsOf() {
