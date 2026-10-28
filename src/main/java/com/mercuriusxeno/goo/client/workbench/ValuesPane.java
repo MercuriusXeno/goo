@@ -412,11 +412,20 @@ final class ValuesPane {
             int x = laid.spriteLefts().get(index);
             ItemStack stack = icons.of(input.id());
             graphics.item(stack, x, line.spriteTop());
-            graphics.itemDecorations(font, stack, x, line.spriteTop(), String.valueOf(input.count()));
+            countLabel(input.count()).ifPresent(count -> graphics.itemDecorations(font, stack, x, line.spriteTop(),
+                    count));
             ItemLinks.add(targets, actions, input.id(), x, line.spriteTop());
         }
         laid.plusLefts().forEach(x -> graphics.text(font, PLUS, x, line.textTop(), WHITE));
         laid.divideLeft().ifPresent(x -> graphics.text(font, DIVIDE + recipe.output(), x, line.textTop(), WHITE));
+    }
+
+    /**
+     * @param count an input's summed count
+     * @return the count drawn at its sprite's bottom right, empty for a single input, as an inventory draws a stack
+     */
+    static Optional<String> countLabel(int count) {
+        return count > 1 ? Optional.of(String.valueOf(count)) : Optional.empty();
     }
 
     /**

@@ -303,6 +303,16 @@ class ValuesPaneTest {
     }
 
     /**
+     * An input's summed count draws at its sprite's bottom right only past one, as an inventory draws a stack
+     * (decision recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
+     */
+    @Test
+    void inputCountDrawsOnlyPastOne() {
+        assertTrue(ValuesPane.countLabel(1).isEmpty());
+        assertEquals(java.util.Optional.of("4"), ValuesPane.countLabel(4));
+    }
+
+    /**
      * A run is its type icon at whatever size the texture gives, its gap and the amount's width (decision
      * items-value-line-draws-type-icons-at-eleven-texels).
      */
