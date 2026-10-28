@@ -5,8 +5,8 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Function;
+import java.util.function.ToIntFunction;
 
 /**
  * Draws a value as curated runs laid across lines of a width: a goo type as its icon beside its amount, an item as
@@ -21,7 +21,7 @@ final class ExpressionLines {
     static final int ICON_LINE_HEIGHT = 18;
     /** A line's height where only text draws. */
     static final int TEXT_LINE_HEIGHT = 10;
-    private static final int ICON_SIZE = 16;
+    private static final int ITEM_SPRITE_SIZE = 16;
     private static final int ICON_TEXT_GAP = 2;
     private static final int RUN_GAP = 3;
     // Text on an icon line sits centred against the 16px icon.
@@ -153,19 +153,6 @@ final class ExpressionLines {
                 runs.add(part.chars().allMatch(Character::isDigit) ? number(part) : text(part));
             }
         }
-        return runs;
-    }
-
-    /**
-     * @param amounts each type an entry resolves to, with its amount
-     * @return each type as its icon beside its amount
-     */
-    static List<Run> amountRuns(Map<String, String> amounts) {
-        List<Run> runs = new ArrayList<>();
-        amounts.forEach((type, amount) -> {
-            runs.add(type(type));
-            runs.add(number(amount));
-        });
         return runs;
     }
 
@@ -315,7 +302,8 @@ final class ExpressionLines {
      * @return the height the runs take, at least one line
      */
     static int height(Font font, List<Run> runs, int width) {
-        return lay(font, runs, 0, 0, width, null) * lineHeight(runs);
+        return lay(runs, new Cursor(font, 0, 0, width, lineHeight(runs), null, GooTypeIcons::sizeOf))
+                * lineHeight(runs);
     }
 
     /**
@@ -324,13 +312,32 @@ final class ExpressionLines {
      * @return the width the runs take laid on one line
      */
     static int width(Font font, List<Run> runs) {
+        return width(font, runs, GooTypeIcons::sizeOf);
+    }
+
+    /**
+     * @param font     the font
+     * @param runs     a value's runs
+     * @param typeSize a goo type icon's side by its type, its texture's own
+     * @return the width the runs take laid on one line
+     */
+    static int width(Font font, List<Run> runs, ToIntFunction<String> typeSize) {
         int width = 0;
         for (Run run : runs) {
             if (run.kind() != Kind.BREAK) {
-                width += (width == 0 ? 0 : RUN_GAP) + runWidth(font, run);
+                width += (width == 0 ? 0 : RUN_GAP) + runWidth(font, run, typeSize);
             }
         }
         return width;
+    }
+
+    /**
+     * @param lineTop an icon line's top
+     * @param size    a goo type icon's side
+     * @return the icon's top, centered in the line (decision goo-type-icons-draw-native-everywhere)
+     */
+    static int typeIconTop(int lineTop, int size) {
+        return lineTop + GooTypeIcons.centered(ICON_LINE_HEIGHT, size);
     }
 
     /**
@@ -342,13 +349,13 @@ final class ExpressionLines {
      * @param painter where they draw
      */
     static void draw(Font font, List<Run> runs, int x, int y, int width, Painter painter) {
-        lay(font, runs, x, y, width, painter);
+        lay(runs, new Cursor(font, x, y, width, lineHeight(runs), painter, GooTypeIcons::sizeOf));
     }
 
-    private static int runWidth(Font font, Run run) {
+    private static int runWidth(Font font, Run run, ToIntFunction<String> typeSize) {
         return switch (run.kind()) {
-            case TYPE -> ICON_SIZE;
-            case ITEM -> ICON_SIZE + ICON_TEXT_GAP + font.width(run.text());
+            case TYPE -> typeSize.applyAsInt(String.valueOf(run.ref()));
+            case ITEM -> ITEM_SPRITE_SIZE + ICON_TEXT_GAP + font.width(run.text());
             case BREAK -> 0;
             default -> font.width(run.text());
         };
@@ -356,8 +363,7 @@ final class ExpressionLines {
 
     // Answers how many lines the runs take; a text run wider than a line breaks across lines, and any other run
     // starts a fresh line where it does not fit.
-    private static int lay(Font font, List<Run> runs, int x, int y, int width, @Nullable Painter painter) {
-        Cursor cursor = new Cursor(font, x, y, width, lineHeight(runs), painter);
+    private static int lay(List<Run> runs, Cursor cursor) {
         for (Run run : runs) {
             if (run.kind() == Kind.BREAK) {
                 cursor.newLine();
@@ -378,16 +384,20 @@ final class ExpressionLines {
         private final int width;
         private final int lineHeight;
         private final @Nullable Painter painter;
+        // The measure and the draw read one size per type icon (decision goo-type-icons-draw-native-everywhere).
+        private final ToIntFunction<String> typeSize;
         private int lines = 1;
         private int at;
 
-        Cursor(Font font, int left, int top, int width, int lineHeight, @Nullable Painter painter) {
+        Cursor(Font font, int left, int top, int width, int lineHeight, @Nullable Painter painter,
+               ToIntFunction<String> typeSize) {
             this.font = font;
             this.left = left;
             this.top = top;
             this.width = width;
             this.lineHeight = lineHeight;
             this.painter = painter;
+            this.typeSize = typeSize;
             this.at = left;
         }
 
@@ -405,12 +415,12 @@ final class ExpressionLines {
         }
 
         void placeWhole(Run run) {
-            int runWidth = runWidth(font, run);
+            int runWidth = runWidth(font, run, typeSize);
             if (start() + runWidth > left + width && at > left) {
                 newLine();
             }
             int start = start();
-            drawPiece(font, run, run.text(), start, lineTop(), lineHeight, painter);
+            drawPiece(run, run.text(), start);
             at = start + runWidth;
         }
 
@@ -425,7 +435,7 @@ final class ExpressionLines {
                     continue;
                 }
                 piece = piece.isEmpty() ? rest.substring(0, 1) : piece;
-                drawPiece(font, run, piece, start, lineTop(), lineHeight, painter);
+                drawPiece(run, piece, start);
                 start += font.width(piece);
                 rest = rest.substring(piece.length());
                 if (!rest.isEmpty()) {
@@ -435,6 +445,38 @@ final class ExpressionLines {
             }
             at = start;
         }
+
+        private int textOffset() {
+            return lineHeight == ICON_LINE_HEIGHT ? TEXT_NUDGE : 0;
+        }
+
+        private void drawPiece(Run run, String piece, int x) {
+            if (painter == null) {
+                return;
+            }
+            int lineTop = lineTop();
+            int textTop = lineTop + textOffset();
+            GuiGraphicsExtractor graphics = painter.graphics();
+            switch (run.kind()) {
+                case TYPE -> {
+                    int size = typeSize.applyAsInt(String.valueOf(run.ref()));
+                    GooTypeIcons.draw(graphics, painter.targets(), String.valueOf(run.ref()), x,
+                            typeIconTop(lineTop, size), size);
+                }
+                case ITEM -> drawItem(font, run, piece, x, lineTop, painter);
+                case LINK -> drawLink(font, run, piece, x, textTop, painter);
+                case ERROR -> graphics.text(font, piece, x, textTop, RED);
+                default -> graphics.text(font, piece, x, textTop, painter.textColor());
+            }
+        }
+    }
+
+    private static void drawLink(Font font, Run run, String piece, int x, int textTop, Painter painter) {
+        painter.graphics().text(font, piece, x, textTop, painter.linkColor());
+        // Decision every-prefab-reference-hovers-its-value; a link sink's own area, laid after, stands over it.
+        painter.targets().addHover(x, textTop, font.width(piece), TEXT_LINE_HEIGHT,
+                PrefabHovers.hoverKey(String.valueOf(run.ref())));
+        painter.links().landed(String.valueOf(run.ref()), x, textTop, font.width(piece));
     }
 
     private static void drawItem(Font font, Run run, String piece, int x, int top, Painter painter) {
@@ -442,29 +484,6 @@ final class ExpressionLines {
         if (icons != null) {
             painter.graphics().item(icons.of(String.valueOf(run.ref())), x, top + ICON_NUDGE);
         }
-        painter.graphics().text(font, piece, x + ICON_SIZE + ICON_TEXT_GAP, top + TEXT_NUDGE, painter.textColor());
-    }
-
-    private static void drawPiece(Font font, Run run, String piece, int x, int top, int lineHeight,
-                                  @Nullable Painter painter) {
-        if (painter == null) {
-            return;
-        }
-        int textTop = top + (lineHeight == ICON_LINE_HEIGHT ? TEXT_NUDGE : 0);
-        GuiGraphicsExtractor graphics = painter.graphics();
-        switch (run.kind()) {
-            case TYPE -> GooTypeIcons.draw(graphics, painter.targets(), String.valueOf(run.ref()), x,
-                    top + ICON_NUDGE);
-            case ITEM -> drawItem(font, run, piece, x, top, painter);
-            case LINK -> {
-                graphics.text(font, piece, x, textTop, painter.linkColor());
-                // Decision every-prefab-reference-hovers-its-value; a link sink's own area, laid after, stands over it.
-                painter.targets().addHover(x, textTop, font.width(piece), TEXT_LINE_HEIGHT,
-                        PrefabHovers.hoverKey(String.valueOf(run.ref())));
-                painter.links().landed(String.valueOf(run.ref()), x, textTop, font.width(piece));
-            }
-            case ERROR -> graphics.text(font, piece, x, textTop, RED);
-            default -> graphics.text(font, piece, x, textTop, painter.textColor());
-        }
+        painter.graphics().text(font, piece, x + ITEM_SPRITE_SIZE + ICON_TEXT_GAP, top + TEXT_NUDGE, painter.textColor());
     }
 }
