@@ -21,8 +21,11 @@ import java.util.function.Function;
  * goo-types-draw-as-icons-named-on-hover).
  */
 final class GooTypeIcons {
-    /** The icon's side. */
+    /** The icon's side where its texture is missing or unreadable. */
     static final int SIZE = 16;
+    private static final String ASSETS_ROOT = "/assets/";
+    private static final String PATH_SEPARATOR = "/";
+    private static final int HALF = 2;
     private static final String TEXTURE_PREFIX = "textures/goo/type/";
     private static final String TEXTURE_SUFFIX = ".png";
     // A hover key a prefab name never spells, since a name holds no colon.
@@ -61,8 +64,14 @@ final class GooTypeIcons {
         return opener.apply(texture(type)).map(GooTypeIcons::pngWidth).orElse(SIZE);
     }
 
+    // With no client running, the mod's own texture is read off the classpath.
     private static Optional<InputStream> openTexture(Identifier texture) {
-        return Minecraft.getInstance().getResourceManager().getResource(texture).flatMap(resource -> {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft == null) {
+            return Optional.ofNullable(GooTypeIcons.class.getResourceAsStream(
+                    ASSETS_ROOT + texture.getNamespace() + PATH_SEPARATOR + texture.getPath()));
+        }
+        return minecraft.getResourceManager().getResource(texture).flatMap(resource -> {
             try {
                 return Optional.of(resource.open());
             } catch (IOException missing) {
@@ -82,7 +91,17 @@ final class GooTypeIcons {
     }
 
     /**
-     * Draws the type's icon and leaves its hover area.
+     * @param box  the side of the room an icon stands in
+     * @param size the icon's side
+     * @return how far in from the room's edge the icon stands centered
+     */
+    static int centered(int box, int size) {
+        return (box - size) / HALF;
+    }
+
+    /**
+     * Draws the type's icon one texel per pixel and leaves its hover area (decision
+     * goo-type-icons-draw-native-everywhere).
      *
      * @param graphics the frame's graphics
      * @param targets  the frame's click areas
@@ -91,7 +110,7 @@ final class GooTypeIcons {
      * @param y        the icon's top edge
      */
     static void draw(GuiGraphicsExtractor graphics, ClickTargets targets, String type, int x, int y) {
-        draw(graphics, targets, type, x, y, SIZE);
+        draw(graphics, targets, type, x, y, sizeOf(type));
     }
 
     /**
@@ -110,7 +129,7 @@ final class GooTypeIcons {
     }
 
     /**
-     * Draws the type's icon alone, for a caller that leaves its own hover area.
+     * Draws the type's icon alone, one texel per pixel, for a caller that leaves its own hover area.
      *
      * @param graphics the frame's graphics
      * @param type     the goo type's id
@@ -118,7 +137,8 @@ final class GooTypeIcons {
      * @param y        the icon's top edge
      */
     static void blit(GuiGraphicsExtractor graphics, String type, int x, int y) {
-        graphics.blit(RenderPipelines.GUI_TEXTURED, texture(type), x, y, 0.0f, 0.0f, SIZE, SIZE, SIZE, SIZE, OPAQUE);
+        int size = sizeOf(type);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, texture(type), x, y, 0.0f, 0.0f, size, size, size, size, OPAQUE);
     }
 
     /**
@@ -136,7 +156,8 @@ final class GooTypeIcons {
      * @param y       the icon's top edge
      */
     static void addHover(ClickTargets targets, String type, int x, int y) {
-        targets.addHover(x, y, SIZE, SIZE, HOVER_PREFIX + type);
+        int size = sizeOf(type);
+        targets.addHover(x, y, size, size, HOVER_PREFIX + type);
     }
 
     /**
