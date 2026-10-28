@@ -484,29 +484,27 @@ class WorkbenchOperationsTest {
         }
 
         /**
-         * Derived-from answers, for a crafted item no entry values, the recipe inputs the family read reports in its
-         * from field: sticks from the valued planks (decision
-         * items-rows-read-valued-derived-or-no-value-with-values-inline).
+         * Derived-from answers, for each crafted item no entry values, its recipe's inputs grouped by item with the
+         * count summed across the recipe's slots, and the recipe's output count: a table from four planks, planks
+         * four to a log; the valued log answers nothing (decision
+         * recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
          */
         @Test
         void derivedFromAnswersTheRecipeInputsTheFamilyReports() throws IOException {
-            Files.writeString(paths.inventoryFile(), ValuationsTest.plankInventory());
-            String planks = """
+            Files.writeString(paths.inventoryFile(), ValuationsTest.logPlankTableInventory());
+            String logs = """
                     {
-                        "oak_planks": {"leaf": 4}
+                        "oak_log": {"leaf": 16}
                     }
                     """;
-            JsonObject items = answeredJson(WorkbenchOperations.DERIVED_FROM, posted(planks)).getAsJsonObject("items");
-            JsonObject stickFrom = JsonParser.parseString(Valuations.family(BaseValuesModel.parse(planks),
-                    InventoryView.parse(ValuationsTest.plankInventory()), "minecraft:stick")).getAsJsonObject()
-                    .getAsJsonArray("rows").asList().stream().map(JsonElement::getAsJsonObject)
-                    .filter(row -> "minecraft:stick".equals(row.get("id").getAsString())).findFirst().orElseThrow()
-                    .getAsJsonObject("from");
-            assertEquals(stickFrom.getAsJsonArray("chain").get(0).getAsString(),
-                    items.getAsJsonArray("minecraft:stick").get(0).getAsString());
-            assertEquals(List.of("minecraft:oak_planks"), items.getAsJsonArray("minecraft:stick").asList().stream()
-                    .map(JsonElement::getAsString).toList());
-            assertFalse(items.has("minecraft:oak_planks"), items.toString());
+            JsonObject items = answeredJson(WorkbenchOperations.DERIVED_FROM, posted(logs)).getAsJsonObject("items");
+            assertEquals(JsonParser.parseString("""
+                    {"inputs": [{"id": "minecraft:oak_planks", "count": 4}], "output": 1}
+                    """), items.get("minecraft:crafting_table"));
+            assertEquals(JsonParser.parseString("""
+                    {"inputs": [{"id": "minecraft:oak_log", "count": 1}], "output": 4}
+                    """), items.get("minecraft:oak_planks"));
+            assertFalse(items.has("minecraft:oak_log"), items.toString());
         }
 
         /**
