@@ -1,11 +1,13 @@
 package com.mercuriusxeno.goo.client.workbench;
 
 import com.google.gson.JsonParser;
+import net.minecraft.client.gui.Font;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.function.Function;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.mockito.Mockito.mock;
 
 /**
  * Tests the curated runs a value draws as, with no Screen: goo types as icons, items as icons and names, prefabs as
@@ -29,6 +31,20 @@ class ExpressionLinesTest {
             for (String mark : RAW_MARKS) {
                 assertFalse(run.text().contains(mark), run + " draws " + mark);
             }
+        }
+    }
+
+    /**
+     * A TYPE run measures at its texture's own size, one texel per pixel, and its icon centers in the icon line, for
+     * an 11 and a 12 icon alike (decision goo-type-icons-draw-native-everywhere).
+     */
+    @Test
+    void typeRunMeasuresAndCentersAtItsTextureSize() {
+        Font font = mock(Font.class);
+        List<ExpressionLines.Run> metal = List.of(new ExpressionLines.Run(ExpressionLines.Kind.TYPE, "", "metal"));
+        for (int size : new int[] {11, 12}) {
+            assertEquals(size, ExpressionLines.width(font, metal, type -> size));
+            assertEquals(40 + (ExpressionLines.ICON_LINE_HEIGHT - size) / 2, ExpressionLines.typeIconTop(40, size));
         }
     }
 

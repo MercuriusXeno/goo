@@ -120,6 +120,28 @@ class ValuationsTest {
         assertTrue(Valuations.uncovered(without, inventory).contains(dropped), dropped);
     }
 
+    // Oak log, oak planks and a crafting table: a log makes four planks, and four planks make one table.
+    static String logPlankTableInventory() {
+        JsonObject root = new JsonObject();
+        JsonArray items = new JsonArray();
+        for (String path : List.of("oak_log", "oak_planks", "crafting_table")) {
+            JsonObject item = new JsonObject();
+            item.addProperty("id", "minecraft:" + path);
+            item.addProperty("name", path);
+            items.add(item);
+        }
+        root.add("items", items);
+        root.add("item_tags", new JsonArray());
+        root.add("goo_types", new JsonArray());
+        JsonArray recipes = new JsonArray();
+        recipes.add(shapedRecipe("minecraft:oak_planks", "minecraft:oak_planks", 4, List.of("L"),
+                Map.of("L", "minecraft:oak_log")));
+        recipes.add(shapedRecipe("minecraft:crafting_table", "minecraft:crafting_table", 1, List.of("PP", "PP"),
+                Map.of("P", "minecraft:oak_planks")));
+        root.add("recipes", recipes);
+        return root.toString();
+    }
+
     static String plankInventory() {
         JsonObject root = new JsonObject();
         JsonArray items = new JsonArray();
