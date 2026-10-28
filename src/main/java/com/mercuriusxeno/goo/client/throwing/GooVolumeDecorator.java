@@ -33,7 +33,7 @@ public class GooVolumeDecorator implements IItemDecorator {
     /** Icon X offset from slot left edge. */
     private static final int ICON_X_OFFSET = 10;
     /** Source and dest size for icon blit. */
-    private static final int ICON_BLIT_SIZE = 11;
+    private static final int ICON_BLIT_SIZE = 12;
     /** Right edge X offset for volume text. */
     private static final int TEXT_RIGHT_EDGE = 15;
     /** Bottom edge Y offset for volume text. */
