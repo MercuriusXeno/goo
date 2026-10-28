@@ -322,4 +322,23 @@ class ValuesPaneTest {
             assertEquals(two.lineTop(1) + (line - LINE_HEIGHT) / 2, two.amountTop(1));
         }
     }
+
+    /**
+     * The detail page stacks the selected item's card, the Value label a gap under the card's bottom, the value on the
+     * line under the label, and the loader error as the last line, which grows the page by one line only when there
+     * is an error (decision detail-pane-top-is-the-items-card-verbatim).
+     */
+    @Test
+    void detailPageStacksTheCardTheValueAndTheErrorLast() {
+        int cardHeight = TWO_LINES + SMALL_ICON + 2;
+        int valueHeight = 30;
+        ValuesPane.Page bare = ValuesPane.layPage(TOP, cardHeight, valueHeight, false);
+        assertEquals(TOP + cardHeight + ValuesPane.GAP, bare.labelTop());
+        assertEquals(bare.labelTop() + ValuesPane.LINE_HEIGHT, bare.valueTop());
+        assertTrue(bare.errorTop() >= bare.valueTop() + valueHeight);
+        ValuesPane.Page erred = ValuesPane.layPage(TOP, cardHeight, valueHeight, true);
+        assertEquals(bare.errorTop(), erred.errorTop());
+        assertEquals(erred.errorTop() + ValuesPane.LINE_HEIGHT, erred.end());
+        assertEquals(bare.end() + ValuesPane.LINE_HEIGHT, erred.end());
+    }
 }
