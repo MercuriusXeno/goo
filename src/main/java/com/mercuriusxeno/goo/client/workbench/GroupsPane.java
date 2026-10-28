@@ -291,6 +291,16 @@ final class GroupsPane {
         }
     }
 
+    /**
+     * Selects a group, closing a builder open over another, as a grouped item's group link does (decision
+     * items-row-second-line-is-the-equality-expression).
+     *
+     * @param name the group's name
+     */
+    void reveal(String name) {
+        pickGroup(name);
+    }
+
     private void pickGroup(String name) {
         if (!name.equals(groups.selected().map(GroupsTab.Group::name).orElse(null))) {
             closeBuilder();

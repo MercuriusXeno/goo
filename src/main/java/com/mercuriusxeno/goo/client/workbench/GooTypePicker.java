@@ -28,7 +28,6 @@ final class GooTypePicker {
     static final String CLOSE = "close";
     /** The no-goo-type cell's name. */
     static final String NOTHING = "nothing";
-    private static final int ICON_INSET = 1;
     private static final int TEXT_NUDGE = 5;
     private static final int GLYPH_INSET = 6;
     // Wider than any GUI, so a click anywhere outside the grid lands on it.
@@ -212,6 +211,14 @@ final class GooTypePicker {
         return cell.row() >= firstRow && cell.row() < firstRow + shownRows;
     }
 
+    /**
+     * @param size a type icon's side, its texture's own (decision goo-type-icons-draw-native-everywhere)
+     * @return how far in from its cell's corner the icon stands, centered
+     */
+    static int iconInset(int size) {
+        return GooTypeIcons.centered(CELL, size);
+    }
+
     private static int cellX(int x, Cell cell) {
         return x + cell.column() * CELL;
     }
@@ -243,7 +250,8 @@ final class GooTypePicker {
         graphics.fill(x, y, x + COLUMNS * CELL, y + shownRows * CELL, BACKGROUND);
         for (Cell cell : cells()) {
             if (shows(cell)) {
-                GooTypeIcons.blit(graphics, cell.type(), cellX(x, cell) + ICON_INSET, cellY(y, cell) + ICON_INSET);
+                int inset = iconInset(GooTypeIcons.sizeOf(cell.type()));
+                GooTypeIcons.blit(graphics, cell.type(), cellX(x, cell) + inset, cellY(y, cell) + inset);
             }
         }
         drawGlyph(graphics, font, CLOSE_GLYPH, closeCell(), x, y);
