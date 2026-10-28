@@ -79,11 +79,15 @@ final class ValuesPane {
     private static final String NO_ENTRIES = "Nothing listed here.";
     private static final String NO_TEXT = "";
     private static final int NO_REVEAL = -1;
-    private static final Disposition VALUED_SYMBOL = new Disposition("✔", GREEN);
-    private static final Disposition DERIVED_SYMBOL = new Disposition("=", GREEN);
-    private static final Disposition GROUPED_SYMBOL = new Disposition("#", GREEN);
-    private static final Disposition NO_VALUE_SYMBOL = new Disposition("?", RED);
-    private static final Disposition DENIED_SYMBOL = new Disposition("⊘", GRAY);
+    private static final Disposition VALUED_SYMBOL = new Disposition("✔", GREEN, false);
+    private static final Disposition DERIVED_SYMBOL = new Disposition("=", GREEN, false);
+    private static final Disposition GROUPED_SYMBOL = new Disposition("#", GREEN, false);
+    private static final Disposition NO_VALUE_SYMBOL = new Disposition("?", RED, false);
+    // The font's own cancel circle draws half size, so the denied symbol is drawn by pixel.
+    private static final Disposition DENIED_SYMBOL = new Disposition("⊘", GREEN, true);
+    // A glyph's ink stands this far short of the font's line height.
+    private static final int GLYPH_LINE_MARGIN = 2;
+    private static final double HALF_PIXEL = 0.5;
 
     private final ValuesTab values;
     private final ItemIcons icons;
@@ -319,7 +323,8 @@ final class ValuesPane {
         List<Integer> runWidths = worth.entrySet().stream()
                 .map(amount -> runWidth(font, amount.getValue(), GooTypeIcons.sizeOf(amount.getKey()))).toList();
         int iconSize = worth.keySet().stream().mapToInt(GooTypeIcons::sizeOf).max().orElse(0);
-        int symbolWidth = source.map(shown -> font.width(dispositionOf(shown.kind()).glyph())).orElse(0);
+        int symbolWidth = source.map(shown -> symbolSize(dispositionOf(shown.kind()), font::width, font.lineHeight)
+                .width()).orElse(0);
         return new Card(entry, source, worth, layEntry(bounds, runWidths, new RowText(kind, font.lineHeight,
                 symbolWidth, font.width(EQUALS)), iconSize));
     }
@@ -343,8 +348,17 @@ final class ValuesPane {
                                   Optional<ValuesTab.Source> source, Title title) {
         graphics.text(font, font.plainSubstrByWidth(entry.tag() ? entry.id() : entry.name(), title.nameWidth()),
                 title.nameLeft(), title.nameTop(), WHITE);
-        source.map(shown -> dispositionOf(shown.kind())).ifPresent(symbol -> graphics.text(font, symbol.glyph(),
-                title.symbolLeft(), title.nameTop(), symbol.color()));
+        source.map(shown -> dispositionOf(shown.kind())).ifPresent(symbol -> drawSymbol(graphics, font, symbol,
+                title));
+    }
+
+    private static void drawSymbol(GuiGraphicsExtractor graphics, Font font, Disposition symbol, Title title) {
+        if (symbol.drawn()) {
+            int side = symbolSize(symbol, font::width, font.lineHeight).height();
+            drawCancelCircle(graphics, title.symbolLeft(), title.nameTop(), side, symbol.color());
+        } else {
+            graphics.text(font, symbol.glyph(), title.symbolLeft(), title.nameTop(), symbol.color());
+        }
     }
 
     // The sprite, then by disposition: "=" and what the value equals, or the no-value or denied words; a tag reads its
@@ -520,13 +534,56 @@ final class ValuesPane {
      *
      * @param glyph the symbol
      * @param color its color
+     * @param drawn whether it draws by pixel at the check's size rather than as the font's glyph
      */
-    record Disposition(String glyph, int color) {
+    record Disposition(String glyph, int color, boolean drawn) {
     }
 
     /**
-     * Valued a green check, derived a green equals, grouped a green hash, no value a red question mark, denied a gray
-     * cancel circle (decision items-row-title-carries-a-disposition-symbol-at-the-right-edge).
+     * @param width  the room a symbol takes on its line
+     * @param height its ink's height
+     */
+    record SymbolSize(int width, int height) {
+    }
+
+    /**
+     * A glyph symbol takes its font width and the glyph ink's height; the drawn cancel circle takes the check's width
+     * and a side that fits both the check's ink and the line (decision
+     * denied-symbol-is-a-green-cancel-circle-at-symbol-size).
+     *
+     * @param symbol     a disposition symbol
+     * @param width      a glyph's width in the font
+     * @param lineHeight the font's line height
+     * @return the room it takes and its ink's height
+     */
+    static SymbolSize symbolSize(Disposition symbol, ToIntFunction<String> width, int lineHeight) {
+        int inkHeight = lineHeight - GLYPH_LINE_MARGIN;
+        if (!symbol.drawn()) {
+            return new SymbolSize(width.applyAsInt(symbol.glyph()), inkHeight);
+        }
+        int checkWidth = width.applyAsInt(VALUED_SYMBOL.glyph());
+        return new SymbolSize(checkWidth, Math.min(checkWidth - 1, inkHeight));
+    }
+
+    // The cancel circle: a ring of the side's diameter and a slash from its top right to its bottom left.
+    private static void drawCancelCircle(GuiGraphicsExtractor graphics, int left, int top, int side, int color) {
+        double radius = (side - 1) / (double) HALF;
+        for (int row = 0; row < side; row++) {
+            for (int column = 0; column < side; column++) {
+                double distance = Math.hypot(column - radius, row - radius);
+                boolean ring = Math.abs(distance - radius) < HALF_PIXEL;
+                boolean slash = column + row == side - 1 && distance <= radius;
+                if (ring || slash) {
+                    graphics.fill(left + column, top + row, left + column + 1, top + row + 1, color);
+                }
+            }
+        }
+    }
+
+    /**
+     * Valued a green check, derived a green equals, grouped a green hash, no value a red question mark, denied a green
+     * cancel circle at the check's size (decisions items-row-title-carries-a-disposition-symbol-at-the-right-edge,
+     * denied-symbol-is-a-green-cancel-circle-at-symbol-size).
      *
      * @param kind where an item's value comes from
      * @return the symbol its title line reads
