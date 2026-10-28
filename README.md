@@ -4,11 +4,13 @@ A Minecraft mod for NeoForge 26.1. Melt items down into typed goo, store it, mov
 
 ## What it does
 
-Every item in the game has a goo breakdown across 15 types: Metal, Crystal, Leaf, Zoo, Shroom, Rock, Blaze, Frost, Typhoon, Glow, Hex, Pulse, Nether, Ender, and Yore.
+Most items have a goo breakdown, derived from base values through their recipes, across 26 types: Astral, Blaze, Crystal, Deep, Ender, Frost, Glow, Hex, Infinity, Jelly, Kinetic, Leaf, Metal, Nether, Opulent, Pulse, Quantum, Rock, Shroom, Typhoon, Unstable, Void, Weird, Xeno, Yore, and Zoo.
 
-Toss items into a **Crucible** to melt them into goo. Store it in **Canisters** and **Vats**. Move it between machines with **Gasket** networks. Feed goo back into a **Plexer** to reconstitute items.
+Light a **Crucible** with flint and steel, then drop or toss items in to melt them into goo. Store goo in **Canisters**, up to nine to a block; in **Hubs**, which route goo into eight canisters; and in **Vats**, which grow with the Void goo they hold. Link **Choral Gaskets** in pairs with a **Choral Tuner** to pipe goo between machines at any distance.
 
-Each goo type has **three effects**: World, Mob, and Brew. Equip a **Glove**, pick a type, and throw blobs at blocks and mobs to trigger them. Brew goo potions at a vanilla brewing stand.
+Grow goo into **Chrysm** in a **Crystallizer**, mix goo in a **Reactor**, and reconstitute items in a **Plexer**: set the target item, fit canisters of the right goo to its top, and pulse it with redstone.
+
+Each goo type has its own **abilities**, up to six per type. Hold a **Goo Glove**, press G to pick a type and ability from the radial, and right-click to throw, beam, stream or self-cast it. Abilities unlock as you learn certain items. Brew a type's Chrysm into an Awkward Potion at a vanilla brewing stand to get that type's goo potion.
 
 ## Building
 

@@ -414,7 +414,7 @@ class RadialWheelRendererTest {
         /** The font's line height, which a mocked Font keeps from its declaration. */
         private static final int LINE_HEIGHT = 9;
         /** A type icon's side, as the renderer draws it. */
-        private static final int TYPE_ICON_SIZE = 11;
+        private static final int TYPE_ICON_SIZE = 12;
         /** Where a text call's ARGB color sits among its arguments. */
         private static final int TEXT_COLOR_ARGUMENT = 4;
         /** Where a blit's ARGB color sits among its arguments. */
