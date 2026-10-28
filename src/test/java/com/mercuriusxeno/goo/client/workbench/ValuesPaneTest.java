@@ -170,19 +170,30 @@ class ValuesPaneTest {
 
     /**
      * Each value disposition reads as its own symbol: valued a green check, derived a green equals, grouped a green
-     * hash, no value a red question mark, denied a gray cancel circle (decision
-     * items-row-title-carries-a-disposition-symbol-at-the-right-edge).
+     * hash, no value a red question mark, denied a green cancel circle drawn at the check's size, within a pixel, for
+     * a font whose check is 8 wide on a 9-pixel line (decisions
+     * items-row-title-carries-a-disposition-symbol-at-the-right-edge,
+     * denied-symbol-is-a-green-cancel-circle-at-symbol-size).
      */
     @Test
     void eachDispositionReadsAsItsSymbolAndColor() {
         int green = 0xFF80E080;
-        int gray = 0xFFA0A0A0;
-        assertEquals(new ValuesPane.Disposition("✔", green), ValuesPane.dispositionOf(ValuesTab.SourceKind.ENTRY));
-        assertEquals(new ValuesPane.Disposition("=", green), ValuesPane.dispositionOf(ValuesTab.SourceKind.DERIVED));
-        assertEquals(new ValuesPane.Disposition("#", green), ValuesPane.dispositionOf(ValuesTab.SourceKind.GROUP));
-        assertEquals(new ValuesPane.Disposition("?", ValuesPane.RED),
+        ValuesPane.Disposition check = ValuesPane.dispositionOf(ValuesTab.SourceKind.ENTRY);
+        assertEquals(new ValuesPane.Disposition("✔", green, false), check);
+        assertEquals(new ValuesPane.Disposition("=", green, false),
+                ValuesPane.dispositionOf(ValuesTab.SourceKind.DERIVED));
+        assertEquals(new ValuesPane.Disposition("#", green, false),
+                ValuesPane.dispositionOf(ValuesTab.SourceKind.GROUP));
+        assertEquals(new ValuesPane.Disposition("?", ValuesPane.RED, false),
                 ValuesPane.dispositionOf(ValuesTab.SourceKind.NONE));
-        assertEquals(new ValuesPane.Disposition("⊘", gray), ValuesPane.dispositionOf(ValuesTab.SourceKind.DENIED));
+        ValuesPane.Disposition denied = ValuesPane.dispositionOf(ValuesTab.SourceKind.DENIED);
+        assertEquals(green, denied.color());
+        assertTrue(denied.drawn());
+        java.util.function.ToIntFunction<String> width = glyph -> glyph.equals("✔") ? 8 : 4;
+        ValuesPane.SymbolSize checkSize = ValuesPane.symbolSize(check, width, LINE_HEIGHT);
+        ValuesPane.SymbolSize deniedSize = ValuesPane.symbolSize(denied, width, LINE_HEIGHT);
+        assertTrue(Math.abs(checkSize.width() - deniedSize.width()) <= 1, checkSize + " against " + deniedSize);
+        assertTrue(Math.abs(checkSize.height() - deniedSize.height()) <= 1, checkSize + " against " + deniedSize);
     }
 
     /**
