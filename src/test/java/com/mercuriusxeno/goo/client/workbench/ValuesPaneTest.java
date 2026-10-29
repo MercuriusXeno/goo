@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import org.joml.Matrix3x2fStack;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import java.util.List;
@@ -368,11 +369,13 @@ class ValuesPaneTest {
         ValuesPane pane = new ValuesPane(values, icons, actions,
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         DrawnFrame frame = new DrawnFrame();
+        when(frame.graphics.pose()).thenReturn(new Matrix3x2fStack(4));
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
         ArgumentCaptor<String> decorations = ArgumentCaptor.forClass(String.class);
         verify(frame.graphics, atLeast(0)).itemDecorations(any(Font.class), any(), anyInt(), anyInt(),
                 decorations.capture());
-        assertEquals(List.of("1/3", "1/3"), decorations.getAllValues());
+        assertEquals(List.of(), decorations.getAllValues());
+        assertEquals(2, frame.texts().stream().filter("1/3"::equals).count());
         assertEquals(2, frame.texts().stream().filter("+"::equals).count());
         assertTrue(frame.texts().stream().noneMatch(text -> text.trim().startsWith("/")), frame.texts().toString());
     }
@@ -388,6 +391,27 @@ class ValuesPaneTest {
         assertEquals(Optional.of("2 1/4"), ValuesPane.countLabel(9, 4));
         assertEquals(Optional.of("2"), ValuesPane.countLabel(2, 1));
         assertEquals(Optional.empty(), ValuesPane.countLabel(1, 1));
+    }
+
+    /**
+     * A count splits into its whole part, drawn full size as a stack count, and its fraction, drawn at half scale
+     * right-aligned to the sprite's bottom-right corner where a stack count stands; a mixed count's whole stands just
+     * left of its fraction (decision recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
+     */
+    @Test
+    void fractionDrawsHalfScaleInTheSpriteCorner() {
+        assertEquals(new ValuesPane.CountParts("", "1/3"), ValuesPane.countParts(2, 6));
+        assertEquals(new ValuesPane.CountParts("2", "1/4"), ValuesPane.countParts(9, 4));
+        assertEquals(new ValuesPane.CountParts("2", ""), ValuesPane.countParts(2, 1));
+        assertEquals(new ValuesPane.CountParts("", ""), ValuesPane.countParts(6, 6));
+        int spriteLeft = 100;
+        int spriteTop = 40;
+        int fractionWidth = 18;
+        ValuesPane.CountPlacement placed = ValuesPane.placeCount(spriteLeft, spriteTop, fractionWidth);
+        assertEquals((spriteLeft + RowLayout.SPRITE_SIZE + 1) * 2, placed.fractionX() + fractionWidth);
+        assertEquals((spriteTop + RowLayout.SPRITE_SIZE + 1) * 2, placed.fractionY() + 8);
+        assertEquals(spriteLeft - fractionWidth / 2 - 1, placed.wholeX());
+        assertEquals(spriteLeft, ValuesPane.placeCount(spriteLeft, spriteTop, 0).wholeX());
     }
 
     /**
