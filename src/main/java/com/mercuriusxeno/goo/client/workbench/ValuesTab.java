@@ -526,6 +526,34 @@ public final class ValuesTab {
     }
 
     /**
+     * @return whether the file holds a value entry of the selected item's own
+     */
+    public boolean selectedHasEntry() {
+        return selected != null && valueMember(entryKeyOf(selected)) != null;
+    }
+
+    /**
+     * Drops the selected item's own value entry from the draft, so the item reads as the file never naming it: derived
+     * where recipes value it, else no value.
+     */
+    public void removeEntry() {
+        if (selected == null) {
+            return;
+        }
+        JsonObject member = valueMember(entryKeyOf(selected));
+        if (member == null) {
+            return;
+        }
+        JsonArray kept = new JsonArray();
+        draft.members().forEach(element -> {
+            if (element != member) {
+                kept.add(element);
+            }
+        });
+        draft.replaceMembers(kept);
+    }
+
+    /**
      * @return the text a save or a resolve posts: the model with every edit
      */
     public String modelText() {

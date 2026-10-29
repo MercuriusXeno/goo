@@ -124,6 +124,33 @@ class ValuesPaneTest {
         assertTrue(doneInPane);
     }
 
+    /**
+     * The selected item's page draws a Remove entry button where the file holds its entry, and pressing it drops the
+     * entry and has the draft read afresh, so the item falls back to what recipes derive.
+     */
+    @Test
+    void removeEntryButtonDropsTheSelectedEntry() {
+        ValuesTab values = new ValuesTab();
+        values.readInventory("""
+                {"items": [{"id": "minecraft:netherite_ingot", "name": "Netherite Ingot"}], "item_tags": []}
+                """);
+        values.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "netherite_ingot", "keySeparator": null, "kind": "VALUE", "text": "\\"$netherite\\"",
+                   "entries": [], "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        values.select("minecraft:netherite_ingot");
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
+        frame.click("Remove entry");
+        assertTrue(!values.selectedHasEntry());
+        verify(actions).draftChanged();
+    }
+
     // A Values pane over one torch in a group named lights holding the members given, the torch first.
     private static ValuesPane groupedPane(ManagerActions actions, List<String> members) {
         ValuesTab values = new ValuesTab();
@@ -457,7 +484,7 @@ class ValuesPaneTest {
         int valueHeight = 30;
         ValuesPane.Page bare = ValuesPane.layPage(TOP, cardHeight, valueHeight, false);
         assertEquals(TOP + cardHeight + ValuesPane.GAP, bare.labelTop());
-        assertEquals(bare.labelTop() + ValuesPane.LINE_HEIGHT, bare.valueTop());
+        assertEquals(bare.labelTop() + ValuesPane.LABEL_LINE_HEIGHT, bare.valueTop());
         assertTrue(bare.errorTop() >= bare.valueTop() + valueHeight);
         ValuesPane.Page erred = ValuesPane.layPage(TOP, cardHeight, valueHeight, true);
         assertEquals(bare.errorTop(), erred.errorTop());
