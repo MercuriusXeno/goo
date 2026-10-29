@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.workbench;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -46,6 +47,28 @@ public record WorkbenchPaths(Path baseValues, Path inventoryFile, Path imageFold
         return new WorkbenchPaths(packRoot(world).resolve(PACK_VALUES), folder.resolve(INVENTORY_FILE),
                 folder.resolve(IMAGE_FOLDER), folder.resolve(AUDIT_DUMP), folder.resolve(CLIQUE_DUMP),
                 folder.resolve(AUDIT_JSON));
+    }
+
+    /**
+     * The files the in-game workbench stands on: a dev client's source base_values.json, walked up from its run
+     * directory, or the world's goo_values datapack in production, on a server, or where the walk finds no file.
+     * decision dev-client-workbench-targets-the-source-base-values
+     *
+     * @param world        a world's save folder
+     * @param runDirectory the game's run directory, under the project in a dev client
+     * @param devClient    whether the game is a client outside a production launch
+     * @return the project's paths where the gate is open and the walk finds the source file, else the world's
+     */
+    public static WorkbenchPaths standing(Path world, Path runDirectory, boolean devClient) {
+        if (!devClient) {
+            return inWorld(world);
+        }
+        for (Path folder = runDirectory.toAbsolutePath().normalize(); folder != null; folder = folder.getParent()) {
+            if (Files.isRegularFile(folder.resolve(SHIPPED_BASE_VALUES))) {
+                return inProject(folder);
+            }
+        }
+        return inWorld(world);
     }
 
     /**

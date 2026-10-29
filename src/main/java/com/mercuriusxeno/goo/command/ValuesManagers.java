@@ -5,24 +5,31 @@ import com.mercuriusxeno.goo.data.GooValues;
 import com.mercuriusxeno.goo.network.GooValueSync;
 import com.mercuriusxeno.goo.network.WorkbenchRequests;
 import com.mercuriusxeno.goo.type.GooTypes;
+import com.mercuriusxeno.goo.workbench.ModPackChoice;
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
 import com.mercuriusxeno.goo.workbench.WorkbenchPaths;
 import net.minecraft.SharedConstants;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.world.level.storage.LevelResource;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.fml.loading.FMLEnvironment;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * The workbench operations each running server holds for its world's goo_values datapack, answering the values
+ * The workbench operations each running server holds for its world's goo_values datapack, or for a dev client's
+ * source base_values.json (decision dev-client-workbench-targets-the-source-base-values), answering the values
  * manager's requests, stood by /goo workbench or the first request and closed as the server stops
  * (decision goo-workbench-opens-the-in-game-manager-screen).
  */
@@ -39,6 +46,9 @@ public final class ValuesManagers {
             }
             """;
     private static final String NO_JAR_VALUES = "The jar holds no ";
+    private static final String NO_MOD_PACK = "No pack in the resource stack carries the mod's ";
+    // The empty path resolves against the game's working directory, runs/client under the project in a dev client.
+    private static final String RUN_DIRECTORY = "";
     private static final String WORKER_NAME = "goo-values-manager";
     // A world's folder datapack answers this prefix before its folder's name as its pack id.
     private static final String FILE_PACK_PREFIX = "file/";
@@ -90,8 +100,9 @@ public final class ValuesManagers {
             return standing;
         }
         Path world = server.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize();
-        writePackMeta(WorkbenchPaths.packRoot(world));
-        WorkbenchPaths paths = WorkbenchPaths.inWorld(world);
+        // decision dev-client-workbench-targets-the-source-base-values
+        WorkbenchPaths paths = WorkbenchPaths.standing(world, Path.of(RUN_DIRECTORY), isDevClient());
+        String packId = replacedPackId(server, world, paths);
         // A pool rather than one thread: a dump run holds its thread for minutes, and a save or a resolve sent while
         // it runs answers beside it.
         ExecutorService worker = Executors.newCachedThreadPool(runnable -> {
@@ -99,7 +110,6 @@ public final class ValuesManagers {
             thread.setDaemon(true);
             return thread;
         });
-        String packId = FILE_PACK_PREFIX + WorkbenchPaths.packRoot(world).getFileName();
         Standing stood = new Standing(new WorkbenchOperations(paths, ValuesManagers::jarValues,
                 InGameDumps.inventory(server, paths), InGameDumps.dumps(server, paths),
                 text -> applyLive(server, text, packId),
@@ -117,7 +127,8 @@ public final class ValuesManagers {
      *
      * @param server the running server
      * @param text   the base_values.json text now standing
-     * @param packId the goo_values pack's id, whose own file the text stands in for
+     * @param packId the id of the pack whose own file the text stands in for: the world's goo_values pack, or the
+     *               mod's own pack in a dev client
      */
     static void applyLive(MinecraftServer server, String text, String packId) {
         server.submit(() -> {
@@ -127,6 +138,45 @@ public final class ValuesManagers {
             registry.saveEffectiveValues();
             GooValueSync.sendToAll(server);
         }).join();
+    }
+
+    /**
+     * Names the pack whose layer a save replaces live, writing the world pack's pack.mcmeta first on the world route
+     * so a promoted file loads; the source route writes no pack.
+     *
+     * @param server the running server
+     * @param world  the world's save folder
+     * @param paths  the files the workbench stands on
+     * @return the mod's own pack id on the source route, else the world's goo_values pack id
+     * @throws IOException where the datapack folder cannot be written or no pack carries the mod's file
+     */
+    private static String replacedPackId(MinecraftServer server, Path world, WorkbenchPaths paths)
+            throws IOException {
+        if (!paths.equals(WorkbenchPaths.inWorld(world))) {
+            return modPackId(server);
+        }
+        writePackMeta(WorkbenchPaths.packRoot(world));
+        return FILE_PACK_PREFIX + WorkbenchPaths.packRoot(world).getFileName();
+    }
+
+    private static boolean isDevClient() {
+        return !FMLEnvironment.isProduction() && FMLEnvironment.getDist() == Dist.CLIENT;
+    }
+
+    /**
+     * @param server the running server
+     * @return the id of the pack carrying the mod's own base_values.json, whose layer a dev client's save replaces
+     * @throws IOException where the jar's file or a pack's file cannot be read
+     */
+    private static String modPackId(MinecraftServer server) throws IOException {
+        List<ModPackChoice.PackLayer> stack = new ArrayList<>();
+        for (Resource resource : GooValueRegistry.loadResourceStack(server)) {
+            try (InputStream in = resource.open()) {
+                stack.add(new ModPackChoice.PackLayer(resource.sourcePackId(), in.readAllBytes()));
+            }
+        }
+        return ModPackChoice.packCarrying(stack, jarValues())
+                .orElseThrow(() -> new IOException(NO_MOD_PACK + JAR_VALUES));
     }
 
     private static void writePackMeta(Path packRoot) throws IOException {

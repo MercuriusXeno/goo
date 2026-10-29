@@ -107,7 +107,7 @@ public class GooValueRegistry {
      * @param server the server providing the resource manager
      * @return the ordered resource stack
      */
-    private static List<Resource> loadResourceStack(MinecraftServer server) {
+    public static List<Resource> loadResourceStack(MinecraftServer server) {
         ResourceManager resourceManager = server.getResourceManager();
         Identifier location = Identifier.fromNamespaceAndPath(
                 GooValueLoader.modNamespace(), GooValueLoader.baseValuesResource());
