@@ -3,11 +3,15 @@ package com.mercuriusxeno.goo.client.workbench;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import java.util.List;
+import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -295,35 +299,63 @@ class ValuesPaneTest {
     }
 
     /**
-     * The recipe equivalency spaces each input sprite with a small + between inputs, and appends " / n" after the
-     * last only where the recipe makes more than one (decision
-     * recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
+     * The recipe equivalency spaces each input sprite with a small + between inputs and ends on the last input at any
+     * output count; a hanging sign's row and detail page draw the chain decorated 1/3, the stripped log undecorated,
+     * one + each and no " / n" run (decision recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
      */
     @Test
-    void equivalencySpacesInputsWithPlusesAndDividesOnlyPastOne() {
+    void equivalencySpacesInputsWithPlusesAtAnyOutput() {
         int left = 100;
         int plusWidth = 6;
         int gap = ValuesPane.EQUIVALENCY_GAP;
-        ValuesPane.Equivalency one = ValuesPane.layEquivalency(left, 2, plusWidth, 1);
+        ValuesPane.Equivalency two = ValuesPane.layEquivalency(left, 2, plusWidth);
         int second = left + RowLayout.SPRITE_SIZE + gap + plusWidth + gap;
-        assertEquals(List.of(left, second), one.spriteLefts());
-        assertEquals(List.of(left + RowLayout.SPRITE_SIZE + gap), one.plusLefts());
-        assertTrue(one.divideLeft().isEmpty());
-        ValuesPane.Equivalency four = ValuesPane.layEquivalency(left, 2, plusWidth, 4);
-        assertEquals(second + RowLayout.SPRITE_SIZE, four.divideLeft().getAsInt());
-        ValuesPane.Equivalency single = ValuesPane.layEquivalency(left, 1, plusWidth, 4);
+        assertEquals(List.of(left, second), two.spriteLefts());
+        assertEquals(List.of(left + RowLayout.SPRITE_SIZE + gap), two.plusLefts());
+        ValuesPane.Equivalency single = ValuesPane.layEquivalency(left, 1, plusWidth);
         assertEquals(List.of(left), single.spriteLefts());
         assertEquals(List.of(), single.plusLefts());
+
+        ValuesTab values = new ValuesTab();
+        values.readInventory("""
+                {"items": [{"id": "minecraft:oak_hanging_sign", "name": "Oak Hanging Sign"}], "item_tags": []}
+                """);
+        values.readModel("""
+                {"path": "base_values.json", "members": []}
+                """);
+        values.readResolved("""
+                {"entries": [{"key": "oak_hanging_sign", "value": {"leaf": "8"}, "denied": false}]}
+                """);
+        values.readDerivedFrom("""
+                {"items": {"minecraft:oak_hanging_sign": {"inputs": [{"id": "minecraft:chain", "count": 2},
+                  {"id": "minecraft:stripped_oak_log", "count": 6}], "output": 6}}}
+                """);
+        values.select("minecraft:oak_hanging_sign");
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
+        ArgumentCaptor<String> decorations = ArgumentCaptor.forClass(String.class);
+        verify(frame.graphics, atLeast(0)).itemDecorations(any(Font.class), any(), anyInt(), anyInt(),
+                decorations.capture());
+        assertEquals(List.of("1/3", "1/3"), decorations.getAllValues());
+        assertEquals(2, frame.texts().stream().filter("+"::equals).count());
+        assertTrue(frame.texts().stream().noneMatch(text -> text.trim().startsWith("/")), frame.texts().toString());
     }
 
     /**
-     * An input's summed count draws at its sprite's bottom right only past one, as an inventory draws a stack
-     * (decision recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
+     * An input's label reads its summed count over the recipe's output as a reduced mixed number, and nothing where
+     * that equals 1 (decision recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
      */
     @Test
-    void inputCountDrawsOnlyPastOne() {
-        assertTrue(ValuesPane.countLabel(1).isEmpty());
-        assertEquals(java.util.Optional.of("4"), ValuesPane.countLabel(4));
+    void inputCountDrawsAsItsFractionOfTheOutput() {
+        assertEquals(Optional.of("1/3"), ValuesPane.countLabel(2, 6));
+        assertEquals(Optional.empty(), ValuesPane.countLabel(6, 6));
+        assertEquals(Optional.of("2 1/4"), ValuesPane.countLabel(9, 4));
+        assertEquals(Optional.of("2"), ValuesPane.countLabel(2, 1));
+        assertEquals(Optional.empty(), ValuesPane.countLabel(1, 1));
     }
 
     /**
