@@ -80,6 +80,9 @@ final class ValuesPane {
     private static final String NO_ENTRIES = "Nothing listed here.";
     private static final String NO_TEXT = "";
     private static final int NO_REVEAL = -1;
+    // A hover key no item id, prefab name or goo type key spells.
+    private static final String GROUP_HOVER_PREFIX = "goo-group-members:";
+    private static final int MEMBER_ICONS_SHOWN = 8;
     private static final Disposition VALUED_SYMBOL = new Disposition("✔", GREEN, false);
     private static final Disposition DERIVED_SYMBOL = new Disposition("=", GREEN, false);
     private static final Disposition GROUPED_SYMBOL = new Disposition("#", GREEN, false);
@@ -382,13 +385,37 @@ final class ValuesPane {
         }
     }
 
-    // The group's name, a link to its group on the Groups tab.
+    /**
+     * @param hoverKey what the hovered area names
+     * @return the group's members as one row of item icons where the area is a group button's, empty otherwise
+     */
+    Optional<List<TooltipLine>> groupTooltipFor(String hoverKey) {
+        if (!hoverKey.startsWith(GROUP_HOVER_PREFIX)) {
+            return Optional.empty();
+        }
+        return Optional.of(List.of(memberIcons(values.groupMembers(hoverKey.substring(GROUP_HOVER_PREFIX.length())))));
+    }
+
+    /**
+     * @param members a group's members, in member order
+     * @return the first eight as icons, then ..+n counting the rest, no label where every member draws (decisions
+     *     group-link-hovers-member-icons-then-plus-n, more-button-reads-dot-dot-plus-n)
+     */
+    static TooltipLine.MemberIcons memberIcons(List<String> members) {
+        int shown = Math.min(members.size(), MEMBER_ICONS_SHOWN);
+        int hidden = members.size() - shown;
+        return new TooltipLine.MemberIcons(members.subList(0, shown), hidden > 0 ? UsedByLine.moreLabel(hidden)
+                : NO_TEXT);
+    }
+
+    // The group's name as a button opening its group on the Groups tab, hovering its members (decisions
+    // blue-text-options-draw-as-bordered-buttons, group-link-hovers-member-icons-then-plus-n).
     private void drawGroupLink(GuiGraphicsExtractor graphics, Font font, String group, Equality line,
                                ClickTargets targets) {
-        String shown = font.plainSubstrByWidth(group, line.right() - line.besideLeft());
-        graphics.text(font, shown, line.besideLeft(), line.textTop(), LINK);
-        targets.add(line.besideLeft(), line.spriteTop(), font.width(shown), ICON_SIZE,
-                () -> actions.openGroup(group));
+        String shown = font.plainSubstrByWidth(group,
+                line.right() - line.besideLeft() - ButtonPainter.PADDING - ButtonPainter.PADDING);
+        ButtonPainter.draw(graphics, font, shown, line.besideLeft(), line.spriteTop() - 1, ROW_HEIGHT, targets,
+                () -> actions.openGroup(group), GROUP_HOVER_PREFIX + group);
     }
 
     // A derived item's recipe equivalency; one recipes value with no inputs to name reads derived.

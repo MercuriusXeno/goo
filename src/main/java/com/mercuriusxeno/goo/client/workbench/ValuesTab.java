@@ -215,8 +215,12 @@ public final class ValuesTab {
             case ITEMS -> !entry.tag();
             case TAGS -> entry.tag();
             case UNCOVERED -> !entry.tag() && uncovered.contains(entry.id());
-            case FRACTIONAL -> !entry.tag() && worthOf(entry.id()).values().stream().anyMatch(ValuesTab::fractional);
+            case FRACTIONAL -> fractionalItem(entry);
         };
+    }
+
+    private boolean fractionalItem(ManagerEntry entry) {
+        return !entry.tag() && worthOf(entry.id()).values().stream().anyMatch(ValuesTab::fractional);
     }
 
     // The server answers an amount as a whole number or a reduced n/d (decision
@@ -368,6 +372,14 @@ public final class ValuesTab {
     private Source unentered(String id) {
         return worthOf(id).isEmpty() ? new Source(NO_VALUE, SourceKind.NONE, false)
                 : new Source(DERIVED_SOURCE, SourceKind.DERIVED, false);
+    }
+
+    /**
+     * @param group a _groups group's bare name
+     * @return its members' namespaced ids in file order, none where the draft holds no such group
+     */
+    public List<String> groupMembers(String group) {
+        return groupsOf().getOrDefault(group, List.of());
     }
 
     private Map<String, List<String>> groupsOf() {
