@@ -39,6 +39,12 @@ final class ValuesPane {
     private static final String PLUS = "+";
     private static final String FRACTION_DIVIDER = "/";
     private static final String MIXED_SPACE = " ";
+    private static final float FRACTION_SCALE = 0.5f;
+    // Half scale doubles every coordinate the fraction draws at.
+    private static final int FRACTION_SPACE = 2;
+    // A stack count's right and bottom edges stand a pixel past the sprite's.
+    private static final int COUNT_OVERHANG = 1;
+    private static final int GLYPH_HEIGHT = 8;
     /** The room either side of the + between a recipe equivalency's inputs. */
     static final int EQUIVALENCY_GAP = 2;
     /** The room between the filter set and the search box below it. */
@@ -440,11 +446,27 @@ final class ValuesPane {
             int x = laid.spriteLefts().get(index);
             ItemStack stack = icons.of(input.id());
             graphics.item(stack, x, line.spriteTop());
-            countLabel(input.count(), recipe.output()).ifPresent(count -> graphics.itemDecorations(font, stack, x,
-                    line.spriteTop(), count));
+            drawCount(graphics, font, stack, countParts(input.count(), recipe.output()), x, line.spriteTop());
             ItemLinks.add(targets, actions, input.id(), x, line.spriteTop());
         }
         laid.plusLefts().forEach(x -> graphics.text(font, PLUS, x, line.textTop(), WHITE));
+    }
+
+    // The whole part draws full size as an inventory draws a stack count; the fraction draws at half scale in the
+    // sprite's bottom-right corner, the whole standing just left of it.
+    private static void drawCount(GuiGraphicsExtractor graphics, Font font, ItemStack stack, CountParts parts, int x,
+                                  int y) {
+        int fractionWidth = parts.fraction().isEmpty() ? 0 : font.width(parts.fraction());
+        CountPlacement placed = placeCount(x, y, fractionWidth);
+        if (!parts.whole().isEmpty()) {
+            graphics.itemDecorations(font, stack, placed.wholeX(), y, parts.whole());
+        }
+        if (fractionWidth > 0) {
+            graphics.pose().pushMatrix();
+            graphics.pose().scale(FRACTION_SCALE, FRACTION_SCALE);
+            graphics.text(font, parts.fraction(), placed.fractionX(), placed.fractionY(), WHITE);
+            graphics.pose().popMatrix();
+        }
     }
 
     /**
@@ -454,20 +476,66 @@ final class ValuesPane {
      *     empty where it equals 1
      */
     static Optional<String> countLabel(int count, int output) {
+        CountParts parts = countParts(count, output);
+        String joined = parts.whole().isEmpty() || parts.fraction().isEmpty() ? parts.whole() + parts.fraction()
+                : parts.whole() + MIXED_SPACE + parts.fraction();
+        return joined.isEmpty() ? Optional.empty() : Optional.of(joined);
+    }
+
+    /**
+     * An input count's two parts.
+     *
+     * @param whole    its whole part, empty where it is under 1
+     * @param fraction its part under 1 as n/d, empty where the count is whole
+     */
+    record CountParts(String whole, String fraction) {
+    }
+
+    /**
+     * @param count  an input's summed count
+     * @param output how many the recipe makes
+     * @return the count over the output, reduced, split into its whole part and its fraction, both empty where it
+     *     equals 1
+     */
+    static CountParts countParts(int count, int output) {
         int made = Math.max(1, output);
         long divisor = greatestCommonDivisor(count, made);
         long numerator = count / divisor;
         long denominator = made / divisor;
         if (numerator == denominator) {
-            return Optional.empty();
+            return new CountParts(NO_TEXT, NO_TEXT);
         }
         long whole = numerator / denominator;
         long part = numerator % denominator;
-        if (part == 0) {
-            return Optional.of(String.valueOf(whole));
-        }
-        String fraction = part + FRACTION_DIVIDER + denominator;
-        return Optional.of(whole == 0 ? fraction : whole + MIXED_SPACE + fraction);
+        return new CountParts(whole == 0 ? NO_TEXT : String.valueOf(whole),
+                part == 0 ? NO_TEXT : part + FRACTION_DIVIDER + denominator);
+    }
+
+    /**
+     * Where an input count's parts draw on its sprite.
+     *
+     * @param wholeX    the x the whole part's stack decoration takes, so it ends just left of the fraction
+     * @param fractionX the fraction's left edge, in half-scale space
+     * @param fractionY the fraction's top edge, in half-scale space
+     */
+    record CountPlacement(int wholeX, int fractionX, int fractionY) {
+    }
+
+    /**
+     * Right-aligns the half-scale fraction to where a stack count's right and bottom edges stand on the sprite, and
+     * moves the whole part left by the fraction's drawn width (decision
+     * recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
+     *
+     * @param spriteLeft    the sprite's left edge
+     * @param spriteTop     the sprite's top edge
+     * @param fractionWidth the fraction's width at full scale, 0 where the count has none
+     * @return each part's place
+     */
+    static CountPlacement placeCount(int spriteLeft, int spriteTop, int fractionWidth) {
+        int right = (spriteLeft + ICON_SIZE + COUNT_OVERHANG) * FRACTION_SPACE;
+        int bottom = (spriteTop + ICON_SIZE + COUNT_OVERHANG) * FRACTION_SPACE;
+        int wholeX = fractionWidth == 0 ? spriteLeft : spriteLeft - fractionWidth / FRACTION_SPACE - 1;
+        return new CountPlacement(wholeX, right - fractionWidth, bottom - GLYPH_HEIGHT);
     }
 
     private static long greatestCommonDivisor(long a, long b) {
