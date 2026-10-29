@@ -256,9 +256,9 @@ public final class WorkbenchOperations {
      * @param posted the model whose constants resolve
      * @return every constant with its value, its error and its readers
      */
-    private WorkbenchReply evaluateConstants(String posted) throws IOException {
+    private WorkbenchReply evaluateConstants(String posted) throws IOException, InterruptedException {
         return json(ConstantsJson.evaluated(postedModel(posted),
-                GroupsJson.Inventory.read(paths.inventoryFile()).tags()));
+                GroupsJson.Inventory.read(dumpedInventory()).tags()));
     }
 
     /**
@@ -268,9 +268,9 @@ public final class WorkbenchOperations {
      * @param posted the model and the constant's name
      * @return the constant's hover card, or not found
      */
-    private WorkbenchReply constantHover(String posted) throws IOException {
+    private WorkbenchReply constantHover(String posted) throws IOException, InterruptedException {
         String name = ConstantsJson.nameFrom(posted);
-        return ConstantsJson.hovered(name, postedModel(posted), GroupsJson.Inventory.read(paths.inventoryFile()).tags())
+        return ConstantsJson.hovered(name, postedModel(posted), GroupsJson.Inventory.read(dumpedInventory()).tags())
                 .map(WorkbenchOperations::json)
                 .orElseGet(() -> WorkbenchReply.of(NOT_FOUND, WorkbenchReply.TEXT, NO_CONSTANT_NAMED + name));
     }
@@ -318,11 +318,10 @@ public final class WorkbenchOperations {
         return json(answer.toString());
     }
 
-    private WorkbenchReply resolveValues(String posted) throws IOException {
-        BaseValuesModel model = postedModel(posted);
-        return json(Files.isRegularFile(paths.inventoryFile())
-                ? Valuations.resolved(model, ValuesJson.inventory(paths.inventoryFile()))
-                : Valuations.resolved(model));
+    // The in-game manager asks for no inventory before its draft reads, so a resolve dumps it where none stands
+    // (decision client-builds-items-and-tags-from-its-own-registries).
+    private WorkbenchReply resolveValues(String posted) throws IOException, InterruptedException {
+        return json(Valuations.resolved(postedModel(posted), ValuesJson.inventory(dumpedInventory())));
     }
 
     private BaseValuesModel postedModel(String posted) throws IOException {
