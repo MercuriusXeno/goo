@@ -456,18 +456,22 @@ final class ValuesPane {
     }
 
     // The whole part draws full size as an inventory draws a stack count; the fraction draws at half scale in the
-    // sprite's bottom-right corner, the whole standing just left of it.
+    // sprite's bottom-right corner as a slanted stack, the whole standing just left of it.
     private static void drawCount(GuiGraphicsExtractor graphics, Font font, ItemStack stack, CountParts parts, int x,
                                   int y) {
-        int fractionWidth = parts.fraction().isEmpty() ? 0 : font.width(parts.fraction());
-        CountPlacement placed = placeCount(x, y, fractionWidth);
+        boolean stacked = !parts.numerator().isEmpty();
+        FractionWidths widths = stacked ? new FractionWidths(font.width(parts.numerator()),
+                font.width(FRACTION_DIVIDER), font.width(parts.denominator())) : new FractionWidths(0, 0, 0);
+        StackedFraction placed = placeFraction(x, y, widths);
         if (!parts.whole().isEmpty()) {
             graphics.itemDecorations(font, stack, placed.wholeX(), y, parts.whole());
         }
-        if (fractionWidth > 0) {
+        if (stacked) {
             graphics.pose().pushMatrix();
             graphics.pose().scale(FRACTION_SCALE, FRACTION_SCALE);
-            graphics.text(font, parts.fraction(), placed.fractionX(), placed.fractionY(), WHITE);
+            graphics.text(font, parts.numerator(), placed.numeratorX(), placed.numeratorY(), WHITE);
+            graphics.text(font, FRACTION_DIVIDER, placed.slashX(), placed.slashY(), WHITE);
+            graphics.text(font, parts.denominator(), placed.denominatorX(), placed.denominatorY(), WHITE);
             graphics.pose().popMatrix();
         }
     }
@@ -486,12 +490,70 @@ final class ValuesPane {
     }
 
     /**
-     * An input count's two parts.
+     * An input count's parts.
      *
-     * @param whole    its whole part, empty where it is under 1
-     * @param fraction its part under 1 as n/d, empty where the count is whole
+     * @param whole       its whole part, empty where it is under 1
+     * @param numerator   its part under 1's numerator, empty where the count is whole
+     * @param denominator its part under 1's denominator, empty where the count is whole
      */
-    record CountParts(String whole, String fraction) {
+    record CountParts(String whole, String numerator, String denominator) {
+        /**
+         * @return the part under 1 as n/d, empty where the count is whole
+         */
+        String fraction() {
+            return numerator.isEmpty() ? NO_TEXT : numerator + FRACTION_DIVIDER + denominator;
+        }
+    }
+
+    /**
+     * A stacked fraction's widths at full scale.
+     *
+     * @param numerator   the numerator's
+     * @param slash       the slash's
+     * @param denominator the denominator's
+     */
+    record FractionWidths(int numerator, int slash, int denominator) {
+        int total() {
+            return numerator + slash + denominator;
+        }
+    }
+
+    /**
+     * Where an input count's stacked fraction and whole part draw on its sprite, the fraction's places in half-scale
+     * space.
+     *
+     * @param wholeX       the x the whole part's stack decoration takes, so it ends just left of the fraction
+     * @param numeratorX   the numerator's left edge
+     * @param numeratorY   the numerator's top edge
+     * @param slashX       the slash's left edge
+     * @param slashY       the slash's top edge
+     * @param denominatorX the denominator's left edge
+     * @param denominatorY the denominator's top edge
+     */
+    record StackedFraction(int wholeX, int numeratorX, int numeratorY, int slashX, int slashY, int denominatorX,
+                           int denominatorY) {
+    }
+
+    /**
+     * Stacks the half-scale fraction in the sprite's bottom-right corner: the denominator low and packed left after the
+     * slash, its right and bottom edges where a stack count's stand; the slash a half line above it; the numerator a
+     * line above, packed right against the slash; and the whole part moved left by the fraction's drawn width (decision
+     * recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
+     *
+     * @param spriteLeft the sprite's left edge
+     * @param spriteTop  the sprite's top edge
+     * @param widths     the fraction's widths at full scale, all 0 where the count has none
+     * @return each part's place
+     */
+    static StackedFraction placeFraction(int spriteLeft, int spriteTop, FractionWidths widths) {
+        int right = (spriteLeft + ICON_SIZE + COUNT_OVERHANG) * FRACTION_SPACE;
+        int bottom = (spriteTop + ICON_SIZE + COUNT_OVERHANG) * FRACTION_SPACE;
+        int denominatorX = right - widths.denominator();
+        int slashX = denominatorX - widths.slash();
+        int denominatorY = bottom - GLYPH_HEIGHT;
+        int wholeX = widths.total() == 0 ? spriteLeft : spriteLeft - widths.total() / FRACTION_SPACE - 1;
+        return new StackedFraction(wholeX, slashX - widths.numerator(), denominatorY - GLYPH_HEIGHT, slashX,
+                denominatorY - GLYPH_HEIGHT / FRACTION_SPACE, denominatorX, denominatorY);
     }
 
     /**
@@ -506,39 +568,12 @@ final class ValuesPane {
         long numerator = count / divisor;
         long denominator = made / divisor;
         if (numerator == denominator) {
-            return new CountParts(NO_TEXT, NO_TEXT);
+            return new CountParts(NO_TEXT, NO_TEXT, NO_TEXT);
         }
         long whole = numerator / denominator;
         long part = numerator % denominator;
         return new CountParts(whole == 0 ? NO_TEXT : String.valueOf(whole),
-                part == 0 ? NO_TEXT : part + FRACTION_DIVIDER + denominator);
-    }
-
-    /**
-     * Where an input count's parts draw on its sprite.
-     *
-     * @param wholeX    the x the whole part's stack decoration takes, so it ends just left of the fraction
-     * @param fractionX the fraction's left edge, in half-scale space
-     * @param fractionY the fraction's top edge, in half-scale space
-     */
-    record CountPlacement(int wholeX, int fractionX, int fractionY) {
-    }
-
-    /**
-     * Right-aligns the half-scale fraction to where a stack count's right and bottom edges stand on the sprite, and
-     * moves the whole part left by the fraction's drawn width (decision
-     * recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
-     *
-     * @param spriteLeft    the sprite's left edge
-     * @param spriteTop     the sprite's top edge
-     * @param fractionWidth the fraction's width at full scale, 0 where the count has none
-     * @return each part's place
-     */
-    static CountPlacement placeCount(int spriteLeft, int spriteTop, int fractionWidth) {
-        int right = (spriteLeft + ICON_SIZE + COUNT_OVERHANG) * FRACTION_SPACE;
-        int bottom = (spriteTop + ICON_SIZE + COUNT_OVERHANG) * FRACTION_SPACE;
-        int wholeX = fractionWidth == 0 ? spriteLeft : spriteLeft - fractionWidth / FRACTION_SPACE - 1;
-        return new CountPlacement(wholeX, right - fractionWidth, bottom - GLYPH_HEIGHT);
+                part == 0 ? NO_TEXT : String.valueOf(part), part == 0 ? NO_TEXT : String.valueOf(denominator));
     }
 
     private static long greatestCommonDivisor(long a, long b) {
