@@ -5,8 +5,8 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Tests how many used-by items one line draws before it closes with its "... and N more" link, with no Screen
- * (decision used-by-draws-the-terminus-items-alone).
+ * Tests how many used-by items one line draws before it closes with its ..+n button, with no Screen
+ * (decisions used-by-draws-the-terminus-items-alone, more-button-reads-dot-dot-plus-n).
  */
 class UsedByLineTest {
 
@@ -27,7 +27,8 @@ class UsedByLineTest {
     void itemsPastTheWidthStopBeforeTheMoreLink() {
         UsedByLine.Fit fit = UsedByLine.fit(20, 100, STEP, more -> 50);
         assertEquals(new UsedByLine.Fit(2, 18), fit);
-        assertEquals("... and 18 more", UsedByLine.moreLabel(fit.hidden()));
+        assertEquals("..+18", UsedByLine.moreLabel(fit.hidden()));
+        assertEquals("..+3", UsedByLine.moreLabel(3));
     }
 
     /**
@@ -45,7 +46,7 @@ class UsedByLineTest {
     @Test
     void expandedListEndsOnHideAndCollapsedOnItsCount() {
         assertEquals(Optional.of("Hide"), UsedByLine.endLabel(UsedByLine.expanded(20), true));
-        assertEquals(Optional.of("... and 18 more"), UsedByLine.endLabel(new UsedByLine.Fit(2, 18), false));
+        assertEquals(Optional.of("..+3"), UsedByLine.endLabel(new UsedByLine.Fit(2, 3), false));
         assertEquals(Optional.empty(), UsedByLine.endLabel(new UsedByLine.Fit(4, 0), false));
     }
 

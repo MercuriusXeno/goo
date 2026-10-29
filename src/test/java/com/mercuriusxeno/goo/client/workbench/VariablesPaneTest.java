@@ -165,4 +165,20 @@ class VariablesPaneTest {
         assertTrue(borders.get(2) >= separator + 2, "Rename top " + borders.get(2) + " vs " + separator);
         assertTrue(borders.get(3) >= separator + 2, "Delete top " + borders.get(3) + " vs " + separator);
     }
+
+    /**
+     * A prefab used by more items than its line fits ends its used-by line on a ..+n button counting the rest
+     * (decision more-button-reads-dot-dot-plus-n).
+     */
+    @Test
+    void cutShortUsedByLineEndsOnDotDotPlusN() {
+        String direct = IntStream.range(0, 40).mapToObj("\"minecraft:item%d\""::formatted)
+                .collect(Collectors.joining(", "));
+        variables.readEvaluated("""
+                {"constants": [{"name": "prefab0", "kind": "scalar", "value": "8", "direct": [%s]}]}
+                """.formatted(direct));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
+        assertTrue(frame.texts().stream().anyMatch(text -> text.matches("^\\.\\.\\+\\d+$")), frame.texts().toString());
+    }
 }
