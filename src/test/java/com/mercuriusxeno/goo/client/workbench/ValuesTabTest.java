@@ -34,11 +34,13 @@ class ValuesTabTest {
                           "restricted": false, "error": null}]}
             """;
 
+    private ManagerDraft draft;
     private ValuesTab tab;
 
     @BeforeEach
     void readReplies() {
-        tab = new ValuesTab();
+        draft = new ManagerDraft();
+        tab = new ValuesTab(draft);
         tab.readEntries(ENTRIES);
         tab.readModel(MODEL);
         tab.readResolved(RESOLVED);
@@ -273,7 +275,7 @@ class ValuesTabTest {
     class Save {
 
         private JsonObject memberKeyed(String key) {
-            return JsonParser.parseString(tab.modelText()).getAsJsonObject().getAsJsonArray("members").asList()
+            return JsonParser.parseString(draft.text()).getAsJsonObject().getAsJsonArray("members").asList()
                     .stream().map(member -> member.getAsJsonObject())
                     .filter(member -> key.equals(member.get("key").getAsString())).findFirst().orElseThrow();
         }
@@ -297,7 +299,7 @@ class ValuesTabTest {
         void editOfANewEntryAddsItAboveTheClosingSections() {
             tab.select("minecraft:torch");
             tab.edit(" 12 ");
-            List<String> keys = JsonParser.parseString(tab.modelText()).getAsJsonObject().getAsJsonArray("members")
+            List<String> keys = JsonParser.parseString(draft.text()).getAsJsonObject().getAsJsonArray("members")
                     .asList().stream().map(member -> member.getAsJsonObject().get("key").getAsString()).toList();
             assertEquals(List.of("stick", "torch", "_restricted"), keys);
             assertEquals("12", memberKeyed("torch").get("text").getAsString());

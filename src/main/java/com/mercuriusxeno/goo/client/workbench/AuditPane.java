@@ -80,7 +80,7 @@ final class AuditPane {
             return;
         }
         audit.startRun();
-        actions.stream(WorkbenchOperations.RUN_DUMPS, draft.text(), audit::progress, result -> {
+        actions.stream(WorkbenchOperations.RUN_DUMPS, draft.changeSetText(), audit::progress, result -> {
             audit.finishRun(result);
             actions.reloadDraft();
         }, audit::failRun);

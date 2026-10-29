@@ -326,7 +326,7 @@ public final class WorkbenchOperations {
     }
 
     private BaseValuesModel postedModel(String posted) throws IOException {
-        return fileLayout().withMembers(ModelJson.membersFrom(posted));
+        return ModelJson.merged(fileLayout(), posted);
     }
 
     /**

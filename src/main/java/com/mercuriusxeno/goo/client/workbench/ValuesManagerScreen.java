@@ -278,11 +278,9 @@ public final class ValuesManagerScreen extends Screen {
      */
     private void save(Runnable after) {
         setStatus(SAVING, false);
-        request(WorkbenchOperations.SAVE_MODEL, values.modelText(), saved -> {
-            values.readModel(saved);
+        reads.save(() -> {
             unsaved = false;
             setStatus(SAVED, false);
-            readDraftAfresh();
             after.run();
         });
     }

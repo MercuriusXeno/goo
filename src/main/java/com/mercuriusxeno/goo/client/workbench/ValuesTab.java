@@ -485,10 +485,10 @@ public final class ValuesTab {
     }
 
     /**
-     * @return the text a save or a resolve posts: the model with every edit
+     * @return the text a save or a resolve posts: the members changed since the last save
      */
-    public String modelText() {
-        return draft.text();
+    public String postedText() {
+        return draft.changeSetText();
     }
 
     private @Nullable JsonObject valueMember(String key) {
