@@ -33,16 +33,17 @@ class ValuesPaneTest {
     private static final int TWO_LINES = 2 + ValuesPane.TITLE_HEIGHT + ValuesPane.ROW_HEIGHT;
 
     /**
-     * The three boxes stand on one line, each sharing its inner border with the next, the search box sits one line
-     * below them, and the one box filled is the filter the tab holds.
+     * The four boxes stand on one line, each sharing its inner border with the next, the search box sits one line
+     * below them, the one box filled is the filter the tab holds, and a click on the fourth lists the fractional
+     * items (decision items-filter-set-takes-a-fractional-chip).
      */
     @Test
     void filtersLayAsOneSetAboveTheSearchBox() {
-        ValuesPane.ChipLayout layout = ValuesPane.layChips(List.of("Items", "Tags", "Uncovered 3"), String::length,
-                LEFT, TOP, ValuesTab.Filter.TAGS);
+        ValuesPane.ChipLayout layout = ValuesPane.layChips(List.of("Items", "Tags", "Uncovered 3", "Fractional"),
+                String::length, LEFT, TOP, ValuesTab.Filter.TAGS);
         List<ValuesPane.Chip> chips = layout.chips();
-        assertEquals(List.of(ValuesTab.Filter.ITEMS, ValuesTab.Filter.TAGS, ValuesTab.Filter.UNCOVERED),
-                chips.stream().map(ValuesPane.Chip::filter).toList());
+        assertEquals(List.of(ValuesTab.Filter.ITEMS, ValuesTab.Filter.TAGS, ValuesTab.Filter.UNCOVERED,
+                ValuesTab.Filter.FRACTIONAL), chips.stream().map(ValuesPane.Chip::filter).toList());
         assertEquals(LEFT, chips.getFirst().left());
         for (int index = 1; index < chips.size(); index++) {
             ValuesPane.Chip before = chips.get(index - 1);
@@ -51,9 +52,22 @@ class ValuesPaneTest {
             assertEquals(before.height(), chip.height());
             assertEquals(before.left() + before.width() - 1, chip.left());
         }
-        assertEquals(List.of(false, true, false), chips.stream().map(ValuesPane.Chip::filled).toList());
+        assertEquals(List.of(false, true, false, false), chips.stream().map(ValuesPane.Chip::filled).toList());
         ValuesPane.Chip first = chips.getFirst();
         assertEquals(first.top() + first.height() + ValuesPane.CHIP_LINE_GAP, layout.searchTop());
+
+        Font font = sixPixelFont();
+        ValuesTab values = new ValuesTab();
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        ClickTargets targets = new ClickTargets();
+        pane.extract(mock(GuiGraphicsExtractor.class), font, new GroupsPane.Bounds(0, 0, 500, 200), targets);
+        ValuesPane.Chip fractional = ValuesPane.layChips(List.of("Items", "Tags", "Uncovered 0", "Fractional"),
+                font::width, 0, 0, values.filter()).chips().get(3);
+        targets.click(fractional.left() + 1, fractional.top() + 1);
+        assertEquals(ValuesTab.Filter.FRACTIONAL, values.filter());
     }
 
     private static Font sixPixelFont() {

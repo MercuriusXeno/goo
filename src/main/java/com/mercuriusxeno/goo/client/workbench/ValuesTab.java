@@ -49,6 +49,7 @@ public final class ValuesTab {
     private static final String GROUPS_SECTION = "_groups";
     private static final String RESTRICTED_SECTION = "_restricted";
     private static final String NAMESPACE_SEPARATOR = ":";
+    private static final char FRACTION_DIVIDER = '/';
     // Decision items-rows-read-valued-derived-or-no-value-with-values-inline.
     private static final String ENTRY_SOURCE = "Valued";
     private static final String DENIED_BY = "denied by #";
@@ -214,7 +215,24 @@ public final class ValuesTab {
             case ITEMS -> !entry.tag();
             case TAGS -> entry.tag();
             case UNCOVERED -> !entry.tag() && uncovered.contains(entry.id());
+            case FRACTIONAL -> !entry.tag() && worthOf(entry.id()).values().stream().anyMatch(ValuesTab::fractional);
         };
+    }
+
+    // The server answers an amount as a whole number or a reduced n/d (decision
+    // items-filter-set-takes-a-fractional-chip).
+    private static boolean fractional(String amount) {
+        int divider = amount.indexOf(FRACTION_DIVIDER);
+        if (divider < 0) {
+            return false;
+        }
+        try {
+            long numerator = Long.parseLong(amount.substring(0, divider).trim());
+            long denominator = Long.parseLong(amount.substring(divider + 1).trim());
+            return denominator != 0 && numerator % denominator != 0;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     /**
@@ -226,7 +244,9 @@ public final class ValuesTab {
         /** Every item tag. */
         TAGS,
         /** The items the draft leaves with no value. */
-        UNCOVERED
+        UNCOVERED,
+        /** The items where any one goo type's amount has a part under 1. */
+        FRACTIONAL
     }
 
     /**

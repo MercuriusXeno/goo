@@ -15,7 +15,7 @@ import java.util.OptionalInt;
 import java.util.function.ToIntFunction;
 
 /**
- * Draws the Values tab: the Items, Tags and Uncovered set on a line of its own, the search box, each entry with its icon and where its
+ * Draws the Values tab: the Items, Tags, Uncovered and Fractional set on a line of its own, the search box, each entry with its icon and where its
  * value comes from, and the selected entry's card above its expression, each list scrolling under the wheel, as
  * index.html's values section does (decision goo-workbench-opens-the-in-game-manager-screen); the list and the detail
  * each draw a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in {@link ValuesTab}.
@@ -70,6 +70,7 @@ final class ValuesPane {
     private static final String ITEMS_CHIP = "Items";
     private static final String TAGS_CHIP = "Tags";
     private static final String UNCOVERED_CHIP = "Uncovered ";
+    private static final String FRACTIONAL_CHIP = "Fractional";
     private static final String SEARCH_HINT = "Search items and tags";
     private static final String EXPRESSION_LABEL = "Value";
     private static final String NO_EXPRESSION = "(no entry)";
@@ -186,7 +187,7 @@ final class ValuesPane {
     }
 
     /**
-     * One box of the Items, Tags and Uncovered set.
+     * One box of the Items, Tags, Uncovered and Fractional set.
      *
      * @param filter what clicking it lists
      * @param label  its label
@@ -210,7 +211,8 @@ final class ValuesPane {
      * Lays the filters as one segmented set on a line of their own: adjoining boxes sharing their inner borders,
      * the one the tab holds filled (decision items-filters-sit-on-their-own-line-as-one-set).
      *
-     * @param labels   the Items, Tags and Uncovered labels, in that order
+     * @param labels   the Items, Tags, Uncovered and Fractional labels, in that order (decision
+     *                 items-filter-set-takes-a-fractional-chip)
      * @param width    a label's width
      * @param left     the set's left edge
      * @param top      the set's top edge
@@ -234,8 +236,8 @@ final class ValuesPane {
     // Answers the search box's top below the set.
     private int drawChips(GuiGraphicsExtractor graphics, Font font, int left, int top, ClickTargets targets) {
         int uncovered = values.uncoveredCount();
-        ChipLayout layout = layChips(List.of(ITEMS_CHIP, TAGS_CHIP, UNCOVERED_CHIP + uncovered), font::width, left,
-                top, values.filter());
+        ChipLayout layout = layChips(List.of(ITEMS_CHIP, TAGS_CHIP, UNCOVERED_CHIP + uncovered, FRACTIONAL_CHIP),
+                font::width, left, top, values.filter());
         for (Chip chip : layout.chips()) {
             drawChip(graphics, font, chip, chip.filter() == ValuesTab.Filter.UNCOVERED && uncovered > 0 ? RED : WHITE,
                     targets);
