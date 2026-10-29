@@ -402,9 +402,11 @@ class ValuesPaneTest {
         verify(frame.graphics, atLeast(0)).itemDecorations(any(Font.class), any(), anyInt(), anyInt(),
                 decorations.capture());
         assertEquals(List.of(), decorations.getAllValues());
-        assertEquals(2, frame.texts().stream().filter("1/3"::equals).count());
+        for (String part : List.of("1", "/", "3")) {
+            assertEquals(2, frame.texts().stream().filter(part::equals).count(), part);
+        }
         assertEquals(2, frame.texts().stream().filter("+"::equals).count());
-        assertTrue(frame.texts().stream().noneMatch(text -> text.trim().startsWith("/")), frame.texts().toString());
+        assertTrue(frame.texts().stream().noneMatch(text -> text.matches("\\s*/\\s*\\d+")), frame.texts().toString());
     }
 
     /**
@@ -421,24 +423,31 @@ class ValuesPaneTest {
     }
 
     /**
-     * A count splits into its whole part, drawn full size as a stack count, and its fraction, drawn at half scale
-     * right-aligned to the sprite's bottom-right corner where a stack count stands; a mixed count's whole stands just
-     * left of its fraction (decision recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
+     * A count splits into its whole part, drawn full size as a stack count, and its fraction, drawn at half scale in
+     * the sprite's bottom-right corner as a slanted stack: the numerator high and packed right against the slash, the
+     * denominator low and packed left after it, its bottom where a stack count's bottom stands; a mixed count's whole
+     * stands just left of the fraction (decision recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
      */
     @Test
-    void fractionDrawsHalfScaleInTheSpriteCorner() {
-        assertEquals(new ValuesPane.CountParts("", "1/3"), ValuesPane.countParts(2, 6));
-        assertEquals(new ValuesPane.CountParts("2", "1/4"), ValuesPane.countParts(9, 4));
-        assertEquals(new ValuesPane.CountParts("2", ""), ValuesPane.countParts(2, 1));
-        assertEquals(new ValuesPane.CountParts("", ""), ValuesPane.countParts(6, 6));
+    void fractionStacksNumeratorOverDenominatorInTheSpriteCorner() {
+        assertEquals(new ValuesPane.CountParts("", "1", "3"), ValuesPane.countParts(2, 6));
+        assertEquals(new ValuesPane.CountParts("2", "1", "4"), ValuesPane.countParts(9, 4));
+        assertEquals(new ValuesPane.CountParts("2", "", ""), ValuesPane.countParts(2, 1));
+        assertEquals(new ValuesPane.CountParts("", "", ""), ValuesPane.countParts(6, 6));
         int spriteLeft = 100;
         int spriteTop = 40;
-        int fractionWidth = 18;
-        ValuesPane.CountPlacement placed = ValuesPane.placeCount(spriteLeft, spriteTop, fractionWidth);
-        assertEquals((spriteLeft + RowLayout.SPRITE_SIZE + 1) * 2, placed.fractionX() + fractionWidth);
-        assertEquals((spriteTop + RowLayout.SPRITE_SIZE + 1) * 2, placed.fractionY() + 8);
-        assertEquals(spriteLeft - fractionWidth / 2 - 1, placed.wholeX());
-        assertEquals(spriteLeft, ValuesPane.placeCount(spriteLeft, spriteTop, 0).wholeX());
+        int glyph = 8;
+        ValuesPane.StackedFraction placed = ValuesPane.placeFraction(spriteLeft, spriteTop,
+                new ValuesPane.FractionWidths(6, 6, 12));
+        int right = (spriteLeft + RowLayout.SPRITE_SIZE + 1) * 2;
+        int bottom = (spriteTop + RowLayout.SPRITE_SIZE + 1) * 2;
+        assertEquals(right, placed.denominatorX() + 12);
+        assertEquals(bottom, placed.denominatorY() + glyph);
+        assertEquals(placed.denominatorX(), placed.slashX() + 6);
+        assertEquals(placed.slashX(), placed.numeratorX() + 6);
+        assertTrue(placed.numeratorY() + glyph <= placed.denominatorY() + 1, "numerator stands above the denominator");
+        assertTrue(placed.slashY() > placed.numeratorY() && placed.slashY() < placed.denominatorY());
+        assertEquals(spriteLeft - (6 + 6 + 12) / 2 - 1, placed.wholeX());
     }
 
     /**
