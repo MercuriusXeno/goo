@@ -110,6 +110,22 @@ class ValuesTabTest {
         }
 
         /**
+         * Removing the selected item's entry drops its line from the draft and keeps every other member, so the
+         * item reads as the file never naming it.
+         */
+        @Test
+        void removingTheEntryDropsItFromTheDraft() {
+            tab.select("minecraft:stick");
+            assertTrue(tab.selectedHasEntry());
+            tab.removeEntry();
+            List<String> keys = JsonParser.parseString(tab.modelText()).getAsJsonObject().getAsJsonArray("members")
+                    .asList().stream().map(member -> member.getAsJsonObject().get("key").getAsString()).toList();
+            assertEquals(List.of("_restricted"), keys);
+            assertEquals("", tab.selectedRow().orElseThrow().expression());
+            assertTrue(!tab.selectedHasEntry());
+        }
+
+        /**
          * An entry the file holds no line for reads an empty expression and no amounts.
          */
         @Test

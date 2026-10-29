@@ -80,6 +80,9 @@ final class ValuesPane {
     private static final String SEARCH_HINT = "Search items and tags";
     private static final String EXPRESSION_LABEL = "Value";
     private static final String NO_EXPRESSION = "(no entry)";
+    private static final String REMOVE_ENTRY = "Remove entry";
+    /** The Value label's line: tall enough for the Remove entry button standing on it, and a pixel under it. */
+    static final int LABEL_LINE_HEIGHT = 12;
     private static final int READ_VIEW_COLOR = 0x30FFFFFF;
     private static final int LINK = ButtonPainter.LINK;
     private static final String NO_SELECTION = "Select an item or tag to read and edit its entry.";
@@ -906,6 +909,10 @@ final class ValuesPane {
         int cardHeight = card.layout().height();
         Page laid = layPage(top, cardHeight, 0, false);
         graphics.text(font, EXPRESSION_LABEL, page.left(), laid.labelTop(), GRAY);
+        if (!builder.isOpen() && values.selectedHasEntry()) {
+            ButtonPainter.drawAtText(graphics, font, REMOVE_ENTRY, page.left() + font.width(EXPRESSION_LABEL) + GAP
+                    + ButtonPainter.PADDING, laid.labelTop(), targets, this::removeEntry);
+        }
         int valueHeight = builder.isOpen() ? builder.extract(graphics, font, page, laid.valueTop(), targets)
                 : drawValueView(graphics, font, row, page.left(), laid.valueTop(), page.right() - page.left(), targets);
         Page whole = layPage(top, cardHeight, valueHeight, !row.error().isEmpty());
@@ -914,6 +921,13 @@ final class ValuesPane {
                     whole.errorTop(), RED);
         }
         return whole.end();
+    }
+
+    // A redundant entry, one recipes would derive, drops from the draft and the tabs read it afresh.
+    private void removeEntry() {
+        values.removeEntry();
+        detailBar.reset();
+        actions.draftChanged();
     }
 
     /**
@@ -940,7 +954,7 @@ final class ValuesPane {
      */
     static Page layPage(int top, int cardHeight, int valueHeight, boolean hasError) {
         int labelTop = top + cardHeight + GAP;
-        int valueTop = labelTop + LINE_HEIGHT;
+        int valueTop = labelTop + LABEL_LINE_HEIGHT;
         int errorTop = valueTop + valueHeight + GAP;
         return new Page(labelTop, valueTop, errorTop, errorTop + (hasError ? LINE_HEIGHT : 0));
     }
