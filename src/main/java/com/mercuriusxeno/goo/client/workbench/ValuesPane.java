@@ -11,7 +11,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.function.ToIntFunction;
 
 /**
@@ -38,7 +37,8 @@ final class ValuesPane {
     static final int ICON_GAP = 4;
     private static final String EQUALS = "=";
     private static final String PLUS = "+";
-    private static final String DIVIDE = " / ";
+    private static final String FRACTION_DIVIDER = "/";
+    private static final String MIXED_SPACE = " ";
     /** The room either side of the + between a recipe equivalency's inputs. */
     static final int EQUIVALENCY_GAP = 2;
     /** The room between the filter set and the search box below it. */
@@ -402,32 +402,56 @@ final class ValuesPane {
         drawEquivalency(graphics, font, recipe, line, targets);
     }
 
-    // The inputs' sprites, each its summed count at its bottom right as an inventory draws a stack and a link to its
-    // own row, a small + between them, and " / n" where the recipe makes more than one (decision
+    // The inputs' sprites, each its summed count over the recipe's output at its bottom right as an inventory draws a
+    // stack and a link to its own row, a small + between them (decision
     // recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
     private void drawEquivalency(GuiGraphicsExtractor graphics, Font font, ValuesTab.Recipe recipe, Equality line,
                                  ClickTargets targets) {
-        Equivalency laid = layEquivalency(line.besideLeft(), recipe.inputs().size(), font.width(PLUS),
-                recipe.output());
+        Equivalency laid = layEquivalency(line.besideLeft(), recipe.inputs().size(), font.width(PLUS));
         for (int index = 0; index < recipe.inputs().size(); index++) {
             ValuesTab.Input input = recipe.inputs().get(index);
             int x = laid.spriteLefts().get(index);
             ItemStack stack = icons.of(input.id());
             graphics.item(stack, x, line.spriteTop());
-            countLabel(input.count()).ifPresent(count -> graphics.itemDecorations(font, stack, x, line.spriteTop(),
-                    count));
+            countLabel(input.count(), recipe.output()).ifPresent(count -> graphics.itemDecorations(font, stack, x,
+                    line.spriteTop(), count));
             ItemLinks.add(targets, actions, input.id(), x, line.spriteTop());
         }
         laid.plusLefts().forEach(x -> graphics.text(font, PLUS, x, line.textTop(), WHITE));
-        laid.divideLeft().ifPresent(x -> graphics.text(font, DIVIDE + recipe.output(), x, line.textTop(), WHITE));
     }
 
     /**
-     * @param count an input's summed count
-     * @return the count drawn at its sprite's bottom right, empty for a single input, as an inventory draws a stack
+     * @param count  an input's summed count
+     * @param output how many the recipe makes
+     * @return the count over the output as a reduced mixed number, 2 over 6 reading 1/3 and 9 over 4 reading 2 1/4,
+     *     empty where it equals 1
      */
-    static Optional<String> countLabel(int count) {
-        return count > 1 ? Optional.of(String.valueOf(count)) : Optional.empty();
+    static Optional<String> countLabel(int count, int output) {
+        int made = Math.max(1, output);
+        long divisor = greatestCommonDivisor(count, made);
+        long numerator = count / divisor;
+        long denominator = made / divisor;
+        if (numerator == denominator) {
+            return Optional.empty();
+        }
+        long whole = numerator / denominator;
+        long part = numerator % denominator;
+        if (part == 0) {
+            return Optional.of(String.valueOf(whole));
+        }
+        String fraction = part + FRACTION_DIVIDER + denominator;
+        return Optional.of(whole == 0 ? fraction : whole + MIXED_SPACE + fraction);
+    }
+
+    private static long greatestCommonDivisor(long a, long b) {
+        long x = Math.abs(a);
+        long y = Math.abs(b);
+        while (y != 0) {
+            long remainder = x % y;
+            x = y;
+            y = remainder;
+        }
+        return x == 0 ? 1 : x;
     }
 
     /**
@@ -435,23 +459,20 @@ final class ValuesPane {
      *
      * @param spriteLefts each input sprite's left edge, in order
      * @param plusLefts   each + between inputs' left edge
-     * @param divideLeft  the " / n" run's left edge, empty where the recipe makes one
      */
-    record Equivalency(List<Integer> spriteLefts, List<Integer> plusLefts, OptionalInt divideLeft) {
+    record Equivalency(List<Integer> spriteLefts, List<Integer> plusLefts) {
     }
 
     /**
      * Lays a recipe equivalency's inputs from a left edge: each input sprite, a small + a gap either side between
-     * inputs, and " / n" after the last only where the recipe makes more than one (decision
-     * recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
+     * inputs, ending on the last input (decision recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
      *
      * @param left      the first sprite's left edge
      * @param inputs    how many distinct inputs the recipe takes
      * @param plusWidth the + sign's width
-     * @param output    how many the recipe makes
      * @return each part's place
      */
-    static Equivalency layEquivalency(int left, int inputs, int plusWidth, int output) {
+    static Equivalency layEquivalency(int left, int inputs, int plusWidth) {
         List<Integer> sprites = new ArrayList<>();
         List<Integer> pluses = new ArrayList<>();
         int x = left;
@@ -463,7 +484,7 @@ final class ValuesPane {
             sprites.add(x);
             x += ICON_SIZE;
         }
-        return new Equivalency(sprites, pluses, output > 1 ? OptionalInt.of(x) : OptionalInt.empty());
+        return new Equivalency(sprites, pluses);
     }
 
     // Each type icon at its texture's own size, one texel per pixel, a pixel under its value line's top, its amount

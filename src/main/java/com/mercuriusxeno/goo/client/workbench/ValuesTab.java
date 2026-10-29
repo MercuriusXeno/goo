@@ -174,7 +174,7 @@ public final class ValuesTab {
      * recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
      *
      * @param inputs its inputs, grouped by item
-     * @param output how many the recipe makes
+     * @param output how many the recipe makes, each input's count reading over it as a fraction
      */
     public record Recipe(List<Input> inputs, int output) {
     }
