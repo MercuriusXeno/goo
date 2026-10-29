@@ -72,9 +72,8 @@ class ValuesPaneTest {
     void detailColumnScrollsTheOpenBuilderToItsDoneControl() {
         Font font = sixPixelFont();
         ValuesTab values = new ValuesTab();
-        values.readInventory("""
-                {"items": [{"id": "minecraft:stick", "name": "Stick"}], "item_tags": []}
-                """);
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:stick", "Stick")), List.of()));
         values.readModel("""
                 {"path": "base_values.json", "members": [
                   {"key": "stick", "keySeparator": null, "kind": "VALUE", "text": "\\"1 + 2 + 3 + 4 + 5 + 6\\"",
@@ -112,9 +111,8 @@ class ValuesPaneTest {
     @Test
     void groupedRowLinksItsGroupName() {
         ValuesTab values = new ValuesTab();
-        values.readInventory("""
-                {"items": [{"id": "minecraft:torch", "name": "Torch"}], "item_tags": []}
-                """);
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:torch", "Torch")), List.of()));
         values.readModel("""
                 {"path": "base_values.json", "members": [
                   {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [

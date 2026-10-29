@@ -16,12 +16,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class ValuesTabTest {
 
-    private static final String INVENTORY = """
-            {"items": [{"id": "minecraft:stick", "name": "Stick"}, {"id": "minecraft:torch", "name": "Torch"},
-                       {"id": "goo:gasket", "name": "Choral Gasket"}],
-             "item_tags": [{"id": "minecraft:logs", "members": ["minecraft:oak_log", "minecraft:birch_log"]}],
-             "goo_types": [], "recipes": []}
-            """;
+    private static final ManagerEntrySource ENTRIES = new ListedEntrySource(
+            List.of(new ManagerEntrySource.ItemName("minecraft:stick", "Stick"),
+                    new ManagerEntrySource.ItemName("minecraft:torch", "Torch"),
+                    new ManagerEntrySource.ItemName("goo:gasket", "Choral Gasket")),
+            List.of(new ManagerEntrySource.TagSize("minecraft:logs", 2)));
     private static final String MODEL = """
             {"path": "base_values.json", "members": [
               {"key": "stick", "keySeparator": null, "kind": "VALUE", "text": "\\"$base / 4\\"", "entries": [],
@@ -40,7 +39,7 @@ class ValuesTabTest {
     @BeforeEach
     void readReplies() {
         tab = new ValuesTab();
-        tab.readInventory(INVENTORY);
+        tab.readEntries(ENTRIES);
         tab.readModel(MODEL);
         tab.readResolved(RESOLVED);
     }
@@ -51,6 +50,22 @@ class ValuesTabTest {
 
     @Nested
     class Listing {
+
+        /**
+         * The entries read from the client's source run each item by id and name, then each item tag as #id named
+         * by its member count (decision client-builds-items-and-tags-from-its-own-registries).
+         */
+        @Test
+        void entriesReadItemsThenTagsFromTheClientSource() {
+            ValuesTab fresh = new ValuesTab();
+            fresh.readEntries(new ListedEntrySource(
+                    List.of(new ManagerEntrySource.ItemName("minecraft:apple", "Apple"),
+                            new ManagerEntrySource.ItemName("minecraft:bread", "Bread")),
+                    List.of(new ManagerEntrySource.TagSize("minecraft:planks", 3))));
+            assertEquals(List.of(new ValuesTab.ManagerEntry("minecraft:apple", "Apple", false),
+                    new ValuesTab.ManagerEntry("minecraft:bread", "Bread", false),
+                    new ValuesTab.ManagerEntry("#minecraft:planks", "3 members", true)), fresh.entries());
+        }
 
         /**
          * A blank search lists every item under the Items filter, and every item tag after # under the Tags
