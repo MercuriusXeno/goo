@@ -218,24 +218,25 @@ class VariablesTabTest {
     class Requests {
 
         /**
-         * A rename posts its from and to beside the draft's members.
+         * A rename posts its from and to beside the draft's change set, empty while nothing changed since the read
+         * (decision requests-post-only-the-changed-members).
          */
         @Test
-        void renamePostsFromToAndMembers() {
+        void renamePostsFromToAndTheChangeSet() {
             JsonObject request = parsed(tab.renameRequest("base", "standard"));
             assertEquals("base", request.get("from").getAsString());
             assertEquals("standard", request.get("to").getAsString());
-            assertEquals(1, request.getAsJsonArray("members").size());
+            assertEquals(0, request.getAsJsonArray("changed").size());
         }
 
         /**
-         * A delete posts the constant's name beside the draft's members.
+         * A delete posts the constant's name beside the draft's change set.
          */
         @Test
-        void deletePostsNameAndMembers() {
+        void deletePostsNameAndTheChangeSet() {
             JsonObject request = parsed(tab.deleteRequest("broken"));
             assertEquals("broken", request.get("name").getAsString());
-            assertTrue(request.has("members"));
+            assertTrue(request.has("changed"));
         }
 
         /**

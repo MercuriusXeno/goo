@@ -158,7 +158,7 @@ final class VariablesPane {
     void refresh() {
         cards.clear();
         cardsAsked.clear();
-        actions.request(WorkbenchOperations.EVALUATE_CONSTANTS, draft.text(), variables::readEvaluated);
+        actions.request(WorkbenchOperations.EVALUATE_CONSTANTS, draft.changeSetText(), variables::readEvaluated);
     }
 
     /**
@@ -440,7 +440,7 @@ final class VariablesPane {
             return;
         }
         actions.request(WorkbenchOperations.RENAME_CONSTANT, variables.renameRequest(from, to), renamed -> {
-            draft.read(renamed);
+            draft.readEdited(renamed);
             if (variables.editing().filter(from::equals).isPresent()) {
                 variables.startEditing(to);
             }
@@ -465,7 +465,7 @@ final class VariablesPane {
         }
         show(visible);
         actions.request(WorkbenchOperations.DELETE_CONSTANT, variables.deleteRequest(name), left -> {
-            draft.read(left);
+            draft.readEdited(left);
             actions.draftChanged();
         });
     }

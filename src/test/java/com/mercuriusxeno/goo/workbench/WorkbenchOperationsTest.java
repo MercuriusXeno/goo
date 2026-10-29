@@ -191,14 +191,83 @@ class WorkbenchOperationsTest {
             assertArrayEquals(BaseValuesModelTest.sampleBytes(), Files.readAllBytes(paths.baseValues()));
         }
 
+    }
+
+    /**
+     * The in-game manager posts the members changed since its last save, which merge into the draft by member key
+     * (decision requests-post-only-the-changed-members).
+     */
+    @Nested
+    class ChangeSets {
+        private static final String DRAFT = """
+                {
+                    "stick": {"leaf": 12},
+                    "torch": {"leaf": 4},
+                    "apple": {"leaf": 2}
+                }
+                """;
+
+        @BeforeEach
+        void standTheDraft() throws IOException {
+            Files.writeString(paths.draft(), DRAFT);
+        }
+
+        // The member a one-entry file holds, as the manager posts it.
+        private static JsonObject member(String fileText) {
+            return JsonParser.parseString(posted(fileText)).getAsJsonObject().getAsJsonArray("members").get(0)
+                    .getAsJsonObject();
+        }
+
+        private static String changeSet(List<JsonObject> changed, List<String> removed) {
+            JsonObject changes = new JsonObject();
+            JsonArray members = new JsonArray();
+            changed.forEach(members::add);
+            changes.add("changed", members);
+            JsonArray keys = new JsonArray();
+            removed.forEach(keys::add);
+            changes.add("removed", keys);
+            return changes.toString();
+        }
+
+        private Map<String, String> leafByKey(String posted) {
+            return answeredJson(WorkbenchOperations.RESOLVE_VALUES, posted).getAsJsonArray("entries").asList()
+                    .stream().map(JsonElement::getAsJsonObject).collect(Collectors.toMap(
+                            entry -> entry.get("key").getAsString(),
+                            entry -> entry.getAsJsonObject("value").get("leaf").getAsString()));
+        }
+
         /**
-         * A save sending no members array is refused as a bad request naming the cause.
+         * An empty post resolves the draft as it stands.
          */
         @Test
-        void saveWithNoMembersIsABadRequest() {
-            WorkbenchReply refused = operations.answer(WorkbenchOperations.SAVE_MODEL, "{}");
-            assertEquals(400, refused.status());
-            assertTrue(refused.text().contains("members"), refused.text());
+        void emptyPostResolvesTheDraft() {
+            assertEquals(Map.of("stick", "12", "torch", "4", "apple", "2"), leafByKey(""));
+        }
+
+        /**
+         * A change set holding one changed member resolves that member's new value and the draft's for the rest.
+         */
+        @Test
+        void changedMemberResolvesOverTheDraft() {
+            String posted = changeSet(List.of(member("{\n    \"stick\": {\"leaf\": 20}\n}")), List.of());
+            assertEquals(Map.of("stick", "20", "torch", "4", "apple", "2"), leafByKey(posted));
+        }
+
+        /**
+         * A save of a change set writes the draft with the changed member, without the removed one, with an added
+         * member after the key it follows, and every other member as it stood.
+         */
+        @Test
+        void saveMergesTheChangeSetIntoTheDraft() throws IOException {
+            JsonObject bread = member("{\n    \"bread\": {\"leaf\": 6}\n}");
+            bread.addProperty("after", "stick");
+            String posted = changeSet(List.of(member("{\n    \"stick\": {\"leaf\": 20}\n}"), bread),
+                    List.of("torch"));
+            answered(WorkbenchOperations.SAVE_MODEL, posted);
+            JsonObject written = JsonParser.parseString(Files.readString(paths.draft())).getAsJsonObject();
+            assertEquals(List.of("stick", "bread", "apple"), List.copyOf(written.keySet()));
+            assertEquals(20, written.getAsJsonObject("stick").get("leaf").getAsInt());
+            assertEquals(2, written.getAsJsonObject("apple").get("leaf").getAsInt());
         }
     }
 

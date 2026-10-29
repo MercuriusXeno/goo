@@ -121,7 +121,7 @@ final class GroupsJson {
      */
     static String applied(String sent, BaseValuesModel layout, Inventory inventory) {
         JsonObject root = JsonParser.parseString(sent).getAsJsonObject();
-        BaseValuesModel model = layout.withMembers(ModelJson.membersFrom(sent));
+        BaseValuesModel model = ModelJson.merged(layout, sent);
         String group = root.get(GROUP).getAsString();
         model = created(model, root, group);
         if (root.has(PICKS)) {
