@@ -76,6 +76,20 @@ class ValuesTabTest {
             tab.search("minecraft:");
             assertEquals(List.of("minecraft:stick", "minecraft:torch"), ids(tab.listed()));
         }
+
+        /**
+         * The Fractional filter lists the items where any one goo type's amount has a part under 1, leaving out
+         * items whose every amount is whole and every tag (decision items-filter-set-takes-a-fractional-chip).
+         */
+        @Test
+        void fractionalFilterListsTheItemsWithAPartUnderOne() {
+            tab.readResolved("""
+                    {"entries": [{"key": "stick", "value": {"leaf": "48", "metal": "3/2"}, "denied": false},
+                                 {"key": "torch", "value": {"glow": "4", "leaf": "12"}, "denied": false}]}
+                    """);
+            tab.filter(ValuesTab.Filter.FRACTIONAL);
+            assertEquals(List.of("minecraft:stick"), ids(tab.listed()));
+        }
     }
 
     @Nested
