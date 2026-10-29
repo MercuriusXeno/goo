@@ -237,6 +237,26 @@ class WorkbenchOperationsTest {
         }
 
         /**
+         * The manager's open asks for no inventory, so a resolve and a constants evaluate on a world with no inventory
+         * dump it first and read it, rather than answering as if no tag held a member.
+         */
+        @Test
+        void draftReadsOnAWorldWithNoInventoryDumpItFirst() {
+            answered(WorkbenchOperations.RESOLVE_VALUES, "");
+            assertEquals(1, dumpsRun.get());
+            assertTrue(Files.isRegularFile(paths.inventoryFile()));
+        }
+
+        /**
+         * A constants evaluate on a world with no inventory dumps it first.
+         */
+        @Test
+        void constantsEvaluateOnAWorldWithNoInventoryDumpsItFirst() {
+            answered(WorkbenchOperations.EVALUATE_CONSTANTS, "");
+            assertEquals(1, dumpsRun.get());
+        }
+
+        /**
          * An empty post resolves the draft as it stands.
          */
         @Test
