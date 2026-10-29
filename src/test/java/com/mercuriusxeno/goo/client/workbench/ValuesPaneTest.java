@@ -123,38 +123,70 @@ class ValuesPaneTest {
         assertTrue(doneInPane);
     }
 
-    /**
-     * A grouped item's equality line draws its group's name as a link, and clicking it opens the Groups tab on that
-     * group (decision items-row-second-line-is-the-equality-expression).
-     */
-    @Test
-    void groupedRowLinksItsGroupName() {
+    // A Values pane over one torch in a group named lights holding the members given, the torch first.
+    private static ValuesPane groupedPane(ManagerActions actions, List<String> members) {
         ValuesTab values = new ValuesTab();
         values.readInventory("""
                 {"items": [{"id": "minecraft:torch", "name": "Torch"}], "item_tags": []}
                 """);
+        String listed = members.stream().map(member -> "\\\"" + member + "\\\"")
+                .collect(java.util.stream.Collectors.joining(", "));
         values.readModel("""
                 {"path": "base_values.json", "members": [
                   {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
-                     {"key": "lights", "keySeparator": null, "kind": "VALUE", "text": "[\\"torch\\"]", "entries": [],
+                     {"key": "lights", "keySeparator": null, "kind": "VALUE", "text": "[%s]", "entries": [],
                       "leading": null, "trailing": null, "closingGap": null}],
                    "leading": null, "trailing": null, "closingGap": null},
                   {"key": "#lights", "keySeparator": null, "kind": "VALUE", "text": "{\\"glow\\": 4}", "entries": [],
                    "leading": null, "trailing": null, "closingGap": null}]}
-                """);
-        ManagerActions actions = mock(ManagerActions.class);
+                """.formatted(listed));
         ItemIcons icons = mock(ItemIcons.class);
-        ValuesPane pane = new ValuesPane(values, icons, actions,
-                new ExpressionBuilderPane(actions, icons, List::of, List::of));
-        ClickTargets targets = new ClickTargets();
-        GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 200);
-        pane.extract(mock(GuiGraphicsExtractor.class), sixPixelFont(), bounds, targets);
-        for (int y = bounds.top(); y < bounds.bottom(); y++) {
-            for (int x = bounds.left(); x < ValuesPane.SIDEBAR_WIDTH; x++) {
-                targets.click(x, y);
-            }
-        }
+        return new ValuesPane(values, icons, actions, new ExpressionBuilderPane(actions, icons, List::of, List::of));
+    }
+
+    /**
+     * A grouped item's equality line draws its group's name as a bordered button, and clicking it opens the Groups
+     * tab on that group (decisions items-row-second-line-is-the-equality-expression,
+     * blue-text-options-draw-as-bordered-buttons).
+     */
+    @Test
+    void groupedRowLinksItsGroupName() {
+        ManagerActions actions = mock(ManagerActions.class);
+        ValuesPane pane = groupedPane(actions, List.of("torch"));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
+        DrawnFrame.Text label = frame.find("lights");
+        int left = label.x() - ButtonPainter.PADDING;
+        int top = label.y() - 3;
+        int right = left + ButtonPainter.width(DrawnFrame.font(), "lights");
+        verify(frame.graphics).fill(left, top, right, top + ButtonPainter.HEIGHT, ButtonPainter.BORDER);
+        frame.click("lights");
         verify(actions, atLeastOnce()).openGroup("lights");
+    }
+
+    /**
+     * Hovering the group button answers a tooltip of the group's members as item icons in member order, eight at
+     * most, then ..+n counting the rest; a group of eight or fewer shows every member and no ..+n (decision
+     * group-link-hovers-member-icons-then-plus-n).
+     */
+    @Test
+    void groupButtonHoversItsMemberIconsThenPlusN() {
+        List<String> eleven = java.util.stream.IntStream.range(0, 11)
+                .mapToObj(index -> index == 0 ? "minecraft:torch" : "minecraft:light" + index).toList();
+        assertEquals(new TooltipLine.MemberIcons(eleven.subList(0, 8), "..+3"), hoveredGroupTooltip(eleven));
+        List<String> five = eleven.subList(0, 5);
+        assertEquals(new TooltipLine.MemberIcons(five, ""), hoveredGroupTooltip(five));
+    }
+
+    private static TooltipLine hoveredGroupTooltip(List<String> members) {
+        ValuesPane pane = groupedPane(mock(ManagerActions.class), members);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
+        DrawnFrame.Text label = frame.find("lights");
+        String key = frame.targets.hovered(label.x() + 1, label.y() + 1).orElseThrow();
+        List<TooltipLine> lines = pane.groupTooltipFor(key).orElseThrow();
+        assertEquals(1, lines.size());
+        return lines.getFirst();
     }
 
     /**
