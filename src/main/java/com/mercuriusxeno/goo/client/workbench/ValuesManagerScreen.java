@@ -421,7 +421,8 @@ public final class ValuesManagerScreen extends Screen {
         Optional<TooltipLine> line = GooTypeIcons.tooltipFor(hoverKey).or(() -> BuilderOverlays.tooltipFor(hoverKey))
                 .<TooltipLine>map(TooltipLine.Text::new).or(() -> GroupsPane.nameTooltipFor(hoverKey));
         return line.isPresent() ? Optional.of(List.of(line.get()))
-                : icons.tooltipFor(hoverKey).or(() -> PrefabHovers.tooltipFor(variablesTab, hoverKey));
+                : icons.tooltipFor(hoverKey).or(() -> PrefabHovers.tooltipFor(variablesTab, hoverKey))
+                        .or(() -> valuesPane.groupTooltipFor(hoverKey));
     }
 
     // Text stays text; a goo amount reaches GooAmountTooltipComponent through the tooltip factory registered for it,
@@ -431,6 +432,7 @@ public final class ValuesManagerScreen extends Screen {
         return lines.stream().map(line -> switch (line) {
             case TooltipLine.Text text -> Either.<FormattedText, TooltipComponent>left(text.text());
             case TooltipLine.GooAmount amount -> Either.<FormattedText, TooltipComponent>right(amount);
+            case TooltipLine.MemberIcons members -> Either.<FormattedText, TooltipComponent>right(members);
         }).toList();
     }
 
