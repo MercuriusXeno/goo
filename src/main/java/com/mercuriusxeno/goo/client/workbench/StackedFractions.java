@@ -11,10 +11,10 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 final class StackedFractions {
     /** A fraction of no whole and no part, as a count equal to 1 reads. */
     static final Mixed NONE = new Mixed("", "", "");
-    /** The bar's thickness in half-scale space, one screen pixel. */
-    static final int BAR_THICKNESS = 2;
+    /** The bar's thickness in half-scale space: one font pixel, the digits' own stroke weight. */
+    static final int BAR_THICKNESS = 1;
     /** A stack's height in half-scale space, numerator ink top to denominator ink bottom. */
-    static final int STACK_HEIGHT = 18;
+    static final int STACK_HEIGHT = 17;
     private static final float SCALE = 0.5f;
     // Half scale doubles every coordinate the stack draws at.
     private static final int SPACE = 2;
