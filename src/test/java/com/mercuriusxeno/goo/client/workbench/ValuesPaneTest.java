@@ -402,7 +402,7 @@ class ValuesPaneTest {
         verify(frame.graphics, atLeast(0)).itemDecorations(any(Font.class), any(), anyInt(), anyInt(),
                 decorations.capture());
         assertEquals(List.of(), decorations.getAllValues());
-        for (String part : List.of("1", "/", "3")) {
+        for (String part : List.of("1", "3")) {
             assertEquals(2, frame.texts().stream().filter(part::equals).count(), part);
         }
         assertEquals(2, frame.texts().stream().filter("+"::equals).count());
@@ -424,30 +424,54 @@ class ValuesPaneTest {
 
     /**
      * A count splits into its whole part, drawn full size as a stack count, and its fraction, drawn at half scale in
-     * the sprite's bottom-right corner as a slanted stack: the numerator high and packed right against the slash, the
-     * denominator low and packed left after it, its bottom where a stack count's bottom stands; a mixed count's whole
-     * stands just left of the fraction (decision recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
+     * the sprite's bottom-right corner as its numerator over a bar over its denominator, the stack's right and bottom
+     * edges where a stack count's stand; a mixed count's whole stands just left of the stack (decision
+     * recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
      */
     @Test
-    void fractionStacksNumeratorOverDenominatorInTheSpriteCorner() {
-        assertEquals(new ValuesPane.CountParts("", "1", "3"), ValuesPane.countParts(2, 6));
-        assertEquals(new ValuesPane.CountParts("2", "1", "4"), ValuesPane.countParts(9, 4));
-        assertEquals(new ValuesPane.CountParts("2", "", ""), ValuesPane.countParts(2, 1));
-        assertEquals(new ValuesPane.CountParts("", "", ""), ValuesPane.countParts(6, 6));
+    void fractionStacksNumeratorOverABarInTheSpriteCorner() {
+        assertEquals(new StackedFractions.Mixed("", "1", "3"), ValuesPane.countParts(2, 6));
+        assertEquals(new StackedFractions.Mixed("2", "1", "4"), ValuesPane.countParts(9, 4));
+        assertEquals(new StackedFractions.Mixed("2", "", ""), ValuesPane.countParts(2, 1));
+        assertEquals(new StackedFractions.Mixed("", "", ""), ValuesPane.countParts(6, 6));
         int spriteLeft = 100;
         int spriteTop = 40;
-        int glyph = 8;
-        ValuesPane.StackedFraction placed = ValuesPane.placeFraction(spriteLeft, spriteTop,
-                new ValuesPane.FractionWidths(6, 6, 12));
-        int right = (spriteLeft + RowLayout.SPRITE_SIZE + 1) * 2;
-        int bottom = (spriteTop + RowLayout.SPRITE_SIZE + 1) * 2;
-        assertEquals(right, placed.denominatorX() + 12);
-        assertEquals(bottom, placed.denominatorY() + glyph);
-        assertEquals(placed.denominatorX(), placed.slashX() + 6);
-        assertEquals(placed.slashX(), placed.numeratorX() + 6);
-        assertTrue(placed.numeratorY() + glyph <= placed.denominatorY() + 1, "numerator stands above the denominator");
-        assertTrue(placed.slashY() > placed.numeratorY() && placed.slashY() < placed.denominatorY());
-        assertEquals(spriteLeft - (6 + 6 + 12) / 2 - 1, placed.wholeX());
+        ValuesPane.CornerCount placed = ValuesPane.placeCornerCount(spriteLeft, spriteTop, 6, 12);
+        StackedFractions.Stack stack = placed.stack();
+        assertEquals((spriteLeft + RowLayout.SPRITE_SIZE + 1) * 2, stack.barX() + stack.barWidth());
+        assertEquals((spriteTop + RowLayout.SPRITE_SIZE + 1) * 2, stack.denominatorY() + 7);
+        assertEquals(spriteLeft - 12 / 2 - 1, placed.wholeX());
+    }
+
+    /**
+     * An Items row valued 81/4 metal draws its amount as 20 and 1 over 4, never the improper 81/4.
+     */
+    @Test
+    void valueLineDrawsAnImproperAmountAsAMixedStack() {
+        ValuesTab values = new ValuesTab();
+        values.readInventory("""
+                {"items": [{"id": "minecraft:stick", "name": "Stick"}], "item_tags": []}
+                """);
+        values.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "stick", "keySeparator": null, "kind": "VALUE", "text": "\\"$x\\"", "entries": [],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        values.readResolved("""
+                {"entries": [{"key": "stick", "value": {"metal": "81/4"}, "denied": false}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        when(frame.graphics.pose()).thenReturn(new Matrix3x2fStack(4));
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
+        List<String> texts = frame.texts();
+        int at = texts.indexOf("20");
+        assertTrue(at >= 0, texts.toString());
+        assertEquals(List.of("20", "1", "4"), texts.subList(at, at + 3));
+        assertTrue(!texts.contains("81/4"), texts.toString());
     }
 
     /**
