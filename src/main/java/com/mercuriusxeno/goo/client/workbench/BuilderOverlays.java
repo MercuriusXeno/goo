@@ -370,6 +370,9 @@ final class BuilderOverlays {
             numberField.setPosition(placed.left(), placed.top());
             numberField.visible = visible;
             actions.focus(numberField);
+            // Decision every-number-box-opens-with-its-text-selected.
+            numberField.moveCursorToEnd(false);
+            numberField.setHighlightPos(0);
             numberHeldFocus = false;
         }
     }

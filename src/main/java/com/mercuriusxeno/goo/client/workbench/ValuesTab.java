@@ -49,6 +49,7 @@ public final class ValuesTab {
     private static final String GROUPS_SECTION = "_groups";
     private static final String RESTRICTED_SECTION = "_restricted";
     private static final String NAMESPACE_SEPARATOR = ":";
+    private static final char FRACTION_DIVIDER = '/';
     // Decision items-rows-read-valued-derived-or-no-value-with-values-inline.
     private static final String ENTRY_SOURCE = "Valued";
     private static final String DENIED_BY = "denied by #";
@@ -173,7 +174,7 @@ public final class ValuesTab {
      * recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
      *
      * @param inputs its inputs, grouped by item
-     * @param output how many the recipe makes
+     * @param output how many the recipe makes, each input's count reading over it as a fraction
      */
     public record Recipe(List<Input> inputs, int output) {
     }
@@ -214,7 +215,28 @@ public final class ValuesTab {
             case ITEMS -> !entry.tag();
             case TAGS -> entry.tag();
             case UNCOVERED -> !entry.tag() && uncovered.contains(entry.id());
+            case FRACTIONAL -> fractionalItem(entry);
         };
+    }
+
+    private boolean fractionalItem(ManagerEntry entry) {
+        return !entry.tag() && worthOf(entry.id()).values().stream().anyMatch(ValuesTab::fractional);
+    }
+
+    // The server answers an amount as a whole number or a reduced n/d (decision
+    // items-filter-set-takes-a-fractional-chip).
+    private static boolean fractional(String amount) {
+        int divider = amount.indexOf(FRACTION_DIVIDER);
+        if (divider < 0) {
+            return false;
+        }
+        try {
+            long numerator = Long.parseLong(amount.substring(0, divider).trim());
+            long denominator = Long.parseLong(amount.substring(divider + 1).trim());
+            return denominator != 0 && numerator % denominator != 0;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     /**
@@ -226,7 +248,9 @@ public final class ValuesTab {
         /** Every item tag. */
         TAGS,
         /** The items the draft leaves with no value. */
-        UNCOVERED
+        UNCOVERED,
+        /** The items where any one goo type's amount has a part under 1. */
+        FRACTIONAL
     }
 
     /**
@@ -348,6 +372,14 @@ public final class ValuesTab {
     private Source unentered(String id) {
         return worthOf(id).isEmpty() ? new Source(NO_VALUE, SourceKind.NONE, false)
                 : new Source(DERIVED_SOURCE, SourceKind.DERIVED, false);
+    }
+
+    /**
+     * @param group a _groups group's bare name
+     * @return its members' namespaced ids in file order, none where the draft holds no such group
+     */
+    public List<String> groupMembers(String group) {
+        return groupsOf().getOrDefault(group, List.of());
     }
 
     private Map<String, List<String>> groupsOf() {
@@ -491,6 +523,34 @@ public final class ValuesTab {
             reordered.add(newEntry(key, ManagerDraft.storedText(typed)));
         }
         draft.replaceMembers(reordered);
+    }
+
+    /**
+     * @return whether the file holds a value entry of the selected item's own
+     */
+    public boolean selectedHasEntry() {
+        return selected != null && valueMember(entryKeyOf(selected)) != null;
+    }
+
+    /**
+     * Drops the selected item's own value entry from the draft, so the item reads as the file never naming it: derived
+     * where recipes value it, else no value.
+     */
+    public void removeEntry() {
+        if (selected == null) {
+            return;
+        }
+        JsonObject member = valueMember(entryKeyOf(selected));
+        if (member == null) {
+            return;
+        }
+        JsonArray kept = new JsonArray();
+        draft.members().forEach(element -> {
+            if (element != member) {
+                kept.add(element);
+            }
+        });
+        draft.replaceMembers(kept);
     }
 
     /**

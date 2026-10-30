@@ -11,11 +11,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.function.ToIntFunction;
 
 /**
- * Draws the Values tab: the Items, Tags and Uncovered set on a line of its own, the search box, each entry with its icon and where its
+ * Draws the Values tab: the Items, Tags, Uncovered and Fractional set on a line of its own, the search box, each entry with its icon and where its
  * value comes from, and the selected entry's card above its expression, each list scrolling under the wheel, as
  * index.html's values section does (decision goo-workbench-opens-the-in-game-manager-screen); the list and the detail
  * each draw a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in {@link ValuesTab}.
@@ -38,7 +37,12 @@ final class ValuesPane {
     static final int ICON_GAP = 4;
     private static final String EQUALS = "=";
     private static final String PLUS = "+";
-    private static final String DIVIDE = " / ";
+    private static final String FRACTION_DIVIDER = "/";
+    private static final String MIXED_SPACE = " ";
+    // Half scale doubles every coordinate the fraction draws at.
+    private static final int FRACTION_SPACE = 2;
+    // A stack count's right and bottom edges stand a pixel past the sprite's.
+    private static final int COUNT_OVERHANG = 1;
     /** The room either side of the + between a recipe equivalency's inputs. */
     static final int EQUIVALENCY_GAP = 2;
     /** The room between the filter set and the search box below it. */
@@ -70,15 +74,22 @@ final class ValuesPane {
     private static final String ITEMS_CHIP = "Items";
     private static final String TAGS_CHIP = "Tags";
     private static final String UNCOVERED_CHIP = "Uncovered ";
+    private static final String FRACTIONAL_CHIP = "Fractional";
     private static final String SEARCH_HINT = "Search items and tags";
     private static final String EXPRESSION_LABEL = "Value";
     private static final String NO_EXPRESSION = "(no entry)";
+    private static final String REMOVE_ENTRY = "Remove entry";
+    /** The Value label's line: tall enough for the Remove entry button standing on it, and a pixel under it. */
+    static final int LABEL_LINE_HEIGHT = 12;
     private static final int READ_VIEW_COLOR = 0x30FFFFFF;
     private static final int LINK = ButtonPainter.LINK;
     private static final String NO_SELECTION = "Select an item or tag to read and edit its entry.";
     private static final String NO_ENTRIES = "Nothing listed here.";
     private static final String NO_TEXT = "";
     private static final int NO_REVEAL = -1;
+    // A hover key no item id, prefab name or goo type key spells.
+    private static final String GROUP_HOVER_PREFIX = "goo-group-members:";
+    private static final int MEMBER_ICONS_SHOWN = 8;
     private static final Disposition VALUED_SYMBOL = new Disposition("✔", GREEN, false);
     private static final Disposition DERIVED_SYMBOL = new Disposition("=", GREEN, false);
     private static final Disposition GROUPED_SYMBOL = new Disposition("#", GREEN, false);
@@ -186,7 +197,7 @@ final class ValuesPane {
     }
 
     /**
-     * One box of the Items, Tags and Uncovered set.
+     * One box of the Items, Tags, Uncovered and Fractional set.
      *
      * @param filter what clicking it lists
      * @param label  its label
@@ -210,7 +221,8 @@ final class ValuesPane {
      * Lays the filters as one segmented set on a line of their own: adjoining boxes sharing their inner borders,
      * the one the tab holds filled (decision items-filters-sit-on-their-own-line-as-one-set).
      *
-     * @param labels   the Items, Tags and Uncovered labels, in that order
+     * @param labels   the Items, Tags, Uncovered and Fractional labels, in that order (decision
+     *                 items-filter-set-takes-a-fractional-chip)
      * @param width    a label's width
      * @param left     the set's left edge
      * @param top      the set's top edge
@@ -234,8 +246,8 @@ final class ValuesPane {
     // Answers the search box's top below the set.
     private int drawChips(GuiGraphicsExtractor graphics, Font font, int left, int top, ClickTargets targets) {
         int uncovered = values.uncoveredCount();
-        ChipLayout layout = layChips(List.of(ITEMS_CHIP, TAGS_CHIP, UNCOVERED_CHIP + uncovered), font::width, left,
-                top, values.filter());
+        ChipLayout layout = layChips(List.of(ITEMS_CHIP, TAGS_CHIP, UNCOVERED_CHIP + uncovered, FRACTIONAL_CHIP),
+                font::width, left, top, values.filter());
         for (Chip chip : layout.chips()) {
             drawChip(graphics, font, chip, chip.filter() == ValuesTab.Filter.UNCOVERED && uncovered > 0 ? RED : WHITE,
                     targets);
@@ -380,13 +392,37 @@ final class ValuesPane {
         }
     }
 
-    // The group's name, a link to its group on the Groups tab.
+    /**
+     * @param hoverKey what the hovered area names
+     * @return the group's members as one row of item icons where the area is a group button's, empty otherwise
+     */
+    Optional<List<TooltipLine>> groupTooltipFor(String hoverKey) {
+        if (!hoverKey.startsWith(GROUP_HOVER_PREFIX)) {
+            return Optional.empty();
+        }
+        return Optional.of(List.of(memberIcons(values.groupMembers(hoverKey.substring(GROUP_HOVER_PREFIX.length())))));
+    }
+
+    /**
+     * @param members a group's members, in member order
+     * @return the first eight as icons, then ..+n counting the rest, no label where every member draws (decisions
+     *     group-link-hovers-member-icons-then-plus-n, more-button-reads-dot-dot-plus-n)
+     */
+    static TooltipLine.MemberIcons memberIcons(List<String> members) {
+        int shown = Math.min(members.size(), MEMBER_ICONS_SHOWN);
+        int hidden = members.size() - shown;
+        return new TooltipLine.MemberIcons(members.subList(0, shown), hidden > 0 ? UsedByLine.moreLabel(hidden)
+                : NO_TEXT);
+    }
+
+    // The group's name as a button opening its group on the Groups tab, hovering its members (decisions
+    // blue-text-options-draw-as-bordered-buttons, group-link-hovers-member-icons-then-plus-n).
     private void drawGroupLink(GuiGraphicsExtractor graphics, Font font, String group, Equality line,
                                ClickTargets targets) {
-        String shown = font.plainSubstrByWidth(group, line.right() - line.besideLeft());
-        graphics.text(font, shown, line.besideLeft(), line.textTop(), LINK);
-        targets.add(line.besideLeft(), line.spriteTop(), font.width(shown), ICON_SIZE,
-                () -> actions.openGroup(group));
+        String shown = font.plainSubstrByWidth(group,
+                line.right() - line.besideLeft() - ButtonPainter.PADDING - ButtonPainter.PADDING);
+        ButtonPainter.draw(graphics, font, shown, line.besideLeft(), line.spriteTop() - 1, ROW_HEIGHT, targets,
+                () -> actions.openGroup(group), GROUP_HOVER_PREFIX + group);
     }
 
     // A derived item's recipe equivalency; one recipes value with no inputs to name reads derived.
@@ -400,32 +436,88 @@ final class ValuesPane {
         drawEquivalency(graphics, font, recipe, line, targets);
     }
 
-    // The inputs' sprites, each its summed count at its bottom right as an inventory draws a stack and a link to its
-    // own row, a small + between them, and " / n" where the recipe makes more than one (decision
+    // The inputs' sprites, each its summed count over the recipe's output at its bottom right as an inventory draws a
+    // stack and a link to its own row, a small + between them (decision
     // recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
     private void drawEquivalency(GuiGraphicsExtractor graphics, Font font, ValuesTab.Recipe recipe, Equality line,
                                  ClickTargets targets) {
-        Equivalency laid = layEquivalency(line.besideLeft(), recipe.inputs().size(), font.width(PLUS),
-                recipe.output());
+        Equivalency laid = layEquivalency(line.besideLeft(), recipe.inputs().size(), font.width(PLUS));
         for (int index = 0; index < recipe.inputs().size(); index++) {
             ValuesTab.Input input = recipe.inputs().get(index);
             int x = laid.spriteLefts().get(index);
             ItemStack stack = icons.of(input.id());
             graphics.item(stack, x, line.spriteTop());
-            countLabel(input.count()).ifPresent(count -> graphics.itemDecorations(font, stack, x, line.spriteTop(),
-                    count));
+            drawCount(graphics, font, stack, countParts(input.count(), recipe.output()), x, line.spriteTop());
             ItemLinks.add(targets, actions, input.id(), x, line.spriteTop());
         }
         laid.plusLefts().forEach(x -> graphics.text(font, PLUS, x, line.textTop(), WHITE));
-        laid.divideLeft().ifPresent(x -> graphics.text(font, DIVIDE + recipe.output(), x, line.textTop(), WHITE));
+    }
+
+    // The whole part draws full size as an inventory draws a stack count; the fraction draws at half scale in the
+    // sprite's bottom-right corner as its numerator over a bar over its denominator, the whole just left of it.
+    private static void drawCount(GuiGraphicsExtractor graphics, Font font, ItemStack stack,
+                                  StackedFractions.Mixed parts, int x, int y) {
+        CornerCount placed = placeCornerCount(x, y, font.width(parts.numerator()), font.width(parts.denominator()));
+        if (!parts.whole().isEmpty()) {
+            graphics.itemDecorations(font, stack, placed.wholeX(), y, parts.whole());
+        }
+        if (parts.stacked()) {
+            StackedFractions.drawStack(graphics, font, parts, placed.stack(), WHITE);
+        }
     }
 
     /**
-     * @param count an input's summed count
-     * @return the count drawn at its sprite's bottom right, empty for a single input, as an inventory draws a stack
+     * @param count  an input's summed count
+     * @param output how many the recipe makes
+     * @return the count over the output as a reduced mixed number, 2 over 6 reading 1/3 and 9 over 4 reading 2 1/4,
+     *     empty where it equals 1
      */
-    static Optional<String> countLabel(int count) {
-        return count > 1 ? Optional.of(String.valueOf(count)) : Optional.empty();
+    static Optional<String> countLabel(int count, int output) {
+        StackedFractions.Mixed parts = countParts(count, output);
+        String fraction = parts.stacked() ? parts.numerator() + FRACTION_DIVIDER + parts.denominator() : NO_TEXT;
+        String joined = parts.whole().isEmpty() || fraction.isEmpty() ? parts.whole() + fraction
+                : parts.whole() + MIXED_SPACE + fraction;
+        return joined.isEmpty() ? Optional.empty() : Optional.of(joined);
+    }
+
+    /**
+     * Where an input count draws on its sprite.
+     *
+     * @param wholeX the x the whole part's stack decoration takes, so it ends just left of the stack
+     * @param stack  the fraction's stack, in half-scale space
+     */
+    record CornerCount(int wholeX, StackedFractions.Stack stack) {
+    }
+
+    /**
+     * Stands the half-scale fraction stack in the sprite's bottom-right corner, its right and bottom edges where a
+     * stack count's stand, and moves the whole part left by the stack's drawn width (decision
+     * recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
+     *
+     * @param spriteLeft       the sprite's left edge
+     * @param spriteTop        the sprite's top edge
+     * @param numeratorWidth   the numerator's width at full scale, 0 where the count is whole
+     * @param denominatorWidth the denominator's width at full scale, 0 where the count is whole
+     * @return the whole part's x and the stack
+     */
+    static CornerCount placeCornerCount(int spriteLeft, int spriteTop, int numeratorWidth, int denominatorWidth) {
+        int barWidth = Math.max(numeratorWidth, denominatorWidth);
+        int right = (spriteLeft + ICON_SIZE + COUNT_OVERHANG) * FRACTION_SPACE;
+        int bottom = (spriteTop + ICON_SIZE + COUNT_OVERHANG) * FRACTION_SPACE;
+        int wholeX = barWidth == 0 ? spriteLeft : spriteLeft - barWidth / FRACTION_SPACE - 1;
+        return new CornerCount(wholeX, StackedFractions.layStack(right - barWidth,
+                bottom - StackedFractions.STACK_HEIGHT, numeratorWidth, denominatorWidth));
+    }
+
+    /**
+     * @param count  an input's summed count
+     * @param output how many the recipe makes
+     * @return the count over the output, reduced, split into its whole part and its fraction, all empty where it
+     *     equals 1
+     */
+    static StackedFractions.Mixed countParts(int count, int output) {
+        int made = Math.max(1, output);
+        return count == made ? StackedFractions.NONE : StackedFractions.of(count, made);
     }
 
     /**
@@ -433,23 +525,20 @@ final class ValuesPane {
      *
      * @param spriteLefts each input sprite's left edge, in order
      * @param plusLefts   each + between inputs' left edge
-     * @param divideLeft  the " / n" run's left edge, empty where the recipe makes one
      */
-    record Equivalency(List<Integer> spriteLefts, List<Integer> plusLefts, OptionalInt divideLeft) {
+    record Equivalency(List<Integer> spriteLefts, List<Integer> plusLefts) {
     }
 
     /**
      * Lays a recipe equivalency's inputs from a left edge: each input sprite, a small + a gap either side between
-     * inputs, and " / n" after the last only where the recipe makes more than one (decision
-     * recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
+     * inputs, ending on the last input (decision recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
      *
      * @param left      the first sprite's left edge
      * @param inputs    how many distinct inputs the recipe takes
      * @param plusWidth the + sign's width
-     * @param output    how many the recipe makes
      * @return each part's place
      */
-    static Equivalency layEquivalency(int left, int inputs, int plusWidth, int output) {
+    static Equivalency layEquivalency(int left, int inputs, int plusWidth) {
         List<Integer> sprites = new ArrayList<>();
         List<Integer> pluses = new ArrayList<>();
         int x = left;
@@ -461,7 +550,7 @@ final class ValuesPane {
             sprites.add(x);
             x += ICON_SIZE;
         }
-        return new Equivalency(sprites, pluses, output > 1 ? OptionalInt.of(x) : OptionalInt.empty());
+        return new Equivalency(sprites, pluses);
     }
 
     // Each type icon at its texture's own size, one texel per pixel, a pixel under its value line's top, its amount
@@ -474,7 +563,8 @@ final class ValuesPane {
             int x = layout.runsLeft() + spot.x();
             int size = GooTypeIcons.sizeOf(amount.getKey());
             GooTypeIcons.draw(graphics, targets, amount.getKey(), x, layout.iconTop(spot.row()), size);
-            graphics.text(font, amount.getValue(), x + size + RUN_ICON_GAP, layout.amountTop(spot.row()), WHITE);
+            StackedFractions.draw(graphics, font, amount.getValue(), x + size + RUN_ICON_GAP,
+                    layout.amountTop(spot.row()), WHITE);
         }
     }
 
@@ -485,7 +575,7 @@ final class ValuesPane {
      * @return the run's width: the type icon, its gap and the amount
      */
     static int runWidth(Font font, String amount, int iconSize) {
-        return iconSize + RUN_ICON_GAP + font.width(amount);
+        return iconSize + RUN_ICON_GAP + StackedFractions.width(font, StackedFractions.of(amount));
     }
 
     /**
@@ -788,6 +878,10 @@ final class ValuesPane {
         int cardHeight = card.layout().height();
         Page laid = layPage(top, cardHeight, 0, false);
         graphics.text(font, EXPRESSION_LABEL, page.left(), laid.labelTop(), GRAY);
+        if (!builder.isOpen() && values.selectedHasEntry()) {
+            ButtonPainter.drawAtText(graphics, font, REMOVE_ENTRY, page.left() + font.width(EXPRESSION_LABEL) + GAP
+                    + ButtonPainter.PADDING, laid.labelTop(), targets, this::removeEntry);
+        }
         int valueHeight = builder.isOpen() ? builder.extract(graphics, font, page, laid.valueTop(), targets)
                 : drawValueView(graphics, font, row, page.left(), laid.valueTop(), page.right() - page.left(), targets);
         Page whole = layPage(top, cardHeight, valueHeight, !row.error().isEmpty());
@@ -796,6 +890,13 @@ final class ValuesPane {
                     whole.errorTop(), RED);
         }
         return whole.end();
+    }
+
+    // A redundant entry, one recipes would derive, drops from the draft and the tabs read it afresh.
+    private void removeEntry() {
+        values.removeEntry();
+        detailBar.reset();
+        actions.draftChanged();
     }
 
     /**
@@ -822,7 +923,7 @@ final class ValuesPane {
      */
     static Page layPage(int top, int cardHeight, int valueHeight, boolean hasError) {
         int labelTop = top + cardHeight + GAP;
-        int valueTop = labelTop + LINE_HEIGHT;
+        int valueTop = labelTop + LABEL_LINE_HEIGHT;
         int errorTop = valueTop + valueHeight + GAP;
         return new Page(labelTop, valueTop, errorTop, errorTop + (hasError ? LINE_HEIGHT : 0));
     }
