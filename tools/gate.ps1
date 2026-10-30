@@ -85,8 +85,27 @@ function Invoke-GradleCheck {
     $gradlew = Join-Path $repo $(if ($IsWindows) { 'gradlew.bat' } else { 'gradlew' })
     # The run builds in the worktree's daemon, which dies idle (decisions daemon-back-on, idle-daemon-dies-in-minutes).
     # sca carries the analysis check no longer runs, so the digest still counts it (decision analysis-runs-at-the-gate-only).
-    $said = @(& $gradlew check sca --console=plain 2>&1 | ForEach-Object { [string]$_ })
-    [pscustomobject]@{ Green = $LASTEXITCODE -eq 0; Output = $said }
+    # Gradle starts with none of the gate's handles and writes to files of this run's own: a daemon the build starts
+    # inherits every handle its launcher holds and outlives it, and holding the caller's pipe it kept the gate's output
+    # open until it died idle, so a caller reading the gate to its end waited minutes past the verdict. A process
+    # started through the shell inherits no handle, so the hidden cmd redirects Gradle to the spool files itself
+    # (operator ruling: a gate run never jams the flow of work).
+    $spool = Join-Path ([IO.Path]::GetTempPath()) ('goo-gate-' + [guid]::NewGuid().ToString('n'))
+    $outFile = "$spool.out"
+    $errFile = "$spool.err"
+    try {
+        $command = '/d /c ""{0}" check sca --console=plain > "{1}" 2> "{2}""' -f $gradlew, $outFile, $errFile
+        $gradle = Start-Process -FilePath 'cmd.exe' -ArgumentList $command -WorkingDirectory $repo `
+            -WindowStyle Hidden -PassThru
+        $null = $gradle.Handle
+        $gradle.WaitForExit()
+        $said = @(Get-Content $outFile, $errFile -ErrorAction SilentlyContinue | ForEach-Object { [string]$_ })
+        [pscustomobject]@{ Green = $gradle.ExitCode -eq 0; Output = $said }
+    }
+    finally {
+        # A daemon still holding a spool file keeps it until it dies; the temp folder takes it then.
+        Remove-Item $outFile, $errFile -ErrorAction SilentlyContinue
+    }
 }
 
 function Invoke-Leg([string] $name) {
