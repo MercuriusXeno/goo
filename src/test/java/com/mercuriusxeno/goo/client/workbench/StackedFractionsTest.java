@@ -4,6 +4,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.joml.Matrix3x2fStack;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -70,6 +71,10 @@ class StackedFractionsTest {
         GuiGraphicsExtractor graphics = frame.graphics;
         StackedFractions.draw(graphics, DrawnFrame.font(), "81/4", 50, 20, 0xFFFFFFFF);
         assertEquals(List.of("20", "1", "4"), frame.texts());
-        verify(graphics, atLeastOnce()).fill(anyInt(), anyInt(), anyInt(), anyInt(), anyInt());
+        ArgumentCaptor<Integer> top = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> bottom = ArgumentCaptor.forClass(Integer.class);
+        verify(graphics, atLeastOnce()).fill(anyInt(), top.capture(), anyInt(), bottom.capture(), anyInt());
+        // One font pixel at half scale, the digits' own stroke weight.
+        assertEquals(1, bottom.getValue() - top.getValue());
     }
 }
