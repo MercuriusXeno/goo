@@ -20,6 +20,8 @@ public final class GroupsTab {
     private static final String GROUPS = "groups";
     private static final String GROUP = "group";
     private static final String NAME = "name";
+    private static final String KIND = "kind";
+    private static final String KIND_TAG = "tag";
     private static final String MEMBERS = "members";
     private static final String ID = "id";
     private static final String KNOWN = "known";
@@ -83,9 +85,11 @@ public final class GroupsTab {
      * @param base    its base line, null where the file holds none
      * @param tweaks  each member's tweak
      * @param preview the lines the file holds for the group
+     * @param tag     whether it is a tag referent, a game tag whose members the game holds, rather than a _groups
+     *                group (decision tag-referent-lists-the-games-members-and-values-them)
      */
     public record Group(String name, List<Member> members, @Nullable String base, List<Tweak> tweaks,
-                        List<String> preview) {
+                        List<String> preview, boolean tag) {
     }
 
     /**
@@ -140,7 +144,8 @@ public final class GroupsTab {
                     .toList();
             List<String> preview = json.getAsJsonArray(PREVIEW).asList().stream().map(JsonElement::getAsString)
                     .toList();
-            groups.add(new Group(json.get(NAME).getAsString(), members, text(json, BASE), tweaks, preview));
+            groups.add(new Group(json.get(NAME).getAsString(), members, text(json, BASE), tweaks, preview,
+                    KIND_TAG.equals(text(json, KIND))));
         }
         if (selected().isEmpty()) {
             selectedGroup = null;

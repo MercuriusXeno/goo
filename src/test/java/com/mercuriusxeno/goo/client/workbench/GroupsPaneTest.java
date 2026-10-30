@@ -59,4 +59,49 @@ class GroupsPaneTest {
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
         assertTrue(frame.texts().stream().anyMatch(text -> text.matches("^\\.\\.\\+\\d+$")), frame.texts().toString());
     }
+
+    /**
+     * A tag referent lists in the same list as a custom group; its detail draws the line saying its membership
+     * isn't controlled here where a custom group's draws Add member, and both draw the value control that opens the
+     * expression builder (decision tag-referent-lists-the-games-members-and-values-them).
+     */
+    @Test
+    void tagReferentDetailSaysMembershipIsNotControlledWhereAGroupAddsMembers() {
+        ManagerDraft draft = new ManagerDraft();
+        GroupsTab groups = new GroupsTab(draft);
+        groups.readDescribed("""
+                {"groups": [
+                  {"name": "logs", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
+                   "base": null, "tweaks": [], "preview": []},
+                  {"name": "saplings", "kind": "tag", "members": [{"id": "minecraft:oak_sapling", "known": true}],
+                   "base": null, "tweaks": [], "preview": []}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+        ExpressionBuilderPane builder = new ExpressionBuilderPane(actions, icons, List::of, List::of);
+        GroupsPane pane = new GroupsPane(groups, new ValuesTab(draft), icons, actions, builder);
+        GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 300);
+
+        DrawnFrame listed = new DrawnFrame();
+        pane.extract(listed.graphics, DrawnFrame.font(), bounds, listed.targets);
+        assertTrue(listed.texts().containsAll(List.of("#logs", "#saplings")), listed.texts().toString());
+
+        groups.selectGroup("logs");
+        DrawnFrame group = new DrawnFrame();
+        pane.extract(group.graphics, DrawnFrame.font(), bounds, group.targets);
+        int groupWorth = group.find("What every member is worth:").y();
+        int addMember = group.find("Add member").y();
+        assertTrue(addMember > group.find("#logs").y() && addMember < groupWorth, group.drawn().toString());
+
+        groups.selectGroup("saplings");
+        DrawnFrame tag = new DrawnFrame();
+        pane.extract(tag.graphics, DrawnFrame.font(), bounds, tag.targets);
+        int notControlled = tag.find("Tag membership isn't controlled here").y();
+        assertTrue(notControlled > tag.find("#saplings").y() && notControlled < groupWorth, tag.drawn().toString());
+        assertEquals(groupWorth, tag.find("What every member is worth:").y());
+        assertEquals(List.of(), tag.texts().stream().filter("Add member"::equals).toList());
+        tag.click("nothing yet");
+        assertTrue(builder.isOpen());
+    }
 }

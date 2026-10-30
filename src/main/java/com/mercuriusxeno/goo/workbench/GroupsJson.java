@@ -24,6 +24,9 @@ import java.util.Set;
 final class GroupsJson {
     private static final String GROUPS = "groups";
     private static final String NAME = "name";
+    private static final String KIND = "kind";
+    private static final String KIND_GROUP = "group";
+    private static final String KIND_TAG = "tag";
     private static final String MEMBERS = "members";
     private static final String ID = "id";
     private static final String KNOWN = "known";
@@ -103,27 +106,38 @@ final class GroupsJson {
      * @return every group with its members flagged against the inventory, its base, its tweaks and the lines
      *         the file holds for it
      */
+    // decision groups-lists-custom-groups-and-every-tag-a-valuation-references
     static JsonArray described(BaseValuesModel model, Inventory inventory) {
         JsonArray groups = new JsonArray();
         for (GroupConvention.Group group : GroupConvention.describe(model)) {
-            JsonObject json = new JsonObject();
-            json.addProperty(NAME, group.name());
-            JsonArray members = new JsonArray();
-            for (String member : group.members()) {
-                JsonObject entry = new JsonObject();
-                entry.addProperty(ID, member);
-                entry.addProperty(KNOWN, inventory.ids().isEmpty() || inventory.ids().contains(member));
-                members.add(entry);
-            }
-            json.add(MEMBERS, members);
-            json.add(BASE, nullable(group.base()));
-            JsonArray tweaks = new JsonArray();
-            group.tweaks().forEach(tweak -> tweaks.add(tweakJson(tweak)));
-            json.add(TWEAKS, tweaks);
-            json.add(PREVIEW, preview(model, group));
-            groups.add(json);
+            groups.add(groupJson(model, inventory, group, KIND_GROUP));
+        }
+        for (String tag : GroupConvention.referencedTags(model)) {
+            groups.add(groupJson(model, inventory, GroupConvention.describeTag(model, tag, inventory.tags()),
+                    KIND_TAG));
         }
         return groups;
+    }
+
+    private static JsonObject groupJson(BaseValuesModel model, Inventory inventory, GroupConvention.Group group,
+                                        String kind) {
+        JsonObject json = new JsonObject();
+        json.addProperty(NAME, group.name());
+        json.addProperty(KIND, kind);
+        JsonArray members = new JsonArray();
+        for (String member : group.members()) {
+            JsonObject entry = new JsonObject();
+            entry.addProperty(ID, member);
+            entry.addProperty(KNOWN, inventory.ids().isEmpty() || inventory.ids().contains(member));
+            members.add(entry);
+        }
+        json.add(MEMBERS, members);
+        json.add(BASE, nullable(group.base()));
+        JsonArray tweaks = new JsonArray();
+        group.tweaks().forEach(tweak -> tweaks.add(tweakJson(tweak)));
+        json.add(TWEAKS, tweaks);
+        json.add(PREVIEW, preview(model, group));
+        return json;
     }
 
     /**
