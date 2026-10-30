@@ -39,12 +39,10 @@ final class ValuesPane {
     private static final String PLUS = "+";
     private static final String FRACTION_DIVIDER = "/";
     private static final String MIXED_SPACE = " ";
-    private static final float FRACTION_SCALE = 0.5f;
     // Half scale doubles every coordinate the fraction draws at.
     private static final int FRACTION_SPACE = 2;
     // A stack count's right and bottom edges stand a pixel past the sprite's.
     private static final int COUNT_OVERHANG = 1;
-    private static final int GLYPH_HEIGHT = 8;
     /** The room either side of the + between a recipe equivalency's inputs. */
     static final int EQUIVALENCY_GAP = 2;
     /** The room between the filter set and the search box below it. */
@@ -456,23 +454,15 @@ final class ValuesPane {
     }
 
     // The whole part draws full size as an inventory draws a stack count; the fraction draws at half scale in the
-    // sprite's bottom-right corner as a slanted stack, the whole standing just left of it.
-    private static void drawCount(GuiGraphicsExtractor graphics, Font font, ItemStack stack, CountParts parts, int x,
-                                  int y) {
-        boolean stacked = !parts.numerator().isEmpty();
-        FractionWidths widths = stacked ? new FractionWidths(font.width(parts.numerator()),
-                font.width(FRACTION_DIVIDER), font.width(parts.denominator())) : new FractionWidths(0, 0, 0);
-        StackedFraction placed = placeFraction(x, y, widths);
+    // sprite's bottom-right corner as its numerator over a bar over its denominator, the whole just left of it.
+    private static void drawCount(GuiGraphicsExtractor graphics, Font font, ItemStack stack,
+                                  StackedFractions.Mixed parts, int x, int y) {
+        CornerCount placed = placeCornerCount(x, y, font.width(parts.numerator()), font.width(parts.denominator()));
         if (!parts.whole().isEmpty()) {
             graphics.itemDecorations(font, stack, placed.wholeX(), y, parts.whole());
         }
-        if (stacked) {
-            graphics.pose().pushMatrix();
-            graphics.pose().scale(FRACTION_SCALE, FRACTION_SCALE);
-            graphics.text(font, parts.numerator(), placed.numeratorX(), placed.numeratorY(), WHITE);
-            graphics.text(font, FRACTION_DIVIDER, placed.slashX(), placed.slashY(), WHITE);
-            graphics.text(font, parts.denominator(), placed.denominatorX(), placed.denominatorY(), WHITE);
-            graphics.pose().popMatrix();
+        if (parts.stacked()) {
+            StackedFractions.drawStack(graphics, font, parts, placed.stack(), WHITE);
         }
     }
 
@@ -483,108 +473,51 @@ final class ValuesPane {
      *     empty where it equals 1
      */
     static Optional<String> countLabel(int count, int output) {
-        CountParts parts = countParts(count, output);
-        String joined = parts.whole().isEmpty() || parts.fraction().isEmpty() ? parts.whole() + parts.fraction()
-                : parts.whole() + MIXED_SPACE + parts.fraction();
+        StackedFractions.Mixed parts = countParts(count, output);
+        String fraction = parts.stacked() ? parts.numerator() + FRACTION_DIVIDER + parts.denominator() : NO_TEXT;
+        String joined = parts.whole().isEmpty() || fraction.isEmpty() ? parts.whole() + fraction
+                : parts.whole() + MIXED_SPACE + fraction;
         return joined.isEmpty() ? Optional.empty() : Optional.of(joined);
     }
 
     /**
-     * An input count's parts.
+     * Where an input count draws on its sprite.
      *
-     * @param whole       its whole part, empty where it is under 1
-     * @param numerator   its part under 1's numerator, empty where the count is whole
-     * @param denominator its part under 1's denominator, empty where the count is whole
+     * @param wholeX the x the whole part's stack decoration takes, so it ends just left of the stack
+     * @param stack  the fraction's stack, in half-scale space
      */
-    record CountParts(String whole, String numerator, String denominator) {
-        /**
-         * @return the part under 1 as n/d, empty where the count is whole
-         */
-        String fraction() {
-            return numerator.isEmpty() ? NO_TEXT : numerator + FRACTION_DIVIDER + denominator;
-        }
+    record CornerCount(int wholeX, StackedFractions.Stack stack) {
     }
 
     /**
-     * A stacked fraction's widths at full scale.
-     *
-     * @param numerator   the numerator's
-     * @param slash       the slash's
-     * @param denominator the denominator's
-     */
-    record FractionWidths(int numerator, int slash, int denominator) {
-        int total() {
-            return numerator + slash + denominator;
-        }
-    }
-
-    /**
-     * Where an input count's stacked fraction and whole part draw on its sprite, the fraction's places in half-scale
-     * space.
-     *
-     * @param wholeX       the x the whole part's stack decoration takes, so it ends just left of the fraction
-     * @param numeratorX   the numerator's left edge
-     * @param numeratorY   the numerator's top edge
-     * @param slashX       the slash's left edge
-     * @param slashY       the slash's top edge
-     * @param denominatorX the denominator's left edge
-     * @param denominatorY the denominator's top edge
-     */
-    record StackedFraction(int wholeX, int numeratorX, int numeratorY, int slashX, int slashY, int denominatorX,
-                           int denominatorY) {
-    }
-
-    /**
-     * Stacks the half-scale fraction in the sprite's bottom-right corner: the denominator low and packed left after the
-     * slash, its right and bottom edges where a stack count's stand; the slash a half line above it; the numerator a
-     * line above, packed right against the slash; and the whole part moved left by the fraction's drawn width (decision
+     * Stands the half-scale fraction stack in the sprite's bottom-right corner, its right and bottom edges where a
+     * stack count's stand, and moves the whole part left by the stack's drawn width (decision
      * recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
      *
-     * @param spriteLeft the sprite's left edge
-     * @param spriteTop  the sprite's top edge
-     * @param widths     the fraction's widths at full scale, all 0 where the count has none
-     * @return each part's place
+     * @param spriteLeft       the sprite's left edge
+     * @param spriteTop        the sprite's top edge
+     * @param numeratorWidth   the numerator's width at full scale, 0 where the count is whole
+     * @param denominatorWidth the denominator's width at full scale, 0 where the count is whole
+     * @return the whole part's x and the stack
      */
-    static StackedFraction placeFraction(int spriteLeft, int spriteTop, FractionWidths widths) {
+    static CornerCount placeCornerCount(int spriteLeft, int spriteTop, int numeratorWidth, int denominatorWidth) {
+        int barWidth = Math.max(numeratorWidth, denominatorWidth);
         int right = (spriteLeft + ICON_SIZE + COUNT_OVERHANG) * FRACTION_SPACE;
         int bottom = (spriteTop + ICON_SIZE + COUNT_OVERHANG) * FRACTION_SPACE;
-        int denominatorX = right - widths.denominator();
-        int slashX = denominatorX - widths.slash();
-        int denominatorY = bottom - GLYPH_HEIGHT;
-        int wholeX = widths.total() == 0 ? spriteLeft : spriteLeft - widths.total() / FRACTION_SPACE - 1;
-        return new StackedFraction(wholeX, slashX - widths.numerator(), denominatorY - GLYPH_HEIGHT, slashX,
-                denominatorY - GLYPH_HEIGHT / FRACTION_SPACE, denominatorX, denominatorY);
+        int wholeX = barWidth == 0 ? spriteLeft : spriteLeft - barWidth / FRACTION_SPACE - 1;
+        return new CornerCount(wholeX, StackedFractions.layStack(right - barWidth,
+                bottom - StackedFractions.STACK_HEIGHT, numeratorWidth, denominatorWidth));
     }
 
     /**
      * @param count  an input's summed count
      * @param output how many the recipe makes
-     * @return the count over the output, reduced, split into its whole part and its fraction, both empty where it
+     * @return the count over the output, reduced, split into its whole part and its fraction, all empty where it
      *     equals 1
      */
-    static CountParts countParts(int count, int output) {
+    static StackedFractions.Mixed countParts(int count, int output) {
         int made = Math.max(1, output);
-        long divisor = greatestCommonDivisor(count, made);
-        long numerator = count / divisor;
-        long denominator = made / divisor;
-        if (numerator == denominator) {
-            return new CountParts(NO_TEXT, NO_TEXT, NO_TEXT);
-        }
-        long whole = numerator / denominator;
-        long part = numerator % denominator;
-        return new CountParts(whole == 0 ? NO_TEXT : String.valueOf(whole),
-                part == 0 ? NO_TEXT : String.valueOf(part), part == 0 ? NO_TEXT : String.valueOf(denominator));
-    }
-
-    private static long greatestCommonDivisor(long a, long b) {
-        long x = Math.abs(a);
-        long y = Math.abs(b);
-        while (y != 0) {
-            long remainder = x % y;
-            x = y;
-            y = remainder;
-        }
-        return x == 0 ? 1 : x;
+        return count == made ? StackedFractions.NONE : StackedFractions.of(count, made);
     }
 
     /**
@@ -630,7 +563,8 @@ final class ValuesPane {
             int x = layout.runsLeft() + spot.x();
             int size = GooTypeIcons.sizeOf(amount.getKey());
             GooTypeIcons.draw(graphics, targets, amount.getKey(), x, layout.iconTop(spot.row()), size);
-            graphics.text(font, amount.getValue(), x + size + RUN_ICON_GAP, layout.amountTop(spot.row()), WHITE);
+            StackedFractions.draw(graphics, font, amount.getValue(), x + size + RUN_ICON_GAP,
+                    layout.amountTop(spot.row()), WHITE);
         }
     }
 
@@ -641,7 +575,7 @@ final class ValuesPane {
      * @return the run's width: the type icon, its gap and the amount
      */
     static int runWidth(Font font, String amount, int iconSize) {
-        return iconSize + RUN_ICON_GAP + font.width(amount);
+        return iconSize + RUN_ICON_GAP + StackedFractions.width(font, StackedFractions.of(amount));
     }
 
     /**
