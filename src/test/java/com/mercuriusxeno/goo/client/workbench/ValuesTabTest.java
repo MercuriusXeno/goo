@@ -76,6 +76,20 @@ class ValuesTabTest {
             tab.search("minecraft:");
             assertEquals(List.of("minecraft:stick", "minecraft:torch"), ids(tab.listed()));
         }
+
+        /**
+         * The Fractional filter lists the items where any one goo type's amount has a part under 1, leaving out
+         * items whose every amount is whole and every tag (decision items-filter-set-takes-a-fractional-chip).
+         */
+        @Test
+        void fractionalFilterListsTheItemsWithAPartUnderOne() {
+            tab.readResolved("""
+                    {"entries": [{"key": "stick", "value": {"leaf": "48", "metal": "3/2"}, "denied": false},
+                                 {"key": "torch", "value": {"glow": "4", "leaf": "12"}, "denied": false}]}
+                    """);
+            tab.filter(ValuesTab.Filter.FRACTIONAL);
+            assertEquals(List.of("minecraft:stick"), ids(tab.listed()));
+        }
     }
 
     @Nested
@@ -93,6 +107,22 @@ class ValuesTabTest {
             assertEquals("$base / 4", row.expression());
             assertEquals(Map.of("leaf", "48", "metal", "3/2"), row.amounts());
             assertEquals("", row.error());
+        }
+
+        /**
+         * Removing the selected item's entry drops its line from the draft and keeps every other member, so the
+         * item reads as the file never naming it.
+         */
+        @Test
+        void removingTheEntryDropsItFromTheDraft() {
+            tab.select("minecraft:stick");
+            assertTrue(tab.selectedHasEntry());
+            tab.removeEntry();
+            List<String> keys = JsonParser.parseString(tab.modelText()).getAsJsonObject().getAsJsonArray("members")
+                    .asList().stream().map(member -> member.getAsJsonObject().get("key").getAsString()).toList();
+            assertEquals(List.of("_restricted"), keys);
+            assertEquals("", tab.selectedRow().orElseThrow().expression());
+            assertTrue(!tab.selectedHasEntry());
         }
 
         /**

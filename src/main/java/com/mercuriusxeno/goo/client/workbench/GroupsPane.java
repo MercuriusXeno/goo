@@ -12,7 +12,7 @@ import java.util.Optional;
 
 /**
  * Draws the Groups tab: each group's row, its #name and its members as item icons named on hover, the rest behind an
- * "and N more" link, with no header and no count (decision groups-list-members-as-icons-without-headers-or-count);
+ * ..+n button, with no header and no count (decision groups-list-members-as-icons-without-headers-or-count);
  * and the selected group's detail: New group names a group, Add member picks an item or #tag into it, the
  * group's value is built in the expression builder as what every member is worth, and a member's own line is built
  * too, its count times the group's value plus its extra (decision group-controls-name-add-and-build). The list and
@@ -209,7 +209,7 @@ final class GroupsPane {
     }
 
     // A row draws #name and its members' icons, named on hover; answers its height, more than a line once its
-    // "and N more" button expanded it (decision groups-list-members-as-icons-without-headers-or-count).
+    // ..+n button expanded it (decision groups-list-members-as-icons-without-headers-or-count).
     private int drawGroupRow(GuiGraphicsExtractor graphics, Font font, GroupsTab.GroupRow row, int left, int right,
                              int y, boolean selected, ClickTargets targets) {
         List<ExpressionLines.Run> runs = GroupsTab.rowRuns(row, icons::nameOf);
@@ -269,7 +269,7 @@ final class GroupsPane {
                 : Optional.empty();
     }
 
-    // Decision expanded-used-by-lists-take-a-hide-button: "and N more" expands the row, Hide collapses it again.
+    // Decision expanded-used-by-lists-take-a-hide-button: ..+n expands the row, Hide collapses it again.
     private void toggle(String name, boolean expanded) {
         if (expanded) {
             expandedRows.hide(name);

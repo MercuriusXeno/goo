@@ -268,13 +268,45 @@ final class GooValueDerivation {
             return false;
         }
         GooValue existing = derivedValues.get(itemId);
-        if (existing != null && !GooRecipeEvaluator.isBetter(best,
-                new GooRecipeEvaluator.RecipeResult(existing, derivationSources.get(itemId)))) {
+        if (existing != null && (readsBack(best.source(), itemId) || !GooRecipeEvaluator.isBetter(best,
+                new GooRecipeEvaluator.RecipeResult(existing, derivationSources.get(itemId))))) {
             return false;
         }
         derivedValues.put(itemId, best.value());
         derivationSources.put(itemId, best.source());
         return true;
+    }
+
+    /**
+     * Whether a recipe's inputs took their value from the item, following each derived input's recorded source
+     * back: such a recipe reads the item's own value and can never be what values it, as a block's unpacking reads
+     * back the ingot the block was valued from.
+     *
+     * @param recipe a candidate recipe for the item
+     * @param itemId the item it would value
+     * @return true where an input's recorded source chain reaches the item
+     */
+    private boolean readsBack(RecipeInput recipe, Identifier itemId) {
+        Deque<RecipeInput> open = new ArrayDeque<>(List.of(recipe));
+        Set<RecipeInput> walked = new HashSet<>();
+        while (!open.isEmpty()) {
+            RecipeInput next = open.pop();
+            if (!walked.add(next)) {
+                continue;
+            }
+            for (Set<Identifier> slot : next.ingredientAlternatives()) {
+                for (Identifier input : slot) {
+                    if (input.equals(itemId)) {
+                        return true;
+                    }
+                    RecipeInput source = derivationSources.get(input);
+                    if (source != null) {
+                        open.push(source);
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     /**

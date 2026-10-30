@@ -42,13 +42,14 @@ public final class GooAmountTooltipComponent implements ClientTooltipComponent {
 
     @Override
     public int getWidth(Font font) {
-        return iconSize + ICON_GAP + font.width(line.amount());
+        return iconSize + ICON_GAP + StackedFractions.width(font, StackedFractions.of(line.amount()));
     }
 
+    // An improper amount reads as its whole and its part under 1 stacked over a bar, as the Items rows draw it.
     @Override
     public void extractImage(Font font, int x, int y, int width, int height, GuiGraphicsExtractor graphics) {
         GooTypeIcons.blit(graphics, line.type(), x, y);
-        graphics.text(font, line.amount(), x + iconSize + ICON_GAP, y + GooTypeIcons.centered(iconSize, GLYPH_HEIGHT),
-                WHITE);
+        StackedFractions.draw(graphics, font, line.amount(), x + iconSize + ICON_GAP,
+                y + GooTypeIcons.centered(iconSize, GLYPH_HEIGHT), WHITE);
     }
 }
