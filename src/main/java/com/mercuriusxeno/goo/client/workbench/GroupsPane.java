@@ -15,7 +15,9 @@ import java.util.Optional;
  * ..+n button, with no header and no count (decision groups-list-members-as-icons-without-headers-or-count);
  * and the selected group's detail: New group names a group, Add member picks an item or #tag into it, the
  * group's value is built in the expression builder as what every member is worth, and a member's own line is built
- * too, its count times the group's value plus its extra (decision group-controls-name-add-and-build). The list and
+ * too, its count times the group's value plus its extra (decision group-controls-name-add-and-build). A tag referent
+ * lists beside the custom groups, its members the game's, its detail saying its membership isn't controlled here in
+ * place of Add member (decision tag-referent-lists-the-games-members-and-values-them). The list and
  * the detail column each draw a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in
  * {@link GroupsTab}.
  */
@@ -51,6 +53,7 @@ final class GroupsPane {
     private static final String NEW_GROUP = "New group";
     private static final String NEW_GROUP_HINT = "group name, Enter";
     private static final String ADD_MEMBER = "Add member";
+    private static final String NOT_CONTROLLED = "Tag membership isn't controlled here";
     private static final String NO_GROUP = "Pick a group, or name a new one.";
     private static final String NO_GROUPS = "The file names no groups.";
     private static final String WORTH_LABEL = "What every member is worth:";
@@ -318,12 +321,19 @@ final class GroupsPane {
         graphics.text(font, GroupsTab.rowRuns(new GroupsTab.GroupRow(group.name(), List.of(), 0), icons::nameOf)
                 .getFirst().text(), x, y + TEXT_NUDGE, WHITE);
         y += ROW_HEIGHT;
-        BuilderOverlays.control(graphics, font, ADD_MEMBER, x, y, targets, at -> overlays.openDropdown(at,
-                SearchDropdown.overMembers(values.entries()), choice -> apply(groups.addPickRequest(choice.id()))));
+        // decision tag-referent-lists-the-games-members-and-values-them
+        if (group.tag()) {
+            graphics.text(font, NOT_CONTROLLED, x, y + TEXT_NUDGE, GRAY);
+        } else {
+            BuilderOverlays.control(graphics, font, ADD_MEMBER, x, y, targets, at -> overlays.openDropdown(at,
+                    SearchDropdown.overMembers(values.entries()), choice -> apply(groups.addPickRequest(choice.id()))));
+        }
         y += ROW_HEIGHT + SECTION_GAP;
         y = drawWorth(graphics, font, detail, group, y, targets);
         y = drawCards(graphics, font, detail, y + SECTION_GAP, targets);
-        y = drawMemberLine(graphics, font, detail, group, y + SECTION_GAP, targets);
+        if (!group.tag()) {
+            y = drawMemberLine(graphics, font, detail, group, y + SECTION_GAP, targets);
+        }
         targets.unclip();
         graphics.disableScissor();
         detailBar.measureAndDraw(graphics, targets, y, detail.right() + ScrollBar.GAP + ScrollBar.WIDTH, detail.top(),

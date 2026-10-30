@@ -542,6 +542,27 @@ class WorkbenchOperationsTest {
         }
 
         /**
+         * A tag referent's base lands as its #tag entry's text and the reply lists it as a tag referent, with
+         * _groups as it stood (decision tag-referent-lists-the-games-members-and-values-them).
+         */
+        @Test
+        void tagReferentsBaseLandsAsItsTagEntry() throws IOException {
+            String groupsBefore = memberKeyed(JsonParser.parseString(posted(FILE)).getAsJsonObject(), "_groups")
+                    .toString();
+            Files.writeString(paths.inventoryFile(), INVENTORY);
+            JsonObject request = JsonParser.parseString(posted(FILE)).getAsJsonObject();
+            request.addProperty("group", "saplings");
+            request.addProperty("base", "$log / 2");
+            JsonObject answer = answeredJson(WorkbenchOperations.APPLY_TO_GROUP, request.toString());
+            JsonObject model = answer.getAsJsonObject("model");
+            assertEquals("\"$log / 2\"", memberKeyed(model, "#saplings").get("text").getAsString());
+            assertEquals(groupsBefore, memberKeyed(model, "_groups").toString());
+            JsonObject saplings = answer.getAsJsonArray("groups").asList().stream().map(JsonElement::getAsJsonObject)
+                    .filter(group -> "saplings".equals(group.get("name").getAsString())).findFirst().orElseThrow();
+            assertEquals("tag", saplings.get("kind").getAsString());
+        }
+
+        /**
          * The create form lands a named group in _groups with no member, and leaves a standing group as it was.
          */
         @Test

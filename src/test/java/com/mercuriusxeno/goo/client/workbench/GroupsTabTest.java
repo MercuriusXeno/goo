@@ -161,6 +161,43 @@ class GroupsTabTest {
         }
     }
 
+    /**
+     * A described row of kind tag reads as a tag referent, listed beside the custom groups, and its built value
+     * posts as its base, which the server writes as its #tag entry (decision
+     * tag-referent-lists-the-games-members-and-values-them).
+     */
+    @Nested
+    class TagReferents {
+        private static final String WITH_REFERENT = """
+                {"groups": [
+                  {"name": "logs", "kind": "group", "members": [], "base": null, "tweaks": [], "preview": []},
+                  {"name": "saplings", "kind": "tag", "members": [{"id": "minecraft:oak_sapling", "known": true}],
+                   "base": "$log / 2", "tweaks": [], "preview": []}]}
+                """;
+
+        @Test
+        void tagRowReadsAsAReferentBesideTheGroups() {
+            tab.readDescribed(WITH_REFERENT);
+            assertEquals(List.of("logs", "saplings"), tab.groupRows().stream().map(GroupsTab.GroupRow::name).toList());
+            tab.selectGroup("saplings");
+            assertTrue(tab.selected().orElseThrow().tag());
+            tab.selectGroup("logs");
+            assertFalse(tab.selected().orElseThrow().tag());
+        }
+
+        @Test
+        void referentsBuiltValuePostsAsItsBase() {
+            tab.readDescribed(WITH_REFERENT);
+            tab.selectGroup("saplings");
+            ExpressionBuilder builder = ExpressionBuilder.of(tab.selected().orElseThrow().base());
+            builder.relate(new SearchDropdown.Choice(SearchDropdown.Kind.PREFAB, "wood", "wood"));
+            JsonObject request = parsed(tab.baseRequest(builder.text()));
+            assertEquals("saplings", request.get("group").getAsString());
+            assertEquals("$log / 2 + $wood", request.get("base").getAsString());
+            assertFalse(request.has("picks"));
+        }
+    }
+
     @Nested
     class Apply {
 
