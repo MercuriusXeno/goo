@@ -16,8 +16,10 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -25,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -44,6 +47,7 @@ class WorkbenchOperationsTest {
             + "\"name\":\"Iron Nugget\"}],\"blocks\":[{\"id\":\"minecraft:fire\",\"name\":\"Fire\"}],"
             + "\"item_tags\":[],\"block_tags\":[{\"id\":\"minecraft:fire\",\"members\":[\"minecraft:fire\"]}],"
             + "\"goo_types\":[],\"recipes\":[]}";
+    private static final long ONE_SECOND = 1000;
 
     @TempDir
     Path temp;
@@ -482,6 +486,30 @@ class WorkbenchOperationsTest {
                     .collect(Collectors.toMap(member -> member.get("id").getAsString(),
                             member -> member.get("known").getAsBoolean()));
             assertEquals(Map.of("minecraft:fire", false, "minecraft:iron_nugget", true), known);
+        }
+
+        /**
+         * The groups reads keep their inventory parse while the file is unchanged and parse again once a dump
+         * rewrites it (decision inventory-parses-once-per-file-timestamp).
+         */
+        @Test
+        void groupsInventoryReusesItsParseUntilTheFileChanges() throws IOException {
+            Path file = paths.inventoryFile();
+            Files.writeString(file, inventoryWithTags("minecraft:logs"));
+            FileTime written = Files.getLastModifiedTime(file);
+            GroupsJson.Inventory first = GroupsJson.Inventory.read(file);
+            assertSame(first, GroupsJson.Inventory.read(file));
+            Files.writeString(file, inventoryWithTags("minecraft:logs", "minecraft:planks"));
+            Files.setLastModifiedTime(file, FileTime.fromMillis(written.toMillis() + ONE_SECOND));
+            assertEquals(Set.of("minecraft:logs", "minecraft:planks"), GroupsJson.Inventory.read(file).tags().keySet());
+        }
+
+        private static String inventoryWithTags(String... tags) {
+            String tagJson = java.util.Arrays.stream(tags)
+                    .map(tag -> "{\"id\":\"" + tag + "\",\"members\":[\"minecraft:iron_nugget\"]}")
+                    .collect(Collectors.joining(","));
+            return "{\"items\":[{\"id\":\"minecraft:iron_nugget\",\"name\":\"Iron Nugget\"}],"
+                    + "\"item_tags\":[" + tagJson + "],\"goo_types\":[],\"recipes\":[]}";
         }
     }
 
