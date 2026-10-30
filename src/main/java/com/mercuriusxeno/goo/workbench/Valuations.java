@@ -434,8 +434,7 @@ final class Valuations {
     static String derivedFrom(BaseValuesModel model, InventoryView inventory) throws IOException {
         GooBaseValuesPreview.Derived derived = derivedFor(model, inventory);
         GooBaseValuesPreview.Loaded loaded = GooBaseValuesPreview.load(model.serialize(), inventory.tagResolver());
-        Map<Identifier, RecipeInput> byOutput = new HashMap<>();
-        derived.recipes().forEach(recipe -> byOutput.putIfAbsent(recipe.output(), recipe));
+        Map<Identifier, RecipeInput> byOutput = makingRecipes(derived);
         JsonObject items = new JsonObject();
         for (String id : inventory.itemIds()) {
             Identifier item = Identifier.tryParse(id);
@@ -498,8 +497,7 @@ final class Valuations {
      */
     private static JsonObject from(Identifier item, InventoryView inventory, GooBaseValuesPreview.Derived derived,
                                    Set<Identifier> handKeyed) {
-        Map<Identifier, RecipeInput> byOutput = new HashMap<>();
-        derived.recipes().forEach(recipe -> byOutput.putIfAbsent(recipe.output(), recipe));
+        Map<Identifier, RecipeInput> byOutput = makingRecipes(derived);
         List<Identifier> chain = new ArrayList<>();
         Set<Identifier> seen = new HashSet<>(Set.of(item));
         Identifier current = item;
@@ -528,6 +526,19 @@ final class Valuations {
         from.add(FROM_CHAIN, ids);
         from.addProperty(FROM_PRIME, handKeyed.contains(current));
         return from;
+    }
+
+    // Each derived item's recipe is the one the derivation recorded as setting its value, so the equivalency the
+    // Items tab draws is what valued the item; a recipe that solved an input backward values that input, not its
+    // output, and makes nothing here.
+    private static Map<Identifier, RecipeInput> makingRecipes(GooBaseValuesPreview.Derived derived) {
+        Map<Identifier, RecipeInput> making = new HashMap<>();
+        derived.registry().valueSettingRecipeByItem().forEach((item, recipe) -> {
+            if (recipe.output().equals(item)) {
+                making.put(item, recipe);
+            }
+        });
+        return making;
     }
 
     /**
