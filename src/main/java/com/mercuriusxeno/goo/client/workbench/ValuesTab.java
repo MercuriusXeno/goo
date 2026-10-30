@@ -18,7 +18,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * The Values tab's state with no Screen: the inventory's items and tags filtered by the search text, each entry as
+ * The Values tab's state with no Screen: the client's items and tags filtered by the search text, each entry as
  * the server resolved it, the selected entry's row, and the edit a Save sends, as index.html's values section holds
  * them, over the draft every tab shares (decision goo-workbench-opens-the-in-game-manager-screen).
  */
@@ -26,14 +26,11 @@ public final class ValuesTab {
     /** The mark a tag's id starts with. */
     public static final String TAG_MARK = "#";
     private static final String ITEMS = "items";
-    private static final String ITEM_TAGS = "item_tags";
     private static final String ID = "id";
-    private static final String NAME = "name";
     private static final String INPUTS = "inputs";
     private static final String COUNT = "count";
     private static final String OUTPUT = "output";
     private static final Recipe NO_RECIPE = new Recipe(List.of(), 1);
-    private static final String MEMBERS = "members";
     private static final String ENTRIES = "entries";
     private static final String KEY = "key";
     private static final String KIND = "kind";
@@ -109,22 +106,16 @@ public final class ValuesTab {
     }
 
     /**
-     * Lists the inventory's items, then its item tags.
+     * Lists the client's items, then its item tags, in place of the server's inventory reply
+     * (decision client-builds-items-and-tags-from-its-own-registries).
      *
-     * @param inventoryJson the inventory operation's reply
+     * @param source the client's items and item tags
      */
-    public void readInventory(String inventoryJson) {
-        JsonObject inventory = JsonParser.parseString(inventoryJson).getAsJsonObject();
+    public void readEntries(ManagerEntrySource source) {
         entries.clear();
-        for (JsonElement item : array(inventory, ITEMS)) {
-            JsonObject object = item.getAsJsonObject();
-            entries.add(new ManagerEntry(object.get(ID).getAsString(), object.get(NAME).getAsString(), false));
-        }
-        for (JsonElement tag : array(inventory, ITEM_TAGS)) {
-            JsonObject object = tag.getAsJsonObject();
-            entries.add(new ManagerEntry(TAG_PREFIX + object.get(ID).getAsString(),
-                    array(object, MEMBERS).size() + MEMBERS_SUFFIX, true));
-        }
+        source.items().forEach(item -> entries.add(new ManagerEntry(item.id(), item.name(), false)));
+        source.itemTags().forEach(tag -> entries.add(new ManagerEntry(TAG_PREFIX + tag.id(),
+                tag.members() + MEMBERS_SUFFIX, true)));
     }
 
     /**
@@ -195,7 +186,7 @@ public final class ValuesTab {
     }
 
     /**
-     * @return every item and tag the inventory holds, unfiltered, as the group picker offers them
+     * @return every item and tag the client lists, unfiltered, as the group picker offers them
      */
     public List<ManagerEntry> entries() {
         return List.copyOf(entries);
@@ -554,10 +545,10 @@ public final class ValuesTab {
     }
 
     /**
-     * @return the text a save or a resolve posts: the model with every edit
+     * @return the text a save or a resolve posts: the members changed since the last save
      */
-    public String modelText() {
-        return draft.text();
+    public String postedText() {
+        return draft.changeSetText();
     }
 
     private @Nullable JsonObject valueMember(String key) {

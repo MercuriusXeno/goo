@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,12 +17,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class ValuesTabTest {
 
-    private static final String INVENTORY = """
-            {"items": [{"id": "minecraft:stick", "name": "Stick"}, {"id": "minecraft:torch", "name": "Torch"},
-                       {"id": "goo:gasket", "name": "Choral Gasket"}],
-             "item_tags": [{"id": "minecraft:logs", "members": ["minecraft:oak_log", "minecraft:birch_log"]}],
-             "goo_types": [], "recipes": []}
-            """;
+    private static final ManagerEntrySource ENTRIES = new ListedEntrySource(
+            List.of(new ManagerEntrySource.ItemName("minecraft:stick", "Stick"),
+                    new ManagerEntrySource.ItemName("minecraft:torch", "Torch"),
+                    new ManagerEntrySource.ItemName("goo:gasket", "Choral Gasket")),
+            List.of(new ManagerEntrySource.TagSize("minecraft:logs", 2)));
     private static final String MODEL = """
             {"path": "base_values.json", "members": [
               {"key": "stick", "keySeparator": null, "kind": "VALUE", "text": "\\"$base / 4\\"", "entries": [],
@@ -35,12 +35,14 @@ class ValuesTabTest {
                           "restricted": false, "error": null}]}
             """;
 
+    private ManagerDraft draft;
     private ValuesTab tab;
 
     @BeforeEach
     void readReplies() {
-        tab = new ValuesTab();
-        tab.readInventory(INVENTORY);
+        draft = new ManagerDraft();
+        tab = new ValuesTab(draft);
+        tab.readEntries(ENTRIES);
         tab.readModel(MODEL);
         tab.readResolved(RESOLVED);
     }
@@ -51,6 +53,22 @@ class ValuesTabTest {
 
     @Nested
     class Listing {
+
+        /**
+         * The entries read from the client's source run each item by id and name, then each item tag as #id named
+         * by its member count (decision client-builds-items-and-tags-from-its-own-registries).
+         */
+        @Test
+        void entriesReadItemsThenTagsFromTheClientSource() {
+            ValuesTab fresh = new ValuesTab();
+            fresh.readEntries(new ListedEntrySource(
+                    List.of(new ManagerEntrySource.ItemName("minecraft:apple", "Apple"),
+                            new ManagerEntrySource.ItemName("minecraft:bread", "Bread")),
+                    List.of(new ManagerEntrySource.TagSize("minecraft:planks", 3))));
+            assertEquals(List.of(new ValuesTab.ManagerEntry("minecraft:apple", "Apple", false),
+                    new ValuesTab.ManagerEntry("minecraft:bread", "Bread", false),
+                    new ValuesTab.ManagerEntry("#minecraft:planks", "3 members", true)), fresh.entries());
+        }
 
         /**
          * A blank search lists every item under the Items filter, and every item tag after # under the Tags
@@ -118,9 +136,10 @@ class ValuesTabTest {
             tab.select("minecraft:stick");
             assertTrue(tab.selectedHasEntry());
             tab.removeEntry();
-            List<String> keys = JsonParser.parseString(tab.modelText()).getAsJsonObject().getAsJsonArray("members")
-                    .asList().stream().map(member -> member.getAsJsonObject().get("key").getAsString()).toList();
-            assertEquals(List.of("_restricted"), keys);
+            JsonObject posted = JsonParser.parseString(tab.postedText()).getAsJsonObject();
+            assertEquals(List.of(), posted.getAsJsonArray("changed").asList());
+            assertEquals(List.of("stick"), posted.getAsJsonArray("removed").asList().stream()
+                    .map(JsonElement::getAsString).toList());
             assertEquals("", tab.selectedRow().orElseThrow().expression());
             assertTrue(!tab.selectedHasEntry());
         }
@@ -288,7 +307,7 @@ class ValuesTabTest {
     class Save {
 
         private JsonObject memberKeyed(String key) {
-            return JsonParser.parseString(tab.modelText()).getAsJsonObject().getAsJsonArray("members").asList()
+            return JsonParser.parseString(draft.text()).getAsJsonObject().getAsJsonArray("members").asList()
                     .stream().map(member -> member.getAsJsonObject())
                     .filter(member -> key.equals(member.get("key").getAsString())).findFirst().orElseThrow();
         }
@@ -312,7 +331,7 @@ class ValuesTabTest {
         void editOfANewEntryAddsItAboveTheClosingSections() {
             tab.select("minecraft:torch");
             tab.edit(" 12 ");
-            List<String> keys = JsonParser.parseString(tab.modelText()).getAsJsonObject().getAsJsonArray("members")
+            List<String> keys = JsonParser.parseString(draft.text()).getAsJsonObject().getAsJsonArray("members")
                     .asList().stream().map(member -> member.getAsJsonObject().get("key").getAsString()).toList();
             assertEquals(List.of("stick", "torch", "_restricted"), keys);
             assertEquals("12", memberKeyed("torch").get("text").getAsString());

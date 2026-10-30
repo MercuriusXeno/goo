@@ -10,6 +10,7 @@ import org.jspecify.annotations.Nullable;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -58,11 +59,26 @@ final class GroupsJson {
      * @param tags each item tag's member ids
      */
     record Inventory(Set<String> ids, Map<String, List<String>> tags, List<String> items, List<String> gooTypes) {
-        static Inventory read(Path file) throws IOException {
+        private static @Nullable Path cachedFile;
+        private static @Nullable FileTime cachedTime;
+        private static @Nullable Inventory cachedInventory;
+
+        // decision inventory-parses-once-per-file-timestamp
+        static synchronized Inventory read(Path file) throws IOException {
             if (!Files.isRegularFile(file)) {
                 return new Inventory(Set.of(), Map.of(), List.of(), List.of());
             }
-            JsonObject root = JsonParser.parseString(Files.readString(file)).getAsJsonObject();
+            FileTime modified = Files.getLastModifiedTime(file);
+            if (cachedInventory == null || !file.equals(cachedFile) || !modified.equals(cachedTime)) {
+                cachedInventory = parse(Files.readString(file));
+                cachedFile = file;
+                cachedTime = modified;
+            }
+            return cachedInventory;
+        }
+
+        private static Inventory parse(String text) {
+            JsonObject root = JsonParser.parseString(text).getAsJsonObject();
             // Known ids come from items alone; a standing file's blocks section goes unread
             // (decision workbench-drops-the-blocks-list).
             Set<String> ids = new HashSet<>(idsIn(root, ITEMS));
@@ -72,7 +88,7 @@ final class GroupsJson {
                 tags.put(json.get(ID).getAsString(),
                         json.getAsJsonArray(MEMBERS).asList().stream().map(JsonElement::getAsString).toList());
             }
-            return new Inventory(ids, tags, idsIn(root, ITEMS), idsIn(root, GOO_TYPES));
+            return new Inventory(Set.copyOf(ids), Map.copyOf(tags), idsIn(root, ITEMS), idsIn(root, GOO_TYPES));
         }
 
         private static List<String> idsIn(JsonObject root, String section) {
@@ -121,7 +137,7 @@ final class GroupsJson {
      */
     static String applied(String sent, BaseValuesModel layout, Inventory inventory) {
         JsonObject root = JsonParser.parseString(sent).getAsJsonObject();
-        BaseValuesModel model = layout.withMembers(ModelJson.membersFrom(sent));
+        BaseValuesModel model = ModelJson.merged(layout, sent);
         String group = root.get(GROUP).getAsString();
         model = created(model, root, group);
         if (root.has(PICKS)) {
