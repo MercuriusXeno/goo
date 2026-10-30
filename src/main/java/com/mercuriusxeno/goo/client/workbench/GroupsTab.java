@@ -40,6 +40,8 @@ public final class GroupsTab {
     private static final String TRAIT_MARK = "+$";
     private static final String NO_NOTE = "";
     private static final String CREATE = "create";
+    private static final String CREATE_TAG = "createTag";
+    private static final String DEFAULT_NAMESPACE = "minecraft:";
     private static final String TAG_MARK = "#";
     private static final String NAMESPACE_PATTERN = "^.*:";
     private static final String SPAWN_EGG_SUFFIX = "_spawn_egg$";
@@ -333,6 +335,37 @@ public final class GroupsTab {
 
     private static String traitNameFor(String member) {
         return member.replaceFirst(NAMESPACE_PATTERN, NO_NOTE).replaceFirst(SPAWN_EGG_SUFFIX, NO_NOTE) + TRAIT_SUFFIX;
+    }
+
+    /**
+     * @param inventory the inventory's items and tags
+     * @return a dropdown over every item tag no listed row names, each its #id and member count
+     *         (decision add-tag-picks-a-game-tag-and-writes-its-entry)
+     */
+    SearchDropdown addTagChoices(List<ValuesTab.ManagerEntry> inventory) {
+        List<String> listed = groups.stream().map(Group::name).toList();
+        return SearchDropdown.overTags(inventory.stream().filter(ValuesTab.ManagerEntry::tag)
+                .filter(entry -> !listed.contains(referentName(entry.id()))).toList());
+    }
+
+    /**
+     * @param tagId the picked tag's #id
+     * @return the apply request writing the tag's #tag entry, which the next describe lists as a referent
+     */
+    public String createTagRequest(String tagId) {
+        JsonObject request = draft.request();
+        request.addProperty(GROUP, referentName(tagId));
+        request.addProperty(CREATE_TAG, true);
+        return request.toString();
+    }
+
+    /**
+     * @param tagId a tag's #id, namespaced or bare
+     * @return the tag's name as the file spells it after #, bare in the minecraft namespace
+     */
+    static String referentName(String tagId) {
+        String name = tagId.startsWith(TAG_MARK) ? tagId.substring(TAG_MARK.length()) : tagId;
+        return name.startsWith(DEFAULT_NAMESPACE) ? name.substring(DEFAULT_NAMESPACE.length()) : name;
     }
 
     /**

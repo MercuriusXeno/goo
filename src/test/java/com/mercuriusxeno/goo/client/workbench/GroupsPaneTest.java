@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.workbench;
 
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.Test;
 import java.util.List;
@@ -9,6 +10,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -103,5 +105,45 @@ class GroupsPaneTest {
         assertEquals(List.of(), tag.texts().stream().filter("Add member"::equals).toList());
         tag.click("nothing yet");
         assertTrue(builder.isOpen());
+    }
+
+    /**
+     * Add tag stands beside New group, and its press opens the dropdown over the inventory's tags no referent
+     * names (decision add-tag-picks-a-game-tag-and-writes-its-entry).
+     */
+    @Test
+    void addTagStandsBesideNewGroupAndOpensTheTagDropdown() {
+        ManagerDraft draft = new ManagerDraft();
+        GroupsTab groups = new GroupsTab(draft);
+        groups.readDescribed("""
+                {"groups": [{"name": "saplings", "kind": "tag", "members": [], "base": null, "tweaks": [],
+                             "preview": []}]}
+                """);
+        ValuesTab values = new ValuesTab(draft);
+        values.readEntries(new ListedEntrySource(List.of(), List.of(
+                new ManagerEntrySource.TagSize("minecraft:saplings", 9),
+                new ManagerEntrySource.TagSize("minecraft:leaves", 8),
+                new ManagerEntrySource.TagSize("minecraft:logs", 40))));
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> call.getArgument(0));
+        ItemIcons icons = mock(ItemIcons.class);
+        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+        GroupsPane pane = new GroupsPane(groups, values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        pane.init(DrawnFrame.font());
+        pane.show(true);
+        GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 300);
+        DrawnFrame closed = new DrawnFrame();
+        pane.extract(closed.graphics, DrawnFrame.font(), bounds, closed.targets);
+        DrawnFrame.Text newGroup = closed.find("New group");
+        DrawnFrame.Text addTag = closed.find("Add tag");
+        assertEquals(newGroup.y(), addTag.y());
+        assertTrue(addTag.x() > newGroup.x(), closed.drawn().toString());
+        closed.click("Add tag");
+        DrawnFrame open = new DrawnFrame();
+        pane.extract(open.graphics, DrawnFrame.font(), bounds, open.targets);
+        assertTrue(open.texts().containsAll(List.of("#minecraft:leaves, 8 members", "#minecraft:logs, 40 members")),
+                open.texts().toString());
+        assertEquals(List.of(), open.texts().stream().filter(text -> text.startsWith("#minecraft:saplings")).toList());
     }
 }

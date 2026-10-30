@@ -185,6 +185,40 @@ class GroupsTabTest {
             assertFalse(tab.selected().orElseThrow().tag());
         }
 
+        /**
+         * Add tag lists every inventory tag no referent names, each as its #id and member count, and the typed
+         * search filters it (decision add-tag-picks-a-game-tag-and-writes-its-entry).
+         */
+        @Test
+        void addTagListsTheInventorysTagsNoReferentNames() {
+            tab.readDescribed(WITH_REFERENT);
+            List<ValuesTab.ManagerEntry> inventory = List.of(
+                    new ValuesTab.ManagerEntry("minecraft:oak_log", "Oak Log", false),
+                    new ValuesTab.ManagerEntry("#minecraft:saplings", "9 members", true),
+                    new ValuesTab.ManagerEntry("#minecraft:leaves", "8 members", true),
+                    new ValuesTab.ManagerEntry("#minecraft:planks", "40 members", true));
+            SearchDropdown dropdown = tab.addTagChoices(inventory);
+            assertEquals(List.of(new SearchDropdown.Choice(SearchDropdown.Kind.TAG, "#minecraft:leaves",
+                            "#minecraft:leaves, 8 members"),
+                    new SearchDropdown.Choice(SearchDropdown.Kind.TAG, "#minecraft:planks",
+                            "#minecraft:planks, 40 members")),
+                    dropdown.choices());
+            dropdown.search("lea");
+            assertEquals(List.of("#minecraft:leaves"), dropdown.choices().stream().map(SearchDropdown.Choice::id)
+                    .toList());
+        }
+
+        /**
+         * Picking a tag posts a create-tag request naming the tag as the file spells it after #.
+         */
+        @Test
+        void pickedTagPostsItsCreateTagRequest() {
+            JsonObject request = parsed(tab.createTagRequest("#minecraft:leaves"));
+            assertEquals("leaves", request.get("group").getAsString());
+            assertTrue(request.get("createTag").getAsBoolean());
+            assertEquals("create:tag", parsed(tab.createTagRequest("#create:tag")).get("group").getAsString());
+        }
+
         @Test
         void referentsBuiltValuePostsAsItsBase() {
             tab.readDescribed(WITH_REFERENT);

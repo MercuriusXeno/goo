@@ -41,6 +41,7 @@ final class GroupsJson {
     private static final String PICKS = "picks";
     private static final String TWEAK = "tweak";
     private static final String CREATE = "create";
+    private static final String CREATE_TAG = "createTag";
     private static final String MODEL = "model";
     private static final String ITEMS = "items";
     private static final String ITEM_TAGS = "item_tags";
@@ -172,8 +173,13 @@ final class GroupsJson {
         return answer.toString();
     }
 
-    // The create form lands a group no _groups entry names, with no member (decision group-controls-name-add-and-build).
+    // The create form lands a group no _groups entry names, with no member (decision group-controls-name-add-and-build);
+    // the create-tag form lands a #tag entry with no value text where none stands
+    // (decision add-tag-picks-a-game-tag-and-writes-its-entry).
     private static BaseValuesModel created(BaseValuesModel model, JsonObject root, String group) {
+        if (root.has(CREATE_TAG)) {
+            return GroupConvention.withTagEntry(model, group);
+        }
         return root.has(CREATE) && !GroupConvention.holdsGroup(model, group)
                 ? GroupConvention.withGroup(model, group, List.of()) : model;
     }
