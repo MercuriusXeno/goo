@@ -119,7 +119,7 @@ final class GroupsPane {
      * Reads every group of the draft afresh.
      */
     void refresh() {
-        actions.request(WorkbenchOperations.DESCRIBE_GROUPS, values.modelText(), groups::readDescribed);
+        actions.request(WorkbenchOperations.DESCRIBE_GROUPS, values.postedText(), groups::readDescribed);
     }
 
     /**

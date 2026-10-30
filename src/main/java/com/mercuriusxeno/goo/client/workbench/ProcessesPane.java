@@ -83,7 +83,7 @@ final class ProcessesPane {
      * Describes the draft's processes afresh.
      */
     void refresh() {
-        actions.request(WorkbenchOperations.PROCESSES, draft.text(), processes::readDescribed);
+        actions.request(WorkbenchOperations.PROCESSES, draft.changeSetText(), processes::readDescribed);
     }
 
     /**

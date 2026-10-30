@@ -124,7 +124,7 @@ class GroupsTabTest {
             JsonObject request = parsed(tab.createRequest("fresh"));
             assertEquals("fresh", request.get("group").getAsString());
             assertTrue(request.get("create").getAsBoolean());
-            assertTrue(request.has("members"));
+            assertTrue(request.has("changed"));
         }
 
         @Test
@@ -165,7 +165,7 @@ class GroupsTabTest {
     class Apply {
 
         /**
-         * Adding a pick posts the draft's members, the selected group and its members with the pick appended.
+         * Adding a pick posts the draft's change set, the selected group and its members with the pick appended.
          */
         @Test
         void addPickPostsTheGroupsMembersWithThePick() {
@@ -174,7 +174,7 @@ class GroupsTabTest {
             assertEquals("spawn_eggs", request.get("group").getAsString());
             assertEquals(List.of("minecraft:zombie_spawn_egg", "minecraft:gone_spawn_egg", "#minecraft:logs"),
                     request.getAsJsonArray("picks").asList().stream().map(pick -> pick.getAsString()).toList());
-            assertTrue(request.has("members"));
+            assertTrue(request.has("changed"));
         }
 
         /**

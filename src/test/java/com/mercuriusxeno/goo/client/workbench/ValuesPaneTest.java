@@ -91,9 +91,8 @@ class ValuesPaneTest {
     void detailColumnScrollsTheOpenBuilderToItsDoneControl() {
         Font font = sixPixelFont();
         ValuesTab values = new ValuesTab();
-        values.readInventory("""
-                {"items": [{"id": "minecraft:stick", "name": "Stick"}], "item_tags": []}
-                """);
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:stick", "Stick")), List.of()));
         values.readModel("""
                 {"path": "base_values.json", "members": [
                   {"key": "stick", "keySeparator": null, "kind": "VALUE", "text": "\\"1 + 2 + 3 + 4 + 5 + 6\\"",
@@ -131,9 +130,8 @@ class ValuesPaneTest {
     @Test
     void removeEntryButtonDropsTheSelectedEntry() {
         ValuesTab values = new ValuesTab();
-        values.readInventory("""
-                {"items": [{"id": "minecraft:netherite_ingot", "name": "Netherite Ingot"}], "item_tags": []}
-                """);
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:netherite_ingot", "Netherite Ingot")), List.of()));
         values.readModel("""
                 {"path": "base_values.json", "members": [
                   {"key": "netherite_ingot", "keySeparator": null, "kind": "VALUE", "text": "\\"$netherite\\"",
@@ -154,9 +152,8 @@ class ValuesPaneTest {
     // A Values pane over one torch in a group named lights holding the members given, the torch first.
     private static ValuesPane groupedPane(ManagerActions actions, List<String> members) {
         ValuesTab values = new ValuesTab();
-        values.readInventory("""
-                {"items": [{"id": "minecraft:torch", "name": "Torch"}], "item_tags": []}
-                """);
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:torch", "Torch")), List.of()));
         String listed = members.stream().map(member -> "\\\"" + member + "\\\"")
                 .collect(java.util.stream.Collectors.joining(", "));
         values.readModel("""
@@ -377,9 +374,8 @@ class ValuesPaneTest {
         assertEquals(List.of(), single.plusLefts());
 
         ValuesTab values = new ValuesTab();
-        values.readInventory("""
-                {"items": [{"id": "minecraft:oak_hanging_sign", "name": "Oak Hanging Sign"}], "item_tags": []}
-                """);
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:oak_hanging_sign", "Oak Hanging Sign")), List.of()));
         values.readModel("""
                 {"path": "base_values.json", "members": []}
                 """);
@@ -449,9 +445,8 @@ class ValuesPaneTest {
     @Test
     void valueLineDrawsAnImproperAmountAsAMixedStack() {
         ValuesTab values = new ValuesTab();
-        values.readInventory("""
-                {"items": [{"id": "minecraft:stick", "name": "Stick"}], "item_tags": []}
-                """);
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:stick", "Stick")), List.of()));
         values.readModel("""
                 {"path": "base_values.json", "members": [
                   {"key": "stick", "keySeparator": null, "kind": "VALUE", "text": "\\"$x\\"", "entries": [],

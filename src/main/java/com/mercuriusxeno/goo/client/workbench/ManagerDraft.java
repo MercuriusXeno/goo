@@ -2,15 +2,23 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
+import org.jspecify.annotations.Nullable;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
  * The draft's model the manager's tabs edit together, as the model operation answers it: the Values, Groups and
- * Variables tabs each read and write its members, and a save or a resolve posts it whole
- * (decision goo-workbench-opens-the-in-game-manager-screen).
+ * Variables tabs each read and write its members, and a save or a resolve posts the members changed since the last
+ * save (decisions goo-workbench-opens-the-in-game-manager-screen, requests-post-only-the-changed-members).
  */
 public final class ManagerDraft {
     private static final String MEMBERS = "members";
@@ -20,16 +28,37 @@ public final class ManagerDraft {
     private static final String DRAFT = "draft";
     private static final String DIFFERS = "differs";
     private static final String NO_PATH = "the value file";
+    private static final String CHANGED = "changed";
+    private static final String REMOVED = "removed";
+    private static final String AFTER = "after";
     private static final String OBJECT_START = "{";
     // An integer stays as written; anything else the box holds is an expression string, stored quoted.
     private static final Pattern INTEGER = Pattern.compile("-?\\d+");
 
     private JsonObject model = new JsonObject();
+    // The members by key as the server's draft holds them, as the last model reply or save answered them.
+    private Map<String, JsonObject> saved = new HashMap<>();
 
     /**
-     * @param modelJson the model operation's reply, or a save's, a rename's or a delete's
+     * Reads a model the server's draft holds, which the change set diffs against from now.
+     *
+     * @param modelJson the model operation's reply, or a save's, a promote's or a revert's
      */
     public void read(String modelJson) {
+        readEdited(modelJson);
+        saved = new HashMap<>();
+        for (JsonElement element : members()) {
+            JsonObject member = element.getAsJsonObject();
+            keyOf(member).ifPresent(key -> saved.put(key, member.deepCopy()));
+        }
+    }
+
+    /**
+     * Reads a model the server edited and did not save, whose changes go on posting until a save.
+     *
+     * @param modelJson a rename's or a delete's reply
+     */
+    public void readEdited(String modelJson) {
         model = JsonParser.parseString(modelJson).getAsJsonObject();
     }
 
@@ -43,10 +72,66 @@ public final class ManagerDraft {
     }
 
     /**
-     * @return the text a save or a resolve posts: the model with every edit
+     * @return the model with every edit
      */
     public String text() {
         return model.toString();
+    }
+
+    /**
+     * The members whose JSON differs from the server's draft, each whole, a member the draft gained carrying the
+     * key it follows, and the keys of the members removed; the server merges it into the draft it holds.
+     * decision requests-post-only-the-changed-members
+     *
+     * @return the change set, a copy the caller may add its fields to
+     */
+    public JsonObject changeSet() {
+        JsonArray changed = new JsonArray();
+        Set<String> held = new HashSet<>();
+        String follows = null;
+        for (JsonElement element : members()) {
+            JsonObject member = element.getAsJsonObject();
+            Optional<String> key = keyOf(member);
+            if (key.isEmpty()) {
+                continue;
+            }
+            held.add(key.get());
+            changedFrom(member, saved.get(key.get()), follows).ifPresent(changed::add);
+            follows = key.get();
+        }
+        JsonObject changes = new JsonObject();
+        changes.add(CHANGED, changed);
+        changes.add(REMOVED, removedFrom(held));
+        return changes;
+    }
+
+    // A member the server's draft holds nowhere posts with the key it follows; one it holds posts where it differs.
+    private static Optional<JsonObject> changedFrom(JsonObject member, @Nullable JsonObject was,
+                                                    @Nullable String follows) {
+        if (was == null) {
+            JsonObject added = member.deepCopy();
+            added.add(AFTER, follows == null ? JsonNull.INSTANCE : new JsonPrimitive(follows));
+            return Optional.of(added);
+        }
+        return was.equals(member) ? Optional.empty() : Optional.of(member.deepCopy());
+    }
+
+    private JsonArray removedFrom(Set<String> held) {
+        JsonArray removed = new JsonArray();
+        saved.keySet().stream().filter(key -> !held.contains(key)).sorted().forEach(removed::add);
+        return removed;
+    }
+
+    /**
+     * @return the text a model-taking request posts: the change set
+     */
+    public String changeSetText() {
+        return changeSet().toString();
+    }
+
+    private static Optional<String> keyOf(JsonObject member) {
+        JsonElement key = member.get(KEY);
+        return key == null || key.isJsonNull() ? Optional.empty() : Optional.of(key.getAsString());
     }
 
     /**
@@ -107,12 +192,10 @@ public final class ManagerDraft {
     }
 
     /**
-     * @return a request body carrying a copy of the draft's members, for the caller to add its fields to
+     * @return a request body carrying the change set, for the caller to add its fields to
      */
     public JsonObject request() {
-        JsonObject request = new JsonObject();
-        request.add(MEMBERS, members().deepCopy());
-        return request;
+        return changeSet();
     }
 
     /**

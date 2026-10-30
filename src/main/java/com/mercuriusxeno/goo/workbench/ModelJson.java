@@ -8,7 +8,9 @@ import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * The workbench model as the page reads and saves it: the file's path and its members, each with its text
@@ -28,7 +30,10 @@ final class ModelJson {
     private static final String LEADING = "leading";
     private static final String TRAILING = "trailing";
     private static final String CLOSING_GAP = "closingGap";
-    private static final String NO_MEMBERS_ARRAY = "The saved model holds no members array";
+    private static final String CHANGED = "changed";
+    private static final String REMOVED = "removed";
+    private static final String AFTER = "after";
+    private static final int NOT_HELD = -1;
     private static final String NO_TEXT = "";
 
     private ModelJson() {
@@ -67,16 +72,70 @@ final class ModelJson {
     }
 
     /**
-     * @param json the JSON text a save sends
-     * @return the members it holds
-     * @throws IllegalArgumentException where the text holds no members array
+     * Reads a post over the draft. A members array is a whole model, as the gradle dev page posts it, and stands in
+     * place of the draft's members. A change set, as the in-game manager posts it, names the members changed since
+     * its last save, each replacing the draft's member of its key or, where the draft holds none, landing after the
+     * key its after field names, and the keys of the members removed; every member it names nowhere stands as the
+     * draft holds it, and an empty post reads the draft alone.
+     * decision requests-post-only-the-changed-members
+     *
+     * @param draft  the draft's model
+     * @param posted the posted text, empty for a read
+     * @return the draft with the post merged in
      */
-    static List<BaseValuesModel.Member> membersFrom(String json) {
-        JsonElement members = JsonParser.parseString(json).getAsJsonObject().get(MEMBERS);
-        if (members == null || !members.isJsonArray()) {
-            throw new IllegalArgumentException(NO_MEMBERS_ARRAY);
+    static BaseValuesModel merged(BaseValuesModel draft, String posted) {
+        if (posted.isBlank()) {
+            return draft;
         }
-        return membersFrom(members.getAsJsonArray());
+        JsonObject root = JsonParser.parseString(posted).getAsJsonObject();
+        JsonElement whole = root.get(MEMBERS);
+        if (whole != null && whole.isJsonArray()) {
+            return draft.withMembers(membersFrom(whole.getAsJsonArray()));
+        }
+        List<BaseValuesModel.Member> members = new ArrayList<>(draft.members());
+        Set<String> removed = new HashSet<>();
+        array(root, REMOVED).forEach(key -> removed.add(key.getAsString()));
+        members.removeIf(member -> removed.contains(member.key()));
+        for (JsonElement element : array(root, CHANGED)) {
+            placeChanged(members, element.getAsJsonObject());
+        }
+        return draft.withMembers(members);
+    }
+
+    // A changed member replaces the member of its key; a new one lands after the key it follows, first where it
+    // follows none, last where the draft holds that key nowhere.
+    private static void placeChanged(List<BaseValuesModel.Member> members, JsonObject changed) {
+        JsonArray one = new JsonArray();
+        one.add(changed);
+        BaseValuesModel.Member member = membersFrom(one).getFirst();
+        int held = indexOfKey(members, member.key());
+        if (held >= 0) {
+            members.set(held, member);
+            return;
+        }
+        members.add(insertionPoint(members, string(changed, AFTER)), member);
+    }
+
+    private static int insertionPoint(List<BaseValuesModel.Member> members, @Nullable String after) {
+        if (after == null) {
+            return 0;
+        }
+        int follows = indexOfKey(members, after);
+        return follows < 0 ? members.size() : follows + 1;
+    }
+
+    private static int indexOfKey(List<BaseValuesModel.Member> members, @Nullable String key) {
+        for (int index = 0; index < members.size(); index++) {
+            if (key != null && key.equals(members.get(index).key())) {
+                return index;
+            }
+        }
+        return NOT_HELD;
+    }
+
+    private static JsonArray array(JsonObject root, String field) {
+        JsonElement value = root.get(field);
+        return value != null && value.isJsonArray() ? value.getAsJsonArray() : new JsonArray();
     }
 
     private static JsonArray membersJson(List<BaseValuesModel.Member> members) {

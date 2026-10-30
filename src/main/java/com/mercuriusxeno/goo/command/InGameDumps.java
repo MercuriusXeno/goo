@@ -1,10 +1,8 @@
 package com.mercuriusxeno.goo.command;
 
-import com.mercuriusxeno.goo.ISidedProxy;
 import com.mercuriusxeno.goo.data.GooBaseValuesPreview;
 import com.mercuriusxeno.goo.data.GooReactionLoader;
 import com.mercuriusxeno.goo.data.GooValueRegistry;
-import com.mercuriusxeno.goo.workbench.CaptureManifest;
 import com.mercuriusxeno.goo.workbench.DumpRunner;
 import com.mercuriusxeno.goo.workbench.InventoryDump;
 import com.mercuriusxeno.goo.workbench.WorkbenchPaths;
@@ -12,7 +10,6 @@ import net.minecraft.server.MinecraftServer;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 
@@ -31,27 +28,16 @@ public final class InGameDumps {
     }
 
     /**
+     * The in-game manager draws its items itself, so the dump captures no slot image.
+     * decision images-are-slot-captures-taken-on-detection
+     *
      * @param server the running server
      * @param paths  the workbench's files, whose inventory folder the dump writes into
-     * @return a dump writing the inventory on the server thread, then capturing on this game's client each item
-     *         the manifest lacks before the page reads it; a dedicated server captures none
+     * @return a dump writing the inventory on the server thread
      */
     public static InventoryDump inventory(MinecraftServer server, WorkbenchPaths paths) {
-        return () -> {
-            onServerThread(server, () -> GooInventoryReport.writeInventory(server, paths.inventoryFile().getParent()));
-            captureMissingSlots(paths);
-        };
-    }
-
-    // decision images-are-slot-captures-taken-on-detection
-    private static void captureMissingSlots(WorkbenchPaths paths) throws IOException {
-        List<String> missing = CaptureManifest.read(CaptureManifest.fileBeside(paths.imageFolder()))
-                .missingFrom(CaptureManifest.itemIdsOf(Files.readString(paths.inventoryFile())));
-        try {
-            ISidedProxy.get().captureSlots(paths.imageFolder(), missing).join();
-        } catch (CompletionException e) {
-            throw new IOException(e.getCause() == null ? e.getMessage() : e.getCause().toString(), e);
-        }
+        return () -> onServerThread(server,
+                () -> GooInventoryReport.writeInventory(server, paths.inventoryFile().getParent()));
     }
 
     /**
