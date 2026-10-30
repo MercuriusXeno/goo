@@ -20,6 +20,7 @@ final class SearchDropdown {
     static final int SHOWN = 8;
     private static final String TAG_MARK = "#";
     private static final String NOTHING = "";
+    private static final String COUNT_SEPARATOR = ", ";
     private static final int ICON_INSET = 1;
     private static final int LABEL_X = 20;
     private static final int TEXT_NUDGE = 5;
@@ -91,6 +92,15 @@ final class SearchDropdown {
         return new SearchDropdown(inventory.stream().map(entry -> new Choice(entry.tag()
                 || entry.id().startsWith(TAG_MARK) ? Kind.TAG : Kind.ITEM, entry.id(), entry.tag()
                 ? entry.id() : entry.name())).toList());
+    }
+
+    /**
+     * @param tags the item tags to list, each named #id with its member count
+     * @return a dropdown over them, each choice its #id and member count
+     */
+    static SearchDropdown overTags(List<ValuesTab.ManagerEntry> tags) {
+        return new SearchDropdown(tags.stream().map(entry -> new Choice(Kind.TAG, entry.id(),
+                entry.id() + COUNT_SEPARATOR + entry.name())).toList());
     }
 
     /**

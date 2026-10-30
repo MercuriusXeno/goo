@@ -563,6 +563,32 @@ class WorkbenchOperationsTest {
         }
 
         /**
+         * The create-tag form writes the tag's #tag entry with no value text, and the reply lists it as a tag
+         * referent with the inventory's members (decision add-tag-picks-a-game-tag-and-writes-its-entry).
+         */
+        @Test
+        void createTagFormWritesTheTagsEntry() throws IOException {
+            Files.writeString(paths.inventoryFile(), inventoryWithLeaves());
+            JsonObject request = JsonParser.parseString(posted(FILE)).getAsJsonObject();
+            request.addProperty("group", "leaves");
+            request.addProperty("createTag", true);
+            JsonObject answer = answeredJson(WorkbenchOperations.APPLY_TO_GROUP, request.toString());
+            assertEquals("\"\"", memberKeyed(answer.getAsJsonObject("model"), "#leaves").get("text").getAsString());
+            JsonObject leaves = answer.getAsJsonArray("groups").asList().stream().map(JsonElement::getAsJsonObject)
+                    .filter(group -> "leaves".equals(group.get("name").getAsString())).findFirst().orElseThrow();
+            assertEquals("tag", leaves.get("kind").getAsString());
+            assertEquals("minecraft:oak_leaves", leaves.getAsJsonArray("members").get(0).getAsJsonObject().get("id")
+                    .getAsString());
+            assertTrue(leaves.get("base").isJsonNull(), leaves.toString());
+        }
+
+        private static String inventoryWithLeaves() {
+            return "{\"items\":[{\"id\":\"minecraft:oak_leaves\",\"name\":\"Oak Leaves\"}],"
+                    + "\"item_tags\":[{\"id\":\"minecraft:leaves\",\"members\":[\"minecraft:oak_leaves\"]}],"
+                    + "\"goo_types\":[],\"recipes\":[]}";
+        }
+
+        /**
          * The create form lands a named group in _groups with no member, and leaves a standing group as it was.
          */
         @Test

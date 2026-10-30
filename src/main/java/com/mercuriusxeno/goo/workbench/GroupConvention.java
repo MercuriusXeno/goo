@@ -128,6 +128,16 @@ final class GroupConvention {
     }
 
     /**
+     * @param model the model
+     * @param tag   the tag's name, as the file spells it after #
+     * @return the model with a #tag entry of no value text where the file holds none, where a #group base line goes
+     */
+    static BaseValuesModel withTagEntry(BaseValuesModel model, String tag) {
+        String key = TAG_PREFIX + tag;
+        return model.member(key) != null ? model : model.withTopLevel(key, quoted(NO_SEPARATOR));
+    }
+
+    /**
      * Writes a member's line from its count and trait, and the trait constant beside the others; a member with
      * count 1 and no trait takes the base alone, so its line is dropped.
      *
@@ -228,7 +238,9 @@ final class GroupConvention {
     // decision tag-referent-lists-the-games-members-and-values-them
     static Group describeTag(BaseValuesModel model, String tag, Map<String, List<String>> tagMembers) {
         List<String> members = tagMembers.getOrDefault(namespaced(tag), List.of());
-        String base = baseOf(model, tag);
+        // An entry Add tag wrote holds no value text until the builder sets one.
+        String written = baseOf(model, tag);
+        String base = written == null || written.isBlank() ? null : written;
         return new Group(tag, members, base, base == null ? List.of() : tweaksOf(model, members, base));
     }
 

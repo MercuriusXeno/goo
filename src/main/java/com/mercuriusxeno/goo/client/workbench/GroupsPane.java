@@ -17,7 +17,8 @@ import java.util.Optional;
  * group's value is built in the expression builder as what every member is worth, and a member's own line is built
  * too, its count times the group's value plus its extra (decision group-controls-name-add-and-build). A tag referent
  * lists beside the custom groups, its members the game's, its detail saying its membership isn't controlled here in
- * place of Add member (decision tag-referent-lists-the-games-members-and-values-them). The list and
+ * place of Add member (decision tag-referent-lists-the-games-members-and-values-them), and Add tag beside New group
+ * picks a game tag to list (decision add-tag-picks-a-game-tag-and-writes-its-entry). The list and
  * the detail column each draw a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in
  * {@link GroupsTab}.
  */
@@ -53,7 +54,8 @@ final class GroupsPane {
     private static final String NEW_GROUP = "New group";
     private static final String NEW_GROUP_HINT = "group name, Enter";
     private static final String ADD_MEMBER = "Add member";
-    private static final String NOT_CONTROLLED = "Tag membership isn't controlled here";
+    private static final String ADD_TAG = "Add tag";
+    private static final String NOT_CONTROLLED ="Tag membership isn't controlled here";
     private static final String NO_GROUP = "Pick a group, or name a new one.";
     private static final String NO_GROUPS = "The file names no groups.";
     private static final String WORTH_LABEL = "What every member is worth:";
@@ -206,9 +208,19 @@ final class GroupsPane {
             nameBox.setPosition(left, top + HALF);
             nameBox.visible = visible;
         } else {
-            BuilderOverlays.control(graphics, font, NEW_GROUP, left, top, targets, at -> startNaming());
+            int afterNewGroup = BuilderOverlays.control(graphics, font, NEW_GROUP, left, top, targets,
+                    at -> startNaming());
+            // decision add-tag-picks-a-game-tag-and-writes-its-entry
+            BuilderOverlays.control(graphics, font, ADD_TAG, afterNewGroup, top, targets, at -> overlays.openDropdown(
+                    at, groups.addTagChoices(values.entries()), choice -> createTag(choice.id())));
         }
         return top + ROW_HEIGHT + HALF;
+    }
+
+    private void createTag(String tagId) {
+        apply(groups.createTagRequest(tagId));
+        closeBuilder();
+        groups.selectGroup(GroupsTab.referentName(tagId));
     }
 
     // A row draws #name and its members' icons, named on hover; answers its height, more than a line once its
