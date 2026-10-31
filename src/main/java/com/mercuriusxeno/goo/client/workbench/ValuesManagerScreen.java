@@ -333,14 +333,15 @@ public final class ValuesManagerScreen extends Screen {
     }
 
     /**
-     * Hands a press to the frame's areas by its button (decision left-click-modifies-right-click-follows).
+     * Hands a press to the frame's areas by its button and the modifiers held
+     * (decision shift-left-click-follows-plain-left-modifies).
      *
      * @param targets the frame's click areas
      * @param event   the press
      * @return whether an area took it
      */
     static boolean clickTargets(ClickTargets targets, MouseButtonEvent event) {
-        return targets.click(event.x(), event.y(), event.button());
+        return targets.click(event.x(), event.y(), event.button(), event.modifiers());
     }
 
     @Override

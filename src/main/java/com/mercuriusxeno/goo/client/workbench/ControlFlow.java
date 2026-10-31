@@ -69,7 +69,7 @@ final class ControlFlow {
      * @param targets   the frame's click areas
      * @param icons     the items' icons, null where no item draws
      * @param span      where the lines lay
-     * @param followRef opens the prefab a reference run names, on a right click
+     * @param followRef opens the prefab a reference run names, on a shift + left click
      */
     ControlFlow(GuiGraphicsExtractor graphics, Font font, ClickTargets targets, @Nullable ItemIcons icons, Span span,
                 Consumer<String> followRef) {
@@ -287,9 +287,9 @@ final class ControlFlow {
     }
 
     /**
-     * Curated runs on one line, a left click on them running the action where one is given and a right click on a
-     * reference among them opening its prefab.
-     * Decision left-click-modifies-right-click-follows.
+     * Curated runs on one line, a plain left click on them running the action where one is given and a shift + left
+     * click on a reference among them opening its prefab.
+     * Decision shift-left-click-follows-plain-left-modifies.
      *
      * @param runs    the runs
      * @param hint    what a click does, or why none does, null for nothing
@@ -308,7 +308,7 @@ final class ControlFlow {
         addRunsTarget(width + inset + inset, hint, pressed);
         int runsTop = ExpressionLines.lineHeight(runs) == LINE ? y : y + TEXT_NUDGE;
         ExpressionLines.draw(font, runs, x + inset, runsTop, width + 1, new ExpressionLines.Painter(graphics, icons,
-                targets, pressed == null ? WHITE : LINK, LINK, ExpressionLines.followedOnRightClick(targets, followRef)));
+                targets, pressed == null ? WHITE : LINK, LINK, ExpressionLines.followedOnShiftClick(targets, followRef)));
         x += width + inset + inset + GAP;
     }
 

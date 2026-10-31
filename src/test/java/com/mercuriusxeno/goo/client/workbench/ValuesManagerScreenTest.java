@@ -44,20 +44,24 @@ class ValuesManagerScreenTest {
     }
 
     /**
-     * A right-button press runs the right action of the area under it and leaves its left action unrun, and a
-     * left-button press runs the left one (decision left-click-modifies-right-click-follows).
+     * A left-button press carrying shift runs the follow action of the area under it and leaves its left action
+     * unrun, a plain left-button press runs the left one, and a right-button press runs neither (decision
+     * shift-left-click-follows-plain-left-modifies).
      */
     @Test
-    void pressReachesTheActionForItsButton() {
+    void pressReachesTheActionForItsGesture() {
         List<String> ran = new ArrayList<>();
         ClickTargets targets = new ClickTargets();
         targets.add(0, 0, 50, 10, () -> ran.add("modify"));
-        targets.addRight(0, 0, 50, 10, () -> ran.add("follow"), null);
+        targets.addFollow(0, 0, 50, 10, () -> ran.add("follow"), null);
         ValuesManagerScreen.clickTargets(targets,
-                new MouseButtonEvent(5, 5, new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_RIGHT, 0)));
+                new MouseButtonEvent(5, 5, new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOD_SHIFT)));
         assertEquals(List.of("follow"), ran);
         ValuesManagerScreen.clickTargets(targets,
                 new MouseButtonEvent(5, 5, new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_LEFT, 0)));
+        assertEquals(List.of("follow", "modify"), ran);
+        ValuesManagerScreen.clickTargets(targets,
+                new MouseButtonEvent(5, 5, new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_RIGHT, 0)));
         assertEquals(List.of("follow", "modify"), ran);
     }
 
