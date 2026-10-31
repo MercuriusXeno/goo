@@ -851,7 +851,9 @@ final class ValuesPane {
 
     // Rows of differing heights in a view of a fixed height, by the first row shown.
     private record RowFit(IntUnaryOperator height, int rows, int view) {
-        // The first row that puts the target's middle nearest the view's middle, walking up from the target.
+        // The first row that puts the target's middle nearest the view's middle, walking up from the target; a target
+        // taller than the view is its own first row, shown from its top.
+        // Decision tall-follow-target-shows-from-its-top.
         int centeredFirst(int target) {
             double half = view / (double) HALF;
             double middle = height.applyAsInt(target) / (double) HALF;

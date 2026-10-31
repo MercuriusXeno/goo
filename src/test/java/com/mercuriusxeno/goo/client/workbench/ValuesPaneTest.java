@@ -271,6 +271,26 @@ class ValuesPaneTest {
     }
 
     /**
+     * A shift + left follow to an item whose row stands taller than the Items list shows that row first, from its top
+     * (decision tall-follow-target-shows-from-its-top).
+     */
+    @Test
+    void revealOfARowTallerThanTheListShowsItFirst() {
+        List<Integer> heights = rowHeights();
+        int target = 26;
+        GroupsPane.Bounds squat = new GroupsPane.Bounds(0, 0, 500, 70);
+        ValuesPane pane = manyItems();
+        DrawnFrame first = new DrawnFrame();
+        pane.extract(first.graphics, DrawnFrame.font(), squat, first.targets);
+        pane.reveal("minecraft:item_%02d".formatted(target));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), squat, frame.targets);
+        int[] list = frame.firstScissor();
+        assertTrue(heights.get(target) > list[3] - list[1], "row " + target + " fits the list");
+        assertEquals(target, pane.listBar().offset());
+    }
+
+    /**
      * A shift + left follow to the last item stops the Items list at its end, the last first-shown row that fills the
      * view (decision shift-follow-centers-the-target-in-its-scrolling-view).
      */
