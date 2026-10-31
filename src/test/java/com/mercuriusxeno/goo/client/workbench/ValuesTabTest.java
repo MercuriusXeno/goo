@@ -71,17 +71,18 @@ class ValuesTabTest {
         }
 
         /**
-         * A blank search lists every item under the Items filter, and every item tag after # under the Tags
-         * filter, the tag named by its member count.
+         * The filters read Items, Uncovered and Fractional; a blank search lists every item and no tag under Items,
+         * while entries() still answers each item tag after #, named by its member count, for the pickers
+         * (decision items-selector-set-reads-items-and-uncovered).
          */
         @Test
         void blankSearchListsItemsAndTagsUnderTheirFilters() {
+            assertEquals(List.of(ValuesTab.Filter.ITEMS, ValuesTab.Filter.UNCOVERED, ValuesTab.Filter.FRACTIONAL),
+                    List.of(ValuesTab.Filter.values()));
             assertEquals(List.of("minecraft:stick", "minecraft:torch", "goo:gasket"), ids(tab.listed()));
-            tab.filter(ValuesTab.Filter.TAGS);
-            List<ValuesTab.ManagerEntry> tags = tab.listed();
+            List<ValuesTab.ManagerEntry> tags = tab.entries().stream().filter(ValuesTab.ManagerEntry::tag).toList();
             assertEquals(List.of("#minecraft:logs"), ids(tags));
             assertEquals("2 members", tags.getFirst().name());
-            assertTrue(tags.getFirst().tag());
         }
 
         /**
@@ -161,7 +162,7 @@ class ValuesTabTest {
          */
         @Test
         void openingAnItemSelectsItUnderTheItemsFilter() {
-            tab.filter(ValuesTab.Filter.TAGS);
+            tab.filter(ValuesTab.Filter.UNCOVERED);
             tab.search("logs");
             assertEquals(2, tab.open("goo:gasket"));
             assertEquals(ValuesTab.Filter.ITEMS, tab.filter());
@@ -308,8 +309,8 @@ class ValuesTabTest {
         }
 
         /**
-         * The Uncovered filter lists the items the uncovered reply names, its chip counts them, and the Tags filter
-         * lists the tags alone.
+         * The Uncovered filter lists the items the uncovered reply names and its chip counts them; Items lists every
+         * item again.
          */
         @Test
         void uncoveredFilterListsTheItemsWithNoValue() {
@@ -317,8 +318,6 @@ class ValuesTabTest {
             assertEquals(1, tab.uncoveredCount());
             tab.filter(ValuesTab.Filter.UNCOVERED);
             assertEquals(List.of("minecraft:torch"), ids(tab.listed()));
-            tab.filter(ValuesTab.Filter.TAGS);
-            assertEquals(List.of("#minecraft:logs"), ids(tab.listed()));
             tab.filter(ValuesTab.Filter.ITEMS);
             assertEquals(List.of("minecraft:stick", "minecraft:torch", "goo:gasket"), ids(tab.listed()));
         }
