@@ -365,6 +365,18 @@ class ExpressionBuilderPaneTest {
             assertTrue(builder.written.getLast().endsWith(" / 3"), builder.written.toString());
         }
 
+        // Decision ratio-holds-multiplier-and-divisor-together: the divisor box sets the divisor alone.
+        @Test
+        void committingTheDivisorKeepsTheMultiplier() {
+            Builder builder = Builder.item("2 $iron_ingot");
+            DrawnFrame frame = builder.frame();
+            clickAt(frame, ratioSides(frame).get(1));
+            builder.commitNumber("3");
+            assertEquals("2 $iron_ingot / 3", builder.written.getLast());
+            DrawnFrame next = builder.frame();
+            assertRatioReads(next, ratioSides(next), List.of("2", "3"));
+        }
+
         @Test
         void committingTheMultiplierFirstWritesTheCountForm() {
             Builder builder = Builder.item("$waxed");
