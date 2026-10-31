@@ -72,10 +72,9 @@ final class ValuesPane {
     private static final int CHIP_FILLED_TEXT = 0xFF000000;
     private static final int SELECTED_ROW_COLOR = 0x60FFFFFF;
     private static final String ITEMS_CHIP = "Items";
-    private static final String TAGS_CHIP = "Tags";
     private static final String UNCOVERED_CHIP = "Uncovered ";
     private static final String FRACTIONAL_CHIP = "Fractional";
-    private static final String SEARCH_HINT = "Search items and tags";
+    private static final String SEARCH_HINT = "Search items";
     private static final String EXPRESSION_LABEL = "Value";
     private static final String NO_EXPRESSION = "(no entry)";
     private static final String REMOVE_ENTRY = "Remove entry";
@@ -83,7 +82,7 @@ final class ValuesPane {
     static final int LABEL_LINE_HEIGHT = 12;
     private static final int READ_VIEW_COLOR = 0x30FFFFFF;
     private static final int LINK = ButtonPainter.LINK;
-    private static final String NO_SELECTION = "Select an item or tag to read and edit its entry.";
+    private static final String NO_SELECTION = "Select an item to read and edit its entry.";
     private static final String NO_ENTRIES = "Nothing listed here.";
     private static final String NO_TEXT = "";
     private static final int NO_REVEAL = -1;
@@ -197,7 +196,7 @@ final class ValuesPane {
     }
 
     /**
-     * One box of the Items, Tags, Uncovered and Fractional set.
+     * One box of the Items, Uncovered and Fractional set.
      *
      * @param filter what clicking it lists
      * @param label  its label
@@ -221,8 +220,8 @@ final class ValuesPane {
      * Lays the filters as one segmented set on a line of their own: adjoining boxes sharing their inner borders,
      * the one the tab holds filled (decision items-filters-sit-on-their-own-line-as-one-set).
      *
-     * @param labels   the Items, Tags, Uncovered and Fractional labels, in that order (decision
-     *                 items-filter-set-takes-a-fractional-chip)
+     * @param labels   the Items, Uncovered and Fractional labels, in that order (decisions
+     *                 items-selector-set-reads-items-and-uncovered, items-filter-set-takes-a-fractional-chip)
      * @param width    a label's width
      * @param left     the set's left edge
      * @param top      the set's top edge
@@ -246,7 +245,7 @@ final class ValuesPane {
     // Answers the search box's top below the set.
     private int drawChips(GuiGraphicsExtractor graphics, Font font, int left, int top, ClickTargets targets) {
         int uncovered = values.uncoveredCount();
-        ChipLayout layout = layChips(List.of(ITEMS_CHIP, TAGS_CHIP, UNCOVERED_CHIP + uncovered, FRACTIONAL_CHIP),
+        ChipLayout layout = layChips(List.of(ITEMS_CHIP, UNCOVERED_CHIP + uncovered, FRACTIONAL_CHIP),
                 font::width, left, top, values.filter());
         for (Chip chip : layout.chips()) {
             drawChip(graphics, font, chip, chip.filter() == ValuesTab.Filter.UNCOVERED && uncovered > 0 ? RED : WHITE,
@@ -329,7 +328,7 @@ final class ValuesPane {
     }
 
     private Card layCard(Font font, ValuesTab.ManagerEntry entry, GroupsPane.Bounds bounds) {
-        Optional<ValuesTab.Source> source = entry.tag() ? Optional.empty() : Optional.of(values.sourceOf(entry.id()));
+        Optional<ValuesTab.Source> source = Optional.of(values.sourceOf(entry.id()));
         ValuesTab.SourceKind kind = source.map(ValuesTab.Source::kind).orElse(ValuesTab.SourceKind.NONE);
         Map<String, String> worth = carriesRuns(kind) ? values.worthOf(entry.id()) : Map.of();
         List<Integer> runWidths = worth.entrySet().stream()
@@ -355,10 +354,10 @@ final class ValuesPane {
                 || kind == ValuesTab.SourceKind.GROUP;
     }
 
-    // The name, or a tag's id, and the item's disposition symbol at the row's right edge.
+    // The item's name and its disposition symbol at the row's right edge.
     private static void drawTitle(GuiGraphicsExtractor graphics, Font font, ValuesTab.ManagerEntry entry,
                                   Optional<ValuesTab.Source> source, Title title) {
-        graphics.text(font, font.plainSubstrByWidth(entry.tag() ? entry.id() : entry.name(), title.nameWidth()),
+        graphics.text(font, font.plainSubstrByWidth(entry.name(), title.nameWidth()),
                 title.nameLeft(), title.nameTop(), WHITE);
         source.map(shown -> dispositionOf(shown.kind())).ifPresent(symbol -> drawSymbol(graphics, font, symbol,
                 title));

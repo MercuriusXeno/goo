@@ -63,6 +63,7 @@ public final class ValuesTab {
     private final Map<String, JsonObject> resolved = new HashMap<>();
     private final Map<String, Recipe> derivedFrom = new HashMap<>();
     private final Set<String> uncovered = new HashSet<>();
+    private final Map<String, List<String>> tagMembers = new HashMap<>();
     private Filter filter = Filter.ITEMS;
     private String search = NO_TEXT;
     private @Nullable String selected;
@@ -113,9 +114,12 @@ public final class ValuesTab {
      */
     public void readEntries(ManagerEntrySource source) {
         entries.clear();
+        tagMembers.clear();
         source.items().forEach(item -> entries.add(new ManagerEntry(item.id(), item.name(), false)));
-        source.itemTags().forEach(tag -> entries.add(new ManagerEntry(TAG_PREFIX + tag.id(),
-                tag.members() + MEMBERS_SUFFIX, true)));
+        source.itemTags().forEach(tag -> {
+            entries.add(new ManagerEntry(TAG_PREFIX + tag.id(), tag.members().size() + MEMBERS_SUFFIX, true));
+            tagMembers.put(GroupsTab.referentName(tag.id()), tag.members());
+        });
     }
 
     /**
@@ -204,7 +208,6 @@ public final class ValuesTab {
     private boolean keptByFilter(ManagerEntry entry) {
         return switch (filter) {
             case ITEMS -> !entry.tag();
-            case TAGS -> entry.tag();
             case UNCOVERED -> !entry.tag() && uncovered.contains(entry.id());
             case FRACTIONAL -> fractionalItem(entry);
         };
@@ -231,13 +234,12 @@ public final class ValuesTab {
     }
 
     /**
-     * Which entries the sidebar lists, as the page's chips choose them.
+     * Which items the sidebar lists, as the page's chips choose them; tags live on the Groups tab as referents
+     * (decision items-selector-set-reads-items-and-uncovered).
      */
     public enum Filter {
         /** Every item. */
         ITEMS,
-        /** Every item tag. */
-        TAGS,
         /** The items the draft leaves with no value. */
         UNCOVERED,
         /** The items where any one goo type's amount has a part under 1. */
@@ -250,7 +252,7 @@ public final class ValuesTab {
     public enum SourceKind {
         /** Its own entry. */
         ENTRY,
-        /** A #group entry over a _groups group. */
+        /** A #group entry over a _groups group or a game tag holding the item. */
         GROUP,
         /** A denial. */
         DENIED,
@@ -301,8 +303,8 @@ public final class ValuesTab {
     }
 
     /**
-     * Reads where an item's value comes from in the draft: its own entry, a #group entry over a _groups group,
-     * a denial, or nothing in the file, with its restriction beside, as the page's sourcesFromModel does.
+     * Reads where an item's value comes from in the draft: its own entry, a #group entry over a _groups group or a
+     * game tag holding the item, a denial, or nothing in the file, with its restriction beside, as the page's sourcesFromModel does.
      *
      * @param id the item's namespaced id
      * @return its source badge
@@ -343,8 +345,11 @@ public final class ValuesTab {
             return namespaced(key).equals(id) ? itemSource(denied) : standing;
         }
         String group = key.substring(TAG_PREFIX.length());
-        return standing == null && groups.getOrDefault(group, List.of()).contains(id) ? groupSource(group, denied)
-                : standing;
+        // A #tag entry Add tag wrote with no value yet values no member, as the loader skips it (decision
+        // add-tag-picks-a-game-tag-and-writes-its-entry).
+        boolean unvalued = ManagerDraft.shownText(entry.get(TEXT).getAsString()).isBlank();
+        return standing == null && !unvalued && groups.getOrDefault(group, List.of()).contains(id)
+                ? groupSource(group, denied) : standing;
     }
 
     private static Source itemSource(boolean denied) {
@@ -383,6 +388,9 @@ public final class ValuesTab {
                             .map(ValuesTab::namespaced).toList()
                     : List.of());
         }
+        // A game tag counts as a group wherever no _groups group holds its name, keyed as the file spells it after
+        // # (decision items-row-valued-by-a-tag-reads-the-tag-as-its-group).
+        tagMembers.forEach(groups::putIfAbsent);
         return groups;
     }
 

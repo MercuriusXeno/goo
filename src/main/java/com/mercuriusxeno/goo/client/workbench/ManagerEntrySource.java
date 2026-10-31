@@ -21,9 +21,10 @@ public interface ManagerEntrySource {
      * One item tag the manager lists.
      *
      * @param id      the tag's namespaced id, without #
-     * @param members how many items the tag holds
+     * @param members the namespaced id of each item the tag holds, which an Items row the tag values reads as its
+     *                group (decision items-row-valued-by-a-tag-reads-the-tag-as-its-group)
      */
-    record TagSize(String id, int members) {
+    record ItemTag(String id, List<String> members) {
     }
 
     /**
@@ -34,5 +35,5 @@ public interface ManagerEntrySource {
     /**
      * @return every item tag, sorted by id
      */
-    List<TagSize> itemTags();
+    List<ItemTag> itemTags();
 }

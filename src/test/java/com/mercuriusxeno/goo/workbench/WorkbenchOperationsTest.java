@@ -4,9 +4,12 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.data.GooBaseValuesPreview;
 import com.mercuriusxeno.goo.data.GooConstantResolver;
+import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -539,6 +542,84 @@ class WorkbenchOperationsTest {
             return model.getAsJsonArray("members").asList().stream().map(JsonElement::getAsJsonObject)
                     .filter(member -> member.has("key") && !member.get("key").isJsonNull()
                             && key.equals(member.get("key").getAsString())).findFirst().orElseThrow();
+        }
+
+        /**
+         * A tag referent's base lands as its #tag entry's text and the reply lists it as a tag referent, with
+         * _groups as it stood (decision tag-referent-lists-the-games-members-and-values-them).
+         */
+        @Test
+        void tagReferentsBaseLandsAsItsTagEntry() throws IOException {
+            String groupsBefore = memberKeyed(JsonParser.parseString(posted(FILE)).getAsJsonObject(), "_groups")
+                    .toString();
+            Files.writeString(paths.inventoryFile(), INVENTORY);
+            JsonObject request = JsonParser.parseString(posted(FILE)).getAsJsonObject();
+            request.addProperty("group", "saplings");
+            request.addProperty("base", "$log / 2");
+            JsonObject answer = answeredJson(WorkbenchOperations.APPLY_TO_GROUP, request.toString());
+            JsonObject model = answer.getAsJsonObject("model");
+            assertEquals("\"$log / 2\"", memberKeyed(model, "#saplings").get("text").getAsString());
+            assertEquals(groupsBefore, memberKeyed(model, "_groups").toString());
+            JsonObject saplings = answer.getAsJsonArray("groups").asList().stream().map(JsonElement::getAsJsonObject)
+                    .filter(group -> "saplings".equals(group.get("name").getAsString())).findFirst().orElseThrow();
+            assertEquals("tag", saplings.get("kind").getAsString());
+        }
+
+        /**
+         * The create-tag form writes the tag's #tag entry with no value text, and the reply lists it as a tag
+         * referent with the inventory's members (decision add-tag-picks-a-game-tag-and-writes-its-entry).
+         */
+        @Test
+        void createTagFormWritesTheTagsEntry() throws IOException {
+            Files.writeString(paths.inventoryFile(), inventoryWithLeaves());
+            JsonObject request = JsonParser.parseString(posted(FILE)).getAsJsonObject();
+            request.addProperty("group", "leaves");
+            request.addProperty("createTag", true);
+            JsonObject answer = answeredJson(WorkbenchOperations.APPLY_TO_GROUP, request.toString());
+            assertEquals("\"\"", memberKeyed(answer.getAsJsonObject("model"), "#leaves").get("text").getAsString());
+            JsonObject leaves = answer.getAsJsonArray("groups").asList().stream().map(JsonElement::getAsJsonObject)
+                    .filter(group -> "leaves".equals(group.get("name").getAsString())).findFirst().orElseThrow();
+            assertEquals("tag", leaves.get("kind").getAsString());
+            assertEquals("minecraft:oak_leaves", leaves.getAsJsonArray("members").get(0).getAsJsonObject().get("id")
+                    .getAsString());
+            assertTrue(leaves.get("base").isJsonNull(), leaves.toString());
+        }
+
+        /**
+         * A tag Add tag writes, before anything values it, leaves each member's loaded value as it stood before the
+         * pick, while the reply still lists the tag as a referent (decision
+         * add-tag-picks-a-game-tag-and-writes-its-entry).
+         */
+        @Test
+        void createdTagLeavesItsMembersValuesAsTheyStood() throws IOException {
+            String file = """
+                    {
+                        "_constants": {"log": {"leaf": 4}},
+                        "oak_leaves": "$log"
+                    }
+                    """;
+            Function<Identifier, Set<Identifier>> leavesTag = tag -> "minecraft:leaves".equals(tag.toString())
+                    ? Set.of(Identifier.parse("minecraft:oak_leaves")) : Set.of();
+            Identifier oakLeaves = Identifier.parse("minecraft:oak_leaves");
+            GooValue before = GooBaseValuesPreview.load(file, leavesTag).baseValues().get(oakLeaves);
+            Files.writeString(paths.inventoryFile(), inventoryWithLeaves());
+            JsonObject request = JsonParser.parseString(posted(file)).getAsJsonObject();
+            request.addProperty("group", "leaves");
+            request.addProperty("createTag", true);
+            JsonObject answer = answeredJson(WorkbenchOperations.APPLY_TO_GROUP, request.toString());
+            String afterText = ModelJson.merged(BaseValuesModel.parse(file), answer.getAsJsonObject("model").toString())
+                    .serialize();
+            assertTrue(afterText.contains("\"#leaves\""), afterText);
+            assertEquals(before, GooBaseValuesPreview.load(afterText, leavesTag).baseValues().get(oakLeaves));
+            assertTrue(answer.getAsJsonArray("groups").asList().stream().map(JsonElement::getAsJsonObject)
+                    .anyMatch(group -> "leaves".equals(group.get("name").getAsString())
+                            && "tag".equals(group.get("kind").getAsString())), answer.toString());
+        }
+
+        private static String inventoryWithLeaves() {
+            return "{\"items\":[{\"id\":\"minecraft:oak_leaves\",\"name\":\"Oak Leaves\"}],"
+                    + "\"item_tags\":[{\"id\":\"minecraft:leaves\",\"members\":[\"minecraft:oak_leaves\"]}],"
+                    + "\"goo_types\":[],\"recipes\":[]}";
         }
 
         /**
