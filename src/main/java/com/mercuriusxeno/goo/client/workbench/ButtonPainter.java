@@ -21,6 +21,8 @@ final class ButtonPainter {
     /** A button's inner fill. */
     static final int FILL = 0xFF182030;
     private static final int TEXT_NUDGE = 3;
+    // A glyph's baseline stands seven pixels under the text's top, the underline one under that, as the font's own.
+    private static final int UNDERLINE_DROP = 8;
 
     private ButtonPainter() {
     }
@@ -111,7 +113,9 @@ final class ButtonPainter {
 
     /**
      * Draws a link button on a line whose shift + left click follows it, a plain left click passing to the area under
-     * it (decision shift-left-click-follows-plain-left-modifies).
+     * it; its label underlines while shift is held.
+     * Decision shift-left-click-follows-plain-left-modifies.
+     * Decision holding-shift-underlines-every-link.
      *
      * @param graphics   the frame's graphics
      * @param font       the font
@@ -129,8 +133,28 @@ final class ButtonPainter {
         Box box = layout(font.width(label), x, lineTop, lineHeight);
         drawFrame(graphics, box);
         graphics.text(font, label, box.left() + PADDING, box.top() + TEXT_NUDGE, LINK);
+        underlineWhileShiftHeld(graphics, targets, box.left() + PADDING, box.top() + TEXT_NUDGE, font.width(label),
+                LINK);
         targets.addFollow(box.left(), box.top(), box.width(), box.height(), follow, hoverKey);
         return box;
+    }
+
+    /**
+     * Draws a one-pixel line under a link's text while the frame holds shift.
+     * Decision holding-shift-underlines-every-link.
+     *
+     * @param graphics the frame's graphics
+     * @param targets  the frame's click areas, which say whether shift is held
+     * @param x        the text's left edge
+     * @param textTop  the text's top
+     * @param width    the text's width
+     * @param color    the link's color
+     */
+    static void underlineWhileShiftHeld(GuiGraphicsExtractor graphics, ClickTargets targets, int x, int textTop,
+                                        int width, int color) {
+        if (targets.shiftHeld()) {
+            graphics.fill(x, textTop + UNDERLINE_DROP, x + width, textTop + UNDERLINE_DROP + 1, color);
+        }
     }
 
     /**

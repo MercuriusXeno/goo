@@ -22,6 +22,7 @@ final class ClickTargets {
     private @Nullable Clip clip;
     private @Nullable DoubleConsumer grabbed;
     private double pressedY;
+    private boolean shiftHeld;
 
     // What an area does on a plain left click and on a shift + left click; a shield takes every click with its
     // modify action.
@@ -54,6 +55,21 @@ final class ClickTargets {
     void clear() {
         targets.clear();
         clip = null;
+    }
+
+    /**
+     * @param held whether shift is held this frame, as the screen reads it once per frame, so each link draws as one
+     *             a click now follows
+     */
+    void holdShift(boolean held) {
+        shiftHeld = held;
+    }
+
+    /**
+     * @return whether shift is held this frame
+     */
+    boolean shiftHeld() {
+        return shiftHeld;
     }
 
     /**

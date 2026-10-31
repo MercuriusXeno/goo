@@ -168,6 +168,48 @@ class VariablesPaneTest {
     }
 
     /**
+     * With shift held, the delete confirm's $name reader draws underlined, while the confirm's Delete and the block's
+     * Rename and Delete, which modify, never do (decision holding-shift-underlines-every-link).
+     */
+    @Test
+    void cascadeReaderUnderlinesWhileShiftIsHeldAndModifyButtonsNever() {
+        VariablesPane read = readByEgg(mock(ManagerActions.class));
+        DrawnFrame list = new DrawnFrame().holdingShift();
+        read.extract(list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
+        assertFalse(list.underlined("Rename"));
+        assertFalse(list.underlined("Delete"));
+        list.click("Delete");
+        DrawnFrame confirm = new DrawnFrame().holdingShift();
+        read.extract(confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
+        assertTrue(confirm.underlined("egg"));
+        assertFalse(confirm.underlined("Delete"));
+    }
+
+    // A Prefabs pane over one prefab, base, that the prefab egg reads.
+    private static VariablesPane readByEgg(ManagerActions actions) {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                    {"key": "base", "keySeparator": null, "kind": "VALUE", "text": "8", "entries": [],
+                     "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        VariablesTab prefabs = new VariablesTab(draft);
+        prefabs.readEvaluated("""
+                {"constants": [{"name": "base", "kind": "scalar", "value": "8", "error": null, "usedBy": [],
+                                "readers": [{"id": "egg", "kind": "constant"}]}]}
+                """);
+        when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
+        ItemIcons icons = mock(ItemIcons.class);
+        VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        read.init(DrawnFrame.font());
+        read.show(true);
+        return read;
+    }
+
+    /**
      * In the delete confirm, a shift + left click on a $name reader opens that prefab, and a plain left click on it
      * runs nothing and leaves the confirm standing (decision shift-left-click-follows-plain-left-modifies).
      */
