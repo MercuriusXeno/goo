@@ -167,6 +167,70 @@ class VariablesPaneTest {
         assertTrue(borders.get(3) >= separator + 2, "Delete top " + borders.get(3) + " vs " + separator);
     }
 
+    private static final GroupsPane.Bounds TALL_VIEW = new GroupsPane.Bounds(0, 20, 400, 6000);
+
+    // A Prefabs pane over the twelve prefabs model() names, built fresh with no draw yet.
+    private static VariablesPane twelvePrefabs(VariablesTab prefabs, ManagerDraft draft) {
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
+        ItemIcons icons = mock(ItemIcons.class);
+        VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        read.init(DrawnFrame.font());
+        read.show(true);
+        return read;
+    }
+
+    // Each block's top inside the list's content once the named block edits, read off a view tall enough to draw
+    // every block unscrolled.
+    private static List<Integer> blockTopsEditing(String name) {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read(model());
+        VariablesPane tall = twelvePrefabs(new VariablesTab(draft), draft);
+        tall.jumpTo(name);
+        DrawnFrame frame = new DrawnFrame();
+        tall.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        DrawnFrame settled = new DrawnFrame();
+        tall.extract(settled.graphics, DrawnFrame.font(), TALL_VIEW, settled.targets, 0, 0);
+        List<Integer> names = settled.topsOf(IntStream.range(0, PREFABS).mapToObj(index -> "prefab" + index)
+                .toList());
+        return names.stream().map(y -> y - names.getFirst()).toList();
+    }
+
+    /**
+     * A shift + left follow to a prefab well below the fold opens its block for editing and centers the block in the
+     * list (decision shift-follow-centers-the-target-in-its-scrolling-view).
+     */
+    @Test
+    void jumpCentersTheEditedBlockInTheList() {
+        int target = 8;
+        List<Integer> tops = blockTopsEditing("prefab" + target);
+        draw();
+        pane.jumpTo("prefab" + target);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
+        int[] list = frame.firstScissor();
+        int blockHeight = tops.get(target + 1) - tops.get(target);
+        assertEquals(tops.get(target) + blockHeight / 2 - (list[3] - list[1]) / 2, pane.listBar().offset());
+        assertEquals(java.util.Optional.of("prefab" + target), variables.editing());
+    }
+
+    /**
+     * A shift + left follow to the last prefab stops the list at its end (decision
+     * shift-follow-centers-the-target-in-its-scrolling-view).
+     */
+    @Test
+    void jumpToTheLastPrefabStopsAtTheListsEnd() {
+        GroupsPane.Bounds fitsTheEditedBlock = new GroupsPane.Bounds(0, 20, 400, 320);
+        DrawnFrame before = new DrawnFrame();
+        pane.extract(before.graphics, DrawnFrame.font(), fitsTheEditedBlock, before.targets, 0, 0);
+        pane.jumpTo("prefab" + (PREFABS - 1));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), fitsTheEditedBlock, frame.targets, 0, 0);
+        assertTrue(pane.listBar().maximum() > 0);
+        assertEquals(pane.listBar().maximum(), pane.listBar().offset());
+    }
+
     /**
      * With shift held, the delete confirm's $name reader draws underlined, while the confirm's Delete and the block's
      * Rename and Delete, which modify, never do (decision holding-shift-underlines-every-link).

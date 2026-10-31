@@ -85,6 +85,7 @@ final class VariablesPane {
     private final ExpandedLists expandedUsedBy = new ExpandedLists();
     private final ScrollBar cascadeBar = new ScrollBar(1);
     private final Map<String, Integer> blockTops = new HashMap<>();
+    private final Map<String, Integer> blockHeights = new HashMap<>();
     private final ExpressionBuilderPane builder;
     private @Nullable String building;
     private @Nullable EditBox search;
@@ -224,6 +225,7 @@ final class VariablesPane {
                 : drawReadView(graphics, font, block, bounds, y, targets);
         y += drawUsedByLines(graphics, font, block.direct(), block.indirect(), bounds.left(), y + HALF,
                 bounds.right() - bounds.left(), block.name(), targets) + BLOCK_GAP;
+        blockHeights.put(block.name(), y - top);
         return y - top;
     }
 
@@ -235,11 +237,11 @@ final class VariablesPane {
             return;
         }
         List<VariablesTab.ConstantBlock> blocks = variables.listed();
-        applyPendingJump();
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(view.left(), listTop,
                 view.right() - ScrollBar.WIDTH - ScrollBar.GAP, view.bottom());
         int end = drawBlocks(graphics, font, blocks, bounds, targets);
         bar.measureAndDraw(graphics, targets, end, view.right(), bounds.top(), view.bottom());
+        applyPendingJump();
         showBoxes(rename != null && blocks.stream().anyMatch(block -> block.name().equals(renaming)));
         builder.drawOverlays(graphics, font, targets);
         drawDeleteDialog(graphics, font, view, targets);
@@ -299,9 +301,11 @@ final class VariablesPane {
         }
     }
 
+    // Once the jumped block has drawn, editing, and the bar has measured this frame, centers the block in the list.
+    // Decision shift-follow-centers-the-target-in-its-scrolling-view.
     private void applyPendingJump() {
         if (jumpPending != null && blockTops.containsKey(jumpPending)) {
-            bar.scrollTo(blockTops.get(jumpPending) - LINE_HEIGHT);
+            bar.center(blockTops.get(jumpPending), blockHeights.get(jumpPending));
             jumpPending = null;
         }
     }

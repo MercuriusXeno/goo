@@ -119,6 +119,30 @@ final class DrawnFrame {
     }
 
     /**
+     * @return the first scissor the frame set, as left, top, right and bottom, which a pane sets over its list
+     */
+    int[] firstScissor() {
+        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
+        verify(graphics, atLeast(1)).enableScissor(lefts.capture(), tops.capture(), rights.capture(),
+                bottoms.capture());
+        return new int[] {lefts.getAllValues().getFirst(), tops.getAllValues().getFirst(),
+            rights.getAllValues().getFirst(), bottoms.getAllValues().getFirst()};
+    }
+
+    /**
+     * @param labels strings a list draws, in the order they stand down it
+     * @return the y each was first drawn at, which is the list's drawing where a detail pane draws it again after
+     */
+    List<Integer> topsOf(List<String> labels) {
+        List<Text> drawn = drawn();
+        return labels.stream().map(label -> drawn.stream().filter(text -> text.text().equals(label)).findFirst()
+                .orElseThrow(() -> new AssertionError(label + " not drawn in " + texts())).y()).toList();
+    }
+
+    /**
      * Draws with shift held, as the screen marks the frame while shift is down.
      *
      * @return this frame

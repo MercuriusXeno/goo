@@ -30,6 +30,76 @@ class GroupsPaneTest {
         return font;
     }
 
+    private static final int FOLLOWED_GROUPS = 40;
+    private static final GroupsPane.Bounds SHORT_VIEW = new GroupsPane.Bounds(0, 0, 500, 120);
+    private static final GroupsPane.Bounds TALL_VIEW = new GroupsPane.Bounds(0, 0, 500, 4000);
+
+    private static String groupName(int index) {
+        return "g%02d".formatted(index);
+    }
+
+    // A Groups pane over forty groups of one member each, none selected.
+    private static GroupsPane manyGroups(GroupsTab groups) {
+        String described = IntStream.range(0, FOLLOWED_GROUPS).mapToObj(index -> """
+                {"name": "%s", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
+                 "base": "8", "tweaks": [], "preview": []}""".formatted(groupName(index)))
+                .collect(Collectors.joining(", "));
+        groups.readDescribed("{\"groups\": [" + described + "]}");
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+        ManagerDraft draft = new ManagerDraft();
+        return new GroupsPane(groups, new ValuesTab(draft), icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+    }
+
+    // Each group row's top inside the list's content, read off a view tall enough to draw every row unscrolled.
+    private static List<Integer> rowTops() {
+        DrawnFrame tall = new DrawnFrame();
+        manyGroups(new GroupsTab(new ManagerDraft())).extract(tall.graphics, DrawnFrame.font(), TALL_VIEW,
+                tall.targets);
+        List<Integer> names = tall.topsOf(IntStream.range(0, FOLLOWED_GROUPS).mapToObj(index -> "#" + groupName(index))
+                .toList());
+        return names.stream().map(y -> y - names.getFirst()).toList();
+    }
+
+    /**
+     * A shift + left follow to a group well below the fold centers its row in the list and selects it (decision
+     * shift-follow-centers-the-target-in-its-scrolling-view).
+     */
+    @Test
+    void revealCentersTheGroupsRowInTheList() {
+        List<Integer> tops = rowTops();
+        GroupsTab groups = new GroupsTab(new ManagerDraft());
+        GroupsPane pane = manyGroups(groups);
+        DrawnFrame first = new DrawnFrame();
+        pane.extract(first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
+        int target = 25;
+        pane.reveal(groupName(target));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+        int[] list = frame.firstScissor();
+        int rowHeight = tops.get(target + 1) - tops.get(target);
+        assertEquals(tops.get(target) + rowHeight / 2 - (list[3] - list[1]) / 2, pane.listBar().offset());
+        assertEquals(groupName(target), groups.selected().orElseThrow().name());
+    }
+
+    /**
+     * A shift + left follow to the last group stops the list at its end (decision
+     * shift-follow-centers-the-target-in-its-scrolling-view).
+     */
+    @Test
+    void revealOfTheLastGroupStopsAtTheListsEnd() {
+        GroupsPane pane = manyGroups(new GroupsTab(new ManagerDraft()));
+        DrawnFrame first = new DrawnFrame();
+        pane.extract(first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
+        pane.reveal(groupName(FOLLOWED_GROUPS - 1));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+        assertTrue(pane.listBar().maximum() > 0);
+        assertEquals(pane.listBar().maximum(), pane.listBar().offset());
+    }
+
     @Test
     void wideNameHoversWhole() {
         String key = GroupsPane.nameHoverKey(font(), WIDE).orElseThrow();

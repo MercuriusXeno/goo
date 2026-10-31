@@ -11,6 +11,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.IntUnaryOperator;
 import java.util.function.ToIntFunction;
 
 /**
@@ -151,6 +152,10 @@ final class ValuesPane {
         return builder.keyPressed(key);
     }
 
+    ScrollBar listBar() {
+        return listBar;
+    }
+
     /**
      * Selects an item under the Items filter, the search cleared, and scrolls the list to it on the next frame
      * (decision used-by-icons-link-to-items-and-hover-their-value).
@@ -274,7 +279,7 @@ final class ValuesPane {
             graphics.text(font, NO_ENTRIES, list.left(), list.top(), GRAY);
             return;
         }
-        scrollToRevealed();
+        scrollToRevealed(font, listed, list);
         int firstShown = Math.min(listBar.offset(), listed.size() - 1);
         graphics.enableScissor(list.left(), list.top(), list.right(), list.bottom());
         targets.clip(list.left(), list.top(), list.right(), list.bottom());
@@ -826,10 +831,63 @@ final class ValuesPane {
         return new ValueLines(left, top, runs, lineHeight, (lineHeight - text.lineHeight()) / HALF, lines);
     }
 
-    private void scrollToRevealed() {
-        if (revealRow != NO_REVEAL) {
-            listBar.scrollTo(revealRow);
-            revealRow = NO_REVEAL;
+    // The list scrolls by whole rows of differing heights, so a revealed row lands on the first shown row that puts
+    // its middle nearest the list's middle, no later than the last first row that still fills the list.
+    // Decision shift-follow-centers-the-target-in-its-scrolling-view.
+    private void scrollToRevealed(Font font, List<ValuesTab.ManagerEntry> listed, GroupsPane.Bounds list) {
+        if (revealRow == NO_REVEAL) {
+            return;
+        }
+        int target = Math.min(revealRow, listed.size() - 1);
+        revealRow = NO_REVEAL;
+        int right = list.right() - ScrollBar.WIDTH - ScrollBar.GAP;
+        IntUnaryOperator height = index -> layCard(font, listed.get(index),
+                new GroupsPane.Bounds(list.left(), list.top(), right, list.bottom())).layout().height();
+        RowFit fit = new RowFit(height, listed.size(), list.bottom() - list.top());
+        int first = Math.min(fit.centeredFirst(target), fit.lastFillingFirst());
+        listBar.measure(listed.size(), fit.wholeFrom(first));
+        listBar.scrollTo(first);
+    }
+
+    // Rows of differing heights in a view of a fixed height, by the first row shown.
+    private record RowFit(IntUnaryOperator height, int rows, int view) {
+        // The first row that puts the target's middle nearest the view's middle, walking up from the target.
+        int centeredFirst(int target) {
+            double half = view / (double) HALF;
+            double middle = height.applyAsInt(target) / (double) HALF;
+            int best = target;
+            double bestMiss = Math.abs(middle - half);
+            for (int first = target - 1; first >= 0 && middle < half; first--) {
+                middle += height.applyAsInt(first);
+                double miss = Math.abs(middle - half);
+                if (miss < bestMiss) {
+                    best = first;
+                    bestMiss = miss;
+                }
+            }
+            return best;
+        }
+
+        // The first row at which the rows to the end still fit the view, the list's end at its bottom.
+        int lastFillingFirst() {
+            int first = rows - 1;
+            int filled = height.applyAsInt(first);
+            while (first > 0 && filled + height.applyAsInt(first - 1) <= view) {
+                first--;
+                filled += height.applyAsInt(first);
+            }
+            return first;
+        }
+
+        // How many rows from the first stand whole in the view, at least one.
+        int wholeFrom(int first) {
+            int whole = 0;
+            int filled = 0;
+            for (int index = first; index < rows && filled + height.applyAsInt(index) <= view; index++) {
+                filled += height.applyAsInt(index);
+                whole++;
+            }
+            return Math.max(1, whole);
         }
     }
 
