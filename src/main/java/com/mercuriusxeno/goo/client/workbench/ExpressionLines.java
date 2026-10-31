@@ -484,8 +484,11 @@ final class ExpressionLines {
         }
     }
 
+    // Decision holding-shift-underlines-every-link.
     private static void drawLink(Font font, Run run, String piece, int x, int textTop, Painter painter) {
         painter.graphics().text(font, piece, x, textTop, painter.linkColor());
+        ButtonPainter.underlineWhileShiftHeld(painter.graphics(), painter.targets(), x, textTop, font.width(piece),
+                painter.linkColor());
         // Decision every-prefab-reference-hovers-its-value; a link sink's own area, laid after, stands over it.
         painter.targets().addHover(x, textTop, font.width(piece), TEXT_LINE_HEIGHT,
                 PrefabHovers.hoverKey(String.valueOf(run.ref())));

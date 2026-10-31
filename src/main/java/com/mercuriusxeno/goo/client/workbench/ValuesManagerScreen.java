@@ -406,6 +406,8 @@ public final class ValuesManagerScreen extends Screen {
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         targets.clear();
+        // Decision holding-shift-underlines-every-link.
+        targets.holdShift(minecraft.hasShiftDown());
         GroupsPane.Bounds content = contentBounds();
         switch (tab) {
             case VALUES -> valuesPane.extract(graphics, font, content, targets);

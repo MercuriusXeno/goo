@@ -225,6 +225,21 @@ class ValuesPaneTest {
     }
 
     /**
+     * A grouped row's group name draws underlined while shift is held and plain while it is up (decision
+     * holding-shift-underlines-every-link).
+     */
+    @Test
+    void groupNameUnderlinesWhileShiftIsHeld() {
+        ValuesPane pane = groupedPane(mock(ManagerActions.class), List.of("torch"));
+        DrawnFrame held = new DrawnFrame().holdingShift();
+        pane.extract(held.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), held.targets);
+        assertTrue(held.underlined("lights"));
+        DrawnFrame up = new DrawnFrame();
+        pane.extract(up.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), up.targets);
+        assertTrue(!up.underlined("lights"));
+    }
+
+    /**
      * A shift + left click on a grouped row's group name opens the Groups tab on that group, and a plain left click on
      * it passes to the row, which selects the item and opens no builder (decision
      * shift-left-click-follows-plain-left-modifies).

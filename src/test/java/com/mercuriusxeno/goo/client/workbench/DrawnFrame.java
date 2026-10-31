@@ -92,6 +92,43 @@ final class DrawnFrame {
     }
 
     /**
+     * @param label a drawn string
+     * @return whether a fill one pixel tall in the link color spans the text last drawn as the label, under its top
+     *     and within its line
+     */
+    boolean underlined(String label) {
+        Text text = find(label);
+        int right = text.x() + label.length() * 6;
+        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> colors = ArgumentCaptor.forClass(Integer.class);
+        verify(graphics, atLeast(0)).fill(lefts.capture(), tops.capture(), rights.capture(), bottoms.capture(),
+                colors.capture());
+        for (int index = 0; index < lefts.getAllValues().size(); index++) {
+            int top = tops.getAllValues().get(index);
+            if (lefts.getAllValues().get(index) == text.x() && rights.getAllValues().get(index) == right
+                    && bottoms.getAllValues().get(index) == top + 1 && top > text.y()
+                    && top < text.y() + ExpressionLines.TEXT_LINE_HEIGHT
+                    && colors.getAllValues().get(index) == ButtonPainter.LINK) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Draws with shift held, as the screen marks the frame while shift is down.
+     *
+     * @return this frame
+     */
+    DrawnFrame holdingShift() {
+        targets.holdShift(true);
+        return this;
+    }
+
+    /**
      * Clicks inside the text last drawn as the label.
      *
      * @param label a drawn string
