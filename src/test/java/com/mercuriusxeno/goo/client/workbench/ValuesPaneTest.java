@@ -38,17 +38,18 @@ class ValuesPaneTest {
     private static final int TWO_LINES = 2 + ValuesPane.TITLE_HEIGHT + ValuesPane.ROW_HEIGHT;
 
     /**
-     * The four boxes stand on one line, each sharing its inner border with the next, the search box sits one line
-     * below them, the one box filled is the filter the tab holds, and a click on the fourth lists the fractional
-     * items (decision items-filter-set-takes-a-fractional-chip).
+     * The Items, Uncovered and Fractional boxes stand on one line, each sharing its inner border with the next, the
+     * search box sits one line below them, the one box filled is the filter the tab holds, the pane draws no Tags
+     * box, and a click on the last lists the fractional items (decisions items-filters-sit-on-their-own-line-as-one-set,
+     * items-selector-set-reads-items-and-uncovered, items-filter-set-takes-a-fractional-chip).
      */
     @Test
     void filtersLayAsOneSetAboveTheSearchBox() {
-        ValuesPane.ChipLayout layout = ValuesPane.layChips(List.of("Items", "Tags", "Uncovered 3", "Fractional"),
-                String::length, LEFT, TOP, ValuesTab.Filter.TAGS);
+        ValuesPane.ChipLayout layout = ValuesPane.layChips(List.of("Items", "Uncovered 3", "Fractional"),
+                String::length, LEFT, TOP, ValuesTab.Filter.UNCOVERED);
         List<ValuesPane.Chip> chips = layout.chips();
-        assertEquals(List.of(ValuesTab.Filter.ITEMS, ValuesTab.Filter.TAGS, ValuesTab.Filter.UNCOVERED,
-                ValuesTab.Filter.FRACTIONAL), chips.stream().map(ValuesPane.Chip::filter).toList());
+        assertEquals(List.of(ValuesTab.Filter.ITEMS, ValuesTab.Filter.UNCOVERED, ValuesTab.Filter.FRACTIONAL),
+                chips.stream().map(ValuesPane.Chip::filter).toList());
         assertEquals(LEFT, chips.getFirst().left());
         for (int index = 1; index < chips.size(); index++) {
             ValuesPane.Chip before = chips.get(index - 1);
@@ -57,7 +58,7 @@ class ValuesPaneTest {
             assertEquals(before.height(), chip.height());
             assertEquals(before.left() + before.width() - 1, chip.left());
         }
-        assertEquals(List.of(false, true, false, false), chips.stream().map(ValuesPane.Chip::filled).toList());
+        assertEquals(List.of(false, true, false), chips.stream().map(ValuesPane.Chip::filled).toList());
         ValuesPane.Chip first = chips.getFirst();
         assertEquals(first.top() + first.height() + ValuesPane.CHIP_LINE_GAP, layout.searchTop());
 
@@ -67,11 +68,12 @@ class ValuesPaneTest {
         ItemIcons icons = mock(ItemIcons.class);
         ValuesPane pane = new ValuesPane(values, icons, actions,
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
-        ClickTargets targets = new ClickTargets();
-        pane.extract(mock(GuiGraphicsExtractor.class), font, new GroupsPane.Bounds(0, 0, 500, 200), targets);
-        ValuesPane.Chip fractional = ValuesPane.layChips(List.of("Items", "Tags", "Uncovered 0", "Fractional"),
-                font::width, 0, 0, values.filter()).chips().get(3);
-        targets.click(fractional.left() + 1, fractional.top() + 1);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, font, new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
+        assertEquals(List.of(), frame.texts().stream().filter("Tags"::equals).toList());
+        ValuesPane.Chip fractional = ValuesPane.layChips(List.of("Items", "Uncovered 0", "Fractional"),
+                font::width, 0, 0, values.filter()).chips().get(2);
+        frame.targets.click(fractional.left() + 1, fractional.top() + 1);
         assertEquals(ValuesTab.Filter.FRACTIONAL, values.filter());
     }
 
@@ -187,6 +189,46 @@ class ValuesPaneTest {
         verify(frame.graphics).fill(left, top, right, top + ButtonPainter.HEIGHT, ButtonPainter.BORDER);
         frame.click("lights");
         verify(actions, atLeastOnce()).openGroup("lights");
+    }
+
+    /**
+     * A sapling the #saplings entry values draws "=" and the tag's name as its link, and the link's press, carried
+     * to the Groups pane as the manager carries it, selects the saplings tag referent (decision
+     * items-row-valued-by-a-tag-reads-the-tag-as-its-group).
+     */
+    @Test
+    void tagValuedRowLinksItsTagReferent() {
+        ManagerDraft draft = new ManagerDraft();
+        ValuesTab values = new ValuesTab(draft);
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:oak_sapling", "Oak Sapling")),
+                List.of(new ManagerEntrySource.ItemTag("minecraft:saplings", List.of("minecraft:oak_sapling")))));
+        values.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "#saplings", "keySeparator": null, "kind": "VALUE", "text": "\\"$log / 2\\"", "entries": [],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
+        assertTrue(frame.texts().contains("="), frame.texts().toString());
+        frame.click("saplings");
+        verify(actions, atLeastOnce()).openGroup("saplings");
+
+        GroupsTab groups = new GroupsTab(draft);
+        groups.readDescribed("""
+                {"groups": [{"name": "saplings", "kind": "tag",
+                             "members": [{"id": "minecraft:oak_sapling", "known": true}],
+                             "base": "$log / 2", "tweaks": [], "preview": []}]}
+                """);
+        new GroupsPane(groups, values, icons, actions, new ExpressionBuilderPane(actions, icons, List::of, List::of))
+                .reveal("saplings");
+        GroupsTab.Group selected = groups.selected().orElseThrow();
+        assertEquals("saplings", selected.name());
+        assertTrue(selected.tag());
     }
 
     /**
