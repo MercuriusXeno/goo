@@ -63,6 +63,7 @@ public final class ValuesTab {
     private final Map<String, JsonObject> resolved = new HashMap<>();
     private final Map<String, Recipe> derivedFrom = new HashMap<>();
     private final Set<String> uncovered = new HashSet<>();
+    private final Map<String, List<String>> tagMembers = new HashMap<>();
     private Filter filter = Filter.ITEMS;
     private String search = NO_TEXT;
     private @Nullable String selected;
@@ -113,9 +114,12 @@ public final class ValuesTab {
      */
     public void readEntries(ManagerEntrySource source) {
         entries.clear();
+        tagMembers.clear();
         source.items().forEach(item -> entries.add(new ManagerEntry(item.id(), item.name(), false)));
-        source.itemTags().forEach(tag -> entries.add(new ManagerEntry(TAG_PREFIX + tag.id(),
-                tag.members() + MEMBERS_SUFFIX, true)));
+        source.itemTags().forEach(tag -> {
+            entries.add(new ManagerEntry(TAG_PREFIX + tag.id(), tag.members().size() + MEMBERS_SUFFIX, true));
+            tagMembers.put(GroupsTab.referentName(tag.id()), tag.members());
+        });
     }
 
     /**
@@ -250,7 +254,7 @@ public final class ValuesTab {
     public enum SourceKind {
         /** Its own entry. */
         ENTRY,
-        /** A #group entry over a _groups group. */
+        /** A #group entry over a _groups group or a game tag holding the item. */
         GROUP,
         /** A denial. */
         DENIED,
@@ -301,8 +305,8 @@ public final class ValuesTab {
     }
 
     /**
-     * Reads where an item's value comes from in the draft: its own entry, a #group entry over a _groups group,
-     * a denial, or nothing in the file, with its restriction beside, as the page's sourcesFromModel does.
+     * Reads where an item's value comes from in the draft: its own entry, a #group entry over a _groups group or a
+     * game tag holding the item, a denial, or nothing in the file, with its restriction beside, as the page's sourcesFromModel does.
      *
      * @param id the item's namespaced id
      * @return its source badge
@@ -383,6 +387,9 @@ public final class ValuesTab {
                             .map(ValuesTab::namespaced).toList()
                     : List.of());
         }
+        // A game tag counts as a group wherever no _groups group holds its name, keyed as the file spells it after
+        // # (decision items-row-valued-by-a-tag-reads-the-tag-as-its-group).
+        tagMembers.forEach(groups::putIfAbsent);
         return groups;
     }
 
