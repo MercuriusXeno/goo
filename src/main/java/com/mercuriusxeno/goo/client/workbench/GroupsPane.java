@@ -79,6 +79,12 @@ final class GroupsPane {
     private final ExpandedLists expandedRows = new ExpandedLists();
     private final ScrollBar listBar = new ScrollBar(SCROLL_STEP);
     private final ScrollBar detailBar = new ScrollBar(SCROLL_STEP);
+    private @Nullable String revealPending;
+    private @Nullable RevealedRow revealedRow;
+
+    // Where the row a follow revealed stood inside the list's content this frame.
+    private record RevealedRow(int top, int height) {
+    }
     private @Nullable EditBox nameBox;
     private @Nullable String building;
     private boolean naming;
@@ -195,11 +201,26 @@ final class GroupsPane {
         for (int index = 0; index < rows.size(); index++) {
             GroupsTab.GroupRow row = rows.get(index);
             RowLayout.drawSeparatorAbove(graphics, index, y, left, rowRight);
-            y += drawGroupRow(graphics, font, row, left, rowRight, y, row.name().equals(selected), targets);
+            int height = drawGroupRow(graphics, font, row, left, rowRight, y, row.name().equals(selected), targets);
+            if (row.name().equals(revealPending)) {
+                revealedRow = new RevealedRow(y - top + listBar.offset(), height);
+            }
+            y += height;
         }
         targets.unclip();
         graphics.disableScissor();
         listBar.measureAndDraw(graphics, targets, y, left + LIST_WIDTH, top, bounds.bottom());
+        centerRevealedRow();
+    }
+
+    // Once the revealed row has drawn and the bar has measured this frame, centers the row in the list.
+    // Decision shift-follow-centers-the-target-in-its-scrolling-view.
+    private void centerRevealedRow() {
+        if (revealedRow != null) {
+            listBar.center(revealedRow.top(), revealedRow.height());
+            revealedRow = null;
+            revealPending = null;
+        }
     }
 
     // Answers the list's top below the New group button or its name box.
@@ -306,14 +327,20 @@ final class GroupsPane {
         }
     }
 
+    ScrollBar listBar() {
+        return listBar;
+    }
+
     /**
-     * Selects a group, closing a builder open over another, as a grouped item's group link does (decision
-     * items-row-second-line-is-the-equality-expression).
+     * Selects a group, closing a builder open over another, as a grouped item's group link does, and centers its row
+     * in the list on the next frame (decisions items-row-second-line-is-the-equality-expression,
+     * shift-follow-centers-the-target-in-its-scrolling-view).
      *
      * @param name the group's name
      */
     void reveal(String name) {
         pickGroup(name);
+        revealPending = name;
     }
 
     private void pickGroup(String name) {

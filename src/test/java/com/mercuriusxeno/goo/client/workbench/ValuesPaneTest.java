@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -182,6 +184,106 @@ class ValuesPaneTest {
         assertTrue(!builder.isOpen());
         frame.click("wood");
         assertTrue(builder.isOpen());
+    }
+
+    private static final int FOLLOWED_ITEMS = 40;
+    private static final GroupsPane.Bounds SHORT_VIEW = new GroupsPane.Bounds(0, 0, 500, 300);
+    private static final GroupsPane.Bounds TALL_VIEW = new GroupsPane.Bounds(0, 0, 500, 8000);
+    private static final String FIVE_TYPES = "{\\\"glow\\\": 4, \\\"leaf\\\": 2, \\\"metal\\\": 1, \\\"rock\\\": 3, "
+            + "\\\"blaze\\\": 5}";
+
+    private static String itemName(int index) {
+        return "Item %02d".formatted(index);
+    }
+
+    // An Items pane over forty items whose rows differ in height: a third valued by no entry, a third by one type and
+    // a third by five.
+    private static ValuesPane manyItems() {
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(IntStream.range(0, FOLLOWED_ITEMS).mapToObj(index ->
+                new ManagerEntrySource.ItemName("minecraft:item_%02d".formatted(index), itemName(index))).toList(),
+                List.of()));
+        String members = IntStream.range(0, FOLLOWED_ITEMS).filter(index -> index % 3 != 0).mapToObj(index -> """
+                {"key": "item_%02d", "keySeparator": null, "kind": "VALUE", "text": "%s", "entries": [],
+                 "leading": null, "trailing": null, "closingGap": null}"""
+                .formatted(index, index % 3 == 1 ? "{\\\"glow\\\": 4}" : FIVE_TYPES))
+                .collect(Collectors.joining(", "));
+        values.readModel("{\"path\": \"base_values.json\", \"members\": [" + members + "]}");
+        String resolved = IntStream.range(0, FOLLOWED_ITEMS).filter(index -> index % 3 != 0).mapToObj(index ->
+                "{\"key\": \"item_%02d\", \"value\": %s, \"denied\": false}".formatted(index, index % 3 == 1
+                        ? "{\"glow\": \"4\"}"
+                        : "{\"glow\": \"123456789\", \"leaf\": \"123456789\", \"metal\": \"123456789\", "
+                                + "\"rock\": \"123456789\", \"blaze\": \"123456789\"}"))
+                .collect(Collectors.joining(", "));
+        values.readResolved("{\"entries\": [" + resolved + "]}");
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        return new ValuesPane(values, icons, actions, new ExpressionBuilderPane(actions, icons, List::of, List::of));
+    }
+
+    // Each row's height, read off a list tall enough to draw every row unscrolled.
+    private static List<Integer> rowHeights() {
+        DrawnFrame tall = new DrawnFrame();
+        manyItems().extract(tall.graphics, DrawnFrame.font(), TALL_VIEW, tall.targets);
+        List<Integer> tops = tall.topsOf(IntStream.range(0, FOLLOWED_ITEMS).mapToObj(ValuesPaneTest::itemName)
+                .toList());
+        return IntStream.range(0, FOLLOWED_ITEMS - 1).mapToObj(index -> tops.get(index + 1) - tops.get(index))
+                .toList();
+    }
+
+    // The first shown row that puts the target row's middle closest to the view's middle, walking up from the row.
+    private static int centeredFirstRow(List<Integer> heights, int target, int view) {
+        double half = view / 2.0;
+        int best = target;
+        double above = 0;
+        double bestMiss = Math.abs(heights.get(target) / 2.0 - half);
+        for (int first = target - 1; first >= 0 && above + heights.get(target) / 2.0 < half; first--) {
+            above += heights.get(first);
+            double miss = Math.abs(above + heights.get(target) / 2.0 - half);
+            if (miss < bestMiss) {
+                best = first;
+                bestMiss = miss;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * A shift + left follow to an item well below the fold scrolls the Items list to the whole row that puts the item
+     * nearest the list's middle, by the rows' drawn heights (decision
+     * shift-follow-centers-the-target-in-its-scrolling-view).
+     */
+    @Test
+    void revealCentersTheItemsRowByTheRowsHeights() {
+        List<Integer> heights = rowHeights();
+        assertTrue(heights.stream().distinct().count() > 1, "rows all " + heights.getFirst() + " tall");
+        ValuesPane pane = manyItems();
+        DrawnFrame first = new DrawnFrame();
+        pane.extract(first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
+        int target = 25;
+        pane.reveal("minecraft:item_%02d".formatted(target));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+        int[] list = frame.firstScissor();
+        int expected = centeredFirstRow(heights, target, list[3] - list[1]);
+        assertTrue(expected < target, "the target already stands centered at the top");
+        assertEquals(expected, pane.listBar().offset());
+    }
+
+    /**
+     * A shift + left follow to the last item stops the Items list at its end, the last first-shown row that fills the
+     * view (decision shift-follow-centers-the-target-in-its-scrolling-view).
+     */
+    @Test
+    void revealOfTheLastItemStopsAtTheListsEnd() {
+        ValuesPane pane = manyItems();
+        DrawnFrame first = new DrawnFrame();
+        pane.extract(first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
+        pane.reveal("minecraft:item_%02d".formatted(FOLLOWED_ITEMS - 1));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
+        assertTrue(pane.listBar().maximum() > 0);
+        assertEquals(pane.listBar().maximum(), pane.listBar().offset());
     }
 
     // A Values pane over one torch in a group named lights holding the members given, the torch first.
