@@ -168,6 +168,45 @@ class VariablesPaneTest {
     }
 
     /**
+     * In the delete confirm, a shift + left click on a $name reader opens that prefab, and a plain left click on it
+     * runs nothing and leaves the confirm standing (decision shift-left-click-follows-plain-left-modifies).
+     */
+    @Test
+    void cascadeReaderFollowsOnShiftClickAndTakesNoPlainClick() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                    {"key": "base", "keySeparator": null, "kind": "VALUE", "text": "8", "entries": [],
+                     "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        VariablesTab prefabs = new VariablesTab(draft);
+        prefabs.readEvaluated("""
+                {"constants": [{"name": "base", "kind": "scalar", "value": "8", "error": null, "usedBy": [],
+                                "readers": [{"id": "egg", "kind": "constant"}]}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
+        ItemIcons icons = mock(ItemIcons.class);
+        VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        read.init(DrawnFrame.font());
+        read.show(true);
+        DrawnFrame list = new DrawnFrame();
+        read.extract(list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
+        list.click("Delete");
+        DrawnFrame confirm = new DrawnFrame();
+        read.extract(confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
+        confirm.click("egg");
+        verify(actions, never()).openVariable(anyString());
+        DrawnFrame standing = new DrawnFrame();
+        read.extract(standing.graphics, DrawnFrame.font(), VIEW, standing.targets, 0, 0);
+        standing.shiftClick("egg");
+        verify(actions).openVariable("egg");
+    }
+
+    /**
      * In a prefab's read view, a right click on a $name ref runs nothing, a shift + left click on it opens that
      * prefab's block and a plain left click on the same ref starts editing the block it sits in (decision
      * shift-left-click-follows-plain-left-modifies).

@@ -543,12 +543,13 @@ final class VariablesPane {
         });
     }
 
-    // A constant reads as a $name button, a group or tag as its #name, and an item as its icon; answers the width the
-    // reader took.
+    // A constant reads as a $name button a shift + left click follows, a group or tag as its #name, and an item as its
+    // icon; answers the width the reader took.
+    // Decision shift-left-click-follows-plain-left-modifies.
     private int drawReader(GuiGraphicsExtractor graphics, Font font, VariablesTab.Reader reader, int x, int y,
                            ClickTargets targets) {
         if (CONSTANT_KIND.equals(reader.kind())) {
-            return ButtonPainter.draw(graphics, font, reader.id(), x, y, ICON_SIZE, targets,
+            return ButtonPainter.drawFollow(graphics, font, reader.id(), x, y, ICON_SIZE, targets,
                     () -> actions.openVariable(reader.id()), reader.id()).width();
         }
         if (GROUP_KIND.equals(reader.kind())) {

@@ -414,13 +414,15 @@ final class ValuesPane {
                 : NO_TEXT);
     }
 
-    // The group's name as a button opening its group on the Groups tab, hovering its members (decisions
-    // blue-text-options-draw-as-bordered-buttons, group-link-hovers-member-icons-then-plus-n).
+    // The group's name as a button a shift + left click follows to its group on the Groups tab, a plain left click
+    // passing to the row, hovering its members (decisions blue-text-options-draw-as-bordered-buttons,
+    // group-link-hovers-member-icons-then-plus-n).
+    // Decision shift-left-click-follows-plain-left-modifies.
     private void drawGroupLink(GuiGraphicsExtractor graphics, Font font, String group, Equality line,
                                ClickTargets targets) {
         String shown = font.plainSubstrByWidth(group,
                 line.right() - line.besideLeft() - ButtonPainter.PADDING - ButtonPainter.PADDING);
-        ButtonPainter.draw(graphics, font, shown, line.besideLeft(), line.spriteTop() - 1, ROW_HEIGHT, targets,
+        ButtonPainter.drawFollow(graphics, font, shown, line.besideLeft(), line.spriteTop() - 1, ROW_HEIGHT, targets,
                 () -> actions.openGroup(group), GROUP_HOVER_PREFIX + group);
     }
 
