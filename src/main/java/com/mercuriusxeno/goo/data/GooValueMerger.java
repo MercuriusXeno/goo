@@ -100,12 +100,20 @@ final class GooValueMerger {
         for (Map.Entry<String, JsonElement> entry : merged.entrySet()) {
             String key = entry.getKey();
             if (key.startsWith(PREFIX_TAG)) {
-                expandOneTag(key, entry.getValue(), tagResolver, result);
+                if (!unvalued(entry.getValue())) {
+                    expandOneTag(key, entry.getValue(), tagResolver, result);
+                }
             } else {
                 result.add(key, entry.getValue());
             }
         }
         return result;
+    }
+
+    // A #tag entry Add tag wrote before anything valued it holds a blank string; it paints no member, so each keeps
+    // the value it held before the pick (decision add-tag-picks-a-game-tag-and-writes-its-entry).
+    private static boolean unvalued(JsonElement value) {
+        return value.isJsonPrimitive() && value.getAsJsonPrimitive().isString() && value.getAsString().isBlank();
     }
 
     /**

@@ -293,6 +293,26 @@ class ValuesTabTest {
         }
 
         /**
+         * A #tag entry Add tag wrote with no value yet leaves its members reading what stood before, so a leaf
+         * nothing else values still reads no value (decision add-tag-picks-a-game-tag-and-writes-its-entry).
+         */
+        @Test
+        void unvaluedTagEntryLeavesItsMembersSourceAsItStood() {
+            ValuesTab picked = new ValuesTab();
+            picked.readEntries(new ListedEntrySource(List.of(), List.of(
+                    new ManagerEntrySource.ItemTag("minecraft:leaves", List.of("minecraft:oak_leaves")))));
+            picked.readModel("""
+                    {"path": "base_values.json", "members": [
+                      {"key": "#leaves", "keySeparator": null, "kind": "VALUE", "text": "\\"\\"", "entries": [],
+                       "leading": null, "trailing": null, "closingGap": null},
+                      {"key": "minecraft:dirt", "keySeparator": null, "kind": "VALUE", "text": "\\"$base\\"",
+                       "entries": [], "leading": null, "trailing": null, "closingGap": null}]}
+                    """);
+            assertEquals(new ValuesTab.Source("no value", ValuesTab.SourceKind.NONE, false),
+                    picked.sourceOf("minecraft:oak_leaves"));
+        }
+
+        /**
          * An item valued with no entry, no group and no recipe inputs to name reads derived, the same as one with
          * inputs, so no row reads a bare "derived from" (decisions
          * diagnose-and-correct-group-derived-reading-derived-from, items-row-second-line-is-the-equality-expression).
