@@ -95,6 +95,7 @@ final class ExpressionBuilderPane {
     private static final String CHANGES_SAVED_HINT = "Changes already saved to the draft";
     private static final String BLANK = "";
 
+    private final ManagerActions actions;
     private final ItemIcons icons;
     private final BuilderOverlays overlays;
     private final Supplier<List<ValuesTab.ManagerEntry>> inventory;
@@ -113,6 +114,7 @@ final class ExpressionBuilderPane {
      */
     ExpressionBuilderPane(ManagerActions actions, ItemIcons icons, Supplier<List<ValuesTab.ManagerEntry>> inventory,
                           Supplier<List<BuilderGrammar.Prefab>> prefabs) {
+        this.actions = actions;
         this.icons = icons;
         this.overlays = new BuilderOverlays(actions, icons);
         this.inventory = inventory;
@@ -219,7 +221,8 @@ final class ExpressionBuilderPane {
             return 0;
         }
         overlays.commitOnBlur();
-        ControlFlow flow = new ControlFlow(graphics, font, targets, icons, area.left(), area.right(), top);
+        ControlFlow flow = new ControlFlow(graphics, font, targets, icons,
+                new ControlFlow.Span(area.left(), area.right(), top), actions::openVariable);
         drawKind(flow, edited);
         drawValue(flow, edited);
         flow.newLine();

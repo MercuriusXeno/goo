@@ -186,8 +186,8 @@ final class GooTypePicker {
         if (!open) {
             return;
         }
-        targets.add(-EVERYWHERE, -EVERYWHERE, EVERYWHERE_SPAN, EVERYWHERE_SPAN, this::close);
-        targets.add(x, y, COLUMNS * CELL, shownRows * CELL, () -> { });
+        targets.addShield(-EVERYWHERE, -EVERYWHERE, EVERYWHERE_SPAN, EVERYWHERE_SPAN, this::close);
+        targets.addShield(x, y, COLUMNS * CELL, shownRows * CELL, () -> { });
         for (Cell cell : cells()) {
             addCellTarget(targets, x, y, cell, () -> picked.accept(cell.type()), GooTypeIcons.hoverKey(cell.type()));
         }

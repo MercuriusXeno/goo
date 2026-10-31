@@ -94,6 +94,23 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
+     * Inside the builder, a right click on a prefab reference opens the Prefabs tab on that prefab, and a left click
+     * opens the dropdown that replaces it (decision left-click-modifies-right-click-follows).
+     */
+    @Test
+    void referenceFollowsOnRightClickAndOpensItsReplacementOnLeftClick() {
+        Builder builder = Builder.item("$waxed");
+        DrawnFrame closed = builder.frame();
+        assertFalse(closed.texts().contains("edited"), closed.texts().toString());
+        closed.rightClick("waxed");
+        verify(builder.actions).openVariable("waxed");
+        assertFalse(builder.frame().texts().contains("edited"));
+        builder.frame().click("waxed");
+        List<String> opened = builder.frame().texts();
+        assertTrue(opened.contains("edited"), opened.toString());
+    }
+
+    /**
      * The goo kind choice's hover hint, per tab (decision items-kind-hint-says-worth-based-on-other-items-prefabs).
      */
     @Nested

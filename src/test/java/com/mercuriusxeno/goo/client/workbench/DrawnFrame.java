@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import org.lwjgl.glfw.GLFW;
 import org.mockito.ArgumentCaptor;
 import java.util.ArrayList;
 import java.util.List;
@@ -98,5 +99,16 @@ final class DrawnFrame {
     void click(String label) {
         Text text = find(label);
         assertTrue(targets.click(text.x() + 1, text.y() + 1), label + " took no click");
+    }
+
+    /**
+     * Right-clicks inside the text last drawn as the label.
+     *
+     * @param label a drawn string
+     */
+    void rightClick(String label) {
+        Text text = find(label);
+        assertTrue(targets.click(text.x() + 1, text.y() + 1, GLFW.GLFW_MOUSE_BUTTON_RIGHT),
+                label + " took no right click");
     }
 }

@@ -151,6 +151,34 @@ class ValuesPaneTest {
         verify(actions).draftChanged();
     }
 
+    /**
+     * In the selected item's value view, a right click on a prefab ref opens the Prefabs tab on that prefab and a
+     * left click on the same ref opens the builder over the value (decision left-click-modifies-right-click-follows).
+     */
+    @Test
+    void valueViewRefFollowsOnRightClickAndOpensTheBuilderOnLeftClick() {
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:stick", "Stick")), List.of()));
+        values.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "stick", "keySeparator": null, "kind": "VALUE", "text": "\\"$wood\\"", "entries": [],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        values.select("minecraft:stick");
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ExpressionBuilderPane builder = new ExpressionBuilderPane(actions, icons, List::of, List::of);
+        ValuesPane pane = new ValuesPane(values, icons, actions, builder);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
+        frame.rightClick("wood");
+        verify(actions).openVariable("wood");
+        assertTrue(!builder.isOpen());
+        frame.click("wood");
+        assertTrue(builder.isOpen());
+    }
+
     // A Values pane over one torch in a group named lights holding the members given, the torch first.
     private static ValuesPane groupedPane(ManagerActions actions, List<String> members) {
         ValuesTab values = new ValuesTab();

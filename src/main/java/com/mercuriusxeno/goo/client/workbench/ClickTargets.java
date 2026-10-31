@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.workbench;
 
 import org.jspecify.annotations.Nullable;
+import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -10,7 +11,10 @@ import java.util.function.DoubleConsumer;
 /**
  * The areas a manager pane drew this frame that answer a click or a hover, rebuilt each frame: the area drawn last
  * wins, so a link drawn over its expression or a dialog drawn over its pane takes the click
- * (decision goo-workbench-opens-the-in-game-manager-screen).
+ * (decision goo-workbench-opens-the-in-game-manager-screen). An area answers each button apart: left click modifies
+ * the thing in place and right click goes to the ref, so a ref drawn over its expression takes the right click and
+ * lets the left click reach the view beneath it; a shield, as a dialog's backdrop, takes both.
+ * Decision left-click-modifies-right-click-follows.
  */
 final class ClickTargets {
     private final List<Target> targets = new ArrayList<>();
@@ -18,9 +22,18 @@ final class ClickTargets {
     private @Nullable DoubleConsumer grabbed;
     private double pressedY;
 
-    private record Target(int left, int top, int right, int bottom, @Nullable Runnable action, @Nullable String hoverKey) {
+    private record Target(int left, int top, int right, int bottom, @Nullable Runnable action,
+                          @Nullable Runnable rightAction, @Nullable String hoverKey) {
         boolean contains(double x, double y) {
             return x >= left && x < right && y >= top && y < bottom;
+        }
+
+        @Nullable Runnable actionFor(int button) {
+            return switch (button) {
+                case GLFW.GLFW_MOUSE_BUTTON_LEFT -> action;
+                case GLFW.GLFW_MOUSE_BUTTON_RIGHT -> rightAction;
+                default -> null;
+            };
         }
     }
 
@@ -74,7 +87,34 @@ final class ClickTargets {
      * @param hoverKey what hovering it names, null for nothing
      */
     void add(int left, int top, int width, int height, Runnable action, @Nullable String hoverKey) {
-        addTarget(left, top, width, height, action, hoverKey);
+        addTarget(left, top, width, height, action, null, hoverKey);
+    }
+
+    /**
+     * An area a right click follows, as a ref goes to what it names; a left click passes to the area under it.
+     *
+     * @param left     the area's left edge
+     * @param top      the area's top edge
+     * @param width    its width
+     * @param height   its height
+     * @param follow   what a right click on it does
+     * @param hoverKey what hovering it names, null for nothing
+     */
+    void addRight(int left, int top, int width, int height, Runnable follow, @Nullable String hoverKey) {
+        addTarget(left, top, width, height, null, follow, hoverKey);
+    }
+
+    /**
+     * An area taking a click of either button, as a dialog's backdrop stops a click reaching the pane beneath it.
+     *
+     * @param left   the area's left edge
+     * @param top    the area's top edge
+     * @param width  its width
+     * @param height its height
+     * @param action what a click of either button on it does
+     */
+    void addShield(int left, int top, int width, int height, Runnable action) {
+        addTarget(left, top, width, height, action, action, null);
     }
 
     /**
@@ -87,11 +127,11 @@ final class ClickTargets {
      * @param hoverKey what hovering it names
      */
     void addHover(int left, int top, int width, int height, String hoverKey) {
-        addTarget(left, top, width, height, null, hoverKey);
+        addTarget(left, top, width, height, null, null, hoverKey);
     }
 
     private void addTarget(int left, int top, int width, int height, @Nullable Runnable action,
-                           @Nullable String hoverKey) {
+                           @Nullable Runnable rightAction, @Nullable String hoverKey) {
         int clippedLeft = left;
         int clippedTop = top;
         int right = left + width;
@@ -105,7 +145,7 @@ final class ClickTargets {
                 return;
             }
         }
-        targets.add(new Target(clippedLeft, clippedTop, right, bottom, action, hoverKey));
+        targets.add(new Target(clippedLeft, clippedTop, right, bottom, action, rightAction, hoverKey));
     }
 
     /**
@@ -149,15 +189,25 @@ final class ClickTargets {
     }
 
     /**
-     * @param x the click's x
-     * @param y the click's y
+     * @param x the left click's x
+     * @param y the left click's y
      * @return whether an area took the click
      */
     boolean click(double x, double y) {
+        return click(x, y, GLFW.GLFW_MOUSE_BUTTON_LEFT);
+    }
+
+    /**
+     * @param x      the click's x
+     * @param y      the click's y
+     * @param button the GLFW mouse button pressed
+     * @return whether an area holding an action for the button took the click
+     */
+    boolean click(double x, double y, int button) {
         pressedY = y;
         for (int index = targets.size() - 1; index >= 0; index--) {
             Target target = targets.get(index);
-            Runnable action = target.action();
+            Runnable action = target.actionFor(button);
             if (action != null && target.contains(x, y)) {
                 action.run();
                 return true;

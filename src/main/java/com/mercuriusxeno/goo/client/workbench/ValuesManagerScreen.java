@@ -332,16 +332,27 @@ public final class ValuesManagerScreen extends Screen {
         statusIsError = error;
     }
 
+    /**
+     * Hands a press to the frame's areas by its button (decision left-click-modifies-right-click-follows).
+     *
+     * @param targets the frame's click areas
+     * @param event   the press
+     * @return whether an area took it
+     */
+    static boolean clickTargets(ClickTargets targets, MouseButtonEvent event) {
+        return targets.click(event.x(), event.y(), event.button());
+    }
+
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (draftPane.open()) {
-            return targets.click(event.x(), event.y());
+            return clickTargets(targets, event);
         }
         if (super.mouseClicked(event, doubleClick)) {
             return true;
         }
         setFocused(null);
-        return targets.click(event.x(), event.y());
+        return clickTargets(targets, event);
     }
 
     @Override
