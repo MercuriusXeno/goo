@@ -6,9 +6,11 @@ import com.google.gson.JsonObject;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -19,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * groups-lists-custom-groups-and-every-tag-a-valuation-references, tag-referent-lists-the-games-members-and-values-them).
  */
 class GroupsJsonTest {
+    private static final String SHIPPED = "/data/goo/goo_values/base_values.json";
     private static final List<String> SAPLINGS = List.of("minecraft:oak_sapling", "minecraft:acacia_sapling");
     private static final GroupsJson.Inventory INVENTORY = new GroupsJson.Inventory(
             Set.of("minecraft:oak_sapling", "minecraft:acacia_sapling", "minecraft:oak_log"),
@@ -45,8 +48,11 @@ class GroupsJsonTest {
     class ShippedFile {
 
         private JsonArray described() throws IOException {
-            String text = new String(BaseValuesModelTest.sampleBytes(), StandardCharsets.UTF_8);
-            return GroupsJson.described(BaseValuesModel.parse(text), INVENTORY);
+            try (InputStream shipped = GroupsJsonTest.class.getResourceAsStream(SHIPPED)) {
+                String text = new String(Objects.requireNonNull(shipped, SHIPPED).readAllBytes(),
+                        StandardCharsets.UTF_8);
+                return GroupsJson.described(BaseValuesModel.parse(text), INVENTORY);
+            }
         }
 
         /**
