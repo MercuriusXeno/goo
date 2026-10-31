@@ -345,8 +345,11 @@ public final class ValuesTab {
             return namespaced(key).equals(id) ? itemSource(denied) : standing;
         }
         String group = key.substring(TAG_PREFIX.length());
-        return standing == null && groups.getOrDefault(group, List.of()).contains(id) ? groupSource(group, denied)
-                : standing;
+        // A #tag entry Add tag wrote with no value yet values no member, as the loader skips it (decision
+        // add-tag-picks-a-game-tag-and-writes-its-entry).
+        boolean unvalued = ManagerDraft.shownText(entry.get(TEXT).getAsString()).isBlank();
+        return standing == null && !unvalued && groups.getOrDefault(group, List.of()).contains(id)
+                ? groupSource(group, denied) : standing;
     }
 
     private static Source itemSource(boolean denied) {

@@ -4,9 +4,12 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.data.GooBaseValuesPreview;
 import com.mercuriusxeno.goo.data.GooConstantResolver;
+import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -580,6 +583,37 @@ class WorkbenchOperationsTest {
             assertEquals("minecraft:oak_leaves", leaves.getAsJsonArray("members").get(0).getAsJsonObject().get("id")
                     .getAsString());
             assertTrue(leaves.get("base").isJsonNull(), leaves.toString());
+        }
+
+        /**
+         * A tag Add tag writes, before anything values it, leaves each member's loaded value as it stood before the
+         * pick, while the reply still lists the tag as a referent (decision
+         * add-tag-picks-a-game-tag-and-writes-its-entry).
+         */
+        @Test
+        void createdTagLeavesItsMembersValuesAsTheyStood() throws IOException {
+            String file = """
+                    {
+                        "_constants": {"log": {"leaf": 4}},
+                        "oak_leaves": "$log"
+                    }
+                    """;
+            Function<Identifier, Set<Identifier>> leavesTag = tag -> "minecraft:leaves".equals(tag.toString())
+                    ? Set.of(Identifier.parse("minecraft:oak_leaves")) : Set.of();
+            Identifier oakLeaves = Identifier.parse("minecraft:oak_leaves");
+            GooValue before = GooBaseValuesPreview.load(file, leavesTag).baseValues().get(oakLeaves);
+            Files.writeString(paths.inventoryFile(), inventoryWithLeaves());
+            JsonObject request = JsonParser.parseString(posted(file)).getAsJsonObject();
+            request.addProperty("group", "leaves");
+            request.addProperty("createTag", true);
+            JsonObject answer = answeredJson(WorkbenchOperations.APPLY_TO_GROUP, request.toString());
+            String afterText = ModelJson.merged(BaseValuesModel.parse(file), answer.getAsJsonObject("model").toString())
+                    .serialize();
+            assertTrue(afterText.contains("\"#leaves\""), afterText);
+            assertEquals(before, GooBaseValuesPreview.load(afterText, leavesTag).baseValues().get(oakLeaves));
+            assertTrue(answer.getAsJsonArray("groups").asList().stream().map(JsonElement::getAsJsonObject)
+                    .anyMatch(group -> "leaves".equals(group.get("name").getAsString())
+                            && "tag".equals(group.get("kind").getAsString())), answer.toString());
         }
 
         private static String inventoryWithLeaves() {
