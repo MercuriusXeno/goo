@@ -167,6 +167,39 @@ class VariablesPaneTest {
     }
 
     /**
+     * In a prefab's read view, a right click on a $name ref opens that prefab's block and a left click on the same
+     * ref starts editing the block it sits in (decision left-click-modifies-right-click-follows).
+     */
+    @Test
+    void readViewRefFollowsOnRightClickAndEditsItsBlockOnLeftClick() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                    {"key": "wood", "keySeparator": null, "kind": "VALUE", "text": "8", "entries": [],
+                     "leading": null, "trailing": null, "closingGap": null},
+                    {"key": "plank", "keySeparator": null, "kind": "VALUE", "text": "\\"$wood / 4\\"", "entries": [],
+                     "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        VariablesTab prefabs = new VariablesTab(draft);
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
+        ItemIcons icons = mock(ItemIcons.class);
+        VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        read.init(DrawnFrame.font());
+        read.show(true);
+        DrawnFrame frame = new DrawnFrame();
+        read.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
+        frame.rightClick("wood");
+        verify(actions).openVariable("wood");
+        assertTrue(prefabs.editing().isEmpty());
+        frame.click("wood");
+        assertEquals(java.util.Optional.of("plank"), prefabs.editing());
+    }
+
+    /**
      * A prefab used by more items than its line fits ends its used-by line on a ..+n button counting the rest
      * (decision more-button-reads-dot-dot-plus-n).
      */

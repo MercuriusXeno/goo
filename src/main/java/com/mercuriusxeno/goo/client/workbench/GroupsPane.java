@@ -369,7 +369,9 @@ final class GroupsPane {
         void wrote(String typed);
     }
 
-    // A value drawn curated in a read view, a click opening the builder over it in its place; answers its height.
+    // A value drawn curated in a read view, a left click opening the builder over it in its place and a right click
+    // on a ref opening its prefab; answers its height.
+    // Decision left-click-modifies-right-click-follows.
     private int drawBuilt(GuiGraphicsExtractor graphics, Font font, Bounds detail, int y, String target, String shown,
                           String empty, Writes writes, ClickTargets targets) {
         if (target.equals(building) && builder.isOpen()) {
@@ -385,7 +387,7 @@ final class GroupsPane {
             builder.open(shown, writes::wrote, this::closeBuilder);
         });
         ExpressionLines.draw(font, runs, detail.left(), y, width, new ExpressionLines.Painter(graphics, icons,
-                targets, WHITE, LINK, (name, linkX, linkY, linkWidth) -> { }));
+                targets, WHITE, LINK, ExpressionLines.followedOnRightClick(targets, actions::openVariable)));
         return height;
     }
 

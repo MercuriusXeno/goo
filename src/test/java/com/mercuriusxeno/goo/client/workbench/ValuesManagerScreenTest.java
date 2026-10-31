@@ -3,6 +3,9 @@ package com.mercuriusxeno.goo.client.workbench;
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.input.MouseButtonInfo;
+import org.lwjgl.glfw.GLFW;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
@@ -38,6 +41,24 @@ class ValuesManagerScreenTest {
     void closeXEndsAtTheRightMarginAndTheTopbarStandsLeftOfIt() {
         ValuesManagerScreen.TitleRow row = ValuesManagerScreen.titleRowOf(400);
         assertEquals(new ValuesManagerScreen.TitleRow(378, 392, 376), row);
+    }
+
+    /**
+     * A right-button press runs the right action of the area under it and leaves its left action unrun, and a
+     * left-button press runs the left one (decision left-click-modifies-right-click-follows).
+     */
+    @Test
+    void pressReachesTheActionForItsButton() {
+        List<String> ran = new ArrayList<>();
+        ClickTargets targets = new ClickTargets();
+        targets.add(0, 0, 50, 10, () -> ran.add("modify"));
+        targets.addRight(0, 0, 50, 10, () -> ran.add("follow"), null);
+        ValuesManagerScreen.clickTargets(targets,
+                new MouseButtonEvent(5, 5, new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_RIGHT, 0)));
+        assertEquals(List.of("follow"), ran);
+        ValuesManagerScreen.clickTargets(targets,
+                new MouseButtonEvent(5, 5, new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_LEFT, 0)));
+        assertEquals(List.of("follow", "modify"), ran);
     }
 
     @Nested

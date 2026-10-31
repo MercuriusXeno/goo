@@ -29,6 +29,7 @@ final class ControlFlow {
     private final Font font;
     private final ClickTargets targets;
     private final @Nullable ItemIcons icons;
+    private final Consumer<String> followRef;
     private int left;
     private final int right;
     private int lineLeft;
@@ -49,15 +50,39 @@ final class ControlFlow {
      */
     ControlFlow(GuiGraphicsExtractor graphics, Font font, ClickTargets targets, @Nullable ItemIcons icons, int left,
                 int right, int top) {
+        this(graphics, font, targets, icons, new Span(left, right, top), ref -> { });
+    }
+
+    /**
+     * Where a flow's lines lay.
+     *
+     * @param left  the area's left edge
+     * @param right the area's right edge
+     * @param top   the first line's top
+     */
+    record Span(int left, int right, int top) {
+    }
+
+    /**
+     * @param graphics  the frame's graphics
+     * @param font      the font
+     * @param targets   the frame's click areas
+     * @param icons     the items' icons, null where no item draws
+     * @param span      where the lines lay
+     * @param followRef opens the prefab a reference run names, on a right click
+     */
+    ControlFlow(GuiGraphicsExtractor graphics, Font font, ClickTargets targets, @Nullable ItemIcons icons, Span span,
+                Consumer<String> followRef) {
         this.graphics = graphics;
         this.font = font;
         this.targets = targets;
         this.icons = icons;
-        this.left = left;
-        this.right = right;
-        this.lineLeft = left;
-        this.x = left;
-        this.y = top;
+        this.followRef = followRef;
+        this.left = span.left();
+        this.right = span.right();
+        this.lineLeft = span.left();
+        this.x = span.left();
+        this.y = span.top();
     }
 
     /**
@@ -262,7 +287,9 @@ final class ControlFlow {
     }
 
     /**
-     * Curated runs on one line, a click on them running the action where one is given.
+     * Curated runs on one line, a left click on them running the action where one is given and a right click on a
+     * reference among them opening its prefab.
+     * Decision left-click-modifies-right-click-follows.
      *
      * @param runs    the runs
      * @param hint    what a click does, or why none does, null for nothing
@@ -281,7 +308,7 @@ final class ControlFlow {
         addRunsTarget(width + inset + inset, hint, pressed);
         int runsTop = ExpressionLines.lineHeight(runs) == LINE ? y : y + TEXT_NUDGE;
         ExpressionLines.draw(font, runs, x + inset, runsTop, width + 1, new ExpressionLines.Painter(graphics, icons,
-                targets, pressed == null ? WHITE : LINK, LINK, (name, linkX, linkY, linkWidth) -> { }));
+                targets, pressed == null ? WHITE : LINK, LINK, ExpressionLines.followedOnRightClick(targets, followRef)));
         x += width + inset + inset + GAP;
     }
 

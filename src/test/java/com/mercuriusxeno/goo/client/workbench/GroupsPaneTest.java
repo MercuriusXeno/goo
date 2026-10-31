@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -104,6 +105,33 @@ class GroupsPaneTest {
         assertEquals(groupWorth, tag.find("What every member is worth:").y());
         assertEquals(List.of(), tag.texts().stream().filter("Add member"::equals).toList());
         tag.click("nothing yet");
+        assertTrue(builder.isOpen());
+    }
+
+    /**
+     * In a group's expression, a right click on a prefab ref opens the Prefabs tab on that prefab and a left click on
+     * the same ref opens the builder over the value (decision left-click-modifies-right-click-follows).
+     */
+    @Test
+    void groupExpressionRefFollowsOnRightClickAndOpensTheBuilderOnLeftClick() {
+        ManagerDraft draft = new ManagerDraft();
+        GroupsTab groups = new GroupsTab(draft);
+        groups.readDescribed("""
+                {"groups": [{"name": "logs", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
+                             "base": "$wood / 2", "tweaks": [], "preview": []}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+        ExpressionBuilderPane builder = new ExpressionBuilderPane(actions, icons, List::of, List::of);
+        GroupsPane pane = new GroupsPane(groups, new ValuesTab(draft), icons, actions, builder);
+        groups.selectGroup("logs");
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
+        frame.rightClick("wood");
+        verify(actions).openVariable("wood");
+        assertTrue(!builder.isOpen());
+        frame.click("wood");
         assertTrue(builder.isOpen());
     }
 

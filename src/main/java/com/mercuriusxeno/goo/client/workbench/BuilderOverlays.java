@@ -444,7 +444,7 @@ final class BuilderOverlays {
             closeDropdown();
             return;
         }
-        targets.add(-EVERYWHERE, -EVERYWHERE, EVERYWHERE_SPAN, EVERYWHERE_SPAN, this::closeLists);
+        targets.addShield(-EVERYWHERE, -EVERYWHERE, EVERYWHERE_SPAN, EVERYWHERE_SPAN, this::closeLists);
         Placement placed = placeDropdown(opener, graphics.guiWidth(), graphics.guiHeight());
         searchField.setPosition(placed.left(), placed.top());
         int rows = Math.max(1, (placed.height() - DROPDOWN_CHROME) / SearchDropdown.ROW_HEIGHT);
@@ -459,7 +459,7 @@ final class BuilderOverlays {
         if (open == null) {
             return;
         }
-        targets.add(-EVERYWHERE, -EVERYWHERE, EVERYWHERE_SPAN, EVERYWHERE_SPAN, this::closeLists);
+        targets.addShield(-EVERYWHERE, -EVERYWHERE, EVERYWHERE_SPAN, EVERYWHERE_SPAN, this::closeLists);
         int width = open.stream().mapToInt(option -> ButtonPainter.width(font, option.label())).max().orElse(0);
         Placement placed = placeUnder(opener, width, open.size() * OPTION_ROW, graphics.guiWidth(),
                 graphics.guiHeight());

@@ -220,7 +220,7 @@ final class SearchDropdown {
         for (int index = 0; index < shown.size(); index++) {
             drawChoice(graphics, font, icons, shown.get(index), x, y + index * ROW_HEIGHT, labelWidth);
         }
-        targets.add(x, y, width, height, () -> { });
+        targets.addShield(x, y, width, height, () -> { });
         layTargets(targets, x, y, width, rows, picked);
         if (scrolls) {
             bar.draw(graphics, targets, x + width, y, y + height);

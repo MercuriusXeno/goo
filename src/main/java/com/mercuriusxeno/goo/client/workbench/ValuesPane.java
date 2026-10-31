@@ -927,8 +927,10 @@ final class ValuesPane {
         return new Page(labelTop, valueTop, errorTop, errorTop + (hasError ? LINE_HEIGHT : 0));
     }
 
-    // The entry's value curated, a click on it opening the builder over it
-    // (decision expression-builder-composes-every-form-without-typing); answers the height it took.
+    // The entry's value curated, a left click on it opening the builder over it and a right click on a ref opening
+    // its prefab; answers the height it took.
+    // Decision expression-builder-composes-every-form-without-typing.
+    // Decision left-click-modifies-right-click-follows.
     private int drawValueView(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row, int x, int y,
                               int width, ClickTargets targets) {
         List<ExpressionLines.Run> runs = row.expression().isBlank() ? ExpressionLines.textRuns(NO_EXPRESSION)
@@ -940,7 +942,7 @@ final class ValuesPane {
             actions.markUnsaved();
         }, actions::draftChanged));
         ExpressionLines.draw(font, runs, x, y, width, new ExpressionLines.Painter(graphics, icons, targets, WHITE,
-                LINK, (name, linkX, linkY, linkWidth) -> { }));
+                LINK, ExpressionLines.followedOnRightClick(targets, actions::openVariable)));
         return height;
     }
 }
