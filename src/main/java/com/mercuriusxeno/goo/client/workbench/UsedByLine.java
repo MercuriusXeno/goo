@@ -5,14 +5,14 @@ import java.util.function.IntUnaryOperator;
 
 /**
  * How many used-by items one line draws: every item where they fit, else as many as leave room for an
- * "... and N more" button that expands the line (decision used-by-draws-the-terminus-items-alone), and the Hide
+ * ..+n button that expands the line (decision used-by-draws-the-terminus-items-alone), and the Hide
  * button an expanded line ends on (decision expanded-used-by-lists-take-a-hide-button).
  */
 final class UsedByLine {
     /** The label of the button that collapses an expanded list. */
     static final String HIDE = "Hide";
-    private static final String MORE_START = "... and ";
-    private static final String MORE_END = " more";
+    // Decision more-button-reads-dot-dot-plus-n.
+    private static final String MORE_START = "..+";
 
     private UsedByLine() {
     }
@@ -52,7 +52,7 @@ final class UsedByLine {
      * @return the link's label
      */
     static String moreLabel(int hidden) {
-        return MORE_START + hidden + MORE_END;
+        return MORE_START + hidden;
     }
 
     /**

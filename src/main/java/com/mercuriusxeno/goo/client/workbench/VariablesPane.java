@@ -158,7 +158,7 @@ final class VariablesPane {
     void refresh() {
         cards.clear();
         cardsAsked.clear();
-        actions.request(WorkbenchOperations.EVALUATE_CONSTANTS, draft.text(), variables::readEvaluated);
+        actions.request(WorkbenchOperations.EVALUATE_CONSTANTS, draft.changeSetText(), variables::readEvaluated);
     }
 
     /**
@@ -367,7 +367,7 @@ final class VariablesPane {
     }
 
     // Answers the height the used-by items took, none where the constant reaches no item. A line too narrow for
-    // them stops at an "... and N more" button, which expands the block's line onto as many rows as it needs, and an
+    // them stops at a ..+n button, which expands the block's line onto as many rows as it needs, and an
     // expanded line ends on Hide, which collapses it (decision expanded-used-by-lists-take-a-hide-button); a null
     // expandKey draws the count as plain text and never expands, as the hover card does.
     private int drawUsedBy(GuiGraphicsExtractor graphics, Font font, String label, List<String> usedBy, int x, int y,
@@ -440,7 +440,7 @@ final class VariablesPane {
             return;
         }
         actions.request(WorkbenchOperations.RENAME_CONSTANT, variables.renameRequest(from, to), renamed -> {
-            draft.read(renamed);
+            draft.readEdited(renamed);
             if (variables.editing().filter(from::equals).isPresent()) {
                 variables.startEditing(to);
             }
@@ -465,7 +465,7 @@ final class VariablesPane {
         }
         show(visible);
         actions.request(WorkbenchOperations.DELETE_CONSTANT, variables.deleteRequest(name), left -> {
-            draft.read(left);
+            draft.readEdited(left);
             actions.draftChanged();
         });
     }

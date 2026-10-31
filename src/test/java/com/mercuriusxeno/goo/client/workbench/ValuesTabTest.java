@@ -1,5 +1,6 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,12 +17,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class ValuesTabTest {
 
-    private static final String INVENTORY = """
-            {"items": [{"id": "minecraft:stick", "name": "Stick"}, {"id": "minecraft:torch", "name": "Torch"},
-                       {"id": "goo:gasket", "name": "Choral Gasket"}],
-             "item_tags": [{"id": "minecraft:logs", "members": ["minecraft:oak_log", "minecraft:birch_log"]}],
-             "goo_types": [], "recipes": []}
-            """;
+    private static final ManagerEntrySource ENTRIES = new ListedEntrySource(
+            List.of(new ManagerEntrySource.ItemName("minecraft:stick", "Stick"),
+                    new ManagerEntrySource.ItemName("minecraft:torch", "Torch"),
+                    new ManagerEntrySource.ItemName("goo:gasket", "Choral Gasket")),
+            List.of(ListedEntrySource.sizedTag("minecraft:logs", 2)));
     private static final String MODEL = """
             {"path": "base_values.json", "members": [
               {"key": "stick", "keySeparator": null, "kind": "VALUE", "text": "\\"$base / 4\\"", "entries": [],
@@ -35,12 +35,14 @@ class ValuesTabTest {
                           "restricted": false, "error": null}]}
             """;
 
+    private ManagerDraft draft;
     private ValuesTab tab;
 
     @BeforeEach
     void readReplies() {
-        tab = new ValuesTab();
-        tab.readInventory(INVENTORY);
+        draft = new ManagerDraft();
+        tab = new ValuesTab(draft);
+        tab.readEntries(ENTRIES);
         tab.readModel(MODEL);
         tab.readResolved(RESOLVED);
     }
@@ -53,17 +55,34 @@ class ValuesTabTest {
     class Listing {
 
         /**
-         * A blank search lists every item under the Items filter, and every item tag after # under the Tags
-         * filter, the tag named by its member count.
+         * The entries read from the client's source run each item by id and name, then each item tag as #id named
+         * by its member count (decision client-builds-items-and-tags-from-its-own-registries).
+         */
+        @Test
+        void entriesReadItemsThenTagsFromTheClientSource() {
+            ValuesTab fresh = new ValuesTab();
+            fresh.readEntries(new ListedEntrySource(
+                    List.of(new ManagerEntrySource.ItemName("minecraft:apple", "Apple"),
+                            new ManagerEntrySource.ItemName("minecraft:bread", "Bread")),
+                    List.of(ListedEntrySource.sizedTag("minecraft:planks", 3))));
+            assertEquals(List.of(new ValuesTab.ManagerEntry("minecraft:apple", "Apple", false),
+                    new ValuesTab.ManagerEntry("minecraft:bread", "Bread", false),
+                    new ValuesTab.ManagerEntry("#minecraft:planks", "3 members", true)), fresh.entries());
+        }
+
+        /**
+         * The filters read Items, Uncovered and Fractional; a blank search lists every item and no tag under Items,
+         * while entries() still answers each item tag after #, named by its member count, for the pickers
+         * (decision items-selector-set-reads-items-and-uncovered).
          */
         @Test
         void blankSearchListsItemsAndTagsUnderTheirFilters() {
+            assertEquals(List.of(ValuesTab.Filter.ITEMS, ValuesTab.Filter.UNCOVERED, ValuesTab.Filter.FRACTIONAL),
+                    List.of(ValuesTab.Filter.values()));
             assertEquals(List.of("minecraft:stick", "minecraft:torch", "goo:gasket"), ids(tab.listed()));
-            tab.filter(ValuesTab.Filter.TAGS);
-            List<ValuesTab.ManagerEntry> tags = tab.listed();
+            List<ValuesTab.ManagerEntry> tags = tab.entries().stream().filter(ValuesTab.ManagerEntry::tag).toList();
             assertEquals(List.of("#minecraft:logs"), ids(tags));
             assertEquals("2 members", tags.getFirst().name());
-            assertTrue(tags.getFirst().tag());
         }
 
         /**
@@ -75,6 +94,20 @@ class ValuesTabTest {
             assertEquals(List.of("goo:gasket"), ids(tab.listed()));
             tab.search("minecraft:");
             assertEquals(List.of("minecraft:stick", "minecraft:torch"), ids(tab.listed()));
+        }
+
+        /**
+         * The Fractional filter lists the items where any one goo type's amount has a part under 1, leaving out
+         * items whose every amount is whole and every tag (decision items-filter-set-takes-a-fractional-chip).
+         */
+        @Test
+        void fractionalFilterListsTheItemsWithAPartUnderOne() {
+            tab.readResolved("""
+                    {"entries": [{"key": "stick", "value": {"leaf": "48", "metal": "3/2"}, "denied": false},
+                                 {"key": "torch", "value": {"glow": "4", "leaf": "12"}, "denied": false}]}
+                    """);
+            tab.filter(ValuesTab.Filter.FRACTIONAL);
+            assertEquals(List.of("minecraft:stick"), ids(tab.listed()));
         }
     }
 
@@ -96,6 +129,23 @@ class ValuesTabTest {
         }
 
         /**
+         * Removing the selected item's entry drops its line from the draft and keeps every other member, so the
+         * item reads as the file never naming it.
+         */
+        @Test
+        void removingTheEntryDropsItFromTheDraft() {
+            tab.select("minecraft:stick");
+            assertTrue(tab.selectedHasEntry());
+            tab.removeEntry();
+            JsonObject posted = JsonParser.parseString(tab.postedText()).getAsJsonObject();
+            assertEquals(List.of(), posted.getAsJsonArray("changed").asList());
+            assertEquals(List.of("stick"), posted.getAsJsonArray("removed").asList().stream()
+                    .map(JsonElement::getAsString).toList());
+            assertEquals("", tab.selectedRow().orElseThrow().expression());
+            assertTrue(!tab.selectedHasEntry());
+        }
+
+        /**
          * An entry the file holds no line for reads an empty expression and no amounts.
          */
         @Test
@@ -112,7 +162,7 @@ class ValuesTabTest {
          */
         @Test
         void openingAnItemSelectsItUnderTheItemsFilter() {
-            tab.filter(ValuesTab.Filter.TAGS);
+            tab.filter(ValuesTab.Filter.UNCOVERED);
             tab.search("logs");
             assertEquals(2, tab.open("goo:gasket"));
             assertEquals(ValuesTab.Filter.ITEMS, tab.filter());
@@ -222,6 +272,47 @@ class ValuesTabTest {
         }
 
         /**
+         * Under the shipped file, which values #saplings and #leaves with no _groups group of either name, a sapling
+         * and a leaf read the game tag that values them as their group, and a log still reads its _groups group
+         * (decision items-row-valued-by-a-tag-reads-the-tag-as-its-group).
+         */
+        @Test
+        void tagValuedItemReadsTheTagThatValuesIt() throws java.io.IOException {
+            ValuesTab shipped = new ValuesTab();
+            shipped.readEntries(new ListedEntrySource(List.of(), List.of(
+                    new ManagerEntrySource.ItemTag("minecraft:saplings",
+                            List.of("minecraft:oak_sapling", "minecraft:acacia_sapling")),
+                    new ManagerEntrySource.ItemTag("minecraft:leaves", List.of("minecraft:oak_leaves")))));
+            shipped.readModel(com.mercuriusxeno.goo.workbench.SampleDrafts.shippedModelJson());
+            assertEquals(new ValuesTab.Source("saplings", ValuesTab.SourceKind.GROUP, false),
+                    shipped.sourceOf("minecraft:acacia_sapling"));
+            assertEquals(new ValuesTab.Source("leaves", ValuesTab.SourceKind.GROUP, false),
+                    shipped.sourceOf("minecraft:oak_leaves"));
+            assertEquals(new ValuesTab.Source("simple_logs", ValuesTab.SourceKind.GROUP, false),
+                    shipped.sourceOf("minecraft:acacia_log"));
+        }
+
+        /**
+         * A #tag entry Add tag wrote with no value yet leaves its members reading what stood before, so a leaf
+         * nothing else values still reads no value (decision add-tag-picks-a-game-tag-and-writes-its-entry).
+         */
+        @Test
+        void unvaluedTagEntryLeavesItsMembersSourceAsItStood() {
+            ValuesTab picked = new ValuesTab();
+            picked.readEntries(new ListedEntrySource(List.of(), List.of(
+                    new ManagerEntrySource.ItemTag("minecraft:leaves", List.of("minecraft:oak_leaves")))));
+            picked.readModel("""
+                    {"path": "base_values.json", "members": [
+                      {"key": "#leaves", "keySeparator": null, "kind": "VALUE", "text": "\\"\\"", "entries": [],
+                       "leading": null, "trailing": null, "closingGap": null},
+                      {"key": "minecraft:dirt", "keySeparator": null, "kind": "VALUE", "text": "\\"$base\\"",
+                       "entries": [], "leading": null, "trailing": null, "closingGap": null}]}
+                    """);
+            assertEquals(new ValuesTab.Source("no value", ValuesTab.SourceKind.NONE, false),
+                    picked.sourceOf("minecraft:oak_leaves"));
+        }
+
+        /**
          * An item valued with no entry, no group and no recipe inputs to name reads derived, the same as one with
          * inputs, so no row reads a bare "derived from" (decisions
          * diagnose-and-correct-group-derived-reading-derived-from, items-row-second-line-is-the-equality-expression).
@@ -238,8 +329,8 @@ class ValuesTabTest {
         }
 
         /**
-         * The Uncovered filter lists the items the uncovered reply names, its chip counts them, and the Tags filter
-         * lists the tags alone.
+         * The Uncovered filter lists the items the uncovered reply names and its chip counts them; Items lists every
+         * item again.
          */
         @Test
         void uncoveredFilterListsTheItemsWithNoValue() {
@@ -247,8 +338,6 @@ class ValuesTabTest {
             assertEquals(1, tab.uncoveredCount());
             tab.filter(ValuesTab.Filter.UNCOVERED);
             assertEquals(List.of("minecraft:torch"), ids(tab.listed()));
-            tab.filter(ValuesTab.Filter.TAGS);
-            assertEquals(List.of("#minecraft:logs"), ids(tab.listed()));
             tab.filter(ValuesTab.Filter.ITEMS);
             assertEquals(List.of("minecraft:stick", "minecraft:torch", "goo:gasket"), ids(tab.listed()));
         }
@@ -258,7 +347,7 @@ class ValuesTabTest {
     class Save {
 
         private JsonObject memberKeyed(String key) {
-            return JsonParser.parseString(tab.modelText()).getAsJsonObject().getAsJsonArray("members").asList()
+            return JsonParser.parseString(draft.text()).getAsJsonObject().getAsJsonArray("members").asList()
                     .stream().map(member -> member.getAsJsonObject())
                     .filter(member -> key.equals(member.get("key").getAsString())).findFirst().orElseThrow();
         }
@@ -282,7 +371,7 @@ class ValuesTabTest {
         void editOfANewEntryAddsItAboveTheClosingSections() {
             tab.select("minecraft:torch");
             tab.edit(" 12 ");
-            List<String> keys = JsonParser.parseString(tab.modelText()).getAsJsonObject().getAsJsonArray("members")
+            List<String> keys = JsonParser.parseString(draft.text()).getAsJsonObject().getAsJsonArray("members")
                     .asList().stream().map(member -> member.getAsJsonObject().get("key").getAsString()).toList();
             assertEquals(List.of("stick", "torch", "_restricted"), keys);
             assertEquals("12", memberKeyed("torch").get("text").getAsString());

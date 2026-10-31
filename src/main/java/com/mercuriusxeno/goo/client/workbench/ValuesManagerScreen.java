@@ -48,7 +48,7 @@ public final class ValuesManagerScreen extends Screen {
     private static final String REVERT = "Revert";
     private static final String CLOSE = "X";
     private static final String DRAFT_BADGE = "draft";
-    private static final String READING = "Reading the draft and the inventory; a fresh world dumps the inventory first.";
+    private static final String READING = "Reading the draft.";
     private static final String SAVING = "saving";
     private static final String SAVED = "saved to the draft";
     private static final String UNSAVED = "unsaved changes";
@@ -72,6 +72,8 @@ public final class ValuesManagerScreen extends Screen {
     private final AuditPane auditPane;
     private final DraftConfirm draftConfirm = new DraftConfirm();
     private final DraftPane draftPane = new DraftPane(draftConfirm, this::runDraftAction);
+    private final ManagerEntrySource entrySource;
+    private final ManagerReads reads;
     private boolean unsaved;
     private ManagerTab tab = ManagerTab.VALUES;
     private String status = READING;
@@ -79,11 +81,13 @@ public final class ValuesManagerScreen extends Screen {
     private boolean loaded;
 
     /**
-     * @param connection the line to the server's workbench operations
+     * @param connection  the line to the server's workbench operations
+     * @param entrySource the client's items and item tags the Values tab lists
      */
-    public ValuesManagerScreen(ManagerConnection connection) {
+    public ValuesManagerScreen(ManagerConnection connection, ManagerEntrySource entrySource) {
         super(Component.literal(TITLE));
         this.connection = connection;
+        this.entrySource = entrySource;
         ManagerActions actions = new ScreenActions();
         valuesPane = new ValuesPane(values, icons, actions, builderPane(actions));
         groupsPane = new GroupsPane(groupsTab, values, icons, actions, builderPane(actions));
@@ -92,6 +96,7 @@ public final class ValuesManagerScreen extends Screen {
                 .filter(block -> VariablesTab.TREE_KIND.equals(block.kind())).map(VariablesTab.ConstantBlock::name)
                 .toList());
         auditPane = new AuditPane(auditTab, draft, actions);
+        reads = new ManagerReads(actions, values, groupsPane, variablesPane, processesPane);
     }
 
     // A builder over the server's items and the draft's prefabs (decision
@@ -257,30 +262,12 @@ public final class ValuesManagerScreen extends Screen {
     }
 
     private void load() {
-        request(WorkbenchOperations.MODEL, NOTHING_POSTED, model -> {
-            values.readModel(model);
-            request(WorkbenchOperations.INVENTORY, NOTHING_POSTED, inventory -> {
-                values.readInventory(inventory);
-                setStatus(NO_STATUS, false);
-                readDraftAfresh();
-            });
-        });
+        reads.open(entrySource, () -> setStatus(NO_STATUS, false));
         auditPane.refresh();
     }
 
-    /**
-     * Has every tab read the draft afresh: the Values tab's resolve and uncovered items, the Groups tab's describe,
-     * the Variables tab's evaluate and the Processes tab's description.
-     */
     private void readDraftAfresh() {
-        request(WorkbenchOperations.RESOLVE_VALUES, values.modelText(), resolved -> {
-            values.readResolved(resolved);
-        });
-        request(WorkbenchOperations.UNCOVERED_VALUES, values.modelText(), values::readUncovered);
-        request(WorkbenchOperations.DERIVED_FROM, values.modelText(), values::readDerivedFrom);
-        groupsPane.refresh();
-        variablesPane.refresh();
-        processesPane.refresh();
+        reads.readAfresh();
     }
 
     /**
@@ -291,11 +278,9 @@ public final class ValuesManagerScreen extends Screen {
      */
     private void save(Runnable after) {
         setStatus(SAVING, false);
-        request(WorkbenchOperations.SAVE_MODEL, values.modelText(), saved -> {
-            values.readModel(saved);
+        reads.save(() -> {
             unsaved = false;
             setStatus(SAVED, false);
-            readDraftAfresh();
             after.run();
         });
     }
@@ -436,7 +421,8 @@ public final class ValuesManagerScreen extends Screen {
         Optional<TooltipLine> line = GooTypeIcons.tooltipFor(hoverKey).or(() -> BuilderOverlays.tooltipFor(hoverKey))
                 .<TooltipLine>map(TooltipLine.Text::new).or(() -> GroupsPane.nameTooltipFor(hoverKey));
         return line.isPresent() ? Optional.of(List.of(line.get()))
-                : icons.tooltipFor(hoverKey).or(() -> PrefabHovers.tooltipFor(variablesTab, hoverKey));
+                : icons.tooltipFor(hoverKey).or(() -> PrefabHovers.tooltipFor(variablesTab, hoverKey))
+                        .or(() -> valuesPane.groupTooltipFor(hoverKey));
     }
 
     // Text stays text; a goo amount reaches GooAmountTooltipComponent through the tooltip factory registered for it,
@@ -446,6 +432,7 @@ public final class ValuesManagerScreen extends Screen {
         return lines.stream().map(line -> switch (line) {
             case TooltipLine.Text text -> Either.<FormattedText, TooltipComponent>left(text.text());
             case TooltipLine.GooAmount amount -> Either.<FormattedText, TooltipComponent>right(amount);
+            case TooltipLine.MemberIcons members -> Either.<FormattedText, TooltipComponent>right(members);
         }).toList();
     }
 

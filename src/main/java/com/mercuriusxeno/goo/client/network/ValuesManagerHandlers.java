@@ -1,6 +1,7 @@
 package com.mercuriusxeno.goo.client.network;
 
 import com.mercuriusxeno.goo.client.workbench.ManagerConnection;
+import com.mercuriusxeno.goo.client.workbench.RegistryEntrySource;
 import com.mercuriusxeno.goo.client.workbench.ValuesManagerScreen;
 import com.mercuriusxeno.goo.network.OpenValuesManagerPayload;
 import com.mercuriusxeno.goo.network.WorkbenchReplyPayload;
@@ -25,7 +26,8 @@ public final class ValuesManagerHandlers {
      * @param context the network context
      */
     public static void handleOpen(OpenValuesManagerPayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> Minecraft.getInstance().setScreen(new ValuesManagerScreen(CONNECTION)));
+        context.enqueueWork(() -> Minecraft.getInstance().setScreen(new ValuesManagerScreen(CONNECTION,
+                new RegistryEntrySource())));
     }
 
     /**

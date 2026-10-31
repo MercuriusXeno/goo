@@ -18,7 +18,7 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * The Values tab's state with no Screen: the inventory's items and tags filtered by the search text, each entry as
+ * The Values tab's state with no Screen: the client's items and tags filtered by the search text, each entry as
  * the server resolved it, the selected entry's row, and the edit a Save sends, as index.html's values section holds
  * them, over the draft every tab shares (decision goo-workbench-opens-the-in-game-manager-screen).
  */
@@ -26,14 +26,11 @@ public final class ValuesTab {
     /** The mark a tag's id starts with. */
     public static final String TAG_MARK = "#";
     private static final String ITEMS = "items";
-    private static final String ITEM_TAGS = "item_tags";
     private static final String ID = "id";
-    private static final String NAME = "name";
     private static final String INPUTS = "inputs";
     private static final String COUNT = "count";
     private static final String OUTPUT = "output";
     private static final Recipe NO_RECIPE = new Recipe(List.of(), 1);
-    private static final String MEMBERS = "members";
     private static final String ENTRIES = "entries";
     private static final String KEY = "key";
     private static final String KIND = "kind";
@@ -49,6 +46,7 @@ public final class ValuesTab {
     private static final String GROUPS_SECTION = "_groups";
     private static final String RESTRICTED_SECTION = "_restricted";
     private static final String NAMESPACE_SEPARATOR = ":";
+    private static final char FRACTION_DIVIDER = '/';
     // Decision items-rows-read-valued-derived-or-no-value-with-values-inline.
     private static final String ENTRY_SOURCE = "Valued";
     private static final String DENIED_BY = "denied by #";
@@ -65,6 +63,7 @@ public final class ValuesTab {
     private final Map<String, JsonObject> resolved = new HashMap<>();
     private final Map<String, Recipe> derivedFrom = new HashMap<>();
     private final Set<String> uncovered = new HashSet<>();
+    private final Map<String, List<String>> tagMembers = new HashMap<>();
     private Filter filter = Filter.ITEMS;
     private String search = NO_TEXT;
     private @Nullable String selected;
@@ -108,22 +107,19 @@ public final class ValuesTab {
     }
 
     /**
-     * Lists the inventory's items, then its item tags.
+     * Lists the client's items, then its item tags, in place of the server's inventory reply
+     * (decision client-builds-items-and-tags-from-its-own-registries).
      *
-     * @param inventoryJson the inventory operation's reply
+     * @param source the client's items and item tags
      */
-    public void readInventory(String inventoryJson) {
-        JsonObject inventory = JsonParser.parseString(inventoryJson).getAsJsonObject();
+    public void readEntries(ManagerEntrySource source) {
         entries.clear();
-        for (JsonElement item : array(inventory, ITEMS)) {
-            JsonObject object = item.getAsJsonObject();
-            entries.add(new ManagerEntry(object.get(ID).getAsString(), object.get(NAME).getAsString(), false));
-        }
-        for (JsonElement tag : array(inventory, ITEM_TAGS)) {
-            JsonObject object = tag.getAsJsonObject();
-            entries.add(new ManagerEntry(TAG_PREFIX + object.get(ID).getAsString(),
-                    array(object, MEMBERS).size() + MEMBERS_SUFFIX, true));
-        }
+        tagMembers.clear();
+        source.items().forEach(item -> entries.add(new ManagerEntry(item.id(), item.name(), false)));
+        source.itemTags().forEach(tag -> {
+            entries.add(new ManagerEntry(TAG_PREFIX + tag.id(), tag.members().size() + MEMBERS_SUFFIX, true));
+            tagMembers.put(GroupsTab.referentName(tag.id()), tag.members());
+        });
     }
 
     /**
@@ -173,7 +169,7 @@ public final class ValuesTab {
      * recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
      *
      * @param inputs its inputs, grouped by item
-     * @param output how many the recipe makes
+     * @param output how many the recipe makes, each input's count reading over it as a fraction
      */
     public record Recipe(List<Input> inputs, int output) {
     }
@@ -194,7 +190,7 @@ public final class ValuesTab {
     }
 
     /**
-     * @return every item and tag the inventory holds, unfiltered, as the group picker offers them
+     * @return every item and tag the client lists, unfiltered, as the group picker offers them
      */
     public List<ManagerEntry> entries() {
         return List.copyOf(entries);
@@ -212,21 +208,42 @@ public final class ValuesTab {
     private boolean keptByFilter(ManagerEntry entry) {
         return switch (filter) {
             case ITEMS -> !entry.tag();
-            case TAGS -> entry.tag();
             case UNCOVERED -> !entry.tag() && uncovered.contains(entry.id());
+            case FRACTIONAL -> fractionalItem(entry);
         };
     }
 
+    private boolean fractionalItem(ManagerEntry entry) {
+        return !entry.tag() && worthOf(entry.id()).values().stream().anyMatch(ValuesTab::fractional);
+    }
+
+    // The server answers an amount as a whole number or a reduced n/d (decision
+    // items-filter-set-takes-a-fractional-chip).
+    private static boolean fractional(String amount) {
+        int divider = amount.indexOf(FRACTION_DIVIDER);
+        if (divider < 0) {
+            return false;
+        }
+        try {
+            long numerator = Long.parseLong(amount.substring(0, divider).trim());
+            long denominator = Long.parseLong(amount.substring(divider + 1).trim());
+            return denominator != 0 && numerator % denominator != 0;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
     /**
-     * Which entries the sidebar lists, as the page's chips choose them.
+     * Which items the sidebar lists, as the page's chips choose them; tags live on the Groups tab as referents
+     * (decision items-selector-set-reads-items-and-uncovered).
      */
     public enum Filter {
         /** Every item. */
         ITEMS,
-        /** Every item tag. */
-        TAGS,
         /** The items the draft leaves with no value. */
-        UNCOVERED
+        UNCOVERED,
+        /** The items where any one goo type's amount has a part under 1. */
+        FRACTIONAL
     }
 
     /**
@@ -235,7 +252,7 @@ public final class ValuesTab {
     public enum SourceKind {
         /** Its own entry. */
         ENTRY,
-        /** A #group entry over a _groups group. */
+        /** A #group entry over a _groups group or a game tag holding the item. */
         GROUP,
         /** A denial. */
         DENIED,
@@ -286,8 +303,8 @@ public final class ValuesTab {
     }
 
     /**
-     * Reads where an item's value comes from in the draft: its own entry, a #group entry over a _groups group,
-     * a denial, or nothing in the file, with its restriction beside, as the page's sourcesFromModel does.
+     * Reads where an item's value comes from in the draft: its own entry, a #group entry over a _groups group or a
+     * game tag holding the item, a denial, or nothing in the file, with its restriction beside, as the page's sourcesFromModel does.
      *
      * @param id the item's namespaced id
      * @return its source badge
@@ -328,8 +345,11 @@ public final class ValuesTab {
             return namespaced(key).equals(id) ? itemSource(denied) : standing;
         }
         String group = key.substring(TAG_PREFIX.length());
-        return standing == null && groups.getOrDefault(group, List.of()).contains(id) ? groupSource(group, denied)
-                : standing;
+        // A #tag entry Add tag wrote with no value yet values no member, as the loader skips it (decision
+        // add-tag-picks-a-game-tag-and-writes-its-entry).
+        boolean unvalued = ManagerDraft.shownText(entry.get(TEXT).getAsString()).isBlank();
+        return standing == null && !unvalued && groups.getOrDefault(group, List.of()).contains(id)
+                ? groupSource(group, denied) : standing;
     }
 
     private static Source itemSource(boolean denied) {
@@ -350,6 +370,14 @@ public final class ValuesTab {
                 : new Source(DERIVED_SOURCE, SourceKind.DERIVED, false);
     }
 
+    /**
+     * @param group a _groups group's bare name
+     * @return its members' namespaced ids in file order, none where the draft holds no such group
+     */
+    public List<String> groupMembers(String group) {
+        return groupsOf().getOrDefault(group, List.of());
+    }
+
     private Map<String, List<String>> groupsOf() {
         Map<String, List<String>> groups = new HashMap<>();
         for (JsonElement element : draft.sectionEntries(GROUPS_SECTION)) {
@@ -360,6 +388,9 @@ public final class ValuesTab {
                             .map(ValuesTab::namespaced).toList()
                     : List.of());
         }
+        // A game tag counts as a group wherever no _groups group holds its name, keyed as the file spells it after
+        // # (decision items-row-valued-by-a-tag-reads-the-tag-as-its-group).
+        tagMembers.forEach(groups::putIfAbsent);
         return groups;
     }
 
@@ -494,10 +525,38 @@ public final class ValuesTab {
     }
 
     /**
-     * @return the text a save or a resolve posts: the model with every edit
+     * @return whether the file holds a value entry of the selected item's own
      */
-    public String modelText() {
-        return draft.text();
+    public boolean selectedHasEntry() {
+        return selected != null && valueMember(entryKeyOf(selected)) != null;
+    }
+
+    /**
+     * Drops the selected item's own value entry from the draft, so the item reads as the file never naming it: derived
+     * where recipes value it, else no value.
+     */
+    public void removeEntry() {
+        if (selected == null) {
+            return;
+        }
+        JsonObject member = valueMember(entryKeyOf(selected));
+        if (member == null) {
+            return;
+        }
+        JsonArray kept = new JsonArray();
+        draft.members().forEach(element -> {
+            if (element != member) {
+                kept.add(element);
+            }
+        });
+        draft.replaceMembers(kept);
+    }
+
+    /**
+     * @return the text a save or a resolve posts: the members changed since the last save
+     */
+    public String postedText() {
+        return draft.changeSetText();
     }
 
     private @Nullable JsonObject valueMember(String key) {

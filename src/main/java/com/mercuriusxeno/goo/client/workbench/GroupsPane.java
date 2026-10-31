@@ -12,10 +12,13 @@ import java.util.Optional;
 
 /**
  * Draws the Groups tab: each group's row, its #name and its members as item icons named on hover, the rest behind an
- * "and N more" link, with no header and no count (decision groups-list-members-as-icons-without-headers-or-count);
+ * ..+n button, with no header and no count (decision groups-list-members-as-icons-without-headers-or-count);
  * and the selected group's detail: New group names a group, Add member picks an item or #tag into it, the
  * group's value is built in the expression builder as what every member is worth, and a member's own line is built
- * too, its count times the group's value plus its extra (decision group-controls-name-add-and-build). The list and
+ * too, its count times the group's value plus its extra (decision group-controls-name-add-and-build). A tag referent
+ * lists beside the custom groups, its members the game's, its detail saying its membership isn't controlled here in
+ * place of Add member (decision tag-referent-lists-the-games-members-and-values-them), and Add tag beside New group
+ * picks a game tag to list (decision add-tag-picks-a-game-tag-and-writes-its-entry). The list and
  * the detail column each draw a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in
  * {@link GroupsTab}.
  */
@@ -51,6 +54,8 @@ final class GroupsPane {
     private static final String NEW_GROUP = "New group";
     private static final String NEW_GROUP_HINT = "group name, Enter";
     private static final String ADD_MEMBER = "Add member";
+    private static final String ADD_TAG = "Add tag";
+    private static final String NOT_CONTROLLED ="Tag membership isn't controlled here";
     private static final String NO_GROUP = "Pick a group, or name a new one.";
     private static final String NO_GROUPS = "The file names no groups.";
     private static final String WORTH_LABEL = "What every member is worth:";
@@ -119,7 +124,7 @@ final class GroupsPane {
      * Reads every group of the draft afresh.
      */
     void refresh() {
-        actions.request(WorkbenchOperations.DESCRIBE_GROUPS, values.modelText(), groups::readDescribed);
+        actions.request(WorkbenchOperations.DESCRIBE_GROUPS, values.postedText(), groups::readDescribed);
     }
 
     /**
@@ -203,13 +208,23 @@ final class GroupsPane {
             nameBox.setPosition(left, top + HALF);
             nameBox.visible = visible;
         } else {
-            BuilderOverlays.control(graphics, font, NEW_GROUP, left, top, targets, at -> startNaming());
+            int afterNewGroup = BuilderOverlays.control(graphics, font, NEW_GROUP, left, top, targets,
+                    at -> startNaming());
+            // decision add-tag-picks-a-game-tag-and-writes-its-entry
+            BuilderOverlays.control(graphics, font, ADD_TAG, afterNewGroup, top, targets, at -> overlays.openDropdown(
+                    at, groups.addTagChoices(values.entries()), choice -> createTag(choice.id())));
         }
         return top + ROW_HEIGHT + HALF;
     }
 
+    private void createTag(String tagId) {
+        apply(groups.createTagRequest(tagId));
+        closeBuilder();
+        groups.selectGroup(GroupsTab.referentName(tagId));
+    }
+
     // A row draws #name and its members' icons, named on hover; answers its height, more than a line once its
-    // "and N more" button expanded it (decision groups-list-members-as-icons-without-headers-or-count).
+    // ..+n button expanded it (decision groups-list-members-as-icons-without-headers-or-count).
     private int drawGroupRow(GuiGraphicsExtractor graphics, Font font, GroupsTab.GroupRow row, int left, int right,
                              int y, boolean selected, ClickTargets targets) {
         List<ExpressionLines.Run> runs = GroupsTab.rowRuns(row, icons::nameOf);
@@ -269,7 +284,7 @@ final class GroupsPane {
                 : Optional.empty();
     }
 
-    // Decision expanded-used-by-lists-take-a-hide-button: "and N more" expands the row, Hide collapses it again.
+    // Decision expanded-used-by-lists-take-a-hide-button: ..+n expands the row, Hide collapses it again.
     private void toggle(String name, boolean expanded) {
         if (expanded) {
             expandedRows.hide(name);
@@ -318,12 +333,19 @@ final class GroupsPane {
         graphics.text(font, GroupsTab.rowRuns(new GroupsTab.GroupRow(group.name(), List.of(), 0), icons::nameOf)
                 .getFirst().text(), x, y + TEXT_NUDGE, WHITE);
         y += ROW_HEIGHT;
-        BuilderOverlays.control(graphics, font, ADD_MEMBER, x, y, targets, at -> overlays.openDropdown(at,
-                SearchDropdown.overMembers(values.entries()), choice -> apply(groups.addPickRequest(choice.id()))));
+        // decision tag-referent-lists-the-games-members-and-values-them
+        if (group.tag()) {
+            graphics.text(font, NOT_CONTROLLED, x, y + TEXT_NUDGE, GRAY);
+        } else {
+            BuilderOverlays.control(graphics, font, ADD_MEMBER, x, y, targets, at -> overlays.openDropdown(at,
+                    SearchDropdown.overMembers(values.entries()), choice -> apply(groups.addPickRequest(choice.id()))));
+        }
         y += ROW_HEIGHT + SECTION_GAP;
         y = drawWorth(graphics, font, detail, group, y, targets);
         y = drawCards(graphics, font, detail, y + SECTION_GAP, targets);
-        y = drawMemberLine(graphics, font, detail, group, y + SECTION_GAP, targets);
+        if (!group.tag()) {
+            y = drawMemberLine(graphics, font, detail, group, y + SECTION_GAP, targets);
+        }
         targets.unclip();
         graphics.disableScissor();
         detailBar.measureAndDraw(graphics, targets, y, detail.right() + ScrollBar.GAP + ScrollBar.WIDTH, detail.top(),

@@ -22,7 +22,8 @@ class GooAmountTooltipComponentTest {
             GooAmountTooltipComponent line = new GooAmountTooltipComponent(new TooltipLine.GooAmount("metal", "3/2"),
                     type -> size);
             assertEquals(size + 2, line.getHeight(font));
-            assertEquals(size + 2 + 18, line.getWidth(font));
+            // 3/2 reads 1 and 1 over 2: the whole's 6px, a 1px gap and the half-scale stack's 3px.
+            assertEquals(size + 2 + 6 + 1 + 3, line.getWidth(font));
         }
     }
 }
