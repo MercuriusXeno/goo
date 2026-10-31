@@ -208,7 +208,6 @@ public final class ValuesTab {
     private boolean keptByFilter(ManagerEntry entry) {
         return switch (filter) {
             case ITEMS -> !entry.tag();
-            case TAGS -> entry.tag();
             case UNCOVERED -> !entry.tag() && uncovered.contains(entry.id());
             case FRACTIONAL -> fractionalItem(entry);
         };
@@ -235,13 +234,12 @@ public final class ValuesTab {
     }
 
     /**
-     * Which entries the sidebar lists, as the page's chips choose them.
+     * Which items the sidebar lists, as the page's chips choose them; tags live on the Groups tab as referents
+     * (decision items-selector-set-reads-items-and-uncovered).
      */
     public enum Filter {
         /** Every item. */
         ITEMS,
-        /** Every item tag. */
-        TAGS,
         /** The items the draft leaves with no value. */
         UNCOVERED,
         /** The items where any one goo type's amount has a part under 1. */
