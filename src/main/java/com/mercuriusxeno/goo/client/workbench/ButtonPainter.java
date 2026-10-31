@@ -110,6 +110,30 @@ final class ButtonPainter {
     }
 
     /**
+     * Draws a link button on a line whose shift + left click follows it, a plain left click passing to the area under
+     * it (decision shift-left-click-follows-plain-left-modifies).
+     *
+     * @param graphics   the frame's graphics
+     * @param font       the font
+     * @param label      the button's label
+     * @param x          its left edge
+     * @param lineTop    the top of the line it stands on
+     * @param lineHeight that line's height
+     * @param targets    the frame's click areas
+     * @param follow     what a shift + left click does
+     * @param hoverKey   what hovering names, null for nothing
+     * @return the box it took
+     */
+    static Box drawFollow(GuiGraphicsExtractor graphics, Font font, String label, int x, int lineTop, int lineHeight,
+                          ClickTargets targets, Runnable follow, @Nullable String hoverKey) {
+        Box box = layout(font.width(label), x, lineTop, lineHeight);
+        drawFrame(graphics, box);
+        graphics.text(font, label, box.left() + PADDING, box.top() + TEXT_NUDGE, LINK);
+        targets.addFollow(box.left(), box.top(), box.width(), box.height(), follow, hoverKey);
+        return box;
+    }
+
+    /**
      * Draws a button's border and inner fill, for content a caller draws inside it, as the builder's clickable runs.
      *
      * @param graphics the frame's graphics

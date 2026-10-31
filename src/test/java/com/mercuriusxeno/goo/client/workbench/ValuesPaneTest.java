@@ -220,8 +220,43 @@ class ValuesPaneTest {
         int top = label.y() - 3;
         int right = left + ButtonPainter.width(DrawnFrame.font(), "lights");
         verify(frame.graphics).fill(left, top, right, top + ButtonPainter.HEIGHT, ButtonPainter.BORDER);
-        frame.click("lights");
+        frame.shiftClick("lights");
         verify(actions, atLeastOnce()).openGroup("lights");
+    }
+
+    /**
+     * A shift + left click on a grouped row's group name opens the Groups tab on that group, and a plain left click on
+     * it passes to the row, which selects the item and opens no builder (decision
+     * shift-left-click-follows-plain-left-modifies).
+     */
+    @Test
+    void groupNameFollowsOnShiftClickAndSelectsItsRowOnPlainClick() {
+        ManagerActions actions = mock(ManagerActions.class);
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:torch", "Torch")), List.of()));
+        values.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "lights", "keySeparator": null, "kind": "VALUE", "text": "[\\"torch\\"]", "entries": [],
+                      "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null},
+                  {"key": "#lights", "keySeparator": null, "kind": "VALUE", "text": "{\\"glow\\": 4}", "entries": [],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        ItemIcons icons = mock(ItemIcons.class);
+        ExpressionBuilderPane builder = new ExpressionBuilderPane(actions, icons, List::of, List::of);
+        ValuesPane pane = new ValuesPane(values, icons, actions, builder);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
+        assertTrue(values.selectedRow().isEmpty());
+        frame.shiftClick("lights");
+        verify(actions).openGroup("lights");
+        assertTrue(values.selectedRow().isEmpty());
+        frame.click("lights");
+        verify(actions).openGroup("lights");
+        assertEquals("minecraft:torch", values.selectedRow().orElseThrow().id());
+        assertTrue(!builder.isOpen());
     }
 
     /**
@@ -248,7 +283,7 @@ class ValuesPaneTest {
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
         assertTrue(frame.texts().contains("="), frame.texts().toString());
-        frame.click("saplings");
+        frame.shiftClick("saplings");
         verify(actions, atLeastOnce()).openGroup("saplings");
 
         GroupsTab groups = new GroupsTab(draft);
