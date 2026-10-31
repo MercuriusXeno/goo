@@ -190,6 +190,46 @@ class ValuesPaneTest {
     }
 
     /**
+     * A sapling the #saplings entry values draws "=" and the tag's name as its link, and the link's press, carried
+     * to the Groups pane as the manager carries it, selects the saplings tag referent (decision
+     * items-row-valued-by-a-tag-reads-the-tag-as-its-group).
+     */
+    @Test
+    void tagValuedRowLinksItsTagReferent() {
+        ManagerDraft draft = new ManagerDraft();
+        ValuesTab values = new ValuesTab(draft);
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:oak_sapling", "Oak Sapling")),
+                List.of(new ManagerEntrySource.ItemTag("minecraft:saplings", List.of("minecraft:oak_sapling")))));
+        values.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "#saplings", "keySeparator": null, "kind": "VALUE", "text": "\\"$log / 2\\"", "entries": [],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
+        assertTrue(frame.texts().contains("="), frame.texts().toString());
+        frame.click("saplings");
+        verify(actions, atLeastOnce()).openGroup("saplings");
+
+        GroupsTab groups = new GroupsTab(draft);
+        groups.readDescribed("""
+                {"groups": [{"name": "saplings", "kind": "tag",
+                             "members": [{"id": "minecraft:oak_sapling", "known": true}],
+                             "base": "$log / 2", "tweaks": [], "preview": []}]}
+                """);
+        new GroupsPane(groups, values, icons, actions, new ExpressionBuilderPane(actions, icons, List::of, List::of))
+                .reveal("saplings");
+        GroupsTab.Group selected = groups.selected().orElseThrow();
+        assertEquals("saplings", selected.name());
+        assertTrue(selected.tag());
+    }
+
+    /**
      * Hovering the group button answers a tooltip of the group's members as item icons in member order, eight at
      * most, then ..+n counting the rest; a group of eight or fewer shows every member and no ..+n (decision
      * group-link-hovers-member-icons-then-plus-n).

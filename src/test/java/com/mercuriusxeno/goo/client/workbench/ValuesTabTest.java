@@ -21,7 +21,7 @@ class ValuesTabTest {
             List.of(new ManagerEntrySource.ItemName("minecraft:stick", "Stick"),
                     new ManagerEntrySource.ItemName("minecraft:torch", "Torch"),
                     new ManagerEntrySource.ItemName("goo:gasket", "Choral Gasket")),
-            List.of(new ManagerEntrySource.TagSize("minecraft:logs", 2)));
+            List.of(ListedEntrySource.sizedTag("minecraft:logs", 2)));
     private static final String MODEL = """
             {"path": "base_values.json", "members": [
               {"key": "stick", "keySeparator": null, "kind": "VALUE", "text": "\\"$base / 4\\"", "entries": [],
@@ -64,7 +64,7 @@ class ValuesTabTest {
             fresh.readEntries(new ListedEntrySource(
                     List.of(new ManagerEntrySource.ItemName("minecraft:apple", "Apple"),
                             new ManagerEntrySource.ItemName("minecraft:bread", "Bread")),
-                    List.of(new ManagerEntrySource.TagSize("minecraft:planks", 3))));
+                    List.of(ListedEntrySource.sizedTag("minecraft:planks", 3))));
             assertEquals(List.of(new ValuesTab.ManagerEntry("minecraft:apple", "Apple", false),
                     new ValuesTab.ManagerEntry("minecraft:bread", "Bread", false),
                     new ValuesTab.ManagerEntry("#minecraft:planks", "3 members", true)), fresh.entries());
@@ -268,6 +268,27 @@ class ValuesTabTest {
             tab.readDerivedFrom("{\"items\": {}}");
             assertEquals(new ValuesTab.Source("concrete", ValuesTab.SourceKind.GROUP, false),
                     tab.sourceOf("minecraft:brown_concrete"));
+        }
+
+        /**
+         * Under the shipped file, which values #saplings and #leaves with no _groups group of either name, a sapling
+         * and a leaf read the game tag that values them as their group, and a log still reads its _groups group
+         * (decision items-row-valued-by-a-tag-reads-the-tag-as-its-group).
+         */
+        @Test
+        void tagValuedItemReadsTheTagThatValuesIt() throws java.io.IOException {
+            ValuesTab shipped = new ValuesTab();
+            shipped.readEntries(new ListedEntrySource(List.of(), List.of(
+                    new ManagerEntrySource.ItemTag("minecraft:saplings",
+                            List.of("minecraft:oak_sapling", "minecraft:acacia_sapling")),
+                    new ManagerEntrySource.ItemTag("minecraft:leaves", List.of("minecraft:oak_leaves")))));
+            shipped.readModel(com.mercuriusxeno.goo.workbench.SampleDrafts.shippedModelJson());
+            assertEquals(new ValuesTab.Source("saplings", ValuesTab.SourceKind.GROUP, false),
+                    shipped.sourceOf("minecraft:acacia_sapling"));
+            assertEquals(new ValuesTab.Source("leaves", ValuesTab.SourceKind.GROUP, false),
+                    shipped.sourceOf("minecraft:oak_leaves"));
+            assertEquals(new ValuesTab.Source("simple_logs", ValuesTab.SourceKind.GROUP, false),
+                    shipped.sourceOf("minecraft:acacia_log"));
         }
 
         /**

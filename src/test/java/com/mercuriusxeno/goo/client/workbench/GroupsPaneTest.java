@@ -121,9 +121,9 @@ class GroupsPaneTest {
                 """);
         ValuesTab values = new ValuesTab(draft);
         values.readEntries(new ListedEntrySource(List.of(), List.of(
-                new ManagerEntrySource.TagSize("minecraft:saplings", 9),
-                new ManagerEntrySource.TagSize("minecraft:leaves", 8),
-                new ManagerEntrySource.TagSize("minecraft:logs", 40))));
+                ListedEntrySource.sizedTag("minecraft:saplings", 9),
+                ListedEntrySource.sizedTag("minecraft:leaves", 8),
+                ListedEntrySource.sizedTag("minecraft:logs", 40))));
         ManagerActions actions = mock(ManagerActions.class);
         when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> call.getArgument(0));
         ItemIcons icons = mock(ItemIcons.class);

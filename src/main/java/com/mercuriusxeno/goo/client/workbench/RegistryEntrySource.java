@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * The client's own item registry and the item tags the server synced to it on login, listed as the dumped
  * inventory lists them: every item in sorted key order with its default-instance display name, then every item tag
- * sorted by id with its member count (decision client-builds-items-and-tags-from-its-own-registries).
+ * sorted by id with its members (decision client-builds-items-and-tags-from-its-own-registries).
  */
 public final class RegistryEntrySource implements ManagerEntrySource {
 
@@ -24,9 +24,10 @@ public final class RegistryEntrySource implements ManagerEntrySource {
     }
 
     @Override
-    public List<TagSize> itemTags() {
+    public List<ItemTag> itemTags() {
         return BuiltInRegistries.ITEM.listTags()
-                .map(tag -> new TagSize(tag.key().location().toString(), tag.size()))
-                .sorted(Comparator.comparing(TagSize::id)).toList();
+                .map(tag -> new ItemTag(tag.key().location().toString(), tag.stream()
+                        .map(holder -> BuiltInRegistries.ITEM.getKey(holder.value()).toString()).toList()))
+                .sorted(Comparator.comparing(ItemTag::id)).toList();
     }
 }
