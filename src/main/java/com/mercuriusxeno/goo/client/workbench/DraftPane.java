@@ -58,7 +58,11 @@ final class DraftPane {
         y += LINE_HEIGHT * HALF;
         ExpressionLines.draw(font, body, x, y, textWidth, new ExpressionLines.Painter(graphics, null, targets, GRAY, GRAY,
                 (name, linkX, linkY, width) -> { }));
-        y += bodyHeight + LINE_HEIGHT;
+        drawChoices(graphics, font, x, y + bodyHeight + LINE_HEIGHT, targets);
+    }
+
+    private void drawChoices(GuiGraphicsExtractor graphics, Font font, int left, int y, ClickTargets targets) {
+        int x = left;
         for (DraftConfirm.Choice choice : confirm.choices()) {
             Runnable pressed = () -> onChoice.accept(choice);
             ButtonPainter.Box box = losesWork(choice)
