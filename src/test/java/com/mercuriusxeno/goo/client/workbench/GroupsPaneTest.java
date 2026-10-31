@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -109,11 +110,12 @@ class GroupsPaneTest {
     }
 
     /**
-     * In a group's expression, a right click on a prefab ref opens the Prefabs tab on that prefab and a left click on
-     * the same ref opens the builder over the value (decision left-click-modifies-right-click-follows).
+     * In a group's expression, a right click on a prefab ref runs nothing, a shift + left click on it opens the
+     * Prefabs tab on that prefab and a plain left click on the same ref opens the builder over the value (decision
+     * shift-left-click-follows-plain-left-modifies).
      */
     @Test
-    void groupExpressionRefFollowsOnRightClickAndOpensTheBuilderOnLeftClick() {
+    void groupExpressionRefFollowsOnShiftClickAndOpensTheBuilderOnPlainClick() {
         ManagerDraft draft = new ManagerDraft();
         GroupsTab groups = new GroupsTab(draft);
         groups.readDescribed("""
@@ -128,7 +130,10 @@ class GroupsPaneTest {
         groups.selectGroup("logs");
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
-        frame.rightClick("wood");
+        assertTrue(!frame.rightClick("wood"));
+        verify(actions, never()).openVariable(anyString());
+        assertTrue(!builder.isOpen());
+        frame.shiftClick("wood");
         verify(actions).openVariable("wood");
         assertTrue(!builder.isOpen());
         frame.click("wood");

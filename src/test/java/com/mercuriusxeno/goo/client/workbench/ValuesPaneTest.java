@@ -15,6 +15,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -152,11 +153,12 @@ class ValuesPaneTest {
     }
 
     /**
-     * In the selected item's value view, a right click on a prefab ref opens the Prefabs tab on that prefab and a
-     * left click on the same ref opens the builder over the value (decision left-click-modifies-right-click-follows).
+     * In the selected item's value view, a right click on a prefab ref runs nothing, a shift + left click on it opens
+     * the Prefabs tab on that prefab and a plain left click on the same ref opens the builder over the value
+     * (decision shift-left-click-follows-plain-left-modifies).
      */
     @Test
-    void valueViewRefFollowsOnRightClickAndOpensTheBuilderOnLeftClick() {
+    void valueViewRefFollowsOnShiftClickAndOpensTheBuilderOnPlainClick() {
         ValuesTab values = new ValuesTab();
         values.readEntries(new ListedEntrySource(
                 List.of(new ManagerEntrySource.ItemName("minecraft:stick", "Stick")), List.of()));
@@ -172,7 +174,10 @@ class ValuesPaneTest {
         ValuesPane pane = new ValuesPane(values, icons, actions, builder);
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
-        frame.rightClick("wood");
+        assertTrue(!frame.rightClick("wood"));
+        verify(actions, never()).openVariable(anyString());
+        assertTrue(!builder.isOpen());
+        frame.shiftClick("wood");
         verify(actions).openVariable("wood");
         assertTrue(!builder.isOpen());
         frame.click("wood");

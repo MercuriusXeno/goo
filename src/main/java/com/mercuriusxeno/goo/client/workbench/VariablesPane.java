@@ -16,11 +16,11 @@ import java.util.Set;
 
 /**
  * Draws the Variables tab: each constant's block with its expression, what it resolves to or its error, and the
- * items it cascades into; a left click on an expression, a $name link in it included, swaps in the edit box and a
- * blur swaps it back; a right click on a $name link opens its variable, and the link hovers its card; rename edits
- * the name in place and delete confirms the readers it removes, as index.html's variables section does (decisions
- * goo-workbench-opens-the-in-game-manager-screen, references-link-to-their-variable-and-hover-a-card,
- * left-click-modifies-right-click-follows). The blocks and the delete confirm's readers each draw a
+ * items it cascades into; a plain left click on an expression, a $name link in it included, swaps in the edit box and
+ * a blur swaps it back; a shift + left click on a $name link opens its variable, and the link hovers its card; rename
+ * edits the name in place and delete confirms the readers it removes, as index.html's variables section does
+ * (decisions goo-workbench-opens-the-in-game-manager-screen, references-link-to-their-variable-and-hover-a-card,
+ * shift-left-click-follows-plain-left-modifies). The blocks and the delete confirm's readers each draw a
  * {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). A search box above the blocks keeps those whose name
  * holds its text (decision prefabs-tab-searches-its-list-by-name). The state lives in {@link VariablesTab}.
  */
@@ -338,12 +338,12 @@ final class VariablesPane {
         List<ExpressionLines.Run> resolved = ExpressionLines.resolvedRuns(block.resolved());
         ExpressionLines.draw(font, resolved, x, y - ExpressionLines.textOffset(resolved), width,
                 new ExpressionLines.Painter(graphics, icons, targets, GREEN, LINK,
-                        ExpressionLines.followedOnRightClick(targets, actions::openVariable)));
+                        ExpressionLines.followedOnShiftClick(targets, actions::openVariable)));
     }
 
-    // A left click on the read view starts editing its block, a ref in it included, and a right click on a ref
-    // opens the prefab it names; answers the height the read view took.
-    // Decision left-click-modifies-right-click-follows.
+    // A plain left click on the read view starts editing its block, a ref in it included, and a shift + left click
+    // on a ref opens the prefab it names; answers the height the read view took.
+    // Decision shift-left-click-follows-plain-left-modifies.
     private int drawReadView(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
                              GroupsPane.Bounds bounds, int y, ClickTargets targets) {
         int width = bounds.right() - bounds.left();
@@ -354,7 +354,7 @@ final class VariablesPane {
         targets.add(bounds.left(), y, width, height, () -> startEditing(block.name()));
         ExpressionLines.draw(font, runs, bounds.left(), y + 1, width, new ExpressionLines.Painter(graphics, icons,
                 targets, block.error().isEmpty() ? WHITE : RED, LINK, (name, linkX, linkY, linkWidth) ->
-                        targets.addRight(linkX, linkY, linkWidth, LINE_HEIGHT, () -> actions.openVariable(name), name)));
+                        targets.addFollow(linkX, linkY, linkWidth, LINE_HEIGHT, () -> actions.openVariable(name), name)));
         return height;
     }
 

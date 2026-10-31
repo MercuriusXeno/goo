@@ -13,11 +13,11 @@ import java.util.function.ToIntFunction;
  * Draws a value as curated runs laid across lines of a width: a goo type as its icon beside its amount, an item as
  * its icon and name, a prefab as its name link, a number and an operator as text and a per-type object as a row per
  * type, so no brace, quote, $ or namespaced id draws (decisions curated-view-shows-no-brace-quote-or-raw-id,
- * goo-types-draw-as-icons-named-on-hover); each link lands with the caller, so a right click on it opens its prefab
- * and a left click reaches the view beneath it, which modifies the value in place. A value the terms cannot read
- * draws its text as an error.
+ * goo-types-draw-as-icons-named-on-hover); each link lands with the caller, so a shift + left click on it opens its
+ * prefab and a plain left click reaches the view beneath it, which modifies the value in place. A value the terms
+ * cannot read draws its text as an error.
  * Decision references-link-to-their-variable-and-hover-a-card.
- * Decision left-click-modifies-right-click-follows.
+ * Decision shift-left-click-follows-plain-left-modifies.
  */
 final class ExpressionLines {
     /** A line's height where a run draws an icon. */
@@ -97,10 +97,10 @@ final class ExpressionLines {
     /**
      * @param targets the frame's click areas
      * @param follow  opens the prefab a link names
-     * @return a sink laying each link's piece as an area a right click follows, hovering the prefab's value
+     * @return a sink laying each link's piece as an area a shift + left click follows, hovering the prefab's value
      */
-    static LinkSink followedOnRightClick(ClickTargets targets, Consumer<String> follow) {
-        return (variable, x, y, width) -> targets.addRight(x, y, width, TEXT_LINE_HEIGHT,
+    static LinkSink followedOnShiftClick(ClickTargets targets, Consumer<String> follow) {
+        return (variable, x, y, width) -> targets.addFollow(x, y, width, TEXT_LINE_HEIGHT,
                 () -> follow.accept(variable), PrefabHovers.hoverKey(variable));
     }
 

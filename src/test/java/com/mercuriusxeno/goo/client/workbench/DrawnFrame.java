@@ -102,13 +102,24 @@ final class DrawnFrame {
     }
 
     /**
-     * Right-clicks inside the text last drawn as the label.
+     * Shift + left clicks inside the text last drawn as the label.
      *
      * @param label a drawn string
      */
-    void rightClick(String label) {
+    void shiftClick(String label) {
         Text text = find(label);
-        assertTrue(targets.click(text.x() + 1, text.y() + 1, GLFW.GLFW_MOUSE_BUTTON_RIGHT),
-                label + " took no right click");
+        assertTrue(targets.click(text.x() + 1, text.y() + 1, GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOD_SHIFT),
+                label + " took no shift click");
+    }
+
+    /**
+     * Right-clicks inside the text last drawn as the label.
+     *
+     * @param label a drawn string
+     * @return whether an area took the right click
+     */
+    boolean rightClick(String label) {
+        Text text = find(label);
+        return targets.click(text.x() + 1, text.y() + 1, GLFW.GLFW_MOUSE_BUTTON_RIGHT, 0);
     }
 }

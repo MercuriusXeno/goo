@@ -21,6 +21,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -167,11 +168,12 @@ class VariablesPaneTest {
     }
 
     /**
-     * In a prefab's read view, a right click on a $name ref opens that prefab's block and a left click on the same
-     * ref starts editing the block it sits in (decision left-click-modifies-right-click-follows).
+     * In a prefab's read view, a right click on a $name ref runs nothing, a shift + left click on it opens that
+     * prefab's block and a plain left click on the same ref starts editing the block it sits in (decision
+     * shift-left-click-follows-plain-left-modifies).
      */
     @Test
-    void readViewRefFollowsOnRightClickAndEditsItsBlockOnLeftClick() {
+    void readViewRefFollowsOnShiftClickAndEditsItsBlockOnPlainClick() {
         ManagerDraft draft = new ManagerDraft();
         draft.read("""
                 {"path": "base_values.json", "members": [
@@ -192,7 +194,10 @@ class VariablesPaneTest {
         read.show(true);
         DrawnFrame frame = new DrawnFrame();
         read.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
-        frame.rightClick("wood");
+        assertFalse(frame.rightClick("wood"));
+        verify(actions, never()).openVariable(anyString());
+        assertTrue(prefabs.editing().isEmpty());
+        frame.shiftClick("wood");
         verify(actions).openVariable("wood");
         assertTrue(prefabs.editing().isEmpty());
         frame.click("wood");
