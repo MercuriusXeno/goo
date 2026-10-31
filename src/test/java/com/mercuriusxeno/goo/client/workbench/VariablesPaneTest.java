@@ -21,6 +21,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -164,6 +165,208 @@ class VariablesPaneTest {
         List<Integer> borders = fillTopsAt(ButtonPainter.BORDER);
         assertTrue(borders.get(2) >= separator + 2, "Rename top " + borders.get(2) + " vs " + separator);
         assertTrue(borders.get(3) >= separator + 2, "Delete top " + borders.get(3) + " vs " + separator);
+    }
+
+    private static final GroupsPane.Bounds TALL_VIEW = new GroupsPane.Bounds(0, 20, 400, 6000);
+    private static final GroupsPane.Bounds FITS_THE_EDITED_BLOCK = new GroupsPane.Bounds(0, 20, 400, 320);
+
+    // A Prefabs pane over the twelve prefabs model() names, built fresh with no draw yet.
+    private static VariablesPane twelvePrefabs(VariablesTab prefabs, ManagerDraft draft) {
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
+        ItemIcons icons = mock(ItemIcons.class);
+        VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        read.init(DrawnFrame.font());
+        read.show(true);
+        return read;
+    }
+
+    // Each block's top inside the list's content once the named block edits, read off a view tall enough to draw
+    // every block unscrolled.
+    private static List<Integer> blockTopsEditing(String name) {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read(model());
+        VariablesPane tall = twelvePrefabs(new VariablesTab(draft), draft);
+        tall.jumpTo(name);
+        DrawnFrame frame = new DrawnFrame();
+        tall.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        DrawnFrame settled = new DrawnFrame();
+        tall.extract(settled.graphics, DrawnFrame.font(), TALL_VIEW, settled.targets, 0, 0);
+        List<Integer> names = settled.topsOf(IntStream.range(0, PREFABS).mapToObj(index -> "prefab" + index)
+                .toList());
+        return names.stream().map(y -> y - names.getFirst()).toList();
+    }
+
+    /**
+     * A shift + left follow to a prefab well below the fold opens its block for editing and centers the block in the
+     * list (decision shift-follow-centers-the-target-in-its-scrolling-view).
+     */
+    @Test
+    void jumpCentersTheEditedBlockInTheList() {
+        int target = 8;
+        List<Integer> tops = blockTopsEditing("prefab" + target);
+        DrawnFrame before = new DrawnFrame();
+        pane.extract(before.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, before.targets, 0, 0);
+        pane.jumpTo("prefab" + target);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, frame.targets, 0, 0);
+        int[] list = frame.firstScissor();
+        int blockHeight = tops.get(target + 1) - tops.get(target);
+        assertTrue(blockHeight <= list[3] - list[1], "the edited block outgrows the list");
+        assertEquals(tops.get(target) + blockHeight / 2 - (list[3] - list[1]) / 2, pane.listBar().offset());
+        assertEquals(java.util.Optional.of("prefab" + target), variables.editing());
+    }
+
+    /**
+     * A shift + left follow to a prefab whose editing block outgrows the list stands the block's top at the list's
+     * top, so its name and the builder's start stay in view (decision tall-follow-target-shows-from-its-top).
+     */
+    @Test
+    void jumpToABlockTallerThanTheListShowsItFromItsTop() {
+        int target = 5;
+        List<Integer> tops = blockTopsEditing("prefab" + target);
+        draw();
+        pane.jumpTo("prefab" + target);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
+        int[] list = frame.firstScissor();
+        assertTrue(tops.get(target + 1) - tops.get(target) > list[3] - list[1], "the edited block fits the list");
+        assertEquals(tops.get(target), pane.listBar().offset());
+        assertEquals(java.util.Optional.of("prefab" + target), variables.editing());
+    }
+
+    /**
+     * A shift + left follow to the last prefab stops the list at its end (decision
+     * shift-follow-centers-the-target-in-its-scrolling-view).
+     */
+    @Test
+    void jumpToTheLastPrefabStopsAtTheListsEnd() {
+        DrawnFrame before = new DrawnFrame();
+        pane.extract(before.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, before.targets, 0, 0);
+        pane.jumpTo("prefab" + (PREFABS - 1));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, frame.targets, 0, 0);
+        assertTrue(pane.listBar().maximum() > 0);
+        assertEquals(pane.listBar().maximum(), pane.listBar().offset());
+    }
+
+    /**
+     * With shift held, the delete confirm's $name reader draws underlined, while the confirm's Delete and the block's
+     * Rename and Delete, which modify, never do (decision holding-shift-underlines-every-link).
+     */
+    @Test
+    void cascadeReaderUnderlinesWhileShiftIsHeldAndModifyButtonsNever() {
+        VariablesPane read = readByEgg(mock(ManagerActions.class));
+        DrawnFrame list = new DrawnFrame().holdingShift();
+        read.extract(list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
+        assertFalse(list.underlined("Rename"));
+        assertFalse(list.underlined("Delete"));
+        list.click("Delete");
+        DrawnFrame confirm = new DrawnFrame().holdingShift();
+        read.extract(confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
+        assertTrue(confirm.underlined("egg"));
+        assertFalse(confirm.underlined("Delete"));
+    }
+
+    // A Prefabs pane over one prefab, base, that the prefab egg reads.
+    private static VariablesPane readByEgg(ManagerActions actions) {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                    {"key": "base", "keySeparator": null, "kind": "VALUE", "text": "8", "entries": [],
+                     "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        VariablesTab prefabs = new VariablesTab(draft);
+        prefabs.readEvaluated("""
+                {"constants": [{"name": "base", "kind": "scalar", "value": "8", "error": null, "usedBy": [],
+                                "readers": [{"id": "egg", "kind": "constant"}]}]}
+                """);
+        when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
+        ItemIcons icons = mock(ItemIcons.class);
+        VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        read.init(DrawnFrame.font());
+        read.show(true);
+        return read;
+    }
+
+    /**
+     * In the delete confirm, a shift + left click on a $name reader opens that prefab, and a plain left click on it
+     * runs nothing and leaves the confirm standing (decision shift-left-click-follows-plain-left-modifies).
+     */
+    @Test
+    void cascadeReaderFollowsOnShiftClickAndTakesNoPlainClick() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                    {"key": "base", "keySeparator": null, "kind": "VALUE", "text": "8", "entries": [],
+                     "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        VariablesTab prefabs = new VariablesTab(draft);
+        prefabs.readEvaluated("""
+                {"constants": [{"name": "base", "kind": "scalar", "value": "8", "error": null, "usedBy": [],
+                                "readers": [{"id": "egg", "kind": "constant"}]}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
+        ItemIcons icons = mock(ItemIcons.class);
+        VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        read.init(DrawnFrame.font());
+        read.show(true);
+        DrawnFrame list = new DrawnFrame();
+        read.extract(list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
+        list.click("Delete");
+        DrawnFrame confirm = new DrawnFrame();
+        read.extract(confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
+        confirm.click("egg");
+        verify(actions, never()).openVariable(anyString());
+        DrawnFrame standing = new DrawnFrame();
+        read.extract(standing.graphics, DrawnFrame.font(), VIEW, standing.targets, 0, 0);
+        standing.shiftClick("egg");
+        verify(actions).openVariable("egg");
+    }
+
+    /**
+     * In a prefab's read view, a right click on a $name ref runs nothing, a shift + left click on it opens that
+     * prefab's block and a plain left click on the same ref starts editing the block it sits in (decision
+     * shift-left-click-follows-plain-left-modifies).
+     */
+    @Test
+    void readViewRefFollowsOnShiftClickAndEditsItsBlockOnPlainClick() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                    {"key": "wood", "keySeparator": null, "kind": "VALUE", "text": "8", "entries": [],
+                     "leading": null, "trailing": null, "closingGap": null},
+                    {"key": "plank", "keySeparator": null, "kind": "VALUE", "text": "\\"$wood / 4\\"", "entries": [],
+                     "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        VariablesTab prefabs = new VariablesTab(draft);
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
+        ItemIcons icons = mock(ItemIcons.class);
+        VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        read.init(DrawnFrame.font());
+        read.show(true);
+        DrawnFrame frame = new DrawnFrame();
+        read.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
+        assertFalse(frame.rightClick("wood"));
+        verify(actions, never()).openVariable(anyString());
+        assertTrue(prefabs.editing().isEmpty());
+        frame.shiftClick("wood");
+        verify(actions).openVariable("wood");
+        assertTrue(prefabs.editing().isEmpty());
+        frame.click("wood");
+        assertEquals(java.util.Optional.of("plank"), prefabs.editing());
     }
 
     /**

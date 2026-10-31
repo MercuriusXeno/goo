@@ -64,6 +64,8 @@ public final class ValuesManagerScreen extends Screen {
     private final AuditTab auditTab = new AuditTab();
     private final ItemIcons icons = new ItemIcons(values::worthOf);
     private final ClickTargets targets = new ClickTargets();
+    private final LinkCursor linkCursor = new LinkCursor(cursor -> minecraft.getWindow().selectCursor(cursor),
+            PointerHand::cursor);
     private final Map<ManagerTab, Button> tabButtons = new EnumMap<>(ManagerTab.class);
     private final ValuesPane valuesPane;
     private final GroupsPane groupsPane;
@@ -332,16 +334,28 @@ public final class ValuesManagerScreen extends Screen {
         statusIsError = error;
     }
 
+    /**
+     * Hands a press to the frame's areas by its button and the modifiers held
+     * (decision shift-left-click-follows-plain-left-modifies).
+     *
+     * @param targets the frame's click areas
+     * @param event   the press
+     * @return whether an area took it
+     */
+    static boolean clickTargets(ClickTargets targets, MouseButtonEvent event) {
+        return targets.click(event.x(), event.y(), event.button(), event.modifiers());
+    }
+
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (draftPane.open()) {
-            return targets.click(event.x(), event.y());
+            return clickTargets(targets, event);
         }
         if (super.mouseClicked(event, doubleClick)) {
             return true;
         }
         setFocused(null);
-        return targets.click(event.x(), event.y());
+        return clickTargets(targets, event);
     }
 
     @Override
@@ -394,6 +408,8 @@ public final class ValuesManagerScreen extends Screen {
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         targets.clear();
+        // Decision holding-shift-underlines-every-link.
+        targets.holdShift(minecraft.hasShiftDown());
         GroupsPane.Bounds content = contentBounds();
         switch (tab) {
             case VALUES -> valuesPane.extract(graphics, font, content, targets);
@@ -413,6 +429,14 @@ public final class ValuesManagerScreen extends Screen {
         targets.hovered(mouseX, mouseY).flatMap(this::tooltipLines)
                 .ifPresent(lines -> graphics.setComponentTooltipFromElementsForNextFrame(font, elementsOf(lines),
                         mouseX, mouseY, ItemStack.EMPTY));
+        // Decision shift-over-a-link-shows-a-pixel-pointer-hand.
+        linkCursor.frame(targets, mouseX, mouseY, graphics::requestCursor);
+    }
+
+    @Override
+    public void removed() {
+        linkCursor.release();
+        super.removed();
     }
 
     // A goo type, a control or a truncated group name names itself on one line; an item or a prefab names itself,

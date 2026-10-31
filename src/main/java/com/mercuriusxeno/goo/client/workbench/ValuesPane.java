@@ -11,6 +11,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.IntUnaryOperator;
 import java.util.function.ToIntFunction;
 
 /**
@@ -151,6 +152,10 @@ final class ValuesPane {
         return builder.keyPressed(key);
     }
 
+    ScrollBar listBar() {
+        return listBar;
+    }
+
     /**
      * Selects an item under the Items filter, the search cleared, and scrolls the list to it on the next frame
      * (decision used-by-icons-link-to-items-and-hover-their-value).
@@ -274,7 +279,7 @@ final class ValuesPane {
             graphics.text(font, NO_ENTRIES, list.left(), list.top(), GRAY);
             return;
         }
-        scrollToRevealed();
+        scrollToRevealed(font, listed, list);
         int firstShown = Math.min(listBar.offset(), listed.size() - 1);
         graphics.enableScissor(list.left(), list.top(), list.right(), list.bottom());
         targets.clip(list.left(), list.top(), list.right(), list.bottom());
@@ -414,13 +419,15 @@ final class ValuesPane {
                 : NO_TEXT);
     }
 
-    // The group's name as a button opening its group on the Groups tab, hovering its members (decisions
-    // blue-text-options-draw-as-bordered-buttons, group-link-hovers-member-icons-then-plus-n).
+    // The group's name as a button a shift + left click follows to its group on the Groups tab, a plain left click
+    // passing to the row, hovering its members (decisions blue-text-options-draw-as-bordered-buttons,
+    // group-link-hovers-member-icons-then-plus-n).
+    // Decision shift-left-click-follows-plain-left-modifies.
     private void drawGroupLink(GuiGraphicsExtractor graphics, Font font, String group, Equality line,
                                ClickTargets targets) {
         String shown = font.plainSubstrByWidth(group,
                 line.right() - line.besideLeft() - ButtonPainter.PADDING - ButtonPainter.PADDING);
-        ButtonPainter.draw(graphics, font, shown, line.besideLeft(), line.spriteTop() - 1, ROW_HEIGHT, targets,
+        ButtonPainter.drawFollow(graphics, font, shown, line.besideLeft(), line.spriteTop() - 1, ROW_HEIGHT, targets,
                 () -> actions.openGroup(group), GROUP_HOVER_PREFIX + group);
     }
 
@@ -824,10 +831,65 @@ final class ValuesPane {
         return new ValueLines(left, top, runs, lineHeight, (lineHeight - text.lineHeight()) / HALF, lines);
     }
 
-    private void scrollToRevealed() {
-        if (revealRow != NO_REVEAL) {
-            listBar.scrollTo(revealRow);
-            revealRow = NO_REVEAL;
+    // The list scrolls by whole rows of differing heights, so a revealed row lands on the first shown row that puts
+    // its middle nearest the list's middle, no later than the last first row that still fills the list.
+    // Decision shift-follow-centers-the-target-in-its-scrolling-view.
+    private void scrollToRevealed(Font font, List<ValuesTab.ManagerEntry> listed, GroupsPane.Bounds list) {
+        if (revealRow == NO_REVEAL) {
+            return;
+        }
+        int target = Math.min(revealRow, listed.size() - 1);
+        revealRow = NO_REVEAL;
+        int right = list.right() - ScrollBar.WIDTH - ScrollBar.GAP;
+        IntUnaryOperator height = index -> layCard(font, listed.get(index),
+                new GroupsPane.Bounds(list.left(), list.top(), right, list.bottom())).layout().height();
+        RowFit fit = new RowFit(height, listed.size(), list.bottom() - list.top());
+        int first = Math.min(fit.centeredFirst(target), fit.lastFillingFirst());
+        listBar.measure(listed.size(), fit.wholeFrom(first));
+        listBar.scrollTo(first);
+    }
+
+    // Rows of differing heights in a view of a fixed height, by the first row shown.
+    private record RowFit(IntUnaryOperator height, int rows, int view) {
+        // The first row that puts the target's middle nearest the view's middle, walking up from the target; a target
+        // taller than the view is its own first row, shown from its top.
+        // Decision tall-follow-target-shows-from-its-top.
+        int centeredFirst(int target) {
+            double half = view / (double) HALF;
+            double middle = height.applyAsInt(target) / (double) HALF;
+            int best = target;
+            double bestMiss = Math.abs(middle - half);
+            for (int first = target - 1; first >= 0 && middle < half; first--) {
+                middle += height.applyAsInt(first);
+                double miss = Math.abs(middle - half);
+                if (miss < bestMiss) {
+                    best = first;
+                    bestMiss = miss;
+                }
+            }
+            return best;
+        }
+
+        // The first row at which the rows to the end still fit the view, the list's end at its bottom.
+        int lastFillingFirst() {
+            int first = rows - 1;
+            int filled = height.applyAsInt(first);
+            while (first > 0 && filled + height.applyAsInt(first - 1) <= view) {
+                first--;
+                filled += height.applyAsInt(first);
+            }
+            return first;
+        }
+
+        // How many rows from the first stand whole in the view, at least one.
+        int wholeFrom(int first) {
+            int whole = 0;
+            int filled = 0;
+            for (int index = first; index < rows && filled + height.applyAsInt(index) <= view; index++) {
+                filled += height.applyAsInt(index);
+                whole++;
+            }
+            return Math.max(1, whole);
         }
     }
 
@@ -927,8 +989,10 @@ final class ValuesPane {
         return new Page(labelTop, valueTop, errorTop, errorTop + (hasError ? LINE_HEIGHT : 0));
     }
 
-    // The entry's value curated, a click on it opening the builder over it
-    // (decision expression-builder-composes-every-form-without-typing); answers the height it took.
+    // The entry's value curated, a plain left click on it opening the builder over it and a shift + left click on a
+    // ref opening its prefab; answers the height it took.
+    // Decision expression-builder-composes-every-form-without-typing.
+    // Decision shift-left-click-follows-plain-left-modifies.
     private int drawValueView(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row, int x, int y,
                               int width, ClickTargets targets) {
         List<ExpressionLines.Run> runs = row.expression().isBlank() ? ExpressionLines.textRuns(NO_EXPRESSION)
@@ -940,7 +1004,7 @@ final class ValuesPane {
             actions.markUnsaved();
         }, actions::draftChanged));
         ExpressionLines.draw(font, runs, x, y, width, new ExpressionLines.Painter(graphics, icons, targets, WHITE,
-                LINK, (name, linkX, linkY, linkWidth) -> { }));
+                LINK, ExpressionLines.followedOnShiftClick(targets, actions::openVariable)));
         return height;
     }
 }
