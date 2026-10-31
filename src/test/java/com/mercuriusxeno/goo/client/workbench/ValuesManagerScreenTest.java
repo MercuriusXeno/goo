@@ -2,7 +2,11 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
+import com.mojang.blaze3d.platform.cursor.CursorType;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.input.MouseButtonInfo;
+import org.lwjgl.glfw.GLFW;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
@@ -38,6 +42,60 @@ class ValuesManagerScreenTest {
     void closeXEndsAtTheRightMarginAndTheTopbarStandsLeftOfIt() {
         ValuesManagerScreen.TitleRow row = ValuesManagerScreen.titleRowOf(400);
         assertEquals(new ValuesManagerScreen.TitleRow(378, 392, 376), row);
+    }
+
+    /**
+     * A left-button press carrying shift runs the follow action of the area under it and leaves its left action
+     * unrun, a plain left-button press runs the left one, and a right-button press runs neither (decision
+     * shift-left-click-follows-plain-left-modifies).
+     */
+    @Test
+    void pressReachesTheActionForItsGesture() {
+        List<String> ran = new ArrayList<>();
+        ClickTargets targets = new ClickTargets();
+        targets.add(0, 0, 50, 10, () -> ran.add("modify"));
+        targets.addFollow(0, 0, 50, 10, () -> ran.add("follow"), null);
+        ValuesManagerScreen.clickTargets(targets,
+                new MouseButtonEvent(5, 5, new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_LEFT, GLFW.GLFW_MOD_SHIFT)));
+        assertEquals(List.of("follow"), ran);
+        ValuesManagerScreen.clickTargets(targets,
+                new MouseButtonEvent(5, 5, new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_LEFT, 0)));
+        assertEquals(List.of("follow", "modify"), ran);
+        ValuesManagerScreen.clickTargets(targets,
+                new MouseButtonEvent(5, 5, new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_RIGHT, 0)));
+        assertEquals(List.of("follow", "modify"), ran);
+    }
+
+    /**
+     * The screen's link cursor leaves each frame on the pointer hand while shift is held over a follow target, and on
+     * the default cursor with shift up and over a target holding no follow action; as the screen is removed the
+     * window takes the default back (decision shift-over-a-link-shows-a-pixel-pointer-hand).
+     */
+    @Test
+    void handShowsOnlyWhileShiftIsHeldOverAFollowTarget() {
+        CursorType hand = new CursorType("hand", 1L);
+        List<CursorType> onWindow = new ArrayList<>();
+        LinkCursor cursor = new LinkCursor(onWindow::add, () -> hand);
+        ClickTargets targets = new ClickTargets();
+        targets.add(0, 0, 100, 10, () -> { });
+        targets.addFollow(0, 0, 50, 10, () -> { }, null);
+        targets.holdShift(true);
+        List<CursorType> frames = new ArrayList<>();
+        frames.add(cursorOfFrame(cursor, targets, 5));
+        frames.add(cursorOfFrame(cursor, targets, 75));
+        targets.holdShift(false);
+        frames.add(cursorOfFrame(cursor, targets, 5));
+        assertEquals(List.of(hand, CursorType.DEFAULT, CursorType.DEFAULT), frames);
+        cursor.release();
+        assertEquals(List.of(CursorType.DEFAULT), onWindow);
+    }
+
+    // The cursor a frame applies once drawn: the default the frame starts with unless the cursor requested another,
+    // as GuiGraphicsExtractor's pending cursor does.
+    private static CursorType cursorOfFrame(LinkCursor cursor, ClickTargets targets, double x) {
+        CursorType[] pending = {CursorType.DEFAULT};
+        cursor.frame(targets, x, 5, requested -> pending[0] = requested);
+        return pending[0];
     }
 
     @Nested

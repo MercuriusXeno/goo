@@ -5,6 +5,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
@@ -12,9 +13,11 @@ import java.util.function.ToIntFunction;
  * Draws a value as curated runs laid across lines of a width: a goo type as its icon beside its amount, an item as
  * its icon and name, a prefab as its name link, a number and an operator as text and a per-type object as a row per
  * type, so no brace, quote, $ or namespaced id draws (decisions curated-view-shows-no-brace-quote-or-raw-id,
- * goo-types-draw-as-icons-named-on-hover); each link lands with the caller, so a click on it opens its prefab
- * (decision references-link-to-their-variable-and-hover-a-card). A value the terms cannot read draws its text as
- * an error.
+ * goo-types-draw-as-icons-named-on-hover); each link lands with the caller, so a shift + left click on it opens its
+ * prefab and a plain left click reaches the view beneath it, which modifies the value in place. A value the terms
+ * cannot read draws its text as an error.
+ * Decision references-link-to-their-variable-and-hover-a-card.
+ * Decision shift-left-click-follows-plain-left-modifies.
  */
 final class ExpressionLines {
     /** A line's height where a run draws an icon. */
@@ -89,6 +92,16 @@ final class ExpressionLines {
          * @param width    the piece's width
          */
         void landed(String variable, int x, int y, int width);
+    }
+
+    /**
+     * @param targets the frame's click areas
+     * @param follow  opens the prefab a link names
+     * @return a sink laying each link's piece as an area a shift + left click follows, hovering the prefab's value
+     */
+    static LinkSink followedOnShiftClick(ClickTargets targets, Consumer<String> follow) {
+        return (variable, x, y, width) -> targets.addFollow(x, y, width, TEXT_LINE_HEIGHT,
+                () -> follow.accept(variable), PrefabHovers.hoverKey(variable));
     }
 
     /**
@@ -471,8 +484,11 @@ final class ExpressionLines {
         }
     }
 
+    // Decision holding-shift-underlines-every-link.
     private static void drawLink(Font font, Run run, String piece, int x, int textTop, Painter painter) {
         painter.graphics().text(font, piece, x, textTop, painter.linkColor());
+        ButtonPainter.underlineWhileShiftHeld(painter.graphics(), painter.targets(), x, textTop, font.width(piece),
+                painter.linkColor());
         // Decision every-prefab-reference-hovers-its-value; a link sink's own area, laid after, stands over it.
         painter.targets().addHover(x, textTop, font.width(piece), TEXT_LINE_HEIGHT,
                 PrefabHovers.hoverKey(String.valueOf(run.ref())));

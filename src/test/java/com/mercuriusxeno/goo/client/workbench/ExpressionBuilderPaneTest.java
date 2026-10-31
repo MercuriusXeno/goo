@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -91,6 +92,28 @@ class ExpressionBuilderPaneTest {
 
     private static String dropdown(String label) {
         return ControlFlow.dropdownLabel(label);
+    }
+
+    /**
+     * Inside the builder, a right click on a prefab reference runs nothing, a shift + left click on it opens the
+     * Prefabs tab on that prefab, and a plain left click opens the dropdown that replaces it (decision
+     * shift-left-click-follows-plain-left-modifies).
+     */
+    @Test
+    void referenceFollowsOnShiftClickAndOpensItsReplacementOnPlainClick() {
+        Builder builder = Builder.item("$waxed");
+        DrawnFrame closed = builder.frame();
+        assertFalse(closed.texts().contains("edited"), closed.texts().toString());
+        assertFalse(closed.rightClick("waxed"));
+        verify(builder.actions, never()).openVariable(any());
+        DrawnFrame unmoved = builder.frame();
+        assertFalse(unmoved.texts().contains("edited"), unmoved.texts().toString());
+        unmoved.shiftClick("waxed");
+        verify(builder.actions).openVariable("waxed");
+        assertFalse(builder.frame().texts().contains("edited"));
+        builder.frame().click("waxed");
+        List<String> opened = builder.frame().texts();
+        assertTrue(opened.contains("edited"), opened.toString());
     }
 
     /**
