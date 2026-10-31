@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
+import com.mojang.blaze3d.platform.cursor.CursorType;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.MouseButtonInfo;
@@ -63,6 +64,38 @@ class ValuesManagerScreenTest {
         ValuesManagerScreen.clickTargets(targets,
                 new MouseButtonEvent(5, 5, new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_RIGHT, 0)));
         assertEquals(List.of("follow", "modify"), ran);
+    }
+
+    /**
+     * The screen's link cursor leaves each frame on the pointer hand while shift is held over a follow target, and on
+     * the default cursor with shift up and over a target holding no follow action; as the screen is removed the
+     * window takes the default back (decision shift-over-a-link-shows-a-pixel-pointer-hand).
+     */
+    @Test
+    void handShowsOnlyWhileShiftIsHeldOverAFollowTarget() {
+        CursorType hand = new CursorType("hand", 1L);
+        List<CursorType> onWindow = new ArrayList<>();
+        LinkCursor cursor = new LinkCursor(onWindow::add, () -> hand);
+        ClickTargets targets = new ClickTargets();
+        targets.add(0, 0, 100, 10, () -> { });
+        targets.addFollow(0, 0, 50, 10, () -> { }, null);
+        targets.holdShift(true);
+        List<CursorType> frames = new ArrayList<>();
+        frames.add(cursorOfFrame(cursor, targets, 5));
+        frames.add(cursorOfFrame(cursor, targets, 75));
+        targets.holdShift(false);
+        frames.add(cursorOfFrame(cursor, targets, 5));
+        assertEquals(List.of(hand, CursorType.DEFAULT, CursorType.DEFAULT), frames);
+        cursor.release();
+        assertEquals(List.of(CursorType.DEFAULT), onWindow);
+    }
+
+    // The cursor a frame applies once drawn: the default the frame starts with unless the cursor requested another,
+    // as GuiGraphicsExtractor's pending cursor does.
+    private static CursorType cursorOfFrame(LinkCursor cursor, ClickTargets targets, double x) {
+        CursorType[] pending = {CursorType.DEFAULT};
+        cursor.frame(targets, x, 5, requested -> pending[0] = requested);
+        return pending[0];
     }
 
     @Nested

@@ -64,6 +64,8 @@ public final class ValuesManagerScreen extends Screen {
     private final AuditTab auditTab = new AuditTab();
     private final ItemIcons icons = new ItemIcons(values::worthOf);
     private final ClickTargets targets = new ClickTargets();
+    private final LinkCursor linkCursor = new LinkCursor(cursor -> minecraft.getWindow().selectCursor(cursor),
+            PointerHand::cursor);
     private final Map<ManagerTab, Button> tabButtons = new EnumMap<>(ManagerTab.class);
     private final ValuesPane valuesPane;
     private final GroupsPane groupsPane;
@@ -427,6 +429,14 @@ public final class ValuesManagerScreen extends Screen {
         targets.hovered(mouseX, mouseY).flatMap(this::tooltipLines)
                 .ifPresent(lines -> graphics.setComponentTooltipFromElementsForNextFrame(font, elementsOf(lines),
                         mouseX, mouseY, ItemStack.EMPTY));
+        // Decision shift-over-a-link-shows-a-pixel-pointer-hand.
+        linkCursor.frame(targets, mouseX, mouseY, graphics::requestCursor);
+    }
+
+    @Override
+    public void removed() {
+        linkCursor.release();
+        super.removed();
     }
 
     // A goo type, a control or a truncated group name names itself on one line; an item or a prefab names itself,
