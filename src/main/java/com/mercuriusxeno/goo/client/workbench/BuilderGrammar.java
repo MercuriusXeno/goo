@@ -171,7 +171,7 @@ final class BuilderGrammar {
      * @return how its factor shows
      */
     static Factor factorOf(ExpressionBuilder.Piece piece) {
-        if (!ExpressionBuilder.ONE_TEXT.equals(piece.factor())) {
+        if (!piece.isUnscaled()) {
             return Factor.SHOWN;
         }
         return piece.operand() instanceof ExpressionBuilder.Ref || piece.operand() instanceof ExpressionBuilder.Nest

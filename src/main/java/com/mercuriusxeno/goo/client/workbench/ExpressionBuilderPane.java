@@ -538,22 +538,21 @@ final class ExpressionBuilderPane {
     }
 
     /**
-     * A factor's change.
+     * One side of a ratio set to a number.
      */
     @FunctionalInterface
     private interface ScaleChange {
-        void changed(ExpressionBuilder.Op op, String factor);
+        void changed(ExpressionBuilder.Op side, String factor);
     }
 
-    // A number shows no factor, and a reference's or a sum's factor reads as a ratio, multiplier:divisor, one side
-    // the factor and the other 1, each a number box; setting a side multiplies or divides by it (decision
-    // factor-reads-as-a-ratio).
+    // An unscaled number shows no factor, and a reference's or a sum's factor reads as a ratio, multiplier:divisor,
+    // each a number box.
+    // Decision factor-reads-as-a-ratio.
     // Decision scale-shows-the-ratio-at-once: an unscaled reference or sum draws 1:1 at rest, either side set first.
+    // Decision ratio-holds-multiplier-and-divisor-together: each box sets its own side alone, so 2:3 draws 2 : 3.
     private void drawFactor(ControlFlow flow, ExpressionBuilder.Piece piece, ScaleChange change) {
         if (BuilderGrammar.factorOf(piece) != BuilderGrammar.Factor.HIDDEN) {
-            boolean multiplies = piece.op() == ExpressionBuilder.Op.MULTIPLY;
-            drawRatio(flow, multiplies ? piece.factor() : ExpressionBuilder.ONE_TEXT,
-                    multiplies ? ExpressionBuilder.ONE_TEXT : piece.factor(), change);
+            drawRatio(flow, piece.multiplier(), piece.divisor(), change);
         }
     }
 
@@ -563,11 +562,12 @@ final class ExpressionBuilderPane {
         ratioSide(flow, divisor, DIVISOR_HINT, ExpressionBuilder.Op.DIVIDE, change);
     }
 
-    private void ratioSide(ControlFlow flow, String shown, String hint, ExpressionBuilder.Op op, ScaleChange change) {
-        // A side committed unchanged changes nothing, so the 1 opposite the factor never drops it.
+    private void ratioSide(ControlFlow flow, String shown, String hint, ExpressionBuilder.Op side,
+                           ScaleChange change) {
+        // A side committed unchanged changes nothing.
         flow.control(shown, hint, at -> overlays.openNumber(at, shown, factor -> {
             if (!factor.equals(shown)) {
-                change.changed(op, factor);
+                change.changed(side, factor);
             }
         }, true));
     }
