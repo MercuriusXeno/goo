@@ -310,7 +310,7 @@ final class Valuations {
         GooBaseValuesPreview.Derived derived = derivedFor(model, inventory);
         Map<Identifier, GooValue> values = derived.effective();
         GooValue value = values.get(Identifier.parse(id));
-        InventoryView.Recipe recipe = recipeFor(id, inventory, derived.recipes());
+        InventoryView.Recipe recipe = DerivedLookups.recipesOf(inventory, derived).recipeFor(id);
         List<String> grid = recipe == null ? Arrays.asList(new String[GRID_SIDE * GRID_SIDE]) : grid(recipe);
         List<String> ratios = recipe == null || value == null ? List.of() : ratios(id, value, recipe, values);
         return new Hover(grid, recipe == null ? 0 : recipe.count(), ratios, amounts(value, GooFraction::toString),
@@ -354,9 +354,10 @@ final class Valuations {
         List<Identifier> ordered = new ArrayList<>(members);
         ordered.sort(Comparator.comparing(member -> atRoot.get(setting.get(member)),
                 Comparator.nullsLast(REMAINDER_ORDER)));
+        DerivedLookups lookups = DerivedLookups.of(model, inventory, derived);
         JsonArray rows = new JsonArray();
         for (Identifier member : ordered) {
-            JsonObject row = familyRow(model, inventory, derived, loaded, member);
+            JsonObject row = familyRow(model, inventory, derived, loaded, lookups, member);
             GooRootRemainders.Row remainder = atRoot.get(setting.get(member));
             if (remainder != null) {
                 row.addProperty(ROW_REMAINDER, GooFormat.formatMixed(remainder.remainder()));
@@ -399,11 +400,11 @@ final class Valuations {
 
     private static JsonObject familyRow(BaseValuesModel model, InventoryView inventory,
                                         GooBaseValuesPreview.Derived derived, GooBaseValuesPreview.Loaded loaded,
-                                        Identifier member) {
+                                        DerivedLookups lookups, Identifier member) {
         String id = member.toString();
         GooValue value = derived.effective().get(member);
         BaseValuesModel.Member own = ownEntry(model, id);
-        String group = groupValuing(model, id);
+        String group = lookups.groupValuing(id);
         JsonObject row = new JsonObject();
         row.addProperty(ROW_ID, id);
         row.addProperty(ROW_NAME, inventory.nameOf(id));
@@ -414,7 +415,7 @@ final class Valuations {
         row.addProperty(ROW_SOURCE, sourceOf(model, derived, loaded, member, group));
 
         if (own == null && group == null && derived.derived().contains(member)) {
-            row.add(ROW_FROM, from(member, inventory, derived, loaded.baseValues().keySet()));
+            row.add(ROW_FROM, from(member, lookups, loaded.baseValues().keySet()));
         }
         return row;
     }
@@ -434,16 +435,16 @@ final class Valuations {
     static String derivedFrom(BaseValuesModel model, InventoryView inventory) throws IOException {
         GooBaseValuesPreview.Derived derived = derivedFor(model, inventory);
         GooBaseValuesPreview.Loaded loaded = GooBaseValuesPreview.load(model.serialize(), inventory.tagResolver());
-        Map<Identifier, RecipeInput> byOutput = makingRecipes(derived);
+        DerivedLookups lookups = DerivedLookups.of(model, inventory, derived);
+        Set<Identifier> handKeyed = loaded.baseValues().keySet();
         JsonObject items = new JsonObject();
         for (String id : inventory.itemIds()) {
             Identifier item = Identifier.tryParse(id);
             if (item == null || !derived.derived().contains(item) || ownEntry(model, id) != null
-                    || groupValuing(model, id) != null) {
+                    || lookups.groupValuing(id) != null) {
                 continue;
             }
-            items.add(id, equivalencyOf(from(item, inventory, derived, loaded.baseValues().keySet()),
-                    byOutput.get(item)));
+            items.add(id, equivalencyOf(from(item, lookups, handKeyed), lookups.making().get(item)));
         }
         JsonObject root = new JsonObject();
         root.add(ITEMS, items);
@@ -490,14 +491,12 @@ final class Valuations {
      * looping back on itself, ends at an ancestor that is not prime.
      *
      * @param item      the derived item
-     * @param inventory the inventory, whose recipe grid a mixed recipe draws
-     * @param derived   the derivation over the inventory's recipes
+     * @param lookups   the read's making recipes and the inventory recipe a mixed recipe's grid draws
      * @param handKeyed the items the file values directly
      * @return the ancestor chain, or the item's recipe grid, as JSON
      */
-    private static JsonObject from(Identifier item, InventoryView inventory, GooBaseValuesPreview.Derived derived,
-                                   Set<Identifier> handKeyed) {
-        Map<Identifier, RecipeInput> byOutput = makingRecipes(derived);
+    private static JsonObject from(Identifier item, DerivedLookups lookups, Set<Identifier> handKeyed) {
+        Map<Identifier, RecipeInput> byOutput = lookups.making();
         List<Identifier> chain = new ArrayList<>();
         Set<Identifier> seen = new HashSet<>(Set.of(item));
         Identifier current = item;
@@ -511,7 +510,7 @@ final class Valuations {
         }
         JsonObject from = new JsonObject();
         if (chain.isEmpty()) {
-            InventoryView.Recipe drawn = recipeFor(item.toString(), inventory, derived.recipes());
+            InventoryView.Recipe drawn = lookups.recipeFor(item.toString());
             from.addProperty(FROM_KIND, FROM_RECIPE);
             JsonArray grid = new JsonArray();
             (drawn == null ? Arrays.asList(new String[GRID_SIDE * GRID_SIDE]) : grid(drawn)).forEach(grid::add);
@@ -528,19 +527,6 @@ final class Valuations {
         return from;
     }
 
-    // Each derived item's recipe is the one the derivation recorded as setting its value, so the equivalency the
-    // Items tab draws is what valued the item; a recipe that solved an input backward values that input, not its
-    // output, and makes nothing here.
-    private static Map<Identifier, RecipeInput> makingRecipes(GooBaseValuesPreview.Derived derived) {
-        Map<Identifier, RecipeInput> making = new HashMap<>();
-        derived.registry().valueSettingRecipeByItem().forEach((item, recipe) -> {
-            if (recipe.output().equals(item)) {
-                making.put(item, recipe);
-            }
-        });
-        return making;
-    }
-
     /**
      * @param recipe a valuing recipe
      * @return the one item every slot takes, or null where the slots mix items or take a tag's alternatives
@@ -552,12 +538,6 @@ final class Valuations {
         }
         Set<Identifier> only = slots.iterator().next();
         return only.size() == 1 ? only.iterator().next() : null;
-    }
-
-    private static @Nullable String groupValuing(BaseValuesModel model, String id) {
-        return GroupConvention.describe(model).stream()
-                .filter(group -> group.members().contains(id) && model.member(TAG_PREFIX + group.name()) != null)
-                .map(GroupConvention.Group::name).findFirst().orElse(null);
     }
 
     /**
@@ -579,25 +559,6 @@ final class Valuations {
         return lastDerived;
     }
 
-    /**
-     * The inventory recipe the derivation chose for the item, else the first making it.
-     *
-     * @param id        the item's id
-     * @param inventory the inventory
-     * @param winning   the recipes the derivation chose
-     * @return the recipe, or null where none makes the item
-     */
-    private static InventoryView.@Nullable Recipe recipeFor(String id, InventoryView inventory,
-                                                           List<RecipeInput> winning) {
-        Identifier output = Identifier.parse(id);
-        RecipeInput chosen = winning.stream().filter(recipe -> recipe.output().equals(output)).findFirst()
-                .orElse(null);
-        List<InventoryView.Recipe> making = inventory.recipes().stream().filter(recipe -> id.equals(recipe.output()))
-                .toList();
-        return making.stream().filter(recipe -> chosen != null
-                        && recipe.toInput().ingredientAlternatives().equals(chosen.ingredientAlternatives()))
-                .findFirst().orElse(making.isEmpty() ? null : making.getFirst());
-    }
 
     /**
      * A shaped recipe's pattern centred in the grid, as the mockup draws a narrow one; any other's slots in

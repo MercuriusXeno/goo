@@ -460,4 +460,29 @@ class ValuationsTest {
                     && line.endsWith("remainder " + exact)), output + " " + exact + " " + section.lines());
         }
     }
+
+    private static String resourceText(String path) throws IOException {
+        try (java.io.InputStream stream = ValuationsTest.class.getResourceAsStream(path)) {
+            return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+        }
+    }
+
+    /**
+     * Derived-from over the shipped file and the gametest inventory answers warm in under 100 ms, the derivation
+     * cached and each per-call lookup done once rather than once per derived item
+     * (decision derived-from-gets-cheaper).
+     */
+    @Test
+    void derivedFromAnswersWarmUnderAHundredMilliseconds() throws IOException {
+        BaseValuesModel model = BaseValuesModel.parse(resourceText("/data/goo/goo_values/base_values.json"));
+        InventoryView inventory = InventoryView.parse(resourceText("/workbench/gametest_inventory.json"));
+        long lastMillis = 0;
+        for (int run = 0; run < 5; run++) {
+            long start = System.nanoTime();
+            Valuations.derivedFrom(model, inventory);
+            lastMillis = (System.nanoTime() - start) / 1_000_000;
+        }
+        System.out.println("derivedFrom warm ms: " + lastMillis);
+        assertTrue(lastMillis < 100, "derivedFrom warm ms: " + lastMillis);
+    }
 }
