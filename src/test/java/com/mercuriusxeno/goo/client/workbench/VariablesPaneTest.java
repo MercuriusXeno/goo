@@ -168,6 +168,7 @@ class VariablesPaneTest {
     }
 
     private static final GroupsPane.Bounds TALL_VIEW = new GroupsPane.Bounds(0, 20, 400, 6000);
+    private static final GroupsPane.Bounds FITS_THE_EDITED_BLOCK = new GroupsPane.Bounds(0, 20, 400, 320);
 
     // A Prefabs pane over the twelve prefabs model() names, built fresh with no draw yet.
     private static VariablesPane twelvePrefabs(VariablesTab prefabs, ManagerDraft draft) {
@@ -205,13 +206,33 @@ class VariablesPaneTest {
     void jumpCentersTheEditedBlockInTheList() {
         int target = 8;
         List<Integer> tops = blockTopsEditing("prefab" + target);
+        DrawnFrame before = new DrawnFrame();
+        pane.extract(before.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, before.targets, 0, 0);
+        pane.jumpTo("prefab" + target);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, frame.targets, 0, 0);
+        int[] list = frame.firstScissor();
+        int blockHeight = tops.get(target + 1) - tops.get(target);
+        assertTrue(blockHeight <= list[3] - list[1], "the edited block outgrows the list");
+        assertEquals(tops.get(target) + blockHeight / 2 - (list[3] - list[1]) / 2, pane.listBar().offset());
+        assertEquals(java.util.Optional.of("prefab" + target), variables.editing());
+    }
+
+    /**
+     * A shift + left follow to a prefab whose editing block outgrows the list stands the block's top at the list's
+     * top, so its name and the builder's start stay in view (decision tall-follow-target-shows-from-its-top).
+     */
+    @Test
+    void jumpToABlockTallerThanTheListShowsItFromItsTop() {
+        int target = 5;
+        List<Integer> tops = blockTopsEditing("prefab" + target);
         draw();
         pane.jumpTo("prefab" + target);
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
         int[] list = frame.firstScissor();
-        int blockHeight = tops.get(target + 1) - tops.get(target);
-        assertEquals(tops.get(target) + blockHeight / 2 - (list[3] - list[1]) / 2, pane.listBar().offset());
+        assertTrue(tops.get(target + 1) - tops.get(target) > list[3] - list[1], "the edited block fits the list");
+        assertEquals(tops.get(target), pane.listBar().offset());
         assertEquals(java.util.Optional.of("prefab" + target), variables.editing());
     }
 
@@ -221,12 +242,11 @@ class VariablesPaneTest {
      */
     @Test
     void jumpToTheLastPrefabStopsAtTheListsEnd() {
-        GroupsPane.Bounds fitsTheEditedBlock = new GroupsPane.Bounds(0, 20, 400, 320);
         DrawnFrame before = new DrawnFrame();
-        pane.extract(before.graphics, DrawnFrame.font(), fitsTheEditedBlock, before.targets, 0, 0);
+        pane.extract(before.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, before.targets, 0, 0);
         pane.jumpTo("prefab" + (PREFABS - 1));
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, DrawnFrame.font(), fitsTheEditedBlock, frame.targets, 0, 0);
+        pane.extract(frame.graphics, DrawnFrame.font(), FITS_THE_EDITED_BLOCK, frame.targets, 0, 0);
         assertTrue(pane.listBar().maximum() > 0);
         assertEquals(pane.listBar().maximum(), pane.listBar().offset());
     }
