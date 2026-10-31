@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.function.Function;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -84,6 +85,28 @@ class ExpressionLinesTest {
                 new ExpressionLines.Run(ExpressionLines.Kind.TYPE, "", "rock"),
                 run(ExpressionLines.Kind.NUMBER, "3/2")), runs);
         assertCurated(runs);
+    }
+
+    /**
+     * A prefab link draws a one-pixel underline in the link color under its text while shift is held, and none while
+     * shift is up (decision holding-shift-underlines-every-link).
+     */
+    @Test
+    void linkUnderlinesWhileShiftIsHeldAndNotWhileUp() {
+        List<ExpressionLines.Run> runs = List.of(run(ExpressionLines.Kind.NUMBER, "2"),
+                new ExpressionLines.Run(ExpressionLines.Kind.LINK, "wood", "wood"));
+        DrawnFrame held = new DrawnFrame().holdingShift();
+        paint(held, runs);
+        assertTrue(held.underlined("wood"));
+        assertFalse(held.underlined("2"));
+        DrawnFrame up = new DrawnFrame();
+        paint(up, runs);
+        assertFalse(up.underlined("wood"));
+    }
+
+    private static void paint(DrawnFrame frame, List<ExpressionLines.Run> runs) {
+        ExpressionLines.draw(DrawnFrame.font(), runs, 10, 20, 300, new ExpressionLines.Painter(frame.graphics, null,
+                frame.targets, 0xFFFFFFFF, ButtonPainter.LINK, (variable, x, y, width) -> { }));
     }
 
     /**

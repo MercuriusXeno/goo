@@ -16,10 +16,11 @@ import java.util.Set;
 
 /**
  * Draws the Variables tab: each constant's block with its expression, what it resolves to or its error, and the
- * items it cascades into; a click on an expression swaps in the edit box and a blur swaps it back; every $name
- * link opens its variable and hovers its card; rename edits the name in place and delete confirms the readers it
- * removes, as index.html's variables section does (decisions goo-workbench-opens-the-in-game-manager-screen,
- * references-link-to-their-variable-and-hover-a-card). The blocks and the delete confirm's readers each draw a
+ * items it cascades into; a plain left click on an expression, a $name link in it included, swaps in the edit box and
+ * a blur swaps it back; a shift + left click on a $name link opens its variable, and the link hovers its card; rename
+ * edits the name in place and delete confirms the readers it removes, as index.html's variables section does
+ * (decisions goo-workbench-opens-the-in-game-manager-screen, references-link-to-their-variable-and-hover-a-card,
+ * shift-left-click-follows-plain-left-modifies). The blocks and the delete confirm's readers each draw a
  * {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). A search box above the blocks keeps those whose name
  * holds its text (decision prefabs-tab-searches-its-list-by-name). The state lives in {@link VariablesTab}.
  */
@@ -84,6 +85,7 @@ final class VariablesPane {
     private final ExpandedLists expandedUsedBy = new ExpandedLists();
     private final ScrollBar cascadeBar = new ScrollBar(1);
     private final Map<String, Integer> blockTops = new HashMap<>();
+    private final Map<String, Integer> blockHeights = new HashMap<>();
     private final ExpressionBuilderPane builder;
     private @Nullable String building;
     private @Nullable EditBox search;
@@ -223,6 +225,7 @@ final class VariablesPane {
                 : drawReadView(graphics, font, block, bounds, y, targets);
         y += drawUsedByLines(graphics, font, block.direct(), block.indirect(), bounds.left(), y + HALF,
                 bounds.right() - bounds.left(), block.name(), targets) + BLOCK_GAP;
+        blockHeights.put(block.name(), y - top);
         return y - top;
     }
 
@@ -234,11 +237,11 @@ final class VariablesPane {
             return;
         }
         List<VariablesTab.ConstantBlock> blocks = variables.listed();
-        applyPendingJump();
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(view.left(), listTop,
                 view.right() - ScrollBar.WIDTH - ScrollBar.GAP, view.bottom());
         int end = drawBlocks(graphics, font, blocks, bounds, targets);
         bar.measureAndDraw(graphics, targets, end, view.right(), bounds.top(), view.bottom());
+        applyPendingJump();
         showBoxes(rename != null && blocks.stream().anyMatch(block -> block.name().equals(renaming)));
         builder.drawOverlays(graphics, font, targets);
         drawDeleteDialog(graphics, font, view, targets);
@@ -298,9 +301,11 @@ final class VariablesPane {
         }
     }
 
+    // Once the jumped block has drawn, editing, and the bar has measured this frame, centers the block in the list.
+    // Decision shift-follow-centers-the-target-in-its-scrolling-view.
     private void applyPendingJump() {
         if (jumpPending != null && blockTops.containsKey(jumpPending)) {
-            bar.scrollTo(blockTops.get(jumpPending) - LINE_HEIGHT);
+            bar.center(blockTops.get(jumpPending), blockHeights.get(jumpPending));
             jumpPending = null;
         }
     }
@@ -336,10 +341,13 @@ final class VariablesPane {
         }
         List<ExpressionLines.Run> resolved = ExpressionLines.resolvedRuns(block.resolved());
         ExpressionLines.draw(font, resolved, x, y - ExpressionLines.textOffset(resolved), width,
-                new ExpressionLines.Painter(graphics, icons, targets, GREEN, LINK, (name, linkX, linkY, w) -> { }));
+                new ExpressionLines.Painter(graphics, icons, targets, GREEN, LINK,
+                        ExpressionLines.followedOnShiftClick(targets, actions::openVariable)));
     }
 
-    // Answers the height the read view took.
+    // A plain left click on the read view starts editing its block, a ref in it included, and a shift + left click
+    // on a ref opens the prefab it names; answers the height the read view took.
+    // Decision shift-left-click-follows-plain-left-modifies.
     private int drawReadView(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
                              GroupsPane.Bounds bounds, int y, ClickTargets targets) {
         int width = bounds.right() - bounds.left();
@@ -350,7 +358,7 @@ final class VariablesPane {
         targets.add(bounds.left(), y, width, height, () -> startEditing(block.name()));
         ExpressionLines.draw(font, runs, bounds.left(), y + 1, width, new ExpressionLines.Painter(graphics, icons,
                 targets, block.error().isEmpty() ? WHITE : RED, LINK, (name, linkX, linkY, linkWidth) ->
-                        targets.add(linkX, linkY, linkWidth, LINE_HEIGHT, () -> actions.openVariable(name), name)));
+                        targets.addFollow(linkX, linkY, linkWidth, LINE_HEIGHT, () -> actions.openVariable(name), name)));
         return height;
     }
 
@@ -478,7 +486,7 @@ final class VariablesPane {
         String name = deleting;
         graphics.nextStratum();
         graphics.fill(bounds.left(), bounds.top(), bounds.right(), bounds.bottom(), DIM_COLOR);
-        targets.add(bounds.left(), bounds.top(), bounds.right() - bounds.left(), bounds.bottom() - bounds.top(),
+        targets.addShield(bounds.left(), bounds.top(), bounds.right() - bounds.left(), bounds.bottom() - bounds.top(),
                 () -> { });
         int left = (bounds.left() + bounds.right() - DIALOG_WIDTH) / HALF;
         int top = (bounds.top() + bounds.bottom() - DIALOG_HEIGHT) / HALF;
@@ -539,12 +547,13 @@ final class VariablesPane {
         });
     }
 
-    // A constant reads as a $name button, a group or tag as its #name, and an item as its icon; answers the width the
-    // reader took.
+    // A constant reads as a $name button a shift + left click follows, a group or tag as its #name, and an item as its
+    // icon; answers the width the reader took.
+    // Decision shift-left-click-follows-plain-left-modifies.
     private int drawReader(GuiGraphicsExtractor graphics, Font font, VariablesTab.Reader reader, int x, int y,
                            ClickTargets targets) {
         if (CONSTANT_KIND.equals(reader.kind())) {
-            return ButtonPainter.draw(graphics, font, reader.id(), x, y, ICON_SIZE, targets,
+            return ButtonPainter.drawFollow(graphics, font, reader.id(), x, y, ICON_SIZE, targets,
                     () -> actions.openVariable(reader.id()), reader.id()).width();
         }
         if (GROUP_KIND.equals(reader.kind())) {
