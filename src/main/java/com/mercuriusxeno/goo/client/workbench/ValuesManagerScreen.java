@@ -73,7 +73,7 @@ public final class ValuesManagerScreen extends Screen {
     private final ProcessesPane processesPane;
     private final AuditPane auditPane;
     private final DraftConfirm draftConfirm = new DraftConfirm();
-    private final DraftPane draftPane = new DraftPane(draftConfirm, this::runDraftAction);
+    private final DraftPane draftPane = new DraftPane(draftConfirm, this::runChoice);
     private final ManagerEntrySource entrySource;
     private final ManagerReads reads;
     private boolean unsaved;
@@ -290,6 +290,36 @@ public final class ValuesManagerScreen extends Screen {
     private void markUnsaved() {
         unsaved = true;
         setStatus(UNSAVED, false);
+    }
+
+    private void runChoice(DraftConfirm.Choice choice) {
+        switch (choice) {
+            case CONFIRM -> runDraftAction();
+            case SAVE_AND_CLOSE -> {
+                draftConfirm.cancel();
+                save(this::closeManager);
+            }
+            case CLOSE_UNSAVED -> {
+                draftConfirm.cancel();
+                closeManager();
+            }
+            case CANCEL -> draftConfirm.cancel();
+        }
+    }
+
+    /**
+     * The X and Esc reach here: unsaved changes stand the close confirm rather than closing and losing them, and Esc
+     * over a standing confirm cancels it.
+     */
+    @Override
+    public void onClose() {
+        if (draftConfirm.closesNow(unsaved)) {
+            closeManager();
+        }
+    }
+
+    private void closeManager() {
+        super.onClose();
     }
 
     /**

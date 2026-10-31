@@ -4,9 +4,10 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
- * Draws the Promote or Revert confirm over the whole manager, as the page's draft dialog stands over its page, and
+ * Draws the Promote, Revert or close confirm over the whole manager, as the page's draft dialog stands over its page, and
  * takes every click while it stands (decision save-applies-the-draft-live-promote-renames-it). The state lives in
  * {@link DraftConfirm}.
  */
@@ -21,15 +22,12 @@ final class DraftPane {
     private static final int RED = 0xFFFF5555;
     private static final int DIM_COLOR = 0xB0000000;
     private static final int CARD_COLOR = 0xF0181818;
-    private static final String CONFIRM = "Confirm";
-    private static final String CANCEL = "Cancel";
-
     private final DraftConfirm confirm;
-    private final Runnable onConfirm;
+    private final Consumer<DraftConfirm.Choice> onChoice;
 
-    DraftPane(DraftConfirm confirm, Runnable onConfirm) {
+    DraftPane(DraftConfirm confirm, Consumer<DraftConfirm.Choice> onChoice) {
         this.confirm = confirm;
-        this.onConfirm = onConfirm;
+        this.onChoice = onChoice;
     }
 
     /**
@@ -61,8 +59,18 @@ final class DraftPane {
         ExpressionLines.draw(font, body, x, y, textWidth, new ExpressionLines.Painter(graphics, null, targets, GRAY, GRAY,
                 (name, linkX, linkY, width) -> { }));
         y += bodyHeight + LINE_HEIGHT;
-        ButtonPainter.Box confirmBox = ButtonPainter.drawColored(graphics, font, CONFIRM, RED, x,
-                y - ButtonPainter.PADDING, ButtonPainter.HEIGHT, targets, onConfirm, null);
-        ButtonPainter.drawAtText(graphics, font, CANCEL, confirmBox.right() + ACTION_GAP, y, targets, confirm::cancel);
+        for (DraftConfirm.Choice choice : confirm.choices()) {
+            Runnable pressed = () -> onChoice.accept(choice);
+            ButtonPainter.Box box = losesWork(choice)
+                    ? ButtonPainter.drawColored(graphics, font, choice.label(), RED, x, y - ButtonPainter.PADDING,
+                            ButtonPainter.HEIGHT, targets, pressed, null)
+                    : ButtonPainter.drawAtText(graphics, font, choice.label(), x, y, targets, pressed);
+            x = box.right() + ACTION_GAP;
+        }
+    }
+
+    // Promote overwrites the value file and Close without saving drops the unsaved changes, so both read red.
+    private static boolean losesWork(DraftConfirm.Choice choice) {
+        return choice == DraftConfirm.Choice.CONFIRM || choice == DraftConfirm.Choice.CLOSE_UNSAVED;
     }
 }
