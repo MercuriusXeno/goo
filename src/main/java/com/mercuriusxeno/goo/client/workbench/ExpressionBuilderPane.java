@@ -91,6 +91,9 @@ final class ExpressionBuilderPane {
     private static final String NO_CHANGES_HINT = "No unsaved changes";
     private static final String CHANGES_SAVED_HINT = "Changes already saved to the draft";
     private static final String BLANK = "";
+    // Decision value-expression-boxes-take-a-cancel-button.
+    private static final String CANCEL = "✗ cancel";
+    private static final String CANCEL_HINT = "Discard the changes made since this opened";
 
     private final ManagerActions actions;
     private final ItemIcons icons;
@@ -100,6 +103,7 @@ final class ExpressionBuilderPane {
     private BuilderGrammar grammar;
     private @Nullable ExpressionBuilder builder;
     private String openedText = BLANK;
+    private String openedShown = BLANK;
     private @Nullable Consumer<String> writes;
     private @Nullable Runnable done;
 
@@ -164,6 +168,7 @@ final class ExpressionBuilderPane {
         builder = opened;
         // The builder's own text, not the shown string, so its normalized rewrite reads as no change.
         openedText = opened.text();
+        openedShown = shown;
         writes = change;
         done = finish;
     }
@@ -229,6 +234,9 @@ final class ExpressionBuilderPane {
         drawValue(flow, edited);
         flow.newLine();
         flow.coloredControl(DONE, GREEN, doneHint(openedText, edited.text()), at -> finish());
+        if (!openedText.equals(edited.text())) {
+            flow.coloredControl(CANCEL, RED, CANCEL_HINT, at -> cancel());
+        }
         int bottom = flow.bottom();
         graphics.fill(area.left() - 1, top - 1, area.right(), bottom, PANEL_COLOR);
         return bottom - top;
@@ -614,6 +622,14 @@ final class ExpressionBuilderPane {
         if (writes != null && after.isPresent() && !after.equals(before)) {
             writes.accept(after.get());
         }
+    }
+
+    // Writes back the value the builder opened over, then closes it as done does.
+    private void cancel() {
+        if (writes != null) {
+            writes.accept(openedShown);
+        }
+        finish();
     }
 
     private void finish() {
