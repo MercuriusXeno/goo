@@ -224,7 +224,7 @@ class GroupsPaneTest {
         groups.selectGroup("logs");
         DrawnFrame group = new DrawnFrame();
         pane.extract(group.graphics, DrawnFrame.font(), bounds, group.targets);
-        int groupWorth = group.find("What every member is worth:").y();
+        int groupWorth = group.find("Value").y();
         int addMember = group.find("Add member").y();
         assertTrue(addMember > group.find("#logs").y() && addMember < groupWorth, group.drawn().toString());
 
@@ -233,10 +233,17 @@ class GroupsPaneTest {
         pane.extract(tag.graphics, DrawnFrame.font(), bounds, tag.targets);
         int notControlled = tag.find("Tag membership isn't controlled here").y();
         assertTrue(notControlled > tag.find("#saplings").y() && notControlled < groupWorth, tag.drawn().toString());
-        assertEquals(groupWorth, tag.find("What every member is worth:").y());
+        assertEquals(groupWorth, tag.find("Value").y());
         assertEquals(List.of(), tag.texts().stream().filter("Add member"::equals).toList());
-        tag.click("nothing yet");
+        tag.click("empty");
         assertTrue(builder.isOpen());
+        DrawnFrame building = new DrawnFrame();
+        pane.extract(building.graphics, DrawnFrame.font(), bounds, building.targets);
+        // Decision every-value-builder-reads-value-kind-on-one-line-defaulting-by-type: the open builder's line
+        // reads Value and its kind, the label standing once.
+        List<DrawnFrame.Text> values = building.drawn().stream().filter(text -> "Value".equals(text.text())).toList();
+        assertEquals(1, values.size(), building.drawn().toString());
+        assertEquals(values.getFirst().y(), building.find(ControlFlow.dropdownLabel("by type")).y());
     }
 
     /**

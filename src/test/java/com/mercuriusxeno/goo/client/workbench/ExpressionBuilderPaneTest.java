@@ -117,6 +117,62 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
+     * Every builder, Items, Groups and Prefabs alike, reads "Value" and its kind on one line, an empty value
+     * defaulting to by type with a bare + adding a goo type (decision
+     * every-value-builder-reads-value-kind-on-one-line-defaulting-by-type).
+     */
+    @Nested
+    class ValueLine {
+        private static final List<String> RETIRED = List.of("Kind:", "Kind", "pick one", dropdown("pick one"),
+                "No value yet: pick a kind to give it one.", "Pick the first goo type:", "+ goo type", "amount from",
+                "from other items", dropdown("from other items"));
+
+        private static void assertEmptyReadsValueByTypeAndPlus(Builder builder) {
+            DrawnFrame frame = builder.frame();
+            List<String> texts = frame.texts();
+            assertEquals(List.of("Value", dropdown("by type"), "+"), texts.subList(0, 3), texts.toString());
+            assertEquals(frame.find("Value").y(), frame.find(dropdown("by type")).y(), "Value and its kind share a line");
+            assertTrue(texts.stream().noneMatch(RETIRED::contains), texts.toString());
+        }
+
+        @Test
+        void emptyItemValueReadsValueByTypeAndPlus() {
+            assertEmptyReadsValueByTypeAndPlus(Builder.item(""));
+        }
+
+        @Test
+        void emptyPrefabValueReadsValueByTypeAndPlus() {
+            assertEmptyReadsValueByTypeAndPlus(Builder.prefab(PREFABS, ""));
+        }
+
+        /**
+         * A group's value opens the same builder an item's does.
+         */
+        @Test
+        void emptyGroupValueReadsValueByTypeAndPlus() {
+            Builder group = new Builder(PREFABS);
+            group.pane.open("", group.written::add, () -> { });
+            assertEmptyReadsValueByTypeAndPlus(group);
+        }
+
+        @Test
+        void barePlusAddsAGooType() {
+            Builder builder = Builder.item("");
+            builder.frame().click("+");
+            assertTrue(builder.pane.listOpen(), "the goo type picker opens");
+        }
+
+        @Test
+        void itemKindReadsRelativeAndAmountModesReadNumber() {
+            List<String> relative = Builder.item("anvil").frame().texts();
+            assertEquals(List.of("Value", dropdown("relative")), relative.subList(0, 2), relative.toString());
+            List<String> row = Builder.prefab(PREFABS, "{\"metal\": \"5\"}").frame().texts();
+            assertTrue(row.contains(dropdown("number")), row.toString());
+            assertTrue(row.stream().noneMatch(RETIRED::contains), row.toString());
+        }
+    }
+
+    /**
      * The goo kind choice's hover hint, per tab (decision items-kind-hint-says-worth-based-on-other-items-prefabs).
      */
     @Nested
@@ -164,19 +220,19 @@ class ExpressionBuilderPaneTest {
         @Test
         void kindLineDrawsOneButtonReadingTheChosenKind() {
             List<String> texts = Builder.item("anvil").frame().texts();
-            assertTrue(texts.contains(dropdown("from other items")), texts.toString());
-            assertFalse(texts.contains("per goo type") || texts.contains(dropdown("per goo type")), texts.toString());
+            assertTrue(texts.contains(dropdown("relative")), texts.toString());
+            assertFalse(texts.contains("by type") || texts.contains(dropdown("by type")), texts.toString());
         }
 
         @Test
         void clickingTheKindListsEveryKindUnderIt() {
             Builder builder = Builder.item("anvil");
             DrawnFrame closed = builder.frame();
-            DrawnFrame.Text button = closed.find(dropdown("from other items"));
-            closed.click(dropdown("from other items"));
+            DrawnFrame.Text button = closed.find(dropdown("relative"));
+            closed.click(dropdown("relative"));
             DrawnFrame open = builder.frame();
-            DrawnFrame.Text perType = open.find("per goo type");
-            DrawnFrame.Text items = open.find("from other items");
+            DrawnFrame.Text perType = open.find("by type");
+            DrawnFrame.Text items = open.find("relative");
             assertTrue(perType.y() > button.y() && items.y() > perType.y(), open.drawn().toString());
             assertTrue(builder.pane.listOpen());
         }
@@ -184,23 +240,23 @@ class ExpressionBuilderPaneTest {
         @Test
         void pickingPerGooTypeSwitchesTheBuilderPerType() {
             Builder builder = Builder.item("anvil");
-            builder.frame().click(dropdown("from other items"));
-            builder.frame().click("per goo type");
+            builder.frame().click(dropdown("relative"));
+            builder.frame().click("by type");
             DrawnFrame after = builder.frame();
-            assertTrue(after.texts().contains("Pick the first goo type:"), after.texts().toString());
-            assertTrue(after.texts().contains(dropdown("per goo type")), after.texts().toString());
+            assertTrue(after.texts().contains("+"), after.texts().toString());
+            assertTrue(after.texts().contains(dropdown("by type")), after.texts().toString());
             assertFalse(builder.pane.listOpen());
         }
 
         @Test
         void clickOutsideTheListClosesItAndChangesNothing() {
             Builder builder = Builder.item("anvil");
-            builder.frame().click(dropdown("from other items"));
+            builder.frame().click(dropdown("relative"));
             DrawnFrame open = builder.frame();
             assertTrue(open.targets.click(DrawnFrame.SCREEN_WIDTH - 1, DrawnFrame.SCREEN_HEIGHT - 1));
             assertFalse(builder.pane.listOpen());
             assertEquals(List.of(), builder.written);
-            assertFalse(builder.frame().texts().contains("per goo type"));
+            assertFalse(builder.frame().texts().contains("by type"));
         }
     }
 
@@ -212,46 +268,46 @@ class ExpressionBuilderPaneTest {
     class AmountDropdown {
         private static final String ROW = "{\"metal\": \"5\"}";
 
+        private static final List<String> MODES = List.of("number", "prefab", "relative");
+
         private static List<String> openModes(Builder builder) {
-            builder.frame().click(dropdown("a number"));
+            builder.frame().click(dropdown("number"));
             DrawnFrame open = builder.frame();
             List<String> texts = open.texts();
-            int first = texts.lastIndexOf(dropdown("a number")) + 1;
-            return texts.subList(first, texts.size()).stream().filter(text -> text.startsWith("a ")).toList();
+            int first = texts.lastIndexOf(dropdown("number")) + 1;
+            return texts.subList(first, texts.size()).stream().filter(MODES::contains).toList();
         }
 
         @Test
         void prefabsRowListsTheThreeModesInOrder() {
-            assertEquals(List.of("a number", "a number prefab", "a goo type of a prefab"),
-                    openModes(Builder.prefab(PREFABS, ROW)));
+            assertEquals(MODES, openModes(Builder.prefab(PREFABS, ROW)));
         }
 
         @Test
         void itemsRowReadsTheItemWording() {
-            assertEquals(List.of("a number", "a number prefab", "a goo type of an item or prefab"),
-                    openModes(Builder.item(ROW)));
+            assertEquals(MODES, openModes(Builder.item(ROW)));
         }
 
         @Test
         void draftWithNoScalarPrefabOmitsTheNumberPrefabMode() {
             List<BuilderGrammar.Prefab> perTypeOnly = List.of(new BuilderGrammar.Prefab("waxed", true),
                     new BuilderGrammar.Prefab("edited", true));
-            assertEquals(List.of("a number", "a goo type of a prefab"), openModes(Builder.prefab(perTypeOnly, ROW)));
+            assertEquals(List.of("number", "relative"), openModes(Builder.prefab(perTypeOnly, ROW)));
         }
 
         @Test
         void amountLineDrawsNoSiblingMode() {
             List<String> texts = Builder.prefab(PREFABS, ROW).frame().texts();
-            assertFalse(texts.contains("a number prefab") || texts.contains("prefab"), texts.toString());
+            assertFalse(texts.contains("prefab") || texts.contains("relative"), texts.toString());
         }
 
         @Test
         void pickingNumberPrefabOpensThePrefabListUnderTheSameButton() {
             Builder builder = Builder.prefab(PREFABS, ROW);
             DrawnFrame closed = builder.frame();
-            DrawnFrame.Text button = closed.find(dropdown("a number"));
-            closed.click(dropdown("a number"));
-            builder.frame().click("a number prefab");
+            DrawnFrame.Text button = closed.find(dropdown("number"));
+            closed.click(dropdown("number"));
+            builder.frame().click("prefab");
             DrawnFrame after = builder.frame();
             assertTrue(builder.pane.listOpen());
             DrawnFrame.Text prefabRow = after.find("base");
@@ -262,10 +318,10 @@ class ExpressionBuilderPaneTest {
         @Test
         void pickingNumberLeavesNoOverlayAndTheOperandANumber() {
             Builder builder = Builder.prefab(PREFABS, "{\"metal\": \"$base\"}");
-            builder.frame().click(dropdown("a number prefab"));
-            builder.frame().click("a number");
+            builder.frame().click(dropdown("prefab"));
+            builder.frame().click("number");
             assertFalse(builder.pane.listOpen());
-            assertTrue(builder.frame().texts().contains(dropdown("a number")));
+            assertTrue(builder.frame().texts().contains(dropdown("number")));
             assertEquals(1, builder.written.size(), builder.written.toString());
             assertFalse(builder.written.getFirst().contains("$base"), builder.written.toString());
         }
