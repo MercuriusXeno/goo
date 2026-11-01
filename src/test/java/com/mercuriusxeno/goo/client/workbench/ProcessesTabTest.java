@@ -257,6 +257,17 @@ class ProcessesTabTest {
         }
 
         /**
+         * An iterator over itself at 1:1 with no mutators still reads back as an assignment, never as unread
+         * (decision iterator-line-is-source-ratio-then-chain).
+         */
+        @Test
+        void bareIteratorOverItselfStaysAnAssignment() {
+            forms.removeAssignmentLink(POST, "#exposed", 0);
+            forms.setAssignmentSource(POST, "#exposed", "");
+            assertEquals(new Processes.Assignment("", 1, 1, List.of()), forms.formOf(POST, "#exposed"));
+        }
+
+        /**
          * An assignment's source group can be dropped, the chain then applying to the target's own values.
          */
         @Test

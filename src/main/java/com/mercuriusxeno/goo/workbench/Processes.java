@@ -229,15 +229,26 @@ public final class Processes {
         Matcher scale = SCALE.matcher(value);
         boolean scaled = scale.find();
         String remaining = scaled ? value.substring(0, scale.start()) + SPACE + value.substring(scale.end()) : value;
-        String[] tokens = remaining.trim().split(WHITESPACE);
-        boolean sourced = isNamed(tokens[0], TAG_PREFIX);
-        List<String> chain = List.of(tokens).subList(sourced ? 1 : 0, tokens.length);
+        List<String> tokens = tokensOf(remaining);
+        String source = sourceOf(tokens);
+        List<String> chain = tokens.subList(source.isEmpty() ? 0 : 1, tokens.size());
         if (!chain.stream().allMatch(link -> isNamed(link, STACK_PREFIX))) {
             return new Unread(text);
         }
-        return new Assignment(sourced ? tokens[0].substring(TAG_PREFIX.length()) : NO_SOURCE,
-                scaled ? Integer.parseInt(scale.group(SCALE_MULTIPLIER)) : 1, scaled ? divisorOf(scale) : 1,
-                List.copyOf(chain));
+        return new Assignment(source, scaled ? Integer.parseInt(scale.group(SCALE_MULTIPLIER)) : 1,
+                scaled ? divisorOf(scale) : 1, List.copyOf(chain));
+    }
+
+    // Decision iterator-line-is-source-ratio-then-chain: a bare iterator, its text empty, holds no token, so it
+    // reads as an assignment over itself at 1:1, as the game reads it.
+    private static List<String> tokensOf(String remaining) {
+        return remaining.isBlank() ? List.of() : List.of(remaining.trim().split(WHITESPACE));
+    }
+
+    // The #group a first token names, empty where the chain applies to the target's own values.
+    private static String sourceOf(List<String> tokens) {
+        return !tokens.isEmpty() && isNamed(tokens.getFirst(), TAG_PREFIX)
+                ? tokens.getFirst().substring(TAG_PREFIX.length()) : NO_SOURCE;
     }
 
     // A mark and a name after it, as "#copper" or "@waxed".
