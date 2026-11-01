@@ -25,26 +25,40 @@ import java.util.function.Supplier;
 final class ProcessesPane {
     private static final int LINE_HEIGHT = 10;
     private static final int ROW_HEIGHT = 13;
-    private static final int KEY_WIDTH = 120;
-    private static final int KIND_WIDTH = 70;
-    private static final int VERDICT_WIDTH = 160;
+    // Decision mutator-row-is-aligned-columns-name-kind-validity-rename-delete: 25 characters of name.
+    private static final int NAME_WIDTH = 156;
+    private static final int KIND_WIDTH = 84;
+    private static final int MARK_WIDTH = 14;
+    private static final int NAME_HEAD = 20;
+    private static final int NAME_TAIL = 4;
+    private static final String ELLIPSIS = "…";
+    private static final String RENAME = "Rename";
+    private static final String RENAME_HINT = "Rename this entry";
+    // A button stands a pixel under the rule above its row and its label five under that.
+    private static final int BUTTON_INSET = 1;
+    private static final int HEAD_TEXT_NUDGE = 4;
+    // The kind dropdown's line centers a button two pixels under the line's top.
+    private static final int KIND_LINE_INSET = 2;
+    private static final int HEAD_HEIGHT = BUTTON_INSET + ButtonPainter.HEIGHT + 1;
+    private static final int ROW_GAP = 1;
+    /**
+     * A row whose sentence takes one line, from its top to the next row's
+     * (decision mutator-delete-clears-a-thinner-rule-and-lines-tighten).
+     */
+    static final int ONE_LINE_ROW_PITCH = HEAD_HEIGHT + ControlFlow.LINE + ROW_GAP;
     private static final int GAP = 6;
     private static final int SECTION_GAP = 6;
     private static final int SCROLL_STEP = ROW_HEIGHT * 3;
     private static final int WHITE = 0xFFFFFFFF;
-    private static final int GRAY = 0xFFA0A0A0;
     /** An Invalid verdict's color. */
     static final int RED = 0xFFFF5555;
     /** A Valid verdict's color. */
     static final int GREEN = 0xFF80E080;
     private static final String CHECK = "✔";
     private static final String CROSS = "✘";
-    private static final String MARK_GAP = " ";
     private static final String REASON_GAP = ": ";
     private static final String NO_REASON = "";
-    private static final int TREE_COLOR = 0xFFE0C060;
     private static final int ROW_COLOR = 0x20FFFFFF;
-    private static final String ASSIGNMENT = "assignment";
     private static final String DELETE = "Delete";
     private static final String SUMMARY_GAP = "  ";
     private static final String MUTATORS = "Mutators";
@@ -75,6 +89,7 @@ final class ProcessesPane {
     private @Nullable EditBox nameBox;
     private @Nullable EditBox search;
     private @Nullable Naming naming;
+    private boolean nameBoxPlaced;
     private boolean visible;
 
     // Where the row a follow revealed stood inside the list's content this frame.
@@ -213,13 +228,12 @@ final class ProcessesPane {
     // Answers the y below the last block; the name box shows only while the heading that opened it draws.
     private int drawSections(Frame frame, int top) {
         int y = top;
-        boolean nameBoxPlaced = false;
+        nameBoxPlaced = false;
         for (ProcessesTab.ProcessSection section : processes.sections()) {
             frame.graphics().text(frame.font(), section.section() + SUMMARY_GAP + section.summary(),
                     frame.rows().left(), y, WHITE);
             y += LINE_HEIGHT + GAP;
             for (boolean iterators : KINDS) {
-                nameBoxPlaced |= isNaming(section.section(), iterators);
                 y = drawKind(frame, section, iterators, y);
             }
             y += SECTION_GAP;
@@ -241,7 +255,7 @@ final class ProcessesPane {
         List<ProcessesTab.ProcessRow> kindRows = section.rows().stream()
                 .filter(row -> ProcessesTab.isIterator(row.key()) == iterators).toList();
         for (int index = 0; index < kindRows.size(); index++) {
-            RowLayout.drawSeparatorAbove(frame.graphics(), index, y - 1, rows.left(), rows.right());
+            RowLayout.drawSeparatorAbove(frame.graphics(), index, y, rows.left(), rows.right());
             int rowTop = y;
             ProcessesTab.ProcessRow row = kindRows.get(index);
             y = drawRow(frame.graphics(), frame.font(), section.section(), row, rows, y, frame.targets());
@@ -258,30 +272,33 @@ final class ProcessesPane {
         int x = frame.rows().left() + frame.font().width(heading) + GAP;
         if (isNaming(section, iterators) && nameBox != null) {
             nameBox.setPosition(x, top + 1);
+            nameBoxPlaced = true;
             return;
         }
         BuilderOverlays.control(frame.graphics(), frame.font(), iterators ? NEW_ITERATOR : NEW_MUTATOR,
                 iterators ? NEW_ITERATOR_HINT : NEW_MUTATOR_HINT, x, top, frame.targets(),
-                at -> startNaming(new Naming(section, iterators)));
+                at -> startNaming(new Naming(section, iterators, null)));
     }
 
     private boolean isNaming(String section, boolean iterators) {
-        return naming != null && naming.section().equals(section) && naming.iterators() == iterators;
+        return naming != null && naming.renamed() == null && naming.section().equals(section)
+                && naming.iterators() == iterators;
     }
 
     /**
-     * Which heading's name box is open.
+     * Which name box is open: a heading's for a new entry, or a row's for its rename.
      *
-     * @param section   the block the new entry joins
+     * @param section   the block the entry stands in
      * @param iterators whether it is an iterator
+     * @param renamed   the key the box renames, null for a new entry
      */
-    private record Naming(String section, boolean iterators) {
+    private record Naming(String section, boolean iterators, @Nullable String renamed) {
     }
 
     private void startNaming(Naming which) {
         naming = which;
         if (nameBox != null) {
-            nameBox.setValue(NO_TEXT);
+            nameBox.setValue(which.renamed() == null ? NO_TEXT : which.renamed());
             nameBox.visible = visible;
             actions.focus(nameBox);
         }
@@ -300,7 +317,8 @@ final class ProcessesPane {
         if (which == null) {
             return;
         }
-        Optional<String> created = which.iterators() ? processes.createIterator(which.section(), typed)
+        Optional<String> created = which.renamed() != null ? processes.rename(which.section(), which.renamed(), typed)
+                : which.iterators() ? processes.createIterator(which.section(), typed)
                 : GooTypes.order().stream().findFirst().map(GooTypes::id)
                         .flatMap(type -> processes.createMutator(which.section(), typed, type));
         created.ifPresent(key -> {
@@ -309,31 +327,66 @@ final class ProcessesPane {
         });
     }
 
-    // Answers the y below the row: its head line, then its sentence of controls wrapping at full width.
+    // Answers the y below the row: its head line, then its sentence of controls wrapping at full width, the next
+    // row starting a pixel below so the one-pixel rule above it stands clear of this row's buttons.
+    // Decision mutator-delete-clears-a-thinner-rule-and-lines-tighten.
     private int drawRow(GuiGraphicsExtractor graphics, Font font, String section, ProcessesTab.ProcessRow row,
                         GroupsPane.Bounds bounds, int y, ClickTargets targets) {
-        drawHeadLine(graphics, font, section, row, bounds, y, targets);
-        ProcessesTab.RowLayout layout = ProcessesTab.layoutRow(bounds.left(), bounds.right(), y);
-        int sentenceTop = layout.textY() - 1;
-        int below = controls.draw(graphics, font, section, row.key(), new GroupsPane.Bounds(layout.textX(),
-                sentenceTop, layout.textX() + layout.textWidth(), bounds.bottom()), sentenceTop, targets);
-        graphics.fill(bounds.left(), y - 1, bounds.right(), below, ROW_COLOR);
-        return below + GAP;
+        drawHeadLine(new Frame(graphics, font, bounds, targets), section, row, y);
+        int sentenceTop = y + HEAD_HEIGHT;
+        int below = controls.draw(graphics, font, section, row.key(), new GroupsPane.Bounds(bounds.left(),
+                sentenceTop, bounds.right(), bounds.bottom()), sentenceTop, targets);
+        graphics.fill(bounds.left(), y, bounds.right(), below, ROW_COLOR);
+        return below + ROW_GAP;
     }
 
-    // The row's first line: its key, its form, the parser's verdict and Delete.
-    private void drawHeadLine(GuiGraphicsExtractor graphics, Font font, String section, ProcessesTab.ProcessRow row,
-                              GroupsPane.Bounds bounds, int y, ClickTargets targets) {
-        int x = bounds.left();
-        graphics.text(font, font.plainSubstrByWidth(row.key(), KEY_WIDTH - GAP), x, y, WHITE);
-        graphics.text(font, row.kind(), x + KEY_WIDTH, y, ASSIGNMENT.equals(row.kind()) ? TREE_COLOR : GRAY);
-        int deleteX = bounds.right() - ButtonPainter.width(font, DELETE);
-        int verdictX = Math.max(x + KEY_WIDTH + KIND_WIDTH, deleteX - GAP - VERDICT_WIDTH);
+    // Decision mutator-row-is-aligned-columns-name-kind-validity-rename-delete: the name, the kind dropdown, the
+    // mark, Rename and Delete at fixed column lefts, under no header.
+    private void drawHeadLine(Frame frame, String section, ProcessesTab.ProcessRow row, int y) {
+        GuiGraphicsExtractor graphics = frame.graphics();
+        Font font = frame.font();
+        int x = frame.rows().left();
+        drawName(frame, section, row.key(), y);
+        if (!ProcessesTab.isIterator(row.key())) {
+            controls.drawKind(graphics, font, section, row.key(), x + NAME_WIDTH, y + BUTTON_INSET
+                    - KIND_LINE_INSET, frame.targets());
+        }
+        int markX = x + NAME_WIDTH + KIND_WIDTH;
         VerdictMark mark = verdictMark(row);
-        String verdict = mark.glyph() + MARK_GAP + row.verdict() + (row.reason().isEmpty() ? NO_REASON : REASON_GAP
-                + row.reason());
-        graphics.text(font, font.plainSubstrByWidth(verdict, deleteX - GAP - verdictX), verdictX, y, mark.color());
-        ButtonPainter.drawAtText(graphics, font, DELETE, deleteX, y, targets, () -> delete(section, row.key()));
+        graphics.text(font, mark.glyph(), markX, y + HEAD_TEXT_NUDGE, mark.color());
+        frame.targets().addHover(markX, y, MARK_WIDTH, HEAD_HEIGHT, BuilderOverlays.hintKey(row.verdict()
+                + (row.reason().isEmpty() ? NO_REASON : REASON_GAP + row.reason())));
+        int renameX = markX + MARK_WIDTH;
+        ButtonPainter.Box rename = ButtonPainter.draw(graphics, font, RENAME, renameX, y + BUTTON_INSET,
+                ButtonPainter.HEIGHT, frame.targets(), () -> startNaming(new Naming(section,
+                        ProcessesTab.isIterator(row.key()), row.key())), BuilderOverlays.hintKey(RENAME_HINT));
+        ButtonPainter.drawColored(graphics, font, DELETE, RED, rename.right() + GAP, y + BUTTON_INSET,
+                ButtonPainter.HEIGHT, frame.targets(), () -> delete(section, row.key()), null);
+    }
+
+    // The name cut to its column, hovering whole where cut; the rename box stands in its place while open.
+    private void drawName(Frame frame, String section, String key, int y) {
+        int x = frame.rows().left();
+        if (nameBox != null && naming != null && key.equals(naming.renamed()) && section.equals(naming.section())) {
+            nameBox.setPosition(x, y);
+            nameBoxPlaced = true;
+            return;
+        }
+        String shown = shownName(key);
+        frame.graphics().text(frame.font(), shown, x, y + HEAD_TEXT_NUDGE, WHITE);
+        if (!shown.equals(key)) {
+            frame.targets().addHover(x, y, frame.font().width(shown), HEAD_HEIGHT, BuilderOverlays.hintKey(key));
+        }
+    }
+
+    /**
+     * @param key an entry's key
+     * @return the key whole up to 24 characters; past that its first 20, an ellipsis and its last 4
+     *     (decision mutator-row-is-aligned-columns-name-kind-validity-rename-delete)
+     */
+    static String shownName(String key) {
+        return key.length() <= NAME_HEAD + NAME_TAIL ? key
+                : key.substring(0, NAME_HEAD) + ELLIPSIS + key.substring(key.length() - NAME_TAIL);
     }
 
     /**

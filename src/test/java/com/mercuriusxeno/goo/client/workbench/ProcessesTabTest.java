@@ -227,6 +227,27 @@ class ProcessesTabTest {
             assertEquals(new Processes.Assignment("copper", 1, 1, List.of()), forms.formOf(POST, "#shiny"));
         }
 
+        /**
+         * Rename writes the entry under the typed name with its form kept, an iterator keeping its # (decision
+         * mutators-tab-renames-and-searches-by-name).
+         */
+        @Test
+        void renameKeepsTheFormUnderTheNewKey() {
+            assertEquals(Optional.of("sealing"), forms.rename(POST, "waxed", " sealing "));
+            assertEquals(new Processes.Additive("other"), forms.formOf(POST, "sealing"));
+            assertEquals(List.of("oxidation_metal", "sealing", "weathered_metal"), forms.processNames(POST));
+            assertEquals(Optional.of("#weathered"), forms.rename(POST, "#exposed", "weathered"));
+            assertEquals(new Processes.Assignment("iron", 1, 1, List.of("@waxed")), forms.formOf(POST, "#weathered"));
+        }
+
+        @Test
+        void renameRefusesATakenOrBlankName() {
+            assertEquals(Optional.empty(), forms.rename(POST, "waxed", "oxidation_metal"));
+            assertEquals(Optional.empty(), forms.rename(POST, "waxed", " "));
+            assertEquals(Optional.empty(), forms.rename(POST, "waxed", "#group"));
+            assertEquals(new Processes.Additive("other"), forms.formOf(POST, "waxed"));
+        }
+
         @Test
         void createRefusesANameTheBlockHoldsOrABlankName() {
             assertEquals(Optional.empty(), forms.createMutator(POST, "waxed", "metal"));

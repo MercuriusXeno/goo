@@ -29,7 +29,6 @@ final class MutatorControls {
     private static final String GROUP_MARK = "#";
     private static final String STACK_MARK = "@";
     private static final String NO_SOURCE = "";
-    private static final String KIND = "Kind:";
     // Decision mutator-sentences-read-in-symbols: the word formula goes.
     private static final String CONVERT = "convert";
     private static final String CONVERT_HINT = "Turn part of one goo type into another, or into nothing";
@@ -108,15 +107,26 @@ final class MutatorControls {
     int draw(GuiGraphicsExtractor graphics, Font font, String section, String key, GroupsPane.Bounds area, int top,
              ClickTargets targets) {
         ControlFlow flow = new ControlFlow(graphics, font, targets, null, area.left(), area.right(), top);
-        Entry entry = new Entry(flow, section, key);
-        Processes.Form form = processes.formOf(section, key);
-        boolean assignment = ProcessesTab.isIterator(key);
-        if (!assignment) {
-            drawKind(entry, form);
-            flow.newLine();
-        }
-        drawForm(entry, form, assignment);
+        drawForm(new Entry(flow, section, key), processes.formOf(section, key), ProcessesTab.isIterator(key));
         return flow.bottom();
+    }
+
+    /**
+     * Draws a mutator's kind dropdown, which stands on its row's top line (decision
+     * mutator-row-is-aligned-columns-name-kind-validity-rename-delete).
+     *
+     * @param graphics the frame's graphics
+     * @param font     the font
+     * @param section  the entry's block
+     * @param key      the entry's key
+     * @param left     the dropdown's left edge
+     * @param top      its line's top
+     * @param targets  the frame's click areas
+     */
+    void drawKind(GuiGraphicsExtractor graphics, Font font, String section, String key, int left, int top,
+                  ClickTargets targets) {
+        ControlFlow flow = new ControlFlow(graphics, font, targets, null, left, Integer.MAX_VALUE, top);
+        drawKind(new Entry(flow, section, key), processes.formOf(section, key));
     }
 
     private void drawForm(Entry entry, Processes.Form form, boolean assignment) {
@@ -137,7 +147,6 @@ final class MutatorControls {
 
     private void drawKind(Entry entry, Processes.Form form) {
         ControlFlow flow = entry.flow();
-        flow.text(KIND, GRAY);
         ControlFlow.ChoiceSet kinds = new ControlFlow.ChoiceSet();
         boolean formula = form instanceof Processes.Formula;
         kinds.add(new BuilderOverlays.Option(CONVERT, CONVERT_HINT, unlessChosen(formula, () -> freshFormula(entry))),
