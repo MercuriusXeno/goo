@@ -314,14 +314,19 @@ final class ControlFlow {
      */
     void typeIcon(String type, Consumer<BuilderOverlays.Anchor> pressed) {
         // Decision goo-type-icons-draw-native-everywhere.
+        // Decision goo-types-in-builders-draw-as-buttons: the icon stands inside a button's border, the line's
+        // height, so it reads as clickable.
         int size = GooTypeIcons.sizeOf(type);
-        reserve(size);
+        int width = size + ButtonPainter.PADDING + ButtonPainter.PADDING;
+        reserve(width);
+        markPiece(width);
         int iconX = x;
         int iconY = y;
-        GooTypeIcons.blit(graphics, type, iconX, iconY + GooTypeIcons.centered(LINE, size));
-        targets.add(iconX, iconY, size, LINE,
+        ButtonPainter.drawFrame(graphics, new ButtonPainter.Box(iconX, iconY, width, LINE));
+        GooTypeIcons.blit(graphics, type, iconX + ButtonPainter.PADDING, iconY + GooTypeIcons.centered(LINE, size));
+        targets.add(iconX, iconY, width, LINE,
                 () -> pressed.accept(new BuilderOverlays.Anchor(iconX, iconY)), GooTypeIcons.pickHoverKey(type));
-        x += size + GAP;
+        x += width + GAP;
     }
 
     /**
