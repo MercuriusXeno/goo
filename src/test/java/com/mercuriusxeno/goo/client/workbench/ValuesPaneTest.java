@@ -10,9 +10,11 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atLeastOnce;
@@ -78,6 +80,30 @@ class ValuesPaneTest {
                 font::width, 0, 0, values.filter()).chips().get(2);
         frame.targets.click(fractional.left() + 1, fractional.top() + 1);
         assertEquals(ValuesTab.Filter.FRACTIONAL, values.filter());
+    }
+
+    /**
+     * The selected chip draws its dark label with no drop shadow, so the label contrasts both its light fill and
+     * any shadow under it (decision selected-filter-chip-text-contrasts-its-shadow).
+     */
+    @Test
+    void selectedChipLabelDrawsDarkWithNoShadow() {
+        ValuesTab values = new ValuesTab();
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, sixPixelFont(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
+        ValuesPane.Chip selected = ValuesPane.layChips(List.of("Items", "Uncovered 0", "Fractional"),
+                sixPixelFont()::width, 0, 0, values.filter()).chips().getFirst();
+        ArgumentCaptor<Integer> colors = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics).text(any(Font.class), eq("Items"), anyInt(), anyInt(), colors.capture(), eq(false));
+        verify(frame.graphics).fill(selected.left() + 1, selected.top() + 1, selected.left() + selected.width() - 1,
+                selected.top() + selected.height() - 1, 0xFFFFFFFF);
+        assertNotEquals(0xFFFFFFFF, (int) colors.getValue(), "the label contrasts its white fill");
+        assertEquals(List.of(), frame.texts().stream().filter("Items"::equals).toList(),
+                "no shadowed Items label draws under it");
     }
 
     private static Font sixPixelFont() {
