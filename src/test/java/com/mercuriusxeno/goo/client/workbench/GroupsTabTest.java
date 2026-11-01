@@ -169,6 +169,53 @@ class GroupsTabTest {
      */
     @Nested
     class Controls {
+        private static final String NAMED = """
+                {"path": "base_values.json", "members": [
+                  {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "logs", "keySeparator": null, "kind": "VALUE", "text": "[\\"oak_log\\"]",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null},
+                  {"key": "#logs", "keySeparator": null, "kind": "VALUE", "text": "\\"$log\\"", "entries": [],
+                   "leading": null, "trailing": null, "closingGap": null},
+                  {"key": "_post_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "#stripped", "keySeparator": null, "kind": "VALUE", "text": "\\"#logs @strip\\"",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}
+                ]}
+                """;
+
+        /**
+         * Rename writes the group under the typed name, its members, its value and every #reference to it carried
+         * over (decision group-detail-puts-plus-and-rename-beside-the-name).
+         */
+        @Test
+        void renameCarriesTheGroupsMembersValueAndReferences() {
+            ManagerDraft named = new ManagerDraft();
+            named.read(NAMED);
+            GroupsTab groups = new GroupsTab(named);
+            groups.readDescribed("""
+                    {"groups": [{"name": "logs", "members": [{"id": "minecraft:oak_log", "known": true}],
+                      "base": "$log", "tweaks": [], "preview": []}]}""");
+            groups.selectGroup("logs");
+            assertTrue(groups.renameSelected(" #timber "));
+            assertEquals("[\"oak_log\"]", named.sectionEntries("_groups").get(0).getAsJsonObject().get("text")
+                    .getAsString());
+            assertEquals("timber", named.sectionEntries("_groups").get(0).getAsJsonObject().get("key").getAsString());
+            JsonObject value = named.members().asList().stream().map(member -> member.getAsJsonObject())
+                    .filter(member -> member.get("key").getAsString().startsWith("#")).findFirst().orElseThrow();
+            assertEquals("#timber", value.get("key").getAsString());
+            assertEquals("\"$log\"", value.get("text").getAsString());
+            assertEquals("\"#timber @strip\"", named.sectionEntries("_post_conversions").get(0).getAsJsonObject()
+                    .get("text").getAsString());
+        }
+
+        @Test
+        void renameRefusesABlankOrTakenName() {
+            tab.selectGroup("logs");
+            assertFalse(tab.renameSelected(" "));
+            assertFalse(tab.renameSelected("spawn_eggs"));
+        }
+
         @Test
         void newGroupPostsItsNameToCreate() {
             JsonObject request = parsed(tab.createRequest("fresh"));

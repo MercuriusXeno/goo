@@ -6,8 +6,10 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.network.chat.Component;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.lwjgl.glfw.GLFW;
+import org.mockito.ArgumentCaptor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -17,7 +19,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -160,15 +164,102 @@ class GroupsPaneTest {
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
     }
 
+    /**
+     * The list takes 60% of the pane, its names and the detail's member labels drawing more characters at the same
+     * font, the member labels reaching the detail's right edge with their text centered on the row; [+] and Rename
+     * stand right of the group's name, [+] opening the member picker (decisions
+     * group-list-takes-60-percent-and-labels-span-the-pane, group-detail-puts-plus-and-rename-beside-the-name).
+     */
+    @Nested
+    class WideList {
+        private static final String LONG_GROUP = "copper_and_waxed_copper_blocks";
+        private static final String LONG_MEMBER = "minecraft:waxed_weathered_cut_copper_stairs_long";
+        private static final GroupsPane.Bounds PANE = new GroupsPane.Bounds(0, 0, 500, 300);
+        private final ManagerDraft draft = new ManagerDraft();
+        private final GroupsTab groups = new GroupsTab(draft);
+        private final GroupsPane pane;
+
+        WideList() {
+            groups.readDescribed("""
+                    {"groups": [{"name": "%s", "kind": "group", "members": [{"id": "%s", "known": true}],
+                      "base": "8", "tweaks": [], "preview": []}]}""".formatted(LONG_GROUP, LONG_MEMBER));
+            groups.selectGroup(LONG_GROUP);
+            ManagerActions actions = mock(ManagerActions.class);
+            ItemIcons icons = mock(ItemIcons.class);
+            when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+            pane = new GroupsPane(groups, new ValuesTab(draft), icons, actions,
+                    new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        }
+
+        // A font six pixels a character wide that cuts a string to the width it is given.
+        private static Font cuttingFont() {
+            Font font = DrawnFrame.font();
+            when(font.plainSubstrByWidth(anyString(), anyInt())).thenAnswer(call -> {
+                String text = call.getArgument(0);
+                return text.substring(0, Math.min(text.length(), call.<Integer>getArgument(1) / 6));
+            });
+            return font;
+        }
+
+        private DrawnFrame frame() {
+            DrawnFrame frame = new DrawnFrame();
+            pane.extract(frame.graphics, cuttingFont(), PANE, frame.targets);
+            return frame;
+        }
+
+        private List<DrawnFrame.Text> startingWith(DrawnFrame frame, String prefix) {
+            return frame.drawn().stream().filter(text -> !text.text().isEmpty() && prefix.startsWith(text.text()))
+                    .toList();
+        }
+
+        @Test
+        void listTakesSixtyPercentAndItsNamesDrawMoreCharacters() {
+            DrawnFrame frame = frame();
+            List<DrawnFrame.Text> names = startingWith(frame, "#" + LONG_GROUP);
+            DrawnFrame.Text listed = names.getFirst();
+            DrawnFrame.Text detailName = names.getLast();
+            assertEquals((PANE.right() - PANE.left()) * 3 / 5, GroupsPane.listWidth(PANE));
+            assertTrue(detailName.x() > GroupsPane.listWidth(PANE), detailName.toString());
+            assertTrue(listed.text().length() * 6 > 78, "the list name drew " + listed.text());
+        }
+
+        @Test
+        void memberLabelSpansTheDetailAndCentersOnItsRow() {
+            DrawnFrame frame = frame();
+            DrawnFrame.Text label = startingWith(frame, LONG_MEMBER).getLast();
+            int detailRight = PANE.right() - ScrollBar.WIDTH - ScrollBar.GAP;
+            assertTrue(label.text().length() * 6 > 110, "the label drew " + label.text());
+            assertTrue(label.x() + label.text().length() * 6 <= detailRight);
+            ArgumentCaptor<Integer> itemTops = ArgumentCaptor.forClass(Integer.class);
+            verify(frame.graphics, atLeastOnce()).item(any(), anyInt(), itemTops.capture());
+            int rowTop = itemTops.getAllValues().getLast() - 1;
+            assertEquals(rowTop + (18 - DrawnFrame.font().lineHeight) / 2, label.y());
+        }
+
+        @Test
+        void plusAndRenameStandRightOfTheGroupsName() {
+            DrawnFrame frame = frame();
+            DrawnFrame.Text name = startingWith(frame, "#" + LONG_GROUP).getLast();
+            DrawnFrame.Text plus = frame.find("+");
+            DrawnFrame.Text rename = frame.find("Rename");
+            assertTrue(plus.x() > name.x() + name.text().length() * 6, plus + " vs " + name);
+            assertTrue(rename.x() > plus.x());
+            assertTrue(Math.abs(plus.y() - name.y()) < ExpressionLines.TEXT_LINE_HEIGHT, plus + " vs " + name);
+            assertFalse(frame.texts().contains("Add member"), frame.texts().toString());
+            frame.click("+");
+            assertTrue(pane.pickerOpen(), "the member picker opens");
+        }
+    }
+
     @Test
     void wideNameHoversWhole() {
-        String key = GroupsPane.nameHoverKey(font(), WIDE).orElseThrow();
+        String key = GroupsPane.nameHoverKey(font(), WIDE, 78).orElseThrow();
         assertEquals(Optional.of(new TooltipLine.Text(Component.literal(WIDE))), GroupsPane.nameTooltipFor(key));
     }
 
     @Test
     void fittingNameLeavesNoHover() {
-        assertEquals(Optional.empty(), GroupsPane.nameHoverKey(font(), "#logs"));
+        assertEquals(Optional.empty(), GroupsPane.nameHoverKey(font(), "#logs", 78));
     }
 
     /**
@@ -225,16 +316,17 @@ class GroupsPaneTest {
         DrawnFrame group = new DrawnFrame();
         pane.extract(group.graphics, DrawnFrame.font(), bounds, group.targets);
         int groupWorth = group.find("Value").y();
-        int addMember = group.find("Add member").y();
-        assertTrue(addMember > group.find("#logs").y() && addMember < groupWorth, group.drawn().toString());
+        int addMember = group.find("+").y();
+        assertTrue(Math.abs(addMember - group.find("#logs").y()) < ExpressionLines.TEXT_LINE_HEIGHT
+                && addMember < groupWorth, group.drawn().toString());
 
         groups.selectGroup("saplings");
         DrawnFrame tag = new DrawnFrame();
         pane.extract(tag.graphics, DrawnFrame.font(), bounds, tag.targets);
         int notControlled = tag.find("Tag membership isn't controlled here").y();
-        assertTrue(notControlled > tag.find("#saplings").y() && notControlled < groupWorth, tag.drawn().toString());
-        assertEquals(groupWorth, tag.find("Value").y());
-        assertEquals(List.of(), tag.texts().stream().filter("Add member"::equals).toList());
+        assertTrue(notControlled > tag.find("#saplings").y() && notControlled < tag.find("Value").y(),
+                tag.drawn().toString());
+        assertEquals(List.of(), tag.texts().stream().filter("+"::equals).toList());
         tag.click("empty");
         assertTrue(builder.isOpen());
         DrawnFrame building = new DrawnFrame();
