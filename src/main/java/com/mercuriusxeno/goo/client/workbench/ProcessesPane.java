@@ -63,13 +63,11 @@ final class ProcessesPane {
     private static final String NO_REASON = "";
     private static final int ROW_COLOR = 0x20FFFFFF;
     private static final String DELETE = "✗";
-    private static final String SUMMARY_GAP = "  ";
     private static final String MUTATORS = "Mutators";
     private static final String ITERATORS = "Iterators";
     // The operator's ruling: a [+] beside its heading plainly adds one of that heading's kind.
-    private static final String NEW_MUTATOR = "+";
+    private static final String NEW_ENTRY = "+";
     private static final String NEW_MUTATOR_HINT = "Name a new formula, additive or stack";
-    private static final String NEW_ITERATOR = "+";
     private static final String NEW_ITERATOR_HINT = "Name the group a new iterator assigns values to";
     private static final String NAME_HINT = "name, Enter";
     private static final String NO_TEXT = "";
@@ -79,6 +77,10 @@ final class ProcessesPane {
     private static final int NAME_BOX_WIDTH = 140;
     private static final int NAME_BOX_HEIGHT = 16;
     private static final String SEARCH_HINT = "Search mutators";
+    private static final String CONVERSIONS = "_conversions";
+    private static final String POST_CONVERSIONS = "_post_conversions";
+    private static final String[] SUB_TABS = {CONVERSIONS, POST_CONVERSIONS};
+    private static final String[] SUB_TAB_LABELS = {"Conversions", "Post-conversions"};
     private static final int SEARCH_WIDTH = 200;
     private static final int SEARCH_ROW = NAME_BOX_HEIGHT + 4;
 
@@ -93,6 +95,7 @@ final class ProcessesPane {
     private @Nullable EditBox nameBox;
     private @Nullable EditBox search;
     private @Nullable Naming naming;
+    private String shownSection = POST_CONVERSIONS;
     private boolean nameBoxPlaced;
     private boolean visible;
 
@@ -200,9 +203,11 @@ final class ProcessesPane {
 
     void extract(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds pane, ClickTargets targets) {
         overlays.commitOnBlur();
-        // Decision mutators-tab-renames-and-searches-by-name: the search box stands above the scrolling blocks.
+        // Decision mutators-tab-renames-and-searches-by-name: the search box stands above the scrolling blocks, right
+        // of the sub-tabs.
+        int afterTabs = drawSubTabs(graphics, font, pane.left(), pane.top() + 1, targets);
         if (search != null) {
-            search.setPosition(pane.left(), pane.top());
+            search.setPosition(afterTabs + GAP, pane.top());
         }
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(pane.left(), pane.top() + SEARCH_ROW, pane.right(),
                 pane.bottom());
@@ -229,13 +234,40 @@ final class ProcessesPane {
     private record Frame(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds rows, ClickTargets targets) {
     }
 
-    // Answers the y below the last block; the name box shows only while the heading that opened it draws.
+    // The operator's ruling: conversions and post-conversions are sub-tabs of Mutators, post-conversions the
+    // default; drawn as one segmented set like the Items filters. Answers the set's right edge.
+    private int drawSubTabs(GuiGraphicsExtractor graphics, Font font, int left, int top, ClickTargets targets) {
+        int x = left;
+        for (int index = 0; index < SUB_TABS.length; index++) {
+            String section = SUB_TABS[index];
+            String label = SUB_TAB_LABELS[index];
+            int width = font.width(label) + ButtonPainter.PADDING + ButtonPainter.PADDING;
+            ValuesPane.drawChipFace(graphics, font, new ValuesPane.Chip(ValuesTab.Filter.ITEMS, label, x, top, width,
+                    ButtonPainter.HEIGHT, section.equals(shownSection)), WHITE);
+            targets.add(x, top, width, ButtonPainter.HEIGHT, () -> showSection(section));
+            x += width - 1;
+        }
+        return x + 1;
+    }
+
+    private void showSection(String section) {
+        if (!section.equals(shownSection)) {
+            shownSection = section;
+            overlays.close();
+            stopNaming();
+            bar.reset();
+        }
+    }
+
+    // Answers the y below the shown section's blocks; the name box shows only while the heading that opened it draws.
     private int drawSections(Frame frame, int top) {
         int y = top;
         nameBoxPlaced = false;
         for (ProcessesTab.ProcessSection section : processes.sections()) {
-            frame.graphics().text(frame.font(), section.section() + SUMMARY_GAP + section.summary(),
-                    frame.rows().left(), y, WHITE);
+            if (!section.section().equals(shownSection)) {
+                continue;
+            }
+            frame.graphics().text(frame.font(), section.summary(), frame.rows().left(), y, WHITE);
             y += LINE_HEIGHT + GAP;
             for (boolean iterators : KINDS) {
                 y = drawKind(frame, section, iterators, y);
@@ -279,7 +311,7 @@ final class ProcessesPane {
             nameBoxPlaced = true;
             return;
         }
-        BuilderOverlays.control(frame.graphics(), frame.font(), iterators ? NEW_ITERATOR : NEW_MUTATOR,
+        BuilderOverlays.control(frame.graphics(), frame.font(), NEW_ENTRY,
                 iterators ? NEW_ITERATOR_HINT : NEW_MUTATOR_HINT, x, top, frame.targets(),
                 at -> startNaming(new Naming(section, iterators, null)));
     }
@@ -421,6 +453,15 @@ final class ProcessesPane {
      */
     void reveal(String key) {
         revealPending = key;
+        processes.sections().stream().filter(section -> section.rows().stream().anyMatch(row -> row.key().equals(key)))
+                .findFirst().ifPresent(section -> shownSection = section.section());
+    }
+
+    /**
+     * @return the section the sub-tabs show, post-conversions until another is picked
+     */
+    String shownSection() {
+        return shownSection;
     }
 
     // Once the revealed row has drawn and the bar has measured this frame, centers the row in the list.
