@@ -36,6 +36,7 @@ public final class VariablesTab {
     private static final String KIND = "kind";
     private static final String TREE = TREE_KIND;
     private static final String SCALAR = "scalar";
+    private static final String SCALAR_SHOWN = "=";
     private static final String VALUE = "value";
     private static final String ERROR = "error";
     private static final String USED_BY = "usedBy";
@@ -95,7 +96,8 @@ public final class VariablesTab {
          *     payload's "tree" stays as the server sends it (decision type-valued-prefabs-read-typed)
          */
         public String shownKind() {
-            return TREE_KIND.equals(kind) ? TYPED_KIND : kind;
+            // The operator's ruling: a scalar prefab's head reads "= n", the number saying what it is.
+            return TREE_KIND.equals(kind) ? TYPED_KIND : SCALAR.equals(kind) ? SCALAR_SHOWN : kind;
         }
     }
 
