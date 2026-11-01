@@ -384,7 +384,7 @@ final class VariablesPane {
     private int drawUsedByLines(GuiGraphicsExtractor graphics, Font font, List<String> direct, List<String> indirect,
                                 int x, int y, int width, @Nullable String expandKey, ClickTargets targets) {
         // The operator's ruling: one used-by line, the items naming the prefab directly first, then the rest.
-        java.util.LinkedHashSet<String> usedBy = new java.util.LinkedHashSet<>(direct);
+        java.util.Set<String> usedBy = new java.util.LinkedHashSet<>(direct);
         usedBy.addAll(indirect);
         return drawUsedBy(graphics, font, USED_BY, List.copyOf(usedBy), x, y, width,
                 expandKey == null ? null : expandKey + USED_BY_KEY, targets);
