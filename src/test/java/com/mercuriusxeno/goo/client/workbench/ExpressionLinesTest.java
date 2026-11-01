@@ -50,6 +50,32 @@ class ExpressionLinesTest {
     }
 
     /**
+     * Poppy's backwards derivation draws the one output it works back from less one parenthesized sum of the other
+     * inputs, "stew - (bowl + mushroom + mushroom)" (decision backwards-derivation-subtracts-a-parenthesized-sum).
+     */
+    @Test
+    void backwardsDerivationSubtractsAParenthesizedSum() {
+        Function<String, String> names = id -> switch (id) {
+            case "minecraft:suspicious_stew" -> "Suspicious Stew";
+            case "minecraft:bowl" -> "Bowl";
+            default -> "Mushroom";
+        };
+        List<ExpressionLines.Run> runs = ExpressionLines.shownRuns("minecraft:suspicious_stew - minecraft:bowl"
+                + " - minecraft:red_mushroom - minecraft:brown_mushroom", names);
+        assertEquals(List.of("Suspicious Stew", "-", "(", "Bowl", "+", "Mushroom", "+", "Mushroom", ")"),
+                runs.stream().map(ExpressionLines.Run::text).toList());
+    }
+
+    /**
+     * One subtracted term stands alone, no parentheses around it.
+     */
+    @Test
+    void singleSubtractedTermDrawsNoParentheses() {
+        List<ExpressionLines.Run> runs = ExpressionLines.shownRuns("anvil - bucket", NAMES);
+        assertEquals(List.of("Anvil", "-", "Bucket"), runs.stream().map(ExpressionLines.Run::text).toList());
+    }
+
+    /**
      * Kelp's per-type object draws a row per type: the type's icon, then its sum with the prefab as a link and its
      * type as an icon.
      */
