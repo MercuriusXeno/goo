@@ -2,13 +2,19 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.Test;
+import org.lwjgl.glfw.GLFW;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -98,6 +104,60 @@ class GroupsPaneTest {
         pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
         assertTrue(pane.listBar().maximum() > 0);
         assertEquals(pane.listBar().maximum(), pane.listBar().offset());
+    }
+
+    /**
+     * The Groups pane stands a hinted search box shown with the tab, between New group and the list; typing in it
+     * filters the list and returns the list's bar to its top, and a right click on it lists every group again
+     * (decisions groups-search-matches-a-name-or-any-member, right-click-empties-every-text-box-in-the-manager).
+     */
+    @Test
+    void searchBoxFiltersTheListAndARightClickEmptiesIt() {
+        GroupsTab groups = new GroupsTab(new ManagerDraft());
+        List<AbstractWidget> widgets = new ArrayList<>();
+        GroupsPane pane = manyGroups(groups, widgets);
+        pane.init(DrawnFrame.font());
+        EditBox search = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                .filter(box -> "Search groups".equals(box.getMessage().getString())).findFirst().orElseThrow();
+        pane.show(false);
+        assertFalse(search.visible);
+        pane.show(true);
+        assertTrue(search.visible);
+
+        DrawnFrame first = new DrawnFrame();
+        pane.extract(first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
+        int newGroupBottom = first.find("New group").y() + GroupsPane.ROW_HEIGHT - 4;
+        int firstRow = first.find("#" + groupName(0)).y();
+        assertTrue(search.getY() >= newGroupBottom && search.getY() + search.getHeight() <= firstRow,
+                "search at " + search.getY() + ", New group at " + first.find("New group").y() + ", list at " + firstRow);
+        pane.listBar().wheel(-3);
+        assertTrue(pane.listBar().offset() > 0);
+
+        search.setValue(groupName(7));
+        assertEquals(0, pane.listBar().offset());
+        assertEquals(List.of(groupName(7)), groups.groupRows().stream().map(GroupsTab.GroupRow::name).toList());
+
+        ValuesManagerScreen.emptyBoxUnder(widgets, new MouseButtonEvent(search.getX() + 1, search.getY() + 1,
+                new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_RIGHT, 0)));
+        assertEquals(FOLLOWED_GROUPS, groups.groupRows().size());
+    }
+
+    // A Groups pane over forty groups whose actions record every widget the pane stands.
+    private static GroupsPane manyGroups(GroupsTab groups, List<AbstractWidget> widgets) {
+        String described = IntStream.range(0, FOLLOWED_GROUPS).mapToObj(index -> """
+                {"name": "%s", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
+                 "base": "8", "tweaks": [], "preview": []}""".formatted(groupName(index)))
+                .collect(Collectors.joining(", "));
+        groups.readDescribed("{\"groups\": [" + described + "]}");
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> {
+            widgets.add(call.getArgument(0));
+            return call.getArgument(0);
+        });
+        ItemIcons icons = mock(ItemIcons.class);
+        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+        return new GroupsPane(groups, new ValuesTab(new ManagerDraft()), icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
     }
 
     @Test

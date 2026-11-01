@@ -53,6 +53,7 @@ final class GroupsPane {
     private static final int READ_VIEW_COLOR = 0x30FFFFFF;
     private static final String NEW_GROUP = "New group";
     private static final String NEW_GROUP_HINT = "group name, Enter";
+    private static final String SEARCH_HINT = "Search groups";
     private static final String ADD_MEMBER = "Add member";
     private static final String ADD_TAG = "Add tag";
     private static final String NOT_CONTROLLED ="Tag membership isn't controlled here";
@@ -86,6 +87,7 @@ final class GroupsPane {
     private record RevealedRow(int top, int height) {
     }
     private @Nullable EditBox nameBox;
+    private @Nullable EditBox search;
     private @Nullable String building;
     private boolean naming;
     private boolean visible;
@@ -109,9 +111,24 @@ final class GroupsPane {
         nameBox = actions.addWidget(new EditBox(font, 0, 0, NAME_BOX_WIDTH, BOX_HEIGHT,
                 Component.literal(NEW_GROUP_HINT)));
         nameBox.setHint(Component.literal(NEW_GROUP_HINT));
+        standSearch(font);
         builder.init(font);
         overlays.init(font);
         show(visible);
+    }
+
+    // A resize stands the box afresh with the text it held (decision groups-search-matches-a-name-or-any-member).
+    private void standSearch(Font font) {
+        String searched = search == null ? NO_TEXT : search.getValue();
+        EditBox box = actions.addWidget(new EditBox(font, 0, 0, LIST_WIDTH - ScrollBar.WIDTH - ScrollBar.GAP,
+                BOX_HEIGHT, Component.literal(SEARCH_HINT)));
+        box.setHint(Component.literal(SEARCH_HINT));
+        box.setValue(searched);
+        box.setResponder(text -> {
+            groups.search(text, values.entries());
+            listBar.reset();
+        });
+        search = box;
     }
 
     /**
@@ -123,6 +140,9 @@ final class GroupsPane {
         overlays.show(shown);
         if (nameBox != null) {
             nameBox.visible = shown && naming;
+        }
+        if (search != null) {
+            search.visible = shown;
         }
     }
 
@@ -223,8 +243,17 @@ final class GroupsPane {
         }
     }
 
-    // Answers the list's top below the New group button or its name box.
+    // Answers the list's top below the New group button or its name box, and the search box under them.
     private int drawNewGroup(GuiGraphicsExtractor graphics, Font font, int left, int top, ClickTargets targets) {
+        int searchTop = drawNewGroupControls(graphics, font, left, top, targets);
+        if (search != null) {
+            search.setPosition(left, searchTop + HALF);
+        }
+        return searchTop + ROW_HEIGHT + HALF;
+    }
+
+    private int drawNewGroupControls(GuiGraphicsExtractor graphics, Font font, int left, int top,
+                                     ClickTargets targets) {
         if (naming && nameBox != null) {
             nameBox.setPosition(left, top + HALF);
             nameBox.visible = visible;
@@ -235,7 +264,7 @@ final class GroupsPane {
             BuilderOverlays.control(graphics, font, ADD_TAG, afterNewGroup, top, targets, at -> overlays.openDropdown(
                     at, groups.addTagChoices(values.entries()), choice -> createTag(choice.id())));
         }
-        return top + ROW_HEIGHT + HALF;
+        return top + ROW_HEIGHT;
     }
 
     private void createTag(String tagId) {
