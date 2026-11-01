@@ -20,7 +20,6 @@ import java.util.regex.Pattern;
  * expression-builder-composes-every-form-without-typing).
  */
 final class MutatorControls {
-    private static final int WHITE = 0xFFFFFFFF;
     private static final int GRAY = 0xFFA0A0A0;
     private static final int RED = 0xFFFF5555;
     // Nine digits always fit an int.
@@ -71,6 +70,7 @@ final class MutatorControls {
 
     private final ProcessesTab processes;
     private final BuilderOverlays overlays;
+    private final ManagerActions actions;
     private final Supplier<List<String>> treePrefabs;
     private final Supplier<List<String>> gooTypes;
     private final Runnable changed;
@@ -78,14 +78,16 @@ final class MutatorControls {
     /**
      * @param processes   the Mutators tab's state
      * @param overlays    the number box, dropdown and picker the controls open
+     * @param actions     where a shift + left click on a group, prefab or mutator name opens it
      * @param treePrefabs the tree prefabs' names, which an additive adds
      * @param gooTypes    the goo types' ids, the first a fresh formula's source
      * @param changed     runs after each change written to the draft
      */
-    MutatorControls(ProcessesTab processes, BuilderOverlays overlays, Supplier<List<String>> treePrefabs,
-                    Supplier<List<String>> gooTypes, Runnable changed) {
+    MutatorControls(ProcessesTab processes, BuilderOverlays overlays, ManagerActions actions,
+                    Supplier<List<String>> treePrefabs, Supplier<List<String>> gooTypes, Runnable changed) {
         this.processes = processes;
         this.overlays = overlays;
+        this.actions = actions;
         this.treePrefabs = treePrefabs;
         this.gooTypes = gooTypes;
         this.changed = changed;
@@ -200,16 +202,16 @@ final class MutatorControls {
     private void drawAdditive(Entry entry, Processes.Additive additive) {
         ControlFlow flow = entry.flow();
         flow.text(ADDS, GRAY);
-        nameControl(flow, additive.constant(), PREFAB_HINT, treePrefabs.get(),
-                prefab -> processes.setAdditive(entry.section(), entry.key(), prefab));
+        nameControl(flow, new Ref(additive.constant(), () -> actions.openVariable(additive.constant())), PREFAB_HINT,
+                treePrefabs.get(), prefab -> processes.setAdditive(entry.section(), entry.key(), prefab));
         flow.hoverLast(PrefabHovers.hoverKey(additive.constant()));
     }
 
     private void drawStack(Entry entry, Processes.Stack stack) {
         ControlFlow flow = entry.flow();
         flow.text(APPLIES, GRAY);
-        nameControl(flow, stack.formula(), PROCESS_HINT, otherProcesses(entry),
-                formula -> processes.setStackFormula(entry.section(), entry.key(), formula));
+        nameControl(flow, new Ref(stack.formula(), () -> actions.openMutator(stack.formula())), PROCESS_HINT,
+                otherProcesses(entry), formula -> processes.setStackFormula(entry.section(), entry.key(), formula));
         numberControl(flow, stack.count(), COUNT_HINT,
                 count -> processes.setStackCount(entry.section(), entry.key(), count));
         flow.text(TIMES, GRAY);
@@ -224,7 +226,8 @@ final class MutatorControls {
         if (assignment.source().isEmpty()) {
             flow.control(OWN_VALUES, OWN_HINT, at -> openNames(at, processes.groupNames(), setSource));
         } else {
-            nameControl(flow, GROUP_MARK + assignment.source(), GROUP_HINT, processes.groupNames(), setSource);
+            nameControl(flow, new Ref(GROUP_MARK + assignment.source(), () -> actions.openGroup(assignment.source())),
+                    GROUP_HINT, processes.groupNames(), setSource);
             flow.control(DROP_SOURCE, DROP_SOURCE_HINT, at -> edit(() -> setSource.accept(NO_SOURCE)));
         }
         // Decision factor-reads-as-a-ratio: "times 1 over 1" reads "1:1", each number its own box.
@@ -253,9 +256,8 @@ final class MutatorControls {
         for (int index = 0; index < chain.size(); index++) {
             int link = index;
             String applied = chain.get(index).substring(STACK_MARK.length());
-            flow.text(applied, WHITE);
             // Decision every-prefab-reference-hovers-its-value: an applied mutator, waxed among them, hovers its value.
-            flow.hoverLast(PrefabHovers.hoverKey(applied));
+            flow.followLink(applied, PrefabHovers.hoverKey(applied), () -> actions.openMutator(applied));
             flow.control(REMOVE_LINK, REMOVE_LINK_HINT,
                     at -> edit(() -> processes.removeAssignmentLink(section, key, link)));
         }
@@ -274,9 +276,19 @@ final class MutatorControls {
         }
     }
 
-    // A name drawn as a link whose click opens a dropdown over the names.
-    private void nameControl(ControlFlow flow, String name, String hint, List<String> names, Consumer<String> pick) {
-        flow.control(name, hint, at -> openNames(at, names, pick));
+    /**
+     * A name a row draws and what a shift + left click on it opens.
+     *
+     * @param label  the name as drawn
+     * @param follow opens the group, prefab or mutator it names
+     */
+    private record Ref(String label, Runnable follow) {
+    }
+
+    // Decision diagnose-and-correct-mutator-references-that-do-not-link: a plain left click opens a dropdown over the
+    // names, a shift + left click opens the thing named.
+    private void nameControl(ControlFlow flow, Ref ref, String hint, List<String> names, Consumer<String> pick) {
+        flow.linkControl(ref.label(), hint, at -> openNames(at, names, pick), ref.follow());
     }
 
     private void openNames(BuilderOverlays.Anchor at, List<String> names, Consumer<String> pick) {
