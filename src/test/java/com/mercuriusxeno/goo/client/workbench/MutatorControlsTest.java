@@ -3,11 +3,15 @@ package com.mercuriusxeno.goo.client.workbench;
 import com.mercuriusxeno.goo.workbench.Processes;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import java.util.List;
+import java.util.function.Consumer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -59,16 +63,16 @@ class MutatorControlsTest {
         void kindLineDrawsOneButtonReadingTheChosenKind() {
             List<String> texts = frame().texts();
             assertTrue(texts.contains(ControlFlow.dropdownLabel("additive")), texts.toString());
-            assertFalse(texts.contains("formula") || texts.contains("stack"), texts.toString());
+            assertFalse(texts.contains("convert") || texts.contains("stack"), texts.toString());
         }
 
         @Test
-        void pickingFormulaWritesAFormula() {
+        void pickingConvertWritesAFormula() {
             frame().click(ControlFlow.dropdownLabel("additive"));
             DrawnFrame open = frame();
-            assertTrue(open.texts().containsAll(List.of("formula", "additive", "stack")), open.texts().toString());
-            open.click("formula");
-            verify(processes).setForm(SECTION, KEY, new Processes.Formula("metal", 1, "0", "/", 0));
+            assertTrue(open.texts().containsAll(List.of("convert", "additive", "stack")), open.texts().toString());
+            open.click("convert");
+            verify(processes).setForm(SECTION, KEY, new Processes.Formula("metal", 1, "0", 1, 1));
             assertFalse(overlays.listOpen());
         }
 
@@ -81,8 +85,8 @@ class MutatorControlsTest {
         }
 
         @Test
-        void pickingFormulaOnAFormulaKeepsItsTerms() {
-            pickTheChosenKind(new Processes.Formula("metal", 4, "2", "/", 1), "formula");
+        void pickingConvertOnAFormulaKeepsItsTerms() {
+            pickTheChosenKind(new Processes.Formula("metal", 4, "yore", 2, 1), "convert");
         }
 
         @Test
@@ -93,6 +97,97 @@ class MutatorControlsTest {
         @Test
         void pickingStackOnAStackKeepsItsCountAndProcess() {
             pickTheChosenKind(new Processes.Stack(3, "smelt"), "stack");
+        }
+    }
+
+    /**
+     * Each form's sentence reads in symbols: a formula as two ratios, an additive as +, a stack as x[n]
+     * (decision mutator-sentences-read-in-symbols).
+     */
+    @Nested
+    class Sentences {
+        private static final String SECTION = "_post_conversions";
+        private final ProcessesTab processes = mock(ProcessesTab.class);
+        private final BuilderOverlays overlays = mock(BuilderOverlays.class);
+        private final MutatorControls controls = new MutatorControls(processes, overlays, mock(ManagerActions.class),
+                () -> List.of("oak"), () -> List.of("metal"), () -> { });
+
+        Sentences() {
+            when(processes.processNames(SECTION)).thenReturn(List.of("rust", "smelt"));
+        }
+
+        private DrawnFrame frame(Processes.Form form) {
+            when(processes.formOf(SECTION, "rust")).thenReturn(form);
+            DrawnFrame frame = new DrawnFrame();
+            controls.draw(frame.graphics, DrawnFrame.font(), SECTION, "rust", new GroupsPane.Bounds(0, 0, 590, 390), 0,
+                    frame.targets);
+            return frame;
+        }
+
+        // The runs after the kind dropdown, which the sentence follows.
+        private List<String> sentence(Processes.Form form, String kind) {
+            List<String> texts = frame(form).texts();
+            return texts.subList(texts.indexOf(ControlFlow.dropdownLabel(kind)) + 1, texts.size());
+        }
+
+        @Test
+        void formulaReadsAsTwoRatios() {
+            assertEquals(List.of("1", ":", "4", "becomes", "2", ":", "3"),
+                    sentence(new Processes.Formula("metal", 4, "yore", 2, 3), "convert"));
+        }
+
+        @Test
+        void formulaToNothingReadsBecomesNothing() {
+            assertEquals(List.of("1", ":", "4", "becomes", "nothing"),
+                    sentence(new Processes.Formula("metal", 4, "0", 1, 1), "convert"));
+        }
+
+        @Test
+        void additiveReadsPlusItsPrefab() {
+            assertEquals(List.of("+", "oak"), sentence(new Processes.Additive("oak"), "additive"));
+        }
+
+        @Test
+        void stackReadsAppliesItsMutatorTimesItsCount() {
+            assertEquals(List.of("applies", "smelt", "x", "2"), sentence(new Processes.Stack(2, "smelt"), "stack"));
+        }
+
+        @Test
+        void kindOptionsReadConvertAdditiveAndStack() {
+            frame(new Processes.Additive("oak")).click(ControlFlow.dropdownLabel("additive"));
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<List<BuilderOverlays.Option>> options = ArgumentCaptor.forClass(List.class);
+            verify(overlays).openOptions(any(), options.capture());
+            assertEquals(List.of("convert", "additive", "stack"),
+                    options.getValue().stream().map(BuilderOverlays.Option::label).toList());
+        }
+
+        // Clicks a number box's control and commits the typed text through the box it opened.
+        private void commitTyped(DrawnFrame frame, String label, String typed) {
+            frame.click(label);
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<Consumer<String>> commits = ArgumentCaptor.forClass(Consumer.class);
+            verify(overlays).openNumber(any(), anyString(), commits.capture(), anyBoolean());
+            commits.getValue().accept(typed);
+        }
+
+        @Test
+        void sourceDivisorRefusesZero() {
+            commitTyped(frame(new Processes.Formula("metal", 4, "yore", 2, 3)), "4", "0");
+            verify(processes, never()).setFormulaDivisor(anyString(), anyString(), anyInt());
+        }
+
+        @Test
+        void targetDivisorRefusesZero() {
+            DrawnFrame frame = frame(new Processes.Formula("metal", 4, "yore", 2, 3));
+            commitTyped(frame, "3", "0");
+            verify(processes, never()).setFormulaRatio(anyString(), anyString(), anyInt(), anyInt());
+        }
+
+        @Test
+        void targetDivisorTakesAWholeNumber() {
+            commitTyped(frame(new Processes.Formula("metal", 4, "yore", 2, 3)), "3", "5");
+            verify(processes).setFormulaRatio(SECTION, "rust", 2, 5);
         }
     }
 

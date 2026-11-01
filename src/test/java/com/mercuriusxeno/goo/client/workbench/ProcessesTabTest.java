@@ -147,10 +147,9 @@ class ProcessesTabTest {
             forms.setFormulaSource(POST, "oxidation_metal", "metal");
             forms.setFormulaDivisor(POST, "oxidation_metal", 4);
             forms.setFormulaTarget(POST, "oxidation_metal", "yore");
-            forms.toggleFormulaOperator(POST, "oxidation_metal");
-            forms.setFormulaAmount(POST, "oxidation_metal", 9);
-            assertEquals("\"metal / 4 -> yore / 9\"", textOf("oxidation_metal"));
-            assertEquals(new Processes.Formula("metal", 4, "yore", "/", 9),
+            forms.setFormulaRatio(POST, "oxidation_metal", 2, 9);
+            assertEquals("\"metal / 4 -> yore * 2 / 9\"", textOf("oxidation_metal"));
+            assertEquals(new Processes.Formula("metal", 4, "yore", 2, 9),
                     Processes.parse("oxidation_metal", textOf("oxidation_metal")));
         }
 
@@ -189,7 +188,7 @@ class ProcessesTabTest {
          */
         @Test
         void entryChangesItsKind() {
-            forms.setForm(POST, "waxed", new Processes.Formula("metal", 1, "0", "/", 0));
+            forms.setForm(POST, "waxed", new Processes.Formula("metal", 1, "0", 1, 1));
             assertEquals("\"metal / 1 -> 0\"", textOf("waxed"));
             forms.setForm(POST, "waxed", new Processes.Stack(1, "oxidation_metal"));
             assertEquals(new Processes.Stack(1, "oxidation_metal"), forms.formOf(POST, "waxed"));
@@ -202,7 +201,7 @@ class ProcessesTabTest {
         @Test
         void createMutatorWritesAFormulaTheParserReads() {
             assertEquals(Optional.of("rusting"), forms.createMutator(POST, " rusting ", "metal"));
-            assertEquals(new Processes.Formula("metal", 1, "0", "/", 0), forms.formOf(POST, "rusting"));
+            assertEquals(new Processes.Formula("metal", 1, "0", 1, 1), forms.formOf(POST, "rusting"));
             assertEquals("rusting", forms.processNames(POST).getLast());
         }
 
@@ -261,6 +260,24 @@ class ProcessesTabTest {
             assertEquals(Processes.Kind.UNREAD, Processes.parse("#waxed_copper", "\"#copper +$waxed\"").kind());
         }
 
+        /**
+         * A formula's target ratio holds a multiplier and a divisor, each spelling reading and writing back as the
+         * game's parser reads it (decision mutator-sentences-read-in-symbols).
+         */
+        @Test
+        void formulaTargetRatioRoundTripsEverySpelling() {
+            assertRoundTrips("metal / 4 -> yore * 2 / 3", new Processes.Formula("metal", 4, "yore", 2, 3));
+            assertRoundTrips("metal / 4 -> yore * 2", new Processes.Formula("metal", 4, "yore", 2, 1));
+            assertRoundTrips("metal / 4 -> yore / 3", new Processes.Formula("metal", 4, "yore", 1, 3));
+            assertRoundTrips("metal / 4 -> 0", new Processes.Formula("metal", 4, "0", 1, 1));
+        }
+
+        private void assertRoundTrips(String spelled, Processes.Formula form) {
+            String quoted = "\"" + spelled + "\"";
+            assertEquals(form, Processes.parse("rust", quoted));
+            assertEquals(quoted, Processes.write(form));
+        }
+
         @Test
         void scaleWithNoDivisorDividesByOne() {
             assertEquals(new Processes.Assignment("copper", 3, 1, List.of()),
@@ -269,9 +286,9 @@ class ProcessesTabTest {
 
         @Test
         void formulaReadsWithoutSpaces() {
-            assertEquals(new Processes.Formula("metal", 4, "yore", "/", 9),
+            assertEquals(new Processes.Formula("metal", 4, "yore", 1, 9),
                     Processes.parse("oxidation_metal", "\"metal/4->yore/9\""));
-            assertEquals(new Processes.Formula("pulse", 2, "0", "/", 0),
+            assertEquals(new Processes.Formula("pulse", 2, "0", 1, 1),
                     Processes.parse("drain", "\"pulse / 2 -> 0\""));
         }
     }

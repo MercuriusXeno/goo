@@ -43,8 +43,6 @@ public final class ProcessesTab {
     // Null layout fields render in the file's usual layout.
     private static final String[] LAYOUT_FIELDS = {"leading", "trailing", "closingGap"};
     private static final String NOTHING_TARGET = "0";
-    private static final String DIVIDE_OPERATOR = "/";
-    private static final String TIMES_OPERATOR = "*";
     private static final int ROW_LINES = 2;
     private static final int HEAD_LINE_HEIGHT = 13;
     // The text line draws goo types as 16px icons (decision goo-types-draw-as-icons-named-on-hover).
@@ -162,8 +160,8 @@ public final class ProcessesTab {
      * @param type    the goo type it converts from
      */
     public void setFormulaSource(String section, String key, String type) {
-        changeFormula(section, key, f -> new Processes.Formula(type, f.sourceDivisor(), f.target(), f.operator(),
-                f.amount()));
+        changeFormula(section, key, f -> new Processes.Formula(type, f.sourceDivisor(), f.target(), f.multiplier(),
+                f.divisor()));
     }
 
     /**
@@ -172,8 +170,8 @@ public final class ProcessesTab {
      * @param divisor the source type's divisor
      */
     public void setFormulaDivisor(String section, String key, int divisor) {
-        changeFormula(section, key, f -> new Processes.Formula(f.source(), divisor, f.target(), f.operator(),
-                f.amount()));
+        changeFormula(section, key, f -> new Processes.Formula(f.source(), divisor, f.target(), f.multiplier(),
+                f.divisor()));
     }
 
     /**
@@ -182,29 +180,21 @@ public final class ProcessesTab {
      * @param type    the goo type it converts into, or "0" for nothing
      */
     public void setFormulaTarget(String section, String key, String type) {
-        changeFormula(section, key, f -> new Processes.Formula(f.source(), f.sourceDivisor(), type, f.operator(),
-                NOTHING_TARGET.equals(type) ? 0 : Math.max(1, f.amount())));
+        changeFormula(section, key, f -> new Processes.Formula(f.source(), f.sourceDivisor(), type, f.multiplier(),
+                f.divisor()));
     }
 
     /**
-     * Switches the target's amount between dividing and multiplying.
+     * Decision mutator-sentences-read-in-symbols: the target's ratio holds a multiplier and a divisor.
      *
-     * @param section _conversions or _post_conversions
-     * @param key     the formula's key
+     * @param section    _conversions or _post_conversions
+     * @param key        the formula's key
+     * @param multiplier the target's multiplier
+     * @param divisor    the target's divisor
      */
-    public void toggleFormulaOperator(String section, String key) {
-        changeFormula(section, key, f -> new Processes.Formula(f.source(), f.sourceDivisor(), f.target(),
-                DIVIDE_OPERATOR.equals(f.operator()) ? TIMES_OPERATOR : DIVIDE_OPERATOR, f.amount()));
-    }
-
-    /**
-     * @param section _conversions or _post_conversions
-     * @param key     the formula's key
-     * @param amount  the target's divisor or multiplier
-     */
-    public void setFormulaAmount(String section, String key, int amount) {
-        changeFormula(section, key, f -> new Processes.Formula(f.source(), f.sourceDivisor(), f.target(),
-                f.operator(), amount));
+    public void setFormulaRatio(String section, String key, int multiplier, int divisor) {
+        changeFormula(section, key, f -> new Processes.Formula(f.source(), f.sourceDivisor(), f.target(), multiplier,
+                divisor));
     }
 
     /**
@@ -321,7 +311,7 @@ public final class ProcessesTab {
         if (isIterator(key)) {
             return Optional.empty();
         }
-        return create(section, key, new Processes.Formula(sourceType, 1, NOTHING_TARGET, DIVIDE_OPERATOR, 0));
+        return create(section, key, new Processes.Formula(sourceType, 1, NOTHING_TARGET, 1, 1));
     }
 
     /**

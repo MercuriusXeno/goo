@@ -39,7 +39,10 @@ class ProcessesTest {
     @Test
     void everyFormParsesAsTheGameReadsIt() {
         BaseValuesModel model = BaseValuesModel.parse(SMALL);
-        model = Processes.with(model, POST, "oxidation_metal", Processes.formula("metal", 4, "yore", "/", 9));
+        model = Processes.with(model, POST, "oxidation_metal",
+                Processes.formula(new Processes.Formula("metal", 4, "yore", 1, 9)));
+        model = Processes.with(model, POST, "rusting", Processes.formula(new Processes.Formula("metal", 4, "yore", 2,
+                3)));
         model = Processes.with(model, POST, "waxed", Processes.additive("waxed"));
         model = Processes.with(model, POST, "exposed_metal", Processes.stack(1, "oxidation_metal"));
         model = Processes.with(model, POST, "weathered_metal", Processes.stack(2, "oxidation_metal"));
@@ -49,6 +52,9 @@ class ProcessesTest {
         GooConversion.ParsedConversions parsed = GooBaseValuesPreview.conversions(model.serialize()).post();
         assertEquals(new GooConversion.Formula(GooTypes.METAL, 4, GooTypes.YORE, 9, 1),
                 parsed.formulas().get("oxidation_metal"));
+        // Decision mutator-sentences-read-in-symbols: the target's ratio carries both numbers to the game.
+        assertEquals(new GooConversion.Formula(GooTypes.METAL, 4, GooTypes.YORE, 3, 2),
+                parsed.formulas().get("rusting"));
         assertTrue(parsed.additives().containsKey("waxed"));
         assertEquals(new GooConversion.Stack("oxidation_metal", 1), parsed.stacks().get("exposed_metal"));
         assertEquals(new GooConversion.Stack("oxidation_metal", 2), parsed.stacks().get("weathered_metal"));
