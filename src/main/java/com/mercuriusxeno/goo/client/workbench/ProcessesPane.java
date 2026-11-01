@@ -80,7 +80,7 @@ final class ProcessesPane {
     private static final String CONVERSIONS = "_conversions";
     private static final String POST_CONVERSIONS = "_post_conversions";
     private static final String[] SUB_TABS = {CONVERSIONS, POST_CONVERSIONS};
-    private static final String[] SUB_TAB_LABELS = {"Conversions", "Post-conversions"};
+    private static final String[] SUB_TAB_LABELS = {"Conversions", "Post conversions"};
     private static final int SEARCH_WIDTH = 200;
     private static final int SEARCH_ROW = NAME_BOX_HEIGHT + 4;
 

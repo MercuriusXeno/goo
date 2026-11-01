@@ -111,15 +111,19 @@ class ProcessesPaneTest {
                    {"key": "melted", "kind": "ADDITIVE", "text": "\\"+$oak\\"", "parsed": true}]},"""));
         ManagerActions actions = mock(ManagerActions.class);
         pane = new ProcessesPane(processes, draft, actions, null, () -> List.of("oak"));
+        assertEquals("_post_conversions", pane.shownSection());
         DrawnFrame post = frame();
+        List<String> postTexts = post.texts();
+        assertEquals("waxed", postTexts.get(postTexts.indexOf("Mutators") + 2), "the first row under Mutators: "
+                + postTexts);
         // A filled chip's label draws with no shadow, through the overload the frame does not record, so each tab's
         // label is read while it stands hollow.
         assertTrue(post.texts().containsAll(List.of("Conversions", "waxed")), post.texts().toString());
-        assertFalse(post.texts().contains("melted") || post.texts().contains("Post-conversions"),
+        assertFalse(post.texts().contains("melted") || post.texts().contains("Post conversions"),
                 post.texts().toString());
         post.click("Conversions");
         DrawnFrame pre = frame();
-        assertTrue(pre.texts().containsAll(List.of("Post-conversions", "melted")), pre.texts().toString());
+        assertTrue(pre.texts().containsAll(List.of("Post conversions", "melted")), pre.texts().toString());
         assertFalse(pre.texts().contains("waxed"), pre.texts().toString());
         pane.reveal("waxed");
         assertTrue(frame().texts().contains("waxed"));
