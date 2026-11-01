@@ -60,6 +60,9 @@ final class ProcessesPane {
     private static final int HEADING_NUDGE = 5;
     private static final int NAME_BOX_WIDTH = 140;
     private static final int NAME_BOX_HEIGHT = 16;
+    private static final String SEARCH_HINT = "Search mutators";
+    private static final int SEARCH_WIDTH = 200;
+    private static final int SEARCH_ROW = NAME_BOX_HEIGHT + 4;
 
     private final ProcessesTab processes;
     private final ManagerDraft draft;
@@ -70,6 +73,7 @@ final class ProcessesPane {
     private @Nullable String revealPending;
     private @Nullable RevealedRow revealedRow;
     private @Nullable EditBox nameBox;
+    private @Nullable EditBox search;
     private @Nullable Naming naming;
     private boolean visible;
 
@@ -101,8 +105,23 @@ final class ProcessesPane {
         nameBox = actions.addWidget(new EditBox(font, 0, 0, NAME_BOX_WIDTH, NAME_BOX_HEIGHT,
                 Component.literal(NAME_HINT)));
         nameBox.setHint(Component.literal(NAME_HINT));
+        standSearch(font);
         overlays.init(font);
         show(visible);
+    }
+
+    // A resize stands the box afresh with the text it held (decision mutators-tab-renames-and-searches-by-name).
+    private void standSearch(Font font) {
+        String searched = search == null ? NO_TEXT : search.getValue();
+        EditBox box = actions.addWidget(new EditBox(font, 0, 0, SEARCH_WIDTH, NAME_BOX_HEIGHT,
+                Component.literal(SEARCH_HINT)));
+        box.setHint(Component.literal(SEARCH_HINT));
+        box.setValue(searched);
+        box.setResponder(text -> {
+            processes.search(text);
+            bar.reset();
+        });
+        search = box;
     }
 
     /**
@@ -113,6 +132,9 @@ final class ProcessesPane {
         overlays.show(shown);
         if (nameBox != null) {
             nameBox.visible = shown && naming != null;
+        }
+        if (search != null) {
+            search.visible = shown;
         }
     }
 
@@ -157,8 +179,14 @@ final class ProcessesPane {
         return false;
     }
 
-    void extract(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds bounds, ClickTargets targets) {
+    void extract(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds pane, ClickTargets targets) {
         overlays.commitOnBlur();
+        // Decision mutators-tab-renames-and-searches-by-name: the search box stands above the scrolling blocks.
+        if (search != null) {
+            search.setPosition(pane.left(), pane.top());
+        }
+        GroupsPane.Bounds bounds = new GroupsPane.Bounds(pane.left(), pane.top() + SEARCH_ROW, pane.right(),
+                pane.bottom());
         graphics.enableScissor(bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
         targets.clip(bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
         GroupsPane.Bounds rows = new GroupsPane.Bounds(bounds.left(), bounds.top(),
