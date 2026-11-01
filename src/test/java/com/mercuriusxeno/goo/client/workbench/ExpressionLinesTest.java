@@ -81,8 +81,8 @@ class ExpressionLinesTest {
         org.mockito.Mockito.verify(frame.graphics, org.mockito.Mockito.atLeastOnce()).item(
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt(), spriteTops.capture());
         int spriteTop = spriteTops.getValue();
-        assertEquals(spriteTop + (16 - font.lineHeight) / 2, frame.find("-").y());
-        assertEquals(spriteTop + (16 - font.lineHeight) / 2, frame.find("Bucket").y());
+        assertEquals(spriteTop + (16 - font.lineHeight + 1) / 2, frame.find("-").y());
+        assertEquals(spriteTop + (16 - font.lineHeight + 1) / 2, frame.find("Bucket").y());
     }
 
     /**

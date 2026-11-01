@@ -486,7 +486,7 @@ class ExpressionBuilderPaneTest {
     @Nested
     class RemoveAndDone {
         private static final String X = "X";
-        private static final String DONE = "✓ done";
+        private static final String DONE = "✓ Done";
 
         private static List<DrawnFrame.Text> removes(DrawnFrame frame) {
             return frame.drawn().stream().filter(text -> text.text().equals(X)).toList();
@@ -613,5 +613,5 @@ class ExpressionBuilderPaneTest {
         }
     }
 
-    private static final String CANCEL = "✗ cancel";
+    private static final String CANCEL = "✗ Cancel";
 }

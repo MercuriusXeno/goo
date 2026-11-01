@@ -28,6 +28,7 @@ final class ExpressionLines {
     private static final int ICON_TEXT_GAP = 2;
     private static final int RUN_GAP = 3;
     private static final int ICON_NUDGE = 1;
+    private static final int GLYPH_GAP = 1;
     private static final int HALF = 2;
     private static final int RED = 0xFFFF5555;
     private static final String NOTHING = "";
@@ -340,10 +341,23 @@ final class ExpressionLines {
         return lineHeight(runs) == ICON_LINE_HEIGHT ? iconLineTextOffset(font) : 0;
     }
 
-    // Decision operators-center-on-the-sprite: text on an icon line, an operator among it, stands at the sprite's top
-    // plus half of the sprite's height less the font's line height, so its glyphs center on the sprite.
+    // Decision operators-center-on-the-sprite: text on an icon line, an operator among it, centers its glyphs on the
+    // sprite.
     private static int iconLineTextOffset(Font font) {
-        return ICON_NUDGE + (ITEM_SPRITE_SIZE - font.lineHeight) / HALF;
+        return centeredTextTop(ICON_NUDGE, ITEM_SPRITE_SIZE, font.lineHeight);
+    }
+
+    /**
+     * A font's line height holds an empty row under its glyphs and their shadow, so the glyphs' ink is one row shorter
+     * than the line; centering the ink, not the line, centers the text on a sprite or a row.
+     *
+     * @param top        the band's top
+     * @param height     the band's height
+     * @param lineHeight the font's line height
+     * @return the text's top that centers its glyphs in the band
+     */
+    static int centeredTextTop(int top, int height, int lineHeight) {
+        return top + (height - lineHeight + GLYPH_GAP) / HALF;
     }
 
     /**

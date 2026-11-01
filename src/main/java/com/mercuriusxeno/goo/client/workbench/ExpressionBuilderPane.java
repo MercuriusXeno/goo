@@ -86,13 +86,13 @@ final class ExpressionBuilderPane {
     private static final String UNREAD = "This value cannot be read; pick a kind to start over.";
     private static final String DENIED = "Denied: this holds no goo. Pick a kind to give it a value.";
     // decision done-draws-green-with-a-check-mark
-    private static final String DONE = "✓ done";
+    private static final String DONE = "✓ Done";
     // decision done-hint-reads-no-unsaved-changes-or-changes-already-saved
     private static final String NO_CHANGES_HINT = "No unsaved changes";
     private static final String CHANGES_SAVED_HINT = "Changes already saved to the draft";
     private static final String BLANK = "";
     // Decision value-expression-boxes-take-a-cancel-button.
-    private static final String CANCEL = "✗ cancel";
+    private static final String CANCEL = "✗ Cancel";
     private static final String CANCEL_HINT = "Discard the changes made since this opened";
 
     private final ManagerActions actions;

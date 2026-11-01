@@ -818,7 +818,7 @@ final class ValuesPane {
         int lineTwo = titleTop + TITLE_HEIGHT;
         int equalsLeft = left + ICON_SIZE + ICON_GAP;
         Equality equality = new Equality(left, lineTwo + 1, equalsLeft, equalsLeft + text.equalsWidth() + ICON_GAP,
-                lineTwo + (ROW_HEIGHT - text.lineHeight()) / HALF, row.right());
+                ExpressionLines.centeredTextTop(lineTwo, ROW_HEIGHT, text.lineHeight()), row.right());
         ValueLines value = layValueLines(runWidths, text, iconSize, equality, lineTwo);
         int bottom = Math.max(lineTwo + ROW_HEIGHT, value.bottom());
         return new EntryLayout(new Title(left, titleTop, nameWidth, symbolLeft), equality, value,
@@ -835,7 +835,8 @@ final class ValuesPane {
         int top = beside ? lineTwo + (ROW_HEIGHT - lineHeight) / HALF : lineTwo + ROW_HEIGHT;
         ValueRuns runs = layValueRuns(runWidths, equality.right() - left);
         int lines = runWidths.isEmpty() || !carriesRuns(text.kind()) ? 0 : runs.rows();
-        return new ValueLines(left, top, runs, lineHeight, (lineHeight - text.lineHeight()) / HALF, lines);
+        return new ValueLines(left, top, runs, lineHeight, ExpressionLines.centeredTextTop(0, lineHeight,
+                text.lineHeight()), lines);
     }
 
     // The list scrolls by whole rows of differing heights, so a revealed row lands on the first shown row that puts

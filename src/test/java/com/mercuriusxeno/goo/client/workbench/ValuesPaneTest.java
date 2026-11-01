@@ -116,7 +116,7 @@ class ValuesPaneTest {
             ValuesPane.Equality line = ValuesPane.layEntry(new GroupsPane.Bounds(LEFT, TOP, RIGHT, 400), List.of(),
                     new ValuesPane.RowText(ValuesTab.SourceKind.DERIVED, lineHeight, 0, EQUALS_WIDTH), SMALL_ICON)
                     .equality();
-            assertEquals(line.spriteTop() + (16 - lineHeight) / 2, line.textTop(), "line height " + lineHeight);
+            assertEquals(line.spriteTop() + (16 - lineHeight + 1) / 2, line.textTop(), "line height " + lineHeight);
         }
     }
 
@@ -588,7 +588,7 @@ class ValuesPaneTest {
         assertEquals(LINE_TWO + 1, line.spriteTop());
         assertEquals(line.spriteLeft() + RowLayout.SPRITE_SIZE + ValuesPane.ICON_GAP, line.equalsLeft());
         assertEquals(line.equalsLeft() + EQUALS_WIDTH + ValuesPane.ICON_GAP, line.besideLeft());
-        assertEquals(LINE_TWO + (ValuesPane.ROW_HEIGHT - LINE_HEIGHT) / 2, line.textTop());
+        assertEquals(LINE_TWO + (ValuesPane.ROW_HEIGHT - LINE_HEIGHT + 1) / 2, line.textTop());
     }
 
     /**
@@ -784,7 +784,7 @@ class ValuesPaneTest {
             assertEquals(TWO_LINES + 2 * line, two.height());
             assertEquals(LINE_TWO + ValuesPane.ROW_HEIGHT + line, two.lineTop(1));
             assertEquals(two.lineTop(1) + 1, two.iconTop(1));
-            assertEquals(two.lineTop(1) + (line - LINE_HEIGHT) / 2, two.amountTop(1));
+            assertEquals(two.lineTop(1) + (line - LINE_HEIGHT + 1) / 2, two.amountTop(1));
         }
     }
 
