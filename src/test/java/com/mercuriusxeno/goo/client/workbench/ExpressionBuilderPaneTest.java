@@ -199,40 +199,15 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
-     * The goo kind choice's hover hint, per tab (decision items-kind-hint-says-worth-based-on-other-items-prefabs).
+     * No builder control explains itself on hover; an X's tooltip reads the one word Delete (the operator's ruling).
      */
-    @Nested
-    class GooKindHint {
-
-        @Test
-        void itemsKindHintReadsWorthBasedOnOtherItemsPrefabs() {
-            assertEquals("worth based on other items/prefabs", ExpressionBuilderPane.gooKindHint(true));
-        }
-
-        @Test
-        void prefabsKindHintReadsAsItDid() {
-            assertEquals("Worth what the per-type prefabs above this one are worth, scaled and summed",
-                    ExpressionBuilderPane.gooKindHint(false));
-        }
-    }
-
-    /**
-     * The done control's hover hint, read from the opened text against the written text (decision
-     * done-hint-reads-no-unsaved-changes-or-changes-already-saved).
-     */
-    @Nested
-    class DoneHint {
-
-        @Test
-        void unchangedValueReadsNoUnsavedChanges() {
-            assertEquals("No unsaved changes", ExpressionBuilderPane.doneHint("4 * minecraft:stone",
-                    "4 * minecraft:stone"));
-        }
-
-        @Test
-        void changedValueReadsChangesAlreadySaved() {
-            assertEquals("Changes already saved to the draft", ExpressionBuilderPane.doneHint("4 * minecraft:stone",
-                    "2 * minecraft:stone"));
+    @Test
+    void onlyAnXCarriesATooltipAndItReadsDelete() {
+        for (String shown : List.of("$base + ($waxed - $edited)", "{\"leaf\": \"4\"}", "")) {
+            Builder builder = Builder.item(shown);
+            List<String> hints = builder.frame().targets.hoverKeys().stream()
+                    .filter(key -> BuilderOverlays.tooltipFor(key).isPresent()).distinct().toList();
+            assertTrue(hints.stream().allMatch(BuilderOverlays.hintKey("Delete")::equals), shown + ": " + hints);
         }
     }
 
@@ -375,7 +350,7 @@ class ExpressionBuilderPaneTest {
         // The ratio's sides read as the digits given, each a click target.
         private static void assertRatioReads(DrawnFrame frame, List<DrawnFrame.Text> sides, List<String> digits) {
             assertEquals(digits, sides.stream().map(DrawnFrame.Text::text).toList(), frame.texts().toString());
-            sides.forEach(side -> assertTrue(frame.targets.hovered(side.x() + 1, side.y() + 1).isPresent(),
+            sides.forEach(side -> assertTrue(frame.targets.takesClick(side.x() + 1, side.y() + 1),
                     side + " is no control"));
         }
 
@@ -480,7 +455,7 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
-     * Remove draws as a red X and done as a green check, their hints unchanged (decisions remove-draws-as-a-red-x,
+     * Remove draws as a red X whose tooltip reads Delete, and done as a green check with none (decisions remove-draws-as-a-red-x,
      * done-draws-green-with-a-check-mark).
      */
     @Nested
@@ -493,13 +468,13 @@ class ExpressionBuilderPaneTest {
         }
 
         @Test
-        void termRemovesDrawAsRedXsWithTheTermHint() {
+        void termRemovesDrawAsRedXsReadingDelete() {
             DrawnFrame frame = Builder.item("$waxed + $edited").frame();
             assertFalse(frame.texts().contains("remove"), frame.texts().toString());
             List<DrawnFrame.Text> xs = removes(frame);
             assertEquals(2, xs.size(), frame.texts().toString());
             xs.forEach(x -> assertEquals(ExpressionBuilderPane.RED, x.color()));
-            assertEquals(BuilderOverlays.hintKey("Remove this term"),
+            assertEquals(BuilderOverlays.hintKey("Delete"),
                     frame.targets.hovered(xs.getFirst().x() + 1, xs.getFirst().y() + 1).orElseThrow());
         }
 
@@ -512,31 +487,31 @@ class ExpressionBuilderPaneTest {
         }
 
         @Test
-        void rowRemovesDrawAsRedXsWithTheRowHint() {
+        void rowRemovesDrawAsRedXsReadingDelete() {
             Builder builder = Builder.item("{\"metal\": \"5\", \"pulse\": \"2\"}");
             DrawnFrame frame = builder.frame();
             assertFalse(frame.texts().contains("remove"), frame.texts().toString());
             List<DrawnFrame.Text> xs = removes(frame);
             assertEquals(2, xs.size(), frame.texts().toString());
             xs.forEach(x -> assertEquals(ExpressionBuilderPane.RED, x.color()));
-            assertEquals(BuilderOverlays.hintKey("Remove this goo type's amount"),
+            assertEquals(BuilderOverlays.hintKey("Delete"),
                     frame.targets.hovered(xs.getFirst().x() + 1, xs.getFirst().y() + 1).orElseThrow());
             clickAt(frame, xs.getFirst());
             assertFalse(builder.written.getLast().contains("metal"), builder.written.toString());
         }
 
         @Test
-        void sumRemoveDrawsAsARedXWithTheSumHint() {
+        void sumRemoveDrawsAsARedXReadingDelete() {
             DrawnFrame frame = Builder.item("$base + ($waxed - $edited)").frame();
             assertFalse(frame.texts().contains("remove"), frame.texts().toString());
             List<String> hints = removes(frame).stream().map(x -> frame.targets.hovered(x.x() + 1, x.y() + 1)
                     .orElseThrow()).toList();
-            assertTrue(hints.contains(BuilderOverlays.hintKey("Remove this sum and every term in it")),
+            assertTrue(hints.contains(BuilderOverlays.hintKey("Delete")),
                     hints.toString());
         }
 
         @Test
-        void doneDrawsGreenWithACheckMarkAndItsHint() {
+        void doneDrawsGreenWithACheckMarkAndNoTooltip() {
             boolean[] finished = {false};
             Builder builder = new Builder(PREFABS);
             builder.pane.open("$waxed + $edited", builder.written::add, () -> finished[0] = true);
@@ -545,8 +520,7 @@ class ExpressionBuilderPaneTest {
             DrawnFrame frame = builder.frame();
             DrawnFrame.Text done = frame.find(DONE);
             assertEquals(ExpressionBuilderPane.GREEN, done.color());
-            assertEquals(BuilderOverlays.hintKey(ExpressionBuilderPane.doneHint("$waxed + $edited", "$edited")),
-                    frame.targets.hovered(done.x() + 1, done.y() + 1).orElseThrow());
+            assertTrue(frame.targets.hovered(done.x() + 1, done.y() + 1).isEmpty(), "done carries no tooltip");
             frame.click(DONE);
             assertTrue(finished[0]);
             assertFalse(builder.pane.isOpen());

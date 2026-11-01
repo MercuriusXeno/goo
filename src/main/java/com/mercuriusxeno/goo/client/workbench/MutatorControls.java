@@ -32,37 +32,22 @@ final class MutatorControls {
     private static final String NO_SOURCE = "";
     // Decision mutator-sentences-read-in-symbols: the word formula goes.
     private static final String CONVERT = "convert";
-    private static final String CONVERT_HINT = "Turn part of one goo type into another, or into nothing";
     private static final String ADDITIVE = "additive";
-    private static final String ADDITIVE_HINT = "Add a typed prefab's value";
     private static final String STACK = "stack";
-    private static final String STACK_HINT = "Apply another mutator a number of times";
     private static final String SOURCE_SHARE = "1";
     private static final String BECOMES = "becomes";
     private static final String TIMES_MARK = "x";
     private static final String NOTHING = "nothing";
-    private static final String TARGET_HINT = "Click to pick the goo type it becomes";
-    private static final String DIVISOR_HINT = "Click to change how much of the source is taken";
-    private static final String TARGET_MULTIPLIER_HINT = "Click to change what the result is multiplied by";
-    private static final String TARGET_DIVISOR_HINT = "Click to change what the result is divided by";
     private static final String PLUS = "+";
-    private static final String PREFAB_HINT = "Click to pick another typed prefab";
     private static final String APPLIES = "applies";
-    private static final String PROCESS_HINT = "Click to pick another mutator";
-    private static final String COUNT_HINT = "Click to change how many times it applies";
-    private static final String GROUP_HINT = "Click to pick the group whose values it takes, or itself";
     private static final String ITSELF = "itself";
-    private static final String ITSELF_HINT = "Apply the chain to the target's own values, no source group";
     private static final String RATIO = ":";
-    private static final String MULTIPLIER_HINT = "Click to change what the values are multiplied by";
-    private static final String SCALE_DIVISOR_HINT = "Click to change what the values are divided by";
     private static final String REMOVE_LINK = "x";
-    private static final String REMOVE_LINK_HINT = "Remove this mutator from the chain";
+    // The operator's ruling: every X's tooltip reads the one word Delete, and no other control explains itself.
+    private static final String REMOVE_LINK_HINT = "Delete";
     private static final String ADD_LINK = "+";
-    private static final String ADD_LINK_HINT = "Apply another mutator after these";
     private static final String UNREAD = "No form reads this line:";
     private static final String START_OVER = "start over";
-    private static final String START_OVER_HINT = "Replace this line with an assignment from the first group";
 
     private final ProcessesTab processes;
     private final BuilderOverlays overlays;
@@ -146,17 +131,17 @@ final class MutatorControls {
         ControlFlow flow = entry.flow();
         ControlFlow.ChoiceSet kinds = new ControlFlow.ChoiceSet();
         boolean formula = form instanceof Processes.Formula;
-        kinds.add(new BuilderOverlays.Option(CONVERT, CONVERT_HINT, unlessChosen(formula, () -> freshFormula(entry))),
+        kinds.add(new BuilderOverlays.Option(CONVERT, null, unlessChosen(formula, () -> freshFormula(entry))),
                 formula);
         if (!treePrefabs.get().isEmpty()) {
             boolean additive = form instanceof Processes.Additive;
-            kinds.add(new BuilderOverlays.Option(ADDITIVE, ADDITIVE_HINT, unlessChosen(additive,
+            kinds.add(new BuilderOverlays.Option(ADDITIVE, null, unlessChosen(additive,
                     () -> write(entry, new Processes.Additive(treePrefabs.get().getFirst())))), additive);
         }
         List<String> others = otherProcesses(entry);
         if (!others.isEmpty()) {
             boolean stack = form instanceof Processes.Stack;
-            kinds.add(new BuilderOverlays.Option(STACK, STACK_HINT, unlessChosen(stack,
+            kinds.add(new BuilderOverlays.Option(STACK, null, unlessChosen(stack,
                     () -> write(entry, new Processes.Stack(1, others.getFirst())))), stack);
         }
         flow.choices(kinds, overlays);
@@ -191,28 +176,28 @@ final class MutatorControls {
         // Decision mutator-sentences-read-in-symbols: "[source] 1 : [#] becomes [target] [#] : [#]".
         flow.text(SOURCE_SHARE, GRAY);
         flow.text(RATIO, GRAY);
-        divisorControl(flow, formula.sourceDivisor(), DIVISOR_HINT,
+        divisorControl(flow, formula.sourceDivisor(), null,
                 divisor -> processes.setFormulaDivisor(section, key, divisor));
         flow.text(BECOMES, GRAY);
         Consumer<BuilderOverlays.Anchor> pickTarget = at -> overlays.openPicker(at,
                 type -> edit(() -> processes.setFormulaTarget(section, key, type)),
                 () -> edit(() -> processes.setFormulaTarget(section, key, NOTHING_TARGET)));
         if (NOTHING_TARGET.equals(formula.target())) {
-            flow.control(NOTHING, TARGET_HINT, pickTarget);
+            flow.control(NOTHING, null, pickTarget);
             return;
         }
         flow.typeIcon(formula.target(), pickTarget);
-        numberControl(flow, formula.multiplier(), TARGET_MULTIPLIER_HINT,
+        numberControl(flow, formula.multiplier(), null,
                 multiplier -> processes.setFormulaRatio(section, key, multiplier, formula.divisor()));
         flow.text(RATIO, GRAY);
-        divisorControl(flow, formula.divisor(), TARGET_DIVISOR_HINT,
+        divisorControl(flow, formula.divisor(), null,
                 divisor -> processes.setFormulaRatio(section, key, formula.multiplier(), divisor));
     }
 
     private void drawAdditive(Entry entry, Processes.Additive additive) {
         ControlFlow flow = entry.flow();
         flow.text(PLUS, GRAY);
-        nameControl(flow, new Ref(additive.constant(), () -> actions.openVariable(additive.constant())), PREFAB_HINT,
+        nameControl(flow, new Ref(additive.constant(), () -> actions.openVariable(additive.constant())), null,
                 treePrefabs.get(), prefab -> processes.setAdditive(entry.section(), entry.key(), prefab));
         flow.hoverLast(PrefabHovers.hoverKey(additive.constant()));
     }
@@ -220,10 +205,10 @@ final class MutatorControls {
     private void drawStack(Entry entry, Processes.Stack stack) {
         ControlFlow flow = entry.flow();
         flow.text(APPLIES, GRAY);
-        nameControl(flow, new Ref(stack.formula(), () -> actions.openMutator(stack.formula())), PROCESS_HINT,
+        nameControl(flow, new Ref(stack.formula(), () -> actions.openMutator(stack.formula())), null,
                 otherProcesses(entry), formula -> processes.setStackFormula(entry.section(), entry.key(), formula));
         flow.text(TIMES_MARK, GRAY);
-        numberControl(flow, stack.count(), COUNT_HINT,
+        numberControl(flow, stack.count(), null,
                 count -> processes.setStackCount(entry.section(), entry.key(), count));
     }
 
@@ -233,10 +218,10 @@ final class MutatorControls {
         String key = entry.key();
         drawSource(entry, assignment.source());
         // Decision factor-reads-as-a-ratio: "times 1 over 1" reads "1:1", each number its own box.
-        numberControl(flow, assignment.multiplier(), MULTIPLIER_HINT, multiplier -> processes.setAssignmentScale(
+        numberControl(flow, assignment.multiplier(), null, multiplier -> processes.setAssignmentScale(
                 section, key, multiplier, assignment.divisor()));
         flow.text(RATIO, GRAY);
-        divisorControl(flow, assignment.divisor(), SCALE_DIVISOR_HINT, divisor -> processes.setAssignmentScale(section,
+        divisorControl(flow, assignment.divisor(), null, divisor -> processes.setAssignmentScale(section,
                 key, assignment.multiplier(), divisor));
         drawChain(entry, assignment.chain());
     }
@@ -247,14 +232,14 @@ final class MutatorControls {
         ControlFlow flow = entry.flow();
         List<BuilderOverlays.Option> sources = new ArrayList<>();
         for (String group : processes.groupNames()) {
-            sources.add(new BuilderOverlays.Option(GROUP_MARK + group, GROUP_HINT, at -> setSource(entry, group)));
+            sources.add(new BuilderOverlays.Option(GROUP_MARK + group, null, at -> setSource(entry, group)));
         }
-        sources.add(new BuilderOverlays.Option(ITSELF, ITSELF_HINT, at -> setSource(entry, NO_SOURCE)));
+        sources.add(new BuilderOverlays.Option(ITSELF, null, at -> setSource(entry, NO_SOURCE)));
         Consumer<BuilderOverlays.Anchor> open = at -> overlays.openOptions(at, sources);
         if (source.isEmpty()) {
-            flow.control(ControlFlow.dropdownLabel(ITSELF), ITSELF_HINT, open);
+            flow.control(ControlFlow.dropdownLabel(ITSELF), null, open);
         } else {
-            flow.linkControl(ControlFlow.dropdownLabel(GROUP_MARK + source), GROUP_HINT, open,
+            flow.linkControl(ControlFlow.dropdownLabel(GROUP_MARK + source), null, open,
                     () -> actions.openGroup(source));
         }
     }
@@ -276,7 +261,7 @@ final class MutatorControls {
             flow.control(REMOVE_LINK, REMOVE_LINK_HINT,
                     at -> edit(() -> processes.removeAssignmentLink(section, key, link)));
         }
-        flow.control(ADD_LINK, ADD_LINK_HINT, at -> openNames(at, processes.processNames(section),
+        flow.control(ADD_LINK, null, at -> openNames(at, processes.processNames(section),
                 name -> processes.addAssignmentLink(section, key, STACK_MARK + name)));
     }
 
@@ -286,7 +271,7 @@ final class MutatorControls {
         flow.text(unread.text(), RED);
         List<String> groups = processes.groupNames();
         if (assignment && !groups.isEmpty()) {
-            flow.control(START_OVER, START_OVER_HINT, at -> write(entry,
+            flow.control(START_OVER, null, at -> write(entry,
                     new Processes.Assignment(groups.getFirst(), 1, 1, List.of())));
         }
     }

@@ -23,7 +23,6 @@ final class ControlFlow {
     private static final int LINK = ButtonPainter.LINK;
     private static final String DROPDOWN_MARKER = " ▼";
     private static final String NONE_CHOSEN = "pick one";
-    private static final String NONE_CHOSEN_HINT = "Click to pick one";
 
     private final GuiGraphicsExtractor graphics;
     private final Font font;
@@ -163,7 +162,7 @@ final class ControlFlow {
      * @param hint    what it does, shown on hover
      * @param pressed takes where it was clicked
      */
-    void control(String label, String hint, Consumer<BuilderOverlays.Anchor> pressed) {
+    void control(String label, @Nullable String hint, Consumer<BuilderOverlays.Anchor> pressed) {
         reserve(ButtonPainter.width(font, label));
         markPiece(ButtonPainter.width(font, label));
         x = BuilderOverlays.control(graphics, font, label, hint, x, y, targets, pressed);
@@ -179,7 +178,7 @@ final class ControlFlow {
      * @param pressed takes where it was clicked
      * @param follow  opens what the label names
      */
-    void linkControl(String label, String hint, Consumer<BuilderOverlays.Anchor> pressed, Runnable follow) {
+    void linkControl(String label, @Nullable String hint, Consumer<BuilderOverlays.Anchor> pressed, Runnable follow) {
         int width = ButtonPainter.width(font, label);
         reserve(width);
         markPiece(width);
@@ -215,7 +214,7 @@ final class ControlFlow {
      * @param hint    what it does, shown on hover
      * @param pressed takes where it was clicked
      */
-    void coloredControl(String label, int color, String hint, Consumer<BuilderOverlays.Anchor> pressed) {
+    void coloredControl(String label, int color, @Nullable String hint, Consumer<BuilderOverlays.Anchor> pressed) {
         reserve(ButtonPainter.width(font, label));
         markPiece(ButtonPainter.width(font, label));
         int controlX = x;
@@ -282,7 +281,7 @@ final class ControlFlow {
     void choices(List<BuilderOverlays.Option> options, int chosen, BuilderOverlays overlays) {
         boolean picked = chosen >= 0 && chosen < options.size();
         String label = picked ? options.get(chosen).label() : NONE_CHOSEN;
-        String hint = picked ? options.get(chosen).hint() : NONE_CHOSEN_HINT;
+        String hint = picked ? options.get(chosen).hint() : null;
         control(dropdownLabel(label), hint, at -> overlays.openOptions(at, options));
     }
 
@@ -367,7 +366,7 @@ final class ControlFlow {
     private void addRunsTarget(int width, @Nullable String hint, @Nullable Consumer<BuilderOverlays.Anchor> pressed) {
         int runsX = x;
         int runsY = y;
-        String hoverKey = hint == null ? null : BuilderOverlays.hintKey(hint);
+        String hoverKey = BuilderOverlays.hintKey(hint);
         if (pressed != null) {
             targets.add(runsX, runsY, width, LINE, () -> pressed.accept(new BuilderOverlays.Anchor(runsX, runsY)),
                     hoverKey);

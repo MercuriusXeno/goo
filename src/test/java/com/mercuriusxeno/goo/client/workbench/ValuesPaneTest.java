@@ -153,19 +153,14 @@ class ValuesPaneTest {
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 80);
         ClickTargets targets = new ClickTargets();
         pane.extract(graphics, font, bounds, targets);
-        String done = BuilderOverlays.hintKey("Discard the changes made since this opened");
         for (int notch = 0; notch < 40; notch++) {
             pane.scroll(400, 0, -1);
         }
-        targets.clear();
-        pane.extract(graphics, font, bounds, targets);
-        boolean doneInPane = false;
-        for (int y = bounds.top(); y < bounds.bottom() && !doneInPane; y++) {
-            for (int x = bounds.left(); x < bounds.right() && !doneInPane; x += 2) {
-                doneInPane = targets.hovered(x, y).filter(done::equals).isPresent();
-            }
-        }
-        assertTrue(doneInPane);
+        DrawnFrame scrolled = new DrawnFrame();
+        pane.extract(scrolled.graphics, font, bounds, scrolled.targets);
+        DrawnFrame.Text cancel = scrolled.find("✗ Cancel");
+        assertTrue(cancel.y() >= bounds.top() && cancel.y() < bounds.bottom(), cancel + " stands in the pane");
+        assertTrue(scrolled.targets.takesClick(cancel.x() + 1, cancel.y() + 1), "cancel answers in the pane");
     }
 
     /**

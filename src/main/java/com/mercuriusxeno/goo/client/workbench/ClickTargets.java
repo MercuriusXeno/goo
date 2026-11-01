@@ -269,6 +269,21 @@ final class ClickTargets {
     /**
      * @param x the cursor's x
      * @param y the cursor's y
+     * @return whether a plain left click here would run an area's action, without running it
+     */
+    boolean takesClick(double x, double y) {
+        for (int index = targets.size() - 1; index >= 0; index--) {
+            Target target = targets.get(index);
+            if (target.contains(x, y) && target.actions().forGesture(GLFW.GLFW_MOUSE_BUTTON_LEFT, 0) != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * @param x the cursor's x
+     * @param y the cursor's y
      * @return whether a shift + left click here would follow a link: the topmost area taking that click holds a
      *     follow action and is no shield
      */

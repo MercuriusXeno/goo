@@ -69,6 +69,9 @@ final class VariablesPane {
     private static final String RENAME = "✎";
     private static final String DELETE = "✗";
     private static final String CONFIRM_DELETE = "Delete";
+    // The operator's ruling: the pencil's tooltip reads Rename and the x's Delete, one word each.
+    private static final String RENAME_HINT = "Rename";
+    private static final String DELETE_HINT = "Delete";
     private static final int PENCIL_GAP = 3;
     private static final String CANCEL = "Cancel";
     private static final String USED_BY = "Used by ";
@@ -334,8 +337,9 @@ final class VariablesPane {
         } else {
             graphics.text(font, block.name(), x, y, WHITE);
             // The operator's ruling: rename is a pencil just past the name, delete a red x at the row's right end.
-            ButtonPainter.drawAtText(graphics, font, RENAME, x + font.width(block.name()) + PENCIL_GAP, y, targets,
-                    () -> startRename(block.name()));
+            ButtonPainter.draw(graphics, font, RENAME, x + font.width(block.name()) + PENCIL_GAP,
+                    y - ButtonPainter.TEXT_NUDGE, ButtonPainter.HEIGHT, targets, () -> startRename(block.name()),
+                    BuilderOverlays.hintKey(RENAME_HINT));
         }
         int kindX = x + Math.max(NAME_WIDTH, font.width(block.name()) + PENCIL_GAP + pencilWidth) + KIND_GAP;
         graphics.text(font, block.shownKind(), kindX, y, VariablesTab.TREE_KIND.equals(block.kind()) ? TREE_COLOR
@@ -345,7 +349,8 @@ final class VariablesPane {
         int resolvedWidth = bounds.right() - deleteWidth - ACTION_GAP - resolvedX;
         drawResolved(graphics, font, block, resolvedX, y, resolvedWidth, targets);
         ButtonPainter.drawColored(graphics, font, DELETE, RED, bounds.right() - deleteWidth,
-                y - ButtonPainter.TEXT_NUDGE, ButtonPainter.HEIGHT, targets, () -> askDelete(block.name()), null);
+                y - ButtonPainter.TEXT_NUDGE, ButtonPainter.HEIGHT, targets, () -> askDelete(block.name()),
+                BuilderOverlays.hintKey(DELETE_HINT));
     }
 
     // A resolved tree draws each type as its icon beside its amount (decision goo-types-draw-as-icons-named-on-hover).
