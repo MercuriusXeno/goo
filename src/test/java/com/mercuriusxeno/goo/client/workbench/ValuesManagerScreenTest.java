@@ -3,9 +3,12 @@ package com.mercuriusxeno.goo.client.workbench;
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
 import com.mojang.blaze3d.platform.cursor.CursorType;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.MouseButtonInfo;
+import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -14,7 +17,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -64,6 +71,77 @@ class ValuesManagerScreenTest {
         ValuesManagerScreen.clickTargets(targets,
                 new MouseButtonEvent(5, 5, new MouseButtonInfo(GLFW.GLFW_MOUSE_BUTTON_RIGHT, 0)));
         assertEquals(List.of("follow", "modify"), ran);
+    }
+
+    @Nested
+    class RightClickOnATextBox {
+        private final Font font = mock(Font.class);
+        private final List<String> responded = new ArrayList<>();
+
+        {
+            when(font.plainSubstrByWidth(anyString(), anyInt())).thenAnswer(call -> call.getArgument(0));
+            when(font.plainSubstrByWidth(anyString(), anyInt(), anyBoolean())).thenAnswer(call -> call.getArgument(0));
+        }
+
+        private EditBox box(int x, int y, String text) {
+            EditBox box = new EditBox(font, x, y, 100, 12, Component.literal(""));
+            box.setValue(text);
+            box.setResponder(responded::add);
+            return box;
+        }
+
+        private static MouseButtonEvent press(double x, double y, int button) {
+            return new MouseButtonEvent(x, y, new MouseButtonInfo(button, 0));
+        }
+
+        /**
+         * A right-button press inside a box holding "iron" empties it, its responder takes the empty text and the
+         * press is consumed (decision right-click-empties-every-text-box-in-the-manager).
+         */
+        @Test
+        void rightPressInsideABoxEmptiesItAndRunsItsResponder() {
+            EditBox search = box(0, 0, "iron");
+            responded.clear();
+            boolean took = ValuesManagerScreen.emptyBoxUnder(List.of(search),
+                    press(5, 5, GLFW.GLFW_MOUSE_BUTTON_RIGHT));
+            assertTrue(took);
+            assertEquals("", search.getValue());
+            assertEquals(List.of(""), responded);
+        }
+
+        /**
+         * Each of the manager's boxes, the Items search, the Prefabs search and rename, the New group name and the
+         * builder's number and dropdown search, empties under its own right press and leaves the others whole.
+         */
+        @Test
+        void rightPressEmptiesOnlyTheBoxUnderIt() {
+            List<EditBox> boxes = List.of(box(0, 0, "items"), box(0, 20, "prefabs"), box(0, 40, "rename"),
+                    box(0, 60, "group"), box(0, 80, "4"), box(0, 100, "dropdown"));
+            for (int each = 0; each < boxes.size(); each++) {
+                ValuesManagerScreen.emptyBoxUnder(boxes, press(5, each * 20 + 5, GLFW.GLFW_MOUSE_BUTTON_RIGHT));
+                assertEquals("", boxes.get(each).getValue());
+                for (int later = each + 1; later < boxes.size(); later++) {
+                    assertFalse(boxes.get(later).getValue().isEmpty());
+                }
+            }
+        }
+
+        /**
+         * A right press no box covers, a left press inside a box and a right press on a hidden box keep the text and
+         * pass the press on.
+         */
+        @Test
+        void pressOutsideABoxOrOfAnotherButtonKeepsTheText() {
+            EditBox search = box(0, 0, "iron");
+            EditBox hidden = box(0, 20, "iron");
+            hidden.visible = false;
+            List<EditBox> boxes = List.of(search, hidden);
+            assertFalse(ValuesManagerScreen.emptyBoxUnder(boxes, press(300, 5, GLFW.GLFW_MOUSE_BUTTON_RIGHT)));
+            assertFalse(ValuesManagerScreen.emptyBoxUnder(boxes, press(5, 5, GLFW.GLFW_MOUSE_BUTTON_LEFT)));
+            assertFalse(ValuesManagerScreen.emptyBoxUnder(boxes, press(5, 25, GLFW.GLFW_MOUSE_BUTTON_RIGHT)));
+            assertEquals("iron", search.getValue());
+            assertEquals("iron", hidden.getValue());
+        }
     }
 
     /**

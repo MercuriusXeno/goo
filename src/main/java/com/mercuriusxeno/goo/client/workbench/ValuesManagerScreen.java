@@ -5,6 +5,8 @@ import com.mojang.datafixers.util.Either;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -12,6 +14,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.ItemStack;
+import org.lwjgl.glfw.GLFW;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +57,7 @@ public final class ValuesManagerScreen extends Screen {
     private static final String UNSAVED = "unsaved changes";
     private static final String NOTHING_POSTED = "";
     private static final String NO_STATUS = "";
+    private static final String EMPTIED = "";
 
     private final ManagerConnection connection;
     private final ManagerDraft draft = new ManagerDraft();
@@ -346,12 +350,33 @@ public final class ValuesManagerScreen extends Screen {
         return targets.click(event.x(), event.y(), event.button(), event.modifiers());
     }
 
+    /**
+     * Empties the visible text box a right-button press lands in, through setValue so its responder refills the list
+     * it filters (decision right-click-empties-every-text-box-in-the-manager).
+     *
+     * @param widgets the screen's widgets
+     * @param event   the press
+     * @return whether a box took the press
+     */
+    static boolean emptyBoxUnder(List<? extends GuiEventListener> widgets, MouseButtonEvent event) {
+        if (event.button() != GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
+            return false;
+        }
+        for (GuiEventListener widget : widgets) {
+            if (widget instanceof EditBox box && box.visible && box.isMouseOver(event.x(), event.y())) {
+                box.setValue(EMPTIED);
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (draftPane.open()) {
             return clickTargets(targets, event);
         }
-        if (super.mouseClicked(event, doubleClick)) {
+        if (emptyBoxUnder(children(), event) || super.mouseClicked(event, doubleClick)) {
             return true;
         }
         setFocused(null);
