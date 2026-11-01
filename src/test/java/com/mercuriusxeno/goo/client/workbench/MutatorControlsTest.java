@@ -53,8 +53,7 @@ class MutatorControlsTest {
 
         private DrawnFrame frame() {
             DrawnFrame frame = new DrawnFrame();
-            controls.draw(frame.graphics, DrawnFrame.font(), SECTION, KEY, new GroupsPane.Bounds(0, 0, 590, 390), 0,
-                    frame.targets);
+            controls.drawKind(frame.graphics, DrawnFrame.font(), SECTION, KEY, 0, 0, frame.targets);
             overlays.draw(frame.graphics, DrawnFrame.font(), frame.targets);
             return frame;
         }
@@ -124,37 +123,38 @@ class MutatorControlsTest {
             return frame;
         }
 
-        // The runs after the kind dropdown, which the sentence follows.
-        private List<String> sentence(Processes.Form form, String kind) {
-            List<String> texts = frame(form).texts();
-            return texts.subList(texts.indexOf(ControlFlow.dropdownLabel(kind)) + 1, texts.size());
+        private List<String> sentence(Processes.Form form) {
+            return frame(form).texts();
         }
 
         @Test
         void formulaReadsAsTwoRatios() {
             assertEquals(List.of("1", ":", "4", "becomes", "2", ":", "3"),
-                    sentence(new Processes.Formula("metal", 4, "yore", 2, 3), "convert"));
+                    sentence(new Processes.Formula("metal", 4, "yore", 2, 3)));
         }
 
         @Test
         void formulaToNothingReadsBecomesNothing() {
             assertEquals(List.of("1", ":", "4", "becomes", "nothing"),
-                    sentence(new Processes.Formula("metal", 4, "0", 1, 1), "convert"));
+                    sentence(new Processes.Formula("metal", 4, "0", 1, 1)));
         }
 
         @Test
         void additiveReadsPlusItsPrefab() {
-            assertEquals(List.of("+", "oak"), sentence(new Processes.Additive("oak"), "additive"));
+            assertEquals(List.of("+", "oak"), sentence(new Processes.Additive("oak")));
         }
 
         @Test
         void stackReadsAppliesItsMutatorTimesItsCount() {
-            assertEquals(List.of("applies", "smelt", "x", "2"), sentence(new Processes.Stack(2, "smelt"), "stack"));
+            assertEquals(List.of("applies", "smelt", "x", "2"), sentence(new Processes.Stack(2, "smelt")));
         }
 
         @Test
         void kindOptionsReadConvertAdditiveAndStack() {
-            frame(new Processes.Additive("oak")).click(ControlFlow.dropdownLabel("additive"));
+            when(processes.formOf(SECTION, "rust")).thenReturn(new Processes.Additive("oak"));
+            DrawnFrame kind = new DrawnFrame();
+            controls.drawKind(kind.graphics, DrawnFrame.font(), SECTION, "rust", 0, 0, kind.targets);
+            kind.click(ControlFlow.dropdownLabel("additive"));
             @SuppressWarnings("unchecked")
             ArgumentCaptor<List<BuilderOverlays.Option>> options = ArgumentCaptor.forClass(List.class);
             verify(overlays).openOptions(any(), options.capture());

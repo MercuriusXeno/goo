@@ -9,10 +9,16 @@ import org.junit.jupiter.api.Test;
 import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
 import java.util.List;
+import org.mockito.ArgumentCaptor;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -30,15 +36,20 @@ class ProcessesPaneTest {
                  {"key": "#exposed", "keySeparator": null, "kind": "VALUE", "text": "\\"#copper @waxed\\"",
                   "entries": [], "leading": null, "trailing": null, "closingGap": null},
                  {"key": "waxed", "keySeparator": null, "kind": "VALUE", "text": "\\"+$oak\\"",
-                  "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                  "entries": [], "leading": null, "trailing": null, "closingGap": null},
+                 {"key": "copper_oxidation_and_waxing_end1", "keySeparator": null, "kind": "VALUE",
+                  "text": "\\"+$oak\\"", "entries": [], "leading": null, "trailing": null, "closingGap": null}],
                "leading": null, "trailing": null, "closingGap": null}
             ]}
             """;
+    private static final String LONG_NAME = "copper_oxidation_and_waxing_end1";
     private static final String DESCRIBED = """
             {"sections": [
               {"section": "_post_conversions", "processes": [
                  {"key": "#exposed", "kind": "ASSIGNMENT", "text": "\\"#copper @waxed\\"", "parsed": true},
-                 {"key": "waxed", "kind": "ADDITIVE", "text": "\\"+$oak\\"", "parsed": true}]}
+                 {"key": "waxed", "kind": "ADDITIVE", "text": "\\"+$oak\\"", "parsed": true},
+                 {"key": "copper_oxidation_and_waxing_end1", "kind": "ADDITIVE", "text": "\\"+$oak\\"",
+                  "parsed": true}]}
             ]}
             """;
 
@@ -98,6 +109,69 @@ class ProcessesPaneTest {
         DrawnFrame frame = frame();
         assertOnOneLine(frame.find("Mutators"), frame.find("New mutator"));
         assertOnOneLine(frame.find("Iterators"), frame.find("New iterator"));
+    }
+
+    /**
+     * Every row's top line draws its name, kind dropdown, mark, Rename and Delete at the same column lefts, under no
+     * header (decision mutator-row-is-aligned-columns-name-kind-validity-rename-delete).
+     */
+    @Test
+    void everyRowDrawsItsColumnsAtTheSameLefts() {
+        DrawnFrame frame = frame();
+        List<DrawnFrame.Text> drawn = frame.drawn();
+        for (String column : List.of("Rename", "Delete", "✔")) {
+            List<Integer> lefts = drawn.stream().filter(text -> text.text().equals(column)).map(DrawnFrame.Text::x)
+                    .distinct().toList();
+            assertEquals(1, lefts.size(), column + " at " + lefts);
+        }
+        int nameLeft = first(frame, "waxed").x();
+        assertEquals(nameLeft, frame.find("#exposed").x());
+        int kindLeft = frame.find(ControlFlow.dropdownLabel("additive")).x();
+        assertTrue(kindLeft > nameLeft + 20 * 6, "the kind stands past the name column at " + kindLeft);
+        assertTrue(drawn.stream().filter(text -> text.text().equals("Rename")).count() == 3);
+        assertFalse(frame.texts().contains("Kind:"), frame.texts().toString());
+    }
+
+    /**
+     * A name past 24 characters draws its first 20, an ellipsis and its last 4, and hovers whole.
+     */
+    @Test
+    void longNameCutsToTwentyAnEllipsisAndFourAndHoversWhole() {
+        assertEquals("copper_oxidation_and…end1", ProcessesPane.shownName(LONG_NAME));
+        assertEquals("waxed", ProcessesPane.shownName("waxed"));
+        DrawnFrame frame = frame();
+        frame.find("copper_oxidation_and…end1");
+        assertTrue(frame.targets.hoverKeys().contains(BuilderOverlays.hintKey(LONG_NAME)),
+                frame.targets.hoverKeys().toString());
+    }
+
+    /**
+     * Delete's box clears the one-pixel rule below its row, and a row of one sentence line takes the tighter pitch
+     * (decision mutator-delete-clears-a-thinner-rule-and-lines-tighten).
+     */
+    @Test
+    void deleteClearsTheOnePixelRuleAndRowsTighten() {
+        DrawnFrame frame = frame();
+        int waxedTop = first(frame, "waxed").y();
+        int longTop = frame.find("copper_oxidation_and…end1").y();
+        assertEquals(ProcessesPane.ONE_LINE_ROW_PITCH, longTop - waxedTop);
+        assertTrue(ProcessesPane.ONE_LINE_ROW_PITCH < 36, "the pitch was 36 before");
+        int deleteBottom = frame.drawn().stream().filter(text -> text.text().equals("Delete")
+                && text.y() < longTop - 4).mapToInt(DrawnFrame.Text::y).max().orElseThrow() - 3
+                + ButtonPainter.HEIGHT;
+        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeast(1)).fill(anyInt(), tops.capture(), anyInt(), bottoms.capture(),
+                eq(RowLayout.SEPARATOR_COLOR));
+        int rule = tops.getAllValues().stream().filter(top -> top > waxedTop && top < longTop).findFirst()
+                .orElseThrow();
+        assertEquals(rule + 1, (int) bottoms.getAllValues().get(tops.getAllValues().indexOf(rule)));
+        assertTrue(deleteBottom <= rule, "Delete ends at " + deleteBottom + ", the rule at " + rule);
+    }
+
+    // The row's name, drawn before any chain link naming it.
+    private static DrawnFrame.Text first(DrawnFrame frame, String label) {
+        return frame.drawn().stream().filter(text -> text.text().equals(label)).findFirst().orElseThrow();
     }
 
     // The control stands right of the heading, its label within a text line of the heading's.

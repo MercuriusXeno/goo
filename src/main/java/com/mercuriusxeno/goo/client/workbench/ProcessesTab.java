@@ -345,8 +345,37 @@ public final class ProcessesTab {
         return create(section, key, new Processes.Assignment(groups.getFirst(), 1, 1, List.of()));
     }
 
+    /**
+     * Writes an entry under a new key with its text kept, an iterator's key keeping its # (decision
+     * mutators-tab-renames-and-searches-by-name).
+     *
+     * @param section _conversions or _post_conversions
+     * @param key     the entry's key
+     * @param typed   the new name
+     * @return the new key, empty where the name is blank, crosses between a mutator and an iterator, or the block
+     *     holds it
+     */
+    public Optional<String> rename(String section, String key, String typed) {
+        String renamed = renamedKey(key, typed.trim());
+        if (!isFreeKey(section, renamed) || isIterator(renamed) != isIterator(key)) {
+            return Optional.empty();
+        }
+        Optional<JsonObject> entry = entryOf(section, key);
+        entry.ifPresent(found -> found.addProperty(KEY, renamed));
+        return entry.map(found -> renamed);
+    }
+
+    // An iterator's new name takes the # it was typed without.
+    private static String renamedKey(String key, String name) {
+        return isIterator(key) && !name.isEmpty() && !isIterator(name) ? GROUP_MARK + name : name;
+    }
+
+    private boolean isFreeKey(String section, String key) {
+        return !key.isEmpty() && !GROUP_MARK.equals(key) && entryOf(section, key).isEmpty();
+    }
+
     private Optional<String> create(String section, String key, Processes.Form form) {
-        if (key.isEmpty() || GROUP_MARK.equals(key) || entryOf(section, key).isPresent()) {
+        if (!isFreeKey(section, key)) {
             return Optional.empty();
         }
         JsonObject entry = new JsonObject();
