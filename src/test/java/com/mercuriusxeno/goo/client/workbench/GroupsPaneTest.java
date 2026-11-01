@@ -233,7 +233,7 @@ class GroupsPaneTest {
             ArgumentCaptor<Integer> itemTops = ArgumentCaptor.forClass(Integer.class);
             verify(frame.graphics, atLeastOnce()).item(any(), anyInt(), itemTops.capture());
             int rowTop = itemTops.getAllValues().getLast() - 1;
-            assertEquals(rowTop + (18 - DrawnFrame.font().lineHeight) / 2, label.y());
+            assertEquals(rowTop + (18 - DrawnFrame.font().lineHeight + 1) / 2, label.y());
         }
 
         @Test

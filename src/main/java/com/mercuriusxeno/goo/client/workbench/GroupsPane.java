@@ -539,7 +539,7 @@ final class GroupsPane {
         }
         graphics.item(icons.of(member.id()), card.left(), card.top() + 1);
         int textX = card.left() + ICON_SIZE + ICON_GAP;
-        int textTop = card.top() + (CARD_HEIGHT - font.lineHeight) / HALF;
+        int textTop = ExpressionLines.centeredTextTop(card.top(), CARD_HEIGHT, font.lineHeight);
         String name = font.plainSubstrByWidth(member.name(), card.right() - textX);
         graphics.text(font, name, textX, textTop, member.known() ? WHITE : RED);
         int noteX = textX + font.width(name + NOTE_GAP);
