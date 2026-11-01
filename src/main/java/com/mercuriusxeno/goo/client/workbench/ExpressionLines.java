@@ -44,6 +44,8 @@ final class ExpressionLines {
     private static final String ARROW = "->";
     private static final String OPERATOR_CHARS = "+-*/()";
     private static final char REFERENCE_MARK = '$';
+    // One subtracted term draws alone, with no parentheses.
+    private static final int SUBTRACTED_ALONE = 1;
 
     private ExpressionLines() {
     }
@@ -226,14 +228,44 @@ final class ExpressionLines {
     }
 
     private static void addSum(List<Run> runs, ExpressionTerms.Sum sum, Function<String, String> names) {
-        for (ExpressionTerms.Term term : sum.terms()) {
+        List<ExpressionTerms.Term> terms = sum.terms();
+        if (subtractsSeveral(terms)) {
+            addSubtractedSum(runs, terms, names);
+            return;
+        }
+        for (ExpressionTerms.Term term : terms) {
             if (term.join() != ExpressionTerms.Join.FIRST) {
                 runs.add(operator(term.join() == ExpressionTerms.Join.PLUS ? PLUS : MINUS));
             }
-            for (ExpressionTerms.Factor factor : term.factors()) {
-                addScale(runs, factor.scale());
-                addAtom(runs, factor.atom(), names);
+            addTerm(runs, term, names);
+        }
+    }
+
+    // Decision backwards-derivation-subtracts-a-parenthesized-sum: one term less two or more draws as that term less
+    // their parenthesized sum, "a - (b + c)", the same value read as what it works back from.
+    private static boolean subtractsSeveral(List<ExpressionTerms.Term> terms) {
+        return terms.size() > SUBTRACTED_ALONE + 1
+                && terms.stream().skip(1).allMatch(term -> term.join() == ExpressionTerms.Join.MINUS);
+    }
+
+    private static void addSubtractedSum(List<Run> runs, List<ExpressionTerms.Term> terms,
+                                         Function<String, String> names) {
+        addTerm(runs, terms.getFirst(), names);
+        runs.add(operator(MINUS));
+        runs.add(operator(OPEN));
+        for (int index = 1; index < terms.size(); index++) {
+            if (index > 1) {
+                runs.add(operator(PLUS));
             }
+            addTerm(runs, terms.get(index), names);
+        }
+        runs.add(operator(CLOSE));
+    }
+
+    private static void addTerm(List<Run> runs, ExpressionTerms.Term term, Function<String, String> names) {
+        for (ExpressionTerms.Factor factor : term.factors()) {
+            addScale(runs, factor.scale());
+            addAtom(runs, factor.atom(), names);
         }
     }
 
