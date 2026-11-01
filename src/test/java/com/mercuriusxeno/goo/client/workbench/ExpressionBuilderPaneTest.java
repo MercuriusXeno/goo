@@ -539,11 +539,13 @@ class ExpressionBuilderPaneTest {
         void doneDrawsGreenWithACheckMarkAndItsHint() {
             boolean[] finished = {false};
             Builder builder = new Builder(PREFABS);
-            builder.pane.open("$waxed", builder.written::add, () -> finished[0] = true);
+            builder.pane.open("$waxed + $edited", builder.written::add, () -> finished[0] = true);
+            DrawnFrame opened = builder.frame();
+            clickAt(opened, removes(opened).getFirst());
             DrawnFrame frame = builder.frame();
             DrawnFrame.Text done = frame.find(DONE);
             assertEquals(ExpressionBuilderPane.GREEN, done.color());
-            assertEquals(BuilderOverlays.hintKey(ExpressionBuilderPane.doneHint("$waxed", "$waxed")),
+            assertEquals(BuilderOverlays.hintKey(ExpressionBuilderPane.doneHint("$waxed + $edited", "$edited")),
                     frame.targets.hovered(done.x() + 1, done.y() + 1).orElseThrow());
             frame.click(DONE);
             assertTrue(finished[0]);
@@ -551,8 +553,46 @@ class ExpressionBuilderPaneTest {
         }
 
         /**
-         * Cancel draws beside done once the value differs from the one the builder opened with, and writes that
-         * opening value back and closes the builder (decision value-expression-boxes-take-a-cancel-button).
+         * Until a change is fully in, the builder's one button reads cancel, closing it on the opening value
+         * (decision value-expression-boxes-take-a-cancel-button).
+         */
+        @Test
+        void unchangedBuilderDrawsCancelInPlaceOfDone() {
+            boolean[] finished = {false};
+            Builder builder = new Builder(PREFABS);
+            builder.pane.open("$waxed", builder.written::add, () -> finished[0] = true);
+            DrawnFrame unchanged = builder.frame();
+            assertFalse(unchanged.texts().contains(DONE), unchanged.texts().toString());
+            DrawnFrame.Text cancel = unchanged.find(CANCEL);
+            assertEquals(ExpressionBuilderPane.RED, cancel.color());
+            unchanged.click(CANCEL);
+            assertTrue(finished[0]);
+            assertFalse(builder.pane.isOpen());
+        }
+
+        /**
+         * A partial value, one the draft cannot take yet, still reads cancel alone, so cancel is always there to
+         * back out (decision value-expression-boxes-take-a-cancel-button).
+         */
+        @Test
+        void partialValueDrawsCancelAloneAndRestoresTheOpeningValue() {
+            boolean[] finished = {false};
+            Builder builder = new Builder(PREFABS);
+            builder.pane.open("$waxed", builder.written::add, () -> finished[0] = true);
+            clickAt(builder.frame(), ratioSides(builder.frame()).getFirst());
+            ArgumentCaptor<AbstractWidget> focused = ArgumentCaptor.forClass(AbstractWidget.class);
+            verify(builder.actions, atLeastOnce()).focus(focused.capture());
+            ((EditBox) focused.getValue()).setValue("7");
+            DrawnFrame partial = builder.frame();
+            assertFalse(partial.texts().contains(DONE), partial.texts() + " " + builder.written);
+            partial.click(CANCEL);
+            assertEquals(List.of("$waxed"), builder.written, partial.texts().toString());
+            assertTrue(finished[0]);
+        }
+
+        /**
+         * Once a change is fully in, done draws with cancel beside it, and cancel writes the opening value back and
+         * closes the builder (decision value-expression-boxes-take-a-cancel-button).
          */
         @Test
         void cancelDrawsBesideDoneOnceChangedAndRestoresTheOpeningValue() {
@@ -560,7 +600,6 @@ class ExpressionBuilderPaneTest {
             Builder builder = new Builder(PREFABS);
             builder.pane.open("$waxed + $edited", builder.written::add, () -> finished[0] = true);
             DrawnFrame unchanged = builder.frame();
-            assertFalse(unchanged.texts().contains(CANCEL), unchanged.texts().toString());
             clickAt(unchanged, removes(unchanged).getFirst());
             DrawnFrame changed = builder.frame();
             DrawnFrame.Text done = changed.find(DONE);

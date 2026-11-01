@@ -153,7 +153,7 @@ class ValuesPaneTest {
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 80);
         ClickTargets targets = new ClickTargets();
         pane.extract(graphics, font, bounds, targets);
-        String done = BuilderOverlays.hintKey("No unsaved changes");
+        String done = BuilderOverlays.hintKey("Discard the changes made since this opened");
         for (int notch = 0; notch < 40; notch++) {
             pane.scroll(400, 0, -1);
         }

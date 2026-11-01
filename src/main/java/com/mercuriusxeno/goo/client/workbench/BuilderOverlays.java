@@ -277,6 +277,15 @@ final class BuilderOverlays {
     }
 
     /**
+     * Closes every overlay and drops what the number box holds uncommitted.
+     */
+    void discard() {
+        numberCommits = null;
+        commitNumber();
+        closeLists();
+    }
+
+    /**
      * @param at    where the control was clicked
      * @param picks takes the goo type picked
      */
