@@ -50,7 +50,8 @@ final class ProcessesPane {
      */
     static final int ONE_LINE_ROW_PITCH = HEAD_HEIGHT + ControlFlow.LINE + ROW_GAP;
     private static final int GAP = 6;
-    private static final int SECTION_GAP = 6;
+    private static final int COLUMN_GAP = 12;
+    private static final int HALF = 2;
     private static final int SCROLL_STEP = ROW_HEIGHT * 3;
     private static final int WHITE = 0xFFFFFFFF;
     /** An Invalid verdict's color. */
@@ -89,7 +90,10 @@ final class ProcessesPane {
     private final ManagerActions actions;
     private final BuilderOverlays overlays;
     private final MutatorControls controls;
-    private final ScrollBar bar = new ScrollBar(SCROLL_STEP);
+    // Decision mutators-left-iterators-right-each-with-its-own-scroll-bar: the mutators column's bar, then the
+    // iterators column's.
+    private final ScrollBar[] bars = {new ScrollBar(SCROLL_STEP), new ScrollBar(SCROLL_STEP)};
+    private int columnsMiddle;
     private @Nullable String revealPending;
     private @Nullable RevealedRow revealedRow;
     private @Nullable EditBox nameBox;
@@ -100,7 +104,7 @@ final class ProcessesPane {
     private boolean visible;
 
     // Where the row a follow revealed stood inside the list's content this frame.
-    private record RevealedRow(int top, int height) {
+    private record RevealedRow(boolean iterators, int top, int height) {
     }
 
     /**
@@ -141,7 +145,9 @@ final class ProcessesPane {
         box.setValue(searched);
         box.setResponder(text -> {
             processes.search(text);
-            bar.reset();
+            for (ScrollBar each : bars) {
+                each.reset();
+            }
         });
         search = box;
     }
@@ -168,13 +174,22 @@ final class ProcessesPane {
     }
 
     /**
+     * @param mouseX the pointer's x, which picks the column the wheel scrolls
      * @param amount the wheel's turn, positive away from the player
      */
-    void scroll(double amount) {
+    void scroll(double mouseX, double amount) {
         if (overlays.scrollList(amount)) {
             return;
         }
-        bar.wheel(amount);
+        columnBar(mouseX >= columnsMiddle).wheel(amount);
+    }
+
+    /**
+     * @param iterators whether the iterators column's bar is meant, not the mutators column's
+     * @return that column's scroll bar
+     */
+    ScrollBar columnBar(boolean iterators) {
+        return bars[iterators ? 1 : 0];
     }
 
     /**
@@ -209,18 +224,49 @@ final class ProcessesPane {
         if (search != null) {
             search.setPosition(afterTabs + GAP, pane.top());
         }
-        GroupsPane.Bounds bounds = new GroupsPane.Bounds(pane.left(), pane.top() + SEARCH_ROW, pane.right(),
-                pane.bottom());
-        graphics.enableScissor(bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
-        targets.clip(bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
-        GroupsPane.Bounds rows = new GroupsPane.Bounds(bounds.left(), bounds.top(),
-                bounds.right() - ScrollBar.WIDTH - ScrollBar.GAP, bounds.bottom());
-        int y = drawSections(new Frame(graphics, font, rows, targets), bounds.top() - bar.offset());
-        targets.unclip();
-        graphics.disableScissor();
-        bar.measureAndDraw(graphics, targets, y, bounds.right(), bounds.top(), bounds.bottom());
+        nameBoxPlaced = false;
+        columnsMiddle = (pane.left() + pane.right()) / HALF;
+        processes.sections().stream().filter(section -> section.section().equals(shownSection)).findFirst()
+                .ifPresent(section -> drawColumns(graphics, font, section, new GroupsPane.Bounds(pane.left(),
+                        pane.top() + SEARCH_ROW, pane.right(), pane.bottom()), targets));
+        if (nameBox != null) {
+            nameBox.visible = visible && nameBoxPlaced;
+        }
         centerRevealedRow();
         overlays.draw(graphics, font, targets);
+    }
+
+    // The section's summary across the pane, then its mutators in the left column and its iterators in the right.
+    private void drawColumns(GuiGraphicsExtractor graphics, Font font, ProcessesTab.ProcessSection section,
+                             GroupsPane.Bounds area, ClickTargets targets) {
+        graphics.text(font, section.summary(), area.left(), area.top(), WHITE);
+        int columnsTop = area.top() + LINE_HEIGHT + GAP;
+        for (boolean iterators : KINDS) {
+            GroupsPane.Bounds column = iterators
+                    ? new GroupsPane.Bounds(columnsMiddle + COLUMN_GAP / HALF, columnsTop, area.right(), area.bottom())
+                    : new GroupsPane.Bounds(area.left(), columnsTop, columnsMiddle - COLUMN_GAP / HALF, area.bottom());
+            drawColumn(new Frame(graphics, font, column, targets), section, iterators);
+        }
+    }
+
+    // A column: its heading and [+] standing still, then its rows scrolling under its own bar.
+    private void drawColumn(Frame frame, ProcessesTab.ProcessSection section, boolean iterators) {
+        GroupsPane.Bounds column = frame.rows();
+        GuiGraphicsExtractor graphics = frame.graphics();
+        graphics.text(frame.font(), iterators ? ITERATORS : MUTATORS, column.left(), column.top() + HEADING_NUDGE,
+                WHITE);
+        drawCreate(frame, section.section(), iterators, column.top());
+        int listTop = column.top() + ControlFlow.LINE + GAP;
+        ScrollBar bar = columnBar(iterators);
+        GroupsPane.Bounds rows = new GroupsPane.Bounds(column.left(), listTop,
+                column.right() - ScrollBar.WIDTH - ScrollBar.GAP, column.bottom());
+        graphics.enableScissor(column.left(), listTop, column.right(), column.bottom());
+        frame.targets().clip(column.left(), listTop, column.right(), column.bottom());
+        int y = drawRows(new Frame(graphics, frame.font(), rows, frame.targets()), section, iterators,
+                listTop - bar.offset());
+        frame.targets().unclip();
+        graphics.disableScissor();
+        bar.measureAndDraw(graphics, frame.targets(), y, column.right(), listTop, column.bottom());
     }
 
     /**
@@ -255,39 +301,17 @@ final class ProcessesPane {
             shownSection = section;
             overlays.close();
             stopNaming();
-            bar.reset();
+            for (ScrollBar each : bars) {
+                each.reset();
+            }
         }
     }
 
-    // Answers the y below the shown section's blocks; the name box shows only while the heading that opened it draws.
-    private int drawSections(Frame frame, int top) {
-        int y = top;
-        nameBoxPlaced = false;
-        for (ProcessesTab.ProcessSection section : processes.sections()) {
-            if (!section.section().equals(shownSection)) {
-                continue;
-            }
-            frame.graphics().text(frame.font(), section.summary(), frame.rows().left(), y, WHITE);
-            y += LINE_HEIGHT + GAP;
-            for (boolean iterators : KINDS) {
-                y = drawKind(frame, section, iterators, y);
-            }
-            y += SECTION_GAP;
-        }
-        if (nameBox != null) {
-            nameBox.visible = visible && nameBoxPlaced;
-        }
-        return y;
-    }
-
-    // Decision group-assignments-read-as-iterators: a block's mutators under one heading, its iterators under another,
-    // each heading with its create control. Answers the y below the last row.
-    private int drawKind(Frame frame, ProcessesTab.ProcessSection section, boolean iterators, int top) {
+    // Decision group-assignments-read-as-iterators: a column's rows, mutators or iterators alone. Answers the y below
+    // the last row.
+    private int drawRows(Frame frame, ProcessesTab.ProcessSection section, boolean iterators, int top) {
         GroupsPane.Bounds rows = frame.rows();
-        frame.graphics().text(frame.font(), iterators ? ITERATORS : MUTATORS, rows.left(), top + HEADING_NUDGE,
-                WHITE);
-        drawCreate(frame, section.section(), iterators, top);
-        int y = top + ControlFlow.LINE + GAP;
+        int y = top;
         List<ProcessesTab.ProcessRow> kindRows = section.rows().stream()
                 .filter(row -> ProcessesTab.isIterator(row.key()) == iterators).toList();
         for (int index = 0; index < kindRows.size(); index++) {
@@ -296,7 +320,8 @@ final class ProcessesPane {
             ProcessesTab.ProcessRow row = kindRows.get(index);
             y = drawRow(frame.graphics(), frame.font(), section.section(), row, rows, y, frame.targets());
             if (row.key().equals(revealPending)) {
-                revealedRow = new RevealedRow(rowTop - rows.top() + bar.offset(), y - rowTop);
+                revealedRow = new RevealedRow(iterators, rowTop - rows.top() + columnBar(iterators).offset(),
+                        y - rowTop);
             }
         }
         return y;
@@ -467,7 +492,7 @@ final class ProcessesPane {
     // Once the revealed row has drawn and the bar has measured this frame, centers the row in the list.
     private void centerRevealedRow() {
         if (revealedRow != null) {
-            bar.center(revealedRow.top(), revealedRow.height());
+            columnBar(revealedRow.iterators()).center(revealedRow.top(), revealedRow.height());
             revealedRow = null;
             revealPending = null;
         }
