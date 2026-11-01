@@ -186,11 +186,19 @@ class GroupsPaneTest {
                       "base": "8", "tweaks": [], "preview": []}]}""".formatted(LONG_GROUP, LONG_MEMBER));
             groups.selectGroup(LONG_GROUP);
             ManagerActions actions = mock(ManagerActions.class);
+            when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> {
+                widgets.add(call.getArgument(0));
+                return call.getArgument(0);
+            });
             ItemIcons icons = mock(ItemIcons.class);
             when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
             pane = new GroupsPane(groups, new ValuesTab(draft), icons, actions,
                     new ExpressionBuilderPane(actions, icons, List::of, List::of));
+            pane.init(DrawnFrame.font());
+            pane.show(true);
         }
+
+        private final List<AbstractWidget> widgets = new ArrayList<>();
 
         // A font six pixels a character wide that cuts a string to the width it is given.
         private static Font cuttingFont() {
@@ -250,8 +258,42 @@ class GroupsPaneTest {
                     .allMatch(member -> member.y() > plus.y()), frame.drawn().toString());
             assertFalse(frame.texts().contains("Rename"), frame.texts().toString());
             assertFalse(frame.texts().contains("Add member"), frame.texts().toString());
+            DrawnFrame.Text cross = frame.find("✗");
+            int detailRight = PANE.right() - ScrollBar.WIDTH - ScrollBar.GAP;
+            assertEquals(detailRight - 6 - ButtonPainter.PADDING, cross.x(), "the x stands at the head's right end");
+            assertTrue(Math.abs(cross.y() - name.y()) < ExpressionLines.TEXT_LINE_HEIGHT, cross + " vs " + name);
             frame.click("+");
             assertTrue(pane.pickerOpen(), "the member picker opens");
+        }
+
+        /**
+         * The pencil opens the rename box in the name's place (decision
+         * rename-is-a-pencil-and-delete-a-red-x-everywhere).
+         */
+        @Test
+        void pencilOpensTheRenameBox() {
+            frame().click("✎");
+            DrawnFrame renaming = frame();
+            assertFalse(renaming.texts().contains("✎"), renaming.texts().toString());
+            assertTrue(widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                    .anyMatch(box -> box.visible && box.getX() > GroupsPane.listWidth(PANE)), "a box stands in the detail");
+        }
+
+        /**
+         * The red x deletes the group from the draft (decision rename-is-a-pencil-and-delete-a-red-x-everywhere).
+         */
+        @Test
+        void redXDeletesTheGroup() {
+            draft.read("""
+                    {"path": "base_values.json", "members": [
+                      {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                         {"key": "%s", "keySeparator": null, "kind": "VALUE", "text": "[]",
+                          "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                       "leading": null, "trailing": null, "closingGap": null}]}""".formatted(LONG_GROUP));
+            DrawnFrame frame = frame();
+            assertEquals(ProcessesPane.RED, frame.find("✗").color());
+            frame.click("✗");
+            assertEquals(0, draft.sectionEntries("_groups").size());
         }
     }
 
@@ -404,6 +446,7 @@ class GroupsPaneTest {
         DrawnFrame.Text newGroup = closed.find("+ Custom");
         DrawnFrame.Text addTag = closed.find("+ Tag");
         assertEquals(newGroup.y(), addTag.y());
+        assertFalse(closed.texts().contains("New group") || closed.texts().contains("Add tag"), closed.texts().toString());
         assertTrue(addTag.x() > newGroup.x(), closed.drawn().toString());
         closed.click("+ Tag");
         DrawnFrame open = new DrawnFrame();

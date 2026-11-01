@@ -330,6 +330,48 @@ public final class GroupsTab {
         return true;
     }
 
+    /**
+     * Deletes a group from the draft: its _groups entry and its #name value, dropping the selection where it held
+     * the group (decision rename-is-a-pencil-and-delete-a-red-x-everywhere). References to #name elsewhere stay, as
+     * a deleted mutator's do, and read as unknown until rewritten.
+     *
+     * @param name the group's name, no #
+     * @return whether the draft held the group
+     */
+    public boolean deleteGroup(String name) {
+        com.google.gson.JsonArray members = draft.members();
+        boolean removed = false;
+        for (int index = members.size() - 1; index >= 0; index--) {
+            JsonObject member = members.get(index).getAsJsonObject();
+            String held = keyOf(member);
+            if ((TAG_MARK + name).equals(held)) {
+                members.remove(index);
+                removed = true;
+            } else if (GROUPS_SECTION.equals(held)) {
+                removed |= removeEntry(member, name);
+            }
+        }
+        if (name.equals(selectedGroup)) {
+            selectedGroup = null;
+        }
+        return removed;
+    }
+
+    private static boolean removeEntry(JsonObject section, String key) {
+        JsonElement entries = section.get(ENTRIES);
+        if (entries == null || !entries.isJsonArray()) {
+            return false;
+        }
+        com.google.gson.JsonArray array = entries.getAsJsonArray();
+        for (int index = 0; index < array.size(); index++) {
+            if (key.equals(keyOf(array.get(index).getAsJsonObject()))) {
+                array.remove(index);
+                return true;
+            }
+        }
+        return false;
+    }
+
     private boolean isFreeName(String name) {
         return !name.isEmpty() && groups.stream().noneMatch(group -> group.name().equals(name));
     }

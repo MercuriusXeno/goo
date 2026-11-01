@@ -209,6 +209,27 @@ class GroupsTabTest {
                     .get("text").getAsString());
         }
 
+        /**
+         * Delete takes the group's _groups entry and its #name value out of the draft and drops the selection
+         * (decision rename-is-a-pencil-and-delete-a-red-x-everywhere).
+         */
+        @Test
+        void deleteRemovesTheGroupsEntryAndValue() {
+            ManagerDraft named = new ManagerDraft();
+            named.read(NAMED);
+            GroupsTab groups = new GroupsTab(named);
+            groups.readDescribed("""
+                    {"groups": [{"name": "logs", "members": [{"id": "minecraft:oak_log", "known": true}],
+                      "base": "$log", "tweaks": [], "preview": []}]}""");
+            groups.selectGroup("logs");
+            assertTrue(groups.deleteGroup("logs"));
+            assertEquals(0, named.sectionEntries("_groups").size());
+            assertTrue(named.members().asList().stream().noneMatch(member -> "#logs".equals(
+                    member.getAsJsonObject().get("key").getAsString())));
+            assertTrue(groups.selected().isEmpty());
+            assertFalse(groups.deleteGroup("logs"));
+        }
+
         @Test
         void renameRefusesABlankOrTakenName() {
             tab.selectGroup("logs");

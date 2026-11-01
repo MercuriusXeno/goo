@@ -373,6 +373,55 @@ class VariablesPaneTest {
         assertFalse(confirm.underlined("Delete"));
     }
 
+    /**
+     * A scalar prefab's head reads = before its number, and its pencil opens the rename box in the name's place.
+     */
+    @Test
+    void scalarHeadReadsEqualsBeforeItsNumberAndThePencilRenames() {
+        VariablesPane read = readByEgg(mock(ManagerActions.class));
+        DrawnFrame frame = new DrawnFrame();
+        read.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
+        DrawnFrame.Text equals = frame.find("=");
+        DrawnFrame.Text number = frame.drawn().stream().filter(text -> text.text().equals("8")
+                && text.y() == equals.y()).findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));
+        assertTrue(equals.x() < number.x(), equals + " before " + number);
+        assertFalse(frame.texts().stream().anyMatch(text -> text.toLowerCase(java.util.Locale.ROOT)
+                .contains("scalar")), frame.texts().toString());
+        frame.click("✎");
+        DrawnFrame renaming = new DrawnFrame();
+        read.extract(renaming.graphics, DrawnFrame.font(), VIEW, renaming.targets, 0, 0);
+        assertFalse(renaming.texts().contains("base"), renaming.texts().toString());
+        assertFalse(renaming.texts().contains("✎"), renaming.texts().toString());
+    }
+
+    /**
+     * Used by draws one run: the item naming the prefab itself first, then the terminus item the cascade reaches,
+     * each once, and no (indirectly) label (decision used-by-draws-the-terminus-items-alone, restated).
+     */
+    @Test
+    void usedByDrawsOneRunDirectItemsFirst() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read(model());
+        VariablesTab prefabs = new VariablesTab(draft);
+        prefabs.readEvaluated("""
+                {"constants": [{"name": "prefab0", "kind": "scalar", "value": "8", "error": null,
+                                "direct": ["minecraft:egg"],
+                                "usedBy": ["minecraft:cake", "minecraft:egg"], "readers": []}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> call.<AbstractWidget>getArgument(0));
+        ItemIcons icons = mock(ItemIcons.class);
+        VariablesPane read = new VariablesPane(prefabs, draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        read.extract(frame.graphics, DrawnFrame.font(), TALL_VIEW, frame.targets, 0, 0);
+        assertFalse(frame.texts().stream().anyMatch(text -> text.contains("indirectly")), frame.texts().toString());
+        assertEquals(1, frame.texts().stream().filter("Used by "::equals).count(), frame.texts().toString());
+        List<String> items = frame.targets.hoverKeys().stream().filter(key -> key.equals(ItemIcons.hoverKey(
+                "minecraft:egg")) || key.equals(ItemIcons.hoverKey("minecraft:cake"))).toList();
+        assertEquals(List.of(ItemIcons.hoverKey("minecraft:egg"), ItemIcons.hoverKey("minecraft:cake")), items);
+    }
+
     // A Prefabs pane over one prefab, base, that the prefab egg reads.
     private static VariablesPane readByEgg(ManagerActions actions) {
         ManagerDraft draft = new ManagerDraft();
