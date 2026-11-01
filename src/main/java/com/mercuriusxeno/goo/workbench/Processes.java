@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
 
 /**
  * The Processes pane's forms for _conversions and _post_conversions, each spelled as the game's conversion
- * parser reads it: a formula ("metal / 4 -> yore / 9", "pulse / 4 -> yore * 0", "type / N -> 0"), an additive
+ * parser reads it: a formula ("metal / 4 -> yore / 9", "pulse / 4 -> yore * 2 / 3", "type / N -> 0"), an additive
  * ("+$waxed"), a stack ("2 @oxidation_metal"), and an assignment of a source group to a target group with an
  * optional scale and a chain of stacks and additives ("#exposed": "#copper @exposed_metal", a parallel copy
  * "#source * N / M") (decision workbench-authors-base-values-whole). The values manager's mutator controls edit
@@ -27,18 +27,20 @@ public final class Processes {
     private static final String TIMES = " * ";
     private static final String SPACE = " ";
     private static final String ZERO_TARGET = "0";
-    private static final String DIVIDE_OPERATOR = "/";
     // A stack applied once spells no count.
     private static final String NO_COUNT = "";
     // The game's ConversionFormulaParser reads spaces around each sign as optional.
+    // Decision mutator-sentences-read-in-symbols: a target reads "type * M / K", "type * M" or "type / K".
     private static final Pattern FORMULA = Pattern.compile(
-            "^\\s*([a-z0-9_:]+)\\s*/\\s*(\\d+)\\s*->\\s*(?:(0)|([a-z0-9_:]+)\\s*([/*])\\s*(\\d+))\\s*$");
+            "^\\s*([a-z0-9_:]+)\\s*/\\s*(\\d+)\\s*->\\s*(?:(0)|([a-z0-9_:]+)\\s*(?:\\*\\s*(\\d+)\\s*(?:/\\s*(\\d+))?"
+                    + "|/\\s*(\\d+)))\\s*$");
     private static final int FORMULA_SOURCE = 1;
     private static final int FORMULA_SOURCE_DIVISOR = 2;
     private static final int FORMULA_ZERO_TARGET = 3;
     private static final int FORMULA_TARGET = 4;
-    private static final int FORMULA_OPERATOR = 5;
-    private static final int FORMULA_AMOUNT = 6;
+    private static final int FORMULA_MULTIPLIER = 5;
+    private static final int FORMULA_MULTIPLIED_DIVISOR = 6;
+    private static final int FORMULA_DIVISOR = 7;
     private static final Pattern ADDITIVE = Pattern.compile("^\\+\\$([A-Za-z0-9_]+)$");
     private static final int ADDITIVE_CONSTANT = 1;
     private static final Pattern STACK = Pattern.compile("^(?:(\\d+) )?@([A-Za-z0-9_]+)$");
@@ -95,10 +97,10 @@ public final class Processes {
      * @param source        the source type
      * @param sourceDivisor the source type's divisor
      * @param target        the target type, or "0" for a conversion to nothing
-     * @param operator      "/" or "*"
-     * @param amount        the target's divisor or multiplier
+     * @param multiplier    the target's multiplier, 1 for none
+     * @param divisor       the target's divisor, 1 for none
      */
-    public record Formula(String source, int sourceDivisor, String target, String operator, int amount)
+    public record Formula(String source, int sourceDivisor, String target, int multiplier, int divisor)
             implements Form {
         @Override
         public Kind kind() {
@@ -171,8 +173,7 @@ public final class Processes {
      */
     public static String write(Form form) {
         return switch (form) {
-            case Formula formula -> formula(formula.source(), formula.sourceDivisor(), formula.target(),
-                    formula.operator(), formula.amount());
+            case Formula formula -> formula(formula);
             case Additive additive -> additive(additive.constant());
             case Stack stack -> stack(stack.count(), stack.formula());
             case Assignment assignment -> assignment(assignment.source(), assignment.multiplier(),
@@ -192,10 +193,7 @@ public final class Processes {
     private static Form processOf(String value, String text) {
         Matcher formula = FORMULA.matcher(value);
         if (formula.matches()) {
-            return new Formula(formula.group(FORMULA_SOURCE), Integer.parseInt(formula.group(FORMULA_SOURCE_DIVISOR)),
-                    formula.group(FORMULA_ZERO_TARGET) != null ? ZERO_TARGET : formula.group(FORMULA_TARGET),
-                    formula.group(FORMULA_OPERATOR) == null ? DIVIDE_OPERATOR : formula.group(FORMULA_OPERATOR),
-                    formula.group(FORMULA_AMOUNT) == null ? 0 : Integer.parseInt(formula.group(FORMULA_AMOUNT)));
+            return formulaOf(formula);
         }
         Matcher additive = ADDITIVE.matcher(value);
         if (additive.matches()) {
@@ -207,6 +205,22 @@ public final class Processes {
                     stack.group(STACK_FORMULA));
         }
         return new Unread(text);
+    }
+
+    private static Formula formulaOf(Matcher formula) {
+        String source = formula.group(FORMULA_SOURCE);
+        int sourceDivisor = Integer.parseInt(formula.group(FORMULA_SOURCE_DIVISOR));
+        if (formula.group(FORMULA_ZERO_TARGET) != null) {
+            return new Formula(source, sourceDivisor, ZERO_TARGET, 1, 1);
+        }
+        String divisor = formula.group(FORMULA_DIVISOR) != null ? formula.group(FORMULA_DIVISOR)
+                : formula.group(FORMULA_MULTIPLIED_DIVISOR);
+        return new Formula(source, sourceDivisor, formula.group(FORMULA_TARGET),
+                numberOrOne(formula.group(FORMULA_MULTIPLIER)), numberOrOne(divisor));
+    }
+
+    private static int numberOrOne(String digits) {
+        return digits == null ? 1 : Integer.parseInt(digits);
     }
 
     // An optional #source, an optional scale and a chain of @links, as the game's parser reads them; a token the
@@ -236,16 +250,22 @@ public final class Processes {
     }
 
     /**
-     * @param source        the source type
-     * @param sourceDivisor the source type's divisor
-     * @param target        the target type, or "0" for a conversion to nothing
-     * @param operator      "/" or "*"
-     * @param amount        the target's divisor or multiplier
-     * @return the formula
+     * @param formula a formula's fields
+     * @return the formula, its target spelled "type * M / K" with a 1 on either side left out, "type / 1" where
+     *     both are 1
      */
-    static String formula(String source, int sourceDivisor, String target, String operator, int amount) {
-        String into = ZERO_TARGET.equals(target) ? ZERO_TARGET : target + SPACE + operator + SPACE + amount;
-        return quoted(source + DIVIDE + sourceDivisor + ARROW + into);
+    static String formula(Formula formula) {
+        return quoted(formula.source() + DIVIDE + formula.sourceDivisor() + ARROW + target(formula));
+    }
+
+    private static String target(Formula formula) {
+        if (ZERO_TARGET.equals(formula.target())) {
+            return ZERO_TARGET;
+        }
+        String multiplied = formula.multiplier() == 1 ? formula.target()
+                : formula.target() + TIMES + formula.multiplier();
+        return formula.divisor() == 1 && formula.multiplier() != 1 ? multiplied
+                : multiplied + DIVIDE + formula.divisor();
     }
 
     /**

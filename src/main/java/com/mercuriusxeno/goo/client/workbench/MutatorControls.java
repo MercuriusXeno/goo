@@ -12,9 +12,10 @@ import java.util.regex.Pattern;
 
 /**
  * One Mutators entry drawn as a sentence of controls, every field the game's conversion parser reads a click away:
- * a process chooses its kind, formula, additive or stack; a formula picks its source and target goo types through
- * the picker, nothing among them for the target, with its divisor, its multiply or divide and its amount; an
- * additive picks its tree prefab and a stack its process and count; an assignment picks its source group, or the
+ * a process chooses its kind, convert, additive or stack; a formula picks its source and target goo types through
+ * the picker, nothing among them for the target, and reads as two ratios, "1 : N" of the source becoming "M : K" of
+ * the target, no divisor taking 0; an additive reads "+ prefab" and a stack "applies mutator xN"
+ * (decision mutator-sentences-read-in-symbols); an assignment picks its source group, or the
  * target's own values, its scale and its chain of processes. Each control names what it does on hover, the sentence
  * wraps inside the pane, and each change writes the entry through Processes' writers (decision
  * expression-builder-composes-every-form-without-typing).
@@ -25,26 +26,26 @@ final class MutatorControls {
     // Nine digits always fit an int.
     private static final Pattern DIGITS = Pattern.compile("\\d{1,9}");
     private static final String NOTHING_TARGET = "0";
-    private static final String DIVIDE_OPERATOR = "/";
     private static final String GROUP_MARK = "#";
     private static final String STACK_MARK = "@";
     private static final String NO_SOURCE = "";
     private static final String KIND = "Kind:";
-    private static final String FORMULA = "formula";
-    private static final String FORMULA_HINT = "Turn part of one goo type into another, or into nothing";
+    // Decision mutator-sentences-read-in-symbols: the word formula goes.
+    private static final String CONVERT = "convert";
+    private static final String CONVERT_HINT = "Turn part of one goo type into another, or into nothing";
     private static final String ADDITIVE = "additive";
     private static final String ADDITIVE_HINT = "Add a tree prefab's value";
     private static final String STACK = "stack";
     private static final String STACK_HINT = "Apply another mutator a number of times";
-    private static final String DIVIDED_BY = "divided by";
+    private static final String SOURCE_SHARE = "1";
     private static final String BECOMES = "becomes";
-    private static final String TIMES = "times";
+    private static final String TIMES_MARK = "x";
     private static final String NOTHING = "nothing";
     private static final String TARGET_HINT = "Click to pick the goo type it becomes";
     private static final String DIVISOR_HINT = "Click to change how much of the source is taken";
-    private static final String OPERATOR_HINT = "Click to switch between multiplying and dividing the result";
-    private static final String AMOUNT_HINT = "Click to change the result's factor";
-    private static final String ADDS = "adds the value of";
+    private static final String TARGET_MULTIPLIER_HINT = "Click to change what the result is multiplied by";
+    private static final String TARGET_DIVISOR_HINT = "Click to change what the result is divided by";
+    private static final String PLUS = "+";
     private static final String PREFAB_HINT = "Click to pick another tree prefab";
     private static final String APPLIES = "applies";
     private static final String PROCESS_HINT = "Click to pick another mutator";
@@ -139,7 +140,7 @@ final class MutatorControls {
         flow.text(KIND, GRAY);
         ControlFlow.ChoiceSet kinds = new ControlFlow.ChoiceSet();
         boolean formula = form instanceof Processes.Formula;
-        kinds.add(new BuilderOverlays.Option(FORMULA, FORMULA_HINT, unlessChosen(formula, () -> freshFormula(entry))),
+        kinds.add(new BuilderOverlays.Option(CONVERT, CONVERT_HINT, unlessChosen(formula, () -> freshFormula(entry))),
                 formula);
         if (!treePrefabs.get().isEmpty()) {
             boolean additive = form instanceof Processes.Additive;
@@ -167,7 +168,7 @@ final class MutatorControls {
     private void freshFormula(Entry entry) {
         List<String> types = gooTypes.get();
         if (!types.isEmpty()) {
-            write(entry, new Processes.Formula(types.getFirst(), 1, NOTHING_TARGET, DIVIDE_OPERATOR, 0));
+            write(entry, new Processes.Formula(types.getFirst(), 1, NOTHING_TARGET, 1, 1));
         }
     }
 
@@ -181,8 +182,10 @@ final class MutatorControls {
         String key = entry.key();
         flow.typeIcon(formula.source(), at -> overlays.openPicker(at,
                 type -> edit(() -> processes.setFormulaSource(section, key, type))));
-        flow.text(DIVIDED_BY, GRAY);
-        numberControl(flow, formula.sourceDivisor(), DIVISOR_HINT,
+        // Decision mutator-sentences-read-in-symbols: "[source] 1 : [#] becomes [target] [#] : [#]".
+        flow.text(SOURCE_SHARE, GRAY);
+        flow.text(RATIO, GRAY);
+        divisorControl(flow, formula.sourceDivisor(), DIVISOR_HINT,
                 divisor -> processes.setFormulaDivisor(section, key, divisor));
         flow.text(BECOMES, GRAY);
         Consumer<BuilderOverlays.Anchor> pickTarget = at -> overlays.openPicker(at,
@@ -193,14 +196,16 @@ final class MutatorControls {
             return;
         }
         flow.typeIcon(formula.target(), pickTarget);
-        flow.control(DIVIDE_OPERATOR.equals(formula.operator()) ? DIVIDED_BY : TIMES, OPERATOR_HINT,
-                at -> edit(() -> processes.toggleFormulaOperator(section, key)));
-        numberControl(flow, formula.amount(), AMOUNT_HINT, amount -> processes.setFormulaAmount(section, key, amount));
+        numberControl(flow, formula.multiplier(), TARGET_MULTIPLIER_HINT,
+                multiplier -> processes.setFormulaRatio(section, key, multiplier, formula.divisor()));
+        flow.text(RATIO, GRAY);
+        divisorControl(flow, formula.divisor(), TARGET_DIVISOR_HINT,
+                divisor -> processes.setFormulaRatio(section, key, formula.multiplier(), divisor));
     }
 
     private void drawAdditive(Entry entry, Processes.Additive additive) {
         ControlFlow flow = entry.flow();
-        flow.text(ADDS, GRAY);
+        flow.text(PLUS, GRAY);
         nameControl(flow, new Ref(additive.constant(), () -> actions.openVariable(additive.constant())), PREFAB_HINT,
                 treePrefabs.get(), prefab -> processes.setAdditive(entry.section(), entry.key(), prefab));
         flow.hoverLast(PrefabHovers.hoverKey(additive.constant()));
@@ -211,9 +216,9 @@ final class MutatorControls {
         flow.text(APPLIES, GRAY);
         nameControl(flow, new Ref(stack.formula(), () -> actions.openMutator(stack.formula())), PROCESS_HINT,
                 otherProcesses(entry), formula -> processes.setStackFormula(entry.section(), entry.key(), formula));
+        flow.text(TIMES_MARK, GRAY);
         numberControl(flow, stack.count(), COUNT_HINT,
                 count -> processes.setStackCount(entry.section(), entry.key(), count));
-        flow.text(TIMES, GRAY);
     }
 
     private void drawAssignment(Entry entry, Processes.Assignment assignment) {
@@ -233,7 +238,7 @@ final class MutatorControls {
         numberControl(flow, assignment.multiplier(), MULTIPLIER_HINT, multiplier -> processes.setAssignmentScale(
                 section, key, multiplier, assignment.divisor()));
         flow.text(RATIO, GRAY);
-        numberControl(flow, assignment.divisor(), SCALE_DIVISOR_HINT, divisor -> processes.setAssignmentScale(section,
+        divisorControl(flow, assignment.divisor(), SCALE_DIVISOR_HINT, divisor -> processes.setAssignmentScale(section,
                 key, assignment.multiplier(), divisor));
         drawChain(entry, assignment.chain());
     }
@@ -299,6 +304,13 @@ final class MutatorControls {
     private void numberControl(ControlFlow flow, int number, String hint, IntConsumer commit) {
         flow.control(String.valueOf(number), hint, at -> overlays.openNumber(at, String.valueOf(number),
                 typed -> integerOf(typed).ifPresent(parsed -> edit(() -> commit.accept(parsed)))));
+    }
+
+    // Decision mutator-sentences-read-in-symbols: a divisor box takes no 0 key and commits no 0.
+    private void divisorControl(ControlFlow flow, int number, String hint, IntConsumer commit) {
+        flow.control(String.valueOf(number), hint, at -> overlays.openNumber(at, String.valueOf(number),
+                typed -> integerOf(typed).stream().filter(parsed -> parsed > 0).findFirst()
+                        .ifPresent(parsed -> edit(() -> commit.accept(parsed))), true));
     }
 
     private static OptionalInt integerOf(String typed) {
