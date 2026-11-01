@@ -124,7 +124,22 @@ final class GroupConvention {
      */
     static BaseValuesModel withBase(BaseValuesModel model, String group, String base) {
         String key = TAG_PREFIX + group;
-        return base.isBlank() ? model.withoutTopLevel(key) : model.withTopLevel(key, quoted(base.trim()));
+        return base.isBlank() ? model.withoutTopLevel(key) : model.withTopLevel(key, storedBase(base.trim()));
+    }
+
+    // An integer or a per-goo-type object stays as written, as the Items tab stores an entry, so the loader values
+    // the group's members by it; anything else is a quoted expression string
+    // (decision diagnose-and-correct-tag-member-rows-showing-no-value).
+    private static String storedBase(String base) {
+        try {
+            JsonElement parsed = JsonParser.parseString(base);
+            if (parsed.isJsonObject() || parsed.isJsonPrimitive() && parsed.getAsJsonPrimitive().isNumber()) {
+                return base;
+            }
+        } catch (JsonParseException e) {
+            return quoted(base);
+        }
+        return quoted(base);
     }
 
     /**
@@ -300,7 +315,18 @@ final class GroupConvention {
 
     private static @Nullable String baseOf(BaseValuesModel model, String group) {
         BaseValuesModel.Member line = model.member(TAG_PREFIX + group);
-        return line == null ? null : stringValue(line.text());
+        return line == null ? null : shownBase(line.text());
+    }
+
+    // A base line reads as the builder wrote it: an expression string unquoted, an integer or an object as written.
+    private static @Nullable String shownBase(String text) {
+        try {
+            JsonElement parsed = JsonParser.parseString(text);
+            return parsed.isJsonObject() || parsed.isJsonPrimitive() && parsed.getAsJsonPrimitive().isNumber()
+                    ? text.trim() : stringValue(text);
+        } catch (JsonParseException e) {
+            return null;
+        }
     }
 
     private static @Nullable String stringValue(String text) {

@@ -468,6 +468,33 @@ class ValuationsTest {
     }
 
     /**
+     * A tag valued on Groups with a per-goo-type amount, as the builder writes {"leaf": 4} for minecraft:leaves,
+     * resolves each member of the tag to that amount under the member's own key, the key the Items row reads its
+     * value by; a _groups group valued the same way does too, and the base reads back as written (decision
+     * diagnose-and-correct-tag-member-rows-showing-no-value).
+     */
+    @Test
+    void perTypeBaseOnGroupsValuesEveryMemberOfTheTagOrGroup() throws IOException {
+        BaseValuesModel shipped = BaseValuesModel.parse(resourceText("/data/goo/goo_values/base_values.json"));
+        InventoryView inventory = InventoryView.parse(resourceText("/workbench/gametest_inventory.json"));
+        BaseValuesModel tagged = GroupConvention.withBase(shipped, "leaves", "{\"leaf\": 4}");
+        JsonArray tagEntries = JsonParser.parseString(Valuations.resolved(tagged, inventory)).getAsJsonObject()
+                .getAsJsonArray("entries");
+        for (String member : List.of("oak_leaves", "birch_leaves", "cherry_leaves")) {
+            assertEquals("4", entryNamed(tagEntries, member).getAsJsonObject("value").get("leaf").getAsString(),
+                    member);
+        }
+        assertEquals("{\"leaf\": 4}", GroupConvention.describeTag(tagged, "leaves",
+                Map.of("minecraft:leaves", List.of("minecraft:oak_leaves"))).base());
+
+        BaseValuesModel grouped = GroupConvention.withBase(GroupConvention.withGroup(BaseValuesModel.parse(SMALL),
+                "odd", List.of("minecraft:mystery")), "odd", "{\"metal\": 9}");
+        JsonArray groupEntries = JsonParser.parseString(Valuations.resolved(grouped,
+                InventoryView.parse(plankInventory()))).getAsJsonObject().getAsJsonArray("entries");
+        assertEquals("9", entryNamed(groupEntries, "mystery").getAsJsonObject("value").get("metal").getAsString());
+    }
+
+    /**
      * Derived-from over the shipped file and the gametest inventory answers warm in under 100 ms, the derivation
      * cached and each per-call lookup done once rather than once per derived item
      * (decision derived-from-gets-cheaper).
