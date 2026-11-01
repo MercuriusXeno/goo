@@ -62,6 +62,56 @@ class GroupsTabTest {
     }
 
     @Nested
+    class Searching {
+        private static final String THREE_GROUPS = """
+                {"groups": [
+                  {"name": "iron_things", "members": [{"id": "minecraft:stick", "known": true}], "base": null,
+                   "tweaks": [], "preview": []},
+                  {"name": "ingots", "members": [{"id": "minecraft:iron_ingot", "known": true}], "base": null,
+                   "tweaks": [], "preview": []},
+                  {"name": "logs", "members": [{"id": "minecraft:acacia_log", "known": true}], "base": null,
+                   "tweaks": [], "preview": []}]}
+                """;
+        private static final List<ValuesTab.ManagerEntry> NAMED = List.of(
+                new ValuesTab.ManagerEntry("minecraft:stick", "Wooden Rod", false),
+                new ValuesTab.ManagerEntry("minecraft:iron_ingot", "Iron Ingot", false),
+                new ValuesTab.ManagerEntry("minecraft:acacia_log", "Acacia Log", false));
+
+        private List<String> listedFor(String text) {
+            tab.readDescribed(THREE_GROUPS);
+            tab.search(text, NAMED);
+            return tab.groupRows().stream().map(GroupsTab.GroupRow::name).toList();
+        }
+
+        /**
+         * Typed text keeps the groups whose #name or any member's id holds it, ignoring case (decision
+         * groups-search-matches-a-name-or-any-member).
+         */
+        @Test
+        void searchKeepsGroupsWhoseNameOrMemberIdHoldsTheText() {
+            assertEquals(List.of("iron_things", "ingots"), listedFor("iron"));
+        }
+
+        /**
+         * A member's inventory name matches too, ignoring case: "wooden" stands in no id, only in the stick's name.
+         */
+        @Test
+        void searchKeepsAGroupWhoseMemberNameHoldsTheText() {
+            assertEquals(List.of("logs"), listedFor("Acacia"));
+            assertEquals(List.of("iron_things"), listedFor("wooden"));
+        }
+
+        /**
+         * Blank text lists every group.
+         */
+        @Test
+        void blankSearchListsEveryGroup() {
+            listedFor("iron");
+            assertEquals(List.of("iron_things", "ingots", "logs"), listedFor(""));
+        }
+    }
+
+    @Nested
     class Listing {
 
         /**

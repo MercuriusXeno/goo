@@ -8,6 +8,7 @@ import com.google.gson.JsonParser;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -51,6 +52,8 @@ public final class GroupsTab {
     private final List<Group> groups = new ArrayList<>();
     private @Nullable String selectedGroup;
     private @Nullable String selectedMember;
+    private String searchText = NO_NOTE;
+    private List<ValuesTab.ManagerEntry> searchNames = List.of();
 
     /**
      * @param draft the draft every tab of the manager edits
@@ -156,10 +159,30 @@ public final class GroupsTab {
     }
 
     /**
-     * @return each group's row in file order
+     * @param text      the typed search text
+     * @param inventory the inventory's items and tags, for each member's name
+     */
+    public void search(String text, List<ValuesTab.ManagerEntry> inventory) {
+        searchText = text.trim().toLowerCase(Locale.ROOT);
+        searchNames = inventory;
+    }
+
+    // Decision groups-search-matches-a-name-or-any-member.
+    private boolean matchesSearch(Group group) {
+        return searchText.isEmpty() || holdsSearch(group.name()) || group.members().stream()
+                .anyMatch(member -> holdsSearch(member.id()) || searchNames.stream()
+                        .anyMatch(entry -> entry.id().equals(member.id()) && holdsSearch(entry.name())));
+    }
+
+    private boolean holdsSearch(String text) {
+        return text.toLowerCase(Locale.ROOT).contains(searchText);
+    }
+
+    /**
+     * @return each group's row in file order that the search keeps
      */
     public List<GroupRow> groupRows() {
-        return groups.stream().map(group -> new GroupRow(group.name(),
+        return groups.stream().filter(this::matchesSearch).map(group -> new GroupRow(group.name(),
                 group.members().stream().map(Member::id).toList(),
                 (int) group.members().stream().filter(member -> !member.known()).count())).toList();
     }
