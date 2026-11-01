@@ -423,7 +423,7 @@ public final class ValuesManagerScreen extends Screen {
             case VALUES -> valuesPane.scroll(x, MARGIN, scrollY);
             case GROUPS -> groupsPane.scroll(x, y, MARGIN, scrollY);
             case VARIABLES -> variablesPane.scroll(scrollY);
-            case PROCESSES -> processesPane.scroll(scrollY);
+            case PROCESSES -> processesPane.scroll(x, scrollY);
             case AUDIT -> auditPane.scroll(y, scrollY);
         }
         return true;

@@ -147,6 +147,62 @@ class ProcessesPaneTest {
         assertEquals(waxed.x(), box.getX());
     }
 
+    /**
+     * Mutators lie in a left column and iterators in a right one, each scrolling alone under its own bar (decision
+     * mutators-left-iterators-right-each-with-its-own-scroll-bar).
+     */
+    @Test
+    void mutatorsLeftIteratorsRightEachScrollingAlone() {
+        int many = 20;
+        String entry = """
+                {"key": "%s", "keySeparator": null, "kind": "VALUE", "text": "\\"%s\\"", "entries": [], "leading": null,
+                 "trailing": null, "closingGap": null}""";
+        String described = """
+                {"key": "%s", "kind": "%s", "text": "\\"%s\\"", "parsed": true}""";
+        List<String> entries = new ArrayList<>();
+        List<String> processes = new ArrayList<>();
+        for (int index = 0; index < many; index++) {
+            entries.add(entry.formatted("m%02d".formatted(index), "+$oak"));
+            processes.add(described.formatted("m%02d".formatted(index), "ADDITIVE", "+$oak"));
+            entries.add(entry.formatted("#i%02d".formatted(index), "#copper @solo"));
+            processes.add(described.formatted("#i%02d".formatted(index), "ASSIGNMENT", "#copper @solo"));
+        }
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_post_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [%s],
+                   "leading": null, "trailing": null, "closingGap": null}]}""".formatted(String.join(", ", entries)));
+        ProcessesTab tab = new ProcessesTab(draft);
+        tab.readDescribed("""
+                {"sections": [{"section": "_post_conversions", "processes": [%s]}]}"""
+                .formatted(String.join(", ", processes)));
+        pane = new ProcessesPane(tab, draft, mock(ManagerActions.class), null, () -> List.of("oak"));
+        GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 590, 390);
+        int middle = (bounds.left() + bounds.right()) / 2;
+        DrawnFrame frame = frame();
+        List<DrawnFrame.Text> drawn = frame.drawn();
+        DrawnFrame.Text mutators = frame.find("Mutators");
+        DrawnFrame.Text iterators = frame.find("Iterators");
+        assertTrue(mutators.x() < middle && iterators.x() >= middle, mutators + " " + iterators);
+        assertEquals(mutators.y(), iterators.y(), "the headings stand side by side");
+        assertTrue(drawn.stream().filter(text -> text.text().matches("m\\d\\d") && text.x() == mutators.x())
+                .count() > 1, drawn.toString());
+        assertTrue(drawn.stream().filter(text -> text.text().matches("m\\d\\d")).allMatch(text -> text.x() < middle),
+                "a mutator row strays right: " + drawn);
+        assertTrue(drawn.stream().filter(text -> text.text().matches("#i\\d\\d")).allMatch(text -> text.x() >= middle),
+                "an iterator row strays left: " + drawn);
+        int track = 50;
+        assertTrue(pane.columnBar(false).thumb(0, track).height() < track, "the mutators column overflows");
+        assertTrue(pane.columnBar(true).thumb(0, track).height() < track, "the iterators column overflows");
+        int iteratorTop = first(frame, "#i00").y();
+        int mutatorTop = first(frame, "m00").y();
+        pane.scroll(middle - 100, -3);
+        DrawnFrame scrolled = frame();
+        assertEquals(iteratorTop, first(scrolled, "#i00").y(), "the iterators stay put");
+        assertTrue(scrolled.drawn().stream().noneMatch(text -> text.text().equals("m00") && text.y() == mutatorTop),
+                "the mutators scrolled");
+    }
+
     private DrawnFrame frame() {
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 590, 390), frame.targets);
@@ -155,9 +211,11 @@ class ProcessesPaneTest {
 
     @Test
     void mutatorsAndIteratorsEachDrawUnderTheirOwnHeading() {
-        List<Integer> tops = frame().topsOf(List.of("Mutators", "waxed", "Iterators", "#exposed"));
-        assertTrue(tops.get(0) < tops.get(1) && tops.get(1) < tops.get(2) && tops.get(2) < tops.get(3),
+        DrawnFrame frame = frame();
+        List<Integer> tops = frame.topsOf(List.of("Mutators", "waxed", "Iterators", "#exposed"));
+        assertTrue(tops.get(0) < tops.get(1) && tops.get(2) < tops.get(3) && tops.get(0).equals(tops.get(2)),
                 tops.toString());
+        assertTrue(first(frame, "#exposed").x() > first(frame, "waxed").x(), frame.drawn().toString());
     }
 
     @Test
@@ -178,13 +236,17 @@ class ProcessesPaneTest {
     void everyRowDrawsItsColumnsAtTheSameLefts() {
         DrawnFrame frame = frame();
         List<DrawnFrame.Text> drawn = frame.drawn();
+        int middle = 590 / 2;
         for (String column : List.of("✗", "✔")) {
-            List<Integer> lefts = drawn.stream().filter(text -> text.text().equals(column)).map(DrawnFrame.Text::x)
-                    .distinct().toList();
-            assertEquals(1, lefts.size(), column + " at " + lefts);
+            for (boolean right : new boolean[] {false, true}) {
+                List<Integer> lefts = drawn.stream().filter(text -> text.text().equals(column)
+                        && text.x() >= middle == right).map(DrawnFrame.Text::x).distinct().toList();
+                assertEquals(1, lefts.size(), column + " at " + lefts);
+            }
         }
         int nameLeft = first(frame, "waxed").x();
-        assertEquals(nameLeft, frame.find("#exposed").x());
+        assertEquals(nameLeft, first(frame, "copper_oxidation_and…end1").x());
+        assertTrue(frame.find("#exposed").x() >= middle, "the iterator stands in the right column");
         int kindLeft = frame.find(ControlFlow.dropdownLabel("additive")).x();
         assertTrue(kindLeft > nameLeft + 20 * 6, "the kind stands past the name column at " + kindLeft);
         List<DrawnFrame.Text> pencils = drawn.stream().filter(text -> text.text().equals("✎")).toList();
