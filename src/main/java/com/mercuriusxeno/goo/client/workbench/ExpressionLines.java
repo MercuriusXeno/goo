@@ -27,9 +27,8 @@ final class ExpressionLines {
     private static final int ITEM_SPRITE_SIZE = 16;
     private static final int ICON_TEXT_GAP = 2;
     private static final int RUN_GAP = 3;
-    // Text on an icon line sits centred against the 16px icon.
-    private static final int TEXT_NUDGE = 5;
     private static final int ICON_NUDGE = 1;
+    private static final int HALF = 2;
     private static final int RED = 0xFFFF5555;
     private static final String NOTHING = "";
     private static final String PLUS = "+";
@@ -333,11 +332,18 @@ final class ExpressionLines {
     }
 
     /**
+     * @param font the font
      * @param runs a value's runs
      * @return how far below a line's top its text draws, so a caller lines a text label up with the runs' text
      */
-    static int textOffset(List<Run> runs) {
-        return lineHeight(runs) == ICON_LINE_HEIGHT ? TEXT_NUDGE : 0;
+    static int textOffset(Font font, List<Run> runs) {
+        return lineHeight(runs) == ICON_LINE_HEIGHT ? iconLineTextOffset(font) : 0;
+    }
+
+    // Decision operators-center-on-the-sprite: text on an icon line, an operator among it, stands at the sprite's top
+    // plus half of the sprite's height less the font's line height, so its glyphs center on the sprite.
+    private static int iconLineTextOffset(Font font) {
+        return ICON_NUDGE + (ITEM_SPRITE_SIZE - font.lineHeight) / HALF;
     }
 
     /**
@@ -492,7 +498,7 @@ final class ExpressionLines {
         }
 
         private int textOffset() {
-            return lineHeight == ICON_LINE_HEIGHT ? TEXT_NUDGE : 0;
+            return lineHeight == ICON_LINE_HEIGHT ? iconLineTextOffset(font) : 0;
         }
 
         private void drawPiece(Run run, String piece, int x) {
@@ -532,6 +538,7 @@ final class ExpressionLines {
         if (icons != null) {
             painter.graphics().item(icons.of(String.valueOf(run.ref())), x, top + ICON_NUDGE);
         }
-        painter.graphics().text(font, piece, x + ITEM_SPRITE_SIZE + ICON_TEXT_GAP, top + TEXT_NUDGE, painter.textColor());
+        painter.graphics().text(font, piece, x + ITEM_SPRITE_SIZE + ICON_TEXT_GAP, top + iconLineTextOffset(font),
+                painter.textColor());
     }
 }

@@ -106,6 +106,20 @@ class ValuesPaneTest {
                 "no shadowed Items label draws under it");
     }
 
+    /**
+     * The Items equality line's = and its equivalency's + draw at the line's text top, which stands at the sprite's
+     * top plus half of 16 less the font's line height (decision operators-center-on-the-sprite).
+     */
+    @Test
+    void equalityOperatorsCenterOnTheSprite() {
+        for (int lineHeight : new int[] {8, 9}) {
+            ValuesPane.Equality line = ValuesPane.layEntry(new GroupsPane.Bounds(LEFT, TOP, RIGHT, 400), List.of(),
+                    new ValuesPane.RowText(ValuesTab.SourceKind.DERIVED, lineHeight, 0, EQUALS_WIDTH), SMALL_ICON)
+                    .equality();
+            assertEquals(line.spriteTop() + (16 - lineHeight) / 2, line.textTop(), "line height " + lineHeight);
+        }
+    }
+
     private static Font sixPixelFont() {
         Font font = mock(Font.class);
         when(font.width(anyString())).thenAnswer(call -> call.<String>getArgument(0).length() * 6);
