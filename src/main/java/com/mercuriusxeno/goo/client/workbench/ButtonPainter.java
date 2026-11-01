@@ -20,7 +20,8 @@ final class ButtonPainter {
     static final int BORDER = 0xFF5070A0;
     /** A button's inner fill. */
     static final int FILL = 0xFF182030;
-    private static final int TEXT_NUDGE = 3;
+    /** How far a button drawn at a text's top reaches above that top. */
+    static final int TEXT_NUDGE = 3;
     // A glyph's baseline stands seven pixels under the text's top, the underline one under that, as the font's own.
     private static final int UNDERLINE_DROP = 8;
 
