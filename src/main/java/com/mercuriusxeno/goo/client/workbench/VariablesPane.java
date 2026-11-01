@@ -340,7 +340,7 @@ final class VariablesPane {
             return;
         }
         List<ExpressionLines.Run> resolved = ExpressionLines.resolvedRuns(block.resolved());
-        ExpressionLines.draw(font, resolved, x, y - ExpressionLines.textOffset(resolved), width,
+        ExpressionLines.draw(font, resolved, x, y - ExpressionLines.textOffset(font, resolved), width,
                 new ExpressionLines.Painter(graphics, icons, targets, GREEN, LINK,
                         ExpressionLines.followedOnShiftClick(targets, actions::openVariable)));
     }

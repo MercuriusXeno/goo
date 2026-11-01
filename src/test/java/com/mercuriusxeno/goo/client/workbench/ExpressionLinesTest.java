@@ -67,6 +67,25 @@ class ExpressionLinesTest {
     }
 
     /**
+     * On an icon line, an operator's text top stands at the item sprite's top plus half of 16 less the font's line
+     * height, so its glyph centers on the sprite (decision operators-center-on-the-sprite).
+     */
+    @Test
+    void operatorCentersOnTheSpriteBesideIt() {
+        DrawnFrame frame = new DrawnFrame();
+        Font font = DrawnFrame.font();
+        ExpressionLines.draw(font, ExpressionLines.shownRuns("anvil - bucket", NAMES), 0, 40, 400,
+                new ExpressionLines.Painter(frame.graphics, mock(ItemIcons.class), frame.targets, 0xFFFFFFFF,
+                        ButtonPainter.LINK, (ref, x, y, width) -> { }));
+        org.mockito.ArgumentCaptor<Integer> spriteTops = org.mockito.ArgumentCaptor.forClass(Integer.class);
+        org.mockito.Mockito.verify(frame.graphics, org.mockito.Mockito.atLeastOnce()).item(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt(), spriteTops.capture());
+        int spriteTop = spriteTops.getValue();
+        assertEquals(spriteTop + (16 - font.lineHeight) / 2, frame.find("-").y());
+        assertEquals(spriteTop + (16 - font.lineHeight) / 2, frame.find("Bucket").y());
+    }
+
+    /**
      * One subtracted term stands alone, no parentheses around it.
      */
     @Test
