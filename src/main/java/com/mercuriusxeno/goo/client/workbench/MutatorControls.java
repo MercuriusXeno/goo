@@ -3,6 +3,7 @@ package com.mercuriusxeno.goo.client.workbench;
 import com.mercuriusxeno.goo.workbench.Processes;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalInt;
 import java.util.function.Consumer;
@@ -49,19 +50,15 @@ final class MutatorControls {
     private static final String APPLIES = "applies";
     private static final String PROCESS_HINT = "Click to pick another mutator";
     private static final String COUNT_HINT = "Click to change how many times it applies";
-    private static final String TAKES = "takes the values of";
-    private static final String GROUP_HINT = "Click to pick another source group";
-    private static final String OWN_VALUES = "its own values";
-    private static final String OWN_HINT = "Click to take the values from a group instead";
-    private static final String DROP_SOURCE = "use its own values";
-    private static final String DROP_SOURCE_HINT = "Apply the chain to the target's own values, no source group";
+    private static final String GROUP_HINT = "Click to pick the group whose values it takes, or itself";
+    private static final String ITSELF = "itself";
+    private static final String ITSELF_HINT = "Apply the chain to the target's own values, no source group";
     private static final String RATIO = ":";
     private static final String MULTIPLIER_HINT = "Click to change what the values are multiplied by";
     private static final String SCALE_DIVISOR_HINT = "Click to change what the values are divided by";
-    private static final String THEN = "then applies";
     private static final String REMOVE_LINK = "x";
     private static final String REMOVE_LINK_HINT = "Remove this mutator from the chain";
-    private static final String ADD_LINK = "+ mutator";
+    private static final String ADD_LINK = "+";
     private static final String ADD_LINK_HINT = "Apply another mutator after these";
     private static final String UNREAD = "No form reads this line:";
     private static final String START_OVER = "start over";
@@ -234,15 +231,7 @@ final class MutatorControls {
         ControlFlow flow = entry.flow();
         String section = entry.section();
         String key = entry.key();
-        flow.text(TAKES, GRAY);
-        Consumer<String> setSource = group -> processes.setAssignmentSource(section, key, group);
-        if (assignment.source().isEmpty()) {
-            flow.control(OWN_VALUES, OWN_HINT, at -> openNames(at, processes.groupNames(), setSource));
-        } else {
-            nameControl(flow, new Ref(GROUP_MARK + assignment.source(), () -> actions.openGroup(assignment.source())),
-                    GROUP_HINT, processes.groupNames(), setSource);
-            flow.control(DROP_SOURCE, DROP_SOURCE_HINT, at -> edit(() -> setSource.accept(NO_SOURCE)));
-        }
+        drawSource(entry, assignment.source());
         // Decision factor-reads-as-a-ratio: "times 1 over 1" reads "1:1", each number its own box.
         numberControl(flow, assignment.multiplier(), MULTIPLIER_HINT, multiplier -> processes.setAssignmentScale(
                 section, key, multiplier, assignment.divisor()));
@@ -252,12 +241,26 @@ final class MutatorControls {
         drawChain(entry, assignment.chain());
     }
 
-    /**
-     * @param chain the processes an assignment applies, in order
-     * @return the words leading the chain, none while it is empty, so the sentence ends where the value does
-     */
-    static List<String> chainLead(List<String> chain) {
-        return chain.isEmpty() ? List.of() : List.of(THEN);
+    // Decision iterator-line-is-source-ratio-then-chain: one dropdown reads the source group or itself, listing every
+    // group and itself; a shift + left click on a group opens it.
+    private void drawSource(Entry entry, String source) {
+        ControlFlow flow = entry.flow();
+        List<BuilderOverlays.Option> sources = new ArrayList<>();
+        for (String group : processes.groupNames()) {
+            sources.add(new BuilderOverlays.Option(GROUP_MARK + group, GROUP_HINT, at -> setSource(entry, group)));
+        }
+        sources.add(new BuilderOverlays.Option(ITSELF, ITSELF_HINT, at -> setSource(entry, NO_SOURCE)));
+        Consumer<BuilderOverlays.Anchor> open = at -> overlays.openOptions(at, sources);
+        if (source.isEmpty()) {
+            flow.control(ControlFlow.dropdownLabel(ITSELF), ITSELF_HINT, open);
+        } else {
+            flow.linkControl(ControlFlow.dropdownLabel(GROUP_MARK + source), GROUP_HINT, open,
+                    () -> actions.openGroup(source));
+        }
+    }
+
+    private void setSource(Entry entry, String group) {
+        edit(() -> processes.setAssignmentSource(entry.section(), entry.key(), group));
     }
 
     // The processes the assignment applies in order, each removable, then one more to add.
@@ -265,7 +268,6 @@ final class MutatorControls {
         ControlFlow flow = entry.flow();
         String section = entry.section();
         String key = entry.key();
-        chainLead(chain).forEach(words -> flow.text(words, GRAY));
         for (int index = 0; index < chain.size(); index++) {
             int link = index;
             String applied = chain.get(index).substring(STACK_MARK.length());

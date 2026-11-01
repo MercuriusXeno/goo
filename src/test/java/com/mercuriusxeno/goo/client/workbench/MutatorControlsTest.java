@@ -24,16 +24,6 @@ import static org.mockito.Mockito.when;
  */
 class MutatorControlsTest {
 
-    @Test
-    void emptyChainLeadsWithNoWords() {
-        assertEquals(List.of(), MutatorControls.chainLead(List.of()));
-    }
-
-    @Test
-    void chainHoldingAMutatorLeadsWithThenApplies() {
-        assertEquals(List.of("then applies"), MutatorControls.chainLead(List.of("@smelt")));
-    }
-
     /**
      * A process's kind line draws one dropdown reading its kind; picking another kind writes that kind.
      */
@@ -192,6 +182,78 @@ class MutatorControlsTest {
     }
 
     /**
+     * An iterator line reads "[#group v] [n] : [m] [@a] [x] [@b] [x] [+]", its source one dropdown over every group
+     * and itself (decision iterator-line-is-source-ratio-then-chain).
+     */
+    @Nested
+    class IteratorLine {
+        private static final String SECTION = "_post_conversions";
+        private static final String MODEL = """
+                {"path": "base_values.json", "members": [
+                  {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "ores", "keySeparator": null, "kind": "VALUE", "text": "[\\"iron_ore\\"]",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null},
+                  {"key": "_post_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "smelt", "keySeparator": null, "kind": "VALUE", "text": "\\"metal / 2 -> 0\\"",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null},
+                     {"key": "rust", "keySeparator": null, "kind": "VALUE", "text": "\\"@smelt\\"",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null},
+                     {"key": "#chained", "keySeparator": null, "kind": "VALUE",
+                      "text": "\\"#ores * 2 / 3 @smelt @rust\\"", "entries": [], "leading": null, "trailing": null,
+                      "closingGap": null},
+                     {"key": "#bare", "keySeparator": null, "kind": "VALUE", "text": "\\"#ores\\"",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}
+                ]}
+                """;
+        private final ProcessesTab processes;
+        private final BuilderOverlays overlays = new BuilderOverlays(mock(ManagerActions.class), null);
+        private final MutatorControls controls;
+
+        IteratorLine() {
+            ManagerDraft draft = new ManagerDraft();
+            draft.read(MODEL);
+            processes = new ProcessesTab(draft);
+            controls = new MutatorControls(processes, overlays, mock(ManagerActions.class), List::of,
+                    () -> List.of("metal"), () -> { });
+        }
+
+        private DrawnFrame frame(String key) {
+            DrawnFrame frame = new DrawnFrame();
+            controls.draw(frame.graphics, DrawnFrame.font(), SECTION, key, new GroupsPane.Bounds(0, 0, 590, 390), 0,
+                    frame.targets);
+            overlays.draw(frame.graphics, DrawnFrame.font(), frame.targets);
+            return frame;
+        }
+
+        @Test
+        void sourcedIteratorReadsSourceRatioThenChain() {
+            assertEquals(List.of(ControlFlow.dropdownLabel("#ores"), "2", ":", "3", "smelt", "x", "rust", "x", "+"),
+                    frame("#chained").texts());
+        }
+
+        @Test
+        void sourceDropdownListsEveryGroupAndItself() {
+            frame("#chained").click(ControlFlow.dropdownLabel("#ores"));
+            List<String> open = frame("#chained").texts();
+            assertTrue(open.containsAll(List.of("#ores", "itself")), open.toString());
+        }
+
+        /**
+         * Picking itself on an iterator at 1:1 with no mutators keeps it an assignment, so the line keeps its
+         * controls rather than reading 'No form reads this line'.
+         */
+        @Test
+        void pickingItselfAtOneToOneKeepsTheControls() {
+            frame("#bare").click(ControlFlow.dropdownLabel("#ores"));
+            frame("#bare").click("itself");
+            assertEquals(new Processes.Assignment("", 1, 1, List.of()), processes.formOf(SECTION, "#bare"));
+            assertEquals(List.of(ControlFlow.dropdownLabel("itself"), "1", ":", "1", "+"), frame("#bare").texts());
+        }
+    }
+
+    /**
      * Every group, prefab and mutator name a row draws follows its ref on shift + left click, opens its dropdown on a
      * plain left click and underlines while shift is held
      * (decision diagnose-and-correct-mutator-references-that-do-not-link).
@@ -224,7 +286,7 @@ class MutatorControlsTest {
 
         @Test
         void shiftClickingAnIteratorsGroupOpensTheGroup() {
-            iterator().shiftClick("#ores");
+            iterator().shiftClick(ControlFlow.dropdownLabel("#ores"));
             verify(actions).openGroup("ores");
         }
 
