@@ -72,6 +72,19 @@ class ProcessesTabTest {
     }
 
     /**
+     * A search keeps each block's entries whose name holds the text, any case, and a blank one keeps them all
+     * (decision mutators-tab-renames-and-searches-by-name).
+     */
+    @Test
+    void searchKeepsTheEntriesWhoseNameHoldsTheText() {
+        tab.search("RU");
+        assertEquals(List.of(List.of("rust"), List.of()), tab.sections().stream().map(section -> section.rows()
+                .stream().map(ProcessesTab.ProcessRow::key).toList()).toList());
+        tab.search(" ");
+        assertEquals(List.of(2, 1), tab.sections().stream().map(section -> section.rows().size()).toList());
+    }
+
+    /**
      * A delete drops the entry.
      */
     @Test

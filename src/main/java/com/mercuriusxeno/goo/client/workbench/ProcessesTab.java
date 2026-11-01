@@ -50,6 +50,7 @@ public final class ProcessesTab {
 
     private final ManagerDraft draft;
     private final List<ProcessSection> sections = new ArrayList<>();
+    private String searched = NO_TEXT;
 
     /**
      * @param draft the draft every tab of the manager edits
@@ -134,10 +135,22 @@ public final class ProcessesTab {
     }
 
     /**
-     * @return each block with its entries
+     * @return each block with the entries the search keeps, its summary counting them all
      */
     public List<ProcessSection> sections() {
-        return List.copyOf(sections);
+        return sections.stream().map(section -> new ProcessSection(section.section(), section.summary(),
+                section.rows().stream().filter(row -> row.key().toLowerCase(Locale.ROOT).contains(searched))
+                        .toList())).toList();
+    }
+
+    /**
+     * Decision mutators-tab-renames-and-searches-by-name.
+     *
+     * @param text what the search box holds; each block keeps the entries whose name holds it, any case, and a
+     *             blank one keeps every entry
+     */
+    public void search(String text) {
+        searched = text.trim().toLowerCase(Locale.ROOT);
     }
 
     /**
