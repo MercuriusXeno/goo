@@ -27,7 +27,10 @@ import java.util.Set;
 final class VariablesPane {
     private static final int LINE_HEIGHT = 10;
     private static final int BOX_HEIGHT = 14;
-    private static final int BLOCK_GAP = 5;
+    // Decision prefab-lines-tighten-their-padding: a pixel between blocks, the head itself the 18px row the other
+    // tabs keep (decision sprites-stay-16px-and-rows-tighten-to-18px); the head's pad keeps its buttons clear of the
+    // separator above.
+    private static final int BLOCK_GAP = 1;
     private static final int ICON_SIZE = 16;
     private static final int ICON_GAP = 2;
     private static final int NAME_WIDTH = 140;
@@ -48,6 +51,9 @@ final class VariablesPane {
     // separator above a later block, drawn 3px above its top, by more.
     // decision prefabs-buttons-take-padding-above
     private static final int HEAD_PAD = 4;
+    /** A number prefab used nowhere, from its top to the next one's: its head, its read view's line and the gaps. */
+    static final int UNUSED_PREFAB_PITCH = HEAD_PAD + ExpressionLines.ICON_LINE_HEIGHT + ExpressionLines.TEXT_LINE_HEIGHT
+            + 2 + BLOCK_GAP;
     private static final int WHITE = 0xFFFFFFFF;
     private static final int GRAY = 0xFFA0A0A0;
     private static final int RED = 0xFFFF5555;
@@ -321,9 +327,10 @@ final class VariablesPane {
             graphics.text(font, block.name(), x, y, WHITE);
         }
         int kindX = x + Math.max(NAME_WIDTH, font.width(block.name())) + KIND_GAP;
-        graphics.text(font, block.kind(), kindX, y, VariablesTab.TREE_KIND.equals(block.kind()) ? TREE_COLOR : GRAY);
+        graphics.text(font, block.shownKind(), kindX, y, VariablesTab.TREE_KIND.equals(block.kind()) ? TREE_COLOR
+                : GRAY);
         int actionsWidth = ButtonPainter.width(font, RENAME) + ACTION_GAP + ButtonPainter.width(font, DELETE);
-        int resolvedX = kindX + font.width(block.kind()) + KIND_GAP;
+        int resolvedX = kindX + font.width(block.shownKind()) + KIND_GAP;
         int resolvedWidth = bounds.right() - actionsWidth - ACTION_GAP - resolvedX;
         drawResolved(graphics, font, block, resolvedX, y, resolvedWidth, targets);
         ButtonPainter.Box renameBox = ButtonPainter.drawAtText(graphics, font, RENAME, bounds.right() - actionsWidth,

@@ -95,6 +95,44 @@ class VariablesPaneTest {
     }
 
     /**
+     * Consecutive prefabs stand one tighter pitch apart; it was 39 pixels for a number prefab used nowhere
+     * (decision prefab-lines-tighten-their-padding).
+     */
+    @Test
+    void prefabRowsTakeTheTighterPitch() {
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, font, new GroupsPane.Bounds(0, 20, 400, 4000), frame.targets, 0, 0);
+        List<Integer> tops = frame.topsOf(List.of("prefab0", "prefab1"));
+        int pitch = tops.get(1) - tops.get(0);
+        assertEquals(VariablesPane.UNUSED_PREFAB_PITCH, pitch);
+        assertTrue(pitch < 39, "the pitch was 39 before");
+    }
+
+    /**
+     * A prefab with type values names its kind typed, and tree draws nowhere on the tab (decision
+     * type-valued-prefabs-read-typed).
+     */
+    @Test
+    void typeValuedPrefabReadsTyped() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                    {"key": "wood", "keySeparator": null, "kind": "VALUE", "text": "{\\"leaf\\": 4}", "entries": [],
+                     "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        VariablesPane typed = new VariablesPane(new VariablesTab(draft), draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        typed.extract(frame.graphics, font, VIEW, frame.targets, 0, 0);
+        assertTrue(frame.texts().contains("typed"), frame.texts().toString());
+        assertFalse(frame.texts().contains("tree"), frame.texts().toString());
+    }
+
+    /**
      * The box shows only while the Prefabs tab is the one shown.
      */
     @Test
