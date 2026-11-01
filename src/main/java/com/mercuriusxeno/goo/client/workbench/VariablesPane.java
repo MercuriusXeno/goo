@@ -47,13 +47,13 @@ final class VariablesPane {
     private static final int READER_GAP = 6;
     private static final int TEXT_NUDGE = 4;
     private static final int HALF = 2;
-    // The Rename and Delete boxes stand 3px above the head's text, so 4px clears the list's top by a row and the
-    // separator above a later block, drawn 3px above its top, by more.
+    // A block opens on its separator's row, then a gap, then whatever of its head reaches highest above the head's
+    // text, so the rule stands in its own row clear of both blocks.
     // decision prefabs-buttons-take-padding-above
-    private static final int HEAD_PAD = 4;
+    private static final int SEPARATOR_ROW = 1;
     /** A number prefab used nowhere, from its top to the next one's: its head, its read view's line and the gaps. */
-    static final int UNUSED_PREFAB_PITCH = HEAD_PAD + ExpressionLines.ICON_LINE_HEIGHT + ExpressionLines.TEXT_LINE_HEIGHT
-            + 2 + BLOCK_GAP;
+    static final int UNUSED_PREFAB_PITCH = SEPARATOR_ROW + BLOCK_GAP + ButtonPainter.TEXT_NUDGE
+            + ExpressionLines.ICON_LINE_HEIGHT + ExpressionLines.TEXT_LINE_HEIGHT + 2 + BLOCK_GAP;
     private static final int WHITE = 0xFFFFFFFF;
     private static final int GRAY = 0xFFA0A0A0;
     private static final int RED = 0xFFFF5555;
@@ -219,11 +219,18 @@ final class VariablesPane {
         return key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER;
     }
 
+    // How far the head draws above its text's top: its buttons' border, or its resolved line's sprites where they
+    // stand higher.
+    private static int headAscent(Font font, VariablesTab.ConstantBlock block) {
+        return Math.max(ButtonPainter.TEXT_NUDGE,
+                ExpressionLines.textOffset(font, ExpressionLines.resolvedRuns(block.resolved())));
+    }
+
     // A block's head, its read view or builder, and its used-by lines; answers the height it took with its gap.
     private int drawBlock(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
                           GroupsPane.Bounds bounds, int top, ClickTargets targets) {
         blockTops.put(block.name(), top + bar.offset() - bounds.top());
-        int headY = top + HEAD_PAD;
+        int headY = top + SEPARATOR_ROW + BLOCK_GAP + headAscent(font, block);
         drawHead(graphics, font, block, bounds, headY, targets);
         int y = headY + ExpressionLines.ICON_LINE_HEIGHT;
         boolean editingThis = variables.editing().filter(block.name()::equals).isPresent();
@@ -281,7 +288,7 @@ final class VariablesPane {
         targets.clip(bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
         int y = bounds.top() - bar.offset();
         for (int index = 0; index < blocks.size(); index++) {
-            RowLayout.drawSeparatorAbove(graphics, index, y - HALF, bounds.left(), bounds.right());
+            RowLayout.drawSeparatorAbove(graphics, index, y + SEPARATOR_ROW, bounds.left(), bounds.right());
             y += drawBlock(graphics, font, blocks.get(index), bounds, y, targets);
         }
         targets.unclip();

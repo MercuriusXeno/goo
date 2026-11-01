@@ -205,6 +205,47 @@ class VariablesPaneTest {
         assertTrue(borders.get(3) >= separator + 2, "Delete top " + borders.get(3) + " vs " + separator);
     }
 
+    /**
+     * Every fill, text and sprite a prefab draws stands wholly on one side of each separator rule, a text taking the
+     * game font's nine-pixel line and a sprite sixteen, so no rule crosses a prefab's contents (decision
+     * prefab-lines-tighten-their-padding).
+     */
+    @Test
+    void noDrawnElementCrossesASeparator() {
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, font, TALL_VIEW, frame.targets, 0, 0);
+        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> colors = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), tops.capture(), anyInt(), bottoms.capture(),
+                colors.capture());
+        List<Integer> separators = new java.util.ArrayList<>();
+        List<int[]> spans = new java.util.ArrayList<>();
+        int listRight = TALL_VIEW.right() - ScrollBar.WIDTH - ScrollBar.GAP;
+        for (int index = 0; index < tops.getAllValues().size(); index++) {
+            if (colors.getAllValues().get(index) == RowLayout.SEPARATOR_COLOR) {
+                separators.add(tops.getAllValues().get(index));
+            } else if (lefts.getAllValues().get(index) < listRight) {
+                spans.add(new int[] {tops.getAllValues().get(index), bottoms.getAllValues().get(index)});
+            }
+        }
+        frame.drawn().forEach(text -> spans.add(new int[] {text.y(), text.y() + GAME_LINE_HEIGHT}));
+        ArgumentCaptor<Integer> itemTops = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, org.mockito.Mockito.atLeast(0)).item(any(), anyInt(), itemTops.capture());
+        itemTops.getAllValues().forEach(top -> spans.add(new int[] {top, top + SPRITE}));
+        assertFalse(separators.isEmpty());
+        for (int separator : separators) {
+            for (int[] span : spans) {
+                assertFalse(span[0] <= separator && separator < span[1],
+                        "separator at " + separator + " crosses " + span[0] + ".." + span[1]);
+            }
+        }
+    }
+
+    private static final int GAME_LINE_HEIGHT = 9;
+    private static final int SPRITE = 16;
+
     private static final GroupsPane.Bounds TALL_VIEW = new GroupsPane.Bounds(0, 20, 400, 6000);
     private static final GroupsPane.Bounds FITS_THE_EDITED_BLOCK = new GroupsPane.Bounds(0, 20, 400, 320);
 
