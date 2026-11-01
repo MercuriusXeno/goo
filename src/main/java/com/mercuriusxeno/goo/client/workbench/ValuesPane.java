@@ -265,8 +265,15 @@ final class ValuesPane {
         int bottom = chip.top() + chip.height();
         graphics.fill(chip.left(), chip.top(), right, bottom, chip.filled() ? color : CHIP_OFF);
         graphics.fill(chip.left() + 1, chip.top() + 1, right - 1, bottom - 1, chip.filled() ? color : CHIP_HOLLOW);
-        graphics.text(font, chip.label(), chip.left() + ButtonPainter.PADDING, chip.top() + CHIP_TEXT_NUDGE,
-                chip.filled() ? CHIP_FILLED_TEXT : color);
+        int labelX = chip.left() + ButtonPainter.PADDING;
+        int labelY = chip.top() + CHIP_TEXT_NUDGE;
+        if (chip.filled()) {
+            // Decision selected-filter-chip-text-contrasts-its-shadow: the dark label draws with no shadow, which
+            // would be dark too.
+            graphics.text(font, chip.label(), labelX, labelY, CHIP_FILLED_TEXT, false);
+        } else {
+            graphics.text(font, chip.label(), labelX, labelY, color);
+        }
         targets.add(chip.left(), chip.top(), chip.width(), chip.height(), () -> {
             values.filter(chip.filter());
             listBar.reset();
