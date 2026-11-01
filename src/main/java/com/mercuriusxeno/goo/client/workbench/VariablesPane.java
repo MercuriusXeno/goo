@@ -327,7 +327,7 @@ final class VariablesPane {
     private void drawHead(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
                              GroupsPane.Bounds bounds, int y, ClickTargets targets) {
         int x = bounds.left();
-        boolean renamingThis = block.name().equals(renaming) && rename != null;
+        boolean renamingThis = rename != null && block.name().equals(renaming);
         int pencilWidth = ButtonPainter.width(font, RENAME);
         if (renamingThis) {
             rename.setPosition(x, y - HALF);

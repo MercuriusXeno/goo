@@ -91,6 +91,40 @@ class ProcessesPaneTest {
         assertTrue(frame().texts().contains("#exposed"));
     }
 
+    /**
+     * Conversions and post-conversions draw as sub-tabs, post-conversions shown first; a press on Conversions shows
+     * its entries alone, and revealing an entry shows the sub-tab holding it (the operator's ruling).
+     */
+    @Test
+    void subTabsShowOneSectionPostConversionsFirst() {
+        String conversions = """
+                {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                   {"key": "melted", "keySeparator": null, "kind": "VALUE", "text": "\\"+$oak\\"",
+                    "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                 "leading": null, "trailing": null, "closingGap": null},
+                """;
+        ManagerDraft draft = new ManagerDraft();
+        draft.read(MODEL.replace("{\"key\": \"_post_conversions\"", conversions + "{\"key\": \"_post_conversions\""));
+        ProcessesTab processes = new ProcessesTab(draft);
+        processes.readDescribed(DESCRIBED.replace("{\"sections\": [", """
+                {"sections": [{"section": "_conversions", "processes": [
+                   {"key": "melted", "kind": "ADDITIVE", "text": "\\"+$oak\\"", "parsed": true}]},"""));
+        ManagerActions actions = mock(ManagerActions.class);
+        pane = new ProcessesPane(processes, draft, actions, null, () -> List.of("oak"));
+        DrawnFrame post = frame();
+        // A filled chip's label draws with no shadow, through the overload the frame does not record, so each tab's
+        // label is read while it stands hollow.
+        assertTrue(post.texts().containsAll(List.of("Conversions", "waxed")), post.texts().toString());
+        assertFalse(post.texts().contains("melted") || post.texts().contains("Post-conversions"),
+                post.texts().toString());
+        post.click("Conversions");
+        DrawnFrame pre = frame();
+        assertTrue(pre.texts().containsAll(List.of("Post-conversions", "melted")), pre.texts().toString());
+        assertFalse(pre.texts().contains("waxed"), pre.texts().toString());
+        pane.reveal("waxed");
+        assertTrue(frame().texts().contains("waxed"));
+    }
+
     private DrawnFrame frame() {
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 590, 390), frame.targets);

@@ -259,8 +259,16 @@ final class ValuesPane {
         return layout.searchTop();
     }
 
-    // The filled box reads its label dark on its color; a hollow one reads its label in the color, dimmed.
-    private void drawChip(GuiGraphicsExtractor graphics, Font font, Chip chip, int color, ClickTargets targets) {
+    /**
+     * Draws a chip's box and label: the filled box reads its label dark on its color, a hollow one reads its label
+     * in the color, dimmed.
+     *
+     * @param graphics the frame's graphics
+     * @param font     the font
+     * @param chip     the chip; its filter is not read
+     * @param color    its color
+     */
+    static void drawChipFace(GuiGraphicsExtractor graphics, Font font, Chip chip, int color) {
         int right = chip.left() + chip.width();
         int bottom = chip.top() + chip.height();
         graphics.fill(chip.left(), chip.top(), right, bottom, chip.filled() ? color : CHIP_OFF);
@@ -274,6 +282,11 @@ final class ValuesPane {
         } else {
             graphics.text(font, chip.label(), labelX, labelY, color);
         }
+    }
+
+    // A chip's face, and the click that sets the filter it names.
+    private void drawChip(GuiGraphicsExtractor graphics, Font font, Chip chip, int color, ClickTargets targets) {
+        drawChipFace(graphics, font, chip, color);
         targets.add(chip.left(), chip.top(), chip.width(), chip.height(), () -> {
             values.filter(chip.filter());
             listBar.reset();
