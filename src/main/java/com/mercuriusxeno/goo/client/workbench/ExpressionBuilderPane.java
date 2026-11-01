@@ -31,27 +31,26 @@ final class ExpressionBuilderPane {
     /** The done control's check mark and word. */
     static final int GREEN = 0xFF80E080;
     private static final int PANEL_COLOR = 0x30FFFFFF;
-    private static final String KIND = "Kind:";
+    // Decision every-value-builder-reads-value-kind-on-one-line-defaulting-by-type.
+    private static final String VALUE = "Value";
     private static final String NUMBER_KIND = "a number";
     private static final String NUMBER_KIND_HINT = "One number: a count, or a sum of numbers and the number prefabs"
             + " above this one";
-    private static final String PER_TYPE = "per goo type";
+    private static final String PER_TYPE = "by type";
     private static final String PER_TYPE_HINT = "A separate amount for each goo type";
-    private static final String ITEMS_GOO_KIND = "from other items";
+    // Decision items-kind-hint-says-worth-based-on-other-items-prefabs: the goo kind reads relative on every tab.
+    private static final String GOO_KIND = "relative";
     // decision items-kind-hint-says-worth-based-on-other-items-prefabs
     private static final String ITEMS_GOO_KIND_HINT = "worth based on other items/prefabs";
-    private static final String PREFABS_GOO_KIND = "from other prefabs";
     private static final String PREFABS_GOO_KIND_HINT = "Worth what the per-type prefabs above this one are worth,"
             + " scaled and summed";
-    private static final String AMOUNT_FROM = "amount from";
     // decision amount-modes-name-what-the-amount-comes-from
-    private static final String NUMBER_MODE = "a number";
+    private static final String NUMBER_MODE = "number";
     private static final String NUMBER_MODE_HINT = "The amount is a number you set";
-    private static final String PREFAB_MODE = "a number prefab";
+    private static final String PREFAB_MODE = "prefab";
     private static final String PREFAB_MODE_HINT = "The amount is a number prefab's value";
-    private static final String ITEM_MODE = "a goo type of an item or prefab";
+    private static final String RELATIVE_MODE = "relative";
     private static final String ITEM_MODE_HINT = "The amount is one goo type of an item's or per-type prefab's value";
-    private static final String PREFAB_TYPE_MODE = "a goo type of a prefab";
     private static final String PREFAB_TYPE_MODE_HINT = "The amount is one goo type of a per-type prefab's value";
     private static final String ITS = "its";
     private static final String NUMBER_HINT = "Click to change the number";
@@ -74,7 +73,7 @@ final class ExpressionBuilderPane {
     private static final String REMOVE_TERM_HINT = "Remove this term";
     private static final String REMOVE_SUM_HINT = "Remove this sum and every term in it";
     private static final String REMOVE_ROW_HINT = "Remove this goo type's amount";
-    private static final String ADD_TYPE = "+ goo type";
+    private static final String ADD_TYPE = "+";
     private static final String ADD_TYPE_HINT = "Add an amount for another goo type";
     private static final String ADD_NUMBER = "+ number";
     private static final String ADD_NUMBER_HINT = "Add a number";
@@ -84,9 +83,7 @@ final class ExpressionBuilderPane {
     private static final String ADD_PREFAB_HINT = "Add a prefab's value";
     private static final String ADD_SUM = "+ sum of terms";
     private static final String ADD_SUM_HINT = "Add several terms as one, to subtract or scale them together";
-    private static final String PICK_TYPE = "Pick the first goo type:";
     private static final String UNREAD = "This value cannot be read; pick a kind to start over.";
-    private static final String EMPTY = "No value yet: pick a kind to give it one.";
     private static final String DENIED = "Denied: this holds no goo. Pick a kind to give it a value.";
     // decision done-draws-green-with-a-check-mark
     private static final String DONE = "✓ done";
@@ -158,6 +155,11 @@ final class ExpressionBuilderPane {
         ExpressionBuilder opened = ExpressionBuilder.of(shown);
         if (!opened.isPerType() && !opened.terms().isEmpty()) {
             opened.nameWholeSort(read.sortOf(opened));
+        }
+        // Decision every-value-builder-reads-value-kind-on-one-line-defaulting-by-type: an empty value opens by
+        // type, so no kind reads unchosen.
+        if (shown.isBlank()) {
+            opened.switchToPerType();
         }
         builder = opened;
         // The builder's own text, not the shown string, so its normalized rewrite reads as no change.
@@ -268,14 +270,13 @@ final class ExpressionBuilderPane {
         if (edited.isDenied()) {
             flow.note(DENIED, GRAY);
         } else {
-            boolean empty = edited.text().isBlank();
-            flow.note(empty ? EMPTY : UNREAD, empty ? GRAY : RED);
+            flow.note(UNREAD, RED);
         }
     }
 
     // A number is a prefab's kind alone, and a goo value is offered only where the value has something to read.
     private void drawKind(ControlFlow flow, ExpressionBuilder edited) {
-        flow.text(KIND, GRAY);
+        flow.text(VALUE, GRAY);
         boolean perType = edited.isPerType();
         String sort = perType || edited.terms().isEmpty() ? BLANK : grammar.sortOf(edited);
         ControlFlow.ChoiceSet kinds = new ControlFlow.ChoiceSet();
@@ -287,7 +288,7 @@ final class ExpressionBuilderPane {
                 perType);
         if (grammar.offersGooKind()) {
             boolean items = grammar.readsItems();
-            kinds.add(new BuilderOverlays.Option(items ? ITEMS_GOO_KIND : PREFABS_GOO_KIND, gooKindHint(items),
+            kinds.add(new BuilderOverlays.Option(GOO_KIND, gooKindHint(items),
                     at -> switchToGoo(at, edited)), BuilderGrammar.GOO_SORT.equals(sort));
         }
         flow.choices(kinds, overlays);
@@ -329,9 +330,8 @@ final class ExpressionBuilderPane {
             flow.newLine();
             drawRow(flow, index, rows.get(index), rows.size() > 1, held);
         }
-        flow.newLine();
-        if (rows.isEmpty()) {
-            flow.text(PICK_TYPE, GRAY);
+        if (!rows.isEmpty()) {
+            flow.newLine();
         }
         if (held.size() < GooTypes.order().size()) {
             flow.control(ADD_TYPE, ADD_TYPE_HINT, at -> overlays.openPicker(at, type -> apply(b -> b.addType(type)),
@@ -358,7 +358,6 @@ final class ExpressionBuilderPane {
     // The amount's source, number, prefab or a goo type of another value, each offered only where the value has
     // one to read, then the operand and its factor.
     private void drawAmount(ControlFlow flow, int row, String type, ExpressionBuilder.Piece piece) {
-        flow.text(AMOUNT_FROM, GRAY);
         flow.choices(amountModes(row, type, piece.operand()), overlays);
         if (drawAmountOperand(flow, row, type, piece.operand())) {
             drawFactor(flow, piece, (op, factor) -> apply(b -> b.setRowScale(row, op, factor)));
@@ -396,8 +395,8 @@ final class ExpressionBuilderPane {
 
     private BuilderOverlays.Option memberMode(int row, String type) {
         boolean items = grammar.readsItems();
-        return new BuilderOverlays.Option(items ? ITEM_MODE : PREFAB_TYPE_MODE,
-                items ? ITEM_MODE_HINT : PREFAB_TYPE_MODE_HINT, at -> pickRowMember(at, row, type));
+        return new BuilderOverlays.Option(RELATIVE_MODE, items ? ITEM_MODE_HINT : PREFAB_TYPE_MODE_HINT,
+                at -> pickRowMember(at, row, type));
     }
 
     // The amount's number, prefab, or item or prefab with the goo type taken from it; answers whether it drew one.

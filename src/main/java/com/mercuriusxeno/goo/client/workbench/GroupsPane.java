@@ -59,8 +59,9 @@ final class GroupsPane {
     private static final String NOT_CONTROLLED ="Tag membership isn't controlled here";
     private static final String NO_GROUP = "Pick a group, or name a new one.";
     private static final String NO_GROUPS = "The file names no groups.";
-    private static final String WORTH_LABEL = "What every member is worth:";
-    private static final String NO_WORTH = "nothing yet";
+    // Decision every-value-builder-reads-value-kind-on-one-line-defaulting-by-type.
+    private static final String WORTH_LABEL = "Value";
+    private static final String NO_WORTH = "empty";
     private static final String LINE_LABEL = "This member's line: count times the group's value, plus its extra";
     private static final String COUNT_START = "count ";
     private static final String EXTRA_LABEL = "extra:";
@@ -411,10 +412,15 @@ final class GroupsPane {
     // The group's value, curated, opening the builder on click; answers the y below it.
     private int drawWorth(GuiGraphicsExtractor graphics, Font font, Bounds detail, GroupsTab.Group group, int top,
                           ClickTargets targets) {
-        graphics.text(font, WORTH_LABEL, detail.left(), top, GRAY);
+        String target = BASE_TARGET + group.name();
+        // The open builder's own line reads Value and its kind, so the label stands once.
+        int valueTop = target.equals(building) && builder.isOpen() ? top : top + LINE_HEIGHT;
+        if (valueTop > top) {
+            graphics.text(font, WORTH_LABEL, detail.left(), top, GRAY);
+        }
         String base = group.base() == null ? NO_TEXT : group.base();
-        return top + LINE_HEIGHT + drawBuilt(graphics, font, detail, top + LINE_HEIGHT, BASE_TARGET + group.name(),
-                base, NO_WORTH, typed -> apply(groups.baseRequest(typed)), targets);
+        return valueTop + drawBuilt(graphics, font, detail, valueTop, target, base, NO_WORTH,
+                typed -> apply(groups.baseRequest(typed)), targets);
     }
 
     /**
