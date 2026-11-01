@@ -13,6 +13,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -170,6 +172,30 @@ class ExpressionBuilderPaneTest {
             assertTrue(row.contains(dropdown("number")), row.toString());
             assertTrue(row.stream().noneMatch(RETIRED::contains), row.toString());
         }
+    }
+
+    /**
+     * A goo type icon draws inside a button border, and a click inside that border opens the goo type picker
+     * (decision goo-types-in-builders-draw-as-buttons).
+     */
+    @Test
+    void gooTypeDrawsAsAButtonThatOpensThePicker() {
+        Builder builder = Builder.item("{\"metal\": \"5\"}");
+        DrawnFrame frame = builder.frame();
+        int lineTop = frame.find(dropdown("number")).y() - 5;
+        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), tops.capture(), anyInt(), anyInt(),
+                eq(ButtonPainter.BORDER));
+        int border = -1;
+        for (int index = 0; index < lefts.getAllValues().size(); index++) {
+            if (lefts.getAllValues().get(index) == AREA.left() && tops.getAllValues().get(index) == lineTop) {
+                border = index;
+            }
+        }
+        assertTrue(border >= 0, "no border at the type's place " + lefts.getAllValues() + " " + tops.getAllValues());
+        assertTrue(frame.targets.click(AREA.left() + 1, lineTop + 1));
+        assertTrue(builder.pane.listOpen(), "the goo type picker opens");
     }
 
     /**
