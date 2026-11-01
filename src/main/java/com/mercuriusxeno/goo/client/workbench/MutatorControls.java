@@ -34,7 +34,7 @@ final class MutatorControls {
     private static final String CONVERT = "convert";
     private static final String CONVERT_HINT = "Turn part of one goo type into another, or into nothing";
     private static final String ADDITIVE = "additive";
-    private static final String ADDITIVE_HINT = "Add a tree prefab's value";
+    private static final String ADDITIVE_HINT = "Add a typed prefab's value";
     private static final String STACK = "stack";
     private static final String STACK_HINT = "Apply another mutator a number of times";
     private static final String SOURCE_SHARE = "1";
@@ -46,7 +46,7 @@ final class MutatorControls {
     private static final String TARGET_MULTIPLIER_HINT = "Click to change what the result is multiplied by";
     private static final String TARGET_DIVISOR_HINT = "Click to change what the result is divided by";
     private static final String PLUS = "+";
-    private static final String PREFAB_HINT = "Click to pick another tree prefab";
+    private static final String PREFAB_HINT = "Click to pick another typed prefab";
     private static final String APPLIES = "applies";
     private static final String PROCESS_HINT = "Click to pick another mutator";
     private static final String COUNT_HINT = "Click to change how many times it applies";

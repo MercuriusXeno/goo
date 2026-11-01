@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 public final class VariablesTab {
     /** The kind of a constant resolving to a value per type. */
     public static final String TREE_KIND = "tree";
+    private static final String TYPED_KIND = "typed";
     private static final String CONSTANTS_SECTION = "_constants";
     private static final String CONSTANTS = "constants";
     private static final String ENTRIES = "entries";
@@ -89,6 +90,13 @@ public final class VariablesTab {
      */
     public record ConstantBlock(String name, String expression, String kind, String resolved, String error,
                                 List<Reader> readers, List<String> direct, List<String> indirect) {
+        /**
+         * @return the kind as the manager names it: "typed" for a prefab with type values, its kind otherwise; the
+         *     payload's "tree" stays as the server sends it (decision type-valued-prefabs-read-typed)
+         */
+        public String shownKind() {
+            return TREE_KIND.equals(kind) ? TYPED_KIND : kind;
+        }
     }
 
     /**
