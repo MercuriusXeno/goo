@@ -34,8 +34,8 @@ final class ProcessesPane {
     private static final String ELLIPSIS = "…";
     // The operator's ruling: rename is a pencil just past the name, delete a red x at the row's right end.
     private static final String RENAME = "✎";
-    private static final String RENAME_HINT = "Rename this entry";
-    private static final String DELETE_HINT = "Delete this entry";
+    private static final String RENAME_HINT = "Rename";
+    private static final String DELETE_HINT = "Delete";
     private static final int PENCIL_GAP = 3;
     // A button stands a pixel under the rule above its row and its label five under that.
     private static final int BUTTON_INSET = 1;
@@ -68,8 +68,6 @@ final class ProcessesPane {
     private static final String ITERATORS = "Iterators";
     // The operator's ruling: a [+] beside its heading plainly adds one of that heading's kind.
     private static final String NEW_ENTRY = "+";
-    private static final String NEW_MUTATOR_HINT = "Name a new formula, additive or stack";
-    private static final String NEW_ITERATOR_HINT = "Name the group a new iterator assigns values to";
     private static final String NAME_HINT = "name, Enter";
     private static final String NO_TEXT = "";
     // Mutators first, then iterators.
@@ -337,7 +335,7 @@ final class ProcessesPane {
             return;
         }
         BuilderOverlays.control(frame.graphics(), frame.font(), NEW_ENTRY,
-                iterators ? NEW_ITERATOR_HINT : NEW_MUTATOR_HINT, x, top, frame.targets(),
+                null, x, top, frame.targets(),
                 at -> startNaming(new Naming(section, iterators, null)));
     }
 

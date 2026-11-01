@@ -59,12 +59,11 @@ final class GroupsPane {
     private static final String SEARCH_HINT = "Search groups";
     // Decision group-detail-puts-plus-and-rename-beside-the-name.
     private static final String ADD_MEMBER = "+";
-    private static final String ADD_MEMBER_HINT = "Add an item or #tag to this group";
     // The operator's ruling: rename is a pencil just past the name.
     private static final String RENAME = "✎";
-    private static final String RENAME_HINT = "Rename this group";
+    private static final String RENAME_HINT = "Rename";
     private static final String DELETE = "✗";
-    private static final String DELETE_HINT = "Delete this group";
+    private static final String DELETE_HINT = "Delete";
     private static final String NOTE_GAP = "  ";
     private static final String ADD_TAG = "+ Tag";
     private static final String NOT_CONTROLLED ="Tag membership isn't controlled here";
@@ -483,7 +482,7 @@ final class GroupsPane {
         if (group.tag()) {
             return top;
         }
-        BuilderOverlays.control(graphics, font, ADD_MEMBER, ADD_MEMBER_HINT, detail.left(), top, targets,
+        BuilderOverlays.control(graphics, font, ADD_MEMBER, null, detail.left(), top, targets,
                 at -> overlays.openDropdown(at, SearchDropdown.overMembers(values.entries()),
                         choice -> apply(groups.addPickRequest(choice.id()))));
         return top + ROW_HEIGHT;
