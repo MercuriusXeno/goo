@@ -125,6 +125,24 @@ class ProcessesPaneTest {
         assertTrue(frame().texts().contains("waxed"));
     }
 
+    /**
+     * A row's pencil opens the name box in the name's place (decision rename-is-a-pencil-and-delete-a-red-x-everywhere).
+     */
+    @Test
+    void pencilOpensTheNameBoxOverTheName() {
+        pane.init(DrawnFrame.font());
+        pane.show(true);
+        DrawnFrame frame = frame();
+        DrawnFrame.Text waxed = first(frame, "waxed");
+        DrawnFrame.Text pencil = frame.drawn().stream().filter(text -> text.text().equals("✎") && text.y() == waxed.y())
+                .findFirst().orElseThrow();
+        assertTrue(frame.targets.click(pencil.x() + 1, pencil.y() + 1));
+        frame();
+        EditBox box = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                .filter(each -> each.visible && "waxed".equals(each.getValue())).findFirst().orElseThrow();
+        assertEquals(waxed.x(), box.getX());
+    }
+
     private DrawnFrame frame() {
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 590, 390), frame.targets);

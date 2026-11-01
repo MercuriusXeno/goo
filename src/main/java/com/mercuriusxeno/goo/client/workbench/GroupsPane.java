@@ -63,6 +63,8 @@ final class GroupsPane {
     // The operator's ruling: rename is a pencil just past the name.
     private static final String RENAME = "✎";
     private static final String RENAME_HINT = "Rename this group";
+    private static final String DELETE = "✗";
+    private static final String DELETE_HINT = "Delete this group";
     private static final String NOTE_GAP = "  ";
     private static final String ADD_TAG = "+ Tag";
     private static final String NOT_CONTROLLED ="Tag membership isn't controlled here";
@@ -447,13 +449,18 @@ final class GroupsPane {
                 detail.bottom());
     }
 
-    // The group's #name cut to leave room for the pencil just past it, a custom group's alone taking one; the rename
-    // box stands in the name's place while open (decision group-detail-puts-plus-and-rename-beside-the-name).
+    // The group's #name cut to leave room for the pencil just past it, a custom group's alone taking one, and the red
+    // x at the head's right end; the rename box stands in the name's place while open (decisions
+    // group-detail-puts-plus-and-rename-beside-the-name, rename-is-a-pencil-and-delete-a-red-x-everywhere).
     private void drawDetailHead(GuiGraphicsExtractor graphics, Font font, Bounds detail, GroupsTab.Group group,
                                 int y, ClickTargets targets) {
         String name = GroupsTab.rowRuns(new GroupsTab.GroupRow(group.name(), List.of(), 0), icons::nameOf).getFirst()
                 .text();
-        int buttons = group.tag() ? 0 : ButtonPainter.width(font, RENAME) + BuilderOverlays.GAP;
+        int deleteWidth = ButtonPainter.width(font, DELETE);
+        ButtonPainter.drawColored(graphics, font, DELETE, RED, detail.right() - deleteWidth, y, ROW_HEIGHT, targets,
+                () -> deleteGroup(group.name()), BuilderOverlays.hintKey(DELETE_HINT));
+        int buttons = (group.tag() ? 0 : ButtonPainter.width(font, RENAME) + BuilderOverlays.GAP) + deleteWidth
+                + BuilderOverlays.GAP;
         int nameWidth = detail.right() - detail.left() - buttons;
         int x = detail.left();
         if (renaming && nameBox != null) {
@@ -612,6 +619,15 @@ final class GroupsPane {
     }
 
     // Decision group-detail-puts-plus-and-rename-beside-the-name: the draft takes the new name and every tab reads it.
+    private void deleteGroup(String name) {
+        closeBuilder();
+        stopNaming();
+        if (groups.deleteGroup(name)) {
+            detailBar.reset();
+            actions.draftChanged();
+        }
+    }
+
     private void renameGroup(String typed) {
         stopNaming();
         if (groups.renameSelected(typed)) {
