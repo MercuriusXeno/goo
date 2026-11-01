@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * The Groups tab's state with no Screen: each group the groups describe operation answers, the selected group and
@@ -44,6 +46,13 @@ public final class GroupsTab {
     private static final String CREATE_TAG = "createTag";
     private static final String DEFAULT_NAMESPACE = "minecraft:";
     private static final String TAG_MARK = "#";
+    private static final String KEY = "key";
+    private static final String TEXT = "text";
+    private static final String ENTRIES = "entries";
+    private static final String GROUPS_SECTION = "_groups";
+    // A #name reference stands whole: no name character or namespace mark runs on either side of it.
+    private static final String REFERENCE_START = "(?<![\\w:#])";
+    private static final String REFERENCE_END = "(?![\\w:])";
     private static final String NAMESPACE_PATTERN = "^.*:";
     private static final String SPAWN_EGG_SUFFIX = "_spawn_egg$";
     private static final String TRAIT_SUFFIX = "_trait";
@@ -296,6 +305,67 @@ public final class GroupsTab {
         JsonObject request = groupRequest();
         request.add(TWEAK, tweak);
         return request.toString();
+    }
+
+    /**
+     * Writes the selected group under a new name in the draft: its _groups entry, its #name value and every #name
+     * reference, an iterator's among them, so its members and value carry over (decision
+     * group-detail-puts-plus-and-rename-beside-the-name).
+     *
+     * @param typed the new name, its # optional
+     * @return whether the group took the name: false where it is blank or another group holds it
+     */
+    public boolean renameSelected(String typed) {
+        String name = referentName(typed.trim());
+        String from = selectedGroup;
+        if (from == null || !isFreeName(name)) {
+            return false;
+        }
+        Pattern reference = Pattern.compile(REFERENCE_START + Pattern.quote(TAG_MARK + from) + REFERENCE_END);
+        String replacement = Matcher.quoteReplacement(TAG_MARK + name);
+        for (JsonElement element : draft.members()) {
+            renameIn(element.getAsJsonObject(), from, name, reference, replacement);
+        }
+        selectedGroup = name;
+        return true;
+    }
+
+    private boolean isFreeName(String name) {
+        return !name.isEmpty() && groups.stream().noneMatch(group -> group.name().equals(name));
+    }
+
+    // Renames the group's _groups entry and its #name member, and rewrites its references in every text.
+    private static void renameIn(JsonObject member, String from, String to, Pattern reference, String replacement) {
+        String held = keyOf(member);
+        if ((TAG_MARK + from).equals(held)) {
+            member.addProperty(KEY, TAG_MARK + to);
+        }
+        rewriteReferences(member, reference, replacement);
+        boolean groupsSection = GROUPS_SECTION.equals(held);
+        for (JsonObject child : entriesOf(member)) {
+            if (groupsSection && from.equals(keyOf(child))) {
+                child.addProperty(KEY, to);
+            }
+            renameIn(child, from, to, reference, replacement);
+        }
+    }
+
+    private static void rewriteReferences(JsonObject member, Pattern reference, String replacement) {
+        JsonElement text = member.get(TEXT);
+        if (text != null && text.isJsonPrimitive()) {
+            member.addProperty(TEXT, reference.matcher(text.getAsString()).replaceAll(replacement));
+        }
+    }
+
+    private static @Nullable String keyOf(JsonObject member) {
+        JsonElement key = member.get(KEY);
+        return key == null || key.isJsonNull() ? null : key.getAsString();
+    }
+
+    private static List<JsonObject> entriesOf(JsonObject member) {
+        JsonElement entries = member.get(ENTRIES);
+        return entries != null && entries.isJsonArray()
+                ? entries.getAsJsonArray().asList().stream().map(JsonElement::getAsJsonObject).toList() : List.of();
     }
 
     private List<String> memberIds() {
