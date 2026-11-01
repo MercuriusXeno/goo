@@ -170,6 +170,44 @@ final class ControlFlow {
     }
 
     /**
+     * A control naming a ref: a plain left click runs pressed, a shift + left click follows the ref, and the label
+     * underlines while shift is held.
+     * Decision shift-left-click-follows-plain-left-modifies.
+     *
+     * @param label   the control's label
+     * @param hint    what a plain click does, shown on hover
+     * @param pressed takes where it was clicked
+     * @param follow  opens what the label names
+     */
+    void linkControl(String label, String hint, Consumer<BuilderOverlays.Anchor> pressed, Runnable follow) {
+        int width = ButtonPainter.width(font, label);
+        reserve(width);
+        markPiece(width);
+        int controlX = x;
+        int controlY = y;
+        ButtonPainter.Box box = ButtonPainter.layout(font.width(label), controlX, controlY, LINE);
+        ButtonPainter.drawLink(graphics, font, label, box, targets, new ClickTargets.LinkGestures(
+                () -> pressed.accept(new BuilderOverlays.Anchor(controlX, controlY)), follow),
+                BuilderOverlays.hintKey(hint));
+        x = box.right() + GAP;
+    }
+
+    /**
+     * A ref drawn as a link button that a shift + left click follows, a plain left click passing to the area under it.
+     * Decision holding-shift-underlines-every-link.
+     *
+     * @param label    the ref's label
+     * @param hoverKey what hovering names
+     * @param follow   opens what the label names
+     */
+    void followLink(String label, String hoverKey, Runnable follow) {
+        int width = ButtonPainter.width(font, label);
+        reserve(width);
+        markPiece(width);
+        x = ButtonPainter.drawFollow(graphics, font, label, x, y, LINE, targets, follow, hoverKey).right() + GAP;
+    }
+
+    /**
      * A control whose label takes a color of its own, as a remove reads red and done green.
      *
      * @param label   the control's label

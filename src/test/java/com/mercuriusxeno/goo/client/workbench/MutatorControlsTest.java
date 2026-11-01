@@ -39,8 +39,8 @@ class MutatorControlsTest {
         private static final String KEY = "rust";
         private final ProcessesTab processes = mock(ProcessesTab.class);
         private final BuilderOverlays overlays = new BuilderOverlays(mock(ManagerActions.class), null);
-        private final MutatorControls controls = new MutatorControls(processes, overlays, () -> List.of("tree"),
-                () -> List.of("metal"), () -> { });
+        private final MutatorControls controls = new MutatorControls(processes, overlays, mock(ManagerActions.class),
+                () -> List.of("tree"), () -> List.of("metal"), () -> { });
 
         KindDropdown() {
             when(processes.formOf(anyString(), anyString())).thenReturn(new Processes.Additive("tree"));
@@ -93,6 +93,78 @@ class MutatorControlsTest {
         @Test
         void pickingStackOnAStackKeepsItsCountAndProcess() {
             pickTheChosenKind(new Processes.Stack(3, "smelt"), "stack");
+        }
+    }
+
+    /**
+     * Every group, prefab and mutator name a row draws follows its ref on shift + left click, opens its dropdown on a
+     * plain left click and underlines while shift is held
+     * (decision diagnose-and-correct-mutator-references-that-do-not-link).
+     */
+    @Nested
+    class ReferencesLink {
+        private static final String SECTION = "_post_conversions";
+        private final ProcessesTab processes = mock(ProcessesTab.class);
+        private final ManagerActions actions = mock(ManagerActions.class);
+        private final BuilderOverlays overlays = new BuilderOverlays(actions, null);
+        private final MutatorControls controls = new MutatorControls(processes, overlays, actions,
+                () -> List.of("oak"), () -> List.of("metal"), () -> { });
+
+        ReferencesLink() {
+            when(processes.processNames(SECTION)).thenReturn(List.of("rust", "smelt"));
+            when(processes.groupNames()).thenReturn(List.of("ores"));
+        }
+
+        private DrawnFrame frame(String key, Processes.Form form) {
+            when(processes.formOf(SECTION, key)).thenReturn(form);
+            DrawnFrame frame = new DrawnFrame();
+            controls.draw(frame.graphics, DrawnFrame.font(), SECTION, key, new GroupsPane.Bounds(0, 0, 590, 390), 0,
+                    frame.targets);
+            return frame;
+        }
+
+        private DrawnFrame iterator() {
+            return frame("#ores", new Processes.Assignment("ores", 1, 1, List.of("@smelt")));
+        }
+
+        @Test
+        void shiftClickingAnIteratorsGroupOpensTheGroup() {
+            iterator().shiftClick("#ores");
+            verify(actions).openGroup("ores");
+        }
+
+        @Test
+        void shiftClickingAnIteratorsChainedMutatorOpensTheMutator() {
+            iterator().shiftClick("smelt");
+            verify(actions).openMutator("smelt");
+        }
+
+        @Test
+        void shiftClickingAnAdditivesPrefabOpensThePrefab() {
+            frame("rust", new Processes.Additive("oak")).shiftClick("oak");
+            verify(actions).openVariable("oak");
+        }
+
+        @Test
+        void shiftClickingAStacksMutatorOpensTheMutator() {
+            frame("rust", new Processes.Stack(2, "smelt")).shiftClick("smelt");
+            verify(actions).openMutator("smelt");
+        }
+
+        @Test
+        void plainClickingAStacksMutatorOpensItsDropdown() {
+            frame("rust", new Processes.Stack(2, "smelt")).click("smelt");
+            assertTrue(overlays.listOpen());
+            verify(actions, never()).openMutator(anyString());
+        }
+
+        @Test
+        void holdingShiftUnderlinesEveryReference() {
+            DrawnFrame stack = new DrawnFrame().holdingShift();
+            when(processes.formOf(SECTION, "rust")).thenReturn(new Processes.Stack(2, "smelt"));
+            controls.draw(stack.graphics, DrawnFrame.font(), SECTION, "rust", new GroupsPane.Bounds(0, 0, 590, 390), 0,
+                    stack.targets);
+            assertTrue(stack.underlined("smelt"));
         }
     }
 }

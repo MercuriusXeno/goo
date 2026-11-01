@@ -4,6 +4,7 @@ import com.mercuriusxeno.goo.type.GooTypes;
 import com.mercuriusxeno.goo.workbench.WorkbenchOperations;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -47,6 +48,12 @@ final class ProcessesPane {
     private final BuilderOverlays overlays;
     private final MutatorControls controls;
     private final ScrollBar bar = new ScrollBar(SCROLL_STEP);
+    private @Nullable String revealPending;
+    private @Nullable RevealedRow revealedRow;
+
+    // Where the row a follow revealed stood inside the list's content this frame.
+    private record RevealedRow(int top, int height) {
+    }
 
     /**
      * @param processes   the Mutators tab's state
@@ -61,7 +68,7 @@ final class ProcessesPane {
         this.draft = draft;
         this.actions = actions;
         this.overlays = new BuilderOverlays(actions, icons);
-        this.controls = new MutatorControls(processes, overlays, treePrefabs,
+        this.controls = new MutatorControls(processes, overlays, actions, treePrefabs,
                 () -> GooTypes.order().stream().map(GooTypes::id).toList(), actions::draftChanged);
     }
 
@@ -117,13 +124,19 @@ final class ProcessesPane {
             List<ProcessesTab.ProcessRow> sectionRows = section.rows();
             for (int index = 0; index < sectionRows.size(); index++) {
                 RowLayout.drawSeparatorAbove(graphics, index, y - 1, rows.left(), rows.right());
-                y = drawRow(graphics, font, section.section(), sectionRows.get(index), rows, y, targets);
+                int rowTop = y;
+                ProcessesTab.ProcessRow row = sectionRows.get(index);
+                y = drawRow(graphics, font, section.section(), row, rows, y, targets);
+                if (row.key().equals(revealPending)) {
+                    revealedRow = new RevealedRow(rowTop - bounds.top() + bar.offset(), y - rowTop);
+                }
             }
             y += SECTION_GAP;
         }
         targets.unclip();
         graphics.disableScissor();
         bar.measureAndDraw(graphics, targets, y, bounds.right(), bounds.top(), bounds.bottom());
+        centerRevealedRow();
         overlays.draw(graphics, font, targets);
     }
 
@@ -170,6 +183,25 @@ final class ProcessesPane {
      */
     static VerdictMark verdictMark(ProcessesTab.ProcessRow row) {
         return row.parsed() ? new VerdictMark(CHECK, GREEN) : new VerdictMark(CROSS, RED);
+    }
+
+    /**
+     * Centers a mutator's row on the next frame, as a mutator link's shift + left click does (decisions
+     * diagnose-and-correct-mutator-references-that-do-not-link, shift-follow-centers-the-target-in-its-scrolling-view).
+     *
+     * @param key the mutator's key
+     */
+    void reveal(String key) {
+        revealPending = key;
+    }
+
+    // Once the revealed row has drawn and the bar has measured this frame, centers the row in the list.
+    private void centerRevealedRow() {
+        if (revealedRow != null) {
+            bar.center(revealedRow.top(), revealedRow.height());
+            revealedRow = null;
+            revealPending = null;
+        }
     }
 
     private void delete(String section, String key) {

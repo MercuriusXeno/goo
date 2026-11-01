@@ -175,6 +175,12 @@ public final class ValuesManagerScreen extends Screen {
         }
 
         @Override
+        public void openMutator(String name) {
+            selectTab(ManagerTab.PROCESSES);
+            processesPane.reveal(name);
+        }
+
+        @Override
         public <W extends AbstractWidget> W addWidget(W widget) {
             return addRenderableWidget(widget);
         }
