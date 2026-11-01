@@ -54,16 +54,17 @@ final class GroupsPane {
     private static final int LINK = ButtonPainter.LINK;
     private static final int SELECTED_COLOR = 0x60FFFFFF;
     private static final int READ_VIEW_COLOR = 0x30FFFFFF;
-    private static final String NEW_GROUP = "New group";
+    private static final String NEW_GROUP = "+ Custom";
     private static final String NEW_GROUP_HINT = "group name, Enter";
     private static final String SEARCH_HINT = "Search groups";
     // Decision group-detail-puts-plus-and-rename-beside-the-name.
     private static final String ADD_MEMBER = "+";
     private static final String ADD_MEMBER_HINT = "Add an item or #tag to this group";
-    private static final String RENAME = "Rename";
+    // The operator's ruling: rename is a pencil just past the name.
+    private static final String RENAME = "✎";
     private static final String RENAME_HINT = "Rename this group";
     private static final String NOTE_GAP = "  ";
-    private static final String ADD_TAG = "Add tag";
+    private static final String ADD_TAG = "+ Tag";
     private static final String NOT_CONTROLLED ="Tag membership isn't controlled here";
     private static final String NO_GROUP = "Pick a group, or name a new one.";
     private static final String NO_GROUPS = "The file names no groups.";
@@ -259,29 +260,30 @@ final class GroupsPane {
         }
     }
 
-    // Answers the list's top below the New group button or its name box, and the search box under them.
+    // The operator's ruling: one row, the search box at the left and + Custom and + Tag to its right; a new group's
+    // name box stands in the search box's place while open. Answers the list's top below the row.
     private int drawNewGroup(GuiGraphicsExtractor graphics, Font font, int left, int top, ClickTargets targets) {
-        int searchTop = drawNewGroupControls(graphics, font, left, top, targets);
-        if (search != null) {
-            search.setPosition(left, searchTop + HALF);
-            search.setWidth(listWidth - ScrollBar.WIDTH - ScrollBar.GAP);
-        }
-        return searchTop + ROW_HEIGHT + HALF;
-    }
-
-    private int drawNewGroupControls(GuiGraphicsExtractor graphics, Font font, int left, int top,
-                                     ClickTargets targets) {
-        if (naming && !renaming && nameBox != null) {
+        int rowRight = left + listWidth - ScrollBar.WIDTH - ScrollBar.GAP;
+        int buttonsWidth = ButtonPainter.width(font, NEW_GROUP) + BuilderOverlays.GAP + ButtonPainter.width(font,
+                ADD_TAG);
+        int boxWidth = Math.max(1, rowRight - left - buttonsWidth - BuilderOverlays.GAP);
+        boolean namingNew = naming && !renaming && nameBox != null;
+        if (namingNew) {
             nameBox.setPosition(left, top + HALF);
+            nameBox.setWidth(boxWidth);
             nameBox.visible = visible;
-        } else {
-            int afterNewGroup = BuilderOverlays.control(graphics, font, NEW_GROUP, left, top, targets,
-                    at -> startNaming());
-            // decision add-tag-picks-a-game-tag-and-writes-its-entry
-            BuilderOverlays.control(graphics, font, ADD_TAG, afterNewGroup, top, targets, at -> overlays.openDropdown(
-                    at, groups.addTagChoices(values.entries()), choice -> createTag(choice.id())));
         }
-        return top + ROW_HEIGHT;
+        if (search != null) {
+            search.setPosition(left, top + HALF);
+            search.setWidth(boxWidth);
+            search.visible = visible && !namingNew;
+        }
+        int afterNewGroup = BuilderOverlays.control(graphics, font, NEW_GROUP, left + boxWidth + BuilderOverlays.GAP,
+                top, targets, at -> startNaming());
+        // decision add-tag-picks-a-game-tag-and-writes-its-entry
+        BuilderOverlays.control(graphics, font, ADD_TAG, afterNewGroup, top, targets, at -> overlays.openDropdown(
+                at, groups.addTagChoices(values.entries()), choice -> createTag(choice.id())));
+        return top + ROW_HEIGHT + HALF;
     }
 
     private void createTag(String tagId) {
@@ -434,7 +436,8 @@ final class GroupsPane {
         }
         y += SECTION_GAP;
         y = drawWorth(graphics, font, detail, group, y, targets);
-        y = drawCards(graphics, font, detail, y + SECTION_GAP, targets);
+        y = drawAddMember(graphics, font, detail, group, y + SECTION_GAP, targets);
+        y = drawCards(graphics, font, detail, y, targets);
         if (!group.tag()) {
             y = drawMemberLine(graphics, font, detail, group, y + SECTION_GAP, targets);
         }
@@ -444,30 +447,39 @@ final class GroupsPane {
                 detail.bottom());
     }
 
-    // The group's #name cut to leave room for [+] and Rename to its right, a custom group's alone taking them; the
-    // rename box stands in the name's place while open (decision group-detail-puts-plus-and-rename-beside-the-name).
+    // The group's #name cut to leave room for the pencil just past it, a custom group's alone taking one; the rename
+    // box stands in the name's place while open (decision group-detail-puts-plus-and-rename-beside-the-name).
     private void drawDetailHead(GuiGraphicsExtractor graphics, Font font, Bounds detail, GroupsTab.Group group,
                                 int y, ClickTargets targets) {
         String name = GroupsTab.rowRuns(new GroupsTab.GroupRow(group.name(), List.of(), 0), icons::nameOf).getFirst()
                 .text();
-        int buttons = group.tag() ? 0 : ButtonPainter.width(font, ADD_MEMBER) + ButtonPainter.width(font, RENAME)
-                + BuilderOverlays.GAP * HALF;
+        int buttons = group.tag() ? 0 : ButtonPainter.width(font, RENAME) + BuilderOverlays.GAP;
         int nameWidth = detail.right() - detail.left() - buttons;
         int x = detail.left();
         if (renaming && nameBox != null) {
             nameBox.setPosition(x, y + HALF);
+            nameBox.setWidth(NAME_BOX_WIDTH);
             nameBox.visible = visible;
-        } else {
-            graphics.text(font, font.plainSubstrByWidth(name, nameWidth), x, y + TEXT_NUDGE, WHITE);
-        }
-        if (group.tag()) {
             return;
         }
-        int plusX = x + Math.min(nameWidth, font.width(name)) + BuilderOverlays.GAP;
-        int renameX = BuilderOverlays.control(graphics, font, ADD_MEMBER, ADD_MEMBER_HINT, plusX, y, targets,
+        graphics.text(font, font.plainSubstrByWidth(name, nameWidth), x, y + TEXT_NUDGE, WHITE);
+        if (!group.tag()) {
+            BuilderOverlays.control(graphics, font, RENAME, RENAME_HINT, x + Math.min(nameWidth, font.width(name))
+                    + BuilderOverlays.GAP, y, targets, at -> startRenaming(name));
+        }
+    }
+
+    // The operator's ruling: the [+] adding a member stands right above the member list, below the value, so its
+    // place says what it adds to. Answers the y below it, the top unchanged for a tag.
+    private int drawAddMember(GuiGraphicsExtractor graphics, Font font, Bounds detail, GroupsTab.Group group, int top,
+                              ClickTargets targets) {
+        if (group.tag()) {
+            return top;
+        }
+        BuilderOverlays.control(graphics, font, ADD_MEMBER, ADD_MEMBER_HINT, detail.left(), top, targets,
                 at -> overlays.openDropdown(at, SearchDropdown.overMembers(values.entries()),
                         choice -> apply(groups.addPickRequest(choice.id()))));
-        BuilderOverlays.control(graphics, font, RENAME, RENAME_HINT, renameX, y, targets, at -> startRenaming(name));
+        return top + ROW_HEIGHT;
     }
 
     // The group's value, curated, opening the builder on click; answers the y below it.
