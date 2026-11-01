@@ -549,5 +549,30 @@ class ExpressionBuilderPaneTest {
             assertTrue(finished[0]);
             assertFalse(builder.pane.isOpen());
         }
+
+        /**
+         * Cancel draws beside done once the value differs from the one the builder opened with, and writes that
+         * opening value back and closes the builder (decision value-expression-boxes-take-a-cancel-button).
+         */
+        @Test
+        void cancelDrawsBesideDoneOnceChangedAndRestoresTheOpeningValue() {
+            boolean[] finished = {false};
+            Builder builder = new Builder(PREFABS);
+            builder.pane.open("$waxed + $edited", builder.written::add, () -> finished[0] = true);
+            DrawnFrame unchanged = builder.frame();
+            assertFalse(unchanged.texts().contains(CANCEL), unchanged.texts().toString());
+            clickAt(unchanged, removes(unchanged).getFirst());
+            DrawnFrame changed = builder.frame();
+            DrawnFrame.Text done = changed.find(DONE);
+            DrawnFrame.Text cancel = changed.find(CANCEL);
+            assertEquals(done.y(), cancel.y());
+            assertTrue(cancel.x() > done.x(), changed.drawn().toString());
+            changed.click(CANCEL);
+            assertEquals("$waxed + $edited", builder.written.getLast());
+            assertTrue(finished[0]);
+            assertFalse(builder.pane.isOpen());
+        }
     }
+
+    private static final String CANCEL = "✗ cancel";
 }
