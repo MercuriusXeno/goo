@@ -27,7 +27,6 @@ final class MutatorControls {
     private static final String NOTHING_TARGET = "0";
     private static final String DIVIDE_OPERATOR = "/";
     private static final String GROUP_MARK = "#";
-    private static final String ITEM_MARK = ":";
     private static final String STACK_MARK = "@";
     private static final String NO_SOURCE = "";
     private static final String KIND = "Kind:";
@@ -110,7 +109,7 @@ final class MutatorControls {
         ControlFlow flow = new ControlFlow(graphics, font, targets, null, area.left(), area.right(), top);
         Entry entry = new Entry(flow, section, key);
         Processes.Form form = processes.formOf(section, key);
-        boolean assignment = key.startsWith(GROUP_MARK) || key.contains(ITEM_MARK);
+        boolean assignment = ProcessesTab.isIterator(key);
         if (!assignment) {
             drawKind(entry, form);
             flow.newLine();

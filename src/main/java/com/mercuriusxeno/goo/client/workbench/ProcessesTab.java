@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.workbench;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mercuriusxeno.goo.workbench.Processes;
@@ -35,6 +36,12 @@ public final class ProcessesTab {
     private static final String NO_TEXT = "";
     private static final String GROUPS = "_groups";
     private static final String GROUP_MARK = "#";
+    private static final String ITEM_MARK = ":";
+    private static final String KEY_SEPARATOR = "keySeparator";
+    private static final String ENTRIES = "entries";
+    private static final String VALUE_KIND = "VALUE";
+    // Null layout fields render in the file's usual layout.
+    private static final String[] LAYOUT_FIELDS = {"leading", "trailing", "closingGap"};
     private static final String NOTHING_TARGET = "0";
     private static final String DIVIDE_OPERATOR = "/";
     private static final String TIMES_OPERATOR = "*";
@@ -289,6 +296,67 @@ public final class ProcessesTab {
             chain.remove(index);
             return new Processes.Assignment(a.source(), a.multiplier(), a.divisor(), List.copyOf(chain));
         });
+    }
+
+    /**
+     * @param key an entry's key
+     * @return whether the game's parser reads it as an iterator, a group assignment: a #group or an item id key
+     *     (decision group-assignments-read-as-iterators)
+     */
+    public static boolean isIterator(String key) {
+        return key.startsWith(GROUP_MARK) || key.contains(ITEM_MARK);
+    }
+
+    /**
+     * Writes a fresh mutator at the block's end, a formula taking the source type to nothing, so it opens in place
+     * (decision mutators-and-iterators-each-take-a-create-control).
+     *
+     * @param section    _conversions or _post_conversions
+     * @param name       the typed name
+     * @param sourceType the goo type the fresh formula converts from
+     * @return the new entry's key, empty where the name is blank, reads as an iterator or the block holds it
+     */
+    public Optional<String> createMutator(String section, String name, String sourceType) {
+        String key = name.trim();
+        if (isIterator(key)) {
+            return Optional.empty();
+        }
+        return create(section, key, new Processes.Formula(sourceType, 1, NOTHING_TARGET, DIVIDE_OPERATOR, 0));
+    }
+
+    /**
+     * Writes a fresh iterator at the block's end, the typed target group taking the first group's values, so it
+     * opens in place (decision mutators-and-iterators-each-take-a-create-control).
+     *
+     * @param section _conversions or _post_conversions
+     * @param name    the typed target group, its # optional
+     * @return the new entry's key, empty where the name is blank, the draft names no group or the block holds it
+     */
+    public Optional<String> createIterator(String section, String name) {
+        String typed = name.trim();
+        List<String> groups = groupNames();
+        if (typed.isEmpty() || groups.isEmpty()) {
+            return Optional.empty();
+        }
+        String key = isIterator(typed) ? typed : GROUP_MARK + typed;
+        return create(section, key, new Processes.Assignment(groups.getFirst(), 1, 1, List.of()));
+    }
+
+    private Optional<String> create(String section, String key, Processes.Form form) {
+        if (key.isEmpty() || GROUP_MARK.equals(key) || entryOf(section, key).isPresent()) {
+            return Optional.empty();
+        }
+        JsonObject entry = new JsonObject();
+        entry.addProperty(KEY, key);
+        entry.add(KEY_SEPARATOR, JsonNull.INSTANCE);
+        entry.addProperty(KIND, VALUE_KIND);
+        entry.addProperty(TEXT, Processes.write(form));
+        entry.add(ENTRIES, new JsonArray());
+        for (String layout : LAYOUT_FIELDS) {
+            entry.add(layout, JsonNull.INSTANCE);
+        }
+        draft.sectionEntries(section).add(entry);
+        return Optional.of(key);
     }
 
     /**

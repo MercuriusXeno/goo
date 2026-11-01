@@ -6,6 +6,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -192,6 +193,34 @@ class ProcessesTabTest {
             assertEquals("\"metal / 1 -> 0\"", textOf("waxed"));
             forms.setForm(POST, "waxed", new Processes.Stack(1, "oxidation_metal"));
             assertEquals(new Processes.Stack(1, "oxidation_metal"), forms.formOf(POST, "waxed"));
+        }
+
+        /**
+         * The Mutators create control writes a fresh formula from the goo type it is handed, which the parser reads
+         * back (decision mutators-and-iterators-each-take-a-create-control).
+         */
+        @Test
+        void createMutatorWritesAFormulaTheParserReads() {
+            assertEquals(Optional.of("rusting"), forms.createMutator(POST, " rusting ", "metal"));
+            assertEquals(new Processes.Formula("metal", 1, "0", "/", 0), forms.formOf(POST, "rusting"));
+            assertEquals("rusting", forms.processNames(POST).getLast());
+        }
+
+        /**
+         * The Iterators create control writes a fresh assignment from the first group under the typed target group.
+         */
+        @Test
+        void createIteratorWritesAnAssignmentTheParserReads() {
+            assertEquals(Optional.of("#shiny"), forms.createIterator(POST, "shiny"));
+            assertEquals(new Processes.Assignment("copper", 1, 1, List.of()), forms.formOf(POST, "#shiny"));
+        }
+
+        @Test
+        void createRefusesANameTheBlockHoldsOrABlankName() {
+            assertEquals(Optional.empty(), forms.createMutator(POST, "waxed", "metal"));
+            assertEquals(Optional.empty(), forms.createIterator(POST, "#exposed"));
+            assertEquals(Optional.empty(), forms.createMutator(POST, "  ", "metal"));
+            assertEquals(new Processes.Additive("other"), forms.formOf(POST, "waxed"));
         }
 
         /**
