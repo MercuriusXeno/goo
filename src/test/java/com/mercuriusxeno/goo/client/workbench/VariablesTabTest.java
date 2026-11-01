@@ -102,12 +102,12 @@ class VariablesTabTest {
         }
 
         /**
-         * A prefab with type values names its kind typed to the operator, a number prefab scalar (decision
+         * A prefab with type values names its kind typed to the operator, a number prefab = (decision
          * type-valued-prefabs-read-typed).
          */
         @Test
         void typeValuedPrefabNamesItsKindTyped() {
-            assertEquals(List.of("scalar", "scalar", "typed"),
+            assertEquals(List.of("=", "=", "typed"),
                     tab.blocks().stream().map(VariablesTab.ConstantBlock::shownKind).toList());
         }
     }

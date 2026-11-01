@@ -107,19 +107,22 @@ class ProcessesPaneTest {
     @Test
     void eachHeadingCarriesItsCreateControl() {
         DrawnFrame frame = frame();
-        assertOnOneLine(frame.find("Mutators"), frame.find("New mutator"));
-        assertOnOneLine(frame.find("Iterators"), frame.find("New iterator"));
+        assertPlusBeside(frame, frame.find("Mutators"));
+        assertPlusBeside(frame, frame.find("Iterators"));
+        assertFalse(frame.texts().contains("New mutator"), frame.texts().toString());
+        assertFalse(frame.texts().contains("New iterator"), frame.texts().toString());
     }
 
     /**
-     * Every row's top line draws its name, kind dropdown, mark, Rename and Delete at the same column lefts, under no
-     * header (decision mutator-row-is-aligned-columns-name-kind-validity-rename-delete).
+     * Every row's top line draws its name with a pencil just past it, then its kind dropdown and mark at the same
+     * column lefts, and a red x at the row's right end, under no header (the operator's ruling: pencil by the name,
+     * x at the row end).
      */
     @Test
     void everyRowDrawsItsColumnsAtTheSameLefts() {
         DrawnFrame frame = frame();
         List<DrawnFrame.Text> drawn = frame.drawn();
-        for (String column : List.of("Rename", "Delete", "✔")) {
+        for (String column : List.of("✗", "✔")) {
             List<Integer> lefts = drawn.stream().filter(text -> text.text().equals(column)).map(DrawnFrame.Text::x)
                     .distinct().toList();
             assertEquals(1, lefts.size(), column + " at " + lefts);
@@ -128,7 +131,16 @@ class ProcessesPaneTest {
         assertEquals(nameLeft, frame.find("#exposed").x());
         int kindLeft = frame.find(ControlFlow.dropdownLabel("additive")).x();
         assertTrue(kindLeft > nameLeft + 20 * 6, "the kind stands past the name column at " + kindLeft);
-        assertTrue(drawn.stream().filter(text -> text.text().equals("Rename")).count() == 3);
+        List<DrawnFrame.Text> pencils = drawn.stream().filter(text -> text.text().equals("✎")).toList();
+        assertEquals(3, pencils.size(), frame.texts().toString());
+        DrawnFrame.Text waxed = first(frame, "waxed");
+        int pastName = waxed.x() + "waxed".length() * 6;
+        assertTrue(pencils.stream().anyMatch(pencil -> pencil.y() == waxed.y() && pencil.x() > pastName
+                && pencil.x() < pastName + 12), pencils + " vs " + waxed);
+        DrawnFrame.Text cross = frame.find("✗");
+        assertEquals(590 - ScrollBar.WIDTH - ScrollBar.GAP - 6 - ButtonPainter.PADDING, cross.x() ,
+                "the x stands at the row's right end");
+        assertFalse(frame.texts().contains("Rename") || frame.texts().contains("Delete"), frame.texts().toString());
         assertFalse(frame.texts().contains("Kind:"), frame.texts().toString());
     }
 
@@ -156,7 +168,7 @@ class ProcessesPaneTest {
         int longTop = frame.find("copper_oxidation_and…end1").y();
         assertEquals(ProcessesPane.ONE_LINE_ROW_PITCH, longTop - waxedTop);
         assertTrue(ProcessesPane.ONE_LINE_ROW_PITCH < 36, "the pitch was 36 before");
-        int deleteBottom = frame.drawn().stream().filter(text -> text.text().equals("Delete")
+        int deleteBottom = frame.drawn().stream().filter(text -> text.text().equals("✗")
                 && text.y() < longTop - 4).mapToInt(DrawnFrame.Text::y).max().orElseThrow() - 3
                 + ButtonPainter.HEIGHT;
         ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
@@ -172,6 +184,12 @@ class ProcessesPaneTest {
     // The row's name, drawn before any chain link naming it.
     private static DrawnFrame.Text first(DrawnFrame frame, String label) {
         return frame.drawn().stream().filter(text -> text.text().equals(label)).findFirst().orElseThrow();
+    }
+
+    // A [+] stands right of the heading on its line.
+    private static void assertPlusBeside(DrawnFrame frame, DrawnFrame.Text heading) {
+        assertTrue(frame.drawn().stream().anyMatch(text -> text.text().equals("+") && text.x() > heading.x()
+                && Math.abs(text.y() - heading.y()) < ExpressionLines.TEXT_LINE_HEIGHT), frame.drawn().toString());
     }
 
     // The control stands right of the heading, its label within a text line of the heading's.

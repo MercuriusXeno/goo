@@ -32,8 +32,11 @@ final class ProcessesPane {
     private static final int NAME_HEAD = 20;
     private static final int NAME_TAIL = 4;
     private static final String ELLIPSIS = "…";
-    private static final String RENAME = "Rename";
+    // The operator's ruling: rename is a pencil just past the name, delete a red x at the row's right end.
+    private static final String RENAME = "✎";
     private static final String RENAME_HINT = "Rename this entry";
+    private static final String DELETE_HINT = "Delete this entry";
+    private static final int PENCIL_GAP = 3;
     // A button stands a pixel under the rule above its row and its label five under that.
     private static final int BUTTON_INSET = 1;
     private static final int HEAD_TEXT_NUDGE = 4;
@@ -59,13 +62,14 @@ final class ProcessesPane {
     private static final String REASON_GAP = ": ";
     private static final String NO_REASON = "";
     private static final int ROW_COLOR = 0x20FFFFFF;
-    private static final String DELETE = "Delete";
+    private static final String DELETE = "✗";
     private static final String SUMMARY_GAP = "  ";
     private static final String MUTATORS = "Mutators";
     private static final String ITERATORS = "Iterators";
-    private static final String NEW_MUTATOR = "New mutator";
+    // The operator's ruling: a [+] beside its heading plainly adds one of that heading's kind.
+    private static final String NEW_MUTATOR = "+";
     private static final String NEW_MUTATOR_HINT = "Name a new formula, additive or stack";
-    private static final String NEW_ITERATOR = "New iterator";
+    private static final String NEW_ITERATOR = "+";
     private static final String NEW_ITERATOR_HINT = "Name the group a new iterator assigns values to";
     private static final String NAME_HINT = "name, Enter";
     private static final String NO_TEXT = "";
@@ -347,24 +351,23 @@ final class ProcessesPane {
         Font font = frame.font();
         int x = frame.rows().left();
         drawName(frame, section, row.key(), y);
+        int kindX = x + NAME_WIDTH + ButtonPainter.width(font, RENAME) + PENCIL_GAP;
         if (!ProcessesTab.isIterator(row.key())) {
-            controls.drawKind(graphics, font, section, row.key(), x + NAME_WIDTH, y + BUTTON_INSET
-                    - KIND_LINE_INSET, frame.targets());
+            controls.drawKind(graphics, font, section, row.key(), kindX, y + BUTTON_INSET - KIND_LINE_INSET,
+                    frame.targets());
         }
-        int markX = x + NAME_WIDTH + KIND_WIDTH;
+        int markX = kindX + KIND_WIDTH;
         VerdictMark mark = verdictMark(row);
         graphics.text(font, mark.glyph(), markX, y + HEAD_TEXT_NUDGE, mark.color());
         frame.targets().addHover(markX, y, MARK_WIDTH, HEAD_HEIGHT, BuilderOverlays.hintKey(row.verdict()
                 + (row.reason().isEmpty() ? NO_REASON : REASON_GAP + row.reason())));
-        int renameX = markX + MARK_WIDTH;
-        ButtonPainter.Box rename = ButtonPainter.draw(graphics, font, RENAME, renameX, y + BUTTON_INSET,
-                ButtonPainter.HEIGHT, frame.targets(), () -> startNaming(new Naming(section,
-                        ProcessesTab.isIterator(row.key()), row.key())), BuilderOverlays.hintKey(RENAME_HINT));
-        ButtonPainter.drawColored(graphics, font, DELETE, RED, rename.right() + GAP, y + BUTTON_INSET,
-                ButtonPainter.HEIGHT, frame.targets(), () -> delete(section, row.key()), null);
+        ButtonPainter.drawColored(graphics, font, DELETE, RED, frame.rows().right() - ButtonPainter.width(font,
+                DELETE), y + BUTTON_INSET, ButtonPainter.HEIGHT, frame.targets(), () -> delete(section, row.key()),
+                BuilderOverlays.hintKey(DELETE_HINT));
     }
 
-    // The name cut to its column, hovering whole where cut; the rename box stands in its place while open.
+    // The name cut to its column, hovering whole where cut, the pencil just past its last letter; the rename box
+    // stands in their place while open.
     private void drawName(Frame frame, String section, String key, int y) {
         int x = frame.rows().left();
         if (nameBox != null && naming != null && key.equals(naming.renamed()) && section.equals(naming.section())) {
@@ -377,6 +380,9 @@ final class ProcessesPane {
         if (!shown.equals(key)) {
             frame.targets().addHover(x, y, frame.font().width(shown), HEAD_HEIGHT, BuilderOverlays.hintKey(key));
         }
+        ButtonPainter.draw(frame.graphics(), frame.font(), RENAME, x + frame.font().width(shown) + PENCIL_GAP,
+                y + BUTTON_INSET, ButtonPainter.HEIGHT, frame.targets(), () -> startNaming(new Naming(section,
+                        ProcessesTab.isIterator(key), key)), BuilderOverlays.hintKey(RENAME_HINT));
     }
 
     /**

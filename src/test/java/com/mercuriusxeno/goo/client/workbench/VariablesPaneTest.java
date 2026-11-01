@@ -243,6 +243,31 @@ class VariablesPaneTest {
         }
     }
 
+    /**
+     * A prefab's head reads its name with a pencil just past it, = for a number prefab, and a red x at the row's
+     * right end (the operator's rulings).
+     */
+    @Test
+    void headDrawsPencilByTheNameEqualsAndARedXAtTheEnd() {
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, font, TALL_VIEW, frame.targets, 0, 0);
+        DrawnFrame.Text name = frame.drawn().stream().filter(text -> text.text().equals("prefab0")).findFirst()
+                .orElseThrow();
+        DrawnFrame.Text pencil = frame.drawn().stream().filter(text -> text.text().equals("✎")).findFirst()
+                .orElseThrow();
+        int pastName = name.x() + "prefab0".length() * 6;
+        assertEquals(name.y(), pencil.y());
+        assertTrue(pencil.x() > pastName && pencil.x() < pastName + 12, pencil + " vs " + name);
+        assertTrue(frame.texts().contains("="), frame.texts().toString());
+        assertFalse(frame.texts().contains("scalar") || frame.texts().contains("Rename")
+                || frame.texts().contains("Delete"), frame.texts().toString());
+        DrawnFrame.Text cross = frame.drawn().stream().filter(text -> text.text().equals("✗")).findFirst()
+                .orElseThrow();
+        assertEquals(ProcessesPane.RED, cross.color());
+        int listRight = TALL_VIEW.right() - ScrollBar.WIDTH - ScrollBar.GAP;
+        assertEquals(listRight - 6 - ButtonPainter.PADDING, cross.x());
+    }
+
     private static final int GAME_LINE_HEIGHT = 9;
     private static final int SPRITE = 16;
 
@@ -339,9 +364,9 @@ class VariablesPaneTest {
         VariablesPane read = readByEgg(mock(ManagerActions.class));
         DrawnFrame list = new DrawnFrame().holdingShift();
         read.extract(list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
-        assertFalse(list.underlined("Rename"));
-        assertFalse(list.underlined("Delete"));
-        list.click("Delete");
+        assertFalse(list.underlined("✎"));
+        assertFalse(list.underlined("✗"));
+        list.click("✗");
         DrawnFrame confirm = new DrawnFrame().holdingShift();
         read.extract(confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
         assertTrue(confirm.underlined("egg"));
@@ -400,7 +425,7 @@ class VariablesPaneTest {
         read.show(true);
         DrawnFrame list = new DrawnFrame();
         read.extract(list.graphics, DrawnFrame.font(), VIEW, list.targets, 0, 0);
-        list.click("Delete");
+        list.click("✗");
         DrawnFrame confirm = new DrawnFrame();
         read.extract(confirm.graphics, DrawnFrame.font(), VIEW, confirm.targets, 0, 0);
         confirm.click("egg");
