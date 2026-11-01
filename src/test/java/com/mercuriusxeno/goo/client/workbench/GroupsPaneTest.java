@@ -111,7 +111,7 @@ class GroupsPaneTest {
     }
 
     /**
-     * The Groups pane stands a hinted search box shown with the tab, between New group and the list; typing in it
+     * The Groups pane stands a hinted search box shown with the tab, left of + Custom on one row above the list; typing in it
      * filters the list and returns the list's bar to its top, and a right click on it lists every group again
      * (decisions groups-search-matches-a-name-or-any-member, right-click-empties-every-text-box-in-the-manager).
      */
@@ -130,10 +130,11 @@ class GroupsPaneTest {
 
         DrawnFrame first = new DrawnFrame();
         pane.extract(first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
-        int newGroupBottom = first.find("New group").y() + GroupsPane.ROW_HEIGHT - 4;
+        DrawnFrame.Text custom = first.find("+ Custom");
         int firstRow = first.find("#" + groupName(0)).y();
-        assertTrue(search.getY() >= newGroupBottom && search.getY() + search.getHeight() <= firstRow,
-                "search at " + search.getY() + ", New group at " + first.find("New group").y() + ", list at " + firstRow);
+        assertTrue(Math.abs(search.getY() + search.getHeight() / 2 - (custom.y() + 4)) <= 4
+                && search.getX() + search.getWidth() < custom.x() && search.getY() + search.getHeight() <= firstRow,
+                "search at " + search.getX() + "," + search.getY() + ", + Custom at " + custom + ", list at " + firstRow);
         pane.listBar().wheel(-3);
         assertTrue(pane.listBar().offset() > 0);
 
@@ -237,14 +238,17 @@ class GroupsPaneTest {
         }
 
         @Test
-        void plusAndRenameStandRightOfTheGroupsName() {
+        void pencilStandsPastTheNameAndPlusAboveTheMembers() {
             DrawnFrame frame = frame();
             DrawnFrame.Text name = startingWith(frame, "#" + LONG_GROUP).getLast();
             DrawnFrame.Text plus = frame.find("+");
-            DrawnFrame.Text rename = frame.find("Rename");
-            assertTrue(plus.x() > name.x() + name.text().length() * 6, plus + " vs " + name);
-            assertTrue(rename.x() > plus.x());
-            assertTrue(Math.abs(plus.y() - name.y()) < ExpressionLines.TEXT_LINE_HEIGHT, plus + " vs " + name);
+            DrawnFrame.Text pencil = frame.find("✎");
+            assertTrue(pencil.x() > name.x() + name.text().length() * 6, pencil + " vs " + name);
+            assertTrue(Math.abs(pencil.y() - name.y()) < ExpressionLines.TEXT_LINE_HEIGHT, pencil + " vs " + name);
+            assertTrue(plus.y() > frame.find("Value").y(), plus + " stands below the value");
+            assertTrue(frame.drawn().stream().filter(text -> text.text().startsWith("minecraft:"))
+                    .allMatch(member -> member.y() > plus.y()), frame.drawn().toString());
+            assertFalse(frame.texts().contains("Rename"), frame.texts().toString());
             assertFalse(frame.texts().contains("Add member"), frame.texts().toString());
             frame.click("+");
             assertTrue(pane.pickerOpen(), "the member picker opens");
@@ -317,8 +321,8 @@ class GroupsPaneTest {
         pane.extract(group.graphics, DrawnFrame.font(), bounds, group.targets);
         int groupWorth = group.find("Value").y();
         int addMember = group.find("+").y();
-        assertTrue(Math.abs(addMember - group.find("#logs").y()) < ExpressionLines.TEXT_LINE_HEIGHT
-                && addMember < groupWorth, group.drawn().toString());
+        assertTrue(addMember > groupWorth && addMember < group.find("minecraft:oak_log").y(),
+                group.drawn().toString());
 
         groups.selectGroup("saplings");
         DrawnFrame tag = new DrawnFrame();
@@ -370,7 +374,7 @@ class GroupsPaneTest {
     }
 
     /**
-     * Add tag stands beside New group, and its press opens the dropdown over the inventory's tags no referent
+     * + Tag stands beside + Custom, and its press opens the dropdown over the inventory's tags no referent
      * names (decision add-tag-picks-a-game-tag-and-writes-its-entry).
      */
     @Test
@@ -397,11 +401,11 @@ class GroupsPaneTest {
         GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 300);
         DrawnFrame closed = new DrawnFrame();
         pane.extract(closed.graphics, DrawnFrame.font(), bounds, closed.targets);
-        DrawnFrame.Text newGroup = closed.find("New group");
-        DrawnFrame.Text addTag = closed.find("Add tag");
+        DrawnFrame.Text newGroup = closed.find("+ Custom");
+        DrawnFrame.Text addTag = closed.find("+ Tag");
         assertEquals(newGroup.y(), addTag.y());
         assertTrue(addTag.x() > newGroup.x(), closed.drawn().toString());
-        closed.click("Add tag");
+        closed.click("+ Tag");
         DrawnFrame open = new DrawnFrame();
         pane.extract(open.graphics, DrawnFrame.font(), bounds, open.targets);
         assertTrue(open.texts().containsAll(List.of("#minecraft:leaves, 8 members", "#minecraft:logs, 40 members")),
