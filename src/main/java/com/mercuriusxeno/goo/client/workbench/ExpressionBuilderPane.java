@@ -406,13 +406,14 @@ final class ExpressionBuilderPane {
         drawOrderAndRemove(flow, path, count);
     }
 
-    // The first term draws no ^ and the last no v; a sum keeps its last term.
+    // A term draws ^ and v only where the move keeps the sum's value: the first draws no ^, the last no v, and none
+    // lands a subtracted term first; a sum keeps its last term.
     private void drawOrderAndRemove(ControlFlow flow, List<Integer> path, int count) {
-        int index = path.getLast();
-        if (index > 0) {
+        ExpressionBuilder edited = builder;
+        if (edited != null && edited.canMove(path, EARLIER)) {
             flow.control(MOVE_UP, null, at -> apply(b -> b.move(path, EARLIER)));
         }
-        if (index < count - 1) {
+        if (edited != null && edited.canMove(path, LATER)) {
             flow.control(MOVE_DOWN, null, at -> apply(b -> b.move(path, LATER)));
         }
         if (count > 1) {

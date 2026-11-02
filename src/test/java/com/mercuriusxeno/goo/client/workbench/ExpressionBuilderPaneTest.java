@@ -228,12 +228,16 @@ class ExpressionBuilderPaneTest {
             assertTrue(builder.written.getLast().endsWith("\"metal\": \"1\"}"), builder.written.toString());
         }
 
+        // Leaf's parenthetical is subtracted, so neither it nor dye ahead of it draws a move that would land it first
+        // and drop its minus.
         @Test
-        void parentheticalHeadReadsJoinParenUpAndXWithItsTermsAFurtherIndentIn() {
+        void parentheticalHeadReadsJoinParenAndXWithItsTermsAFurtherIndentIn() {
             DrawnFrame frame = Builder.item(BEETROOT).frame();
             DrawnFrame.Text open = frame.find("(");
             int head = open.y() / ControlFlow.LINE;
-            assertEquals(List.of("-", "(", "^", "X"), lineTexts(frame, head), frame.drawn().toString());
+            assertEquals(List.of("-", "(", "X"), lineTexts(frame, head), frame.drawn().toString());
+            assertEquals(List.of("dye", "'s", "()", "X"), lineTexts(frame, head - 1).stream()
+                    .filter(text -> !text.equals("1") && !text.equals(":")).toList(), frame.drawn().toString());
             DrawnFrame.Text food = line(frame, head + 1).getFirst();
             assertEquals("food", food.text(), frame.drawn().toString());
             assertEquals(open.x() + ControlFlow.INDENT + ButtonPainter.PADDING, food.x());

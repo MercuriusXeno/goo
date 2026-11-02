@@ -229,12 +229,37 @@ class ExpressionBuilderTest {
 
         @Test
         void firstTermMovesNoHigherAndLastNoLower() {
-            ExpressionBuilder builder = ExpressionBuilder.of("$waxed - $edited");
+            ExpressionBuilder builder = ExpressionBuilder.of("$waxed + $edited");
             builder.move(List.of(0), -1);
             builder.move(List.of(1), 1);
-            assertEquals("$waxed - $edited", builder.text());
+            assertEquals("$waxed + $edited", builder.text());
             builder.move(List.of(1), -1);
             assertEquals("$edited + $waxed", builder.text());
+        }
+
+        // A first term takes no sign, so a move landing a subtracted term first would drop its minus and change the
+        // value; the move is refused and the value stands, as removing the last term is refused.
+        @Test
+        void subtractedTermMovesNoFirstUpOrDown() {
+            ExpressionBuilder up = ExpressionBuilder.of("$waxed - $edited");
+            assertFalse(up.canMove(List.of(1), -1));
+            up.move(List.of(1), -1);
+            assertEquals("$waxed - $edited", up.text());
+            assertTrue(up.refusal().isPresent());
+            ExpressionBuilder down = ExpressionBuilder.of("$waxed - $edited");
+            assertFalse(down.canMove(List.of(0), 1));
+            down.move(List.of(0), 1);
+            assertEquals("$waxed - $edited", down.text());
+            assertTrue(down.refusal().isPresent());
+        }
+
+        // A move that lands no subtracted term first keeps every term's sign, so the value stands.
+        @Test
+        void moveKeepsTheSumsValue() {
+            ExpressionBuilder builder = ExpressionBuilder.of("$waxed + $edited - $food");
+            assertTrue(builder.canMove(List.of(2), -1));
+            builder.move(List.of(2), -1);
+            assertEquals("$waxed - $food + $edited", builder.text());
         }
 
         @Test

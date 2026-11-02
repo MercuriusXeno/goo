@@ -39,6 +39,8 @@ final class ExpressionBuilder {
     private static final String TYPE_TAKEN = "This entry already holds a row for that goo type.";
     private static final String NOT_A_NUMBER = "A number box holds digits alone.";
     private static final String LAST_TERM = "A value keeps at least one term: change this one instead.";
+    private static final String MOVE_CHANGES_VALUE = "A first term takes no sign, so a subtracted term cannot move"
+            + " first: change its sign first.";
     private static final String LAST_ROW = "A per-type value keeps at least one goo type: change this one instead.";
     /** The whole kind holding one number, the kind {@link #switchToWhole()} starts. */
     static final String NUMBER_SORT = "number";
@@ -306,20 +308,46 @@ final class ExpressionBuilder {
     }
 
     /**
-     * Moves a term within its sum; the term standing first takes no sign and the one leaving first takes plus.
-     * Decision builder-is-kind-plus-then-rows-of-terms-with-term-operators.
+     * @param path the term's place
+     * @param by   how many places later, negative for earlier
+     * @return whether the move keeps the sum's value: it stays inside the sum and lands no subtracted term first,
+     *     since a first term takes no sign
+     */
+    boolean canMove(List<Integer> path, int by) {
+        List<Piece> pieces = sumAt(path.subList(0, path.size() - 1));
+        int from = path.getLast();
+        int to = from + by;
+        if (to < 0 || to >= pieces.size()) {
+            return false;
+        }
+        return !landsSubtractedFirst(pieces, from, to);
+    }
+
+    // Whether the swap puts a subtracted term in first place: the one moving up into it, or the one the first term
+    // moves down past.
+    private static boolean landsSubtractedFirst(List<Piece> pieces, int from, int to) {
+        if (to == 0) {
+            return pieces.get(from).join() == ExpressionTerms.Join.MINUS;
+        }
+        return from == 0 && pieces.get(to).join() == ExpressionTerms.Join.MINUS;
+    }
+
+    /**
+     * Moves a term within its sum, the term leaving first taking plus; a move that would change the sum's value is
+     * refused (decision builder-is-kind-plus-then-rows-of-terms-with-term-operators).
      *
      * @param path the term's place
      * @param by   how many places later, negative for earlier
      */
     void move(List<Integer> path, int by) {
+        if (!canMove(path, by)) {
+            refuse(MOVE_CHANGES_VALUE);
+            return;
+        }
         List<Integer> sum = path.subList(0, path.size() - 1);
         List<Piece> pieces = new ArrayList<>(sumAt(sum));
         int from = path.getLast();
         int to = from + by;
-        if (to < 0 || to >= pieces.size()) {
-            return;
-        }
         changed();
         pieces.add(to, pieces.remove(from));
         for (int index = 0; index < pieces.size(); index++) {
