@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -450,6 +451,40 @@ class GroupsPaneTest {
         DrawnFrame.Text kind = building.find(ControlFlow.dropdownLabel("by type"));
         assertTrue(building.drawn().stream().anyMatch(text -> "+".equals(text.text()) && text.y() == kind.y()
                 && text.x() > kind.x()), building.drawn().toString());
+    }
+
+    /**
+     * Between two member cards, the second card's rule stands the rule's padding below the first card's sprite
+     * (decision rule-takes-padding-above-it).
+     */
+    @Test
+    void memberCardRuleStandsThePaddingBelowTheSpriteAbove() {
+        ManagerDraft draft = new ManagerDraft();
+        GroupsTab groups = new GroupsTab(draft);
+        groups.readDescribed("""
+                {"groups": [
+                  {"name": "logs", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true},
+                    {"id": "minecraft:birch_log", "known": true}], "base": null, "tweaks": [], "preview": []}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+        GroupsPane pane = new GroupsPane(groups, new ValuesTab(draft), icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        groups.selectGroup("logs");
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
+        int oak = frame.find("minecraft:oak_log").y();
+        int birch = frame.find("minecraft:birch_log").y();
+        ArgumentCaptor<Integer> itemYs = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).item(any(), anyInt(), itemYs.capture());
+        int oakSprite = itemYs.getAllValues().stream().filter(y -> y <= oak && y + RowLayout.SPRITE_SIZE > oak)
+                .reduce((first, last) -> last).orElseThrow();
+        ArgumentCaptor<Integer> fillYs = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).fill(anyInt(), fillYs.capture(), anyInt(), anyInt(),
+                eq(RowLayout.SEPARATOR_COLOR));
+        int rule = fillYs.getAllValues().stream().filter(y -> y > oak && y < birch).findFirst().orElseThrow();
+        assertEquals(RowLayout.RULE_PADDING, rule - (oakSprite + RowLayout.SPRITE_SIZE));
     }
 
     /**

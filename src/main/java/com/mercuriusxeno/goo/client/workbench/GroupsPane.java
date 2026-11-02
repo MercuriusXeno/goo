@@ -36,8 +36,11 @@ final class GroupsPane {
     private static final int LINE_HEIGHT = 10;
     private static final int BOX_HEIGHT = 14;
     private static final int NAME_BOX_WIDTH = 140;
-    /** A member card's height, its sprite's and margin. */
-    static final int CARD_HEIGHT = 18;
+    /**
+     * A member card's height: its sprite's row, then the padding that keeps the next card's rule off the sprite
+     * (decision rule-takes-padding-above-it).
+     */
+    static final int CARD_HEIGHT = RowLayout.SPRITE_ROW_PITCH;
     private static final int ICON_SIZE = 16;
     private static final int ICON_GAP = 2;
     private static final int TEXT_NUDGE = 5;
@@ -555,7 +558,7 @@ final class GroupsPane {
         }
         graphics.item(icons.of(member.id()), card.left(), card.top() + 1);
         int textX = card.left() + ICON_SIZE + ICON_GAP;
-        int textTop = ExpressionLines.centeredTextTop(card.top(), CARD_HEIGHT, font.lineHeight);
+        int textTop = ExpressionLines.centeredTextTop(card.top(), RowLayout.SPRITE_ROW_HEIGHT, font.lineHeight);
         String name = font.plainSubstrByWidth(member.name(), card.right() - textX);
         graphics.text(font, name, textX, textTop, member.known() ? WHITE : RED);
         int noteX = textX + font.width(name + NOTE_GAP);
