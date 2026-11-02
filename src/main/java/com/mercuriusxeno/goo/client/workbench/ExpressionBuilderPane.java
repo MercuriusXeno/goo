@@ -438,11 +438,7 @@ final class ExpressionBuilderPane {
     // takes one; a term no control builds draws as it reads.
     private void drawOperand(ControlFlow flow, List<Integer> path, ExpressionBuilder.Piece piece, Place place) {
         switch (piece.operand()) {
-            case ExpressionBuilder.Num num -> {
-                drawAmountModes(flow, path, place);
-                flow.control(num.digits(), null, at -> overlays.openNumber(at, num.digits(),
-                        digits -> apply(b -> b.setNumber(path, digits))));
-            }
+            case ExpressionBuilder.Num num -> drawNumber(flow, path, num, place);
             case ExpressionBuilder.Ref ref -> {
                 flow.runs(refRuns(ref), null, at -> overlays.openDropdown(at, termList(place),
                         choice -> apply(b -> b.setOperand(path, refFor(choice, place)))));
@@ -453,30 +449,36 @@ final class ExpressionBuilderPane {
         }
     }
 
-    // A number term names what its amount comes from, so it takes a number prefab's quantity, or a row's amount an
-    // item's or per-type prefab's goo type, in place of the number; a place reading numbers alone offers no modes.
+    // A click on the number opens what its amount comes from: number opens the number box, prefab a number prefab
+    // whose quantity takes its place, relative a row's item or per-type prefab whose goo type does; a place reading
+    // numbers alone opens the number box straight away.
     // Decision amount-modes-name-what-the-amount-comes-from.
-    private void drawAmountModes(ControlFlow flow, List<Integer> path, Place place) {
+    // Decision term-number-opens-number-prefab-relative-modes.
+    private void drawNumber(ControlFlow flow, List<Integer> path, ExpressionBuilder.Num num, Place place) {
+        Consumer<BuilderOverlays.Anchor> openBox = at -> overlays.openNumber(at, num.digits(),
+                digits -> apply(b -> b.setNumber(path, digits)));
+        List<BuilderOverlays.Option> modes = amountModes(path, place, openBox);
+        flow.control(num.digits(), null, modes.size() > 1 ? at -> overlays.openOptions(at, modes) : openBox);
+    }
+
+    private List<BuilderOverlays.Option> amountModes(List<Integer> path, Place place,
+                                                     Consumer<BuilderOverlays.Anchor> openBox) {
+        List<BuilderOverlays.Option> modes = new ArrayList<>();
+        modes.add(new BuilderOverlays.Option(NUMBER_MODE, null, openBox));
         List<String> scalars = grammar.scalarPrefabs();
-        boolean relative = place.inRow() && (grammar.readsItems() || !grammar.perTypePrefabs().isEmpty());
-        if (scalars.isEmpty() && !relative) {
-            return;
-        }
-        ControlFlow.ChoiceSet modes = new ControlFlow.ChoiceSet();
-        modes.add(new BuilderOverlays.Option(NUMBER_MODE, null, at -> { }), true);
         if (!scalars.isEmpty()) {
             modes.add(new BuilderOverlays.Option(PREFAB_MODE, null, at -> overlays.openDropdown(at,
                     SearchDropdown.over(List.of(), scalars, false), choice -> apply(b -> b.setOperand(path,
-                            new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, choice.id(), null))))), false);
+                            new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, choice.id(), null))))));
         }
-        if (relative) {
+        if (place.inRow() && (grammar.readsItems() || !grammar.perTypePrefabs().isEmpty())) {
             boolean items = grammar.readsItems();
             modes.add(new BuilderOverlays.Option(RELATIVE_MODE, null, at -> overlays.openDropdown(at,
                     SearchDropdown.over(items ? inventory.get() : List.of(), grammar.perTypePrefabs(), items),
                     choice -> apply(b -> b.setOperand(path, new ExpressionBuilder.Ref(choice.kind(), choice.id(),
-                            place.rowType()))))), false);
+                            place.rowType()))))));
         }
-        flow.choices(modes, overlays);
+        return modes;
     }
 
     // A whole value's term may take its whole value again; a row's amount always reads one goo type.

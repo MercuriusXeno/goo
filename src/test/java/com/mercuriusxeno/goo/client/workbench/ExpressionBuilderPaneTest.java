@@ -323,13 +323,28 @@ class ExpressionBuilderPaneTest {
 
         // Decision amount-modes-name-what-the-amount-comes-from: a number term names its amount's source, so a type
         // row's amount takes a prefab's quantity in place of the number.
+        // Decision term-number-opens-number-prefab-relative-modes: the number itself opens the modes.
         @Test
         void numberTermTakesAPrefabsQuantityThroughItsAmountMode() {
             Builder builder = Builder.prefab(PREFABS, "{\"metal\": \"5\"}");
-            builder.frame().click(dropdown("number"));
-            builder.frame().click("prefab");
+            DrawnFrame closed = builder.frame();
+            assertFalse(closed.texts().contains(dropdown("number")), closed.texts().toString());
+            closed.click("5");
+            DrawnFrame modes = builder.frame();
+            assertTrue(modes.texts().containsAll(List.of("number", "prefab", "relative")), modes.texts().toString());
+            modes.click("prefab");
             builder.frame().click("$base");
             assertEquals("{\"metal\": \"$base\"}", builder.written.getLast());
+        }
+
+        // Decision term-number-opens-number-prefab-relative-modes: number opens the number box.
+        @Test
+        void numberModeOpensTheNumberBox() {
+            Builder builder = Builder.prefab(PREFABS, "{\"metal\": \"5\"}");
+            builder.frame().click("5");
+            builder.frame().click("number");
+            builder.commitNumber("7");
+            assertEquals("{\"metal\": \"7\"}", builder.written.getLast());
         }
 
         @Test
