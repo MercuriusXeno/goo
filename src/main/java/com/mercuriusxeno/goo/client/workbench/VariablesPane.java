@@ -57,11 +57,11 @@ final class VariablesPane {
     /** The height of a head line holding no used-by run: its text and its buttons' border below it. */
     private static final int BARE_HEAD_HEIGHT = ExpressionLines.TEXT_LINE_HEIGHT + ButtonPainter.TEXT_NUDGE;
     /**
-     * A number prefab used nowhere, from its top to the next one's: its head holding its value, its read view's line
-     * and the gaps.
+     * A number prefab used nowhere, from its top to the next one's: its name line, its one-line value button and the
+     * gaps.
      */
     static final int UNUSED_PREFAB_PITCH = SEPARATOR_ROW + BLOCK_GAP + TEXT_NUDGE + BARE_HEAD_HEIGHT
-            + ExpressionLines.TEXT_LINE_HEIGHT + 2 + BLOCK_GAP;
+            + ButtonPainter.HEIGHT + BLOCK_GAP;
     private static final int WHITE = 0xFFFFFFFF;
     private static final int GRAY = 0xFFA0A0A0;
     private static final int RED = 0xFFFF5555;
@@ -69,7 +69,6 @@ final class VariablesPane {
     private static final int LINK = ButtonPainter.LINK;
     private static final int CARD_COLOR = 0xF0181818;
     private static final int DIM_COLOR = 0xA0000000;
-    private static final int READ_VIEW_COLOR = 0x30FFFFFF;
     private static final String RESOLVED_SEPARATOR = ", ";
     private static final char HOVER_KEY_MARK = ':';
     private static final String TAG_PREFIX = "#";
@@ -91,7 +90,6 @@ final class VariablesPane {
     private static final String DELETE_TITLE_END = " and what reads it";
     private static final String NO_CONSTANTS = "The file names no constants.";
     private static final String SEARCH_HINT = "Search prefabs";
-    private static final String NO_EXPRESSION = " ";
     private static final String CONSTANT_KIND = "constant";
     private static final String GROUP_KIND = "group";
     private static final String NO_TEXT = "";
@@ -421,21 +419,29 @@ final class VariablesPane {
         return Math.max(BARE_HEAD_HEIGHT, usedBy - TEXT_NUDGE);
     }
 
-    // Value: one indent in, then the read view inline with each evaluated amount in parentheses; answers its height.
+    // Value: one indent in, then the read view inline with each evaluated amount in parentheses; a prefab with no
+    // expression reads Value: Not explicitly set as the button itself. Answers its height.
     // Decision prefab-head-is-name-pencil-used-by-then-value-with-its-amount.
+    // Decision no-value-reads-value-not-explicitly-set-as-a-pencil-button.
     private int drawValueLine(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
                               GroupsPane.Bounds bounds, int y, ClickTargets targets) {
         int labelX = bounds.left() + ControlFlow.INDENT;
-        int viewX = labelX + font.width(VALUE_LABEL) + VALUE_GAP;
-        int height = drawReadView(graphics, font, block, new GroupsPane.Bounds(viewX, bounds.top(), bounds.right(),
-                bounds.bottom()), y, targets);
-        graphics.text(font, VALUE_LABEL, labelX, y + 1 + ExpressionLines.textOffset(font, readRuns(block)), GRAY);
+        List<ExpressionLines.Run> runs = readRuns(block);
+        int viewX = runs.isEmpty() ? labelX : labelX + font.width(VALUE_LABEL) + VALUE_GAP;
+        int height = drawReadView(graphics, font, block, runs, new GroupsPane.Bounds(viewX, bounds.top(),
+                bounds.right(), bounds.bottom()), y, targets);
+        if (!runs.isEmpty()) {
+            graphics.text(font, VALUE_LABEL, labelX, ReadValueButton.textTop(font, runs, y), GRAY);
+        }
         return height;
     }
 
     private List<ExpressionLines.Run> readRuns(VariablesTab.ConstantBlock block) {
-        String text = block.expression().isEmpty() ? NO_EXPRESSION : block.expression();
-        return amountedRuns(ExpressionLines.shownRuns(text, icons::nameOf), block.resolved(), block.error());
+        if (block.expression().isBlank()) {
+            return List.of();
+        }
+        return amountedRuns(ExpressionLines.shownRuns(block.expression(), icons::nameOf), block.resolved(),
+                block.error());
     }
 
     // The box shrinks to leave the name's room to its ✓ and ↺, which run what Enter and Escape run.
@@ -469,20 +475,17 @@ final class VariablesPane {
                 ButtonPainter.HEIGHT, targets, () -> askDelete(name), BuilderOverlays.hintKey(DELETE_HINT));
     }
 
-    // A plain left click on the read view starts editing its block, a ref in it included, and a shift + left click
-    // on a ref opens the prefab it names; answers the height the read view took.
+    // A plain left click on the read view's button, its pencil or a ref in it, starts editing its block, and a
+    // shift + left click on a ref opens the prefab it names; answers the height the read view took.
     // Decision shift-left-click-follows-plain-left-modifies.
+    // Decision read-mode-builder-is-a-button-with-a-pencil-segment.
     private int drawReadView(GuiGraphicsExtractor graphics, Font font, VariablesTab.ConstantBlock block,
-                             GroupsPane.Bounds bounds, int y, ClickTargets targets) {
-        int width = bounds.right() - bounds.left();
-        List<ExpressionLines.Run> runs = readRuns(block);
-        int height = ExpressionLines.height(font, runs, width) + HALF;
-        graphics.fill(bounds.left(), y, bounds.right(), y + height, READ_VIEW_COLOR);
-        targets.add(bounds.left(), y, width, height, () -> startEditing(block.name()));
-        ExpressionLines.draw(font, runs, bounds.left(), y + 1, width, new ExpressionLines.Painter(graphics, icons,
-                targets, block.error().isEmpty() ? WHITE : RED, LINK, (name, linkX, linkY, linkWidth) ->
-                        targets.addFollow(linkX, linkY, linkWidth, LINE_HEIGHT, () -> actions.openVariable(name), name)));
-        return height;
+                             List<ExpressionLines.Run> runs, GroupsPane.Bounds bounds, int y, ClickTargets targets) {
+        return ReadValueButton.draw(graphics, font, runs, new ReadValueButton.Place(bounds.left(), y, bounds.right(),
+                () -> startEditing(block.name())), new ExpressionLines.Painter(graphics, icons, targets,
+                block.error().isEmpty() ? WHITE : RED, LINK, (name, linkX, linkY, linkWidth) ->
+                        targets.addFollow(linkX, linkY, linkWidth, LINE_HEIGHT, () -> actions.openVariable(name), name)),
+                targets);
     }
 
     // Used by holds the items naming the constant themselves, then a link to each prefab and group reading it, on

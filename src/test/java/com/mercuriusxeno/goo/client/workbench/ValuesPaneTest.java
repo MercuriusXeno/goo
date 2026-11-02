@@ -237,30 +237,67 @@ class ValuesPaneTest {
                     frame.drawn().toString());
             DrawnFrame.Text value = line.get(1);
             assertEquals(listRight, value.x() + DrawnFrame.font().width(value.text()), value.toString());
+            int planksValueY = frame.topsOf(List.of(ReadValueButton.NOT_SET)).getFirst();
             DrawnFrame.Text equals = frame.drawn().stream().filter(text -> text.text().equals("=")
-                    && text.y() > planks.y() && text.y() < frame.find("edit to override").y()).findFirst()
+                    && text.y() > planks.y() && text.y() < planksValueY).findFirst()
                     .orElseThrow(() -> new AssertionError(frame.drawn().toString()));
             List<Integer> recipeSprites = itemXsAround(frame, equals.y());
             assertEquals(planks.x() + ControlFlow.INDENT, recipeSprites.getFirst(), recipeSprites.toString());
-            assertTrue(frame.find("edit to override").y() > equals.y() + ExpressionLines.TEXT_LINE_HEIGHT,
+            assertTrue(planksValueY > equals.y() + ExpressionLines.TEXT_LINE_HEIGHT,
                     "the expression draws under the dropped recipe");
         }
 
+        // Decision no-value-reads-value-not-explicitly-set-as-a-pencil-button.
         @Test
-        void expressionLineReadsByDispositionAndOpensTheBuilderInPlace() {
+        void unvaluedRowsReadNotExplicitlySetAndOpenTheBuilderInPlace() {
             DrawnFrame frame = frame();
-            DrawnFrame.Text override = frame.find("edit to override");
-            DrawnFrame.Text noEntry = frame.find("no entry");
-            assertEquals(ControlFlow.INDENT, override.x());
-            assertEquals(ControlFlow.INDENT, noEntry.x());
-            assertTrue(override.y() > frame.find("Oak Planks").y() && noEntry.y() > frame.find("Gravel").y(),
-                    frame.drawn().toString());
-            frame.click("no entry");
+            List<DrawnFrame.Text> unset = frame.drawn().stream()
+                    .filter(text -> text.text().equals(ReadValueButton.NOT_SET)).toList();
+            assertEquals(2, unset.size(), "the planks recipes value and the gravel nothing values: " + frame.texts());
+            assertTrue(frame.texts().stream().noneMatch(List.of("edit to override", "no value", "no entry", "empty")
+                    ::contains), frame.texts().toString());
+            DrawnFrame.Text gravel = unset.getLast();
+            assertEquals(ControlFlow.INDENT + ButtonPainter.PADDING, gravel.x());
+            assertTrue(gravel.y() > frame.find("Gravel").y(), frame.drawn().toString());
+            DrawnFrame.Text pencil = pencilBeside(frame, gravel);
+            assertTrue(pencil.x() > gravel.x() + DrawnFrame.font().width(gravel.text()), pencil + " vs " + gravel);
+            frame.click(ReadValueButton.NOT_SET);
             assertTrue(builder.isOpen());
             DrawnFrame open = frame();
             DrawnFrame.Text kind = open.find(ControlFlow.dropdownLabel("by type"));
-            assertEquals(noEntry.x(), kind.x() - ButtonPainter.PADDING, kind + " vs " + noEntry);
-            assertTrue(Math.abs(kind.y() - noEntry.y()) < ExpressionLines.TEXT_LINE_HEIGHT, kind + " vs " + noEntry);
+            assertEquals(gravel.x() - ButtonPainter.PADDING, kind.x() - ButtonPainter.PADDING, kind + " vs " + gravel);
+        }
+
+        // Decision read-mode-builder-is-a-button-with-a-pencil-segment.
+        @Test
+        void valuedRowFramesItsExpressionAndItsPencilOpensTheBuilder() {
+            DrawnFrame frame = frame();
+            DrawnFrame.Text wood = frame.find("wood");
+            DrawnFrame.Text pencil = pencilBeside(frame, wood);
+            assertTrue(pencil.x() > wood.x() + DrawnFrame.font().width(wood.text()), pencil + " vs " + wood);
+            ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> rights = ArgumentCaptor.forClass(Integer.class);
+            ArgumentCaptor<Integer> bottoms = ArgumentCaptor.forClass(Integer.class);
+            verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), tops.capture(), rights.capture(),
+                    bottoms.capture(), eq(ButtonPainter.BORDER));
+            boolean expressionFramed = IntStream.range(0, lefts.getAllValues().size()).anyMatch(index ->
+                    lefts.getAllValues().get(index) < wood.x()
+                            && rights.getAllValues().get(index) > wood.x() + DrawnFrame.font().width(wood.text())
+                            && rights.getAllValues().get(index) <= pencil.x()
+                            && tops.getAllValues().get(index) <= wood.y()
+                            && bottoms.getAllValues().get(index) >= wood.y() + LINE_HEIGHT);
+            assertTrue(expressionFramed, "no frame spans the expression short of its pencil");
+            assertTrue(frame.targets.click(pencil.x() + 1, pencil.y() + 1));
+            assertTrue(builder.isOpen());
+            assertTrue(frame().texts().stream().anyMatch(text -> text.equals(ControlFlow.dropdownLabel("by type"))
+                    || text.endsWith(ControlFlow.dropdownLabel(""))), "the builder's kind dropdown draws");
+        }
+
+        private DrawnFrame.Text pencilBeside(DrawnFrame frame, DrawnFrame.Text text) {
+            return frame.drawn().stream().filter(drawn -> drawn.text().equals(ReadValueButton.PENCIL)
+                    && Math.abs(drawn.y() - text.y()) < ExpressionLines.TEXT_LINE_HEIGHT).findFirst()
+                    .orElseThrow(() -> new AssertionError("no pencil beside " + text + " in " + frame.drawn()));
         }
 
         @Test

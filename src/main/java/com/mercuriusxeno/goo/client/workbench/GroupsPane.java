@@ -57,7 +57,6 @@ final class GroupsPane {
     private static final int RED = 0xFFFF5555;
     private static final int LINK = ButtonPainter.LINK;
     private static final int SELECTED_COLOR = 0x60FFFFFF;
-    private static final int READ_VIEW_COLOR = 0x30FFFFFF;
     private static final String NEW_GROUP = "+ Custom";
     private static final String NEW_GROUP_HINT = "group name, Enter";
     private static final String SEARCH_HINT = "Search groups";
@@ -81,7 +80,6 @@ final class GroupsPane {
     private static final String TAG_MEMBERS_LABEL = "Tag members";
     private static final String NO_GROUP = "Pick a group, or name a new one.";
     private static final String NO_GROUPS = "The file names no groups.";
-    private static final String NO_WORTH = "empty";
     private static final String LINE_LABEL = "This member's line: count times the group's value, plus its extra";
     private static final String COUNT_START = "count ";
     private static final String EXTRA_LABEL = "extra:";
@@ -332,8 +330,8 @@ final class GroupsPane {
         int usedByTop = area.top() + ROW_HEIGHT + members.height();
         int valueTop = usedByTop + referents.height();
         Bounds body = new Bounds(area.left() + ControlFlow.INDENT, valueTop, area.right(), area.bottom());
-        List<ExpressionLines.Run> value = valueRuns(card.base(), NO_WORTH);
-        int readHeight = buildingHere ? 0 : ExpressionLines.height(font, value, body.right() - body.left());
+        List<ExpressionLines.Run> value = valueRuns(card.base(), null);
+        int readHeight = buildingHere ? 0 : ReadValueButton.height(font, value, body.right() - body.left());
         if (card.selected()) {
             graphics.fill(area.left(), area.top(), area.right(), valueTop + readHeight, SELECTED_COLOR);
         }
@@ -342,7 +340,7 @@ final class GroupsPane {
         drawCardHead(graphics, font, card, targets);
         drawMembers(graphics, font, card.row().name(), members, targets);
         drawReferents(graphics, font, referents, area.left() + ControlFlow.INDENT, usedByTop, targets);
-        int valueHeight = drawBuilt(graphics, font, body, valueTop, new Built(target, card.base(), NO_WORTH,
+        int valueHeight = drawBuilt(graphics, font, body, valueTop, new Built(target, card.base(), null,
                 typed -> apply(groups.baseRequest(typed)), () -> pickGroup(card.row().name())), targets);
         return valueTop + valueHeight + HALF - area.top();
     }
@@ -623,38 +621,40 @@ final class GroupsPane {
      *
      * @param target  which value it is, the builder standing open over it while building names it
      * @param shown   the value as the draft spells it
-     * @param empty   what the read view says while it is blank
+     * @param empty   what the read view says while it is blank, null for Value: Not explicitly set
      * @param writes  takes each change
      * @param opening runs before the builder opens, selecting what the value belongs to
      */
-    private record Built(String target, String shown, String empty, Writes writes, Runnable opening) {
+    private record Built(String target, String shown, @Nullable String empty, Writes writes, Runnable opening) {
     }
 
-    private List<ExpressionLines.Run> valueRuns(String shown, String empty) {
-        return shown.isBlank() ? ExpressionLines.textRuns(empty) : ExpressionLines.shownRuns(shown, icons::nameOf);
+    // A blank value reads its empty text, or, with none, has no runs, which reads Value: Not explicitly set.
+    // Decision no-value-reads-value-not-explicitly-set-as-a-pencil-button.
+    private List<ExpressionLines.Run> valueRuns(String shown, @Nullable String empty) {
+        if (!shown.isBlank()) {
+            return ExpressionLines.shownRuns(shown, icons::nameOf);
+        }
+        return empty == null ? List.of() : ExpressionLines.textRuns(empty);
     }
 
-    // A value drawn curated in a read view, a plain left click opening the builder over it in its place and a
-    // shift + left click on a ref opening its prefab; answers its height.
+    // A value drawn curated in its read-mode button, a plain left click opening the builder over it in its place
+    // and a shift + left click on a ref opening its prefab; answers its height.
     // Decision shift-left-click-follows-plain-left-modifies.
+    // Decision read-mode-builder-is-a-button-with-a-pencil-segment.
     private int drawBuilt(GuiGraphicsExtractor graphics, Font font, Bounds detail, int y, Built built,
                           ClickTargets targets) {
         if (built.target().equals(building) && builder.isOpen()) {
             return builder.extract(graphics, font, detail, y, targets);
         }
-        int width = detail.right() - detail.left();
         String shown = built.shown();
-        List<ExpressionLines.Run> runs = valueRuns(shown, built.empty());
-        int height = ExpressionLines.height(font, runs, width);
-        graphics.fill(detail.left(), y, detail.right(), y + height, READ_VIEW_COLOR);
-        targets.add(detail.left(), y, width, height, () -> {
+        Runnable open = () -> {
             built.opening().run();
             building = built.target();
             builder.open(shown, built.writes()::wrote, this::closeBuilder);
-        });
-        ExpressionLines.draw(font, runs, detail.left(), y, width, new ExpressionLines.Painter(graphics, icons,
-                targets, WHITE, LINK, ExpressionLines.followedOnShiftClick(targets, actions::openVariable)));
-        return height;
+        };
+        return ReadValueButton.draw(graphics, font, valueRuns(shown, built.empty()), new ReadValueButton.Place(detail.left(), y,
+                detail.right(), open), new ExpressionLines.Painter(graphics, icons, targets, WHITE, LINK,
+                ExpressionLines.followedOnShiftClick(targets, actions::openVariable)), targets);
     }
 
     // Answers the y below the cards; a card cut by the pane's edge is not drawn, so no icon shows half.

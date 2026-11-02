@@ -32,8 +32,6 @@ final class ValuesPane {
     private static final int NAME_SHARE = 3;
     // The least room either side of the recipe on the head line.
     private static final int HEAD_GAP = 4;
-    private static final String EDIT_TO_OVERRIDE = "edit to override";
-    private static final String NO_ENTRY = "no entry";
     private static final String DELETE = "✗";
     private static final String DELETE_HINT = "Delete";
     private static final int ICON_SIZE = 16;
@@ -73,7 +71,6 @@ final class ValuesPane {
     private static final String FRACTIONAL_CHIP = "Fractional";
     private static final String SEARCH_HINT = "Search items";
     private static final int SEARCH_WIDTH = 180;
-    private static final int READ_VIEW_COLOR = 0x30FFFFFF;
     private static final int LINK = ButtonPainter.LINK;
     private static final String NO_ENTRIES = "Nothing listed here.";
     private static final String NO_TEXT = "";
@@ -337,9 +334,9 @@ final class ValuesPane {
         int head = drawHead(graphics, font, entry, row, targets);
         int expressionTop = row.top() + head;
         boolean entered = values.hasEntry(entry.id());
-        int expressionRight = entered ? row.right() - ButtonPainter.width(font, DELETE) - ICON_GAP : row.right();
-        GroupsPane.Bounds expression = new GroupsPane.Bounds(row.left() + ControlFlow.INDENT, expressionTop,
-                expressionRight, row.bottom());
+        int expressionLeft = row.left() + ControlFlow.INDENT;
+        GroupsPane.Bounds expression = new GroupsPane.Bounds(expressionLeft, expressionTop,
+                expressionLeft + expressionWidth(font, entry, row.right() - row.left()), row.bottom());
         ValuesTab.EntryRow shown = values.rowOf(entry.id());
         int height = isBuilding(entry)
                 ? builder.extract(graphics, font, expression, expressionTop, targets)
@@ -461,11 +458,17 @@ final class ValuesPane {
                 || kind == ValuesTab.SourceKind.GROUP;
     }
 
+    // A denied item names its denial beside its sprite; an unvalued one says nothing there, its value line reading
+    // Value: Not explicitly set. Decision no-value-reads-value-not-explicitly-set-as-a-pencil-button.
+    private static String headLabel(ValuesTab.Source shown) {
+        return shown.kind() == ValuesTab.SourceKind.NONE ? NO_TEXT : shown.label();
+    }
+
     // The width drawEquality takes: the sprite, then the source's words, or "=" and what the value equals.
     private int equalityWidth(Font font, ValuesTab.ManagerEntry entry, ValuesTab.Source shown) {
         int sprite = ICON_SIZE + ICON_GAP;
         if (!carriesRuns(shown.kind())) {
-            return sprite + font.width(shown.label());
+            return sprite + font.width(headLabel(shown));
         }
         int equals = sprite + font.width(EQUALS);
         return switch (shown.kind()) {
@@ -503,7 +506,7 @@ final class ValuesPane {
         graphics.item(icons.of(entry.id()), x, line.spriteTop());
         int after = x + ICON_SIZE + ICON_GAP;
         if (!carriesRuns(shown.kind())) {
-            String label = font.plainSubstrByWidth(shown.label(), Math.max(1, line.right() - after));
+            String label = font.plainSubstrByWidth(headLabel(shown), Math.max(1, line.right() - after));
             graphics.text(font, label, after, line.textTop(), colorOf(shown.kind()));
             return after + font.width(label);
         }
@@ -770,22 +773,17 @@ final class ValuesPane {
         };
     }
 
-    // What a blank expression reads: an item recipes or a group already value overrides that value, any other has
-    // no entry. Decision items-row-is-one-line-then-its-expression-inline.
+    // A blank expression has no runs, which reads Value: Not explicitly set.
+    // Decision no-value-reads-value-not-explicitly-set-as-a-pencil-button.
     private List<ExpressionLines.Run> expressionRuns(ValuesTab.EntryRow row) {
-        if (!row.expression().isBlank()) {
-            return ExpressionLines.shownRuns(row.expression(), icons::nameOf);
-        }
-        ValuesTab.SourceKind kind = values.sourceOf(row.id()).kind();
-        boolean valued = kind == ValuesTab.SourceKind.DERIVED || kind == ValuesTab.SourceKind.GROUP;
-        return ExpressionLines.textRuns(valued ? EDIT_TO_OVERRIDE : NO_ENTRY);
+        return row.expression().isBlank() ? List.of() : ExpressionLines.shownRuns(row.expression(), icons::nameOf);
     }
 
     // A row's height as it draws with its expression read: its head line, the expression, the error line and the
     // rule's padding.
     private int rowHeight(Font font, ValuesTab.ManagerEntry entry, int width) {
         ValuesTab.EntryRow row = values.rowOf(entry.id());
-        int expression = ExpressionLines.height(font, expressionRuns(row), width - ControlFlow.INDENT);
+        int expression = ReadValueButton.height(font, expressionRuns(row), expressionWidth(font, entry, width));
         int head = placeHead(font, entry, headName(font, entry, width), new GroupsPane.Bounds(0, 0, width, 0))
                 .height();
         return head + expression + (row.error().isEmpty() ? 0 : LINE_HEIGHT) + RowLayout.RULE_PADDING;
@@ -796,18 +794,18 @@ final class ValuesPane {
     // Decision expression-builder-composes-every-form-without-typing.
     // Decision shift-left-click-follows-plain-left-modifies.
     // Decision items-row-is-one-line-then-its-expression-inline.
+    // Decision read-mode-builder-is-a-button-with-a-pencil-segment.
     private int drawValueView(GuiGraphicsExtractor graphics, Font font, ValuesTab.EntryRow row,
                               GroupsPane.Bounds area, ClickTargets targets) {
-        int x = area.left();
-        int y = area.top();
-        int width = area.right() - area.left();
-        List<ExpressionLines.Run> runs = expressionRuns(row);
-        int height = ExpressionLines.height(font, runs, width);
-        graphics.fill(x, y, x + width, y + height, READ_VIEW_COLOR);
-        targets.add(x, y, width, height, () -> openBuilder(row));
-        ExpressionLines.draw(font, runs, x, y, width, new ExpressionLines.Painter(graphics, icons, targets, WHITE,
-                LINK, ExpressionLines.followedOnShiftClick(targets, actions::openVariable)));
-        return height;
+        return ReadValueButton.draw(graphics, font, expressionRuns(row), new ReadValueButton.Place(area.left(),
+                area.top(), area.right(), () -> openBuilder(row)), new ExpressionLines.Painter(graphics, icons,
+                targets, WHITE, LINK, ExpressionLines.followedOnShiftClick(targets, actions::openVariable)), targets);
+    }
+
+    // The expression's room: one indent in, short of the entry's x where it has one.
+    private int expressionWidth(Font font, ValuesTab.ManagerEntry entry, int rowWidth) {
+        int width = rowWidth - ControlFlow.INDENT;
+        return values.hasEntry(entry.id()) ? width - ButtonPainter.width(font, DELETE) - ICON_GAP : width;
     }
 
     private void openBuilder(ValuesTab.EntryRow row) {

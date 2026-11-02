@@ -170,15 +170,18 @@ class VariablesPaneTest {
 
     /**
      * The second prefab's Rename and Delete borders start at least two rows below the separator above it, leaving an
-     * empty row between them.
+     * empty row between them; each block draws its Rename, its Delete, then its value's frame and pencil.
      */
     @Test
     void laterPrefabButtonsPadBelowTheirSeparator() {
         draw();
         int separator = fillTopsAt(RowLayout.SEPARATOR_COLOR).get(0);
         List<Integer> borders = fillTopsAt(ButtonPainter.BORDER);
-        assertTrue(borders.get(2) >= separator + 2, "Rename top " + borders.get(2) + " vs " + separator);
-        assertTrue(borders.get(3) >= separator + 2, "Delete top " + borders.get(3) + " vs " + separator);
+        int bordersPerBlock = 4;
+        int rename = borders.get(bordersPerBlock);
+        int delete = borders.get(bordersPerBlock + 1);
+        assertTrue(rename >= separator + 2, "Rename top " + rename + " vs " + separator);
+        assertTrue(delete >= separator + 2, "Delete top " + delete + " vs " + separator);
     }
 
     /**
@@ -377,7 +380,7 @@ class VariablesPaneTest {
         DrawnFrame frame = new DrawnFrame();
         read.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
         DrawnFrame.Text name = frame.find("base");
-        DrawnFrame.Text pencil = frame.find("✎");
+        DrawnFrame.Text pencil = frame.findFirst("✎");
         DrawnFrame.Text usedBy = frame.find("Used by ");
         DrawnFrame.Text egg = linkText(frame, "egg");
         DrawnFrame.Text cross = frame.find("✗");
@@ -394,11 +397,52 @@ class VariablesPaneTest {
         assertEquals(List.of(value.y(), value.y()), List.of(expression.y(), amount.y()), frame.drawn().toString());
         assertTrue(value.x() < expression.x() && expression.x() < amount.x(), frame.drawn().toString());
         assertFalse(frame.texts().contains("="), frame.texts().toString());
-        frame.click("✎");
+        frame.clickFirst("✎");
         DrawnFrame renaming = new DrawnFrame();
         read.extract(renaming.graphics, DrawnFrame.font(), VIEW, renaming.targets, 0, 0);
         assertFalse(renaming.texts().contains("base"), renaming.texts().toString());
-        assertFalse(renaming.texts().contains("✎"), renaming.texts().toString());
+        assertEquals(frame.count("✎") - 1, renaming.count("✎"), "the rename box stands in the pencil's place");
+    }
+
+    /**
+     * A prefab's value draws framed with a pencil segment at its right, a click on the pencil opening the builder,
+     * and a prefab with no expression reads Value: Not explicitly set as that button (decisions
+     * read-mode-builder-is-a-button-with-a-pencil-segment,
+     * no-value-reads-value-not-explicitly-set-as-a-pencil-button).
+     */
+    @Test
+    void valueIsAPencilButtonAndAnEmptyOneReadsNotExplicitlySet() {
+        ManagerActions actions = mock(ManagerActions.class);
+        VariablesPane read = readByEgg(actions);
+        DrawnFrame frame = new DrawnFrame();
+        read.extract(frame.graphics, DrawnFrame.font(), VIEW, frame.targets, 0, 0);
+        DrawnFrame.Text value = frame.find("Value:");
+        DrawnFrame.Text pencil = frame.drawn().stream().filter(text -> text.text().equals(ReadValueButton.PENCIL)
+                && text.y() == value.y()).findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));
+        assertTrue(pencil.x() > frame.find("(384)").x(), pencil.toString());
+        assertTrue(frame.targets.click(pencil.x() + 1, pencil.y() + 1));
+        DrawnFrame editing = new DrawnFrame();
+        read.extract(editing.graphics, DrawnFrame.font(), VIEW, editing.targets, 0, 0);
+        assertTrue(editing.texts().stream().anyMatch(text -> text.endsWith(ControlFlow.dropdownLabel(""))),
+                editing.texts().toString());
+
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_constants", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                    {"key": "blank", "keySeparator": null, "kind": "VALUE", "text": "\\"\\"", "entries": [],
+                     "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        VariablesPane unset = twelvePrefabs(new VariablesTab(draft), draft);
+        DrawnFrame blank = new DrawnFrame();
+        unset.extract(blank.graphics, DrawnFrame.font(), VIEW, blank.targets, 0, 0);
+        assertTrue(blank.texts().contains(ReadValueButton.NOT_SET), blank.texts().toString());
+        blank.click(ReadValueButton.NOT_SET);
+        DrawnFrame opened = new DrawnFrame();
+        unset.extract(opened.graphics, DrawnFrame.font(), VIEW, opened.targets, 0, 0);
+        assertTrue(opened.texts().stream().anyMatch(text -> text.endsWith(ControlFlow.dropdownLabel(""))),
+                opened.texts().toString());
     }
 
     private static final String READ_PREFABS = """
@@ -703,7 +747,7 @@ class VariablesPaneTest {
         String last = "prefab" + (PREFABS - 1);
         DrawnFrame list = new DrawnFrame();
         read.extract(list.graphics, DrawnFrame.font(), TALL_VIEW, list.targets, 0, 0);
-        list.click("✎");
+        clickRenameOf(list, last);
         DrawnFrame open = new DrawnFrame();
         read.extract(open.graphics, DrawnFrame.font(), TALL_VIEW, open.targets, 0, 0);
         EditBox box = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
@@ -715,7 +759,7 @@ class VariablesPaneTest {
                 org.mockito.ArgumentMatchers.contains("\"to\":\"renamed\""), any());
         DrawnFrame again = new DrawnFrame();
         read.extract(again.graphics, DrawnFrame.font(), TALL_VIEW, again.targets, 0, 0);
-        again.click("✎");
+        clickRenameOf(again, last);
         DrawnFrame reopened = new DrawnFrame();
         read.extract(reopened.graphics, DrawnFrame.font(), TALL_VIEW, reopened.targets, 0, 0);
         box.setValue("other");
@@ -725,6 +769,14 @@ class VariablesPaneTest {
         DrawnFrame closed = new DrawnFrame();
         read.extract(closed.graphics, DrawnFrame.font(), TALL_VIEW, closed.targets, 0, 0);
         assertTrue(closed.texts().contains(last), closed.texts().toString());
+    }
+
+    // The rename pencil on a prefab's name line, apart from its value's pencil below.
+    private static void clickRenameOf(DrawnFrame frame, String prefab) {
+        DrawnFrame.Text name = frame.find(prefab);
+        DrawnFrame.Text pencil = frame.drawn().stream().filter(text -> text.text().equals("✎")
+                && text.y() == name.y()).findFirst().orElseThrow(() -> new AssertionError(frame.drawn().toString()));
+        assertTrue(frame.targets.click(pencil.x() + 1, pencil.y() + 1), pencil + " took no click");
     }
 
     /**
