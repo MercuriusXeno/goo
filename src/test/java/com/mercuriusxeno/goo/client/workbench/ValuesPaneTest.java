@@ -396,23 +396,6 @@ class ValuesPaneTest {
                 .toList();
     }
 
-    // The first shown row that puts the target row's middle closest to the view's middle, walking up from the row.
-    private static int centeredFirstRow(List<Integer> heights, int target, int view) {
-        double half = view / 2.0;
-        int best = target;
-        double above = 0;
-        double bestMiss = Math.abs(heights.get(target) / 2.0 - half);
-        for (int first = target - 1; first >= 0 && above + heights.get(target) / 2.0 < half; first--) {
-            above += heights.get(first);
-            double miss = Math.abs(above + heights.get(target) / 2.0 - half);
-            if (miss < bestMiss) {
-                best = first;
-                bestMiss = miss;
-            }
-        }
-        return best;
-    }
-
     /**
      * A shift + left follow to an item well below the fold scrolls the Items list to the whole row that puts the item
      * nearest the list's middle, by the rows' drawn heights (decision
@@ -425,14 +408,84 @@ class ValuesPaneTest {
         ValuesPane pane = manyItems();
         DrawnFrame first = new DrawnFrame();
         pane.extract(first.graphics, DrawnFrame.font(), SHORT_VIEW, first.targets);
+        int nameBelowRowTop = first.find(itemName(0)).y() - first.firstScissor()[1];
         int target = 25;
         pane.reveal("minecraft:item_%02d".formatted(target));
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), SHORT_VIEW, frame.targets);
         int[] list = frame.firstScissor();
-        int expected = centeredFirstRow(heights, target, list[3] - list[1]);
-        assertTrue(expected < target, "the target already stands centered at the top");
-        assertEquals(expected, pane.listBar().offset());
+        int rowTop = frame.find(itemName(target)).y() - nameBelowRowTop;
+        double rowMiddle = rowTop + heights.get(target) / 2.0;
+        double listMiddle = (list[1] + list[3]) / 2.0;
+        assertTrue(Math.abs(rowMiddle - listMiddle) <= 1, rowMiddle + " vs the list's middle " + listMiddle);
+    }
+
+    /**
+     * A builder opened on a row taller than the Items list scrolls, wheel notch by wheel notch, until its Cancel and
+     * Done stand inside the list (decision items-list-scrolls-by-pixel).
+     */
+    @Test
+    void openBuilderTallerThanTheListScrollsItsDoneIntoView() {
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:gravel", "Gravel")), List.of()));
+        values.readModel("""
+                {"path": "base_values.json", "members": [
+                  {"key": "gravel", "keySeparator": null, "kind": "VALUE", "text": "\\"2\\"", "entries": [],
+                   "leading": null, "trailing": null, "closingGap": null}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        when(actions.addWidget(any())).thenAnswer(call -> call.getArgument(0));
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        pane.init(DrawnFrame.font());
+        pane.show(true);
+        GroupsPane.Bounds tall = new GroupsPane.Bounds(0, 0, 500, 300);
+        DrawnFrame closed = new DrawnFrame();
+        pane.extract(closed.graphics, DrawnFrame.font(), tall, closed.targets);
+        closed.click("2");
+        DrawnFrame open = new DrawnFrame();
+        pane.extract(open.graphics, DrawnFrame.font(), tall, open.targets);
+        open.click("2");
+        ArgumentCaptor<net.minecraft.client.gui.components.AbstractWidget> focused =
+                ArgumentCaptor.forClass(net.minecraft.client.gui.components.AbstractWidget.class);
+        verify(actions, atLeastOnce()).focus(focused.capture());
+        ((net.minecraft.client.gui.components.EditBox) focused.getValue()).setValue("3");
+        assertTrue(pane.keyPressed(org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER), "no number box stood open");
+        GroupsPane.Bounds squat = new GroupsPane.Bounds(0, 0, 500, 50);
+        for (int notch = 0; notch < 20; notch++) {
+            DrawnFrame scrolled = new DrawnFrame();
+            pane.extract(scrolled.graphics, DrawnFrame.font(), squat, scrolled.targets);
+            pane.scroll(0, 0, -1);
+        }
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), squat, frame.targets);
+        int[] list = frame.firstScissor();
+        for (String label : List.of("✓ Done", "✗ Cancel")) {
+            DrawnFrame.Text button = frame.find(label);
+            assertTrue(button.y() >= list[1] && button.y() + LINE_HEIGHT <= list[3],
+                    button + " outside the list " + java.util.Arrays.toString(list));
+        }
+    }
+
+    /**
+     * One wheel notch moves the Items list by the pixel step, not by a row (decision items-list-scrolls-by-pixel).
+     */
+    @Test
+    void wheelNotchMovesTheItemsListByThePixelStep() {
+        GroupsPane.Bounds view = new GroupsPane.Bounds(0, 0, 500, 600);
+        ValuesPane pane = manyItems();
+        DrawnFrame before = new DrawnFrame();
+        pane.extract(before.graphics, DrawnFrame.font(), view, before.targets);
+        int notches = 3;
+        for (int notch = 0; notch < notches; notch++) {
+            pane.scroll(0, 0, -1);
+        }
+        DrawnFrame after = new DrawnFrame();
+        pane.extract(after.graphics, DrawnFrame.font(), view, after.targets);
+        String row = itemName(5);
+        assertEquals(notches * ValuesPane.SCROLL_STEP, before.find(row).y() - after.find(row).y());
     }
 
     /**
@@ -452,7 +505,8 @@ class ValuesPaneTest {
         pane.extract(frame.graphics, DrawnFrame.font(), squat, frame.targets);
         int[] list = frame.firstScissor();
         assertTrue(heights.get(target) > list[3] - list[1], "row " + target + " fits the list");
-        assertEquals(target, pane.listBar().offset());
+        int nameBelowRowTop = first.find(itemName(0)).y() - first.firstScissor()[1];
+        assertEquals(list[1], frame.find(itemName(target)).y() - nameBelowRowTop);
     }
 
     /**
