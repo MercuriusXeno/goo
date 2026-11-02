@@ -72,6 +72,7 @@ final class VariablesPane {
     private static final String RESOLVED_SEPARATOR = ", ";
     private static final char HOVER_KEY_MARK = ':';
     private static final String TAG_PREFIX = "#";
+    private static final String PREFAB_MARK = "$";
     private static final String VALUE_LABEL = "Value:";
     private static final String AMOUNT_OPEN = "(";
     private static final String AMOUNT_CLOSE = ")";
@@ -398,14 +399,16 @@ final class VariablesPane {
         int x = bounds.left();
         boolean renamingThis = rename != null && block.name().equals(renaming);
         int pencilWidth = ButtonPainter.width(font, RENAME);
-        int nameWidth = font.width(block.name()) + PENCIL_GAP + pencilWidth;
+        // Decision hash-marks-groups-and-dollar-marks-prefabs-everywhere: the prefab's name reads after $.
+        String shown = PREFAB_MARK + block.name();
+        int nameWidth = font.width(shown) + PENCIL_GAP + pencilWidth;
         if (renamingThis) {
             drawRenameBox(graphics, font, rename, block.name(), x, y, targets);
             nameWidth = NAME_WIDTH;
         } else {
-            ButtonPainter.drawEntryName(graphics, font, block.name(), x, y, isMarked(block.name()));
+            ButtonPainter.drawEntryName(graphics, font, shown, x, y, isMarked(block.name()));
             // The operator's ruling: rename is a pencil just past the name, delete a red x at the row's right end.
-            ButtonPainter.draw(graphics, font, RENAME, x + font.width(block.name()) + PENCIL_GAP,
+            ButtonPainter.draw(graphics, font, RENAME, x + font.width(shown) + PENCIL_GAP,
                     y - ButtonPainter.TEXT_NUDGE, ButtonPainter.HEIGHT, targets, () -> startRename(block.name()),
                     BuilderOverlays.hintKey(RENAME_HINT));
         }
@@ -512,7 +515,7 @@ final class VariablesPane {
     }
 
     private static String linkLabel(VariablesTab.Reader link) {
-        return CONSTANT_KIND.equals(link.kind()) ? link.id() : groupLabel(link.id());
+        return CONSTANT_KIND.equals(link.kind()) ? PREFAB_MARK + link.id() : groupLabel(link.id());
     }
 
     private static String groupLabel(String id) {
@@ -561,7 +564,7 @@ final class VariablesPane {
         }
         VariablesTab.Reader link = usedBy.links().get(index - usedBy.items().size());
         if (CONSTANT_KIND.equals(link.kind())) {
-            ButtonPainter.drawFollow(graphics, font, link.id(), x, y, ICON_SIZE, targets,
+            ButtonPainter.drawFollow(graphics, font, linkLabel(link), x, y, ICON_SIZE, targets,
                     () -> actions.openVariable(link.id()), PrefabHovers.hoverKey(link.id()));
         } else {
             String label = groupLabel(link.id());

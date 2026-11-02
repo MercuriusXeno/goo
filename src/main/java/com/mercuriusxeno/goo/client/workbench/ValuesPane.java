@@ -77,6 +77,7 @@ final class ValuesPane {
     private static final int NO_REVEAL = -1;
     // A hover key no item id, prefab name or goo type key spells.
     private static final String GROUP_HOVER_PREFIX = "goo-group-members:";
+    private static final String GROUP_MARK = "#";
     private static final int MEMBER_ICONS_SHOWN = 8;
 
     private final ValuesTab values;
@@ -472,7 +473,7 @@ final class ValuesPane {
         }
         int equals = sprite + font.width(EQUALS);
         return switch (shown.kind()) {
-            case GROUP -> equals + ICON_GAP + ButtonPainter.width(font, shown.label());
+            case GROUP -> equals + ICON_GAP + ButtonPainter.width(font, GROUP_MARK + shown.label());
             case DERIVED -> equals + ICON_GAP + inputsWidth(font, entry.id());
             default -> equals;
         };
@@ -549,9 +550,10 @@ final class ValuesPane {
     // group-link-hovers-member-icons-then-plus-n).
     // Decision shift-left-click-follows-plain-left-modifies.
     // Answers the x past the button.
+    // Decision hash-marks-groups-and-dollar-marks-prefabs-everywhere: the group reads after #.
     private int drawGroupLink(GuiGraphicsExtractor graphics, Font font, String group, int left, HeadLine line,
                               ClickTargets targets) {
-        String shown = font.plainSubstrByWidth(group,
+        String shown = font.plainSubstrByWidth(GROUP_MARK + group,
                 Math.max(1, line.right() - left - ButtonPainter.PADDING - ButtonPainter.PADDING));
         return ButtonPainter.drawFollow(graphics, font, shown, left, line.spriteTop() - 1, ROW_HEIGHT, targets,
                 () -> actions.openGroup(group), GROUP_HOVER_PREFIX + group).right();

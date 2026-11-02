@@ -132,7 +132,7 @@ class MutatorControlsTest {
 
         @Test
         void additiveReadsPlusItsPrefab() {
-            assertEquals(List.of("+", "oak"), sentence(new Processes.Additive("oak")));
+            assertEquals(List.of("+", "$oak"), sentence(new Processes.Additive("oak")));
         }
 
         @Test
@@ -362,7 +362,7 @@ class MutatorControlsTest {
 
         @Test
         void shiftClickingAnAdditivesPrefabOpensThePrefab() {
-            frame("rust", new Processes.Additive("oak")).shiftClick("oak");
+            frame("rust", new Processes.Additive("oak")).shiftClick("$oak");
             verify(actions).openVariable("oak");
         }
 

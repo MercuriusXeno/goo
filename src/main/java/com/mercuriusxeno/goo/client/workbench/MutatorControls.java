@@ -29,6 +29,7 @@ final class MutatorControls {
     private static final String NOTHING_TARGET = "0";
     private static final String GROUP_MARK = "#";
     private static final String STACK_MARK = "@";
+    private static final String PREFAB_MARK = "$";
     private static final String NO_SOURCE = "";
     // Decision mutator-sentences-read-in-symbols: the word formula goes.
     private static final String CONVERT = "convert";
@@ -217,8 +218,10 @@ final class MutatorControls {
     private void drawAdditive(Entry entry, Processes.Additive additive) {
         ControlFlow flow = entry.flow();
         flow.text(PLUS, GRAY);
-        nameControl(flow, new Ref(additive.constant(), () -> actions.openVariable(additive.constant())), null,
-                treePrefabs.get(), prefab -> processes.setAdditive(entry.section(), entry.key(), prefab));
+        // Decision hash-marks-groups-and-dollar-marks-prefabs-everywhere: the prefab reads after $.
+        nameControl(flow, new Ref(PREFAB_MARK + additive.constant(), () -> actions.openVariable(additive.constant())),
+                null, SearchDropdown.over(List.of(), treePrefabs.get(), false),
+                prefab -> processes.setAdditive(entry.section(), entry.key(), prefab));
         flow.hoverLast(PrefabHovers.hoverKey(additive.constant()));
     }
 
@@ -226,7 +229,8 @@ final class MutatorControls {
         ControlFlow flow = entry.flow();
         flow.text(APPLIES, GRAY);
         nameControl(flow, new Ref(stack.formula(), () -> actions.openMutator(stack.formula())), null,
-                otherProcesses(entry), formula -> processes.setStackFormula(entry.section(), entry.key(), formula));
+                SearchDropdown.overMutators(otherProcesses(entry)),
+                formula -> processes.setStackFormula(entry.section(), entry.key(), formula));
         flow.text(TIMES_MARK, GRAY);
         numberControl(flow, stack.count(), null,
                 count -> processes.setStackCount(entry.section(), entry.key(), count));
@@ -284,8 +288,8 @@ final class MutatorControls {
                     at -> edit(() -> processes.removeAssignmentLink(section, key, link)));
         }
         flow.newLine();
-        flow.control(ADD_MUTATION, null, at -> openNames(at, processes.processNames(section),
-                name -> processes.addAssignmentLink(section, key, STACK_MARK + name)));
+        flow.control(ADD_MUTATION, null, at -> openNames(at, SearchDropdown.overMutators(
+                processes.processNames(section)), name -> processes.addAssignmentLink(section, key, STACK_MARK + name)));
     }
 
     private void drawUnread(Entry entry, Processes.Unread unread, boolean assignment) {
@@ -310,13 +314,12 @@ final class MutatorControls {
 
     // Decision diagnose-and-correct-mutator-references-that-do-not-link: a plain left click opens a dropdown over the
     // names, a shift + left click opens the thing named.
-    private void nameControl(ControlFlow flow, Ref ref, String hint, List<String> names, Consumer<String> pick) {
+    private void nameControl(ControlFlow flow, Ref ref, String hint, SearchDropdown names, Consumer<String> pick) {
         flow.linkControl(ref.label(), hint, at -> openNames(at, names, pick), ref.follow());
     }
 
-    private void openNames(BuilderOverlays.Anchor at, List<String> names, Consumer<String> pick) {
-        overlays.openDropdown(at, SearchDropdown.over(List.of(), names, false),
-                choice -> edit(() -> pick.accept(choice.id())));
+    private void openNames(BuilderOverlays.Anchor at, SearchDropdown names, Consumer<String> pick) {
+        overlays.openDropdown(at, names, choice -> edit(() -> pick.accept(choice.id())));
     }
 
     // A number drawn as a link whose click opens the number box; a box holding no integer changes nothing.

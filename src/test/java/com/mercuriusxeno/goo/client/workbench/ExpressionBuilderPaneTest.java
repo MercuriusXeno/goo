@@ -109,17 +109,17 @@ class ExpressionBuilderPaneTest {
     void referenceFollowsOnShiftClickAndOpensItsReplacementOnPlainClick() {
         Builder builder = Builder.item("$waxed");
         DrawnFrame closed = builder.frame();
-        assertFalse(closed.texts().contains("edited"), closed.texts().toString());
+        assertFalse(closed.texts().contains("$edited"), closed.texts().toString());
         assertFalse(closed.rightClick("waxed"));
         verify(builder.actions, never()).openVariable(any());
         DrawnFrame unmoved = builder.frame();
-        assertFalse(unmoved.texts().contains("edited"), unmoved.texts().toString());
+        assertFalse(unmoved.texts().contains("$edited"), unmoved.texts().toString());
         unmoved.shiftClick("waxed");
         verify(builder.actions).openVariable("waxed");
-        assertFalse(builder.frame().texts().contains("edited"));
+        assertFalse(builder.frame().texts().contains("$edited"));
         builder.frame().click("waxed");
         List<String> opened = builder.frame().texts();
-        assertTrue(opened.contains("edited"), opened.toString());
+        assertTrue(opened.contains("$edited"), opened.toString());
     }
 
     /**
@@ -299,7 +299,7 @@ class ExpressionBuilderPaneTest {
             assertEquals(List.of("+", "-"), texts.subList(texts.lastIndexOf(SUM_ADD) + 1, texts.size()).stream()
                     .filter(List.of("+", "-")::contains).toList(), texts.toString());
             open.click("-");
-            builder.frame().click("base");
+            builder.frame().click("$base");
             assertEquals("$base - $base", builder.written.getLast());
         }
 
@@ -310,7 +310,7 @@ class ExpressionBuilderPaneTest {
             Builder builder = Builder.prefab(PREFABS, "{\"metal\": \"5\"}");
             builder.frame().click(dropdown("number"));
             builder.frame().click("prefab");
-            builder.frame().click("base");
+            builder.frame().click("$base");
             assertEquals("{\"metal\": \"$base\"}", builder.written.getLast());
         }
 

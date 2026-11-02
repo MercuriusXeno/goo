@@ -692,12 +692,12 @@ class ValuesPaneTest {
         ValuesPane pane = groupedPane(actions, List.of("torch"));
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
-        DrawnFrame.Text label = frame.find("lights");
+        DrawnFrame.Text label = frame.find("#lights");
         int left = label.x() - ButtonPainter.PADDING;
         int top = label.y() - 3;
-        int right = left + ButtonPainter.width(DrawnFrame.font(), "lights");
+        int right = left + ButtonPainter.width(DrawnFrame.font(), "#lights");
         verify(frame.graphics).fill(left, top, right, top + ButtonPainter.HEIGHT, ButtonPainter.BORDER);
-        frame.shiftClick("lights");
+        frame.shiftClick("#lights");
         verify(actions, atLeastOnce()).openGroup("lights");
     }
 
@@ -710,10 +710,10 @@ class ValuesPaneTest {
         ValuesPane pane = groupedPane(mock(ManagerActions.class), List.of("torch"));
         DrawnFrame held = new DrawnFrame().holdingShift();
         pane.extract(held.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), held.targets);
-        assertTrue(held.underlined("lights"));
+        assertTrue(held.underlined("#lights"));
         DrawnFrame up = new DrawnFrame();
         pane.extract(up.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), up.targets);
-        assertTrue(!up.underlined("lights"));
+        assertTrue(!up.underlined("#lights"));
     }
 
     /**
@@ -742,10 +742,10 @@ class ValuesPaneTest {
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
         assertTrue(values.selectedRow().isEmpty());
-        frame.shiftClick("lights");
+        frame.shiftClick("#lights");
         verify(actions).openGroup("lights");
         assertTrue(values.selectedRow().isEmpty());
-        frame.click("lights");
+        frame.click("#lights");
         verify(actions).openGroup("lights");
         assertEquals("minecraft:torch", values.selectedRow().orElseThrow().id());
         assertTrue(!builder.isOpen());
@@ -775,7 +775,7 @@ class ValuesPaneTest {
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
         assertTrue(frame.texts().contains("="), frame.texts().toString());
-        frame.shiftClick("saplings");
+        frame.shiftClick("#saplings");
         verify(actions, atLeastOnce()).openGroup("saplings");
 
         GroupsTab groups = new GroupsTab(draft);
@@ -809,7 +809,7 @@ class ValuesPaneTest {
         ValuesPane pane = groupedPane(mock(ManagerActions.class), members);
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
-        DrawnFrame.Text label = frame.find("lights");
+        DrawnFrame.Text label = frame.find("#lights");
         String key = frame.targets.hovered(label.x() + 1, label.y() + 1).orElseThrow();
         List<TooltipLine> lines = pane.groupTooltipFor(key).orElseThrow();
         assertEquals(1, lines.size());
