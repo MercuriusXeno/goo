@@ -5,6 +5,8 @@ import com.mojang.datafixers.util.Either;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -12,6 +14,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.ItemStack;
+import org.lwjgl.glfw.GLFW;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -48,12 +51,13 @@ public final class ValuesManagerScreen extends Screen {
     private static final String REVERT = "Revert";
     private static final String CLOSE = "X";
     private static final String DRAFT_BADGE = "draft";
-    private static final String READING = "Reading the draft and the inventory; a fresh world dumps the inventory first.";
+    private static final String READING = "Reading the draft.";
     private static final String SAVING = "saving";
     private static final String SAVED = "saved to the draft";
     private static final String UNSAVED = "unsaved changes";
     private static final String NOTHING_POSTED = "";
     private static final String NO_STATUS = "";
+    private static final String EMPTIED = "";
 
     private final ManagerConnection connection;
     private final ManagerDraft draft = new ManagerDraft();
@@ -64,6 +68,8 @@ public final class ValuesManagerScreen extends Screen {
     private final AuditTab auditTab = new AuditTab();
     private final ItemIcons icons = new ItemIcons(values::worthOf);
     private final ClickTargets targets = new ClickTargets();
+    private final LinkCursor linkCursor = new LinkCursor(cursor -> minecraft.getWindow().selectCursor(cursor),
+            PointerHand::cursor);
     private final Map<ManagerTab, Button> tabButtons = new EnumMap<>(ManagerTab.class);
     private final ValuesPane valuesPane;
     private final GroupsPane groupsPane;
@@ -72,6 +78,8 @@ public final class ValuesManagerScreen extends Screen {
     private final AuditPane auditPane;
     private final DraftConfirm draftConfirm = new DraftConfirm();
     private final DraftPane draftPane = new DraftPane(draftConfirm, this::runDraftAction);
+    private final ManagerEntrySource entrySource;
+    private final ManagerReads reads;
     private boolean unsaved;
     private ManagerTab tab = ManagerTab.VALUES;
     private String status = READING;
@@ -79,11 +87,13 @@ public final class ValuesManagerScreen extends Screen {
     private boolean loaded;
 
     /**
-     * @param connection the line to the server's workbench operations
+     * @param connection  the line to the server's workbench operations
+     * @param entrySource the client's items and item tags the Values tab lists
      */
-    public ValuesManagerScreen(ManagerConnection connection) {
+    public ValuesManagerScreen(ManagerConnection connection, ManagerEntrySource entrySource) {
         super(Component.literal(TITLE));
         this.connection = connection;
+        this.entrySource = entrySource;
         ManagerActions actions = new ScreenActions();
         valuesPane = new ValuesPane(values, icons, actions, builderPane(actions));
         groupsPane = new GroupsPane(groupsTab, values, icons, actions, builderPane(actions));
@@ -92,6 +102,7 @@ public final class ValuesManagerScreen extends Screen {
                 .filter(block -> VariablesTab.TREE_KIND.equals(block.kind())).map(VariablesTab.ConstantBlock::name)
                 .toList());
         auditPane = new AuditPane(auditTab, draft, actions);
+        reads = new ManagerReads(actions, values, groupsPane, variablesPane, processesPane);
     }
 
     // A builder over the server's items and the draft's prefabs (decision
@@ -161,6 +172,12 @@ public final class ValuesManagerScreen extends Screen {
         public void openGroup(String name) {
             selectTab(ManagerTab.GROUPS);
             groupsPane.reveal(name);
+        }
+
+        @Override
+        public void openMutator(String name) {
+            selectTab(ManagerTab.PROCESSES);
+            processesPane.reveal(name);
         }
 
         @Override
@@ -257,30 +274,12 @@ public final class ValuesManagerScreen extends Screen {
     }
 
     private void load() {
-        request(WorkbenchOperations.MODEL, NOTHING_POSTED, model -> {
-            values.readModel(model);
-            request(WorkbenchOperations.INVENTORY, NOTHING_POSTED, inventory -> {
-                values.readInventory(inventory);
-                setStatus(NO_STATUS, false);
-                readDraftAfresh();
-            });
-        });
+        reads.open(entrySource, () -> setStatus(NO_STATUS, false));
         auditPane.refresh();
     }
 
-    /**
-     * Has every tab read the draft afresh: the Values tab's resolve and uncovered items, the Groups tab's describe,
-     * the Variables tab's evaluate and the Processes tab's description.
-     */
     private void readDraftAfresh() {
-        request(WorkbenchOperations.RESOLVE_VALUES, values.modelText(), resolved -> {
-            values.readResolved(resolved);
-        });
-        request(WorkbenchOperations.UNCOVERED_VALUES, values.modelText(), values::readUncovered);
-        request(WorkbenchOperations.DERIVED_FROM, values.modelText(), values::readDerivedFrom);
-        groupsPane.refresh();
-        variablesPane.refresh();
-        processesPane.refresh();
+        reads.readAfresh();
     }
 
     /**
@@ -291,11 +290,9 @@ public final class ValuesManagerScreen extends Screen {
      */
     private void save(Runnable after) {
         setStatus(SAVING, false);
-        request(WorkbenchOperations.SAVE_MODEL, values.modelText(), saved -> {
-            values.readModel(saved);
+        reads.save(() -> {
             unsaved = false;
             setStatus(SAVED, false);
-            readDraftAfresh();
             after.run();
         });
     }
@@ -316,6 +313,8 @@ public final class ValuesManagerScreen extends Screen {
                 .thenAccept(reply -> {
                     if (reply.answered()) {
                         values.readModel(reply.text());
+                        // decision every-delete-marks-for-removal-and-a-gold-arrow-restores
+                        draft.removals().clear();
                         unsaved = false;
                         setStatus(draftConfirm.doneStatus(draft.path()), false);
                         draftConfirm.cancel();
@@ -347,16 +346,49 @@ public final class ValuesManagerScreen extends Screen {
         statusIsError = error;
     }
 
+    /**
+     * Hands a press to the frame's areas by its button and the modifiers held
+     * (decision shift-left-click-follows-plain-left-modifies).
+     *
+     * @param targets the frame's click areas
+     * @param event   the press
+     * @return whether an area took it
+     */
+    static boolean clickTargets(ClickTargets targets, MouseButtonEvent event) {
+        return targets.click(event.x(), event.y(), event.button(), event.modifiers());
+    }
+
+    /**
+     * Empties the visible text box a right-button press lands in, through setValue so its responder refills the list
+     * it filters (decision right-click-empties-every-text-box-in-the-manager).
+     *
+     * @param widgets the screen's widgets
+     * @param event   the press
+     * @return whether a box took the press
+     */
+    static boolean emptyBoxUnder(List<? extends GuiEventListener> widgets, MouseButtonEvent event) {
+        if (event.button() != GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
+            return false;
+        }
+        for (GuiEventListener widget : widgets) {
+            if (widget instanceof EditBox box && box.visible && box.isMouseOver(event.x(), event.y())) {
+                box.setValue(EMPTIED);
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (draftPane.open()) {
-            return targets.click(event.x(), event.y());
+            return clickTargets(targets, event);
         }
-        if (super.mouseClicked(event, doubleClick)) {
+        if (emptyBoxUnder(children(), event) || super.mouseClicked(event, doubleClick)) {
             return true;
         }
         setFocused(null);
-        return targets.click(event.x(), event.y());
+        return clickTargets(targets, event);
     }
 
     @Override
@@ -393,7 +425,7 @@ public final class ValuesManagerScreen extends Screen {
             case VALUES -> valuesPane.scroll(x, MARGIN, scrollY);
             case GROUPS -> groupsPane.scroll(x, y, MARGIN, scrollY);
             case VARIABLES -> variablesPane.scroll(scrollY);
-            case PROCESSES -> processesPane.scroll(scrollY);
+            case PROCESSES -> processesPane.scroll(x, scrollY);
             case AUDIT -> auditPane.scroll(y, scrollY);
         }
         return true;
@@ -409,6 +441,8 @@ public final class ValuesManagerScreen extends Screen {
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         targets.clear();
+        // Decision holding-shift-underlines-every-link.
+        targets.holdShift(minecraft.hasShiftDown());
         GroupsPane.Bounds content = contentBounds();
         switch (tab) {
             case VALUES -> valuesPane.extract(graphics, font, content, targets);
@@ -428,6 +462,14 @@ public final class ValuesManagerScreen extends Screen {
         targets.hovered(mouseX, mouseY).flatMap(this::tooltipLines)
                 .ifPresent(lines -> graphics.setComponentTooltipFromElementsForNextFrame(font, elementsOf(lines),
                         mouseX, mouseY, ItemStack.EMPTY));
+        // Decision shift-over-a-link-shows-a-pixel-pointer-hand.
+        linkCursor.frame(targets, mouseX, mouseY, graphics::requestCursor);
+    }
+
+    @Override
+    public void removed() {
+        linkCursor.release();
+        super.removed();
     }
 
     // A goo type, a control or a truncated group name names itself on one line; an item or a prefab names itself,
@@ -436,7 +478,8 @@ public final class ValuesManagerScreen extends Screen {
         Optional<TooltipLine> line = GooTypeIcons.tooltipFor(hoverKey).or(() -> BuilderOverlays.tooltipFor(hoverKey))
                 .<TooltipLine>map(TooltipLine.Text::new).or(() -> GroupsPane.nameTooltipFor(hoverKey));
         return line.isPresent() ? Optional.of(List.of(line.get()))
-                : icons.tooltipFor(hoverKey).or(() -> PrefabHovers.tooltipFor(variablesTab, hoverKey));
+                : icons.tooltipFor(hoverKey).or(() -> PrefabHovers.tooltipFor(variablesTab, hoverKey))
+                        .or(() -> valuesPane.groupTooltipFor(hoverKey));
     }
 
     // Text stays text; a goo amount reaches GooAmountTooltipComponent through the tooltip factory registered for it,
@@ -446,6 +489,7 @@ public final class ValuesManagerScreen extends Screen {
         return lines.stream().map(line -> switch (line) {
             case TooltipLine.Text text -> Either.<FormattedText, TooltipComponent>left(text.text());
             case TooltipLine.GooAmount amount -> Either.<FormattedText, TooltipComponent>right(amount);
+            case TooltipLine.MemberIcons members -> Either.<FormattedText, TooltipComponent>right(members);
         }).toList();
     }
 

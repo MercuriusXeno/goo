@@ -218,15 +218,14 @@ class ExpressionBuilderTest {
         @Test
         void wholeValueScalesAsOneSum() {
             ExpressionBuilder builder = ExpressionBuilder.of("$medium - 4 $food.jelly");
-            builder.scaleWhole(ExpressionBuilder.Op.MULTIPLY, "2");
-            builder.setScale(List.of(0), ExpressionBuilder.Op.DIVIDE, "2");
+            builder.scaleWhole(ExpressionBuilder.Op.DIVIDE, "2");
             assertEquals("($medium - 4 $food.jelly) / 2", builder.text());
         }
 
         @Test
-        void wholeSumScaledByOneComesApart() {
+        void wholeSumScaledOneToOneComesApart() {
             ExpressionBuilder builder = ExpressionBuilder.of("($medium - $food.jelly) / 2");
-            builder.setScale(List.of(0), ExpressionBuilder.Op.MULTIPLY, "1");
+            builder.setScale(List.of(0), ExpressionBuilder.Op.DIVIDE, "1");
             assertEquals("$medium - $food.jelly", builder.text());
         }
     }
@@ -267,6 +266,58 @@ class ExpressionBuilderTest {
             builder.switchToWhole();
             assertFalse(builder.isPerType());
             assertEquals("1", builder.text());
+        }
+    }
+
+    /**
+     * A ratio holds a multiplier and a divisor together, each set leaving the other side standing (decision
+     * ratio-holds-multiplier-and-divisor-together).
+     */
+    @Nested
+    class RatioHoldsBothSides {
+        @Test
+        void termKeepsItsMultiplierWhenItsDivisorIsSet() {
+            ExpressionBuilder builder = ExpressionBuilder.of("$x");
+            builder.setScale(0, ExpressionBuilder.Op.MULTIPLY, "2");
+            builder.setScale(0, ExpressionBuilder.Op.DIVIDE, "3");
+            assertEquals("2 $x / 3", builder.text());
+        }
+
+        @Test
+        void sumKeepsItsMultiplierWhenItsDivisorIsSet() {
+            ExpressionBuilder builder = ExpressionBuilder.of("$medium - 4 $food.jelly");
+            builder.scaleWhole(ExpressionBuilder.Op.MULTIPLY, "2");
+            builder.setScale(List.of(0), ExpressionBuilder.Op.DIVIDE, "3");
+            assertEquals("2 ($medium - 4 $food.jelly) / 3", builder.text());
+        }
+
+        @Test
+        void gooTypeRowKeepsItsMultiplierWhenItsDivisorIsSet() {
+            ExpressionBuilder builder = ExpressionBuilder.of("");
+            builder.addType("metal");
+            builder.setRowRelative(0, BUCKET, "metal");
+            builder.setRowScale(0, ExpressionBuilder.Op.MULTIPLY, "2");
+            builder.setRowScale(0, ExpressionBuilder.Op.DIVIDE, "3");
+            assertEquals("{\"metal\": \"2 bucket.metal / 3\"}", builder.text());
+        }
+
+        @Test
+        void numberOperandWritesBothSidesApart() {
+            ExpressionBuilder builder = ExpressionBuilder.of("5");
+            builder.setScale(0, ExpressionBuilder.Op.MULTIPLY, "2");
+            builder.setScale(0, ExpressionBuilder.Op.DIVIDE, "3");
+            assertEquals("5 * 2 / 3", builder.text());
+            ExpressionBuilder.Piece read = ExpressionBuilder.of("5 * 2 / 3").terms().getFirst();
+            assertEquals(List.of("2", "3"), List.of(read.multiplier(), read.divisor()));
+        }
+
+        @Test
+        void twoSidedTermOpensAsOnePieceAndWritesBackUnchanged() {
+            ExpressionBuilder builder = ExpressionBuilder.of("2 $iron_ingot / 3");
+            ExpressionBuilder.Piece piece = builder.terms().getFirst();
+            assertEquals(new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "iron_ingot", null), piece.operand());
+            assertEquals(List.of("2", "3"), List.of(piece.multiplier(), piece.divisor()));
+            assertEquals("2 $iron_ingot / 3", builder.text());
         }
     }
 

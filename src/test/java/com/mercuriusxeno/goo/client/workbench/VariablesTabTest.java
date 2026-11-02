@@ -63,8 +63,8 @@ class VariablesTabTest {
 
         /**
          * Each constant reads as a block in file order: its expression unquoted, its kind, what it resolves to,
-         * its readers, the items whose own expression names it and, apart from those, the terminus items it
-         * cascades into (decision used-by-draws-the-terminus-items-alone).
+         * its readers, the items whose own expression names it and the prefabs reading it as links (decision
+         * used-by-lists-direct-items-and-links-to-prefabs-and-groups).
          */
         @Test
         void blocksReadExpressionResolvedAndReaders() {
@@ -78,7 +78,7 @@ class VariablesTabTest {
             assertEquals(List.of(new VariablesTab.Reader("egg", "constant"), new VariablesTab.Reader("stick", "item")),
                     base.readers());
             assertEquals(List.of("stick"), base.direct());
-            assertEquals(List.of("oak_log", "plank"), base.indirect());
+            assertEquals(List.of(new VariablesTab.Reader("egg", "constant")), base.links());
         }
 
         /**
@@ -99,6 +99,16 @@ class VariablesTabTest {
             VariablesTab.ConstantBlock egg = tab.blocks().get(2);
             assertEquals("tree", egg.kind());
             assertEquals("zoo 8", egg.resolved());
+        }
+
+        /**
+         * A prefab with type values names its kind typed to the operator, a number prefab = (decision
+         * type-valued-prefabs-read-typed).
+         */
+        @Test
+        void typeValuedPrefabNamesItsKindTyped() {
+            assertEquals(List.of("=", "=", "typed"),
+                    tab.blocks().stream().map(VariablesTab.ConstantBlock::shownKind).toList());
         }
     }
 
@@ -218,24 +228,25 @@ class VariablesTabTest {
     class Requests {
 
         /**
-         * A rename posts its from and to beside the draft's members.
+         * A rename posts its from and to beside the draft's change set, empty while nothing changed since the read
+         * (decision requests-post-only-the-changed-members).
          */
         @Test
-        void renamePostsFromToAndMembers() {
+        void renamePostsFromToAndTheChangeSet() {
             JsonObject request = parsed(tab.renameRequest("base", "standard"));
             assertEquals("base", request.get("from").getAsString());
             assertEquals("standard", request.get("to").getAsString());
-            assertEquals(1, request.getAsJsonArray("members").size());
+            assertEquals(0, request.getAsJsonArray("changed").size());
         }
 
         /**
-         * A delete posts the constant's name beside the draft's members.
+         * A delete posts the constant's name beside the draft's change set.
          */
         @Test
-        void deletePostsNameAndMembers() {
+        void deletePostsNameAndTheChangeSet() {
             JsonObject request = parsed(tab.deleteRequest("broken"));
             assertEquals("broken", request.get("name").getAsString());
-            assertTrue(request.has("members"));
+            assertTrue(request.has("changed"));
         }
 
         /**
@@ -250,16 +261,20 @@ class VariablesTabTest {
         }
 
         /**
-         * The hover card reads the variable's expression, one line per type it resolves to and its terminus items.
+         * The hover card reads the variable's expression, one line per type it resolves to, and as links the
+         * prefabs and groups among its readers (decision used-by-lists-direct-items-and-links-to-prefabs-and-groups).
          */
         @Test
-        void hoverCardReadsExpressionTypesAndTerminus() {
-            VariablesTab.HoverCard card = tab.readHover(HOVER);
+        void hoverCardReadsExpressionTypesAndLinks() {
+            VariablesTab.HoverCard card = tab.readHover(HOVER.replace("\"readers\": []", """
+                    "readers": [{"id": "base", "kind": "constant"}, {"id": "#logs", "kind": "group"},
+                                {"id": "minecraft:egg", "kind": "item"}]"""));
             assertEquals("egg", card.title());
             assertEquals("{\"zoo\": \"$base\"}", card.expression());
             assertEquals(List.of("zoo 8", "hex 1/2"), card.lines());
             assertEquals(List.of(), card.direct());
-            assertEquals(List.of("minecraft:egg"), card.indirect());
+            assertEquals(List.of(new VariablesTab.Reader("base", "constant"), new VariablesTab.Reader("#logs", "group")),
+                    card.links());
         }
     }
 }

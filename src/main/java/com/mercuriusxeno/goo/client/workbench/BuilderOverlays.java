@@ -77,7 +77,7 @@ final class BuilderOverlays {
      * @param hint   what picking it does, shown on hover
      * @param picked takes the dropdown's anchor, so a further popup it opens stands under the same button
      */
-    record Option(String label, String hint, Consumer<Anchor> picked) {
+    record Option(String label, @Nullable String hint, Consumer<Anchor> picked) {
     }
 
     /**
@@ -198,16 +198,16 @@ final class BuilderOverlays {
     static int control(GuiGraphicsExtractor graphics, Font font, String label, @Nullable String hint, int x, int y,
                        ClickTargets targets, Consumer<Anchor> pressed) {
         ButtonPainter.Box box = ButtonPainter.draw(graphics, font, label, x, y, LINE, targets,
-                () -> pressed.accept(new Anchor(x, y)), hint == null ? null : hintKey(hint));
+                () -> pressed.accept(new Anchor(x, y)), hintKey(hint));
         return box.right() + GAP;
     }
 
     /**
      * @param hint what a control does
-     * @return the hover key whose tooltip shows it
+     * @return the hover key whose tooltip shows it, null where the hint is null and no tooltip shows
      */
-    static String hintKey(String hint) {
-        return HINT_PREFIX + hint;
+    static @Nullable String hintKey(@Nullable String hint) {
+        return hint == null ? null : HINT_PREFIX + hint;
     }
 
     /**
@@ -272,6 +272,15 @@ final class BuilderOverlays {
      * Commits the number box and closes every overlay.
      */
     void close() {
+        commitNumber();
+        closeLists();
+    }
+
+    /**
+     * Closes every overlay and drops what the number box holds uncommitted.
+     */
+    void discard() {
+        numberCommits = null;
         commitNumber();
         closeLists();
     }
@@ -370,6 +379,9 @@ final class BuilderOverlays {
             numberField.setPosition(placed.left(), placed.top());
             numberField.visible = visible;
             actions.focus(numberField);
+            // Decision every-number-box-opens-with-its-text-selected.
+            numberField.moveCursorToEnd(false);
+            numberField.setHighlightPos(0);
             numberHeldFocus = false;
         }
     }
@@ -441,7 +453,7 @@ final class BuilderOverlays {
             closeDropdown();
             return;
         }
-        targets.add(-EVERYWHERE, -EVERYWHERE, EVERYWHERE_SPAN, EVERYWHERE_SPAN, this::closeLists);
+        targets.addShield(-EVERYWHERE, -EVERYWHERE, EVERYWHERE_SPAN, EVERYWHERE_SPAN, this::closeLists);
         Placement placed = placeDropdown(opener, graphics.guiWidth(), graphics.guiHeight());
         searchField.setPosition(placed.left(), placed.top());
         int rows = Math.max(1, (placed.height() - DROPDOWN_CHROME) / SearchDropdown.ROW_HEIGHT);
@@ -456,7 +468,7 @@ final class BuilderOverlays {
         if (open == null) {
             return;
         }
-        targets.add(-EVERYWHERE, -EVERYWHERE, EVERYWHERE_SPAN, EVERYWHERE_SPAN, this::closeLists);
+        targets.addShield(-EVERYWHERE, -EVERYWHERE, EVERYWHERE_SPAN, EVERYWHERE_SPAN, this::closeLists);
         int width = open.stream().mapToInt(option -> ButtonPainter.width(font, option.label())).max().orElse(0);
         Placement placed = placeUnder(opener, width, open.size() * OPTION_ROW, graphics.guiWidth(),
                 graphics.guiHeight());

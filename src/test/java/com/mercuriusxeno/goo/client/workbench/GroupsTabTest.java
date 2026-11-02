@@ -62,6 +62,56 @@ class GroupsTabTest {
     }
 
     @Nested
+    class Searching {
+        private static final String THREE_GROUPS = """
+                {"groups": [
+                  {"name": "iron_things", "members": [{"id": "minecraft:stick", "known": true}], "base": null,
+                   "tweaks": [], "preview": []},
+                  {"name": "ingots", "members": [{"id": "minecraft:iron_ingot", "known": true}], "base": null,
+                   "tweaks": [], "preview": []},
+                  {"name": "logs", "members": [{"id": "minecraft:acacia_log", "known": true}], "base": null,
+                   "tweaks": [], "preview": []}]}
+                """;
+        private static final List<ValuesTab.ManagerEntry> NAMED = List.of(
+                new ValuesTab.ManagerEntry("minecraft:stick", "Wooden Rod", false),
+                new ValuesTab.ManagerEntry("minecraft:iron_ingot", "Iron Ingot", false),
+                new ValuesTab.ManagerEntry("minecraft:acacia_log", "Acacia Log", false));
+
+        private List<String> listedFor(String text) {
+            tab.readDescribed(THREE_GROUPS);
+            tab.search(text, NAMED);
+            return tab.groupRows().stream().map(GroupsTab.GroupRow::name).toList();
+        }
+
+        /**
+         * Typed text keeps the groups whose #name or any member's id holds it, ignoring case (decision
+         * groups-search-matches-a-name-or-any-member).
+         */
+        @Test
+        void searchKeepsGroupsWhoseNameOrMemberIdHoldsTheText() {
+            assertEquals(List.of("iron_things", "ingots"), listedFor("iron"));
+        }
+
+        /**
+         * A member's inventory name matches too, ignoring case: "wooden" stands in no id, only in the stick's name.
+         */
+        @Test
+        void searchKeepsAGroupWhoseMemberNameHoldsTheText() {
+            assertEquals(List.of("logs"), listedFor("Acacia"));
+            assertEquals(List.of("iron_things"), listedFor("wooden"));
+        }
+
+        /**
+         * Blank text lists every group.
+         */
+        @Test
+        void blankSearchListsEveryGroup() {
+            listedFor("iron");
+            assertEquals(List.of("iron_things", "ingots", "logs"), listedFor(""));
+        }
+    }
+
+    @Nested
     class Listing {
 
         /**
@@ -119,12 +169,80 @@ class GroupsTabTest {
      */
     @Nested
     class Controls {
+        private static final String NAMED = """
+                {"path": "base_values.json", "members": [
+                  {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "logs", "keySeparator": null, "kind": "VALUE", "text": "[\\"oak_log\\"]",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null},
+                  {"key": "#logs", "keySeparator": null, "kind": "VALUE", "text": "\\"$log\\"", "entries": [],
+                   "leading": null, "trailing": null, "closingGap": null},
+                  {"key": "_post_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "#stripped", "keySeparator": null, "kind": "VALUE", "text": "\\"#logs @strip\\"",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}
+                ]}
+                """;
+
+        /**
+         * Rename writes the group under the typed name, its members, its value and every #reference to it carried
+         * over (decision group-detail-puts-plus-and-rename-beside-the-name).
+         */
+        @Test
+        void renameCarriesTheGroupsMembersValueAndReferences() {
+            ManagerDraft named = new ManagerDraft();
+            named.read(NAMED);
+            GroupsTab groups = new GroupsTab(named);
+            groups.readDescribed("""
+                    {"groups": [{"name": "logs", "members": [{"id": "minecraft:oak_log", "known": true}],
+                      "base": "$log", "tweaks": [], "preview": []}]}""");
+            groups.selectGroup("logs");
+            assertTrue(groups.renameSelected(" #timber "));
+            assertEquals("[\"oak_log\"]", named.sectionEntries("_groups").get(0).getAsJsonObject().get("text")
+                    .getAsString());
+            assertEquals("timber", named.sectionEntries("_groups").get(0).getAsJsonObject().get("key").getAsString());
+            JsonObject value = named.members().asList().stream().map(member -> member.getAsJsonObject())
+                    .filter(member -> member.get("key").getAsString().startsWith("#")).findFirst().orElseThrow();
+            assertEquals("#timber", value.get("key").getAsString());
+            assertEquals("\"$log\"", value.get("text").getAsString());
+            assertEquals("\"#timber @strip\"", named.sectionEntries("_post_conversions").get(0).getAsJsonObject()
+                    .get("text").getAsString());
+        }
+
+        /**
+         * Delete takes the group's _groups entry and its #name value out of the draft and drops the selection
+         * (decision rename-is-a-pencil-and-delete-a-red-x-everywhere).
+         */
+        @Test
+        void deleteRemovesTheGroupsEntryAndValue() {
+            ManagerDraft named = new ManagerDraft();
+            named.read(NAMED);
+            GroupsTab groups = new GroupsTab(named);
+            groups.readDescribed("""
+                    {"groups": [{"name": "logs", "members": [{"id": "minecraft:oak_log", "known": true}],
+                      "base": "$log", "tweaks": [], "preview": []}]}""");
+            groups.selectGroup("logs");
+            assertTrue(groups.deleteGroup("logs"));
+            assertEquals(0, named.sectionEntries("_groups").size());
+            assertTrue(named.members().asList().stream().noneMatch(member -> "#logs".equals(
+                    member.getAsJsonObject().get("key").getAsString())));
+            assertTrue(groups.selected().isEmpty());
+            assertFalse(groups.deleteGroup("logs"));
+        }
+
+        @Test
+        void renameRefusesABlankOrTakenName() {
+            tab.selectGroup("logs");
+            assertFalse(tab.renameSelected(" "));
+            assertFalse(tab.renameSelected("spawn_eggs"));
+        }
+
         @Test
         void newGroupPostsItsNameToCreate() {
             JsonObject request = parsed(tab.createRequest("fresh"));
             assertEquals("fresh", request.get("group").getAsString());
             assertTrue(request.get("create").getAsBoolean());
-            assertTrue(request.has("members"));
+            assertTrue(request.has("changed"));
         }
 
         @Test
@@ -161,11 +279,82 @@ class GroupsTabTest {
         }
     }
 
+    /**
+     * A described row of kind tag reads as a tag referent, listed beside the custom groups, and its built value
+     * posts as its base, which the server writes as its #tag entry (decision
+     * tag-referent-lists-the-games-members-and-values-them).
+     */
+    @Nested
+    class TagReferents {
+        private static final String WITH_REFERENT = """
+                {"groups": [
+                  {"name": "logs", "kind": "group", "members": [], "base": null, "tweaks": [], "preview": []},
+                  {"name": "saplings", "kind": "tag", "members": [{"id": "minecraft:oak_sapling", "known": true}],
+                   "base": "$log / 2", "tweaks": [], "preview": []}]}
+                """;
+
+        @Test
+        void tagRowReadsAsAReferentBesideTheGroups() {
+            tab.readDescribed(WITH_REFERENT);
+            assertEquals(List.of("logs", "saplings"), tab.groupRows().stream().map(GroupsTab.GroupRow::name).toList());
+            tab.selectGroup("saplings");
+            assertTrue(tab.selected().orElseThrow().tag());
+            tab.selectGroup("logs");
+            assertFalse(tab.selected().orElseThrow().tag());
+        }
+
+        /**
+         * Add tag lists every inventory tag no referent names, each as its #id and member count, and the typed
+         * search filters it (decision add-tag-picks-a-game-tag-and-writes-its-entry).
+         */
+        @Test
+        void addTagListsTheInventorysTagsNoReferentNames() {
+            tab.readDescribed(WITH_REFERENT);
+            List<ValuesTab.ManagerEntry> inventory = List.of(
+                    new ValuesTab.ManagerEntry("minecraft:oak_log", "Oak Log", false),
+                    new ValuesTab.ManagerEntry("#minecraft:saplings", "9 members", true),
+                    new ValuesTab.ManagerEntry("#minecraft:leaves", "8 members", true),
+                    new ValuesTab.ManagerEntry("#minecraft:planks", "40 members", true));
+            SearchDropdown dropdown = tab.addTagChoices(inventory);
+            assertEquals(List.of(new SearchDropdown.Choice(SearchDropdown.Kind.TAG, "#minecraft:leaves",
+                            "#minecraft:leaves, 8 members"),
+                    new SearchDropdown.Choice(SearchDropdown.Kind.TAG, "#minecraft:planks",
+                            "#minecraft:planks, 40 members")),
+                    dropdown.choices());
+            dropdown.search("lea");
+            assertEquals(List.of("#minecraft:leaves"), dropdown.choices().stream().map(SearchDropdown.Choice::id)
+                    .toList());
+        }
+
+        /**
+         * Picking a tag posts a create-tag request naming the tag as the file spells it after #.
+         */
+        @Test
+        void pickedTagPostsItsCreateTagRequest() {
+            JsonObject request = parsed(tab.createTagRequest("#minecraft:leaves"));
+            assertEquals("leaves", request.get("group").getAsString());
+            assertTrue(request.get("createTag").getAsBoolean());
+            assertEquals("create:tag", parsed(tab.createTagRequest("#create:tag")).get("group").getAsString());
+        }
+
+        @Test
+        void referentsBuiltValuePostsAsItsBase() {
+            tab.readDescribed(WITH_REFERENT);
+            tab.selectGroup("saplings");
+            ExpressionBuilder builder = ExpressionBuilder.of(tab.selected().orElseThrow().base());
+            builder.relate(new SearchDropdown.Choice(SearchDropdown.Kind.PREFAB, "wood", "wood"));
+            JsonObject request = parsed(tab.baseRequest(builder.text()));
+            assertEquals("saplings", request.get("group").getAsString());
+            assertEquals("$log / 2 + $wood", request.get("base").getAsString());
+            assertFalse(request.has("picks"));
+        }
+    }
+
     @Nested
     class Apply {
 
         /**
-         * Adding a pick posts the draft's members, the selected group and its members with the pick appended.
+         * Adding a pick posts the draft's change set, the selected group and its members with the pick appended.
          */
         @Test
         void addPickPostsTheGroupsMembersWithThePick() {
@@ -174,7 +363,7 @@ class GroupsTabTest {
             assertEquals("spawn_eggs", request.get("group").getAsString());
             assertEquals(List.of("minecraft:zombie_spawn_egg", "minecraft:gone_spawn_egg", "#minecraft:logs"),
                     request.getAsJsonArray("picks").asList().stream().map(pick -> pick.getAsString()).toList());
-            assertTrue(request.has("members"));
+            assertTrue(request.has("changed"));
         }
 
         /**

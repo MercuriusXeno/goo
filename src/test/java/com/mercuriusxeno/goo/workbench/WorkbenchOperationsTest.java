@@ -4,9 +4,12 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.data.GooBaseValuesPreview;
 import com.mercuriusxeno.goo.data.GooConstantResolver;
+import com.mercuriusxeno.goo.data.GooValue;
 import com.mercuriusxeno.goo.type.GooTypeDefinition;
 import com.mercuriusxeno.goo.type.GooTypes;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -16,8 +19,10 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -25,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -44,6 +50,7 @@ class WorkbenchOperationsTest {
             + "\"name\":\"Iron Nugget\"}],\"blocks\":[{\"id\":\"minecraft:fire\",\"name\":\"Fire\"}],"
             + "\"item_tags\":[],\"block_tags\":[{\"id\":\"minecraft:fire\",\"members\":[\"minecraft:fire\"]}],"
             + "\"goo_types\":[],\"recipes\":[]}";
+    private static final long ONE_SECOND = 1000;
 
     @TempDir
     Path temp;
@@ -191,14 +198,103 @@ class WorkbenchOperationsTest {
             assertArrayEquals(BaseValuesModelTest.sampleBytes(), Files.readAllBytes(paths.baseValues()));
         }
 
+    }
+
+    /**
+     * The in-game manager posts the members changed since its last save, which merge into the draft by member key
+     * (decision requests-post-only-the-changed-members).
+     */
+    @Nested
+    class ChangeSets {
+        private static final String DRAFT = """
+                {
+                    "stick": {"leaf": 12},
+                    "torch": {"leaf": 4},
+                    "apple": {"leaf": 2}
+                }
+                """;
+
+        @BeforeEach
+        void standTheDraft() throws IOException {
+            Files.writeString(paths.draft(), DRAFT);
+        }
+
+        // The member a one-entry file holds, as the manager posts it.
+        private static JsonObject member(String fileText) {
+            return JsonParser.parseString(posted(fileText)).getAsJsonObject().getAsJsonArray("members").get(0)
+                    .getAsJsonObject();
+        }
+
+        private static String changeSet(List<JsonObject> changed, List<String> removed) {
+            JsonObject changes = new JsonObject();
+            JsonArray members = new JsonArray();
+            changed.forEach(members::add);
+            changes.add("changed", members);
+            JsonArray keys = new JsonArray();
+            removed.forEach(keys::add);
+            changes.add("removed", keys);
+            return changes.toString();
+        }
+
+        private Map<String, String> leafByKey(String posted) {
+            return answeredJson(WorkbenchOperations.RESOLVE_VALUES, posted).getAsJsonArray("entries").asList()
+                    .stream().map(JsonElement::getAsJsonObject).collect(Collectors.toMap(
+                            entry -> entry.get("key").getAsString(),
+                            entry -> entry.getAsJsonObject("value").get("leaf").getAsString()));
+        }
+
         /**
-         * A save sending no members array is refused as a bad request naming the cause.
+         * The manager's open asks for no inventory, so a resolve and a constants evaluate on a world with no inventory
+         * dump it first and read it, rather than answering as if no tag held a member.
          */
         @Test
-        void saveWithNoMembersIsABadRequest() {
-            WorkbenchReply refused = operations.answer(WorkbenchOperations.SAVE_MODEL, "{}");
-            assertEquals(400, refused.status());
-            assertTrue(refused.text().contains("members"), refused.text());
+        void draftReadsOnAWorldWithNoInventoryDumpItFirst() {
+            answered(WorkbenchOperations.RESOLVE_VALUES, "");
+            assertEquals(1, dumpsRun.get());
+            assertTrue(Files.isRegularFile(paths.inventoryFile()));
+        }
+
+        /**
+         * A constants evaluate on a world with no inventory dumps it first.
+         */
+        @Test
+        void constantsEvaluateOnAWorldWithNoInventoryDumpsItFirst() {
+            answered(WorkbenchOperations.EVALUATE_CONSTANTS, "");
+            assertEquals(1, dumpsRun.get());
+        }
+
+        /**
+         * An empty post resolves the draft as it stands.
+         */
+        @Test
+        void emptyPostResolvesTheDraft() {
+            assertEquals(Map.of("stick", "12", "torch", "4", "apple", "2"), leafByKey(""));
+        }
+
+        /**
+         * A change set holding one changed member resolves that member's new value and the draft's for the rest.
+         */
+        @Test
+        void changedMemberResolvesOverTheDraft() {
+            String posted = changeSet(List.of(member("{\n    \"stick\": {\"leaf\": 20}\n}")), List.of());
+            assertEquals(Map.of("stick", "20", "torch", "4", "apple", "2"), leafByKey(posted));
+        }
+
+        /**
+         * A save of a change set writes the draft with the changed member, without the removed one, with an added
+         * member after the key it follows, and every other member as it stood.
+         */
+        @Test
+        void saveMergesTheChangeSetIntoTheDraft() throws IOException {
+            JsonObject bread = member("{\n    \"bread\": {\"leaf\": 6}\n}");
+            bread.addProperty("after", "stick");
+            String posted = changeSet(List.of(member("{\n    \"stick\": {\"leaf\": 20}\n}"), bread),
+                    List.of("torch"));
+            answered(WorkbenchOperations.SAVE_MODEL, posted);
+            JsonObject written = JsonParser.parseString(Files.readString(paths.draft())).getAsJsonObject();
+            assertEquals(List.of("stick", "bread", "apple"), List.copyOf(written.keySet()));
+            assertEquals(20, written.getAsJsonObject("stick").get("leaf").getAsInt());
+            assertEquals(2, written.getAsJsonObject("apple").get("leaf").getAsInt());
         }
     }
 
@@ -394,6 +490,30 @@ class WorkbenchOperationsTest {
                             member -> member.get("known").getAsBoolean()));
             assertEquals(Map.of("minecraft:fire", false, "minecraft:iron_nugget", true), known);
         }
+
+        /**
+         * The groups reads keep their inventory parse while the file is unchanged and parse again once a dump
+         * rewrites it (decision inventory-parses-once-per-file-timestamp).
+         */
+        @Test
+        void groupsInventoryReusesItsParseUntilTheFileChanges() throws IOException {
+            Path file = paths.inventoryFile();
+            Files.writeString(file, inventoryWithTags("minecraft:logs"));
+            FileTime written = Files.getLastModifiedTime(file);
+            GroupsJson.Inventory first = GroupsJson.Inventory.read(file);
+            assertSame(first, GroupsJson.Inventory.read(file));
+            Files.writeString(file, inventoryWithTags("minecraft:logs", "minecraft:planks"));
+            Files.setLastModifiedTime(file, FileTime.fromMillis(written.toMillis() + ONE_SECOND));
+            assertEquals(Set.of("minecraft:logs", "minecraft:planks"), GroupsJson.Inventory.read(file).tags().keySet());
+        }
+
+        private static String inventoryWithTags(String... tags) {
+            String tagJson = java.util.Arrays.stream(tags)
+                    .map(tag -> "{\"id\":\"" + tag + "\",\"members\":[\"minecraft:iron_nugget\"]}")
+                    .collect(Collectors.joining(","));
+            return "{\"items\":[{\"id\":\"minecraft:iron_nugget\",\"name\":\"Iron Nugget\"}],"
+                    + "\"item_tags\":[" + tagJson + "],\"goo_types\":[],\"recipes\":[]}";
+        }
     }
 
     /**
@@ -422,6 +542,84 @@ class WorkbenchOperationsTest {
             return model.getAsJsonArray("members").asList().stream().map(JsonElement::getAsJsonObject)
                     .filter(member -> member.has("key") && !member.get("key").isJsonNull()
                             && key.equals(member.get("key").getAsString())).findFirst().orElseThrow();
+        }
+
+        /**
+         * A tag referent's base lands as its #tag entry's text and the reply lists it as a tag referent, with
+         * _groups as it stood (decision tag-referent-lists-the-games-members-and-values-them).
+         */
+        @Test
+        void tagReferentsBaseLandsAsItsTagEntry() throws IOException {
+            String groupsBefore = memberKeyed(JsonParser.parseString(posted(FILE)).getAsJsonObject(), "_groups")
+                    .toString();
+            Files.writeString(paths.inventoryFile(), INVENTORY);
+            JsonObject request = JsonParser.parseString(posted(FILE)).getAsJsonObject();
+            request.addProperty("group", "saplings");
+            request.addProperty("base", "$log / 2");
+            JsonObject answer = answeredJson(WorkbenchOperations.APPLY_TO_GROUP, request.toString());
+            JsonObject model = answer.getAsJsonObject("model");
+            assertEquals("\"$log / 2\"", memberKeyed(model, "#saplings").get("text").getAsString());
+            assertEquals(groupsBefore, memberKeyed(model, "_groups").toString());
+            JsonObject saplings = answer.getAsJsonArray("groups").asList().stream().map(JsonElement::getAsJsonObject)
+                    .filter(group -> "saplings".equals(group.get("name").getAsString())).findFirst().orElseThrow();
+            assertEquals("tag", saplings.get("kind").getAsString());
+        }
+
+        /**
+         * The create-tag form writes the tag's #tag entry with no value text, and the reply lists it as a tag
+         * referent with the inventory's members (decision add-tag-picks-a-game-tag-and-writes-its-entry).
+         */
+        @Test
+        void createTagFormWritesTheTagsEntry() throws IOException {
+            Files.writeString(paths.inventoryFile(), inventoryWithLeaves());
+            JsonObject request = JsonParser.parseString(posted(FILE)).getAsJsonObject();
+            request.addProperty("group", "leaves");
+            request.addProperty("createTag", true);
+            JsonObject answer = answeredJson(WorkbenchOperations.APPLY_TO_GROUP, request.toString());
+            assertEquals("\"\"", memberKeyed(answer.getAsJsonObject("model"), "#leaves").get("text").getAsString());
+            JsonObject leaves = answer.getAsJsonArray("groups").asList().stream().map(JsonElement::getAsJsonObject)
+                    .filter(group -> "leaves".equals(group.get("name").getAsString())).findFirst().orElseThrow();
+            assertEquals("tag", leaves.get("kind").getAsString());
+            assertEquals("minecraft:oak_leaves", leaves.getAsJsonArray("members").get(0).getAsJsonObject().get("id")
+                    .getAsString());
+            assertTrue(leaves.get("base").isJsonNull(), leaves.toString());
+        }
+
+        /**
+         * A tag Add tag writes, before anything values it, leaves each member's loaded value as it stood before the
+         * pick, while the reply still lists the tag as a referent (decision
+         * add-tag-picks-a-game-tag-and-writes-its-entry).
+         */
+        @Test
+        void createdTagLeavesItsMembersValuesAsTheyStood() throws IOException {
+            String file = """
+                    {
+                        "_constants": {"log": {"leaf": 4}},
+                        "oak_leaves": "$log"
+                    }
+                    """;
+            Function<Identifier, Set<Identifier>> leavesTag = tag -> "minecraft:leaves".equals(tag.toString())
+                    ? Set.of(Identifier.parse("minecraft:oak_leaves")) : Set.of();
+            Identifier oakLeaves = Identifier.parse("minecraft:oak_leaves");
+            GooValue before = GooBaseValuesPreview.load(file, leavesTag).baseValues().get(oakLeaves);
+            Files.writeString(paths.inventoryFile(), inventoryWithLeaves());
+            JsonObject request = JsonParser.parseString(posted(file)).getAsJsonObject();
+            request.addProperty("group", "leaves");
+            request.addProperty("createTag", true);
+            JsonObject answer = answeredJson(WorkbenchOperations.APPLY_TO_GROUP, request.toString());
+            String afterText = ModelJson.merged(BaseValuesModel.parse(file), answer.getAsJsonObject("model").toString())
+                    .serialize();
+            assertTrue(afterText.contains("\"#leaves\""), afterText);
+            assertEquals(before, GooBaseValuesPreview.load(afterText, leavesTag).baseValues().get(oakLeaves));
+            assertTrue(answer.getAsJsonArray("groups").asList().stream().map(JsonElement::getAsJsonObject)
+                    .anyMatch(group -> "leaves".equals(group.get("name").getAsString())
+                            && "tag".equals(group.get("kind").getAsString())), answer.toString());
+        }
+
+        private static String inventoryWithLeaves() {
+            return "{\"items\":[{\"id\":\"minecraft:oak_leaves\",\"name\":\"Oak Leaves\"}],"
+                    + "\"item_tags\":[{\"id\":\"minecraft:leaves\",\"members\":[\"minecraft:oak_leaves\"]}],"
+                    + "\"goo_types\":[],\"recipes\":[]}";
         }
 
         /**

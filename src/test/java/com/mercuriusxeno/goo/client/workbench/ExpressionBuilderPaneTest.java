@@ -13,8 +13,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -94,40 +97,117 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
-     * The goo kind choice's hover hint, per tab (decision items-kind-hint-says-worth-based-on-other-items-prefabs).
+     * Inside the builder, a right click on a prefab reference runs nothing, a shift + left click on it opens the
+     * Prefabs tab on that prefab, and a plain left click opens the dropdown that replaces it (decision
+     * shift-left-click-follows-plain-left-modifies).
+     */
+    @Test
+    void referenceFollowsOnShiftClickAndOpensItsReplacementOnPlainClick() {
+        Builder builder = Builder.item("$waxed");
+        DrawnFrame closed = builder.frame();
+        assertFalse(closed.texts().contains("edited"), closed.texts().toString());
+        assertFalse(closed.rightClick("waxed"));
+        verify(builder.actions, never()).openVariable(any());
+        DrawnFrame unmoved = builder.frame();
+        assertFalse(unmoved.texts().contains("edited"), unmoved.texts().toString());
+        unmoved.shiftClick("waxed");
+        verify(builder.actions).openVariable("waxed");
+        assertFalse(builder.frame().texts().contains("edited"));
+        builder.frame().click("waxed");
+        List<String> opened = builder.frame().texts();
+        assertTrue(opened.contains("edited"), opened.toString());
+    }
+
+    /**
+     * Every builder, Items, Groups and Prefabs alike, reads "Value" and its kind on one line, an empty value
+     * defaulting to by type with a bare + adding a goo type (decision
+     * every-value-builder-reads-value-kind-on-one-line-defaulting-by-type).
      */
     @Nested
-    class GooKindHint {
+    class ValueLine {
+        private static final List<String> RETIRED = List.of("Kind:", "Kind", "pick one", dropdown("pick one"),
+                "No value yet: pick a kind to give it one.", "Pick the first goo type:", "+ goo type", "amount from",
+                "from other items", dropdown("from other items"));
 
-        @Test
-        void itemsKindHintReadsWorthBasedOnOtherItemsPrefabs() {
-            assertEquals("worth based on other items/prefabs", ExpressionBuilderPane.gooKindHint(true));
+        private static void assertEmptyReadsValueByTypeAndPlus(Builder builder) {
+            DrawnFrame frame = builder.frame();
+            List<String> texts = frame.texts();
+            assertEquals(List.of("Value", dropdown("by type"), "+"), texts.subList(0, 3), texts.toString());
+            assertEquals(frame.find("Value").y(), frame.find(dropdown("by type")).y(), "Value and its kind share a line");
+            assertTrue(texts.stream().noneMatch(RETIRED::contains), texts.toString());
         }
 
         @Test
-        void prefabsKindHintReadsAsItDid() {
-            assertEquals("Worth what the per-type prefabs above this one are worth, scaled and summed",
-                    ExpressionBuilderPane.gooKindHint(false));
+        void emptyItemValueReadsValueByTypeAndPlus() {
+            assertEmptyReadsValueByTypeAndPlus(Builder.item(""));
+        }
+
+        @Test
+        void emptyPrefabValueReadsValueByTypeAndPlus() {
+            assertEmptyReadsValueByTypeAndPlus(Builder.prefab(PREFABS, ""));
+        }
+
+        /**
+         * A group's value opens the same builder an item's does.
+         */
+        @Test
+        void emptyGroupValueReadsValueByTypeAndPlus() {
+            Builder group = new Builder(PREFABS);
+            group.pane.open("", group.written::add, () -> { });
+            assertEmptyReadsValueByTypeAndPlus(group);
+        }
+
+        @Test
+        void barePlusAddsAGooType() {
+            Builder builder = Builder.item("");
+            builder.frame().click("+");
+            assertTrue(builder.pane.listOpen(), "the goo type picker opens");
+        }
+
+        @Test
+        void itemKindReadsRelativeAndAmountModesReadNumber() {
+            List<String> relative = Builder.item("anvil").frame().texts();
+            assertEquals(List.of("Value", dropdown("relative")), relative.subList(0, 2), relative.toString());
+            List<String> row = Builder.prefab(PREFABS, "{\"metal\": \"5\"}").frame().texts();
+            assertTrue(row.contains(dropdown("number")), row.toString());
+            assertTrue(row.stream().noneMatch(RETIRED::contains), row.toString());
         }
     }
 
     /**
-     * The done control's hover hint, read from the opened text against the written text (decision
-     * done-hint-reads-no-unsaved-changes-or-changes-already-saved).
+     * A goo type icon draws inside a button border, and a click inside that border opens the goo type picker
+     * (decision goo-types-in-builders-draw-as-buttons).
      */
-    @Nested
-    class DoneHint {
-
-        @Test
-        void unchangedValueReadsNoUnsavedChanges() {
-            assertEquals("No unsaved changes", ExpressionBuilderPane.doneHint("4 * minecraft:stone",
-                    "4 * minecraft:stone"));
+    @Test
+    void gooTypeDrawsAsAButtonThatOpensThePicker() {
+        Builder builder = Builder.item("{\"metal\": \"5\"}");
+        DrawnFrame frame = builder.frame();
+        int lineTop = frame.find(dropdown("number")).y() - 5;
+        ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+        ArgumentCaptor<Integer> tops = ArgumentCaptor.forClass(Integer.class);
+        verify(frame.graphics, atLeastOnce()).fill(lefts.capture(), tops.capture(), anyInt(), anyInt(),
+                eq(ButtonPainter.BORDER));
+        int border = -1;
+        for (int index = 0; index < lefts.getAllValues().size(); index++) {
+            if (lefts.getAllValues().get(index) == AREA.left() && tops.getAllValues().get(index) == lineTop) {
+                border = index;
+            }
         }
+        assertTrue(border >= 0, "no border at the type's place " + lefts.getAllValues() + " " + tops.getAllValues());
+        assertTrue(frame.targets.click(AREA.left() + 1, lineTop + 1));
+        assertTrue(builder.pane.listOpen(), "the goo type picker opens");
+    }
 
-        @Test
-        void changedValueReadsChangesAlreadySaved() {
-            assertEquals("Changes already saved to the draft", ExpressionBuilderPane.doneHint("4 * minecraft:stone",
-                    "2 * minecraft:stone"));
+    /**
+     * No builder control explains itself on hover; an X's tooltip reads the one word Delete (the operator's ruling).
+     */
+    @Test
+    void onlyAnXCarriesATooltipAndItReadsDelete() {
+        for (String shown : List.of("$base + ($waxed - $edited)", "{\"leaf\": \"4\"}", "")) {
+            Builder builder = Builder.item(shown);
+            List<String> hints = builder.frame().targets.hoverKeys().stream()
+                    .filter(key -> BuilderOverlays.tooltipFor(key).isPresent()).distinct().toList();
+            assertTrue(hints.stream().allMatch(BuilderOverlays.hintKey("Delete")::equals), shown + ": " + hints);
         }
     }
 
@@ -141,19 +221,19 @@ class ExpressionBuilderPaneTest {
         @Test
         void kindLineDrawsOneButtonReadingTheChosenKind() {
             List<String> texts = Builder.item("anvil").frame().texts();
-            assertTrue(texts.contains(dropdown("from other items")), texts.toString());
-            assertFalse(texts.contains("per goo type") || texts.contains(dropdown("per goo type")), texts.toString());
+            assertTrue(texts.contains(dropdown("relative")), texts.toString());
+            assertFalse(texts.contains("by type") || texts.contains(dropdown("by type")), texts.toString());
         }
 
         @Test
         void clickingTheKindListsEveryKindUnderIt() {
             Builder builder = Builder.item("anvil");
             DrawnFrame closed = builder.frame();
-            DrawnFrame.Text button = closed.find(dropdown("from other items"));
-            closed.click(dropdown("from other items"));
+            DrawnFrame.Text button = closed.find(dropdown("relative"));
+            closed.click(dropdown("relative"));
             DrawnFrame open = builder.frame();
-            DrawnFrame.Text perType = open.find("per goo type");
-            DrawnFrame.Text items = open.find("from other items");
+            DrawnFrame.Text perType = open.find("by type");
+            DrawnFrame.Text items = open.find("relative");
             assertTrue(perType.y() > button.y() && items.y() > perType.y(), open.drawn().toString());
             assertTrue(builder.pane.listOpen());
         }
@@ -161,23 +241,23 @@ class ExpressionBuilderPaneTest {
         @Test
         void pickingPerGooTypeSwitchesTheBuilderPerType() {
             Builder builder = Builder.item("anvil");
-            builder.frame().click(dropdown("from other items"));
-            builder.frame().click("per goo type");
+            builder.frame().click(dropdown("relative"));
+            builder.frame().click("by type");
             DrawnFrame after = builder.frame();
-            assertTrue(after.texts().contains("Pick the first goo type:"), after.texts().toString());
-            assertTrue(after.texts().contains(dropdown("per goo type")), after.texts().toString());
+            assertTrue(after.texts().contains("+"), after.texts().toString());
+            assertTrue(after.texts().contains(dropdown("by type")), after.texts().toString());
             assertFalse(builder.pane.listOpen());
         }
 
         @Test
         void clickOutsideTheListClosesItAndChangesNothing() {
             Builder builder = Builder.item("anvil");
-            builder.frame().click(dropdown("from other items"));
+            builder.frame().click(dropdown("relative"));
             DrawnFrame open = builder.frame();
             assertTrue(open.targets.click(DrawnFrame.SCREEN_WIDTH - 1, DrawnFrame.SCREEN_HEIGHT - 1));
             assertFalse(builder.pane.listOpen());
             assertEquals(List.of(), builder.written);
-            assertFalse(builder.frame().texts().contains("per goo type"));
+            assertFalse(builder.frame().texts().contains("by type"));
         }
     }
 
@@ -189,46 +269,46 @@ class ExpressionBuilderPaneTest {
     class AmountDropdown {
         private static final String ROW = "{\"metal\": \"5\"}";
 
+        private static final List<String> MODES = List.of("number", "prefab", "relative");
+
         private static List<String> openModes(Builder builder) {
-            builder.frame().click(dropdown("a number"));
+            builder.frame().click(dropdown("number"));
             DrawnFrame open = builder.frame();
             List<String> texts = open.texts();
-            int first = texts.lastIndexOf(dropdown("a number")) + 1;
-            return texts.subList(first, texts.size()).stream().filter(text -> text.startsWith("a ")).toList();
+            int first = texts.lastIndexOf(dropdown("number")) + 1;
+            return texts.subList(first, texts.size()).stream().filter(MODES::contains).toList();
         }
 
         @Test
         void prefabsRowListsTheThreeModesInOrder() {
-            assertEquals(List.of("a number", "a number prefab", "a goo type of a prefab"),
-                    openModes(Builder.prefab(PREFABS, ROW)));
+            assertEquals(MODES, openModes(Builder.prefab(PREFABS, ROW)));
         }
 
         @Test
         void itemsRowReadsTheItemWording() {
-            assertEquals(List.of("a number", "a number prefab", "a goo type of an item or prefab"),
-                    openModes(Builder.item(ROW)));
+            assertEquals(MODES, openModes(Builder.item(ROW)));
         }
 
         @Test
         void draftWithNoScalarPrefabOmitsTheNumberPrefabMode() {
             List<BuilderGrammar.Prefab> perTypeOnly = List.of(new BuilderGrammar.Prefab("waxed", true),
                     new BuilderGrammar.Prefab("edited", true));
-            assertEquals(List.of("a number", "a goo type of a prefab"), openModes(Builder.prefab(perTypeOnly, ROW)));
+            assertEquals(List.of("number", "relative"), openModes(Builder.prefab(perTypeOnly, ROW)));
         }
 
         @Test
         void amountLineDrawsNoSiblingMode() {
             List<String> texts = Builder.prefab(PREFABS, ROW).frame().texts();
-            assertFalse(texts.contains("a number prefab") || texts.contains("prefab"), texts.toString());
+            assertFalse(texts.contains("prefab") || texts.contains("relative"), texts.toString());
         }
 
         @Test
         void pickingNumberPrefabOpensThePrefabListUnderTheSameButton() {
             Builder builder = Builder.prefab(PREFABS, ROW);
             DrawnFrame closed = builder.frame();
-            DrawnFrame.Text button = closed.find(dropdown("a number"));
-            closed.click(dropdown("a number"));
-            builder.frame().click("a number prefab");
+            DrawnFrame.Text button = closed.find(dropdown("number"));
+            closed.click(dropdown("number"));
+            builder.frame().click("prefab");
             DrawnFrame after = builder.frame();
             assertTrue(builder.pane.listOpen());
             DrawnFrame.Text prefabRow = after.find("base");
@@ -239,10 +319,10 @@ class ExpressionBuilderPaneTest {
         @Test
         void pickingNumberLeavesNoOverlayAndTheOperandANumber() {
             Builder builder = Builder.prefab(PREFABS, "{\"metal\": \"$base\"}");
-            builder.frame().click(dropdown("a number prefab"));
-            builder.frame().click("a number");
+            builder.frame().click(dropdown("prefab"));
+            builder.frame().click("number");
             assertFalse(builder.pane.listOpen());
-            assertTrue(builder.frame().texts().contains(dropdown("a number")));
+            assertTrue(builder.frame().texts().contains(dropdown("number")));
             assertEquals(1, builder.written.size(), builder.written.toString());
             assertFalse(builder.written.getFirst().contains("$base"), builder.written.toString());
         }
@@ -270,7 +350,7 @@ class ExpressionBuilderPaneTest {
         // The ratio's sides read as the digits given, each a click target.
         private static void assertRatioReads(DrawnFrame frame, List<DrawnFrame.Text> sides, List<String> digits) {
             assertEquals(digits, sides.stream().map(DrawnFrame.Text::text).toList(), frame.texts().toString());
-            sides.forEach(side -> assertTrue(frame.targets.hovered(side.x() + 1, side.y() + 1).isPresent(),
+            sides.forEach(side -> assertTrue(frame.targets.takesClick(side.x() + 1, side.y() + 1),
                     side + " is no control"));
         }
 
@@ -342,6 +422,18 @@ class ExpressionBuilderPaneTest {
             assertTrue(builder.written.getLast().endsWith(" / 3"), builder.written.toString());
         }
 
+        // Decision ratio-holds-multiplier-and-divisor-together: the divisor box sets the divisor alone.
+        @Test
+        void committingTheDivisorKeepsTheMultiplier() {
+            Builder builder = Builder.item("2 $iron_ingot");
+            DrawnFrame frame = builder.frame();
+            clickAt(frame, ratioSides(frame).get(1));
+            builder.commitNumber("3");
+            assertEquals("2 $iron_ingot / 3", builder.written.getLast());
+            DrawnFrame next = builder.frame();
+            assertRatioReads(next, ratioSides(next), List.of("2", "3"));
+        }
+
         @Test
         void committingTheMultiplierFirstWritesTheCountForm() {
             Builder builder = Builder.item("$waxed");
@@ -363,26 +455,26 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
-     * Remove draws as a red X and done as a green check, their hints unchanged (decisions remove-draws-as-a-red-x,
+     * Remove draws as a red X whose tooltip reads Delete, and done as a green check with none (decisions remove-draws-as-a-red-x,
      * done-draws-green-with-a-check-mark).
      */
     @Nested
     class RemoveAndDone {
         private static final String X = "X";
-        private static final String DONE = "✓ done";
+        private static final String DONE = "✓ Done";
 
         private static List<DrawnFrame.Text> removes(DrawnFrame frame) {
             return frame.drawn().stream().filter(text -> text.text().equals(X)).toList();
         }
 
         @Test
-        void termRemovesDrawAsRedXsWithTheTermHint() {
+        void termRemovesDrawAsRedXsReadingDelete() {
             DrawnFrame frame = Builder.item("$waxed + $edited").frame();
             assertFalse(frame.texts().contains("remove"), frame.texts().toString());
             List<DrawnFrame.Text> xs = removes(frame);
             assertEquals(2, xs.size(), frame.texts().toString());
             xs.forEach(x -> assertEquals(ExpressionBuilderPane.RED, x.color()));
-            assertEquals(BuilderOverlays.hintKey("Remove this term"),
+            assertEquals(BuilderOverlays.hintKey("Delete"),
                     frame.targets.hovered(xs.getFirst().x() + 1, xs.getFirst().y() + 1).orElseThrow());
         }
 
@@ -395,42 +487,105 @@ class ExpressionBuilderPaneTest {
         }
 
         @Test
-        void rowRemovesDrawAsRedXsWithTheRowHint() {
+        void rowRemovesDrawAsRedXsReadingDelete() {
             Builder builder = Builder.item("{\"metal\": \"5\", \"pulse\": \"2\"}");
             DrawnFrame frame = builder.frame();
             assertFalse(frame.texts().contains("remove"), frame.texts().toString());
             List<DrawnFrame.Text> xs = removes(frame);
             assertEquals(2, xs.size(), frame.texts().toString());
             xs.forEach(x -> assertEquals(ExpressionBuilderPane.RED, x.color()));
-            assertEquals(BuilderOverlays.hintKey("Remove this goo type's amount"),
+            assertEquals(BuilderOverlays.hintKey("Delete"),
                     frame.targets.hovered(xs.getFirst().x() + 1, xs.getFirst().y() + 1).orElseThrow());
             clickAt(frame, xs.getFirst());
             assertFalse(builder.written.getLast().contains("metal"), builder.written.toString());
         }
 
         @Test
-        void sumRemoveDrawsAsARedXWithTheSumHint() {
+        void sumRemoveDrawsAsARedXReadingDelete() {
             DrawnFrame frame = Builder.item("$base + ($waxed - $edited)").frame();
             assertFalse(frame.texts().contains("remove"), frame.texts().toString());
             List<String> hints = removes(frame).stream().map(x -> frame.targets.hovered(x.x() + 1, x.y() + 1)
                     .orElseThrow()).toList();
-            assertTrue(hints.contains(BuilderOverlays.hintKey("Remove this sum and every term in it")),
+            assertTrue(hints.contains(BuilderOverlays.hintKey("Delete")),
                     hints.toString());
         }
 
         @Test
-        void doneDrawsGreenWithACheckMarkAndItsHint() {
+        void doneDrawsGreenWithACheckMarkAndNoTooltip() {
             boolean[] finished = {false};
             Builder builder = new Builder(PREFABS);
-            builder.pane.open("$waxed", builder.written::add, () -> finished[0] = true);
+            builder.pane.open("$waxed + $edited", builder.written::add, () -> finished[0] = true);
+            DrawnFrame opened = builder.frame();
+            clickAt(opened, removes(opened).getFirst());
             DrawnFrame frame = builder.frame();
             DrawnFrame.Text done = frame.find(DONE);
             assertEquals(ExpressionBuilderPane.GREEN, done.color());
-            assertEquals(BuilderOverlays.hintKey(ExpressionBuilderPane.doneHint("$waxed", "$waxed")),
-                    frame.targets.hovered(done.x() + 1, done.y() + 1).orElseThrow());
+            assertTrue(frame.targets.hovered(done.x() + 1, done.y() + 1).isEmpty(), "done carries no tooltip");
             frame.click(DONE);
             assertTrue(finished[0]);
             assertFalse(builder.pane.isOpen());
         }
+
+        /**
+         * Until a change is fully in, the builder's one button reads cancel, closing it on the opening value
+         * (decision value-expression-boxes-take-a-cancel-button).
+         */
+        @Test
+        void unchangedBuilderDrawsCancelInPlaceOfDone() {
+            boolean[] finished = {false};
+            Builder builder = new Builder(PREFABS);
+            builder.pane.open("$waxed", builder.written::add, () -> finished[0] = true);
+            DrawnFrame unchanged = builder.frame();
+            assertFalse(unchanged.texts().contains(DONE), unchanged.texts().toString());
+            DrawnFrame.Text cancel = unchanged.find(CANCEL);
+            assertEquals(ExpressionBuilderPane.RED, cancel.color());
+            unchanged.click(CANCEL);
+            assertTrue(finished[0]);
+            assertFalse(builder.pane.isOpen());
+        }
+
+        /**
+         * A partial value, one the draft cannot take yet, still reads cancel alone, so cancel is always there to
+         * back out (decision value-expression-boxes-take-a-cancel-button).
+         */
+        @Test
+        void partialValueDrawsCancelAloneAndRestoresTheOpeningValue() {
+            boolean[] finished = {false};
+            Builder builder = new Builder(PREFABS);
+            builder.pane.open("$waxed", builder.written::add, () -> finished[0] = true);
+            clickAt(builder.frame(), ratioSides(builder.frame()).getFirst());
+            ArgumentCaptor<AbstractWidget> focused = ArgumentCaptor.forClass(AbstractWidget.class);
+            verify(builder.actions, atLeastOnce()).focus(focused.capture());
+            ((EditBox) focused.getValue()).setValue("7");
+            DrawnFrame partial = builder.frame();
+            assertFalse(partial.texts().contains(DONE), partial.texts() + " " + builder.written);
+            partial.click(CANCEL);
+            assertEquals(List.of("$waxed"), builder.written, partial.texts().toString());
+            assertTrue(finished[0]);
+        }
+
+        /**
+         * Once a change is fully in, done draws with cancel beside it, and cancel writes the opening value back and
+         * closes the builder (decision value-expression-boxes-take-a-cancel-button).
+         */
+        @Test
+        void cancelDrawsBesideDoneOnceChangedAndRestoresTheOpeningValue() {
+            boolean[] finished = {false};
+            Builder builder = new Builder(PREFABS);
+            builder.pane.open("$waxed + $edited", builder.written::add, () -> finished[0] = true);
+            DrawnFrame unchanged = builder.frame();
+            clickAt(unchanged, removes(unchanged).getFirst());
+            DrawnFrame changed = builder.frame();
+            DrawnFrame.Text done = changed.find(DONE);
+            DrawnFrame.Text cancel = changed.find(CANCEL);
+            assertEquals(done.y(), cancel.y());
+            assertTrue(cancel.x() > done.x(), changed.drawn().toString());
+            changed.click(CANCEL);
+            assertEquals("$waxed + $edited", builder.written.getLast());
+            assertTrue(finished[0]);
+            assertFalse(builder.pane.isOpen());
+        }
     }
+
+    private static final String CANCEL = "✗ Cancel";
 }

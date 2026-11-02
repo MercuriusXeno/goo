@@ -64,6 +64,14 @@ interface ManagerActions {
     void openGroup(String name);
 
     /**
+     * Opens the Mutators tab on a mutator, centering its row, as a stack's or an iterator's mutator link does
+     * (decision diagnose-and-correct-mutator-references-that-do-not-link).
+     *
+     * @param name the mutator's key
+     */
+    void openMutator(String name);
+
+    /**
      * @param widget a widget the pane draws and the screen routes input to
      * @param <W>    the widget's type
      * @return the widget

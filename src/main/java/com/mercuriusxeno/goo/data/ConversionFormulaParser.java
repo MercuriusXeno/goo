@@ -26,7 +26,6 @@ final class ConversionFormulaParser {
     private static final String DENIED = "denied";
     private static final String ADDITIVE_PREFIX = "+";
     private static final String ARROW = "->";
-    private static final String ASTERISK = "*";
     private static final String DOLLAR = "$";
     private static final String TAG_PREFIX = "#";
     private static final String COLON = ":";
@@ -43,16 +42,18 @@ final class ConversionFormulaParser {
     private static final int GROUP_SOURCE_TYPE = 1;
     private static final int GROUP_SOURCE_DIVISOR = 2;
     private static final int GROUP_TARGET_TYPE = 3;
-    private static final int GROUP_TARGET_OP = 4;
-    private static final int GROUP_TARGET_VALUE = 5;
+    private static final int GROUP_TARGET_MULTIPLIER = 4;
+    private static final int GROUP_TARGET_MULTIPLIED_DIVISOR = 5;
+    private static final int GROUP_TARGET_DIVISOR = 6;
     private static final int GROUP_STACK_MULTIPLIER = 1;
     private static final int GROUP_STACK_NAME = 2;
     private static final int GROUP_SCALE_NUM = 1;
     private static final int GROUP_SCALE_DEN = 2;
 
-    // ── Formula pattern: "type / N -> type / M", "type / N -> type * M", or "type / N -> 0"
+    // ── Formula pattern: "type / N -> type * M / K", "type / N -> type * M", "type / N -> type / K", or
+    // "type / N -> 0" (decision mutator-sentences-read-in-symbols)
     private static final Pattern FORMULA_PATTERN = Pattern.compile(
-            "\\s*(\\w+)\\s*/\\s*(\\d+)\\s*->\\s*(?:(\\w+)\\s*([*/])\\s*(\\d+)|0)\\s*");
+            "\\s*(\\w+)\\s*/\\s*(\\d+)\\s*->\\s*(?:(\\w+)\\s*(?:\\*\\s*(\\d+)\\s*(?:/\\s*(\\d+))?|/\\s*(\\d+))|0)\\s*");
 
     private static final Pattern STACK_PATTERN = Pattern.compile(
             "\\s*(?:(\\d+)\\s+)?@(\\w+)\\s*");
@@ -105,11 +106,13 @@ final class ConversionFormulaParser {
      */
     private static Formula buildTargetFormula(Matcher m, ResourceKey<GooTypeDefinition> source, int srcDiv) {
         ResourceKey<GooTypeDefinition> target = GooTypes.parseKnown(m.group(GROUP_TARGET_TYPE));
-        int tgtVal = Integer.parseInt(m.group(GROUP_TARGET_VALUE));
-        boolean isMultiplier = ASTERISK.equals(m.group(GROUP_TARGET_OP));
-        int tgtDiv = isMultiplier ? 1 : tgtVal;
-        int tgtMul = isMultiplier ? tgtVal : 1;
-        return new Formula(source, srcDiv, target, tgtDiv, tgtMul);
+        String divisor = m.group(GROUP_TARGET_DIVISOR) != null ? m.group(GROUP_TARGET_DIVISOR)
+                : m.group(GROUP_TARGET_MULTIPLIED_DIVISOR);
+        return new Formula(source, srcDiv, target, numberOrOne(divisor), numberOrOne(m.group(GROUP_TARGET_MULTIPLIER)));
+    }
+
+    private static int numberOrOne(String digits) {
+        return digits == null ? 1 : Integer.parseInt(digits);
     }
 
     /**

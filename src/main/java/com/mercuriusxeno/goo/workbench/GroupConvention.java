@@ -40,7 +40,11 @@ final class GroupConvention {
     private static final int COUNT_GROUP = 1;
     private static final int TRAIT_GROUP = 2;
     // A member line: an optional count, then the base alone or the base plus one $trait, in parentheses or not.
-    private static final String TWEAK_FORMAT = "^(?:(\\d+)\\s*)?\\(?\\s*%s(?:\\s*\\+\\s*\\$([A-Za-z0-9_]+))?\\s*\\)?$";
+    // The sections whose entries value an item or a #name as a top-level entry does.
+    private static final Set<String> VALUE_SECTIONS = Set.of("_conversions", "_post_conversions");
+    // A #name inside a value expression, such as #copper in "#copper @exposed_metal".
+    private static final Pattern TAG_REFERENCE = Pattern.compile("#([A-Za-z0-9_:/.\\-]+)");
+    private static final String TWEAK_FORMAT ="^(?:(\\d+)\\s*)?\\(?\\s*%s(?:\\s*\\+\\s*\\$([A-Za-z0-9_]+))?\\s*\\)?$";
 
     private GroupConvention() {
     }
@@ -120,7 +124,32 @@ final class GroupConvention {
      */
     static BaseValuesModel withBase(BaseValuesModel model, String group, String base) {
         String key = TAG_PREFIX + group;
-        return base.isBlank() ? model.withoutTopLevel(key) : model.withTopLevel(key, quoted(base.trim()));
+        return base.isBlank() ? model.withoutTopLevel(key) : model.withTopLevel(key, storedBase(base.trim()));
+    }
+
+    // An integer or a per-goo-type object stays as written, as the Items tab stores an entry, so the loader values
+    // the group's members by it; anything else is a quoted expression string
+    // (decision diagnose-and-correct-tag-member-rows-showing-no-value).
+    private static String storedBase(String base) {
+        try {
+            JsonElement parsed = JsonParser.parseString(base);
+            if (parsed.isJsonObject() || parsed.isJsonPrimitive() && parsed.getAsJsonPrimitive().isNumber()) {
+                return base;
+            }
+        } catch (JsonParseException e) {
+            return quoted(base);
+        }
+        return quoted(base);
+    }
+
+    /**
+     * @param model the model
+     * @param tag   the tag's name, as the file spells it after #
+     * @return the model with a #tag entry of no value text where the file holds none, where a #group base line goes
+     */
+    static BaseValuesModel withTagEntry(BaseValuesModel model, String tag) {
+        String key = TAG_PREFIX + tag;
+        return model.member(key) != null ? model : model.withTopLevel(key, quoted(NO_SEPARATOR));
     }
 
     /**
@@ -181,6 +210,55 @@ final class GroupConvention {
         return described;
     }
 
+    /**
+     * Every #name the file values or references that no _groups entry holds: a #name key at top level, in
+     * _conversions or in _post_conversions, or a #name inside a value expression there.
+     *
+     * @param model the model
+     * @return each such name, as the file spells it after #, once, in file order
+     */
+    // decision groups-lists-custom-groups-and-every-tag-a-valuation-references
+    static List<String> referencedTags(BaseValuesModel model) {
+        Set<String> names = new LinkedHashSet<>();
+        for (BaseValuesModel.Member member : model.members()) {
+            if (member.kind() == BaseValuesModel.Kind.VALUE) {
+                collectTags(member, names);
+            } else if (VALUE_SECTIONS.contains(member.key())) {
+                member.entries().forEach(entry -> collectTags(entry, names));
+            }
+        }
+        names.removeIf(name -> holdsGroup(model, name));
+        return List.copyOf(names);
+    }
+
+    private static void collectTags(BaseValuesModel.Member entry, Set<String> names) {
+        String key = entry.key();
+        if (key != null && key.startsWith(TAG_PREFIX)) {
+            names.add(key.substring(TAG_PREFIX.length()));
+        }
+        Matcher reference = TAG_REFERENCE.matcher(entry.text());
+        while (reference.find()) {
+            names.add(reference.group(1));
+        }
+    }
+
+    /**
+     * A tag referent as the pane shows it: its members are the inventory's, its base and tweaks the file's.
+     *
+     * @param model      the model
+     * @param tag        the tag's name, as the file spells it after #
+     * @param tagMembers each item tag's member ids
+     * @return the tag as a group
+     */
+    // decision tag-referent-lists-the-games-members-and-values-them
+    static Group describeTag(BaseValuesModel model, String tag, Map<String, List<String>> tagMembers) {
+        List<String> members = tagMembers.getOrDefault(namespaced(tag), List.of());
+        // An entry Add tag wrote holds no value text until the builder sets one.
+        String written = baseOf(model, tag);
+        String base = written == null || written.isBlank() ? null : written;
+        return new Group(tag, members, base, base == null ? List.of() : tweaksOf(model, members, base));
+    }
+
     private static List<Tweak> tweaksOf(BaseValuesModel model, List<String> members, String base) {
         Pattern line = Pattern.compile(TWEAK_FORMAT.formatted(Pattern.quote(base)));
         List<Tweak> tweaks = new ArrayList<>();
@@ -237,7 +315,18 @@ final class GroupConvention {
 
     private static @Nullable String baseOf(BaseValuesModel model, String group) {
         BaseValuesModel.Member line = model.member(TAG_PREFIX + group);
-        return line == null ? null : stringValue(line.text());
+        return line == null ? null : shownBase(line.text());
+    }
+
+    // A base line reads as the builder wrote it: an expression string unquoted, an integer or an object as written.
+    private static @Nullable String shownBase(String text) {
+        try {
+            JsonElement parsed = JsonParser.parseString(text);
+            return parsed.isJsonObject() || parsed.isJsonPrimitive() && parsed.getAsJsonPrimitive().isNumber()
+                    ? text.trim() : stringValue(text);
+        } catch (JsonParseException e) {
+            return null;
+        }
     }
 
     private static @Nullable String stringValue(String text) {
