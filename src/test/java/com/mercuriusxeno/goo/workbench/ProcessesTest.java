@@ -33,7 +33,25 @@ class ProcessesTest {
             """;
 
     /**
-     * A formula, an additive, two stacks, a parallel copy and an assignment parse back to what was written.
+     * An assignment holds a source and a chain alone: the unscaled line reads and writes back as the file spells it,
+     * and a scaled line, the ratio before the source or after it, reads Unread carrying its text (decision
+     * iterator-drops-its-ratio-from-row-and-grammar).
+     */
+    @Test
+    void assignmentHoldsASourceAndAChainAndAScaledLineReadsUnread() {
+        String unscaled = "\"#copper @exposed_metal\"";
+        Processes.Form read = Processes.parse("#exposed", unscaled);
+        assertEquals(Processes.Kind.ASSIGNMENT, Processes.kindOf(read));
+        assertEquals(unscaled, Processes.write(read));
+        for (String scaled : List.of("\"#copper * 2 @exposed_metal\"", "\"2 #copper @exposed_metal\"")) {
+            Processes.Form refused = Processes.parse("#exposed", scaled);
+            assertEquals(Processes.Kind.UNREAD, Processes.kindOf(refused), scaled);
+            assertEquals(scaled, Processes.write(refused));
+        }
+    }
+
+    /**
+     * A formula, an additive, two stacks and an assignment parse back to what was written.
      */
     @Test
     void everyFormParsesAsTheGameReadsIt() {
@@ -45,8 +63,7 @@ class ProcessesTest {
         model = Processes.with(model, POST, "waxed", Processes.additive("waxed"));
         model = Processes.with(model, POST, "exposed_metal", Processes.stack(1, "oxidation_metal"));
         model = Processes.with(model, POST, "weathered_metal", Processes.stack(2, "oxidation_metal"));
-        model = Processes.with(model, POST, "#half_copper", Processes.assignment("copper", 3, 4, List.of()));
-        model = Processes.with(model, POST, "#exposed", Processes.assignment("copper", 1, 1, List.of("exposed_metal")));
+        model = Processes.with(model, POST, "#exposed", Processes.assignment("copper", List.of("exposed_metal")));
 
         GooConversion.ParsedConversions parsed = GooBaseValuesPreview.conversions(model.serialize());
         assertEquals(new GooConversion.Formula(GooTypes.METAL, 4, GooTypes.YORE, 9, 1),
@@ -57,10 +74,6 @@ class ProcessesTest {
         assertTrue(parsed.additives().containsKey("waxed"));
         assertEquals(new GooConversion.Stack("oxidation_metal", 1), parsed.stacks().get("exposed_metal"));
         assertEquals(new GooConversion.Stack("oxidation_metal", 2), parsed.stacks().get("weathered_metal"));
-        GooConversion.Assignment copy = parsed.assignments().stream()
-                .filter(assignment -> assignment.target().endsWith("half_copper")).findFirst().orElseThrow();
-        assertEquals(3, copy.scaleMultiplier());
-        assertEquals(4, copy.scaleDivisor());
         GooConversion.Assignment exposed = parsed.assignments().stream()
                 .filter(assignment -> assignment.target().endsWith("exposed")).findFirst().orElseThrow();
         assertTrue(exposed.parallelSource().endsWith("copper"));

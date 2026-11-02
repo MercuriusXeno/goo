@@ -177,6 +177,19 @@ class ProcessesPaneTest {
     }
 
     /**
+     * An iterator's name line reads its name then "loops over" (decision
+     * iterator-reads-loops-over-and-applies-then-its-chain).
+     */
+    @Test
+    void iteratorNameLineReadsLoopsOver() {
+        DrawnFrame frame = frame();
+        DrawnFrame.Text exposed = first(frame, "#exposed");
+        DrawnFrame.Text loops = frame.find("loops over");
+        assertEquals(exposed.y(), loops.y(), frame.drawn().toString());
+        assertTrue(loops.x() > exposed.x(), loops + " vs " + exposed);
+    }
+
+    /**
      * A mutator's sentence draws on the line under its name line, starting one indent step in from the name's x
      * (decision mutator-body-indents-under-its-name-line).
      */

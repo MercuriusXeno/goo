@@ -187,10 +187,8 @@ class ProcessesTabTest {
             forms.removeAssignmentLink(POST, "#exposed", 0);
             forms.addAssignmentLink(POST, "#exposed", "@exposed_metal");
             assertEquals("\"#copper @exposed_metal\"", textOf("#exposed"));
-            assertEquals(new Processes.Assignment("copper", 1, 1, List.of("@exposed_metal")),
+            assertEquals(new Processes.Assignment("copper", List.of("@exposed_metal")),
                     Processes.parse("#exposed", textOf("#exposed")));
-            forms.setAssignmentScale(POST, "#exposed", 3, 4);
-            assertEquals("\"#copper * 3 / 4 @exposed_metal\"", textOf("#exposed"));
         }
 
         /**
@@ -221,7 +219,7 @@ class ProcessesTabTest {
         @Test
         void createIteratorWritesAnAssignmentTheParserReads() {
             assertEquals(Optional.of("#shiny"), forms.createIterator(POST, "shiny"));
-            assertEquals(new Processes.Assignment("copper", 1, 1, List.of()), forms.formOf(POST, "#shiny"));
+            assertEquals(new Processes.Assignment("copper", List.of()), forms.formOf(POST, "#shiny"));
         }
 
         /**
@@ -234,7 +232,7 @@ class ProcessesTabTest {
             assertEquals(new Processes.Additive("other"), forms.formOf(POST, "sealing"));
             assertEquals(List.of("oxidation_metal", "sealing", "weathered_metal"), forms.processNames(POST));
             assertEquals(Optional.of("#weathered"), forms.rename(POST, "#exposed", "weathered"));
-            assertEquals(new Processes.Assignment("iron", 1, 1, List.of("@waxed")), forms.formOf(POST, "#weathered"));
+            assertEquals(new Processes.Assignment("iron", List.of("@waxed")), forms.formOf(POST, "#weathered"));
         }
 
         @Test
@@ -254,14 +252,14 @@ class ProcessesTabTest {
         }
 
         /**
-         * An iterator over itself at 1:1 with no mutators still reads back as an assignment, never as unread
+         * An iterator over itself with no mutators still reads back as an assignment, never as unread
          * (decision iterator-line-is-source-ratio-then-chain).
          */
         @Test
         void bareIteratorOverItselfStaysAnAssignment() {
             forms.removeAssignmentLink(POST, "#exposed", 0);
             forms.setAssignmentSource(POST, "#exposed", "");
-            assertEquals(new Processes.Assignment("", 1, 1, List.of()), forms.formOf(POST, "#exposed"));
+            assertEquals(new Processes.Assignment("", List.of()), forms.formOf(POST, "#exposed"));
         }
 
         /**
@@ -271,7 +269,7 @@ class ProcessesTabTest {
         void assignmentDropsItsSource() {
             forms.setAssignmentSource(POST, "#exposed", "");
             assertEquals("\"@waxed\"", textOf("#exposed"));
-            assertEquals(new Processes.Assignment("", 1, 1, List.of("@waxed")), forms.formOf(POST, "#exposed"));
+            assertEquals(new Processes.Assignment("", List.of("@waxed")), forms.formOf(POST, "#exposed"));
         }
     }
 
@@ -283,13 +281,13 @@ class ProcessesTabTest {
     class Spellings {
         @Test
         void itemKeyedEntryIsAnAssignment() {
-            assertEquals(new Processes.Assignment("copper", 1, 1, List.of("@waxed")),
+            assertEquals(new Processes.Assignment("copper", List.of("@waxed")),
                     Processes.parse("minecraft:copper_door", "\"#copper @waxed\""));
         }
 
         @Test
         void assignmentWithNoSourceIsItsChain() {
-            assertEquals(new Processes.Assignment("", 1, 1, List.of("@waxed", "@oxidation_metal")),
+            assertEquals(new Processes.Assignment("", List.of("@waxed", "@oxidation_metal")),
                     Processes.parse("#waxed_copper", "\"@waxed @oxidation_metal\""));
         }
 
@@ -318,12 +316,6 @@ class ProcessesTabTest {
             String quoted = "\"" + spelled + "\"";
             assertEquals(form, Processes.parse("rust", quoted));
             assertEquals(quoted, Processes.write(form));
-        }
-
-        @Test
-        void scaleWithNoDivisorDividesByOne() {
-            assertEquals(new Processes.Assignment("copper", 3, 1, List.of()),
-                    Processes.parse("#big_copper", "\"#copper * 3\""));
         }
 
         @Test
