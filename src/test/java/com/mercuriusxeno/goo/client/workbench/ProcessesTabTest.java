@@ -6,6 +6,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -52,8 +53,7 @@ class ProcessesTabTest {
     }
 
     /**
-     * Each block lists its entries with their form lower case, their text unquoted and the parser's verdict, and
-     * its summary counts the entries and the refused ones.
+     * Each block lists its entries with their form lower case, their text unquoted and the parser's verdict.
      */
     @Test
     void sectionsListEntriesWithFormAndVerdict() {
@@ -61,13 +61,24 @@ class ProcessesTabTest {
         assertEquals(List.of("_conversions", "_post_conversions"),
                 sections.stream().map(ProcessesTab.ProcessSection::section).toList());
         ProcessesTab.ProcessSection conversions = sections.getFirst();
-        assertEquals("2 entries, 1 refused", conversions.summary());
         assertEquals(new ProcessesTab.ProcessRow("rust", "formula", "metal / 4 -> yore / 9", true, "Valid", ""),
                 conversions.rows().get(0));
         assertEquals(new ProcessesTab.ProcessRow("broken", "formula", "metal ->", false, "Invalid",
                 "Formula lacks a right side"), conversions.rows().get(1));
-        assertEquals("1 entries", sections.get(1).summary());
         assertEquals("assignment", sections.get(1).rows().getFirst().kind());
+    }
+
+    /**
+     * A search keeps each block's entries whose name holds the text, any case, and a blank one keeps them all
+     * (decision mutators-tab-renames-and-searches-by-name).
+     */
+    @Test
+    void searchKeepsTheEntriesWhoseNameHoldsTheText() {
+        tab.search("RU");
+        assertEquals(List.of(List.of("rust"), List.of()), tab.sections().stream().map(section -> section.rows()
+                .stream().map(ProcessesTab.ProcessRow::key).toList()).toList());
+        tab.search(" ");
+        assertEquals(List.of(2, 1), tab.sections().stream().map(section -> section.rows().size()).toList());
     }
 
     /**
@@ -146,10 +157,9 @@ class ProcessesTabTest {
             forms.setFormulaSource(POST, "oxidation_metal", "metal");
             forms.setFormulaDivisor(POST, "oxidation_metal", 4);
             forms.setFormulaTarget(POST, "oxidation_metal", "yore");
-            forms.toggleFormulaOperator(POST, "oxidation_metal");
-            forms.setFormulaAmount(POST, "oxidation_metal", 9);
-            assertEquals("\"metal / 4 -> yore / 9\"", textOf("oxidation_metal"));
-            assertEquals(new Processes.Formula("metal", 4, "yore", "/", 9),
+            forms.setFormulaRatio(POST, "oxidation_metal", 2, 9);
+            assertEquals("\"metal / 4 -> yore * 2 / 9\"", textOf("oxidation_metal"));
+            assertEquals(new Processes.Formula("metal", 4, "yore", 2, 9),
                     Processes.parse("oxidation_metal", textOf("oxidation_metal")));
         }
 
@@ -188,10 +198,70 @@ class ProcessesTabTest {
          */
         @Test
         void entryChangesItsKind() {
-            forms.setForm(POST, "waxed", new Processes.Formula("metal", 1, "0", "/", 0));
+            forms.setForm(POST, "waxed", new Processes.Formula("metal", 1, "0", 1, 1));
             assertEquals("\"metal / 1 -> 0\"", textOf("waxed"));
             forms.setForm(POST, "waxed", new Processes.Stack(1, "oxidation_metal"));
             assertEquals(new Processes.Stack(1, "oxidation_metal"), forms.formOf(POST, "waxed"));
+        }
+
+        /**
+         * The Mutators create control writes a fresh formula from the goo type it is handed, which the parser reads
+         * back (decision mutators-and-iterators-each-take-a-create-control).
+         */
+        @Test
+        void createMutatorWritesAFormulaTheParserReads() {
+            assertEquals(Optional.of("rusting"), forms.createMutator(POST, " rusting ", "metal"));
+            assertEquals(new Processes.Formula("metal", 1, "0", 1, 1), forms.formOf(POST, "rusting"));
+            assertEquals("rusting", forms.processNames(POST).getLast());
+        }
+
+        /**
+         * The Iterators create control writes a fresh assignment from the first group under the typed target group.
+         */
+        @Test
+        void createIteratorWritesAnAssignmentTheParserReads() {
+            assertEquals(Optional.of("#shiny"), forms.createIterator(POST, "shiny"));
+            assertEquals(new Processes.Assignment("copper", 1, 1, List.of()), forms.formOf(POST, "#shiny"));
+        }
+
+        /**
+         * Rename writes the entry under the typed name with its form kept, an iterator keeping its # (decision
+         * mutators-tab-renames-and-searches-by-name).
+         */
+        @Test
+        void renameKeepsTheFormUnderTheNewKey() {
+            assertEquals(Optional.of("sealing"), forms.rename(POST, "waxed", " sealing "));
+            assertEquals(new Processes.Additive("other"), forms.formOf(POST, "sealing"));
+            assertEquals(List.of("oxidation_metal", "sealing", "weathered_metal"), forms.processNames(POST));
+            assertEquals(Optional.of("#weathered"), forms.rename(POST, "#exposed", "weathered"));
+            assertEquals(new Processes.Assignment("iron", 1, 1, List.of("@waxed")), forms.formOf(POST, "#weathered"));
+        }
+
+        @Test
+        void renameRefusesATakenOrBlankName() {
+            assertEquals(Optional.empty(), forms.rename(POST, "waxed", "oxidation_metal"));
+            assertEquals(Optional.empty(), forms.rename(POST, "waxed", " "));
+            assertEquals(Optional.empty(), forms.rename(POST, "waxed", "#group"));
+            assertEquals(new Processes.Additive("other"), forms.formOf(POST, "waxed"));
+        }
+
+        @Test
+        void createRefusesANameTheBlockHoldsOrABlankName() {
+            assertEquals(Optional.empty(), forms.createMutator(POST, "waxed", "metal"));
+            assertEquals(Optional.empty(), forms.createIterator(POST, "#exposed"));
+            assertEquals(Optional.empty(), forms.createMutator(POST, "  ", "metal"));
+            assertEquals(new Processes.Additive("other"), forms.formOf(POST, "waxed"));
+        }
+
+        /**
+         * An iterator over itself at 1:1 with no mutators still reads back as an assignment, never as unread
+         * (decision iterator-line-is-source-ratio-then-chain).
+         */
+        @Test
+        void bareIteratorOverItselfStaysAnAssignment() {
+            forms.removeAssignmentLink(POST, "#exposed", 0);
+            forms.setAssignmentSource(POST, "#exposed", "");
+            assertEquals(new Processes.Assignment("", 1, 1, List.of()), forms.formOf(POST, "#exposed"));
         }
 
         /**
@@ -232,6 +302,24 @@ class ProcessesTabTest {
             assertEquals(Processes.Kind.UNREAD, Processes.parse("#waxed_copper", "\"#copper +$waxed\"").kind());
         }
 
+        /**
+         * A formula's target ratio holds a multiplier and a divisor, each spelling reading and writing back as the
+         * game's parser reads it (decision mutator-sentences-read-in-symbols).
+         */
+        @Test
+        void formulaTargetRatioRoundTripsEverySpelling() {
+            assertRoundTrips("metal / 4 -> yore * 2 / 3", new Processes.Formula("metal", 4, "yore", 2, 3));
+            assertRoundTrips("metal / 4 -> yore * 2", new Processes.Formula("metal", 4, "yore", 2, 1));
+            assertRoundTrips("metal / 4 -> yore / 3", new Processes.Formula("metal", 4, "yore", 1, 3));
+            assertRoundTrips("metal / 4 -> 0", new Processes.Formula("metal", 4, "0", 1, 1));
+        }
+
+        private void assertRoundTrips(String spelled, Processes.Formula form) {
+            String quoted = "\"" + spelled + "\"";
+            assertEquals(form, Processes.parse("rust", quoted));
+            assertEquals(quoted, Processes.write(form));
+        }
+
         @Test
         void scaleWithNoDivisorDividesByOne() {
             assertEquals(new Processes.Assignment("copper", 3, 1, List.of()),
@@ -240,9 +328,9 @@ class ProcessesTabTest {
 
         @Test
         void formulaReadsWithoutSpaces() {
-            assertEquals(new Processes.Formula("metal", 4, "yore", "/", 9),
+            assertEquals(new Processes.Formula("metal", 4, "yore", 1, 9),
                     Processes.parse("oxidation_metal", "\"metal/4->yore/9\""));
-            assertEquals(new Processes.Formula("pulse", 2, "0", "/", 0),
+            assertEquals(new Processes.Formula("pulse", 2, "0", 1, 1),
                     Processes.parse("drain", "\"pulse / 2 -> 0\""));
         }
     }

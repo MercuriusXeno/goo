@@ -23,12 +23,12 @@ final class ControlFlow {
     private static final int LINK = ButtonPainter.LINK;
     private static final String DROPDOWN_MARKER = " ▼";
     private static final String NONE_CHOSEN = "pick one";
-    private static final String NONE_CHOSEN_HINT = "Click to pick one";
 
     private final GuiGraphicsExtractor graphics;
     private final Font font;
     private final ClickTargets targets;
     private final @Nullable ItemIcons icons;
+    private final Consumer<String> followRef;
     private int left;
     private final int right;
     private int lineLeft;
@@ -49,15 +49,39 @@ final class ControlFlow {
      */
     ControlFlow(GuiGraphicsExtractor graphics, Font font, ClickTargets targets, @Nullable ItemIcons icons, int left,
                 int right, int top) {
+        this(graphics, font, targets, icons, new Span(left, right, top), ref -> { });
+    }
+
+    /**
+     * Where a flow's lines lay.
+     *
+     * @param left  the area's left edge
+     * @param right the area's right edge
+     * @param top   the first line's top
+     */
+    record Span(int left, int right, int top) {
+    }
+
+    /**
+     * @param graphics  the frame's graphics
+     * @param font      the font
+     * @param targets   the frame's click areas
+     * @param icons     the items' icons, null where no item draws
+     * @param span      where the lines lay
+     * @param followRef opens the prefab a reference run names, on a shift + left click
+     */
+    ControlFlow(GuiGraphicsExtractor graphics, Font font, ClickTargets targets, @Nullable ItemIcons icons, Span span,
+                Consumer<String> followRef) {
         this.graphics = graphics;
         this.font = font;
         this.targets = targets;
         this.icons = icons;
-        this.left = left;
-        this.right = right;
-        this.lineLeft = left;
-        this.x = left;
-        this.y = top;
+        this.followRef = followRef;
+        this.left = span.left();
+        this.right = span.right();
+        this.lineLeft = span.left();
+        this.x = span.left();
+        this.y = span.top();
     }
 
     /**
@@ -138,10 +162,48 @@ final class ControlFlow {
      * @param hint    what it does, shown on hover
      * @param pressed takes where it was clicked
      */
-    void control(String label, String hint, Consumer<BuilderOverlays.Anchor> pressed) {
+    void control(String label, @Nullable String hint, Consumer<BuilderOverlays.Anchor> pressed) {
         reserve(ButtonPainter.width(font, label));
         markPiece(ButtonPainter.width(font, label));
         x = BuilderOverlays.control(graphics, font, label, hint, x, y, targets, pressed);
+    }
+
+    /**
+     * A control naming a ref: a plain left click runs pressed, a shift + left click follows the ref, and the label
+     * underlines while shift is held.
+     * Decision shift-left-click-follows-plain-left-modifies.
+     *
+     * @param label   the control's label
+     * @param hint    what a plain click does, shown on hover
+     * @param pressed takes where it was clicked
+     * @param follow  opens what the label names
+     */
+    void linkControl(String label, @Nullable String hint, Consumer<BuilderOverlays.Anchor> pressed, Runnable follow) {
+        int width = ButtonPainter.width(font, label);
+        reserve(width);
+        markPiece(width);
+        int controlX = x;
+        int controlY = y;
+        ButtonPainter.Box box = ButtonPainter.layout(font.width(label), controlX, controlY, LINE);
+        ButtonPainter.drawLink(graphics, font, label, box, targets, new ClickTargets.LinkGestures(
+                () -> pressed.accept(new BuilderOverlays.Anchor(controlX, controlY)), follow),
+                BuilderOverlays.hintKey(hint));
+        x = box.right() + GAP;
+    }
+
+    /**
+     * A ref drawn as a link button that a shift + left click follows, a plain left click passing to the area under it.
+     * Decision holding-shift-underlines-every-link.
+     *
+     * @param label    the ref's label
+     * @param hoverKey what hovering names
+     * @param follow   opens what the label names
+     */
+    void followLink(String label, String hoverKey, Runnable follow) {
+        int width = ButtonPainter.width(font, label);
+        reserve(width);
+        markPiece(width);
+        x = ButtonPainter.drawFollow(graphics, font, label, x, y, LINE, targets, follow, hoverKey).right() + GAP;
     }
 
     /**
@@ -152,7 +214,7 @@ final class ControlFlow {
      * @param hint    what it does, shown on hover
      * @param pressed takes where it was clicked
      */
-    void coloredControl(String label, int color, String hint, Consumer<BuilderOverlays.Anchor> pressed) {
+    void coloredControl(String label, int color, @Nullable String hint, Consumer<BuilderOverlays.Anchor> pressed) {
         reserve(ButtonPainter.width(font, label));
         markPiece(ButtonPainter.width(font, label));
         int controlX = x;
@@ -219,7 +281,7 @@ final class ControlFlow {
     void choices(List<BuilderOverlays.Option> options, int chosen, BuilderOverlays overlays) {
         boolean picked = chosen >= 0 && chosen < options.size();
         String label = picked ? options.get(chosen).label() : NONE_CHOSEN;
-        String hint = picked ? options.get(chosen).hint() : NONE_CHOSEN_HINT;
+        String hint = picked ? options.get(chosen).hint() : null;
         control(dropdownLabel(label), hint, at -> overlays.openOptions(at, options));
     }
 
@@ -251,18 +313,25 @@ final class ControlFlow {
      */
     void typeIcon(String type, Consumer<BuilderOverlays.Anchor> pressed) {
         // Decision goo-type-icons-draw-native-everywhere.
+        // Decision goo-types-in-builders-draw-as-buttons: the icon stands inside a button's border, the line's
+        // height, so it reads as clickable.
         int size = GooTypeIcons.sizeOf(type);
-        reserve(size);
+        int width = size + ButtonPainter.PADDING + ButtonPainter.PADDING;
+        reserve(width);
+        markPiece(width);
         int iconX = x;
         int iconY = y;
-        GooTypeIcons.blit(graphics, type, iconX, iconY + GooTypeIcons.centered(LINE, size));
-        targets.add(iconX, iconY, size, LINE,
+        ButtonPainter.drawFrame(graphics, new ButtonPainter.Box(iconX, iconY, width, LINE));
+        GooTypeIcons.blit(graphics, type, iconX + ButtonPainter.PADDING, iconY + GooTypeIcons.centered(LINE, size));
+        targets.add(iconX, iconY, width, LINE,
                 () -> pressed.accept(new BuilderOverlays.Anchor(iconX, iconY)), GooTypeIcons.pickHoverKey(type));
-        x += size + GAP;
+        x += width + GAP;
     }
 
     /**
-     * Curated runs on one line, a click on them running the action where one is given.
+     * Curated runs on one line, a plain left click on them running the action where one is given and a shift + left
+     * click on a reference among them opening its prefab.
+     * Decision shift-left-click-follows-plain-left-modifies.
      *
      * @param runs    the runs
      * @param hint    what a click does, or why none does, null for nothing
@@ -281,7 +350,7 @@ final class ControlFlow {
         addRunsTarget(width + inset + inset, hint, pressed);
         int runsTop = ExpressionLines.lineHeight(runs) == LINE ? y : y + TEXT_NUDGE;
         ExpressionLines.draw(font, runs, x + inset, runsTop, width + 1, new ExpressionLines.Painter(graphics, icons,
-                targets, pressed == null ? WHITE : LINK, LINK, (name, linkX, linkY, linkWidth) -> { }));
+                targets, pressed == null ? WHITE : LINK, LINK, ExpressionLines.followedOnShiftClick(targets, followRef)));
         x += width + inset + inset + GAP;
     }
 
@@ -297,7 +366,7 @@ final class ControlFlow {
     private void addRunsTarget(int width, @Nullable String hint, @Nullable Consumer<BuilderOverlays.Anchor> pressed) {
         int runsX = x;
         int runsY = y;
-        String hoverKey = hint == null ? null : BuilderOverlays.hintKey(hint);
+        String hoverKey = BuilderOverlays.hintKey(hint);
         if (pressed != null) {
             targets.add(runsX, runsY, width, LINE, () -> pressed.accept(new BuilderOverlays.Anchor(runsX, runsY)),
                     hoverKey);

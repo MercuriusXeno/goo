@@ -67,7 +67,8 @@ class MutatorsReadTest {
                 List.of()));
         Supplier<List<String>> none = List::of;
         GuiGraphicsExtractor graphics = mock(GuiGraphicsExtractor.class);
-        new MutatorControls(processes, new BuilderOverlays(mock(ManagerActions.class), null), none, none, () -> { })
+        new MutatorControls(processes, new BuilderOverlays(mock(ManagerActions.class), null), mock(ManagerActions.class),
+                none, none, () -> { })
                 .draw(graphics, font(), "_post_conversions", "#logs", new GroupsPane.Bounds(0, 0, 600, 400), 0,
                         new ClickTargets());
         List<String> texts = drawn(graphics);

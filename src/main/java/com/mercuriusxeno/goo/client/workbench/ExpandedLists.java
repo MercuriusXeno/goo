@@ -4,7 +4,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Which used-by lists and group rows stand expanded: their "... and N more" button adds a list's key and its Hide
+ * Which used-by lists and group rows stand expanded: their ..+n button adds a list's key and its Hide
  * button removes it, collapsing the list to its first row (decision expanded-used-by-lists-take-a-hide-button).
  */
 final class ExpandedLists {

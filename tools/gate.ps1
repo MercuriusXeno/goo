@@ -30,10 +30,23 @@ function Get-ChangedPaths {
         ForEach-Object { $_.Substring(3).Trim('"') })
     if ($held.Count -gt 0) { return $held }
 
-    $config = Get-Content (Join-Path $repo '.fleetview.json') -Raw | ConvertFrom-Json
+    $config = Get-Content (Find-FleetConfig) -Raw | ConvertFrom-Json
     $base = (git -C $repo merge-base HEAD "origin/$($config.integrationBranch)" 2>$null)
     if (-not $base) { return @() }
     @(git -C $repo diff --name-only $base HEAD)
+}
+
+# .fleetview.json is gitignored, so a worktree holds none of its own: the main checkout's copy, found through git's
+# common directory, names the integration branch for every worktree.
+function Find-FleetConfig {
+    $own = Join-Path $repo '.fleetview.json'
+    if (Test-Path $own) { return $own }
+    $common = (git -C $repo rev-parse --path-format=absolute --git-common-dir 2>$null)
+    if ($common) {
+        $main = Join-Path (Split-Path -Parent $common) '.fleetview.json'
+        if (Test-Path $main) { return $main }
+    }
+    throw "no .fleetview.json in $repo or its main checkout, so the gate cannot name the integration branch"
 }
 
 function Get-FedLegs([string[]] $changed) {
@@ -72,8 +85,27 @@ function Invoke-GradleCheck {
     $gradlew = Join-Path $repo $(if ($IsWindows) { 'gradlew.bat' } else { 'gradlew' })
     # The run builds in the worktree's daemon, which dies idle (decisions daemon-back-on, idle-daemon-dies-in-minutes).
     # sca carries the analysis check no longer runs, so the digest still counts it (decision analysis-runs-at-the-gate-only).
-    $said = @(& $gradlew check sca --console=plain 2>&1 | ForEach-Object { [string]$_ })
-    [pscustomobject]@{ Green = $LASTEXITCODE -eq 0; Output = $said }
+    # Gradle starts with none of the gate's handles and writes to files of this run's own: a daemon the build starts
+    # inherits every handle its launcher holds and outlives it, and holding the caller's pipe it kept the gate's output
+    # open until it died idle, so a caller reading the gate to its end waited minutes past the verdict. A process
+    # started through the shell inherits no handle, so the hidden cmd redirects Gradle to the spool files itself
+    # (operator ruling: a gate run never jams the flow of work).
+    $spool = Join-Path ([IO.Path]::GetTempPath()) ('goo-gate-' + [guid]::NewGuid().ToString('n'))
+    $outFile = "$spool.out"
+    $errFile = "$spool.err"
+    try {
+        $command = '/d /c ""{0}" check sca --console=plain > "{1}" 2> "{2}""' -f $gradlew, $outFile, $errFile
+        $gradle = Start-Process -FilePath 'cmd.exe' -ArgumentList $command -WorkingDirectory $repo `
+            -WindowStyle Hidden -PassThru
+        $null = $gradle.Handle
+        $gradle.WaitForExit()
+        $said = @(Get-Content $outFile, $errFile -ErrorAction SilentlyContinue | ForEach-Object { [string]$_ })
+        [pscustomobject]@{ Green = $gradle.ExitCode -eq 0; Output = $said }
+    }
+    finally {
+        # A daemon still holding a spool file keeps it until it dies; the temp folder takes it then.
+        Remove-Item $outFile, $errFile -ErrorAction SilentlyContinue
+    }
 }
 
 function Invoke-Leg([string] $name) {
@@ -121,43 +153,64 @@ if ($reports) { . $reporter }
 $runId = [guid]::NewGuid().ToString('n')
 $commit = (& git -C $repo rev-parse --short HEAD 2>$null)
 if (-not $commit) { $commit = 'unknown' }
-if ($reports) {
-    Send-GateRun -RunId $runId -Script 'tools/gate.ps1' -Cwd $repo -Status 'running' -Commit $commit | Out-Null
-}
 
-# A named leg the gate does not hold grades nothing, so the run is red rather than empty.
-$unknownLegs = @(Split-LegNames $Legs | Where-Object { $legOrder -notcontains $_ })
-if ($unknownLegs.Count -gt 0) {
-    Write-Host ('gate: FAILED, no leg is named {0}; the legs are {1}' -f ($unknownLegs -join ', '), ($legOrder -join ', '))
+# A run that reported itself running always reports its end: every path below sets the verdict and leaves through the
+# finally, and a throw anywhere reads red with its cause, so no failure can leave the gate holding a run that never
+# ends (operator ruling: a failed gate run never jams the flow of work).
+$status = 'red'
+$exitCode = 1
+$ranLegs = $null
+try {
     if ($reports) {
-        Send-GateRun -RunId $runId -Script 'tools/gate.ps1' -Cwd $repo -Status 'red' -Commit $commit | Out-Null
+        Send-GateRun -RunId $runId -Script 'tools/gate.ps1' -Cwd $repo -Status 'running' -Commit $commit | Out-Null
     }
-    exit 1
+    # A named leg the gate does not hold grades nothing, so the run is red rather than empty.
+    $unknownLegs = @(Split-LegNames $Legs | Where-Object { $legOrder -notcontains $_ })
+    if ($unknownLegs.Count -gt 0) {
+        Write-Host ('gate: FAILED, no leg is named {0}; the legs are {1}' -f ($unknownLegs -join ', '),
+            ($legOrder -join ', '))
+    }
+    else {
+        $wantedLegs = Get-WantedLegs
+        if ($wantedLegs.Count -eq 0) {
+            Write-Host 'gate: no leg ran, because nothing this change touched feeds one'
+            $status = 'green'
+            $exitCode = 0
+        }
+        else {
+            $results = @(foreach ($name in $wantedLegs) { Invoke-Leg $name })
+            $ranLegs = $results
+            foreach ($result in $results) {
+                Write-Host ('gate: {0} {1} {2:n1}s {3}' -f $result.Name, $result.Verdict, $result.Seconds, $result.Rung)
+            }
+            $failed = @($results | Where-Object { $_.Verdict -ne 'PASS' })
+            foreach ($result in $failed | Where-Object { $_.Output.Count -gt 0 }) { Write-Replay $result }
+            if ($failed.Count -eq 0) {
+                Write-Host 'gate: all green'
+                $status = 'green'
+                $exitCode = 0
+            }
+            else {
+                Write-Host ('gate: FAILED {0}' -f (($failed | ForEach-Object { $_.Name }) -join ', '))
+            }
+        }
+    }
 }
-
-$wantedLegs = Get-WantedLegs
-if ($wantedLegs.Count -eq 0) {
-    Write-Host 'gate: no leg ran, because nothing this change touched feeds one'
+catch {
+    Write-Host ('gate: FAILED, the gate threw before its verdict: {0}' -f $_)
+    $status = 'red'
+    $exitCode = 1
+}
+finally {
     if ($reports) {
-        Send-GateRun -RunId $runId -Script 'tools/gate.ps1' -Cwd $repo -Status 'green' -Commit $commit | Out-Null
+        try {
+            $ended = @{ RunId = $runId; Script = 'tools/gate.ps1'; Cwd = $repo; Status = $status; Commit = $commit }
+            if ($ranLegs) { $ended.Legs = $ranLegs }
+            Send-GateRun @ended | Out-Null
+        }
+        catch {
+            Write-Host ('gate: the run ended {0} but the reporter refused its end: {1}' -f $status, $_)
+        }
     }
-    exit 0
 }
-
-$results = @(foreach ($name in $wantedLegs) { Invoke-Leg $name })
-foreach ($result in $results) {
-    Write-Host ('gate: {0} {1} {2:n1}s {3}' -f $result.Name, $result.Verdict, $result.Seconds, $result.Rung)
-}
-
-$failed = @($results | Where-Object { $_.Verdict -ne 'PASS' })
-foreach ($result in $failed | Where-Object { $_.Output.Count -gt 0 }) { Write-Replay $result }
-
-$green = $failed.Count -eq 0
-if ($green) { Write-Host 'gate: all green' }
-else { Write-Host ('gate: FAILED {0}' -f (($failed | ForEach-Object { $_.Name }) -join ', ')) }
-
-if ($reports) {
-    Send-GateRun -RunId $runId -Script 'tools/gate.ps1' -Cwd $repo -Commit $commit `
-        -Status $(if ($green) { 'green' } else { 'red' }) -Legs $results | Out-Null
-}
-if (-not $green) { exit 1 }
+exit $exitCode

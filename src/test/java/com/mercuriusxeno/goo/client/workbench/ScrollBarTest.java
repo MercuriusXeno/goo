@@ -67,6 +67,32 @@ class ScrollBarTest {
     }
 
     /**
+     * Centering a stretch that fits the view stands its middle at the view's middle (decision
+     * shift-follow-centers-the-target-in-its-scrolling-view).
+     */
+    @Test
+    void centerStandsAFittingStretchsMiddleAtTheViewsMiddle() {
+        ScrollBar bar = new ScrollBar(STEP);
+        bar.measure(VIEW * 10, VIEW);
+        bar.center(500, 40);
+        assertEquals(500 + 40 / 2 - VIEW / 2, bar.offset());
+    }
+
+    /**
+     * Centering a stretch taller than the view stands its top at the view's top, and at the content's end the clamp
+     * stops it (decision tall-follow-target-shows-from-its-top).
+     */
+    @Test
+    void centerStandsATallStretchsTopAtTheViewsTop() {
+        ScrollBar bar = new ScrollBar(STEP);
+        bar.measure(VIEW * 10, VIEW);
+        bar.center(500, VIEW * 3);
+        assertEquals(500, bar.offset());
+        bar.center(VIEW * 9 + 50, VIEW * 3);
+        assertEquals(VIEW * 9, bar.offset());
+    }
+
+    /**
      * A tailing bar standing at the end follows the content as it grows, and one the wheel moved off the end stays.
      */
     @Test

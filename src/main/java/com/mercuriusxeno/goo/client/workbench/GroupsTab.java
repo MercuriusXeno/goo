@@ -8,8 +8,11 @@ import com.google.gson.JsonParser;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * The Groups tab's state with no Screen: each group the groups describe operation answers, the selected group and
@@ -20,6 +23,8 @@ public final class GroupsTab {
     private static final String GROUPS = "groups";
     private static final String GROUP = "group";
     private static final String NAME = "name";
+    private static final String KIND = "kind";
+    private static final String KIND_TAG = "tag";
     private static final String MEMBERS = "members";
     private static final String ID = "id";
     private static final String KNOWN = "known";
@@ -38,7 +43,16 @@ public final class GroupsTab {
     private static final String TRAIT_MARK = "+$";
     private static final String NO_NOTE = "";
     private static final String CREATE = "create";
+    private static final String CREATE_TAG = "createTag";
+    private static final String DEFAULT_NAMESPACE = "minecraft:";
     private static final String TAG_MARK = "#";
+    private static final String KEY = "key";
+    private static final String TEXT = "text";
+    private static final String ENTRIES = "entries";
+    private static final String GROUPS_SECTION = "_groups";
+    // A #name reference stands whole: no name character or namespace mark runs on either side of it.
+    private static final String REFERENCE_START = "(?<![\\w:#])";
+    private static final String REFERENCE_END = "(?![\\w:])";
     private static final String NAMESPACE_PATTERN = "^.*:";
     private static final String SPAWN_EGG_SUFFIX = "_spawn_egg$";
     private static final String TRAIT_SUFFIX = "_trait";
@@ -47,6 +61,8 @@ public final class GroupsTab {
     private final List<Group> groups = new ArrayList<>();
     private @Nullable String selectedGroup;
     private @Nullable String selectedMember;
+    private String searchText = NO_NOTE;
+    private List<ValuesTab.ManagerEntry> searchNames = List.of();
 
     /**
      * @param draft the draft every tab of the manager edits
@@ -83,9 +99,11 @@ public final class GroupsTab {
      * @param base    its base line, null where the file holds none
      * @param tweaks  each member's tweak
      * @param preview the lines the file holds for the group
+     * @param tag     whether it is a tag referent, a game tag whose members the game holds, rather than a _groups
+     *                group (decision tag-referent-lists-the-games-members-and-values-them)
      */
     public record Group(String name, List<Member> members, @Nullable String base, List<Tweak> tweaks,
-                        List<String> preview) {
+                        List<String> preview, boolean tag) {
     }
 
     /**
@@ -140,7 +158,8 @@ public final class GroupsTab {
                     .toList();
             List<String> preview = json.getAsJsonArray(PREVIEW).asList().stream().map(JsonElement::getAsString)
                     .toList();
-            groups.add(new Group(json.get(NAME).getAsString(), members, text(json, BASE), tweaks, preview));
+            groups.add(new Group(json.get(NAME).getAsString(), members, text(json, BASE), tweaks, preview,
+                    KIND_TAG.equals(text(json, KIND))));
         }
         if (selected().isEmpty()) {
             selectedGroup = null;
@@ -149,10 +168,30 @@ public final class GroupsTab {
     }
 
     /**
-     * @return each group's row in file order
+     * @param text      the typed search text
+     * @param inventory the inventory's items and tags, for each member's name
+     */
+    public void search(String text, List<ValuesTab.ManagerEntry> inventory) {
+        searchText = text.trim().toLowerCase(Locale.ROOT);
+        searchNames = inventory;
+    }
+
+    // Decision groups-search-matches-a-name-or-any-member.
+    private boolean matchesSearch(Group group) {
+        return searchText.isEmpty() || holdsSearch(group.name()) || group.members().stream()
+                .anyMatch(member -> holdsSearch(member.id()) || searchNames.stream()
+                        .anyMatch(entry -> entry.id().equals(member.id()) && holdsSearch(entry.name())));
+    }
+
+    private boolean holdsSearch(String text) {
+        return text.toLowerCase(Locale.ROOT).contains(searchText);
+    }
+
+    /**
+     * @return each group's row in file order that the search keeps
      */
     public List<GroupRow> groupRows() {
-        return groups.stream().map(group -> new GroupRow(group.name(),
+        return groups.stream().filter(this::matchesSearch).map(group -> new GroupRow(group.name(),
                 group.members().stream().map(Member::id).toList(),
                 (int) group.members().stream().filter(member -> !member.known()).count())).toList();
     }
@@ -268,6 +307,116 @@ public final class GroupsTab {
         return request.toString();
     }
 
+    /**
+     * Writes the selected group under a new name in the draft: its _groups entry, its #name value and every #name
+     * reference, an iterator's among them, so its members and value carry over (decision
+     * group-detail-puts-plus-and-rename-beside-the-name).
+     *
+     * @param typed the new name, its # optional
+     * @return whether the group took the name: false where it is blank or another group holds it
+     */
+    public boolean renameSelected(String typed) {
+        String name = referentName(typed.trim());
+        String from = selectedGroup;
+        if (from == null || !isFreeName(name)) {
+            return false;
+        }
+        Pattern reference = Pattern.compile(REFERENCE_START + Pattern.quote(TAG_MARK + from) + REFERENCE_END);
+        String replacement = Matcher.quoteReplacement(TAG_MARK + name);
+        for (JsonElement element : draft.members()) {
+            renameIn(element.getAsJsonObject(), from, name, reference, replacement);
+        }
+        selectedGroup = name;
+        return true;
+    }
+
+    /**
+     * @return the entries every tab marked for the next save to remove
+     */
+    RemovalMarks removals() {
+        return draft.removals();
+    }
+
+    /**
+     * Deletes a group from the draft: its _groups entry and its #name value, dropping the selection where it held
+     * the group (decision rename-is-a-pencil-and-delete-a-red-x-everywhere). References to #name elsewhere stay, as
+     * a deleted mutator's do, and read as unknown until rewritten.
+     *
+     * @param name the group's name, no #
+     * @return whether the draft held the group
+     */
+    public boolean deleteGroup(String name) {
+        com.google.gson.JsonArray members = draft.members();
+        boolean removed = false;
+        for (int index = members.size() - 1; index >= 0; index--) {
+            JsonObject member = members.get(index).getAsJsonObject();
+            String held = keyOf(member);
+            if ((TAG_MARK + name).equals(held)) {
+                members.remove(index);
+                removed = true;
+            } else if (GROUPS_SECTION.equals(held)) {
+                removed |= removeEntry(member, name);
+            }
+        }
+        if (name.equals(selectedGroup)) {
+            selectedGroup = null;
+        }
+        return removed;
+    }
+
+    private static boolean removeEntry(JsonObject section, String key) {
+        JsonElement entries = section.get(ENTRIES);
+        if (entries == null || !entries.isJsonArray()) {
+            return false;
+        }
+        com.google.gson.JsonArray array = entries.getAsJsonArray();
+        for (int index = 0; index < array.size(); index++) {
+            if (key.equals(keyOf(array.get(index).getAsJsonObject()))) {
+                array.remove(index);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isFreeName(String name) {
+        return !name.isEmpty() && groups.stream().noneMatch(group -> group.name().equals(name));
+    }
+
+    // Renames the group's _groups entry and its #name member, and rewrites its references in every text.
+    private static void renameIn(JsonObject member, String from, String to, Pattern reference, String replacement) {
+        String held = keyOf(member);
+        if ((TAG_MARK + from).equals(held)) {
+            member.addProperty(KEY, TAG_MARK + to);
+        }
+        rewriteReferences(member, reference, replacement);
+        boolean groupsSection = GROUPS_SECTION.equals(held);
+        for (JsonObject child : entriesOf(member)) {
+            if (groupsSection && from.equals(keyOf(child))) {
+                child.addProperty(KEY, to);
+            }
+            renameIn(child, from, to, reference, replacement);
+        }
+    }
+
+    private static void rewriteReferences(JsonObject member, Pattern reference, String replacement) {
+        JsonElement text = member.get(TEXT);
+        if (text != null && text.isJsonPrimitive()) {
+            member.addProperty(TEXT, reference.matcher(text.getAsString()).replaceAll(replacement));
+        }
+    }
+
+    private static @Nullable String keyOf(JsonObject member) {
+        JsonElement key = member.get(KEY);
+        return key == null || key.isJsonNull() ? null : key.getAsString();
+    }
+
+    private static List<JsonObject> entriesOf(JsonObject member) {
+        JsonElement entries = member.get(ENTRIES);
+        return entries != null && entries.isJsonArray()
+                ? entries.getAsJsonArray().asList().stream().map(JsonElement::getAsJsonObject).toList() : List.of();
+    }
+
     private List<String> memberIds() {
         return selected().map(group -> group.members().stream().map(Member::id).toList()).orElse(List.of());
     }
@@ -328,6 +477,37 @@ public final class GroupsTab {
 
     private static String traitNameFor(String member) {
         return member.replaceFirst(NAMESPACE_PATTERN, NO_NOTE).replaceFirst(SPAWN_EGG_SUFFIX, NO_NOTE) + TRAIT_SUFFIX;
+    }
+
+    /**
+     * @param inventory the inventory's items and tags
+     * @return a dropdown over every item tag no listed row names, each its #id and member count
+     *         (decision add-tag-picks-a-game-tag-and-writes-its-entry)
+     */
+    SearchDropdown addTagChoices(List<ValuesTab.ManagerEntry> inventory) {
+        List<String> listed = groups.stream().map(Group::name).toList();
+        return SearchDropdown.overTags(inventory.stream().filter(ValuesTab.ManagerEntry::tag)
+                .filter(entry -> !listed.contains(referentName(entry.id()))).toList());
+    }
+
+    /**
+     * @param tagId the picked tag's #id
+     * @return the apply request writing the tag's #tag entry, which the next describe lists as a referent
+     */
+    public String createTagRequest(String tagId) {
+        JsonObject request = draft.request();
+        request.addProperty(GROUP, referentName(tagId));
+        request.addProperty(CREATE_TAG, true);
+        return request.toString();
+    }
+
+    /**
+     * @param tagId a tag's #id, namespaced or bare
+     * @return the tag's name as the file spells it after #, bare in the minecraft namespace
+     */
+    static String referentName(String tagId) {
+        String name = tagId.startsWith(TAG_MARK) ? tagId.substring(TAG_MARK.length()) : tagId;
+        return name.startsWith(DEFAULT_NAMESPACE) ? name.substring(DEFAULT_NAMESPACE.length()) : name;
     }
 
     /**

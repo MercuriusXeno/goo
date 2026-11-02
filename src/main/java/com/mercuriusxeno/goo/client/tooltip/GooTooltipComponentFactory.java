@@ -2,6 +2,7 @@ package com.mercuriusxeno.goo.client.tooltip;
 
 import com.mercuriusxeno.goo.Goo;
 import com.mercuriusxeno.goo.client.workbench.GooAmountTooltipComponent;
+import com.mercuriusxeno.goo.client.workbench.MemberIconsTooltipComponent;
 import com.mercuriusxeno.goo.client.workbench.TooltipLine;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -28,5 +29,7 @@ public final class GooTooltipComponentFactory {
         event.register(ContainerValueTooltipComponent.class, ContainerValueClientTooltipComponent::new);
         // decision value-tooltips-draw-each-types-icon-before-its-amount
         event.register(TooltipLine.GooAmount.class, GooAmountTooltipComponent::new);
+        // decision group-link-hovers-member-icons-then-plus-n
+        event.register(TooltipLine.MemberIcons.class, MemberIconsTooltipComponent::new);
     }
 }

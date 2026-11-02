@@ -5,6 +5,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
@@ -12,9 +13,11 @@ import java.util.function.ToIntFunction;
  * Draws a value as curated runs laid across lines of a width: a goo type as its icon beside its amount, an item as
  * its icon and name, a prefab as its name link, a number and an operator as text and a per-type object as a row per
  * type, so no brace, quote, $ or namespaced id draws (decisions curated-view-shows-no-brace-quote-or-raw-id,
- * goo-types-draw-as-icons-named-on-hover); each link lands with the caller, so a click on it opens its prefab
- * (decision references-link-to-their-variable-and-hover-a-card). A value the terms cannot read draws its text as
- * an error.
+ * goo-types-draw-as-icons-named-on-hover); each link lands with the caller, so a shift + left click on it opens its
+ * prefab and a plain left click reaches the view beneath it, which modifies the value in place. A value the terms
+ * cannot read draws its text as an error.
+ * Decision references-link-to-their-variable-and-hover-a-card.
+ * Decision shift-left-click-follows-plain-left-modifies.
  */
 final class ExpressionLines {
     /** A line's height where a run draws an icon. */
@@ -24,9 +27,9 @@ final class ExpressionLines {
     private static final int ITEM_SPRITE_SIZE = 16;
     private static final int ICON_TEXT_GAP = 2;
     private static final int RUN_GAP = 3;
-    // Text on an icon line sits centred against the 16px icon.
-    private static final int TEXT_NUDGE = 5;
     private static final int ICON_NUDGE = 1;
+    private static final int GLYPH_GAP = 1;
+    private static final int HALF = 2;
     private static final int RED = 0xFFFF5555;
     private static final String NOTHING = "";
     private static final String PLUS = "+";
@@ -41,6 +44,8 @@ final class ExpressionLines {
     private static final String ARROW = "->";
     private static final String OPERATOR_CHARS = "+-*/()";
     private static final char REFERENCE_MARK = '$';
+    // One subtracted term draws alone, with no parentheses.
+    private static final int SUBTRACTED_ALONE = 1;
 
     private ExpressionLines() {
     }
@@ -89,6 +94,16 @@ final class ExpressionLines {
          * @param width    the piece's width
          */
         void landed(String variable, int x, int y, int width);
+    }
+
+    /**
+     * @param targets the frame's click areas
+     * @param follow  opens the prefab a link names
+     * @return a sink laying each link's piece as an area a shift + left click follows, hovering the prefab's value
+     */
+    static LinkSink followedOnShiftClick(ClickTargets targets, Consumer<String> follow) {
+        return (variable, x, y, width) -> targets.addFollow(x, y, width, TEXT_LINE_HEIGHT,
+                () -> follow.accept(variable), PrefabHovers.hoverKey(variable));
     }
 
     /**
@@ -213,14 +228,44 @@ final class ExpressionLines {
     }
 
     private static void addSum(List<Run> runs, ExpressionTerms.Sum sum, Function<String, String> names) {
-        for (ExpressionTerms.Term term : sum.terms()) {
+        List<ExpressionTerms.Term> terms = sum.terms();
+        if (subtractsSeveral(terms)) {
+            addSubtractedSum(runs, terms, names);
+            return;
+        }
+        for (ExpressionTerms.Term term : terms) {
             if (term.join() != ExpressionTerms.Join.FIRST) {
                 runs.add(operator(term.join() == ExpressionTerms.Join.PLUS ? PLUS : MINUS));
             }
-            for (ExpressionTerms.Factor factor : term.factors()) {
-                addScale(runs, factor.scale());
-                addAtom(runs, factor.atom(), names);
+            addTerm(runs, term, names);
+        }
+    }
+
+    // Decision backwards-derivation-subtracts-a-parenthesized-sum: one term less two or more draws as that term less
+    // their parenthesized sum, "a - (b + c)", the same value read as what it works back from.
+    private static boolean subtractsSeveral(List<ExpressionTerms.Term> terms) {
+        return terms.size() > SUBTRACTED_ALONE + 1
+                && terms.stream().skip(1).allMatch(term -> term.join() == ExpressionTerms.Join.MINUS);
+    }
+
+    private static void addSubtractedSum(List<Run> runs, List<ExpressionTerms.Term> terms,
+                                         Function<String, String> names) {
+        addTerm(runs, terms.getFirst(), names);
+        runs.add(operator(MINUS));
+        runs.add(operator(OPEN));
+        for (int index = 1; index < terms.size(); index++) {
+            if (index > 1) {
+                runs.add(operator(PLUS));
             }
+            addTerm(runs, terms.get(index), names);
+        }
+        runs.add(operator(CLOSE));
+    }
+
+    private static void addTerm(List<Run> runs, ExpressionTerms.Term term, Function<String, String> names) {
+        for (ExpressionTerms.Factor factor : term.factors()) {
+            addScale(runs, factor.scale());
+            addAtom(runs, factor.atom(), names);
         }
     }
 
@@ -288,11 +333,31 @@ final class ExpressionLines {
     }
 
     /**
+     * @param font the font
      * @param runs a value's runs
      * @return how far below a line's top its text draws, so a caller lines a text label up with the runs' text
      */
-    static int textOffset(List<Run> runs) {
-        return lineHeight(runs) == ICON_LINE_HEIGHT ? TEXT_NUDGE : 0;
+    static int textOffset(Font font, List<Run> runs) {
+        return lineHeight(runs) == ICON_LINE_HEIGHT ? iconLineTextOffset(font) : 0;
+    }
+
+    // Decision operators-center-on-the-sprite: text on an icon line, an operator among it, centers its glyphs on the
+    // sprite.
+    private static int iconLineTextOffset(Font font) {
+        return centeredTextTop(ICON_NUDGE, ITEM_SPRITE_SIZE, font.lineHeight);
+    }
+
+    /**
+     * A font's line height holds an empty row under its glyphs and their shadow, so the glyphs' ink is one row shorter
+     * than the line; centering the ink, not the line, centers the text on a sprite or a row.
+     *
+     * @param top        the band's top
+     * @param height     the band's height
+     * @param lineHeight the font's line height
+     * @return the text's top that centers its glyphs in the band
+     */
+    static int centeredTextTop(int top, int height, int lineHeight) {
+        return top + (height - lineHeight + GLYPH_GAP) / HALF;
     }
 
     /**
@@ -447,7 +512,7 @@ final class ExpressionLines {
         }
 
         private int textOffset() {
-            return lineHeight == ICON_LINE_HEIGHT ? TEXT_NUDGE : 0;
+            return lineHeight == ICON_LINE_HEIGHT ? iconLineTextOffset(font) : 0;
         }
 
         private void drawPiece(Run run, String piece, int x) {
@@ -471,8 +536,11 @@ final class ExpressionLines {
         }
     }
 
+    // Decision holding-shift-underlines-every-link.
     private static void drawLink(Font font, Run run, String piece, int x, int textTop, Painter painter) {
         painter.graphics().text(font, piece, x, textTop, painter.linkColor());
+        ButtonPainter.underlineWhileShiftHeld(painter.graphics(), painter.targets(), x, textTop, font.width(piece),
+                painter.linkColor());
         // Decision every-prefab-reference-hovers-its-value; a link sink's own area, laid after, stands over it.
         painter.targets().addHover(x, textTop, font.width(piece), TEXT_LINE_HEIGHT,
                 PrefabHovers.hoverKey(String.valueOf(run.ref())));
@@ -484,6 +552,7 @@ final class ExpressionLines {
         if (icons != null) {
             painter.graphics().item(icons.of(String.valueOf(run.ref())), x, top + ICON_NUDGE);
         }
-        painter.graphics().text(font, piece, x + ITEM_SPRITE_SIZE + ICON_TEXT_GAP, top + TEXT_NUDGE, painter.textColor());
+        painter.graphics().text(font, piece, x + ITEM_SPRITE_SIZE + ICON_TEXT_GAP, top + iconLineTextOffset(font),
+                painter.textColor());
     }
 }

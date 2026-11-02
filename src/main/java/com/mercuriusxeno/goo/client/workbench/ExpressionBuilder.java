@@ -54,12 +54,12 @@ final class ExpressionBuilder {
     private @Nullable String refusal;
 
     /**
-     * Whether a factor multiplies or divides its operand.
+     * The side of a term's ratio a number sets.
      */
     enum Op {
-        /** The factor multiplies, written before the operand as a count. */
+        /** The multiplier, written before the operand as a count. */
         MULTIPLY,
-        /** The factor divides, written after the operand. */
+        /** The divisor, written after the operand. */
         DIVIDE
     }
 
@@ -98,14 +98,28 @@ final class ExpressionBuilder {
     /**
      * One term.
      *
-     * @param join    how it joins the terms before it
-     * @param operand what it stands on
-     * @param op      whether its factor multiplies or divides
-     * @param factor  its factor, 1 for none
+     * @param join       how it joins the terms before it
+     * @param operand    what it stands on
+     * @param multiplier the number multiplying it, 1 for none
+     * @param divisor    the number dividing it, 1 for none
      */
-    record Piece(ExpressionTerms.Join join, Operand operand, Op op, String factor) {
+    record Piece(ExpressionTerms.Join join, Operand operand, String multiplier, String divisor) {
         Piece withOperand(Operand changed) {
-            return new Piece(join, changed, op, factor);
+            return new Piece(join, changed, multiplier, divisor);
+        }
+
+        Piece withJoin(ExpressionTerms.Join changed) {
+            return new Piece(changed, operand, multiplier, divisor);
+        }
+
+        // Decision ratio-holds-multiplier-and-divisor-together: a side set leaves the other standing.
+        Piece withSide(Op side, String factor) {
+            return side == Op.MULTIPLY ? new Piece(join, operand, factor, divisor)
+                    : new Piece(join, operand, multiplier, factor);
+        }
+
+        boolean isUnscaled() {
+            return ONE.equals(multiplier) && ONE.equals(divisor);
         }
     }
 
@@ -147,7 +161,7 @@ final class ExpressionBuilder {
      * @return a first term over it, unscaled
      */
     static Piece firstTerm(Operand operand) {
-        return new Piece(ExpressionTerms.Join.FIRST, operand, Op.MULTIPLY, ONE);
+        return new Piece(ExpressionTerms.Join.FIRST, operand, ONE, ONE);
     }
 
     /**
@@ -248,17 +262,17 @@ final class ExpressionBuilder {
     /**
      * Scales the whole value as one sum.
      *
-     * @param op     whether the number multiplies or divides it
+     * @param side   the side of its ratio the number sets
      * @param factor the number scaling it
      */
-    void scaleWhole(Op op, String factor) {
+    void scaleWhole(Op side, String factor) {
         if (!isNumber(factor) || whole.isEmpty()) {
             return;
         }
         changed();
         List<Piece> inner = new ArrayList<>(whole);
         whole.clear();
-        whole.add(new Piece(ExpressionTerms.Join.FIRST, new Nest(List.copyOf(inner)), op, factor.trim()));
+        whole.add(firstTerm(new Nest(List.copyOf(inner))).withSide(side, factor.trim()));
     }
 
     private boolean addTerm(List<Integer> sum, Operand operand) {
@@ -268,7 +282,7 @@ final class ExpressionBuilder {
         changed();
         List<Piece> pieces = new ArrayList<>(sumAt(sum));
         pieces.add(new Piece(pieces.isEmpty() ? ExpressionTerms.Join.FIRST : ExpressionTerms.Join.PLUS, operand,
-                Op.MULTIPLY, ONE));
+                ONE, ONE));
         replaceSum(sum, pieces);
         return true;
     }
@@ -429,7 +443,7 @@ final class ExpressionBuilder {
             return refuse(TYPE_TAKEN);
         }
         changed();
-        rows.add(new Row(type, List.of(new Piece(ExpressionTerms.Join.FIRST, new Num(ONE), Op.MULTIPLY, ONE))));
+        rows.add(new Row(type, List.of(firstTerm(new Num(ONE)))));
         return true;
     }
 
@@ -484,13 +498,13 @@ final class ExpressionBuilder {
 
     /**
      * @param row    the row's index
-     * @param op     whether the factor multiplies or divides
+     * @param side   the side of the ratio the factor sets
      * @param factor the factor
      */
-    void setRowScale(int row, Op op, String factor) {
+    void setRowScale(int row, Op side, String factor) {
         if (isNumber(factor)) {
             Row edited = rows.get(row);
-            rows.set(row, new Row(edited.type(), scaled(edited.pieces(), 0, op, factor.trim())));
+            rows.set(row, new Row(edited.type(), scaled(edited.pieces(), 0, side, factor.trim())));
         }
     }
 
@@ -551,34 +565,34 @@ final class ExpressionBuilder {
 
     /**
      * @param piece  the term's index
-     * @param op     whether the factor multiplies or divides
+     * @param side   the side of the ratio the factor sets
      * @param factor the factor
      */
-    void setScale(int piece, Op op, String factor) {
-        setScale(List.of(piece), op, factor);
+    void setScale(int piece, Op side, String factor) {
+        setScale(List.of(piece), side, factor);
     }
 
     /**
-     * Scales a term; the whole value standing as one sum scaled by 1 comes apart into its terms, since its
+     * Scales a term; the whole value standing as one sum scaled 1:1 comes apart into its terms, since its
      * parentheses then mean nothing.
      *
      * @param path   the term's place
-     * @param op     whether the factor multiplies or divides
+     * @param side   the side of the ratio the factor sets
      * @param factor the factor
      */
-    void setScale(List<Integer> path, Op op, String factor) {
+    void setScale(List<Integer> path, Op side, String factor) {
         if (!isNumber(factor)) {
             return;
         }
         String trimmed = factor.trim();
-        if (path.size() == 1 && whole.size() == 1 && ONE.equals(trimmed)
-                && whole.getFirst().operand() instanceof Nest nest) {
+        if (path.size() == 1 && whole.size() == 1 && whole.getFirst().operand() instanceof Nest nest
+                && whole.getFirst().withSide(side, trimmed).isUnscaled()) {
             changed();
             whole.clear();
             whole.addAll(nest.pieces());
             return;
         }
-        editPiece(path, piece -> new Piece(piece.join(), piece.operand(), op, trimmed));
+        editPiece(path, piece -> piece.withSide(side, trimmed));
     }
 
     /**
@@ -595,7 +609,7 @@ final class ExpressionBuilder {
      */
     void setJoin(List<Integer> path, ExpressionTerms.Join join) {
         if (path.getLast() > 0 && join != ExpressionTerms.Join.FIRST) {
-            editPiece(path, piece -> new Piece(join, piece.operand(), piece.op(), piece.factor()));
+            editPiece(path, piece -> piece.withJoin(join));
         }
     }
 
@@ -622,8 +636,7 @@ final class ExpressionBuilder {
         int at = path.getLast();
         pieces.remove(at);
         if (at == 0) {
-            Piece next = pieces.getFirst();
-            pieces.set(0, new Piece(ExpressionTerms.Join.FIRST, next.operand(), next.op(), next.factor()));
+            pieces.set(0, pieces.getFirst().withJoin(ExpressionTerms.Join.FIRST));
         }
         replaceSum(sum, pieces);
     }
@@ -632,11 +645,10 @@ final class ExpressionBuilder {
         return sumAt(path.subList(0, path.size() - 1)).get(path.getLast());
     }
 
-    private List<Piece> scaled(List<Piece> pieces, int index, Op op, String factor) {
+    private List<Piece> scaled(List<Piece> pieces, int index, Op side, String factor) {
         changed();
         List<Piece> edited = new ArrayList<>(pieces);
-        Piece piece = edited.get(index);
-        edited.set(index, new Piece(piece.join(), piece.operand(), op, factor));
+        edited.set(index, edited.get(index).withSide(side, factor));
         return List.copyOf(edited);
     }
 
@@ -664,7 +676,7 @@ final class ExpressionBuilder {
      * @return its operand alone as a sum, for its curated view
      */
     static ExpressionTerms.Sum operandSum(Piece piece) {
-        return sumOf(List.of(new Piece(ExpressionTerms.Join.FIRST, piece.operand(), Op.MULTIPLY, ONE)));
+        return sumOf(List.of(firstTerm(piece.operand())));
     }
 
     /**
@@ -683,25 +695,29 @@ final class ExpressionBuilder {
         return new ExpressionTerms.Sum(pieces.stream().map(ExpressionBuilder::termOf).toList());
     }
 
-    // A multiplying factor writes before its operand as a count, as "3 $iron_ingot" does, save beside a number,
-    // which "5 * 2" keeps apart; a dividing factor writes after it.
+    // A multiplier writes before its operand as a count, as "3 $iron_ingot" does, save beside a number, which
+    // "5 * 2" keeps apart; a divisor writes after it, so 2:3 writes "2 $x / 3" and "5 * 2 / 3".
     private static ExpressionTerms.Term termOf(Piece piece) {
         if (piece.operand() instanceof Kept kept) {
             return new ExpressionTerms.Term(piece.join(), kept.term().factors());
         }
         ExpressionTerms.Atom atom = atomOf(piece.operand());
-        ExpressionTerms.Factor first = new ExpressionTerms.Factor(ExpressionTerms.Scale.FIRST, atom);
-        if (ONE.equals(piece.factor())) {
-            return new ExpressionTerms.Term(piece.join(), List.of(first));
+        ExpressionTerms.Number multiplier = new ExpressionTerms.Number(piece.multiplier());
+        List<ExpressionTerms.Factor> factors = new ArrayList<>();
+        if (ONE.equals(piece.multiplier())) {
+            factors.add(new ExpressionTerms.Factor(ExpressionTerms.Scale.FIRST, atom));
+        } else if (atom instanceof ExpressionTerms.Number) {
+            factors.add(new ExpressionTerms.Factor(ExpressionTerms.Scale.FIRST, atom));
+            factors.add(new ExpressionTerms.Factor(ExpressionTerms.Scale.TIMES, multiplier));
+        } else {
+            factors.add(new ExpressionTerms.Factor(ExpressionTerms.Scale.FIRST, multiplier));
+            factors.add(new ExpressionTerms.Factor(ExpressionTerms.Scale.IMPLICIT, atom));
         }
-        ExpressionTerms.Number factor = new ExpressionTerms.Number(piece.factor());
-        if (piece.op() == Op.DIVIDE || atom instanceof ExpressionTerms.Number) {
-            return new ExpressionTerms.Term(piece.join(), List.of(first, new ExpressionTerms.Factor(
-                    piece.op() == Op.DIVIDE ? ExpressionTerms.Scale.DIVIDE : ExpressionTerms.Scale.TIMES, factor)));
+        if (!ONE.equals(piece.divisor())) {
+            factors.add(new ExpressionTerms.Factor(ExpressionTerms.Scale.DIVIDE,
+                    new ExpressionTerms.Number(piece.divisor())));
         }
-        return new ExpressionTerms.Term(piece.join(), List.of(
-                new ExpressionTerms.Factor(ExpressionTerms.Scale.FIRST, factor),
-                new ExpressionTerms.Factor(ExpressionTerms.Scale.IMPLICIT, atom)));
+        return new ExpressionTerms.Term(piece.join(), List.copyOf(factors));
     }
 
     private static ExpressionTerms.Atom atomOf(Operand operand) {
@@ -724,25 +740,35 @@ final class ExpressionBuilder {
         return sum.terms().stream().map(ExpressionBuilder::pieceOf).toList();
     }
 
-    // A term reads as a piece where it is an operand alone, a count before it, or a factor dividing it; any other
-    // shape is kept whole.
+    // A term reads as a piece where it holds the shape termOf writes; any other shape is kept whole.
     private static Piece pieceOf(ExpressionTerms.Term term) {
         List<ExpressionTerms.Factor> factors = term.factors();
-        Optional<Piece> read = factors.size() == 1 ? operandOf(factors.getFirst().atom())
-                .map(operand -> new Piece(term.join(), operand, Op.MULTIPLY, ONE))
-                : factors.size() == PAIR ? pairOf(term.join(), factors.get(0), factors.get(1)) : Optional.empty();
-        return read.orElseGet(() -> new Piece(term.join(), new Kept(term), Op.MULTIPLY, ONE));
+        ExpressionTerms.Factor last = factors.getLast();
+        boolean divided = factors.size() > 1 && last.scale() == ExpressionTerms.Scale.DIVIDE
+                && last.atom() instanceof ExpressionTerms.Number;
+        String divisor = divided ? ((ExpressionTerms.Number) last.atom()).digits() : ONE;
+        List<ExpressionTerms.Factor> multiplied = divided ? factors.subList(0, factors.size() - 1) : factors;
+        return multipliedOf(term.join(), multiplied).map(piece -> piece.withSide(Op.DIVIDE, divisor))
+                .orElseGet(() -> new Piece(term.join(), new Kept(term), ONE, ONE));
     }
 
-    // A count before its operand, as "3 $iron_ingot", or an operand a number divides, as "bucket.metal / 2".
-    private static Optional<Piece> pairOf(ExpressionTerms.Join join, ExpressionTerms.Factor first,
-                                          ExpressionTerms.Factor second) {
-        if (first.atom() instanceof ExpressionTerms.Number count && second.scale() == ExpressionTerms.Scale.IMPLICIT
-                && !(second.atom() instanceof ExpressionTerms.Number)) {
-            return operandOf(second.atom()).map(operand -> new Piece(join, operand, Op.MULTIPLY, count.digits()));
+    // The operand alone, a count before it, as "3 $iron_ingot", or a number times another, as "5 * 2".
+    private static Optional<Piece> multipliedOf(ExpressionTerms.Join join, List<ExpressionTerms.Factor> factors) {
+        if (factors.size() == 1) {
+            return operandOf(factors.getFirst().atom()).map(operand -> new Piece(join, operand, ONE, ONE));
         }
-        if (second.scale() == ExpressionTerms.Scale.DIVIDE && second.atom() instanceof ExpressionTerms.Number divisor) {
-            return operandOf(first.atom()).map(operand -> new Piece(join, operand, Op.DIVIDE, divisor.digits()));
+        return factors.size() == PAIR && factors.getFirst().atom() instanceof ExpressionTerms.Number count
+                ? countedOf(join, count, factors.get(1)) : Optional.empty();
+    }
+
+    private static Optional<Piece> countedOf(ExpressionTerms.Join join, ExpressionTerms.Number count,
+                                             ExpressionTerms.Factor second) {
+        boolean numbered = second.atom() instanceof ExpressionTerms.Number;
+        if (second.scale() == ExpressionTerms.Scale.IMPLICIT && !numbered) {
+            return operandOf(second.atom()).map(operand -> new Piece(join, operand, count.digits(), ONE));
+        }
+        if (second.scale() == ExpressionTerms.Scale.TIMES && second.atom() instanceof ExpressionTerms.Number times) {
+            return Optional.of(new Piece(join, new Num(count.digits()), times.digits(), ONE));
         }
         return Optional.empty();
     }

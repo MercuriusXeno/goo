@@ -1,11 +1,23 @@
 package com.mercuriusxeno.goo.client.workbench;
 
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.EditBox;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests where each popup the builders open stands, under the line of the control that opened it
@@ -52,5 +64,25 @@ class BuilderOverlaysTest {
                 assertTrue(placed.top() + placed.height() <= SCREEN_HEIGHT, popup);
             });
         }
+    }
+
+    /**
+     * The number box opens with its whole text selected, so the first typed character replaces it (decision
+     * every-number-box-opens-with-its-text-selected).
+     */
+    @Test
+    void numberBoxOpensWithItsTextSelected() {
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any(AbstractWidget.class))).thenAnswer(call -> call.getArgument(0));
+        List<EditBox> boxes = new ArrayList<>();
+        doAnswer(call -> boxes.add(call.getArgument(0))).when(actions).focus(any(AbstractWidget.class));
+        Font font = mock(Font.class);
+        when(font.plainSubstrByWidth(anyString(), anyInt())).thenAnswer(call -> call.getArgument(0));
+        when(font.plainSubstrByWidth(anyString(), anyInt(), anyBoolean())).thenAnswer(call -> call.getArgument(0));
+        BuilderOverlays overlays = new BuilderOverlays(actions, mock(ItemIcons.class));
+        overlays.init(font);
+        overlays.show(true);
+        overlays.openNumber(new BuilderOverlays.Anchor(ANCHOR_X, 30), "12", typed -> { });
+        assertEquals("12", boxes.getFirst().getHighlighted());
     }
 }

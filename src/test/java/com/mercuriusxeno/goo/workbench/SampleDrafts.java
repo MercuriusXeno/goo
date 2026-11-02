@@ -10,6 +10,7 @@ import java.util.Objects;
  */
 public final class SampleDrafts {
     private static final String SAMPLE = "/workbench/sample_base_values.json";
+    private static final String SHIPPED = "/data/goo/goo_values/base_values.json";
     private static final String DIAMOND_ENTRY =
             "\"diamond\": {\"crystal\": \"$ultra\", \"opulent\": \"24 $wealth.opulent\", \"yore\": \"$base / 4\"}";
     private static final String DIAMOND_WITHOUT_YORE =
@@ -25,6 +26,17 @@ public final class SampleDrafts {
     public static String sample() throws IOException {
         try (InputStream in = SampleDrafts.class.getResourceAsStream(SAMPLE)) {
             return new String(Objects.requireNonNull(in, SAMPLE).readAllBytes(), StandardCharsets.UTF_8);
+        }
+    }
+
+    /**
+     * @return the shipped base_values.json as the model operation answers it, for tests outside this package
+     * @throws IOException where the file is off the classpath
+     */
+    public static String shippedModelJson() throws IOException {
+        try (InputStream in = SampleDrafts.class.getResourceAsStream(SHIPPED)) {
+            String text = new String(Objects.requireNonNull(in, SHIPPED).readAllBytes(), StandardCharsets.UTF_8);
+            return ModelJson.toJson(BaseValuesModel.parse(text), "base_values.json");
         }
     }
 

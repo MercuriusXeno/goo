@@ -2599,5 +2599,32 @@ class GooValueRegistryTest {
             assertEquals(planksFromAcaciaLog, setting.get(id("minecraft:acacia_planks")));
             assertEquals(cheapDye, setting.get(id("minecraft:yellow_dye")));
         }
+
+        /**
+         * An ingot valued from scrap and a gold tag keeps that recipe as its source: the tagless unpacking of a
+         * block valued from the ingot itself reads the ingot's own value back and never replaces it, so the two
+         * never name each other.
+         */
+        @Test
+        void recipeReadingTheItemBackNeverReplacesItsSource() {
+            setBaseValues(Map.of(id("minecraft:netherite_scrap"), goo(GooTypes.METAL, 16),
+                    id("minecraft:gold_ingot"), goo(GooTypes.METAL, 4)));
+            List<String> goldTagged = new java.util.ArrayList<>(java.util.Collections.nCopies(4, (String) null));
+            goldTagged.addAll(java.util.Collections.nCopies(4, "c:ingots/gold"));
+            RecipeInput fromScrap = tagRecipe("minecraft:netherite_ingot", 1, goldTagged,
+                    slot("minecraft:netherite_scrap"), slot("minecraft:netherite_scrap"),
+                    slot("minecraft:netherite_scrap"), slot("minecraft:netherite_scrap"), slot("minecraft:gold_ingot"),
+                    slot("minecraft:gold_ingot"), slot("minecraft:gold_ingot"), slot("minecraft:gold_ingot"));
+            String[][] nineIngots = new String[9][];
+            java.util.Arrays.fill(nineIngots, slot("minecraft:netherite_ingot"));
+            RecipeInput block = recipe("minecraft:netherite_block", 1, nineIngots);
+            RecipeInput unpacking = recipe("minecraft:netherite_ingot", 9, slot("minecraft:netherite_block"));
+            registry.deriveFromRecipeInputs(List.of(unpacking, block, fromScrap), false);
+
+            Map<Identifier, RecipeInput> setting = registry.valueSettingRecipeByItem();
+            assertEquals(fromScrap, setting.get(id("minecraft:netherite_ingot")));
+            assertEquals(block, setting.get(id("minecraft:netherite_block")));
+            assertEquals(goo(GooTypes.METAL, 80), registry.table().lookup(id("minecraft:netherite_ingot")));
+        }
     }
 }

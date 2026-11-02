@@ -46,7 +46,7 @@ final class DraftPane {
         }
         graphics.nextStratum();
         graphics.fill(0, 0, screenWidth, screenHeight, DIM_COLOR);
-        targets.add(0, 0, screenWidth, screenHeight, () -> { });
+        targets.addShield(0, 0, screenWidth, screenHeight, () -> { });
         int textWidth = WIDTH - PADDING * HALF;
         List<ExpressionLines.Run> body = ExpressionLines.textRuns(dialog.get().text());
         int bodyHeight = ExpressionLines.height(font, body, textWidth);

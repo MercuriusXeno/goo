@@ -67,6 +67,20 @@ final class ScrollBar {
     }
 
     /**
+     * @return the view's length as last measured
+     */
+    int view() {
+        return view;
+    }
+
+    /**
+     * @return the farthest the offset can stand, as last measured
+     */
+    int maximum() {
+        return maximum;
+    }
+
+    /**
      * Takes the area's sizes this frame and clamps the offset to them.
      *
      * @param content the content's length
@@ -91,6 +105,19 @@ final class ScrollBar {
     void scrollTo(int wanted) {
         offset = Math.clamp(wanted, 0, maximum);
         following = tails && offset == maximum;
+    }
+
+    /**
+     * Stands the view so a stretch of the content sits in its middle, or, where the stretch is taller than the view,
+     * so its top stands at the view's top; the clamp stops it at the content's end.
+     * Decision shift-follow-centers-the-target-in-its-scrolling-view.
+     * Decision tall-follow-target-shows-from-its-top.
+     *
+     * @param top    the stretch's top inside the content
+     * @param height the stretch's height
+     */
+    void center(int top, int height) {
+        scrollTo(height > view ? top : top + (int) (height * HALF) - (int) (view * HALF));
     }
 
     /**
