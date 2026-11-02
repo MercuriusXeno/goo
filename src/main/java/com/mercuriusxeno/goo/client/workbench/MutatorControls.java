@@ -111,6 +111,15 @@ final class MutatorControls {
         drawKind(new Entry(flow, section, key), processes.formOf(section, key));
     }
 
+    /**
+     * @param font the screen's font
+     * @return the widest the kind dropdown draws, so a row reserves that room for it whatever kind it holds
+     */
+    static int kindWidth(Font font) {
+        return java.util.stream.Stream.of(CONVERT, ADDITIVE, STACK)
+                .mapToInt(label -> ButtonPainter.width(font, ControlFlow.dropdownLabel(label))).max().orElse(0);
+    }
+
     private void drawForm(Entry entry, Processes.Form form, boolean assignment) {
         switch (form) {
             case Processes.Formula formula -> drawFormula(entry, formula);
