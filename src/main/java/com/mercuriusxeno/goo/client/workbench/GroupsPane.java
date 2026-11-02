@@ -27,9 +27,11 @@ import java.util.Optional;
  */
 final class GroupsPane {
     // Decision group-list-takes-60-percent-and-labels-span-the-pane: the list takes three fifths of the pane.
-    private static final int LIST_PARTS = 3;
-    private static final int PARTS = 5;
-    private static final int GAP = 12;
+    // Decision member-list-takes-30-percent-with-no-indent: the list takes seven tenths, the member detail three.
+    private static final int LIST_PARTS = 7;
+    private static final int PARTS = 10;
+    /** The room between the group list and the member detail. */
+    static final int GAP = 12;
     /** A group row's height, its sprites' and margin. */
     static final int ROW_HEIGHT = 18;
     private static final int LINE_HEIGHT = 10;
@@ -487,8 +489,8 @@ final class GroupsPane {
 
     /**
      * @param pane the Groups pane's bounds
-     * @return the list column's width, three fifths of the pane (decision
-     *     group-list-takes-60-percent-and-labels-span-the-pane)
+     * @return the list column's width, seven tenths of the pane (decision
+     *     member-list-takes-30-percent-with-no-indent)
      */
     static int listWidth(Bounds pane) {
         return (pane.right() - pane.left()) * LIST_PARTS / PARTS;
@@ -572,17 +574,16 @@ final class GroupsPane {
         graphics.enableScissor(detail.left(), detail.top(), detail.right(), detail.bottom());
         targets.clip(detail.left(), detail.top(), detail.right(), detail.bottom());
         int y = detail.top() - detailBar.offset();
-        // Decision detail-is-members-plus-or-tag-members-with-the-tag-id: the detail is membership alone, its rows
-        // indented under the heading.
+        // Decision detail-is-members-plus-or-tag-members-with-the-tag-id: the detail is membership alone.
+        // Decision member-list-takes-30-percent-with-no-indent: its rows stand at the detail's left.
         if (group.tag()) {
             y = drawTagMembersHead(graphics, font, detail.left(), y, group.name());
         } else {
             y = drawAddMember(graphics, font, detail, y, targets);
         }
-        Bounds rows = new Bounds(detail.left() + ControlFlow.INDENT, detail.top(), detail.right(), detail.bottom());
-        y = drawCards(graphics, font, rows, y, targets);
+        y = drawCards(graphics, font, detail, y, targets);
         if (!group.tag()) {
-            y = drawMemberLine(graphics, font, rows, group, y + SECTION_GAP, targets);
+            y = drawMemberLine(graphics, font, detail, group, y + SECTION_GAP, targets);
         }
         targets.unclip();
         graphics.disableScissor();
