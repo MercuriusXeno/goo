@@ -167,10 +167,10 @@ class GroupsPaneTest {
     }
 
     /**
-     * The list takes 60% of the pane, its names and the detail's member labels drawing more characters at the same
+     * The list takes 70% of the pane, its names and the detail's member labels drawing more characters at the same
      * font, the member labels reaching the detail's right edge with their text centered on the row; [+] and Rename
      * stand right of the group's name, [+] opening the member picker (decisions
-     * group-list-takes-60-percent-and-labels-span-the-pane, group-detail-puts-plus-and-rename-beside-the-name).
+     * member-list-takes-30-percent-with-no-indent, group-detail-puts-plus-and-rename-beside-the-name).
      */
     @Nested
     class WideList {
@@ -230,16 +230,26 @@ class GroupsPaneTest {
                     || hint.contains(LONG_GROUP)), hints.toString());
         }
 
+        // The detail draws its scissor after the list's, so the last scissor set is the detail's.
+        private static int detailScissorLeft(DrawnFrame frame) {
+            ArgumentCaptor<Integer> lefts = ArgumentCaptor.forClass(Integer.class);
+            verify(frame.graphics, atLeastOnce()).enableScissor(lefts.capture(), anyInt(), anyInt(), anyInt());
+            return lefts.getAllValues().getLast();
+        }
+
         private List<DrawnFrame.Text> startingWith(DrawnFrame frame, String prefix) {
             return frame.drawn().stream().filter(text -> !text.text().isEmpty() && prefix.startsWith(text.text()))
                     .toList();
         }
 
+        // Decision member-list-takes-30-percent-with-no-indent.
         @Test
-        void listTakesSixtyPercentAndItsNamesDrawMoreCharacters() {
+        void listTakesSeventyPercentAndItsNamesDrawMoreCharacters() {
             DrawnFrame frame = frame();
             DrawnFrame.Text listed = startingWith(frame, "#" + LONG_GROUP).getFirst();
-            assertEquals((PANE.right() - PANE.left()) * 3 / 5, GroupsPane.listWidth(PANE));
+            int seventyPercent = PANE.left() + (PANE.right() - PANE.left()) * 7 / 10;
+            assertEquals(seventyPercent, GroupsPane.listWidth(PANE));
+            assertEquals(seventyPercent + GroupsPane.GAP, detailScissorLeft(frame));
             assertTrue(listed.x() < GroupsPane.listWidth(PANE), listed.toString());
             assertTrue(listed.text().length() * 6 > 78, "the list name drew " + listed.text());
         }
@@ -507,7 +517,8 @@ class GroupsPaneTest {
             assertTrue(sameLine(members, plus) && plus.x() > members.x(), plus + " vs " + members);
             DrawnFrame.Text card = inDetail(group).stream().filter(text -> text.text().equals("minecraft:oak_planks"))
                     .findFirst().orElseThrow();
-            assertEquals(List.of(DETAIL_LEFT + ControlFlow.INDENT),
+            // Decision member-list-takes-30-percent-with-no-indent: the member row stands at the detail's left.
+            assertEquals(List.of(DETAIL_LEFT),
                     itemXsBetween(group, card.y() - 8, card.y() + 8).stream().filter(x -> x >= DETAIL_LEFT).toList());
             groups.selectGroup("logs");
             DrawnFrame tag = frame();
