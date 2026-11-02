@@ -43,6 +43,7 @@ final class ValuesPane {
     static final int ICON_GAP = 4;
     private static final String EQUALS = "=";
     private static final String PLUS = "+";
+    private static final String MINUS = "-";
     private static final String FRACTION_DIVIDER = "/";
     private static final String MIXED_SPACE = " ";
     // Half scale doubles every coordinate the fraction draws at.
@@ -478,11 +479,14 @@ final class ValuesPane {
                 () -> actions.openGroup(group), GROUP_HOVER_PREFIX + group).right();
     }
 
-    // A derived item's recipe equivalency; one recipes value with no inputs to name reads derived. Answers the x past
-    // it.
+    // A derived item's recipe equivalency, or the inverted recipe that solved it; one recipes value with neither to
+    // name reads derived. Answers the x past it.
     private int drawInputs(GuiGraphicsExtractor graphics, Font font, String id, int left, HeadLine line,
                            ClickTargets targets) {
         ValuesTab.Recipe recipe = values.derivedFrom(id);
+        if (recipe.solvedFrom() != null) {
+            return drawInverted(graphics, font, recipe, left, line, targets);
+        }
         if (recipe.inputs().isEmpty()) {
             String label = values.sourceOf(id).label();
             graphics.text(font, label, left, line.textTop(), colorOf(ValuesTab.SourceKind.DERIVED));
@@ -506,6 +510,27 @@ final class ValuesPane {
             ItemLinks.add(targets, actions, input.id(), x, line.spriteTop());
         }
         laid.plusLefts().forEach(x -> graphics.text(font, PLUS, x, line.textTop(), WHITE));
+        return laid.spriteLefts().getLast() + ICON_SIZE + COUNT_OVERHANG;
+    }
+
+    // The solving recipe's output, then each other input after a minus, every count over the slots the item fills, so
+    // A + B = C reads A = C - B and A + A = C reads A = C / 2; each sprite links to its own row.
+    // Decision items-rows-read-valued-derived-or-no-value-with-values-inline.
+    private int drawInverted(GuiGraphicsExtractor graphics, Font font, ValuesTab.Recipe recipe, int left,
+                             HeadLine line, ClickTargets targets) {
+        List<ValuesTab.Input> terms = new ArrayList<>();
+        terms.add(recipe.solvedFrom());
+        terms.addAll(recipe.less());
+        Equivalency laid = layEquivalency(left, terms.size(), font.width(MINUS));
+        for (int index = 0; index < terms.size(); index++) {
+            ValuesTab.Input term = terms.get(index);
+            int x = laid.spriteLefts().get(index);
+            ItemStack stack = icons.of(term.id());
+            graphics.item(stack, x, line.spriteTop());
+            drawCount(graphics, font, stack, countParts(term.count(), recipe.output()), x, line.spriteTop());
+            ItemLinks.add(targets, actions, term.id(), x, line.spriteTop());
+        }
+        laid.plusLefts().forEach(x -> graphics.text(font, MINUS, x, line.textTop(), WHITE));
         return laid.spriteLefts().getLast() + ICON_SIZE + COUNT_OVERHANG;
     }
 

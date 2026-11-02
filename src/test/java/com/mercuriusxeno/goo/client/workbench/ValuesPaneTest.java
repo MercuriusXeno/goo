@@ -677,6 +677,43 @@ class ValuesPaneTest {
     }
 
     /**
+     * An item the solver values backward draws its inverted recipe, the solving recipe's output less each other input
+     * with a minus between, and never a bare "derived" (decisions
+     * items-rows-read-valued-derived-or-no-value-with-values-inline,
+     * derivation-solves-whichever-side-of-a-recipe-is-unknown).
+     */
+    @Test
+    void solvedItemDrawsItsInvertedRecipe() {
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:poppy", "Poppy")), List.of()));
+        values.readModel("""
+                {"path": "base_values.json", "members": []}
+                """);
+        values.readResolved("""
+                {"entries": [{"key": "poppy", "value": {"zoo": "5"}, "denied": false}]}
+                """);
+        values.readDerivedFrom("""
+                {"items": {"minecraft:poppy": {"inputs": [], "output": 1,
+                  "solvedFrom": {"id": "minecraft:suspicious_stew", "count": 1},
+                  "less": [{"id": "minecraft:bowl", "count": 1}, {"id": "minecraft:brown_mushroom", "count": 1}]}}}
+                """);
+        assertEquals(new ValuesTab.Recipe(List.of(), 1, new ValuesTab.Input("minecraft:suspicious_stew", 1),
+                List.of(new ValuesTab.Input("minecraft:bowl", 1), new ValuesTab.Input("minecraft:brown_mushroom", 1))),
+                values.derivedFrom("minecraft:poppy"));
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        when(frame.graphics.pose()).thenReturn(new Matrix3x2fStack(4));
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
+        assertEquals(2, frame.texts().stream().filter("-"::equals).count(), frame.texts().toString());
+        assertTrue(frame.texts().stream().noneMatch("+"::equals), frame.texts().toString());
+        assertTrue(frame.texts().stream().noneMatch("derived"::equals), frame.texts().toString());
+    }
+
+    /**
      * An input's label reads its summed count over the recipe's output as a reduced mixed number, and nothing where
      * that equals 1 (decision recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
      */

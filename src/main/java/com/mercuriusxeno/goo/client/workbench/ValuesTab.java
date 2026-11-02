@@ -30,6 +30,8 @@ public final class ValuesTab {
     private static final String INPUTS = "inputs";
     private static final String COUNT = "count";
     private static final String OUTPUT = "output";
+    private static final String SOLVED_FROM = "solvedFrom";
+    private static final String LESS = "less";
     private static final Recipe NO_RECIPE = new Recipe(List.of(), 1);
     private static final String ENTRIES = "entries";
     private static final String KEY = "key";
@@ -149,9 +151,18 @@ public final class ValuesTab {
     }
 
     private static Recipe recipeOf(JsonObject recipe) {
-        return new Recipe(array(recipe, INPUTS).asList().stream().map(JsonElement::getAsJsonObject)
-                .map(input -> new Input(input.get(ID).getAsString(), input.get(COUNT).getAsInt())).toList(),
-                recipe.get(OUTPUT).getAsInt());
+        JsonElement solved = recipe.get(SOLVED_FROM);
+        return new Recipe(inputsOf(array(recipe, INPUTS)), recipe.get(OUTPUT).getAsInt(),
+                solved != null && solved.isJsonObject() ? inputOf(solved.getAsJsonObject()) : null,
+                inputsOf(array(recipe, LESS)));
+    }
+
+    private static List<Input> inputsOf(JsonArray inputs) {
+        return inputs.asList().stream().map(JsonElement::getAsJsonObject).map(ValuesTab::inputOf).toList();
+    }
+
+    private static Input inputOf(JsonObject input) {
+        return new Input(input.get(ID).getAsString(), input.get(COUNT).getAsInt());
     }
 
     /**
@@ -167,10 +178,24 @@ public final class ValuesTab {
      * The recipe a derived item's value comes from, as its equivalency reads it (decision
      * recipe-equivalency-reads-output-equals-grouped-inputs-over-n).
      *
-     * @param inputs its inputs, grouped by item
-     * @param output how many the recipe makes, each input's count reading over it as a fraction
+     * An item the solver valued backward reads its inverted recipe instead: the solving recipe's output less each
+     * other input, each count over the slots the item fills (decisions
+     * items-rows-read-valued-derived-or-no-value-with-values-inline,
+     * derivation-solves-whichever-side-of-a-recipe-is-unknown).
+     *
+     * @param inputs     its inputs, grouped by item, none for an inverted recipe
+     * @param output     how many the recipe makes, or the slots a solved item fills, each count reading over it
+     * @param solvedFrom the solving recipe's output and how many it makes, null where a recipe makes the item
+     * @param less       the solving recipe's other inputs, each subtracted
      */
-    public record Recipe(List<Input> inputs, int output) {
+    public record Recipe(List<Input> inputs, int output, @Nullable Input solvedFrom, List<Input> less) {
+        /**
+         * @param inputs its inputs, grouped by item
+         * @param output how many the recipe makes
+         */
+        public Recipe(List<Input> inputs, int output) {
+            this(inputs, output, null, List.of());
+        }
     }
 
     /**

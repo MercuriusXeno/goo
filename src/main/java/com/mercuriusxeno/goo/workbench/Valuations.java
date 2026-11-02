@@ -41,6 +41,8 @@ final class Valuations {
     private static final String ITEMS = "items";
     private static final String INPUTS = "inputs";
     private static final String OUTPUT = "output";
+    private static final String SOLVED_FROM = "solvedFrom";
+    private static final String LESS = "less";
     private static final String KEY = "key";
     private static final String VALUE = "value";
     private static final String DENIED = "denied";
@@ -436,6 +438,7 @@ final class Valuations {
         GooBaseValuesPreview.Derived derived = derivedFor(model, inventory);
         GooBaseValuesPreview.Loaded loaded = GooBaseValuesPreview.load(model.serialize(), inventory.tagResolver());
         DerivedLookups lookups = DerivedLookups.of(model, inventory, derived);
+        Map<Identifier, RecipeInput> solving = DerivedLookups.solvingRecipes(derived);
         Set<Identifier> handKeyed = loaded.baseValues().keySet();
         JsonObject items = new JsonObject();
         for (String id : inventory.itemIds()) {
@@ -444,7 +447,9 @@ final class Valuations {
                     || lookups.groupValuing(id) != null) {
                 continue;
             }
-            items.add(id, equivalencyOf(from(item, lookups, handKeyed), lookups.making().get(item)));
+            RecipeInput solvedBy = lookups.making().containsKey(item) ? null : solving.get(item);
+            items.add(id, solvedBy != null ? invertedRecipe(item, solvedBy)
+                    : equivalencyOf(from(item, lookups, handKeyed), lookups.making().get(item)));
         }
         JsonObject root = new JsonObject();
         root.add(ITEMS, items);
@@ -471,6 +476,33 @@ final class Valuations {
         equivalency.add(INPUTS, countedInputs(counts));
         equivalency.addProperty(OUTPUT, Math.max(1, output));
         return equivalency;
+    }
+
+    // An item solved backward equals the solving recipe's output less every other input, over the slots it fills:
+    // A + B = C reads A = C - B, and A + A = C reads A = C / 2. Each other slot reads its cheapest alternative, as
+    // the value-setting recipe narrows it.
+    // Decision items-rows-read-valued-derived-or-no-value-with-values-inline.
+    // Decision derivation-solves-whichever-side-of-a-recipe-is-unknown.
+    private static JsonObject invertedRecipe(Identifier item, RecipeInput recipe) {
+        Map<String, Integer> less = new LinkedHashMap<>();
+        int filled = 0;
+        for (Set<Identifier> slot : recipe.ingredientAlternatives()) {
+            if (slot.contains(item)) {
+                filled++;
+            } else {
+                slot.stream().map(Identifier::toString).sorted().findFirst()
+                        .ifPresent(other -> less.merge(other, 1, Integer::sum));
+            }
+        }
+        JsonObject made = new JsonObject();
+        made.addProperty(ROW_ID, recipe.output().toString());
+        made.addProperty(FROM_COUNT, recipe.resultCount());
+        JsonObject inverted = new JsonObject();
+        inverted.add(INPUTS, new JsonArray());
+        inverted.addProperty(OUTPUT, Math.max(1, filled));
+        inverted.add(SOLVED_FROM, made);
+        inverted.add(LESS, countedInputs(less));
+        return inverted;
     }
 
     private static JsonArray countedInputs(Map<String, Integer> counts) {

@@ -69,15 +69,27 @@ record DerivedLookups(Map<Identifier, RecipeInput> making, Map<String, String> g
 
     // Each derived item's recipe is the one the derivation recorded as setting its value, so the equivalency the
     // Items tab draws is what valued the item; a recipe that solved an input backward values that input, not its
-    // output, and makes nothing here.
+    // output, and stands among the solving recipes instead.
     private static Map<Identifier, RecipeInput> makingRecipes(GooBaseValuesPreview.Derived derived) {
-        Map<Identifier, RecipeInput> making = new HashMap<>();
+        return settingRecipes(derived, true);
+    }
+
+    /**
+     * @param derived the derivation over the inventory's recipes
+     * @return each item the solver valued backward, keyed to the recipe whose output solved it
+     */
+    static Map<Identifier, RecipeInput> solvingRecipes(GooBaseValuesPreview.Derived derived) {
+        return settingRecipes(derived, false);
+    }
+
+    private static Map<Identifier, RecipeInput> settingRecipes(GooBaseValuesPreview.Derived derived, boolean makes) {
+        Map<Identifier, RecipeInput> setting = new HashMap<>();
         derived.registry().valueSettingRecipeByItem().forEach((item, recipe) -> {
-            if (recipe.output().equals(item)) {
-                making.put(item, recipe);
+            if (recipe.output().equals(item) == makes) {
+                setting.put(item, recipe);
             }
         });
-        return making;
+        return setting;
     }
 
     private static Map<String, String> groupsByMember(BaseValuesModel model) {
