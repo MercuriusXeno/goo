@@ -94,29 +94,80 @@ class ExpressionLinesTest {
         assertEquals(List.of("Anvil", "-", "Bucket"), runs.stream().map(ExpressionLines.Run::text).toList());
     }
 
+    private static final String BEETROOT = "{\"jelly\": \"$food.jelly + $saturation.jelly * 12\", "
+            + "\"leaf\": \"$dye.leaf - ($food.jelly + $saturation.jelly * 12)\"}";
+
+    private static ExpressionLines.Run type(String type) {
+        return new ExpressionLines.Run(ExpressionLines.Kind.TYPE, "", type);
+    }
+
+    private static ExpressionLines.Run link(String prefab) {
+        return new ExpressionLines.Run(ExpressionLines.Kind.LINK, prefab, prefab);
+    }
+
+    private static ExpressionLines.Run symbol(String symbol) {
+        return run(ExpressionLines.Kind.OPERATOR, symbol);
+    }
+
+    // A per-type prefab's member reads as its link, 's, then the member's icon.
+    private static List<ExpressionLines.Run> possessive(String prefab, String member) {
+        return List.of(link(prefab), run(ExpressionLines.Kind.TEXT, "'s"), type(member));
+    }
+
     /**
-     * Kelp's per-type object draws a row per type: the type's icon, then its sum with the prefab as a link and its
-     * type as an icon.
+     * Beetroot reads each type row as its icon then =, its terms on the indented line below, each per-type prefab
+     * as its link, 's and its member's icon, so it reads {jelly} = food's {jelly} + saturation's {jelly} x 12 and
+     * {leaf} = dye's {leaf} - (food's {jelly} + saturation's {jelly} x 12) (decision
+     * read-view-reads-type-equals-possessive-terms).
      */
     @Test
-    void perTypeObjectDrawsARowPerTypeIcon() {
-        ExpressionTerms.Value kelp = ExpressionTerms.parseValue(JsonParser.parseString(
-                "{\"jelly\": \"3 $food.jelly / 2\", \"leaf\": \"3 $food.jelly / 2\"}")).orElseThrow();
-        List<ExpressionLines.Run> runs = ExpressionLines.runs(kelp, NAMES);
-        List<ExpressionLines.Run> row = List.of(
-                new ExpressionLines.Run(ExpressionLines.Kind.NUMBER, "3", null),
-                new ExpressionLines.Run(ExpressionLines.Kind.LINK, "food", "food"),
-                new ExpressionLines.Run(ExpressionLines.Kind.TYPE, "", "jelly"),
-                run(ExpressionLines.Kind.OPERATOR, "/"),
-                run(ExpressionLines.Kind.NUMBER, "2"));
-        List<ExpressionLines.Run> expected = new java.util.ArrayList<>();
-        expected.add(new ExpressionLines.Run(ExpressionLines.Kind.TYPE, "", "jelly"));
-        expected.addAll(row);
-        expected.add(run(ExpressionLines.Kind.BREAK, ""));
-        expected.add(new ExpressionLines.Run(ExpressionLines.Kind.TYPE, "", "leaf"));
-        expected.addAll(row);
+    void beetrootReadsTypeEqualsThenPossessiveTerms() {
+        ExpressionTerms.Value beetroot = ExpressionTerms.parseValue(JsonParser.parseString(BEETROOT)).orElseThrow();
+        List<ExpressionLines.Run> inner = new java.util.ArrayList<>(possessive("food", "jelly"));
+        inner.add(symbol("+"));
+        inner.addAll(possessive("saturation", "jelly"));
+        inner.add(symbol("x"));
+        inner.add(run(ExpressionLines.Kind.NUMBER, "12"));
+        List<ExpressionLines.Run> expected = new java.util.ArrayList<>(List.of(type("jelly"), symbol("="),
+                run(ExpressionLines.Kind.INDENTED_BREAK, "")));
+        expected.addAll(inner);
+        expected.addAll(List.of(run(ExpressionLines.Kind.BREAK, ""), type("leaf"), symbol("="),
+                run(ExpressionLines.Kind.INDENTED_BREAK, "")));
+        expected.addAll(possessive("dye", "leaf"));
+        expected.addAll(List.of(symbol("-"), symbol("(")));
+        expected.addAll(inner);
+        expected.add(symbol(")"));
+        List<ExpressionLines.Run> runs = ExpressionLines.runs(beetroot, NAMES);
         assertEquals(expected, runs);
         assertCurated(runs);
+    }
+
+    /**
+     * A scalar prefab reads as its link alone, with no 's.
+     */
+    @Test
+    void scalarPrefabReadsAsABareLink() {
+        assertEquals(List.of(link("stick"), symbol("+"), run(ExpressionLines.Kind.NUMBER, "2")),
+                ExpressionLines.shownRuns("$stick + 2", NAMES));
+    }
+
+    /**
+     * The symbols draw in the symbol color, not the text color, and a type row's terms draw one indent step in.
+     */
+    @Test
+    void symbolsDrawInTheirOwnColorAndTermsAtTheIndent() {
+        DrawnFrame frame = new DrawnFrame();
+        ExpressionLines.draw(DrawnFrame.font(), ExpressionLines.shownRuns(BEETROOT, NAMES), 10, 20, 400,
+                new ExpressionLines.Painter(frame.graphics, null, frame.targets, 0xFFFFFFFF, ButtonPainter.LINK,
+                        (variable, x, y, width) -> { }));
+        for (String symbol : List.of("=", "+", "x", "-", "(", ")")) {
+            assertEquals(ExpressionLines.SYMBOL_COLOR, frame.find(symbol).color(), symbol);
+        }
+        DrawnFrame.Text food = frame.drawn().stream().filter(text -> text.text().equals("food")).findFirst()
+                .orElseThrow();
+        assertEquals(10 + ControlFlow.INDENT, food.x());
+        assertEquals(10 + ControlFlow.INDENT, frame.find("dye").x());
+        assertTrue(frame.find("dye").y() > food.y(), frame.drawn().toString());
     }
 
     /**
