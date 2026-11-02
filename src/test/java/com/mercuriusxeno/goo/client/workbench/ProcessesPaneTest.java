@@ -348,6 +348,34 @@ class ProcessesPaneTest {
         assertTrue(deleteBottom <= rule, "Delete ends at " + deleteBottom + ", the rule at " + rule);
     }
 
+    /**
+     * A row's open rename box takes a ✓ and a gold ↺ right of it on its row; ✓ renames the entry to the typed name,
+     * as Enter does, and ↺ closes the box leaving the name, as Escape does (decisions
+     * open-name-box-takes-a-done-checkmark, open-name-box-takes-a-gold-arrow-that-cancels).
+     */
+    @Test
+    void renameBoxTakesADoneCheckAndANevermindArrow() {
+        pane.init(DrawnFrame.font());
+        pane.show(true);
+        assertTrue(frame().targets.click(rowControl(frame(), "waxed", "✎").x() + 1,
+                rowControl(frame(), "waxed", "✎").y() + 1));
+        DrawnFrame open = frame();
+        EditBox box = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                .filter(each -> each.visible && "waxed".equals(each.getValue())).findFirst().orElseThrow();
+        VariablesPaneTest.assertNameBoxButtons(open, box);
+        box.setValue("other");
+        open.click("↺");
+        assertFalse(box.visible);
+        assertTrue(postConversionKeys().contains("waxed"), postConversionKeys().toString());
+        DrawnFrame list = frame();
+        assertTrue(list.targets.click(rowControl(list, "waxed", "✎").x() + 1, rowControl(list, "waxed", "✎").y() + 1));
+        DrawnFrame reopened = frame();
+        box.setValue("renamed");
+        reopened.click("✓");
+        assertTrue(postConversionKeys().contains("renamed"), postConversionKeys().toString());
+        assertFalse(postConversionKeys().contains("waxed"), postConversionKeys().toString());
+    }
+
     // The rightmost control labelled glyph on the head line of the row named key, inside that row's column: the
     // frame's 590 pixels part into two columns, so a row's controls stand within 295 of its name.
     private static DrawnFrame.Text rowControl(DrawnFrame frame, String key, String glyph) {

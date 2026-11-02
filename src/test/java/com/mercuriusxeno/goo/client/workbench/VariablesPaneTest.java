@@ -684,6 +684,73 @@ class VariablesPaneTest {
                 anyString(), any());
     }
 
+    /**
+     * An open rename box takes a ✓ and a gold ↺ right of it on its row; ✓ sends the rename with the typed name, as
+     * Enter does, and ↺ closes the box leaving the name, as Escape does (decisions
+     * open-name-box-takes-a-done-checkmark, open-name-box-takes-a-gold-arrow-that-cancels).
+     */
+    @Test
+    void renameBoxTakesADoneCheckAndANevermindArrow() {
+        List<AbstractWidget> widgets = new java.util.ArrayList<>();
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> {
+            widgets.add(call.getArgument(0));
+            return call.getArgument(0);
+        });
+        ManagerDraft draft = new ManagerDraft();
+        draft.read(model());
+        ItemIcons icons = mock(ItemIcons.class);
+        VariablesPane read = new VariablesPane(new VariablesTab(draft), draft, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        read.init(DrawnFrame.font());
+        read.show(true);
+        String last = "prefab" + (PREFABS - 1);
+        DrawnFrame list = new DrawnFrame();
+        read.extract(list.graphics, DrawnFrame.font(), TALL_VIEW, list.targets, 0, 0);
+        list.click("✎");
+        DrawnFrame open = new DrawnFrame();
+        read.extract(open.graphics, DrawnFrame.font(), TALL_VIEW, open.targets, 0, 0);
+        EditBox box = widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                .filter(each -> each.visible && last.equals(each.getValue())).findFirst().orElseThrow();
+        assertNameBoxButtons(open, box);
+        box.setValue("renamed");
+        open.click("✓");
+        verify(actions).request(eq(com.mercuriusxeno.goo.workbench.WorkbenchOperations.RENAME_CONSTANT),
+                org.mockito.ArgumentMatchers.contains("\"to\":\"renamed\""), any());
+        DrawnFrame again = new DrawnFrame();
+        read.extract(again.graphics, DrawnFrame.font(), TALL_VIEW, again.targets, 0, 0);
+        again.click("✎");
+        DrawnFrame reopened = new DrawnFrame();
+        read.extract(reopened.graphics, DrawnFrame.font(), TALL_VIEW, reopened.targets, 0, 0);
+        box.setValue("other");
+        reopened.click("↺");
+        assertFalse(box.visible);
+        verify(actions, never()).request(anyString(), org.mockito.ArgumentMatchers.contains("other"), any());
+        DrawnFrame closed = new DrawnFrame();
+        read.extract(closed.graphics, DrawnFrame.font(), TALL_VIEW, closed.targets, 0, 0);
+        assertTrue(closed.texts().contains(last), closed.texts().toString());
+    }
+
+    /**
+     * A ✓ and a gold ↺ stand right of the open box on its row.
+     *
+     * @param frame the frame drawn with the box open
+     * @param box   the open box
+     */
+    static void assertNameBoxButtons(DrawnFrame frame, EditBox box) {
+        DrawnFrame.Text done = frame.find("✓");
+        DrawnFrame.Text arrow = frame.find("↺");
+        int boxRight = box.getX() + box.getWidth();
+        assertTrue(done.x() > boxRight && arrow.x() > boxRight, done + " " + arrow + " vs box right " + boxRight);
+        assertTrue(Math.abs(done.y() - box.getY()) < ExpressionLines.TEXT_LINE_HEIGHT, done + " vs box " + box.getY());
+        assertEquals(done.y(), arrow.y());
+        assertEquals(ButtonPainter.GOLD, arrow.color());
+        assertEquals(java.util.Optional.of(BuilderOverlays.hintKey("Done")),
+                frame.targets.hovered(done.x() + 1, done.y() + 1));
+        assertEquals(java.util.Optional.of(BuilderOverlays.hintKey("Nevermind")),
+                frame.targets.hovered(arrow.x() + 1, arrow.y() + 1));
+    }
+
     // A Prefabs pane over one prefab, base, that the prefab egg reads.
     private static VariablesPane readByEgg(ManagerActions actions) {
         ManagerDraft draft = new ManagerDraft();

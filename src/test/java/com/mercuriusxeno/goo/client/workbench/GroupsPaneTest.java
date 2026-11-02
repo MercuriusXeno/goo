@@ -293,6 +293,44 @@ class GroupsPaneTest {
         }
 
         /**
+         * The open rename box takes a ✓ and a gold ↺ right of it on its row; ✓ writes the typed name, as Enter does,
+         * and ↺ closes the box leaving the name, as Escape does (decisions open-name-box-takes-a-done-checkmark,
+         * open-name-box-takes-a-gold-arrow-that-cancels).
+         */
+        @Test
+        void renameBoxTakesADoneCheckAndANevermindArrow() {
+            draft.read("""
+                    {"path": "base_values.json", "members": [
+                      {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                         {"key": "%s", "keySeparator": null, "kind": "VALUE", "text": "[]",
+                          "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                       "leading": null, "trailing": null, "closingGap": null}]}""".formatted(LONG_GROUP));
+            frame().click("✎");
+            DrawnFrame reopenedFirst = frame();
+            EditBox box = openBox();
+            box.setValue("other");
+            reopenedFirst.click("↺");
+            assertFalse(box.visible);
+            assertEquals(LONG_GROUP, groupKey());
+            frame().click("✎");
+            DrawnFrame open = frame();
+            VariablesPaneTest.assertNameBoxButtons(open, openBox());
+            openBox().setValue("renamed");
+            open.click("✓");
+            assertEquals("renamed", groupKey());
+        }
+
+        private EditBox openBox() {
+            return widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
+                    .filter(each -> each.visible && each.getX() > GroupsPane.listWidth(PANE)).findFirst()
+                    .orElseThrow();
+        }
+
+        private String groupKey() {
+            return draft.sectionEntries("_groups").get(0).getAsJsonObject().get("key").getAsString();
+        }
+
+        /**
          * The red x marks the group: its row still draws with a gold ↺ hinting Restore where the x stood and the
          * draft still holds it; the ↺ restores the x; with the mark standing, the save path removes the group from
          * the draft (decision every-delete-marks-for-removal-and-a-gold-arrow-restores).

@@ -217,8 +217,7 @@ final class VariablesPane {
                 return true;
             }
             if (key == GLFW.GLFW_KEY_ESCAPE) {
-                renaming = null;
-                show(visible);
+                stopRenaming();
                 return true;
             }
         }
@@ -341,7 +340,7 @@ final class VariablesPane {
         boolean renamingThis = rename != null && block.name().equals(renaming);
         int pencilWidth = ButtonPainter.width(font, RENAME);
         if (renamingThis) {
-            rename.setPosition(x, y - HALF);
+            drawRenameBox(graphics, font, rename, block.name(), x, y, targets);
         } else {
             ButtonPainter.drawEntryName(graphics, font, block.name(), x, y, isMarked(block.name()));
             // The operator's ruling: rename is a pencil just past the name, delete a red x at the row's right end.
@@ -359,6 +358,23 @@ final class VariablesPane {
                 usedByWidth, block.name(), targets);
         drawRemoval(graphics, font, block.name(), bounds.right(), y, targets);
         return usedByHeight;
+    }
+
+    // The box shrinks to leave the name's room to its ✓ and ↺, which run what Enter and Escape run.
+    // Decision open-name-box-takes-a-done-checkmark.
+    // Decision open-name-box-takes-a-gold-arrow-that-cancels.
+    private void drawRenameBox(GuiGraphicsExtractor graphics, Font font, EditBox box, String name, int x, int y,
+                               ClickTargets targets) {
+        int boxWidth = NAME_WIDTH - NameBoxButtons.width(font);
+        box.setPosition(x, y - HALF);
+        box.setWidth(boxWidth);
+        NameBoxButtons.draw(graphics, font, x + boxWidth, y - ButtonPainter.TEXT_NUDGE, ButtonPainter.HEIGHT, targets,
+                () -> submitRename(name, box.getValue().trim()), this::stopRenaming);
+    }
+
+    private void stopRenaming() {
+        renaming = null;
+        show(visible);
     }
 
     // The red x at the row's right end marks the prefab; a marked prefab's gold arrow in its place restores it.
