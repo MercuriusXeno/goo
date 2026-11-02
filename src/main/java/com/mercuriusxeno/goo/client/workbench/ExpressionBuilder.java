@@ -251,15 +251,6 @@ final class ExpressionBuilder {
     }
 
     /**
-     * Adds a sum of terms to the whole value as one term, its first term the operand given.
-     *
-     * @param first what the sum's first term stands on
-     */
-    void addSum(Operand first) {
-        addTerm(List.of(), new Nest(List.of(firstTerm(first))));
-    }
-
-    /**
      * Scales the whole value as one sum.
      *
      * @param side   the side of its ratio the number sets

@@ -119,6 +119,30 @@ class ExpressionBuilderPaneTest {
     }
 
     /**
+     * Over beetroot's leaf value, the builder offers no "+ sum of terms" and draws no "the sum of:"; its parenthetical
+     * draws as a "(" line, its two terms one indent step past the "(", and a ")" line under them at the "(" x
+     * (decision sum-of-terms-leaves-the-builder).
+     */
+    @Test
+    void parentheticalDrawsBetweenParenLinesWithItsTermsIndented() {
+        DrawnFrame frame = Builder.item("$dye.leaf - ($food.jelly + $saturation.jelly * 12)").frame();
+        assertFalse(frame.texts().contains("+ sum of terms") || frame.texts().contains("the sum of:"),
+                frame.texts().toString());
+        DrawnFrame.Text open = frame.find("(");
+        DrawnFrame.Text close = frame.find(")");
+        DrawnFrame.Text food = frame.find("food");
+        DrawnFrame.Text saturation = frame.find("saturation");
+        assertTrue(open.y() < food.y() && food.y() < saturation.y() && saturation.y() < close.y(),
+                frame.drawn().toString());
+        assertEquals(open.x(), close.x(), frame.drawn().toString());
+        // A term's button frame starts one indent step past the "(", its text inset by the button's padding.
+        assertEquals(open.x() + ControlFlow.INDENT + ButtonPainter.PADDING, food.x(), frame.drawn().toString());
+        DrawnFrame.Text plus = frame.drawn().stream().filter(text -> text.y() == saturation.y())
+                .min(java.util.Comparator.comparingInt(DrawnFrame.Text::x)).orElseThrow();
+        assertEquals(food.x(), plus.x(), frame.drawn().toString());
+    }
+
+    /**
      * Every builder, Items, Groups and Prefabs alike, reads "Value" and its kind on one line, an empty value
      * defaulting to by type with a bare + adding a goo type (decision
      * every-value-builder-reads-value-kind-on-one-line-defaulting-by-type).
@@ -366,7 +390,7 @@ class ExpressionBuilderPaneTest {
         @Test
         void freshSumDrawsOneToOne() {
             DrawnFrame frame = Builder.item("$base - ($waxed + $edited)").frame();
-            assertTrue(frame.texts().contains("the sum of:"), frame.texts().toString());
+            assertTrue(frame.texts().contains("("), frame.texts().toString());
             List<List<DrawnFrame.Text>> ratios = ratios(frame);
             // $base, $waxed, $edited, the sum, then the whole value.
             assertEquals(5, ratios.size(), frame.texts().toString());
@@ -409,7 +433,7 @@ class ExpressionBuilderPaneTest {
         @Test
         void scaledWholeValueDrawsAsOneSumCarryingItsRatio() {
             DrawnFrame frame = wholeValueCommitted(1).frame();
-            assertTrue(frame.texts().contains("the sum of:"), frame.texts().toString());
+            assertTrue(frame.texts().contains("("), frame.texts().toString());
             assertRatioReads(frame, ratioSides(frame), List.of("1", "3"));
         }
 

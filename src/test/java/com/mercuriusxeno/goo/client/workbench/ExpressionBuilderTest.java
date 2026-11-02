@@ -194,16 +194,12 @@ class ExpressionBuilderTest {
     class Sums {
         private static final List<Integer> FIRST_SUM = List.of(1);
 
+        // Decision sum-of-terms-leaves-the-builder: a parenthetical the file holds still edits in place.
         @Test
-        void sumOfTermsIsSubtracted() {
-            ExpressionBuilder builder = ExpressionBuilder.of("$dye.leaf");
-            builder.addSum(new ExpressionBuilder.Ref(SearchDropdown.Kind.PREFAB, "food", "jelly"));
-            builder.setJoin(FIRST_SUM, ExpressionTerms.Join.MINUS);
-            builder.relate(FIRST_SUM, new SearchDropdown.Choice(SearchDropdown.Kind.PREFAB, "saturation",
-                    "saturation"));
-            builder.setMember(List.of(1, 1), "jelly");
-            builder.setScale(List.of(1, 1), ExpressionBuilder.Op.MULTIPLY, "12");
-            assertEquals("$dye.leaf - ($food.jelly + 12 $saturation.jelly)", builder.text());
+        void beetrootsParentheticalWritesBackAfterAnInnerEdit() {
+            ExpressionBuilder builder = ExpressionBuilder.of("$dye.leaf - ($food.jelly + $saturation.jelly * 12)");
+            builder.setJoin(List.of(1, 1), ExpressionTerms.Join.MINUS);
+            assertEquals("$dye.leaf - ($food.jelly - $saturation.jelly * 12)", builder.text());
         }
 
         @Test
