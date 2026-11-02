@@ -1036,8 +1036,7 @@
         "nether_quartz_ore",
         "#restricted"
     ],
-    "_conversions": {},
-    "_post_conversions": {
+    "_conversions": {
         "waxed": "+$waxed",
         "deep_ore": "+$deep",
         "oxidation_metal": "metal / 4 -> yore / 9",

@@ -13,12 +13,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests the Processes pane's writes: each form authored through the model is what the game's conversion
- * parser reads, and the shipped _post_conversions block survives a read into the pane's forms and a write
+ * parser reads, and the shipped _conversions block survives a read into the pane's forms and a write
  * back (decision workbench-authors-base-values-whole).
  */
 class ProcessesTest {
 
-    private static final String POST = "_post_conversions";
+    private static final String POST = "_conversions";
     private static final String SMALL = """
             {
                 "_constants": {
@@ -28,8 +28,7 @@ class ProcessesTest {
                     "copper": ["copper_block"]
                 },
                 "_restricted": [],
-                "_conversions": {},
-                "_post_conversions": {}
+                "_conversions": {}
             }
             """;
 
@@ -49,7 +48,7 @@ class ProcessesTest {
         model = Processes.with(model, POST, "#half_copper", Processes.assignment("copper", 3, 4, List.of()));
         model = Processes.with(model, POST, "#exposed", Processes.assignment("copper", 1, 1, List.of("exposed_metal")));
 
-        GooConversion.ParsedConversions parsed = GooBaseValuesPreview.conversions(model.serialize()).post();
+        GooConversion.ParsedConversions parsed = GooBaseValuesPreview.conversions(model.serialize());
         assertEquals(new GooConversion.Formula(GooTypes.METAL, 4, GooTypes.YORE, 9, 1),
                 parsed.formulas().get("oxidation_metal"));
         // Decision mutator-sentences-read-in-symbols: the target's ratio carries both numbers to the game.
@@ -76,13 +75,13 @@ class ProcessesTest {
         BaseValuesModel model = BaseValuesModel.parse(new String(BaseValuesModelTest.sampleBytes(),
                 StandardCharsets.UTF_8));
         com.google.gson.JsonArray processes = com.google.gson.JsonParser.parseString(ProcessesJson.described(model))
-                .getAsJsonObject().getAsJsonArray("sections").get(1).getAsJsonObject().getAsJsonArray("processes");
+                .getAsJsonObject().getAsJsonArray("sections").get(0).getAsJsonObject().getAsJsonArray("processes");
         assertEquals(20, processes.size());
         assertTrue(processes.asList().stream().allMatch(process -> process.getAsJsonObject().get("parsed")
                 .getAsBoolean()));
         BaseValuesModel broken = Processes.with(model, POST, "melt_badly", "\"metal / -> yore\"");
         com.google.gson.JsonArray withBroken = com.google.gson.JsonParser.parseString(ProcessesJson.described(broken))
-                .getAsJsonObject().getAsJsonArray("sections").get(1).getAsJsonObject().getAsJsonArray("processes");
+                .getAsJsonObject().getAsJsonArray("sections").get(0).getAsJsonObject().getAsJsonArray("processes");
         assertTrue(withBroken.asList().stream().anyMatch(process -> "melt_badly".equals(
                 process.getAsJsonObject().get("key").getAsString())
                 && !process.getAsJsonObject().get("parsed").getAsBoolean()));

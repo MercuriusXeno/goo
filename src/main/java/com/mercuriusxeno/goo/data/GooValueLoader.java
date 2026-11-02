@@ -50,7 +50,6 @@ final class GooValueLoader {
             GooConstantParser.parseConstants(json, state);
             parseItemValues(json, state);
             GooConversionLoader.parseConversions(json, state);
-            GooConversionLoader.applyConversions(state.preConversions, state.baseValues, state.pseudoTags);
         }
     }
 
@@ -111,7 +110,6 @@ final class GooValueLoader {
         GooConstantParser.parseConstants(merged, state);
         parseItemValues(merged, state);
         GooConversionLoader.parseConversions(merged, state);
-        GooConversionLoader.applyConversions(state.preConversions, state.baseValues, state.pseudoTags);
         state.effectiveValues.putAll(state.baseValues);
         if (Goo.LOGGER.isInfoEnabled()) {
             Goo.LOGGER.info(LOG_LOADED_PACKS, state.baseValues.size(), layers.size());
@@ -211,7 +209,6 @@ final class GooValueLoader {
         state.constants.clear();
         state.treeConstants.clear();
         state.pseudoTags.clear();
-        state.preConversions = null;
         state.postConversions = null;
         state.lastMergedBaseValues = null;
     }
@@ -250,7 +247,6 @@ final class GooValueLoader {
          * The clique roots _roots names, in file order (decision audit-proposes-root-candidates-and-flags-bleed).
          */
         final Set<Identifier> rootItems = new java.util.LinkedHashSet<>();
-        GooConversion.ParsedConversions preConversions;
         GooConversion.ParsedConversions postConversions;
         JsonObject lastMergedBaseValues;
 

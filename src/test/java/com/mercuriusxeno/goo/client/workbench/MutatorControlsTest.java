@@ -29,7 +29,7 @@ class MutatorControlsTest {
      */
     @Nested
     class KindDropdown {
-        private static final String SECTION = "_post_conversions";
+        private static final String SECTION = "_conversions";
         private static final String KEY = "rust";
         private final ProcessesTab processes = mock(ProcessesTab.class);
         private final BuilderOverlays overlays = new BuilderOverlays(mock(ManagerActions.class), null);
@@ -95,7 +95,7 @@ class MutatorControlsTest {
      */
     @Nested
     class Sentences {
-        private static final String SECTION = "_post_conversions";
+        private static final String SECTION = "_conversions";
         private final ProcessesTab processes = mock(ProcessesTab.class);
         private final BuilderOverlays overlays = mock(BuilderOverlays.class);
         private final MutatorControls controls = new MutatorControls(processes, overlays, mock(ManagerActions.class),
@@ -187,14 +187,14 @@ class MutatorControlsTest {
      */
     @Nested
     class IteratorLine {
-        private static final String SECTION = "_post_conversions";
+        private static final String SECTION = "_conversions";
         private static final String MODEL = """
                 {"path": "base_values.json", "members": [
                   {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
                      {"key": "ores", "keySeparator": null, "kind": "VALUE", "text": "[\\"iron_ore\\"]",
                       "entries": [], "leading": null, "trailing": null, "closingGap": null}],
                    "leading": null, "trailing": null, "closingGap": null},
-                  {"key": "_post_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                  {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
                      {"key": "smelt", "keySeparator": null, "kind": "VALUE", "text": "\\"metal / 2 -> 0\\"",
                       "entries": [], "leading": null, "trailing": null, "closingGap": null},
                      {"key": "rust", "keySeparator": null, "kind": "VALUE", "text": "\\"@smelt\\"",
@@ -260,7 +260,7 @@ class MutatorControlsTest {
      */
     @Nested
     class ChainLines {
-        private static final String SECTION = "_post_conversions";
+        private static final String SECTION = "_conversions";
         private final ProcessesTab processes = mock(ProcessesTab.class);
         private final MutatorControls controls = new MutatorControls(processes,
                 new BuilderOverlays(mock(ManagerActions.class), null), mock(ManagerActions.class), () -> List.of("oak"),
@@ -312,7 +312,7 @@ class MutatorControlsTest {
      */
     @Nested
     class ReferencesLink {
-        private static final String SECTION = "_post_conversions";
+        private static final String SECTION = "_conversions";
         private final ProcessesTab processes = mock(ProcessesTab.class);
         private final ManagerActions actions = mock(ManagerActions.class);
         private final BuilderOverlays overlays = new BuilderOverlays(actions, null);

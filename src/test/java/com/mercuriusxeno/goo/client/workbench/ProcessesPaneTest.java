@@ -32,7 +32,7 @@ class ProcessesPaneTest {
                  {"key": "copper", "keySeparator": null, "kind": "VALUE", "text": "[\\"copper_block\\"]",
                   "entries": [], "leading": null, "trailing": null, "closingGap": null}],
                "leading": null, "trailing": null, "closingGap": null},
-              {"key": "_post_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+              {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
                  {"key": "#exposed", "keySeparator": null, "kind": "VALUE", "text": "\\"#copper @waxed\\"",
                   "entries": [], "leading": null, "trailing": null, "closingGap": null},
                  {"key": "waxed", "keySeparator": null, "kind": "VALUE", "text": "\\"+$oak\\"",
@@ -45,7 +45,7 @@ class ProcessesPaneTest {
     private static final String LONG_NAME = "copper_oxidation_and_waxing_end1";
     private static final String DESCRIBED = """
             {"sections": [
-              {"section": "_post_conversions", "processes": [
+              {"section": "_conversions", "processes": [
                  {"key": "#exposed", "kind": "ASSIGNMENT", "text": "\\"#copper @waxed\\"", "parsed": true},
                  {"key": "waxed", "kind": "ADDITIVE", "text": "\\"+$oak\\"", "parsed": true},
                  {"key": "copper_oxidation_and_waxing_end1", "kind": "ADDITIVE", "text": "\\"+$oak\\"",
@@ -93,43 +93,16 @@ class ProcessesPaneTest {
     }
 
     /**
-     * Conversions and post-conversions draw as sub-tabs, post-conversions shown first; a press on Conversions shows
-     * its entries alone, and revealing an entry shows the sub-tab holding it (the operator's ruling).
+     * The pane leads with its entries under no sub-tab: the first row under Mutators is the first mutator, and no
+     * Conversions or Post conversions control draws (decision conversions-is-the-one-section-and-the-pane-name).
      */
     @Test
-    void subTabsShowOneSectionPostConversionsFirst() {
-        String conversions = """
-                {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
-                   {"key": "melted", "keySeparator": null, "kind": "VALUE", "text": "\\"+$oak\\"",
-                    "entries": [], "leading": null, "trailing": null, "closingGap": null}],
-                 "leading": null, "trailing": null, "closingGap": null},
-                """;
-        ManagerDraft draft = new ManagerDraft();
-        draft.read(MODEL.replace("{\"key\": \"_post_conversions\"", conversions + "{\"key\": \"_post_conversions\""));
-        ProcessesTab processes = new ProcessesTab(draft);
-        processes.readDescribed(DESCRIBED.replace("{\"sections\": [", """
-                {"sections": [{"section": "_conversions", "processes": [
-                   {"key": "melted", "kind": "ADDITIVE", "text": "\\"+$oak\\"", "parsed": true}]},"""));
-        ManagerActions actions = mock(ManagerActions.class);
-        pane = new ProcessesPane(processes, draft, actions, null, () -> List.of("oak"));
-        assertEquals("_post_conversions", pane.shownSection());
-        DrawnFrame post = frame();
-        List<String> postTexts = post.texts();
-        assertEquals("waxed", postTexts.get(postTexts.indexOf("Mutators") + 2), "the first row under Mutators: "
-                + postTexts);
-        // A filled chip's label draws with no shadow, through the overload the frame does not record, so each tab's
-        // label is read while it stands hollow.
-        assertTrue(post.texts().containsAll(List.of("Conversions", "waxed")), post.texts().toString());
-        assertFalse(post.texts().contains("melted") || post.texts().contains("Post conversions"),
-                post.texts().toString());
-        post.click("Conversions");
-        DrawnFrame pre = frame();
-        assertTrue(pre.texts().containsAll(List.of("Post conversions", "melted")), pre.texts().toString());
-        assertFalse(pre.texts().contains("waxed"), pre.texts().toString());
-        pane.reveal("waxed");
-        assertTrue(frame().texts().contains("waxed"));
+    void paneLeadsWithItsEntriesUnderNoSubTab() {
+        DrawnFrame frame = frame();
+        List<String> texts = frame.texts();
+        assertEquals("waxed", texts.get(texts.indexOf("Mutators") + 2), "the first row under Mutators: " + texts);
+        assertFalse(texts.contains("Conversions") || texts.contains("Post conversions"), texts.toString());
     }
-
     /**
      * A row's pencil opens the name box in the name's place (decision rename-is-a-pencil-and-delete-a-red-x-everywhere).
      */
@@ -222,11 +195,11 @@ class ProcessesPaneTest {
         ManagerDraft draft = new ManagerDraft();
         draft.read("""
                 {"path": "base_values.json", "members": [
-                  {"key": "_post_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [%s],
+                  {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [%s],
                    "leading": null, "trailing": null, "closingGap": null}]}""".formatted(String.join(", ", entries)));
         ProcessesTab tab = new ProcessesTab(draft);
         tab.readDescribed("""
-                {"sections": [{"section": "_post_conversions", "processes": [%s]}]}"""
+                {"sections": [{"section": "_conversions", "processes": [%s]}]}"""
                 .formatted(String.join(", ", processes)));
         return new ProcessesPane(tab, draft, mock(ManagerActions.class), null, () -> List.of("oak"));
     }
@@ -385,18 +358,17 @@ class ProcessesPaneTest {
 
     /**
      * With a section whose payload carries a summary, the Mutators heading stands on the columns' first row under the
-     * sub-tabs and the search box, and the first text below the sub-tabs is that heading (decision
-     * mutators-pane-draws-no-entry-count).
+     * search box, and it is the first text the pane draws (decisions mutators-pane-draws-no-entry-count,
+     * conversions-is-the-one-section-and-the-pane-name).
      */
     @Test
-    void mutatorsHeadingStandsOnTheFirstRowUnderTheSubTabs() {
+    void mutatorsHeadingStandsOnTheFirstRowUnderTheSearchBox() {
         DrawnFrame frame = frame();
         DrawnFrame.Text heading = frame.find("Mutators");
         assertEquals(ProcessesPane.SEARCH_ROW + ProcessesPane.HEADING_NUDGE, heading.y());
-        DrawnFrame.Text tab = frame.find("Conversions");
-        List<DrawnFrame.Text> below = frame.drawn().stream().filter(text -> text.y() > tab.y())
+        List<DrawnFrame.Text> drawn = frame.drawn().stream()
                 .sorted(java.util.Comparator.comparingInt(DrawnFrame.Text::y)).toList();
-        assertEquals("Mutators", below.getFirst().text(), below.toString());
+        assertEquals("Mutators", drawn.getFirst().text(), drawn.toString());
     }
 
     /**
@@ -440,7 +412,7 @@ class ProcessesPaneTest {
     }
 
     private List<String> postConversionKeys() {
-        return draft.sectionEntries("_post_conversions").asList().stream()
+        return draft.sectionEntries("_conversions").asList().stream()
                 .map(entry -> entry.getAsJsonObject().get("key").getAsString()).toList();
     }
 
@@ -469,7 +441,7 @@ class ProcessesPaneTest {
         DrawnFrame.Text again = rowControl(restored, key, "✗");
         assertEquals(ProcessesPane.RED, again.color());
         assertTrue(restored.targets.click(again.x() + 1, again.y() + 1));
-        assertEquals(List.of("_post_conversions\n" + key), draft.removals().marked(RemovalMarks.Tab.MUTATORS));
+        assertEquals(List.of("_conversions\n" + key), draft.removals().marked(RemovalMarks.Tab.MUTATORS));
         pane.applyRemovals();
         assertFalse(postConversionKeys().contains(key), postConversionKeys().toString());
     }

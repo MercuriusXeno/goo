@@ -41,7 +41,7 @@ final class GroupConvention {
     private static final int TRAIT_GROUP = 2;
     // A member line: an optional count, then the base alone or the base plus one $trait, in parentheses or not.
     // The sections whose entries value an item or a #name as a top-level entry does.
-    private static final Set<String> VALUE_SECTIONS = Set.of("_conversions", "_post_conversions");
+    private static final Set<String> VALUE_SECTIONS = Set.of("_conversions");
     // A #name inside a value expression, such as #copper in "#copper @exposed_metal".
     private static final Pattern TAG_REFERENCE = Pattern.compile("#([A-Za-z0-9_:/.\\-]+)");
     private static final String TWEAK_FORMAT ="^(?:(\\d+)\\s*)?\\(?\\s*%s(?:\\s*\\+\\s*\\$([A-Za-z0-9_]+))?\\s*\\)?$";
