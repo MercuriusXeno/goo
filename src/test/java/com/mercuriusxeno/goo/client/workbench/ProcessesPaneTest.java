@@ -175,17 +175,64 @@ class ProcessesPaneTest {
         assertTrue(pane.columnBar(false).offset() > 0, "the wheel at 200 scrolls the mutators");
     }
 
+    // A Mutators pane over the iterators #twice, applying waxed then rust, and #bare, applying nothing.
+    private ProcessesPane chainedIterators(ManagerActions actions) {
+        String entry = """
+                {"key": "%s", "keySeparator": null, "kind": "VALUE", "text": "\\"%s\\"", "entries": [], "leading": null,
+                 "trailing": null, "closingGap": null}""";
+        String described = """
+                {"key": "%s", "kind": "%s", "text": "\\"%s\\"", "parsed": true}""";
+        ManagerDraft chained = new ManagerDraft();
+        chained.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_groups", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "copper", "keySeparator": null, "kind": "VALUE", "text": "[\\"copper_block\\"]",
+                      "entries": [], "leading": null, "trailing": null, "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null},
+                  {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [%s]
+                   , "leading": null, "trailing": null, "closingGap": null}]}""".formatted(String.join(", ",
+                entry.formatted("#twice", "#copper @waxed @rust"), entry.formatted("#bare", "#copper"),
+                entry.formatted("waxed", "+$oak"), entry.formatted("rust", "+$oak"))));
+        ProcessesTab tab = new ProcessesTab(chained);
+        tab.readDescribed("""
+                {"sections": [{"section": "_conversions", "processes": [%s]}]}""".formatted(String.join(", ",
+                described.formatted("#twice", "ASSIGNMENT", "#copper @waxed @rust"),
+                described.formatted("#bare", "ASSIGNMENT", "#copper"),
+                described.formatted("waxed", "ADDITIVE", "+$oak"), described.formatted("rust", "ADDITIVE", "+$oak"))));
+        return new ProcessesPane(tab, chained, actions, null, () -> List.of("oak"));
+    }
+
     /**
-     * An iterator's name line reads its name then "loops over" (decision
-     * iterator-reads-loops-over-and-applies-then-its-chain).
+     * An iterator reads #X on its name line, "copies" and its source one indent in on the next, then "then mutates
+     * using" before its first mutator and "and" before each later one, each a line down, then "+ optional
+     * mutation"; one applying nothing reads "copies" and the button alone, which opens the mutator pick (decision
+     * iterator-reads-copies-then-mutates-using-and).
      */
     @Test
-    void iteratorNameLineReadsLoopsOver() {
+    void iteratorReadsCopiesThenMutatesUsingAnd() {
+        pane = chainedIterators(mock(ManagerActions.class));
         DrawnFrame frame = frame();
-        DrawnFrame.Text exposed = first(frame, "#exposed");
-        DrawnFrame.Text loops = frame.find("loops over");
-        assertEquals(exposed.y(), loops.y(), frame.drawn().toString());
-        assertTrue(loops.x() > exposed.x(), loops + " vs " + exposed);
+        assertFalse(frame.texts().contains("loops over") || frame.texts().contains("and applies"),
+                frame.texts().toString());
+        DrawnFrame.Text twice = first(frame, "#twice");
+        DrawnFrame.Text bare = first(frame, "#bare");
+        List<DrawnFrame.Text> copies = frame.drawn().stream().filter(text -> text.text().equals("copies")).toList();
+        List<DrawnFrame.Text> adds = frame.drawn().stream().filter(text -> text.text().equals("+ optional mutation"))
+                .toList();
+        assertEquals(2, copies.size(), frame.texts().toString());
+        assertEquals(2, adds.size(), frame.texts().toString());
+        DrawnFrame.Text twiceCopies = twice.y() < bare.y() ? copies.getFirst() : copies.getLast();
+        DrawnFrame.Text twiceAdd = twice.y() < bare.y() ? adds.getFirst() : adds.getLast();
+        DrawnFrame.Text then = frame.find("then mutates using");
+        DrawnFrame.Text and = frame.find("and");
+        List<Integer> descending = List.of(twice.y(), twiceCopies.y(), then.y(), and.y(), twiceAdd.y());
+        assertEquals(descending.stream().sorted().distinct().toList(), descending, frame.drawn().toString());
+        assertEquals(twice.x() + ControlFlow.INDENT, twiceCopies.x(), frame.drawn().toString());
+        assertEquals(1, frame.count("then mutates using"), frame.texts().toString());
+        DrawnFrame.Text bareAdd = twice.y() < bare.y() ? adds.getLast() : adds.getFirst();
+        assertTrue(bareAdd.y() > bare.y(), bareAdd + " under " + bare);
+        assertTrue(frame.targets.click(bareAdd.x() + 1, bareAdd.y() + 1));
+        assertTrue(frame().texts().containsAll(List.of("waxed", "rust")), "the mutator pick lists the mutators");
     }
 
     /**

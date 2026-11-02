@@ -50,7 +50,6 @@ final class ProcessesPane {
     private static final int HALF = 2;
     private static final int SCROLL_STEP = ROW_HEIGHT * 3;
     private static final int WHITE = 0xFFFFFFFF;
-    private static final int GRAY = 0xFFA0A0A0;
     /** An Invalid verdict's color. */
     static final int RED = 0xFFFF5555;
     /** A Valid verdict's color. */
@@ -394,10 +393,8 @@ final class ProcessesPane {
         int kindX = markX - MutatorControls.kindWidth(font) - PENCIL_GAP;
         int nameRoom = kindX - GAP - frame.rows().left() - ButtonPainter.width(font, RENAME) - PENCIL_GAP;
         drawName(frame, section, row.key(), new NameSlot(y, nameRoom));
-        if (ProcessesTab.isIterator(row.key())) {
-            // Decision iterator-reads-loops-over-and-applies-then-its-chain.
-            graphics.text(font, MutatorControls.LOOPS_OVER, kindX, y + HEAD_TEXT_NUDGE, GRAY);
-        } else {
+        // Decision iterator-reads-copies-then-mutates-using-and: an iterator's name line holds its name alone.
+        if (!ProcessesTab.isIterator(row.key())) {
             controls.drawKind(graphics, font, section, row.key(), kindX, y + BUTTON_INSET - KIND_LINE_INSET,
                     frame.targets());
         }

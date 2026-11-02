@@ -183,9 +183,9 @@ class MutatorControlsTest {
     }
 
     /**
-     * An iterator line reads "[#group v] and applies [@a] [x] [@b] [x] [+]", its source one dropdown over every
-     * group and itself (decisions iterator-line-is-source-ratio-then-chain,
-     * iterator-reads-loops-over-and-applies-then-its-chain).
+     * An iterator reads "copies [#group v]", then "then mutates using [@a] [x]", "and [@b] [x]" and
+     * "[+ optional mutation]", its source one dropdown over every group and itself (decisions
+     * iterator-line-is-source-ratio-then-chain, iterator-reads-copies-then-mutates-using-and).
      */
     @Nested
     class IteratorLine {
@@ -229,10 +229,11 @@ class MutatorControlsTest {
             return frame;
         }
 
+        // Decision iterator-reads-copies-then-mutates-using-and.
         @Test
-        void sourcedIteratorReadsSourceAndAppliesThenChain() {
-            assertEquals(List.of(ControlFlow.dropdownLabel("#ores"), "and applies", "smelt", "x", "rust", "x", "+"),
-                    frame("#chained").texts());
+        void sourcedIteratorReadsCopiesThenMutatesUsingAnd() {
+            assertEquals(List.of("copies", ControlFlow.dropdownLabel("#ores"), "then mutates using", "smelt", "x",
+                    "and", "rust", "x", "+ optional mutation"), frame("#chained").texts());
         }
 
         @Test
@@ -251,15 +252,16 @@ class MutatorControlsTest {
             frame("#bare").click(ControlFlow.dropdownLabel("#ores"));
             frame("#bare").click("itself");
             assertEquals(new Processes.Assignment("", List.of()), processes.formOf(SECTION, "#bare"));
-            assertEquals(List.of(ControlFlow.dropdownLabel("itself"), "and applies", "+"), frame("#bare").texts());
+            assertEquals(List.of("copies", ControlFlow.dropdownLabel("itself"), "+ optional mutation"),
+                    frame("#bare").texts());
         }
     }
 
     /**
-     * An iterator row draws its source then "and applies" one indent in, with no ratio, and each chained mutator with
-     * its x on its own line a second indent in, the [+] right of the last link's x; two rows with equal chains take
-     * equal heights (decisions each-chained-mutator-takes-its-own-indented-line,
-     * iterator-reads-loops-over-and-applies-then-its-chain, iterator-drops-its-ratio-from-row-and-grammar).
+     * An iterator row draws "copies" and its source one indent in, with no ratio, and each chained mutator with its x
+     * on its own line after "then mutates using" or "and", then "+ optional mutation" on a line of its own; two rows
+     * with equal chains take equal heights (decisions each-chained-mutator-takes-its-own-indented-line,
+     * iterator-reads-copies-then-mutates-using-and, iterator-drops-its-ratio-from-row-and-grammar).
      */
     @Nested
     class ChainLines {
@@ -284,29 +286,31 @@ class MutatorControlsTest {
         }
 
         @Test
-        void eachChainedMutatorTakesItsOwnIndentedLine() {
+        void eachChainedMutatorTakesItsOwnLine() {
             DrawnFrame frame = frame("#ores", List.of("@smelt", "@melt"));
+            DrawnFrame.Text copies = frame.find("copies");
             DrawnFrame.Text source = frame.find(ControlFlow.dropdownLabel("#ores"));
-            DrawnFrame.Text applies = frame.find("and applies");
+            DrawnFrame.Text then = frame.find("then mutates using");
+            DrawnFrame.Text and = frame.find("and");
             DrawnFrame.Text smelt = frame.find("smelt");
             DrawnFrame.Text melt = frame.find("melt");
-            assertEquals(ControlFlow.INDENT + ButtonPainter.PADDING, source.x(), frame.drawn().toString());
-            assertEquals(source.y(), applies.y());
-            assertTrue(applies.x() > source.x(), applies + " vs " + source);
+            assertEquals(ControlFlow.INDENT, copies.x(), frame.drawn().toString());
+            assertEquals(copies.y(), source.y());
+            assertTrue(source.x() > copies.x(), source + " vs " + copies);
             assertFalse(frame.texts().contains(":"), frame.texts().toString());
-            assertEquals(smelt.x(), melt.x());
-            assertEquals(source.x() + ControlFlow.INDENT, smelt.x(), smelt + " vs " + source);
-            assertEquals(source.y() + ControlFlow.LINE, smelt.y(), smelt + " vs " + source);
-            assertEquals(smelt.y() + ControlFlow.LINE, melt.y(), melt + " vs " + smelt);
+            assertEquals(List.of(copies.x(), copies.x()), List.of(then.x(), and.x()), frame.drawn().toString());
+            assertEquals(List.of(source.y() + ControlFlow.LINE, then.y() + ControlFlow.LINE),
+                    List.of(then.y(), and.y()), frame.drawn().toString());
+            assertEquals(List.of(then.y(), and.y()), List.of(smelt.y(), melt.y()), frame.drawn().toString());
+            assertTrue(smelt.x() > then.x() && melt.x() > and.x(), frame.drawn().toString());
             List<DrawnFrame.Text> removes = frame.drawn().stream().filter(text -> text.text().equals("x")).toList();
             assertEquals(2, removes.size(), frame.drawn().toString());
             assertEquals(smelt.y(), removes.get(0).y());
             assertTrue(removes.get(0).x() > smelt.x());
             assertEquals(melt.y(), removes.get(1).y());
             assertTrue(removes.get(1).x() > melt.x());
-            DrawnFrame.Text plus = frame.find("+");
-            assertEquals(melt.y(), plus.y());
-            assertTrue(plus.x() > removes.get(1).x(), plus + " vs " + removes.get(1));
+            DrawnFrame.Text add = frame.find("+ optional mutation");
+            assertEquals(melt.y() + ControlFlow.LINE, add.y(), add + " vs " + melt);
             int firstHeight = bottom;
             frame("#gems", List.of("@rust", "@melt"));
             assertEquals(firstHeight, bottom, "two-link chains take equal heights");
