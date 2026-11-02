@@ -257,13 +257,17 @@ final class MutatorControls {
         edit(() -> processes.setAssignmentSource(entry.section(), entry.key(), group));
     }
 
-    // The processes the assignment applies in order, each removable, then one more to add.
+    // The processes the assignment applies in order, each removable on its own line indented under the source, then
+    // one more to add after the last, or alone on the indented line where the chain is empty.
+    // Decision each-chained-mutator-takes-its-own-indented-line.
     private void drawChain(Entry entry, List<String> chain) {
         ControlFlow flow = entry.flow();
         String section = entry.section();
         String key = entry.key();
+        flow.indent();
         for (int index = 0; index < chain.size(); index++) {
             int link = index;
+            flow.newLine();
             String applied = chain.get(index).substring(STACK_MARK.length());
             // Decision every-prefab-reference-hovers-its-value: an applied mutator, waxed among them, hovers its value.
             flow.followLink(applied, PrefabHovers.hoverKey(applied), () -> actions.openMutator(applied));
