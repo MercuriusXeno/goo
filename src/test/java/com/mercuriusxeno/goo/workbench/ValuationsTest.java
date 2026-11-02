@@ -495,6 +495,65 @@ class ValuationsTest {
     }
 
     /**
+     * An item the solver values backward reads its inverted recipe: poppy equals the stew it goes into less every
+     * other input, each count over the slots poppy fills (decisions
+     * items-rows-read-valued-derived-or-no-value-with-values-inline,
+     * derivation-solves-whichever-side-of-a-recipe-is-unknown).
+     */
+    @Test
+    void solvedItemReadsItsInvertedRecipe() throws IOException {
+        JsonObject poppy = solvedFrom("""
+                {"_constants": {}, "_groups": {}, "_restricted": [], "_conversions": {}, "_post_conversions": {},
+                 "bowl": {"leaf": 1}, "brown_mushroom": {"shroom": 2},
+                 "suspicious_stew": {"leaf": 1, "shroom": 2, "zoo": 5}}
+                """, shapedRecipe("minecraft:suspicious_stew_from_poppy", "minecraft:suspicious_stew", 1,
+                List.of("BMP"), Map.of("B", "minecraft:bowl", "M", "minecraft:brown_mushroom", "P", "minecraft:poppy")),
+                "minecraft:poppy");
+        assertEquals(JsonParser.parseString("""
+                {"inputs": [], "output": 1,
+                 "solvedFrom": {"id": "minecraft:suspicious_stew", "count": 1},
+                 "less": [{"id": "minecraft:bowl", "count": 1}, {"id": "minecraft:brown_mushroom", "count": 1}]}
+                """), poppy, String.valueOf(poppy));
+    }
+
+    /**
+     * Two of one unknown making a valued output read as the output over two, nothing taken away.
+     */
+    @Test
+    void solvedItemFillingTwoSlotsReadsTheOutputOverTwo() throws IOException {
+        JsonObject planks = solvedFrom("""
+                {"_constants": {}, "_groups": {}, "_restricted": [], "_conversions": {}, "_post_conversions": {},
+                 "stick": {"leaf": 2}}
+                """, plainRecipe("minecraft:stick", "minecraft:crafting", "minecraft:stick", 4, "minecraft:oak_planks", 2),
+                "minecraft:oak_planks");
+        assertEquals(JsonParser.parseString("""
+                {"inputs": [], "output": 2, "solvedFrom": {"id": "minecraft:stick", "count": 4}, "less": []}
+                """), planks, String.valueOf(planks));
+    }
+
+    private static JsonObject solvedFrom(String file, JsonObject recipe, String item) throws IOException {
+        JsonObject root = new JsonObject();
+        JsonArray items = new JsonArray();
+        List<String> ids = new ArrayList<>(List.of(recipe.get("output").getAsString(), item));
+        recipe.getAsJsonArray("slots").forEach(slot -> ids.add(slot.getAsJsonObject().getAsJsonArray("alternatives")
+                .get(0).getAsString()));
+        ids.stream().distinct().forEach(id -> {
+            JsonObject entry = new JsonObject();
+            entry.addProperty("id", id);
+            entry.addProperty("name", id);
+            items.add(entry);
+        });
+        root.add("items", items);
+        root.add("item_tags", new JsonArray());
+        root.add("goo_types", new JsonArray());
+        JsonArray recipes = new JsonArray();
+        recipes.add(recipe);
+        root.add("recipes", recipes);
+        return JsonParser.parseString(Valuations.derivedFrom(BaseValuesModel.parse(file),
+                InventoryView.parse(root.toString()))).getAsJsonObject().getAsJsonObject("items").getAsJsonObject(item);
+    }
+
+    /**
      * Derived-from over the shipped file and the gametest inventory answers warm in under 100 ms, the derivation
      * cached and each per-call lookup done once rather than once per derived item
      * (decision derived-from-gets-cheaper).
