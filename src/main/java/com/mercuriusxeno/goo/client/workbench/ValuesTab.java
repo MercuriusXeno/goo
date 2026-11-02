@@ -336,8 +336,9 @@ public final class ValuesTab {
     public Source sourceOf(String id) {
         Map<String, List<String>> groups = groupsOf();
         Source source = null;
+        boolean ownEntryStands = !isMarked(id);
         for (JsonObject entry : valueEntries()) {
-            source = sourceFrom(entry, id, groups, source);
+            source = sourceFrom(entry, id, groups, source, ownEntryStands);
         }
         Source found = source != null ? source : unentered(id);
         return new Source(found.label(), found.kind(), restricted(groups).contains(id));
@@ -360,18 +361,36 @@ public final class ValuesTab {
         return found;
     }
 
-    // An item's own entry overrides what stands; a group's entry stands only where nothing named the item first.
+    /**
+     * An item entry read against the item asked about.
+     *
+     * @param named    whether its key names the item
+     * @param unmarked whether the item's entry stands unmarked for removal
+     * @param blank    whether its text is blank
+     * @param denied   whether it denies the item
+     */
+    private record OwnEntry(boolean named, boolean unmarked, boolean blank, boolean denied) {
+    }
+
+    private static @Nullable Source ownSource(OwnEntry entry, @Nullable Source standing) {
+        return entry.named() && entry.unmarked() && !entry.blank() ? itemSource(entry.denied()) : standing;
+    }
+
+    // An item's own entry overrides what stands, unless it is blank or marked for removal, which leave the value the
+    // item takes without it; a group's entry stands only where nothing named the item first.
+    // Decision removed-entry-shows-the-derived-value-and-no-restore-on-empty.
     private static @Nullable Source sourceFrom(JsonObject entry, String id, Map<String, List<String>> groups,
-                                               @Nullable Source standing) {
+                                               @Nullable Source standing, boolean ownEntryStands) {
         String key = String.valueOf(keyOf(entry));
-        boolean denied = DENIED.equals(ManagerDraft.shownText(entry.get(TEXT).getAsString()));
-        if (!key.startsWith(TAG_PREFIX)) {
-            return namespaced(key).equals(id) ? itemSource(denied) : standing;
-        }
-        String group = key.substring(TAG_PREFIX.length());
+        String shown = ManagerDraft.shownText(entry.get(TEXT).getAsString());
+        boolean denied = DENIED.equals(shown);
         // A #tag entry Add tag wrote with no value yet values no member, as the loader skips it (decision
         // add-tag-picks-a-game-tag-and-writes-its-entry).
-        boolean unvalued = ManagerDraft.shownText(entry.get(TEXT).getAsString()).isBlank();
+        boolean unvalued = shown.isBlank();
+        if (!key.startsWith(TAG_PREFIX)) {
+            return ownSource(new OwnEntry(namespaced(key).equals(id), ownEntryStands, unvalued, denied), standing);
+        }
+        String group = key.substring(TAG_PREFIX.length());
         return standing == null && !unvalued && groups.getOrDefault(group, List.of()).contains(id)
                 ? groupSource(group, denied) : standing;
     }

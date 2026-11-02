@@ -333,7 +333,7 @@ final class ValuesPane {
                           GroupsPane.Bounds row, ClickTargets targets) {
         int head = drawHead(graphics, font, entry, row, targets);
         int expressionTop = row.top() + head;
-        boolean entered = values.hasEntry(entry.id());
+        boolean entered = hasNonEmptyEntry(entry);
         int expressionLeft = row.left() + ControlFlow.INDENT;
         GroupsPane.Bounds expression = new GroupsPane.Bounds(expressionLeft, expressionTop,
                 expressionLeft + expressionWidth(font, entry, row.right() - row.left()), row.bottom());
@@ -805,7 +805,13 @@ final class ValuesPane {
     // The expression's room: one indent in, short of the entry's x where it has one.
     private int expressionWidth(Font font, ValuesTab.ManagerEntry entry, int rowWidth) {
         int width = rowWidth - ControlFlow.INDENT;
-        return values.hasEntry(entry.id()) ? width - ButtonPainter.width(font, DELETE) - ICON_GAP : width;
+        return hasNonEmptyEntry(entry) ? width - ButtonPainter.width(font, DELETE) - ICON_GAP : width;
+    }
+
+    // An empty entry offers neither the x nor the restore arrow; it reads as no entry at all.
+    // Decision removed-entry-shows-the-derived-value-and-no-restore-on-empty.
+    private boolean hasNonEmptyEntry(ValuesTab.ManagerEntry entry) {
+        return values.hasEntry(entry.id()) && !values.rowOf(entry.id()).expression().isBlank();
     }
 
     // The builder's Cancel writes back the text it opened on; for an item that had no entry that text is blank, and
