@@ -349,6 +349,22 @@ class ProcessesPaneTest {
     }
 
     /**
+     * With a section whose payload carries a summary, the Mutators heading stands on the columns' first row under the
+     * sub-tabs and the search box, and the first text below the sub-tabs is that heading (decision
+     * mutators-pane-draws-no-entry-count).
+     */
+    @Test
+    void mutatorsHeadingStandsOnTheFirstRowUnderTheSubTabs() {
+        DrawnFrame frame = frame();
+        DrawnFrame.Text heading = frame.find("Mutators");
+        assertEquals(ProcessesPane.SEARCH_ROW + ProcessesPane.HEADING_NUDGE, heading.y());
+        DrawnFrame.Text tab = frame.find("Conversions");
+        List<DrawnFrame.Text> below = frame.drawn().stream().filter(text -> text.y() > tab.y())
+                .sorted(java.util.Comparator.comparingInt(DrawnFrame.Text::y)).toList();
+        assertEquals("Mutators", below.getFirst().text(), below.toString());
+    }
+
+    /**
      * A row's open rename box takes a ✓ and a gold ↺ right of it on its row; ✓ renames the entry to the typed name,
      * as Enter does, and ↺ closes the box leaving the name, as Escape does (decisions
      * open-name-box-takes-a-done-checkmark, open-name-box-takes-a-gold-arrow-that-cancels).

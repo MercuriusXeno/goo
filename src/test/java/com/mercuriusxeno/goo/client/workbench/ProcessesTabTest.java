@@ -53,8 +53,7 @@ class ProcessesTabTest {
     }
 
     /**
-     * Each block lists its entries with their form lower case, their text unquoted and the parser's verdict, and
-     * its summary counts the entries and the refused ones.
+     * Each block lists its entries with their form lower case, their text unquoted and the parser's verdict.
      */
     @Test
     void sectionsListEntriesWithFormAndVerdict() {
@@ -62,12 +61,10 @@ class ProcessesTabTest {
         assertEquals(List.of("_conversions", "_post_conversions"),
                 sections.stream().map(ProcessesTab.ProcessSection::section).toList());
         ProcessesTab.ProcessSection conversions = sections.getFirst();
-        assertEquals("2 entries, 1 refused", conversions.summary());
         assertEquals(new ProcessesTab.ProcessRow("rust", "formula", "metal / 4 -> yore / 9", true, "Valid", ""),
                 conversions.rows().get(0));
         assertEquals(new ProcessesTab.ProcessRow("broken", "formula", "metal ->", false, "Invalid",
                 "Formula lacks a right side"), conversions.rows().get(1));
-        assertEquals("1 entries", sections.get(1).summary());
         assertEquals("assignment", sections.get(1).rows().getFirst().kind());
     }
 

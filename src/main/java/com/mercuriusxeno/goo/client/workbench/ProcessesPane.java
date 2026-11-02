@@ -13,7 +13,7 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
- * Draws the Mutators tab: each block's summary, then its mutators (formulas, additives and stacks) and its iterators
+ * Draws the Mutators tab: each block's mutators (formulas, additives and stacks) and its iterators
  * (group assignments) under a heading each, every heading with a create control naming a fresh entry (decisions
  * group-assignments-read-as-iterators, mutators-and-iterators-each-take-a-create-control). Each entry draws the key, the form, the parser's verdict and Delete on
  * an entry's first line and its sentence of controls at full width below (decision mutator-rows-take-an-extra-line),
@@ -23,7 +23,6 @@ import java.util.function.Supplier;
  * under a {@link ScrollBar} (decision every-tab-draws-a-scroll-bar). The state lives in {@link ProcessesTab}.
  */
 final class ProcessesPane {
-    private static final int LINE_HEIGHT = 10;
     private static final int ROW_HEIGHT = 13;
     private static final int MARK_WIDTH = 14;
     private static final int NAME_HEAD = 20;
@@ -71,7 +70,8 @@ final class ProcessesPane {
     private static final String NO_TEXT = "";
     // Mutators first, then iterators.
     private static final boolean[] KINDS = {false, true};
-    private static final int HEADING_NUDGE = 5;
+    /** How far a column heading's text stands below the columns' top. */
+    static final int HEADING_NUDGE = 5;
     private static final int NAME_BOX_WIDTH = 140;
     private static final int NAME_BOX_HEIGHT = 16;
     private static final String SEARCH_HINT = "Search mutators";
@@ -80,7 +80,8 @@ final class ProcessesPane {
     private static final String[] SUB_TABS = {CONVERSIONS, POST_CONVERSIONS};
     private static final String[] SUB_TAB_LABELS = {"Conversions", "Post conversions"};
     private static final int SEARCH_WIDTH = 200;
-    private static final int SEARCH_ROW = NAME_BOX_HEIGHT + 4;
+    /** The row the sub-tabs and the search box take above the columns. */
+    static final int SEARCH_ROW = NAME_BOX_HEIGHT + 4;
 
     private final ProcessesTab processes;
     private final ManagerDraft draft;
@@ -233,11 +234,11 @@ final class ProcessesPane {
         overlays.draw(graphics, font, targets);
     }
 
-    // The section's summary across the pane, then its mutators in the left column and its iterators in the right.
+    // The section's mutators in the left column and its iterators in the right, from the area's top.
+    // Decision mutators-pane-draws-no-entry-count.
     private void drawColumns(GuiGraphicsExtractor graphics, Font font, ProcessesTab.ProcessSection section,
                              GroupsPane.Bounds area, ClickTargets targets) {
-        graphics.text(font, section.summary(), area.left(), area.top(), WHITE);
-        int columnsTop = area.top() + LINE_HEIGHT + GAP;
+        int columnsTop = area.top();
         for (boolean iterators : KINDS) {
             GroupsPane.Bounds column = iterators
                     ? new GroupsPane.Bounds(columnsMiddle + COLUMN_GAP / HALF, columnsTop, area.right(), area.bottom())
