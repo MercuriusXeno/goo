@@ -272,7 +272,7 @@ class GroupsPaneTest {
             DrawnFrame frame = frame();
             DrawnFrame.Text name = startingWith(frame, "#" + LONG_GROUP).getFirst();
             DrawnFrame.Text plus = frame.find("+");
-            DrawnFrame.Text pencil = frame.find("✎");
+            DrawnFrame.Text pencil = frame.findFirst("✎");
             assertTrue(pencil.x() > name.x() + name.text().length() * 6, pencil + " vs " + name);
             assertTrue(Math.abs(pencil.y() - name.y()) < ExpressionLines.TEXT_LINE_HEIGHT, pencil + " vs " + name);
             assertTrue(frame.drawn().stream().filter(text -> text.text().startsWith("minecraft:"))
@@ -293,9 +293,10 @@ class GroupsPaneTest {
          */
         @Test
         void pencilOpensTheRenameBox() {
-            frame().click("✎");
+            DrawnFrame named = frame();
+            named.clickFirst("✎");
             DrawnFrame renaming = frame();
-            assertFalse(renaming.texts().contains("✎"), renaming.texts().toString());
+            assertEquals(named.count("✎") - 1, renaming.count("✎"), "the rename box stands in the pencil's place");
             assertTrue(widgets.stream().filter(EditBox.class::isInstance).map(EditBox.class::cast)
                     .anyMatch(box -> box.visible && LONG_GROUP.equals(box.getValue())
                             && box.getX() < GroupsPane.listWidth(PANE)), "a box stands on the card");
@@ -314,14 +315,14 @@ class GroupsPaneTest {
                          {"key": "%s", "keySeparator": null, "kind": "VALUE", "text": "[]",
                           "entries": [], "leading": null, "trailing": null, "closingGap": null}],
                        "leading": null, "trailing": null, "closingGap": null}]}""".formatted(LONG_GROUP));
-            frame().click("✎");
+            frame().clickFirst("✎");
             DrawnFrame reopenedFirst = frame();
             EditBox box = openBox();
             box.setValue("other");
             reopenedFirst.click("↺");
             assertFalse(box.visible);
             assertEquals(LONG_GROUP, groupKey());
-            frame().click("✎");
+            frame().clickFirst("✎");
             DrawnFrame open = frame();
             VariablesPaneTest.assertNameBoxButtons(open, openBox());
             openBox().setValue("renamed");
@@ -482,7 +483,8 @@ class GroupsPaneTest {
             assertTrue(icon >= planksMembers.x() + "Members:".length() * 6, "icon at " + icon);
             DrawnFrame.Text value = inList(frame, "8").getFirst();
             assertTrue(value.y() > planksMembers.y() && value.y() < logs.y(), value.toString());
-            assertEquals(ControlFlow.INDENT, value.x());
+            // Decision read-mode-builder-is-a-button-with-a-pencil-segment: the value stands inside its frame.
+            assertEquals(ControlFlow.INDENT + ButtonPainter.PADDING, value.x());
             assertTrue(inList(frame, "4").getFirst().y() > members.getLast().y(), frame.drawn().toString());
             assertFalse(frame.texts().contains("Value"), frame.texts().toString());
         }
@@ -646,6 +648,39 @@ class GroupsPaneTest {
     }
 
     /**
+     * A valued group card draws its value framed with a pencil segment at its right, and a click on the pencil opens
+     * the builder in its place (decision read-mode-builder-is-a-button-with-a-pencil-segment).
+     */
+    @Test
+    void valuedCardFramesItsValueAndItsPencilOpensTheBuilder() {
+        ManagerDraft draft = new ManagerDraft();
+        GroupsTab groups = new GroupsTab(draft);
+        groups.readDescribed("""
+                {"groups": [{"name": "logs", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
+                   "base": "8", "tweaks": [], "preview": []}]}
+                """);
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+        ExpressionBuilderPane builder = new ExpressionBuilderPane(actions, icons, List::of, List::of);
+        GroupsPane pane = new GroupsPane(groups, new ValuesTab(draft), icons, actions, builder);
+        GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 300);
+        DrawnFrame listed = new DrawnFrame();
+        pane.extract(listed.graphics, DrawnFrame.font(), bounds, listed.targets);
+        DrawnFrame.Text value = listed.find("8");
+        DrawnFrame.Text pencil = listed.drawn().stream().filter(text -> text.text().equals(ReadValueButton.PENCIL)
+                && Math.abs(text.y() - value.y()) < ExpressionLines.TEXT_LINE_HEIGHT).findFirst()
+                .orElseThrow(() -> new AssertionError(listed.drawn().toString()));
+        assertTrue(pencil.x() > value.x(), pencil + " vs " + value);
+        assertTrue(listed.targets.click(pencil.x() + 1, pencil.y() + 1));
+        assertTrue(builder.isOpen());
+        DrawnFrame building = new DrawnFrame();
+        pane.extract(building.graphics, DrawnFrame.font(), bounds, building.targets);
+        assertTrue(building.texts().stream().anyMatch(text -> text.endsWith(ControlFlow.dropdownLabel(""))),
+                building.texts().toString());
+    }
+
+    /**
      * A tag referent lists in the same list as a custom group, and its card's value opens the expression builder in
      * its place, the builder's first line reading its kind then [+] (decisions
      * tag-referent-lists-the-games-members-and-values-them, group-card-is-name-then-members-then-value,
@@ -672,7 +707,11 @@ class GroupsPaneTest {
         DrawnFrame listed = new DrawnFrame();
         pane.extract(listed.graphics, DrawnFrame.font(), bounds, listed.targets);
         assertTrue(listed.texts().containsAll(List.of("#logs", "#saplings")), listed.texts().toString());
-        listed.click("empty");
+        // Decision no-value-reads-value-not-explicitly-set-as-a-pencil-button.
+        assertEquals(2, listed.texts().stream().filter(ReadValueButton.NOT_SET::equals).count(),
+                listed.texts().toString());
+        assertFalse(listed.texts().contains("empty"), listed.texts().toString());
+        listed.click(ReadValueButton.NOT_SET);
         assertTrue(builder.isOpen());
         assertEquals(Optional.of("saplings"), groups.selected().map(GroupsTab.Group::name));
         DrawnFrame building = new DrawnFrame();
