@@ -119,13 +119,14 @@ class MutatorControlsTest {
 
         @Test
         void formulaReadsAsTwoRatios() {
-            assertEquals(List.of("1", ":", "4", "becomes", "2", ":", "3"),
+            // Decision mutator-body-indents-under-its-name-line: the arrow => in place of the word becomes.
+            assertEquals(List.of("1", ":", "4", "=>", "2", ":", "3"),
                     sentence(new Processes.Formula("metal", 4, "yore", 2, 3)));
         }
 
         @Test
-        void formulaToNothingReadsBecomesNothing() {
-            assertEquals(List.of("1", ":", "4", "becomes", "nothing"),
+        void formulaToNothingReadsArrowNothing() {
+            assertEquals(List.of("1", ":", "4", "=>", "nothing"),
                     sentence(new Processes.Formula("metal", 4, "0", 1, 1)));
         }
 
