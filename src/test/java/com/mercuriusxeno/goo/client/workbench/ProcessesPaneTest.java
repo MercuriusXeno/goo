@@ -175,6 +175,20 @@ class ProcessesPaneTest {
         assertTrue(pane.columnBar(false).offset() > 0, "the wheel at 200 scrolls the mutators");
     }
 
+    /**
+     * An additive's prefab reads after $ and an iterator's source group after #, and the additive's prefab pick
+     * lists its prefabs after $ (decision hash-marks-groups-and-dollar-marks-prefabs-everywhere).
+     */
+    @Test
+    void conversionsMarkPrefabsWithDollarAndGroupsWithHash() {
+        DrawnFrame frame = frame();
+        assertTrue(frame.texts().contains("$oak"), frame.texts().toString());
+        assertTrue(frame.texts().contains(ControlFlow.dropdownLabel("#copper")), frame.texts().toString());
+        frame.click("$oak");
+        assertTrue(frame().texts().contains("$oak"), "the prefab pick lists $oak");
+        assertEquals(2, frame().count("$oak"), frame().texts().toString());
+    }
+
     // A Mutators pane over the iterators #twice, applying waxed then rust, and #bare, applying nothing.
     private ProcessesPane chainedIterators(ManagerActions actions) {
         String entry = """
