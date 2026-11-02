@@ -46,8 +46,6 @@ final class ValuesPane {
     private static final int COUNT_OVERHANG = 1;
     /** The room either side of the + between a recipe equivalency's inputs. */
     static final int EQUIVALENCY_GAP = 2;
-    /** The room between the filter set and the search box below it. */
-    static final int CHIP_LINE_GAP = 3;
     private static final int CHIP_TEXT_NUDGE = 3;
     /** The room between the detail page's card, its Value label and its error line. */
     static final int GAP = 3;
@@ -189,13 +187,10 @@ final class ValuesPane {
     }
 
     void extract(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds bounds, ClickTargets targets) {
-        int y = drawChips(graphics, font, bounds.left(), bounds.top(), targets);
-        if (search != null) {
-            search.setPosition(bounds.left(), y);
-        }
-        drawEntries(graphics, font, new GroupsPane.Bounds(bounds.left(), y + BOX_HEIGHT + GAP,
+        int listTop = drawSearchLine(graphics, font, bounds, targets) + GAP;
+        drawEntries(graphics, font, new GroupsPane.Bounds(bounds.left(), listTop,
                 bounds.left() + SIDEBAR_WIDTH, bounds.bottom()), targets);
-        drawSelected(graphics, font, new GroupsPane.Bounds(bounds.left() + SIDEBAR_WIDTH + PANE_GAP, bounds.top(),
+        drawSelected(graphics, font, new GroupsPane.Bounds(bounds.left() + SIDEBAR_WIDTH + PANE_GAP, listTop,
                 bounds.right(), bounds.bottom()), targets);
         builder.drawOverlays(graphics, font, targets);
     }
@@ -215,15 +210,15 @@ final class ValuesPane {
     }
 
     /**
-     * @param chips     the set's boxes, left to right
-     * @param searchTop the search box's top, one line below them
+     * @param chips  the set's boxes, left to right
+     * @param bottom the boxes' bottom
      */
-    record ChipLayout(List<Chip> chips, int searchTop) {
+    record ChipLayout(List<Chip> chips, int bottom) {
     }
 
     /**
-     * Lays the filters as one segmented set on a line of their own: adjoining boxes sharing their inner borders,
-     * the one the tab holds filled (decision items-filters-sit-on-their-own-line-as-one-set).
+     * Lays the filters as one segmented set: adjoining boxes sharing their inner borders, the one the tab holds
+     * filled (decision items-filters-sit-on-their-own-line-as-one-set).
      *
      * @param labels   the Items, Uncovered and Fractional labels, in that order (decisions
      *                 items-selector-set-reads-items-and-uncovered, items-filter-set-takes-a-fractional-chip)
@@ -231,7 +226,7 @@ final class ValuesPane {
      * @param left     the set's left edge
      * @param top      the set's top edge
      * @param selected the filter the tab holds
-     * @return the boxes and the search box's top below them
+     * @return the boxes and their bottom
      */
     static ChipLayout layChips(List<String> labels, ToIntFunction<String> width, int left, int top,
                                ValuesTab.Filter selected) {
@@ -244,19 +239,38 @@ final class ValuesPane {
             chips.add(new Chip(filter, label, x, top, chipWidth, ButtonPainter.HEIGHT, filter == selected));
             x += chipWidth - 1;
         }
-        return new ChipLayout(chips, top + ButtonPainter.HEIGHT + CHIP_LINE_GAP);
+        return new ChipLayout(chips, top + ButtonPainter.HEIGHT);
     }
 
-    // Answers the search box's top below the set.
-    private int drawChips(GuiGraphicsExtractor graphics, Font font, int left, int top, ClickTargets targets) {
+    /**
+     * @param labels the chips' labels
+     * @param width  a label's width
+     * @param line   the search line's bounds
+     * @return the set's left edge, so its last chip ends at the line's right
+     */
+    static int chipsLeft(List<String> labels, ToIntFunction<String> width, GroupsPane.Bounds line) {
+        int setWidth = labels.stream().mapToInt(label -> width.applyAsInt(label) + ButtonPainter.PADDING
+                + ButtonPainter.PADDING - 1).sum() + 1;
+        return line.right() - setWidth;
+    }
+
+    // The set at the search line's right end, the search box taking the room left of it; answers the line's bottom.
+    // Decision filter-buttons-stand-right-of-the-search-bar.
+    private int drawSearchLine(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds line,
+                               ClickTargets targets) {
         int uncovered = values.uncoveredCount();
-        ChipLayout layout = layChips(List.of(ITEMS_CHIP, UNCOVERED_CHIP + uncovered, FRACTIONAL_CHIP),
-                font::width, left, top, values.filter());
+        List<String> labels = List.of(ITEMS_CHIP, UNCOVERED_CHIP + uncovered, FRACTIONAL_CHIP);
+        int left = chipsLeft(labels, font::width, line);
+        ChipLayout layout = layChips(labels, font::width, left, line.top(), values.filter());
         for (Chip chip : layout.chips()) {
             drawChip(graphics, font, chip, chip.filter() == ValuesTab.Filter.UNCOVERED && uncovered > 0 ? RED : WHITE,
                     targets);
         }
-        return layout.searchTop();
+        if (search != null) {
+            search.setPosition(line.left(), line.top());
+            search.setWidth(Math.max(1, left - GAP - line.left()));
+        }
+        return Math.max(layout.bottom(), line.top() + BOX_HEIGHT);
     }
 
     /**

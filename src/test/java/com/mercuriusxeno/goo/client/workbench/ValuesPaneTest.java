@@ -46,7 +46,7 @@ class ValuesPaneTest {
 
     /**
      * The Items, Uncovered and Fractional boxes stand on one line, each sharing its inner border with the next, the
-     * search box sits one line below them, the one box filled is the filter the tab holds, the pane draws no Tags
+     * one box filled is the filter the tab holds, the pane draws no Tags
      * box, and a click on the last lists the fractional items (decisions items-filters-sit-on-their-own-line-as-one-set,
      * items-selector-set-reads-items-and-uncovered, items-filter-set-takes-a-fractional-chip).
      */
@@ -67,7 +67,7 @@ class ValuesPaneTest {
         }
         assertEquals(List.of(false, true, false), chips.stream().map(ValuesPane.Chip::filled).toList());
         ValuesPane.Chip first = chips.getFirst();
-        assertEquals(first.top() + first.height() + ValuesPane.CHIP_LINE_GAP, layout.searchTop());
+        assertEquals(first.top() + first.height(), layout.bottom());
 
         Font font = sixPixelFont();
         ValuesTab values = new ValuesTab();
@@ -76,12 +76,54 @@ class ValuesPaneTest {
         ValuesPane pane = new ValuesPane(values, icons, actions,
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         DrawnFrame frame = new DrawnFrame();
-        pane.extract(frame.graphics, font, new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
+        GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 200);
+        pane.extract(frame.graphics, font, bounds, frame.targets);
         assertEquals(List.of(), frame.texts().stream().filter("Tags"::equals).toList());
-        ValuesPane.Chip fractional = ValuesPane.layChips(List.of("Items", "Uncovered 0", "Fractional"),
-                font::width, 0, 0, values.filter()).chips().get(2);
+        List<String> labels = List.of("Items", "Uncovered 0", "Fractional");
+        ValuesPane.Chip fractional = ValuesPane.layChips(labels, font::width,
+                ValuesPane.chipsLeft(labels, font::width, bounds), 0, values.filter()).chips().get(2);
         frame.targets.click(fractional.left() + 1, fractional.top() + 1);
         assertEquals(ValuesTab.Filter.FRACTIONAL, values.filter());
+    }
+
+    /**
+     * The Items, Uncovered and Fractional chips stand on the search box's line right of it, each a click away from
+     * its filter, and the first row starts under that line (decision filter-buttons-stand-right-of-the-search-bar).
+     */
+    @Test
+    void filtersStandRightOfTheSearchBoxOnItsLine() {
+        Font font = DrawnFrame.font();
+        ValuesTab values = new ValuesTab();
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:stick", "Stick")), List.of()));
+        List<net.minecraft.client.gui.components.AbstractWidget> widgets = new java.util.ArrayList<>();
+        ManagerActions actions = mock(ManagerActions.class);
+        when(actions.addWidget(any())).thenAnswer(call -> {
+            widgets.add(call.getArgument(0));
+            return call.getArgument(0);
+        });
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        pane.init(font);
+        GroupsPane.Bounds bounds = new GroupsPane.Bounds(0, 0, 500, 200);
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, font, bounds, frame.targets);
+        net.minecraft.client.gui.components.EditBox search = widgets.stream()
+                .filter(net.minecraft.client.gui.components.EditBox.class::isInstance)
+                .map(net.minecraft.client.gui.components.EditBox.class::cast).findFirst().orElseThrow();
+        List<String> labels = List.of("Items", "Uncovered 0", "Fractional");
+        List<ValuesPane.Chip> chips = ValuesPane.layChips(labels, font::width,
+                ValuesPane.chipsLeft(labels, font::width, bounds), bounds.top(), values.filter()).chips();
+        chips.forEach(chip -> assertEquals(search.getY(), chip.top(), chip.toString()));
+        assertTrue(chips.getFirst().left() > search.getX() + search.getWidth(), chips.getFirst() + " vs search right "
+                + (search.getX() + search.getWidth()));
+        int chipsBottom = chips.getFirst().top() + chips.getFirst().height();
+        assertTrue(frame.find("Stick").y() > chipsBottom, frame.find("Stick") + " vs " + chipsBottom);
+        for (ValuesPane.Chip chip : chips.reversed()) {
+            assertTrue(frame.targets.click(chip.left() + 1, chip.top() + 1), chip.toString());
+            assertEquals(chip.filter(), values.filter());
+        }
     }
 
     /**
@@ -97,8 +139,10 @@ class ValuesPaneTest {
                 new ExpressionBuilderPane(actions, icons, List::of, List::of));
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, sixPixelFont(), new GroupsPane.Bounds(0, 0, 500, 200), frame.targets);
-        ValuesPane.Chip selected = ValuesPane.layChips(List.of("Items", "Uncovered 0", "Fractional"),
-                sixPixelFont()::width, 0, 0, values.filter()).chips().getFirst();
+        List<String> labels = List.of("Items", "Uncovered 0", "Fractional");
+        ValuesPane.Chip selected = ValuesPane.layChips(labels, sixPixelFont()::width,
+                ValuesPane.chipsLeft(labels, sixPixelFont()::width, new GroupsPane.Bounds(0, 0, 500, 200)), 0,
+                values.filter()).chips().getFirst();
         ArgumentCaptor<Integer> colors = ArgumentCaptor.forClass(Integer.class);
         verify(frame.graphics).text(any(Font.class), eq("Items"), anyInt(), anyInt(), colors.capture(), eq(false));
         verify(frame.graphics).fill(selected.left() + 1, selected.top() + 1, selected.left() + selected.width() - 1,
