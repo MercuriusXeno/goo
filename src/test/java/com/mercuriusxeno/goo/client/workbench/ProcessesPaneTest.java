@@ -203,6 +203,40 @@ class ProcessesPaneTest {
                 "the mutators scrolled");
     }
 
+    /**
+     * Each row's head line, name, pencil, kind, mark and x, draws inside its column left of the column's scroll bar,
+     * no element over the next, at the wide pane and at a 480-wide screen's narrow one (the operator's report: the
+     * kind stood behind the scroll bar and the x and the kind overflowed).
+     */
+    @Test
+    void rowHeadsFitLeftOfTheirColumnsScrollBar() {
+        for (int width : new int[] {590, 464}) {
+            DrawnFrame frame = new DrawnFrame();
+            pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, width, 390), frame.targets);
+            int middle = width / 2;
+            List<DrawnFrame.Text> drawn = frame.drawn();
+            List<DrawnFrame.Text> crosses = drawn.stream().filter(text -> text.text().equals("✗")).toList();
+            assertEquals(3, crosses.size(), drawn.toString());
+            for (DrawnFrame.Text cross : crosses) {
+                boolean right = cross.x() >= middle;
+                int barLeft = (right ? width : middle - 6) - ScrollBar.WIDTH - ScrollBar.GAP;
+                List<DrawnFrame.Text> head = drawn.stream().filter(text -> Math.abs(text.y() - cross.y()) <= 5
+                        && text.x() >= middle == right).sorted(java.util.Comparator.comparingInt(DrawnFrame.Text::x))
+                        .toList();
+                assertTrue(head.size() >= 3, head.toString());
+                DrawnFrame.Text last = head.getLast();
+                assertEquals("✗", last.text(), "the x stands last: " + head);
+                assertTrue(last.x() + 6 + ButtonPainter.PADDING <= barLeft,
+                        width + ": the x passes the bar at " + barLeft + ": " + head);
+                for (int index = 1; index < head.size(); index++) {
+                    DrawnFrame.Text before = head.get(index - 1);
+                    assertTrue(before.x() + before.text().length() * 6 <= head.get(index).x(),
+                            width + ": " + before + " runs into " + head.get(index));
+                }
+            }
+        }
+    }
+
     private DrawnFrame frame() {
         DrawnFrame frame = new DrawnFrame();
         pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 590, 390), frame.targets);

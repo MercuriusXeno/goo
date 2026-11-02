@@ -25,9 +25,6 @@ import java.util.function.Supplier;
 final class ProcessesPane {
     private static final int LINE_HEIGHT = 10;
     private static final int ROW_HEIGHT = 13;
-    // Decision mutator-row-is-aligned-columns-name-kind-validity-rename-delete: 25 characters of name.
-    private static final int NAME_WIDTH = 156;
-    private static final int KIND_WIDTH = 84;
     private static final int MARK_WIDTH = 14;
     private static final int NAME_HEAD = 20;
     private static final int NAME_TAIL = 4;
@@ -401,36 +398,48 @@ final class ProcessesPane {
 
     // Decision mutator-row-is-aligned-columns-name-kind-validity-rename-delete: the name, the kind dropdown, the
     // mark, Rename and Delete at fixed column lefts, under no header.
+    // The operator's report: the kind stood behind the scroll bar, so the line lays out from the x at the column's
+    // right end leftward, and the name takes the room left over.
     private void drawHeadLine(Frame frame, String section, ProcessesTab.ProcessRow row, int y) {
         GuiGraphicsExtractor graphics = frame.graphics();
         Font font = frame.font();
-        int x = frame.rows().left();
-        drawName(frame, section, row.key(), y);
-        int kindX = x + NAME_WIDTH + ButtonPainter.width(font, RENAME) + PENCIL_GAP;
+        int deleteX = frame.rows().right() - ButtonPainter.width(font, DELETE);
+        int markX = deleteX - MARK_WIDTH;
+        int kindX = markX - MutatorControls.kindWidth(font) - PENCIL_GAP;
+        int nameRoom = kindX - GAP - frame.rows().left() - ButtonPainter.width(font, RENAME) - PENCIL_GAP;
+        drawName(frame, section, row.key(), new NameSlot(y, nameRoom));
         if (!ProcessesTab.isIterator(row.key())) {
             controls.drawKind(graphics, font, section, row.key(), kindX, y + BUTTON_INSET - KIND_LINE_INSET,
                     frame.targets());
         }
-        int markX = kindX + KIND_WIDTH;
         VerdictMark mark = verdictMark(row);
         graphics.text(font, mark.glyph(), markX, y + HEAD_TEXT_NUDGE, mark.color());
         frame.targets().addHover(markX, y, MARK_WIDTH, HEAD_HEIGHT, BuilderOverlays.hintKey(row.verdict()
                 + (row.reason().isEmpty() ? NO_REASON : REASON_GAP + row.reason())));
-        ButtonPainter.drawColored(graphics, font, DELETE, RED, frame.rows().right() - ButtonPainter.width(font,
-                DELETE), y + BUTTON_INSET, ButtonPainter.HEIGHT, frame.targets(), () -> delete(section, row.key()),
-                BuilderOverlays.hintKey(DELETE_HINT));
+        ButtonPainter.drawColored(graphics, font, DELETE, RED, deleteX, y + BUTTON_INSET, ButtonPainter.HEIGHT,
+                frame.targets(), () -> delete(section, row.key()), BuilderOverlays.hintKey(DELETE_HINT));
     }
 
-    // The name cut to its column, hovering whole where cut, the pencil just past its last letter; the rename box
+    /**
+     * Where a row's name draws.
+     *
+     * @param y    the row's top
+     * @param room the pixels the name may take before the pencil
+     */
+    private record NameSlot(int y, int room) {
+    }
+
+    // The name cut to its room, hovering whole where cut, the pencil just past its last letter; the rename box
     // stands in their place while open.
-    private void drawName(Frame frame, String section, String key, int y) {
+    private void drawName(Frame frame, String section, String key, NameSlot slot) {
         int x = frame.rows().left();
+        int y = slot.y();
         if (nameBox != null && naming != null && key.equals(naming.renamed()) && section.equals(naming.section())) {
             nameBox.setPosition(x, y);
             nameBoxPlaced = true;
             return;
         }
-        String shown = shownName(key);
+        String shown = fittedName(frame.font(), key, slot.room());
         frame.graphics().text(frame.font(), shown, x, y + HEAD_TEXT_NUDGE, WHITE);
         if (!shown.equals(key)) {
             frame.targets().addHover(x, y, frame.font().width(shown), HEAD_HEIGHT, BuilderOverlays.hintKey(key));
@@ -448,6 +457,20 @@ final class ProcessesPane {
     static String shownName(String key) {
         return key.length() <= NAME_HEAD + NAME_TAIL ? key
                 : key.substring(0, NAME_HEAD) + ELLIPSIS + key.substring(key.length() - NAME_TAIL);
+    }
+
+    // The shown name, its head shortened a letter at a time until it fits the room, its last four kept.
+    private static String fittedName(Font font, String key, int room) {
+        String shown = shownName(key);
+        if (font.width(shown) <= room || key.length() <= NAME_TAIL + 1) {
+            return shown;
+        }
+        String tail = key.substring(key.length() - NAME_TAIL);
+        int head = Math.min(NAME_HEAD, key.length() - NAME_TAIL);
+        while (head > 1 && font.width(key.substring(0, head) + ELLIPSIS + tail) > room) {
+            head--;
+        }
+        return key.substring(0, head) + ELLIPSIS + tail;
     }
 
     /**
