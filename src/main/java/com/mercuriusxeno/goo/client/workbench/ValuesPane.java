@@ -810,7 +810,7 @@ final class ValuesPane {
     }
 
     /**
-     * Lays an Items row a pixel inside its top and bottom: line 1 the name to the disposition symbol at the right
+     * Lays an Items row a pixel inside its top and the rule's padding inside its bottom: line 1 the name to the disposition symbol at the right
      * edge, line 2 an 18px line led by the item's sprite and the equals sign, then the goo value on lines each the type
      * icon plus a pixel above and below, beside the equals sign for a valued item and from line 3 for a derived or
      * grouped one (decisions items-row-title-carries-a-disposition-symbol-at-the-right-edge,
@@ -834,8 +834,9 @@ final class ValuesPane {
                 ExpressionLines.centeredTextTop(lineTwo, ROW_HEIGHT, text.lineHeight()), row.right());
         ValueLines value = layValueLines(runWidths, text, iconSize, equality, lineTwo);
         int bottom = Math.max(lineTwo + ROW_HEIGHT, value.bottom());
+        // Decision rule-takes-padding-above-it: the next row's rule stands the padding below the sprite.
         return new EntryLayout(new Title(left, titleTop, nameWidth, symbolLeft), equality, value,
-                bottom + ROW_PAD - row.top());
+                bottom + RowLayout.RULE_PADDING - row.top());
     }
 
     // A valued item's value starts beside the equals sign, centered on line 2; a derived or grouped item's starts on

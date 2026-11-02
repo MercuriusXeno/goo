@@ -39,8 +39,10 @@ class ValuesPaneTest {
     private static final int[] ICON_SIZES = {SMALL_ICON, 12};
     // The second line's top, under the row's top pixel and its title line.
     private static final int LINE_TWO = TOP + ValuesPane.ROW_PAD + ValuesPane.TITLE_HEIGHT;
-    // A row of title and equality line alone: its lines plus a pixel above and below.
-    private static final int TWO_LINES = 2 + ValuesPane.TITLE_HEIGHT + ValuesPane.ROW_HEIGHT;
+    // A row of title and equality line alone: a pixel above, its lines, and the rule's padding below (decision
+    // rule-takes-padding-above-it).
+    private static final int TWO_LINES = ValuesPane.ROW_PAD + ValuesPane.TITLE_HEIGHT + ValuesPane.ROW_HEIGHT
+            + RowLayout.RULE_PADDING;
 
     /**
      * The Items, Uncovered and Fractional boxes stand on one line, each sharing its inner border with the next, the
@@ -609,7 +611,7 @@ class ValuesPaneTest {
         ValuesPane.EntryLayout layout = lay(ValuesTab.SourceKind.ENTRY, List.of(100, 100, 100));
         int valueLine = SMALL_ICON + 2;
         assertEquals(layout.runsTop() + valueLine, layout.lineTop(1));
-        assertEquals(layout.lineTop(1) + valueLine + ValuesPane.ROW_PAD - TOP, layout.height());
+        assertEquals(layout.lineTop(1) + valueLine + RowLayout.RULE_PADDING - TOP, layout.height());
     }
 
     /**
