@@ -7,6 +7,8 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -77,6 +79,9 @@ final class VariablesPane {
     // The operator's ruling: the pencil's tooltip reads Rename and the x's Delete, one word each.
     private static final String RENAME_HINT = "Rename";
     private static final String DELETE_HINT = "Delete";
+    private static final String RESTORE_HINT = "Restore";
+    // A strike through a marked name stands at the glyphs' middle.
+    private static final int STRIKE_DROP = 4;
     private static final int PENCIL_GAP = 3;
     private static final String CANCEL = "Cancel";
     private static final String USED_BY = "Used by ";
@@ -341,7 +346,7 @@ final class VariablesPane {
         if (renamingThis) {
             rename.setPosition(x, y - HALF);
         } else {
-            graphics.text(font, block.name(), x, y, WHITE);
+            drawName(graphics, font, block.name(), x, y);
             // The operator's ruling: rename is a pencil just past the name, delete a red x at the row's right end.
             ButtonPainter.draw(graphics, font, RENAME, x + font.width(block.name()) + PENCIL_GAP,
                     y - ButtonPainter.TEXT_NUDGE, ButtonPainter.HEIGHT, targets, () -> startRename(block.name()),
@@ -355,10 +360,35 @@ final class VariablesPane {
         int usedByWidth = bounds.right() - deleteWidth - ACTION_GAP - usedByX;
         int usedByHeight = drawUsedByLines(graphics, font, block.direct(), block.links(), usedByX, y - TEXT_NUDGE,
                 usedByWidth, block.name(), targets);
-        ButtonPainter.drawColored(graphics, font, DELETE, RED, bounds.right() - deleteWidth,
-                y - ButtonPainter.TEXT_NUDGE, ButtonPainter.HEIGHT, targets, () -> askDelete(block.name()),
-                BuilderOverlays.hintKey(DELETE_HINT));
+        drawRemoval(graphics, font, block.name(), bounds.right(), y, targets);
         return usedByHeight;
+    }
+
+    // A marked prefab's name reads dimmed and struck through, so the operator sees what the save removes.
+    // Decision every-delete-marks-for-removal-and-a-gold-arrow-restores.
+    private void drawName(GuiGraphicsExtractor graphics, Font font, String name, int x, int y) {
+        if (!isMarked(name)) {
+            graphics.text(font, name, x, y, WHITE);
+            return;
+        }
+        graphics.text(font, name, x, y, GRAY);
+        graphics.fill(x, y + STRIKE_DROP, x + font.width(name), y + STRIKE_DROP + 1, GRAY);
+    }
+
+    // The red x at the row's right end marks the prefab; a marked prefab's gold arrow in its place restores it.
+    // Decision every-delete-marks-for-removal-and-a-gold-arrow-restores.
+    private void drawRemoval(GuiGraphicsExtractor graphics, Font font, String name, int right, int y,
+                             ClickTargets targets) {
+        int top = y - ButtonPainter.TEXT_NUDGE;
+        if (isMarked(name)) {
+            ButtonPainter.drawColored(graphics, font, ButtonPainter.RESTORE, ButtonPainter.GOLD,
+                    right - ButtonPainter.width(font, ButtonPainter.RESTORE), top, ButtonPainter.HEIGHT, targets,
+                    () -> draft.removals().restore(RemovalMarks.Tab.PREFABS, name),
+                    BuilderOverlays.hintKey(RESTORE_HINT));
+            return;
+        }
+        ButtonPainter.drawColored(graphics, font, DELETE, RED, right - ButtonPainter.width(font, DELETE), top,
+                ButtonPainter.HEIGHT, targets, () -> askDelete(name), BuilderOverlays.hintKey(DELETE_HINT));
     }
 
     // A resolved tree draws each type as its icon beside its amount (decision goo-types-draw-as-icons-named-on-hover),
@@ -521,9 +551,42 @@ final class VariablesPane {
         });
     }
 
+    /**
+     * Deletes every marked prefab, in mark order, each with its cascade, then runs the draft's write; a prefab an
+     * earlier delete's cascade already removed drops its mark, and one whose delete is refused keeps it while the
+     * status says why.
+     * Decision every-delete-marks-for-removal-and-a-gold-arrow-restores.
+     *
+     * @param then the draft's write
+     */
+    void applyRemovals(Runnable then) {
+        deleteMarked(new ArrayDeque<>(draft.removals().marked(RemovalMarks.Tab.PREFABS)), then);
+    }
+
+    private void deleteMarked(Deque<String> pending, Runnable then) {
+        String name = pending.poll();
+        if (name == null) {
+            then.run();
+            return;
+        }
+        if (variables.blocks().stream().noneMatch(block -> block.name().equals(name))) {
+            draft.removals().restore(RemovalMarks.Tab.PREFABS, name);
+            deleteMarked(pending, then);
+            return;
+        }
+        if (variables.editing().filter(name::equals).isPresent()) {
+            variables.stopEditing();
+        }
+        actions.stream(WorkbenchOperations.DELETE_CONSTANT, variables.deleteRequest(name), line -> { }, left -> {
+            draft.readEdited(left);
+            draft.removals().restore(RemovalMarks.Tab.PREFABS, name);
+            deleteMarked(pending, then);
+        }, refused -> deleteMarked(pending, then));
+    }
+
     private void askDelete(String name) {
         if (variables.deletionCascade(name).isEmpty()) {
-            delete(name);
+            markForRemoval(name);
             return;
         }
         deleting = name;
@@ -531,16 +594,15 @@ final class VariablesPane {
         show(visible);
     }
 
-    private void delete(String name) {
+    private void markForRemoval(String name) {
         deleting = null;
-        if (variables.editing().filter(name::equals).isPresent()) {
-            variables.stopEditing();
-        }
+        draft.removals().mark(RemovalMarks.Tab.PREFABS, name);
+        actions.markUnsaved();
         show(visible);
-        actions.request(WorkbenchOperations.DELETE_CONSTANT, variables.deleteRequest(name), left -> {
-            draft.readEdited(left);
-            actions.draftChanged();
-        });
+    }
+
+    private boolean isMarked(String name) {
+        return draft.removals().isMarked(RemovalMarks.Tab.PREFABS, name);
     }
 
     private void drawDeleteDialog(GuiGraphicsExtractor graphics, Font font, GroupsPane.Bounds bounds,
@@ -605,7 +667,7 @@ final class VariablesPane {
         int x = dialog.left() + CARD_PADDING;
         int buttonY = dialog.bottom() - LINE_HEIGHT - CARD_PADDING;
         ButtonPainter.Box deleteBox = ButtonPainter.drawColored(graphics, font, CONFIRM_DELETE, RED, x,
-                buttonY - ButtonPainter.PADDING, ButtonPainter.HEIGHT, targets, () -> delete(name), null);
+                buttonY - ButtonPainter.PADDING, ButtonPainter.HEIGHT, targets, () -> markForRemoval(name), null);
         ButtonPainter.drawAtText(graphics, font, CANCEL, deleteBox.right() + ACTION_GAP * HALF, buttonY, targets, () -> {
             deleting = null;
             show(visible);

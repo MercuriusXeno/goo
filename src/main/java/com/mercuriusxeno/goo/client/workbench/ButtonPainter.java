@@ -12,6 +12,10 @@ import org.jspecify.annotations.Nullable;
 final class ButtonPainter {
     /** The one link color: a button's label and border, and a prefab named inside an expression. */
     static final int LINK = 0xFF80C0FF;
+    /** The gold a restore arrow draws in (decision every-delete-marks-for-removal-and-a-gold-arrow-restores). */
+    static final int GOLD = 0xFFE0C060;
+    /** The circular arrow a restore button reads. */
+    static final String RESTORE = "↺";
     /** A button's height. */
     static final int HEIGHT = 14;
     /** The room between the border and the label on either side. */
