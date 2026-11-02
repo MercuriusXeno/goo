@@ -507,6 +507,55 @@ class ValuesPaneTest {
     }
 
     /**
+     * Opening the builder on an item with no entry, adding a type row and pressing Cancel leaves the draft with no
+     * entry for the item, and its row reads Value: Not explicitly set again (decision
+     * cancelling-a-new-entry-leaves-nothing).
+     */
+    @Test
+    void cancellingANewEntryLeavesTheItemWithNoEntry() {
+        ManagerDraft draft = new ManagerDraft();
+        ValuesTab values = new ValuesTab(draft);
+        values.readEntries(new ListedEntrySource(
+                List.of(new ManagerEntrySource.ItemName("minecraft:gravel", "Gravel")), List.of()));
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        ValuesPane pane = new ValuesPane(values, icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        GroupsPane.Bounds view = new GroupsPane.Bounds(0, 0, 500, 300);
+        DrawnFrame closed = new DrawnFrame();
+        pane.extract(closed.graphics, DrawnFrame.font(), view, closed.targets);
+        closed.click(ReadValueButton.NOT_SET);
+        DrawnFrame open = new DrawnFrame();
+        pane.extract(open.graphics, DrawnFrame.font(), view, open.targets);
+        open.click("+");
+        DrawnFrame picking = new DrawnFrame();
+        pane.extract(picking.graphics, DrawnFrame.font(), view, picking.targets);
+        pickType(picking, "metal");
+        assertTrue(values.hasEntry("minecraft:gravel"), "the type row wrote an entry");
+        DrawnFrame changed = new DrawnFrame();
+        pane.extract(changed.graphics, DrawnFrame.font(), view, changed.targets);
+        changed.click("✗ Cancel");
+        assertTrue(!values.hasEntry("minecraft:gravel"), "the cancelled entry stands in the draft");
+        DrawnFrame after = new DrawnFrame();
+        pane.extract(after.graphics, DrawnFrame.font(), view, after.targets);
+        assertTrue(after.texts().contains(ReadValueButton.NOT_SET), after.texts().toString());
+    }
+
+    // Clicks the type picker's cell for a goo type, found by its hover across the screen.
+    private static void pickType(DrawnFrame frame, String type) {
+        String key = GooTypeIcons.hoverKey(type);
+        for (int y = 0; y < DrawnFrame.SCREEN_HEIGHT; y += 2) {
+            for (int x = 0; x < DrawnFrame.SCREEN_WIDTH; x += 2) {
+                if (frame.targets.hovered(x, y).filter(key::equals).isPresent()) {
+                    assertTrue(frame.targets.click(x, y));
+                    return;
+                }
+            }
+        }
+        throw new AssertionError(type + " not in the picker: " + frame.targets.hoverKeys());
+    }
+
+    /**
      * One wheel notch moves the Items list by the pixel step, not by a row (decision items-list-scrolls-by-pixel).
      */
     @Test
