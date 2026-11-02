@@ -259,6 +259,17 @@ class ExpressionBuilderPaneTest {
             assertEquals("$base - $base", builder.written.getLast());
         }
 
+        // Decision amount-modes-name-what-the-amount-comes-from: a number term names its amount's source, so a type
+        // row's amount takes a prefab's quantity in place of the number.
+        @Test
+        void numberTermTakesAPrefabsQuantityThroughItsAmountMode() {
+            Builder builder = Builder.prefab(PREFABS, "{\"metal\": \"5\"}");
+            builder.frame().click(dropdown("number"));
+            builder.frame().click("prefab");
+            builder.frame().click("base");
+            assertEquals("{\"metal\": \"$base\"}", builder.written.getLast());
+        }
+
         @Test
         void cancelThenDoneStandAtTheLastLinesRightEnd() {
             Builder builder = Builder.item("$waxed");
