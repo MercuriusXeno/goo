@@ -268,6 +268,19 @@ class VariablesPaneTest {
         assertEquals(listRight - 6 - ButtonPainter.PADDING, cross.x());
     }
 
+    /**
+     * Every tooltip hint a drawn Prefabs frame registers reads Rename or Delete
+     * (decision values-manager-controls-carry-no-tooltip-but-rename-delete-and-names).
+     */
+    @Test
+    void everyTooltipHintIsRenameOrDelete() {
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, font, TALL_VIEW, frame.targets, 0, 0);
+        List<String> hints = frame.targets.hoverKeys().stream().map(BuilderOverlays::tooltipFor)
+                .flatMap(java.util.Optional::stream).map(component -> component.getString()).distinct().toList();
+        assertEquals(List.of("Rename", "Delete"), hints.stream().sorted(java.util.Comparator.reverseOrder()).toList());
+    }
+
     private static final int GAME_LINE_HEIGHT = 9;
     private static final int SPRITE = 16;
 
