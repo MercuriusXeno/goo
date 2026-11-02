@@ -519,6 +519,47 @@ class GroupsPaneTest {
         }
     }
 
+    /**
+     * Copper's card, which the iterator #exposed sources, draws Used by under its Members line with a link naming the
+     * iterator that a shift + left click follows to its row; logs, which nothing iterates, draws no Used by line
+     * (decision group-card-lists-its-referents-as-iterator-links).
+     */
+    @Test
+    void cardListsTheIteratorsSourcingItAsLinks() {
+        ManagerDraft draft = new ManagerDraft();
+        draft.read("""
+                {"path": "base_values.json", "members": [
+                  {"key": "_conversions", "keySeparator": null, "kind": "OBJECT", "text": "", "entries": [
+                     {"key": "#exposed", "keySeparator": null, "kind": "VALUE",
+                      "text": "\\"#copper @exposed_metal\\"", "entries": [], "leading": null, "trailing": null,
+                      "closingGap": null}],
+                   "leading": null, "trailing": null, "closingGap": null}]}""");
+        GroupsTab groups = new GroupsTab(draft);
+        groups.readDescribed("""
+                {"groups": [
+                  {"name": "copper", "kind": "group", "members": [{"id": "minecraft:copper_block", "known": true}],
+                   "base": "8", "tweaks": [], "preview": []},
+                  {"name": "logs", "kind": "group", "members": [{"id": "minecraft:oak_log", "known": true}],
+                   "base": "4", "tweaks": [], "preview": []}]}""");
+        ManagerActions actions = mock(ManagerActions.class);
+        ItemIcons icons = mock(ItemIcons.class);
+        when(icons.nameOf(anyString())).thenAnswer(call -> call.getArgument(0));
+        GroupsPane pane = new GroupsPane(groups, new ValuesTab(draft), icons, actions,
+                new ExpressionBuilderPane(actions, icons, List::of, List::of));
+        DrawnFrame frame = new DrawnFrame();
+        pane.extract(frame.graphics, DrawnFrame.font(), new GroupsPane.Bounds(0, 0, 500, 300), frame.targets);
+        List<DrawnFrame.Text> members = frame.drawn().stream().filter(text -> text.text().equals("Members:")).toList();
+        List<DrawnFrame.Text> usedBy = frame.drawn().stream().filter(text -> text.text().equals("Used by ")).toList();
+        assertEquals(1, usedBy.size(), frame.drawn().toString());
+        int logs = frame.find("#logs").y();
+        assertTrue(usedBy.getFirst().y() > members.getFirst().y() && usedBy.getFirst().y() < logs, usedBy.toString());
+        DrawnFrame.Text link = frame.find("#exposed");
+        assertEquals(ButtonPainter.LINK, link.color());
+        assertTrue(Math.abs(link.y() - usedBy.getFirst().y()) < ExpressionLines.TEXT_LINE_HEIGHT, link.toString());
+        frame.shiftClick("#exposed");
+        verify(actions).openMutator("#exposed");
+    }
+
     @Test
     void wideNameHoversWhole() {
         String key = GroupsPane.nameHoverKey(font(), WIDE, 78).orElseThrow();

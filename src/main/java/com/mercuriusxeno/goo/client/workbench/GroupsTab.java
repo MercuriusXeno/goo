@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mercuriusxeno.goo.workbench.Processes;
 import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
@@ -49,6 +50,7 @@ public final class GroupsTab {
     private static final String NAMESPACE_MARK = ":";
     private static final String KEY = "key";
     private static final String TEXT = "text";
+    private static final String CONVERSIONS = "_conversions";
     private static final String ENTRIES = "entries";
     private static final String GROUPS_SECTION = "_groups";
     // A #name reference stands whole: no name character or namespace mark runs on either side of it.
@@ -225,6 +227,32 @@ public final class GroupsTab {
      */
     public Optional<Group> group(String name) {
         return groups.stream().filter(group -> group.name().equals(name)).findFirst();
+    }
+
+    /**
+     * @param name a group's name
+     * @return the iterators whose source names it, by key, in file order
+     */
+    public List<String> referents(String name) {
+        // Decision group-card-lists-its-referents-as-iterator-links.
+        List<String> found = new ArrayList<>();
+        for (JsonElement element : draft.sectionEntries(CONVERSIONS)) {
+            JsonObject entry = element.getAsJsonObject();
+            String key = text(entry, KEY);
+            if (key != null && sourceOf(key, text(entry, TEXT)).filter(name::equals).isPresent()) {
+                found.add(key);
+            }
+        }
+        return List.copyOf(found);
+    }
+
+    // The group an iterator's assignment copies from, empty for a mutator or a line no form reads.
+    private static Optional<String> sourceOf(String key, @Nullable String value) {
+        if (value == null || !ProcessesTab.isIterator(key)) {
+            return Optional.empty();
+        }
+        return Processes.parse(key, value) instanceof Processes.Assignment assignment
+                ? Optional.of(assignment.source()) : Optional.empty();
     }
 
     /**
